@@ -18,7 +18,7 @@ using System.Text.Json;
 
 namespace SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 
-/// <summary>拥有整单草稿编辑、选源和保存；不执行库存过账或反向业务。</summary>
+/// <summary>拥有草稿编辑、保存及过账确认交互；实际库存事务由后端执行。</summary>
 public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     private readonly IPackingListApi _api;
@@ -33,15 +33,20 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private string? _saveFingerprint;
     private Guid _saveCommandId;
     private Guid _uid;
+    private bool _lastSaveSucceeded;
     /// <summary>独立详情页路由，使用客户端单据 Uid 作为稳定页签身份。</summary>
     public const string RouteKey = "shipping.packing-list-detail";
     /// <summary>注入窄 API、参考缓存和 UI 边界，不直接创建视图。</summary>
     public PackingListDetailViewModel(IPackingListApi api, IApiCallRunner runner, IReferenceDataCacheService cache,
         IPackingListSourcePickerService sources, INavigationService navigation,
-        IDialogService dialogs, IMessageService messages)
+        IDialogService dialogs, IMessageService messages,
+        IPackingListPostingDialogService? postingDialogs = null,
+        SwiftExportClient.Authentication.ICurrentUserService? postingUser = null)
     {
         _api = api; _runner = runner; _cache = cache; _sources = sources;
         _navigation = navigation; _dialogs = dialogs; _messages = messages;
+        _postingDialogs = postingDialogs; _postingUser = postingUser;
+        if (_postingUser != null) _postingUser.CurrentUserChanged += OnPostingUserChanged;
         IsReadOnly = true;
         Header.PropertyChanged += OnHeaderChanged;
         Lines.ListStateChanged += OnLinesChanged;
@@ -57,7 +62,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     [ObservableProperty] public partial PackingListLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; private set; } = "草稿保存以服务端来源额度复核结果为准。";
     /// <summary>仅成功加载的有效未过账草稿可编辑，弹窗或写入期间冻结。</summary>
-    public bool IsEditable => !_disposed && _loaded && !IsReadOnly && !IsBusy && !_dialogOpen;
+    public bool IsEditable => !_disposed && _loaded && !IsReadOnly && !IsBusy && !_dialogOpen && !HasPendingPosting;
     /// <summary>只读单据仍可浏览、选行和复制；写入或弹窗期间暂停交互。</summary>
     public bool CanInteractWithLines => !_disposed && _loaded && !IsBusy && !_dialogOpen;
     /// <summary>有物理行后不允许换客户，避免来源跨客户。</summary>
@@ -91,7 +96,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     }
     /// <summary>加载失败不把现有单据误当成新建；重试只读初始化。</summary>
     [RelayCommand]
-    private Task ReloadAsync() => _disposed || IsBusy || _dialogOpen || HasUnsavedChanges || _isNew ? Task.CompletedTask :
+    private Task ReloadAsync() => _disposed || IsBusy || _dialogOpen || HasPendingPosting || HasUnsavedChanges || _isNew ? Task.CompletedTask :
         RunBusyAsync(() => LoadAsync(_lifetime.Token), "重新加载…");
     private async Task LoadAsync(CancellationToken token)
     {
@@ -130,6 +135,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private async Task SaveAsync()
     {
+        _lastSaveSucceeded = false;
         if (!IsEditable) return;
         if (CommitEdits?.Invoke() == false) { ReportValidationWarning("请先修正表格输入格式。"); return; }
         if (Header.CustomerId == Guid.Empty || string.IsNullOrWhiteSpace(Header.CustomerNameSnapshot))
@@ -174,6 +180,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
                 ReportValidationWarning(result.Success ? "保存响应不完整，编辑内容已保留。" : result.Message); return;
             }
             _isNew = false; _saveFingerprint = null; ApplyDetail(result.Data.Detail);
+            _lastSaveSucceeded = true;
             ResultSummary = result.Data.AlreadyApplied ? "已接纳此前成功保存的结果。" : "草稿已保存。";
         }, "保存箱单…");
     }
@@ -326,13 +333,11 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         }
         finally { _dialogOpen = false; NotifyState(); }
     }
-    [RelayCommand] private void Post() => _messages.ShowWarning("待开发", "过账及自动入出库待开发，本次未修改数据。");
-    [RelayCommand] private void Reverse() => _messages.ShowInfo("待开发", "反过账待开发，本次未修改数据。");
     [RelayCommand] private Task CloseAsync() => _navigation.CloseAsync(_navigation.OpenTabs.FirstOrDefault(x => ReferenceEquals(x.ContentViewModel, this)));
     /// <inheritdoc/>
     public async Task<bool> CanCloseAsync(CancellationToken token)
     {
-        if (IsBusy || _dialogOpen) return false;
+        if (IsBusy || _dialogOpen || HasPendingPosting) return false;
         // 提交编辑器可能刚刚产生脏状态，必须先提交再决定是否需要关闭确认。
         var editorsValid = CommitEdits?.Invoke() != false;
         if (!HasUnsavedChanges && editorsValid) return true;
@@ -352,7 +357,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         OnPropertyChanged(nameof(CanEditFacts));
         OnPropertyChanged(nameof(CanInteractWithLines));
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, MoveLineUpCommand,
-            MoveLineDownCommand, SplitTailCommand, UndoCommand }) command.NotifyCanExecuteChanged();
+            MoveLineDownCommand, SplitTailCommand, UndoCommand, PostCommand, ReverseCommand, TraceCommand }) command.NotifyCanExecuteChanged();
     }
     /// <summary>阻断性错误同时保留页面摘要并提示一次；释放后的页面不再发出通知。</summary>
     private void ReportValidationWarning(string? message)
@@ -379,5 +384,6 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         if (_disposed) return;
         _disposed = true; _lifetime.Cancel(); _lifetime.Dispose(); CommitEdits = null;
         Header.PropertyChanged -= OnHeaderChanged; Lines.ListStateChanged -= OnLinesChanged; PropertyChanged -= OnPageChanged;
+        if (_postingUser != null) _postingUser.CurrentUserChanged -= OnPostingUserChanged;
     }
 }

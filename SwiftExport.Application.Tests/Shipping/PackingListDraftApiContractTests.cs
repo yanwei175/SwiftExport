@@ -25,8 +25,9 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(controller, "api/shipping/packing-lists");
         StringAssert.Contains(controller, "[Authorize]");
         StringAssert.Contains(controller, "PermissionKeys.ModuleShippingAccess");
-        Assert.IsFalse(controller.Contains("PostAsync", StringComparison.Ordinal));
-        Assert.IsFalse(controller.Contains("ReverseAsync", StringComparison.Ordinal));
+        // 第二阶段新增独立过账命令；继续保留原草稿路由和模块授权断言。
+        StringAssert.Contains(controller, "PermissionKeys.PackingListPost");
+        StringAssert.Contains(controller, "PermissionKeys.PackingListReverse");
     }
 
     [TestMethod]
@@ -56,7 +57,11 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListLine]");
         Assert.IsFalse(baseline.Contains("PackingListDocument", StringComparison.Ordinal));
         var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseSiteRepository.cs");
-        StringAssert.Contains(warehouse, "dbo.PackingListLine");
+        // 箱单行已按确认方案移除仓库关联，实际库存仓库由流水保护，不能恢复旧行列依赖。
+        foreach (var removed in new[] { "WarehouseSiteId", "WarehouseCodeSnapshot", "WarehouseNameSnapshot" })
+            Assert.IsNull(typeof(SwiftExport.Core.Entities.Shipping.PackingListLine).GetProperty(removed));
+        StringAssert.Contains(warehouse, "dbo.InventoryLedgerEntry WHERE WarehouseSiteId=@WarehouseSiteId");
+        Assert.IsFalse(warehouse.Contains("dbo.PackingListLine", StringComparison.Ordinal));
         Assert.IsFalse(warehouse.Contains("dbo.PackingListContributionLine", StringComparison.Ordinal));
     }
 

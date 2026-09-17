@@ -27,6 +27,7 @@
                 <ui:Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="8,0,0,0" MinWidth="70"/>
                 <ui:Button Content="过账" Command="{Binding PostCommand}" Margin="8,0,0,0" MinWidth="70"/>
                 <ui:Button Content="反过账" Command="{Binding ReverseCommand}" Margin="8,0,0,0" MinWidth="70"/>
+                <ui:Button Content="执行追踪" Command="{Binding TraceCommand}" Margin="8,0,0,0" MinWidth="70"/>
             </StackPanel>
 
             <TextBlock Grid.Column="0" Grid.ColumnSpan="10"

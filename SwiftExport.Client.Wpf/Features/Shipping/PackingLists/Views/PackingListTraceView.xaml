@@ -1,0 +1,15 @@
+<UserControl x:Class="SwiftExportClient.Features.Shipping.PackingLists.Views.PackingListTraceView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="650" MinWidth="850"><StackPanel Margin="12">
+<TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+<ItemsControl ItemsSource="{Binding Executions}"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,0,0,16">
+<StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Operation, StringFormat=操作（1过账/2反向）：{0}}" Margin="0,0,16,8"/><TextBlock Text="{Binding BusinessDate, StringFormat=业务日期：{0:yyyy-MM-dd}}"/><TextBlock Text="{Binding CreatedBy}" Margin="16,0,0,0"/></StackPanel>
+<TextBlock Text="{Binding Reason}" TextWrapping="Wrap"/>
+<DataGrid ItemsSource="{Binding Lines}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="260"><DataGrid.Columns>
+<DataGridTextColumn Header="动作" Binding="{Binding ActionKind}"/><DataGridTextColumn Header="数量" Binding="{Binding Qty}"/><DataGridTextColumn Header="单位" Binding="{Binding Unit}"/>
+<DataGridTextColumn Header="单据编号" Binding="{Binding DocumentNo}"/><DataGridTextColumn Header="流水" Binding="{Binding LedgerId}"/>
+<DataGridTextColumn Header="来源需求" Binding="{Binding GrossDemandId}"/><DataGridTextColumn Header="箱单物理行" Binding="{Binding PackingListLineId}"/>
+<DataGridTextColumn Header="原执行行" Binding="{Binding OriginalExecutionLineId}"/>
+<DataGridTextColumn Header="根需求量" Binding="{Binding RootQtySnapshot}"/><DataGridTextColumn Header="子需求量" Binding="{Binding ComponentQtySnapshot}"/>
+</DataGrid.Columns></DataGrid></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+</StackPanel></ScrollViewer>
+</UserControl>

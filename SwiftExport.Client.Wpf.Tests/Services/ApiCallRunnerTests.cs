@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
+using System.Net.Http;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Services.Api;
 

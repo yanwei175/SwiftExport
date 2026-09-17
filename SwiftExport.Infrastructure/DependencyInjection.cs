@@ -96,6 +96,8 @@ public static class DependencyInjection
         services.AddScoped<IAutomaticDocumentRepository, AutomaticDocumentRepository>();
         services.AddScoped<IOutboundManagerRepository, OutboundManagerRepository>();
         services.AddScoped<IPackingListRepository, PackingListRepository>();
+        services.AddScoped<IPackingListPostingFactsRepository, PackingListPostingFactsRepository>();
+        services.AddScoped<IPackingListExecutionRepository, PackingListExecutionRepository>();
         services.AddScoped<ISourceDeliveryQueryRepository, SourceDeliveryQueryRepository>();
 
         services.AddScoped<SwiftExport.Core.Interfaces.QualityControl.IAfterSalesRepository, SwiftExport.Infrastructure.Repositories.QualityControl.AfterSalesRepository>();

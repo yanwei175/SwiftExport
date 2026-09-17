@@ -1,0 +1,8 @@
+<UserControl x:Class="SwiftExportClient.Features.Shipping.PackingLists.Views.PackingListPostingOptionsView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<StackPanel Margin="16" MinWidth="400">
+<TextBlock Text="库存业务日期（不改变 InvoiceDate）" Margin="0,0,0,8"/>
+<DatePicker SelectedDate="{Binding BusinessDate, Mode=TwoWay}" AutomationProperties.Name="库存业务日期"/>
+<TextBlock Text="反过账原因（反向时必填，最多 2000 字）" Margin="0,16,0,8"/>
+<TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsReverse}" AcceptsReturn="True" TextWrapping="Wrap" MaxLength="2000" MinHeight="80" AutomationProperties.Name="反过账原因"/>
+</StackPanel>
+</UserControl>

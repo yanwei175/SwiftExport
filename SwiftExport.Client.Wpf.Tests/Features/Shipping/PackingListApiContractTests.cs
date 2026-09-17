@@ -8,16 +8,21 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Shipping;
 
-/// <summary>冻结尚未接后端的装箱单草稿路由、取消和序列化边界。</summary>
+/// <summary>验证装箱单草稿、过账及追踪路由、取消和序列化边界。</summary>
 [TestClass]
 public sealed class PackingListApiContractTests
 {
-    /// <summary>路由、请求体与返回契约一致，不提前暴露过账接口。</summary>
+    /// <summary>批准的十一条路由、请求体与返回契约保持完整一致。</summary>
     [TestMethod]
     public void RoutesAndSignaturesMatchHandoff()
     {
         var specs = new (string Method, string Path, Type Attribute, Type? Body, Type Data)[]
         {
+            ("PostPreviewAsync", "/{uid}/post-preview", typeof(PostAttribute), typeof(PackingListPostPreviewRequest), typeof(PackingListPostingPreviewDto)),
+            ("PostAsync", "/{uid}/post", typeof(PostAttribute), typeof(PostPackingListCommand), typeof(PackingListPostingCommandResult)),
+            ("ReversePreviewAsync", "/{uid}/reverse-preview", typeof(PostAttribute), typeof(PackingListReversePreviewRequest), typeof(PackingListPostingPreviewDto)),
+            ("ReverseAsync", "/{uid}/reverse", typeof(PostAttribute), typeof(ReversePackingListCommand), typeof(PackingListPostingCommandResult)),
+            ("TraceAsync", "/{uid}/trace", typeof(GetAttribute), null, typeof(PackingListTraceDto)),
             ("SearchAsync", "/search", typeof(PostAttribute), typeof(PackingListManagerSearchRequest), typeof(PagedResponseBase<PackingListManagerListItemDto>)),
             ("GetAsync", "/{uid}", typeof(GetAttribute), null, typeof(PackingListDetailDto)),
             ("SearchSourcesAsync", "/sources/search", typeof(PostAttribute), typeof(PackingListSourceSearchRequest), typeof(PagedResponseBase<PackingListSourceCandidateDto>)),

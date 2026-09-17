@@ -57,14 +57,15 @@ public sealed class WpfUiDialogServiceTests
                 var shellOrigin = shell.TranslatePoint(new Point(), host);
                 var margin = dialog.DialogMargin;
 
-                Assert.IsGreaterThanOrEqualTo(shellOrigin.X, margin.Left - 0.5);
-                Assert.IsGreaterThanOrEqualTo(shellOrigin.Y, margin.Top - 0.5);
+                // MSTest 比较断言先传边界、后传实际值；命名参数避免把包含关系反转。
+                Assert.IsGreaterThanOrEqualTo(lowerBound: margin.Left - 0.5, value: shellOrigin.X);
+                Assert.IsGreaterThanOrEqualTo(lowerBound: margin.Top - 0.5, value: shellOrigin.Y);
                 Assert.IsLessThanOrEqualTo(
-                    shellOrigin.X + shell.ActualWidth,
-                    host.ActualWidth - margin.Right + 0.5);
+                    upperBound: host.ActualWidth - margin.Right + 0.5,
+                    value: shellOrigin.X + shell.ActualWidth);
                 Assert.IsLessThanOrEqualTo(
-                    shellOrigin.Y + shell.ActualHeight,
-                    host.ActualHeight - margin.Bottom + 0.5);
+                    upperBound: host.ActualHeight - margin.Bottom + 0.5,
+                    value: shellOrigin.Y + shell.ActualHeight);
 
                 var title = FindVisualDescendant<ContentPresenter>(
                     shell,
@@ -72,8 +73,8 @@ public sealed class WpfUiDialogServiceTests
                 var closeButton = dialog.Template.FindName("CloseButton", dialog) as FrameworkElement;
                 Assert.IsNotNull(title);
                 Assert.IsNotNull(closeButton);
-                Assert.IsGreaterThan(title.ActualHeight, 0);
-                Assert.IsGreaterThan(closeButton.ActualHeight, 0);
+                Assert.IsGreaterThan(lowerBound: 0, value: title.ActualHeight);
+                Assert.IsGreaterThan(lowerBound: 0, value: closeButton.ActualHeight);
                 AssertInsideShell(title, shell);
                 AssertInsideShell(closeButton, shell);
 
@@ -164,6 +165,8 @@ public sealed class WpfUiDialogServiceTests
             host.Height = 480;
             host.Measure(new Size(640, 480));
             host.Arrange(new Rect(0, 0, 640, 480));
+            // 手动 Arrange 后完成布局周期，才能发送真实 SizeChanged 并验证服务订阅。
+            host.UpdateLayout();
             Assert.AreEqual(640, dialog.DialogMaxWidth);
             Assert.AreEqual(480, dialog.DialogMaxHeight);
             return Task.FromResult(WpfDialogResult.Secondary);
@@ -197,6 +200,7 @@ public sealed class WpfUiDialogServiceTests
         host.Height = 240;
         host.Measure(new Size(320, 240));
         host.Arrange(new Rect(0, 0, 320, 240));
+        host.UpdateLayout();
         Assert.IsTrue(captured.IsPrimaryButtonEnabled, "完成后不应再接收状态变化。");
         Assert.AreEqual(640, captured.DialogMaxWidth, "完成后不应再接收宿主尺寸事件。");
         Assert.AreEqual(480, captured.DialogMaxHeight);
@@ -257,12 +261,12 @@ public sealed class WpfUiDialogServiceTests
 
         using var cancellation = new CancellationTokenSource();
         var pending = service.ShowAsync("第一个", new DialogOptions("第一个"), state, cancellation.Token);
-        await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => service.ShowAsync("第二个", new DialogOptions("第二个")));
 
         cancellation.Cancel();
         firstCompletion.TrySetCanceled(cancellation.Token);
-        await Assert.ThrowsExceptionAsync<TaskCanceledException>(async () => await pending);
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(async () => await pending);
         Assert.AreEqual(1, state.AddCount);
         Assert.AreEqual(1, state.RemoveCount);
 
@@ -277,27 +281,27 @@ public sealed class WpfUiDialogServiceTests
     {
         var missingHost = new WpfUiDialogService(CreateContentDialogService(null, (_, _) =>
             throw new AssertFailedException("无宿主时不应调用 ShowAsync。")));
-        await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => missingHost.ShowAsync("正文", new DialogOptions("标题")));
 
         var host = CreateHost(800, 500);
         var service = new WpfUiDialogService(CreateContentDialogService(host, (_, _) =>
             throw new AssertFailedException("非法尺寸不应进入 ShowAsync。")));
-        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
             () => service.ShowAsync("正文", new DialogOptions("标题") { Width = 0 }));
-        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
             () => service.ShowAsync("正文", new DialogOptions("标题") { MaxHeight = double.PositiveInfinity }));
-        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
             () => service.ShowAsync("正文", new DialogOptions("标题") { WidthRatio = 0 }));
-        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
             () => service.ShowAsync("正文", new DialogOptions("标题") { HeightRatio = double.NaN }));
-        await Assert.ThrowsExceptionAsync<ArgumentOutOfRangeException>(
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
             () => service.ShowAsync("正文", new DialogOptions("标题") { WidthRatio = 1.01 }));
-        await Assert.ThrowsExceptionAsync<ArgumentException>(
+        await Assert.ThrowsExactlyAsync<ArgumentException>(
             () => service.ShowAsync(
                 "正文",
                 new DialogOptions("标题") { Width = 500, WidthRatio = 0.8 }));
-        await Assert.ThrowsExceptionAsync<ArgumentException>(
+        await Assert.ThrowsExactlyAsync<ArgumentException>(
             () => service.ShowAsync(
                 "正文",
                 new DialogOptions("标题") { Height = 400, HeightRatio = 0.8 }));
@@ -440,10 +444,10 @@ public sealed class WpfUiDialogServiceTests
     private static void AssertInsideShell(FrameworkElement child, FrameworkElement shell)
     {
         var origin = child.TranslatePoint(new Point(), shell);
-        Assert.IsGreaterThanOrEqualTo(origin.X, -0.5);
-        Assert.IsGreaterThanOrEqualTo(origin.Y, -0.5);
-        Assert.IsLessThanOrEqualTo(origin.X + child.ActualWidth, shell.ActualWidth + 0.5);
-        Assert.IsLessThanOrEqualTo(origin.Y + child.ActualHeight, shell.ActualHeight + 0.5);
+        Assert.IsGreaterThanOrEqualTo(lowerBound: -0.5, value: origin.X);
+        Assert.IsGreaterThanOrEqualTo(lowerBound: -0.5, value: origin.Y);
+        Assert.IsLessThanOrEqualTo(upperBound: shell.ActualWidth + 0.5, value: origin.X + child.ActualWidth);
+        Assert.IsLessThanOrEqualTo(upperBound: shell.ActualHeight + 0.5, value: origin.Y + child.ActualHeight);
     }
 
     /// <summary>按类型和条件查找模板中的首个可视元素。</summary>
@@ -495,7 +499,7 @@ public sealed class WpfUiDialogServiceTests
     }
 
     /// <summary>为测试提供只实现所需方法的 IContentDialogService 动态替身。</summary>
-    private sealed class DialogServiceProxy : DispatchProxy
+    public class DialogServiceProxy : DispatchProxy
     {
         public Func<MethodInfo, object?[]?, object?> Handler { get; set; } = null!;
 

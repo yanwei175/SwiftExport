@@ -21,6 +21,16 @@ using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Inventory;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Services.Auth;
+using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Shipping;
+using SwiftExport.Application.Services.Shipping;
+using SwiftExport.Core.Entities.DemandPlanning;
+using SwiftExport.Core.Entities.Shipping;
+using SwiftExport.Core.Interfaces.Shipping;
+using SwiftExport.Infrastructure.Repositories.Shipping;
+using SwiftExport.Contracts.SysEnums.Inventory;
+using SwiftExport.Contracts.SysEnums.Shipping;
+using Proxy = SwiftExport.Application.Tests.Shipping.PackingListPostingCoordinatorTests.Proxy;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
@@ -29,6 +39,129 @@ namespace SwiftExport.Application.Tests.Inventory;
 [DoNotParallelize]
 public sealed class AutomaticPostingSqlServerTests
 {
+    /// <summary>客供件没有自身采购 Link 时按实际库存耗用，整单反向恢复原仓原量。</summary>
+    [TestMethod]
+    [TestCategory("SqlServerIntegration")]
+    public async Task PackingListConsumesUnlinkedComponentAndRestoresItsStock()
+    {
+        var connection = ConnectionString();
+        using var f = new Fixture(connection);
+        var seed = await f.SeedPackingListAsync(includeComponent: true);
+        var service = f.PackingCoordinator();
+        var preview = await service.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
+        Assert.AreEqual(0, preview.Blockers.Count);
+        Assert.AreEqual(4m, preview.Actions.Single(x => x.Kind == "Consumption").Qty);
+        var posted = await service.PostAsync(new(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!), default);
+        Assert.AreEqual(3, await f.CountPackingLedgers(seed));
+        Assert.AreEqual(0m, await f.Session.Connection.ExecuteScalarAsync<decimal>(
+            "SELECT OnHandQty FROM dbo.InventoryBalance WHERE WarehouseSiteId=@Warehouse AND ProductId=@Component", seed));
+        using var reversing = new Fixture(connection);
+        var reverseService = reversing.PackingCoordinator();
+        var reversePreview = await reverseService.ReversePreviewAsync(seed.Packing, posted.Detail!.Header.Version, DateTime.Today, "客供件测试恢复", default);
+        Assert.AreEqual(0, reversePreview.Blockers.Count);
+        await reverseService.ReverseAsync(new(seed.Packing, Guid.NewGuid(), posted.Detail.Header.Version, DateTime.Today, "客供件测试恢复", reversePreview.Token!), default);
+        Assert.AreEqual(6, await reversing.CountPackingLedgers(seed));
+        Assert.AreEqual(4m, await reversing.Session.Connection.ExecuteScalarAsync<decimal>(
+            "SELECT OnHandQty FROM dbo.InventoryBalance WHERE WarehouseSiteId=@Warehouse AND ProductId=@Component", seed));
+    }
+
+    /// <summary>第二阶段真实协调器和库存端口提交后可从独立连接看到单据、流水、执行记录，再整单反向。</summary>
+    [TestMethod]
+    [TestCategory("SqlServerIntegration")]
+    public async Task PackingListCoordinatorPostsReplaysAndReversesInRealDatabase()
+    {
+        var connection = ConnectionString();
+        using var f = new Fixture(connection);
+        var seed = await f.SeedPackingListAsync();
+        var service = f.PackingCoordinator();
+        var preview = await service.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
+        Assert.AreEqual(0, preview.Blockers.Count, string.Join(";", preview.Blockers.Select(x => x.Message)));
+        var command = new PackingListPostRequest(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!);
+        var posted = await service.PostAsync(command, default);
+        Assert.AreEqual(PackingListPostingStatusEnum.Posted, posted.Detail!.Header.PostingStatus);
+        using (var verify = new Fixture(connection))
+        {
+            Assert.AreEqual(0m, await verify.Balance(seed));
+            Assert.AreEqual(2, await verify.CountPackingLedgers(seed));
+            Assert.AreEqual(1, await verify.CountPackingExecutions(seed));
+        }
+        Assert.IsTrue((await service.PostAsync(command, default)).AlreadyApplied);
+        Assert.AreEqual(2, await f.CountPackingLedgers(seed));
+        // 新请求使用新的 scoped 服务；不在已经准备过的库存作用域上启动第二个事务。
+        using var reversing = new Fixture(connection);
+        var reverseService = reversing.PackingCoordinator();
+        var reversePreview = await reverseService.ReversePreviewAsync(seed.Packing, posted.Detail.Header.Version, DateTime.Today, "测试反向", default);
+        Assert.AreEqual(0, reversePreview.Blockers.Count);
+        var reverse = new PackingListReverseRequest(seed.Packing, Guid.NewGuid(), posted.Detail.Header.Version, DateTime.Today, "测试反向", reversePreview.Token!);
+        var reversed = await reverseService.ReverseAsync(reverse, default);
+        Assert.AreEqual(PackingListPostingStatusEnum.Reversed, reversed.Detail!.Header.PostingStatus);
+        Assert.IsTrue((await reverseService.ReverseAsync(reverse, default)).AlreadyApplied);
+        using var final = new Fixture(connection);
+        Assert.AreEqual(0m, await final.Balance(seed));
+        Assert.AreEqual(4, await final.CountPackingLedgers(seed));
+        Assert.AreEqual(2, await final.CountPackingExecutions(seed));
+    }
+
+    /// <summary>真实库存写入后执行记录失败，独立连接必须看不到任何部分单据和流水。</summary>
+    [TestMethod]
+    [TestCategory("SqlServerIntegration")]
+    public async Task PackingListExecutionFailureRollsBackRealInventoryAndStatus()
+    {
+        var connection = ConnectionString();
+        using var f = new Fixture(connection);
+        var seed = await f.SeedPackingListAsync();
+        var service = f.PackingCoordinator(failEvidence: true);
+        var preview = await service.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
+        Assert.AreEqual(0, preview.Blockers.Count);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.PostAsync(
+            new(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!), default));
+        using var verify = new Fixture(connection);
+        Assert.AreEqual(0m, await verify.Balance(seed));
+        Assert.AreEqual(0, await verify.CountPackingLedgers(seed));
+        Assert.AreEqual(0, await verify.CountPackingExecutions(seed));
+        Assert.AreEqual(0, await verify.Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT PostingStatus FROM dbo.PackingListHead WHERE Uid=@Packing", seed));
+        Assert.AreEqual(0, await verify.Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.InboundDocument WHERE TriggerPackingListId=@Packing", seed));
+        Assert.AreEqual(0, await verify.Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.OutboundDocument WHERE TriggerPackingListId=@Packing", seed));
+    }
+
+    /// <summary>两个真实连接竞争同一来源，已发十件后另一个十件箱单必须失败且不留下部分库存写入。</summary>
+    [TestMethod]
+    [TestCategory("SqlServerIntegration")]
+    public async Task CompetingPackingListsCannotDeliverSameSourceTwice()
+    {
+        var connection = ConnectionString();
+        using var first = new Fixture(connection);
+        var seed = await first.SeedPackingListAsync();
+        var secondId = await first.ClonePackingDraftAsync(seed);
+        using var second = new Fixture(connection);
+        var one = first.PackingCoordinator(); var two = second.PackingCoordinator();
+        var previewOne = await one.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
+        var previewTwo = await two.PreviewAsync(secondId, 1, DateTime.Today, default);
+        Assert.AreEqual(0, previewOne.Blockers.Count); Assert.AreEqual(0, previewTwo.Blockers.Count);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        async Task<bool> Attempt(PackingListPostingCoordinator service, Guid id, string token)
+        {
+            try { await service.PostAsync(new(id, Guid.NewGuid(), 1, DateTime.Today, token), timeout.Token); return true; }
+            catch (PackingListPostingFailure) { return false; }
+        }
+        var results = await Task.WhenAll(Task.Run(() => Attempt(one, seed.Packing, previewOne.Token!)),
+            Task.Run(() => Attempt(two, secondId, previewTwo.Token!)));
+        Assert.AreEqual(1, results.Count(x => x));
+        using var check = new Fixture(connection);
+        Assert.AreEqual(10m, await check.Session.Connection.ExecuteScalarAsync<decimal>("""
+            SELECT COALESCE(SUM(l.Qty),0) FROM dbo.PackingListLine l
+            JOIN dbo.PackingListHead h ON h.Uid=l.PackingListHeadId
+            WHERE h.Uid IN @Ids AND h.PostingStatus=1 AND h.IsDeleted=0 AND l.IsDeleted=0;
+            """, new { Ids = new[] { seed.Packing, secondId } }));
+        Assert.AreEqual(1, await check.Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.PackingListPostingExecution WHERE PackingListHeadId IN @Ids",
+            new { Ids = new[] { seed.Packing, secondId } }));
+        Assert.AreEqual(0m, await check.Balance(seed));
+    }
+
     /// <summary>真实连接同事务可见新增余额，外层回滚同时撤销单据、流水及余额。</summary>
     [TestMethod]
     [TestCategory("SqlServerIntegration")]
@@ -90,7 +223,7 @@ public sealed class AutomaticPostingSqlServerTests
 
     private static Fixture Open() => new(ConnectionString());
 
-    /// <summary>双重显式开关及测试库名前缀保护，未配置则跳过，不尝试连接。</summary>
+    /// <summary>显式开关及测试目标保护；非约定前缀库还须逐次提供已获授权的服务器和库名。</summary>
     private static string ConnectionString()
     {
         if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_AUTOMATIC_SQL_TESTS") != "1")
@@ -98,8 +231,13 @@ public sealed class AutomaticPostingSqlServerTests
         var value = Environment.GetEnvironmentVariable("SWIFTEXPORT_AUTOMATIC_TEST_CONNECTION");
         if (string.IsNullOrWhiteSpace(value)) Assert.Inconclusive("未配置专用测试数据库连接。");
         var builder = new SqlConnectionStringBuilder(value);
-        if (!builder.InitialCatalog.StartsWith("SwiftExport_AutomaticPosting_Test_", StringComparison.OrdinalIgnoreCase))
-            Assert.Fail("只允许 SwiftExport_AutomaticPosting_Test_ 前缀的独立测试库。");
+        var confirmedServer = Environment.GetEnvironmentVariable("SWIFTEXPORT_AUTOMATIC_CONFIRMED_SERVER");
+        var confirmedDatabase = Environment.GetEnvironmentVariable("SWIFTEXPORT_AUTOMATIC_CONFIRMED_DATABASE");
+        var explicitlyConfirmed = !string.IsNullOrWhiteSpace(confirmedServer) && !string.IsNullOrWhiteSpace(confirmedDatabase)
+            && string.Equals(builder.DataSource, confirmedServer, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(builder.InitialCatalog, confirmedDatabase, StringComparison.OrdinalIgnoreCase);
+        if (!builder.InitialCatalog.StartsWith("SwiftExport_AutomaticPosting_Test_", StringComparison.OrdinalIgnoreCase) && !explicitlyConfirmed)
+            Assert.Fail("非约定前缀测试库必须显式确认完全匹配的服务器与库名，不能自动使用应用连接。");
         return value!;
     }
 
@@ -112,6 +250,83 @@ public sealed class AutomaticPostingSqlServerTests
         public IOutboundPostingPort Out { get; }
         private readonly RepositoryBaseContext _repository;
 
+        /// <summary>组合真实第二阶段仓储和第一阶段端口；只有权限许可和指定失败点使用替身。</summary>
+        public PackingListPostingCoordinator PackingCoordinator(bool failEvidence = false)
+        {
+            IPackingListExecutionRepository execution = new PackingListExecutionRepository(_repository);
+            if (failEvidence)
+            {
+                var real = execution;
+                execution = Proxy.Make<IPackingListExecutionRepository>((m, a) => m switch {
+                    "IsSchemaReadyAsync" => real.IsSchemaReadyAsync((CancellationToken)a[0]!),
+                    "FindCommandAsync" => real.FindCommandAsync((Guid)a[0]!, (CancellationToken)a[1]!),
+                    "MarkAsync" => real.MarkAsync((PackingListHead)a[0]!, (int)a[1]!, (bool)a[2]!, (CancellationToken)a[3]!),
+                    "AppendAsync" => throw new InvalidOperationException("显式测试故障：库存写入后执行记录失败。"),
+                    _ => throw new NotSupportedException(m) });
+            }
+            var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
+            return new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), new PackingListRepository(_repository),
+                new PackingListPostingFactsRepository(_repository), execution, new InboundManagerRepository(_repository), Scope, In, Out,
+                new BusinessOperationLogRepository(_repository), new TestUser(), permissions);
+        }
+
+        /// <summary>创建唯一前缀的普通成品箱单种子并提交，供外层协调器独占下一事务；不删除测试证据。</summary>
+        public async Task<Seed> SeedPackingListAsync(bool includeComponent = false)
+        {
+            Session.Transaction = Session.Connection.BeginTransaction();
+            var seed = await SeedAsync();
+            var customer = new Customer { CustomerCode = "PLTEST-" + Guid.NewGuid().ToString("N"), DocRelateNo = Guid.NewGuid().ToString("N") };
+            await Add(customer);
+            var source = new GrossDemand { CustomerId = customer.Uid, SourceType = "SO", SourceUid = Guid.NewGuid(), SourceLineId = Guid.NewGuid(),
+                SourceNo = "PLTEST", ProductId = seed.Product, UnitSnapshot = "PCS", DemandQty = 10, DemandBasisFingerprint = "test-basis" };
+            await Add(source);
+            var root = new NetDemand { GrossDemandId = source.Uid, ProductId = seed.Product, GrossQty = 10,
+                SourceDemandBasisFingerprintSnapshot = "test-basis", DecompositionRevision = 1, LineNumber = 1 };
+            root.RootNetDemandId = root.Uid;
+            await Add(root);
+            if (includeComponent)
+            {
+                await Add(new Product { Uid = seed.Component, Sku = "AUTO-COMP-" + seed.Component.ToString("N"), Unit = "PCS", MaterialType = "客供件", SupplyType = "采购" });
+                await Add(new NetDemand { GrossDemandId = source.Uid, ProductId = seed.Component, GrossQty = 4, LineNumber = 2,
+                    ParentNetDemandId = root.Uid, RootNetDemandId = root.Uid, DeliveryTargetNetDemandId = root.Uid,
+                    DeliveryMode = DemandDeliveryModeEnum.ParentExecutionSupplier, MaterialTypeSnapshot = "客供件", DecompositionRevision = 1 });
+                // 期初库存测试夹具，不伪造采购 Link；正式被测耗用和反向都必须走库存内核。
+                await Add(new InventoryBalance { WarehouseSiteId = seed.Warehouse, ProductId = seed.Component, UnitSnapshot = "PCS", OnHandQty = 4 });
+            }
+            var purchaseHead = await Session.Connection.ExecuteScalarAsync<Guid>(
+                "SELECT PurchaseOrderId FROM dbo.PurchaseOrderLine WHERE Uid=@Purchase", seed, Session.Transaction);
+            await Add(new DemandExecutionLink { CommandItemId = Guid.NewGuid(), NetDemandId = root.Uid, TargetType = "PO", TargetHeadId = purchaseHead, TargetLineId = seed.Purchase, AllocatedQty = 10 });
+            await Add(new PackingListHead { Uid = seed.Packing, PackingListNo = "PLTEST-" + seed.Packing.ToString("N"),
+                CustomerId = customer.Uid, InvoiceDate = DateTime.Today, CreateCommandId = Guid.NewGuid() });
+            await Add(new PackingListLine { PackingListHeadId = seed.Packing, LineNumber = 1, GrossDemandId = source.Uid,
+                ProductId = seed.Product, UnitSnapshot = "PCS", Qty = 10 });
+            Session.Transaction.Commit(); Session.Transaction.Dispose(); Session.Transaction = null;
+            return seed;
+        }
+
+        /// <summary>独立连接统计箱单实际单据关联的所有原始和反向流水。</summary>
+        public Task<int> CountPackingLedgers(Seed seed) => Session.Connection.ExecuteScalarAsync<int>("""
+            SELECT COUNT(*) FROM dbo.InventoryLedgerEntry
+            WHERE SourceDocumentId IN (SELECT Uid FROM dbo.InboundDocument WHERE TriggerPackingListId=@Packing
+                UNION ALL SELECT Uid FROM dbo.OutboundDocument WHERE TriggerPackingListId=@Packing);
+            """, seed, Session.Transaction);
+        /// <summary>读取实际持久化执行头数量，不使用内存结果替代。</summary>
+        public Task<int> CountPackingExecutions(Seed seed) => Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.PackingListPostingExecution WHERE PackingListHeadId=@Packing", seed, Session.Transaction);
+
+        /// <summary>创建引用相同来源的第二份草稿，验证草稿不预占交付容量。</summary>
+        public async Task<Guid> ClonePackingDraftAsync(Seed seed)
+        {
+            var detail = await new PackingListRepository(_repository).GetDetailAsync(seed.Packing);
+            Assert.IsNotNull(detail);
+            var head = new PackingListHead { PackingListNo = "PLTEST-" + Guid.NewGuid().ToString("N"),
+                CustomerId = detail.Header.CustomerId, InvoiceDate = DateTime.Today, CreateCommandId = Guid.NewGuid() };
+            await Add(head);
+            await Add(new PackingListLine { PackingListHeadId = head.Uid, LineNumber = 1, GrossDemandId = detail.Lines.Single().GrossDemandId,
+                ProductId = seed.Product, UnitSnapshot = "PCS", Qty = 10 });
+            return head.Uid;
+        }
+
         public Fixture(string connection)
         {
             Session = new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -123,8 +338,7 @@ public sealed class AutomaticPostingSqlServerTests
             var output = new OutboundManagerRepository(_repository);
             var stocks = new InventoryRepository(_repository);
             var warehouses = new DapperRepository<WarehouseSite>(_repository);
-            var auto = new AutomaticDocumentRepository(_repository, new DapperRepository<InboundDocument>(_repository),
-                new DapperRepository<InboundDocumentLine>(_repository), new DapperRepository<OutboundDocument>(_repository), new DapperRepository<OutboundDocumentLine>(_repository));
+            var auto = new AutomaticDocumentRepository(_repository);
             Scope = new(context, auto, input, output, stocks, warehouses);
             var ports = new AutomaticPostingPorts(Scope, auto, input, output,
                 new InventoryPostingService(context, stocks, new WarehouseSiteRepository(_repository)), warehouses, stocks,
@@ -136,7 +350,7 @@ public sealed class AutomaticPostingSqlServerTests
         {
             var seed = new Seed();
             await Add(new Product { Uid = seed.Product, Sku = "AUTO-" + seed.Product.ToString("N"), Unit = "PCS", SupplyType = "采购", MaterialType = "成品" });
-            await Add(new WarehouseSite { Uid = seed.Warehouse, Code = "AUTO-" + seed.Warehouse.ToString("N"), Name = "自动接口测试仓", SupplierId = seed.Supplier, IsActive = true });
+            await Add(new WarehouseSite { Uid = seed.Warehouse, Code = "AUTO-" + seed.Warehouse.ToString("N"), Name = "自动接口测试仓", SupplierId = seed.Supplier, IsActive = true, SiteType = WarehouseSiteTypeEnum.SupplierVirtual });
             var head = new PurchaseOrderHead { SupplierId = seed.Supplier, SupplierCode = "TEST", Currency = "CNY", OrderNo = "AUTO-" + seed.Purchase.ToString("N"),
                 OrderDate = DateTime.Today, ConfirmationStatus = ConfirmationStatusEnum.已确认, ExecutionRequestId = Guid.NewGuid() };
             await Add(head);
@@ -148,8 +362,17 @@ public sealed class AutomaticPostingSqlServerTests
             return seed;
         }
 
+        /// <summary>测试种子以预分配 Uid 关联，按实体列映射直接插入，不借通用 Add 重建身份。</summary>
         private async Task Add<T>(T entity) where T : BaseEntity
-        { var result = await new DapperRepository<T>(_repository).AddAsync(entity); Assert.IsTrue(result.Success, result.Message); }
+        {
+            _repository.AuditStamp.StampForInsert(entity);
+            var properties = typeof(T).GetProperties().Where(p => p.CanRead && p.CanWrite
+                && !Attribute.IsDefined(p, typeof(System.ComponentModel.DataAnnotations.Schema.NotMappedAttribute))).ToArray();
+            var columns = properties.Select(p => "[" + (p.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.Schema.ColumnAttribute), false)
+                .Cast<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>().SingleOrDefault()?.Name ?? p.Name) + "]");
+            var sql = $"INSERT dbo.[{typeof(T).Name}] ({string.Join(',', columns)}) VALUES ({string.Join(',', properties.Select(p => "@" + p.Name))});";
+            Assert.AreEqual(1, await Session.Connection.ExecuteAsync(sql, entity, Session.Transaction));
+        }
         public Task<decimal> Balance(Seed seed) => Session.Connection.ExecuteScalarAsync<decimal>(
             "SELECT COALESCE(SUM(OnHandQty),0) FROM dbo.InventoryBalance WHERE WarehouseSiteId=@Warehouse AND ProductId=@Product", seed, Session.Transaction);
         public void Dispose() => Session.Dispose();
@@ -159,6 +382,7 @@ public sealed class AutomaticPostingSqlServerTests
     {
         public Guid Warehouse { get; } = Guid.NewGuid();
         public Guid Product { get; } = Guid.NewGuid();
+        public Guid Component { get; } = Guid.NewGuid();
         public Guid Supplier { get; } = Guid.NewGuid();
         public Guid Purchase { get; } = Guid.NewGuid();
         public Guid Packing { get; } = Guid.NewGuid();

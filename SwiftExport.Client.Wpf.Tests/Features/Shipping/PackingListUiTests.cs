@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Features.Shipping.PackingLists.Models;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
@@ -62,7 +63,7 @@ public sealed class PackingListUiTests
         var detailView = new PackingListDetailView { DataContext = detail }; Layout(detailView);
         detailView.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
         Assert.IsNotNull(detail.CommitEdits); Assert.IsTrue(detail.CommitEdits());
-        var splitButton = Descendants(detailView).OfType<Button>().Single(x => Equals(x.Content, "拆尾箱"));
+        var splitButton = Descendants(detailView).OfType<Button>().Single(x => ReferenceEquals(x.Command, detail.SplitTailCommand));
         Assert.AreSame(detail.SplitTailCommand, splitButton.Command);
         Assert.AreSame(splitRow, splitButton.CommandParameter);
         Assert.IsTrue(splitButton.IsEnabled);
@@ -93,6 +94,30 @@ public sealed class PackingListUiTests
         Assert.IsTrue(picker.Items[1].IsChecked);
         Assert.IsFalse(picker.Items[0].IsChecked);
         pickerView.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
+
+        // 三张新增弹窗使用真实 XAML 和主题，检查实际绑定及只读网格而非仅检查源码字符串。
+        var options = new PackingListPostingOptions { IsReverse = true, BusinessDate = new DateTime(2026, 9, 17), Reason = "原始原因" };
+        var optionsView = new PackingListPostingOptionsView { DataContext = options }; Layout(optionsView);
+        var datePicker = Descendants(optionsView).OfType<DatePicker>().Single();
+        Assert.AreEqual(options.BusinessDate, datePicker.SelectedDate);
+        datePicker.SelectedDate = new DateTime(2026, 9, 18);
+        Assert.AreEqual(new DateTime(2026, 9, 18), options.BusinessDate);
+        var reasonEditor = Descendants(optionsView).OfType<TextBox>().Single(x => x.AcceptsReturn);
+        reasonEditor.Text = "修改原因";
+        Assert.AreEqual("修改原因", options.Reason);
+
+        var action = new PackingListPostingActionDto { ActionKind = "Shipment", Quantity = 5, Sku = "TEST", ImagePath = null };
+        var previewView = new PackingListPostingPreviewView { DataContext = new PackingListPostingPreviewDto {
+            Actions = [action], Blockers = [new() { Code = "SHORTFALL", Message = "库存不足" }] } }; Layout(previewView);
+        var previewGrids = Descendants(previewView).OfType<DataGrid>().ToArray();
+        Assert.AreEqual(2, previewGrids.Length); Assert.IsTrue(previewGrids.All(x => x.IsReadOnly));
+        Assert.IsTrue(previewGrids.Any(x => x.Items.Cast<object>().Contains(action)));
+
+        var traceLine = new PackingListExecutionLineTraceDto { ActionKind = "Shipment", Qty = 5, DocumentNo = "OUT-TEST", LedgerId = Guid.NewGuid() };
+        var traceView = new PackingListTraceView { DataContext = new PackingListTraceDto {
+            Executions = [new() { Operation = 1, BusinessDate = DateTime.Today, Lines = [traceLine] }] } }; Layout(traceView);
+        var traceGrid = Descendants(traceView).OfType<DataGrid>().Single();
+        Assert.IsTrue(traceGrid.IsReadOnly); Assert.AreSame(traceLine, traceGrid.Items[0]);
     });
     private static void Layout(FrameworkElement view)
     { view.Measure(new Size(1600, 900)); view.Arrange(new Rect(0, 0, 1600, 900)); view.UpdateLayout(); }

@@ -49,14 +49,15 @@ public sealed class NavigationServiceTests
     }
 
     [TestMethod]
-    public void RouteRegistry_ShouldKeepRemovedPackingListRoutesUnavailable()
+    public void RouteRegistry_ShouldKeepLegacyPackingListRoutesUnavailable()
     {
         var registry = new NavigationRouteRegistry();
 
         Assert.IsFalse(registry.TryGetRoute("purchasing", out _));
+        // 出货是菜单分组，不是可打开页面；具体箱单路由由 Feature 注册。
         Assert.IsFalse(registry.TryGetRoute("shipping", out _));
         Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey == "purchasing"));
-        Assert.IsFalse(registry.MenuItems.Any(item => item.RouteKey == "shipping"));
+        Assert.IsTrue(registry.MenuItems.Any(item => item.RouteKey == "shipping"));
         Assert.IsFalse(registry.TryGetRoute("shipping-packing-lists", out _));
         Assert.IsFalse(registry.TryGetRoute("shipping-packing-list-detail", out _));
     }

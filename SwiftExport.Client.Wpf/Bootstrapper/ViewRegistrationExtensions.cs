@@ -103,6 +103,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.ViewModels.PackingListManagerViewModel>();
         services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.ViewModels.PackingListDetailViewModel>();
         services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.Services.IPackingListSourcePickerService, SwiftExportClient.Features.Shipping.PackingLists.Services.PackingListSourcePickerService>();
+        services.AddTransient<SwiftExportClient.Features.Shipping.PackingLists.Services.IPackingListPostingDialogService, SwiftExportClient.Features.Shipping.PackingLists.Services.PackingListPostingDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.ViewModels.OutboundManagerViewModel>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundPostDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundPostDialogService>();
         services.AddTransient<SwiftExportClient.Features.Inventory.Outbounds.Services.IOutboundReverseDialogService, SwiftExportClient.Features.Inventory.Outbounds.Services.OutboundReverseDialogService>();

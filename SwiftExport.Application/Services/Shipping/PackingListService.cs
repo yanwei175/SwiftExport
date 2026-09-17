@@ -32,6 +32,7 @@ namespace SwiftExport.Application.Services.Shipping;
 public sealed class PackingListService(
     ServiceBaseContext context,
     IPackingListRepository repository,
+    IPackingListPostingFactsRepository postingFacts,
     ISourceDeliveryService sourceDelivery,
     ICustomerRepository customers,
     IBusinessOperationLogRepository logs,
@@ -142,7 +143,7 @@ public sealed class PackingListService(
                 var lines = await BuildLinesAsync(header, command.Lines, Array.Empty<PackingListLine>(), cancellationToken);
                 await repository.SaveAsync(header, lines, Array.Empty<PackingListLine>(), 0, cancellationToken);
                 return await ResultAsync(header.Uid, false, cancellationToken);
-            }, cancellationToken);
+            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId));
         }, cancellationToken);
 
     /// <inheritdoc/>
@@ -176,7 +177,7 @@ public sealed class PackingListService(
                 var deleted = command.DeletedLines.Select(input => existing.Single(row => row.Uid == input.Uid)).ToArray();
                 await repository.SaveAsync(header, lines, deleted, command.ExpectedVersion, cancellationToken);
                 return await ResultAsync(uid, false, cancellationToken);
-            }, cancellationToken);
+            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId));
         }, cancellationToken);
 
     /// <inheritdoc/>
@@ -297,10 +298,15 @@ public sealed class PackingListService(
 
     /// <summary>在同一事务内串行命令、执行写入并保存可重放结果。</summary>
     private async Task<PackingListDraftCommandResult> ExecuteWriteAsync(Guid commandId, string operation,
-        Guid aggregateUid, string fingerprint, Func<Task<PackingListDraftCommandResult>> action, CancellationToken token)
+        Guid aggregateUid, string fingerprint, Func<Task<PackingListDraftCommandResult>> action, CancellationToken token,
+        IEnumerable<Guid>? incomingSourceIds = null)
     {
         if (context.Session.Transaction is not null)
             Fail(PackingListErrorCodes.StateBlocked, "当前请求已有事务，不能接管装箱单草稿命令。");
+        // 事务前只探测锁集合；进入事务先锁旧/新来源，再锁箱单。版本校验负责拒绝探测后的并发编辑。
+        var observed = await repository.GetDetailAsync(aggregateUid, token);
+        var sourceIds = (observed?.Lines.Select(x => x.GrossDemandId) ?? Enumerable.Empty<Guid>())
+            .Concat(incomingSourceIds ?? Enumerable.Empty<Guid>()).Distinct().Order().ToArray();
         // 写命令的来源、已交付量与头行版本必须在提交前保持同一可证明视图。
         using var transaction = context.Session.Connection.BeginTransaction(IsolationLevel.Serializable);
         context.Session.Transaction = transaction;
@@ -324,6 +330,7 @@ public sealed class PackingListService(
                 return replay;
             }
 
+            await postingFacts.LockSourcesAsync(sourceIds, token);
             var result = await action();
             var now = DateTime.Now;
             if (await logs.InsertAsync(new BusinessOperationLog

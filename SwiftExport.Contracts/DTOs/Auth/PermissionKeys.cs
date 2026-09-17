@@ -25,6 +25,10 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ModuleInventoryAccess = "Module.Inventory.Access";
         /// <summary>出货模块访问权限。</summary>
         public const string ModuleShippingAccess = "Module.Shipping.Access";
+        /// <summary>装箱单预览和过账能力，不包含反向或手工库存权限。</summary>
+        public const string PackingListPost = "Shipping.PackingList.Post";
+        /// <summary>装箱单整单反过账能力，独立于正向过账分配。</summary>
+        public const string PackingListReverse = "Shipping.PackingList.Reverse";
         /// <summary>品质与售后模块访问权限。</summary>
         public const string ModuleQualityControlAccess = "Module.QualityControl.Access";
         /// <summary>仅由服务端为 Admin 生成的设置管理能力。</summary>
@@ -70,12 +74,14 @@ namespace SwiftExport.Contracts.DTOs.Auth
         };
 
         private static readonly string[] AllValues = ModuleValues
+            .Concat(new[] { PackingListPost, PackingListReverse })
             .Concat(new[] { SystemSettingsManage, ProcurementOrderVoid })
             .Concat(ProcurementOperationValues)
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
+            .Concat(new[] { PackingListPost, PackingListReverse })
             .Concat(new[] { ProcurementOrderVoid })
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .ToArray();

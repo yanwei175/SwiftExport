@@ -2,16 +2,13 @@ using Dapper;
 using System.Data;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Inventory;
-using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Infrastructure.Contexts;
 
 namespace SwiftExport.Infrastructure.Repositories.Inventory;
 
-/// <summary>仅持久化自动单据及状态；复用通用插入以完整保存触发身份、业务依据和审计。</summary>
-public sealed class AutomaticDocumentRepository(RepositoryBaseContext context,
-    IRepository<InboundDocument> inbound, IRepository<InboundDocumentLine> inboundLines,
-    IRepository<OutboundDocument> outbound, IRepository<OutboundDocumentLine> outboundLines) : IAutomaticDocumentRepository
+/// <summary>持久化自动单据及状态；专用插入保留命令派生的稳定身份和头行关联。</summary>
+public sealed class AutomaticDocumentRepository(RepositoryBaseContext context) : IAutomaticDocumentRepository
 {
     private CommandDefinition Command(string sql, object? args, CancellationToken token) =>
         new(sql, args, context.Session.Transaction, cancellationToken: token);
@@ -60,24 +57,28 @@ public sealed class AutomaticDocumentRepository(RepositoryBaseContext context,
     /// <inheritdoc/>
     public async Task InsertInboundAsync(InboundDocument header, IReadOnlyList<InboundDocumentLine> lines, CancellationToken token)
     {
-        await AddAsync(inbound, header, token);
-        foreach (var line in lines) await AddAsync(inboundLines, line, token);
+        await AddAsync(header, token);
+        foreach (var line in lines) await AddAsync(line, token);
     }
 
     /// <inheritdoc/>
     public async Task InsertOutboundAsync(OutboundDocument header, IReadOnlyList<OutboundDocumentLine> lines, CancellationToken token)
     {
-        await AddAsync(outbound, header, token);
-        foreach (var line in lines) await AddAsync(outboundLines, line, token);
+        await AddAsync(header, token);
+        foreach (var line in lines) await AddAsync(line, token);
     }
 
-    /// <summary>单实体插入失败必须中断批次；审计由通用仓储打戳。</summary>
-    private static async Task AddAsync<T>(IRepository<T> repository, T entity, CancellationToken token) where T : BaseEntity
+    /// <summary>不能使用会重建 Uid 的通用 Add；保留调用方身份，在同事务内打戳并插入。</summary>
+    private async Task AddAsync<T>(T entity, CancellationToken token) where T : BaseEntity
     {
         token.ThrowIfCancellationRequested();
-        var result = await repository.AddAsync(entity);
-        if (!result.Success) throw new DBConcurrencyException(result.Message ?? "自动单据写入失败。");
-        entity.Version = result.NewVersion ?? 1;
+        if (context.Session.Transaction == null || entity.Uid == Guid.Empty) throw new InvalidOperationException("自动单据插入必须具有事务及稳定身份。");
+        context.AuditStamp.StampForInsert(entity);
+        entity.IsDeleted = false; entity.Version = Math.Max(1, entity.Version);
+        var names = typeof(T).GetProperties().Where(p => p.CanRead && p.CanWrite).Select(p => p.Name).ToArray();
+        var sql = $"INSERT dbo.[{typeof(T).Name}] ({string.Join(',', names.Select(n => $"[{n}]"))}) VALUES ({string.Join(',', names.Select(n => "@" + n))});";
+        if (await context.Session.Connection.ExecuteAsync(Command(sql, entity, token)) != 1)
+            throw new DBConcurrencyException("自动单据写入失败。");
     }
 
     /// <inheritdoc/>

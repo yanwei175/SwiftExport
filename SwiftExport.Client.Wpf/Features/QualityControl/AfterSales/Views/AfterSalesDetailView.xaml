@@ -8,21 +8,22 @@
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
              xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
              mc:Ignorable="d" 
-             d:DesignHeight="850" d:DesignWidth="1500">
+             d:DesignHeight="950" d:DesignWidth="1500">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
         <!--title-->
-        <DockPanel LastChildFill="True">
-            <Grid ColumnDefinitions="Auto,8,Auto,8,Auto">
-                <TextBlock Text="售后单详情" Style="{StaticResource TitleTextBlock}"/>
-                <Border Grid.Column="2" MinWidth="70" Padding="2" VerticalAlignment="Center" HorizontalAlignment="Center"
+        <DockPanel LastChildFill="True" Margin="0,0,0,8">
+            <Grid ColumnDefinitions="Auto,8,Auto" RowDefinitions="Auto,2,Auto">
+                <TextBlock Text="售后单详情" Grid.RowSpan="3" Style="{StaticResource TitleTextBlock}"/>
+                
+                <Border Grid.Row="0" Grid.Column="2"  Padding="6" VerticalAlignment="Center" HorizontalAlignment="Left"
                         BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
-                    <TextBlock Text="{Binding DocumentStatusText}" d:Text="待处理" TextAlignment="Center"
+                    <TextBlock Text="{Binding DocumentStatusText}" d:Text="待处理" TextAlignment="Left"
                                Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
                                Style="{StaticResource BodyTextBlock}"/>
                 </Border>
-                <Border Grid.Column="4" MinWidth="70" Padding="2" VerticalAlignment="Center" HorizontalAlignment="Center"
+                <Border Grid.Row="2" Grid.Column="4"  Padding="6" VerticalAlignment="Center" HorizontalAlignment="Left"
                         BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
-                    <TextBlock Text="{Binding ConfirmationStatusText}" d:Text="待确认" TextAlignment="Center"
+                    <TextBlock Text="{Binding ConfirmationStatusText}" d:Text="待确认" TextAlignment="Left" 
                                Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
                                Style="{StaticResource BodyTextBlock}"/>
                 </Border>
@@ -37,233 +38,256 @@
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=Delete24}" Content="作废" Command="{Binding VoidCommand}" MinWidth="72"/>
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=ArrowSync24}" Content="重新加载" Command="{Binding ReloadCommand}" MinWidth="84"/>
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}" Content="刷新关联候选" Command="{Binding RefreshLookupsCommand}" MinWidth="108" ToolTip="客户改变后刷新产品和原订单候选"/>
-                
-                <StackPanel Grid.Column="16" Orientation="Horizontal" VerticalAlignment="Center">
-
-                </StackPanel>
             </StackPanel>
         </DockPanel>
+
         <!--Header-->
-        <Border Grid.Row="2" Padding="12" BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
+        <Border  Grid.Row="2" Padding="12" Style="{StaticResource SwiftCardStyle}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <ui:SymbolIcon Symbol="Document24" FontSize="24" Margin="0,0,8,0"/>
+                    <TextBlock Text="基本信息" Style="{StaticResource SubtitleTextBlock}"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*" RowDefinitions="35,8,35">
 
-            <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*" RowDefinitions="Auto,8,Auto">
-
-                <TextBlock Grid.Column="0" Text="售后单号" VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                <ui:TextBox Grid.Column="1" Margin="0,0,12,0" 
+                    <TextBlock Grid.Column="0" Text="售后单号 : " VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ui:TextBox Grid.Column="1" Margin="0,0,12,0" 
                             Text="{Binding Header.AfterSalesNo,Mode=OneWay}" 
                             IsReadOnly="True" PlaceholderText="保存后生成"/>
 
-                <TextBlock Grid.Column="2" Text="客户" 
+                    <TextBlock Grid.Column="2" Text="客户 : " 
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                <customerComponents:CustomerAutoSuggestComboBox Grid.Column="3" Margin="0,0,12,0"
+                    <customerComponents:CustomerAutoSuggestComboBox Grid.Column="3" Margin="0,0,12,0"
                           ItemsSource="{Binding Customers}"
                           SelectedCustomer="{Binding SelectedCustomer,Mode=TwoWay}"
                           IsEnabled="{Binding CanEditFacts}" 
                           AutomationProperties.Name="售后客户"/>
 
-                <TextBlock Grid.Column="4" Text="负责人" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="业务员 : " VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                <ComboBox Grid.Column="5" Margin="0,0,12,0" 
-                          ItemsSource="{Binding Owners}" 
-                          SelectedValue="{Binding Header.OwnerId}" 
-                          SelectedValuePath="Uid" 
-                          DisplayMemberPath="Name" 
-                          IsEditable="True" 
-                          IsTextSearchEnabled="True" 
-                          IsEnabled="{Binding CanEditFacts}" 
-                          AutomationProperties.Name="售后负责人"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,0,12,0" 
+                              ItemsSource="{Binding Owners}" 
+                              SelectedValue="{Binding Header.OwnerId}" 
+                              SelectedValuePath="Uid" 
+                              DisplayMemberPath="Name" 
+                              IsEditable="True" 
+                              IsTextSearchEnabled="True" 
+                              IsEnabled="{Binding CanEditFacts}" 
+                              AutomationProperties.Name="售后负责人"/>
 
-                <TextBlock Grid.Column="6" Text="受理日期" 
+                    <TextBlock Grid.Column="4" Text="受理日期 : " 
                            VerticalAlignment="Center" 
                            Margin="0,0,8,0"/>
 
-                <DatePicker Grid.Column="7" Style="{StaticResource SwiftExportDatePicker}" 
+                    <DatePicker Grid.Column="5" SelectedDateFormat="Short"
                             SelectedDate="{Binding Header.AcceptedDate}" 
-                            IsEnabled="{Binding CanEditFacts}" 
-                            AutomationProperties.Name="受理日期"/>
+                            IsEnabled="{Binding CanEditFacts}"  />
 
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="预计完成" 
-                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                <DatePicker Grid.Row="2" Grid.Column="1" Style="{StaticResource SwiftExportDatePicker}" 
-                            Margin="0,0,12,0" 
+                    <TextBlock Grid.Row="0" Grid.Column="6" Text="预计完成 : " 
+                           VerticalAlignment="Center" Margin="8,0,8,0"/>
+                    <DatePicker Grid.Row="0" Grid.Column="7" SelectedDateFormat="Short"
+                            Margin="0,0,8,0" 
                             SelectedDate="{Binding Header.ExpectedCompletionDate}" 
-                            IsEnabled="{Binding CanEditFacts}" 
-                            AutomationProperties.Name="预计完成日期"/>
+                            IsEnabled="{Binding CanEditFacts}"  />
 
-                <TextBlock Grid.Row="2" Grid.Column="2" Text="整单备注" 
+
+                    <TextBlock Grid.Row="2" Grid.Column="2" Text="责任供应商 : " VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <supplierComponents:SupplierAutoSuggestComboBox Grid.Row="2" Grid.Column="3" Margin="0,0,8,0" 
+                                  ItemsSource="{Binding DataContext.Suppliers,
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  SelectedSupplier="{Binding SelectedResponsibleSupplier,Mode=TwoWay}"
+                                  IsEnabled="{Binding DataContext.CanEditFacts,
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  AutomationProperties.Name="责任供应商"/>
+
+
+                    <TextBlock Grid.Row="2" Grid.Column="4" Text="整单备注 : " 
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                <ui:TextBox Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="5" 
+                    <ui:TextBox Grid.Row="2" Grid.Column="5" Grid.ColumnSpan="3" Margin="0,0,8,0"
                             Text="{Binding Header.Remark,UpdateSourceTrigger=PropertyChanged}" 
                             IsReadOnly="{Binding CanEditSupplement,Converter={StaticResource InverseBooleanConverter}}"
                             AutomationProperties.Name="售后整单备注"/>
-            </Grid>
+                </Grid>
+            </StackPanel>
         </Border>
 
-        <Grid Grid.Row="4" RowDefinitions="5*,8,5*">
-            <!--datagrid-->
-            <Grid Grid.Row="0" RowDefinitions="Auto,8,*">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="问题成品与实际补件" 
-                               FontWeight="SemiBold" 
-                               VerticalAlignment="Center"/>
-                    <Button Content="新增投诉行" 
-                            Command="{Binding AddLineCommand}" 
-                            Margin="12,0,0,0" MinWidth="92"/>
-                    <Button Content="删除当前行" 
-                            Command="{Binding DeleteLineCommand}" 
-                            Margin="8,0,0,0" 
-                            MinWidth="92"/>
+        <Border Grid.Row="4" Padding="12" Style="{StaticResource SwiftCardStyle}">
+
+
+
+            <Grid Grid.Row="4" RowDefinitions="Auto,8,*,8,Auto,8,Auto">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <ui:SymbolIcon Symbol="Document24" FontSize="24" Margin="0,0,8,0"/>
+                    <TextBlock Text="问题成品与实际补件" Style="{StaticResource SubtitleTextBlock}"/>
                 </StackPanel>
+                <!--datagrid-->
+                <Grid Grid.Row="2" RowDefinitions="Auto,8,*">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:Button Content="新增投诉行" Icon="{ui:SymbolIcon Symbol=Add24}" Appearance="Primary"
+                                        Command="{Binding AddLineCommand}" 
+                                        Margin="12,0,0,0" MinWidth="92"/>
+                        <ui:Button Content="删除当前行" Icon="{ui:SymbolIcon Symbol=Delete24}"
+                                        Command="{Binding DeleteLineCommand}" 
+                                        Margin="8,0,0,0" 
+                                        MinWidth="92"/>
+                    </StackPanel>
 
-                <DataGrid Grid.Row="2" 
-                          RowHeight="{StaticResource DataGridRowHeightSmall}"
-                          ItemsSource="{Binding Lines}" 
-                          SelectedItem="{Binding SelectedLine,Mode=TwoWay}" 
-                          AutoGenerateColumns="False" 
-                          IsReadOnly="True" 
-                          SelectionMode="Single" 
-                          SelectionUnit="FullRow" 
-                          EnableRowVirtualization="True" 
-                          EnableColumnVirtualization="True" 
-                          Style="{StaticResource SwiftExportDataGrid}" 
-                          AutomationProperties.Name="售后问题和补件明细">
+                    <DataGrid Grid.Row="2" 
+                              BorderThickness="1" BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                              RowHeight="{StaticResource DataGridRowHeightSmall}"
+                              ItemsSource="{Binding Lines}" 
+                              SelectedItem="{Binding SelectedLine,Mode=TwoWay}" 
+                              AutoGenerateColumns="False" 
+                              IsReadOnly="True" 
+                              SelectionMode="Single" 
+                              SelectionUnit="FullRow" 
+                              EnableRowVirtualization="True" 
+                              EnableColumnVirtualization="True" 
+                              AutomationProperties.Name="售后问题和补件明细">
 
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="行" 
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="行" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             Binding="{Binding LineNumber}" 
                                             Width="46"/>
 
-                        <DataGridTextColumn Header="问题客户型号" 
+                            <DataGridTextColumn Header="问题客户型号" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             Binding="{Binding IssueCustomerSkuSnapshot}" 
                                             Width="120"/>
 
-                        <DataGridTextColumn Header="客户投诉单号" IsReadOnly="True"
+                            <DataGridTextColumn Header="客户投诉单号" IsReadOnly="True"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             Binding="{Binding CustomerComplaintNo}" Width="140"/>
 
-                        <DataGridTextColumn Header="问题物料" 
+                            <DataGridTextColumn Header="问题物料" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                        Binding="{Binding IssueSkuSnapshot}" 
-                                        Width="110"/>
+                                            Binding="{Binding IssueSkuSnapshot}" 
+                                            Width="110"/>
 
-                        <DataGridTextColumn Header="问题型号" 
+                            <DataGridTextColumn Header="问题型号" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         Binding="{Binding IssueLinkSkuSnapshot}"
                                         Width="110"/>
 
-                        <DataGridTextColumn Header="问题描述" 
+                            <DataGridTextColumn Header="问题描述" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
                                             Binding="{Binding IssueDescription}" 
                                             Width="2*"/>
 
-                        <DataGridTextColumn Header="补件物料型号" 
+                            <DataGridTextColumn Header="补件物料型号" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             Binding="{Binding SkuSnapshot}" 
                                             Width="110"/>
 
-                        <DataGridTextColumn Header="补件客户型号" 
+                            <DataGridTextColumn Header="补件客户型号" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             Binding="{Binding CustomerSkuSnapshot}" 
                                             Width="120"/>
 
-                        <DataGridTextColumn Header="补件产品型号" 
+                            <DataGridTextColumn Header="补件产品型号" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             Binding="{Binding LinkSkuSnapshot}" 
                                             Width="110"/>
 
-                        <DataGridTemplateColumn Header="非标" Width="60">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <CheckBox HorizontalAlignment="Center" 
+                            <DataGridTemplateColumn Header="非标" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox HorizontalAlignment="Center" 
                                             IsChecked="{Binding IsNonStandard, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
-                        <DataGridTextColumn Header="补发数量" 
+                            <DataGridTextColumn Header="补发数量" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                             Binding="{Binding Quantity,StringFormat=0.####}" 
                                             Width="90"/>
 
-                        <DataGridTextColumn Header="单位" 
+                            <DataGridTextColumn Header="单位" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             Binding="{Binding UnitSnapshot}" 
                                             Width="70"/>
 
-                        <DataGridTextColumn Header="人民币行金额" 
+                            <DataGridTextColumn Header="人民币行金额" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                             Binding="{Binding ServiceAmountCny,StringFormat=N2}" 
                                             Width="110"/>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
 
-            <Border Grid.Row="2" Padding="12" BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Grid DataContext="{Binding SelectedLine}" 
-                          ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*" 
-                          RowDefinitions="35,8,35,8,35,8,35,8,35,8,35">
+                <Border Grid.Row="4" Padding="12" Style="{StaticResource SwiftCardStyle}" BorderThickness="1" BorderBrush="{DynamicResource SwiftExportBrush.Border}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        
+                        <Grid DataContext="{Binding SelectedLine}" 
+                              ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*,Auto,*" 
+                              RowDefinitions="35,12,65,12,35,12,65">                            
 
-                        <TextBlock Grid.Column="0" Text="问题成品" 
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock  Grid.Column="0" Text=" 客户投诉单号 : " VerticalAlignment="Center" />
+                            <ui:TextBox Grid.Column="1"
+                                 Text="{Binding CustomerComplaintNo,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding DataContext.CanEditSupplement,RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                 PlaceholderText="客户投诉单号"/>
 
-                        <ComboBox Grid.Column="1" Margin="0,0,12,0" 
-                                  ItemsSource="{Binding DataContext.Products,
-                                  RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  SelectedValue="{Binding IssueProductId}" 
-                                  SelectedValuePath="Uid" 
-                                  DisplayMemberPath="Code" 
-                                  IsEditable="True" 
-                                  IsTextSearchEnabled="True" 
-                                  IsEnabled="{Binding DataContext.CanEditFacts,
-                                    RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  AutomationProperties.Name="问题成品"/>
+                            <TextBlock Grid.Column="2" Text=" 问题客户型号 : " VerticalAlignment="Center"/>
+                            <ui:TextBox Grid.Column="3" PlaceholderText="问题客户型号" VerticalAlignment="Center" />
+                            
+                            <TextBlock Grid.Row="0" Grid.Column="4" Text=" 问题Sku : " VerticalAlignment="Center" />
+                            <ComboBox Grid.Row="0" Grid.Column="5" 
+                                     ItemsSource="{Binding DataContext.Products,
+                                     RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                     SelectedValue="{Binding IssueProductId}" 
+                                     SelectedValuePath="Uid" 
+                                     DisplayMemberPath="Code" 
+                                     IsEditable="True" 
+                                     IsTextSearchEnabled="True" 
+                                     IsEnabled="{Binding DataContext.CanEditFacts,
+                                       RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
-                        <TextBlock Grid.Column="2" Text="问题颜色" 
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Row="0" Grid.Column="6" Text=" 问题颜色 : " VerticalAlignment="Center"/>
+                            <productComponents:ProductColorAutoSuggestComboBox Grid.Row="0" Grid.Column="7"
+                                 ItemsSource="{Binding DataContext.Colors,
+                                   RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                 SelectedColor="{Binding SelectedIssueColor,Mode=TwoWay}"
+                                 IsEnabled="{Binding DataContext.CanEditFacts,
+                                   RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                 AutomationProperties.Name="问题颜色"/>
 
-                        <productComponents:ProductColorAutoSuggestComboBox Grid.Column="3" Margin="0,0,12,0"
-                                  ItemsSource="{Binding DataContext.Colors,
-                                    RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  SelectedColor="{Binding SelectedIssueColor,Mode=TwoWay}"
-                                  IsEnabled="{Binding DataContext.CanEditFacts,
-                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                  AutomationProperties.Name="问题颜色"/>
-
-                        <TextBlock Grid.Column="4" Text="原销售行" 
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ComboBox Grid.Column="5" Margin="0,0,12,0" 
-                                  ItemsSource="{Binding DataContext.SalesOrderLines,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                            <TextBlock Grid.Row="0" Grid.Column="8" Text=" 原销售订单号 : "  VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="0" Grid.Column="9"
+                                  ItemsSource="{Binding DataContext.SalesOrderLines, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                                   SelectedValue="{Binding OriginalSalesOrderLineId}" 
                                   SelectedValuePath="Uid" 
                                   DisplayMemberPath="Code" 
                                   IsEditable="True" 
                                   IsTextSearchEnabled="True" 
-                                  IsEnabled="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                  IsEnabled="{Binding DataContext.CanEditFacts, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
-                        <TextBlock Grid.Column="6" Text="品质分类" 
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text=" 投诉描述 *  : " VerticalAlignment="Center" />
+                            <ui:TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" PlaceholderText="投诉描述"
+                                            Text="{Binding IssueDescription,UpdateSourceTrigger=PropertyChanged}" 
+                                        AcceptsReturn="True"
+                                            IsReadOnly="{Binding DataContext.CanEditSupplement,
+                                            RelativeSource={RelativeSource AncestorType=UserControl},
+                                            Converter={StaticResource InverseBooleanConverter}}"/>
+                            
+                            <TextBlock  Grid.Row="2" Grid.Column="4" Text=" 品质分类 : " 
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
 
-                        <ComboBox Grid.Column="7" 
+                            <ComboBox  Grid.Row="2" Grid.Column="5" 
                                   ItemsSource="{Binding DataContext.QualityCategories,
                             RelativeSource={RelativeSource AncestorType=UserControl}}" 
                                   SelectedValue="{Binding QualityCategoryId}" 
@@ -272,157 +296,111 @@
                                   IsEnabled="{Binding DataContext.CanEditFacts,
                             RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="补发物料"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ComboBox Grid.Row="4" Grid.Column="1" Margin="0,0,12,0"
-                                  ItemsSource="{Binding DataContext.Products,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  SelectedValue="{Binding ProductId}" 
-                                  SelectedValuePath="Uid" 
-                                  DisplayMemberPath="Code" 
-                                  IsEditable="True" 
-                                  IsTextSearchEnabled="True" 
-                                  IsEnabled="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  AutomationProperties.Name="实际补发物料"/>
-
-                        <TextBlock Grid.Row="4" Grid.Column="2" Text="非标补件"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <CheckBox Grid.Row="4" Grid.Column="3"
-                                  IsChecked="{Binding IsNonStandard}" 
-                                  IsEnabled="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}" 
-                                  VerticalAlignment="Center"/>
-
-                        <TextBlock Grid.Row="4" Grid.Column="4" Text="补发描述"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ui:TextBox Grid.Row="4" Grid.Column="5" Margin="0,0,12,0"
-                                    Text="{Binding DescriptionSnapshot,UpdateSourceTrigger=PropertyChanged}" 
-                                    IsReadOnly="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
-
-                        <TextBlock Grid.Row="4" Grid.Column="6" Text="补发规格"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ui:TextBox Grid.Row="4" Grid.Column="7"
-                                    Text="{Binding SpecificationSnapshot,UpdateSourceTrigger=PropertyChanged}" 
-                                    IsReadOnly="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="责任供应商"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <supplierComponents:SupplierAutoSuggestComboBox Grid.Row="6" Grid.Column="1" Margin="0,0,12,0"
-                                  ItemsSource="{Binding DataContext.Suppliers,
-                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                  SelectedSupplier="{Binding SelectedResponsibleSupplier,Mode=TwoWay}"
-                                  IsEnabled="{Binding DataContext.CanEditFacts,
-                                    RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                  AutomationProperties.Name="责任供应商"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="2" Text="补发数量"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ui:TextBox Grid.Row="6" Grid.Column="3" Margin="0,0,12,0"
-                                    Text="{Binding Quantity,UpdateSourceTrigger=LostFocus,TargetNullValue=''}" 
-                                    IsReadOnly="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="4" Text="单位"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ui:TextBox Grid.Row="6" Grid.Column="5" Margin="0,0,12,0"
-                                    Text="{Binding UnitSnapshot,UpdateSourceTrigger=PropertyChanged}" 
-                                    IsReadOnly="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="6" Text="人民币行金额"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ui:TextBox Grid.Row="6" Grid.Column="7" Text="{Binding
-                            ServiceAmountCny,UpdateSourceTrigger=LostFocus,TargetNullValue=''}" 
-                                    IsReadOnly="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}" 
-                                    ToolTip="空为待定，0为免费，正数为付费"/>
-
-                        <TextBlock Grid.Row="8" Grid.Column="0" Text="要求交期"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <DatePicker Grid.Row="8" Grid.Column="1"
-                                    Style="{StaticResource SwiftExportDatePicker}" 
-                                    Margin="0,0,12,0" SelectedDate="{Binding RequiredDate}" 
+                            <TextBlock Grid.Row="2" Grid.Column="6" Text=" 要求交期 : " VerticalAlignment="Center"/>
+                            <DatePicker Grid.Row="2" Grid.Column="7" SelectedDateFormat="Short"
+                                        SelectedDate="{Binding RequiredDate}" 
                                     IsEnabled="{Binding DataContext.CanEditFacts,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
-                        <TextBlock Grid.Row="8" Grid.Column="2" Text="退回品收到日期"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <DatePicker Grid.Row="8" Grid.Column="3"
-                                    Style="{StaticResource SwiftExportDatePicker}"
-                                    Margin="0,0,12,0" SelectedDate="{Binding ReturnedReceivedDate}" 
+                            <TextBlock Grid.Row="2" Grid.Column="8" Text=" 退回品收到日期 : " VerticalAlignment="Center"/>
+                            <DatePicker Grid.Row="2" Grid.Column="9" SelectedDateFormat="Short"
+                                    SelectedDate="{Binding ReturnedReceivedDate}" 
                                     IsEnabled="{Binding DataContext.CanEditSupplement,
-                            RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                    RelativeSource={RelativeSource AncestorType=UserControl}}"/>
 
-                        <TextBlock Grid.Row="8" Grid.Column="4"
-                                   Text="投诉描述" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <!--==========================-->
 
-                        <ui:TextBox Grid.Row="8" Grid.Column="5" Grid.ColumnSpan="3"
-                                    Text="{Binding IssueDescription,UpdateSourceTrigger=PropertyChanged}" 
-                                    IsReadOnly="{Binding DataContext.CanEditSupplement,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
 
-                        <TextBlock Grid.Row="10" Grid.Column="0" Text="原因分析"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            
+                            <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="10" HorizontalAlignment="Stretch" ColumnDefinitions="Auto,Auto,Auto,2*,Auto,2*,Auto,*,Auto,2*,Auto,*">
 
-                        <ui:TextBox Grid.Row="10" Grid.Column="1" Margin="0,0,12,0"
-                                    Text="{Binding CauseAnalysis,UpdateSourceTrigger=PropertyChanged}" 
-                                    IsReadOnly="{Binding DataContext.CanEditSupplement,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
+                                <TextBlock Grid.Column="0" Text=" 非标补件 : " VerticalAlignment="Center" />
+                                <CheckBox Grid.Column="1"  IsChecked="{Binding IsNonStandard}"  IsEnabled="{Binding DataContext.CanEditFacts, RelativeSource={RelativeSource AncestorType=UserControl}}"  VerticalAlignment="Center"/>
+                                
+                                <TextBlock Grid.Column="2" Text=" 补件客户型号 : " VerticalAlignment="Center" />
+                                <ui:TextBox Grid.Column="3" PlaceholderText=" 补件客户型号 " VerticalAlignment="Center" />
 
-                        <TextBlock Grid.Row="10" Grid.Column="2" Text="处理说明"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="4" Text=" 补件Sku : " VerticalAlignment="Center" />
 
-                        <ui:TextBox Grid.Row="10" Grid.Column="3" Grid.ColumnSpan="3" Margin="0,0,12,0"
+                                <ComboBox Grid.Column="5" 
+                                          ItemsSource="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                          SelectedValue="{Binding ProductId}" 
+                                          SelectedValuePath="Uid" 
+                                          DisplayMemberPath="Code" 
+                                          IsEditable="True" 
+                                          IsTextSearchEnabled="True" 
+                                          IsEnabled="{Binding DataContext.CanEditFacts, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                          AutomationProperties.Name="实际补发物料"/>
+
+                                
+                                <TextBlock  Grid.Column="6" Text=" 补发数量 : " VerticalAlignment="Center"/>
+                                <ui:NumberBox  Grid.Column="7" SpinButtonPlacementMode="Hidden"  ClearButtonEnabled="False"
+                                    Text="{Binding Quantity,UpdateSourceTrigger=LostFocus,TargetNullValue=''}" 
+                                    IsReadOnly="{Binding DataContext.CanEditFacts, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"/>
+
+                                <TextBlock  Grid.Column="8" Text=" 金额 : " VerticalAlignment="Center"/>
+                                <ui:NumberBox Grid.Column="9" SpinButtonPlacementMode="Hidden"  ClearButtonEnabled="False"
+                                            Text="{Binding ServiceAmountCny,UpdateSourceTrigger=LostFocus,TargetNullValue=''}" 
+                                            IsReadOnly="{Binding DataContext.CanEditFacts,
+                                            RelativeSource={RelativeSource AncestorType=UserControl},
+                                            Converter={StaticResource InverseBooleanConverter}}" 
+                                            PlaceholderText="空为待定，0为免费，正数为付费"/>
+                                
+                                <TextBlock Grid.Column="10" Text=" 单位 : " VerticalAlignment="Center" />
+                                <ui:TextBox Grid.Column="11"  Text="{Binding UnitSnapshot,UpdateSourceTrigger=PropertyChanged}"
+                                    IsReadOnly="{Binding DataContext.CanEditFacts, RelativeSource={RelativeSource AncestorType=UserControl},Converter={StaticResource InverseBooleanConverter}}"/>
+
+                            </Grid>
+
+                            <!--==========================-->
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text=" 补发描述 : " VerticalAlignment="Center"/>
+                            <ui:TextBox Grid.Row="6" Grid.Column="1" 
+                                        Text="{Binding DescriptionSnapshot,UpdateSourceTrigger=PropertyChanged}" 
+                                        IsReadOnly="{Binding DataContext.CanEditFacts,
+                                        RelativeSource={RelativeSource AncestorType=UserControl},
+                                        Converter={StaticResource InverseBooleanConverter}}"/>
+
+                            <TextBlock Grid.Row="6" Grid.Column="2" Text=" 补发规格 : " VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ui:TextBox Grid.Row="6" Grid.Column="3"
+                                    Text="{Binding SpecificationSnapshot,UpdateSourceTrigger=PropertyChanged}" 
+                                    IsReadOnly="{Binding DataContext.CanEditFacts, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource InverseBooleanConverter}}"/>
+
+
+                            <TextBlock Grid.Row="6" Grid.Column="4" Text=" 原因分析 : "  VerticalAlignment="Center" />
+                            <ui:TextBox Grid.Row="6" Grid.Column="5" 
+                                        Text="{Binding CauseAnalysis,UpdateSourceTrigger=PropertyChanged}" 
+                                        IsReadOnly="{Binding DataContext.CanEditSupplement,
+                                        RelativeSource={RelativeSource AncestorType=UserControl},
+                                        Converter={StaticResource InverseBooleanConverter}}"/>
+
+                            <TextBlock Grid.Row="6" Grid.Column="6" Text=" 处理说明 : " VerticalAlignment="Center"/>
+                            <ui:TextBox Grid.Row="6" Grid.Column="7" 
                                     Text="{Binding TreatmentDescription,UpdateSourceTrigger=PropertyChanged}" 
                                     IsReadOnly="{Binding DataContext.CanEditSupplement,
-                            RelativeSource={RelativeSource AncestorType=UserControl},
-                            Converter={StaticResource InverseBooleanConverter}}"/>
+                                    RelativeSource={RelativeSource AncestorType=UserControl},
+                                    Converter={StaticResource InverseBooleanConverter}}"/>
 
-                        <TextBlock Grid.Row="10" Grid.Column="6" Text="行备注"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                        <ui:TextBox Grid.Row="10" Grid.Column="7"
-                                    Text="{Binding Remark,UpdateSourceTrigger=PropertyChanged}" 
-                                    IsReadOnly="{Binding DataContext.CanEditSupplement,
-                                                RelativeSource={RelativeSource AncestorType=UserControl},
-                                                Converter={StaticResource InverseBooleanConverter}}"/>
-
-                        <TextBlock Grid.Row="2" Grid.Column="4" Text="客户投诉单号"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox Grid.Row="2" Grid.Column="5" Margin="0,0,12,0" MaxLength="100"
-                                 Text="{Binding CustomerComplaintNo,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
-                                 IsEnabled="{Binding DataContext.CanEditSupplement,RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                 AutomationProperties.Name="客户投诉单号"/>
-                    </Grid>
-                </ScrollViewer>
-            </Border>
-
-        </Grid>
+                            <TextBlock Grid.Row="6" Grid.Column="8" Text=" 行备注 : " VerticalAlignment="Center"/>
+                            <ui:TextBox Grid.Row="6" Grid.Column="9"
+                                        Text="{Binding Remark,UpdateSourceTrigger=PropertyChanged}" 
+                                        IsReadOnly="{Binding DataContext.CanEditSupplement,
+                                        RelativeSource={RelativeSource AncestorType=UserControl},
+                                        Converter={StaticResource InverseBooleanConverter}}"/>
 
 
-        <!--statue-->
-        <Grid Grid.Row="6" ColumnDefinitions="*,Auto">
-            <TextBlock Text="{Binding ResultSummary}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-            <TextBlock Grid.Column="1" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
-        </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </Border>
+                
+
+                <!--statue-->
+                <Grid Grid.Row="6" ColumnDefinitions="*,Auto" MaxHeight="250">
+                    <TextBlock Text="{Binding ResultSummary}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock Grid.Column="1" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+
     </Grid>
 </UserControl>

@@ -278,7 +278,8 @@ namespace SwiftExport.Core.Entities.Inventory
     [LogicalReference(nameof(InboundDocumentLine.OriginalLineId), typeof(InboundDocumentLine))]
     public sealed partial class InboundDocumentLine { }
 
-    [DbCheck("CK_OutboundDocument_Status", "[LifecycleStatus] IN (0, 8, 9) AND [PostingStatus] IN (1, 8)")]
+    // 自动流程先建未过账单再写流水，同事务更新为已过账；手工草稿也使用 0。
+    [DbCheck("CK_OutboundDocument_Status", "[LifecycleStatus] IN (0, 8, 9) AND [PostingStatus] IN (0, 1, 8)")]
     [DbIndex("UX_OutboundDocument_No", nameof(OutboundDocument.DocumentNo), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("UX_OutboundDocument_Command", nameof(OutboundDocument.CommandId), IsUnique = true)]
     [LogicalReference(nameof(OutboundDocument.WarehouseSiteId), typeof(WarehouseSite), IsRequired = true)]

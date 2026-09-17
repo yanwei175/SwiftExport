@@ -127,7 +127,7 @@ public sealed class PackingListViewModelTests
     }
     /// <summary>已过账只读，未知读取失败也不能被误认为可编辑新单。</summary>
     [TestMethod]
-    public async Task PostedAndFailedLoadAreReadOnly_PostCommandsOnlyNotify()
+    public async Task PostedAndFailedLoadAreReadOnly_PostCommandsRequirePermission()
     {
         var api = new PackingListApiStub(); var ui = new PackingListUiStub(); var dto = Existing();
         dto.Header.PostingStatus = PackingListPostingStatusEnum.Posted;
@@ -135,7 +135,8 @@ public sealed class PackingListViewModelTests
         using var vm = Detail(api, ui); await vm.InitializeDocumentAsync(new PackingListOpenRequest { Uid = dto.Header.Uid }, default);
         Assert.IsTrue(vm.IsReadOnly); Assert.IsFalse(vm.IsEditable);
         await vm.SaveCommand.ExecuteAsync(null); vm.PostCommand.Execute(null); vm.ReverseCommand.Execute(null);
-        Assert.AreEqual(0, api.Updates.Count); Assert.AreEqual(1, ui.Infos); Assert.AreEqual(1, ui.Warnings.Count);
+        Assert.AreEqual(0, api.Updates.Count);
+        Assert.IsFalse(vm.PostCommand.CanExecute(null)); Assert.IsFalse(vm.ReverseCommand.CanExecute(null));
         api.Get = _ => Task.FromResult(ServiceResult<PackingListDetailDto>.Fail("404"));
         using var failed = Detail(api, ui); await failed.InitializeDocumentAsync(new PackingListOpenRequest { Uid = Guid.NewGuid() }, default);
         Assert.IsTrue(failed.IsReadOnly); Assert.IsFalse(failed.HasUnsavedChanges);
@@ -284,7 +285,23 @@ public sealed class PackingListViewModelTests
 /// <summary>可控制完成顺序的契约替身，不执行网络。</summary>
 internal sealed class PackingListApiStub : IPackingListApi
 {
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListPostingPreviewDto>> PostPreviewAsync(Guid uid, PackingListPostPreviewRequest request, CancellationToken cancellationToken = default) => Preview(uid, request);
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListPostingPreviewDto>> ReversePreviewAsync(Guid uid, PackingListReversePreviewRequest request, CancellationToken cancellationToken = default) => ReversePreview(uid, request);
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListPostingCommandResult>> PostAsync(Guid uid, PostPackingListCommand request, CancellationToken cancellationToken = default) => Post(uid, request);
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListPostingCommandResult>> ReverseAsync(Guid uid, ReversePackingListCommand request, CancellationToken cancellationToken = default) => Reverse(uid, request);
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListTraceDto>> TraceAsync(Guid uid, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("本夹具未配置执行追踪查询。");
     public List<CreatePackingListDraftCommand> Creates { get; } = [];
+    public Func<Guid, PackingListPostPreviewRequest, Task<ServiceResult<PackingListPostingPreviewDto>>> Preview { get; set; } = (_, _) => throw new NotSupportedException();
+    public Func<Guid, PostPackingListCommand, Task<ServiceResult<PackingListPostingCommandResult>>> Post { get; set; } = (_, _) => throw new NotSupportedException();
+    public Func<Guid, PackingListReversePreviewRequest, Task<ServiceResult<PackingListPostingPreviewDto>>> ReversePreview { get; set; } = (_, _) => throw new NotSupportedException();
+    public Func<Guid, ReversePackingListCommand, Task<ServiceResult<PackingListPostingCommandResult>>> Reverse { get; set; } = (_, _) => throw new NotSupportedException();
+    public Func<Guid, UpdatePackingListDraftCommand, Task<ServiceResult<PackingListDraftCommandResult>>> Update { get; set; } = (_, _) => Task.FromResult(ServiceResult<PackingListDraftCommandResult>.Fail("待开发"));
     public List<UpdatePackingListDraftCommand> Updates { get; } = [];
     public Func<CreatePackingListDraftCommand, Task<ServiceResult<PackingListDraftCommandResult>>> Create { get; set; } = _ => Task.FromResult(ServiceResult<PackingListDraftCommandResult>.Fail("待开发"));
     public Func<Guid, Task<ServiceResult<PackingListDetailDto>>> Get { get; set; } = _ => Task.FromResult(ServiceResult<PackingListDetailDto>.Fail("待开发"));
@@ -299,7 +316,7 @@ internal sealed class PackingListApiStub : IPackingListApi
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListDraftCommandResult>> CreateAsync(CreatePackingListDraftCommand request, CancellationToken cancellationToken = default) { Creates.Add(request); return Create(request); }
     /// <inheritdoc/>
-    public Task<ServiceResult<PackingListDraftCommandResult>> UpdateAsync(Guid uid, UpdatePackingListDraftCommand request, CancellationToken cancellationToken = default) { Updates.Add(request); return Task.FromResult(ServiceResult<PackingListDraftCommandResult>.Fail("待开发")); }
+    public Task<ServiceResult<PackingListDraftCommandResult>> UpdateAsync(Guid uid, UpdatePackingListDraftCommand request, CancellationToken cancellationToken = default) { Updates.Add(request); return Update(uid, request); }
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListDraftCommandResult>> DeleteAsync(Guid uid, DeletePackingListDraftCommand request, CancellationToken cancellationToken = default) => Task.FromResult(ServiceResult<PackingListDraftCommandResult>.Fail("待开发"));
 }

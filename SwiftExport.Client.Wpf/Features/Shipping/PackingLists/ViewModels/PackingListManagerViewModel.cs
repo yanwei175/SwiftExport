@@ -64,8 +64,14 @@ public sealed partial class PackingListManagerViewModel(IPackingListApi api, IAp
     [RelayCommand]
     private Task EditAsync() => _disposed || IsBusy || _confirming || SelectedHeader is null ? Task.CompletedTask :
         navigation.OpenDocumentAsync(PackingListDetailViewModel.RouteKey, SelectedHeader.Uid.ToString("N"), new PackingListOpenRequest { Uid = SelectedHeader.Uid });
-    [RelayCommand] private void Post() => messages.ShowInfo("待开发", "PackingList 过账及自动入出库待开发，本次未修改数据。");
-    [RelayCommand] private void Reverse() => messages.ShowInfo("待开发", "PackingList 反过账待开发，本次未修改数据。");
+    /// <summary>在独立详情中核对、保存和预览，不从只读管理列表直接提交库存。</summary>
+    [RelayCommand] private Task PostAsync()
+    {
+        if (SelectedHeader == null) { messages.ShowWarning("PackingList", "请先选择箱单。"); return Task.CompletedTask; }
+        return EditAsync();
+    }
+    /// <summary>在详情中按原执行记录确认整单反向。</summary>
+    [RelayCommand] private Task ReverseAsync() => EditAsync();
     /// <summary>确认后复核目标；同版本删除重试复用命令身份。</summary>
     [RelayCommand]
     private async Task DeleteAsync()
