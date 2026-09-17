@@ -32,6 +32,8 @@ public interface IWarehouseSiteRepository
     Task<int> UpdateNameAsync(WarehouseSite site, int expectedVersion);
     /// <summary>按版本停用虚拟仓并递增版本。</summary>
     Task<int> DeactivateAsync(WarehouseSite site, int expectedVersion);
+    /// <summary>按版本启用未删除虚拟仓并递增版本；数据库活动仓唯一约束冲突返回零。</summary>
+    Task<int> ActivateAsync(WarehouseSite site, int expectedVersion);
     /// <summary>软删虚拟仓并递增并发版本；删除资格由同事务内专用检查负责。</summary>
     Task<int> DeleteAsync(Guid uid, int expectedVersion);
     /// <summary>返回阻止删除的当前库存、历史流水和业务引用类别；空集合表示可删除。</summary>

@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
+using SwiftExportClient.Features.Inventory.WarehouseSites.Models;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Services;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.Views;
@@ -39,6 +40,7 @@ public sealed class WarehouseSitesViewModelTests
         Assert.IsTrue(viewModel.IsReadOnly);
         Assert.IsFalse(viewModel.HasManagePermission);
         Assert.IsFalse(viewModel.OpenCreateCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.ActivateCommand.CanExecute(null));
     }
 
     /// <summary>验证两处供应商控件复用同一缓存，抽屉仍通过页面代理解析页面级命令。</summary>
@@ -293,6 +295,343 @@ public sealed class WarehouseSitesViewModelTests
         Assert.AreEqual(0, api.DeleteCallCount);
     }
 
+    /// <summary>取消启用原因确认不得调用 API，也不得刷新仓库缓存。</summary>
+    [TestMethod]
+    public async Task ActivateCancel_ShouldNotCallApi()
+    {
+        var reasonDialog = new FakeReasonDialog { Result = null };
+        var cache = new ReferenceDataCacheServiceStub();
+        var api = new FakeWarehouseApi();
+        using var viewModel = CreateViewModel(api, reasonDialog: reasonDialog, cache: cache);
+        viewModel.SelectedItem = Warehouse("WH-01", "停用仓", isActive: false);
+
+        await viewModel.ActivateCommand.ExecuteAsync(null);
+
+        Assert.AreEqual("启用", reasonDialog.LastAction);
+        Assert.AreEqual(0, api.ActivateCallCount);
+        Assert.AreEqual(0, cache.RefreshWarehouseSitesCallCount);
+    }
+
+    /// <summary>启用成功后列表与 Picker 缓存分别刷新，缓存失败只追加警告而不覆盖业务成功。</summary>
+    [TestMethod]
+    public async Task Activate_WhenPickerCacheRefreshFails_ShouldKeepSuccessAndWarnSeparately()
+    {
+        var target = Warehouse("WH-01", "停用仓", isActive: false);
+        var activated = Warehouse(target.Code, target.Name);
+        activated.Uid = target.Uid;
+        activated.Version = target.Version + 1;
+        var api = new FakeWarehouseApi
+        {
+            ActivateHandler = (_, _) => Task.FromResult(ServiceResult<WarehouseSiteDto>.Ok(activated)),
+            SearchHandler = (_, _) => Task.FromResult(Page(activated))
+        };
+        var cache = new ReferenceDataCacheServiceStub(
+            warehouseRefreshSuccess: false,
+            warehouseRefreshMessage: "仓库缓存模拟失败");
+        var messages = new FakeMessageService();
+        using var viewModel = CreateViewModel(
+            api, reasonDialog: new FakeReasonDialog { Result = "恢复使用" }, messages: messages, cache: cache);
+        viewModel.SelectedItem = target;
+
+        await viewModel.ActivateCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, api.ActivateCallCount);
+        Assert.AreEqual(1, api.ActivateCommands.Single().ExpectedVersion);
+        Assert.AreEqual("恢复使用", api.ActivateCommands.Single().Reason);
+        Assert.AreEqual("虚拟仓已启用", messages.LastSuccessTitle);
+        Assert.AreEqual("启用成功，缓存刷新失败", messages.LastWarningTitle);
+        Assert.AreEqual("仓库缓存模拟失败", messages.LastWarningMessage);
+        Assert.IsNull(messages.LastErrorTitle);
+        Assert.AreEqual(1, cache.RefreshWarehouseSitesCallCount);
+    }
+
+    /// <summary>启用按钮只对有权限、停用选中行、无抽屉且非 Busy 的页面可用，并能及时通知状态变化。</summary>
+    [TestMethod]
+    public async Task ActivateCommand_ShouldTrackSelectionAndDrawerState()
+    {
+        using var viewModel = CreateViewModel(new FakeWarehouseApi());
+        var notifications = 0;
+        viewModel.ActivateCommand.CanExecuteChanged += (_, _) => notifications++;
+
+        viewModel.SelectedItem = Warehouse("WH-A", "活动仓");
+        Assert.IsFalse(viewModel.ActivateCommand.CanExecute(null));
+        viewModel.SelectedItem = Warehouse("WH-I", "停用仓", isActive: false);
+        Assert.IsTrue(viewModel.ActivateCommand.CanExecute(null));
+        await viewModel.OpenCreateCommand.ExecuteAsync(null);
+        Assert.IsFalse(viewModel.ActivateCommand.CanExecute(null));
+        Assert.IsTrue(notifications > 0);
+    }
+
+    /// <summary>真实 DataGrid 选择变化会在干净编辑抽屉中加载新行详情，不要求再次点击编辑。</summary>
+    [TestMethod]
+    public void SelectionChanged_WhenEditingCleanRow_ShouldLoadSelectedRow()
+    {
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            var first = Warehouse("WH-A", "仓库甲");
+            var second = Warehouse("WH-B", "仓库乙");
+            var api = new FakeWarehouseApi
+            {
+                DetailHandler = (uid, _) => Task.FromResult(ServiceResult<WarehouseSiteDto>.Ok(uid == first.Uid ? first : second))
+            };
+            using var viewModel = CreateViewModel(api);
+            viewModel.Items.Add(first);
+            viewModel.Items.Add(second);
+            viewModel.SelectedItem = first;
+            await viewModel.OpenEditCommand.ExecuteAsync(null);
+            var view = new WarehouseSitesView { DataContext = viewModel };
+            var window = CreateHiddenWindow(view);
+            try
+            {
+                window.Show();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                var grid = FindVisualDescendants<DataGrid>(view).Single();
+                grid.SelectedItem = second;
+                await Dispatcher.Yield(DispatcherPriority.Background);
+                await Dispatcher.Yield(DispatcherPriority.Background);
+
+                Assert.AreSame(second, viewModel.SelectedItem);
+                Assert.AreEqual(second.Uid, viewModel.EditModel?.Uid);
+                Assert.IsTrue(viewModel.IsDrawerOpen);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    /// <summary>脏编辑确认后才切换目标；取消确认会恢复原选择和原编辑内容。</summary>
+    [TestMethod]
+    public async Task SelectionChanged_WhenDirty_ShouldConfirmOrRestoreOriginalState()
+    {
+        var first = Warehouse("WH-A", "仓库甲");
+        var second = Warehouse("WH-B", "仓库乙");
+        var api = new FakeWarehouseApi
+        {
+            DetailHandler = (uid, _) => Task.FromResult(ServiceResult<WarehouseSiteDto>.Ok(uid == first.Uid ? first : second))
+        };
+        var cancelDialog = new FakeDialogService { ConfirmResult = false };
+        using (var cancelled = CreateViewModel(api, dialogs: cancelDialog))
+        {
+            cancelled.Items.Add(first);
+            cancelled.Items.Add(second);
+            cancelled.SelectedItem = first;
+            await cancelled.OpenEditCommand.ExecuteAsync(null);
+            cancelled.EditModel!.Name = "未保存名称";
+            cancelled.SelectedItem = second;
+
+            await cancelled.HandleSelectionChangedAsync(first, second);
+
+            Assert.AreSame(first, cancelled.SelectedItem);
+            Assert.AreEqual(first.Uid, cancelled.EditModel.Uid);
+            Assert.AreEqual("未保存名称", cancelled.EditModel.Name);
+            Assert.AreEqual(1, cancelDialog.ConfirmCount);
+        }
+
+        var confirmDialog = new FakeDialogService { ConfirmResult = true };
+        using var confirmed = CreateViewModel(api, dialogs: confirmDialog);
+        confirmed.Items.Add(first);
+        confirmed.Items.Add(second);
+        confirmed.SelectedItem = first;
+        await confirmed.OpenEditCommand.ExecuteAsync(null);
+        confirmed.EditModel!.Name = "待放弃名称";
+        confirmed.SelectedItem = second;
+
+        await confirmed.HandleSelectionChangedAsync(first, second);
+
+        Assert.AreSame(second, confirmed.SelectedItem);
+        Assert.AreEqual(second.Uid, confirmed.EditModel?.Uid);
+        Assert.IsFalse(confirmed.EditModel?.HasChanges);
+    }
+
+    /// <summary>未保存确认等待期间拒绝后续选行并恢复原编辑行，旧确认不得再处理已被拒绝的目标。</summary>
+    [TestMethod]
+    public async Task SelectionChanged_WhileDirtyConfirmationPending_ShouldRejectReentryAndKeepEditor()
+    {
+        var first = Warehouse("WH-A", "仓库甲");
+        var second = Warehouse("WH-B", "仓库乙");
+        var third = Warehouse("WH-C", "仓库丙");
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialogs = new FakeDialogService { ConfirmHandler = () => confirmation.Task };
+        var api = new FakeWarehouseApi
+        {
+            DetailHandler = (uid, _) => Task.FromResult(ServiceResult<WarehouseSiteDto>.Ok(
+                uid == first.Uid ? first : uid == second.Uid ? second : third))
+        };
+        using var viewModel = CreateViewModel(api, dialogs: dialogs);
+        foreach (var item in new[] { first, second, third }) viewModel.Items.Add(item);
+        viewModel.SelectedItem = first;
+        await viewModel.OpenEditCommand.ExecuteAsync(null);
+        var originalEditor = viewModel.EditModel!;
+        originalEditor.Name = "未保存名称";
+        viewModel.SelectedItem = second;
+        var firstChange = viewModel.HandleSelectionChangedAsync(first, second);
+        await Task.Yield();
+        viewModel.SelectedItem = third;
+
+        await viewModel.HandleSelectionChangedAsync(second, third);
+
+        Assert.AreSame(first, viewModel.SelectedItem);
+        Assert.AreSame(originalEditor, viewModel.EditModel);
+        Assert.AreEqual(1, dialogs.ConfirmCount);
+        confirmation.SetResult(true);
+        await firstChange;
+        Assert.AreSame(first, viewModel.SelectedItem);
+        Assert.AreSame(originalEditor, viewModel.EditModel);
+        Assert.AreEqual("未保存名称", viewModel.EditModel!.Name);
+    }
+
+    /// <summary>确认等待期间关闭请求不得重入 Dialog，替换后的编辑上下文不受旧确认真假影响。</summary>
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task SelectionChanged_WhenContextChangesDuringConfirmation_ShouldNotClearReplacement(bool confirmed)
+    {
+        var first = Warehouse("WH-A", "仓库甲");
+        var second = Warehouse("WH-B", "仓库乙");
+        var replacement = Warehouse("WH-C", "仓库丙");
+        var confirmation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialogs = new FakeDialogService { ConfirmHandler = () => confirmation.Task };
+        var api = new FakeWarehouseApi { DetailResult = ServiceResult<WarehouseSiteDto>.Ok(first) };
+        using var viewModel = CreateViewModel(api, dialogs: dialogs);
+        viewModel.Items.Add(first);
+        viewModel.Items.Add(second);
+        viewModel.SelectedItem = first;
+        await viewModel.OpenEditCommand.ExecuteAsync(null);
+        viewModel.EditModel!.Name = "未保存名称";
+        viewModel.SelectedItem = second;
+        var changing = viewModel.HandleSelectionChangedAsync(first, second);
+        await Task.Yield();
+
+        await viewModel.CloseDrawerCommand.ExecuteAsync(null);
+        var replacementEditor = WarehouseSiteEditModel.FromDto(replacement);
+        viewModel.EditModel = replacementEditor;
+        viewModel.SelectedItem = replacement;
+        confirmation.SetResult(confirmed);
+        await changing;
+
+        Assert.AreEqual(1, dialogs.ConfirmCount);
+        Assert.IsTrue(viewModel.IsDrawerOpen);
+        Assert.AreSame(replacementEditor, viewModel.EditModel);
+        Assert.AreSame(replacement, viewModel.SelectedItem);
+    }
+
+    /// <summary>选择确认异常由页面协调器转换为稳定提示，不向 WPF async void 事件传播异常。</summary>
+    [TestMethod]
+    public async Task SelectionChanged_WhenConfirmationThrows_ShouldRestoreSelectionAndReportStableError()
+    {
+        var first = Warehouse("WH-A", "仓库甲");
+        var second = Warehouse("WH-B", "仓库乙");
+        var dialogs = new FakeDialogService
+        {
+            ConfirmHandler = () => Task.FromException<bool>(new InvalidOperationException("模拟 Dialog 重入异常"))
+        };
+        var messages = new FakeMessageService();
+        var api = new FakeWarehouseApi { DetailResult = ServiceResult<WarehouseSiteDto>.Ok(first) };
+        using var viewModel = CreateViewModel(api, dialogs: dialogs, messages: messages);
+        viewModel.Items.Add(first);
+        viewModel.Items.Add(second);
+        viewModel.SelectedItem = first;
+        await viewModel.OpenEditCommand.ExecuteAsync(null);
+        viewModel.EditModel!.Name = "未保存名称";
+        viewModel.SelectedItem = second;
+
+        await viewModel.HandleSelectionChangedAsync(first, second);
+
+        Assert.AreSame(first, viewModel.SelectedItem);
+        Assert.AreEqual("无法切换虚拟仓", messages.LastErrorTitle);
+        Assert.AreEqual("切换编辑目标失败，请重试。", messages.LastErrorMessage);
+    }
+
+    /// <summary>新增模式不被选行覆盖；编辑模式清空选择会关闭干净抽屉。</summary>
+    [TestMethod]
+    public async Task SelectionChanged_ShouldPreserveCreateModeAndCloseCleanEditOnEmptySelection()
+    {
+        var row = Warehouse("WH-A", "仓库甲");
+        var api = new FakeWarehouseApi { DetailResult = ServiceResult<WarehouseSiteDto>.Ok(row) };
+        using var viewModel = CreateViewModel(api);
+        await viewModel.OpenCreateCommand.ExecuteAsync(null);
+        viewModel.SelectedItem = row;
+
+        await viewModel.HandleSelectionChangedAsync(null, row);
+
+        Assert.IsTrue(viewModel.EditModel?.IsCreateMode);
+        Assert.IsTrue(viewModel.IsDrawerOpen);
+
+        await viewModel.CloseDrawerCommand.ExecuteAsync(null);
+        viewModel.SelectedItem = row;
+        await viewModel.OpenEditCommand.ExecuteAsync(null);
+        viewModel.SelectedItem = null;
+        await viewModel.HandleSelectionChangedAsync(row, null);
+
+        Assert.IsFalse(viewModel.IsDrawerOpen);
+        Assert.IsNull(viewModel.EditModel);
+    }
+
+    /// <summary>保存 Busy 期间选择变化会恢复编辑行，不能让写入目标与页面选择漂移。</summary>
+    [TestMethod]
+    public async Task SelectionChanged_DuringSave_ShouldRestoreEditingRow()
+    {
+        var first = Warehouse("WH-A", "仓库甲");
+        var second = Warehouse("WH-B", "仓库乙");
+        var saveGate = new TaskCompletionSource<ServiceResult<WarehouseSiteDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var saveStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = new FakeWarehouseApi
+        {
+            DetailResult = ServiceResult<WarehouseSiteDto>.Ok(first),
+            UpdateHandler = (_, _) => { saveStarted.TrySetResult(); return saveGate.Task; },
+            SearchHandler = (_, _) => Task.FromResult(Page(first, second))
+        };
+        using var viewModel = CreateViewModel(api);
+        viewModel.Items.Add(first);
+        viewModel.Items.Add(second);
+        viewModel.SelectedItem = first;
+        await viewModel.OpenEditCommand.ExecuteAsync(null);
+        viewModel.EditModel!.Name = "保存中的名称";
+        var saving = viewModel.SaveCommand.ExecuteAsync(null);
+        await saveStarted.Task;
+        viewModel.SelectedItem = second;
+
+        await viewModel.HandleSelectionChangedAsync(first, second);
+
+        Assert.AreSame(first, viewModel.SelectedItem);
+        saveGate.SetResult(ServiceResult<WarehouseSiteDto>.Ok(first));
+        await saving;
+    }
+
+    /// <summary>快速从 A 切到 B/C 时，迟到的 B 详情不得覆盖最终选中的 C。</summary>
+    [TestMethod]
+    public async Task SelectionChanged_ShouldRejectLateDetailResponse()
+    {
+        var first = Warehouse("WH-A", "仓库甲");
+        var second = Warehouse("WH-B", "仓库乙");
+        var third = Warehouse("WH-C", "仓库丙");
+        var secondGate = new TaskCompletionSource<ServiceResult<WarehouseSiteDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = new FakeWarehouseApi
+        {
+            DetailHandler = (uid, _) => uid == second.Uid
+                ? secondGate.Task
+                : Task.FromResult(ServiceResult<WarehouseSiteDto>.Ok(uid == first.Uid ? first : third))
+        };
+        using var viewModel = CreateViewModel(api);
+        foreach (var item in new[] { first, second, third }) viewModel.Items.Add(item);
+        viewModel.SelectedItem = first;
+        await viewModel.OpenEditCommand.ExecuteAsync(null);
+        viewModel.SelectedItem = second;
+        var loadingSecond = viewModel.HandleSelectionChangedAsync(first, second);
+        await Task.Yield();
+        viewModel.SelectedItem = third;
+
+        await viewModel.HandleSelectionChangedAsync(second, third);
+        secondGate.SetResult(ServiceResult<WarehouseSiteDto>.Ok(second));
+        await loadingSecond;
+
+        Assert.AreSame(third, viewModel.SelectedItem);
+        Assert.AreEqual(third.Uid, viewModel.EditModel?.Uid);
+    }
+
     /// <summary>验证同一未变更建仓意图失败重试时沿用 CommandId，成功后关闭抽屉。</summary>
     [TestMethod]
     public async Task CreateRetry_ShouldReuseCommandIdUntilSuccess()
@@ -410,10 +749,10 @@ public sealed class WarehouseSitesViewModelTests
         Content = content
     };
 
-    private static WarehouseSiteDto Warehouse(string code, string name) => new()
+    private static WarehouseSiteDto Warehouse(string code, string name, bool isActive = true) => new()
     {
         Uid = Guid.NewGuid(), Version = 1, Code = code, Name = name,
-        SupplierId = Guid.NewGuid(), SupplierCode = "S-01", SupplierName = "供应商甲", IsActive = true
+        SupplierId = Guid.NewGuid(), SupplierCode = "S-01", SupplierName = "供应商甲", IsActive = isActive
     };
 
     private static ServiceResult<PagedResponseBase<WarehouseSiteDto>> Page(params WarehouseSiteDto[] items)
@@ -445,11 +784,16 @@ public sealed class WarehouseSitesViewModelTests
         public Func<WarehouseSiteSearchRequest, CancellationToken, Task<ServiceResult<PagedResponseBase<WarehouseSiteDto>>>> SearchHandler { get; init; }
             = (_, _) => Task.FromResult(Page());
         public Func<CreateSupplierVirtualWarehouseCommand, Task<ServiceResult<WarehouseSiteDto>>>? CreateHandler { get; set; }
+        public Func<Guid, CancellationToken, Task<ServiceResult<WarehouseSiteDto>>>? DetailHandler { get; set; }
+        public Func<Guid, UpdateWarehouseSiteCommand, Task<ServiceResult<WarehouseSiteDto>>>? UpdateHandler { get; set; }
+        public Func<Guid, ActivateWarehouseSiteCommand, Task<ServiceResult<WarehouseSiteDto>>>? ActivateHandler { get; set; }
         public ServiceResult<WarehouseSiteDto> DetailResult { get; init; } = ServiceResult<WarehouseSiteDto>.Fail("未配置详情");
         public List<CreateSupplierVirtualWarehouseCommand> CreateCommands { get; } = [];
+        public List<ActivateWarehouseSiteCommand> ActivateCommands { get; } = [];
         public List<WarehouseSiteSearchRequest> SearchRequests { get; } = [];
         public int SearchCallCount { get; private set; }
         public int SupplierSearchCallCount { get; private set; }
+        public int ActivateCallCount { get; private set; }
         public int DeleteCallCount { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
@@ -471,13 +815,20 @@ public sealed class WarehouseSitesViewModelTests
             }));
         }
         public Task<ServiceResult<WarehouseSiteDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default)
-            => Task.FromResult(DetailResult);
+            => DetailHandler?.Invoke(uid, cancellationToken) ?? Task.FromResult(DetailResult);
         public Task<ServiceResult<WarehouseSiteDto>> CreateSupplierVirtualAsync(CreateSupplierVirtualWarehouseCommand command, CancellationToken cancellationToken = default)
             => CreateHandler?.Invoke(command) ?? Task.FromResult(ServiceResult<WarehouseSiteDto>.Fail("未配置创建"));
         public Task<ServiceResult<WarehouseSiteDto>> UpdateAsync(Guid uid, UpdateWarehouseSiteCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+            => UpdateHandler?.Invoke(uid, command) ?? throw new NotSupportedException();
         public Task<ServiceResult<WarehouseSiteDto>> DeactivateAsync(Guid uid, DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+        public Task<ServiceResult<WarehouseSiteDto>> ActivateAsync(Guid uid, ActivateWarehouseSiteCommand command, CancellationToken cancellationToken = default)
+        {
+            ActivateCallCount++;
+            ActivateCommands.Add(command);
+            return ActivateHandler?.Invoke(uid, command)
+                ?? Task.FromResult(ServiceResult<WarehouseSiteDto>.Fail("未配置启用"));
+        }
         public Task<ServiceResult<WarehouseSiteDto>> DeleteAsync(Guid uid, DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default)
         {
             DeleteCallCount++;
@@ -496,12 +847,13 @@ public sealed class WarehouseSitesViewModelTests
     private sealed class FakeDialogService : IDialogService
     {
         public bool ConfirmResult { get; init; } = true;
+        public Func<Task<bool>>? ConfirmHandler { get; init; }
         public int ConfirmCount { get; private set; }
         public Task ShowContentAsync(string title, object content, string closeButtonText = "关闭", CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default)
+        public async Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default)
         {
             ConfirmCount++;
-            return Task.FromResult(ConfirmResult);
+            return ConfirmHandler is null ? ConfirmResult : await ConfirmHandler();
         }
         public Task ShowErrorAsync(string title, string message, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
@@ -509,8 +861,12 @@ public sealed class WarehouseSitesViewModelTests
     private sealed class FakeReasonDialog : IWarehouseSiteReasonDialogService
     {
         public string? Result { get; init; }
+        public string? LastAction { get; private set; }
         public Task<string?> RequestAsync(string action, WarehouseSiteDto warehouse, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result);
+        {
+            LastAction = action;
+            return Task.FromResult(Result);
+        }
     }
 
     private sealed class FakeMessageService : IMessageService

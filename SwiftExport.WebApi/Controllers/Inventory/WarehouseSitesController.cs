@@ -63,6 +63,9 @@ public sealed class WarehouseSitesController(IInventoryService service) : Contro
     /// <summary>转发现有停用命令，不改变库存及历史约束。</summary>
     [HttpPost("{uid:guid}/deactivate")]
     public Task<ServiceResult<WarehouseSiteDto>> DeactivateAsync(Guid uid, [FromBody] DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken) => service.DeactivateWarehouseSiteAsync(uid, command, cancellationToken);
+    /// <summary>转发虚拟仓启用命令；版本、删除状态与活动仓唯一性由应用服务校验。</summary>
+    [HttpPost("{uid:guid}/activate")]
+    public Task<ServiceResult<WarehouseSiteDto>> ActivateAsync(Guid uid, [FromBody] ActivateWarehouseSiteCommand command, CancellationToken cancellationToken) => service.ActivateWarehouseSiteAsync(uid, command, cancellationToken);
     /// <summary>转发虚拟仓删除命令；仓库历史与余额约束在服务内仍然生效。</summary>
     [HttpDelete("{uid:guid}")]
     public Task<ServiceResult<WarehouseSiteDto>> DeleteAsync(Guid uid, [FromBody] DeleteWarehouseSiteCommand command, CancellationToken cancellationToken) => service.DeleteWarehouseSiteAsync(uid, command, cancellationToken);

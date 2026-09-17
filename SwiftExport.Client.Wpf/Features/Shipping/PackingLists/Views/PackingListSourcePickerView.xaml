@@ -98,7 +98,7 @@
                 <DataGridTemplateColumn Header="是否非标">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <CheckBox IsChecked="{Binding IsNonStandardSnapshot,Mode=OneWay}" IsHitTestVisible="False" Focusable="False"/>
+                            <CheckBox IsChecked="{Binding IsNonStandard,Mode=OneWay}" IsHitTestVisible="False" Focusable="False"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

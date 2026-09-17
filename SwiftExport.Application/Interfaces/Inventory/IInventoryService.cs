@@ -21,6 +21,8 @@ public interface IInventoryService
     Task<ServiceResult<WarehouseSiteDto>> UpdateWarehouseSiteAsync(Guid uid, UpdateWarehouseSiteCommand command, CancellationToken cancellationToken = default);
     /// <summary>在不存在有效库存或历史流水时停用虚拟仓。</summary>
     Task<ServiceResult<WarehouseSiteDto>> DeactivateWarehouseSiteAsync(Guid uid, DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken = default);
+    /// <summary>按乐观并发版本重新启用未删除虚拟仓，并保持供应商活动仓唯一。</summary>
+    Task<ServiceResult<WarehouseSiteDto>> ActivateWarehouseSiteAsync(Guid uid, ActivateWarehouseSiteCommand command, CancellationToken cancellationToken = default);
     /// <summary>软删除虚拟仓；仅允许不存在余额与流水时删除。</summary>
     Task<ServiceResult<WarehouseSiteDto>> DeleteWarehouseSiteAsync(Guid uid, DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default);
     /// <summary>按供应商、虚拟仓、关键词和非零条件分页查询余额。</summary>

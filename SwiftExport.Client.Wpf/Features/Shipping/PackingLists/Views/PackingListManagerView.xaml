@@ -16,7 +16,7 @@
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance vm:PackingListManagerViewModel}"
              d:DesignHeight="850" d:DesignWidth="1400">
-    <Grid Margin="12,8">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="8"/>

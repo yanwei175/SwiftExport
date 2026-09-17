@@ -75,6 +75,23 @@ public sealed class PackingListDraftApiContractTests
         Assert.IsFalse(service.Contains("IInventoryPostingService", StringComparison.Ordinal));
     }
 
+    /// <summary>售后客户投诉号仅从客户和头行归属匹配的有效记录读取，保留销售 PO 取值。</summary>
+    [TestMethod]
+    public void AfterSalesComplaintNumberEnrichesCustomerPo()
+    {
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
+        StringAssert.Contains(repository, "THEN soh.CustomerPoNo");
+        StringAssert.Contains(repository, "WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL");
+        StringAssert.Contains(repository, "THEN asl.CustomerComplaintNo END AS CustomerPoNo");
+        StringAssert.Contains(repository, "ash.Uid=g.SourceUid");
+        StringAssert.Contains(repository, "ash.CustomerId=g.CustomerId AND ash.IsDeleted=0");
+        StringAssert.Contains(repository, "asl.Uid=g.SourceLineId");
+        StringAssert.Contains(repository, "asl.HeaderId=ash.Uid AND asl.IsDeleted=0");
+        var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingListService.cs");
+        StringAssert.Contains(service, "CustomerPoNo = enrichment?.CustomerPoNo");
+        StringAssert.Contains(service, "CustomerPoNo = Clean(enrichment?.CustomerPoNo, 200)");
+    }
+
     private static T Attribute<T>(System.Reflection.MethodInfo method) where T : Attribute =>
         method.GetCustomAttributes(typeof(T), false).Cast<T>().Single();
 

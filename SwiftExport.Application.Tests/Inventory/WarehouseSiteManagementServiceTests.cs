@@ -62,6 +62,122 @@ public sealed class WarehouseSiteManagementServiceTests
         Assert.AreEqual(0, fixture.Warehouses.InsertCount);
     }
 
+    /// <summary>启用命令要求独立仓库管理权限，并在开启事务前拒绝无权调用。</summary>
+    [TestMethod]
+    public async Task Activate_ShouldRequireManagePermissionBeforeTransaction()
+    {
+        var fixture = new Fixture(hasManagePermission: false);
+        var target = fixture.Warehouses.AddExisting("WH-01", "测试仓", isActive: false);
+
+        var result = await fixture.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(Guid.NewGuid(), target.Version, "恢复使用"));
+
+        Assert.IsFalse(result.Success);
+        StringAssert.Contains(result.Message, "管理权限");
+        Assert.AreEqual(0, fixture.Connection.BeginTransactionCount);
+        Assert.AreEqual(0, fixture.Warehouses.ActivateCount);
+    }
+
+    /// <summary>启用停用仓库只校验状态与唯一性，不受既有库存或流水历史阻止。</summary>
+    [TestMethod]
+    public async Task Activate_ShouldIgnoreInventoryHistoryAndWriteAuditLog()
+    {
+        var fixture = new Fixture();
+        var target = fixture.Warehouses.AddExisting("WH-01", "测试仓", isActive: false);
+        fixture.Warehouses.HasBalanceOrLedgerResult = true;
+
+        var result = await fixture.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(Guid.NewGuid(), target.Version, "恢复业务使用"));
+
+        Assert.IsTrue(result.Success);
+        Assert.IsTrue(result.Data.IsActive);
+        Assert.AreEqual(2, result.Data.Version);
+        Assert.AreEqual(1, fixture.Warehouses.ActivateCount);
+        Assert.AreEqual(0, fixture.Warehouses.HasBalanceOrLedgerCallCount);
+        Assert.AreEqual("WarehouseSite.Activated", fixture.Logs.LastInserted?.OperationType);
+        Assert.AreEqual("恢复业务使用", fixture.Logs.LastInserted?.Reason);
+        Assert.AreEqual(1, fixture.Connection.Transactions.Single().Commits);
+    }
+
+    /// <summary>启用拒绝过期版本和已删除仓库，且不得把软删除记录复活。</summary>
+    [TestMethod]
+    public async Task Activate_ShouldRejectVersionConflictAndDeletedWarehouse()
+    {
+        var versionFixture = new Fixture();
+        var target = versionFixture.Warehouses.AddExisting("WH-01", "测试仓", isActive: false);
+        var versionResult = await versionFixture.Service.ActivateWarehouseSiteAsync(
+            target.Uid, ActivateCommand(Guid.NewGuid(), target.Version + 1, "过期版本"));
+
+        Assert.IsFalse(versionResult.Success);
+        StringAssert.Contains(versionResult.Message, "已被修改");
+        Assert.AreEqual(0, versionFixture.Warehouses.ActivateCount);
+
+        var deletedFixture = new Fixture();
+        target = deletedFixture.Warehouses.AddExisting("WH-02", "删除仓", isActive: false, isDeleted: true);
+        var deletedResult = await deletedFixture.Service.ActivateWarehouseSiteAsync(
+            target.Uid, ActivateCommand(Guid.NewGuid(), target.Version, "错误恢复"));
+
+        Assert.IsFalse(deletedResult.Success);
+        StringAssert.Contains(deletedResult.Message, "已删除");
+        Assert.AreEqual(0, deletedFixture.Warehouses.ActivateCount);
+    }
+
+    /// <summary>同供应商已有另一活动虚拟仓时明确拒绝启用，不依赖数据库异常文案。</summary>
+    [TestMethod]
+    public async Task Activate_ShouldRejectSecondActiveSupplierWarehouse()
+    {
+        var fixture = new Fixture();
+        var target = fixture.Warehouses.AddExisting("WH-OLD", "停用仓", isActive: false);
+        fixture.Warehouses.ActiveSupplierWarehouse = new WarehouseSite
+        {
+            Uid = Guid.NewGuid(), Version = 1, Code = "WH-ACTIVE", Name = "活动仓",
+            SupplierId = target.SupplierId, IsActive = true
+        };
+
+        var result = await fixture.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(Guid.NewGuid(), target.Version, "恢复使用"));
+
+        Assert.IsFalse(result.Success);
+        StringAssert.Contains(result.Message, "已存在活动虚拟仓");
+        Assert.AreEqual(0, fixture.Warehouses.ActivateCount);
+        Assert.AreEqual(1, fixture.Connection.Transactions.Single().Rollbacks);
+    }
+
+    /// <summary>启用响应丢失后相同意图返回首次结果，不同内容使用相同 CommandId 必须冲突。</summary>
+    [TestMethod]
+    public async Task Activate_ShouldReplayIdenticalIntentAndRejectDifferentContent()
+    {
+        var fixture = new Fixture();
+        var target = fixture.Warehouses.AddExisting("WH-01", "测试仓", isActive: false);
+        var commandId = Guid.NewGuid();
+        var initialVersion = target.Version;
+
+        var first = await fixture.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(commandId, initialVersion, "恢复使用"));
+        var replay = await fixture.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(commandId, initialVersion, "恢复使用"));
+        var conflict = await fixture.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(commandId, initialVersion, "不同原因"));
+
+        Assert.IsTrue(first.Success);
+        Assert.IsTrue(replay.Success);
+        Assert.AreEqual(first.Data.Uid, replay.Data.Uid);
+        Assert.IsFalse(conflict.Success);
+        StringAssert.Contains(conflict.Message, "IDEMPOTENCY_CONFLICT");
+        Assert.AreEqual(1, fixture.Warehouses.ActivateCount);
+        Assert.AreEqual(1, fixture.Logs.InsertCount);
+    }
+
+    /// <summary>启用必须提供真实原因，空白原因在开启事务和写仓库前拒绝。</summary>
+    [TestMethod]
+    public async Task Activate_ShouldRejectBlankReasonBeforeTransaction()
+    {
+        var fixture = new Fixture();
+        var target = fixture.Warehouses.AddExisting("WH-01", "测试仓", isActive: false);
+
+        var result = await fixture.Service.ActivateWarehouseSiteAsync(
+            target.Uid, ActivateCommand(Guid.NewGuid(), target.Version, "   "));
+
+        Assert.IsFalse(result.Success);
+        StringAssert.Contains(result.Message, "启用原因不能为空");
+        Assert.AreEqual(0, fixture.Connection.BeginTransactionCount);
+        Assert.AreEqual(0, fixture.Warehouses.ActivateCount);
+    }
+
     /// <summary>验证停用和删除原因按 BusinessOperationLog.Reason 的真实 1000 字符列宽拒绝越界。</summary>
     [TestMethod]
     public async Task Reason_ShouldAccept1000AndReject1001Characters()
@@ -170,6 +286,11 @@ public sealed class WarehouseSiteManagementServiceTests
         CommandId = commandId, SupplierId = Guid.Parse("11111111-1111-1111-1111-111111111111"), Code = code, Name = name
     };
 
+    private static ActivateWarehouseSiteCommand ActivateCommand(Guid commandId, int version, string reason) => new()
+    {
+        CommandId = commandId, ExpectedVersion = version, Reason = reason
+    };
+
     private sealed class Fixture
     {
         public Fixture(bool hasManagePermission = true, bool hasReadPermission = true, bool authenticated = true)
@@ -206,16 +327,21 @@ public sealed class WarehouseSiteManagementServiceTests
     {
         private WarehouseSite? _site;
         public int InsertCount { get; private set; }
+        public int ActivateCount { get; private set; }
         public int DeleteCount { get; private set; }
         public int PickerQueryCount { get; private set; }
+        public int HasBalanceOrLedgerCallCount { get; private set; }
         public IReadOnlyList<string> DeleteBlockers { get; set; } = [];
+        public bool HasBalanceOrLedgerResult { get; set; }
+        public WarehouseSite? ActiveSupplierWarehouse { get; set; }
 
-        public WarehouseSite AddExisting(string code, string name)
+        public WarehouseSite AddExisting(string code, string name, bool isActive = true, bool isDeleted = false)
         {
             _site = new WarehouseSite
             {
                 Uid = Guid.NewGuid(), Version = 1, Code = code, Name = name, SupplierId = Guid.NewGuid(),
-                SupplierCodeSnapshot = "S-01", SupplierNameSnapshot = "供应商甲", IsActive = true
+                SupplierCodeSnapshot = "S-01", SupplierNameSnapshot = "供应商甲",
+                IsActive = isActive, IsDeleted = isDeleted
             };
             return _site;
         }
@@ -224,15 +350,27 @@ public sealed class WarehouseSiteManagementServiceTests
         public Task<WarehouseSupplierLookupDto?> GetActiveSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default)
             => Task.FromResult<WarehouseSupplierLookupDto?>(new WarehouseSupplierLookupDto { Uid = supplierId, SupplierCode = "S-01", SupplierName = "供应商甲" });
         public Task<WarehouseSite?> FindByCodeForUpdateAsync(string code) => Task.FromResult<WarehouseSite?>(null);
-        public Task<WarehouseSite?> FindActiveSupplierWarehouseForUpdateAsync(Guid supplierId) => Task.FromResult<WarehouseSite?>(null);
+        public Task<WarehouseSite?> FindActiveSupplierWarehouseForUpdateAsync(Guid supplierId) => Task.FromResult(
+            ActiveSupplierWarehouse?.SupplierId == supplierId ? ActiveSupplierWarehouse : null);
         public Task<int> InsertAsync(WarehouseSite site) { InsertCount++; _site = site; return Task.FromResult(1); }
-        public Task<WarehouseSite?> GetForUpdateAsync(Guid uid) => Task.FromResult(_site?.Uid == uid ? _site : null);
+        public Task<WarehouseSite?> GetForUpdateAsync(Guid uid) => Task.FromResult(_site?.Uid == uid && !_site.IsDeleted ? _site : null);
         public Task<int> DeleteAsync(Guid uid, int expectedVersion) { DeleteCount++; return Task.FromResult(1); }
         public Task<IReadOnlyList<string>> GetDeleteBlockersAsync(Guid warehouseSiteId, CancellationToken cancellationToken = default) => Task.FromResult(DeleteBlockers);
-        public Task<WarehouseSiteDto?> GetDtoAsync(Guid uid, CancellationToken cancellationToken = default) => Task.FromResult(_site?.Uid == uid ? ToDto(_site) : null);
+        public Task<WarehouseSiteDto?> GetDtoAsync(Guid uid, CancellationToken cancellationToken = default) => Task.FromResult(_site?.Uid == uid && !_site.IsDeleted ? ToDto(_site) : null);
         public Task<int> UpdateNameAsync(WarehouseSite site, int expectedVersion) => Task.FromResult(1);
         public Task<int> DeactivateAsync(WarehouseSite site, int expectedVersion) => Task.FromResult(1);
-        public Task<bool> HasBalanceOrLedgerAsync(Guid warehouseSiteId) => Task.FromResult(false);
+        public Task<int> ActivateAsync(WarehouseSite site, int expectedVersion)
+        {
+            ActivateCount++;
+            site.IsActive = true;
+            site.Version++;
+            return Task.FromResult(1);
+        }
+        public Task<bool> HasBalanceOrLedgerAsync(Guid warehouseSiteId)
+        {
+            HasBalanceOrLedgerCallCount++;
+            return Task.FromResult(HasBalanceOrLedgerResult);
+        }
         public Task<PagedResponseBase<WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)
         {
             PickerQueryCount++;

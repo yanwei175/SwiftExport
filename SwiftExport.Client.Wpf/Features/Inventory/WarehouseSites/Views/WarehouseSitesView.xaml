@@ -19,7 +19,7 @@
     <UserControl.Resources>
         <proxies:BindingProxy x:Key="WarehousePageProxy" Data="{Binding}" />
     </UserControl.Resources>
-    <Grid Margin="12,8">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="8"/>
@@ -69,6 +69,8 @@
                     <ui:Button Margin="12,0,0,0" Content="新增" Command="{Binding OpenCreateCommand}" MinWidth="70"/>
                     
                     <ui:Button Margin="4,0,0,0" Content="编辑" Command="{Binding OpenEditCommand}" MinWidth="70"/>
+
+                    <ui:Button Margin="4,0,0,0" Content="启用" Command="{Binding ActivateCommand}" MinWidth="70" Appearance="Success"/>
                     
                     <ui:Button Margin="4,0,0,0" Content="停用" Command="{Binding DeactivateCommand}" MinWidth="70" Appearance="Caution"/>
 
@@ -88,6 +90,7 @@
                     <DataGrid ItemsSource="{Binding Items}" 
                           Background="{DynamicResource MicaControlBrush}"
                           SelectedItem="{Binding SelectedItem}"
+                          SelectionChanged="WarehouseGrid_OnSelectionChanged"
                           RowHeight="{DynamicResource DataGridRowHeightSmall}"
                           FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                           BorderThickness="1"

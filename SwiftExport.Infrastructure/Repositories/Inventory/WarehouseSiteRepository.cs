@@ -149,6 +149,24 @@ public sealed class WarehouseSiteRepository(RepositoryBaseContext context) : IWa
         UPDATE dbo.WarehouseSite SET IsActive=0,Version=Version+1,UpdatedDate=@Now,UpdatedBy=@UserName
         WHERE Uid=@Uid AND Version=@ExpectedVersion AND ISNULL(IsDeleted,0)=0;
         """, new { site.Uid, ExpectedVersion = expectedVersion, Now = DateTime.Now, UserName = _context.CurrentUser.UserName }, _context.Session.Transaction);
+
+    /// <inheritdoc/>
+    public async Task<int> ActivateAsync(WarehouseSite site, int expectedVersion)
+    {
+        try
+        {
+            return await _context.Session.Connection.ExecuteAsync("""
+                UPDATE dbo.WarehouseSite SET IsActive=1,Version=Version+1,UpdatedDate=@Now,UpdatedBy=@UserName
+                WHERE Uid=@Uid AND Version=@ExpectedVersion AND ISNULL(IsDeleted,0)=0;
+                """, new { site.Uid, ExpectedVersion = expectedVersion, Now = DateTime.Now, UserName = _context.CurrentUser.UserName }, _context.Session.Transaction);
+        }
+        catch (SqlException exception) when (exception.Number is 2601 or 2627)
+        {
+            // 活动仓唯一索引是并发兜底；0 由 Application 转换为稳定业务冲突。
+            return 0;
+        }
+    }
+
     public Task<int> DeleteAsync(Guid uid, int expectedVersion) => _context.Session.Connection.ExecuteAsync("""
         UPDATE dbo.WarehouseSite SET IsDeleted=1,IsActive=0,Version=Version+1,UpdatedDate=@Now,UpdatedBy=@UserName
         WHERE Uid=@Uid AND Version=@ExpectedVersion AND ISNULL(IsDeleted,0)=0;

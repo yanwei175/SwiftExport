@@ -153,7 +153,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
         }, cancellationToken));
     }
 
-    /// <inheritdoc/>
+    /// <summary>读取默认包装与客户参考号；销售取客户 PO，售后取客户投诉单号，仅作箱单行快照补充。</summary>
     public async Task<IReadOnlyList<PackingListSourceEnrichment>> GetSourceEnrichmentsAsync(
         IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default)
     {
@@ -165,13 +165,19 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
                    CASE WHEN pkg.PackageCount=1 THEN pkg.GwPerPackage END AS GwPerPackage,
                    CASE WHEN pkg.PackageCount=1 THEN pkg.CbmPerPackage END AS CbmPerPackage,
                    CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL
-                        THEN soh.CustomerPoNo END AS CustomerPoNo
+                        THEN soh.CustomerPoNo
+                        WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL
+                        THEN asl.CustomerComplaintNo END AS CustomerPoNo
             FROM dbo.GrossDemand g
             LEFT JOIN dbo.SalesOrderHeader soh ON g.SourceType=N'SO' AND soh.Uid=g.SourceUid
                 AND soh.CustomerId=g.CustomerId AND soh.IsDeleted=0
             LEFT JOIN dbo.SalesOrderLine sol ON g.SourceType=N'SO' AND sol.Uid=g.SourceLineId
                 AND sol.SalesOrderId=soh.Uid AND sol.ProductId=g.ProductId
                 AND sol.IsNonStandard=g.IsNonStandard AND sol.IsDeleted=0
+            LEFT JOIN dbo.AfterSalesHeader ash ON g.SourceType=N'CR' AND ash.Uid=g.SourceUid
+                AND ash.CustomerId=g.CustomerId AND ash.IsDeleted=0
+            LEFT JOIN dbo.AfterSalesLine asl ON g.SourceType=N'CR' AND asl.Uid=g.SourceLineId
+                AND asl.HeaderId=ash.Uid AND asl.IsDeleted=0
             OUTER APPLY(
                 SELECT COUNT(1) AS PackageCount,MAX(pp.PcsPerPackage) AS PcsPerPackage,
                        MAX(pp.Nw_KG) AS NwPerPackage,MAX(pp.Gw_KG) AS GwPerPackage,MAX(pp.Cbm) AS CbmPerPackage

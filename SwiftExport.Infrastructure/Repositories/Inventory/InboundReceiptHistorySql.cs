@@ -12,7 +12,7 @@ internal static class InboundReceiptHistorySql
                 OR EXISTS(SELECT 1 FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid AND l.IsDeleted=0
                     AND (l.Quantity<=0 OR l.OriginalLineId IS NOT NULL))
                 OR (h.PostingStatus=8 AND (
-                    h.CreationMode<>0 OR h.TriggerPackingListId IS NOT NULL OR h.ReversedDate IS NULL
+                    NOT((h.CreationMode=0 AND h.TriggerPackingListId IS NULL) OR (h.CreationMode=1 AND h.TriggerPackingListId IS NOT NULL)) OR h.ReversedDate IS NULL
                     OR NULLIF(LTRIM(RTRIM(h.ReverseReason)),N'') IS NULL
                     OR (SELECT COUNT(*) FROM dbo.InventoryLedgerEntry e WHERE e.SourceDocumentId=h.Uid)
                         <> 2*(SELECT COUNT(*) FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid AND l.IsDeleted=0)
@@ -20,7 +20,8 @@ internal static class InboundReceiptHistorySql
                         AND (SELECT COUNT(*) FROM dbo.InventoryLedgerEntry o
                             JOIN dbo.InventoryLedgerEntry r ON r.ReversalOfLedgerId=o.Uid
                             WHERE o.SourceDocumentId=h.Uid AND o.SourceLineId=l.Uid AND o.CommandItemId=l.Uid
-                                AND o.SourceDocumentType=N'InboundDocument' AND o.TransactionType IN(10,11)
+                                AND o.SourceDocumentType=N'InboundDocument'
+                                AND ((h.CreationMode=0 AND o.TransactionType IN(10,11)) OR (h.CreationMode=1 AND o.TransactionType=12))
                                 AND o.WarehouseSiteId=h.WarehouseSiteId AND o.ProductId=l.ProductId AND o.QuantityDelta=l.Quantity
                                 AND o.UnitSnapshot=l.UnitSnapshot AND o.IsDeleted=0 AND o.ReversalOfLedgerId IS NULL
                                 AND o.ReplacementOfLedgerId IS NULL AND o.CorrectionGroupId IS NULL

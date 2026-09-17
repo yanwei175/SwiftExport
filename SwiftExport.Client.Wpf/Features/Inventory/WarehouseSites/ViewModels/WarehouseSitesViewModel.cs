@@ -18,7 +18,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 
-/// <summary>编排供应商虚拟仓只读列表、分页查询、右侧新增/改名抽屉及受权停用和删除命令。</summary>
+/// <summary>编排供应商虚拟仓列表、分页查询、随行编辑抽屉及受权启用、停用和删除命令。</summary>
 public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncInitializable, IDisposable
 {
     private enum ListLoadResult
@@ -43,6 +43,10 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private CancellationTokenSource? _detailCancellation;
     private int _listRequestVersion;
     private int _detailRequestVersion;
+    private WarehouseSiteDto? _editSelectionAnchor;
+    private bool _selectionLoadInProgress;
+    private bool _selectionConfirmationInProgress;
+    private bool _suppressSelectionCoordination;
     private bool _initialized;
     private bool _isAlive = true;
 
@@ -77,6 +81,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         RegisterBusyAwareCommand(OpenEditCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(CloseDrawerCommand);
+        RegisterBusyAwareCommand(ActivateCommand);
         RegisterBusyAwareCommand(DeactivateCommand);
         RegisterBusyAwareCommand(DeleteCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
@@ -106,11 +111,14 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     public partial int TotalCount { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenEditCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ActivateCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeactivateCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
     public partial WarehouseSiteDto? SelectedItem { get; set; }
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenCreateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenEditCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ActivateCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeactivateCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
@@ -123,6 +131,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     [NotifyCanExecuteChangedFor(nameof(OpenCreateCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenEditCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ActivateCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeactivateCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
     public partial bool HasManagePermission { get; private set; }
@@ -185,6 +194,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private async Task OpenCreateAsync()
     {
         if (!await PrepareDrawerReplacementAsync()) return;
+        _editSelectionAnchor = null;
         EditModel = WarehouseSiteEditModel.CreateNew();
         IsDrawerOpen = true;
     }
@@ -194,32 +204,130 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     {
         var selected = SelectedItem;
         if (selected is null || !await PrepareDrawerReplacementAsync()) return;
+        var loadResult = await LoadEditTargetAsync(selected, "正在加载虚拟仓详情...");
+        if (loadResult == ListLoadResult.Failed)
+            _messages.ShowError("无法编辑虚拟仓", ResultSummary ?? "虚拟仓详情加载失败。");
+    }
+
+    /// <summary>协调 DataGrid 的真实选择变化；仅在编辑抽屉已打开时替换目标，并完整保护未保存内容。</summary>
+    public async Task HandleSelectionChangedAsync(WarehouseSiteDto? previousItem, WarehouseSiteDto? currentItem)
+    {
+        var editor = EditModel;
+        try
+        {
+            await HandleSelectionChangedCoreAsync(previousItem, currentItem);
+        }
+        catch (Exception)
+        {
+            // WPF 事件入口是 async void；在页面边界观察异常，避免未处理异常终止 UI 线程。
+            if (_isAlive && ReferenceEquals(EditModel, editor))
+                RestoreSelection(_editSelectionAnchor ?? previousItem);
+            if (_isAlive) _messages.ShowError("无法切换虚拟仓", "切换编辑目标失败，请重试。");
+        }
+    }
+
+    /// <summary>执行选行协调；同一时刻只允许一个未保存确认，旧确认不得改写已替换的编辑上下文。</summary>
+    private async Task HandleSelectionChangedCoreAsync(WarehouseSiteDto? previousItem, WarehouseSiteDto? currentItem)
+    {
+        if (!_isAlive || _suppressSelectionCoordination || ReferenceEquals(previousItem, currentItem)) return;
+        if (!IsDrawerOpen || EditModel?.IsCreateMode == true) return;
+
+        var anchor = _editSelectionAnchor ?? previousItem;
+        if (_selectionConfirmationInProgress)
+        {
+            RestoreSelection(anchor);
+            return;
+        }
+        if (IsBusy && !_selectionLoadInProgress)
+        {
+            RestoreSelection(anchor);
+            return;
+        }
+        if (currentItem?.Uid == EditModel?.Uid)
+        {
+            _editSelectionAnchor = currentItem;
+            return;
+        }
+        var editor = EditModel;
+        if (editor?.HasChanges == true)
+        {
+            bool confirmed;
+            _selectionConfirmationInProgress = true;
+            try
+            {
+                confirmed = await _dialogs.ConfirmAsync(
+                    "放弃虚拟仓修改", "当前抽屉有未保存修改，继续将放弃这些内容。", "放弃修改");
+            }
+            finally
+            {
+                _selectionConfirmationInProgress = false;
+            }
+
+            if (!_isAlive || !IsDrawerOpen || !ReferenceEquals(EditModel, editor)) return;
+            if (!IsCurrentSelection(currentItem) || !confirmed)
+            {
+                RestoreSelection(anchor);
+                return;
+            }
+        }
+        if (!_isAlive) return;
+        if (currentItem is null)
+        {
+            CloseDrawerCore();
+            return;
+        }
+
+        // 选择已确认后清除旧编辑上下文，避免快速切换时对同一份脏数据重复询问。
+        EditModel = null;
+        IsDirty = false;
+        var loadResult = await LoadEditTargetAsync(currentItem, "正在切换虚拟仓详情...");
+        if (loadResult == ListLoadResult.Failed)
+        {
+            CloseDrawerCore();
+            RestoreSelection(anchor);
+            _messages.ShowError("无法切换虚拟仓", "虚拟仓详情加载失败。");
+        }
+    }
+
+    /// <summary>执行可替代详情查询；快速选择时旧响应不得覆盖最新编辑目标。</summary>
+    private async Task<ListLoadResult> LoadEditTargetAsync(WarehouseSiteDto selected, string busyMessage)
+    {
         _detailCancellation?.Cancel();
         _detailCancellation?.Dispose();
         var cancellation = new CancellationTokenSource();
         _detailCancellation = cancellation;
         var requestVersion = ++_detailRequestVersion;
+        _selectionLoadInProgress = true;
         ServiceResult<WarehouseSiteDto>? result = null;
         await RunBusyAsync(async () =>
         {
             result = await _runner.RunAsync(
                 () => _api.GetAsync(selected.Uid, cancellation.Token), cancellation.Token, "加载虚拟仓详情失败");
-        }, "正在加载虚拟仓详情...");
+        }, busyMessage, false);
         if (!_isAlive || cancellation.IsCancellationRequested
-            || !ReferenceEquals(_detailCancellation, cancellation) || _detailRequestVersion != requestVersion)
+            || !ReferenceEquals(_detailCancellation, cancellation) || _detailRequestVersion != requestVersion
+            || SelectedItem?.Uid != selected.Uid)
         {
+            if (ReferenceEquals(_detailCancellation, cancellation))
+            {
+                _detailCancellation = null;
+                _selectionLoadInProgress = false;
+            }
             cancellation.Dispose();
-            return;
+            return ListLoadResult.Ignored;
         }
         _detailCancellation = null;
+        _selectionLoadInProgress = false;
         cancellation.Dispose();
         if (result is null || !result.Success || result.Data is null)
         {
-            _messages.ShowError("无法编辑虚拟仓", result?.Message ?? "虚拟仓详情加载失败。");
-            return;
+            ResultSummary = result?.Message ?? "虚拟仓详情加载失败。";
+            return ListLoadResult.Failed;
         }
         EditModel = WarehouseSiteEditModel.FromDto(result.Data);
+        _editSelectionAnchor = selected;
         IsDrawerOpen = true;
+        return ListLoadResult.Succeeded;
     }
 
     [RelayCommand(CanExecute = nameof(CanCloseDrawer))]
@@ -266,6 +374,38 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
             if (!refreshed) _messages.ShowWarning(action + "，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
             await RefreshWarehousePickerCacheAfterWriteAsync("保存成功，缓存刷新失败");
         }, editor.IsCreateMode ? "正在创建虚拟仓..." : "正在保存虚拟仓...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanActivate))]
+    private async Task ActivateAsync()
+    {
+        var target = SelectedItem;
+        if (target is null) return;
+        var reason = await _reasonDialog.RequestAsync("启用", target);
+        if (reason is null) return;
+        if (SelectedItem?.Uid != target.Uid || SelectedItem.Version != target.Version)
+        {
+            _messages.ShowWarning("未执行启用", "确认期间所选虚拟仓已经变化，请重新选择。");
+            return;
+        }
+        var intentKey = CreateIntentKey("activate", target, reason);
+        await RunWriteAsync(async () =>
+        {
+            var result = await _runner.RunAsync(() => _api.ActivateAsync(target.Uid, new ActivateWarehouseSiteCommand
+            {
+                CommandId = GetOrCreateIntent(intentKey), ExpectedVersion = target.Version, Reason = reason
+            }), "启用虚拟仓失败");
+            if (!result.Success)
+            {
+                _messages.ShowError("虚拟仓未启用", result.Message);
+                return;
+            }
+            _writeIntents.Remove(intentKey);
+            var refreshed = await LoadCoreAsync(target.Uid) == ListLoadResult.Succeeded;
+            _messages.ShowSuccess("虚拟仓已启用", target.Code);
+            if (!refreshed) _messages.ShowWarning("启用成功，但列表刷新失败", ResultSummary ?? "请稍后刷新列表。");
+            await RefreshWarehousePickerCacheAfterWriteAsync("启用成功，缓存刷新失败");
+        }, "正在启用虚拟仓...");
     }
 
     [RelayCommand(CanExecute = nameof(CanDeactivate))]
@@ -381,12 +521,20 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
                 ResultSummary = string.IsNullOrWhiteSpace(result.Message) ? "虚拟仓查询失败。" : result.Message;
                 return ListLoadResult.Failed;
             }
-            Items.Clear();
-            foreach (var item in result.Data.Items) Items.Add(item);
-            TotalCount = result.Data.TotalCount;
-            PageIndex = result.Data.PageIndex;
-            PageSize = result.Data.PageSize;
-            SelectedItem = Items.FirstOrDefault(item => item.Uid == selectedId) ?? Items.FirstOrDefault();
+            _suppressSelectionCoordination = true;
+            try
+            {
+                Items.Clear();
+                foreach (var item in result.Data.Items) Items.Add(item);
+                TotalCount = result.Data.TotalCount;
+                PageIndex = result.Data.PageIndex;
+                PageSize = result.Data.PageSize;
+                SelectedItem = Items.FirstOrDefault(item => item.Uid == selectedId) ?? Items.FirstOrDefault();
+            }
+            finally
+            {
+                _suppressSelectionCoordination = false;
+            }
             ResultSummary = $"共 {TotalCount} 个虚拟仓，本页 {Items.Count} 条。";
             return ListLoadResult.Succeeded;
         }
@@ -401,7 +549,7 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     private async Task<bool> PrepareDrawerReplacementAsync()
     {
         if (!IsDrawerOpen) return true;
-        if (IsBusy) return false;
+        if (IsBusy || _selectionConfirmationInProgress) return false;
         if (EditModel?.HasChanges == true && !await _dialogs.ConfirmAsync(
                 "放弃虚拟仓修改", "当前抽屉有未保存修改，继续将放弃这些内容。", "放弃修改"))
             return false;
@@ -412,10 +560,32 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
     /// <summary>只在已经通过未保存检查或明确保存成功后清理抽屉状态。</summary>
     private void CloseDrawerCore()
     {
+        CancelAndDispose(ref _detailCancellation);
+        _detailRequestVersion++;
+        _selectionLoadInProgress = false;
         IsDrawerOpen = false;
         EditModel = null;
+        _editSelectionAnchor = null;
         IsDirty = false;
     }
+
+    /// <summary>在取消切换或写命令 Busy 时恢复编辑目标对应行，并抑制递归选择协调。</summary>
+    private void RestoreSelection(WarehouseSiteDto? anchor)
+    {
+        _suppressSelectionCoordination = true;
+        try
+        {
+            SelectedItem = anchor is null ? null : Items.FirstOrDefault(item => item.Uid == anchor.Uid) ?? anchor;
+        }
+        finally
+        {
+            _suppressSelectionCoordination = false;
+        }
+    }
+
+    /// <summary>确认等待结束后核对用户仍停留在发起确认的目标，避免旧结果处理后续选择。</summary>
+    private bool IsCurrentSelection(WarehouseSiteDto? expected) =>
+        expected is null ? SelectedItem is null : SelectedItem?.Uid == expected.Uid;
 
     private bool CanAcceptListResult(CancellationTokenSource source, int version) =>
         _isAlive && !source.IsCancellationRequested && ReferenceEquals(_listCancellation, source) && _listRequestVersion == version;
@@ -432,9 +602,10 @@ public sealed partial class WarehouseSitesViewModel : ViewModelBaseEx, IAsyncIni
         $"{operation}|{item.Uid:N}|{item.Version}|{reason.Trim()}";
 
     private bool CanOpenCreate() => HasManagePermission && IsNotBusy && !IsDrawerOpen;
-    private bool CanOpenEdit() => HasManagePermission && IsNotBusy && SelectedItem is not null;
+    private bool CanOpenEdit() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem is not null;
     private bool CanSave() => HasManagePermission && IsNotBusy && IsDrawerOpen && EditModel?.HasChanges == true;
     private bool CanCloseDrawer() => IsDrawerOpen && IsNotBusy;
+    private bool CanActivate() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem?.IsActive == false;
     private bool CanDeactivate() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem?.IsActive == true;
     private bool CanDelete() => HasManagePermission && IsNotBusy && !IsDrawerOpen && SelectedItem is not null;
 

@@ -80,6 +80,11 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IExecutionEligibilityService, SwiftExport.Application.Services.MasterData.ExecutionEligibilityService>();
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IProcurementMasterDataQueryService, SwiftExport.Application.Services.MasterData.ProcurementMasterDataQueryService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
+        services.AddScoped<AutomaticPostingScope>();
+        services.AddScoped<IAutomaticPostingScope>(sp => sp.GetRequiredService<AutomaticPostingScope>());
+        services.AddScoped<AutomaticPostingPorts>();
+        services.AddScoped<IInboundPostingPort>(sp => sp.GetRequiredService<AutomaticPostingPorts>());
+        services.AddScoped<IOutboundPostingPort>(sp => sp.GetRequiredService<AutomaticPostingPorts>());
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IInboundManagerService, InboundManagerService>();
         services.AddScoped<IOutboundManagerService, OutboundManagerService>();

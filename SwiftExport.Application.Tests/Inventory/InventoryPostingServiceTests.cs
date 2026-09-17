@@ -427,6 +427,7 @@ public sealed class InventoryPostingServiceTests
         public Task<int> InsertAsync(WarehouseSite site) => throw new NotSupportedException();
         public Task<int> UpdateNameAsync(WarehouseSite site, int expectedVersion) => throw new NotSupportedException();
         public Task<int> DeactivateAsync(WarehouseSite site, int expectedVersion) => throw new NotSupportedException();
+        public Task<int> ActivateAsync(WarehouseSite site, int expectedVersion) => throw new NotSupportedException();
         public Task<int> DeleteAsync(Guid uid, int expectedVersion) => throw new NotSupportedException();
         public Task<IReadOnlyList<string>> GetDeleteBlockersAsync(Guid warehouseSiteId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<bool> HasBalanceOrLedgerAsync(Guid warehouseSiteId) => throw new NotSupportedException();

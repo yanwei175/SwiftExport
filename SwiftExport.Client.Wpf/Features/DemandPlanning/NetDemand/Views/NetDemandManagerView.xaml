@@ -22,7 +22,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </UserControl.Resources>
 
-    <DockPanel Margin="12,8" LastChildFill="True">
+    <DockPanel Margin="12" LastChildFill="True">
         <Border x:Name="左侧隐藏筛选区"
                 DockPanel.Dock="Left"
                 Width="180"

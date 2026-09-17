@@ -16,7 +16,7 @@ public interface IPackingListRepository
         PackingListSourceSearchRequest request, CancellationToken cancellationToken = default);
     /// <summary>读取装箱单完整快照；不存在时返回空。</summary>
     Task<PackingListDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
-    /// <summary>按来源标识读取唯一默认包装和可证明的销售客户采购号；不计算交付余额。</summary>
+    /// <summary>按来源标识读取唯一默认包装和客户参考号（销售客户 PO／售后客户投诉单号）；不计算交付余额。</summary>
     Task<IReadOnlyList<PackingListSourceEnrichment>> GetSourceEnrichmentsAsync(
         IReadOnlyCollection<Guid> grossDemandIds,
         CancellationToken cancellationToken = default);
@@ -52,6 +52,6 @@ public sealed class PackingListSourceEnrichment
     public decimal? GwPerPackage { get; set; }
     /// <summary>唯一默认包装的单包体积。</summary>
     public decimal? CbmPerPackage { get; set; }
-    /// <summary>仅在 SO 头行身份均匹配时采用的客户采购号。</summary>
+    /// <summary>头行与客户匹配后采用的客户参考号：SO 取客户采购号，CR 取客户投诉单号。</summary>
     public string? CustomerPoNo { get; set; }
 }

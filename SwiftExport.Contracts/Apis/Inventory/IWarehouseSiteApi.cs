@@ -35,6 +35,9 @@ namespace SwiftExport.Contracts.Apis.Inventory
         /// <summary>按现有约束停用仓库，保留历史事实。</summary>
         [Post("/{uid}/deactivate")]
         Task<ServiceResult<WarehouseSiteDto>> DeactivateAsync(Guid uid, [Body] DeactivateWarehouseSiteCommand command, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>按并发版本重新启用未删除仓库，并保持每个供应商最多一个活动虚拟仓。</summary>
+        [Post("/{uid}/activate")]
+        Task<ServiceResult<WarehouseSiteDto>> ActivateAsync(Guid uid, [Body] ActivateWarehouseSiteCommand command, CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>按并发版本软删虚拟仓；停用与库存锁定校验仍在服务端生效。</summary>
         [Delete("/{uid}")]
         Task<ServiceResult<WarehouseSiteDto>> DeleteAsync(Guid uid, [Body] DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default(CancellationToken));

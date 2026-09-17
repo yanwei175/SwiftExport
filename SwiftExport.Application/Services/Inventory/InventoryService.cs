@@ -183,6 +183,34 @@ public sealed class InventoryService(
     }
 
     /// <inheritdoc/>
+    public async Task<ServiceResult<WarehouseSiteDto>> ActivateWarehouseSiteAsync(Guid uid, ActivateWarehouseSiteCommand command, CancellationToken cancellationToken = default)
+    {
+        var validation = ValidateReasonCommand(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0, command?.Reason, "启用");
+        if (validation is not null) return ServiceResult<WarehouseSiteDto>.Fail(validation);
+        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ManagePermissionDeniedMessage);
+        var reason = command!.Reason.Trim();
+        var fingerprint = Fingerprint("activate", uid, command.ExpectedVersion, reason);
+        return await ExecuteWarehouseCommandAsync(command.CommandId, "WarehouseSite.Activated", fingerprint, async () =>
+        {
+            var site = await warehouseSites.GetForUpdateAsync(uid)
+                ?? throw new InventoryPostingException("虚拟仓不存在或已删除，不能启用。");
+            if (site.Version != command.ExpectedVersion) throw new InventoryPostingException("虚拟仓已被修改，请刷新后重试。");
+            if (site.IsActive) throw new InventoryPostingException("虚拟仓已经启用。");
+            if (site.SupplierId is not { } supplierId)
+                throw new InventoryPostingException("虚拟仓没有供应商归属，不能启用。");
+            var activeSite = await warehouseSites.FindActiveSupplierWarehouseForUpdateAsync(supplierId);
+            if (activeSite is not null && activeSite.Uid != site.Uid)
+                throw new InventoryPostingException("该供应商已存在活动虚拟仓，不能重复启用。");
+            var before = ToDto(site);
+            if (await warehouseSites.ActivateAsync(site, command.ExpectedVersion) != 1)
+                throw new InventoryPostingException("虚拟仓启用发生并发冲突，或该供应商已存在活动虚拟仓。");
+            var result = await warehouseSites.GetDtoAsync(uid, cancellationToken)
+                ?? throw new InventoryPostingException("虚拟仓启用后无法读取。");
+            return WarehouseCommandExecution.Create(result, before, result, reason, "虚拟仓已启用。");
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc/>
     public async Task<ServiceResult<WarehouseSiteDto>> DeleteWarehouseSiteAsync(Guid uid, DeleteWarehouseSiteCommand command, CancellationToken cancellationToken = default)
     {
         var validation = ValidateReasonCommand(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0, command?.Reason, "删除");
@@ -357,7 +385,7 @@ public sealed class InventoryService(
         return command.Name.Trim().Length > 300 ? "虚拟仓名称不能超过 300 个字符。" : null;
     }
 
-    /// <summary>校验停用或删除命令的稳定目标、并发版本和真实原因。</summary>
+    /// <summary>校验启用、停用或删除命令的稳定目标、并发版本和真实原因。</summary>
     private static string? ValidateReasonCommand(Guid uid, Guid commandId, int expectedVersion, string? reason, string action)
     {
         if (uid == Guid.Empty || commandId == Guid.Empty || expectedVersion <= 0 || string.IsNullOrWhiteSpace(reason))
@@ -389,6 +417,7 @@ public sealed class InventoryService(
         "WarehouseSite.Created" => "供应商虚拟仓已创建",
         "WarehouseSite.Updated" => "供应商虚拟仓已改名",
         "WarehouseSite.Deactivated" => "供应商虚拟仓已停用",
+        "WarehouseSite.Activated" => "供应商虚拟仓已启用",
         "WarehouseSite.Deleted" => "供应商虚拟仓已删除",
         _ => "供应商虚拟仓已变更"
     };

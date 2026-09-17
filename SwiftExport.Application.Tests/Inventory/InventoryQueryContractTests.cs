@@ -56,6 +56,23 @@ public sealed class InventoryQueryContractTests
             typeof(WarehouseSitePickerDto).GetProperties().Select(property => property.Name).ToArray());
     }
 
+    /// <summary>仓库启用命令在 Refit 与 Controller 保持对称路由，并使用独立窄命令契约。</summary>
+    [TestMethod]
+    public void WarehouseActivate_ShouldKeepRouteBodyAndCommandContract()
+    {
+        var apiMethod = typeof(IWarehouseSiteApi).GetMethod(nameof(IWarehouseSiteApi.ActivateAsync))!;
+        Assert.AreEqual("/{uid}/activate", apiMethod.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path);
+        Assert.IsTrue(apiMethod.GetParameters()[1].IsDefined(typeof(BodyAttribute), false));
+        Assert.AreEqual(typeof(ActivateWarehouseSiteCommand), apiMethod.GetParameters()[1].ParameterType);
+
+        var controllerMethod = typeof(WarehouseSitesController).GetMethod(nameof(WarehouseSitesController.ActivateAsync))!;
+        Assert.AreEqual("{uid:guid}/activate", controllerMethod.GetCustomAttributes(typeof(HttpPostAttribute), false).Cast<HttpPostAttribute>().Single().Template);
+        Assert.AreEqual(typeof(ActivateWarehouseSiteCommand), controllerMethod.GetParameters()[1].ParameterType);
+        CollectionAssert.AreEquivalent(
+            new[] { "CommandId", "ExpectedVersion", "Reason" },
+            typeof(ActivateWarehouseSiteCommand).GetProperties().Select(property => property.Name).ToArray());
+    }
+
     /// <summary>余额列表与详情必须使用 Supplier 的真实业务列名，避免部署后才暴露无效列错误。</summary>
     [TestMethod]
     public void InventoryRepository_ShouldUseSupplierBusinessColumns()

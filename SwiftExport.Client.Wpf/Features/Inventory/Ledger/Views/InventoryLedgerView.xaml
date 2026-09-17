@@ -20,7 +20,7 @@
         <ledgerConverters:InventorySourceDocumentTypeDisplayConverter x:Key="InventorySourceDocumentTypeDisplayConverter"/>
     </UserControl.Resources>
 
-    <Grid Margin="12,8">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="8"/>
