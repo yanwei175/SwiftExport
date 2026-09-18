@@ -88,13 +88,13 @@
                                   IsResizable="True">
                 <controls:RightDrawerHost.MainContent>
                     <DataGrid ItemsSource="{Binding Items}" 
-                          Background="{DynamicResource MicaControlBrush}"
+                          Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
                           SelectedItem="{Binding SelectedItem}"
                           SelectionChanged="WarehouseGrid_OnSelectionChanged"
                           RowHeight="{DynamicResource DataGridRowHeightSmall}"
                           FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                           BorderThickness="1"
-                          BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                          BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                           Padding="2,0"
                           AutoGenerateColumns="False" 
                           IsReadOnly="True" 
@@ -122,11 +122,11 @@
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Text" Value="停用" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateDeleted}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsActive}" Value="True">
                                                             <Setter Property="Text" Value="活动" />
-                                                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Accent}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextAccentBrush}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -190,7 +190,7 @@
                             <TextBox Text="{Binding Name,UpdateSourceTrigger=PropertyChanged,ValidatesOnNotifyDataErrors=True}"
                                  MaxLength="300" AutomationProperties.Name="仓库名称" />
                             <TextBlock Margin="0,8,0,0" Text="编辑模式只允许改名；仓库代码和供应商归属保持不变。"
-                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" TextWrapping="Wrap" />
+                                   Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" TextWrapping="Wrap" />
 
                             <StackPanel Margin="0,20,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <ui:Button Content="保存" 
@@ -206,7 +206,7 @@
 
             <Grid Grid.Row="6" ColumnDefinitions="*,Auto,16,Auto">
                 <TextBlock Text="{Binding ResultSummary}" VerticalAlignment="Center"
-                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 <TextBlock Grid.Column="1" Text="{Binding PageSummary}" VerticalAlignment="Center" />
                 <controls:PageNavigator Grid.Column="3" TotalCount="{Binding TotalCount}"
                                     PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}"

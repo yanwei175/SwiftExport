@@ -18,12 +18,12 @@
                 <TextBlock FontWeight="SemiBold" Text="采购准备" />
                 <TextBlock Text="完成采购输入和校验后，再进入只读单据审核。"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </StackPanel>
 
             <TextBlock Grid.Column="1" Text="{Binding SelectionValidationText}"
                        VerticalAlignment="Bottom"
-                       Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
+                       Foreground="{DynamicResource UserBusinessTextWarningBrush}"
                        TextWrapping="Wrap" />
             
             <Button Grid.Column="3"
@@ -44,13 +44,13 @@
         <Border Grid.Row="2" 
                 Padding="8"
                 CornerRadius="4"
-                Background="{DynamicResource SwiftExportBrush.WarningSoft}"
+                Background="{DynamicResource UserBusinessBackgroundWarningBrush}"
                 Visibility="{Binding IsSourceSwitchPending, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid ColumnDefinitions="24,8,*,Auto,8,Auto">
                 <ui:SymbolIcon Symbol="Info24" 
                                FontSize="24" 
                                Filled="True" 
-                               Foreground="{DynamicResource SwiftExportBrush.WarningText}"/>
+                               Foreground="{DynamicResource UserSystemFillColorCautionBrush}"/>
                 <TextBlock Grid.Column="2" Text="{Binding SourceSwitchPrompt}" TextWrapping="Wrap" VerticalAlignment="Center" />
                 <Button Grid.Column="3" Content="继续切换" Command="{Binding ConfirmSourceSwitchCommand}" />
                 <Button Grid.Column="5" Content="保留当前选择" Command="{Binding CancelSourceSwitchCommand}" />
@@ -61,7 +61,7 @@
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock Text="验证覆盖全部已选行，包括筛选隐藏的行；修改输入或行模式会撤销旧验证。"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            VerticalAlignment="Bottom" />
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -84,7 +84,7 @@
                         <Border Margin="6,2" Padding="8"
                                 BorderThickness="1"
                                 CornerRadius="4"
-                                BorderBrush="{DynamicResource SwiftExportBrush.Border}">
+                                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}">
                             <Grid ColumnDefinitions="Auto,8,*">
                                 <CheckBox IsChecked="{Binding IsConfirmed, Mode=TwoWay}"
                                           IsEnabled="{Binding RequiresConfirmation}"
@@ -92,16 +92,16 @@
                                 
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="{Binding Message}" 
-                                               Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
+                                               Foreground="{DynamicResource UserBusinessTextWarningBrush}"
                                                TextWrapping="Wrap" />
                                     <TextBlock Text="{Binding ActionText}" 
                                                TextWrapping="Wrap" 
-                                               Foreground="{DynamicResource SwiftExportBrush.WarningText}"
+                                               Foreground="{DynamicResource UserSystemFillColorCautionBrush}"
                                                Style="{StaticResource CaptionTextBlock}" />
                                     <TextBlock Text="{Binding AffectedObjectText}"
                                                TextWrapping="Wrap"
                                                Visibility="{Binding HasAffectedObjects, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                                Style="{StaticResource CaptionTextBlock}" />
                                 </StackPanel>
                             </Grid>

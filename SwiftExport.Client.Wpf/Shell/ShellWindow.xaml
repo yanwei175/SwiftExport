@@ -23,7 +23,7 @@
         <Style x:Key="ShellStatusMessageIconStyle"
                TargetType="{x:Type ui:SymbolIcon}">
             <Setter Property="Symbol" Value="Info24" />
-            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Accent}" />
+            <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextAccentBrush}" />
             <Setter Property="Width" Value="16" />
             <Setter Property="Height" Value="16" />
             <Setter Property="FontSize" Value="14" />
@@ -31,17 +31,17 @@
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Success}">
                     <Setter Property="Symbol" Value="CheckmarkCircle24" />
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateAdded}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextSuccessBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Warning}">
                     <Setter Property="Symbol" Value="Warning24" />
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateModified}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Error}">
                     <Setter Property="Symbol" Value="ErrorCircle24" />
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -49,19 +49,19 @@
         <Style x:Key="ShellStatusMessageTextStyle"
                TargetType="{x:Type TextBlock}"
                BasedOn="{StaticResource CaptionTextBlock}">
-            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.Accent}" />
+            <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextAccentBrush}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Success}">
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateAdded}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextSuccessBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Warning}">
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateModified}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding StatusSeverity}"
                              Value="{x:Static uiServices:UiMessageSeverity.Error}">
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -148,8 +148,8 @@
                 <Grid Grid.Column="1" RowDefinitions="*,32">
                     <Border
                         Margin="0"
-                        Background="{DynamicResource MicaControlBrush}"
-                        BorderBrush="{DynamicResource SubFillColorSecondaryBrush}"
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource UserSubtleFillColorSecondaryBrush}"
                         BorderThickness="1,1,0,0"
                         CornerRadius="4,0,0,0">
                         <TabControl ItemsSource="{Binding OpenTabs}"
@@ -172,7 +172,7 @@
                                             <TextBlock Text="{Binding Title}" VerticalAlignment="Center"  HorizontalAlignment="Center" Margin="0,0,0,0" />
                                             <TextBlock Text="*"
                                                Margin="2,0,0,0"
-                                               Foreground="{DynamicResource SwiftExportBrush.Accent}"
+                                               Foreground="{DynamicResource UserBusinessTextAccentBrush}"
                                                FontWeight="SemiBold"
                                                Visibility="{Binding IsDirty, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                             <ui:Button DockPanel.Dock="Right"
@@ -192,9 +192,9 @@
 
                     <Border Grid.Row="2" 
                             Height="32"
-                            Background="{DynamicResource MicaControlBrush}"
+                            Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
                             Padding="16,0,8,0"
-                            BorderBrush="{DynamicResource SubFillColorSecondaryBrush}"
+                            BorderBrush="{DynamicResource UserSubtleFillColorSecondaryBrush}"
                             BorderThickness="1,1,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -215,7 +215,7 @@
                             Height="16"
                             Margin="12,0"
                             VerticalAlignment="Center"
-                            Background="{DynamicResource SwiftExportBrush.Border}"
+                            Background="{DynamicResource UserControlStrokeColorDefaultBrush}"
                             Visibility="{Binding IsStatusMessageOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                             <Grid Grid.Column="2"

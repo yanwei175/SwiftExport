@@ -63,7 +63,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Border BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+            <Border BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource SwiftExportCornerRadius}"
                     Padding="8">
@@ -271,7 +271,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" />
                 <TextBlock Text="{Binding ValidationSummary}" Margin="12,0,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.ErrorText}" Style="{StaticResource CaptionTextBlock}" />
+                           Foreground="{DynamicResource UserBusinessTextWarningBrush}" Style="{StaticResource CaptionTextBlock}" />
             </StackPanel>
             <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Margin="12,0" VerticalAlignment="Center" />
             <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}"

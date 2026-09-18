@@ -1,0 +1,357 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- 普通正文 -->
+    <!-- 蓝色强调文字：仅用于区分普通文字，不表达警告/错误语义 -->
+    <Color x:Key="UserBusinessTextAccent">#FF2563EB</Color>
+    
+    <!-- 蓝色浅背景；用于蓝色强调内容的轻量背景、Badge、提示块。 -->
+    <Color x:Key="UserBusinessBackgroundAccent">#FFEAF2FF</Color>
+    
+    <Color x:Key="UserBusinessTextAccentHover">#FF1D4ED8</Color>    
+    
+    <!-- 成功 / 新增 -->
+    <Color x:Key="UserBusinessTextSuccess">#FF15803D</Color>
+    <Color x:Key="UserBusinessBackgroundSuccess">#FFE8F5EF</Color>
+
+    <!-- 修改 / 提醒 -->
+    <Color x:Key="UserBusinessTextWarning">#FFD97706</Color>
+    <!-- 修改/提醒浅背景；用于已修改行、提醒提示、轻量 Warning。 -->
+    <Color x:Key="UserBusinessBackgroundWarning" >#FFFFF6E5</Color>
+
+    <!-- 删除 / 错误 -->
+    <Color x:Key="UserBusinessTextCritical">#FFD92D20</Color>
+    <Color x:Key="UserBusinessBackgroundCritical">#FFFFEDEC</Color>
+
+
+
+
+    <!--
+        WPF-UI ThemeResource 的项目内笔刷表。
+        每项均为带 x:Key 的 SolidColorBrush，方便 XAML 编辑器识别并提示项目键。
+        颜色通过 DynamicResource 获取，主题模式和系统强调色变化时会自动刷新。
+    -->
+
+    <!--#region 系统强调色与应用底色 -->
+
+    <!-- 系统强调色主层；用于主要操作、当前选中项等高优先级强调。 -->
+    <SolidColorBrush x:Key="UserSystemAccentColorPrimaryBrush" Color="{DynamicResource SystemAccentColorPrimary}" />
+
+    <!-- 系统强调色次层；用于较弱的选中背景或辅助强调。 -->
+    <SolidColorBrush x:Key="UserSystemAccentColorSecondaryBrush" Color="{DynamicResource SystemAccentColorSecondary}" />
+
+    <!-- 系统强调色三级；用于最弱的强调层或低干扰强调背景。 -->
+    <SolidColorBrush x:Key="UserSystemAccentColorTertiaryBrush" Color="{DynamicResource SystemAccentColorTertiary}" />
+
+    <!-- 应用程序基础背景；用于页面最外层背景，不用于卡片或普通控件表面。 -->
+    <SolidColorBrush x:Key="UserApplicationBackgroundBrush" Color="{DynamicResource ApplicationBackgroundColor}" />
+
+    <!-- 键盘焦点边框；仅用于键盘导航焦点提示，不能以普通悬停边框替代。 -->
+    <SolidColorBrush x:Key="UserKeyboardFocusBorderColorBrush" Color="{DynamicResource KeyboardFocusBorderColor}" />
+    <!--#endregion-->
+
+
+    <!-- #region 文本 -->
+    <!-- 蓝色强调文字；用于与普通黑色正文做视觉区分，但不表示警告、错误或状态异常。 -->
+    <SolidColorBrush x:Key="UserBusinessTextAccentBrush" Color="{StaticResource UserBusinessTextAccent}"/>
+
+    <!-- 成功/新增文字；用于成功、新增、通过等正向状态。 -->
+    <SolidColorBrush x:Key="UserBusinessTextSuccessBrush" Color="{StaticResource UserBusinessTextSuccess}"/>
+    <!-- 成功/新增浅背景；用于新增行、成功提示、正向 Badge。 -->
+    <SolidColorBrush x:Key="UserBusinessBackgroundSuccessBrush" Color="{StaticResource UserBusinessBackgroundSuccess}"/>
+
+    <!-- 修改/提醒文字；用于已修改、需注意但非错误的状态。 -->
+    <SolidColorBrush x:Key="UserBusinessTextWarningBrush" Color="{StaticResource UserBusinessTextWarning}"/>
+    <!-- 修改/提醒浅背景；用于已修改行、提醒提示、轻量 Warning。 -->
+    <SolidColorBrush x:Key="UserBusinessBackgroundWarningBrush" Color="{StaticResource UserBusinessBackgroundWarning}"/>
+    <!-- 删除/错误文字；用于删除、失败、无效等负向状态。 -->
+    <SolidColorBrush x:Key="UserBusinessTextCriticalBrush" Color="{StaticResource UserBusinessTextCritical}"/>
+
+    <SolidColorBrush x:Key="UserBusinessBackgroundCriticalBrush" Color="{StaticResource UserBusinessBackgroundCritical}"/>
+
+    <!-- 主要文字；用于标题、正文及最重要的信息。 -->
+    <SolidColorBrush x:Key="UserTextFillColorPrimaryBrush" Color="{DynamicResource TextFillColorPrimary}"/>
+
+    <!-- 次要文字；用于字段说明、辅助信息和较弱的正文。 -->
+    <SolidColorBrush x:Key="UserTextFillColorSecondaryBrush" Color="{DynamicResource TextFillColorSecondary}" />
+
+    <!-- 三级文字；用于时间、注记等低优先级信息，避免承载关键内容。 -->
+    <SolidColorBrush x:Key="UserTextFillColorTertiaryBrush" Color="{DynamicResource TextFillColorTertiary}" />
+
+    <!-- 禁用文字；仅表达不可操作状态，不应用于可交互内容。 -->
+    <SolidColorBrush x:Key="UserTextFillColorDisabledBrush" Color="{DynamicResource TextFillColorDisabled}" />
+
+    <!-- 输入占位文字；仅在尚未输入值时使用，不能代替普通辅助文字。 -->
+    <SolidColorBrush x:Key="UserTextPlaceholderColorBrush" Color="{DynamicResource TextPlaceholderColor}" />
+
+    <!-- 反色文字；用于深色或反色表面，需确保宿主背景确实为反色语义。 -->
+    <SolidColorBrush x:Key="UserTextFillColorInverseBrush" Color="{DynamicResource TextFillColorInverse}" />
+
+    <!-- 强调文字禁用态；仅用于不可操作的强调文字。 -->
+    <SolidColorBrush x:Key="UserAccentTextFillColorDisabledBrush" Color="{DynamicResource AccentTextFillColorDisabled}" />
+
+    <!-- 强调色选中文字；用于强调色背景上的选中内容。 -->
+    <SolidColorBrush x:Key="UserTextOnAccentFillColorSelectedTextBrush" Color="{DynamicResource TextOnAccentFillColorSelectedText}" />
+
+    <!-- 强调色主文字；用于强调色背景上的主要内容。 -->
+    <SolidColorBrush x:Key="UserTextOnAccentFillColorPrimaryBrush" Color="{DynamicResource TextOnAccentFillColorPrimary}" />
+
+    <!-- 强调色次文字；用于强调色背景上的辅助内容。 -->
+    <SolidColorBrush x:Key="UserTextOnAccentFillColorSecondaryBrush" Color="{DynamicResource TextOnAccentFillColorSecondary}" />
+
+    <!-- 强调色禁用文字；仅用于禁用的强调色控件内部文字。 -->
+    <SolidColorBrush x:Key="UserTextOnAccentFillColorDisabledBrush" Color="{DynamicResource TextOnAccentFillColorDisabled}" />
+    
+    <!--
+        AccentTextFillColorPrimaryBrush、AccentTextFillColorSecondaryBrush、
+        AccentTextFillColorTertiaryBrush 仅有官方 Brush 键而没有对应 Color 键。
+        为保证本字典的每项均为可提示的 SolidColorBrush，不建立这三个项目键；页面直接引用官方键。
+    -->
+    <!--#endregion-->
+    
+    
+    <!-- #region 控件填充 -->
+
+    <!-- 普通控件背景；用于标准按钮、输入框等默认表面。 -->
+    <SolidColorBrush x:Key="UserControlFillColorDefaultBrush" Color="{DynamicResource ControlFillColorDefault}" />
+
+    <!-- 控件次级背景；通常用于悬停或次层表面。 -->
+    <SolidColorBrush x:Key="UserControlFillColorSecondaryBrush" Color="{DynamicResource ControlFillColorSecondary}" />
+
+    <!-- 控件三级背景；通常用于按下或更深一层的交互状态。 -->
+    <SolidColorBrush x:Key="UserControlFillColorTertiaryBrush" Color="{DynamicResource ControlFillColorTertiary}" />
+
+    <!-- 透明控件背景；用于保留布局命中区但不绘制表面的控件。 -->
+    <SolidColorBrush x:Key="UserControlFillColorTransparentBrush" Color="{DynamicResource ControlFillColorTransparent}" />
+
+    <!-- 禁用控件背景；仅表达不可操作的标准控件。 -->
+    <SolidColorBrush x:Key="UserControlFillColorDisabledBrush" Color="{DynamicResource ControlFillColorDisabled}" />
+
+    <!-- 活动输入背景；用于获得输入焦点、正在编辑的输入控件表面。 -->
+    <SolidColorBrush x:Key="UserControlFillColorInputActiveBrush" Color="{DynamicResource ControlFillColorInputActive}" />
+
+    <!-- 实心控件默认填充；用于需要稳定、不透明视觉重量的控件。 -->
+    <SolidColorBrush x:Key="UserControlSolidFillColorDefaultBrush" Color="{DynamicResource ControlSolidFillColorDefault}" />
+
+    <!-- 强填充默认色；用于高强调的非主题色填充表面。 -->
+    <SolidColorBrush x:Key="UserControlStrongFillColorDefaultBrush" Color="{DynamicResource ControlStrongFillColorDefault}" />
+
+    <!-- 强填充禁用色；用于不可操作的高强调填充控件。 -->
+    <SolidColorBrush x:Key="UserControlStrongFillColorDisabledBrush" Color="{DynamicResource ControlStrongFillColorDisabled}" />
+
+    <!-- 透明轻量填充；用于图标按钮、列表项等静默初始状态。 -->
+    <SolidColorBrush x:Key="UserSubtleFillColorTransparentBrush" Color="{DynamicResource SubtleFillColorTransparent}" />
+
+    <!-- 次级轻量填充；用于轻量控件悬停反馈。 -->
+    <SolidColorBrush x:Key="UserSubtleFillColorSecondaryBrush" Color="{DynamicResource SubtleFillColorSecondary}" />
+
+    <!-- 三级轻量填充；用于轻量控件按下反馈。 -->
+    <SolidColorBrush x:Key="UserSubtleFillColorTertiaryBrush" Color="{DynamicResource SubtleFillColorTertiary}" />
+
+    <!-- 禁用轻量填充；用于禁用的轻量交互元素。 -->
+    <SolidColorBrush x:Key="UserSubtleFillColorDisabledBrush" Color="{DynamicResource SubtleFillColorDisabled}" />
+
+    <!-- 替代表面透明背景；用于次级控件初始状态或无底色的交互容器。 -->
+    <SolidColorBrush x:Key="UserControlAltFillColorTransparentBrush" Color="{DynamicResource ControlAltFillColorTransparent}" />
+
+    <!-- 替代表面次级背景；用于与标准控件区分的次级交互表面。 -->
+    <SolidColorBrush x:Key="UserControlAltFillColorSecondaryBrush" Color="{DynamicResource ControlAltFillColorSecondary}" />
+
+    <!-- 替代表面三级背景；用于替代表面的按下或更强交互状态。 -->
+    <SolidColorBrush x:Key="UserControlAltFillColorTertiaryBrush" Color="{DynamicResource ControlAltFillColorTertiary}" />
+
+    <!-- 替代表面四级背景；用于替代表面的最强填充层。 -->
+    <SolidColorBrush x:Key="UserControlAltFillColorQuarternaryBrush" Color="{DynamicResource ControlAltFillColorQuarternary}" />
+
+    <!-- 替代表面禁用背景；用于不可操作的次级控件。 -->
+    <SolidColorBrush x:Key="UserControlAltFillColorDisabledBrush" Color="{DynamicResource ControlAltFillColorDisabled}" />
+
+    <!-- 图片上的控件默认填充；用于图片、封面等复杂背景上的控件表面。 -->
+    <SolidColorBrush x:Key="UserControlOnImageFillColorDefaultBrush" Color="{DynamicResource ControlOnImageFillColorDefault}" />
+
+    <!-- 图片上的控件次级填充；用于图片背景上的悬停或辅助表面。 -->
+    <SolidColorBrush x:Key="UserControlOnImageFillColorSecondaryBrush" Color="{DynamicResource ControlOnImageFillColorSecondary}" />
+
+    <!-- 图片上的控件三级填充；用于图片背景上的按下状态。 -->
+    <SolidColorBrush x:Key="UserControlOnImageFillColorTertiaryBrush" Color="{DynamicResource ControlOnImageFillColorTertiary}" />
+
+    <!-- 图片上的控件禁用填充；用于图片背景上的禁用控件。 -->
+    <SolidColorBrush x:Key="UserControlOnImageFillColorDisabledBrush" Color="{DynamicResource ControlOnImageFillColorDisabled}" />
+
+    <!-- 强调填充禁用色；用于禁用的主操作按钮或其他强调填充。 -->
+    <SolidColorBrush x:Key="UserAccentFillColorDisabledBrush" Color="{DynamicResource AccentFillColorDisabled}" />
+    <!--#endregion-->
+
+
+    <!-- #region 边框与焦点 -->
+
+    <!-- 默认控件边框；用于普通输入控件、按钮等标准轮廓。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorDefaultBrush" Color="{DynamicResource ControlStrokeColorDefault}" />
+    <!-- 次级控件边框；用于较弱层级或内部结构分隔。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorSecondaryBrush" Color="{DynamicResource ControlStrokeColorSecondary}" />
+    <!-- 三级控件边框；用于低对比度的细节轮廓。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorTertiaryBrush" Color="{DynamicResource ControlStrokeColorTertiary}" />
+    
+    
+    <!-- 强填充表面边框；用于强填充控件置于图片背景时保持可见轮廓。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorForStrongFillWhenOnImageBrush" Color="{DynamicResource ControlStrokeColorForStrongFillWhenOnImage}" />
+    <!-- 强调色背景默认边框；用于强调色控件的正常状态。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorOnAccentDefaultBrush" Color="{DynamicResource ControlStrokeColorOnAccentDefault}" />
+    <!-- 强调色背景次级边框；用于强调色控件的悬停或较弱状态。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorOnAccentSecondaryBrush" Color="{DynamicResource ControlStrokeColorOnAccentSecondary}" />
+    <!-- 强调色背景三级边框；用于强调色控件的按下状态。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorOnAccentTertiaryBrush" Color="{DynamicResource ControlStrokeColorOnAccentTertiary}" />
+    <!-- 强调色背景禁用边框；用于禁用的强调色控件。 -->
+    <SolidColorBrush x:Key="UserControlStrokeColorOnAccentDisabledBrush" Color="{DynamicResource ControlStrokeColorOnAccentDisabled}" />
+
+    
+    <!-- 强边框默认色；用于需要比普通边框更清晰的控件轮廓。 -->
+    <SolidColorBrush x:Key="UserControlStrongStrokeColorDefaultBrush" Color="{DynamicResource ControlStrongStrokeColorDefault}" />
+    <!-- 强边框禁用色；用于禁用但仍需保留轮廓的控件。 -->
+    <SolidColorBrush x:Key="UserControlStrongStrokeColorDisabledBrush" Color="{DynamicResource ControlStrongStrokeColorDisabled}" />
+    
+    
+    <!-- 默认卡片边框；用于卡片与页面背景的视觉分离。 -->
+    <SolidColorBrush x:Key="UserCardStrokeColorDefaultBrush" Color="{DynamicResource CardStrokeColorDefault}" />
+    <!-- 实线卡片边框；需要比默认卡片边框更明确时使用。 -->
+    <SolidColorBrush x:Key="UserCardStrokeColorDefaultSolidBrush" Color="{DynamicResource CardStrokeColorDefaultSolid}" />
+    
+    
+    <!-- 表面默认边框；用于卡片、面板等较大表面的外轮廓。 -->
+    <SolidColorBrush x:Key="UserSurfaceStrokeColorDefaultBrush" Color="{DynamicResource SurfaceStrokeColorDefault}" />
+   
+    <!-- 弹出表面边框；用于 Flyout、菜单、浮层等悬浮容器。 -->
+    <SolidColorBrush x:Key="UserSurfaceStrokeColorFlyoutBrush" Color="{DynamicResource SurfaceStrokeColorFlyout}" />
+
+    <!-- 反色表面边框；用于深色或反色表面中的轮廓。 -->
+    <SolidColorBrush x:Key="UserSurfaceStrokeColorInverseBrush" Color="{DynamicResource SurfaceStrokeColorInverse}" />
+
+    <!-- 默认分隔线；用于列表、表单或内容区的普通分组分界。 -->
+    <SolidColorBrush x:Key="UserDividerStrokeColorDefaultBrush" Color="{DynamicResource DividerStrokeColorDefault}" />
+
+    
+    <!-- 焦点外圈；用于可访问性的键盘焦点双层轮廓外层。 -->
+    <SolidColorBrush x:Key="UserFocusStrokeColorOuterBrush" Color="{DynamicResource FocusStrokeColorOuter}" />
+    <!-- 焦点内圈；与外圈配合使用，不能只保留单层焦点提示。 -->
+    <SolidColorBrush x:Key="UserFocusStrokeColorInnerBrush" Color="{DynamicResource FocusStrokeColorInner}" />
+    
+    <!--
+        下列官方资源是 GradientBrush，不建立 User 笔刷：
+        {DynamicResource ControlElevationBorderBrush}：普通控件的层级边框渐变。
+        {DynamicResource AccentControlElevationBorderBrush}：强调控件的层级边框渐变。
+        {DynamicResource CircleElevationBorderBrush}：圆形控件的层级边框渐变。
+        使用时直接引用官方键，以保留主题切换时的完整渐变定义。
+    -->
+    <!--#endregion-->
+    
+    
+    
+    <!-- #region Card、Layer 与实色背景 -->
+
+    
+    <!-- 默认卡片背景；用于卡片、信息块等独立内容容器。 -->
+    <SolidColorBrush x:Key="UserCardBackgroundFillColorDefaultBrush" Color="{DynamicResource CardBackgroundFillColorDefault}" />
+    <!-- 次级卡片背景；用于卡片内嵌区域或层级更低的卡片。 -->
+    <SolidColorBrush x:Key="UserCardBackgroundFillColorSecondaryBrush" Color="{DynamicResource CardBackgroundFillColorSecondary}" />
+    <!-- 遮罩填充；用于模态对话框后方的页面遮罩。 -->
+    <SolidColorBrush x:Key="UserSmokeFillColorDefaultBrush" Color="{DynamicResource SmokeFillColorDefault}" />
+    
+    <!-- 默认内容层；用于普通浮层、面板等叠放于应用背景上的表面。 -->
+    <SolidColorBrush x:Key="UserLayerFillColorDefaultBrush" Color="{DynamicResource LayerFillColorDefault}" />
+    <!-- 替代内容层；用于与默认内容层区分的相邻或嵌套层。 -->
+    <SolidColorBrush x:Key="UserLayerFillColorAltBrush" Color="{DynamicResource LayerFillColorAlt}" />
+
+    
+    
+    <!-- Acrylic 上的内容层；仅用于宿主确为 Acrylic 材质的区域。 -->
+    <SolidColorBrush x:Key="UserLayerOnAcrylicFillColorDefaultBrush" Color="{DynamicResource LayerOnAcrylicFillColorDefault}" />
+    <!-- 强调 Acrylic 上的内容层；仅用于强调色 Acrylic 背景。 -->
+    <SolidColorBrush x:Key="UserLayerOnAccentAcrylicFillColorDefaultBrush" Color="{DynamicResource LayerOnAccentAcrylicFillColorDefault}" />
+
+    
+    
+    <!-- Mica Base Alt 上的默认内容层；用于 Mica 窗口中的首层内容。 -->
+    <SolidColorBrush x:Key="UserLayerOnMicaBaseAltFillColorDefaultBrush" Color="{DynamicResource LayerOnMicaBaseAltFillColorDefault}" />
+    <!-- Mica Base Alt 上的次级内容层；用于首层内容内的嵌套区域。 -->
+    <SolidColorBrush x:Key="UserLayerOnMicaBaseAltFillColorSecondaryBrush" Color="{DynamicResource LayerOnMicaBaseAltFillColorSecondary}" />
+    <!-- Mica Base Alt 上的三级内容层；用于更深的嵌套内容区域。 -->
+    <SolidColorBrush x:Key="UserLayerOnMicaBaseAltFillColorTertiaryBrush" Color="{DynamicResource LayerOnMicaBaseAltFillColorTertiary}" />
+    <!-- Mica Base Alt 上的透明内容层；用于保留该材质语义的无填充区域。 -->
+    <SolidColorBrush x:Key="UserLayerOnMicaBaseAltFillColorTransparentBrush" Color="{DynamicResource LayerOnMicaBaseAltFillColorTransparent}" />
+
+    
+    
+    <!-- 实色基础背景；用于不依赖 Mica/Acrylic 的最底层不透明表面。 -->
+    <SolidColorBrush x:Key="UserSolidBackgroundFillColorBaseBrush" Color="{DynamicResource SolidBackgroundFillColorBase}" />
+    <!-- 实色次级背景；用于基础背景之上的第二层表面。 -->
+    <SolidColorBrush x:Key="UserSolidBackgroundFillColorSecondaryBrush" Color="{DynamicResource SolidBackgroundFillColorSecondary}" />
+    <!-- 实色三级背景；用于更深的嵌套表面。 -->
+    <SolidColorBrush x:Key="UserSolidBackgroundFillColorTertiaryBrush" Color="{DynamicResource SolidBackgroundFillColorTertiary}" />
+    <!-- 实色四级背景；用于最深层的实色嵌套表面。 -->
+    <SolidColorBrush x:Key="UserSolidBackgroundFillColorQuarternaryBrush" Color="{DynamicResource SolidBackgroundFillColorQuarternary}" />
+
+    
+    
+    <!-- 实色基础替代背景；用于与基础背景相邻且需要轻微区分的表面。 -->
+    <SolidColorBrush x:Key="UserSolidBackgroundFillColorBaseAltBrush" Color="{DynamicResource SolidBackgroundFillColorBaseAlt}" />
+    
+    <!--#endregion-->
+
+    <!--#region  业务状态 -->
+    
+    
+    
+    <!-- 注意前景色；用于需要特别关注但不属于警告或错误的状态提示。会随电脑主题变化而变化,慎用 -->
+    <SolidColorBrush x:Key="UserSystemFillColorAttentionBrush" Color="{DynamicResource SystemFillColorAttention}" />
+
+    <!-- 注意背景色；用于需要特别关注但不属于警告或错误的状态提示。 会随电脑主题变化而变化,慎用-->
+    <SolidColorBrush x:Key="UserSystemFillColorAttentionBackgroundBrush" Color="{DynamicResource SystemFillColorAttentionBackground}" />
+
+    <!-- 注意实色背景；用于高可见度的注意提示背景。 会随电脑主题变化而变化,慎用-->
+    <SolidColorBrush x:Key="UserSystemFillColorSolidAttentionBackgroundBrush" Color="{DynamicResource SystemFillColorSolidAttentionBackground}" />
+
+    
+    <SolidColorBrush x:Key="UserSystemFillColorInformationalBrush" Color="{DynamicResource SystemFillColorInformational}" />
+    
+    <!-- 成功前景色；用于成功图标、标签文字等前景元素。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorSuccessBrush" Color="{DynamicResource SystemFillColorSuccess}" />
+    <!-- 成功背景色；用于成功提示、状态标签的柔和背景。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorSuccessBackgroundBrush" Color="{DynamicResource SystemFillColorSuccessBackground}" />
+
+    
+    
+    <!-- 警告前景色；用于需要用户留意但非错误的状态。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorCautionBrush" Color="{DynamicResource SystemFillColorCaution}" />
+    <!-- 警告背景色；用于警告提示、状态标签的柔和背景。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorCautionBackgroundBrush" Color="{DynamicResource SystemFillColorCautionBackground}" />
+
+    
+    
+    <!-- 错误前景色；用于失败、校验错误和阻断性异常状态。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorCriticalBrush" Color="{DynamicResource SystemFillColorCritical}" />
+    <!-- 错误背景色；用于错误提示、校验区域的柔和背景。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorCriticalBackgroundBrush" Color="{DynamicResource SystemFillColorCriticalBackground}" />
+
+    
+    
+    <!-- 中性前景色；用于无明确成败含义的一般状态。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorNeutralBrush" Color="{DynamicResource SystemFillColorNeutral}" />
+    <!-- 中性背景色；用于一般信息提示或中性状态标签背景。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorNeutralBackgroundBrush" Color="{DynamicResource SystemFillColorNeutralBackground}" />
+    
+    
+    <!-- 中性实色前景；用于实色中性控件或标识。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorSolidNeutralBrush" Color="{DynamicResource SystemFillColorSolidNeutral}" />
+    <!-- 中性实色背景；用于高对比度的中性状态背景。 -->
+    <SolidColorBrush x:Key="UserSystemFillColorSolidNeutralBackgroundBrush" Color="{DynamicResource SystemFillColorSolidNeutralBackground}" />
+    
+    <!--#endregion-->
+
+
+    <SolidColorBrush x:Key="SwiftExportBrush.DataGridHeaderBackground" Color="{DynamicResource SubtleFillColorTransparent}" />
+    <SolidColorBrush x:Key="SwiftExportBrush.DataGridHoverBackground" Color="{DynamicResource SubtleFillColorSecondary}" />
+    <SolidColorBrush x:Key="SwiftExportBrush.DataGridSelectedBackground" Color="{StaticResource UserBusinessBackgroundAccent}" />
+    <SolidColorBrush x:Key="SwiftExportBrush.DataGridCurrentRowBackground" Color="{StaticResource UserBusinessBackgroundAccent}" />
+    
+</ResourceDictionary>

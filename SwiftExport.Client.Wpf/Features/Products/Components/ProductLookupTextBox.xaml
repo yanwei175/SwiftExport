@@ -39,7 +39,7 @@
                            Margin="0,2,0,0"
                            Text="{Binding DescriptionEn}"
                            TextWrapping="Wrap"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </Grid>
         </DataTemplate>
     </UserControl.Resources>

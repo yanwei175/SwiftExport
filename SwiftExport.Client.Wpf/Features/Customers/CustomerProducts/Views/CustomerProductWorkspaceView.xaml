@@ -10,7 +10,7 @@
                 <TextBlock FontWeight="SemiBold"
                            Text="{Binding CustomerCode}" />
                 <TextBlock Margin="0,2,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding CustomerName}"
                            TextWrapping="Wrap" />
             </StackPanel>
@@ -56,7 +56,7 @@
                 DataContext="{Binding Editor}"
                 IsEnabled="{Binding DataContext.Editor.IsOpen, ElementName=Root}" />
 
-            <Border Background="{DynamicResource SwiftExportBrush.Surface}">
+            <Border Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}">
                 <Border.Style>
                     <Style TargetType="{x:Type Border}">
                         <Setter Property="Visibility" Value="Visible" />
@@ -74,7 +74,7 @@
                                FontWeight="SemiBold"
                                Text="请先选择客户" />
                     <TextBlock Margin="0,6,0,0"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                Text="选择一个已保存客户后，才能管理该客户的产品。" />
                 </StackPanel>
             </Border>

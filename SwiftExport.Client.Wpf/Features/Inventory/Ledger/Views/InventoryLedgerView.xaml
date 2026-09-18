@@ -79,11 +79,11 @@
             </Grid>
             <DataGrid Grid.Row="4" 
                   ItemsSource="{Binding Items}" 
-                  Background="{DynamicResource MicaControlBrush}"
+                  Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
                   RowHeight="{DynamicResource DataGridRowHeightSmall}"
                   FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                   BorderThickness="1"
-                  BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                  BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                   Padding="2,0"
                   AutoGenerateColumns="False" 
                   IsReadOnly="True">

@@ -31,11 +31,11 @@
                TargetType="{x:Type TextBlock}"
                BasedOn="{StaticResource CaptionTextBlock}">
             <Setter Property="Text" Value="所有更改已保存" />
-            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+            <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorSecondaryBrush}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding HasChanges}" Value="True">
                     <Setter Property="Text" Value="有未保存更改" />
-                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateModified}" />
+                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                     <Setter Property="FontWeight" Value="SemiBold" />
                 </DataTrigger>
             </Style.Triggers>
@@ -258,12 +258,12 @@
                 <TextBlock Margin="0,4,0,0"
                            Text="调整关键词后查询，或新增第一条颜色记录。"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </StackPanel>
 
             <Border Panel.ZIndex="10"
                     Background="Transparent"
-                    BorderBrush="{DynamicResource SubFillColorSecondaryBrush}"
+                    BorderBrush="{DynamicResource UserSubtleFillColorSecondaryBrush}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" d:IsHidden="True">
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -292,7 +292,7 @@
                 <TextBlock Margin="8,0,0,0"
                            Text="{Binding ElementName=ColorsGrid, Path=(gridValidation:GridValidation.ErrorCount), StringFormat=表格错误 {0} 项}"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </StackPanel>
 
             <TextBlock Grid.Column="1"

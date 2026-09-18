@@ -63,7 +63,7 @@
                        TextWrapping="Wrap" />
             <TextBlock Grid.Column="1"
                        Margin="16,0,0,0"
-                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                        Text="选择一行后单击确定，或双击该行。" />
         </Grid>
     </Grid>

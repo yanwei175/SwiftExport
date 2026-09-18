@@ -36,11 +36,11 @@
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Margin="12,0,0,0"
                                Text="{Binding CustomerSku}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Margin="12,0,0,0"
                                Text="{Binding SupplierSku}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                TextTrimming="CharacterEllipsis" />
                 </StackPanel>
                 <TextBlock Grid.Row="1"
@@ -48,7 +48,7 @@
                            Margin="0,2,0,0"
                            Text="{Binding DescriptionZh}"
                            TextWrapping="Wrap"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </Grid>
         </DataTemplate>
     </local:PurchaseLookupTextBoxBase.Resources>

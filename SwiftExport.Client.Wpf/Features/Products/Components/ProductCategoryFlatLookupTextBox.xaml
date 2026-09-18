@@ -20,10 +20,10 @@
                            ToolTip="{Binding CategoryPath}" />
                 <StackPanel Grid.Row="1" Margin="0,2,0,0" Orientation="Horizontal">
                     <TextBlock Text="{Binding CategoryCode}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                     <TextBlock Margin="8,0,0,0"
                                Text="{Binding FakeName}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 </StackPanel>
             </Grid>
         </DataTemplate>

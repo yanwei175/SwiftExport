@@ -16,13 +16,13 @@
                 <TextBlock FontWeight="SemiBold" Text="{Binding ColorNameZh}" TextTrimming="CharacterEllipsis" />
 
                 <StackPanel Grid.Row="1" Margin="0,2,0,0" Orientation="Horizontal">
-                    <TextBlock Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" 
+                    <TextBlock Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" 
                                Text="{Binding ColorCodeUnique}" />
                     <TextBlock Margin="8,0,0,0" 
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" 
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" 
                                Text="{Binding ColorCode}" />
                     <TextBlock Margin="8,0,0,0" 
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" 
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" 
                                Text="{Binding ColorNameEn}" />
                 </StackPanel>
             </Grid>

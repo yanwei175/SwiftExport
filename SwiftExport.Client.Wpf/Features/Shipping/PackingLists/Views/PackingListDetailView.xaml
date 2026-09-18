@@ -17,13 +17,12 @@
              d:DataContext="{d:DesignInstance vm:PackingListDetailViewModel}">
 
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,6*,8,Auto">
-
         <!--Title-->
         <Grid ColumnDefinitions="Auto,8,*,8,Auto">
             <StackPanel Orientation="Horizontal">
                 <ui:Button Grid.Column="0" Content="保存箱单" Command="{Binding SaveCommand}" MinWidth="70" VerticalAlignment="Stretch" Appearance="Primary"/>
 
-                <ui:Button Content="撤销" Command="{Binding UndoCommand}" Margin="8,0,0,0" MinWidth="70"/>
+                <ui:Button Content="撤销" Command="{Binding UndoCommand}" Margin="8,0,0,0" MinWidth="70" />
                 <ui:Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="8,0,0,0" MinWidth="70"/>
                 <ui:Button Content="过账" Command="{Binding PostCommand}" Margin="8,0,0,0" MinWidth="70"/>
                 <ui:Button Content="反过账" Command="{Binding ReverseCommand}" Margin="8,0,0,0" MinWidth="70"/>
@@ -108,7 +107,7 @@
 
             <Border Grid.Row="2"
                     Padding="8"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="4"
                     IsEnabled="{Binding IsEditable}">
@@ -243,12 +242,12 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch">
-                                    <ui:Button Icon="{ui:SymbolIcon Symbol=ChevronUp24}" Foreground="{DynamicResource SwiftExportBrush.WarningText}"
+                                    <ui:Button Icon="{ui:SymbolIcon Symbol=ChevronUp24}" Foreground="{DynamicResource UserSystemFillColorCautionBrush}"
                                                Appearance="Secondary" HorizontalAlignment="Stretch"
                                                Command="{Binding DataContext.MoveLineUpCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                CommandParameter="{Binding}"
                                                BorderThickness="0.5" Height="30"/>
-                                    <ui:Button Icon="{ui:SymbolIcon Symbol=ChevronDown24}" Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
+                                    <ui:Button Icon="{ui:SymbolIcon Symbol=ChevronDown24}" Foreground="{DynamicResource UserBusinessTextAccentBrush}"
                                                Appearance="Secondary" HorizontalAlignment="Stretch"
                                                Command="{Binding DataContext.MoveLineDownCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                CommandParameter="{Binding}"
@@ -271,7 +270,7 @@
                                         <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding CanSplitTail}" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.WarningSoft}"/>
+                                                    <Setter Property="Background" Value="{DynamicResource UserBusinessBackgroundWarningBrush}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -351,7 +350,7 @@
                             <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridNumberTextBlock}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding CanSplitTail}" Value="True">
-                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ErrorText}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextWarningBrush}"/>
                                         <Setter Property="FontWeight" Value="Bold"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -406,7 +405,7 @@
         <!--Message-->
         <Grid Grid.Row="6">
             <StackPanel>
-                <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"/>
+                <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource UserBusinessTextWarningBrush}"/>
                 <TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
             </StackPanel>
         </Grid>

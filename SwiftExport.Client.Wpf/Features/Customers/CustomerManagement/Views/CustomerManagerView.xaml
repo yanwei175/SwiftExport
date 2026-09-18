@@ -15,7 +15,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding DataNameEn}" />
                 <TextBlock Margin="6,0,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding DataNameZh}" />
             </StackPanel>
         </DataTemplate>
@@ -23,7 +23,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding CurrencyCode}" />
                 <TextBlock Margin="6,0,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding CurrencyNameZh}" />
             </StackPanel>
         </DataTemplate>

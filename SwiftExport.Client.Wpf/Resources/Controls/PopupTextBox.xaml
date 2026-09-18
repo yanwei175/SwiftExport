@@ -7,8 +7,8 @@
         <Border x:Name="EditorBorder"
                 Height="{Binding ActualHeight, ElementName=Root}"
                 MinHeight="30"
-                Background="{DynamicResource SwiftExportBrush.Surface}"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                 BorderThickness="{StaticResource SwiftExportBorderThickness}"
                 CornerRadius="{StaticResource SwiftExportControlCornerRadius}"
                 MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
@@ -34,7 +34,7 @@
                 <TextBlock x:Name="PlaceholderTextBlock"
                            Margin="8,0"
                            VerticalAlignment="Center"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            IsHitTestVisible="False"
                            Text="{Binding Placeholder, ElementName=Root}" />
             </Grid>
@@ -54,8 +54,8 @@
             <Border MinWidth="{Binding ActualWidth, ElementName=EditorBorder}"
                     Width="{Binding ResolvedPopupWidth, ElementName=Root}"
                     Height="{Binding PopupHeight, ElementName=Root}"
-                    Background="{DynamicResource SwiftExportBrush.Surface}"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
                 <Border.Effect>

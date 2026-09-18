@@ -15,7 +15,7 @@
                 <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
                 <TextBlock Text="只有活动且尚无有效物料需求的手工来源需求可以编辑。"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Button x:Name="CancelButton"

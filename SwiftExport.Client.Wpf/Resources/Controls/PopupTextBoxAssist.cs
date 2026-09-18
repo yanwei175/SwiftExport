@@ -377,8 +377,8 @@ public static class PopupTextBoxAssist
                 },
             };
 
-            border.SetResourceReference(Border.BackgroundProperty, "SwiftExportBrush.Surface");
-            border.SetResourceReference(Border.BorderBrushProperty, "SwiftExportBrush.Border");
+            border.SetResourceReference(Border.BackgroundProperty, "UserCardBackgroundFillColorDefaultBrush");
+            border.SetResourceReference(Border.BorderBrushProperty, "UserControlStrokeColorDefaultBrush");
             border.SetResourceReference(Border.CornerRadiusProperty, "SwiftExportCornerRadius");
             return border;
         }

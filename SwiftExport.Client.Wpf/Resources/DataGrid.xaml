@@ -33,7 +33,7 @@
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
                        FontSize="11"
-                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                        Text="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRowHeader}}, Path=Content}">
                 <TextBlock.Style>
                     <Style TargetType="{x:Type TextBlock}">
@@ -101,7 +101,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Right" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip"
                         Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
@@ -129,7 +129,7 @@
         <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         <Style.Triggers>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip"
                         Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
@@ -140,8 +140,8 @@
     <Style x:Key="SwiftExportDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}" 
            BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
         <Setter Property="Padding" Value="{DynamicResource SwiftExportDataGridHeaderPadding}" />
-        <Setter Property="Background" Value="{DynamicResource MicaControlBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
+        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -196,7 +196,7 @@
            TargetType="{x:Type DataGridRowHeader}">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -244,8 +244,8 @@
     </Style>
 
     <Style x:Key="SwiftExportDataGridRow" TargetType="{x:Type DataGridRow}" BasedOn="{StaticResource {x:Type DataGridRow}}">
-        <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.Surface}" />
-        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}" />
+        <Setter Property="Background" Value="{DynamicResource UserCardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}" />
         <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         <Setter Property="gridSelection:GridSelection.IsCurrentRow">
             <Setter.Value>
@@ -261,7 +261,7 @@
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.DataGridSelectedBackground}" />
-                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}" />
+                <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}" />
                 <Setter Property="Opacity" Value="1" />
             </Trigger>
             <MultiDataTrigger>
@@ -289,20 +289,20 @@
         </Setter>
         <Style.Triggers>
             <DataTrigger Binding="{Binding State}" Value="Added">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.RowStateAdded}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource UserBusinessBackgroundSuccessBrush}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="新增行" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="+" />
             </DataTrigger>
             <DataTrigger Binding="{Binding State}" Value="Modified">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.RowStateModified}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource UserBusinessBackgroundWarningBrush}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="已修改行" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="●" />
             </DataTrigger>
             <DataTrigger Binding="{Binding State}" Value="Deleted">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.RowStateDeleted}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource UserBusinessBackgroundWarningBrush}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="已删除行" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="×" />
-                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 <Setter Property="Opacity" Value="0.72" />
             </DataTrigger>
             <MultiDataTrigger>
@@ -310,17 +310,17 @@
                     <Condition Binding="{Binding State}" Value="Deleted" />
                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}" />
+                <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}" />
                 <Setter Property="Opacity" Value="1" />
             </MultiDataTrigger>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="行验证错误" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="!" />
             </Trigger>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.RowState).HasError}"
                          Value="True">
-                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="gridState:GridRowPresentation.MarkerBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="gridState:GridRowPresentation.MarkerText" Value="行验证错误" />
                 <Setter Property="gridState:GridRowPresentation.MarkerGlyph" Value="!" />
             </DataTrigger>
@@ -372,22 +372,22 @@
         <Style.Triggers>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).HasError}"
                          Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).Message}" />
             </DataTrigger>
             <Trigger Property="Validation.HasError" Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportDataGridValidationBorderThickness}" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(Validation.Errors), Converter={StaticResource SwiftExportFirstValidationErrorConverter}, FallbackValue={x:Null}}" />
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.DataGridSelectedBackground}" />
-                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}"/>
             </Trigger>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridSelection:GridSelection.IsCurrentCell)}"
                          Value="True">
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Accent}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextAccentBrush}" />
                 <Setter Property="BorderThickness" Value="0.8" />
             </DataTrigger>
             <MultiDataTrigger>
@@ -395,7 +395,7 @@
                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
                     <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="0,0,0,2" />
             </MultiDataTrigger>
             <MultiDataTrigger>
@@ -403,7 +403,7 @@
                     <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True" />
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).HasError}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="0,0,0,2" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).Message}" />
             </MultiDataTrigger>
@@ -412,7 +412,7 @@
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridSelection:GridSelection.IsCurrentCell)}" Value="True" />
                     <Condition Binding="{Binding (Validation.HasError), RelativeSource={RelativeSource Self}}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="2" />
             </MultiDataTrigger>
             <MultiDataTrigger>
@@ -420,33 +420,31 @@
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridSelection:GridSelection.IsCurrentCell)}" Value="True" />
                     <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).HasError}" Value="True" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.ErrorText}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextWarningBrush}" />
                 <Setter Property="BorderThickness" Value="2" />
                 <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=(gridValidation:GridValidation.CellState).Message}" />
             </MultiDataTrigger>
         </Style.Triggers>
     </Style>
 
-    <Style x:Key="SwiftExportDataGrid"
-           TargetType="{x:Type DataGrid}"
-           BasedOn="{StaticResource {x:Type DataGrid}}">
-        <Setter Property="Background" Value="{DynamicResource MicaControlBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource SwiftExportBrush.Border}" />
-        <Setter Property="BorderThickness" Value="{StaticResource SwiftExportBorderThickness}" />
+    <Style x:Key="SwiftExportDataGrid" TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
+        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportBorderThickness}" />
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />
         <Setter Property="HeadersVisibility" Value="All" />
         <Setter Property="GridLinesVisibility" Value="All" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
-        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource SwiftExportBrush.DataGridGridLine}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
         <Setter Property="RowHeaderWidth" Value="32" />
         <Setter Property="RowHeaderStyle" Value="{StaticResource SwiftExportDataGridRowHeader}" />
         <Setter Property="RowHeaderTemplate" Value="{StaticResource SwiftExportEnterpriseGridRowHeaderTemplate}" />
         <Setter Property="SelectionMode" Value="Extended" />
         <Setter Property="SelectionUnit" Value="FullRow" />
         <Setter Property="AlternationCount" Value="2" />
-        <Setter Property="AlternatingRowBackground" Value="{DynamicResource SwiftExportBrush.SurfaceMuted}" />
+        <Setter Property="AlternatingRowBackground" Value="{DynamicResource UserLayerFillColorAltBrush}" />
         <!--<Setter Property="ColumnHeaderStyle" Value="{StaticResource SwiftExportDataGridColumnHeader}" />-->
         <Setter Property="RowStyle" Value="{StaticResource SwiftExportDataGridRow}" />
         <Setter Property="CellStyle" Value="{StaticResource SwiftExportDataGridCell}" />

@@ -28,7 +28,7 @@
                 Width="180"
                 Margin="0,0,8,0"
                 Padding="4"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="4"
                 Visibility="{Binding IsSourcePanelOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -69,7 +69,7 @@
                                                ToolTip="{Binding SourceNo}" />
                                     <TextBlock Text="{Binding SourceTypeText}"
                                                Style="{StaticResource CaptionTextBlock}"
-                                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                                 </StackPanel>
                                 <TextBlock Grid.Column="1"
                                            Margin="4,0,0,0"
@@ -86,7 +86,7 @@
                            Text="{Binding SourceGroupSummary}"
                            TextWrapping="Wrap"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </Grid>
         </Border>
 
@@ -179,7 +179,7 @@
                        PopupAnimation="Fade"
                        StaysOpen="True">
                     <Border Padding="6"
-                            Background="{DynamicResource SwiftExportBrush.Surface}"
+                            Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
                             BorderThickness="1"
                             CornerRadius="4">
                         <StackPanel Margin="0,4" Orientation="Horizontal">
@@ -269,15 +269,15 @@
                                 <Style.Triggers>
 
                                     <DataTrigger Binding="{Binding LifecycleStatusText}" Value="活动">
-                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextAccentBrush}"/>
                                     </DataTrigger>
 
                                     <DataTrigger Binding="{Binding LifecycleStatusText}"  Value="已回退">
-                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource UserSystemFillColorCautionBrush}"/>
                                     </DataTrigger>
 
                                     <DataTrigger Binding="{Binding LifecycleStatusText}" Value="已作废">
-                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.DeletedText}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource UserSystemFillColorCautionBrush}"/>
                                     </DataTrigger>
 
                                 </Style.Triggers>
@@ -307,11 +307,11 @@
                                 <Style.Triggers>
 
                                     <DataTrigger Binding="{Binding DemandRoleText}" Value="父件">
-                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.ActiveText}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextAccentBrush}"/>
                                     </DataTrigger>
 
                                     <DataTrigger Binding="{Binding DemandRoleText}"  Value="客供件">
-                                        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource UserSystemFillColorCautionBrush}"/>
                                     </DataTrigger>
 
                                 </Style.Triggers>
@@ -346,7 +346,7 @@
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}">
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding SuggestedPurchaseSupplierDisplay}" Value="未设置">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.DeletedText}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource UserSystemFillColorCautionBrush}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -391,7 +391,7 @@
 
                     <DataGridTextColumn Header="采购单号" Width="160" Binding="{Binding PurchaseOrderNos}" 
                                         IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                        Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
+                                        Foreground="{DynamicResource UserBusinessTextAccentBrush}"
                                         gridColumns:GridColumn.Key="purchase-orders" />
 
 

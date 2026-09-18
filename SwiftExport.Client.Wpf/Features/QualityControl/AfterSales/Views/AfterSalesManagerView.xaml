@@ -6,7 +6,7 @@
  xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
  mc:Ignorable="d" d:DesignHeight="760" d:DesignWidth="1300">
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
-        <Border Padding="12" BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
+        <Border Padding="12" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4">
             <Grid ColumnDefinitions="2*,8,*,8,*,8,*,8,*,8,*,8,Auto">
                 <ui:TextBox Grid.Column="0"
                             Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}"

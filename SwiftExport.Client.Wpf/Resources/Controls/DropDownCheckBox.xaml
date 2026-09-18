@@ -42,8 +42,8 @@
                     MaxHeight="{Binding MaxDropDownHeight, ElementName=Root}"
                     Margin="0,4,0,0"
                     Padding="4"
-                    Background="{DynamicResource SwiftExportBrush.Surface}"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="{DynamicResource SwiftExportBorderThickness}"
                     CornerRadius="{DynamicResource SwiftExportControlCornerRadius}"
                     PreviewKeyDown="PopupSurface_PreviewKeyDown">

@@ -17,11 +17,7 @@
     <Color x:Key="SwiftExportColor.RowStateAdded">#FF107C10</Color>
     <Color x:Key="SwiftExportColor.RowStateModified">#FFCA5010</Color>
     <Color x:Key="SwiftExportColor.RowStateDeleted">#FFD13438</Color>
-    <Color x:Key="SwiftExportColor.DataGridHeaderBackground">#FFF7F8FA</Color>
-    <Color x:Key="SwiftExportColor.DataGridHoverBackground">#FFF2F4F7</Color>
-    <Color x:Key="SwiftExportColor.DataGridSelectedBackground">#FFEAF2FF</Color>
-    <Color x:Key="SwiftExportColor.DataGridCurrentRowBackground">#FFF4F8FF</Color>
-    <Color x:Key="SwiftExportColor.DataGridGridLine">#FFE4E7EC</Color>
+
 
 
     <Color x:Key="MicaControlColor">#90FFFFFF</Color>
@@ -43,44 +39,7 @@
     <!-- Status Text Brushes -->
     <!-- ========================= -->
 
-    <SolidColorBrush    x:Key="SwiftExportBrush.ActiveText"    Color="{StaticResource SwiftExportColor.ActiveText}" />
 
-    <SolidColorBrush    x:Key="SwiftExportBrush.SuccessText"    Color="{StaticResource SwiftExportColor.SuccessText}" />
-
-    <SolidColorBrush    x:Key="SwiftExportBrush.WarningText"    Color="{StaticResource SwiftExportColor.WarningText}" />
-
-    <SolidColorBrush    x:Key="SwiftExportBrush.DeletedText"    Color="{StaticResource SwiftExportColor.DeletedText}" />
-
-    <SolidColorBrush    x:Key="SwiftExportBrush.ErrorText"    Color="{StaticResource SwiftExportColor.ErrorText}" />
-
-
-
-
-
-    <SolidColorBrush x:Key="SubFillColorSecondaryBrush" Color="#09000000"/>
-    <SolidColorBrush x:Key="MicaControlBrush" Color="#90FFFFFF"/>
-
-    <SolidColorBrush x:Key="SwiftExportBrush.WindowBackground" Color="{StaticResource SwiftExportColor.WindowBackground}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.PopupBackground" Color="{StaticResource SwiftExportColor.PopupBackground}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.Surface" Color="{StaticResource SwiftExportColor.Surface}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.SurfaceMuted" Color="{StaticResource SwiftExportColor.SurfaceMuted}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.Border" Color="{StaticResource SwiftExportColor.Border}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.TextPrimary" Color="{StaticResource SwiftExportColor.TextPrimary}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.TextSecondary" Color="{StaticResource SwiftExportColor.TextSecondary}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.Accent" Color="{StaticResource SwiftExportColor.Accent}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.AccentHover" Color="{StaticResource SwiftExportColor.AccentHover}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.SuccessSoft" Color="{StaticResource SwiftExportColor.SuccessSoft}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.WarningSoft" Color="{StaticResource SwiftExportColor.WarningSoft}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.DeletedSoft" Color="{StaticResource SwiftExportColor.DeletedSoft}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.Error" Color="{StaticResource SwiftExportColor.Error}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.RowStateAdded" Color="{StaticResource SwiftExportColor.RowStateAdded}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.RowStateModified" Color="{StaticResource SwiftExportColor.RowStateModified}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.RowStateDeleted" Color="{StaticResource SwiftExportColor.RowStateDeleted}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.DataGridHeaderBackground" Color="{StaticResource SwiftExportColor.DataGridHeaderBackground}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.DataGridHoverBackground" Color="{StaticResource SwiftExportColor.DataGridHoverBackground}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.DataGridSelectedBackground" Color="{StaticResource SwiftExportColor.DataGridSelectedBackground}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.DataGridCurrentRowBackground" Color="{StaticResource SwiftExportColor.DataGridCurrentRowBackground}" />
-    <SolidColorBrush x:Key="SwiftExportBrush.DataGridGridLine" Color="{StaticResource SwiftExportColor.DataGridGridLine}" />
 
 
 

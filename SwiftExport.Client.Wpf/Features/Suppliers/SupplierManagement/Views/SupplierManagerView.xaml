@@ -55,7 +55,8 @@
                                   CloseCommand="{Binding SupplierProducts.CloseCommand}">
             <controls:RightDrawerHost.MainContent>
                 <DataGrid ItemsSource="{Binding Suppliers.Items}"
-                          Style="{StaticResource SwiftExportDataGrid}" RowStyle="{StaticResource SwiftExportStateDataGridRow}"
+                          Style="{StaticResource SwiftExportDataGrid}" 
+                          RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                           RowHeight="{StaticResource DataGridRowHeightSmall}"
                           FontSize="12"
                           SelectionMode="Extended"

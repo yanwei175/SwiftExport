@@ -27,7 +27,7 @@
             <StackPanel Margin="0,0" Orientation="Horizontal">
                 <TextBlock Text="{Binding DataNameEn}" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding DataNameZh}" Margin="4,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            TextWrapping="Wrap" />
             </StackPanel>
         </DataTemplate>
@@ -90,6 +90,7 @@
                 <ui:Button Margin="6,0,0,0"
                            Appearance="Success"
                            Content="保存"
+                           
                            Icon="{ui:SymbolIcon Symbol=Save24}"
                            Command="{Binding SaveCommand}"
                            ToolTip="保存产品">
@@ -488,8 +489,8 @@
                     </DataGrid>
 
                     <Border Panel.ZIndex="10"
-                            Background="{DynamicResource SwiftExportBrush.Surface}"
-                            BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                            Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                             BorderThickness="{StaticResource SwiftExportBorderThickness}"
                             Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}"
                             d:IsHidden="True">
@@ -522,7 +523,7 @@
                         </StackPanel>
                         <Button Grid.Column="1" Content="关闭" Command="{Binding BomDrawer.CloseCommand}" />
                     </Grid>
-                    <TextBlock Grid.Row="2" Text="{Binding BomDrawer.StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                    <TextBlock Grid.Row="2" Text="{Binding BomDrawer.StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                     <DataGrid Grid.Row="4" 
                               ItemsSource="{Binding BomDrawer.Boms.Items}" 
                               SelectedItem="{Binding BomDrawer.SelectedLine, Mode=TwoWay}"

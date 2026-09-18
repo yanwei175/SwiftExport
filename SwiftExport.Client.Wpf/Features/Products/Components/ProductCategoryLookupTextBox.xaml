@@ -19,7 +19,7 @@
                 <TextBlock Grid.Column="1"
                            Margin="12,0,4,0"
                            Text="{Binding CategoryCode}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </Grid>
         </HierarchicalDataTemplate>
 

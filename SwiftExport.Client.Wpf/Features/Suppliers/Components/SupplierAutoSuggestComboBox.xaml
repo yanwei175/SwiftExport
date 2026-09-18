@@ -14,7 +14,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock FontWeight="SemiBold" Text="{Binding SupplierCode}" TextTrimming="CharacterEllipsis" />
                 <TextBlock Grid.Column="1" Margin="12,0,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding SupplierName}" TextTrimming="CharacterEllipsis" />
             </Grid>
         </DataTemplate>

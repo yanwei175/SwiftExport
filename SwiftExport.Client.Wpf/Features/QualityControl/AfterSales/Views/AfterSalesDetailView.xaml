@@ -16,15 +16,15 @@
                 <TextBlock Text="售后单详情" Grid.RowSpan="3" Style="{StaticResource TitleTextBlock}"/>
                 
                 <Border Grid.Row="0" Grid.Column="2"  Padding="6" VerticalAlignment="Center" HorizontalAlignment="Left"
-                        BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
+                        BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4">
                     <TextBlock Text="{Binding DocumentStatusText}" d:Text="待处理" TextAlignment="Left"
-                               Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
+                               Foreground="{DynamicResource UserSystemAccentColorSecondaryBrush}"
                                Style="{StaticResource BodyTextBlock}"/>
                 </Border>
                 <Border Grid.Row="2" Grid.Column="4"  Padding="6" VerticalAlignment="Center" HorizontalAlignment="Left"
-                        BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
+                        BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4">
                     <TextBlock Text="{Binding ConfirmationStatusText}" d:Text="待确认" TextAlignment="Left" 
-                               Foreground="{DynamicResource SwiftExportBrush.ActiveText}"
+                               Foreground="{DynamicResource UserSystemAccentColorSecondaryBrush}"
                                Style="{StaticResource BodyTextBlock}"/>
                 </Border>
             </Grid>
@@ -135,7 +135,7 @@
                     </StackPanel>
 
                     <DataGrid Grid.Row="2" 
-                              BorderThickness="1" BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                              BorderThickness="1" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                               RowHeight="{StaticResource DataGridRowHeightSmall}"
                               ItemsSource="{Binding Lines}" 
                               SelectedItem="{Binding SelectedLine,Mode=TwoWay}" 
@@ -229,7 +229,7 @@
                     </DataGrid>
                 </Grid>
 
-                <Border Grid.Row="4" Padding="12" Style="{StaticResource SwiftCardStyle}" BorderThickness="1" BorderBrush="{DynamicResource SwiftExportBrush.Border}">
+                <Border Grid.Row="4" Padding="12" Style="{StaticResource SwiftCardStyle}" BorderThickness="1" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         
                         <Grid DataContext="{Binding SelectedLine}" 
@@ -396,7 +396,7 @@
                 <!--statue-->
                 <Grid Grid.Row="6" ColumnDefinitions="*,Auto" MaxHeight="250">
                     <TextBlock Text="{Binding ResultSummary}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
-                    <TextBlock Grid.Column="1" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
+                    <TextBlock Grid.Column="1" Text="{Binding ValidationSummary}" Foreground="{DynamicResource UserBusinessTextWarningBrush}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Assertive"/>
                 </Grid>
             </Grid>
         </Border>

@@ -311,7 +311,7 @@
                                             gridColumns:GridColumn.FieldPath="Quantity"
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                            Foreground="{DynamicResource SwiftExportBrush.Accent}"
+                                            Foreground="{DynamicResource UserBusinessTextAccentBrush}"
                                             Binding="{Binding Quantity, TargetNullValue='', StringFormat=0.####, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=False, ValidatesOnNotifyDataErrors=False, NotifyOnValidationError=True}"
                                             Width="80"/>
 
@@ -331,8 +331,8 @@
 
             <!--提示信息-->
             <StackPanel Grid.Row="5">
-                <TextBlock Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"/>
-                <TextBlock Text="{Binding ResultSummary}" Foreground="{DynamicResource SwiftExportBrush.WarningText}"/>
+                <TextBlock Text="{Binding ValidationSummary}" Foreground="{DynamicResource UserBusinessTextWarningBrush}"/>
+                <TextBlock Text="{Binding ResultSummary}" Foreground="{DynamicResource UserSystemFillColorCautionBrush}"/>
             </StackPanel>
         </Grid>
     </Grid>

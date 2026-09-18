@@ -19,7 +19,7 @@
 
         <Rectangle Width="1"
                    Height="16"
-                   Fill="{DynamicResource SwiftExportBrush.Border}"
+                   Fill="{DynamicResource UserControlStrokeColorDefaultBrush}"
                    VerticalAlignment="Center"
                    Margin="0,0,16,0" />
 

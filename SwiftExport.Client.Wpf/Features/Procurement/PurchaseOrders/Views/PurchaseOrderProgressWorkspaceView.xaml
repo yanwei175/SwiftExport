@@ -91,7 +91,7 @@
                             </StackPanel>
                         </DockPanel>
 
-                        <Border Margin="0,12,0,0" Padding="12" BorderBrush="{DynamicResource SwiftExportBrush.Border}" BorderThickness="1" CornerRadius="4">
+                        <Border Margin="0,12,0,0" Padding="12" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4">
                             <StackPanel>
                                 <TextBlock Text="所选采购行" FontWeight="SemiBold"/>
                                 <Grid Margin="0,8,0,0" ColumnDefinitions="Auto,8,*,16,Auto,8,*">

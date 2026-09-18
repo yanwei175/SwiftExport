@@ -236,8 +236,8 @@
 
             <!--提示信息-->
             <StackPanel Grid.Row="5">
-                <TextBlock Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"/>
-                <TextBlock Text="{Binding ResultSummary}" Foreground="{DynamicResource SwiftExportBrush.WarningText}"/>
+                <TextBlock Text="{Binding ValidationSummary}" Foreground="{DynamicResource UserBusinessTextWarningBrush}"/>
+                <TextBlock Text="{Binding ResultSummary}" Foreground="{DynamicResource UserSystemFillColorCautionBrush}"/>
             </StackPanel>
         </Grid>
 

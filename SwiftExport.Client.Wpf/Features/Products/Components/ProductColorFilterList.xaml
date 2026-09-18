@@ -48,7 +48,7 @@
                     <TextBlock Grid.Column="2"
                                Margin="8,0,8,0"
                                VerticalAlignment="Center"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                Text="{Binding ColorCode}"
                                TextTrimming="CharacterEllipsis" />
                 </Grid>

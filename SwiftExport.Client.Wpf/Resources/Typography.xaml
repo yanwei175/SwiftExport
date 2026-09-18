@@ -9,12 +9,12 @@
     
     <Style x:Key="SecondaryTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyTextBlockStyle}">
         <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
-        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+        <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorSecondaryBrush}" />
     </Style>
     
     <Style x:Key="LabelTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
         <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}"/>
-        <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextPrimary}" />
+        <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}" />
     </Style>
     <Style x:Key="BodyTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyTextBlockStyle}"/>
     <Style x:Key="BodyStrongTextBlock" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource BodyStrongTextBlockStyle}"/>

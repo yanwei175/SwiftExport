@@ -22,7 +22,7 @@
                            TextTrimming="CharacterEllipsis" />
                 <TextBlock Grid.Column="2"
                            Text="{Binding SupplierName}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            TextTrimming="CharacterEllipsis" />
             </Grid>
         </DataTemplate>

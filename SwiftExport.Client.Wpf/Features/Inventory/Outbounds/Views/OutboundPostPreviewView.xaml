@@ -22,7 +22,7 @@
         <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
             <ItemsControl ItemsSource="{Binding Preview.Blockers}">
                 <ItemsControl.ItemTemplate><DataTemplate>
-                    <TextBlock Text="{Binding Message}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}" TextWrapping="Wrap" Margin="0,2"/>
+                        <TextBlock Text="{Binding Message}" Foreground="{DynamicResource UserBusinessTextWarningBrush}" TextWrapping="Wrap" Margin="0,2"/>
                 </DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>

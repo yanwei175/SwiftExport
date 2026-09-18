@@ -38,7 +38,7 @@
                 <TextBlock Text="{Binding DocumentTitle}" 
                            TextAlignment="Center"
                            Style="{StaticResource SubtitleTextBlock}" 
-                           Foreground="{DynamicResource SwiftExportBrush.AccentHover}"
+                           Foreground="{DynamicResource UserSystemAccentColorPrimaryBrush}"
                            Margin="0,0,0,12"/>
                 <TextBlock Text="{Binding StatusText}" 
                            TextAlignment="Center"
@@ -54,7 +54,7 @@
         </Grid>
 
         <Border Grid.Row="2" 
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}" 
+                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" 
                 BorderThickness="1"
                 CornerRadius="{StaticResource SwiftExportCornerRadius}" 
                 Padding="16">
@@ -340,7 +340,7 @@
             </DataGrid>
         </Grid>
 
-        <TextBlock Grid.Row="6" Text="{Binding ValidationSummary}" Foreground="{DynamicResource SwiftExportBrush.ErrorText}"
+        <TextBlock Grid.Row="6" Text="{Binding ValidationSummary}" Foreground="{DynamicResource UserBusinessTextWarningBrush}"
                    Style="{StaticResource CaptionTextBlock}" />
     </Grid>
 </UserControl>

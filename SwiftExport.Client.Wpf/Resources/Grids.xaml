@@ -3,7 +3,7 @@
 
     <Style x:Key="SwiftExportGridSplitterHorizontal" TargetType="{x:Type Thumb}">
         <Setter Property="Height" Value="2" />
-        <Setter Property="Background" Value="{DynamicResource SubFillColorSecondaryBrush}" />
+        <Setter Property="Background" Value="{DynamicResource UserSubtleFillColorSecondaryBrush}" />
         <Setter Property="Cursor" Value="SizeNS" />
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />

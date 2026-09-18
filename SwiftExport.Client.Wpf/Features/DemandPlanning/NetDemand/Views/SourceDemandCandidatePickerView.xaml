@@ -10,7 +10,7 @@
 
     <Grid Margin="8" ColumnDefinitions="220,8,*">
         <Border Padding="8"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="4">
             <Grid RowDefinitions="Auto,8,*,8,Auto">
@@ -34,7 +34,7 @@
                                                ToolTip="{Binding SourceNo}" />
                                     <TextBlock Text="{Binding SourceTypeText}"
                                                Style="{StaticResource CaptionTextBlock}"
-                                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                                 </StackPanel>
                                 <TextBlock Grid.Column="1"
                                            Margin="8,0,0,0"
@@ -50,7 +50,7 @@
                            Text="{Binding SourceGroupStatusText}"
                            TextWrapping="Wrap"
                            Style="{StaticResource CaptionTextBlock}"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
             </Grid>
         </Border>
 
@@ -61,7 +61,7 @@
                     <TextBlock Margin="0,2,0,0"
                                Text="选择左侧来源单后，将一次加载该单全部待建立行。"
                                Style="{StaticResource CaptionTextBlock}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button MinWidth="88"

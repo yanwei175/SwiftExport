@@ -15,15 +15,15 @@
             <StackPanel>
                 <TextBlock FontWeight="SemiBold" Text="采购单审核" />
                 <TextBlock Text="供应商、数量、价格、交期如需修改，请返回采购准备；此处只审核后端生成的只读单据快照。"
-                                   Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                   Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 <TextBlock Text="{Binding StatusText}"
                                    TextWrapping="Wrap">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlock}">
-                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                            <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorSecondaryBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsStale}" Value="True">
-                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.WarningText}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource UserSystemFillColorCautionBrush}" />
                                     <Setter Property="FontWeight" Value="SemiBold" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -75,7 +75,7 @@
         <Grid Grid.Row="2" ColumnDefinitions="Auto,8,*">
             <!--左侧列表-->
             <Border Padding="8" 
-                   BorderBrush="{DynamicResource SwiftExportBrush.Border}" 
+                   BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" 
                    BorderThickness="0.5"
                    CornerRadius="8">
                 <DataGrid ItemsSource="{Binding Documents}" 
@@ -100,7 +100,7 @@
                 <!--单头区域-->
                 <Border Padding="12"
                         HorizontalAlignment="Stretch"
-                        BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                        BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                         BorderThickness="1"
                         CornerRadius="4">
                     <Border.Resources>
@@ -241,7 +241,7 @@
                 <!--单行区域-->
                 <Border Grid.Row="2" 
                         Padding="8" 
-                        BorderBrush="{DynamicResource SwiftExportBrush.Border}" 
+                        BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" 
                         BorderThickness="0.5"
                         CornerRadius="8">
                     <DataGrid Grid.Row="2" 
@@ -300,7 +300,7 @@
                 <!--单行来源-->
                 <Border Grid.Row="4" 
                         Padding="8" 
-                        BorderBrush="{DynamicResource SwiftExportBrush.Border}" 
+                        BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" 
                         BorderThickness="0.5"
                         CornerRadius="8">
                     <Grid RowDefinitions="Auto,4,*">

@@ -40,7 +40,7 @@
                     ToolTip="查询"/>
 
             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding AddItemCommand}"  Margin="0,0,4,0" Content="新增" />
+                <Button Command="{Binding AddItemCommand}"  Margin="0,0,4,0" Content="新增"/>
                 <Button Command="{Binding SaveCommand}" Margin="0,0,4,0" Content="保存" />
                 <Button Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" Content="删除" />
                 <Button Command="{Binding RejectCommand}" Margin="0,0,4,0" Content="放弃" />
@@ -55,7 +55,7 @@
                 <Button Command="{Binding CloseCommand}" Content="关闭" />
             </StackPanel>
         </Grid>
-        <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+        <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
         <DataGrid Grid.Row="4" 
                   ItemsSource="{Binding Products.Items}" 
                   Style="{StaticResource SwiftExportDataGrid}" 

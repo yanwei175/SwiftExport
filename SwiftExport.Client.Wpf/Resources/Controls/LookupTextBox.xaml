@@ -97,7 +97,7 @@
                 <TextBlock x:Name="PlaceholderTextBlock"
                            Style="{StaticResource LookupOverlayTextStyle}"
                            VerticalAlignment="Center"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            IsHitTestVisible="False"
                            Text="{Binding Placeholder, ElementName=Root}" />
 
@@ -186,8 +186,8 @@
             <Border MinWidth="{Binding ActualWidth, ElementName=EditorBorder}"
                     MaxHeight="260"
                     Style="{StaticResource LookupEditorBorderStyle}"
-                    Background="{DynamicResource SwiftExportBrush.PopupBackground}"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    Background="{DynamicResource UserLayerFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="{DynamicResource SwiftExportBorderThickness}"
                     CornerRadius="4"
                     Padding="6"
@@ -217,7 +217,7 @@
                                 <Setter Property="Cursor" Value="Hand" />
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.SurfaceMuted}" />
+                                        <Setter Property="Background" Value="{DynamicResource UserLayerFillColorAltBrush}" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>

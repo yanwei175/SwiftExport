@@ -39,7 +39,7 @@
                 <Button Command="{Binding CloseCommand}" Content="关闭" />
             </StackPanel>
         </Grid>
-        <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+        <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
         <DataGrid Grid.Row="4" ItemsSource="{Binding Products.Items}"
                   Style="{StaticResource SwiftExportDataGrid}"
                   RowHeight="{StaticResource DataGridRowHeightSmall}"

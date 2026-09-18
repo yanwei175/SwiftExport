@@ -32,7 +32,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding DataNameEn}" />
                 <TextBlock Margin="6,0,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding DataNameZh}" />
             </StackPanel>
         </DataTemplate>
@@ -40,7 +40,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding CurrencyCode}" />
                 <TextBlock Margin="6,0,0,0"
-                           Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding CurrencyNameZh}" />
             </StackPanel>
         </DataTemplate>
@@ -96,7 +96,7 @@
             <!--单头-->
             <Border Grid.Row="0"
                     Padding="8"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="4"
                     IsEnabled="{Binding IsEditable}">
@@ -204,7 +204,7 @@
             
             <Border Grid.Row="2"
                     Padding="8"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="1"
                     CornerRadius="4"
                     IsEnabled="{Binding IsEditable}">

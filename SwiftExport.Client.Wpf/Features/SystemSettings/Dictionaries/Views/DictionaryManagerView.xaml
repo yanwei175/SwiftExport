@@ -34,7 +34,7 @@
         <Border Grid.Column="0"
                 Padding="8"
                 Background="Transparent"
-                BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                 BorderThickness="{StaticResource SwiftExportBorderThickness}"
                 CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
             <Grid>
@@ -56,7 +56,7 @@
                                    Text="系统类型锁定，自定义类型可维护。"
                                    TextWrapping="Wrap"
                                    Style="{StaticResource CaptionTextBlock}"
-                                   Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                   Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                     </StackPanel>
                     <ui:Button Grid.Column="1"
                                Width="36"
@@ -87,7 +87,7 @@
                                                     <Setter Property="Background" Value="Transparent" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                            <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.Accent}" />
+                                                            <Setter Property="Background" Value="{DynamicResource UserSystemAccentColorPrimaryBrush}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -101,10 +101,10 @@
                                                        Text="{Binding Code}"
                                                        TextTrimming="CharacterEllipsis"
                                                        Style="{StaticResource CaptionTextBlock}"
-                                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                                                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                                             <TextBlock Margin="0,2,0,0"
                                                        Text="未配置"
-                                                       Foreground="{DynamicResource SwiftExportBrush.ErrorText}">
+                                                       Foreground="{DynamicResource UserBusinessTextWarningBrush}">
                                                 <TextBlock.Style>
                                                     <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlock}">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -120,7 +120,7 @@
                                         <ui:SymbolIcon Grid.Column="3"
                                                        Margin="8,0,0,0"
                                                        Symbol="LockClosed24"
-                                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                                        Visibility="{Binding IsProtected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     </Grid>
                                 </Button>
@@ -147,7 +147,7 @@
             <Border Padding="12"
                     IsEnabled="{Binding HasTypeEditor}"
                     Background="Transparent"
-                    BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
                 <Grid>
@@ -168,7 +168,7 @@
                             <TextBlock Margin="8,0,0,0"
                                        Text="系统类型只读"
                                        Style="{StaticResource CaptionTextBlock}"
-                                       Foreground="{DynamicResource SwiftExportBrush.TextSecondary}"
+                                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                        Visibility="{Binding TypeEditor.IsProtected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -249,7 +249,7 @@
                     <TextBlock Margin="0,2,0,0"
                                Text="{Binding SelectedDictionary.Code}"
                                Style="{StaticResource CaptionTextBlock}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <ui:Button Appearance="Primary"
@@ -344,12 +344,12 @@
                     <TextBlock Margin="0,4,0,0"
                                Text="点击“新增字典值”建立第一条记录。"
                                Style="{StaticResource CaptionTextBlock}"
-                               Foreground="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 </StackPanel>
 
                 <Border Panel.ZIndex="10"
-                        Background="{DynamicResource SwiftExportBrush.Surface}"
-                        BorderBrush="{DynamicResource SwiftExportBrush.Border}"
+                        Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                         BorderThickness="{StaticResource SwiftExportBorderThickness}"
                         Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -368,11 +368,11 @@
                     <TextBlock.Style>
                         <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource CaptionTextBlock}">
                             <Setter Property="Text" Value="所有更改已保存" />
-                            <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.TextSecondary}" />
+                            <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorSecondaryBrush}" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsDirty}" Value="True">
                                     <Setter Property="Text" Value="有未保存更改" />
-                                    <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.RowStateModified}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource UserBusinessBackgroundWarningBrush}" />
                                     <Setter Property="FontWeight" Value="SemiBold" />
                                 </DataTrigger>
                             </Style.Triggers>
