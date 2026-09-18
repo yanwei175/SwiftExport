@@ -8,21 +8,22 @@
             <ResourceDictionary.MergedDictionaries>
                 <!--2026/09/02日,取消合并微软的PresentationFramework.Fluent,因为合并它与WPF-UI有些冲突,-->
                 <!--<ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />-->
-                <ResourceDictionary Source="Resources/Tokens.xaml" />
                 <ui:ThemesDictionary Theme="Light" />
                 <ui:ControlsDictionary />
                 <ResourceDictionary Source="Resources/UserWpfUiThemeResources.xaml" />
+                <ResourceDictionary Source="Resources/Variables.xaml" />
                 <ResourceDictionary Source="Resources/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Typography.xaml" />
-                <ResourceDictionary Source="Resources/Spacing.xaml" />
                 <ResourceDictionary Source="Resources/Grids.xaml" />
                 <ResourceDictionary Source="Resources/Borders.xaml" />
                 <ResourceDictionary Source="Resources/Button.xaml" />
+                <ResourceDictionary Source="Resources/ContextMenu.xaml" />
                 <ResourceDictionary Source="Resources/日期选择器.xaml" />
                 <ResourceDictionary Source="Resources/DataGrid.xaml" />
                 <ResourceDictionary Source="Resources/Image.xaml" />
                 <ResourceDictionary Source="Resources/TabControl.xaml" />
                 <ResourceDictionary Source="Resources/ListBox.xaml" />
+                
                 <ResourceDictionary Source="Features/Home/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Products/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Customers/页面模板.xaml" />
@@ -35,7 +36,7 @@
                 <ResourceDictionary Source="Features/Shipping/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Planning/页面模板.xaml" />
                 <ResourceDictionary Source="Features/SystemSettings/页面模板.xaml" />
-
+                
             </ResourceDictionary.MergedDictionaries>
             <converters:EnumDescriptionConverter x:Key="EnumDescriptionConverter" />
             <converters:FirstValidationErrorConverter x:Key="FirstValidationErrorConverter" />

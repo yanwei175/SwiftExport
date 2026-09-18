@@ -40,32 +40,35 @@
         </Grid>
 
 
-        <Grid Grid.Row="2" RowDefinitions="Auto,8,Auto,4,Auto">
+        <Grid Grid.Row="2" RowDefinitions="Auto,8,Auto,8,Auto">
             
             <DockPanel LastChildFill="True">
                 <WrapPanel HorizontalAlignment="Left">
-                    <ui:DropDownButton Content="新建采购单" Margin="4,0,0,0" >
+                    <ui:DropDownButton Content="新建采购单" Margin="0,0,8,0">
                         <ui:DropDownButton.Flyout>
-                            <ContextMenu MinWidth="150" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                            <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                 <MenuItem Header="从物料需求创建" Command="{Binding GetFromNetDemandCommand}"/>
                                 <MenuItem Header="新建无关联采购" Command="{Binding CreateIndependentCommand}"/>
                             </ContextMenu>
                         </ui:DropDownButton.Flyout>
                     </ui:DropDownButton>
 
-                    <Button Content="确认" Command="{Binding ConfirmCommand}" MinWidth="70" Margin="4,0,0,0"/>
-                    <Button Content="批量确认" Command="{Binding BatchConfirmCommand}" Margin="4,0,0,0"/>
-                    <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="4,0,0,0"/>
-                    <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="4,0,0,0"/>
-                    <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="4,0,0,0"/>
-                    
-                    <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="4,0,0,0"/>
+                    <Button Content="确认" Command="{Binding ConfirmCommand}" MinWidth="70" Margin="0,0,8,0"/>
+                    <Button Content="批量确认" Command="{Binding BatchConfirmCommand}" Margin="0,0,8,0"/>
+                    <Button Content="取消确认" Command="{Binding CancelConfirmationCommand}" Margin="0,0,8,0"/>
+                    <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="0,0,8,0"/>
+                    <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="0,0,8,0"/>
+
+                    <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="0,0,8,0"/>
+                    <customers:CustomerAutoSuggestComboBox Grid.Column="0" Placeholder="客户" 
+                                                       SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
+                                                       ItemsSource="{Binding CustomerOptions}"/>
                 </WrapPanel>
             </DockPanel>
 
             <Grid Grid.Row="2" ColumnDefinitions="120,8,120,8,100,8,100,8,120,8,120,8,120,8,120,8,120,8,120,8,Auto,4,Auto">
-                
-                <customers:CustomerAutoSuggestComboBox Grid.Column="0" Placeholder="客户"
+
+                <customers:CustomerAutoSuggestComboBox Grid.Column="0" Placeholder="客户" 
                                                        SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
                                                        ItemsSource="{Binding CustomerOptions}"/>
                 
@@ -77,19 +80,17 @@
                                            ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.ConfirmationStatuses}"
                                            DisplayConverter="{StaticResource EnumDescriptionConverter}"
                                            SelectedItems="{Binding SelectedConfirmationStatuses,Mode=OneWay}"/>
-                
+
                 <controls:DropDownCheckBox Grid.Column="6" Placeholder="生命周期"
                                            ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.LifecycleStatuses}"
                                            DisplayConverter="{StaticResource EnumDescriptionConverter}"
                                            SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
-                
-                <DatePicker Grid.Column="8" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateFrom}" controls:DatePickerAssist.PlaceholderText="下单日期起"/>
-                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateTo}" controls:DatePickerAssist.PlaceholderText="下单日期至"/>
-                <DatePicker Grid.Column="12" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateFrom}" controls:DatePickerAssist.PlaceholderText="计划交期起"/>
-                <DatePicker Grid.Column="14" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateTo}" controls:DatePickerAssist.PlaceholderText="计划交期至"/>
-                <DatePicker Grid.Column="16" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateFrom}" controls:DatePickerAssist.PlaceholderText="预计完成起"/>
-                <DatePicker Grid.Column="18" Style="{StaticResource SwiftExportDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateTo}" controls:DatePickerAssist.PlaceholderText="预计完成至"/>
-                
+                <DatePicker Grid.Column="8"  Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateFrom}"  controls:DatePickerAssist.PlaceholderText="下单日期起"/>
+                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateTo}" controls:DatePickerAssist.PlaceholderText="下单日期至"/>
+                <DatePicker Grid.Column="12" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateFrom}" controls:DatePickerAssist.PlaceholderText="计划交期起"/>
+                <DatePicker Grid.Column="14" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateTo}" controls:DatePickerAssist.PlaceholderText="计划交期至"/>
+                <DatePicker Grid.Column="16" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateFrom}" controls:DatePickerAssist.PlaceholderText="预计完成起"/>
+                <DatePicker Grid.Column="18" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateTo}" controls:DatePickerAssist.PlaceholderText="预计完成至"/>
                 
             </Grid>
 

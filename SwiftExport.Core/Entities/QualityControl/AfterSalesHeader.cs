@@ -30,8 +30,12 @@ public sealed partial class AfterSalesHeader : BaseEntity
     public string? DemandConfirmedBy { get; set; }
     /// <summary>预计完成日期。</summary>
     public DateTime? ExpectedCompletionDate { get; set; }
+
+
     /// <summary>结案说明。</summary>
     public string? Conclusion { get; set; }
+
+
     /// <summary>整单备注。</summary>
     public string? Remark { get; set; }
 }

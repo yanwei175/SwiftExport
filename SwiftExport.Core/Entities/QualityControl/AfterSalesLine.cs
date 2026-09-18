@@ -1,5 +1,4 @@
 using SwiftExport.Core.Common;
-using SwiftExport.Contracts.SysEnums;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.QualityControl;
@@ -35,10 +34,16 @@ public sealed partial class AfterSalesLine : BaseEntity
     public string? IssueProductDescription { get; set; }
     /// <summary>投诉描述。</summary>
     public string IssueDescription { get; set; } = string.Empty;
+
+
+
     /// <summary>品质分类。</summary>
     public Guid? QualityCategoryId { get; set; }
+
     /// <summary>原因分析。</summary>
     public string? CauseAnalysis { get; set; }
+
+
     /// <summary>实际补发物料。</summary>
     public Guid? ProductId { get; set; }
     /// <summary>实际补发非标标记。</summary>

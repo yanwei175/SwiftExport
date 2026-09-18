@@ -1,9 +1,8 @@
 <UserControl x:Class="SwiftExportClient.Resources.Controls.DropDownCheckBox"
-             x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             MinHeight="32">
+             MinHeight="32" x:Name="Root">
     <Grid>
         <Button x:Name="DropDownButton"
                 HorizontalAlignment="Stretch"
@@ -22,7 +21,7 @@
                            TextTrimming="CharacterEllipsis"
                            ToolTip="{Binding SelectionText, ElementName=Root}" />
                 <ui:SymbolIcon Grid.Column="1"
-                               Margin="8,0,0,0"
+                               Margin="2,0,0,0"
                                VerticalAlignment="Center"
                                Symbol="ChevronDown20" />
             </Grid>
@@ -42,7 +41,7 @@
                     MaxHeight="{Binding MaxDropDownHeight, ElementName=Root}"
                     Margin="0,4,0,0"
                     Padding="4"
-                    Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                    Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                     BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="{DynamicResource SwiftExportBorderThickness}"
                     CornerRadius="{DynamicResource SwiftExportControlCornerRadius}"
@@ -68,13 +67,9 @@
                             </Style>
                         </StackPanel.Style>
                         <Button x:Name="ClearSelectionButton"
-                                Margin="4,2"
-                                Padding="8,4"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Left"
                                 Content="清空选择"
-                                ToolTip="清空全部已选项"
-                                AutomationProperties.Name="清空选择"
                                 Click="ClearSelectionButton_Click" />
                         <Separator Margin="4,2" />
                     </StackPanel>
@@ -85,8 +80,7 @@
                         <ItemsControl x:Name="OptionItemsControl">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox Margin="4,3"
-                                              HorizontalAlignment="Stretch"
+                                    <CheckBox HorizontalAlignment="Stretch"
                                               HorizontalContentAlignment="Left"
                                               VerticalContentAlignment="Center"
                                               Content="{Binding DisplayText}"

@@ -1,10 +1,12 @@
 <UserControl x:Class="SwiftExportClient.Resources.Controls.LookupTextBox"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             x:Name="Root"
-             FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
-             MinHeight="30">
+             FontSize="{DynamicResource ContentControlFontSize}"
+             mc:Ignorable="d" d:DesignHeight="30" d:DesignWidth="120"
+             x:Name="Root" >
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -25,6 +27,7 @@
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         </Style>
+            
         <Style x:Key="LookupInputTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource LookupInputBaseStyle}">
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
@@ -68,7 +71,7 @@
         <Border x:Name="EditorBorder"
                 Height="{Binding ActualHeight, ElementName=Root}"
                 Style="{DynamicResource LookupEditorBorderStyle}"
-                MinHeight="30"
+                Margin="0"
                 Padding="0"
                 MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
             <Grid>
@@ -106,9 +109,8 @@
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
                                 MinWidth="{DynamicResource TextBoxClearButtonHeight}"
-                                MinHeight="{DynamicResource TextBoxClearButtonHeight}"
-                                Margin="{DynamicResource TextBoxClearButtonMargin}"
-                                Padding="{DynamicResource TextBoxClearButtonPadding}"
+                                Margin="0"
+                                Padding="0"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 Appearance="Secondary"
@@ -131,9 +133,8 @@
 
                     <ui:Button x:Name="BtnDropDown"
                                MinWidth="{DynamicResource TextBoxClearButtonHeight}"
-                               MinHeight="{DynamicResource TextBoxClearButtonHeight}"
-                               Margin="{DynamicResource TextBoxClearButtonMargin}"
-                               Padding="{DynamicResource TextBoxClearButtonPadding}"
+                               Margin="0"
+                               Padding="0"
                                HorizontalContentAlignment="Center"
                                VerticalContentAlignment="Center"
                                Appearance="Secondary"
@@ -157,12 +158,11 @@
                     </ui:Button>
                 </StackPanel>
 
-                <ProgressBar Height="2"
+                <ProgressBar Height="2" Margin="0"
                              VerticalAlignment="Bottom"
                              IsIndeterminate="True">
                     <ProgressBar.Style>
-                        <Style TargetType="{x:Type ProgressBar}"
-                               BasedOn="{StaticResource {x:Type ProgressBar}}">
+                        <Style TargetType="{x:Type ProgressBar}" BasedOn="{StaticResource {x:Type ProgressBar}}">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsBusy, ElementName=Root}" Value="True">
@@ -186,7 +186,7 @@
             <Border MinWidth="{Binding ActualWidth, ElementName=EditorBorder}"
                     MaxHeight="260"
                     Style="{StaticResource LookupEditorBorderStyle}"
-                    Background="{DynamicResource UserLayerFillColorDefaultBrush}"
+                    Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                     BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                     BorderThickness="{DynamicResource SwiftExportBorderThickness}"
                     CornerRadius="4"
