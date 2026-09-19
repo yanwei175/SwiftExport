@@ -1,13 +1,14 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
 
 namespace SwiftExportClient.Features.Inventory.Balances.ViewModels;
 
@@ -16,7 +17,6 @@ public sealed partial class InventoryBalancesViewModel : ViewModelBaseEx, IAsync
 {
     public const string RouteKey = "inventory-balances";
     private readonly IInventoryApi _api;
-    private readonly IWarehouseSiteApi _warehouseApi;
     private readonly IApiCallRunner _runner;
     private readonly IMessageService _messages;
     private readonly IReferenceDataCacheService _referenceDataCache;
@@ -30,7 +30,6 @@ public sealed partial class InventoryBalancesViewModel : ViewModelBaseEx, IAsync
     public InventoryBalancesViewModel(IInventoryApi api, IWarehouseSiteApi warehouseApi, IApiCallRunner runner, IMessageService messages, IReferenceDataCacheService referenceDataCache)
     {
         _api = api;
-        _warehouseApi = warehouseApi;
         _runner = runner;
         _messages = messages;
         _referenceDataCache = referenceDataCache;
@@ -46,19 +45,20 @@ public sealed partial class InventoryBalancesViewModel : ViewModelBaseEx, IAsync
 
     public ObservableCollection<InventoryBalanceDto> Items { get; } = [];
     public ObservableCollection<InventoryLedgerItemDto> TraceItems { get; } = [];
-    public ObservableCollection<WarehouseSiteDto> WarehouseOptions { get; } = [];
+    /// <summary>直接提供共享活动仓库缓存；不插入代表全部仓库的虚拟记录。</summary>
+    public IEnumerable<WarehouseSitePickerDto> WarehouseOptions => _referenceDataCache.WarehouseSites;
     public IEnumerable<SupplierDto> SupplierOptions => _referenceDataCache.Suppliers;
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty] public partial bool NonZeroOnly { get; set; } = true;
     [ObservableProperty] public partial SupplierDto? SelectedSupplier { get; set; }
-    [ObservableProperty] public partial WarehouseSiteDto? SelectedWarehouse { get; set; }
+    [ObservableProperty] public partial WarehouseSitePickerDto? SelectedWarehouse { get; set; }
     [ObservableProperty] public partial int PageIndex { get; set; } = 1;
     [ObservableProperty] public partial int PageSize { get; set; } = 50;
     [ObservableProperty] public partial int TotalCount { get; set; }
     [ObservableProperty] public partial int TracePageIndex { get; set; } = 1;
     [ObservableProperty] public partial int TraceTotalCount { get; set; }
     [ObservableProperty] public partial string ReconciliationSummary { get; set; } = "尚未加载追溯。";
-    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(LoadTraceCommand))] public partial InventoryBalanceDto? SelectedItem { get; set; }
+    [ObservableProperty][NotifyCanExecuteChangedFor(nameof(LoadTraceCommand))] public partial InventoryBalanceDto? SelectedItem { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载。";
     public bool CanPreviousPage => PageIndex > 1;
     public bool CanNextPage => PageIndex * PageSize < TotalCount;
@@ -74,11 +74,9 @@ public sealed partial class InventoryBalancesViewModel : ViewModelBaseEx, IAsync
         if (_disposed) return;
         OnPropertyChanged(nameof(SupplierOptions));
         if (!cache.Success) _messages.ShowError("供应商缓存未更新", cache.Message);
-        var warehouses = await _runner.RunAsync(() => _warehouseApi.SearchAsync(new WarehouseSiteSearchRequest { IsActive = true, PageIndex = 1, PageSize = 200 }), "加载虚拟仓筛选失败");
+        var warehouses = await _referenceDataCache.EnsureWarehouseSitesLoadedAsync();
         if (_disposed) return;
-        WarehouseOptions.Add(new WarehouseSiteDto { Uid = Guid.Empty, Name = "全部虚拟仓" });
-        if (warehouses.Success && warehouses.Data is not null) foreach (var warehouse in warehouses.Data.Items) WarehouseOptions.Add(warehouse);
-        SelectedWarehouse = WarehouseOptions[0];
+        if (!warehouses.Success) _messages.ShowError("仓库缓存未更新", warehouses.Message);
         await LoadAsync(true);
     }
 
@@ -137,8 +135,11 @@ public sealed partial class InventoryBalancesViewModel : ViewModelBaseEx, IAsync
             var result = await _runner.RunAsync(() => _api.SearchBalancesAsync(new InventoryBalanceSearchRequest
             {
                 Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
-                SupplierId = SelectedSupplier?.Uid, WarehouseSiteId = SelectedWarehouse?.Uid == Guid.Empty ? null : SelectedWarehouse?.Uid,
-                NonZeroOnly = NonZeroOnly, PageIndex = PageIndex, PageSize = PageSize
+                SupplierId = SelectedSupplier?.Uid,
+                WarehouseSiteId = SelectedWarehouse?.Uid == Guid.Empty ? null : SelectedWarehouse?.Uid,
+                NonZeroOnly = NonZeroOnly,
+                PageIndex = PageIndex,
+                PageSize = PageSize
             }, cancellation.Token), cancellation.Token, "查询库存余额失败");
             if (_disposed || cancellation.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cancellation)) return;
             Items.Clear();

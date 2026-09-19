@@ -54,14 +54,28 @@
                          Text="{Binding SourceDocumentNo,UpdateSourceTrigger=PropertyChanged}" 
                          PlaceholderText="业务单号"/>
                 
-                <supplierComponents:SupplierAutoSuggestComboBox Grid.Column="2" ItemsSource="{Binding SupplierOptions}" SelectedSupplier="{Binding SelectedSupplier,Mode=TwoWay}" Placeholder="全部供应商" AutomationProperties.Name="库存流水供应商筛选"/>
-                <ComboBox Grid.Column="4" ItemsSource="{Binding WarehouseOptions}" SelectedItem="{Binding SelectedWarehouse}" DisplayMemberPath="Name" ToolTip="全部活动虚拟仓"/>
-                <ComboBox Grid.Column="6" ItemsSource="{Binding TransactionTypes}" SelectedItem="{Binding TransactionType}">
+                <supplierComponents:SupplierAutoSuggestComboBox 
+                                    StretchToHost="True"
+                                    Grid.Column="2" ItemsSource="{Binding SupplierOptions}" 
+                                    SelectedSupplier="{Binding SelectedSupplier,Mode=TwoWay}" 
+                                    Placeholder="全部供应商" 
+                                    AutomationProperties.Name="库存流水供应商筛选"/>
+                
+                <ComboBox Grid.Column="4" 
+                          ItemsSource="{Binding WarehouseOptions}" 
+                          SelectedItem="{Binding SelectedWarehouse}" 
+                          DisplayMemberPath="Name" VerticalContentAlignment="Center"
+                          ToolTip="全部活动虚拟仓"/>
+                
+                <ComboBox Grid.Column="6" 
+                          ItemsSource="{Binding TransactionTypes}" 
+                          SelectedItem="{Binding TransactionType}" 
+                          VerticalContentAlignment="Center">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock>
                                 <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                                         <Setter Property="Text" Value="{Binding Converter={StaticResource EnumDescriptionConverter}}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding}" Value="{x:Null}">
@@ -74,19 +88,20 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <DatePicker Grid.Column="8"  SelectedDate="{Binding DateFrom}"/>
-                <DatePicker Grid.Column="10"  SelectedDate="{Binding DateTo}"/>
+                
+                <DatePicker Grid.Column="8" SelectedDateFormat="Short" SelectedDate="{Binding DateFrom}"/>
+                <DatePicker Grid.Column="10" SelectedDateFormat="Short"  SelectedDate="{Binding DateTo}"/>
             </Grid>
             <DataGrid Grid.Row="4" 
-                  ItemsSource="{Binding Items}" 
-                  Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
-                  RowHeight="{DynamicResource DataGridRowHeightSmall}"
-                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
-                  BorderThickness="1"
-                  BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                  Padding="2,0"
-                  AutoGenerateColumns="False" 
-                  IsReadOnly="True">
+                      ItemsSource="{Binding Items}" 
+                      GridLinesVisibility="Horizontal"
+                      RowHeight="{DynamicResource DataGridRowHeightSmall}"
+                      FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                      BorderThickness="1"
+                      BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
+                      Padding="2,0"
+                      AutoGenerateColumns="False" 
+                      IsReadOnly="True">
                 <DataGrid.Columns>
 
                     <DataGridTextColumn Header="序号" Binding="{Binding Sequence}" Width="50"/>
@@ -100,14 +115,44 @@
                     <DataGridTextColumn Header="类型" Binding="{Binding TransactionType,Converter={StaticResource EnumDescriptionConverter}}" Width="190"/>
 
                     <DataGridTextColumn Header="变化" 
-                                    Binding="{Binding QuantityDelta,StringFormat=N1}" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Width="100"/>
+                                        Binding="{Binding QuantityDelta,StringFormat=N1}" 
+                                        Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridNumberTextBlock}">
+                                <Setter Property="Foreground" Value="{StaticResource UserBusinessTextAccentBrush}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding QuantityDelta, Converter={StaticResource RealNumberSignConverter}}" Value="-1">
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextCriticalBrush}"/>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding QuantityDelta,  Converter={StaticResource RealNumberSignConverter}}" Value="1">
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextSuccessBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
 
                     <DataGridTextColumn Header="余额" 
                                     Binding="{Binding BalanceAfter,StringFormat=N1}" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Width="100"/>
+                                    Width="100">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridNumberTextBlock}">
+                                <Setter Property="Foreground" Value="{StaticResource UserBusinessTextAccentBrush}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding BalanceAfter, Converter={StaticResource RealNumberSignConverter}}" Value="-1">
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextCriticalBrush}"/>
+                                    </DataTrigger>
+
+                                    <DataTrigger Binding="{Binding BalanceAfter,  Converter={StaticResource RealNumberSignConverter}}" Value="1">
+                                        <Setter Property="Foreground" Value="{DynamicResource UserBusinessTextSuccessBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
 
                     <DataGridTextColumn Header="来源类型" Binding="{Binding SourceDocumentType,Converter={StaticResource InventorySourceDocumentTypeDisplayConverter}}" Width="160"/>
 

@@ -1,19 +1,20 @@
 <UserControl x:Class="SwiftExportClient.Features.Inventory.Balances.Views.InventoryBalancesView" 
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+             xmlns:warehouseComponents="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Components"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid" 
              xmlns:gridNumeric="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns.Numeric;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d"
-             d:Width="1000" d:Height="800">
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Inventory.Balances.ViewModels"
+             mc:Ignorable="d" d:Width="1000" d:Height="800" d:DataContext="{d:DesignInstance vm:InventoryBalancesViewModel}">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -53,11 +54,11 @@
                         Placeholder="全部供应商" 
                         AutomationProperties.Name="库存余额供应商筛选"/>
 
-                <ComboBox Grid.Column="2" 
+                <warehouseComponents:WarehouseAutoSuggestComboBox Grid.Column="2"
                           ItemsSource="{Binding WarehouseOptions}" 
-                          SelectedItem="{Binding SelectedWarehouse}" 
-                          DisplayMemberPath="Name" 
-                          ToolTip="全部活动虚拟仓"/>
+                          SelectedWarehouse="{Binding SelectedWarehouse,Mode=TwoWay}"
+                          Placeholder="全部仓库"
+                          ToolTip="清空选择可查询全部仓库"/>
 
                 <CheckBox Grid.Column="4" 
                           IsChecked="{Binding NonZeroOnly}" 

@@ -43,6 +43,7 @@
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
             <converters:IsIntegerConverter x:Key="IsIntegerConverter" />
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <converters:RealNumberSignConverter x:Key="RealNumberSignConverter" />
 
         </ResourceDictionary>
     </Application.Resources>
