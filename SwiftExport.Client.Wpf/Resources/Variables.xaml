@@ -69,7 +69,18 @@
     <!-- NavigationView -->
     <!-- ========================================================= -->
     <system:Double x:Key="NavigationViewItemOnLeftMinHeight">32</system:Double>
-    
+
+    <Thickness x:Key="DatePickerBorderThemeThickness">1,1,1,0</Thickness>
+    <Thickness x:Key="DatePickerAccentBorderThemeThickness">0,0,0,1</Thickness>
+    <Thickness x:Key="DatePickerLeftIconMargin">10,0,0,0</Thickness>
+    <Thickness x:Key="DatePickerRightIconMargin">0,0,10,0</Thickness>
+    <Thickness x:Key="DatePickerCalendarButtonMargin">0,2,4,6</Thickness>
+    <Thickness x:Key="DatePickerCalendarButtonPadding">0,0,0,0</Thickness>
+    <system:Double x:Key="DatePickerCalendarButtonHeight">24</system:Double>
+    <system:Double x:Key="DatePickerCalendarButtonIconSize">14</system:Double>
+
+
+
     <!--#endregion -->
 
     <!--#region 自定义设置 -->

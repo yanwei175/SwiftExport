@@ -11,6 +11,12 @@ public partial class SupplierAutoSuggestComboBox : UserControl
 {
     /// <summary>初始化供应商本地缓存选择控件。</summary>
     public SupplierAutoSuggestComboBox() => InitializeComponent();
+    /// <summary>标识内部编辑区域是否填满宿主高度，默认按内容高度显示。</summary>
+    public static readonly DependencyProperty StretchToHostProperty = Register(nameof(StretchToHost), typeof(bool), false);
+
+    /// <summary>获取或设置是否填满单元格等宿主的高度。</summary>
+    public bool StretchToHost { get => (bool)GetValue(StretchToHostProperty); set => SetValue(StretchToHostProperty, value); }
+
     public static readonly DependencyProperty ItemsSourceProperty = Register(nameof(ItemsSource), typeof(IEnumerable));
     public static readonly DependencyProperty SelectedSupplierProperty = RegisterTwoWay(nameof(SelectedSupplier), typeof(SupplierDto));
     public static readonly DependencyProperty SelectionCommittedCommandProperty = Register(nameof(SelectionCommittedCommand), typeof(ICommand));

@@ -162,8 +162,8 @@
                                     IsReadOnly="True" Text="{Binding Header.InvoiceNosSummary, Mode=OneWay}" />
 
                     <TextBlock Grid.Row="2" Grid.Column="4" Text="InvoiceDate:" VerticalAlignment="Center" />
-                    <DatePicker Grid.Row="2" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
-                                    SelectedDate="{Binding Header.InvoiceDate, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="发票日期"/>
+                    <DatePicker Grid.Row="2" Grid.Column="6" 
+                                    SelectedDate="{Binding Header.InvoiceDate, Mode=TwoWay}" ToolTip="发票日期"/>
 
                     <TextBlock Grid.Row="4" Grid.Column="4" Text="Container:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Row="4" Grid.Column="6" Grid.ColumnSpan="8"
@@ -179,13 +179,12 @@
                     <ui:TextBox Grid.Row="2" Grid.Column="10" Grid.ColumnSpan="4" MaxLength="200"
                             Text="{Binding Header.ShippingLocationSnapshot, UpdateSourceTrigger=PropertyChanged}"/>
                     <TextBlock Grid.Row="8" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
-                    <DatePicker  Grid.Row="8" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
-                                    SelectedDate="{Binding Header.Etd, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="ETD"/>
+                    <DatePicker  Grid.Row="8" Grid.Column="6" 
+                                    SelectedDate="{Binding Header.Etd, Mode=TwoWay}" ToolTip="ETD"/>
 
                     <TextBlock Grid.Row="8" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
                     <DatePicker Grid.Row="8" Grid.Column="10"
-                                Style="{StaticResource SwiftExportDatePicker}"
-                                    SelectedDate="{Binding Header.Eta, Mode=TwoWay}" controls:DatePickerAssist.PlaceholderText="ETA"/>
+                                    SelectedDate="{Binding Header.Eta, Mode=TwoWay}" ToolTip="ETA"/>
                 </Grid>
             </Border>
         </Grid>

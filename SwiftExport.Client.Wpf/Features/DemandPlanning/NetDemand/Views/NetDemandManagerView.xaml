@@ -184,11 +184,11 @@
                             CornerRadius="4">
                         <StackPanel Margin="0,4" Orientation="Horizontal">
                             <Grid Margin="0,0,8,0" ColumnDefinitions="Auto,4,Auto,*" VerticalAlignment="Top" >
-                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="0" ToolTip="原需求交期起"
-                                            controls:DatePickerAssist.PlaceholderText="需求交期起"
+                                <DatePicker  Grid.Column="0" 
+                                            ToolTip="需求交期起"
                                             SelectedDate="{Binding DemandRequiredDateFrom}" />
-                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2" ToolTip="原需求交期至"
-                                            controls:DatePickerAssist.PlaceholderText="需求交期至"
+                                <DatePicker  Grid.Column="2"
+                                            ToolTip="需求交期至"
                                             SelectedDate="{Binding DemandRequiredDateTo}" />
                             </Grid>
                             <Separator Height="4" Background="Transparent" BorderThickness="0"/>

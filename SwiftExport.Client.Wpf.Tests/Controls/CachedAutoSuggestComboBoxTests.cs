@@ -21,6 +21,37 @@ namespace SwiftExport.Client.Wpf.Tests.Controls;
 [DoNotParallelize]
 public sealed class CachedAutoSuggestComboBoxTests
 {
+    /// <summary>验证供应商封装的开关可动态撑满宿主，并在关闭后恢复内容高度。</summary>
+    [TestMethod]
+    public void SupplierStretchToHost_ShouldFillAndRestoreContentHeight()
+    {
+        StaTest.RunAsync(() =>
+        {
+            var supplier = new SupplierAutoSuggestComboBox();
+            var host = new Grid { Width = 240, Height = 120 };
+            host.Children.Add(supplier);
+            var border = (Border)Editor(supplier).FindName("EditorBorder");
+
+            void Layout()
+            {
+                host.Measure(new Size(240, 120));
+                host.Arrange(new Rect(0, 0, 240, 120));
+                host.UpdateLayout();
+            }
+
+            Layout();
+            var contentHeight = border.ActualHeight;
+            Assert.IsTrue(contentHeight > 0 && contentHeight < 120);
+            supplier.StretchToHost = true;
+            Layout();
+            Assert.AreEqual(120d, border.ActualHeight, 0.1);
+            supplier.StretchToHost = false;
+            Layout();
+            Assert.AreEqual(contentHeight, border.ActualHeight, 0.1);
+            return Task.CompletedTask;
+        });
+    }
+
     /// <summary>验证新封装固定本地单字段筛选，旧远程封装保持默认无箭头。</summary>
     [TestMethod]
     public void SpecializedControls_ShouldFixLocalConfigurationWithoutChangingLegacyDefaults()

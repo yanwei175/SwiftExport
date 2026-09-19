@@ -162,17 +162,17 @@
                     <ui:TextBox Grid.Column="6" Text="{Binding Header.OrderNo}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
 
                     <TextBlock Grid.Column="8" Text="订单日期:" VerticalAlignment="Center" />
-                    <DatePicker Grid.Column="10"  Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding Header.OrderDate}" />
+                    <DatePicker Grid.Column="10"  SelectedDateFormat="Short" SelectedDate="{Binding Header.OrderDate}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="12" Text="订单交期:" VerticalAlignment="Center" />
                     <DatePicker Grid.Row="0" Grid.Column="14" 
-                            controls:DatePickerAssist.PlaceholderText="订单交期"
-                            Style="{StaticResource SwiftExportDatePicker}"  SelectedDate="{Binding Header.DeliveryDate}" />
+                            ToolTip="订单交期"
+                            SelectedDateFormat="Short" SelectedDate="{Binding Header.DeliveryDate}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="16" Text="回复日期:" VerticalAlignment="Center" />
                     <DatePicker Grid.Row="0" Grid.Column="18"   
-                            controls:DatePickerAssist.PlaceholderText="回复日期"
-                            Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding Header.ReplyDate}" />
+                            ToolTip="回复日期"
+                            SelectedDateFormat="Short" SelectedDate="{Binding Header.ReplyDate}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="20" Text="币种:" VerticalAlignment="Center" />
                     <ComboBox Grid.Row="0" Grid.Column="22"
@@ -270,19 +270,19 @@
                         
                         <TextBlock Grid.Row="4" Grid.Column="4" Text="Date:" VerticalAlignment="Center" />
                         <DatePicker Grid.Row="4" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
-                                    controls:DatePickerAssist.PlaceholderText="发票日期"/>
+                                    ToolTip="发票日期"/>
                         
                         <TextBlock Grid.Row="4" Grid.Column="8" Text="UpdateDate:" VerticalAlignment="Center" />
-                    <DatePicker Grid.Row="4" Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}" 
-                                controls:DatePickerAssist.PlaceholderText="发票更新日期"/>
+                    <DatePicker Grid.Row="4" Grid.Column="10" SelectedDateFormat="Short"
+                                ToolTip="发票更新日期"/>
                         
                         <TextBlock Grid.Row="6" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
-                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="6" Grid.Column="6"
-                                    controls:DatePickerAssist.PlaceholderText="ETD"/>
+                        <DatePicker SelectedDateFormat="Short" Grid.Row="6" Grid.Column="6"
+                                    ToolTip="ETD"/>
                     
                         <TextBlock Grid.Row="6" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
-                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="6"
-                                    controls:DatePickerAssist.PlaceholderText="ETA"/>
+                        <DatePicker SelectedDateFormat="Short" Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="6"
+                                    ToolTip="ETA"/>
 
                         <TextBlock Grid.Row="8" Grid.Column="4" Text="Shipped By:" VerticalAlignment="Center" />
                         <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6"

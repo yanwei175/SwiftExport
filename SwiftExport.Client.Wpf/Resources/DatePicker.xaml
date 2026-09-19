@@ -1,5 +1,18 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    
+    <Style BasedOn="{StaticResource {x:Type TextBox}}" TargetType="{x:Type DatePickerTextBox}" >
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Height" Value="0"/>
+        <Setter Property="Padding" Value="10"/>
+    </Style>
+
+    <Style BasedOn="{StaticResource {x:Type DatePicker}}" TargetType="{x:Type DatePicker}" >
+        <Setter Property="Height" Value="0"/>
+    </Style>
+
+
     <Style x:Key="SwiftExportDatePicker" TargetType="{x:Type DatePicker}">
         <!-- 将官方主题限制在日期控件内部，包含输入框和弹出日历，不改变全局控件样式。 -->
         <Style.Resources>
@@ -14,4 +27,16 @@
             <StaticResource ResourceKey="{x:Type DatePicker}" />
         </Style.BasedOn>
     </Style>
+
+
+
+
+
+
+
+
+
+
+
+
 </ResourceDictionary>

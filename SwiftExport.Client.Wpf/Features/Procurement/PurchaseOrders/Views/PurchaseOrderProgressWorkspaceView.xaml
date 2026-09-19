@@ -55,17 +55,17 @@
 
             <Grid Grid.Row="2" ColumnDefinitions="125,8,125,16,125,8,125,*">
                 
-                <DatePicker Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding PlannedDeliveryDateFrom}"
-                            controls:DatePickerAssist.PlaceholderText="计划交期起"/>
+                <DatePicker SelectedDateFormat="Short"  SelectedDate="{Binding PlannedDeliveryDateFrom}"
+                            ToolTip="计划交期起"/>
                 
-                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2" SelectedDate="{Binding PlannedDeliveryDateTo}"
-                            controls:DatePickerAssist.PlaceholderText="计划交期至"/>
+                <DatePicker Grid.Column="2" SelectedDate="{Binding PlannedDeliveryDateTo}"
+                            ToolTip="计划交期至"/>
                 
-                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" SelectedDate="{Binding ExpectedReadyDateFrom}"
-                            controls:DatePickerAssist.PlaceholderText="预计交期起"/>
+                <DatePicker  Grid.Column="4" SelectedDate="{Binding ExpectedReadyDateFrom}"
+                            ToolTip="预计交期起"/>
                 
-                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" SelectedDate="{Binding ExpectedReadyDateTo}"
-                            controls:DatePickerAssist.PlaceholderText="预计交期至"/>
+                <DatePicker Grid.Column="6" SelectedDate="{Binding ExpectedReadyDateTo}"
+                            ToolTip="预计交期至"/>
                 
                 <TextBlock Grid.Column="7" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="Gray"
                            Text="默认仅显示活动且已确认采购单；清除状态选择可查看只读历史。"/>
@@ -129,7 +129,7 @@
 
                                 
                                 <ui:TextBox Text="{Binding ReportReadyQtyInput,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="累计已备好数量（可留空）"/>
-                                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计交期日期"/>
+                                <DatePicker Grid.Column="2" SelectedDate="{Binding ReportExpectedReadyDate}" ToolTip="预计交期日期"/>
                             </Grid>
                             
                             <TextBlock Margin="0,6,0,0" Text="数量和日期留空表示本次不更新；跟进时间和跟单员由服务器记录" Foreground="Gray"/>

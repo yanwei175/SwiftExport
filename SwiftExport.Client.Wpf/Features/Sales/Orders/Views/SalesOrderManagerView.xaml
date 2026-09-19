@@ -96,15 +96,15 @@
                                    OriginalItemsSource="{Binding CustomerCodeOptions}"
                                    Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="2"
-                            controls:DatePickerAssist.PlaceholderText="订单日期起"
+                <DatePicker SelectedDateFormat="Short" Grid.Column="2"
+                            ToolTip="订单日期起"
                             ToolTipService.ToolTip="订单日期从"
                             ToolTipService.Placement="Bottom"
                             ToolTipService.InitialShowDelay="100"
                             SelectedDate="{Binding OrderDateFrom}"/>
 
-                <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="4" ToolTip="订单日期到"
-                            controls:DatePickerAssist.PlaceholderText="订单日期至"
+                <DatePicker SelectedDateFormat="Short" Grid.Column="4" 
+                            ToolTip="订单日期至"
                             ToolTipService.Placement="Bottom"
                             ToolTipService.InitialShowDelay="100"
                             SelectedDate="{Binding OrderDateTo}" />
@@ -180,15 +180,13 @@
                                     Height="{DynamicResource SwiftExportControlHeight}"
                                     Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
                         
-                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="8"
-                                    controls:DatePickerAssist.PlaceholderText="交期起"
-                                    ToolTip="交期从"
+                        <DatePicker SelectedDateFormat="Short" Grid.Column="8"
+                                    ToolTip="交期起"
                                     ToolTipService.Placement="Bottom"
                                     ToolTipService.InitialShowDelay="100"
                                     SelectedDate="{Binding DeliveryDateFrom}" />
-                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="10"
-                                    controls:DatePickerAssist.PlaceholderText="交期至"
-                                    ToolTip="交期到"
+                        <DatePicker SelectedDateFormat="Short" Grid.Column="10"
+                                    ToolTip="交期至"
                                     ToolTipService.Placement="Bottom"
                                     ToolTipService.InitialShowDelay="100"
                                     SelectedDate="{Binding DeliveryDateTo}" />

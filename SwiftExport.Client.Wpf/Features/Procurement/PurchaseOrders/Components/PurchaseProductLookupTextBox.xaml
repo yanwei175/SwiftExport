@@ -69,6 +69,7 @@
                             MinimumSearchLength="{Binding MinimumSearchLength, ElementName=Root}"
                             Placeholder="{Binding Placeholder, ElementName=Root}"
                             SearchMode="Remote"
+                            StretchToHost="True"
                             DisplayMemberPath="Sku"
                             FilterMemberPaths="Sku,CustomerSku,SupplierSku,DescriptionZh,DescriptionEn,LinkSku"
                             SelectedValuePath="Uid"

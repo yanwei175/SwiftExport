@@ -74,8 +74,8 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <DatePicker Grid.Column="8"  Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding DateFrom}"/>
-                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}"  SelectedDate="{Binding DateTo}"/>
+                <DatePicker Grid.Column="8"  SelectedDate="{Binding DateFrom}"/>
+                <DatePicker Grid.Column="10"  SelectedDate="{Binding DateTo}"/>
             </Grid>
             <DataGrid Grid.Row="4" 
                   ItemsSource="{Binding Items}" 

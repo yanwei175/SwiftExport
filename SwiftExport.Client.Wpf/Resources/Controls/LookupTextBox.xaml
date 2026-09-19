@@ -19,10 +19,9 @@
         -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <!-- 与紧凑 DataGrid 编辑器保持相同布局，但不依赖页面级命名资源。 -->
-        <Style x:Key="LookupInputBaseStyle"
+            <Style x:Key="LookupInputBaseStyle"
                TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Padding" Value="8,0,0,0" />
+                <Setter Property="Padding" Value="8,0,0,0" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
@@ -69,11 +68,19 @@
 
     <Grid>
         <Border x:Name="EditorBorder"
-                Height="{Binding ActualHeight, ElementName=Root}"
-                Style="{DynamicResource LookupEditorBorderStyle}"
                 Margin="0"
                 Padding="0"
                 MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
+            <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource LookupEditorBorderStyle}">
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding StretchToHost, ElementName=Root}" Value="True">
+                            <Setter Property="VerticalAlignment" Value="Stretch" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <Grid>
                 <TextBox x:Name="InputTextBox"
                          Style="{StaticResource LookupInputTextBoxStyle}"
@@ -84,7 +91,6 @@
                          LostKeyboardFocus="InputTextBox_LostKeyboardFocus"
                          PreviewKeyDown="InputTextBox_PreviewKeyDown" />
                 <Border x:Name="DisplayTextBlockBorder"
-                        Height="{Binding ActualHeight, ElementName=Root}"
                         Style="{DynamicResource LookupEditorBorderStyle}"
                         BorderBrush="{DynamicResource TextControlElevationBorderBrush}"
                         BorderThickness="{DynamicResource TextBoxBorderThemeThickness}"
@@ -110,7 +116,7 @@
                                 VerticalAlignment="Center"
                                 MinWidth="{DynamicResource TextBoxClearButtonHeight}"
                                 Margin="0"
-                                Padding="0"
+                                Padding="{DynamicResource TextControlThemePadding}"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 Appearance="Secondary"
@@ -134,7 +140,7 @@
                     <ui:Button x:Name="BtnDropDown"
                                MinWidth="{DynamicResource TextBoxClearButtonHeight}"
                                Margin="0"
-                               Padding="0"
+                               Padding="{DynamicResource TextControlThemePadding}"
                                HorizontalContentAlignment="Center"
                                VerticalContentAlignment="Center"
                                Appearance="Secondary"

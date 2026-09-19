@@ -317,7 +317,7 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <controls:LookupTextBox Text="{Binding DefaultSupplierName, Mode=TwoWay}" SearchMode="Remote"
+                                        <controls:LookupTextBox StretchToHost="True" Text="{Binding DefaultSupplierName, Mode=TwoWay}" SearchMode="Remote"
                                                                 ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 IsBusy="{Binding DataContext.IsSupplierLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

@@ -18,8 +18,20 @@ public enum LookupTextBoxSearchMode
     Remote,
 }
 
+/// <summary>提供输入、候选选择及可选的宿主高度填充行为。</summary>
 public partial class LookupTextBox : UserControl
 {
+    /// <summary>标识编辑区域是否填满宿主分配的高度，默认按内容高度显示。</summary>
+    public static readonly DependencyProperty StretchToHostProperty = DependencyProperty.Register(
+        nameof(StretchToHost), typeof(bool), typeof(LookupTextBox), new PropertyMetadata(false));
+
+    /// <summary>获取或设置是否纵向填满宿主；DataGrid 单元格中可开启，内部最小尺寸仍有效。</summary>
+    public bool StretchToHost
+    {
+        get => (bool)GetValue(StretchToHostProperty);
+        set => SetValue(StretchToHostProperty, value);
+    }
+
     private readonly DispatcherTimer _debounceTimer;
     private readonly Dictionary<Type, Dictionary<string, PropertyInfo?>> _propertyCache = [];
     private bool _isInternalChanging;

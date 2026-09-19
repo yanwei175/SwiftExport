@@ -25,6 +25,7 @@
     </UserControl.Resources>
     
     <controls:LookupTextBox x:Name="LookupEditor"
+                            StretchToHost="{Binding StretchToHost, ElementName=Root}"
                             automation:AutomationProperties.Name="{Binding Placeholder, ElementName=Root}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedSupplier, ElementName=Root, Mode=TwoWay}"

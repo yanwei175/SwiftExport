@@ -26,7 +26,8 @@
             </StackPanel>
         </DataTemplate>
     </UserControl.Resources>
-    <Grid Margin="12,8" IsEnabled="{Binding IsInteractionEnabled}">
+
+    <Grid Margin="12" IsEnabled="{Binding IsInteractionEnabled}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="8" />
@@ -34,34 +35,52 @@
             <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*" RowDefinitions="Auto">
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="搜索客户编码或供应商编码">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <ui:TextBox PlaceholderText="搜索客户编码或供应商编码"
-                        Text="{Binding Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        AutomationProperties.Name="客户采购默认配置关键词">
-                <ui:TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                </ui:TextBox.InputBindings>
-            </ui:TextBox>
-            <ui:Button Grid.Column="1" Margin="4,0,0,0" Content="查询" Appearance="Primary" Command="{Binding SearchCommand}" />
-            <StackPanel Grid.Column="3" Orientation="Horizontal">
-                <ui:Button Content="新增行" Command="{Binding AddRowCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="删除行" Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="放弃修改" Command="{Binding RejectListChangesCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" />
-                <ui:ToggleSwitch Margin="16,0,0,0"
+                <DockPanel Grid.Column="2" >
+                    <ui:Button Appearance="Primary" Margin="8,0,0,0" 
+                               Content="查询" VerticalAlignment="Stretch"
+                               Command="{Binding SearchCommand}" MinWidth="70"/>
+
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" 
+                                VerticalAlignment="Stretch" MinWidth="70"/>
+
+                    <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0" 
+                               VerticalAlignment="Stretch" MinWidth="70"/>
+
+                </DockPanel>
+            </Grid>
+
+            <DockPanel Grid.Row="2" >
+
+                <ui:Button Content="新增" Command="{Binding AddRowCommand}"  Margin="0,0,8,0"  MinWidth="70"/>
+
+                <ui:Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"  Appearance="Info"
+                           MinWidth="70" />
+
+                <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" MinWidth="70"/>
+
+
+                <ui:Button Content="放弃" Command="{Binding RejectListChangesCommand}" Margin="0,0,8,0"  MinWidth="70"/>
+
+                <ui:ToggleSwitch Margin="0,0,8,0"
                                  VerticalAlignment="Center"
                                  OffContent="整行模式"
                                  OnContent="格子模式"
                                  IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-            </StackPanel>
+            </DockPanel>
         </Grid>
 
         <DataGrid x:Name="ConfigGrid" Grid.Row="2"
@@ -85,10 +104,14 @@
             <DataGrid.Columns>
                 <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.HeaderTemplate>
-                        <DataTemplate><CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" AutomationProperties.Name="全选配置" /></DataTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" AutomationProperties.Name="全选配置" />
+                        </DataTemplate>
                     </DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" HorizontalAlignment="Center" AutomationProperties.Name="选择配置行" /></DataTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" HorizontalAlignment="Center" AutomationProperties.Name="选择配置行" />
+                        </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
@@ -96,7 +119,11 @@
                                         gridColumns:GridColumn.Key="customer-code"
                                         gridColumns:GridColumn.FieldPath="CustomerCode"
                                         gridColumns:GridColumn.CanFillDown="False">
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding CustomerCode}" Style="{StaticResource SwiftExportDataGridTextBlock}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding CustomerCode}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
                             <customerComponents:CustomerAutoSuggestComboBox
@@ -113,10 +140,15 @@
                                         gridColumns:GridColumn.Key="supplier-code"
                                         gridColumns:GridColumn.FieldPath="SupplierCode"
                                         gridColumns:GridColumn.CanFillDown="False">
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SupplierCode}" Style="{StaticResource SwiftExportDataGridTextBlock}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding SupplierCode}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
                             <supplierComponents:SupplierAutoSuggestComboBox
+                                StretchToHost="True"
                                 ItemsSource="{Binding DataContext.SupplierOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                 SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"
                                 SelectionCommittedCommand="{Binding DataContext.CommitSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -144,7 +176,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                
+
                 <gridNumeric:NumericDataGridColumn Header="默认折扣率（≥0；1.05 表示涨价 5%）" Width="230"
                                                    Binding="{Binding DefaultDiscountRate, UpdateSourceTrigger=LostFocus}"
                                                    Minimum="0" AllowEmpty="True" MaximumDecimalPlaces="6"
@@ -152,7 +184,7 @@
                                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                                    gridColumns:GridColumn.Key="default-discount-rate"
                                                    gridColumns:GridColumn.FieldPath="DefaultDiscountRate" />
-                
+
                 <DataGridTextColumn Header="折扣备注" Width="220"
                                     Binding="{Binding DiscountRemark, UpdateSourceTrigger=LostFocus}"
                                     ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}"
@@ -175,7 +207,11 @@
         </DataGrid>
 
         <Grid Grid.Row="4">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource CaptionTextBlock}" AutomationProperties.LiveSetting="Polite" />
                 <TextBlock Text="{Binding ValidationSummary}" Margin="12,0,0,0" Foreground="{DynamicResource UserBusinessTextWarningBrush}" Style="{StaticResource CaptionTextBlock}" />

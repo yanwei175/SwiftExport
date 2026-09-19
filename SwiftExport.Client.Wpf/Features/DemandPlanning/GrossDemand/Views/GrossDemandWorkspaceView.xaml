@@ -171,14 +171,14 @@
                               DisplayMemberPath="DisplayText"
                               SelectedItem="{Binding SelectedStandardType}" />
 
-                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="10"
+                    <DatePicker Grid.Column="10"
                                 Background="White"
-                                controls:DatePickerAssist.PlaceholderText="需求交期起"
+                                ToolTip="需求交期起"
                                 SelectedDate="{Binding RequiredDateFrom}" />
 
-                    <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="12"
+                    <DatePicker Grid.Column="12"
                                 Background="White"
-                                controls:DatePickerAssist.PlaceholderText="需求交期至"
+                                ToolTip="需求交期至"
                                 SelectedDate="{Binding RequiredDateTo}" />
                 </Grid>
                 

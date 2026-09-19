@@ -85,12 +85,10 @@
                               SelectedValue="{Binding Search.CustomerId, Mode=TwoWay}"/>
 
                     <DatePicker SelectedDate="{Binding Search.InvoiceDateFrom}" Width="120" Margin="0,0,8,0"
-                                controls:DatePickerAssist.PlaceholderText="单据日期起"
-                                Style="{StaticResource SwiftExportDatePicker}"/>
+                                ToolTip="单据日期起"/>
 
                     <DatePicker SelectedDate="{Binding Search.InvoiceDateTo}" Width="120" Margin="0,0,8,0" 
-                                controls:DatePickerAssist.PlaceholderText="单据日期至"
-                                Style="{StaticResource SwiftExportDatePicker}"/>
+                                ToolTip="单据日期至"/>
 
                 </StackPanel>
 

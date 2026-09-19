@@ -5,10 +5,15 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:customers="clr-namespace:SwiftExportClient.Features.Customers.Components"
              xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+             xmlns:system="clr-namespace:System;assembly=System.Runtime"
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid">
+    <UserControl.Resources>
 
+
+    </UserControl.Resources>
+    
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*">
         <!--条件筛选区域-->
         <Grid RowDefinitions="Auto,8, *">
@@ -60,7 +65,7 @@
                     <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="0,0,8,0"/>
 
                     <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="0,0,8,0"/>
-                    <customers:CustomerAutoSuggestComboBox Grid.Column="0" Placeholder="客户" 
+                    <customers:CustomerAutoSuggestComboBox Grid.Column="0" Placeholder="客户"                                                            
                                                        SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
                                                        ItemsSource="{Binding CustomerOptions}"/>
                 </WrapPanel>
@@ -85,12 +90,18 @@
                                            ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.LifecycleStatuses}"
                                            DisplayConverter="{StaticResource EnumDescriptionConverter}"
                                            SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
-                <DatePicker Grid.Column="8"  Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateFrom}"  controls:DatePickerAssist.PlaceholderText="下单日期起"/>
-                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateTo}" controls:DatePickerAssist.PlaceholderText="下单日期至"/>
-                <DatePicker Grid.Column="12" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateFrom}" controls:DatePickerAssist.PlaceholderText="计划交期起"/>
-                <DatePicker Grid.Column="14" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateTo}" controls:DatePickerAssist.PlaceholderText="计划交期至"/>
-                <DatePicker Grid.Column="16" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateFrom}" controls:DatePickerAssist.PlaceholderText="预计完成起"/>
-                <DatePicker Grid.Column="18" Style="{StaticResource SwiftExportDataGridDatePicker}" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateTo}" controls:DatePickerAssist.PlaceholderText="预计完成至"/>
+                <DatePicker Grid.Column="8" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateFrom}"  ToolTip="下单日期起"/>
+                
+                <DatePicker Grid.Column="10" SelectedDateFormat="Short" SelectedDate="{Binding OrderDateTo}" ToolTip="下单日期至"/>
+                
+                <DatePicker Grid.Column="12" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateFrom}" ToolTip="计划交期起"/>
+                
+                <DatePicker Grid.Column="14" SelectedDateFormat="Short" SelectedDate="{Binding PlannedDeliveryDateTo}" ToolTip="计划交期至"/>
+                
+                <DatePicker Grid.Column="16" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateFrom}" ToolTip="预计完成起"/>
+                
+                <DatePicker Grid.Column="18" SelectedDateFormat="Short" SelectedDate="{Binding ExpectedCompletionDateTo}" ToolTip="预计完成至"/>
+                
                 
             </Grid>
 

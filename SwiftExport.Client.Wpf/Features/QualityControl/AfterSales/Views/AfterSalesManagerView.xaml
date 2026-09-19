@@ -22,8 +22,8 @@
                                                            AutomationProperties.Name="责任方筛选"/>
                 <ComboBox Grid.Column="6" ItemsSource="{Binding DocumentStatusOptions}" SelectedItem="{Binding SelectedDocumentStatus}" DisplayMemberPath="Text" AutomationProperties.Name="生命周期筛选"/>
                 <ComboBox Grid.Column="8" ItemsSource="{Binding ConfirmationOptions}" SelectedItem="{Binding SelectedConfirmationStatus}" DisplayMemberPath="Text" AutomationProperties.Name="实物确认筛选"/>
-                <DatePicker Grid.Column="10" Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding DateFrom}" AutomationProperties.Name="受理日期起"/>
-                <DatePicker Grid.Column="12" Style="{StaticResource SwiftExportDatePicker}" SelectedDate="{Binding DateTo}" AutomationProperties.Name="受理日期止"/>
+                <DatePicker Grid.Column="10"  SelectedDate="{Binding DateFrom}" AutomationProperties.Name="受理日期起"/>
+                <DatePicker Grid.Column="12"  SelectedDate="{Binding DateTo}" AutomationProperties.Name="受理日期止"/>
             </Grid>
         </Border>
         <StackPanel Grid.Row="2" Orientation="Horizontal">

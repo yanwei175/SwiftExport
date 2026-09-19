@@ -20,6 +20,7 @@
                             SelectionClearedCommand="{Binding SelectionClearedCommand,ElementName=Root}" 
                             SelectionClearedCommandParameter="{Binding SelectionClearedCommandParameter,ElementName=Root}" 
                             IsBusy="{Binding IsBusy,ElementName=Root}" 
+                            StretchToHost="True"
                             SearchDelay="{Binding SearchDelay,ElementName=Root}" 
                             MinimumSearchLength="{Binding MinimumSearchLength,ElementName=Root}" 
                             Placeholder="{Binding Placeholder,ElementName=Root}"/>

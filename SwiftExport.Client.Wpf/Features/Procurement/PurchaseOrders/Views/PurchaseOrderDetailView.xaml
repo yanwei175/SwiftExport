@@ -210,7 +210,7 @@
 
                         <DatePicker Grid.Column="6" Grid.Row="0" controls:DatePickerAssist.PlaceholderText="下单日期" SelectedDate="{Binding Header.OrderDate,Mode=OneWay}" IsEnabled="False">
                             <DatePicker.Style>
-                                <Style TargetType="DatePicker" BasedOn="{StaticResource SwiftExportDatePicker}">
+                                <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsCreateMode}" Value="True">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -221,7 +221,7 @@
                         </DatePicker>
                         <DatePicker Grid.Column="6" Grid.Row="0" SelectedDate="{Binding OrderDate}">
                             <DatePicker.Style>
-                                <Style TargetType="DatePicker" BasedOn="{StaticResource SwiftExportDatePicker}">
+                                <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsCreateMode}" Value="True">
@@ -232,7 +232,7 @@
                             </DatePicker.Style>
                         </DatePicker>
                         <ui:TextBox Grid.Column="6" Grid.Row="2" PlaceholderText="期望交期"/>
-                        <DatePicker Style="{StaticResource SwiftExportDatePicker}" Grid.Column="6" Grid.Row="4" controls:DatePickerAssist.PlaceholderText="回复交期" SelectedDate="{Binding Header.ReplyDate}" IsEnabled="False"/>
+                        <DatePicker Grid.Column="6" Grid.Row="4" ToolTip="回复交期" SelectedDate="{Binding Header.ReplyDate}" IsEnabled="False"/>
                         <ui:TextBox Grid.Column="6" Grid.Row="6" PlaceholderText="跟单员" Text="{Binding Header.PurchasePerson}" IsReadOnly="True"/>
 
                         <TextBlock Grid.Column="8" Grid.Row="0" Text="供应商"/>
@@ -355,17 +355,17 @@
                                         <DataGridTemplateColumn.CellEditingTemplate>
                                             <DataTemplate>
                                                 <purchaseComponents:PurchaseProductLookupTextBox x:Name="ProductLookup"
-                                                    Text="{Binding Sku,Mode=OneWay}"
-                                                    FontSize="10"
-                                                    ItemsSource="{Binding DataContext.ProductCandidates,RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectedProduct="{Binding DataContext.SelectedProductCandidate,RelativeSource={RelativeSource AncestorType=DataGrid},Mode=OneWayToSource}"
-                                                    SearchCommand="{Binding DataContext.SearchProductsCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectionCommittedCommand="{Binding DataContext.CommitProductCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectionCommittedCommandParameter="{Binding}"
-                                                    SelectionClearedCommand="{Binding DataContext.ClearProductCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    SelectionClearedCommandParameter="{Binding}"
-                                                    IsBusy="{Binding DataContext.IsProductSearchBusy,RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                    IsEnabled="{Binding IsNew}" Placeholder="搜索采购产品"/>
+                                                                                                Text="{Binding Sku,Mode=OneWay}"
+                                                                                                FontSize="10"
+                                                                                                ItemsSource="{Binding DataContext.ProductCandidates,RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                                                SelectedProduct="{Binding DataContext.SelectedProductCandidate,RelativeSource={RelativeSource AncestorType=DataGrid},Mode=OneWayToSource}"
+                                                                                                SearchCommand="{Binding DataContext.SearchProductsCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                                                SelectionCommittedCommand="{Binding DataContext.CommitProductCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                                                SelectionCommittedCommandParameter="{Binding}"
+                                                                                                SelectionClearedCommand="{Binding DataContext.ClearProductCommand,RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                                                SelectionClearedCommandParameter="{Binding}"
+                                                                                                IsBusy="{Binding DataContext.IsProductSearchBusy,RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                                                IsEnabled="{Binding IsNew}" Placeholder="搜索采购产品"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellEditingTemplate>
                                     </DataGridTemplateColumn>
