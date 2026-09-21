@@ -1,0 +1,154 @@
+﻿<UserControl x:Name="Root" x:Class="SwiftExportClient.Resources.Controls.Filter.MultiSelectLookupButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SwiftExportClient.Resources.Controls"
+             mc:Ignorable="d" 
+              d:DesignHeight="30" d:DesignWidth="120">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <!-- 主按钮 -->
+        <ToggleButton x:Name="PART_Button"
+                      MinWidth="100"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch"
+                      IsChecked="{Binding IsOpen, ElementName=PART_Popup, Mode=TwoWay}">
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock VerticalAlignment="Center" Text="{Binding DisplayText, ElementName=Root}" />
+
+                <ui:SymbolIcon Symbol="ChevronDown20" Grid.Column="1" Margin="8,0,0,0" 
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+            </Grid>
+
+        </ToggleButton>
+
+        <!-- 下拉 -->
+        <Popup x:Name="PART_Popup"
+               Placement="Bottom"
+               PlacementTarget="{Binding ElementName=PART_Button}"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               Opened="Popup_OnOpened"
+               Closed="Popup_OnClosed">
+
+            <Border MinWidth="260"
+                    MaxHeight="460"
+                    Margin="0,4,0,0"
+                    Padding="2"
+                    Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                    BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <!-- 顶部：搜索 + 重置 + 确认 -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 搜索框 -->
+                        <Grid Grid.Column="0" x:Name="PART_SearchPanel" Margin="0,0,8,0"
+                          Visibility="{Binding ShowSearchBox, ElementName=Root, Converter={StaticResource BoolToVisibilityConverter}}">
+
+                            <ui:TextBox x:Name="PART_SearchBox"
+                                        PlaceholderEnabled="False"
+                                     FontSize="{DynamicResource ControlContentThemeFontSize}"
+                                     VerticalContentAlignment="Center"
+                                     TextChanged="SearchBox_OnTextChanged" />
+
+                            <TextBlock Margin="9,0,0,0"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
+                                   IsHitTestVisible="False"
+                                   Text="{Binding Placeholder, ElementName=Root}">
+
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text,  ElementName=PART_SearchBox}" Value="">
+                                                <Setter Property="Visibility"  Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+
+                            </TextBlock>
+                        </Grid>
+
+
+                        <Button Grid.Column="1" Margin="0,0,4,0"
+                                Content="清除"
+                                Click="ResetButton_OnClick" />
+
+                        <Button Grid.Column="2"
+                                Content="确定"
+                                Click="ApplyButton_OnClick" />
+
+
+                    </Grid>
+
+                    <!-- 多选列表 -->
+                    <ListBox x:Name="PART_ListBox"
+                             Grid.Row="1"
+                             MaxHeight="350"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.CanContentScroll="True"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             PreviewMouseLeftButtonUp="PART_ListBox_PreviewMouseLeftButtonUp">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Focusable" Value="False" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="IsTabStop" Value="False" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Background="Transparent">
+                                    <CheckBox Margin="0"
+                                              IsHitTestVisible="False"
+                                              HorizontalContentAlignment="Stretch"
+                                              VerticalContentAlignment="Center"
+                                              IsChecked="{Binding IsChecked}">
+
+                                        <ContentPresenter
+                        HorizontalAlignment="Stretch"
+                        Content="{Binding DisplayContent}"
+                        ContentTemplate="{Binding DataContext.ContentTemplate,
+                                                  RelativeSource={RelativeSource AncestorType=CheckBox}}" />
+
+                                    </CheckBox>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+
+                    </ListBox>
+                </Grid>
+
+            </Border>
+
+        </Popup>
+
+    </Grid>
+</UserControl>

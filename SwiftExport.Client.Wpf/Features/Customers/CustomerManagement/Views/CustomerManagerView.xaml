@@ -62,8 +62,6 @@
                     <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" 
                                 VerticalAlignment="Stretch" MinWidth="70"/>
 
-                    <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0" 
-                               VerticalAlignment="Stretch" MinWidth="70"/>
 
                 </DockPanel>
             </Grid>
@@ -168,8 +166,7 @@
                                                 gridColumns:GridColumn.FieldPath="Incoterm">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0"
-                                              FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                    <ComboBox Margin="4,0" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.IncotermOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -185,7 +182,7 @@
                                                 gridColumns:GridColumn.FieldPath="IncotermLocation">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                    <ComboBox Margin="8,0" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.IncotermLocationOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -201,7 +198,7 @@
                                                 gridColumns:GridColumn.FieldPath="IncotermSortRemark">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="8,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                    <ComboBox Margin="8,0" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.IncotermSortRemarkOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -228,7 +225,7 @@
                                                 gridColumns:GridColumn.FieldPath="PaymentMethod">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                    <ComboBox Margin="4,0" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.PaymentMethodOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -244,7 +241,7 @@
                                                 gridColumns:GridColumn.FieldPath="Currency">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                    <ComboBox Margin="4,0" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource CustomerCurrencyOptionTemplate}"
                                               SelectedValuePath="CurrencyCode"
@@ -260,7 +257,7 @@
                                                 gridColumns:GridColumn.FieldPath="ShippedBy">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <ComboBox Margin="4,0" FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                    <ComboBox Margin="4,0" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.ShippedByOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource CustomerDictionaryOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -282,7 +279,9 @@
 
             <controls:RightDrawerHost.DrawerContentTemplate>
                 <DataTemplate>
-                    <drawerViews:CustomerProductManagerView/>
+                    <Border Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}">
+                        <drawerViews:CustomerProductManagerView/>
+                    </Border>
                 </DataTemplate>
             </controls:RightDrawerHost.DrawerContentTemplate>
 

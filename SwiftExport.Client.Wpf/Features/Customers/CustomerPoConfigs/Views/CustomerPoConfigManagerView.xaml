@@ -57,9 +57,6 @@
                     <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" 
                                 VerticalAlignment="Stretch" MinWidth="70"/>
 
-                    <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0" 
-                               VerticalAlignment="Stretch" MinWidth="70"/>
-
                 </DockPanel>
             </Grid>
 

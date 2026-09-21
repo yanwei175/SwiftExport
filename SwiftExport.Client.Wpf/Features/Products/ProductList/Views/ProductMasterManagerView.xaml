@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:resourceProxies="clr-namespace:SwiftExportClient.Resources.Proxies"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
@@ -11,9 +12,10 @@
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
-             mc:Ignorable="d" d:Height="800" d:Width="1280">
+             mc:Ignorable="d" d:Height="800" d:Width="1280"
+             d:DataContext="{d:DesignInstance vm:ProductMasterManagerViewModel}">
     <UserControl.Resources>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
@@ -295,7 +297,6 @@
                                     <DataTemplate>
                                         <productComponents:ProductCategoryFlatLookupTextBox 
                                             Text="{Binding CategoryName, Mode=OneWay}"
-                                            FontSize="10"
                                             ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategories, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                             SelectionCommittedCommand="{Binding DataContext.CommitCategoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

@@ -20,6 +20,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <shell:ShellNavigationItemsConverter x:Key="ShellNavigationItemsConverter" />
         <shell:RouteSelectionConverter x:Key="RouteSelectionConverter" />
+        
         <Style x:Key="ShellStatusMessageIconStyle"
                TargetType="{x:Type ui:SymbolIcon}">
             <Setter Property="Symbol" Value="Info24" />
@@ -68,7 +69,7 @@
 
     </ui:FluentWindow.Resources>
 
-    <Grid Background="Transparent">
+    <Grid>
         <Grid RowDefinitions="Auto,*">
 
             <ui:TitleBar Grid.Row="0"
@@ -95,19 +96,18 @@
             </ui:TitleBar>
 
             <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
-                <ui:NavigationView Grid.Column="0"
+                <ui:NavigationView Grid.Column="0" 
                                    IsPaneOpen="{Binding IsNavigationPaneExpanded, Mode=TwoWay}"
                                    IsPaneToggleVisible="True"
                                    IsPaneVisible="True"
                                    IsBackButtonVisible="Collapsed"
                                    IsTopSeparatorVisible="False"
-                                   IsFooterSeparatorVisible="True"
+                                   IsFooterSeparatorVisible="True"                                   
                                    PaneDisplayMode="Left"
                                    OpenPaneLength="200"
                                    CompactPaneLength="40"
                                    HeaderVisibility="Collapsed"
-                                   AlwaysShowHeader="False"
-                                   Background="Transparent">
+                                   AlwaysShowHeader="False">
                     <ui:NavigationView.MenuItemsSource>
                         <MultiBinding Converter="{StaticResource ShellNavigationItemsConverter}">
                             <Binding Path="FilteredMenuItems" />
@@ -145,43 +145,49 @@
                     </ui:NavigationView.FooterMenuItems>
                 </ui:NavigationView>
 
-                <Grid Grid.Column="1" RowDefinitions="*,32">
-                    <Border
-                        Margin="0"
-                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
-                        BorderBrush="{DynamicResource UserSubtleFillColorSecondaryBrush}"
-                        BorderThickness="1,1,0,0"
-                        CornerRadius="4,0,0,0">
+                <Grid Grid.Column="1" RowDefinitions="*,32" Margin="0,0,0,0">
+                    <Border Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
+                            BorderBrush="{DynamicResource UserSubtleFillColorSecondaryBrush}"
+                            BorderThickness="1,1,0,0"
+                            CornerRadius="8,0,0,0">
                         <TabControl ItemsSource="{Binding OpenTabs}"
                                 Style="{StaticResource ShellHeaderOnlyTabControlStyle}"
-                                Margin="8,8,0,4"
-                                Padding="0,8,0,0"
+                                Margin="8"
                                 SelectedItem="{Binding SelectedTab, Mode=TwoWay}">
-                            <!-- 控制整个页签 TabItem 的 Margin -->
+                            
+                            <!-- 控制整个页签 TabItem -->
                             <TabControl.ItemContainerStyle>
                                 <Style TargetType="{x:Type TabItem}"  BasedOn="{StaticResource {x:Type TabItem}}">
-                                    <Setter Property="Height" Value="30"/>
-                                    <Setter Property="MinWidth" Value="100" />
+                                    <Setter Property="Height" Value="28"/>
+                                    <Setter Property="MaxWidth" Value="180"/>
+                                    <Setter Property="MinWidth" Value="80"/>
                                 </Style>
                             </TabControl.ItemContainerStyle>
 
                             <TabControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="8,0">
+                                    <Border>
                                         <DockPanel LastChildFill="False">
-                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center"  HorizontalAlignment="Center" Margin="0,0,0,0" />
-                                            <TextBlock Text="*"
-                                               Margin="2,0,0,0"
-                                               Foreground="{DynamicResource UserBusinessTextAccentBrush}"
-                                               FontWeight="SemiBold"
-                                               Visibility="{Binding IsDirty, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                            <ui:Button DockPanel.Dock="Right"
-                                               Style="{StaticResource SwiftExportTabCloseButton}"
-                                               Margin="4,0,-10,0"
-                                            Content="{ui:SymbolIcon Symbol=Dismiss28}"
-                                            Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
-                                            CommandParameter="{Binding}"
-                                            Visibility="{Binding CanClose, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            
+                                            <ui:Button DockPanel.Dock="Left" 
+                                                       Style="{StaticResource SwiftExportTabCloseButton}"
+                                                       Margin="-3,-6,2,0"
+                                                       Content="{ui:SymbolIcon Symbol=Dismiss28}"
+                                                       Command="{Binding DataContext.CloseTabCommand, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}}"
+                                                       CommandParameter="{Binding}"
+                                                       Visibility="{Binding CanClose, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            
+                                            <TextBlock Text="{Binding Title}" DockPanel.Dock="Right"
+                                                       TextWrapping="NoWrap"
+                                                       HorizontalAlignment="Left"
+                                                       VerticalAlignment="Center" 
+                                                       Margin="2,-6,6,0" />
+                                            <TextBlock Text="*" Margin="2,-6,0,0" DockPanel.Dock="Right"
+                                                       Foreground="{DynamicResource UserBusinessTextAccentBrush}"
+                                                       FontWeight="SemiBold"
+                                                       Visibility="{Binding IsDirty,Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                            
+
                                         </DockPanel>
                                     </Border>
                                 </DataTemplate>
@@ -211,16 +217,16 @@
                                TextTrimming="CharacterEllipsis" />
 
                             <Border Grid.Column="1"
-                            Width="1"
-                            Height="16"
-                            Margin="12,0"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                            Visibility="{Binding IsStatusMessageOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    Width="1"
+                                    Height="16"
+                                    Margin="12,0"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource UserControlStrokeColorDefaultBrush}"
+                                    Visibility="{Binding IsStatusMessageOpen, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                             <Grid Grid.Column="2"
-                          MinWidth="0"
-                          Visibility="{Binding IsStatusMessageOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                  MinWidth="0"
+                                  Visibility="{Binding IsStatusMessageOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />

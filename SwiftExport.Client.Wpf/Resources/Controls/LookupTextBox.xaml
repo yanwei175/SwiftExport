@@ -12,65 +12,58 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="../ListBox.xaml" />
             </ResourceDictionary.MergedDictionaries>
-        <!--
+            <!--
             LookupTextBox 由外层统一提供边框和清除按钮。
             内部输入框只保留 WPF TextBox 必需的 PART_ContentHost，避免 Fluent
             默认模板在聚焦且有文本时再生成一个 ClearButton。
         -->
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-        <!-- 与紧凑 DataGrid 编辑器保持相同布局，但不依赖页面级命名资源。 -->
-            <Style x:Key="LookupInputBaseStyle"
-               TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
-                <Setter Property="Padding" Value="8,0,0,0" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
-        </Style>
-            
-        <Style x:Key="LookupInputTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource LookupInputBaseStyle}">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
-            <Setter Property="CaretBrush" Value="{DynamicResource TextControlForeground}" />
-            <Setter Property="Background" Value="{DynamicResource TextControlBackground}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource TextControlElevationBorderBrush}" />            
-            <Setter Property="BorderThickness" Value="1" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding ShowDropDownButton, ElementName=Root}" Value="True">
-                    <Setter Property="Padding" Value="8,0,28,0" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <!-- 与紧凑 DataGrid 编辑器保持相同布局，但不依赖页面级命名资源。 -->
+            <Style x:Key="LookupInputBaseStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+            </Style>
 
-        <Style x:Key="LookupOverlayTextStyle" TargetType="{x:Type TextBlock}">
-            <Setter Property="Margin" Value="14,0,0,0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="FontSize" Value="{Binding FontSize, ElementName=Root}" />
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding ShowDropDownButton, ElementName=Root}" Value="True">
-                    <Setter Property="Margin" Value="14,0,28,0" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
+            <Style x:Key="LookupInputTextBoxStyle" TargetType="{x:Type TextBox}" BasedOn="{StaticResource LookupInputBaseStyle}">
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
+                <Setter Property="CaretBrush" Value="{DynamicResource TextControlForeground}" />
+                <Setter Property="Background" Value="{DynamicResource TextControlBackground}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource TextControlElevationBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ShowDropDownButton, ElementName=Root}" Value="True">
+                        <Setter Property="Padding" Value="8,5,28,5" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
 
-        <Style x:Key="LookupEditorBorderStyle" TargetType="Border">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="Transparent" />            
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource TextControlBackgroundPointerOver}" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+            <Style x:Key="LookupOverlayTextStyle" TargetType="{x:Type TextBlock}">
+                <Setter Property="FontSize" Value="{Binding FontSize, ElementName=Root}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding ShowDropDownButton, ElementName=Root}" Value="True">
+                        <Setter Property="Margin" Value="2,0,28,0" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style x:Key="LookupEditorBorderStyle" TargetType="Border">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource TextControlBackgroundPointerOver}" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
     <Grid>
-        <Border x:Name="EditorBorder"
-                Margin="0"
-                Padding="0"
-                MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
+        <!--主Border-->
+        <Border x:Name="EditorBorder" MouseLeftButtonDown="EditorBorder_MouseLeftButtonDown">
             <Border.Style>
                 <Style TargetType="Border" BasedOn="{StaticResource LookupEditorBorderStyle}">
                     <Setter Property="VerticalAlignment" Value="Center" />
@@ -81,30 +74,52 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
+            
             <Grid>
+                <!--输入TextBox-->
                 <TextBox x:Name="InputTextBox"
-                         Style="{StaticResource LookupInputTextBoxStyle}"
                          FontSize="{Binding FontSize, ElementName=Root}"
                          VerticalContentAlignment="Center"
                          TextChanged="InputTextBox_TextChanged"
                          GotKeyboardFocus="InputTextBox_GotKeyboardFocus"
                          LostKeyboardFocus="InputTextBox_LostKeyboardFocus"
-                         PreviewKeyDown="InputTextBox_PreviewKeyDown" />
-                <Border x:Name="DisplayTextBlockBorder"
+                         PreviewKeyDown="InputTextBox_PreviewKeyDown" >
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource LookupInputTextBoxStyle}">
+                            <Setter Property="VerticalAlignment" Value="Center" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding StretchToHost, ElementName=Root}" Value="True">
+                                    <Setter Property="VerticalAlignment" Value="Stretch" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <!--选中候选后显示-->
+                <Grid>                    
+                    <Border x:Name="DisplayTextBlockBorder"
                         Style="{DynamicResource LookupEditorBorderStyle}"
+                        Padding="{DynamicResource TextControlThemePadding}"
                         BorderBrush="{DynamicResource TextControlElevationBorderBrush}"
                         BorderThickness="{DynamicResource TextBoxBorderThemeThickness}"
                         Visibility="{Binding ElementName=DisplayTextBlock, Path=Visibility}">
-                    <TextBlock x:Name="DisplayTextBlock"
-                           Style="{StaticResource LookupOverlayTextStyle}"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           IsHitTestVisible="False" />
-                </Border>
+                        <TextBlock x:Name="DisplayTextBlock"
+                                   Style="{StaticResource LookupOverlayTextStyle}"
+                                   FontSize="{DynamicResource ContentControlFontSize}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   IsHitTestVisible="False" />
+                    </Border>
+                    
+                    <TextBox Panel.ZIndex="0" x:Name="SyncSizeTextBox" Visibility="Hidden" IsEnabled="False" IsReadOnly="True"/>
+                </Grid>
 
 
+                <!--PlaceHoder-->
                 <TextBlock x:Name="PlaceholderTextBlock"
                            Style="{StaticResource LookupOverlayTextStyle}"
+                           Padding="{DynamicResource TextControlThemePadding}"
+                           FontSize="{DynamicResource ContentControlFontSize}"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            IsHitTestVisible="False"
@@ -179,8 +194,10 @@
                     </ProgressBar.Style>
                 </ProgressBar>
             </Grid>
+            
         </Border>
 
+        <!--候选列表-->
         <Popup x:Name="DropdownPopup"
                AllowsTransparency="True"
                StaysOpen="False"
@@ -216,8 +233,7 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              PreviewMouseLeftButtonUp="ResultList_PreviewMouseLeftButtonUp">
                         <ListBox.ItemContainerStyle>
-                            <Style TargetType="{x:Type ListBoxItem}"
-                                   BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
+                            <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
                                 <Setter Property="Focusable" Value="False" />
                                 <Setter Property="Padding" Value="12,8" />
                                 <Setter Property="Cursor" Value="Hand" />

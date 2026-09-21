@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
              xmlns:resourceProxies="clr-namespace:SwiftExportClient.Resources.Proxies"
              xmlns:imageControls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
@@ -39,119 +40,74 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="12,8,12,8">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
+            <RowDefinition Height="8" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="4" />
+            <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="物料管理" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="采购单号、来源单号、SKU 等关键词">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
 
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="280" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
 
-            <ui:TextBox Grid.Column="0"
-                        PlaceholderText="键入搜索..."
-                        Icon="{ui:SymbolIcon Symbol=Search24}"
-                        Text="{Binding Keyword, Mode=TwoWay}">
-                <ui:TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                </ui:TextBox.InputBindings>
-            </ui:TextBox>
-    
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
 
-            <ui:Button Margin="6,0,0,0" Grid.Column="2"
-                       Appearance="Primary"
-                       Command="{Binding SearchCommand}"
-                       Icon="{ui:SymbolIcon Symbol=Search24}"
-                       ToolTip="查询">
-            </ui:Button>
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
 
-            <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <ui:Button Margin="6,0,0,0"
-                           Appearance="Primary"
-                           Command="{Binding AddRowCommand}"
-                           Content="新增"
-                           Icon="{ui:SymbolIcon Symbol=Add24}"
-                           ToolTip="新增产品">
-                </ui:Button>
+                    <ui:Button Content="清空" Command="{Binding ResetFiltersCommand}" Margin="8,0,0,0"
+                               VerticalAlignment="Stretch" MinWidth="70"/>
+                </StackPanel>
 
-                <ui:Button Margin="6,0,0,0"
-                           Appearance="Success"
-                           Content="保存"
-                           
-                           Icon="{ui:SymbolIcon Symbol=Save24}"
-                           Command="{Binding SaveCommand}"
-                           ToolTip="保存产品">
-                </ui:Button>
-
-                <ui:Button Margin="6,0,0,0"
-                           Content="删除"
-                           Icon="{ui:SymbolIcon Symbol=Delete24}"
-                           Command="{Binding DeleteSelectedCommand}"
-                           ToolTip="删除产品"/>
-
-                <ui:Button Margin="6,0,0,0"
-                    Appearance="Transparent"
-                    Icon="{ui:SymbolIcon Symbol=ArrowReset24}"
-                    Command="{Binding RejectProductChangesCommand}" 
-                    ToolTip="放弃产品修改"/>
-
-                <ui:Button Margin="6,0,0,0"
-                    Appearance="Secondary"
-                    Content="刷新"
-                    Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}"
-                    Command="{Binding RefreshCommand}" 
-                    ToolTip="刷新"/>
-
-            </StackPanel>
-
-            <StackPanel Grid.Column="6" Orientation="Horizontal">
-                <ui:ToggleSwitch VerticalAlignment="Center"
-                                 OffContent="简单字段"
-                                 OnContent="复杂字段"
-                                 IsChecked="{Binding IsComplexFieldMode, Mode=TwoWay}" />
-                <ui:ToggleSwitch Margin="12,0,0,0"
-                                 VerticalAlignment="Center"
-                                 OffContent="整行模式"
-                                 OnContent="格子模式"
-                                 IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-                <ui:ToggleSwitch Margin="12,0,0,0"
-                                 VerticalAlignment="Center"
-                                 OffContent="BOM 关闭"
-                                 OnContent="BOM 打开"
-                                 IsChecked="{Binding BomDrawer.IsOpen, Mode=OneWay}"
-                                 Command="{Binding BomDrawer.ToggleCommand}"
-                                 CommandParameter="{Binding SelectedLine}" />
-            </StackPanel>
-        </Grid>
-
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="220" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="220" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="220" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="180" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+            </Grid>
             
-            <controls:LookupTextBox Grid.Column="0" 
+            
+            <StackPanel Grid.Row="2">
+                <DockPanel LastChildFill="True">
+                    <WrapPanel HorizontalAlignment="Left">
+                        
+                        <ui:Button Margin="0,0,8,0" MinWidth="70"
+                                   Appearance="Primary"
+                                   Command="{Binding AddRowCommand}"
+                                   Content="新增"
+                                   ToolTip="新增产品">
+                        </ui:Button>
+
+                        <ui:Button Margin="0,0,8,0" MinWidth="70"
+                                   Appearance="Success"
+                                   Content="保存"
+                                   Command="{Binding SaveCommand}"
+                                   ToolTip="保存产品">
+                        </ui:Button>
+
+                        <ui:Button Margin="0,0,8,0" MinWidth="70"
+                                   Content="删除"
+                                   Command="{Binding DeleteSelectedCommand}"
+                                   ToolTip="删除产品"/>
+
+                        <ui:Button Content="放弃修改" Margin="0,0,8,0" MinWidth="70"  
+                                   Appearance="Transparent"
+                                Command="{Binding RejectProductChangesCommand}" 
+                                ToolTip="放弃产品修改"/>
+
+                        <controls:LookupTextBox Width="120" Margin="0,0,8,0"
                                     Placeholder="客户"
                                     SearchMode="Remote" 
                                     ClearSelectionOnEdit="False"
@@ -163,7 +119,7 @@
                                     SelectedValuePath="Uid" 
                                     SelectedItem="{Binding FilterCustomer, Mode=TwoWay}" />
 
-            <controls:LookupTextBox Grid.Column="2" Placeholder="颜色"
+                        <controls:LookupTextBox  Width="120" Margin="0,0,8,0" Placeholder="颜色"
                                     ClearSelectionOnEdit="False"
                                     SearchMode="Local"
                                     ShowDropDownButton="True"
@@ -171,25 +127,74 @@
                                     DisplayMemberPath="ColorNameZh" 
                                     FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
                                     SelectedValuePath="Uid" SelectedItem="{Binding FilterColor, Mode=TwoWay}" />
+                        
 
-            <productComponents:ProductCategoryLookupTextBox
-                                    Grid.Column="4"
+                        <productComponents:ProductCategoryLookupTextBox Width="120" Margin="0,0,8,0"
                                     Placeholder="产品分类"
                                     ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
                                     SelectedCategory="{Binding FilterCategory, Mode=TwoWay}"
                                     RefreshCommand="{Binding RefreshProductCategoriesCommand}"
                                     IsRefreshing="{Binding IsCategoryCacheRefreshing}" />
 
-            <controls:DropDownCheckBox Grid.Column="6"
+                        <controls:DropDownCheckBox  Width="120" Margin="0,0,8,0"
                                        ShowClearOption="True"
                                        Placeholder="物料类型"
                                        ItemsSource="{Binding MaterialTypes}"
                                        SelectedItems="{Binding FilterMaterialTypes, Mode=OneWay}" />
+                        
+                        <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
+                    </WrapPanel>
 
-            <Button Grid.Column="8" Content="重置筛选" Command="{Binding ResetFiltersCommand}" MinHeight="32" Padding="8,4" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        
+                        <ui:ToggleSwitch VerticalAlignment="Center"
+                                 OffContent="简单字段"
+                                 OnContent="复杂字段"
+                                 IsChecked="{Binding IsComplexFieldMode, Mode=TwoWay}" />
+                        
+                        <ui:ToggleSwitch Margin="12,0,0,0"
+                                 VerticalAlignment="Center"
+                                 OffContent="整行模式"
+                                 OnContent="格子模式"
+                                 IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
+                        
+                        <ui:ToggleSwitch Margin="12,0,0,0"
+                                         VerticalAlignment="Center"
+                                         OffContent="BOM 关闭"
+                                         OnContent="BOM 打开"
+                                         IsChecked="{Binding BomDrawer.IsOpen, Mode=OneWay}"
+                                         Command="{Binding BomDrawer.ToggleCommand}"
+                                         CommandParameter="{Binding SelectedLine}" />
+                    </StackPanel>
+
+                </DockPanel>
+
+                <Popup IsOpen="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"
+                   Placement="Bottom"
+                   PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+                   Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                   VerticalOffset="4"
+                   AllowsTransparency="True"
+                   PopupAnimation="Fade"
+                   StaysOpen="True">
+                    <Border Padding="8"
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" MinHeight="120">
+
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
+            </StackPanel>
         </Grid>
-
-        <controls:RightDrawerHost Grid.Row="4"
+        
+        <controls:RightDrawerHost Grid.Row="2"
                                   DisplayMode="Overlay"
                                   DrawerWidth="820"
                                   MinDrawerWidth="360"
@@ -338,7 +343,7 @@
                                                 SortMemberPath="MaterialType">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <ComboBox Margin="6" FontSize="12"
+                                        <ComboBox Margin="6" VerticalContentAlignment="Center"
                                         ItemsSource="{x:Static staticEnums:MaterialTypesEnum.MaterialTypes}"
                                         SelectedValue="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DataTemplate>
@@ -352,7 +357,7 @@
                                                 gridColumns:GridColumn.FieldPath="Unit">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <ComboBox Margin="6" FontSize="12"
+                                        <ComboBox Margin="6" VerticalContentAlignment="Center"
                                               ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                               ItemTemplate="{StaticResource ProductUnitOptionTemplate}"
                                               SelectedValuePath="DataNameEn"
@@ -367,7 +372,7 @@
                                                 SortMemberPath="SupplyType">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <ComboBox Margin="6" FontSize="12"
+                                        <ComboBox Margin="6" VerticalContentAlignment="Center"
                                         ItemsSource="{x:Static staticEnums:SupplyTypeEnums.SupplyTypes}"
                                         SelectedValue="{Binding SupplyType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         />
@@ -414,9 +419,8 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <supplierComponents:SupplierLookupTextBox
+                                        <supplierComponents:SupplierLookupTextBox 
                                                         Text="{Binding DefaultSupplierCode, Mode=OneWay}"
-                                                        FontSize="10"
                                                         ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         SelectedSupplier="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                                         SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -508,22 +512,22 @@
             </controls:RightDrawerHost.MainContent>
 
             <controls:RightDrawerHost.DrawerContent>
-                <Grid Margin="8"
-                      RowDefinitions="Auto,4,Auto,4,*">
+                <Grid Margin="8" Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}" RowDefinitions="Auto,8,Auto,8,*">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Orientation="Horizontal">
-                            <Button Content="新增" Command="{Binding BomDrawer.AddItemCommand}" 
-                                    Margin="0,0,4,0" />
-                            <ui:Button Content="保存" 
-                                       Appearance="Primary"
-                                       Command="{Binding BomDrawer.SaveCommand}" Margin="0,0,4,0" />
-                            <Button Content="删除" Command="{Binding BomDrawer.DeleteItemCommand}" Margin="0,0,4,0" />
-                            <Button Content="放弃" Command="{Binding BomDrawer.RejectCommand}" Margin="0,0,4,0" />
-                            <Button Content="刷新" Command="{Binding BomDrawer.RefreshCommand}" />
+                            <ui:Button Content="新增" Command="{Binding BomDrawer.AddItemCommand}"  Margin="0,0,8,0" MinWidth="70"/>
+                            <ui:Button Content="保存" Command="{Binding BomDrawer.SaveCommand}"     Margin="0,0,8,0" MinWidth="70" Appearance="Primary" />
+                            <ui:Button Content="删除" Command="{Binding BomDrawer.DeleteItemCommand}" Margin="0,0,8,0" MinWidth="70"/>
+                            <ui:Button Content="放弃" Command="{Binding BomDrawer.RejectCommand}" Margin="0,0,8,0" MinWidth="70"/>
+                            <ui:Button Content="刷新" Command="{Binding BomDrawer.RefreshCommand}" Margin="0,0,8,0" MinWidth="70"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Content="关闭" Command="{Binding BomDrawer.CloseCommand}" />
+
+                        <ui:Button Grid.Column="1" Content="关闭" Command="{Binding BomDrawer.CloseCommand}" MinWidth="70"/>
                     </Grid>
-                    <TextBlock Grid.Row="2" Text="{Binding BomDrawer.StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+                    
+                    <TextBlock Grid.Row="2" Text="{Binding BomDrawer.StatusText}" Style="{StaticResource CaptionTextBlock}" 
+                               Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+                    
                     <DataGrid Grid.Row="4" 
                               ItemsSource="{Binding BomDrawer.Boms.Items}" 
                               SelectedItem="{Binding BomDrawer.SelectedLine, Mode=TwoWay}"
@@ -564,7 +568,6 @@
                                         -->
                                         <productComponents:ProductLookupTextBox
                                             Text="{Binding SubSku, Mode=OneWay}"
-                                            FontSize="10"
                                             ItemsSource="{Binding DataContext.BomDrawer.ProductCandidates, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
                                             SelectedProduct="{Binding DataContext.BomDrawer.SelectedCandidate, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=OneWayToSource}"
                                             SearchCommand="{Binding DataContext.BomDrawer.SearchProductsCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}"
@@ -599,7 +602,7 @@
 
         </controls:RightDrawerHost>
 
-        <Grid Grid.Row="6">
+        <Grid Grid.Row="4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

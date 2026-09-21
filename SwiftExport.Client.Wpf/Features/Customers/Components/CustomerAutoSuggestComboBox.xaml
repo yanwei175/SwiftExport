@@ -16,7 +16,8 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock FontWeight="SemiBold" Text="{Binding CustomerCode}" TextTrimming="CharacterEllipsis" />
+                <TextBlock FontWeight="SemiBold" Text="{Binding CustomerCode}" 
+                           TextTrimming="CharacterEllipsis" />
                 <TextBlock Grid.Column="1" Margin="12,0,0,0"
                            Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                            Text="{Binding CustomerName}" TextTrimming="CharacterEllipsis" />
@@ -24,7 +25,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <controls:LookupTextBox x:Name="LookupEditor"
+    <controls:LookupTextBox x:Name="LookupEditor" StretchToHost="False"
                             automation:AutomationProperties.Name="{Binding Placeholder, ElementName=Root}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedCustomer, ElementName=Root, Mode=TwoWay}"

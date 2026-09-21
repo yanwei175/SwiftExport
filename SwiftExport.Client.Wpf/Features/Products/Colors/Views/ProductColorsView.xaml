@@ -65,15 +65,14 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <TextBox Width="240"
-                         MinHeight="32"
+                <ui:TextBox Width="240"
                          VerticalContentAlignment="Center"
-                         ToolTip="按颜色代码、英文名或中文名查询"
+                         PlaceholderText="按颜色代码、英文名或中文名查询"
                          Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
-                    <TextBox.InputBindings>
+                    <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                    </TextBox.InputBindings>
-                </TextBox>
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
                 <Button Width="36"
                         MinHeight="32"
                         Margin="4,0,0,0"

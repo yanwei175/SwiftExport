@@ -9,6 +9,7 @@
              x:Name="Root"
              KeyDown="OnKeyDown">
     <UserControl.Resources>
+        
         <Style x:Key="SwiftExportRightDrawerGripper" TargetType="{x:Type Thumb}">
             <Setter Property="Width" Value="8" />
             <Setter Property="Background" Value="Transparent" />
@@ -23,6 +24,7 @@
             </Setter>
         </Style>
     </UserControl.Resources>
+    
     <Grid x:Name="LayoutRoot" ClipToBounds="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -38,10 +40,10 @@
                 Grid.Column="1"
                 Panel.ZIndex="20"
                 HorizontalAlignment="Right"
-                Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                 BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                 Margin="0,0,0,15"
-                BorderThickness="0.5"
+                BorderThickness="1"
                 CornerRadius="8"
                 Visibility="Collapsed">
             <Grid>
@@ -52,10 +54,10 @@
                 <primitives:Thumb x:Name="ResizeThumb"
                                   Grid.Column="0"
                                   Cursor="SizeWE"
-                                  Background="Transparent"
-                                   Style="{StaticResource SwiftExportRightDrawerGripper}"
+                                  Style="{StaticResource SwiftExportRightDrawerGripper}"
                                   ToolTip="拖动调整宽度"
                                   DragDelta="OnResizeThumbDragDelta" />
+                
                 <ContentPresenter Grid.Column="1"
                                   Content="{Binding DrawerContent, ElementName=Root}"
                                   ContentTemplate="{Binding DrawerContentTemplate, ElementName=Root}" />

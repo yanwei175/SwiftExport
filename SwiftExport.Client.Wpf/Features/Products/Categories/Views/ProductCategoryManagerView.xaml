@@ -111,9 +111,9 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="3*" MinWidth="260"/>
                 <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="7*" MinWidth="260"/>
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
@@ -257,9 +257,8 @@
                                    Text="排序号"
                                    Style="{StaticResource LabelTextBlock}"
                                    VerticalAlignment="Center" />
-                        <TextBox Grid.Row="6"
+                        <ui:TextBox Grid.Row="6" MinWidth="90"
                                  Grid.Column="1"
-                                 Width="140"
                                  HorizontalAlignment="Left"
                                  Text="{Binding CurrentCategory.SortNo, UpdateSourceTrigger=PropertyChanged}" />
                     </Grid>
@@ -286,17 +285,19 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
+                                
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="主型号快速归类到：" Style="{StaticResource BodyTextBlock}" FontWeight="SemiBold" />
+                                    <TextBlock Text="主型号快速归类到：" 
+                                               Style="{StaticResource BodyTextBlock}" 
+                                               FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding TargetCategoryName}"
                                                Style="{StaticResource BodyTextBlock}"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource UserBusinessTextAccentBrush}" />
                                 </StackPanel>
-                                <Button Grid.Column="1"
-                                        Content="关闭"
-                                        Command="{Binding CloseAssignmentPanelCommand}"
-                                        Padding="10,3" />
+
+                                <Button Grid.Column="1" Content="关闭" MinWidth="70"
+                                        Command="{Binding CloseAssignmentPanelCommand}" />
                             </Grid>
 
                             <Grid Grid.Row="2">
@@ -308,28 +309,25 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="输入主型号、描述或中性产品编码">
+                                         Margin="0,0,8,0" PlaceholderText="输入主型号、描述或中性产品编码">
                                     <ui:TextBox.InputBindings>
                                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                                     </ui:TextBox.InputBindings>
                                 </ui:TextBox>
                                 
-                                <ui:Button Grid.Column="1"
-                                        Content="查询"
-                                           Appearance="Primary"
+                                <ui:Button Grid.Column="1" Content="查询" MinWidth="70"
+                                        Appearance="Primary"
                                         Command="{Binding SearchCommand}"
-                                        Margin="4,0,0,0"
-                                        Padding="12,4" />
+                                        Margin="0,0,8,0"/>
                                 
                                 <ui:Button Grid.Column="2"
-                                        Content="刷新"
+                                        Content="刷新" MinWidth="70"
                                         Command="{Binding RefreshCommand}"
-                                        Margin="4,0,0,0"
-                                        Padding="12,4" />
+                                        Margin="0,0,8,0"/>
 
-                                <ui:Button Grid.Column="3" Appearance="Info"
-                                           Margin="4,0,0,0"
-                                           Padding="12,4"   
+                                <ui:Button Grid.Column="3" MinWidth="70"
+                                           Appearance="Info"
+                                           Margin="0,0,8,0" 
                                            Command="{Binding AssignSelectedCommand}">
                                     <TextBlock Text="{Binding CheckedCount, StringFormat=归类 {0} 个主型号}"/>
                                 </ui:Button>
@@ -345,7 +343,7 @@
 
                             <DataGrid Grid.Row="4"
                                       ItemsSource="{Binding Lines}"
-                                      Style="{StaticResource SwiftExportDataGrid}"
+                                      GridLinesVisibility="Horizontal"
                                       AutoGenerateColumns="False"
                                       IsReadOnly="True"
                                       SelectionMode="Extended"
@@ -356,7 +354,8 @@
                                       VirtualizingPanel.VirtualizationMode="Recycling"
                                       RowHeight="48">
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn Width="45" IsReadOnly="True" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                                    
+                                    <DataGridTemplateColumn Width="47" IsReadOnly="True" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                                         <DataGridTemplateColumn.Header>
                                             <CheckBox IsChecked="{Binding DataContext.IsAllChecked,
                                                                          RelativeSource={RelativeSource AncestorType={x:Type DataGrid}},
@@ -366,12 +365,14 @@
                                         </DataGridTemplateColumn.Header>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                <CheckBox Margin="0" Padding="0"
+                                                    IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                           HorizontalAlignment="Center"
                                                           VerticalAlignment="Center" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
+                                    
                                     <DataGridTemplateColumn Header="图片" Width="65" IsReadOnly="True" CanUserSort="False">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>

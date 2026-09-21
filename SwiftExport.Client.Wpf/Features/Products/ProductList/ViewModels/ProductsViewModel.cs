@@ -93,6 +93,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public partial CustomerDto? FilterCustomer { get; set; }
     [ObservableProperty]
     public partial ProductColorDto? FilterColor { get; set; }
+
+
     [ObservableProperty]
     public partial ProductCategoryCacheNode? FilterCategory { get; set; }
     [ObservableProperty]

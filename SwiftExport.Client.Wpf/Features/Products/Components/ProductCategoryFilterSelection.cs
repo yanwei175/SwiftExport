@@ -9,10 +9,7 @@ public sealed record ProductCategoryFilterSelection
     /// <param name="isAll">是否不限制产品分类。</param>
     /// <param name="includeUncategorized">是否包含未设置分类的数据。</param>
     /// <param name="categoryIds">按分类树显示顺序排列的分类标识。</param>
-    public ProductCategoryFilterSelection(
-        bool isAll,
-        bool includeUncategorized,
-        IReadOnlyList<Guid>? categoryIds)
+    public ProductCategoryFilterSelection(bool isAll, bool includeUncategorized, IReadOnlyList<Guid>? categoryIds)
     {
         IsAll = isAll;
         IncludeUncategorized = includeUncategorized;

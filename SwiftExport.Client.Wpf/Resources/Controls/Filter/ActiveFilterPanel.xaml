@@ -1,0 +1,60 @@
+﻿<UserControl x:Name="Root" x:Class="SwiftExportClient.Resources.Controls.Filter.ActiveFilterPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:SwiftExportClient.Resources.Controls"
+             mc:Ignorable="d" 
+             d:DesignHeight="80" d:DesignWidth="120">
+    <DockPanel>
+
+        <Button DockPanel.Dock="Right"
+                Margin="12,0,0,0"
+                Padding="8,4"
+                Content="清除全部"
+                Command="{Binding ClearAllCommand,
+                                  ElementName=Root}" />
+
+        <ItemsControl ItemsSource="{Binding ItemsSource,
+                                            ElementName=Root}">
+
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+
+                    <Border Margin="0,0,6,6"
+                            Padding="8,4"
+                            Background="#F3F3F3"
+                            CornerRadius="3">
+
+                        <StackPanel Orientation="Horizontal">
+
+                            <TextBlock VerticalAlignment="Center">
+                                <Run Text="{Binding FilterName}" />
+                                <Run Text=": " />
+                                <Run Text="{Binding DisplayText}" />
+                            </TextBlock>
+
+                            <Button Margin="6,0,0,0"
+                                    Padding="2,0"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Content="×"
+                                    Command="{Binding RemoveCommand, Source={x:Reference Root}}"
+                                    CommandParameter="{Binding}" />
+                        </StackPanel>
+
+                    </Border>
+
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+
+        </ItemsControl>
+
+    </DockPanel>
+</UserControl>

@@ -144,38 +144,46 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>-->
                     <TextBlock Grid.Column="0" Text="客户代码:" VerticalAlignment="Center" />
+                    
                     <controls:LookupTextBox Grid.Column="2"
                                             Placeholder="客户代码或名称"
                                             Text="{Binding Header.CustomerCode, Mode=OneWay}"
-                                            FontSize="14"
+                                            FontSize="12"
                                             ItemsSource="{Binding CustomerCandidates}"
                                             SelectedItem="{Binding SelectedCustomerCandidate, Mode=OneWayToSource}"
                                             DisplayMemberPath="CustomerCode"
                                             FilterMemberPaths="CustomerCode,CustomerName"
                                             ItemTemplate="{StaticResource SalesOrderCustomerLookupTemplate}"
                                             SearchMode="Remote"
+                                            ShowDropDownButton="True"
                                             SearchCommand="{Binding SearchCustomersCommand}"
                                             SelectionCommittedCommand="{Binding CommitCustomerCommand}"
                                             IsBusy="{Binding IsCustomerLookupBusy}" />
+                    
 
                     <TextBlock Grid.Column="4" Text="订单号:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="6" Text="{Binding Header.OrderNo}" IsReadOnly="True" ToolTip="新订单保存时由服务端生成" />
+                    <ui:TextBox Grid.Column="6" Text="{Binding Header.OrderNo}" 
+                                IsReadOnly="True" 
+                                PlaceholderText="新订单服务端生成" />
 
                     <TextBlock Grid.Column="8" Text="订单日期:" VerticalAlignment="Center" />
                     <DatePicker Grid.Column="10"  SelectedDateFormat="Short" SelectedDate="{Binding Header.OrderDate}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="12" Text="订单交期:" VerticalAlignment="Center" />
                     <DatePicker Grid.Row="0" Grid.Column="14" 
-                            ToolTip="订单交期"
-                            SelectedDateFormat="Short" SelectedDate="{Binding Header.DeliveryDate}" />
+                                ToolTip="订单交期"
+                                SelectedDateFormat="Short" 
+                                SelectedDate="{Binding Header.DeliveryDate}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="16" Text="回复日期:" VerticalAlignment="Center" />
                     <DatePicker Grid.Row="0" Grid.Column="18"   
-                            ToolTip="回复日期"
-                            SelectedDateFormat="Short" SelectedDate="{Binding Header.ReplyDate}" />
+                                ToolTip="回复日期"
+                                SelectedDateFormat="Short" 
+                                SelectedDate="{Binding Header.ReplyDate}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="20" Text="币种:" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="0" Grid.Column="22"
+                    
+                    <ComboBox Grid.Row="0" Grid.Column="22" VerticalContentAlignment="Center"
                              ItemsSource="{Binding CurrencyOptions}"
                              ItemTemplate="{StaticResource SalesOrderCurrencyOptionTemplate}"
                              Text="{Binding Header.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -186,14 +194,14 @@
                             Text="{Binding Header.ExchangeRate, UpdateSourceTrigger=LostFocus}" />
 
                     <TextBlock Grid.Row="0" Grid.Column="28" Text="付款方式:" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="0" Grid.Column="30"
+                    <ComboBox Grid.Row="0" Grid.Column="30" VerticalContentAlignment="Center"
                              ItemsSource="{Binding PaymentMethodOptions}"
                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
                              Text="{Binding Header.PaymentMethod, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              TextSearch.TextPath="DataNameEn" />
 
                     <TextBlock Grid.Row="0" Grid.Column="32" Text="贸易术语:" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="0" Grid.Column="34"
+                    <ComboBox Grid.Row="0" Grid.Column="34" VerticalContentAlignment="Center"
                              ItemsSource="{Binding IncotermOptions}"
                              ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
                              Text="{Binding Header.Incoterm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -269,12 +277,14 @@
                                     Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
                         
                         <TextBlock Grid.Row="4" Grid.Column="4" Text="Date:" VerticalAlignment="Center" />
-                        <DatePicker Grid.Row="4" Grid.Column="6" Style="{StaticResource SwiftExportDatePicker}"
+                        <DatePicker Grid.Row="4" Grid.Column="6" 
+                                    SelectedDateFormat="Short"
                                     ToolTip="发票日期"/>
                         
                         <TextBlock Grid.Row="4" Grid.Column="8" Text="UpdateDate:" VerticalAlignment="Center" />
-                    <DatePicker Grid.Row="4" Grid.Column="10" SelectedDateFormat="Short"
-                                ToolTip="发票更新日期"/>
+                        <DatePicker Grid.Row="4" Grid.Column="10" 
+                                    SelectedDateFormat="Short"
+                                    ToolTip="发票更新日期"/>
                         
                         <TextBlock Grid.Row="6" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
                         <DatePicker SelectedDateFormat="Short" Grid.Row="6" Grid.Column="6"
@@ -285,7 +295,7 @@
                                     ToolTip="ETA"/>
 
                         <TextBlock Grid.Row="8" Grid.Column="4" Text="Shipped By:" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6"
+                        <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6" VerticalContentAlignment="Center"
                                   ItemsSource="{Binding ShippedByOptions}"
                                   ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
                                   Text="{Binding Header.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -368,7 +378,7 @@
                                     <salesComponents:SalesProductLookupTextBox
                                         x:Name="ProductLookup"
                                         Text="{Binding Sku, Mode=OneWay}"
-                                        FontSize="10"
+                                        FontSize="12"
                                         ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                         SelectedProduct="{Binding DataContext.SelectedProductCandidate, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                         SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

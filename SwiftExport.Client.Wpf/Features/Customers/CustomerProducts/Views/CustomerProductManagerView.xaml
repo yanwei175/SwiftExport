@@ -40,9 +40,6 @@
                     <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" 
                                 VerticalAlignment="Stretch" MinWidth="70"/>
 
-                    <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0" 
-                               VerticalAlignment="Stretch" MinWidth="70"/>
-
                     <ui:Button Content="关闭" Command="{Binding CloseCommand}" Margin="8,0,0,0"  
                                VerticalAlignment="Stretch" HorizontalAlignment="Right" MinWidth="70"/>
                 </DockPanel>
@@ -118,8 +115,7 @@
                     <DataGridTemplateColumn.CellEditingTemplate>
                         <DataTemplate>
                             <productComponents:ProductLookupTextBox
-                                Text="{Binding Sku, Mode=OneWay}"
-                                FontSize="10"
+                                Text="{Binding Sku, Mode=OneWay}" 
                                 ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                 SelectedProduct="{Binding DataContext.SelectedCandidate, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                 SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

@@ -8,8 +8,9 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:images="clr-namespace:SwiftExportClient.Resources.Controls"
              mc:Ignorable="d"
+             Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
              d:Width="520" d:Height="760">
-    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
+    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto" >
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
                 <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />

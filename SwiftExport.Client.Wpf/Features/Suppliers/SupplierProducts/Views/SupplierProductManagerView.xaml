@@ -13,14 +13,28 @@
     </UserControl.Resources>
     <Grid Margin="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" /><RowDefinition Height="4" /><RowDefinition Height="Auto" />
-            <RowDefinition Height="4" /><RowDefinition Height="*" /><RowDefinition Height="4" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="240" /><ColumnDefinition Width="4" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <controls:LookupTextBox Placeholder="供应商料号、SKU、描述或规格" MinimumSearchLength="0"
                                     Text="{Binding Keyword, Mode=TwoWay}" QueryCommand="{Binding SearchCommand}" />
-            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}"  ToolTip="查询"><ui:SymbolIcon Symbol="Search24" /></Button>
+            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}"  ToolTip="查询">
+                <ui:SymbolIcon Symbol="Search24" />
+            </Button>
             <StackPanel Grid.Column="4" Orientation="Horizontal">
                 <Button Command="{Binding AddItemCommand}"  Margin="0,0,4,0" Content="新增" />
                 <Button Command="{Binding SaveCommand}" Margin="0,0,4,0" Content="保存" />
@@ -40,10 +54,10 @@
             </StackPanel>
         </Grid>
         <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+
         <DataGrid Grid.Row="4" ItemsSource="{Binding Products.Items}"
                   Style="{StaticResource SwiftExportDataGrid}"
-                  RowHeight="{StaticResource DataGridRowHeightSmall}"
-                  FontSize="12"
+                  RowHeight="{StaticResource DataGridRowHeightMedium}"
                   RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                   SelectionMode="Extended"
                   SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
@@ -54,18 +68,43 @@
                   gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                   gridValidation:GridValidation.IsEnabled="True">
             <DataGrid.Columns>
+
                 <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
-                    <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox HorizontalAlignment="Left" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" /></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox  HorizontalAlignment="Center" IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <CheckBox HorizontalAlignment="Left" 
+                                      IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.HeaderTemplate>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox  HorizontalAlignment="Center" 
+                                       IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+
                 <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True">
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:CachedImage Width="40" Height="40" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <controls:CachedImage Width="40" Height="40" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridCheckBoxColumn Header="默认" Width="62" IsReadOnly="True" Binding="{Binding IsProductDefaultSupplier}" />
+
+                <DataGridTextColumn Width="62" Header="默认" IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
+                                    Binding="{Binding IsProductDefaultSupplier, UpdateSourceTrigger=PropertyChanged,Converter={StaticResource BooleanToChineseConverter}}"/>
+
+
                 <DataGridTemplateColumn Header="标准 SKU" Width="150" SortMemberPath="ProductSku">
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding ProductSku}" Style="{StaticResource SwiftExportDataGridTextBlock}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
-                    <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
-                        <productComponents:ProductLookupTextBox
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ProductSku}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <productComponents:ProductLookupTextBox
                             Text="{Binding ProductSku, Mode=OneWay}"
                             FontSize="10"
                             ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -76,22 +115,38 @@
                             SelectionClearedCommand="{Binding DataContext.ClearProductCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                             SelectionClearedCommandParameter="{Binding}"
                             IsBusy="{Binding DataContext.IsLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
-                    </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
+
+
                 <DataGridTextColumn Header="供应商料号" Width="150" Binding="{Binding SupplierSku, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
+
                 <DataGridTextColumn Header="供应商中文描述" Width="200" Binding="{Binding SupplierSkuDescriptionZh, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+
                 <DataGridTextColumn Header="供应商中文规格" Width="200" Binding="{Binding SupplierSkuFeaturesZh, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+
                 <DataGridTextColumn Header="币种" Width="70" IsReadOnly="True" Binding="{Binding Currency}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
+
                 <DataGridTextColumn Header="未税价" Width="95" Binding="{Binding UnitPrice, UpdateSourceTrigger=LostFocus, StringFormat=N2}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+
                 <DataGridTextColumn Header="含税价" Width="95" Binding="{Binding TaxPrice, UpdateSourceTrigger=LostFocus, StringFormat=N2}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+
                 <DataGridTextColumn Header="税率" Width="75" IsReadOnly="True" Binding="{Binding TaxRate, StringFormat=P0}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
+
                 <DataGridTextColumn Header="Link SKU" Width="120" IsReadOnly="True" Binding="{Binding LinkSku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
+
                 <DataGridTextColumn Header="标准中文描述" Width="180" IsReadOnly="True" Binding="{Binding DescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" />
+
                 <DataGridTextColumn Header="分类" Width="120" IsReadOnly="True" Binding="{Binding CategoryName}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
             </DataGrid.Columns>
         </DataGrid>
         <Grid Grid.Row="6">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
             <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" Margin="16,0" VerticalAlignment="Center" />
             <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}" />

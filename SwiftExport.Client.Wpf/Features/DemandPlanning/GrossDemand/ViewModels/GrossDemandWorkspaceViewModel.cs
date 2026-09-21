@@ -11,8 +11,8 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
-using System.Collections.Specialized;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
@@ -54,7 +54,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         _dialogService = dialogService;
         _messageService = messageService;
         ManualEditor = manualEditor;
-        Title = "毛需求";
+        Title = "成品需求";
         ManualEditor.PropertyChanged += OnManualEditorPropertyChanged;
         ManualEditor.Saved += OnManualSaved;
 

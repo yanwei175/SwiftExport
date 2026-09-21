@@ -35,7 +35,7 @@
     <!-- 建议整体输入框高度控制在 30 左右 -->    
     <system:Double x:Key="TextControlThemeMinHeight">30</system:Double>
     <system:Double x:Key="TextControlThemeMinWidth">0</system:Double>
-    
+
     <!-- ========================================================= -->
     <!-- ListView / TreeView -->
     <!-- ========================================================= -->
@@ -84,6 +84,9 @@
     <!--#endregion -->
 
     <!--#region 自定义设置 -->
+    
+    <system:Double x:Key="UserDatePickerCalendarButtonHeight">24</system:Double>
+    <Thickness x:Key="UserDatePickerCalendarButtonMargin">0,0,4,0</Thickness>
     
     <CornerRadius x:Key="SwiftExportCornerRadius">6</CornerRadius>
     <CornerRadius x:Key="SwiftExportControlCornerRadius">4</CornerRadius>

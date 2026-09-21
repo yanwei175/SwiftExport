@@ -17,77 +17,67 @@
     <UserControl.Resources>
         <salesComponents:SalesOrderStateTextConverter x:Key="SalesOrderStateTextConverter" />
         <Style x:Key="SalesOrderToolbarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="MinWidth" Value="70" />
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="12,8">
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
+            <RowDefinition Height="8" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
+        
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*" HorizontalAlignment="Stretch">
+                <TextBlock Text="销售订单管理" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="订单号、客户、客户PO、发票号">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
 
-        <!--搜索条件1-->
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
+
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+
+                    <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0" 
+                               VerticalAlignment="Stretch" MinWidth="70"/>
+                </StackPanel>
+            </Grid>
             
-            <ui:TextBox Grid.Column="0"
-                     MinHeight="32"
-                     VerticalContentAlignment="Center"
-                     PlaceholderText="订单号、客户、客户PO、发票号"
-                     Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
-                <ui:TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                </ui:TextBox.InputBindings>
-            </ui:TextBox>
+            <StackPanel Grid.Row="2">
+                <DockPanel Grid.Row="2" >
+                    <Button Content="新建订单" Command="{Binding OpenNewCommand}" Style="{StaticResource SalesOrderToolbarButton}"/>
 
-            <ui:Button Grid.Column="2" Width="36" 
-                       Appearance="Primary"
-                       Icon="{ui:SymbolIcon Symbol=Search24}"
-                    Command="{Binding SearchCommand}" ToolTip="查询"/>
+                    <ui:Button Content="打开订单" Command="{Binding OpenSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}"  />
 
-            <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding OpenNewCommand}"  Margin="0,0,4,0" Padding="8,4">
-                    <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="Add24" /><TextBlock Margin="6,0,0,0" Text="新建" /></StackPanel>
-                </Button>
-                <Button Command="{Binding OpenSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="打开" />
-                <Button Command="{Binding OpenFulfillmentDetailCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="履约详情" />
-                <Button Command="{Binding ConfirmSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="确认" />
-                
-                <Button Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="取消确认" />
-                
-                <Button Command="{Binding CloseSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="关闭" />
-                <Button Command="{Binding DeleteDraftCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="删除草稿" />
-                <Button Command="{Binding RefreshCommand}" Style="{StaticResource SalesOrderToolbarButton}">
-                    <StackPanel Orientation="Horizontal"><ui:SymbolIcon Symbol="ArrowClockwise24" /><TextBlock Margin="6,0,0,0" Text="刷新" /></StackPanel>
-                </Button>
-            </StackPanel>
-        </Grid>
+                    <Button Content="履约详情" Command="{Binding OpenFulfillmentDetailCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
 
-        <!--搜索条件2-->
-        <StackPanel Grid.Row="2" Margin="0,0,0,4">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="130" /><ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="125" /><ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="125" /><ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="120" /><ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="120" /><ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <ui:AutoSuggestBox Grid.Column="0"
+                    <Button Content="确认订单" Command="{Binding ConfirmSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
+
+                    <ui:Button Content="取消确认"  Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}"/>
+
+                    <ui:Button Content="关闭订单"  Command="{Binding CloseSelectedCommand}" Margin="0,0,8,0" MinWidth="70"
+                           Foreground="{DynamicResource UserTextFillColorInverseBrush}"
+                           Appearance="Danger"/>
+
+                    <Button Command="{Binding DeleteDraftCommand}" Style="{StaticResource SalesOrderToolbarButton}" Content="删除草稿" />
+                    
+                    <Separator Margin="0,0,8,0"/>
+                    
+                    <!--待换成CustomerAutoSuggestComboBox-->
+                    <ui:AutoSuggestBox Grid.Column="0" Margin="0,0,8,0" Width="130"
                                    ToolTip="客户代码"
                                    PlaceholderText="客户代码"
                                    ClearButtonEnabled="True"
@@ -96,47 +86,31 @@
                                    OriginalItemsSource="{Binding CustomerCodeOptions}"
                                    Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
-                <DatePicker SelectedDateFormat="Short" Grid.Column="2"
-                            ToolTip="订单日期起"
-                            ToolTipService.ToolTip="订单日期从"
-                            ToolTipService.Placement="Bottom"
-                            ToolTipService.InitialShowDelay="100"
-                            SelectedDate="{Binding OrderDateFrom}"/>
-
-                <DatePicker SelectedDateFormat="Short" Grid.Column="4" 
-                            ToolTip="订单日期至"
-                            ToolTipService.Placement="Bottom"
-                            ToolTipService.InitialShowDelay="100"
-                            SelectedDate="{Binding OrderDateTo}" />
-                
-                <controls:DropDownCheckBox Grid.Column="6"
+                    <controls:DropDownCheckBox Grid.Column="6" Margin="0,0,8,0"
                                            ToolTip="确认状态"
                                            Placeholder="确认状态"
                                            DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding ConfirmationStatusOptions}"
                                            SelectedItems="{Binding SelectedConfirmationStatuses, Mode=OneWay}" />
-                <controls:DropDownCheckBox Grid.Column="8"
+                    <controls:DropDownCheckBox Grid.Column="8" Margin="0,0,8,0"
                                            ToolTip="单据状态"
                                            Placeholder="单据状态"
                                            DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding DocumentStatusOptions}"
                                            SelectedItems="{Binding SelectedDocumentStatuses, Mode=OneWay}" />
-                <ToggleButton Grid.Column="10"
-                              Content="更多条件"
+                    <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Grid.Column="10"
+                              Margin="0,0,8,0"
                               IsChecked="{Binding IsAdvancedFilterOpen, Mode=TwoWay}"
-                              MinHeight="34"
                               HorizontalAlignment="Left" />
-                <Button Grid.Column="12"
-                        Command="{Binding ClearFiltersCommand}" 
-                        Content="清空筛选" />
-            </Grid>
 
-            <TextBlock Margin="0,4,0,0"
+                    <TextBlock Margin="0,0,8,0"
                        Style="{StaticResource CaptionTextBlock}"
                        Foreground="Gray"
                        Text="交付统计待接入；已发、未发及履约状态当前显示为未知。" />
+                </DockPanel>
 
-            <Popup IsOpen="{Binding IsAdvancedFilterOpen, Mode=TwoWay}"
+
+                <Popup IsOpen="{Binding IsAdvancedFilterOpen, Mode=TwoWay}"
                    Placement="Bottom"
                    PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
                    Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
@@ -144,58 +118,62 @@
                    AllowsTransparency="True"
                    PopupAnimation="Fade"
                    StaysOpen="True">
-                <Border Padding="6"
-                        Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                    <Border Padding="8"
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
                         BorderThickness="1"
                         CornerRadius="4">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="180" />
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="125" />
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="125" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" MinHeight="120">
 
-                        <ui:TextBox Grid.Column="0" PlaceholderText="订单号" 
+                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text=" 订单日期起 : " Margin="0,0,8,0"/>
+
+                                <DatePicker Grid.Row="0" Grid.Column="1" Margin="0,0,8,8"  VerticalAlignment="Top" 
+                                        SelectedDateFormat="Short"
+                                        SelectedDate="{Binding OrderDateFrom}"/>
+
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text=" 订单日期至 : " Margin="0,0,8,0"/>
+                                <DatePicker Grid.Row="0" Grid.Column="3" Margin="0,0,8,0" VerticalAlignment="Top" 
+                                        SelectedDateFormat="Short"  
+                                        SelectedDate="{Binding OrderDateTo}" />
+
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text=" 订单交期起 : " Margin="0,0,8,0"/>
+                                <DatePicker Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Top"
+                                        SelectedDateFormat="Short"  
+                                        SelectedDate="{Binding DeliveryDateFrom}" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text=" 订单交期至 : " Margin="0,0,8,0"/>
+                                <DatePicker Grid.Row="1" Grid.Column="3" Margin="0,0,8,0" VerticalAlignment="Top" 
+                                        SelectedDateFormat="Short" 
+                                        SelectedDate="{Binding DeliveryDateTo}" />
+                            </Grid>
+                            <ui:TextBox  Width="140" Margin="0,0,8,0"
+                                    PlaceholderText="订单号" VerticalAlignment="Top"
                                     Text="{Binding OrderNo, UpdateSourceTrigger=PropertyChanged}" />
-                        
-                        <ui:TextBox Grid.Column="2" PlaceholderText="客户PO" 
-                                    Text="{Binding CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
-                        
-                        <ui:TextBox Grid.Column="4" PlaceholderText="发票号" 
-                                    Text="{Binding InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
-                        
-                        <ui:TextBox Grid.Column="6"
-                                    PlaceholderText="多行客户型号"
-                                    ClearButtonEnabled="False"
-                                    controls:PopupTextBoxAssist.IsEnabled="True"
-                                    Height="{DynamicResource SwiftExportControlHeight}"
-                                    Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
-                        
-                        <DatePicker SelectedDateFormat="Short" Grid.Column="8"
-                                    ToolTip="交期起"
-                                    ToolTipService.Placement="Bottom"
-                                    ToolTipService.InitialShowDelay="100"
-                                    SelectedDate="{Binding DeliveryDateFrom}" />
-                        <DatePicker SelectedDateFormat="Short" Grid.Column="10"
-                                    ToolTip="交期至"
-                                    ToolTipService.Placement="Bottom"
-                                    ToolTipService.InitialShowDelay="100"
-                                    SelectedDate="{Binding DeliveryDateTo}" />
-                    </Grid>
-                </Border>
-            </Popup>
-        </StackPanel>
 
-        <Grid Grid.Row="4">
+                            <ui:TextBox  Width="140" Margin="0,0,8,0"
+                                    PlaceholderText="客户PO" VerticalAlignment="Top"
+                                    Text="{Binding CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <ui:TextBox  Width="140" Margin="0,0,8,0"
+                                    PlaceholderText="发票号" VerticalAlignment="Top"
+                                    Text="{Binding InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <ui:TextBox  Width="220" Margin="0,0,8,0"
+                                    PlaceholderText="多行客户型号"
+                                    AcceptsReturn="True"
+                                    TextWrapping="Wrap"
+                                    Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Border>
+                </Popup>
+            </StackPanel>
+        </Grid>
+
+
+        <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="3*"/>
                 <RowDefinition Height="6"/>

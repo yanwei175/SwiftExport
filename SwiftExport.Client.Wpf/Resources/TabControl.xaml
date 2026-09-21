@@ -3,17 +3,19 @@
                     xmlns:shell="clr-namespace:SwiftExportClient.Shell"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <!-- Shell 页签只呈现标题；保活内容宿主位于模板内，以保留从内容到 TabControl 的原生键盘路由。 -->
-    <Style x:Key="ShellHeaderOnlyTabControlStyle"
-           TargetType="{x:Type TabControl}"
-           BasedOn="{StaticResource {x:Type TabControl}}">
+    <Style x:Key="ShellHeaderOnlyTabControlStyle" TargetType="{x:Type TabControl}" BasedOn="{StaticResource {x:Type TabControl}}">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type TabControl}">
-                    <Grid Background="{TemplateBinding Background}" RowDefinitions="Auto,*">
+                    
+                        <Grid Background="{TemplateBinding Background}" RowDefinitions="Auto,*">
                         <WrapPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1" />
-                        <shell:KeepAliveTabContentHost Grid.Row="1"
+                        <Border Grid.Row="1" BorderThickness="0,0.5,0,0" 
+                                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}">
+                            <shell:KeepAliveTabContentHost Grid.Row="1"
                                                        ItemsSource="{TemplateBinding ItemsSource}"
                                                        SelectedItem="{TemplateBinding SelectedItem}" />
+                        </Border>
                     </Grid>
                 </ControlTemplate>
             </Setter.Value>
@@ -26,7 +28,7 @@
         未选中标签之间的竖线
         鼠标悬停背景
         选中标签和内容区域连成一体-->
-    <Style x:Key="SwiftExportTabItemStyle"       TargetType="{x:Type TabItem}"       BasedOn="{StaticResource {x:Type TabItem}}">
+    <Style x:Key="SwiftExportTabItemStyle" TargetType="{x:Type TabItem}" BasedOn="{StaticResource {x:Type TabItem}}">
 
         <Setter Property="MinWidth" Value="150" />
         <Setter Property="Height" Value="35" />
@@ -44,19 +46,19 @@
                 <ControlTemplate TargetType="{x:Type TabItem}">
                     <Grid>
                         <Border x:Name="TabSurface"
-                        Margin="0,4,0,0"
-                        Padding="4,0,4,0"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="8,8,0,0"
-                        SnapsToDevicePixels="True">
+                                    Margin="0,4,0,0"
+                                    Padding="4,0,4,0"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8,8,0,0"
+                                    SnapsToDevicePixels="True">
 
                             <ContentPresenter
-                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                        VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                        ContentSource="Header"
-                        RecognizesAccessKey="True" />
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                    ContentSource="Header"
+                                    RecognizesAccessKey="True" />
                         </Border>
                     </Grid>
 

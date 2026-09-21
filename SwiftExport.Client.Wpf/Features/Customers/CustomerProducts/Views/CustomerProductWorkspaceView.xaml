@@ -33,7 +33,8 @@
             </Grid.ColumnDefinitions>
             <TextBlock VerticalAlignment="Center"
                        Text="当前客户" />
-            <controls:LookupTextBox Grid.Column="2"
+            <controls:LookupTextBox Grid.Column="2" StretchToHost="True"
+                                    ShowDropDownButton="True"
                                     Placeholder="输入客户代码或名称"
                                     SearchMode="Remote"
                                     MinimumSearchLength="1"

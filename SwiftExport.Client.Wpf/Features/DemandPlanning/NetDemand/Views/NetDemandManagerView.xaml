@@ -125,49 +125,46 @@
             <Grid Grid.Row="2" ColumnDefinitions="Auto,8,*">
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <ui:Button Command="{Binding EstablishFromSourcesCommand}" Margin="0,0,8,0" 
-                               Appearance="Info"
-                               Content="从来源需求建立" />
+                    <ui:Button Content="从来源需求建立" Margin="0,0,8,0" 
+                               Command="{Binding EstablishFromSourcesCommand}" 
+                               Appearance="Info"/>
 
-                    <ui:Button Command="{Binding RollbackSourceEstablishmentCommand}" Margin="0,0,8,0" 
-                            Content="安全回退" />
+                    <ui:Button Content="安全回退"  Margin="0,0,8,0" 
+                               Command="{Binding RollbackSourceEstablishmentCommand}"/>
 
-                    <ui:Button Command="{Binding SaveSuggestedSuppliersCommand}" Margin="0,0,8,0" 
-                            Content="保存默认供应商"
-                            AutomationProperties.Name="保存推荐采购供应商修改" />
+                    <ui:Button Content="保存默认供应商" Margin="0,0,8,0" 
+                               Command="{Binding SaveSuggestedSuppliersCommand}"/>
 
-                    <ui:Button Command="{Binding CancelSuggestedSupplierChangesCommand}" Margin="0,0,8,0" 
-                            Content="取消修改"
-                            AutomationProperties.Name="还原未保存的推荐采购供应商修改" />
+                    <ui:Button Content="取消修改" Margin="0,0,8,0" 
+                               Command="{Binding CancelSuggestedSupplierChangesCommand}"/>
 
+                    <ToggleButton Content="来源单号" Margin="0,0,8,0"                                   
+                                  Command="{Binding ToggleSourcePanelCommand}"
+                                  IsChecked="{Binding IsSourcePanelOpen, Mode=OneWay}"
+                                  HorizontalAlignment="Left" />
+
+                    <controls:DropDownCheckBox Placeholder="来源类型"  Margin="0,0,8,0"                                                
+                                               DisplayMemberPath="DisplayText"
+                                               ItemsSource="{Binding SourceTypeOptions}" 
+                                               SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
+
+                    <ComboBox Grid.Column="4" MinWidth="120" Margin="0,0,8,0" 
+                              VerticalContentAlignment="Center"
+                              ItemsSource="{Binding DemandRoleOptions}" 
+                              DisplayMemberPath="DisplayText"
+                              SelectedItem="{Binding SelectedDemandRole}" />
+
+                    <ToggleButton Content="更多条件" Margin="0,0,8,0" 
+                                  IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
+                                  HorizontalAlignment="Left" />
+                    
                 </StackPanel>
             </Grid>
 
             <StackPanel Grid.Row="4">
                 <Grid ColumnDefinitions="Auto,8,Auto,8,Auto,8,Auto,8,Auto,8,Auto,*">
-                    <ToggleButton Grid.Column="0"
-                                  Content="来源单号"
-                                  VerticalAlignment="Stretch"
-                                  Command="{Binding ToggleSourcePanelCommand}"
-                                  IsChecked="{Binding IsSourcePanelOpen, Mode=OneWay}"
-                                  HorizontalAlignment="Left" />
+                    
 
-                    <controls:DropDownCheckBox Grid.Column="2" 
-                                               Placeholder="来源类型" 
-                                               DisplayMemberPath="DisplayText"
-                                               ItemsSource="{Binding SourceTypeOptions}" 
-                                               SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}" />
-
-                    <ComboBox Grid.Column="4" MinWidth="120"
-                              ItemsSource="{Binding DemandRoleOptions}" 
-                              DisplayMemberPath="DisplayText"
-                              SelectedItem="{Binding SelectedDemandRole}" />
-
-                    <ToggleButton Grid.Column="6"
-                                  Content="更多条件"
-                                  IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
-                                  MinHeight="34"
-                                  HorizontalAlignment="Left" />
 
                 </Grid>
                 <Popup IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
@@ -179,31 +176,29 @@
                        PopupAnimation="Fade"
                        StaysOpen="True">
                     <Border Padding="6"
-                            Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                            Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                             BorderThickness="1"
                             CornerRadius="4">
                         <StackPanel Margin="0,4" Orientation="Horizontal">
-                            <Grid Margin="0,0,8,0" ColumnDefinitions="Auto,4,Auto,*" VerticalAlignment="Top" >
-                                <DatePicker  Grid.Column="0" 
-                                            ToolTip="需求交期起"
-                                            SelectedDate="{Binding DemandRequiredDateFrom}" />
-                                <DatePicker  Grid.Column="2"
-                                            ToolTip="需求交期至"
-                                            SelectedDate="{Binding DemandRequiredDateTo}" />
-                            </Grid>
+                            <TextBlock Text=" 需求交期起 : "/>
+                            <DatePicker  Margin="0,0,8,0" VerticalAlignment="Top" SelectedDate="{Binding DemandRequiredDateFrom}" />
+                            
+                            <TextBlock Text=" 需求交期至 : "/>
+                            <DatePicker  Margin="0,0,8,0" VerticalAlignment="Top" SelectedDate="{Binding DemandRequiredDateTo}" />
+
                             <Separator Height="4" Background="Transparent" BorderThickness="0"/>
 
-                            <Grid ColumnDefinitions="*,4,*,4,*,4,*,4,*,4,*,4,*">
-                                <ui:TextBox Grid.Column="0" PlaceholderText="来源单号（支持多行）"
+                            <ui:TextBox Margin="0,0,8,0" Width="210" Height="220" PlaceholderText="来源单号（支持多行）"
                                             Text="{Binding SourceNosText}" AcceptsReturn="True" TextWrapping="Wrap"
-                                            VerticalAlignment="Top" Height="220" Width="160" />
-                                <ui:TextBox Grid.Column="2" PlaceholderText="SKU（支持多行）"
+                                            VerticalAlignment="Top"/>
+                            
+                            <ui:TextBox Margin="0,0,8,0" Width="210" Height="220" PlaceholderText="SKU（支持多行）"
                                             Text="{Binding SkusText}" AcceptsReturn="True" TextWrapping="Wrap"
-                                            VerticalAlignment="Top" Height="220" Width="160"/>
-                                <ui:TextBox Grid.Column="4" PlaceholderText="客户型号（支持多行）"
+                                            VerticalAlignment="Top" />
+                            
+                            <ui:TextBox Margin="0,0,8,0" Width="210" Height="220" PlaceholderText="客户型号（支持多行）"
                                             Text="{Binding CustomerSkusText}" AcceptsReturn="True" TextWrapping="Wrap"
-                                            VerticalAlignment="Top" Height="220" Width="160"/>
-                            </Grid>
+                                            VerticalAlignment="Top"/>
 
                         </StackPanel>
                     </Border>
@@ -217,8 +212,8 @@
                           IsReadOnly="{Binding IsReadOnly}"
                           RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
-                      FrozenColumnCount="8"
-                          SelectionMode="Single"
+                          FrozenColumnCount="8"
+                          SelectionMode="Extended"
                           SelectionUnit="FullRow"
                           EnableRowVirtualization="True" 
                           EnableColumnVirtualization="True"
@@ -341,9 +336,10 @@
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding SuggestedPurchaseSupplierDisplay}"
-                                                   ToolTip="{Binding SuggestedPurchaseSupplierName}">
+                                           ToolTip="{Binding SuggestedPurchaseSupplierName}">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}">
+                                            
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding SuggestedPurchaseSupplierDisplay}" Value="未设置">
                                                     <Setter Property="Foreground" Value="{DynamicResource UserSystemFillColorCautionBrush}"/>
@@ -356,7 +352,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
-                                <procurementComponents:PurchaseSupplierLookupTextBox
+                                <procurementComponents:PurchaseSupplierLookupTextBox 
                                             ItemsSource="{Binding DataContext.SuggestedSupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             SelectedSupplier="{Binding SuggestedPurchaseSupplierSelection, Mode=OneWay}"
                                             SearchCommand="{Binding DataContext.SearchSuggestedSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"

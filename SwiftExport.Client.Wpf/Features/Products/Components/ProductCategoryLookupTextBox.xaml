@@ -32,7 +32,7 @@
         </Style>
     </UserControl.Resources>
 
-    <controls:LookupTextBox x:Name="LookupEditor"
+    <controls:LookupTextBox x:Name="LookupEditor" ShowDropDownButton="True"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
                             FontSize="{Binding FontSize, ElementName=Root}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"

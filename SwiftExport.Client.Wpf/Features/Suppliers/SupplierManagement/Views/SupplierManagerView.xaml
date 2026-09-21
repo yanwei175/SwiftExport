@@ -92,7 +92,12 @@
                 </DataGrid>
             </controls:RightDrawerHost.MainContent>
             <controls:RightDrawerHost.DrawerContentTemplate>
-                <DataTemplate><drawerViews:SupplierProductManagerView /></DataTemplate>
+                <DataTemplate>
+                    <Border Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}">
+                        
+                    <drawerViews:SupplierProductManagerView />
+                    </Border>
+                </DataTemplate>
             </controls:RightDrawerHost.DrawerContentTemplate>
         </controls:RightDrawerHost>
 
