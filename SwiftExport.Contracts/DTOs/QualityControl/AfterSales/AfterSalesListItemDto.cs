@@ -11,6 +11,8 @@ namespace SwiftExport.Contracts.DTOs.QualityControl.AfterSales
     public Guid Uid { get; set; }
     /// <summary>并发版本。</summary>
     public int Version { get; set; } = 1;
+    /// <summary>单头客户投诉单号，允许为空及重复。</summary>
+    public string CustomerComplaintNo { get; set; }
     /// <summary>售后单号。</summary>
     public string AfterSalesNo { get; set; } = string.Empty;
     /// <summary>客户身份。</summary>
@@ -35,11 +37,10 @@ namespace SwiftExport.Contracts.DTOs.QualityControl.AfterSales
     public string IssueModels { get; set; } = string.Empty;
     /// <summary>责任方摘要。</summary>
     public string ResponsibleSuppliers { get; set; } = string.Empty;
-    /// <summary>已知人民币金额。</summary>
+    /// <summary>单头已知人民币成本；未定时投影为零，须结合未定标记展示。</summary>
     public decimal KnownAmountCny { get; set; }
-    /// <summary>存在未定费用。</summary>
+    /// <summary>单头人民币成本是否未定，不再表示多行汇总。</summary>
     public bool HasUndeterminedAmount { get; set; }
 
     }
 }
-

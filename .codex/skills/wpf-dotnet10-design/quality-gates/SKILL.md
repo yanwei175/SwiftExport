@@ -13,9 +13,8 @@ description: SwiftExport .NET 10 WPF 测试与非功能质量门禁。用于决�
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/frontend.toml`
-- `.agents/workflows/前端NET10工作流.md`
+公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
+
 - `.agents/references/测试与验收总纲.md`
 - `../feature-page/SKILL.md`
 - `references/前端质量门禁矩阵.md`

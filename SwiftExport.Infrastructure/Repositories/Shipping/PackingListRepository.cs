@@ -153,7 +153,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
         }, cancellationToken));
     }
 
-    /// <summary>读取默认包装与客户参考号；销售取客户 PO，售后取客户投诉单号，仅作箱单行快照补充。</summary>
+    /// <summary>读取默认包装与客户参考号；销售取客户 PO，售后取单头客户投诉单号，仅作箱单行快照补充。</summary>
     public async Task<IReadOnlyList<PackingListSourceEnrichment>> GetSourceEnrichmentsAsync(
         IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default)
     {
@@ -167,7 +167,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
                    CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL
                         THEN soh.CustomerPoNo
                         WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL
-                        THEN asl.CustomerComplaintNo END AS CustomerPoNo
+                        THEN ash.CustomerComplaintNo END AS CustomerPoNo
             FROM dbo.GrossDemand g
             LEFT JOIN dbo.SalesOrderHeader soh ON g.SourceType=N'SO' AND soh.Uid=g.SourceUid
                 AND soh.CustomerId=g.CustomerId AND soh.IsDeleted=0

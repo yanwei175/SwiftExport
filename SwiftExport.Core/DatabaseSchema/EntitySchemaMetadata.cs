@@ -319,20 +319,21 @@ namespace SwiftExport.Core.Entities.Shipping
 namespace SwiftExport.Core.Entities.QualityControl
 {
     [DbCheck("CK_AfterSalesHeader_Status", "[DocumentStatus] IN (0, 8, 9) AND [ConfirmationStatus] IN (0, 1)")]
+    [DbCheck("CK_AfterSalesHeader_Amount", "[ServiceAmountCny] IS NULL OR [ServiceAmountCny] >= 0")]
+    [DbIndex("IX_AfterSalesHeader_Supplier", nameof(AfterSalesHeader.ResponsibleSupplierId), Filter = "[IsDeleted] = 0")]
     [DbIndex("UX_AfterSalesHeader_No", nameof(AfterSalesHeader.AfterSalesNo), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(AfterSalesHeader.CustomerId), typeof(Customer), IsRequired = true)]
     [LogicalReference(nameof(AfterSalesHeader.OwnerId), typeof(SysUser))]
+    [LogicalReference(nameof(AfterSalesHeader.OriginalSalesOrderLineId), typeof(SalesOrderLine))]
+    [LogicalReference(nameof(AfterSalesHeader.ResponsibleSupplierId), typeof(Supplier))]
+    [LogicalReference(nameof(AfterSalesHeader.IssueProductId), typeof(Product))]
     public sealed partial class AfterSalesHeader { }
 
     [DbCheck("CK_AfterSalesLine_Line", "[LineNumber] > 0")]
-    [DbCheck("CK_AfterSalesLine_Quantity", "[Quantity] IS NULL OR [Quantity] > 0")]
+    [DbCheck("CK_AfterSalesLine_Quantity", "[Quantity] IS NULL OR [Quantity] >= 0")]
     [DbIndex("UX_AfterSalesLine_Head_Line", nameof(AfterSalesLine.HeaderId), nameof(AfterSalesLine.LineNumber), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(AfterSalesLine.HeaderId), typeof(AfterSalesHeader), IsRequired = true)]
-    [LogicalReference(nameof(AfterSalesLine.OriginalSalesOrderLineId), typeof(SalesOrderLine))]
-    [LogicalReference(nameof(AfterSalesLine.ResponsibleSupplierId), typeof(Supplier))]
-    [LogicalReference(nameof(AfterSalesLine.IssueProductId), typeof(Product))]
     [LogicalReference(nameof(AfterSalesLine.ProductId), typeof(Product))]
-    [LogicalReference(nameof(AfterSalesLine.IssueColorId), typeof(ProductColor))]
     [LogicalReference(nameof(AfterSalesLine.ColorId), typeof(ProductColor))]
     public sealed partial class AfterSalesLine { }
 }

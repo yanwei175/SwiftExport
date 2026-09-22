@@ -22,14 +22,11 @@ description: SwiftExport 当前 .NET 10 WPF 客户端的 CommunityToolkit.Mvvm �
 
 ## 必读上下文
 
+公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
+
 执行前先读：
 
-- `AGENTS.md`
-- `.agents/router.toml`
-- `.agents/frontend.toml`
-- `.agents/workflows/前端NET10工作流.md`
 - `.agents/references/工程架构总纲.md`
-- `.codex/skills/wpf-dotnet10-design/index/SKILL.md`
 - 目标页面和目标模型的真实源码
 
 本 skill 已根据本地 `mvvm-toolkit-samples` 中的 `ObservableObject`、`RelayCommand`、`AsyncRelayCommand`、`ObservableValidator`、`Ioc` 参考资料项目化；不要再照搬 sample app 的通用命名和结构。

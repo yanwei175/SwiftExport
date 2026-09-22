@@ -7,9 +7,8 @@ description: SwiftExport WebApi Controller 边界技能。用于新增或修改 
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/backend.toml`
-- `.agents/workflows/后端API工作流.md`
+公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
+
 - `SwiftExport.WebApi/Controllers/Base/BaseController.cs`
 - 涉及 API/Application 时读 `../api-application-service/SKILL.md`
 - 涉及 Contracts/Refit 时读 `../contracts-refit-dto/SKILL.md`

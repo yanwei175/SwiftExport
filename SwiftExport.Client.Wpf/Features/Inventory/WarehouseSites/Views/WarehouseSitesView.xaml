@@ -88,7 +88,6 @@
                                   IsResizable="True">
                 <controls:RightDrawerHost.MainContent>
                     <DataGrid ItemsSource="{Binding Items}" 
-                          Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
                           SelectedItem="{Binding SelectedItem}"
                           SelectionChanged="WarehouseGrid_OnSelectionChanged"
                           RowHeight="{DynamicResource DataGridRowHeightSmall}"

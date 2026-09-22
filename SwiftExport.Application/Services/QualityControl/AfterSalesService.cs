@@ -72,20 +72,21 @@ public sealed class AfterSalesService(
             if (uid==Guid.Empty || uid!=command.Uid) Fail("VALIDATION","单据身份不能为空且必须与路由一致。","Uid");
             if (command.Header is null || command.AddedLines is null || command.UpdatedLines is null || command.DeletedLines is null)
                 Fail("VALIDATION","单头与行变更集合不能为空。");
+            var added = command.AddedLines.Where(x => !AfterSalesPolicy.IsEmptyPlaceholder(x)).ToList();
             var head = create ? new AfterSalesHeader { Uid=uid } : await RequireHeaderAsync(uid,true);
             if (create && await repository.GetHeaderAsync(uid,true) is not null) Fail("VERSION_CONFLICT","单据身份已存在。");
             if (!create) RequireVersion(head,command.Version);
             RequireOpen(head);
             var all = (await repository.GetLinesAsync(uid,true)).ToList();
             var existing = all.Where(x=>!x.IsDeleted).ToDictionary(x=>x.Uid);
-            var ids = command.AddedLines.Select(x=>x.Uid).Concat(command.UpdatedLines.Select(x=>x.Uid)).Concat(command.DeletedLines.Select(x=>x.Uid)).ToList();
+            var ids = added.Select(x=>x.Uid).Concat(command.UpdatedLines.Select(x=>x.Uid)).Concat(command.DeletedLines.Select(x=>x.Uid)).ToList();
             if (ids.Any(x=>x==Guid.Empty) || ids.Distinct().Count()!=ids.Count) Fail("VALIDATION","行身份为空或在多个变更集合中重复。");
             var confirmed=head.ConfirmationStatus==ConfirmationStatusEnum.已确认;
-            if (confirmed && (head.CustomerId!=command.Header.CustomerId || head.OwnerId!=command.Header.OwnerId
-                || head.AcceptedDate.Date!=command.Header.AcceptedDate.Date || head.ExpectedCompletionDate!=command.Header.ExpectedCompletionDate
-                || command.AddedLines.Count>0 || command.DeletedLines.Count>0))
+            if (confirmed && (!AfterSalesPolicy.LockedHeaderFactsEqual(head.Adapt<AfterSalesEditHeaderDto>(),command.Header)
+                || added.Count>0 || command.DeletedLines.Count>0))
                 Fail("BUSINESS_BLOCKED","确认后的单头事实和行结构已锁定，请先取消确认。");
 
+            var oldHeader=head.Adapt<AfterSalesHeader>();
             var previousCustomer=head.CustomerId;
             if (!confirmed)
             {
@@ -102,11 +103,12 @@ public sealed class AfterSalesService(
                 if (create && !head.OwnerId.HasValue) head.OwnerId=user.UserId;
                 if (head.OwnerId.HasValue) await ReferenceAsync("owners",head.OwnerId.Value,null,true,"Header.OwnerId");
             }
-            else head.Remark=command.Header.Remark;
+            else command.Header.Adapt(head);
+            await NormalizeHeaderAsync(head,create?null:oldHeader,confirmed);
 
             var writes=new List<(AfterSalesLine Line,bool Insert)>();
             var next=all.Count==0?1:all.Max(x=>x.LineNumber)+1;
-            foreach (var input in command.AddedLines)
+            foreach (var input in added)
             {
                 if (all.Any(x=>x.Uid==input.Uid)) Fail("VALIDATION","不能复用历史行身份。");
                 var line=input.Adapt<AfterSalesLine>();
@@ -132,14 +134,11 @@ public sealed class AfterSalesService(
                 if (line!.Version!=input.Version) Fail("VERSION_CONFLICT","删除行已变化。");
                 line.IsDeleted=true; writes.Add((line,false)); existing.Remove(line.Uid);
             }
-            if (existing.Count==0) Fail("VALIDATION","售后单至少保留一条投诉明细。","Lines");
-            // 换客户不能遗留其他客户的原订单引用；即使行未出现在修改集合也必须检查。
+            // 换客户时同步未进入修改集合的补件客户型号，保持同一客户的快照口径。
             if (previousCustomer!=head.CustomerId)
             {
                 foreach(var line in existing.Values)
                 {
-                    if(line.OriginalSalesOrderLineId.HasValue)
-                        await ReferenceAsync("sales-order-lines",line.OriginalSalesOrderLineId.Value,head.CustomerId,false,$"Lines[{line.Uid}].OriginalSalesOrderLineId");
                     if(!writes.Any(x=>x.Line.Uid==line.Uid))
                     {
                         var old=line.Adapt<AfterSalesLine>();
@@ -149,15 +148,7 @@ public sealed class AfterSalesService(
                 }
             }
             ValidateLengths(head);
-            foreach(var item in writes)
-            {
-                // 客户追溯信息在确认前后使用同一规则，不重新发布实物要求。
-                item.Line.CustomerComplaintNo=string.IsNullOrWhiteSpace(item.Line.CustomerComplaintNo)
-                    ? null : item.Line.CustomerComplaintNo.Trim();
-                if(item.Line.CustomerComplaintNo?.Length>100)
-                    Fail("VALIDATION","客户投诉单号不能超过100字。",$"Lines[{item.Line.Uid}].CustomerComplaintNo");
-                ValidateLengths(item.Line);
-            }
+            foreach(var item in writes) ValidateLengths(item.Line);
             if (create)
             {
                 var number=await numbering.GetNextDocumentNoAsync(new DocumentNoRequest {DocType="CR",BusinessDate=head.AcceptedDate,SerialWidth=4,Operator=user.UserName});
@@ -178,7 +169,9 @@ public sealed class AfterSalesService(
             if(head.ConfirmationStatus==ConfirmationStatusEnum.已确认) Fail("BUSINESS_BLOCKED","实物需求已经确认。");
             var positive=lines.Where(x=>x.Quantity>0).ToList();
             if(positive.Count==0) return; // 纯投诉不调用不接受空集合的来源服务。
-            await ReferenceAsync("customers",head.CustomerId,head.CustomerId,true,"CustomerId");
+            AfterSalesPolicy.ValidateHeader(head,true);
+            await ValidateHeaderReferencesAsync(head,true);
+            await ReferenceAsync("customers",head.CustomerId,head.CustomerId,true,"Header.CustomerId");
             foreach(var line in positive)
             {
                 AfterSalesPolicy.ValidateLine(line,true);
@@ -194,7 +187,7 @@ public sealed class AfterSalesService(
                     SourceLineId=x.Uid,SourceLineNumber=x.LineNumber,ProductId=x.ProductId,IsNonStandard=x.IsNonStandard,
                     SkuSnapshot=x.SkuSnapshot!,CustomerSkuSnapshot=x.CustomerSkuSnapshot,LinkSkuSnapshot=x.LinkSkuSnapshot,
                     DescriptionSnapshot=x.DescriptionSnapshot,ColorSnapshot=x.ColorSnapshot,SpecificationSnapshot=x.SpecificationSnapshot,
-                    UnitSnapshot=x.UnitSnapshot,DemandQty=x.Quantity!.Value,RequiredDate=x.RequiredDate,Remark=x.Remark }).ToList()
+                    UnitSnapshot=x.UnitSnapshot,DemandQty=x.Quantity!.Value,RequiredDate=head.RequiredDate,Remark=x.Remark }).ToList()
             });
             head.ConfirmationStatus=ConfirmationStatusEnum.已确认; head.DemandConfirmedAt=DateTime.Now; head.DemandConfirmedBy=user.UserName;
         },cancellationToken);
@@ -370,41 +363,55 @@ public sealed class AfterSalesService(
             line.LinkSkuSnapshot=null;
             line.CustomerSkuSnapshot=null;
         }
-        if(line.IssueProductId.HasValue && (old is null||old.IssueProductId!=line.IssueProductId))
-        {
-            var product=await ReferenceAsync("products",line.IssueProductId.Value,customerId,false,$"Lines[{line.Uid}].IssueProductId");
-            line.IssueSkuSnapshot=product.Code;line.IssueLinkSkuSnapshot=product.LinkSku;line.IssueCustomerSkuSnapshot=product.CustomerSku;
-            line.IssueProductDescription=product.Name;line.IssueColorId=product.ColorId;line.IssueColorSnapshot=product.ColorName;
-        }
-        else if(line.IssueProductId.HasValue && old is not null)
-        {
-            line.IssueSkuSnapshot=old.IssueSkuSnapshot;line.IssueLinkSkuSnapshot=old.IssueLinkSkuSnapshot;
-            line.IssueCustomerSkuSnapshot=customerChanged
-                ? (await ReferenceAsync("products",line.IssueProductId.Value,customerId,false,$"Lines[{line.Uid}].IssueProductId")).CustomerSku
-                : old.IssueCustomerSkuSnapshot;
-        }
         if(!line.ColorId.HasValue && old?.ColorId.HasValue==true) line.ColorSnapshot=null;
-        if(!line.IssueColorId.HasValue && old?.IssueColorId.HasValue==true) line.IssueColorSnapshot=null;
-        line.RequiredDate=line.RequiredDate?.Date;
-        line.ReturnedReceivedDate=line.ReturnedReceivedDate?.Date;
         if(line.ColorId.HasValue && (old is null||old.ColorId!=line.ColorId))
             line.ColorSnapshot=(await ReferenceAsync("colors",line.ColorId.Value,null,true,$"Lines[{line.Uid}].ColorId")).Name;
-        if(line.IssueColorId.HasValue && (old is null||old.IssueColorId!=line.IssueColorId))
-            line.IssueColorSnapshot=(await ReferenceAsync("colors",line.IssueColorId.Value,null,true,$"Lines[{line.Uid}].IssueColorId")).Name;
         AfterSalesPolicy.ValidateLine(line,false);
         await ValidateReferencesAsync(line,customerId,false,old);
     }
     private async Task ValidateReferencesAsync(AfterSalesLine line,Guid customerId,bool confirming,AfterSalesLine? old=null)
     {
         var prefix=$"Lines[{line.Uid}].";
-        if(line.ResponsibleSupplierId.HasValue) await ReferenceAsync("suppliers",line.ResponsibleSupplierId.Value,null,confirming||old?.ResponsibleSupplierId!=line.ResponsibleSupplierId,prefix+"ResponsibleSupplierId");
         if(line.ProductId.HasValue) await ReferenceAsync("products",line.ProductId.Value,customerId,confirming||old?.ProductId!=line.ProductId,prefix+"ProductId");
-        if(line.IssueProductId.HasValue) await ReferenceAsync("products",line.IssueProductId.Value,customerId,false,prefix+"IssueProductId");
-        if(line.OriginalSalesOrderLineId.HasValue) await ReferenceAsync("sales-order-lines",line.OriginalSalesOrderLineId.Value,customerId,false,prefix+"OriginalSalesOrderLineId");
-        if(line.QualityCategoryId.HasValue) await ReferenceAsync("quality-categories",line.QualityCategoryId.Value,null,confirming||old?.QualityCategoryId!=line.QualityCategoryId,prefix+"QualityCategoryId");
         if(line.ColorId.HasValue) await ReferenceAsync("colors",line.ColorId.Value,null,false,prefix+"ColorId");
-        if(line.IssueColorId.HasValue) await ReferenceAsync("colors",line.IssueColorId.Value,null,false,prefix+"IssueColorId");
     }
+    // 同一问题产品保留历史型号，重新选择身份或客户时才重新取快照。
+    private async Task NormalizeHeaderAsync(AfterSalesHeader head,AfterSalesHeader? old,bool confirmed)
+    {
+        head.CustomerComplaintNo=string.IsNullOrWhiteSpace(head.CustomerComplaintNo)?null:head.CustomerComplaintNo.Trim();
+        head.ReturnedReceivedDate=head.ReturnedReceivedDate?.Date;
+        if(!confirmed)
+        {
+            head.RequiredDate=head.RequiredDate?.Date;
+            if(head.IssueProductId.HasValue && head.IssueProductId!=old?.IssueProductId)
+            {
+                var product=await ReferenceAsync("products",head.IssueProductId.Value,head.CustomerId,false,"Header.IssueProductId");
+                head.IssueSkuSnapshot=product.Code; head.IssueLinkSkuSnapshot=product.LinkSku;
+                head.IssueCustomerSkuSnapshot=product.CustomerSku;
+            }
+            else if(head.IssueProductId.HasValue && old is not null)
+            {
+                head.IssueSkuSnapshot=old.IssueSkuSnapshot; head.IssueLinkSkuSnapshot=old.IssueLinkSkuSnapshot;
+                head.IssueCustomerSkuSnapshot=head.CustomerId!=old.CustomerId
+                    ? (await ReferenceAsync("products",head.IssueProductId.Value,head.CustomerId,false,"Header.IssueProductId")).CustomerSku
+                    : old.IssueCustomerSkuSnapshot;
+            }
+            await ValidateHeaderReferencesAsync(head,false,old);
+        }
+        AfterSalesPolicy.ValidateHeader(head,false);
+    }
+
+    // 分类仅保留可空身份；本次不接入尚未建设的品质分类功能。
+    private async Task ValidateHeaderReferencesAsync(AfterSalesHeader head,bool confirming,AfterSalesHeader? old=null)
+    {
+        if(head.ResponsibleSupplierId.HasValue)
+            await ReferenceAsync("suppliers",head.ResponsibleSupplierId.Value,null,confirming||old?.ResponsibleSupplierId!=head.ResponsibleSupplierId,"Header.ResponsibleSupplierId");
+        if(head.IssueProductId.HasValue)
+            await ReferenceAsync("products",head.IssueProductId.Value,head.CustomerId,false,"Header.IssueProductId");
+        if(head.OriginalSalesOrderLineId.HasValue)
+            await ReferenceAsync("sales-order-lines",head.OriginalSalesOrderLineId.Value,head.CustomerId,false,"Header.OriginalSalesOrderLineId");
+    }
+
     private async Task<AfterSalesLookupDto> ReferenceAsync(string kind,Guid uid,Guid? customerId,bool active,string field)
         => await repository.ReferenceAsync(kind,uid,customerId,active) ?? throw new AfterSalesException("VALIDATION","引用对象不存在、不适用或已停用。",field);
 
@@ -415,9 +422,9 @@ public sealed class AfterSalesService(
         {
             if(property.GetValue(entity) is not string value) continue;
             var max=property.Name is "IssueDescription" or "CauseAnalysis" or "TreatmentDescription" or "Remark" or "Conclusion"?2000:
-                property.Name is "DescriptionSnapshot" or "IssueProductDescription" or "SpecificationSnapshot"?500:
+                property.Name is "DescriptionSnapshot" or "SpecificationSnapshot"?500:
                 property.Name=="CustomerNameSnapshot"?200:100;
-            if(value.Length>max) Fail("VALIDATION",$"字段长度不能超过{max}。",property.Name);
+            if(value.Length>max) Fail("VALIDATION",$"字段长度不能超过{max}。",(entity is AfterSalesHeader ? "Header." : $"Lines[{((AfterSalesLine)entity).Uid}].")+property.Name);
         }
     }
 }

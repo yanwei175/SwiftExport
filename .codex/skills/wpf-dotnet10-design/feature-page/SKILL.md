@@ -7,9 +7,8 @@ description: SwiftExport.Client.Wpf 当前 .NET 10 WPF Feature 页面、ViewMode
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/frontend.toml`
-- `.agents/workflows/前端NET10工作流.md`
+公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
+
 - `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`
 - 页面涉及 ViewModel/API/Feature Service 职责、权限、普通表单验证、导航参数、Document Tab identity 或 Dialog 返回协议时，读 `.codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md`
 - 页面涉及异步加载、搜索防抖、保存/业务命令、Busy、导航/关闭、错误反馈或资源释放时，读 `.codex/skills/wpf-dotnet10-design/runtime-safety/SKILL.md`

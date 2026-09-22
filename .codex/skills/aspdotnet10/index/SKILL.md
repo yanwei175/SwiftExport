@@ -7,13 +7,7 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 
 ## 使用方式
 
-后端任务先读：
-
-1. `AGENTS.md`
-2. `.agents/router.toml`
-3. `.agents/backend.toml`
-4. `.agents/workflows/后端API工作流.md`
-5. 本技能组对应子 skill
+公共启动沿用 `AGENTS.md`；本入口只按业务任务选择对应子 Skill，不反向重读 Agent 和后端工作流。已读依赖按根规则复用。
 
 ## 子 Skill 路由
 

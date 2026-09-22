@@ -7,6 +7,8 @@ public sealed class AfterSalesManagerRowModel
 {
     public Guid Uid { get; set; }
     public int Version { get; set; }
+    /// <summary>单头客户投诉单号，允许为空及重复。</summary>
+    public string? CustomerComplaintNo { get; set; }
     public string AfterSalesNo { get; set; } = string.Empty;
     public string CustomerDisplay { get; set; } = string.Empty;
     public DateTime AcceptedDate { get; set; }

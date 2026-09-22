@@ -7,9 +7,8 @@ description: SwiftExport 后端 API 与 Application Service 开发规则。用�
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/backend.toml`
-- `.agents/workflows/后端API工作流.md`
+公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
+
 - `.agents/references/工程架构总纲.md`
 - 涉及 Controller、路由、HTTP 方法时读 `../webapi-controller-boundary/SKILL.md`
 - 涉及认证、当前用户、DevUser 时读 `../webapi-auth-current-user/SKILL.md`

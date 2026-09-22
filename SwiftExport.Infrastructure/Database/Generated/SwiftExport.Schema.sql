@@ -12,6 +12,9 @@ CREATE SEQUENCE [dbo].[InventoryLedgerSequence] AS bigint START WITH 1 INCREMENT
 
 -- 逻辑依赖: [CustomerId] -> [dbo].[Customer].[Uid]（由 Application 校验）
 -- 逻辑依赖: [OwnerId] -> [dbo].[SysUser].[Uid]（由 Application 校验）
+-- 逻辑依赖: [OriginalSalesOrderLineId] -> [dbo].[SalesOrderLine].[Uid]（由 Application 校验）
+-- 逻辑依赖: [ResponsibleSupplierId] -> [dbo].[Supplier].[Uid]（由 Application 校验）
+-- 逻辑依赖: [IssueProductId] -> [dbo].[Product].[Uid]（由 Application 校验）
 CREATE TABLE [dbo].[AfterSalesHeader]
 (
     [Uid] uniqueidentifier NOT NULL,
@@ -27,24 +30,35 @@ CREATE TABLE [dbo].[AfterSalesHeader]
     [CustomerNameSnapshot] nvarchar(500) NULL,
     [AcceptedDate] datetime2(7) NOT NULL,
     [OwnerId] uniqueidentifier NULL,
-    [DocumentStatus] int NOT NULL,
-    [ConfirmationStatus] int NOT NULL,
+    [DocumentStatus] tinyint NOT NULL,
+    [ConfirmationStatus] tinyint NOT NULL,
     [DemandConfirmedAt] datetime2(7) NULL,
     [DemandConfirmedBy] nvarchar(500) NULL,
     [ExpectedCompletionDate] datetime2(7) NULL,
     [Conclusion] nvarchar(2000) NULL,
     [Remark] nvarchar(2000) NULL,
+    [OriginalSalesOrderLineId] uniqueidentifier NULL,
+    [CustomerComplaintNo] nvarchar(100) NULL,
+    [ResponsibleSupplierId] uniqueidentifier NULL,
+    [IssueProductId] uniqueidentifier NULL,
+    [IssueSkuSnapshot] nvarchar(100) NULL,
+    [IssueCustomerSkuSnapshot] nvarchar(100) NULL,
+    [IssueLinkSkuSnapshot] nvarchar(100) NULL,
+    [IssueDescription] nvarchar(2000) NOT NULL,
+    [QualityCategoryId] uniqueidentifier NULL,
+    [CauseAnalysis] nvarchar(2000) NULL,
+    [RequiredDate] date NULL,
+    [ServiceAmountCny] decimal(18,2) NULL,
+    [ReturnedReceivedDate] date NULL,
+    [TreatmentDescription] nvarchar(2000) NULL,
     CONSTRAINT [PK_AfterSalesHeader] PRIMARY KEY ([Uid]),
+    CONSTRAINT [CK_AfterSalesHeader_Amount] CHECK ([ServiceAmountCny] IS NULL OR [ServiceAmountCny] >= 0),
     CONSTRAINT [CK_AfterSalesHeader_Status] CHECK ([DocumentStatus] IN (0, 8, 9) AND [ConfirmationStatus] IN (0, 1)),
     CONSTRAINT [CK_AfterSalesHeader_Version] CHECK ([Version] >= 1)
 );
 
 -- 逻辑依赖: [HeaderId] -> [dbo].[AfterSalesHeader].[Uid]（由 Application 校验）
--- 逻辑依赖: [OriginalSalesOrderLineId] -> [dbo].[SalesOrderLine].[Uid]（由 Application 校验）
--- 逻辑依赖: [ResponsibleSupplierId] -> [dbo].[Supplier].[Uid]（由 Application 校验）
--- 逻辑依赖: [IssueProductId] -> [dbo].[Product].[Uid]（由 Application 校验）
 -- 逻辑依赖: [ProductId] -> [dbo].[Product].[Uid]（由 Application 校验）
--- 逻辑依赖: [IssueColorId] -> [dbo].[ProductColor].[Uid]（由 Application 校验）
 -- 逻辑依赖: [ColorId] -> [dbo].[ProductColor].[Uid]（由 Application 校验）
 CREATE TABLE [dbo].[AfterSalesLine]
 (
@@ -57,19 +71,6 @@ CREATE TABLE [dbo].[AfterSalesLine]
     [UpdatedBy] nvarchar(500) NULL,
     [HeaderId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
-    [OriginalSalesOrderLineId] uniqueidentifier NULL,
-    [CustomerComplaintNo] nvarchar(100) NULL,
-    [ResponsibleSupplierId] uniqueidentifier NULL,
-    [IssueProductId] uniqueidentifier NULL,
-    [IssueSkuSnapshot] nvarchar(300) NULL,
-    [IssueCustomerSkuSnapshot] nvarchar(300) NULL,
-    [IssueLinkSkuSnapshot] nvarchar(300) NULL,
-    [IssueColorId] uniqueidentifier NULL,
-    [IssueColorSnapshot] nvarchar(500) NULL,
-    [IssueProductDescription] nvarchar(2000) NULL,
-    [IssueDescription] nvarchar(2000) NOT NULL,
-    [QualityCategoryId] uniqueidentifier NULL,
-    [CauseAnalysis] nvarchar(500) NULL,
     [ProductId] uniqueidentifier NULL,
     [IsNonStandard] bit NOT NULL,
     [SkuSnapshot] nvarchar(300) NULL,
@@ -81,14 +82,10 @@ CREATE TABLE [dbo].[AfterSalesLine]
     [SpecificationSnapshot] nvarchar(500) NULL,
     [Quantity] decimal(18,4) NULL,
     [UnitSnapshot] nvarchar(300) NOT NULL,
-    [RequiredDate] datetime2(7) NULL,
-    [ServiceAmountCny] decimal(18,4) NULL,
-    [ReturnedReceivedDate] datetime2(7) NULL,
-    [TreatmentDescription] nvarchar(2000) NULL,
     [Remark] nvarchar(2000) NULL,
     CONSTRAINT [PK_AfterSalesLine] PRIMARY KEY ([Uid]),
     CONSTRAINT [CK_AfterSalesLine_Line] CHECK ([LineNumber] > 0),
-    CONSTRAINT [CK_AfterSalesLine_Quantity] CHECK ([Quantity] IS NULL OR [Quantity] > 0),
+    CONSTRAINT [CK_AfterSalesLine_Quantity] CHECK ([Quantity] IS NULL OR [Quantity] >= 0),
     CONSTRAINT [CK_AfterSalesLine_Version] CHECK ([Version] >= 1)
 );
 
@@ -1499,6 +1496,7 @@ CREATE TABLE [dbo].[WarehouseSite]
     CONSTRAINT [CK_WarehouseSite_Version] CHECK ([Version] >= 1)
 );
 
+CREATE INDEX [IX_AfterSalesHeader_Supplier] ON [dbo].[AfterSalesHeader] ([ResponsibleSupplierId]) WHERE [IsDeleted] = 0;
 CREATE UNIQUE INDEX [UX_AfterSalesHeader_No] ON [dbo].[AfterSalesHeader] ([AfterSalesNo]) WHERE [IsDeleted] = 0;
 
 CREATE UNIQUE INDEX [UX_AfterSalesLine_Head_Line] ON [dbo].[AfterSalesLine] ([HeaderId], [LineNumber]) WHERE [IsDeleted] = 0;
@@ -1759,7 +1757,77 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
     @level2type=N'COLUMN', @level2name=N'Remark';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'保存售后问题与补发明细事实，不持有下游进度。',
+    @name=N'MS_Description', @value=N'原销售行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'OriginalSalesOrderLineId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户侧投诉单号，可空；开放单据确认后仍可补充，不影响实物要求。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CustomerComplaintNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'责任供应商。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'ResponsibleSupplierId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题成品身份。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'IssueProductId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题物料编号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'IssueSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题客户型号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'IssueCustomerSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'问题AQ型号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'IssueLinkSkuSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'投诉描述。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'IssueDescription';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'品质分类。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'QualityCategoryId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'原因分析。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'CauseAnalysis';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'要求交期。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'RequiredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'整单人民币售后成本，空未定、零免费、正数付费，不乘补件数量。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'ServiceAmountCny';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'退回品收到日期，不改变库存。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'ReturnedReceivedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'处理说明。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'TreatmentDescription';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存实际补件明细事实，不持有下游进度。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'AfterSalesLine';
 EXEC sys.sp_addextendedproperty
@@ -1807,71 +1875,6 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'AfterSalesLine',
     @level2type=N'COLUMN', @level2name=N'LineNumber';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'原销售行。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'OriginalSalesOrderLineId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'客户侧投诉单号，可空；开放单据确认后仍可补充，不影响实物要求。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'CustomerComplaintNo';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'责任供应商。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'ResponsibleSupplierId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题成品身份。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueProductId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题物料编号。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueSkuSnapshot';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题客户型号。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueCustomerSkuSnapshot';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题AQ型号。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueLinkSkuSnapshot';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题颜色。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueColorId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题颜色快照。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueColorSnapshot';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'问题产品描述。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueProductDescription';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'投诉描述。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'IssueDescription';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'品质分类。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'QualityCategoryId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'原因分析。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'CauseAnalysis';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'实际补发物料。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
@@ -1927,26 +1930,6 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'AfterSalesLine',
     @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'要求交期。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'RequiredDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'人民币行金额，空未定零免费。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'ServiceAmountCny';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'退回品收到日期，不改变库存。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'ReturnedReceivedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'处理说明。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'AfterSalesLine',
-    @level2type=N'COLUMN', @level2name=N'TreatmentDescription';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'行备注。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

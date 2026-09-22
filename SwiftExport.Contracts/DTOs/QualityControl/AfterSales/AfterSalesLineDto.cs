@@ -4,43 +4,15 @@ using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Contracts.DTOs.QualityControl.AfterSales
 {
-    /// <summary>售后明细读取快照，包含问题、实物要求和审计信息。</summary>
-    public class AfterSalesLineDto
+    /// <summary>售后明细读取快照，包含补件要求和审计信息。</summary>
+    public class AfterSalesLineDto : SwiftExport.Contracts.DTOs.Base.BaseDto
     {
-    /// <summary>稳定身份。</summary>
-    public Guid Uid { get; set; }
-    /// <summary>并发版本。</summary>
-    public int Version { get; set; } = 1;
+    /// <summary>初始化补件读取版本。</summary>
+    public AfterSalesLineDto() { Version = 1; }
     /// <summary>所属售后单。</summary>
     public Guid HeaderId { get; set; }
     /// <summary>稳定行号。</summary>
     public int LineNumber { get; set; }
-    /// <summary>原销售行。</summary>
-    public Guid? OriginalSalesOrderLineId { get; set; }
-    /// <summary>客户侧投诉单号，可空，最多100字。</summary>
-    public string CustomerComplaintNo { get; set; }
-    /// <summary>责任供应商。</summary>
-    public Guid? ResponsibleSupplierId { get; set; }
-    /// <summary>问题成品身份。</summary>
-    public Guid? IssueProductId { get; set; }
-    /// <summary>问题物料编号。</summary>
-    public string IssueSkuSnapshot { get; set; } = string.Empty;
-    /// <summary>问题客户型号。</summary>
-    public string IssueCustomerSkuSnapshot { get; set; } = string.Empty;
-    /// <summary>问题AQ型号。</summary>
-    public string IssueLinkSkuSnapshot { get; set; } = string.Empty;
-    /// <summary>问题颜色。</summary>
-    public Guid? IssueColorId { get; set; }
-    /// <summary>问题颜色快照。</summary>
-    public string IssueColorSnapshot { get; set; } = string.Empty;
-    /// <summary>问题产品描述。</summary>
-    public string IssueProductDescription { get; set; } = string.Empty;
-    /// <summary>投诉描述。</summary>
-    public string IssueDescription { get; set; } = string.Empty;
-    /// <summary>品质分类。</summary>
-    public Guid? QualityCategoryId { get; set; }
-    /// <summary>原因分析。</summary>
-    public string CauseAnalysis { get; set; } = string.Empty;
     /// <summary>实际补发物料。</summary>
     public Guid? ProductId { get; set; }
     /// <summary>实际补发非标标记。</summary>
@@ -63,16 +35,11 @@ namespace SwiftExport.Contracts.DTOs.QualityControl.AfterSales
     public decimal? Quantity { get; set; }
     /// <summary>单位，默认Pcs。</summary>
     public string UnitSnapshot { get; set; } = "Pcs";
-    /// <summary>要求交期。</summary>
-    public DateTime? RequiredDate { get; set; }
-    /// <summary>人民币行金额，空未定零免费。</summary>
-    public decimal? ServiceAmountCny { get; set; }
-    /// <summary>退回品收到日期，不改变库存。</summary>
-    public DateTime? ReturnedReceivedDate { get; set; }
-    /// <summary>处理说明。</summary>
-    public string TreatmentDescription { get; set; } = string.Empty;
     /// <summary>行备注。</summary>
     public string Remark { get; set; } = string.Empty;
+
+    /// <summary>产品控件提供的图片路径，仅供显示，不作为售后存储事实。</summary>
+    public string ImagePath { get; set; }
 
     }
 }

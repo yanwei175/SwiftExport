@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json;
+using Mapster;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.QualityControl;
+using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Customers;
@@ -36,7 +39,9 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private readonly IMessageService _messages;
     private readonly ICurrentUserService _currentUser;
     private readonly IReferenceDataCacheService _referenceDataCache;
-    private readonly List<AfterSalesLineModel> _deletedLines = [];
+    private readonly IProductApi _productApi;
+    private int _productSearchVersion;
+    private int _detailVersion;
     private readonly Dictionary<string, (string Fingerprint, Guid CommandId)> _pendingCommands = [];
     private CancellationTokenSource? _loadCancellation;
     private bool _hasServerIdentity;
@@ -46,14 +51,15 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     /// <summary>创建售后详情文档并接入业务命令、对话框、导航、权限及基础资料缓存。</summary>
     public AfterSalesDetailViewModel(IAfterSalesApi api, IAfterSalesFeatureService feature, IApiCallRunner runner,
         INavigationService navigation, IDialogService dialogs, IAfterSalesReasonDialogService reasonDialog,
-        IMessageService messages, ICurrentUserService currentUser, IReferenceDataCacheService referenceDataCache)
+        IMessageService messages, ICurrentUserService currentUser, IReferenceDataCacheService referenceDataCache, IProductApi productApi)
     {
         _api = api; _feature = feature; _runner = runner; _navigation = navigation; _dialogs = dialogs;
         _reasonDialog = reasonDialog; _messages = messages; _currentUser = currentUser;
         _referenceDataCache = referenceDataCache;
+        _productApi = productApi;
         Title = "售后服务单-新建";
         Header.PropertyChanged += OnEditChanged;
-        Lines.CollectionChanged += (_, _) => UpdateDirtyState();
+        LineList.ListStateChanged += OnLineListChanged;
         RegisterBusyAwareCommand(SaveCommand); RegisterBusyAwareCommand(ConfirmDemandCommand);
         RegisterBusyAwareCommand(CancelDemandConfirmationCommand); RegisterBusyAwareCommand(CloseCommand);
         RegisterBusyAwareCommand(ReopenCommand); RegisterBusyAwareCommand(VoidCommand);
@@ -62,15 +68,23 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     }
 
     public AfterSalesHeaderEditModel Header { get; } = new();
-    public ObservableCollection<AfterSalesLineModel> Lines { get; } = [];
+    /// <summary>补件变更集合，由公共列表模型维护新增、修改和显式删除。</summary>
+    public BaseListModel<AfterSalesLineModel, AfterSalesLineDto> LineList { get; } = new(_ => new());
+    /// <summary>当前可见补件。</summary>
+    public ReadOnlyObservableCollection<AfterSalesLineModel> Lines => LineList.Items;
+    /// <summary>提交前由视图结束原生表格编辑；失败时不得发送旧值。</summary>
+    public Func<bool>? CommitPendingEdits { get; set; }
     /// <summary>获取供客户选择控件使用的完整客户缓存。</summary>
     public ReadOnlyObservableCollection<CustomerDto> Customers => _referenceDataCache.Customers;
     public ObservableCollection<AfterSalesLookupDto> Owners { get; } = [];
     /// <summary>获取供责任方选择控件使用的完整供应商缓存。</summary>
     public ReadOnlyObservableCollection<SupplierDto> Suppliers => _referenceDataCache.Suppliers;
-    public ObservableCollection<AfterSalesLookupDto> Products { get; } = [];
+    /// <summary>问题产品及补件共用的当前远程搜索结果。</summary>
+    public ObservableCollection<ProductLookupDto> ProductCandidates { get; } = [];
+    [ObservableProperty] public partial ProductLookupDto? SelectedProductCandidate { get; set; }
+    [ObservableProperty] public partial bool IsProductSearchBusy { get; set; }
     public ObservableCollection<AfterSalesLookupDto> SalesOrderLines { get; } = [];
-    /// <summary>获取供问题颜色选择控件使用的完整颜色缓存。</summary>
+    /// <summary>获取供补件颜色选择控件使用的完整颜色缓存。</summary>
     public ReadOnlyObservableCollection<ProductColorDto> Colors => _referenceDataCache.ProductColors;
     public ObservableCollection<AfterSalesLookupDto> QualityCategories { get; } = [];
     public string DocumentTitle => string.IsNullOrWhiteSpace(Header.AfterSalesNo) ? "售后服务单-新建" : Header.AfterSalesNo;
@@ -89,6 +103,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     [ObservableProperty][NotifyPropertyChangedFor(nameof(DocumentStatusText))] public partial DocumentStatusEnum DocumentStatus { get; set; }
     [ObservableProperty][NotifyPropertyChangedFor(nameof(ConfirmationStatusText))] public partial ConfirmationStatusEnum ConfirmationStatus { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "新建售后服务单。";
+    /// <summary>视图数字或日期转换错误会阻止提交，避免保存模型中残留的旧值。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmDemandCommand))]
+    public partial bool HasInputErrors { get; set; }
 
     partial void OnCapabilitiesChanged(AfterSalesCapabilitiesDto value)
     {
@@ -126,14 +145,14 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
 
     [RelayCommand(CanExecute = nameof(CanAddLine))] private void AddLine()
     {
-        var line = AfterSalesLineModel.CreateNew(Lines.Count == 0 ? 1 : Lines.Max(x => x.LineNumber) + 1);
-        Attach(line); Lines.Add(line); SelectedLine = line; UpdateDirtyState();
+        var line = LineList.AddNew(new() { Uid = GuidSequentialGenerator.NewGuid(), Version = 1,
+            LineNumber = LineList.AllLines.Count == 0 ? 1 : LineList.AllLines.Max(x => x.LineNumber) + 1 });
+        SelectedLine = line; UpdateDirtyState();
     }
     [RelayCommand(CanExecute = nameof(CanDeleteLine))] private void DeleteLine()
     {
         var line = SelectedLine!;
-        if (!line.IsNew) { line.IsDeleted = true; _deletedLines.Add(line); }
-        Detach(line); Lines.Remove(line); SelectedLine = Lines.FirstOrDefault(); UpdateDirtyState();
+        LineList.Remove(line); SelectedLine = Lines.FirstOrDefault(); UpdateDirtyState();
     }
     [RelayCommand(CanExecute = nameof(CanSave))] private async Task SaveAsync() => await RunWriteAsync(async () =>
     {
@@ -224,11 +243,15 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     // 本地验证只负责明显输入错误，状态及跨领域资格仍由后端决定。
     private bool Validate(bool forConfirmation)
     {
-        if (Header.CustomerId == Guid.Empty) return ValidationFailed("请选择客户。");
-        if (Header.AcceptedDate == default) return ValidationFailed("请选择受理日期。");
-        if (Lines.Count == 0) return ValidationFailed("至少需要一条投诉明细。");
+        if (CommitPendingEdits?.Invoke() == false) return ValidationFailed("请先完成或修正补件表格中的输入。");
+        if (HasInputErrors) return ValidationFailed("请先修正页面中无效的数字或日期。");
+        if (Header.CustomerId == Guid.Empty) return ValidationFailed("Header.CustomerId：请选择客户。");
+        if (Header.AcceptedDate == default) return ValidationFailed("Header.AcceptedDate：请选择受理日期。");
+        var headerError=Header.Validate(forConfirmation && Lines.Any(x=>x.Quantity>0));
+        if(headerError is not null) return ValidationFailed(headerError);
         foreach (var line in Lines)
         {
+            if(line.IsNew && line.IsEmptyPlaceholder) continue;
             var error = line.Validate(forConfirmation);
             if (error is null) continue;
             SelectedLine = line;
@@ -244,9 +267,9 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         var command = new SaveAfterSalesCommand
         {
             Uid = Header.Uid, Version = Header.Version,
-            Header = Header.ToDto(), AddedLines = Lines.Where(x => x.IsNew).Select(x => x.ToDto()).ToList(),
-            UpdatedLines = Lines.Where(x => !x.IsNew && x.IsDirty).Select(x => x.ToDto()).ToList(),
-            DeletedLines = _deletedLines.Select(x => new AfterSalesDeletedLineDto { Uid = x.Uid, Version = x.Version }).ToList()
+            Header = Header.ToDto(), AddedLines = Lines.Where(x => x.IsNew && !x.IsEmptyPlaceholder).Select(x => x.ToEditDto()).ToList(),
+            UpdatedLines = Lines.Where(x => !x.IsNew && x.IsDirty).Select(x => x.ToEditDto()).ToList(),
+            DeletedLines = LineList.DeletedItems.Select(x => new AfterSalesDeletedLineDto { Uid = x.Uid, Version = x.Version }).ToList()
         };
         var fingerprint = JsonSerializer.Serialize(command);
         command.CommandId = CommandId(operation, fingerprint);
@@ -280,7 +303,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         _loading = true; _hasServerIdentity = false; Header.Uid = GuidSequentialGenerator.NewGuid(); Header.Version = 1; Header.AcceptedDate = DateTime.Today;
         DocumentStatus = DocumentStatusEnum.Open; ConfirmationStatus = ConfirmationStatusEnum.待确认;
         Capabilities = new AfterSalesCapabilitiesDto { CanSave = true, CanEditFacts = true, CanVoid = true };
-        var line = AfterSalesLineModel.CreateNew(1); Attach(line); Lines.Add(line); SelectedLine = line;
+        SelectedLine = null;
         _loading = false; UpdateDirtyState();
     }
 
@@ -295,6 +318,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             if (!result.Success || result.Data is null) { HandleFailure("加载失败", result); return; }
             ApplyDetail(result.Data);
             await LoadLookupsAsync(cts.Token);
+            await LoadProductImagesAsync(cts.Token);
         }, "正在加载售后服务单...");
         if (ReferenceEquals(_loadCancellation, cts)) _loadCancellation = null;
         cts.Dispose();
@@ -308,16 +332,20 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private async Task ReloadCoreAsync(Guid uid, CancellationToken token)
     {
         var result = await _runner.RunAsync(() => _api.GetAsync(uid, token), token, "刷新售后服务单失败");
-        if (result.Success && result.Data is not null) ApplyDetail(result.Data);
+        if (result.Success && result.Data is not null)
+        {
+            ApplyDetail(result.Data);
+            await LoadProductImagesAsync(token);
+        }
         else _messages.ShowWarning("操作已完成，刷新失败", result.Error?.Message ?? result.Message);
     }
 
     private void ApplyDetail(AfterSalesDetailDto detail)
     {
         _loading = true; _hasServerIdentity = true;
-        foreach (var line in Lines) Detach(line);
-        Lines.Clear(); _deletedLines.Clear(); Header.Load(detail.Header);
-        foreach (var dto in detail.Lines) { var line = new AfterSalesLineModel(); line.Load(dto); Attach(line); Lines.Add(line); }
+        _detailVersion++; EndProductSelection();
+        Header.Load(detail.Header);
+        LineList.LoadFromDtos(detail.Lines);
         SelectedLine = Lines.FirstOrDefault(); DocumentStatus = detail.Header.DocumentStatus;
         ConfirmationStatus = detail.Header.ConfirmationStatus; Capabilities = detail.Capabilities;
         SynchronizeCachedSelections();
@@ -360,13 +388,13 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         if (token.IsCancellationRequested || _disposed) return;
         SynchronizeCachedSelections();
 
-        var kinds = new[] { "owners", "products", "sales-order-lines", "quality-categories" };
+        var kinds = new[] { "owners", "sales-order-lines" };
         foreach (var kind in kinds)
         {
             var result = await _runner.RunAsync(() => _api.LookupAsync(kind, new AfterSalesLookupRequest
             { CustomerId = Header.CustomerId == Guid.Empty ? null : Header.CustomerId, PageIndex = 1, PageSize = 200 }, token), token, "加载售后候选失败");
             if (token.IsCancellationRequested || _disposed) return;
-            var target = kind switch { "owners" => Owners, "products" => Products,
+            var target = kind switch { "owners" => Owners,
                 "sales-order-lines" => SalesOrderLines, _ => QualityCategories };
             if (!result.Success || result.Data is null) continue;
             target.Clear();
@@ -386,33 +414,110 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
                   CustomerName = Header.CustomerNameSnapshot,
               };
 
-        foreach (var line in Lines)
+        Header.SynchronizeSupplier(Header.ResponsibleSupplierId.HasValue
+            ? Suppliers.FirstOrDefault(x=>x.Uid==Header.ResponsibleSupplierId.Value)
+              ?? new SupplierDto { Uid=Header.ResponsibleSupplierId.Value }
+            : null);
+    }
+
+    // 请求序号确保较慢的旧查询不覆盖当前候选；既有产品接口不支持取消参数。
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SearchProductsAsync(string? keyword)
+    {
+        var version = ++_productSearchVersion;
+        ProductCandidates.Clear(); SelectedProductCandidate = null;
+        if (_disposed || !CanEditFacts) return;
+        IsProductSearchBusy = true;
+        try
         {
-            var color = line.IssueColorId.HasValue
-                ? Colors.FirstOrDefault(item => item.Uid == line.IssueColorId.Value)
-                  ?? new ProductColorDto { Uid = line.IssueColorId.Value, ColorNameZh = line.IssueColorSnapshot }
-                : null;
-            var supplier = line.ResponsibleSupplierId.HasValue
-                ? Suppliers.FirstOrDefault(item => item.Uid == line.ResponsibleSupplierId.Value)
-                : null;
-            line.SynchronizeLookupSelections(color, supplier);
+            var result = await _runner.RunAsync(() => _productApi.SearchLookupAsync(new ProductLookupRequest
+            { Keyword = keyword?.Trim() ?? string.Empty, Limit = 30 }), "查询产品失败");
+            if (_disposed || version != _productSearchVersion || !CanEditFacts) return;
+            if (result.Success && result.Data is not null)
+                foreach (var product in result.Data) ProductCandidates.Add(product);
+        }
+        finally { if (version == _productSearchVersion) IsProductSearchBusy = false; }
+    }
+
+    // 产品控件只回填当前问题或补件，图片不进入售后写入契约。
+    [RelayCommand]
+    private void CommitIssueProduct()
+    {
+        if (!CanEditFacts || SelectedProductCandidate is not { } product) return;
+        product.Adapt(Header);
+        EndProductSelection();
+    }
+
+    [RelayCommand]
+    private void ClearIssueProduct()
+    {
+        if (!CanEditFacts) return;
+        Header.IssueProductId = null; Header.IssueSkuSnapshot = string.Empty;
+        Header.IssueLinkSkuSnapshot = string.Empty; Header.IssueCustomerSkuSnapshot = string.Empty; Header.ImagePath = null;
+        EndProductSelection();
+    }
+
+    [RelayCommand]
+    private void CommitProduct(AfterSalesLineModel? line)
+    {
+        if (!CanEditFacts || line is null || !Lines.Contains(line) || SelectedProductCandidate is not { } product) return;
+        product.Adapt(line);
+        line.IsNonStandard = false;
+        EndProductSelection();
+    }
+
+    [RelayCommand]
+    private void ClearProduct(AfterSalesLineModel? line)
+    {
+        if (!CanEditFacts || line is null || !Lines.Contains(line)) return;
+        line.ProductId = null; line.SkuSnapshot = string.Empty; line.LinkSkuSnapshot = string.Empty;
+        line.CustomerSkuSnapshot = string.Empty; line.DescriptionSnapshot = string.Empty;
+        line.ColorId = null; line.ColorSnapshot = string.Empty; line.SpecificationSnapshot = string.Empty; line.ImagePath = null;
+        EndProductSelection();
+    }
+
+    private void EndProductSelection()
+    {
+        _productSearchVersion++; IsProductSearchBusy = false;
+        SelectedProductCandidate = null; ProductCandidates.Clear();
+    }
+
+    // 重新打开时只回填当前产品图片，不覆盖投诉型号等历史快照，不标记业务修改。
+    private async Task LoadProductImagesAsync(CancellationToken token)
+    {
+        var version = _detailVersion;
+        var ids = Lines.Select(x => x.ProductId).Append(Header.IssueProductId)
+            .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToArray();
+        foreach (var id in ids)
+        {
+            if (token.IsCancellationRequested || _disposed || version != _detailVersion) return;
+            var result = await _runner.RunAsync(() => _productApi.GetByIdAsync(id), "读取产品图片失败");
+            if (token.IsCancellationRequested || _disposed || version != _detailVersion) return;
+            if (!result.Success || result.Data is null) continue;
+            if (Header.IssueProductId == id) Header.ImagePath = result.Data.MainImage;
+            foreach (var line in Lines.Where(x => x.ProductId == id)) line.ImagePath = result.Data.MainImage;
         }
     }
 
-    private void Attach(AfterSalesLineModel line) => line.PropertyChanged += OnEditChanged;
-    private void Detach(AfterSalesLineModel line) => line.PropertyChanged -= OnEditChanged;
+    private void OnLineListChanged(object? sender, ListStateChangedEventArgs<AfterSalesLineModel> args)
+    {
+        if (_loading) return;
+        if (args.PropertyName == nameof(AfterSalesLineModel.ColorId) && args.Line is { } line)
+            line.ColorSnapshot = Colors.FirstOrDefault(x => x.Uid == line.ColorId)?.ColorNameZh ?? string.Empty;
+        UpdateDirtyState();
+    }
     private void OnEditChanged(object? sender, PropertyChangedEventArgs args) { if (!_loading) UpdateDirtyState(); }
     private void UpdateDirtyState()
     {
-        IsDirty = Header.IsDirty || Lines.Any(x => x.IsDirty || x.IsNew) || _deletedLines.Count > 0;
+        IsDirty = Header.IsDirty || Lines.Any(x => x.IsNew ? !x.IsEmptyPlaceholder : x.IsDirty) || LineList.DeletedItems.Count > 0;
         OnPropertyChanged(nameof(HasUnsavedChanges)); NotifyCommands();
     }
     private bool CanAddLine() => CanEditFacts && IsNotBusy;
-    private bool CanDeleteLine() => CanEditFacts && IsNotBusy && SelectedLine is not null && Lines.Count > 1;
+    private bool CanDeleteLine() => CanEditFacts && IsNotBusy && SelectedLine is not null;
     private bool CanReload() => HasAccess && IsNotBusy && IsPersisted;
     private bool CanRefreshLookups() => HasAccess && IsNotBusy;
-    private bool CanSave() => HasAccess && IsNotBusy && Capabilities.CanSave && IsDirty;
-    private bool CanConfirm() => HasAccess && IsNotBusy && DocumentStatus == DocumentStatusEnum.Open
+    private bool CanSave() => HasAccess && IsNotBusy && !HasInputErrors && Capabilities.CanSave && IsDirty;
+    private bool CanConfirm() => HasAccess && IsNotBusy && !HasInputErrors && DocumentStatus == DocumentStatusEnum.Open
         && ConfirmationStatus != ConfirmationStatusEnum.已确认 && (Capabilities.CanConfirm || IsDirty);
     private bool CanCancelConfirmation() => HasAccess && IsNotBusy && Capabilities.CanCancelConfirmation && !IsDirty;
     private bool CanCloseDocument() => HasAccess && IsNotBusy && Capabilities.CanClose && !IsDirty;
@@ -433,6 +538,8 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         if (_disposed) return; _disposed = true;
         _loadCancellation?.Cancel(); _loadCancellation?.Dispose(); _loadCancellation = null;
         Header.PropertyChanged -= OnEditChanged;
-        foreach (var line in Lines) Detach(line);
+        LineList.ListStateChanged -= OnLineListChanged;
+        LineList.Clear(); CommitPendingEdits = null;
+        _productSearchVersion++; _detailVersion++;
     }
 }

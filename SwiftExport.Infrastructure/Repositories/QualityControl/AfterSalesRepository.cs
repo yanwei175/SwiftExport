@@ -14,8 +14,8 @@ public sealed class AfterSalesRepository(RepositoryBaseContext context) : IAfter
 {
     private IDbConnection Connection => context.Session.Connection;
     private IDbTransaction? Transaction => context.Session.Transaction;
-    private static readonly string[] HeaderColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","AfterSalesNo","CustomerId","CustomerCodeSnapshot","CustomerNameSnapshot","AcceptedDate","OwnerId","DocumentStatus","ConfirmationStatus","DemandConfirmedAt","DemandConfirmedBy","ExpectedCompletionDate","Conclusion","Remark"];
-    private static readonly string[] LineColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","HeaderId","LineNumber","OriginalSalesOrderLineId","CustomerComplaintNo","ResponsibleSupplierId","IssueProductId","IssueSkuSnapshot","IssueCustomerSkuSnapshot","IssueLinkSkuSnapshot","IssueColorId","IssueColorSnapshot","IssueProductDescription","IssueDescription","QualityCategoryId","CauseAnalysis","ProductId","IsNonStandard","SkuSnapshot","CustomerSkuSnapshot","LinkSkuSnapshot","DescriptionSnapshot","ColorId","ColorSnapshot","SpecificationSnapshot","Quantity","UnitSnapshot","RequiredDate","ServiceAmountCny","ReturnedReceivedDate","TreatmentDescription","Remark"];
+    private static readonly string[] HeaderColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","AfterSalesNo","CustomerId","CustomerCodeSnapshot","CustomerNameSnapshot","AcceptedDate","OwnerId","DocumentStatus","ConfirmationStatus","DemandConfirmedAt","DemandConfirmedBy","ExpectedCompletionDate","Conclusion","Remark","OriginalSalesOrderLineId","CustomerComplaintNo","ResponsibleSupplierId","IssueProductId","IssueSkuSnapshot","IssueCustomerSkuSnapshot","IssueLinkSkuSnapshot","IssueDescription","QualityCategoryId","CauseAnalysis","RequiredDate","ServiceAmountCny","ReturnedReceivedDate","TreatmentDescription"];
+    private static readonly string[] LineColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","HeaderId","LineNumber","ProductId","IsNonStandard","SkuSnapshot","CustomerSkuSnapshot","LinkSkuSnapshot","DescriptionSnapshot","ColorId","ColorSnapshot","SpecificationSnapshot","Quantity","UnitSnapshot","Remark"];
 
     /// <inheritdoc />
     public Task<AfterSalesHeader?> GetHeaderAsync(Guid uid, bool forUpdate = false)
@@ -69,26 +69,21 @@ public sealed class AfterSalesRepository(RepositoryBaseContext context) : IAfter
               AND (@ConfirmationStatus IS NULL OR h.ConfirmationStatus=@ConfirmationStatus)
               AND (@DateFrom IS NULL OR h.AcceptedDate>=@DateFrom)
               AND (@DateTo IS NULL OR h.AcceptedDate<=@DateTo)
-              AND (@ResponsibleSupplierId IS NULL OR EXISTS(SELECT 1 FROM dbo.AfterSalesLine l WHERE l.HeaderId=h.Uid AND l.IsDeleted=0 AND l.ResponsibleSupplierId=@ResponsibleSupplierId))
-              AND (@Keyword IS NULL OR h.AfterSalesNo LIKE @Keyword OR EXISTS(SELECT 1 FROM dbo.AfterSalesLine l WHERE l.HeaderId=h.Uid AND l.IsDeleted=0 AND
-                (l.CustomerComplaintNo LIKE @Keyword OR l.IssueSkuSnapshot LIKE @Keyword OR l.IssueCustomerSkuSnapshot LIKE @Keyword OR l.IssueLinkSkuSnapshot LIKE @Keyword
-                 OR l.SkuSnapshot LIKE @Keyword OR l.CustomerSkuSnapshot LIKE @Keyword OR l.LinkSkuSnapshot LIKE @Keyword)))
+              AND (@ResponsibleSupplierId IS NULL OR h.ResponsibleSupplierId=@ResponsibleSupplierId)
+              AND (@Keyword IS NULL OR h.AfterSalesNo LIKE @Keyword OR h.CustomerComplaintNo LIKE @Keyword OR h.IssueSkuSnapshot LIKE @Keyword OR h.IssueCustomerSkuSnapshot LIKE @Keyword OR h.IssueLinkSkuSnapshot LIKE @Keyword OR EXISTS(SELECT 1 FROM dbo.AfterSalesLine l WHERE l.HeaderId=h.Uid AND l.IsDeleted=0 AND
+                (l.SkuSnapshot LIKE @Keyword OR l.CustomerSkuSnapshot LIKE @Keyword OR l.LinkSkuSnapshot LIKE @Keyword)))
             """;
         var sql = $"""
             SELECT COUNT(*) FROM dbo.AfterSalesHeader h {where};
             SELECT {string.Join(",", HeaderColumns.Select(c => "h.[" + c + "]"))},
               COALESCE(u.NickName,u.UserName,N'') AS OwnerName,
-              COALESCE(a.KnownAmountCny,0) AS KnownAmountCny,
-              CAST(COALESCE(a.MissingAmounts,0) AS bit) AS HasUndeterminedAmount,
-              COALESCE(a.IssueModels,N'') AS IssueModels,COALESCE(a.ResponsibleSuppliers,N'') AS ResponsibleSuppliers
+              COALESCE(h.ServiceAmountCny,0) AS KnownAmountCny,
+              CAST(CASE WHEN h.ServiceAmountCny IS NULL THEN 1 ELSE 0 END AS bit) AS HasUndeterminedAmount,
+              COALESCE(NULLIF(h.IssueCustomerSkuSnapshot,N''),h.IssueSkuSnapshot,N'') AS IssueModels,
+              COALESCE(s.SupplierName,N'') AS ResponsibleSuppliers
             FROM dbo.AfterSalesHeader h
             LEFT JOIN dbo.SysUser u ON u.Uid=h.OwnerId
-            OUTER APPLY(SELECT SUM(l.ServiceAmountCny) AS KnownAmountCny,
-                MAX(CASE WHEN l.ServiceAmountCny IS NULL THEN 1 ELSE 0 END) AS MissingAmounts,
-                STRING_AGG(CAST(COALESCE(l.IssueCustomerSkuSnapshot,l.IssueSkuSnapshot,N'') AS nvarchar(max)),N' / ') AS IssueModels,
-                STRING_AGG(CAST(s.SupplierName AS nvarchar(max)),N' / ') AS ResponsibleSuppliers
-                FROM dbo.AfterSalesLine l LEFT JOIN dbo.Supplier s ON s.Uid=l.ResponsibleSupplierId
-                WHERE l.HeaderId=h.Uid AND l.IsDeleted=0) a
+            LEFT JOIN dbo.Supplier s ON s.Uid=h.ResponsibleSupplierId
             {where} ORDER BY h.AcceptedDate DESC,h.Uid OFFSET @Skip ROWS FETCH NEXT @Take ROWS ONLY;
             """;
         using var reader = await Connection.QueryMultipleAsync(new CommandDefinition(sql, new { request.CustomerId,request.DocumentStatus,request.ConfirmationStatus,request.ResponsibleSupplierId,DateFrom=request.DateFrom?.Date,DateTo=request.DateTo?.Date,Keyword=Like(request.Keyword),Skip=(page-1)*size,Take=size }, Transaction,cancellationToken:cancellationToken));

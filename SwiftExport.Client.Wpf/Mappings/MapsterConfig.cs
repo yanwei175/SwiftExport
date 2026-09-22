@@ -278,11 +278,31 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.CustomerDisplay, src => string.Concat(src.CustomerCodeSnapshot, " · ", src.CustomerNameSnapshot))
             .Map(dest => dest.DocumentStatusText, src => src.DocumentStatus == SwiftExport.Contracts.SysEnums.DocumentStatusEnum.Closed ? "已结案" : src.DocumentStatus == SwiftExport.Contracts.SysEnums.DocumentStatusEnum.Voided ? "已作废" : "开放")
             .Map(dest => dest.ConfirmationStatusText, src => src.ConfirmationStatus == SwiftExport.Contracts.SysEnums.ConfirmationStatusEnum.已确认 ? "已确认" : "待确认")
-            .Map(dest => dest.AmountText, src => string.Concat("¥", src.KnownAmountCny.ToString("N2"), src.HasUndeterminedAmount ? " + 待定" : string.Empty));
+            .Map(dest => dest.AmountText, src => src.HasUndeterminedAmount ? "待定" : src.KnownAmountCny == 0 ? "免费" : string.Concat("¥", src.KnownAmountCny.ToString("N2")));
         config.NewConfig<AfterSalesHeaderDto, AfterSalesHeaderEditModel>();
         config.NewConfig<AfterSalesHeaderEditModel, AfterSalesEditHeaderDto>();
         config.NewConfig<AfterSalesLineDto, AfterSalesLineModel>();
         config.NewConfig<AfterSalesLineModel, AfterSalesEditLineDto>();
+        config.NewConfig<AfterSalesLineModel, AfterSalesLineDto>();
+        // 产品选择只带入显示快照，图片不属于售后保存契约。
+        config.NewConfig<ProductLookupDto, AfterSalesHeaderEditModel>()
+            .IgnoreNonMapped(true)
+            .Map(d => d.IssueProductId, s => s.Uid)
+            .Map(d => d.IssueSkuSnapshot, s => s.Sku ?? string.Empty)
+            .Map(d => d.IssueLinkSkuSnapshot, s => s.LinkSku ?? string.Empty)
+            .Map(d => d.IssueCustomerSkuSnapshot, s => string.Empty)
+            .Map(d => d.ImagePath, s => s.MainImage);
+        config.NewConfig<ProductLookupDto, AfterSalesLineModel>()
+            .IgnoreNonMapped(true)
+            .Map(d => d.ProductId, s => s.Uid)
+            .Map(d => d.SkuSnapshot, s => s.Sku ?? string.Empty)
+            .Map(d => d.LinkSkuSnapshot, s => s.LinkSku ?? string.Empty)
+            .Map(d => d.CustomerSkuSnapshot, s => string.Empty)
+            .Map(d => d.DescriptionSnapshot, s => s.DescriptionEn ?? s.DescriptionZh ?? string.Empty)
+            .Map(d => d.ColorId, s => (Guid?)null)
+            .Map(d => d.ColorSnapshot, s => s.Finish ?? string.Empty)
+            .Map(d => d.SpecificationSnapshot, s => s.FeaturesEn ?? s.FeaturesZh ?? string.Empty)
+            .Map(d => d.ImagePath, s => s.MainImage);
     }
 }
 

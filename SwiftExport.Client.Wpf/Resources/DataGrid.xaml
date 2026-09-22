@@ -132,8 +132,8 @@
     <Style x:Key="SwiftExportDataGridColumnHeader" TargetType="{x:Type DataGridColumnHeader}" 
            BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
         <Setter Property="Padding" Value="{DynamicResource SwiftExportDataGridHeaderPadding}" />
-        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -187,7 +187,7 @@
     <Style x:Key="SwiftExportDataGridRowHeader" TargetType="{x:Type DataGridRowHeader}">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,1,1" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -235,7 +235,7 @@
     </Style>
 
     <Style x:Key="SwiftExportDataGridRow" TargetType="{x:Type DataGridRow}" BasedOn="{StaticResource {x:Type DataGridRow}}">
-        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}" />
         <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
         <Setter Property="gridSelection:GridSelection.IsCurrentRow">
@@ -417,16 +417,17 @@
     </Style>
 
     <Style x:Key="SwiftExportDataGrid" TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
-        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
         <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportBorderThickness}" />
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />
         <Setter Property="HeadersVisibility" Value="All" />
         <Setter Property="GridLinesVisibility" Value="All" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
-        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
         <Setter Property="RowHeaderWidth" Value="32" />
         <Setter Property="RowHeaderStyle" Value="{StaticResource SwiftExportDataGridRowHeader}" />
         <Setter Property="RowHeaderTemplate" Value="{StaticResource SwiftExportEnterpriseGridRowHeaderTemplate}" />

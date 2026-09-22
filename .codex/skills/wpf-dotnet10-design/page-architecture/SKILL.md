@@ -13,9 +13,8 @@ description: SwiftExport .NET 10 WPF 页面架构边界技能。用于 ViewModel
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/frontend.toml`
-- `.agents/workflows/前端NET10工作流.md`
+公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
+
 - `.agents/references/工程架构总纲.md`
 - `../feature-page/SKILL.md`
 - `../communitytoolkit-mvvm/SKILL.md`
