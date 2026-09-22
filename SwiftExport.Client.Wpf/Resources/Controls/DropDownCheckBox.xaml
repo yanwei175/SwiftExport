@@ -18,8 +18,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock VerticalAlignment="Center"
                            Text="{Binding SelectionText, ElementName=Root}"
-                           TextTrimming="CharacterEllipsis"
-                           ToolTip="{Binding SelectionText, ElementName=Root}" />
+                           TextTrimming="CharacterEllipsis"/>
+
                 <ui:SymbolIcon Grid.Column="1"
                                Margin="2,0,0,0"
                                VerticalAlignment="Center"

@@ -64,7 +64,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         _syncDialog = syncDialog;
         _navigation = navigation;
         _productOptions = productOptions;
-        Title = "主产品管理";
+        Title = "父级产品";
         Masters.ListStateChanged += OnListStateChanged;
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
         PropertyChanged += OnManagerStateChanged;

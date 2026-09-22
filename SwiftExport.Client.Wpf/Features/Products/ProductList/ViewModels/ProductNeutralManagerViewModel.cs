@@ -61,7 +61,7 @@ public sealed partial class ProductNeutralManagerViewModel
         _messages = messages;
         _dialogs = dialogs;
         _productOptions = productOptions;
-        Title = "中性产品管理";
+        Title = "产品管理";
         Lines.ListStateChanged += OnListStateChanged;
         PropertyChanged += OnManagerPropertyChanged;
         RegisterBusyAwareCommand(AddRowCommand);
@@ -96,6 +96,9 @@ public sealed partial class ProductNeutralManagerViewModel
     [ObservableProperty] public partial ProductCategoryFilterSelection CategoryFilter { get; set; } = ProductCategoryFilterSelection.AllCategories;
     /// <summary>获取或设置颜色筛选组件发布的选择快照；空集合表示全部颜色。</summary>
     [ObservableProperty] public partial ProductColorFilterSelection ColorFilter { get; set; } = ProductColorFilterSelection.AllColors;
+
+    public ObservableCollection<ProductColorDto> FilterColorList { get; set; } = [];
+
     /// <summary>获取或设置当前中性产品行。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
@@ -113,13 +116,18 @@ public sealed partial class ProductNeutralManagerViewModel
     /// <summary>获取当前查询结果摘要。</summary>
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载中性产品。";
     /// <summary>获取或设置分页总记录数。</summary>
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(TotalPages))][NotifyPropertyChangedFor(nameof(PageStatus))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int TotalCount { get; set; }
     /// <summary>获取或设置当前页码。</summary>
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(PageStatus))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageIndex { get; set; } = 1;
     /// <summary>获取或设置每页记录数。</summary>
-    [ObservableProperty][NotifyPropertyChangedFor(nameof(TotalPages))][NotifyPropertyChangedFor(nameof(PageStatus))]
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TotalPages))]
+    [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageSize { get; set; } = 20;
 
     partial void OnSelectedLineChanged(ProductNeutralManagerLineModel? value) => Lines.SelectedItem = value;

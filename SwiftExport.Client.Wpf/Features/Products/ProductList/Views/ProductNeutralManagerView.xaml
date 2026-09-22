@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -21,38 +22,109 @@
             <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="产品管理" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="搜索中性产品编码、主型号或主型号描述">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
 
-            <ui:TextBox PlaceholderText="搜索中性产品编码、主型号或主型号描述"
-                        Text="{Binding Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <ui:TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                </ui:TextBox.InputBindings>
-            </ui:TextBox>
-            <ui:Button Grid.Column="1" Margin="4,0,0,0" Content="查询" Appearance="Primary"
-                       Command="{Binding SearchCommand}" />
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
 
-            <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Left">
-                <ui:Button Content="新增行" Command="{Binding AddRowCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="删除行" Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="放弃修改" Command="{Binding RejectListChangesCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0"/>
-                <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
-                    <ui:DropDownButton.Flyout>
-                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                            <MenuItem Header="重建勾选产品图片路径"
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+                </StackPanel>
+
+            </Grid>
+
+
+            <StackPanel Grid.Row="2">
+                <DockPanel LastChildFill="True">
+                    <WrapPanel HorizontalAlignment="Left">
+
+                        <ui:Button Margin="0,0,8,0" MinWidth="70"
+                                   Appearance="Primary"
+                                   Command="{Binding AddRowCommand}"
+                                   Content="新增"
+                                   ToolTip="新增产品">
+                        </ui:Button>
+
+                        <ui:Button Margin="0,0,8,0" MinWidth="70"
+                                   Appearance="Success"
+                                   Content="保存"
+                                   Command="{Binding SaveCommand}"
+                                   ToolTip="保存产品">
+                        </ui:Button>
+
+                        <ui:Button Margin="0,0,8,0" MinWidth="70"
+                                   Content="删除"
+                                   Command="{Binding DeleteSelectedCommand}"
+                                   ToolTip="删除产品"/>
+
+                        <ui:Button Content="放弃修改" Margin="0,0,8,0" MinWidth="70"  
+                                   Appearance="Transparent"
+                                Command="{Binding RejectListChangesCommand}" 
+                                ToolTip="放弃产品修改"/>
+
+                        <filter:MultiSelectLookupButton Width="120" Margin="0,0,8,0" Header="颜色"
+                                                        ShowSearchBox="True"
+                                                        ItemsSource="{Binding ReferenceDataCache.ProductColors}"
+                                                        DisplayMemberPath="ColorNameZh"
+                                                        FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
+                                                        SelectionCommittedCommand="{Binding SearchCommand}"
+                                                        SelectedValuePath="Uid" 
+                                                        SelectedItems="{Binding FilterColorList}"/>
+                        
+
+                        <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
+                            <ui:DropDownButton.Flyout>
+                                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                    <MenuItem Header="重建勾选产品图片路径"
                                       Command="{Binding ReBuildCheckedImagePathsCommand}" />
-                        </ContextMenu>
-                    </ui:DropDownButton.Flyout>
-                </ui:DropDownButton>
+                                </ContextMenu>
+                            </ui:DropDownButton.Flyout>
+                        </ui:DropDownButton>
+                        
+                        <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
+                    </WrapPanel>
+
+
+                </DockPanel>
+
+                <Popup IsOpen="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"
+                       Placement="Bottom"
+                       PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+                       Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                       VerticalOffset="4"
+                       AllowsTransparency="True"
+                       PopupAnimation="Fade"
+                       StaysOpen="True">
+                    <Border Padding="8"
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" MinHeight="120">
+
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
             </StackPanel>
         </Grid>
 
@@ -180,18 +252,6 @@
                         gridColumns:GridColumn.Key="neutral-manager-product-code"
                         gridColumns:GridColumn.FieldPath="ProductCode" />
                     
-                    <DataGridTextColumn Header="中文描述" Width="190" IsReadOnly="True"
-                        Binding="{Binding ProductMasterDescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                        gridColumns:GridColumn.Key="neutral-manager-master-description"
-                        gridColumns:GridColumn.FieldPath="ProductMasterDescriptionZh" />
-                    
-                    <DataGridTextColumn Header="产品分类" Width="130" IsReadOnly="True"
-                        Binding="{Binding CategoryName}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                        gridColumns:GridColumn.Key="neutral-manager-category"
-                        gridColumns:GridColumn.FieldPath="CategoryName" />
-                    
-
-
                     <DataGridTemplateColumn Header="颜色" Width="140"
                                             gridColumns:GridColumn.Key="neutral-manager-color"
                                             gridColumns:GridColumn.FieldPath="ColorId">
@@ -239,25 +299,36 @@
                         gridColumns:GridColumn.Key="neutral-manager-purchase-price"
                         gridColumns:GridColumn.FieldPath="DefaultPurchasePriceCny" />
                     
-                    <DataGridTemplateColumn Header="操作" Width="*"
+                    <DataGridTemplateColumn Header="操作" Width="60"
                                             gridColumns:GridColumn.Key="rebuild-image-path"
                                             gridColumns:GridColumn.FieldPath="ReBuildImagePath">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <ui:Button Appearance="Transparent" Margin="4,0,0,8"
-                                                   Icon="{ui:SymbolIcon Symbol=ImageArrowCounterclockwise24}"
-                                                       ToolTip="重建图片地址"
-                                                       ToolTipService.HasDropShadow="True"
-                                                       ToolTipService.Placement="Top"
-                                                       ToolTipService.InitialShowDelay="200"
-                                                       Command="{Binding DataContext.ReBuildImagePathCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                       CommandParameter="{Binding}"/>
+                                               Icon="{ui:SymbolIcon Symbol=ImageArrowCounterclockwise24}"
+                                               ToolTip="重建图片地址"
+                                               ToolTipService.HasDropShadow="True"
+                                               ToolTipService.Placement="Top"
+                                               ToolTipService.InitialShowDelay="200"
+                                               Command="{Binding DataContext.ReBuildImagePathCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                               CommandParameter="{Binding}"/>
                                 </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
                     
+                    <DataGridTextColumn Header="产品分类" Width="130" IsReadOnly="True"
+                        Binding="{Binding CategoryName}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                        gridColumns:GridColumn.Key="neutral-manager-category"
+                        gridColumns:GridColumn.FieldPath="CategoryName" />
+                    
+                    <DataGridTextColumn Header="中文描述" Width="*" IsReadOnly="True"
+                        Binding="{Binding ProductMasterDescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                        gridColumns:GridColumn.Key="neutral-manager-master-description"
+                        gridColumns:GridColumn.FieldPath="ProductMasterDescriptionZh" />
+
+
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>

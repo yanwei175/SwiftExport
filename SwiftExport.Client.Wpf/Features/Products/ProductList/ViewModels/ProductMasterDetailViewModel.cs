@@ -57,7 +57,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         _dialogs = dialogs;
         _syncDialog = syncDialog;
         _navigation = navigation;
-        Title = "主型号详情";
+        Title = "父级详情";
         Header.PropertyChanged += OnHeaderPropertyChanged;
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
         RegisterBusyAwareCommand(SaveCommand);

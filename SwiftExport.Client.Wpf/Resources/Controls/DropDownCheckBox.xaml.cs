@@ -1,3 +1,4 @@
+using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -7,7 +8,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SwiftExportClient.Resources.Controls;
 
@@ -524,14 +524,24 @@ public partial class DropDownCheckBox : UserControl
 
     private void UpdateSelectionText()
     {
-        var ordinals = _options
-            .Where(option => option.IsSelected)
-            .Select(option => option.Ordinal)
-            .ToArray();
+        //var ordinals = _options
+        //    .Where(option => option.IsSelected)
+        //    .Select(option => option.Ordinal)
+        //    .ToArray();
+
+        //SetValue(
+        //    SelectionTextPropertyKey,
+        //    ordinals.Length == 0 ? Placeholder ?? string.Empty : string.Join(",", ordinals));
+
+        var count = _options.Count(option => option.IsSelected);
+        var placeholder = Placeholder ?? string.Empty;
 
         SetValue(
-            SelectionTextPropertyKey,
-            ordinals.Length == 0 ? Placeholder ?? string.Empty : string.Join(",", ordinals));
+                SelectionTextPropertyKey,
+                count == 0
+                    ? placeholder
+                    : $"{placeholder}({count})");
+
         UpdateClearOptionState();
     }
 

@@ -372,6 +372,20 @@ ORDER BY p.{nameof(Product.Uid)};";
         }
 
         // =========================================================
+        // 8. 颜色 ID 多选
+        // =========================================================
+        var colorIds = request.ColorIds?
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToList() ?? [];
+
+        if (colorIds.Count > 0)
+        {
+            whereSb.AppendLine($@"AND pc.{nameof(ProductColor.Uid)} IN @ColorIds");
+            parameters.Add("@ColorIds", colorIds);
+        }
+
+        // =========================================================
         // 9. 客户 ID 单选
         // 用 EXISTS，避免 JOIN CustomerProduct 导致产品重复
         // =========================================================

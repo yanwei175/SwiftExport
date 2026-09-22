@@ -191,11 +191,7 @@ public partial class MultiSelectLookupButton : UserControl
     #region Placeholder
 
     public static readonly DependencyProperty PlaceholderProperty =
-        DependencyProperty.Register(
-            nameof(Placeholder),
-            typeof(string),
-            typeof(MultiSelectLookupButton),
-            new PropertyMetadata("搜索"));
+        DependencyProperty.Register(nameof(Placeholder), typeof(string), typeof(MultiSelectLookupButton), new PropertyMetadata("搜索"));
 
     public string Placeholder
     {
@@ -279,9 +275,7 @@ public partial class MultiSelectLookupButton : UserControl
 
     #region Lifecycle
 
-    private void OnLoaded(
-        object sender,
-        RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
         SubscribeSelectedItems(
             SelectedItems as INotifyCollectionChanged);
@@ -562,9 +556,10 @@ public partial class MultiSelectLookupButton : UserControl
 
         UpdateDisplayText();
 
-        var parameter =
-            SelectionCommittedCommandParameter
-            ?? SelectedItems;
+        //var parameter =
+        //    SelectionCommittedCommandParameter
+        //    ?? SelectedItems;
+        var parameter = SelectionCommittedCommandParameter;
 
         if (SelectionCommittedCommand?.CanExecute(parameter) == true)
         {

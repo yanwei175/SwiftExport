@@ -14,6 +14,7 @@ namespace SwiftExport.Contracts.DTOs.Products.Requests
         public Guid CustomerId { get; set; } // 按客户id筛选
 
         public List<Guid> CustomerIds { get; set; } // 按客户id多选
+        public List<Guid> ColorIds { get; set; } // 按客户id多选
         public List<string> CustomerCodes { get; set; } // 按客户代码筛选
 
         public string CategoryName { get; set; } // 按分类名称筛选

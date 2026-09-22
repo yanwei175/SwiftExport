@@ -41,10 +41,10 @@
                 Panel.ZIndex="20"
                 HorizontalAlignment="Right"
                 Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
-                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
+                BorderBrush="{DynamicResource UserBusinessTextAccentBrush}"
                 Margin="0,0,0,15"
-                BorderThickness="1"
-                CornerRadius="8"
+                BorderThickness="0.5"
+                CornerRadius="8,2,2,8"
                 Visibility="Collapsed">
             <Grid>
                 <Grid.ColumnDefinitions>

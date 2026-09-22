@@ -4,7 +4,6 @@ using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
@@ -37,7 +36,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private readonly IDialogService _dialogService;
     private bool _isInitialized;
     private bool _restoringSelection;
-    private long _customerSearchVersion;
     private long _supplierSearchVersion;
 
     public ProductsViewModel(
@@ -78,33 +76,35 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public ProductListModel Products { get; } = new();
     public BomDrawerViewModel BomDrawer { get; }
     public IReferenceDataCacheService ReferenceDataCache => _referenceDataCache;
-    public ObservableCollection<CustomerDto> CustomerCandidates { get; } = [];
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
+
     [ObservableProperty]
     public partial IReadOnlyList<SysDictDataDto> UnitOptions { get; set; } = [];
+
     [ObservableProperty]
     public partial ObservableCollection<string> FilterMaterialTypes { get; set; } = [];
     public IReadOnlyList<string> SupplyTypes { get; } = SupplyTypeEnums.SupplyTypes;
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty]
-    public partial CustomerDto? FilterCustomer { get; set; }
-    [ObservableProperty]
-    public partial ProductColorDto? FilterColor { get; set; }
 
+    public ObservableCollection<CustomerDto> FilterCustomerList { get; set; } = new();
+
+
+    public ObservableCollection<ProductColorDto> FilterColorList { get; set; } = new();
 
     [ObservableProperty]
     public partial ProductCategoryCacheNode? FilterCategory { get; set; }
+
+
     [ObservableProperty]
     public partial ProductColorDto? EditColor { get; set; }
     [ObservableProperty]
     public partial CustomerDto? EditCustomer { get; set; }
     [ObservableProperty]
     public partial SupplierDto? EditSupplier { get; set; }
-    [ObservableProperty]
-    public partial bool IsCustomerLookupBusy { get; set; }
+
     [ObservableProperty]
     public partial bool IsCategoryCacheRefreshing { get; set; }
     [ObservableProperty]
@@ -172,7 +172,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
-    private Task RefreshAsync() => LoadPageAsync(true);
+    private Task<bool> RefreshAsync() => LoadPageAsync(true);
 
     [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private void AddRow()
@@ -253,8 +253,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         if (!await EnsureCanDiscardChangesAsync()) return;
         Keyword = string.Empty;
-        FilterCustomer = null;
-        FilterColor = null;
+        FilterCustomerList.Clear();
+        FilterColorList.Clear();
         FilterCategory = null;
         FilterMaterialTypes.Clear();
         PageIndex = 1;
@@ -268,7 +268,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         return GoToPageAsync(request.NewIndex, request.NewSize);
     }
 
-    [RelayCommand] private Task SearchCustomersAsync(string? keyword) => LoadCustomersAsync(keyword);
     [RelayCommand] private Task SearchSuppliersAsync(string? keyword) => LoadSuppliersAsync(keyword);
 
     [RelayCommand]
@@ -351,10 +350,10 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         var request = new ProductSearchRequest
         {
             Keyword = NullIfWhiteSpace(Keyword),
-            CustomerId = FilterCustomer?.Uid ?? Guid.Empty,
-            ColorCodeUnique = FilterColor?.ColorCodeUnique,
+            CustomerIds = FilterCustomerList is null ? [] : FilterCustomerList.Select(x => x.Uid).ToList(),
             CategoryId = Guid.Empty,
             CategoryIds = FilterCategory is null ? [] : GetCategoryIds(FilterCategory).ToList(),
+            ColorIds = FilterColorList is null ? [] : FilterColorList.Select(x => x.Uid).ToList(),
             MaterialTypeList = FilterMaterialTypes.ToList(),
             PageIndex = PageIndex,
             PageSize = PageSize,
@@ -384,19 +383,16 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         await LoadPageAsync(false);
     }
 
-    private async Task LoadCustomersAsync(string? keyword)
-    {
-        var version = Interlocked.Increment(ref _customerSearchVersion); IsCustomerLookupBusy = true;
-        var result = await _apiCallRunner.RunAsync(() => _customerApi.GetPagedAsync(new CustomerSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索客户失败");
-        if (version == Volatile.Read(ref _customerSearchVersion)) CustomerCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
-        IsCustomerLookupBusy = false;
-    }
 
     private async Task LoadSuppliersAsync(string? keyword)
     {
-        var version = Interlocked.Increment(ref _supplierSearchVersion); IsSupplierLookupBusy = true;
+        var version = Interlocked.Increment(ref _supplierSearchVersion);
+
+        IsSupplierLookupBusy = true;
+
         var result = await _apiCallRunner.RunAsync(() => _supplierApi.GetPagedAsync(new SupplierSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 30 }), "搜索供应商失败");
         if (version == Volatile.Read(ref _supplierSearchVersion)) SupplierCandidates.ReplaceWith(result.Success ? result.Data?.Items ?? [] : []);
+
         IsSupplierLookupBusy = false;
     }
 
@@ -422,12 +418,16 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         finally { _restoringSelection = false; }
     }
 
-    private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
+
+    private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        UpdateChangeState();
+
     private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         RefreshUnitOptions();
 
     private void RefreshUnitOptions() =>
         UnitOptions = _referenceDataCache?.GetDictionaryValues(DictCodes.Unit) ?? [];
+
 
     private void UpdateChangeState()
     {
@@ -435,20 +435,30 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         SaveCommand.NotifyCanExecuteChanged(); RejectProductChangesCommand.NotifyCanExecuteChanged(); DeleteSelectedCommand.NotifyCanExecuteChanged();
     }
 
+
     private bool CanRun() => IsNotBusy;
+
     private bool CanWriteCommand() => IsNotBusy && CanWrite;
+
     private bool CanDeleteSelected() =>
         IsNotBusy && CanWrite && (Products.CheckedCount > 0 || SelectedLine is not null);
+
     private bool CanRejectChanges() => IsNotBusy && Products.HasChanges;
+
     private bool CanSave() => IsNotBusy && CanWrite && Products.HasChanges;
+
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+
+
+
 
 internal static class ObservableCollectionExtensions
 {
     public static void ReplaceWith<T>(this ObservableCollection<T> collection, IEnumerable<T> items)
     {
         collection.Clear();
-        foreach (var item in items) collection.Add(item);
+        foreach (var item in items)
+            collection.Add(item);
     }
 }

@@ -17,7 +17,17 @@
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Stretch"
                       IsChecked="{Binding IsOpen, ElementName=PART_Popup, Mode=TwoWay}">
-
+            <ToggleButton.Style>
+                <Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+                    <Style.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource UserControlFillColorDefaultBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextAccentBrush}"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                        </Trigger>                        
+                    </Style.Triggers>
+                </Style>
+            </ToggleButton.Style>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -41,7 +51,7 @@
                Opened="Popup_OnOpened"
                Closed="Popup_OnClosed">
 
-            <Border MinWidth="260"
+            <Border MinWidth="{Binding ActualWidth,ElementName=PART_Button}"
                     MaxHeight="460"
                     Margin="0,4,0,0"
                     Padding="2"
@@ -64,15 +74,16 @@
 
                         <!-- 搜索框 -->
                         <Grid Grid.Column="0" x:Name="PART_SearchPanel" Margin="0,0,8,0"
-                          Visibility="{Binding ShowSearchBox, ElementName=Root, Converter={StaticResource BoolToVisibilityConverter}}">
+                              Visibility="{Binding ShowSearchBox, ElementName=Root, 
+                               Converter={StaticResource BoolToVisibilityConverter}}">
 
-                            <ui:TextBox x:Name="PART_SearchBox"
+                            <ui:TextBox x:Name="PART_SearchBox" MinWidth="140"
                                         PlaceholderEnabled="False"
-                                     FontSize="{DynamicResource ControlContentThemeFontSize}"
-                                     VerticalContentAlignment="Center"
-                                     TextChanged="SearchBox_OnTextChanged" />
+                                         FontSize="{DynamicResource ControlContentThemeFontSize}"
+                                         VerticalContentAlignment="Center"
+                                         TextChanged="SearchBox_OnTextChanged" />
 
-                            <TextBlock Margin="9,0,0,0"
+                            <TextBlock Margin="9,0,0,0" FontSize="{DynamicResource ControlContentThemeFontSize}"
                                    VerticalAlignment="Center"
                                    Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                    IsHitTestVisible="False"
@@ -93,13 +104,13 @@
                         </Grid>
 
 
-                        <Button Grid.Column="1" Margin="0,0,4,0"
+                        <Button Grid.Column="1" Margin="0,0,8,0"
                                 Content="清除"
                                 Click="ResetButton_OnClick" />
 
-                        <Button Grid.Column="2"
-                                Content="确定"
-                                Click="ApplyButton_OnClick" />
+                        <ui:Button Grid.Column="2" Margin="0,0,8,0" Appearance="Primary"
+                                    Content="确定"
+                                    Click="ApplyButton_OnClick" />
 
 
                     </Grid>
@@ -132,10 +143,9 @@
                                               VerticalContentAlignment="Center"
                                               IsChecked="{Binding IsChecked}">
 
-                                        <ContentPresenter
-                        HorizontalAlignment="Stretch"
-                        Content="{Binding DisplayContent}"
-                        ContentTemplate="{Binding DataContext.ContentTemplate,
+
+                                        <ContentPresenter HorizontalAlignment="Stretch" Content="{Binding DisplayContent}"
+                                                    ContentTemplate="{Binding DataContext.ContentTemplate,
                                                   RelativeSource={RelativeSource AncestorType=CheckBox}}" />
 
                                     </CheckBox>

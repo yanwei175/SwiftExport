@@ -64,18 +64,18 @@
                 </ui:TextBox.InputBindings>
             </ui:TextBox>
 
-            <ui:Button Grid.Column="1" Margin="4,0,0,0" Content="查询" Appearance="Primary" Command="{Binding SearchCommand}" />
+            <ui:Button Grid.Column="1" Margin="4,0,0,0" Content="查询" Appearance="Primary" Command="{Binding SearchCommand}" MinWidth="70"/>
 
             <StackPanel Grid.Column="3" Orientation="Horizontal">
-                <ui:Button Content="新建" 
+                <ui:Button Content="新增" MinWidth="70"
                            IsEnabled="{Binding IsCardView,Converter={StaticResource InverseBooleanConverter}}"
                            Command="{Binding AddRowCommand}" 
                            Margin="0,0,4,0" />
-                <ui:Button Content="编辑" Command="{Binding OpenDetailCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,4,0"/>
-                <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0"  />
-                <ui:Button Content="放弃修改" Command="{Binding RejectListChangesCommand}" Margin="0,0,4,0" />
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" />
+                <ui:Button Content="编辑" Command="{Binding OpenDetailCommand}" Margin="0,0,4,0" MinWidth="70"/>
+                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,4,0" MinWidth="70"/>
+                <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" MinWidth="70" />
+                <ui:Button Content="放弃修改" Command="{Binding RejectListChangesCommand}" Margin="0,0,4,0" MinWidth="70"/>
+                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" MinWidth="70"/>
 
                 <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
                     <ui:DropDownButton.Flyout>
@@ -116,9 +116,8 @@
                 <ColumnDefinition Width="9*" />
             </Grid.ColumnDefinitions>
 
-            <Border 
-                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1"
-                    CornerRadius="{StaticResource SwiftExportCornerRadius}" Padding="8">
+            <Border  BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1"
+                        CornerRadius="{StaticResource SwiftExportCornerRadius}" Padding="8">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -515,12 +514,12 @@
 
                     <DockPanel LastChildFill="True">
                         <StackPanel  Orientation="Horizontal">
-                            <ui:Button Content="新增行" Appearance="Primary"
+                            <ui:Button Content="新增" Appearance="Primary" MinWidth="70"
                                        Command="{Binding AddNeutralCommand}" Margin="0,0,4,0" />
-                            <ui:Button Content="删除行"  Command="{Binding DeleteNeutralCommand}" Margin="0,0,4,0" />
-                            <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveNeutralsCommand}"  Margin="0,0,4,0" />
-                            <ui:Button Content="刷新"  Command="{Binding RefreshNeutralsCommand}" Margin="0,0,4,0" />
-                            <ui:Button Content="放弃修改"  Command="{Binding RejectNeutralChangesCommand}" Margin="0,0,8,0" />
+                            <ui:Button Content="删除"  Command="{Binding DeleteNeutralCommand}" Margin="0,0,4,0" MinWidth="70"/>
+                            <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveNeutralsCommand}" MinWidth="70" Margin="0,0,4,0" />
+                            <ui:Button Content="刷新"  Command="{Binding RefreshNeutralsCommand}" MinWidth="70" Margin="0,0,4,0" />
+                            <ui:Button Content="放弃修改"  Command="{Binding RejectNeutralChangesCommand}" MinWidth="70" Margin="0,0,8,0" />
                             <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
                                 <ui:DropDownButton.Flyout>
                                     <ContextMenu>
