@@ -25,11 +25,14 @@ description: SwiftExport WebApi 启动管道、Filter 和 Middleware 技能。�
 ## 核心规则
 
 - `GlobalExceptionMiddleware` 必须尽量靠前，接住后续中间件和 Controller 异常。
+- `CorrelationIdMiddleware` 位于全局异常之后、认证之前；CorrelationId 只追踪调用链，不代替 CommandId。
 - `DevUserMiddleware` 必须在 `UseAuthentication()` 之前，才能覆盖 `HttpContext.User`。
 - `UseAuthentication()` 必须在 `UseAuthorization()` 之前。
 - `[PreventDuplicateRequest]` 依赖 `IMemoryCache`，`Program.cs` 必须注册 `AddMemoryCache()`。
+- `[PreventDuplicateRequest]` 只提供单实例短时防抖，不是业务幂等、并发控制或分布式锁。
 - JSON 当前使用 `AddNewtonsoftJson`，枚举按字符串处理，null 字段保留。
 - Serilog 在 WebApplication 构建前初始化，启动失败要能写日志。
+- 全局异常响应使用与 Controller 一致的序列化与结构化错误契约；HTTP 状态治理必须同步评估 Refit 和现有调用方，不能由单个 Controller 各自发明。
 
 ## 详细参考
 

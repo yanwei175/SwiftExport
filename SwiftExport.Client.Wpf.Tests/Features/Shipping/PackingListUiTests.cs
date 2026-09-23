@@ -42,8 +42,8 @@ public sealed class PackingListUiTests
         var resources = Application.Current.Resources;
         resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
         resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
-        foreach (var path in new[] { "Resources/Tokens.xaml", "Resources/Colors.xaml", "Resources/Typography.xaml", "Resources/Spacing.xaml",
-            "Resources/Grids.xaml", "Resources/Borders.xaml", "Resources/Button.xaml", "Resources/日期选择器.xaml", "Resources/DataGrid.xaml",
+        foreach (var path in new[] { "Resources/UserWpfUiThemeResources.xaml", "Resources/Variables.xaml", "Resources/Colors.xaml", "Resources/Typography.xaml",
+            "Resources/Grids.xaml", "Resources/Borders.xaml", "Resources/Button.xaml", "Resources/DatePicker.xaml", "Resources/DataGrid.xaml",
             "Resources/Image.xaml", "Features/Shipping/页面模板.xaml" })
             resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri($"pack://application:,,,/SwiftExport.Client.Wpf;component/{path}") });
         resources["EnumDescriptionConverter"] = new EnumDescriptionConverter();
@@ -69,6 +69,23 @@ public sealed class PackingListUiTests
         Assert.IsTrue(splitButton.IsEnabled);
         splitButton.Command.Execute(splitButton.CommandParameter);
         Assert.AreEqual(2, detail.Lines.Items.Count);
+        // 真实分组模板仍仅包含产品行，折叠后不会影响可保存的来源集合。
+        detail.AddPackingGroupCommand.Execute(null);
+        detail.SelectedLine = detail.Lines.Items.Last();
+        await detail.MoveIntoPackingGroupCommand.ExecuteAsync(null);
+        Layout(detailView);
+        var mixedExpander = Descendants(detailView).OfType<Expander>().Single();
+        Assert.IsTrue(mixedExpander.IsExpanded);
+        mixedExpander.IsExpanded = false;
+        Assert.AreEqual(2, detail.Lines.Items.Count);
+        Assert.IsFalse(detail.Lines.PackingGroups.Single().IsExpanded);
+        mixedExpander.IsExpanded = true;
+        Layout(detailView);
+        var groupNet = Descendants(detailView).OfType<TextBox>()
+            .Single(x => System.Windows.Automation.AutomationProperties.GetName(x) == "拼箱整箱净重");
+        groupNet.Text = "2";
+        groupNet.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+        Assert.AreEqual(2m, detail.Lines.Items.Last().NwPerPackage);
         detailView.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent)); Assert.IsNull(detail.CommitEdits);
         var customer = Guid.NewGuid();
         api.Sources = _ => Task.FromResult(SwiftExport.Contracts.Wrappers.ServiceResult<

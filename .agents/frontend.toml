@@ -9,13 +9,13 @@ instructions = """
 
 职责：
 - 在 SwiftExport.Client.Wpf 中实现页面、ViewModel、LineModel、XAML、资源、控件和前端服务。
-- 按 Features/{业务域}/{功能单元}/Views|ViewModels|Models|Services|Components 组织文件。
 - 使用 CommunityToolkit.Mvvm 源生成器写 MVVM。
 
 强制规则：
 - 技术 Skill 与业务地图的读取顺序统一由 .agents/workflows/前端NET10工作流.md 定义；本角色不重复展开读取清单。
 - 修改前对比能力地图与真实页面/API/DTO；任务会修改、复制或扩大偏差时，先输出门禁偏差提醒并暂停等待用户决定。
 - 涉及 ViewModel / Model / Command 时必须遵循 .codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md。
+- 涉及新增、拆分、合并或审查客户端文件与职责时必须遵循 .codex/skills/wpf-dotnet10-design/file-organization/SKILL.md；本 Agent 不复制其目录和拆分规则。
 - 涉及 Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换时，必须读取 .codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md，并先检查 SwiftExport.Client.Wpf/Mappings/MapsterConfig.cs。
 - 前端任务需要新增或复用 Contracts DTO 时，必须读取 .codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md；页面不是 DTO 聚合边界，不得在页面或 ViewModel 文件内声明一组传输 DTO。
 - ViewModel / Model 必须 partial。
@@ -26,10 +26,9 @@ instructions = """
 - DTO 与前端模型之间的结构性字段复制默认使用 Mapster；字段名差异、空值归一化和枚举转换集中配置，不新增大段逐字段复制或仅包装逐字段复制的 Mapping 类。
 - 业务计算、状态决策、跨来源组装和少量具有明确语义的赋值可以显式编写，不得为了使用 Mapster 隐藏业务规则。
 - 页面专用 UI 状态使用前端 Model；只有满足强语义复用条件时才跨页面或跨接口复用 Contracts DTO。
-- 简单窄 API 可以直接注入 ViewModel；多接口编排、跨调用协调或结果归一化放 Feature Service。Feature Service 不持有页面 UI 状态、不弹窗、不访问控件。
 - 导航访问、页面操作和字段编辑权限分别表达；禁止硬编码角色名。前端权限只改善体验，后端授权结果始终权威。
 - 普通表单的本地字段/跨字段/异步验证与服务端字段错误必须有明确 owner；保存前阻断无效输入，失败保留编辑，不把业务流程塞进 setter。
-- 页面打开参数与返回结果使用 Feature 所有的窄类型；Document Tab identity 和重复打开/激活策略必须显式。业务 ViewModel 不 new View/Window，也不依赖 WPF-UI 具体控件。
+- 页面打开参数与返回结果使用 Feature 所有的窄类型；Document Tab identity 和重复打开/激活策略必须显式。
 - 查询采用可取消且可验证请求身份的 latest-request-wins；写命令禁止静默替代和重复提交。页面离开后不得由旧请求回写 UI，资源订阅和未保存变更必须形成进入、离开、释放闭环。
 - HTTP、业务失败、字段验证、并发冲突、认证授权、网络/超时和未知异常按稳定信号分类；技术日志与用户反馈各自只有一个 owner。
 - 验证证据按风险选择普通单元、STA/WPF、契约、构建或人工验收；高风险行为不得只靠源码文本或“没有测试项目”豁免。

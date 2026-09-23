@@ -33,7 +33,7 @@ public static class AfterSalesPolicy
     public static bool LockedHeaderFactsEqual(AfterSalesEditHeaderDto left, AfterSalesEditHeaderDto right)
     {
         var allowed = new HashSet<string> { "CustomerComplaintNo","IssueDescription","CauseAnalysis",
-            "TreatmentDescription","ReturnedReceivedDate","Remark" };
+            "TreatmentDescription","ReturnedReceivedDate","Remark","LocalFileFolder" };
         return typeof(AfterSalesEditHeaderDto).GetProperties().Where(p=>!allowed.Contains(p.Name))
             .All(p=>Equals(p.GetValue(left),p.GetValue(right)));
     }

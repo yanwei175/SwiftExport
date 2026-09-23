@@ -143,7 +143,7 @@ public sealed class PackingListService(
                 var lines = await BuildLinesAsync(header, command.Lines, Array.Empty<PackingListLine>(), cancellationToken);
                 await repository.SaveAsync(header, lines, Array.Empty<PackingListLine>(), 0, cancellationToken);
                 return await ResultAsync(header.Uid, false, cancellationToken);
-            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId));
+            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId), command.Lines.Select(x => x.PackingGroupId).OfType<Guid>());
         }, cancellationToken);
 
     /// <inheritdoc/>
@@ -177,7 +177,7 @@ public sealed class PackingListService(
                 var deleted = command.DeletedLines.Select(input => existing.Single(row => row.Uid == input.Uid)).ToArray();
                 await repository.SaveAsync(header, lines, deleted, command.ExpectedVersion, cancellationToken);
                 return await ResultAsync(uid, false, cancellationToken);
-            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId));
+            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId), command.Lines.Select(x => x.PackingGroupId).OfType<Guid>());
         }, cancellationToken);
 
     /// <inheritdoc/>
@@ -278,13 +278,14 @@ public sealed class PackingListService(
                 };
             }
             line.LineNumber = input.LineNumber;
+            line.PackingGroupId = input.PackingGroupId;
             line.Qty = input.Qty;
             // 包装是本单可编辑事实；尾箱空值不能被主数据默认包装覆盖。
-            line.PcsPerPackage = input.PcsPerPackage;
+            line.PcsPerPackage = input.PackingGroupId.HasValue ? input.Qty : input.PcsPerPackage;
             line.NwPerPackage = input.NwPerPackage;
             line.GwPerPackage = input.GwPerPackage;
             line.CbmPerPackage = input.CbmPerPackage;
-            line.PackageCount = CalculatePackageCount(input.Qty, input.PcsPerPackage);
+            line.PackageCount = input.PackingGroupId.HasValue ? 1 : CalculatePackageCount(input.Qty, input.PcsPerPackage);
             line.SubTotalNw = Multiply(line.PackageCount, line.NwPerPackage);
             line.SubTotalGw = Multiply(line.PackageCount, line.GwPerPackage);
             line.SubTotalCbm = Multiply(line.PackageCount, line.CbmPerPackage);
@@ -299,7 +300,7 @@ public sealed class PackingListService(
     /// <summary>在同一事务内串行命令、执行写入并保存可重放结果。</summary>
     private async Task<PackingListDraftCommandResult> ExecuteWriteAsync(Guid commandId, string operation,
         Guid aggregateUid, string fingerprint, Func<Task<PackingListDraftCommandResult>> action, CancellationToken token,
-        IEnumerable<Guid>? incomingSourceIds = null)
+        IEnumerable<Guid>? incomingSourceIds = null, IEnumerable<Guid>? incomingGroupIds = null)
     {
         if (context.Session.Transaction is not null)
             Fail(PackingListErrorCodes.StateBlocked, "当前请求已有事务，不能接管装箱单草稿命令。");
@@ -330,6 +331,10 @@ public sealed class PackingListService(
                 return replay;
             }
 
+            // 在锁定箱单头行之前串行组身份，避免跨单归属检查反向获取其他箱单行锁。
+            var groupIds = incomingGroupIds?.Distinct().Order().ToArray() ?? [];
+            if (groupIds.Length > 0 && await repository.HasForeignPackingGroupsAsync(aggregateUid, groupIds, token))
+                Fail(PackingListErrorCodes.InvalidDraft, "拼箱标识已被其他箱单使用。", "Lines.PackingGroupId");
             await postingFacts.LockSourcesAsync(sourceIds, token);
             var result = await action();
             var now = DateTime.Now;
@@ -445,11 +450,25 @@ public sealed class PackingListService(
             if (row.GrossDemandId == Guid.Empty || row.ProductId == Guid.Empty)
                 Fail(PackingListErrorCodes.InvalidDraft, "来源身份不能为空，标准行的产品身份也不能为空。", field);
             ValidateDecimal(row.Qty, false, field + ".Qty");
+            if (row.PackingGroupId == Guid.Empty)
+                Fail(PackingListErrorCodes.InvalidDraft, "拼箱标识不能是空 Guid。", field + ".PackingGroupId");
+            if (row.PackingGroupId.HasValue) row.PcsPerPackage = row.Qty;
+            if (row.NwPerPackage > row.GwPerPackage)
+                Fail(PackingListErrorCodes.InvalidDraft, "单箱净重不能大于毛重。", field);
             if (row.PcsPerPackage.HasValue) ValidateDecimal(row.PcsPerPackage.Value, false, field + ".PcsPerPackage");
             ValidateOptionalNonNegative(row.NwPerPackage, field + ".NwPerPackage");
             ValidateOptionalNonNegative(row.GwPerPackage, field + ".GwPerPackage");
             ValidateOptionalNonNegative(row.CbmPerPackage, field + ".CbmPerPackage");
             CalculatePackageCount(row.Qty, row.PcsPerPackage);
+        }
+        // 组只是一只箱的包装归属；不能用某个成员覆盖其他成员的冲突事实。
+        foreach (var group in lines.Where(x => x.PackingGroupId.HasValue).GroupBy(x => x.PackingGroupId))
+        {
+            var ordered = group.OrderBy(x => x.LineNumber).ToArray();
+            if (ordered[^1].LineNumber - ordered[0].LineNumber + 1 != ordered.Length)
+                Fail(PackingListErrorCodes.InvalidDraft, "同一拼箱成员的行号必须连续。", "Lines.LineNumber");
+            if (ordered.Select(x => (x.NwPerPackage, x.GwPerPackage, x.CbmPerPackage, Marks: Normalize(x.Marks))).Distinct().Count() != 1)
+                Fail(PackingListErrorCodes.InvalidDraft, "同一拼箱的净重、毛重、体积及箱唛必须一致。", "Lines.PackingGroupId");
         }
     }
 
@@ -506,7 +525,7 @@ public sealed class PackingListService(
             },
             Lines = lines.OrderBy(row => row.Uid).Select(row => new
             {
-                row.Uid, row.ExpectedVersion, row.LineNumber, row.GrossDemandId, row.ProductId, row.Qty,
+                row.Uid, row.ExpectedVersion, row.LineNumber, row.PackingGroupId, row.GrossDemandId, row.ProductId, row.Qty,
                 row.PcsPerPackage, row.NwPerPackage, row.GwPerPackage, row.CbmPerPackage,
                 InvoiceNo = Normalize(row.InvoiceNo), Marks = Normalize(row.Marks), Note = Normalize(row.Note)
             }).ToArray(),

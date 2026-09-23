@@ -17,6 +17,23 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
         new(sql, parameters, context.Session.Transaction, cancellationToken: token);
 
     /// <inheritdoc/>
+    public async Task<bool> HasForeignPackingGroupsAsync(Guid headId, IReadOnlyCollection<Guid> groupIds, CancellationToken cancellationToken = default)
+    {
+        // 组身份的应用锁先于查询，防止两个箱单同时首次使用同一个空组标识。
+        foreach (var id in groupIds.Distinct().Order())
+        {
+            var result = await context.Session.Connection.ExecuteScalarAsync<int>(new CommandDefinition(
+                "DECLARE @r int; EXEC @r=sys.sp_getapplock @Resource=@Key,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=10000; SELECT @r;",
+                new { Key = "PackingList.Group:" + id.ToString("N") }, context.Session.Transaction, cancellationToken: cancellationToken));
+            if (result < 0) throw new DBConcurrencyException("拼箱标识正在被其他操作使用，请重试。");
+        }
+        if (groupIds.Count == 0) return false;
+        return await context.Session.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+            "SELECT CONVERT(bit,CASE WHEN EXISTS(SELECT 1 FROM dbo.PackingListLine WITH(READCOMMITTED) WHERE PackingGroupId IN @Ids AND PackingListHeadId<>@HeadId) THEN 1 ELSE 0 END);",
+            new { Ids = groupIds, HeadId = headId }, context.Session.Transaction, cancellationToken: cancellationToken));
+    }
+
+    /// <inheritdoc/>
     public Task<bool> IsSchemaReadyAsync(CancellationToken cancellationToken = default) =>
         context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
             SELECT CONVERT(bit,CASE WHEN OBJECT_ID(N'dbo.PackingListHead',N'U') IS NOT NULL
@@ -24,6 +41,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
               AND OBJECT_ID(N'dbo.OutboundDocument',N'U') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListHead',N'CreateCommandId') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'GrossDemandId') IS NOT NULL
+              AND COL_LENGTH(N'dbo.PackingListLine',N'PackingGroupId') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListHead',N'ShippingLocationSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'IsNonStandardSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'SourceTypeSnapshot') IS NOT NULL
@@ -83,7 +101,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
                    l.PackingListHeadId,l.LineNumber,l.GrossDemandId,l.ProductId,l.IsNonStandardSnapshot,
                    l.SourceTypeSnapshot,l.SourceDocumentNoSnapshot,l.SourceLineNumberSnapshot,l.SkuSnapshot,
                    l.LinkSkuSnapshot,l.CustomerSkuSnapshot,l.DescriptionEnSnapshot,l.ColorNameEnSnapshot,
-                   l.UnitSnapshot,l.Qty,l.PcsPerPackage,l.PackageCount,l.NwPerPackage,l.GwPerPackage,
+                   l.PackingGroupId,l.UnitSnapshot,l.Qty,l.PcsPerPackage,l.PackageCount,l.NwPerPackage,l.GwPerPackage,
                    l.CbmPerPackage,l.SubTotalNw,l.SubTotalGw,l.SubTotalCbm,l.CustomerPoNo,l.InvoiceNo,
                    l.Marks,l.Note,
                    g.ImagePathSnapshot AS ImagePath
@@ -214,7 +232,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
             SELECT Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PackingListHeadId,LineNumber,
                    GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,SourceDocumentNoSnapshot,
                    SourceLineNumberSnapshot,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,DescriptionEnSnapshot,
-                   ColorNameEnSnapshot,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,GwPerPackage,
+                   ColorNameEnSnapshot,PackingGroupId,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,GwPerPackage,
                    CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note
             FROM dbo.PackingListLine WITH(UPDLOCK,HOLDLOCK)
             WHERE PackingListHeadId=@Uid AND IsDeleted=0 ORDER BY Uid;
@@ -262,6 +280,22 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
                 """, header, cancellationToken));
             if (count != 1) throw new DBConcurrencyException("装箱单头版本或状态已变化。");
             header.Version++;
+            // 有效行号有唯一索引。先移到不与旧/新行号重叠的临时正整数，再写最终顺序；
+            // 临时变更不增加版本，失败随调用方事务回滚，删除行在软删除时恢复原行号。
+            var currentOrder = (await context.Session.Connection.QueryAsync<PackingListLine>(Command(
+                "SELECT Uid,Version,LineNumber FROM dbo.PackingListLine WITH(UPDLOCK,HOLDLOCK) WHERE PackingListHeadId=@Uid AND IsDeleted=0 ORDER BY Uid;",
+                new { header.Uid }, cancellationToken))).ToArray();
+            var occupied = currentOrder.Select(x => x.LineNumber).Concat(activeLines.Select(x => x.LineNumber)).ToHashSet();
+            var temporary = 1;
+            foreach (var row in currentOrder)
+            {
+                while (occupied.Contains(temporary)) temporary = checked(temporary + 1);
+                occupied.Add(temporary);
+                var moved = await context.Session.Connection.ExecuteAsync(Command(
+                    "UPDATE dbo.PackingListLine SET LineNumber=@Temporary WHERE Uid=@Uid AND Version=@Version AND IsDeleted=0;",
+                    new { row.Uid, row.Version, Temporary = temporary }, cancellationToken));
+                if (moved != 1) throw new DBConcurrencyException("装箱单行排序版本已变化。");
+            }
         }
 
         foreach (var line in activeLines)
@@ -277,7 +311,7 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
         {
             context.AuditStamp.StampForUpdate(line);
             var count = await context.Session.Connection.ExecuteAsync(Command("""
-                UPDATE dbo.PackingListLine SET IsDeleted=1,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
+                UPDATE dbo.PackingListLine SET IsDeleted=1,LineNumber=@LineNumber,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                 WHERE Uid=@Uid AND PackingListHeadId=@PackingListHeadId AND Version=@Version AND IsDeleted=0;
                 """, line, cancellationToken));
             if (count != 1) throw new DBConcurrencyException($"待删除装箱单行 {line.Uid} 版本已变化。");
@@ -317,17 +351,17 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
         INSERT dbo.PackingListLine(Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,
           PackingListHeadId,LineNumber,GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,
           SourceDocumentNoSnapshot,SourceLineNumberSnapshot,SkuSnapshot,LinkSkuSnapshot,CustomerSkuSnapshot,
-          DescriptionEnSnapshot,ColorNameEnSnapshot,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,
+          DescriptionEnSnapshot,ColorNameEnSnapshot,PackingGroupId,UnitSnapshot,Qty,PcsPerPackage,PackageCount,NwPerPackage,
           GwPerPackage,CbmPerPackage,SubTotalNw,SubTotalGw,SubTotalCbm,CustomerPoNo,InvoiceNo,Marks,Note)
         VALUES(@Uid,1,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PackingListHeadId,@LineNumber,
           @GrossDemandId,@ProductId,@IsNonStandardSnapshot,@SourceTypeSnapshot,@SourceDocumentNoSnapshot,
           @SourceLineNumberSnapshot,@SkuSnapshot,@LinkSkuSnapshot,@CustomerSkuSnapshot,@DescriptionEnSnapshot,
-          @ColorNameEnSnapshot,@UnitSnapshot,@Qty,@PcsPerPackage,@PackageCount,@NwPerPackage,@GwPerPackage,
+          @ColorNameEnSnapshot,@PackingGroupId,@UnitSnapshot,@Qty,@PcsPerPackage,@PackageCount,@NwPerPackage,@GwPerPackage,
           @CbmPerPackage,@SubTotalNw,@SubTotalGw,@SubTotalCbm,@CustomerPoNo,@InvoiceNo,@Marks,@Note);
         """;
 
     private const string UpdateLineSql = """
-        UPDATE dbo.PackingListLine SET LineNumber=@LineNumber,Qty=@Qty,PcsPerPackage=@PcsPerPackage,
+        UPDATE dbo.PackingListLine SET PackingGroupId=@PackingGroupId,LineNumber=@LineNumber,Qty=@Qty,PcsPerPackage=@PcsPerPackage,
           PackageCount=@PackageCount,NwPerPackage=@NwPerPackage,GwPerPackage=@GwPerPackage,CbmPerPackage=@CbmPerPackage,
           SubTotalNw=@SubTotalNw,SubTotalGw=@SubTotalGw,SubTotalCbm=@SubTotalCbm,InvoiceNo=@InvoiceNo,
           Marks=@Marks,Note=@Note,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy

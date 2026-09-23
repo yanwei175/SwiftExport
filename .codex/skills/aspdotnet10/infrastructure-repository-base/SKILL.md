@@ -28,6 +28,8 @@ description: SwiftExport Infrastructure 仓储基础技能。用于 IRepository�
 - 泛型 `IRepository<T>` 只保留所有实体稳定适用的单实体读写能力。
 - `DapperRepository<T>` 只承载单实体 CRUD 和基础 Uid 查询。
 - 批量保存、动态查询、分页查询、复杂联表放具体业务 Repository。
+- 命令回执、CommandItemId、不可变流水等幂等事实使用真实业务唯一索引；不能只靠 Application 先查询再写入。
+- 需要并发保护时提供语义明确的锁定方法，并由 Application 决定锁集合和稳定顺序；Repository 不自行编排跨领域流程。
 - Repository 使用 `RepositoryBaseContext`，不直接散落注入连接、日志、审计。
 - Repository 返回 Entity 或 Contracts 只读 DTO，不依赖 Application。
 

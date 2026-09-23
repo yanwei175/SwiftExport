@@ -26,6 +26,8 @@ public interface IPackingListRepository
         CancellationToken cancellationToken = default);
     /// <summary>以事务级应用锁串行处理同一命令。</summary>
     Task<int> LockCommandAsync(Guid commandId, CancellationToken cancellationToken = default);
+    /// <summary>串行锁定拼箱标识并检查是否被其他箱单使用，含历史删除行。</summary>
+    Task<bool> HasForeignPackingGroupsAsync(Guid headId, IReadOnlyCollection<Guid> groupIds, CancellationToken cancellationToken = default);
     /// <summary>锁定并读取单头，可选包含已软删除记录。</summary>
     Task<PackingListHead?> LockHeaderAsync(Guid uid, bool includeDeleted, CancellationToken cancellationToken = default);
     /// <summary>锁定并读取当前有效明细。</summary>

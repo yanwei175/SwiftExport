@@ -379,6 +379,8 @@ public sealed class AfterSalesService(
     private async Task NormalizeHeaderAsync(AfterSalesHeader head,AfterSalesHeader? old,bool confirmed)
     {
         head.CustomerComplaintNo=string.IsNullOrWhiteSpace(head.CustomerComplaintNo)?null:head.CustomerComplaintNo.Trim();
+        // 资料路径只做文本规范化，不校验目录存在性，也不参与来源需求交接。
+        head.LocalFileFolder=string.IsNullOrWhiteSpace(head.LocalFileFolder)?null:head.LocalFileFolder.Trim();
         head.ReturnedReceivedDate=head.ReturnedReceivedDate?.Date;
         if(!confirmed)
         {
@@ -422,6 +424,7 @@ public sealed class AfterSalesService(
         {
             if(property.GetValue(entity) is not string value) continue;
             var max=property.Name is "IssueDescription" or "CauseAnalysis" or "TreatmentDescription" or "Remark" or "Conclusion"?2000:
+                property.Name=="LocalFileFolder"?1000:
                 property.Name is "DescriptionSnapshot" or "SpecificationSnapshot"?500:
                 property.Name=="CustomerNameSnapshot"?200:100;
             if(value.Length>max) Fail("VALIDATION",$"字段长度不能超过{max}。",(entity is AfterSalesHeader ? "Header." : $"Lines[{((AfterSalesLine)entity).Uid}].")+property.Name);

@@ -192,7 +192,22 @@
         <GridSplitter Grid.Row="3" Style="{StaticResource SwiftExportGridSplitterHorizontal}"/>
 
         <!--LineDataGrid-->
-        <Grid Grid.Row="4" RowDefinitions="Auto,8,*,8,Auto,8,Auto">
+        <Grid Grid.Row="4" RowDefinitions="Auto,Auto,*,8,Auto,8,Auto">
+            <StackPanel Grid.Row="1" Margin="0,8">
+                <WrapPanel IsEnabled="{Binding IsEditable}">
+                    <Button Content="新增拼箱" Command="{Binding AddPackingGroupCommand}" Margin="0,0,8,0"/>
+                    <ComboBox Width="180" ItemsSource="{Binding Lines.PackingGroups}" DisplayMemberPath="Title"
+                              SelectedItem="{Binding SelectedPackingGroup}" AutomationProperties.Name="目标拼箱" Margin="0,0,8,0"/>
+                    <Button Content="普通行模式" Command="{Binding SelectOrdinaryPackingCommand}" Margin="0,0,8,0"/>
+                    <Button Content="移入选中拼箱" Command="{Binding MoveIntoPackingGroupCommand}" Margin="0,0,8,0"/>
+                    <Button Content="移出拼箱" Command="{Binding MoveOutOfPackingGroupCommand}" Margin="0,0,8,0"/>
+                    <Button Content="拼箱上移" Command="{Binding MovePackingGroupUpCommand}" Margin="0,0,8,0"/>
+                    <Button Content="拼箱下移" Command="{Binding MovePackingGroupDownCommand}" Margin="0,0,8,0"/>
+                    <Button Content="删除空组" Command="{Binding DeletePackingGroupCommand}"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding Lines.PackingSummary}" Margin="0,4,0,0"/>
+                <TextBlock Text="选中目标拼箱后点击“获取”添加来源；组内产品独立计数量，整箱指标只计一次。" TextWrapping="Wrap"/>
+            </StackPanel>
             <!--汇总-->
             <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80">
                 <StackPanel Orientation="Horizontal">
@@ -220,21 +235,67 @@
             <DataGrid Grid.Row="2" x:Name="OrderLinesGrid"
                       RowHeight="{StaticResource DataGridRowHeightMedium}"
                       FontSize="{StaticResource SwiftExportDefaltFontSize}"
-                      ItemsSource="{Binding Lines.Items}"
+                      ItemsSource="{Binding Lines.PackingView}"
                       Style="{StaticResource SwiftExportDataGrid}"
                       AutoGenerateColumns="False"
                       CanUserAddRows="False"
                       IsReadOnly="{Binding IsReadOnly, FallbackValue=True}"
                       IsEnabled="{Binding CanInteractWithLines}"
                       CanUserSortColumns="False"
+                      VirtualizingPanel.IsVirtualizingWhenGrouping="True"
                       SelectionMode="Single"
                       SelectionUnit="FullRow"
                       gridCore:EnterpriseGrid.IsEnabled="True"
                       gridCore:GridVirtualization.IsEnabled="True"
-                      gridOperations:GridOperations.IsEnabled="True"
+                      gridOperations:GridOperations.IsEnabled="{Binding Lines.CanUseGridOperations}"
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
+                <DataGrid.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.ContainerStyle>
+                            <Style TargetType="GroupItem">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="GroupItem">
+                                            <Expander IsExpanded="{Binding Name.IsExpanded, Mode=TwoWay}">
+                                                <Expander.Header>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name.Title}" FontWeight="SemiBold" Margin="0,0,12,0"/>
+                                                        <StackPanel Orientation="Horizontal" IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                                            <TextBlock Text="净重" VerticalAlignment="Center"/>
+                                                            <TextBox Width="72" Margin="4,0,8,0" AutomationProperties.Name="拼箱整箱净重"
+                                                                     Text="{Binding Name.NetWeight, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True}"/>
+                                                            <TextBlock Text="毛重" VerticalAlignment="Center"/>
+                                                            <TextBox Width="72" Margin="4,0,8,0" AutomationProperties.Name="拼箱整箱毛重"
+                                                                     Text="{Binding Name.GrossWeight, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True}"/>
+                                                            <TextBlock Text="体积" VerticalAlignment="Center"/>
+                                                            <TextBox Width="72" Margin="4,0,8,0" AutomationProperties.Name="拼箱整箱体积"
+                                                                     Text="{Binding Name.Volume, UpdateSourceTrigger=LostFocus, ValidatesOnExceptions=True}"/>
+                                                            <TextBlock Text="箱唛" VerticalAlignment="Center"/>
+                                                            <TextBox Width="130" Margin="4,0,8,0" AutomationProperties.Name="拼箱箱唛"
+                                                                     Text="{Binding Name.Marks, UpdateSourceTrigger=LostFocus}"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Expander.Header>
+                                                <ItemsPresenter/>
+                                            </Expander>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Name.IsMixed}" Value="False">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="GroupItem"><ItemsPresenter/></ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </GroupStyle.ContainerStyle>
+                    </GroupStyle>
+                </DataGrid.GroupStyle>
                 <DataGrid.Columns>
 
                     <DataGridTemplateColumn Header="移动" Width="40" IsReadOnly="True">

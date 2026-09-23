@@ -13,6 +13,9 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 
 - 分析或治理 Core Entity 字段、逻辑外键、历史快照、DTO 分类与字段来源、数据库模型或 Infrastructure 实现路线：读 `../data-model-governance/SKILL.md`。该 Skill 只负责分析、治理和规划；实现 Repository、SQL、DTO 或 Entity 时继续使用对应实现 Skill。
 - 新增/修改 API、Controller、Application Service：读 `../api-application-service/SKILL.md`。
+- 涉及复杂单据草稿、确认、过账、反向、`CommandId`、Preview、幂等回执、多仓储事务或锁顺序：读 `../application-document-command/SKILL.md`。
+- 规划或重构 Controller、Application Service、Interface、Policy、Repository、DTO/API 的文件和职责边界：读 `../backend-file-organization/SKILL.md`。
+- 选择后端构建、契约、权限、并发、幂等、事务、SQL 或数据库验证：读 `../backend-quality-gates/SKILL.md`。
 - 新增/修改普通业务 Controller、`BaseController`、Controller 路由、HTTP 方法、防重复提交标注：读 `../webapi-controller-boundary/SKILL.md`。
 - 修改登录、注册、JWT、`/api/auth/me`、`ICurrentUser`、DevUser 免登录、认证授权：读 `../webapi-auth-current-user/SKILL.md`。
 - 修改 `Program.cs`、中间件顺序、Serilog、Swagger、JSON、全局异常、防重复提交 Filter：读 `../webapi-pipeline-filters/SKILL.md`。
@@ -39,6 +42,9 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 - WebApi 只做 HTTP 边界转发。
 - WebApi 管道负责认证、授权、异常、序列化、Filter，不承载业务流程。
 - Application 承担业务编排、校验和事务。
+- 复杂单据按稳定用例族拆分，不按页面或代码行数建立万能 Manager Service。
+- 正式业务命令使用 Version、持久化 CommandId 幂等、事务和数据库约束；防抖 Filter 不能替代这些机制。
+- 命令回执保存可重放结果，BusinessOperationLog 保存人可读业务审计，两者职责不得默认混用。
 - `ServiceBaseContext` 是 Application 服务层基础依赖聚合。
 - `BaseService` 只承载标准 CRUD；业务命令必须显式建方法。
 - Contracts 承担前后端共享 DTO/API/枚举。

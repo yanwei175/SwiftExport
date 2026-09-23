@@ -28,6 +28,8 @@ description: SwiftExport Contracts Refit API 技能。用于 SwiftExport.Contrac
 - Controller 路由、HTTP 方法、参数来源、Request/Response 必须与 Refit 接口一致。
 - `IGenericApi<TDto>` 对应 WebApi `BaseController` 的基础 CRUD 概念，但当前返回类型和请求模型要以源码事实为准，不要盲目套用。
 - 业务命令必须有明确路由，如 `confirm`、`cancel-confirm`、`post`、`reverse-post`。
+- 异步 API 全链支持 `CancellationToken`；正式命令 Request 明确携带所需的 CommandId、ExpectedVersion、原因或 Preview Token。
+- Preview 路由只读，正式提交必须使用独立明确命令路由并由服务端重新校验。
 - Request/Response 使用 Contracts DTO，不使用匿名对象。
 - 需要 body 时使用 `[Body]`。
 

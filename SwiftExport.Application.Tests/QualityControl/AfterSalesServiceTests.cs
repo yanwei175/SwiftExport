@@ -27,6 +27,41 @@ namespace SwiftExport.Application.Tests.QualityControl;
 [TestClass]
 public sealed class AfterSalesServiceTests
 {
+    /// <summary>资料路径可确认后补充，限制长度、保留审计，且不传递或重发来源需求。</summary>
+    [TestMethod]
+    public async Task LocalFolderIsSupplementOnlyAndLimitedTo1000()
+    {
+        using var f=new Fixture();var c=f.Command();
+        c.Header.LocalFileFolder=@"  D:\投诉\客户甲  ";
+        var saved=await f.Service.SaveAsync(c.Uid,c,true);
+        Assert.IsTrue(saved.Success,saved.Message);
+        Assert.AreEqual(@"D:\投诉\客户甲",(await f.Service.GetAsync(c.Uid)).Data.Header.LocalFileFolder);
+        Assert.IsTrue((await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Success);
+        Assert.IsFalse(JsonSerializer.Serialize(f.Received).Contains("LocalFileFolder"));
+        var edit=f.Edit();edit.Header.LocalFileFolder=new string('中',1000);
+        Assert.IsTrue((await f.Service.SaveAsync(c.Uid,edit,false)).Success);
+        Assert.AreEqual(1,f.ReceiveCalls);
+        using(var audit=JsonDocument.Parse(f.Logs.Last().ChangedFieldsJson!))
+        {
+            Assert.AreEqual(@"D:\投诉\客户甲",audit.RootElement.GetProperty("Before").GetProperty("Header").GetProperty("LocalFileFolder").GetString());
+            Assert.AreEqual(new string('中',1000),audit.RootElement.GetProperty("After").GetProperty("Header").GetProperty("LocalFileFolder").GetString());
+        }
+        edit=f.Edit();edit.Header.LocalFileFolder=new string('中',1001);
+        var rejected=await f.Service.SaveAsync(c.Uid,edit,false);
+        Assert.AreEqual("VALIDATION",rejected.Error.Code);Assert.AreEqual("Header.LocalFileFolder",rejected.Error.Field);
+        Assert.AreEqual(1000,f.Head!.LocalFileFolder!.Length);
+        edit=f.Edit();edit.Header.LocalFileFolder="   ";
+        Assert.IsTrue((await f.Service.SaveAsync(c.Uid,edit,false)).Success);
+        Assert.IsNull((await f.Service.GetAsync(c.Uid)).Data.Header.LocalFileFolder);
+        Assert.AreEqual(1,f.ReceiveCalls);
+        foreach(var status in new[]{DocumentStatusEnum.Closed,DocumentStatusEnum.Voided})
+        {
+            f.Head!.DocumentStatus=status;edit=f.Edit();edit.Header.LocalFileFolder="不能修改";
+            Assert.AreEqual("BUSINESS_BLOCKED",(await f.Service.SaveAsync(c.Uid,edit,false)).Error.Code);
+            Assert.IsNull(f.Head!.LocalFileFolder);
+        }
+    }
+
     /// <summary>一个投诉的多种补件共享交期，确认后投诉事实和行结构锁定，处理信息可补充。</summary>
     [TestMethod]
     public async Task MultiplePartsShareHeaderAndConfirmedFactsAreLocked()

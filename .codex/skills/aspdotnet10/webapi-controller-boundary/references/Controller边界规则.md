@@ -17,7 +17,9 @@
 ## 使用规则
 
 - 标准 CRUD Controller 优先复用 `IBaseService` / `BaseService` 的契约。
-- 写操作默认加 `[PreventDuplicateRequest]`。
+- 普通主数据写操作可加 `[PreventDuplicateRequest]` 作为短时间防抖。
+- 确认、过账、反向、作废等正式命令以持久化 CommandId、Version、事务和数据库约束为权威；是否额外加防抖按体验决定，不得依赖 Filter 保证幂等。
+- Action 应透传请求 `CancellationToken`。
 - Controller action 返回项目统一响应，如 `ServiceResult<T>`。
 - Controller 路由、HTTP 方法、Request/Response 必须与 `SwiftExport.Contracts` 中的 Refit API 保持一致。
 - 复杂业务命令应显式建 action，例如 `confirm`、`cancel-confirm`、`explode`、`convert-to-purchase`、`post`、`reverse-post`。
@@ -29,6 +31,7 @@
 - 禁止 Controller 处理库存、过账、拆解、改单等复杂业务流程。
 - 禁止把业务命令伪装成普通 `Update`。
 - 禁止返回 Entity 给前端。
+- 禁止在 Controller 中自行实现命令重放、事务或业务权限判断。
 
 ## 注意点
 

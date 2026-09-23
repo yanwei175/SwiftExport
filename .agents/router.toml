@@ -292,6 +292,26 @@ triggers = [
 ]
 
 [[routes]]
+id = "wpf-file-organization"
+agent = "frontend"
+workflow = ".agents/workflows/前端NET10工作流.md"
+skill_group = ".codex/skills/wpf-dotnet10-design/file-organization/SKILL.md"
+references = [
+  ".agents/references/工程架构总纲.md",
+  ".agents/references/测试与验收总纲.md",
+]
+triggers = [
+  "WPF文件拆分",
+  "WPF职责拆分",
+  "客户端文件拆分",
+  "客户端职责拆分",
+  "ViewModel拆分",
+  "code-behind职责",
+  "Feature目录",
+  "partial ViewModel",
+]
+
+[[routes]]
 id = "wpf-runtime-safety"
 agent = "frontend"
 workflow = ".agents/workflows/前端NET10工作流.md"

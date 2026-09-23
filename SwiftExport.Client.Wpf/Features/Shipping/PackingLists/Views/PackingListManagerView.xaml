@@ -198,6 +198,7 @@
                           gridValidation:GridValidation.IsEnabled="True">
                     <DataGrid.Columns>
 
+                        <DataGridTextColumn Header="拼箱归属" Binding="{Binding PackingGroupId}" IsReadOnly="True" Width="140"/>
                         <DataGridTextColumn Header="行号" 
                                             Binding="{Binding LineNumber}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"

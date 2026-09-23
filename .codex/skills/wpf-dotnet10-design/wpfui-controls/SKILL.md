@@ -15,6 +15,7 @@ description: SwiftExport.Client.Wpf 的 lepoco/WPF-UI 控件库使用规则。�
 - 涉及主题时读 `../official-theme/SKILL.md`
 - 涉及布局时读 `../fluent-layout/SKILL.md`
 - 涉及自定义控件时读 `../custom-controls/SKILL.md`
+- 涉及 View、ViewModel、UI Service、Adapter 或 Component 的文件职责时读 `../file-organization/SKILL.md`
 
 ## 什么时候使用
 
@@ -41,14 +42,13 @@ description: SwiftExport.Client.Wpf 的 lepoco/WPF-UI 控件库使用规则。�
 - WPF-UI 是当前 .NET 10 WPF 主线可用的第三方 Fluent 控件库。
 - WPF-UI 与微软官方 WPF Fluent 主题共同作为视觉基础。
 - 页面可以使用 WPF-UI 控件，但业务样式仍优先走 SwiftExport 命名资源和 token。
-- ViewModel 不直接引用 WPF-UI 控件类型。
-- Dialog、Snackbar、Message 通过项目 UI service 调用，不在 ViewModel 中直接 new `ContentDialog` 或操作 Presenter。
+- 业务层与 WPF-UI 的文件职责边界服从 `../file-organization/SKILL.md`；本 Skill 只规定具体控件和适配实现。
+- Dialog、Snackbar、Message 使用项目现有 UI service 适配实现。
 - 图标优先使用 WPF-UI `SymbolIcon` / `SymbolRegular`，除非项目已有明确图标资源。
 - 不把 WPF-UI 示例页面结构照搬成 ERP 页面，ERP 页面仍优先信息密度和业务操作效率。
 
 ## 禁止事项
 
-- 禁止在 ViewModel 中直接依赖 `Wpf.Ui.Controls.ContentDialog`、`SnackbarPresenter`、`Window`。
 - 禁止绕过 `IDialogService` / `IMessageService` 直接操作全局 UI 宿主。
 - 禁止为了单个页面修改 WPF-UI 全局主题字典。
 - 禁止混用旧 MateWpfThemes 主题作为当前客户端基础。

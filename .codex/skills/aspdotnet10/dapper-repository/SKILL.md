@@ -15,6 +15,8 @@ description: SwiftExport Dapper Repository、SQL、DbSession、RepositoryBaseCon
 - 涉及 `IRepository`、`DapperRepository`、`RepositoryBaseContext` 时读 `../infrastructure-repository-base/SKILL.md`
 - 涉及审计字段时读 `../infrastructure-audit-stamp/SKILL.md`
 - 涉及 DI 注册时读 `../infrastructure-di-registration/SKILL.md`
+- 涉及复杂单据、业务命令、CommandId、幂等回执、锁顺序或多仓储事务时读 `../application-document-command/SKILL.md`
+- 涉及具体业务 Repository 的职责或文件拆分时读 `../backend-file-organization/SKILL.md`
 - 目标模块 Repository、Interface、Entity、DTO、Service
 
 ## 分层位置

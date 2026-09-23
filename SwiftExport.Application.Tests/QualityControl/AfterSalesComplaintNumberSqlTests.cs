@@ -12,6 +12,31 @@ namespace SwiftExport.Application.Tests.QualityControl;
 [TestClass, DoNotParallelize]
 public sealed class AfterSalesComplaintNumberSqlTests
 {
+    /// <summary>真实 SQL 查询、新增、更新和清空均保留单头路径，不改变补件及来源。</summary>
+    [TestMethod]
+    public async Task LocalFolderRoundTripsInSql()
+    {
+        RequireSqlTests();
+        await using var f=new IndependentProcurementSqlFixture();await f.InitializeAsync();
+        var c=new SaveAfterSalesCommand {Uid=Guid.NewGuid(),CommandId=Guid.NewGuid(),
+            Header=new(){CustomerId=f.CustomerId,AcceptedDate=DateTime.Today,IssueDescription="资料路径",
+                LocalFileFolder=@"  \\server\客户投诉\测试  "}};
+        Assert.IsTrue((await f.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().SaveAsync(c.Uid,c,true))).Success);
+        var detail=(await f.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().GetAsync(c.Uid))).Data;
+        Assert.AreEqual(@"\\server\客户投诉\测试",detail.Header.LocalFileFolder);
+        var edit=new SaveAfterSalesCommand {Uid=c.Uid,CommandId=Guid.NewGuid(),Version=detail.Header.Version,
+            Header=detail.Header.Adapt<AfterSalesEditHeaderDto>()};
+        edit.Header.LocalFileFolder=new string('中',1000);
+        Assert.IsTrue((await f.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().SaveAsync(c.Uid,edit,false))).Success);
+        detail=(await f.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().GetAsync(c.Uid))).Data;
+        Assert.AreEqual(1000,detail.Header.LocalFileFolder.Length);
+        edit.Version=detail.Header.Version;edit.CommandId=Guid.NewGuid();edit.Header.LocalFileFolder="  ";
+        Assert.IsTrue((await f.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().SaveAsync(c.Uid,edit,false))).Success);
+        detail=(await f.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().GetAsync(c.Uid))).Data;
+        Assert.IsNull(detail.Header.LocalFileFolder);
+        Assert.AreEqual(0,await f.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.GrossDemand WHERE SourceUid=@id",new {id=c.Uid}));
+    }
+
     /// <summary>零补件可查询，重复投诉号允许，多补件搜索不重复单头，修改清空可回读。</summary>
     [TestMethod]
     public async Task ComplaintNumberAndPartsRoundTrip()
@@ -64,6 +89,10 @@ public sealed class AfterSalesComplaintNumberSqlTests
         Assert.AreEqual(1,await f.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.AfterSalesHeader"));
         await f.ExecuteAsync(await Read("SwiftExport.Infrastructure/Migrations/20260922_02_清理旧售后测试数据.sql"));
         await f.ExecuteAsync(migration);await f.ExecuteAsync(migration);
+        // 后续新增路径字段独立升级，不改写已发布的投诉结构迁移脚本。
+        var folderMigration=await Read("SwiftExport.Infrastructure/Migrations/20260923_售后资料文件夹.sql");
+        await f.ExecuteAsync(folderMigration);await f.ExecuteAsync(folderMigration);
+        Assert.AreEqual(2000,await f.ScalarAsync<int>("SELECT max_length FROM sys.columns WHERE object_id=OBJECT_ID('dbo.AfterSalesHeader') AND name='LocalFileFolder'"));
         Assert.AreEqual(200,await f.ScalarAsync<int>("SELECT max_length FROM sys.columns WHERE object_id=OBJECT_ID('dbo.AfterSalesHeader') AND name='CustomerComplaintNo'"));
         Assert.AreEqual(0,await f.ScalarAsync<int>("SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID('dbo.AfterSalesLine') AND name IN('IssueDescription','ServiceAmountCny','IssueColorId')"));
         var c=new SaveAfterSalesCommand {Uid=Guid.NewGuid(),CommandId=Guid.NewGuid(),

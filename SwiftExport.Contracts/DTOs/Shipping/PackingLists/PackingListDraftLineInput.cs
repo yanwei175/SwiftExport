@@ -14,7 +14,9 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         /// <summary>新增为0，已有行须提交原版本。</summary>
         public int ExpectedVersion { get; set; }
         /// <summary>单据内行号，同来源允许多行。</summary>
-        public int LineNumber { get; set; }
+       public int LineNumber { get; set; }
+        /// <summary>同单据内一只拼箱的稳定标识；为空表示普通包装行，不关联独立组表。</summary>
+        public Guid? PackingGroupId { get; set; }
         /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
         public Guid GrossDemandId { get; set; }
         /// <summary>标准行产品标识；非标行为空。</summary>

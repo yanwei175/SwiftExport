@@ -39,6 +39,7 @@ CREATE TABLE [dbo].[AfterSalesHeader]
     [Remark] nvarchar(2000) NULL,
     [OriginalSalesOrderLineId] uniqueidentifier NULL,
     [CustomerComplaintNo] nvarchar(100) NULL,
+    [LocalFileFolder] nvarchar(1000) NULL,
     [ResponsibleSupplierId] uniqueidentifier NULL,
     [IssueProductId] uniqueidentifier NULL,
     [IssueSkuSnapshot] nvarchar(100) NULL,
@@ -644,6 +645,7 @@ CREATE TABLE [dbo].[PackingListLine]
     [UpdatedBy] nvarchar(500) NULL,
     [PackingListHeadId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
+    [PackingGroupId] uniqueidentifier NULL,
     [GrossDemandId] uniqueidentifier NOT NULL,
     [ProductId] uniqueidentifier NULL,
     [IsNonStandardSnapshot] bit NOT NULL,
@@ -1553,6 +1555,7 @@ CREATE UNIQUE INDEX [UX_PackingListHead_ActiveNo] ON [dbo].[PackingListHead] ([P
 CREATE UNIQUE INDEX [UX_PackingListHead_CreateCommand] ON [dbo].[PackingListHead] ([CreateCommandId]);
 
 CREATE INDEX [IX_PackingListLine_GrossDemand] ON [dbo].[PackingListLine] ([GrossDemandId], [PackingListHeadId]) WHERE [IsDeleted] = 0;
+CREATE INDEX [IX_PackingListLine_PackingGroup] ON [dbo].[PackingListLine] ([PackingListHeadId], [PackingGroupId]);
 CREATE UNIQUE INDEX [UX_PackingListLine_Head_Line] ON [dbo].[PackingListLine] ([PackingListHeadId], [LineNumber]) WHERE [IsDeleted] = 0;
 
 CREATE INDEX [IX_PackingListPostingExecution_Head] ON [dbo].[PackingListPostingExecution] ([PackingListHeadId], [Operation]);
@@ -1766,6 +1769,11 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
     @level2type=N'COLUMN', @level2name=N'CustomerComplaintNo';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'本机投诉资料文件夹路径，仅保存文本，不参与来源需求或文件系统操作。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'AfterSalesHeader',
+    @level2type=N'COLUMN', @level2name=N'LocalFileFolder';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'责任供应商。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
@@ -3953,6 +3961,11 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'PackingListLine',
     @level2type=N'COLUMN', @level2name=N'LineNumber';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'同单据内一只拼箱的稳定标识；为空表示普通包装行，不关联独立组表。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'PackingListLine',
+    @level2type=N'COLUMN', @level2name=N'PackingGroupId';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'唯一交付来源锚点，不表示采购或物料分摊。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

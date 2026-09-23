@@ -19,6 +19,7 @@ description: SwiftExport 当前 .NET 10 WPF 客户端的 CommunityToolkit.Mvvm �
 - 修复 XAML Binding、Command、CanExecute、DataGrid 行状态。
 - 实现或修改异步加载、搜索防抖、写命令并发、Busy、导航/关闭或资源释放时，同时读取 `../runtime-safety/SKILL.md`。
 - 实现或修改页面服务边界、权限、普通表单验证、导航参数、Document Tab 或 Dialog 返回协议时，同时读取 `../page-architecture/SKILL.md`。
+- 新增、拆分或合并 ViewModel、Model、Service、Adapter 或其他客户端文件时，同时读取 `../file-organization/SKILL.md`。
 
 ## 必读上下文
 
@@ -261,14 +262,10 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 
 ## DI / IoC 规则
 
-- 使用 `Microsoft.Extensions.DependencyInjection`。
-- ViewModel 通过构造函数注入 API、UI Service、Cache、Dialog Service。
+- 使用 `Microsoft.Extensions.DependencyInjection`，ViewModel 依赖通过构造函数注入。
 - View 不直接 new ViewModel；通过项目现有注册和 DataTemplate/Navigation 解析。
-- ViewModel 不直接 new Repository、Controller、Window。
-- ViewModel 只依赖 `IDialogService`、`IMessageService` 或 Feature 专用 Dialog Service，不引用 `Wpf.Ui.Controls.ContentDialog`、`SnackbarPresenter` 等具体类型。
-- Feature Service 可以依赖 Refit API、API Runner、映射器或其他无 UI 基础设施；不得依赖业务 ViewModel、View、Window、具体控件或消息/弹窗服务。
-- 当前 `WpfUiDialogService`/`WpfUiMessageService` 可以作为上述接口实现；WPF-UI 负责弹窗和消息外壳，不进入 MVVM 基类或业务模型。
-- 需要创建具体 View 的弹窗，优先由 Feature Dialog Service/Resolver 组装 View 与 ViewModel，再调用通用 `IDialogService`，避免业务 ViewModel new UserControl。
+- CommunityToolkit 的 `Ioc` 示例不是本项目第二套容器，不得绕过现有组合根引入 Service Locator。
+- ViewModel、Feature Service、UI Adapter 和 WPF-UI 类型各自承担什么职责、放在哪个文件，只服从 `../file-organization/SKILL.md` 与 `../page-architecture/SKILL.md`；本节不重复定义。
 
 ## 基类例外
 

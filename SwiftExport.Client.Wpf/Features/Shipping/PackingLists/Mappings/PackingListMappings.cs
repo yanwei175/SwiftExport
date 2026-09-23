@@ -30,6 +30,7 @@ public sealed class PackingListMappings : IRegister
         config.NewConfig<PackingListHeaderModel, PackingListHeaderDto>()
             .Map(x => x.IsDeleted, x => x.PersistedIsDeleted);
         config.NewConfig<PackingListLineDto, PackingListLineModel>()
+            .Ignore(x => x.DisplayGroup)
             .Ignore(x => x.IsChecked).Ignore(x => x.IsSelected).Ignore(x => x.IsReadOnly)
             .Map(x => x.PersistedIsDeleted, x => x.IsDeleted);
         config.NewConfig<PackingListLineModel, PackingListLineDto>()

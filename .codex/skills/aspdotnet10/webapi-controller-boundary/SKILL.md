@@ -13,6 +13,8 @@ description: SwiftExport WebApi Controller 边界技能。用于新增或修改 
 - 涉及 API/Application 时读 `../api-application-service/SKILL.md`
 - 涉及 Contracts/Refit 时读 `../contracts-refit-dto/SKILL.md`
 - 涉及标准 CRUD 传输模型时读 `../application-transfer-dtos/SKILL.md`
+- 涉及正式业务命令、CommandId 或 Preview 时读 `../application-document-command/SKILL.md`
+- 涉及 Controller 拆分时读 `../backend-file-organization/SKILL.md`
 
 ## 什么时候使用
 
@@ -28,7 +30,8 @@ description: SwiftExport WebApi Controller 边界技能。用于新增或修改 
 - 普通业务 Controller 优先继承或参考 `BaseController<TEntity,TDto>` 的路由与 CRUD 约定。
 - `BaseController` 必须保持 `abstract`，避免被 ASP.NET 当成真实 Controller 注册。
 - 默认路由是 `[Route("api/[controller]")]`。
-- 写操作使用 `[PreventDuplicateRequest]`，防止短时间重复提交。
+- 普通主数据写操作可使用 `[PreventDuplicateRequest]` 降低误点击；正式业务命令必须依赖持久化 CommandId、Version、事务和数据库约束，Filter 只能作为可选体验补充。
+- Controller action 透传 `CancellationToken`；认证边界使用 `[Authorize]`，细粒度业务权限仍由 Application 校验。
 - Controller 不写 SQL，不直接依赖 Infrastructure 实现，不承担复杂业务编排。
 
 ## 详细参考

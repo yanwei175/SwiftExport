@@ -16,6 +16,19 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     [ObservableProperty]
     public partial int LineNumber { get; set; }
 
+    /// <summary>拼箱归属；为空保持普通包装，不改变来源身份。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSplitTail))]
+    [NotifyPropertyChangedFor(nameof(IsMixedPacking))]
+    public partial Guid? PackingGroupId { get; set; }
+
+    /// <summary>当前行是否使用共享箱级指标。</summary>
+    public bool IsMixedPacking => PackingGroupId.HasValue;
+
+    /// <summary>仅用于集合视图分组，不参与保存和脏跟踪。</summary>
+    [ObservableProperty]
+    public partial PackingListPackingGroupModel? DisplayGroup { get; set; }
+
     /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
     [ObservableProperty]
     public partial Guid GrossDemandId { get; set; }
@@ -150,7 +163,7 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     }
 
     /// <summary>用原始数量余数判断是否有尾箱，不受显示舍入影响。</summary>
-    public bool CanSplitTail => Qty > 0 && PcsPerPackage > 0 && Qty % PcsPerPackage.Value != 0;
+    public bool CanSplitTail => !IsMixedPacking && Qty > 0 && PcsPerPackage > 0 && Qty % PcsPerPackage.Value != 0;
 
     /// <summary>按实际包装数计算净重，未知输入保持为空。</summary>
     public decimal? SubTotalNw => CalculateSubtotal(NwPerPackage);
@@ -172,12 +185,12 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
         if (Qty <= 0) return "交付数量必须大于零。";
         if (PcsPerPackage.HasValue && PcsPerPackage <= 0) return "每包数量必须大于零。";
         // 每箱数量按完整件数填写，不能超过本行实际出货数量；未知值仍允许待填。
-        if (PcsPerPackage.HasValue && decimal.Truncate(PcsPerPackage.Value) != PcsPerPackage.Value)
+        if (!IsMixedPacking && PcsPerPackage.HasValue && decimal.Truncate(PcsPerPackage.Value) != PcsPerPackage.Value)
             return "每箱数量必须是整数。";
         if (PcsPerPackage > Qty)
             return "每箱数量不能大于出货数量。";
         // 每箱数量按完整件数填写，不能超过本行实际出货数量；未知值仍允许待填。
-        if (PcsPerPackage.HasValue && decimal.Truncate(PcsPerPackage.Value) != PcsPerPackage.Value)
+        if (!IsMixedPacking && PcsPerPackage.HasValue && decimal.Truncate(PcsPerPackage.Value) != PcsPerPackage.Value)
             return "每箱数量必须是整数。";
         if (PcsPerPackage > Qty)
             return "每箱数量不能大于出货数量。";
@@ -200,6 +213,7 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     /// <summary>展示计算和图片变化不生成持久化修改。</summary>
     protected override bool IsTrackingIgnoredProperty(string? propertyName) =>
         base.IsTrackingIgnoredProperty(propertyName)
+        || propertyName is nameof(DisplayGroup) or nameof(IsMixedPacking)
         || propertyName is nameof(PackageCount) or nameof(CanSplitTail) or nameof(SubTotalNw)
             or nameof(SubTotalGw) or nameof(SubTotalCbm) or nameof(ImagePath);
 

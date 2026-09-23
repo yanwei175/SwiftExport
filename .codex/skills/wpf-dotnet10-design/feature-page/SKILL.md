@@ -10,6 +10,7 @@ description: SwiftExport.Client.Wpf 当前 .NET 10 WPF Feature 页面、ViewMode
 公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
 
 - `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`
+- 涉及新增、拆分或合并 View、code-behind、ViewModel、Model、Service、Component 时，读 `.codex/skills/wpf-dotnet10-design/file-organization/SKILL.md`
 - 页面涉及 ViewModel/API/Feature Service 职责、权限、普通表单验证、导航参数、Document Tab identity 或 Dialog 返回协议时，读 `.codex/skills/wpf-dotnet10-design/page-architecture/SKILL.md`
 - 页面涉及异步加载、搜索防抖、保存/业务命令、Busy、导航/关闭、错误反馈或资源释放时，读 `.codex/skills/wpf-dotnet10-design/runtime-safety/SKILL.md`
 - 页面涉及测试证据、可访问性、本地化/文化格式、性能、日志/敏感信息、缓存或文件导入导出时，读 `.codex/skills/wpf-dotnet10-design/quality-gates/SKILL.md`
@@ -18,29 +19,11 @@ description: SwiftExport.Client.Wpf 当前 .NET 10 WPF Feature 页面、ViewMode
 - `.agents/references/工程架构总纲.md`
 - 目标 Feature 真实源码
 
-## 目录结构
+## 页面组成边界
 
-业务页面放在：
-
-```text
-SwiftExport.Client.Wpf/Features/{业务域}/{功能单元}/
-  Views/
-  ViewModels/
-  Models/
-  Services/
-  Components/
-```
-
-规则：
-
-- 不建立全项目级 `Views/ViewModels/Models` 大桶。
-- `Views` 放 XAML 和 code-behind。
-- `ViewModels` 放页面 ViewModel、Dialog ViewModel 和有独立业务语义的子 ViewModel。
-- `Models` 放 LineModel、TreeItemModel、EditModel、SearchModel、StateModel。
-- `Services` 放只服务当前功能单元的 Dialog Service、Loader、Adapter、Cache。
-- 多接口编排、跨调用协调或结果归一化的 Feature Service 放当前功能单元 `Services`；简单窄 API 不为形式统一强制包装。
-- 页面打开参数、Dialog 输入和返回结果等仅属于客户端协作的窄类型放当前 Feature 的 `Models`，一个公开顶级类型一个文件；只有跨进程传输契约才放 Contracts。
-- `Components` 只放有独立业务语义并值得复用的子 View / 子 ViewModel。
+- 本 Skill 负责页面类型、DataGrid 行为、页面命令和交互组成，不定义物理目录或文件拆分。
+- View、code-behind、ViewModel、Model、Service 和 Component 的 owner、目录与拆分方式只服从 `../file-organization/SKILL.md`。
+- Refit 与 Feature Service 的选择、权限、验证、导航和 Dialog 协议只服从 `../page-architecture/SKILL.md`。
 
 ## DTO 与页面模型边界
 
@@ -93,13 +76,6 @@ SwiftExport.Client.Wpf/Features/{业务域}/{功能单元}/
 - 确认、取消确认、拆解、转采购、过账、反过账、红冲必须是显式命令。
 - 危险命令必须有确认提示、Busy 保护和执行结果反馈。
 
-## 页面协作边界
-
-- ViewModel 负责页面状态、命令、调用顺序与结果接纳；Feature Service 不持有可绑定页面状态、不弹窗、不访问 View 或控件。
-- 导航入口必须使用窄打开请求，并显式定义 Tab identity、重复打开是激活还是新建，以及重复激活是否接纳新参数。
-- Dialog、抽屉和子页面使用明确输入与结果对象表达确认、取消和关闭；调用方只在确认结果后接纳变更。
-- 业务 ViewModel 只依赖抽象 Dialog/Message/Navigation 或 Feature 专用 Service，不 new View/Window，不引用 WPF-UI 具体控件。
-
 ## 质量完成边界
 
 - 页面改动按风险选择普通单元、STA/WPF、契约、构建和人工验收证据；新交互检查键盘、焦点、Automation 与高对比度。
@@ -110,5 +86,4 @@ SwiftExport.Client.Wpf/Features/{业务域}/{功能单元}/
 
 - 禁止 ViewModel 直接访问 Repository、Controller、SQL。
 - 禁止业务命令藏在属性 setter。
-- 禁止机械拆分 XAML 为无业务语义的小 UserControl。
 - 禁止把旧 VSTO/MVVM Light 规则带入当前客户端。

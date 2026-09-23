@@ -26,6 +26,7 @@ description: SwiftExport Infrastructure 审计打戳技能。用于 AuditStampSe
 - 新增时填充 Created 与 Updated 字段。
 - 更新时强制刷新 Updated 字段。
 - 业务代码通常不手动写审计字段。
+- `CreatedBy/UpdatedBy` 审计打戳与 `BusinessOperationLog` 业务操作审计是不同职责；二者也不能替代命令回执。
 - Infrastructure 只依赖接口，不依赖 WebApi 当前用户实现。
 
 ## 详细参考

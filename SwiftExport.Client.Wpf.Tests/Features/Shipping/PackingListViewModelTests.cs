@@ -263,6 +263,56 @@ public sealed class PackingListViewModelTests
     }
 
     private static ApiCallRunner Runner() => new(NullLogger<ApiCallRunner>.Instance);
+    /// <summary>整行转组与移出不改变数量身份，空组保存阻断，组移动保持连续。</summary>
+    [TestMethod]
+    public async Task MixedPackingCommandsPreserveSourcesAndOrder()
+    {
+        var api = new PackingListApiStub(); var ui = new PackingListUiStub();
+        using var vm = Detail(api, ui); await NewDraft(vm);
+        var first = vm.Lines.Items.Single();
+        var dto = first.ToDto(); dto.Uid = Guid.NewGuid(); dto.LineNumber = 2;
+        var second = vm.Lines.AddNew(dto);
+        var firstId = first.Uid; var total = vm.Lines.Items.Sum(x => x.Qty);
+        vm.AddPackingGroupCommand.Execute(null);
+        var group = vm.SelectedPackingGroup!;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, api.Creates.Count); Assert.IsTrue(vm.HasUnsavedChanges);
+        vm.SelectedLine = first; await vm.MoveIntoPackingGroupCommand.ExecuteAsync(null);
+        vm.SelectedLine = second; await vm.MoveIntoPackingGroupCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, group.Members.Count);
+        Assert.AreEqual(total, vm.Lines.Items.Sum(x => x.Qty)); Assert.AreEqual(firstId, first.Uid);
+        Assert.AreEqual(1m, vm.Lines.CartonSummary);
+        group.GrossWeight = 3; group.NetWeight = 2;
+        vm.AddPackingGroupCommand.Execute(null); var other = vm.SelectedPackingGroup!;
+        await vm.MoveIntoPackingGroupCommand.ExecuteAsync(null);
+        Assert.AreEqual(other.Id, second.PackingGroupId); Assert.IsNull(first.GwPerPackage);
+        vm.MovePackingGroupUpCommand.Execute(null);
+        Assert.AreSame(second, vm.Lines.Items[0]);
+        await vm.MoveOutOfPackingGroupCommand.ExecuteAsync(null);
+        Assert.IsNull(second.PackingGroupId); Assert.AreEqual(second.Qty, second.PcsPerPackage);
+        vm.DeletePackingGroupCommand.Execute(null); Assert.IsFalse(vm.Lines.HasEmptyGroups);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(group.Id, api.Creates.Single().Lines.Single(x => x.Uid == firstId).PackingGroupId);
+        Assert.AreEqual(total, api.Creates.Single().Lines.Sum(x => x.Qty));
+    }
+
+    /// <summary>取消移入确认不改变行；只读和 Busy 不能新建拼箱。</summary>
+    [TestMethod]
+    public async Task MixedPackingCancellationAndReadonlyDoNotMutate()
+    {
+        var api = new PackingListApiStub(); var ui = new PackingListUiStub { Confirm = false };
+        using var vm = Detail(api, ui); await NewDraft(vm);
+        vm.AddPackingGroupCommand.Execute(null);
+        vm.SelectedLine = vm.Lines.Items.Single();
+        await vm.MoveIntoPackingGroupCommand.ExecuteAsync(null);
+        Assert.IsNull(vm.SelectedLine.PackingGroupId);
+        var posted = Existing(); posted.Header.PostingStatus = PackingListPostingStatusEnum.Posted;
+        api.Get = _ => Task.FromResult(ServiceResult<PackingListDetailDto>.Ok(posted));
+        using var readOnly = Detail(api, ui);
+        await readOnly.InitializeDocumentAsync(new PackingListOpenRequest { Uid = posted.Header.Uid }, default);
+        readOnly.AddPackingGroupCommand.Execute(null);
+        Assert.AreEqual(0, readOnly.Lines.PackingGroups.Count);
+    }
     private static PackingListDetailViewModel Detail(PackingListApiStub api, PackingListUiStub ui, PackingListSourceStub? source = null) =>
         new(api, Runner(), new ReferenceDataCacheServiceStub(), source ?? new(), new PackingListNavigationStub(), ui, ui);
     private static async Task NewDraft(PackingListDetailViewModel vm)

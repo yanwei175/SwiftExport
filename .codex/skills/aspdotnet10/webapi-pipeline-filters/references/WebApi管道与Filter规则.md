@@ -22,6 +22,7 @@
 
 ```text
 GlobalExceptionMiddleware
+CorrelationIdMiddleware
 DevUserMiddleware
 Swagger(Development only)
 HttpsRedirection
@@ -33,6 +34,7 @@ MapControllers
 规则：
 
 - 全局异常应尽量在管道前面。
+- CorrelationId 在异常边界内建立请求追踪上下文，不能用业务 CommandId 替代。
 - DevUser 必须在认证前。
 - 认证必须在授权前。
 - Controller 映射最后。
@@ -51,9 +53,11 @@ MapControllers
 规则：
 
 - 只贴在写操作或危险命令上。
+- 普通 CRUD 可使用；具有持久化 CommandId 的正式命令是否使用由体验决定。
 - 不用于普通查询。
 - 当前使用 `IMemoryCache`，只适合单实例；多实例部署需替换为分布式缓存。
 - 缓存 key 当前不包含请求体，适合用户加接口粒度防抖，不适合幂等业务键去重。
+- Filter 不能替代 Version、命令回执、事务、数据库唯一约束或多实例并发保护。
 
 ## GlobalExceptionMiddleware
 

@@ -92,6 +92,23 @@ public sealed class PackingListPostingPreviewBuilderTests
         Assert.AreEqual(0.3m, result.Actions.Single(x => x.Kind == "Consumption" && x.PackingListLineId == tail.Uid).Qty);
     }
 
+    /// <summary>拼箱只改变包装事实和预览令牌，不改变收货、发货及客供件动作。</summary>
+    [TestMethod]
+    public void PackingGroupChangesTokenNotInventoryActions()
+    {
+        var f = new Fixture();
+        var component = new Component(Guid.NewGuid(), Guid.NewGuid(), "PCS", 10, 1);
+        var source = f.Source with { Components = [component] };
+        var stock = f.Stock with { ProductId = component.ProductId, Qty = 1 };
+        var original = f.Build(source, [stock], [f.Receipt]);
+        f.Line.PackingGroupId = Guid.NewGuid();
+        f.Line.PcsPerPackage = f.Line.Qty;
+        var mixed = f.Build(source, [stock], [f.Receipt]);
+        Assert.AreEqual(0, mixed.Blockers.Count);
+        CollectionAssert.AreEqual(original.Actions.ToArray(), mixed.Actions.ToArray());
+        Assert.AreNotEqual(original.Token, mixed.Token);
+    }
+
     /// <summary>最小有效规范化事实，避免测试依赖外部主数据。</summary>
     private sealed class Fixture
     {
