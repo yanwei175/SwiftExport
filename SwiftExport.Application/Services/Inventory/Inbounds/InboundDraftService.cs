@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using System.Text.Json;
@@ -22,7 +23,7 @@ namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
 /// <summary>以公共命令入口原子处理人工入库草稿、审计和成功回执。</summary>
 public sealed class InboundDraftService(
-    IInboundManagerRepository repository, IWarehouseSiteRepository warehouses,
+    IInboundDocumentRepository repository, IInboundExecutionReadRepository executionReads, IInboundSourceRepository sourceRepository, IWarehouseSiteRepository warehouses,
     IBusinessOperationLogRepository logs, ICurrentUser user, IDocumentNoService numbers,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     InboundServiceSupport support) : IInboundDraftService
@@ -98,7 +99,7 @@ public sealed class InboundDraftService(
         if (header.CreationMode != InboundCreationModeEnum.Manual || header.PostingStatus != InboundPostingStatusEnum.Unposted
             || header.LifecycleStatus != InventoryDocumentLifecycleStatusEnum.Active || header.TriggerPackingListId.HasValue)
             throw new DraftException("只允许修改活动、未过账的人工草稿。");
-        if (await repository.HasLedgerAsync(uid, token)) throw new DraftException("该单存在正式库存流水，禁止修改或删除草稿。");
+        if (await executionReads.HasLedgerAsync(uid, token)) throw new DraftException("该单存在正式库存流水，禁止修改或删除草稿。");
         return header;
     }
 
@@ -112,7 +113,7 @@ public sealed class InboundDraftService(
                 throw new DraftException("入库行不属于当前单据，或来源被更换；请删除原行后重新选源。");
         var sourceIds = draft.Lines.Where(x => x.Uid == Guid.Empty).Select(x => x.SourceLineId).Distinct().ToArray();
         var sources = sourceIds.Length == 0 ? new Dictionary<Guid, InboundSourceCandidateDto>()
-            : (await repository.GetSourcesAsync(sourceIds, token)).ToDictionary(x => x.SourceLineId);
+            : (await sourceRepository.GetSourcesAsync(sourceIds, token)).ToDictionary(x => x.SourceLineId);
         var rows = new List<InboundDocumentLine>();
         foreach (var input in draft.Lines)
         {

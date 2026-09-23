@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -17,7 +18,7 @@ namespace SwiftExport.Application.Services.Inventory;
 
 /// <summary>箱单自动单据内部执行器；只处理已分配的事实，所有写入加入外层事务。</summary>
 public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, IAutomaticDocumentRepository repository,
-    IInboundManagerRepository inbound, IOutboundManagerRepository outbound, IInventoryPostingService inventory,
+    IInboundDocumentRepository inbound, IInboundSourceRepository sourceRepository, IInboundExecutionReadRepository executionReads, IOutboundManagerRepository outbound, IInventoryPostingService inventory,
     IRepository<WarehouseSite> warehouses, IInventoryRepository stocks, IBusinessOperationLogRepository logs,
     IDocumentNoService numbers, ICurrentUser user) : IInboundPostingPort, IOutboundPostingPort
 {
@@ -130,8 +131,8 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         var all = request.Groups.SelectMany(g => g.Lines.Select(l => (Group: g, Line: l))).ToArray();
         var ids = all.Select(x => x.Line.PurchaseLineId!.Value).Distinct().Order().ToArray();
-        if (await inbound.HasUnprovenReceiptAsync(token)) Fail("RECEIPT_HISTORY_INVALID", "存在无法证明来源的正式收货历史。");
-        var sources = (await inbound.ReadPostingSourcesAsync(ids, token)).ToDictionary(x => x.SourceLineId);
+        if (await sourceRepository.HasUnprovenReceiptAsync(token)) Fail("RECEIPT_HISTORY_INVALID", "存在无法证明来源的正式收货历史。");
+        var sources = (await sourceRepository.ReadPostingSourcesAsync(ids, token)).ToDictionary(x => x.SourceLineId);
         foreach (var group in all.GroupBy(x => x.Line.PurchaseLineId!.Value))
         {
             if (!sources.TryGetValue(group.Key, out var s) || !s.IsReceivable || s.IsCustomerSupplied)

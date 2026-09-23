@@ -63,7 +63,7 @@ public sealed partial class AutomaticPostingPorts
                     type = oh.DocumentType == OutboundDocumentTypeEnum.FinalCustomerShipment
                         ? InventoryTransactionTypeEnum.FinalCustomerShipmentOutbound : InventoryTransactionTypeEnum.CustomerSuppliedConsumptionOutbound;
                 }
-                var facts = isInbound ? await inbound.ReadReverseLedgersAsync(document.DocumentId, token)
+                var facts = isInbound ? await executionReads.ReadReverseLedgersAsync(document.DocumentId, token)
                     : await outbound.ReadReverseLedgersAsync(document.DocumentId, token);
                 if (lines.Count == 0 || facts.Count != lines.Count || lines.Select(x => x.Id).Distinct().Count() != lines.Count)
                     Fail("LEDGER_INTEGRITY", "原单流水缺失、重复或已有反向／替代记录。", document.DocumentId);

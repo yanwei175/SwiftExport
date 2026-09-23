@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Errors;
@@ -7,7 +8,7 @@ using SwiftExport.Core.Interfaces.Inventory;
 namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
 /// <summary>按库存模块权限读取入库管理摘要和整单详情。</summary>
-public sealed class InboundQueryService(IInboundManagerRepository repository, InboundServiceSupport support) : IInboundQueryService
+public sealed class InboundQueryService(IInboundQueryRepository repository, InboundServiceSupport support) : IInboundQueryService
 {
     /// <inheritdoc/>
     public Task<ServiceResult<PagedResponseBase<InboundManagerListItemDto>>> SearchAsync(InboundManagerSearchRequest request, CancellationToken token = default) =>

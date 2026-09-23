@@ -1,3 +1,4 @@
+using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -266,7 +267,7 @@ public sealed class AutomaticPostingSqlServerTests
             }
             var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             return new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), new PackingListRepository(_repository),
-                new PackingListPostingFactsRepository(_repository), execution, new InboundManagerRepository(_repository), Scope, In, Out,
+                new PackingListPostingFactsRepository(_repository), execution, new InboundSourceRepository(_repository), Scope, In, Out,
                 new BusinessOperationLogRepository(_repository), new TestUser(), permissions);
         }
 
@@ -334,13 +335,15 @@ public sealed class AutomaticPostingSqlServerTests
             var user = new TestUser();
             _repository = new(Session, NullLoggerFactory.Instance, new AuditStampService(user), user);
             var context = new ServiceBaseContext(Session, NullLoggerFactory.Instance);
-            var input = new InboundManagerRepository(_repository);
+            var input = new InboundDocumentRepository(_repository);
+            var executionReads = new InboundExecutionReadRepository(_repository);
+            var sources = new InboundSourceRepository(_repository);
             var output = new OutboundManagerRepository(_repository);
             var stocks = new InventoryRepository(_repository);
             var warehouses = new DapperRepository<WarehouseSite>(_repository);
             var auto = new AutomaticDocumentRepository(_repository);
-            Scope = new(context, auto, input, output, stocks, warehouses);
-            var ports = new AutomaticPostingPorts(Scope, auto, input, output,
+            Scope = new(context, auto, input, executionReads, sources, output, stocks, warehouses);
+            var ports = new AutomaticPostingPorts(Scope, auto, input, sources, executionReads, output,
                 new InventoryPostingService(context, stocks, new WarehouseSiteRepository(_repository)), warehouses, stocks,
                 new BusinessOperationLogRepository(_repository), new DocumentNoService(new DocumentSequenceRepository(_repository)), user);
             In = ports; Out = ports;

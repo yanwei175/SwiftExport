@@ -1,4 +1,4 @@
-namespace SwiftExport.Infrastructure.Repositories.Inventory;
+namespace SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 /// <summary>净收货查询共享的历史门禁：已反过账只有完整原/反向流水证明时才可按零贡献处理。</summary>
 internal static class InboundReceiptHistorySql

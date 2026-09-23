@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Data;
 using System.Reflection;
@@ -334,8 +335,8 @@ public sealed class PackingListPostingCoordinatorTests
             { "get_UserId" => userId, "get_UserName" => "tester", "get_IsAuthenticated" => true, _ => throw new NotSupportedException(m) });
             var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             Service = new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), packing, facts, executions,
-                inventory ? Proxy.Make<IInboundManagerRepository>((m, _) => m switch {
-                    "ReadPostingSourcesAsync" => Task.FromResult(capacity), "HasUnprovenReceiptAsync" => Task.FromResult(false), _ => throw new NotSupportedException(m) }) : Forbidden<IInboundManagerRepository>(),
+                inventory ? Proxy.Make<IInboundSourceRepository>((m, _) => m switch {
+                    "ReadPostingSourcesAsync" => Task.FromResult(capacity), "HasUnprovenReceiptAsync" => Task.FromResult(false), _ => throw new NotSupportedException(m) }) : Forbidden<IInboundSourceRepository>(),
                 inventory || original != null ? Proxy.Make<IAutomaticPostingScope>((m, _) => m == "PrepareAsync" ? Record("prepare", Task.CompletedTask) : throw new NotSupportedException(m)) : Forbidden<IAutomaticPostingScope>(),
                 inventory || original != null ? Proxy.Make<IInboundPostingPort>((m, a) => m switch {
                     "CreateAndPostAsync" => Port("inbound", (AutomaticPostingRequest)a[0]!),

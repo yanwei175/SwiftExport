@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,7 +19,7 @@ namespace SwiftExport.Application.Services.Shipping;
 /// <summary>拥有唯一事务的正式过账编排；执行表未部署时拒绝写入，真实数据库并发仍需测试库验收。</summary>
 public sealed partial class PackingListPostingCoordinator(ServiceBaseContext context,
     IPackingListRepository packingLists, IPackingListPostingFactsRepository factsRepository,
-    IPackingListExecutionRepository executions, IInboundManagerRepository inboundRepository,
+    IPackingListExecutionRepository executions, IInboundSourceRepository inboundRepository,
     IAutomaticPostingScope scope, IInboundPostingPort inbound, IOutboundPostingPort outbound,
     IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions)
     : IPackingListPostingCoordinator

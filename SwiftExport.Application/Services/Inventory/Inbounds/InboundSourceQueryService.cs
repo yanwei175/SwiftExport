@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
@@ -7,7 +8,7 @@ using SwiftExport.Core.Interfaces.Inventory;
 namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
 /// <summary>按采购来源条件提供只读候选行，不预占收货数量。</summary>
-public sealed class InboundSourceQueryService(IInboundManagerRepository repository, InboundServiceSupport support) : IInboundSourceQueryService
+public sealed class InboundSourceQueryService(IInboundSourceRepository repository, InboundServiceSupport support) : IInboundSourceQueryService
 {
     /// <inheritdoc/>
     public Task<ServiceResult<PagedResponseBase<InboundSourceCandidateDto>>> SearchSourcesAsync(InboundSourceSearchRequest request, CancellationToken token = default) =>

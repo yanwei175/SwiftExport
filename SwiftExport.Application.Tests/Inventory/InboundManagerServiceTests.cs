@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
@@ -385,19 +386,31 @@ public sealed partial class InboundManagerServiceTests
                 Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(
                     SwiftExport.Application.DependencyInjection.AddApplicationServices(new Microsoft.Extensions.DependencyInjection.ServiceCollection()))),
                 correlation, user, Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandPipeline>.Instance);
-            var repository = Proxy<IInboundManagerRepository>((method, args) => method switch
+            var repository = Proxy<IInboundDocumentRepository>((method, args) => method switch
                 {
-                    "LockCommandAsync" => Task.FromResult(CommandLockResult),
                     "LockHeaderAsync" => Task.FromResult(Header),
                     "LockLinesAsync" => Task.FromResult<IReadOnlyList<InboundDocumentLine>>(SavedLines),
-                    "HasLedgerAsync" => Task.FromResult(HasLedger),
-                    "GetSourcesAsync" => Sources(),
                     "SaveAsync" => Save((InboundDocument)args[0]!, (IReadOnlyList<InboundDocumentLine>)args[1]!, (int)args[2]!),
                     "DeleteAsync" => DeleteHeader(),
-                    "SearchSourcesAsync" => Search(),
-                    "SearchAsync" => SearchManager((InboundManagerSearchRequest)args[0]!),
                     _ => PostingRepository(method, args)
                 });
+            var executionReads = Proxy<IInboundExecutionReadRepository>((method, args) => method switch
+            {
+                "HasLedgerAsync" => Task.FromResult(HasLedger),
+                _ => PostingRepository(method, args)
+            });
+            var queries = Proxy<IInboundQueryRepository>((method, args) => method switch
+            {
+                "SearchAsync" => SearchManager((InboundManagerSearchRequest)args[0]!),
+                "GetDetailAsync" => PostingRepository(method, args),
+                _ => throw new NotSupportedException(method)
+            });
+            var sources = Proxy<IInboundSourceRepository>((method, args) => method switch
+            {
+                "GetSourcesAsync" => Sources(),
+                "SearchSourcesAsync" => Search(),
+                _ => PostingRepository(method, args)
+            });
             var warehouses = Proxy<IWarehouseSiteRepository>((method, _) => method == "GetForUpdateAsync"
                 ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = WarehouseId, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method));
             var logs = Proxy<IBusinessOperationLogRepository>((method, args) => method switch
@@ -420,11 +433,11 @@ public sealed partial class InboundManagerServiceTests
             var inventoryPosting = Proxy<SwiftExport.Application.Interfaces.Inventory.IInventoryPostingService>((method, args) =>
                 method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!) : ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryReverseItem>)args[1]!));
             var support = new InboundServiceSupport(user, permissions, NullLogger<InboundServiceSupport>.Instance);
-            ReversalService = new(repository, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
-            PostingService = new(repository, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
-            DraftService = new(repository, warehouses, logs, user, numbers, execution, correlation, pipeline, support);
-            QueryService = new(repository, support);
-            SourceQueryService = new(repository, support);
+            ReversalService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
+            PostingService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
+            DraftService = new(repository, executionReads, sources, warehouses, logs, user, numbers, execution, correlation, pipeline, support);
+            QueryService = new(queries, support);
+            SourceQueryService = new(sources, support);
         }
 
         public CreateInboundDraftCommand Create() => new() { CommandId = Guid.NewGuid(), Draft = new() { DocumentType = InboundDocumentTypeEnum.PurchaseReceipt, WarehouseSiteId = WarehouseId, ReceiptDate = DateTime.Today, Lines = [new() { SourceLineId = SourceId, Quantity = 10 }] } };

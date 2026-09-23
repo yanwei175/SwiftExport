@@ -1,12 +1,33 @@
 using Dapper;
 using System.Data;
 using SwiftExport.Core.Entities.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
+using SwiftExport.Infrastructure.Contexts;
 
-namespace SwiftExport.Infrastructure.Repositories.Inventory;
+namespace SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
-/// <summary>手工入库反向只读事实核查及单头状态更新；库存写入仍由统一内核执行。</summary>
-public sealed partial class InboundManagerRepository
+/// <summary>在当前会话中读取入库执行需要的库存余额、仓库与原流水事实。</summary>
+public sealed class InboundExecutionReadRepository(RepositoryBaseContext context) : IInboundExecutionReadRepository
 {
+    private CommandDefinition Command(string sql, object? args, CancellationToken token) =>
+        new(sql, args, context.Session.Transaction, cancellationToken: token);
+
+    /// <inheritdoc/>
+    public Task<bool> HasLedgerAsync(Guid uid, CancellationToken token) =>
+        context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
+            SELECT CONVERT(bit,CASE WHEN EXISTS(SELECT 1 FROM dbo.InventoryLedgerEntry WHERE SourceDocumentId=@Uid)
+            OR EXISTS(SELECT 1 FROM dbo.InventoryLedgerEntry e INNER JOIN dbo.InboundDocumentLine l ON l.Uid=e.SourceLineId WHERE l.InboundDocumentId=@Uid)
+            THEN 1 ELSE 0 END);
+            """, new { Uid = uid }, token));
+
+    /// <inheritdoc/>
+    public Task<decimal> ReadBalanceAsync(Guid warehouseId, Guid productId, CancellationToken token) =>
+        context.Session.Connection.ExecuteScalarAsync<decimal>(Command("SELECT COALESCE(SUM(OnHandQty),0) FROM dbo.InventoryBalance WHERE WarehouseSiteId=@WarehouseId AND ProductId=@ProductId AND IsDeleted=0", new { WarehouseId = warehouseId, ProductId = productId }, token));
+
+    /// <inheritdoc/>
+    public Task<string?> ReadActiveWarehouseNameAsync(Guid warehouseId, CancellationToken token) =>
+        context.Session.Connection.QuerySingleOrDefaultAsync<string>(Command("SELECT Name FROM dbo.WarehouseSite WHERE Uid=@WarehouseId AND IsActive=1 AND IsDeleted=0", new { WarehouseId = warehouseId }, token));
+
     /// <inheritdoc/>
     public async Task<IReadOnlyList<InventoryLedgerEntry>> ReadReverseLedgersAsync(Guid uid, CancellationToken token)
     {
@@ -39,17 +60,4 @@ public sealed partial class InboundManagerRepository
     public Task<bool> ReverseWarehouseExistsAsync(Guid warehouseId, CancellationToken token) =>
         context.Session.Connection.ExecuteScalarAsync<bool>(Command("SELECT CONVERT(bit,COUNT(*)) FROM dbo.WarehouseSite WHERE Uid=@Uid AND IsDeleted=0", new { Uid = warehouseId }, token));
 
-    /// <inheritdoc/>
-    public async Task MarkReversedAsync(InboundDocument header, CancellationToken token)
-    {
-        context.AuditStamp.StampForUpdate(header);
-        var count = await context.Session.Connection.ExecuteAsync(Command("""
-            UPDATE dbo.InboundDocument SET PostingStatus=8,ReversedDate=@ReversedDate,ReversedBy=@ReversedBy,
-                ReverseReason=@ReverseReason,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy,Version=Version+1
-            WHERE Uid=@Uid AND Version=@Version AND PostingStatus=1 AND LifecycleStatus=0 AND IsDeleted=0
-                AND DocumentType=10 AND CreationMode=0 AND TriggerPackingListId IS NULL;
-            """, header, token));
-        if (count != 1) throw new DBConcurrencyException("入库状态或版本已变化，反过账未完成。");
-        header.Version++;
-    }
 }
