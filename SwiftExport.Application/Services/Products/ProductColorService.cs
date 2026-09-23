@@ -88,7 +88,7 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         {
             TryRollbackTransaction();
             _logger.LogError(exception, "产品颜色批量保存发生未预期异常，已回滚全部操作。");
-            return ServiceResult<ProductColorBatchSaveResponse>.Fail(
+            return ServiceResult<ProductColorBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected,
                 "产品颜色批量保存失败，所有操作已回滚，请刷新后重试。");
         }
         finally
@@ -250,7 +250,9 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         }
         catch (Exception ex)
         {
-            return ServiceResult<IReadOnlyList<ProductColorDto>>.Fail(ex.Message);
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            Logger.LogError(ex, "应用服务执行失败。");
+            return ServiceResult<IReadOnlyList<ProductColorDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 
@@ -270,7 +272,9 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         }
         catch (Exception ex)
         {
-            return ServiceResult<PagedResponseBase<ProductColorDto>>.Fail(ex.Message);
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            Logger.LogError(ex, "应用服务执行失败。");
+            return ServiceResult<PagedResponseBase<ProductColorDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 

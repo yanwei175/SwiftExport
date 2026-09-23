@@ -117,7 +117,7 @@ public sealed class AutomaticPostingPortsTests
         await f.In.CreateAndPostAsync(f.InRequest);
         f.InRequest.Groups[0].Lines[0].Quantity = 9;
         var failure = await Assert.ThrowsAsync<AutomaticPostingException>(() => f.In.CreateAndPostAsync(f.InRequest));
-        Assert.AreEqual("IDEMPOTENCY_CONFLICT", failure.Code);
+        Assert.AreEqual("COMMAND_CONFLICT", failure.Code);
     }
 
     /// <summary>单位大小写、空白及数量尾零属于同一规范化内容，不产生伪幂等冲突。</summary>

@@ -12,13 +12,16 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Services.Inventory;
+using SwiftExport.Application.Commands;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
+using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces.Auditing;
+using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Infrastructure.Data;
@@ -96,7 +99,7 @@ public sealed partial class OutboundManagerServiceTests
         command.Draft.Lines[0].Quantity++;
         var conflict = await f.Service.CreateAsync(command);
         Assert.IsFalse(conflict.Success);
-        StringAssert.Contains(conflict.Message, "IDEMPOTENCY_CONFLICT");
+        StringAssert.Contains(conflict.Message, "COMMAND_CONFLICT");
         Assert.AreEqual(ServiceErrorCodes.CommandConflict, conflict.Error.Code);
         Assert.AreEqual(1, f.Saves);
     }
@@ -197,7 +200,8 @@ public sealed partial class OutboundManagerServiceTests
         Assert.AreEqual(0, f.Saves);
         var invalid = f.Create();
         invalid.Draft.Lines[0].Quantity = 1.00001m;
-        Assert.AreEqual(ServiceErrorCodes.Validation, (await f.Service.CreateAsync(invalid)).Error.Code);
+        var validation = await Assert.ThrowsAsync<SwiftExport.Application.Commands.Validation.CommandValidationException>(() => f.Service.CreateAsync(invalid));
+        Assert.AreEqual("Draft.Lines[0].Quantity", validation.Field);
         f.Allowed = false;
         Assert.AreEqual(ServiceErrorCodes.Forbidden, (await f.Service.CreateAsync(f.Create())).Error.Code);
     }
@@ -235,6 +239,7 @@ public sealed partial class OutboundManagerServiceTests
         public Guid SourceId = Guid.NewGuid();
         private readonly Guid _userId = Guid.NewGuid();
         private readonly Dictionary<Guid, BusinessOperationLog> _logs = [];
+        private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
         public readonly ConnectionStub Connection = new();
         public readonly DbSession Session;
         public readonly OutboundManagerService Service;
@@ -259,6 +264,20 @@ public sealed partial class OutboundManagerServiceTests
         {
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Session, Connection);
+            var user = Proxy<ICurrentUser>((method, _) => method switch { "get_IsAuthenticated" => true, "get_UserId" => _userId, "get_UserName" => "测试", _ => throw new NotSupportedException(method) });
+            var execution = new BusinessCommandExecutor(new ServiceBaseContext(Session, NullLoggerFactory.Instance),
+                Proxy<ICommandReceiptRepository>((method, args) => method switch
+                {
+                    "LockAsync" => Task.FromResult(CommandLockResult),
+                    "FindAsync" => Task.FromResult(_receipts.GetValueOrDefault((Guid)args[0]!)),
+                    "InsertAsync" => SaveReceipt((CommandReceipt)args[0]!),
+                    _ => throw new NotSupportedException(method)
+                }), user);
+            var correlation = Proxy<ICorrelationContext>((method, _) => method == "get_CorrelationId" ? "outbound-test-call" : throw new NotSupportedException(method));
+            var pipeline = new CommandPipeline(new SwiftExport.Application.Commands.Validation.CommandRequestValidator(
+                Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(
+                    SwiftExport.Application.DependencyInjection.AddApplicationServices(new Microsoft.Extensions.DependencyInjection.ServiceCollection()))),
+                correlation, user, Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandPipeline>.Instance);
             Service = new(new ServiceBaseContext(Session, NullLoggerFactory.Instance),
                 Proxy<IOutboundManagerRepository>((method, args) => method switch
                 {
@@ -282,7 +301,7 @@ public sealed partial class OutboundManagerServiceTests
                     "InsertAsync" => Log((BusinessOperationLog)args[0]!),
                     _ => throw new NotSupportedException(method)
                 }),
-                Proxy<ICurrentUser>((method, _) => method switch { "get_IsAuthenticated" => true, "get_UserId" => _userId, "get_UserName" => "测试", _ => throw new NotSupportedException(method) }),
+                user,
                 Proxy<IUserPermissionService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed
                     && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost || AllowPost)
                     && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse || AllowReverse)) : throw new NotSupportedException(method)),
@@ -295,7 +314,8 @@ public sealed partial class OutboundManagerServiceTests
                     return Task.FromResult(new DocumentSequence { DocType = (string)args[0]!, YearMonth = (string)args[1]!, CurrentNo = NumberCalls });
                 })), Proxy<SwiftExport.Application.Interfaces.Inventory.IInventoryPostingService>((method, args) =>
                     method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!)
-                    : method == "ReverseAsync" ? ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryReverseItem>)args[1]!) : throw new NotSupportedException(method)));
+                    : method == "ReverseAsync" ? ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryReverseItem>)args[1]!) : throw new NotSupportedException(method)),
+                execution, correlation, pipeline);
         }
 
         /// <summary>读侧只返回库存凭证和余额；不构造任何需求/采购关联。</summary>
@@ -350,13 +370,20 @@ public sealed partial class OutboundManagerServiceTests
             return Task.CompletedTask;
         }
         private Task DeleteHeader() { Deletes++; Header!.Version++; return Task.CompletedTask; }
-        /// <summary>模拟日志 JSON 对象约束，防止字符串标量在替身中通过、真实保存却失败。</summary>
+        /// <summary>保存测试回执；生产环境的持久性与唯一性由 SQL 专项验证。</summary>
+        private Task SaveReceipt(CommandReceipt receipt) { _receipts.Add(receipt.CommandId, receipt); return Task.CompletedTask; }
+        /// <summary>模拟日志 JSON 对象约束，并确认草稿审计不再承载指纹。</summary>
         private Task<int> Log(BusinessOperationLog log)
         {
             if (FailLog) return Task.FromResult(0);
             using var changed = JsonDocument.Parse(log.ChangedFieldsJson!);
             Assert.AreEqual(JsonValueKind.Object, changed.RootElement.ValueKind);
-            Assert.AreEqual(64, changed.RootElement.GetProperty("Fingerprint").GetString()!.Length);
+            if (log.OperationType is "Create" or "Update" or "Delete")
+            {
+                Assert.AreEqual("outbound-test-call", log.CorrelationId);
+                Assert.IsFalse(changed.RootElement.TryGetProperty("Fingerprint", out _));
+            }
+            else Assert.AreEqual(64, changed.RootElement.GetProperty("Fingerprint").GetString()!.Length);
             _logs.Add(log.CommandId, log);
             return Task.FromResult(1);
         }

@@ -30,8 +30,8 @@ CREATE TABLE [dbo].[AfterSalesHeader]
     [CustomerNameSnapshot] nvarchar(500) NULL,
     [AcceptedDate] datetime2(7) NOT NULL,
     [OwnerId] uniqueidentifier NULL,
-    [DocumentStatus] tinyint NOT NULL,
-    [ConfirmationStatus] tinyint NOT NULL,
+    [DocumentStatus] int NOT NULL,
+    [ConfirmationStatus] int NOT NULL,
     [DemandConfirmedAt] datetime2(7) NULL,
     [DemandConfirmedBy] nvarchar(500) NULL,
     [ExpectedCompletionDate] datetime2(7) NULL,
@@ -146,6 +146,32 @@ CREATE TABLE [dbo].[BusinessOperationLog]
     CONSTRAINT [CK_BusinessOperationLog_Immutable] CHECK ([IsDeleted] = 0),
     CONSTRAINT [CK_BusinessOperationLog_RelatedJson] CHECK ([RelatedObjectsJson] IS NULL OR ISJSON([RelatedObjectsJson]) = 1),
     CONSTRAINT [CK_BusinessOperationLog_Version] CHECK ([Version] >= 1)
+);
+
+CREATE TABLE [dbo].[CommandReceipt]
+(
+    [Uid] uniqueidentifier NOT NULL,
+    [Version] int NOT NULL CONSTRAINT [DF_CommandReceipt_Version] DEFAULT (1),
+    [IsDeleted] bit NOT NULL CONSTRAINT [DF_CommandReceipt_IsDeleted] DEFAULT (0),
+    [CreatedDate] datetime2(7) NULL,
+    [CreatedBy] nvarchar(500) NULL,
+    [UpdatedDate] datetime2(7) NULL,
+    [UpdatedBy] nvarchar(500) NULL,
+    [CommandId] uniqueidentifier NOT NULL,
+    [ActorUid] uniqueidentifier NOT NULL,
+    [CommandType] nvarchar(100) NOT NULL,
+    [RequestTargetUid] uniqueidentifier NULL,
+    [FingerprintVersion] int NOT NULL,
+    [RequestFingerprint] nvarchar(64) NOT NULL,
+    [ResultVersion] int NOT NULL,
+    [ResultJson] nvarchar(max) NOT NULL,
+    [RecordedAtUtc] datetime2(7) NOT NULL,
+    CONSTRAINT [PK_CommandReceipt] PRIMARY KEY ([Uid]),
+    CONSTRAINT [CK_CommandReceipt_Fingerprint] CHECK (LEN([CommandType]) > 0 AND LEN([RequestFingerprint]) = 64),
+    CONSTRAINT [CK_CommandReceipt_Identity] CHECK ([CommandId] <> '00000000-0000-0000-0000-000000000000' AND [ActorUid] <> '00000000-0000-0000-0000-000000000000' AND [IsDeleted] = 0),
+    CONSTRAINT [CK_CommandReceipt_ResultJson] CHECK (ISJSON([ResultJson]) = 1),
+    CONSTRAINT [CK_CommandReceipt_Versions] CHECK ([FingerprintVersion] >= 1 AND [ResultVersion] >= 1),
+    CONSTRAINT [CK_CommandReceipt_Version] CHECK ([Version] >= 1)
 );
 
 CREATE TABLE [dbo].[Customer]
@@ -610,7 +636,7 @@ CREATE TABLE [dbo].[PackingListHead]
     [AttentionSnapshot] nvarchar(500) NULL,
     [InvoiceDate] datetime2(7) NOT NULL,
     [ContainerNo] nvarchar(300) NULL,
-    [ShippingLocationSnapshot] nvarchar(500) NULL,
+    [ShippingLocationSnapshot] nvarchar(200) NULL,
     [SealNo] nvarchar(300) NULL,
     [Note] nvarchar(2000) NULL,
     [Etd] datetime2(7) NULL,
@@ -1509,6 +1535,8 @@ CREATE UNIQUE INDEX [UX_Bom_Number_Version_Line] ON [dbo].[Bom] ([BomNo], [BomVe
 CREATE INDEX [IX_BusinessOperationLog_Aggregate] ON [dbo].[BusinessOperationLog] ([AggregateType], [AggregateUid], [OccurredDate]);
 CREATE UNIQUE INDEX [UX_BusinessOperationLog_Command] ON [dbo].[BusinessOperationLog] ([Module], [OperationType], [CommandId]);
 
+CREATE UNIQUE INDEX [UX_CommandReceipt_CommandId] ON [dbo].[CommandReceipt] ([CommandId]);
+
 CREATE UNIQUE INDEX [UX_Customer_CustomerCode] ON [dbo].[Customer] ([CustomerCode]) WHERE [IsDeleted] = 0;
 
 CREATE UNIQUE INDEX [UX_CustomerPoConfig_Codes] ON [dbo].[CustomerPoConfig] ([CustomerCode], [SupplierCode]) WHERE [IsDeleted] = 0;
@@ -1555,7 +1583,7 @@ CREATE UNIQUE INDEX [UX_PackingListHead_ActiveNo] ON [dbo].[PackingListHead] ([P
 CREATE UNIQUE INDEX [UX_PackingListHead_CreateCommand] ON [dbo].[PackingListHead] ([CreateCommandId]);
 
 CREATE INDEX [IX_PackingListLine_GrossDemand] ON [dbo].[PackingListLine] ([GrossDemandId], [PackingListHeadId]) WHERE [IsDeleted] = 0;
-CREATE INDEX [IX_PackingListLine_PackingGroup] ON [dbo].[PackingListLine] ([PackingListHeadId], [PackingGroupId]);
+CREATE INDEX [IX_PackingListLine_PackingGroup] ON [dbo].[PackingListLine] ([PackingListHeadId], [PackingGroupId]) INCLUDE ([LineNumber]);
 CREATE UNIQUE INDEX [UX_PackingListLine_Head_Line] ON [dbo].[PackingListLine] ([PackingListHeadId], [LineNumber]) WHERE [IsDeleted] = 0;
 
 CREATE INDEX [IX_PackingListPostingExecution_Head] ON [dbo].[PackingListPostingExecution] ([PackingListHeadId], [Operation]);
@@ -1637,6 +1665,8 @@ CREATE UNIQUE INDEX [UX_WarehouseSite_ActiveSupplier] ON [dbo].[WarehouseSite] (
 CREATE UNIQUE INDEX [UX_WarehouseSite_Code] ON [dbo].[WarehouseSite] ([Code]) WHERE [IsDeleted] = 0;
 
 EXEC(N'CREATE TRIGGER [dbo].[TR_BusinessOperationLog_AppendOnly] ON [dbo].[BusinessOperationLog] INSTEAD OF UPDATE, DELETE AS BEGIN SET NOCOUNT ON; THROW 53100, N''BusinessOperationLog 是只追加事实，禁止更新或删除。'', 1; END;');
+
+EXEC(N'CREATE TRIGGER [dbo].[TR_CommandReceipt_AppendOnly] ON [dbo].[CommandReceipt] INSTEAD OF UPDATE, DELETE AS BEGIN SET NOCOUNT ON; THROW 53100, N''CommandReceipt 是只追加事实，禁止更新或删除。'', 1; END;');
 
 EXEC(N'CREATE TRIGGER [dbo].[TR_DemandExecutionLink_ImmutableIdentity] ON [dbo].[DemandExecutionLink] AFTER UPDATE AS BEGIN SET NOCOUNT ON; IF EXISTS (SELECT 1 FROM inserted i INNER JOIN deleted d ON d.[Uid]=i.[Uid] WHERE EXISTS (SELECT i.[NetDemandId], i.[ExecutionRequestId], i.[CommandItemId], i.[TargetType], i.[TargetHeadId], i.[TargetNo], i.[TargetLineId], i.[AllocatedQty] EXCEPT SELECT d.[NetDemandId], d.[ExecutionRequestId], d.[CommandItemId], d.[TargetType], d.[TargetHeadId], d.[TargetNo], d.[TargetLineId], d.[AllocatedQty])) THROW 53101, N''DemandExecutionLink 的成立身份不可修改。'', 1; END;');
 
@@ -2072,12 +2102,12 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
     @level2type=N'COLUMN', @level2name=N'UpdatedBy';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'关联的业务请求关联标识唯一标识。',
+    @name=N'MS_Description', @value=N'产生本条业务审计的调用关联标识，用于关联技术日志，不用于业务幂等。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
     @level2type=N'COLUMN', @level2name=N'CorrelationId';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'业务命令唯一标识，用于按模块和操作类型防止日志重复写入。',
+    @name=N'MS_Description', @value=N'关联业务命令；本批迁移命令的原始结果由独立回执保存。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
     @level2type=N'COLUMN', @level2name=N'CommandId';
@@ -2146,6 +2176,90 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'BusinessOperationLog',
     @level2type=N'COLUMN', @level2name=N'OccurredDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存已成功提交的业务命令原始结果，供相同命令身份安全重放。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户端提供的全库唯一业务命令身份。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CommandId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'首次执行时由服务端认证得到的操作者。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'ActorUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'服务端定义的稳定业务用例标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'CommandType';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'请求明确指定的目标；创建命令允许为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'RequestTargetUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'请求指纹的规范化协议版本。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'FingerprintVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'规范化业务输入的 SHA-256 摘要。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'RequestFingerprint';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'结果快照结构版本，用于阻止未知格式被重新执行。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'ResultVersion';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'首次成功的业务结果 JSON。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'ResultJson';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'回执写入事务时的 UTC 时间，不代表精确提交时刻。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'CommandReceipt',
+    @level2type=N'COLUMN', @level2name=N'RecordedAtUtc';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'客户主数据实体，保存客户身份、联系方式及资料目录配置。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

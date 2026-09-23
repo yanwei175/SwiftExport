@@ -3,15 +3,15 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Caching.Memory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
-using System.Text.Json;
+using SwiftExport.Contracts.DTOs.Errors;
 
-namespace SwiftExport.WebApi.Filters
+namespace SwiftExport.WebApi.RequestProtection
 {
     /// <summary>
     /// 防抖式防重复提交过滤器。
     ///
     /// 使用方式（贴在写操作 Action 上）：
-    ///   [PreventDuplicateRequest]                    // 默认 3 秒冷却窗口
+    ///   [PreventDuplicateRequest]                    // 默认 2 秒冷却窗口
     ///   [PreventDuplicateRequest(WindowSeconds = 5)] // 自定义冷却窗口
     ///
     /// 行为：
@@ -28,20 +28,15 @@ namespace SwiftExport.WebApi.Filters
         /// <summary>
         /// 防抖冷却窗口（秒）。
         /// 第一个请求进入时开始计时，窗口期内的重复请求全部拦截。
-        /// 默认 3 秒，适合保存/审批等写操作。
+        /// 默认 2 秒，适合保存/审批等写操作。
         /// </summary>
-        public int WindowSeconds { get; set; } = 3;
+        public int WindowSeconds { get; set; } = 2;
 
-        // 中文注释：静态只读，全局复用序列化配置，避免每次请求重复分配。
-        private static readonly JsonSerializerOptions _jsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
+        /// <summary>按用户和接口检查内存冷却窗口；命中时返回 429，否则执行 Action。</summary>
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
-            var cache  = context.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
-            var user   = context.HttpContext.RequestServices.GetRequiredService<ICurrentUser>();
+            var cache = context.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
+            var user = context.HttpContext.RequestServices.GetRequiredService<ICurrentUser>();
             var logger = context.HttpContext.RequestServices
                              .GetRequiredService<ILogger<PreventDuplicateRequestAttribute>>();
 
@@ -49,10 +44,10 @@ namespace SwiftExport.WebApi.Filters
             // 格式：prevent_dup:{用户ID}:{Controller}:{Action}
             // UserId 可空：未认证时降级为 "anonymous"，依然能正确拦截匿名并发。
             // 不纳入请求体内容，避免哈希开销，按「用户 + 接口」粒度拦截即可。
-            var userId     = user.UserId?.ToString() ?? "anonymous";
+            var userId = user.UserId?.ToString() ?? "anonymous";
             var controller = context.ActionDescriptor.RouteValues["controller"] ?? "unknown";
-            var action     = context.ActionDescriptor.RouteValues["action"]     ?? "unknown";
-            var cacheKey   = $"prevent_dup:{userId}:{controller}:{action}";
+            var action = context.ActionDescriptor.RouteValues["action"] ?? "unknown";
+            var cacheKey = $"prevent_dup:{userId}:{controller}:{action}";
             // ─────────────────────────────────────────────────────────────────────
 
             if (cache.TryGetValue(cacheKey, out _))
@@ -62,16 +57,8 @@ namespace SwiftExport.WebApi.Filters
                     "防重复请求拦截 | UserId={UserId} | Controller={Controller} | Action={Action} | WindowSeconds={Window}",
                     userId, controller, action, WindowSeconds);
 
-                var result = ServiceResult<string>.Fail("操作过于频繁，请稍后再试。");
-
-                context.HttpContext.Response.ContentType = "application/json; charset=utf-8";
-                context.HttpContext.Response.StatusCode  = StatusCodes.Status429TooManyRequests;
-
-                await context.HttpContext.Response.WriteAsync(
-                    JsonSerializer.Serialize(result, _jsonOptions));
-
-                // 中文注释：设置空结果短路管道，阻止 Action 继续执行。
-                context.Result = new EmptyResult();
+                context.HttpContext.Response.Headers.RetryAfter = Math.Max(1, WindowSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                context.Result = new ObjectResult(ServiceResult<object>.Fail(ServiceErrorCodes.RateLimited, "操作过于频繁，请稍后再试。"));
                 return;
             }
 

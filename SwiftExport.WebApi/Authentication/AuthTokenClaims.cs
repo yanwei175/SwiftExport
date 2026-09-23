@@ -1,4 +1,4 @@
-namespace SwiftExport.WebApi.Services.Auth;
+namespace SwiftExport.WebApi.Authentication;
 
 /// <summary>定义 JWT 内部使用的稳定凭据版本声明。</summary>
 public static class AuthTokenClaims

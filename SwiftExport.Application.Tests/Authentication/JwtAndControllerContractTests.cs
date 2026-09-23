@@ -7,8 +7,8 @@ using SwiftExport.Application.Models.Auth;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Controllers.Auth;
-using SwiftExport.WebApi.Services.Auth;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.Authentication;
+using SwiftExport.WebApi.RequestProtection;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Orders;
 

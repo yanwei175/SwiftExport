@@ -36,9 +36,9 @@ public static class CustomerSuppliedMaterialPolicy
 
         if (line.Numerator <= 0 || line.Denominator <= 0)
             return $"BOM 第 {line.LineNumber} 行用量分子和分母必须大于零。";
-        if (!line.SubSkuId.HasValue || line.SubSkuId.Value == Guid.Empty)
+        if (!line.ComponentProductId.HasValue || line.ComponentProductId.Value == Guid.Empty)
             return $"BOM 第 {line.LineNumber} 行必须关联有效子产品。";
-        if (line.ParentSkuId.HasValue && line.ParentSkuId.Value == line.SubSkuId.Value)
+        if (line.ParentProductId.HasValue && line.ParentProductId.Value == line.ComponentProductId.Value)
             return $"BOM 第 {line.LineNumber} 行父件和子件不能相同。";
         if (IsCustomerSupplied(child)
             && !string.Equals(child.SupplyType, SupplyTypeEnums.采购, StringComparison.Ordinal))

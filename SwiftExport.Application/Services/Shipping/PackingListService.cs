@@ -115,7 +115,7 @@ public sealed class PackingListService(
             return await ExecuteWriteAsync(command.CommandId, "Create", command.Uid, fingerprint, async () =>
             {
                 if (await repository.LockHeaderAsync(command.Uid, true, cancellationToken) is not null)
-                    Fail(PackingListErrorCodes.IdempotencyConflict, "该装箱单 Uid 已由另一创建意图占用。", "Uid");
+                    Fail(PackingListErrorCodes.CommandConflict, "该装箱单 Uid 已由另一创建意图占用。", "Uid");
                 var customer = await RequireCustomerAsync(command.Header.CustomerId, true);
                 var header = new PackingListHead
                 {
@@ -321,7 +321,7 @@ public sealed class PackingListService(
             {
                 if (prior.OperationType != operation || prior.UserUid != currentUser.UserId
                     || prior.ChangedFieldsJson != fingerprintJson || prior.AggregateUid != aggregateUid)
-                    Fail(PackingListErrorCodes.IdempotencyConflict, "CommandId 已用于不同内容、操作、用户或单据。", "CommandId");
+                    Fail(PackingListErrorCodes.CommandConflict, "CommandId 已用于不同内容、操作、用户或单据。", "CommandId");
                 var replay = JsonSerializer.Deserialize<PackingListDraftCommandResult>(prior.RelatedObjectsJson ?? string.Empty);
                 if (replay is null || replay.Uid != aggregateUid)
                     Fail(PackingListErrorCodes.OutcomeUnknown, "历史命令结果不完整，不能安全重放。");
