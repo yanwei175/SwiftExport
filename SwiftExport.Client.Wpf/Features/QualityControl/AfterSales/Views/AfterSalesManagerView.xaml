@@ -133,7 +133,9 @@
                 <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenDetailCommand}"/>
             </DataGrid.InputBindings>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="客户投诉单号" Binding="{Binding CustomerComplaintNo}" Width="140"/>
+                <DataGridTextColumn Header="客户投诉单号" Binding="{Binding CustomerComplaintNo}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    Width="140"/>
 
                 <DataGridTextColumn Header="售后单号" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                     Binding="{Binding AfterSalesNo}" Width="140"/>
