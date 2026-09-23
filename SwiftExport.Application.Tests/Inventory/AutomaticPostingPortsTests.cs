@@ -1,4 +1,5 @@
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
+using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
@@ -339,13 +340,14 @@ public sealed class AutomaticPostingPortsTests
                     PostedNetQty = InHeaders.Values.Where(x => x.PostingStatus == InboundPostingStatusEnum.Posted).Sum(h => InLines.Where(l => l.InboundDocumentId == h.Uid).Sum(l => l.Quantity)), Unit = "PCS", CurrentUnit = "PCS" }]),
                 _ => throw new NotSupportedException(m)
             });
-            var outRepo = Proxy<IOutboundManagerRepository>((m, a) => m switch
+            var outRepo = Proxy<IOutboundDocumentRepository>((m, a) => m switch
             {
                 "LockHeaderAsync" => Task.FromResult(OutHeaders.GetValueOrDefault((Guid)a[0]!)),
                 "LockLinesAsync" => Task.FromResult<IReadOnlyList<OutboundDocumentLine>>(OutLines.Where(x => x.OutboundDocumentId == (Guid)a[0]!).ToList()),
-                "ReadReverseLedgersAsync" => History((Guid)a[0]!),
                 _ => throw new NotSupportedException(m)
             });
+            var outReads = Proxy<IOutboundExecutionReadRepository>((m, a) => m == "ReadReverseLedgersAsync"
+                ? History((Guid)a[0]!) : throw new NotSupportedException(m));
             var auto = Proxy<IAutomaticDocumentRepository>((m, a) => m switch
             {
                 "IsSchemaReadyAsync" => Task.FromResult(SchemaReady), "LockProductsAsync" => Task.CompletedTask,
@@ -356,9 +358,9 @@ public sealed class AutomaticPostingPortsTests
                 "SetOutboundStateAsync" => State((OutboundDocument)a[0]!, (bool)a[1]!),
                 _ => throw new NotSupportedException(m)
             });
-            _scope = new(context, auto, inRepo, executionReads, sourceRepo, outRepo, inventoryRepo, warehouse);
+            _scope = new(context, auto, inRepo, executionReads, sourceRepo, outRepo, outReads, inventoryRepo, warehouse);
             var userId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-            var ports = new AutomaticPostingPorts(_scope, auto, inRepo, sourceRepo, executionReads, outRepo,
+            var ports = new AutomaticPostingPorts(_scope, auto, inRepo, sourceRepo, executionReads, outRepo, outReads,
                 new InventoryPostingService(context, inventoryRepo, Proxy<IWarehouseSiteRepository>((_, _) => Task.FromResult<WarehouseSite?>(wh))),
                 warehouse, inventoryRepo, Proxy<IBusinessOperationLogRepository>((m, a) => m switch
                 {

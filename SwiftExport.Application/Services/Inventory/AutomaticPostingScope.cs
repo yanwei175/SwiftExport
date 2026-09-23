@@ -7,12 +7,13 @@ using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 
 namespace SwiftExport.Application.Services.Inventory;
 
 /// <summary>绑定调用方事务的批量资源声明；所有自动写入先取得整组资源，防止分单锁序倒置。</summary>
 public sealed class AutomaticPostingScope(ServiceBaseContext context, IAutomaticDocumentRepository automatic,
-    IInboundDocumentRepository inbound, IInboundExecutionReadRepository executionReads, IInboundSourceRepository sourceRepository, IOutboundManagerRepository outbound, IInventoryRepository inventory,
+    IInboundDocumentRepository inbound, IInboundExecutionReadRepository executionReads, IInboundSourceRepository sourceRepository, IOutboundDocumentRepository outbound, IOutboundExecutionReadRepository outboundReads, IInventoryRepository inventory,
     IRepository<WarehouseSite> warehouses) : IAutomaticPostingScope
 {
     private IDbTransaction? _transaction;
@@ -63,7 +64,7 @@ public sealed class AutomaticPostingScope(ServiceBaseContext context, IAutomatic
             }
             var history = new List<InventoryLedgerEntry>();
             foreach (var id in r.InboundDocumentIds.Distinct().Order()) history.AddRange(await executionReads.ReadReverseLedgersAsync(id, token));
-            foreach (var id in r.OutboundDocumentIds.Distinct().Order()) history.AddRange(await outbound.ReadReverseLedgersAsync(id, token));
+            foreach (var id in r.OutboundDocumentIds.Distinct().Order()) history.AddRange(await outboundReads.ReadReverseLedgersAsync(id, token));
             _ledgerIds.UnionWith(r.LedgerIds.Concat(history.Select(x => x.Uid)));
             foreach (var id in _ledgerIds.Order())
             {

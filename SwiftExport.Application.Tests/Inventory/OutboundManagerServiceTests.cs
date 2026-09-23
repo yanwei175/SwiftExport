@@ -11,7 +11,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Inventory;
+using SwiftExport.Application.Services.Inventory.Outbounds;
+using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Commands;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
 using SwiftExport.Contracts.DTOs.Errors;
@@ -24,6 +27,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -239,10 +243,12 @@ public sealed partial class OutboundManagerServiceTests
         public Guid SourceId = Guid.NewGuid();
         private readonly Guid _userId = Guid.NewGuid();
         private readonly Dictionary<Guid, BusinessOperationLog> _logs = [];
+        /// <summary>已成功写入的业务审计条数，用于验证命令重放不重复记录。</summary>
+        public int LogCount => _logs.Count;
         private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
         public readonly ConnectionStub Connection = new();
         public readonly DbSession Session;
-        public readonly OutboundManagerService Service;
+        public readonly OutboundServices Service;
         public OutboundDocument? Header;
         public List<OutboundDocumentLine> SavedLines = [];
         public int Saves, Deletes, Searches, SourceReads;
@@ -278,10 +284,8 @@ public sealed partial class OutboundManagerServiceTests
                 Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(
                     SwiftExport.Application.DependencyInjection.AddApplicationServices(new Microsoft.Extensions.DependencyInjection.ServiceCollection()))),
                 correlation, user, Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandPipeline>.Instance);
-            Service = new(new ServiceBaseContext(Session, NullLoggerFactory.Instance),
-                Proxy<IOutboundManagerRepository>((method, args) => method switch
+            Func<string, object?[], object?> repositoryHandler = (method, args) => method switch
                 {
-                    "LockCommandAsync" => Task.FromResult(CommandLockResult),
                     "LockHeaderAsync" => Task.FromResult(Header),
                     "LockLinesAsync" => Task.FromResult<IReadOnlyList<OutboundDocumentLine>>(SavedLines),
                     "HasLedgerAsync" => Task.FromResult(HasLedger),
@@ -292,12 +296,15 @@ public sealed partial class OutboundManagerServiceTests
                     "SearchItemsAsync" => Search(),
                     "SearchAsync" => SearchManager((OutboundManagerSearchRequest)args[0]!),
                     _ => PostingRepository(method, args)
-                }),
+                };
+            Service = new OutboundServices(new ServiceBaseContext(Session, NullLoggerFactory.Instance),
+                Proxy<IOutboundQueryRepository>(repositoryHandler),
+                Proxy<IOutboundDocumentRepository>(repositoryHandler),
+                Proxy<IOutboundExecutionReadRepository>(repositoryHandler),
                 Proxy<IWarehouseSiteRepository>((method, _) => method == "GetForUpdateAsync"
                     ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = WarehouseId, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method)),
                 Proxy<IBusinessOperationLogRepository>((method, args) => method switch
                 {
-                    "GetByModuleCommandAsync" => Task.FromResult(_logs.GetValueOrDefault((Guid)args[1]!)),
                     "InsertAsync" => Log((BusinessOperationLog)args[0]!),
                     _ => throw new NotSupportedException(method)
                 }),
@@ -383,11 +390,53 @@ public sealed partial class OutboundManagerServiceTests
                 Assert.AreEqual("outbound-test-call", log.CorrelationId);
                 Assert.IsFalse(changed.RootElement.TryGetProperty("Fingerprint", out _));
             }
-            else Assert.AreEqual(64, changed.RootElement.GetProperty("Fingerprint").GetString()!.Length);
+            else Assert.IsFalse(changed.RootElement.TryGetProperty("Fingerprint", out _));
             _logs.Add(log.CommandId, log);
             return Task.FromResult(1);
         }
         private Task<PagedResponseBase<OutboundItemCandidateDto>> Search() { Searches++; return Task.FromResult(new PagedResponseBase<OutboundItemCandidateDto> { PageIndex = 1, PageSize = 20 }); }
+    }
+
+    /// <summary>测试夹具只组合四个真实出库用例，保留既有行为断言的调用入口。</summary>
+    private sealed class OutboundServices
+    {
+        private readonly OutboundQueryService _query;
+        private readonly OutboundDraftService _draft;
+        private readonly OutboundPostingService _posting;
+        private readonly OutboundReversalService _reversal;
+
+        /// <summary>让四个服务共享同一请求级会话、仓储替身及命令执行器。</summary>
+        public OutboundServices(ServiceBaseContext context, IOutboundQueryRepository queries,
+            IOutboundDocumentRepository repository, IOutboundExecutionReadRepository executionReads,
+            IWarehouseSiteRepository warehouses, IBusinessOperationLogRepository logs, ICurrentUser user,
+            IUserPermissionService permissions, IDocumentNoService numbers, IInventoryPostingService inventory,
+            BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline)
+        {
+            var support = new OutboundServiceSupport(context, user, permissions);
+            _query = new OutboundQueryService(queries, support);
+            _draft = new OutboundDraftService(queries, repository, warehouses, logs, user, numbers, executor, correlation, pipeline, support);
+            _posting = new OutboundPostingService(queries, repository, executionReads, logs, user, permissions, inventory, executor, correlation, pipeline, support);
+            _reversal = new OutboundReversalService(queries, repository, executionReads, logs, user, permissions, inventory, executor, correlation, pipeline, support);
+        }
+
+        /// <summary>查询出库列表。</summary>
+        public Task<ServiceResult<PagedResponseBase<OutboundManagerListItemDto>>> SearchAsync(OutboundManagerSearchRequest request) => _query.SearchAsync(request);
+        /// <summary>查询仓库选品。</summary>
+        public Task<ServiceResult<PagedResponseBase<OutboundItemCandidateDto>>> SearchItemsAsync(OutboundItemSearchRequest request) => _query.SearchItemsAsync(request);
+        /// <summary>创建人工草稿。</summary>
+        public Task<ServiceResult<OutboundDraftCommandResult>> CreateAsync(CreateOutboundDraftCommand command) => _draft.CreateAsync(command);
+        /// <summary>更新人工草稿。</summary>
+        public Task<ServiceResult<OutboundDraftCommandResult>> UpdateAsync(Guid uid, UpdateOutboundDraftCommand command) => _draft.UpdateAsync(uid, command);
+        /// <summary>删除人工草稿。</summary>
+        public Task<ServiceResult<OutboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteOutboundDraftCommand command) => _draft.DeleteAsync(uid, command);
+        /// <summary>预览正式过账。</summary>
+        public Task<ServiceResult<OutboundPostPreviewDto>> PreviewPostAsync(Guid uid, OutboundPostPreviewRequest request) => _posting.PreviewPostAsync(uid, request);
+        /// <summary>提交正式过账。</summary>
+        public Task<ServiceResult<OutboundPostResult>> PostAsync(Guid uid, PostOutboundCommand command) => _posting.PostAsync(uid, command);
+        /// <summary>预览整单反向。</summary>
+        public Task<ServiceResult<OutboundReversePreviewDto>> PreviewReverseAsync(Guid uid, OutboundReversePreviewRequest request) => _reversal.PreviewReverseAsync(uid, request);
+        /// <summary>提交整单反向。</summary>
+        public Task<ServiceResult<OutboundReverseResult>> ReverseAsync(Guid uid, ReverseOutboundCommand command) => _reversal.ReverseAsync(uid, command);
     }
 
     private static T Proxy<T>(Func<string, object?[], object?> handler) where T : class

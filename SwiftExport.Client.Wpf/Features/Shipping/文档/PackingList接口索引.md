@@ -33,9 +33,9 @@
 ## 源码入口
 
 - [Refit：IPackingListApi](../../../../SwiftExport.Contracts/Apis/Shipping/IPackingListApi.cs)
-- [Controller：PackingListController](../../../../SwiftExport.WebApi/Controllers/Shipping/PackingListController.cs)
+- [Controller：PackingListController](../../../../SwiftExport.WebApi/Controllers/Shipping/PackingLists/PackingListController.cs)
 - [DTO 目录](../../../../SwiftExport.Contracts/DTOs/Shipping/PackingLists)
-- [草稿服务：PackingListService](../../../../SwiftExport.Application/Services/Shipping/PackingListService.cs)
+- [草稿服务：PackingListDraftService](../../../../SwiftExport.Application/Services/Shipping/PackingLists/PackingListDraftService.cs)
 - [过账服务：PackingListPostingService](../../../../SwiftExport.Application/Services/Shipping/PackingListPostingService.cs)
 - [事务协调器：PackingListPostingCoordinator](../../../../SwiftExport.Application/Services/Shipping/PackingListPostingCoordinator.cs)
 - [执行追踪：PackingListTraceService](../../../../SwiftExport.Application/Services/Shipping/PackingListTraceService.cs)

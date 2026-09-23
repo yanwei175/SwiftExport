@@ -1,4 +1,5 @@
-﻿using SwiftExport.Core.Interfaces.Inventory.Inbounds;
+using SwiftExport.Core.Interfaces.Inventory.Inbounds;
+using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
@@ -24,6 +25,7 @@ using SwiftExport.Infrastructure.Repositories.SystemRepositories;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Repositories.Inventory;
 using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
+using SwiftExport.Infrastructure.Repositories.Inventory.Outbounds;
 using SwiftExport.Infrastructure.Repositories.Shipping;
 using SwiftExport.Infrastructure.Services.Auth;
 
@@ -102,8 +104,13 @@ public static class DependencyInjection
         services.AddScoped<IInboundQueryRepository, InboundQueryRepository>();
         services.AddScoped<IInboundSourceRepository, InboundSourceRepository>();
         services.AddScoped<IAutomaticDocumentRepository, AutomaticDocumentRepository>();
-        services.AddScoped<IOutboundManagerRepository, OutboundManagerRepository>();
-        services.AddScoped<IPackingListRepository, PackingListRepository>();
+        services.AddScoped<IOutboundQueryRepository, OutboundQueryRepository>();
+        services.AddScoped<IOutboundDocumentRepository, OutboundDocumentRepository>();
+        services.AddScoped<IOutboundExecutionReadRepository, OutboundExecutionReadRepository>();
+        services.AddScoped<PackingListRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListQueryRepository>(sp => sp.GetRequiredService<PackingListRepository>());
+        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListDocumentRepository>(sp => sp.GetRequiredService<PackingListRepository>());
+        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListSourceExitRepository>(sp => sp.GetRequiredService<PackingListRepository>());
         services.AddScoped<IPackingListPostingFactsRepository, PackingListPostingFactsRepository>();
         services.AddScoped<IPackingListExecutionRepository, PackingListExecutionRepository>();
         services.AddScoped<ISourceDeliveryQueryRepository, SourceDeliveryQueryRepository>();

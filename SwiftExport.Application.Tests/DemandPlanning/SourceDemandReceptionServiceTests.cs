@@ -16,6 +16,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Shipping;
+using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.Infrastructure.Data;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
@@ -231,7 +232,7 @@ public sealed class SourceDemandReceptionServiceTests
         {
             var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             session.Transaction = new FakeConnection().BeginTransaction();
-            var repository = DispatchProxy.Create<IPackingListRepository, EmptyPackingListPort>();
+            var repository = DispatchProxy.Create<IPackingListSourceExitRepository, EmptyPackingListPort>();
             var query = DispatchProxy.Create<ISourceDeliveryQueryRepository, EmptySourceDeliveryQueryPort>();
             return new SourceDeliveryService(
                 new ServiceBaseContext(session, NullLoggerFactory.Instance), query, repository);

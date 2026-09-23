@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -21,7 +22,7 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
 
     /// <summary>先核对回执；首次执行时让业务委托在同一事务中写入事实与审计。</summary>
     public async Task<CommandExecutionResult<T>> ExecuteAsync<T>(Guid commandId, string commandType, Guid? targetUid, object businessInput,
-        Func<CancellationToken, Task<T>> action, CancellationToken token)
+        Func<CancellationToken, Task<T>> action, CancellationToken token, IsolationLevel? isolationLevel = null)
     {
         token.ThrowIfCancellationRequested();
         if (!user.IsAuthenticated || user.UserId is not { } actorUid)
@@ -35,7 +36,10 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
         var fingerprint = Convert.ToHexString(SHA256.HashData(CanonicalBytes(
             new { FingerprintVersion, ActorUid = actorUid, CommandType = commandType,
                 RequestTargetUid = targetUid, BusinessInput = businessInput })));
-        using var transaction = context.Session.Connection.BeginTransaction();
+        // 单据可声明原有隔离级别；未指定时保留现有命令的连接默认隔离行为。
+        using var transaction = isolationLevel.HasValue
+            ? context.Session.Connection.BeginTransaction(isolationLevel.Value)
+            : context.Session.Connection.BeginTransaction();
         context.Session.Transaction = transaction;
         try
         {

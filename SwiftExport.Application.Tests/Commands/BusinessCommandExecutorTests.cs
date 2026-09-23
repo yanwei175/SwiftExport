@@ -139,6 +139,19 @@ public sealed class BusinessCommandExecutorTests
         Assert.AreEqual(ServiceErrorCodes.OutcomeUnknown, ex.Code);
     }
 
+    /// <summary>显式可串行化只作用于当前单据命令，未指定时继续调用连接默认事务入口。</summary>
+    [TestMethod]
+    public async Task ExplicitIsolation_DoesNotChangeDefaultCommands()
+    {
+        var f = new Fixture();
+        await f.Executor.ExecuteAsync(Guid.NewGuid(), "Shipping.PackingList.Post", Guid.NewGuid(), new { Version = 1 },
+            _ => Task.FromResult(new Result(Guid.NewGuid(), 1)), default, IsolationLevel.Serializable);
+        Assert.AreEqual(IsolationLevel.Serializable, f.Connection.LastRequestedIsolation);
+        await f.Executor.ExecuteAsync(Guid.NewGuid(), "Inventory.Inbound.Post", Guid.NewGuid(), new { Version = 1 },
+            _ => Task.FromResult(new Result(Guid.NewGuid(), 1)), default);
+        Assert.IsNull(f.Connection.LastRequestedIsolation);
+    }
+
     private sealed record Result(Guid Uid, int Version);
 
     /// <summary>共享会话与可观察仓储替身，只验证 Application 编排。</summary>
@@ -194,13 +207,14 @@ public sealed class BusinessCommandExecutorTests
     private sealed class ConnectionStub : IDbConnection
     {
         public int Commits, Rollbacks;
+        public IsolationLevel? LastRequestedIsolation;
         public bool FailCommit;
         [AllowNull] public string ConnectionString { get; set; } = "";
         public int ConnectionTimeout => 0;
         public string Database => "test";
         public ConnectionState State => ConnectionState.Open;
-        public IDbTransaction BeginTransaction() => new TransactionStub(this);
-        public IDbTransaction BeginTransaction(IsolationLevel il) => BeginTransaction();
+        public IDbTransaction BeginTransaction() { LastRequestedIsolation = null; return new TransactionStub(this); }
+        public IDbTransaction BeginTransaction(IsolationLevel il) { LastRequestedIsolation = il; return new TransactionStub(this); }
         public void ChangeDatabase(string databaseName) => throw new NotSupportedException();
         public void Close() { }
         public IDbCommand CreateCommand() => throw new NotSupportedException();

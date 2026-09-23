@@ -13,7 +13,7 @@ public sealed class PackingListPackagingTests
     [TestMethod]
     public void PackageCountUsesFractionAndKeepsUnknown()
     {
-        var method = typeof(PackingListService).GetMethod("CalculatePackageCount", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var method = typeof(SwiftExport.Application.Services.Shipping.PackingLists.PackingListDraftService).GetMethod("CalculatePackageCount", BindingFlags.NonPublic | BindingFlags.Static)!;
         Assert.AreEqual(5.25m, method.Invoke(null, new object?[] { 105m, 20m }));
         Assert.AreEqual(1m, method.Invoke(null, new object?[] { 5m, 5m }));
         Assert.AreEqual(.3333m, method.Invoke(null, new object?[] { 1m, 3m }));
@@ -24,7 +24,7 @@ public sealed class PackingListPackagingTests
     [TestMethod]
     public void FingerprintIncludesEditablePackagingAndHeaderLocation()
     {
-        var method = typeof(PackingListService).GetMethod("Fingerprint", BindingFlags.NonPublic | BindingFlags.Static)!;
+        var method = typeof(SwiftExport.Application.Services.Shipping.PackingLists.PackingListDraftService).GetMethod("Fingerprint", BindingFlags.NonPublic | BindingFlags.Static)!;
         var header = new PackingListDraftHeaderInput();
         var line = new PackingListDraftLineInput { Qty = 5, PcsPerPackage = 5 };
         string Fingerprint() => (string)method.Invoke(null, ["Create", Guid.Empty, 0, header, new[] { line }, Array.Empty<PackingListDeletedLineInput>()])!;

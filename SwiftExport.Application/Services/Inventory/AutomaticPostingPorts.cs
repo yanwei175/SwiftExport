@@ -13,12 +13,13 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 
 namespace SwiftExport.Application.Services.Inventory;
 
 /// <summary>箱单自动单据内部执行器；只处理已分配的事实，所有写入加入外层事务。</summary>
 public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, IAutomaticDocumentRepository repository,
-    IInboundDocumentRepository inbound, IInboundSourceRepository sourceRepository, IInboundExecutionReadRepository executionReads, IOutboundManagerRepository outbound, IInventoryPostingService inventory,
+    IInboundDocumentRepository inbound, IInboundSourceRepository sourceRepository, IInboundExecutionReadRepository executionReads, IOutboundDocumentRepository outbound, IOutboundExecutionReadRepository outboundReads, IInventoryPostingService inventory,
     IRepository<WarehouseSite> warehouses, IInventoryRepository stocks, IBusinessOperationLogRepository logs,
     IDocumentNoService numbers, ICurrentUser user) : IInboundPostingPort, IOutboundPostingPort
 {

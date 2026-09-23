@@ -3,7 +3,7 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Inventory.Inbounds.Validation;
-using SwiftExport.Application.Services.Inventory.Validation.Outbounds;
+using SwiftExport.Application.Services.Inventory.Outbounds.Validation;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 
@@ -13,9 +13,30 @@ namespace SwiftExport.Application.Tests.Commands;
 [TestClass]
 public sealed class DraftCommandValidatorTests
 {
-    /// <summary>程序集扫描应为六个已接入命令各注册一个可解析的 Validator。</summary>
+    /// <summary>装箱单反向原因按去除首尾空白后的长度校验，与预览一致且不修改请求内容。</summary>
     [TestMethod]
-    public void ApplicationRegistration_ResolvesSixValidatorsOnce()
+    [DataRow(2000, true)]
+    [DataRow(2001, false)]
+    [DataRow(0, false)]
+    public async Task PackingListReverse_ValidatesTrimmedReasonLength(int length, bool expectedValid)
+    {
+        var reason = " \t" + new string('因', length) + "\r\n";
+        var command = new SwiftExport.Contracts.DTOs.Shipping.PackingLists.ReversePackingListCommand
+        {
+            CommandId = Guid.NewGuid(), ExpectedVersion = 1, BusinessDate = DateTime.Today,
+            PreviewToken = "preview", Reason = reason
+        };
+        var result = await new SwiftExport.Application.Services.Shipping.PackingLists.ReversePackingListCommandValidator()
+            .ValidateAsync(command);
+        Assert.AreEqual(expectedValid, result.IsValid);
+        Assert.AreEqual(reason, command.Reason);
+        if (!expectedValid)
+            AssertError(result.Errors, "Reason", "反向原因必须填写且不能超过 2000 字符。");
+    }
+
+    /// <summary>程序集扫描应为出库草稿、过账及反向命令各注册一个可解析的 Validator。</summary>
+    [TestMethod]
+    public void ApplicationRegistration_ResolvesOutboundValidatorsOnce()
     {
         var registrations = new ServiceCollection();
         registrations.AddApplicationServices();
@@ -26,6 +47,21 @@ public sealed class DraftCommandValidatorTests
         AssertOneValidator<CreateOutboundDraftCommand, CreateOutboundDraftCommandValidator>(registrations, provider);
         AssertOneValidator<UpdateOutboundDraftCommand, UpdateOutboundDraftCommandValidator>(registrations, provider);
         AssertOneValidator<DeleteOutboundDraftCommand, DeleteOutboundDraftCommandValidator>(registrations, provider);
+        AssertOneValidator<PostOutboundCommand, PostOutboundCommandValidator>(registrations, provider);
+        AssertOneValidator<ReverseOutboundCommand, ReverseOutboundCommandValidator>(registrations, provider);
+    }
+
+    /// <summary>正式命令只验证请求格式；反向原因按原输入长度判断，不改变旧业务语义。</summary>
+    [TestMethod]
+    public async Task OutboundFormalCommands_ValidateIdentityVersionAndRawReason()
+    {
+        var post = await new PostOutboundCommandValidator().ValidateAsync(new PostOutboundCommand());
+        Assert.IsTrue(post.Errors.Any(x => x.PropertyName == "CommandId"));
+        Assert.IsTrue(post.Errors.Any(x => x.PropertyName == "ExpectedVersion"));
+        var reverse = new ReverseOutboundCommand { CommandId = Guid.NewGuid(), ExpectedVersion = 1, Reason = "  可纠错  " };
+        Assert.IsTrue((await new ReverseOutboundCommandValidator().ValidateAsync(reverse)).IsValid);
+        reverse.Reason = new string('因', 500) + " ";
+        Assert.IsTrue((await new ReverseOutboundCommandValidator().ValidateAsync(reverse)).Errors.Any(x => x.PropertyName == "Reason"));
     }
 
     /// <summary>空删除原因和空明细集合应返回中文消息与稳定字段路径。</summary>

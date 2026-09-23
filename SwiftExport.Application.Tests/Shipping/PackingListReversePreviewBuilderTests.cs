@@ -96,7 +96,7 @@ public sealed class PackingListReversePreviewBuilderTests
         var receipt = Return(f.Facts.Evidence[0]);
         var shipment = Return(f.Facts.Evidence[1]);
         var originalLedger = f.Facts.Evidence[0].LedgerId;
-        var result = PackingListPostingCoordinator.CreateReverseEvidence(Guid.NewGuid(), f.Facts,
+        var result = SwiftExport.Application.Services.Shipping.PackingLists.PackingListReversalService.CreateReverseEvidence(Guid.NewGuid(), f.Facts,
             new() { Documents = [receipt] }, new() { Documents = [shipment] });
         Assert.AreEqual(originalLedger, f.Facts.Evidence[0].LedgerId);
         Assert.AreEqual(f.Facts.Evidence[0].Uid, result[0].OriginalExecutionLineId);
@@ -134,7 +134,7 @@ public sealed class PackingListReversePreviewBuilderTests
                 defect == "duplicate" ? ledger : defect == "original" ? first.LedgerId!.Value : Guid.NewGuid())]
         };
         var error = Assert.Throws<SwiftExport.Application.Interfaces.Shipping.PackingListPostingFailure>(() =>
-            PackingListPostingCoordinator.CreateReverseEvidence(Guid.NewGuid(), f.Facts,
+            SwiftExport.Application.Services.Shipping.PackingLists.PackingListReversalService.CreateReverseEvidence(Guid.NewGuid(), f.Facts,
                 new() { Documents = [receipt] }, new() { Documents = [shipment] }));
         Assert.AreEqual("EXECUTION_INVALID", error.Code);
     }
