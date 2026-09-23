@@ -19,11 +19,6 @@ using SwiftExport.Application.Services.Suppliers;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Application.Services.SystemServices;
 using SwiftExport.Application.Services.Auth;
-using SwiftExport.Application.Commands;
-using SwiftExport.Application.Commands.Validation;
-using SwiftExport.Application.Services.Inventory.Validation.Inbounds;
-using SwiftExport.Application.Services.Inventory.Validation.Outbounds;
-using FluentValidation;
 namespace SwiftExport.Application;
 
 /// <summary>注册 Application 服务及其请求级依赖，不创建业务会话之外的实例。</summary>
@@ -38,15 +33,6 @@ public static class DependencyInjection
         services.AddLogging();
 
         services.AddScoped<ServiceBaseContext>();
-        services.AddScoped<BusinessCommandExecutor>();
-        services.AddScoped<CommandRequestValidator>();
-        services.AddScoped<CommandPipeline>();
-        services.AddScoped<IValidator<SwiftExport.Contracts.DTOs.Inventory.Inbounds.CreateInboundDraftCommand>, CreateInboundDraftCommandValidator>();
-        services.AddScoped<IValidator<SwiftExport.Contracts.DTOs.Inventory.Inbounds.UpdateInboundDraftCommand>, UpdateInboundDraftCommandValidator>();
-        services.AddScoped<IValidator<SwiftExport.Contracts.DTOs.Inventory.Inbounds.DeleteInboundDraftCommand>, DeleteInboundDraftCommandValidator>();
-        services.AddScoped<IValidator<SwiftExport.Contracts.DTOs.Inventory.Outbounds.CreateOutboundDraftCommand>, CreateOutboundDraftCommandValidator>();
-        services.AddScoped<IValidator<SwiftExport.Contracts.DTOs.Inventory.Outbounds.UpdateOutboundDraftCommand>, UpdateOutboundDraftCommandValidator>();
-        services.AddScoped<IValidator<SwiftExport.Contracts.DTOs.Inventory.Outbounds.DeleteOutboundDraftCommand>, DeleteOutboundDraftCommandValidator>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserPermissionService, UserPermissionService>();

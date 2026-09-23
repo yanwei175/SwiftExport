@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.QualityControl;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.QualityControl;
 /// <summary>售后HTTP边界，只绑定参数并调用业务服务。</summary>
 [ApiController,Authorize,Route("api/quality-control/after-sales")]

@@ -1,6 +1,5 @@
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.QualityControl;
@@ -22,10 +21,10 @@ public sealed partial class AfterSalesHeader : BaseEntity
     /// <summary>负责人。</summary>
     public Guid? OwnerId { get; set; }
     /// <summary>生命周期。</summary>
-    [DbColumn(StoreType = "int")]
+    [Column(TypeName = "tinyint")]
     public DocumentStatusEnum DocumentStatus { get; set; }
     /// <summary>实物确认状态。</summary>
-    [DbColumn(StoreType = "int")]
+    [Column(TypeName = "tinyint")]
     public ConfirmationStatusEnum ConfirmationStatus { get; set; }
     /// <summary>当前确认时间。</summary>
     public DateTime? DemandConfirmedAt { get; set; }

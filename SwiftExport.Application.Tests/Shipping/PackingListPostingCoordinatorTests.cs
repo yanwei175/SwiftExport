@@ -81,7 +81,7 @@ public sealed class PackingListPostingCoordinatorTests
         var command = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
         await f.Service.PostAsync(command, default);
         var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.PostAsync(command with { BusinessDate = f.Date.AddDays(1) }, default));
-        Assert.AreEqual("COMMAND_CONFLICT", conflict.Code);
+        Assert.AreEqual("IDEMPOTENCY_CONFLICT", conflict.Code);
         Assert.AreEqual(1, f.Executions.Count);
     }
 
@@ -101,7 +101,7 @@ public sealed class PackingListPostingCoordinatorTests
         Assert.IsTrue((await f.Service.ReverseAsync(reverse, default)).AlreadyApplied);
         var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() =>
             f.Service.PostAsync(post with { BusinessDate = f.Date.AddDays(1) }, default));
-        Assert.AreEqual("COMMAND_CONFLICT", conflict.Code);
+        Assert.AreEqual("IDEMPOTENCY_CONFLICT", conflict.Code);
         Assert.AreEqual(2, f.Executions.Count);
     }
 

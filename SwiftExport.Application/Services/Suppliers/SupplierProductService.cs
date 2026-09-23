@@ -39,9 +39,7 @@ public sealed class SupplierProductService(
         }
         catch (Exception ex)
         {
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<PagedResponseBase<SupplierProductDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<PagedResponseBase<SupplierProductDto>>.Fail($"查询供应商产品失败：{ex.Message}");
         }
     }
 
@@ -108,9 +106,7 @@ public sealed class SupplierProductService(
         catch (Exception ex)
         {
             _session.Transaction.Rollback();
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<SupplierProductBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<SupplierProductBatchSaveResponse>.Fail($"批量保存失败，所有操作已回滚。原因：{ex.Message}");
         }
         finally
         {
@@ -170,9 +166,7 @@ public sealed class SupplierProductService(
         {
             _session.Transaction.Rollback();
             Logger.LogWarning(ex, "设置产品默认供应商失败。");
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<SetProductDefaultSupplierResult>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<SetProductDefaultSupplierResult>.Fail(ex.Message);
         }
         finally
         {

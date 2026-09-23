@@ -102,7 +102,7 @@ public sealed class InventoryPostingServiceTests
 
         var exception = await Assert.ThrowsExactlyAsync<InventoryPostingException>(() => fixture.Service.PostAsync(commandId, [item]));
 
-        StringAssert.Contains(exception.Message, "COMMAND_CONFLICT");
+        StringAssert.Contains(exception.Message, "IDEMPOTENCY_CONFLICT");
         Assert.AreEqual(1, fixture.Transaction.Rollbacks);
     }
 
@@ -225,7 +225,7 @@ public sealed class InventoryPostingServiceTests
 
         var exception = await Assert.ThrowsExactlyAsync<InventoryPostingException>(() => fixture.Service.PostAsync(commandId, [correction.Replacement]));
 
-        StringAssert.Contains(exception.Message, "COMMAND_CONFLICT");
+        StringAssert.Contains(exception.Message, "IDEMPOTENCY_CONFLICT");
         Assert.AreEqual(3, fixture.Repository.Ledgers.Count);
     }
 
@@ -242,7 +242,7 @@ public sealed class InventoryPostingServiceTests
 
         var exception = await Assert.ThrowsExactlyAsync<InventoryPostingException>(() => fixture.Service.CorrectAsync(commandId, [correction]));
 
-        StringAssert.Contains(exception.Message, "COMMAND_CONFLICT");
+        StringAssert.Contains(exception.Message, "IDEMPOTENCY_CONFLICT");
     }
 
     /// <summary>产品停用不改变库存身份，已确认业务仍可按调用方规则履约。</summary>

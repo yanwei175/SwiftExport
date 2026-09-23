@@ -70,9 +70,9 @@ Detail：SaveCommand、CloseCommand、SelectSourcesCommand、DeleteLineCommand�
 - 头行保存同事务，后端重新读取来源/产品/单位/客户、校验草稿状态，校验数量及四位包装精度，统一重算小计和汇总。出货地点可空，缺省包装不能自动变零。允许同 GrossDemandId 多行，不要求 NetDemand/Allocation/采购存在。
 - 草稿不占用来源额度、不改变库存；保存时汇总同来源本单数量进行一致性检查，未来过账另做锁后重验。
 - 写入输入故意不继承 BaseDto，不提供 IsDeleted、状态、审计、PostCommandId、图片和小计字段。UI 不提交其查询 DTO。服务端也不得使用宽松反射绑定 Entity。
-- 幂等日志由后端另行设计：相同 CommandId+规范化内容返回首次成功结果并 AlreadyApplied=true；内容不同返回 COMMAND_CONFLICT，不因单有CommandId就宣称已实现幂等。
+- 幂等日志由后端另行设计：相同 CommandId+规范化内容返回首次成功结果并 AlreadyApplied=true；内容不同返回 IDEMPOTENCY_CONFLICT，不因单有CommandId就宣称已实现幂等。
 - 创建/更新成功 Detail 非空，含最新头行版本；删除成功返回 Uid、AlreadyApplied，Detail=null。删除限制 LifecycleStatus=Active 且 PostingStatus=Unposted，整单软删除，禁止已过账/已冲销；同命令重试先查原成功结果。
-- 使用 ServiceResult.Error.Code/Field：VERSION_CONFLICT、COMMAND_CONFLICT、LINE_SET_MISMATCH、INVALID_DRAFT、SOURCE_CHANGED、CUSTOMER_MISMATCH、NOT_FOUND、STATE_BLOCKED；Field 如 Header.CustomerId、Lines[行Uid].Qty。401/403 保持HTTP权限边界，不解析中文消息判断类别。
+- 使用 ServiceResult.Error.Code/Field：VERSION_CONFLICT、IDEMPOTENCY_CONFLICT、LINE_SET_MISMATCH、INVALID_DRAFT、SOURCE_CHANGED、CUSTOMER_MISMATCH、NOT_FOUND、STATE_BLOCKED；Field 如 Header.CustomerId、Lines[行Uid].Qty。401/403 保持HTTP权限边界，不解析中文消息判断类别。
 - 失败、取消、超时不得 AcceptChanges 或清空输入；保存成功以完整最新 Detail 重新 Load，协调 Header 与 Lines 的 LoadFromDtos。删除池读取 DeletedItems；未保存新行删除不提交 DeletedLines。
 
 ## 查询字段来源与空值

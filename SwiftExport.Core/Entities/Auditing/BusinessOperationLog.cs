@@ -7,9 +7,9 @@ namespace SwiftExport.Core.Entities.Auditing;
 [Table("BusinessOperationLog")]
 public sealed partial class BusinessOperationLog : BaseEntity
 {
-    /// <summary>产生本条业务审计的调用关联标识，用于关联技术日志，不用于业务幂等。</summary>
+    /// <summary>关联的业务请求关联标识唯一标识。</summary>
     public string CorrelationId { get; set; } = string.Empty;
-    /// <summary>关联业务命令；本批迁移命令的原始结果由独立回执保存。</summary>
+    /// <summary>业务命令唯一标识，用于按模块和操作类型防止日志重复写入。</summary>
     public Guid CommandId { get; set; }
     /// <summary>该实体保存的业务模块。</summary>
     public string Module { get; set; } = string.Empty;

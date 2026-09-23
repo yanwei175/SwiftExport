@@ -1,15 +1,19 @@
 using Dapper;
 using SwiftExport.Infrastructure.Data;
+using System;
 using System.Security.Claims;
 
-namespace SwiftExport.WebApi.Development;
+namespace SwiftExport.WebApi.Middlewares;
 
 /// <summary>
 /// 开发环境免登录中间件：当 Auth:UseDevUser=true 且请求未携带 Bearer Token 时，
 /// 自动从数据库查询 dev 用户并注入 HttpContext.User，使后续 ICurrentUser 能取到 "dev"。
 /// 生产环境永远不激活（Program.cs 启动时已阻断）。
 /// </summary>
-public class DevUserMiddleware(RequestDelegate next, IConfiguration config, IWebHostEnvironment env)
+public class DevUserMiddleware(
+    RequestDelegate next,
+    IConfiguration config,
+    IWebHostEnvironment env)
 {
     private readonly RequestDelegate _next = next;
     private readonly IConfiguration _config = config;
@@ -19,7 +23,6 @@ public class DevUserMiddleware(RequestDelegate next, IConfiguration config, IWeb
     private static Guid? _cachedDevUserId;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    /// <summary>仅在允许的开发请求中注入开发身份，再执行后续管道。</summary>
     public async Task InvokeAsync(HttpContext context)
     {
         // 仅在 Development 且配置开启时激活

@@ -1,7 +1,7 @@
 using SwiftExport.Application.Interfaces.Auth;
 using System.Security.Claims;
 
-namespace SwiftExport.WebApi.Authentication;
+namespace SwiftExport.WebApi.Services.Auth;
 
 /// <summary>在 JWT 密码学验证后核对账号有效性和当前凭据版本。</summary>
 public sealed class CredentialVersionTokenValidator(IAuthService authService)

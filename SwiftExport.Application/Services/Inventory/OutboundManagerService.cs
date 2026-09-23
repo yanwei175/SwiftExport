@@ -11,7 +11,6 @@ using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Commands;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
@@ -29,8 +28,7 @@ namespace SwiftExport.Application.Services.Inventory;
 public sealed partial class OutboundManagerService(
     ServiceBaseContext context, IOutboundManagerRepository repository, IWarehouseSiteRepository warehouses,
     IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions,
-    IDocumentNoService numbers, IInventoryPostingService inventoryPosting,
-    BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline) : IOutboundManagerService
+    IDocumentNoService numbers, IInventoryPostingService inventoryPosting) : IOutboundManagerService
 {
     private const string Module = "OutboundManager";
     private readonly ILogger<OutboundManagerService> _logger = context.LoggerFactory.CreateLogger<OutboundManagerService>();
@@ -67,10 +65,12 @@ public sealed partial class OutboundManagerService(
 
     /// <inheritdoc/>
     public Task<ServiceResult<OutboundDraftCommandResult>> CreateAsync(CreateOutboundDraftCommand command, CancellationToken token = default) =>
-        pipeline.ExecuteAsync<CreateOutboundDraftCommand, OutboundDraftCommandResult>(command, command?.CommandId,
-            "Inventory.Outbound.Draft.Create", AuthorizeDraftAsync<OutboundDraftCommandResult>, ct => RunAsync(async () =>
+        RunAsync(async () =>
         {
-            return await ExecuteDraftAsync(command!.CommandId, "Create", null, command.Draft, async () =>
+            if (command is null || command.CommandId == Guid.Empty) throw new DraftException("CommandId 不能为空。", ServiceErrorCodes.Validation, "CommandId");
+            ValidateDraft(command.Draft);
+            if (command.Draft.Lines.Any(x => x.Uid != Guid.Empty)) throw new DraftException("新增草稿行不能携带已有出库行标识。", ServiceErrorCodes.Validation, "Draft.Lines");
+            return await ExecuteAsync(command.CommandId, "Create", Fingerprint(command), async () =>
             {
                 var header = new OutboundDocument
                 {
@@ -91,16 +91,15 @@ public sealed partial class OutboundManagerService(
                 await SaveDraftAsync(header, command.Draft, [], 0, token);
                 return Result(header, false);
             }, token);
-        }, ct, false), token);
+        }, token);
 
     /// <inheritdoc/>
     public Task<ServiceResult<OutboundDraftCommandResult>> UpdateAsync(Guid uid, UpdateOutboundDraftCommand command, CancellationToken token = default) =>
-        pipeline.ExecuteAsync<UpdateOutboundDraftCommand, OutboundDraftCommandResult>(command, command?.CommandId,
-            "Inventory.Outbound.Draft.Update", AuthorizeDraftAsync<OutboundDraftCommandResult>, ct => RunAsync(async () =>
+        RunAsync(async () =>
         {
-            if (uid == Guid.Empty) throw new DraftException("出库单标识不能为空。", ServiceErrorCodes.Validation, "Uid");
-            return await ExecuteDraftAsync(command!.CommandId, "Update", uid,
-                new { command.ExpectedVersion, command.Draft }, async () =>
+            ValidateIdentity(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0);
+            ValidateDraft(command!.Draft);
+            return await ExecuteAsync(command.CommandId, "Update", Fingerprint(uid, command), async () =>
             {
                 var header = await RequireEditableAsync(uid, command.ExpectedVersion, token);
                 if (header.DocumentType != command.Draft.DocumentType) throw new DraftException("已保存单据不能更换出库类型。");
@@ -108,23 +107,23 @@ public sealed partial class OutboundManagerService(
                 await SaveDraftAsync(header, command.Draft, existing, command.ExpectedVersion, token);
                 return Result(header, false);
             }, token);
-        }, ct, false), token);
+        }, token);
 
     /// <inheritdoc/>
     public Task<ServiceResult<OutboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteOutboundDraftCommand command, CancellationToken token = default) =>
-        pipeline.ExecuteAsync<DeleteOutboundDraftCommand, OutboundDraftCommandResult>(command, command?.CommandId,
-            "Inventory.Outbound.Draft.Delete", AuthorizeDraftAsync<OutboundDraftCommandResult>, ct => RunAsync(async () =>
+        RunAsync(async () =>
         {
-            if (uid == Guid.Empty) throw new DraftException("出库单标识不能为空。", ServiceErrorCodes.Validation, "Uid");
-            return await ExecuteDraftAsync(command!.CommandId, "Delete", uid,
-                new { command.ExpectedVersion, command.Reason }, async () =>
+            ValidateIdentity(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0);
+            if (string.IsNullOrWhiteSpace(command!.Reason) || command.Reason.Length > 500)
+                throw new DraftException("请填写不超过 500 字的删除原因。", ServiceErrorCodes.Validation, "Reason");
+            return await ExecuteAsync(command.CommandId, "Delete", Fingerprint(uid, command), async () =>
             {
                 var header = await RequireEditableAsync(uid, command.ExpectedVersion, token);
                 await repository.LockLinesAsync(uid, token);
                 await repository.DeleteAsync(header, token);
                 return Result(header, true);
             }, token, command.Reason);
-        }, ct, false), token);
+        }, token);
 
     /// <summary>同一单头更新锁覆盖所有草稿命令；异常正式流水同样禁止普通编辑。</summary>
     private async Task<OutboundDocument> RequireEditableAsync(Guid uid, int version, CancellationToken token)
@@ -183,39 +182,60 @@ public sealed partial class OutboundManagerService(
         await repository.SaveAsync(header, rows, version, token);
     }
 
-    /// <summary>将出库草稿业务与审计交给公共执行器同事务提交；重放不新增审计。</summary>
-    private Task<CommandExecutionResult<OutboundDraftCommandResult>> ExecuteDraftAsync(Guid commandId, string operation, Guid? targetUid, object businessInput,
+    /// <summary>命令、头行和日志在同一事务提交；同键不同内容拒绝，同键同内容返回首次结果。</summary>
+    private async Task<OutboundDraftCommandResult> ExecuteAsync(Guid commandId, string operation, string fingerprint,
         Func<Task<OutboundDraftCommandResult>> action, CancellationToken token, string? reason = null)
     {
-        return executor.ExecuteAsync(commandId, $"Inventory.Outbound.Draft.{operation}", targetUid, businessInput,
-            async _ =>
+        if (context.Session.Transaction is not null) throw new DraftException("当前请求已有事务，不能独立保存出库草稿。");
+        using var transaction = context.Session.Connection.BeginTransaction();
+        context.Session.Transaction = transaction;
+        try
         {
+            // 日志字段的 ISJSON 约束要求对象或数组；写入和重放比对共用同一对象格式。
+            var fingerprintJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint });
+            if (await repository.LockCommandAsync(commandId, token) < 0) throw new DraftException("出库命令正在处理中，请以同一 CommandId 重试。", OutboundErrorCodes.CommandBusy);
+            var prior = await logs.GetByModuleCommandAsync(Module, commandId);
+            if (prior is not null)
+            {
+                if (prior.OperationType != operation || prior.ChangedFieldsJson != fingerprintJson || prior.UserUid != user.UserId)
+                    throw new DraftException("IDEMPOTENCY_CONFLICT：CommandId 已用于不同内容或操作。", ServiceErrorCodes.CommandConflict, "CommandId");
+                var replay = JsonSerializer.Deserialize<OutboundDraftCommandResult>(prior.RelatedObjectsJson ?? "")
+                    ?? throw new DraftException("历史命令结果不完整，不能安全重放。", OutboundErrorCodes.OutcomeUnknown);
+                token.ThrowIfCancellationRequested();
+                transaction.Commit();
+                return replay;
+            }
             var result = await action();
             if (await logs.InsertAsync(new BusinessOperationLog
             {
-                CommandId = commandId, CorrelationId = correlation.CorrelationId, Module = Module,
+                CommandId = commandId, CorrelationId = commandId.ToString("N"), Module = Module,
                 AggregateType = "OutboundDocument", AggregateUid = result.Uid, AggregateNoSnapshot = result.DocumentNo,
                 OperationType = operation, OperationName = operation switch { "Create" => "创建出库草稿", "Update" => "更新出库草稿", _ => "删除出库草稿" },
-                Summary = "只变更出库草稿，不改变库存。", Reason = reason,
-                ChangedFieldsJson = JsonSerializer.Serialize(new { Operation = operation, BusinessInput = businessInput, result.Version, result.IsDeleted }),
-                RelatedObjectsJson = JsonSerializer.Serialize(new { result.Uid, result.DocumentNo }), UserUid = user.UserId,
+                Summary = "只变更出库草稿，不改变库存。", Reason = reason, ChangedFieldsJson = fingerprintJson,
+                RelatedObjectsJson = JsonSerializer.Serialize(result), UserUid = user.UserId,
                 UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now
             }) != 1) throw new DraftException("出库操作日志写入失败，草稿未保存。");
+            token.ThrowIfCancellationRequested();
+            transaction.Commit();
             return result;
-        }, token);
+        }
+        catch { try { transaction.Rollback(); } catch { } throw; }
+        finally { context.Session.Transaction = null; }
     }
 
     /// <summary>统一读取与写入访问权限及错误包装；数据库技术信息仅写服务端日志。</summary>
-    private async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token, bool checkPermission = true)
+    private async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token)
     {
         try
         {
             token.ThrowIfCancellationRequested();
-            if (checkPermission && await AuthorizeDraftAsync<T>(token) is { } refusal) return refusal;
+            if (!user.IsAuthenticated || user.UserId is not { } id)
+                return ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
+            if (!await permissions.HasPermissionAsync(id, PermissionKeys.ModuleInventoryAccess, token))
+                return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无库存模块访问权限。");
             return ServiceResult<T>.Ok(await action());
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch (BusinessCommandException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
         catch (DraftException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
         catch (DBConcurrencyException ex)
         {
@@ -234,21 +254,30 @@ public sealed partial class OutboundManagerService(
         }
     }
 
-    /// <summary>在验证和回执读取之前核对身份与库存模块权限。</summary>
-    private async Task<ServiceResult<T>?> AuthorizeDraftAsync<T>(CancellationToken token)
-    {
-        if (!user.IsAuthenticated || user.UserId is not { } id)
-            return ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
-        if (!await permissions.HasPermissionAsync(id, PermissionKeys.ModuleInventoryAccess, token))
-            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无库存模块访问权限。");
-        return null;
-    }
-
     /// <summary>验证分页上界，避免无界查询和偏移量溢出。</summary>
     private static void ValidatePage(PagedRequestBase? request)
     {
         if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200 || request.Keyword?.Length > 200)
             throw new DraftException("分页参数无效，页大小为 1–200，关键词最多 200 字。");
+    }
+
+    /// <summary>校验人工草稿结构，不预占库存。</summary>
+    private static void ValidateDraft(OutboundDraftData? draft)
+    {
+        if (draft is null || draft.DocumentType != OutboundDocumentTypeEnum.StockIssue)
+            throw new DraftException("当前只支持普通库存出库人工草稿。", ServiceErrorCodes.Validation, "Draft.DocumentType");
+        if (draft.WarehouseSiteId == Guid.Empty || draft.ShipmentDate == default || draft.Remark?.Length > 500)
+            throw new DraftException("请选择出库仓库、出库日期，备注最多 500 字。", ServiceErrorCodes.Validation, "Draft");
+        if (draft.Lines is null || draft.Lines.Count > 500)
+            throw new DraftException("每张草稿最多包含 500 行。", ServiceErrorCodes.Validation, "Draft.Lines");
+        if (draft.IssueReason?.Length > 500)
+            throw new DraftException("出库原因最多 500 字。", ServiceErrorCodes.Validation, "Draft.IssueReason");
+        if (draft.Lines.Any(x => x is null || x.ProductId == Guid.Empty || x.Quantity <= 0
+            || x.Quantity > 99999999999999.9999m || decimal.Round(x.Quantity, 4) != x.Quantity))
+            throw new DraftException("产品不能为空，出库数量须为正数、最多四位小数且符合 decimal(18,4)。", ServiceErrorCodes.Validation, "Draft.Lines");
+        if (draft.Lines.Select(x => x.ProductId).Distinct().Count() != draft.Lines.Count
+            || draft.Lines.Where(x => x.Uid != Guid.Empty).Select(x => x.Uid).Distinct().Count() != draft.Lines.Count(x => x.Uid != Guid.Empty))
+            throw new DraftException("同一张出库单不能重复产品或明细标识。", ServiceErrorCodes.Validation, "Draft.Lines");
     }
 
     private static void ValidateIdentity(Guid uid, Guid command, int version)

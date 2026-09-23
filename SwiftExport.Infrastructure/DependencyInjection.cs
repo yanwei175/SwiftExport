@@ -2,7 +2,6 @@
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Auditing;
-using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Core.Interfaces.Inventory;
@@ -11,7 +10,6 @@ using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auth;
 using SwiftExport.Infrastructure.Repositories.Auditing;
-using SwiftExport.Infrastructure.Repositories.Commands;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Customers;
 using SwiftExport.Infrastructure.Repositories.DemandPlanning;
@@ -90,7 +88,6 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IProcurementMasterDataQueryRepository, SwiftExport.Infrastructure.Repositories.MasterData.ProcurementMasterDataQueryRepository>();
         services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
-        services.AddScoped<ICommandReceiptRepository, CommandReceiptRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
         services.AddScoped<IWarehouseSiteRepository, WarehouseSiteRepository>();
         services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
