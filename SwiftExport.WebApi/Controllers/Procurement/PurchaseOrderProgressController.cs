@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Procurement;
 

@@ -194,7 +194,7 @@ public sealed partial class InboundManagerService(
             if (prior is not null)
             {
                 if (prior.OperationType != operation || prior.ChangedFieldsJson != fingerprintJson || prior.UserUid != user.UserId)
-                    throw new DraftException("IDEMPOTENCY_CONFLICT：CommandId 已用于不同内容或操作。", ServiceErrorCodes.CommandConflict, "CommandId");
+                    throw new DraftException("COMMAND_CONFLICT：CommandId 已用于不同内容或操作。", ServiceErrorCodes.CommandConflict, "CommandId");
                 var replay = JsonSerializer.Deserialize<InboundDraftCommandResult>(prior.RelatedObjectsJson ?? "")
                     ?? throw new DraftException("历史命令结果不完整，不能安全重放。", InboundErrorCodes.OutcomeUnknown);
                 token.ThrowIfCancellationRequested();

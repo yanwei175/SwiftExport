@@ -30,8 +30,8 @@ CREATE TABLE [dbo].[AfterSalesHeader]
     [CustomerNameSnapshot] nvarchar(500) NULL,
     [AcceptedDate] datetime2(7) NOT NULL,
     [OwnerId] uniqueidentifier NULL,
-    [DocumentStatus] tinyint NOT NULL,
-    [ConfirmationStatus] tinyint NOT NULL,
+    [DocumentStatus] int NOT NULL,
+    [ConfirmationStatus] int NOT NULL,
     [DemandConfirmedAt] datetime2(7) NULL,
     [DemandConfirmedBy] nvarchar(500) NULL,
     [ExpectedCompletionDate] datetime2(7) NULL,
@@ -610,7 +610,7 @@ CREATE TABLE [dbo].[PackingListHead]
     [AttentionSnapshot] nvarchar(500) NULL,
     [InvoiceDate] datetime2(7) NOT NULL,
     [ContainerNo] nvarchar(300) NULL,
-    [ShippingLocationSnapshot] nvarchar(500) NULL,
+    [ShippingLocationSnapshot] nvarchar(200) NULL,
     [SealNo] nvarchar(300) NULL,
     [Note] nvarchar(2000) NULL,
     [Etd] datetime2(7) NULL,
@@ -1555,7 +1555,7 @@ CREATE UNIQUE INDEX [UX_PackingListHead_ActiveNo] ON [dbo].[PackingListHead] ([P
 CREATE UNIQUE INDEX [UX_PackingListHead_CreateCommand] ON [dbo].[PackingListHead] ([CreateCommandId]);
 
 CREATE INDEX [IX_PackingListLine_GrossDemand] ON [dbo].[PackingListLine] ([GrossDemandId], [PackingListHeadId]) WHERE [IsDeleted] = 0;
-CREATE INDEX [IX_PackingListLine_PackingGroup] ON [dbo].[PackingListLine] ([PackingListHeadId], [PackingGroupId]);
+CREATE INDEX [IX_PackingListLine_PackingGroup] ON [dbo].[PackingListLine] ([PackingListHeadId], [PackingGroupId]) INCLUDE ([LineNumber]);
 CREATE UNIQUE INDEX [UX_PackingListLine_Head_Line] ON [dbo].[PackingListLine] ([PackingListHeadId], [LineNumber]) WHERE [IsDeleted] = 0;
 
 CREATE INDEX [IX_PackingListPostingExecution_Head] ON [dbo].[PackingListPostingExecution] ([PackingListHeadId], [Operation]);

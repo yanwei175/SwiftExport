@@ -3,7 +3,7 @@ using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning;
 

@@ -8,15 +8,15 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Tests.Contracts;
 
-/// <summary>验证通用结果、错误与权限基础契约的向后兼容和序列化形状。</summary>
+/// <summary>验证通用结果、错误与权限基础契约的错误分类和序列化形状。</summary>
 [TestClass]
 public sealed class CommonResultAndPermissionContractTests
 {
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
-    /// <summary>旧成功和失败工厂保持原签名与行为，旧失败不强制产生结构化错误。</summary>
+    /// <summary>成功工厂保留数据，单消息失败工厂明确归类为业务阻断。</summary>
     [TestMethod]
-    public void Legacy_service_result_factories_remain_compatible()
+    public void Service_result_factories_produce_structured_failures()
     {
         var success = ServiceResult<int>.Ok(7, "完成");
         var failure = ServiceResult<int>.Fail("失败");
@@ -26,18 +26,12 @@ public sealed class CommonResultAndPermissionContractTests
         Assert.AreEqual("完成", success.Message);
         Assert.IsFalse(failure.Success);
         Assert.AreEqual("失败", failure.Message);
-        Assert.IsNull(failure.Error);
-
-        var legacyPayload = JsonSerializer.Deserialize<ServiceResult<int>>(
-            "{\"success\":false,\"message\":\"旧服务失败\",\"data\":0}", WebJson);
-        Assert.IsNotNull(legacyPayload);
-        Assert.AreEqual("旧服务失败", legacyPayload.Message);
-        Assert.IsNull(legacyPayload.Error);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, failure.Error.Code);
     }
 
     /// <summary>新失败工厂同时保持顶层消息，并序列化稳定代码、消息和字段路径。</summary>
     [TestMethod]
-    public void Structured_service_error_serializes_with_legacy_fields()
+    public void Structured_service_error_serializes_with_shared_fields()
     {
         var result = ServiceResult<object>.Fail(
             ServiceErrorCodes.Validation, "名称不能为空。", "Name");
@@ -65,7 +59,10 @@ public sealed class CommonResultAndPermissionContractTests
             nameof(ServiceErrorCodes.Unauthenticated), nameof(ServiceErrorCodes.Forbidden),
             nameof(ServiceErrorCodes.Validation), nameof(ServiceErrorCodes.VersionConflict),
             nameof(ServiceErrorCodes.CommandConflict), nameof(ServiceErrorCodes.BusinessBlocked),
-            nameof(ServiceErrorCodes.Unexpected)
+            nameof(ServiceErrorCodes.Unexpected), nameof(ServiceErrorCodes.NotFound),
+            nameof(ServiceErrorCodes.StateBlocked), nameof(ServiceErrorCodes.CommandBusy),
+            nameof(ServiceErrorCodes.RateLimited), nameof(ServiceErrorCodes.ServiceUnavailable),
+            nameof(ServiceErrorCodes.OutcomeUnknown)
         }, commonNames);
 
         CollectionAssert.AreEqual(new[] { nameof(ProcurementErrorCodes.BomBasisChanged) },

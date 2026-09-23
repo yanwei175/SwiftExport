@@ -1,4 +1,4 @@
-using System.Net;
+using SwiftExportClient.Services.Api;
 using Microsoft.Extensions.Logging;
 using Refit;
 using SwiftExport.Contracts.Apis.Inventory;
@@ -8,7 +8,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.Services;
 
-/// <summary>保留服务端结构化错误；传输失败保守视为结果未知，不依赖通用 Runner 的纯文本映射。</summary>
+/// <summary>保留服务端结构化错误；传输失败保守视为结果未知，复用公共非 2xx 错误读取器。</summary>
 public sealed class InboundPersistenceService(IInboundManagerApi api, ILogger<InboundPersistenceService> logger) : IInboundPersistenceService
 {
     /// <inheritdoc/>
@@ -48,12 +48,10 @@ public sealed class InboundPersistenceService(IInboundManagerApi api, ILogger<In
                 return ServiceResult<T>.Fail(InboundErrorCodes.OutcomeUnknown, result.Message ?? "操作结果未知，请保留原命令重试。");
             return result;
         }
-        catch (ApiException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        catch (ApiException ex)
         {
-            logger.LogWarning("入库 API 权限拒绝，HTTP {Status}", (int)ex.StatusCode);
-            return ex.StatusCode == HttpStatusCode.Unauthorized
-                ? ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录已失效，请重新登录后重试。")
-                : ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无权执行此操作。");
+            logger.LogWarning("单据 API 返回 HTTP {Status}", (int)ex.StatusCode);
+            return ApiErrorResponseReader.Read<T>(ex, "单据请求失败");
         }
         catch (Exception ex)
         {

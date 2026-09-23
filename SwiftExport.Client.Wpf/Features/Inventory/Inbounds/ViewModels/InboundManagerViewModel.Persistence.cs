@@ -170,7 +170,7 @@ public sealed partial class InboundManagerViewModel
                 {
                     var code = result.Error?.Code;
                     var uncertain = code is null or InboundErrorCodes.OutcomeUnknown or InboundErrorCodes.CommandBusy
-                        or ServiceErrorCodes.Unexpected or ServiceErrorCodes.CommandConflict;
+                        or ServiceErrorCodes.Unexpected or ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.CommandConflict;
                     pending.WasUncertain |= uncertain;
                     if (!pending.WasUncertain)
                     {

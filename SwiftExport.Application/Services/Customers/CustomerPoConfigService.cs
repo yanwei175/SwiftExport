@@ -50,7 +50,7 @@ public partial class CustomerPoConfigService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "按客户和供应商查询采购默认配置失败。CustomerId={CustomerId}, SupplierId={SupplierId}", customerId, supplierId);
-            return ServiceResult<CustomerPoConfigDto>.Fail("查询客户采购默认配置失败。");
+            return ServiceResult<CustomerPoConfigDto>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "查询客户采购默认配置失败。");
         }
     }
 
@@ -65,7 +65,9 @@ public partial class CustomerPoConfigService(
         }
         catch (Exception ex)
         {
-            return ServiceResult<IReadOnlyList<CustomerPoConfigDto>>.Fail(ex.Message);
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            Logger.LogError(ex, "应用服务执行失败。");
+            return ServiceResult<IReadOnlyList<CustomerPoConfigDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 
@@ -81,7 +83,9 @@ public partial class CustomerPoConfigService(
         }
         catch (Exception ex)
         {
-            return ServiceResult<PagedResponseBase<CustomerPoConfigDto>>.Fail(ex.Message);
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            Logger.LogError(ex, "应用服务执行失败。");
+            return ServiceResult<PagedResponseBase<CustomerPoConfigDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 

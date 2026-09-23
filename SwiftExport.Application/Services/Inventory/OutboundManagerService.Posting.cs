@@ -68,7 +68,7 @@ public sealed partial class OutboundManagerService
                     SourceDocumentNoSnapshot = header.DocumentNo, OccurredDate = header.ShipmentDate
                 }).ToArray();
                 try { await inventoryPosting.PostAsync(command.CommandId, items, token); }
-                catch (InventoryPostingException ex) { throw new DraftException(ex.Message); }
+                catch (InventoryPostingException ex) { throw new DraftException(ex.Message, ex.Code); }
                 header.PostedDate = DateTime.Now;
                 header.PostedBy = user.UserName;
                 await repository.MarkPostedAsync(header, token);

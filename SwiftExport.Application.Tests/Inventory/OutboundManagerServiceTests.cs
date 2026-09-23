@@ -96,7 +96,7 @@ public sealed partial class OutboundManagerServiceTests
         command.Draft.Lines[0].Quantity++;
         var conflict = await f.Service.CreateAsync(command);
         Assert.IsFalse(conflict.Success);
-        StringAssert.Contains(conflict.Message, "IDEMPOTENCY_CONFLICT");
+        StringAssert.Contains(conflict.Message, "COMMAND_CONFLICT");
         Assert.AreEqual(ServiceErrorCodes.CommandConflict, conflict.Error.Code);
         Assert.AreEqual(1, f.Saves);
     }

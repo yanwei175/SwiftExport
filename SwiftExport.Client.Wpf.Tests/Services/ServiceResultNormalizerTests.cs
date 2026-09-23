@@ -33,15 +33,15 @@ public sealed class ServiceResultNormalizerTests
         Assert.AreEqual("ExpectedVersion", result.ErrorField);
     }
 
-    /// <summary>旧式通用失败没有结构化错误时仍保留顶层消息。</summary>
+    /// <summary>单消息业务阻断保留稳定类别与顶层消息。</summary>
     [TestMethod]
-    public void Legacy_common_failure_keeps_top_level_message()
+    public void Business_failure_keeps_code_and_message()
     {
-        var result = ServiceResult<int>.Fail("旧接口失败。").ToClientResult();
+        var result = ServiceResult<int>.Fail("业务条件不满足。").ToClientResult();
 
         Assert.IsFalse(result.Success);
-        Assert.AreEqual("旧接口失败。", result.Message);
-        Assert.IsNull(result.ErrorCode);
+        Assert.AreEqual("业务条件不满足。", result.Message);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.ErrorCode);
         Assert.IsNull(result.ErrorField);
     }
 }

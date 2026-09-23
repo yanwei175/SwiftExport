@@ -68,7 +68,7 @@ public sealed partial class PackingListPostingCoordinator(ServiceBaseContext con
             if (previous != null)
             {
                 if (previous.Operation != 1 || previous.PackingListHeadId != request.PackingListId || previous.RequestFingerprint != fingerprint)
-                    throw new PackingListPostingFailure("IDEMPOTENCY_CONFLICT", "命令身份已用于其他用户、操作或内容。");
+                    throw new PackingListPostingFailure("COMMAND_CONFLICT", "命令身份已用于其他用户、操作或内容。");
                 var replay = JsonSerializer.Deserialize<PackingListPostOutcome>(previous.ResultJson)
                     ?? throw new PackingListPostingFailure("EXECUTION_INVALID", "原始执行结果缺失。");
                 if (replay.ExecutionId != previous.Uid || replay.Detail?.Header?.Uid != request.PackingListId)
@@ -82,7 +82,7 @@ public sealed partial class PackingListPostingCoordinator(ServiceBaseContext con
             if (candidate == null)
                 throw new PackingListPostingFailure("EXECUTION_INVALID", "已观察到的原执行记录缺失，不能重新执行库存操作。");
             if (await logs.GetByModuleCommandAsync("PackingList", request.CommandId) != null)
-                throw new PackingListPostingFailure("IDEMPOTENCY_CONFLICT", "命令身份已被其他箱单操作使用。");
+                throw new PackingListPostingFailure("COMMAND_CONFLICT", "命令身份已被其他箱单操作使用。");
             // 与来源退出和草稿保存统一：来源/需求/Link 在箱单之前，不在持有箱单锁后反向获取来源锁。
             await factsRepository.LockSourcesAsync(sourceIds, token);
             var head = await packingLists.LockHeaderAsync(request.PackingListId, false, token);

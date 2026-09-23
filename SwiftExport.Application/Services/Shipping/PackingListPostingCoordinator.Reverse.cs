@@ -52,7 +52,7 @@ public sealed partial class PackingListPostingCoordinator
             if (previous != null)
             {
                 if (previous.Operation != 2 || previous.PackingListHeadId != request.PackingListId || previous.RequestFingerprint != fingerprint)
-                    throw new PackingListPostingFailure("IDEMPOTENCY_CONFLICT", "命令身份已用于其他用户、操作或内容。");
+                    throw new PackingListPostingFailure("COMMAND_CONFLICT", "命令身份已用于其他用户、操作或内容。");
                 var replay = JsonSerializer.Deserialize<PackingListPostOutcome>(previous.ResultJson);
                 if (replay == null || replay.ExecutionId != previous.Uid || replay.Detail?.Header?.Uid != request.PackingListId)
                     throw new PackingListPostingFailure("EXECUTION_INVALID", "原反向执行结果不完整。");
@@ -62,7 +62,7 @@ public sealed partial class PackingListPostingCoordinator
                 return replay;
             }
             if (await logs.GetByModuleCommandAsync("PackingList", request.CommandId) != null)
-                throw new PackingListPostingFailure("IDEMPOTENCY_CONFLICT", "命令身份已被其他箱单操作使用。");
+                throw new PackingListPostingFailure("COMMAND_CONFLICT", "命令身份已被其他箱单操作使用。");
             if (candidateFacts == null)
                 throw new PackingListPostingFailure("EXECUTION_INVALID", "已观察到的原反向记录缺失，不能重新执行库存操作。");
             await factsRepository.LockSourcesAsync(sourceIds, token);

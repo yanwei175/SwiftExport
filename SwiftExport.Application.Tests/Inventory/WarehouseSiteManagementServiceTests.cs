@@ -157,7 +157,7 @@ public sealed class WarehouseSiteManagementServiceTests
         Assert.IsTrue(replay.Success);
         Assert.AreEqual(first.Data.Uid, replay.Data.Uid);
         Assert.IsFalse(conflict.Success);
-        StringAssert.Contains(conflict.Message, "IDEMPOTENCY_CONFLICT");
+        StringAssert.Contains(conflict.Message, "COMMAND_CONFLICT");
         Assert.AreEqual(1, fixture.Warehouses.ActivateCount);
         Assert.AreEqual(1, fixture.Logs.InsertCount);
     }
@@ -216,7 +216,7 @@ public sealed class WarehouseSiteManagementServiceTests
 
         Assert.IsTrue(first.Success);
         Assert.IsFalse(second.Success);
-        StringAssert.Contains(second.Message, "IDEMPOTENCY_CONFLICT");
+        StringAssert.Contains(second.Message, "COMMAND_CONFLICT");
         Assert.AreEqual(1, fixture.Warehouses.InsertCount);
     }
 
