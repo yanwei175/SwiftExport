@@ -6,7 +6,7 @@ using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.WebApi.Controllers.Base;
-using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Products;
 
 public class BomController(IBomService service) : BaseController<Bom, BomDto>(service)

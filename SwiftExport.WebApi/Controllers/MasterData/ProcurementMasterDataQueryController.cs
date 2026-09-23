@@ -3,11 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.MasterData;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Contracts.DTOs.Errors;
 
 namespace SwiftExport.WebApi.Controllers.MasterData;
 
-/// <summary>独立采购主数据查询 HTTP 边界；只转发查询并分类已知异常，由全局出口决定 HTTP 状态。</summary>
+/// <summary>独立采购主数据查询 HTTP 边界；只转发查询和映射异常类型，不修改全局错误包装。</summary>
 [ApiController]
 [Authorize]
 [Route("api/master-data/procurement-lookups")]
@@ -44,7 +43,7 @@ public sealed class ProcurementMasterDataQueryController(
         [FromBody] PagedRequestBase request, CancellationToken cancellationToken = default)
         => ExecuteAsync(() => service.SearchSupplierHistoryFiltersAsync(request, cancellationToken), cancellationToken);
 
-    /// <summary>将异常分类为稳定错误码；HTTP 状态统一由结果过滤器决定。</summary>
+    /// <summary>按异常类型返回400/403/500；日志仅记录技术异常，客户端不依赖中文消息或错误前缀分流。</summary>
     private async Task<ActionResult<ServiceResult<PagedResponseBase<T>>>> ExecuteAsync<T>(
         Func<Task<PagedResponseBase<T>>> query, CancellationToken cancellationToken)
     {
@@ -52,16 +51,16 @@ public sealed class ProcurementMasterDataQueryController(
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (UnauthorizedAccessException)
         {
-            return new ObjectResult(ServiceResult<PagedResponseBase<T>>.Fail(ServiceErrorCodes.Forbidden, "没有当前查询权限。"));
+            return StatusCode(StatusCodes.Status403Forbidden, ServiceResult<PagedResponseBase<T>>.Fail("没有当前查询权限。"));
         }
         catch (ArgumentException)
         {
-            return new ObjectResult(ServiceResult<PagedResponseBase<T>>.Fail(ServiceErrorCodes.Validation, "查询条件无效：页码、每页数量或关键词超出允许范围。"));
+            return BadRequest(ServiceResult<PagedResponseBase<T>>.Fail("查询条件无效：页码、每页数量或关键词超出允许范围。"));
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "独立采购主数据查询失败。");
-            return new ObjectResult(ServiceResult<PagedResponseBase<T>>.Fail(ServiceErrorCodes.Unexpected, "查询失败，请稍后重试。"));
+            return StatusCode(StatusCodes.Status500InternalServerError, ServiceResult<PagedResponseBase<T>>.Fail("查询失败，请稍后重试。"));
         }
     }
 }

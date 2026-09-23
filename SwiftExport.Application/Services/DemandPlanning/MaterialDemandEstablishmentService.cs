@@ -196,7 +196,7 @@ public sealed class MaterialDemandEstablishmentService(
                 throw new MaterialDemandException("CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED", "客供件不能作为标准来源需求根产品。");
             if (root.BomVersion > 0 && !string.IsNullOrWhiteSpace(root.BomNo))
                 boms = await bomRepository.GetByBomNoAndVersionAsync(root.BomNo, root.BomVersion);
-            var childIds = boms.Where(line => line.ComponentProductId.HasValue).Select(line => line.ComponentProductId!.Value).Distinct().ToArray();
+            var childIds = boms.Where(line => line.SubSkuId.HasValue).Select(line => line.SubSkuId!.Value).Distinct().ToArray();
             children = (await productRepository.GetByIdListAsync(childIds, withUpdLock: true)).ToDictionary(product => product.Uid);
             foreach (var child in children.Values.Where(CustomerSuppliedMaterialPolicy.IsCustomerSupplied))
             {

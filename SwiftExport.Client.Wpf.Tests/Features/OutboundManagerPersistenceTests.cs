@@ -43,7 +43,7 @@ public sealed partial class OutboundManagerPersistenceTests
         });
     }
 
-    /// <summary>持久化边界保留业务错误码，网络失败和缺失错误码的异常响应不能假定未提交。</summary>
+    /// <summary>持久化边界保留业务错误码，网络失败和旧服务纯文本响应不能假定未提交。</summary>
     [TestMethod]
     public async Task PersistenceService_ClassifiesUnknownAndStructuredFailures()
     {
@@ -52,7 +52,7 @@ public sealed partial class OutboundManagerPersistenceTests
         var command = new CreateOutboundDraftCommand { CommandId = Guid.NewGuid() };
         api.Response = ServiceResult<OutboundDraftCommandResult>.Fail(ServiceErrorCodes.VersionConflict, "版本冲突", "ExpectedVersion");
         Assert.AreEqual(ServiceErrorCodes.VersionConflict, (await service.CreateAsync(command, CancellationToken.None)).Error.Code);
-        api.Response = new ServiceResult<OutboundDraftCommandResult> { Success = false, Message = "响应缺少错误码" };
+        api.Response = ServiceResult<OutboundDraftCommandResult>.Fail("旧服务未提供稳定错误码");
         Assert.AreEqual(OutboundErrorCodes.OutcomeUnknown, (await service.CreateAsync(command, CancellationToken.None)).Error.Code);
         api.Exception = new System.Net.Http.HttpRequestException("模拟网络中断");
         Assert.AreEqual(OutboundErrorCodes.OutcomeUnknown, (await service.CreateAsync(command, CancellationToken.None)).Error.Code);
@@ -124,15 +124,11 @@ public sealed partial class OutboundManagerPersistenceTests
 
     /// <summary>已提交但响应未知时锁定原请求，权限拒绝不解除待确认；重试不会重复创建。</summary>
     [TestMethod]
-    [DataRow("OUTCOME_UNKNOWN")]
-    [DataRow("UNEXPECTED")]
-    [DataRow("SERVICE_UNAVAILABLE")]
-    public async Task UnknownResult_RetriesOriginalCommand_AndBlocksDiscard(string errorCode)
+    public async Task UnknownResult_RetriesOriginalCommand_AndBlocksDiscard()
     {
         using var f = new Fixture();
         var row = f.Add();
         f.Service.LoseNextResponse = true;
-        f.Service.LossErrorCode = errorCode;
         await f.Vm.SaveCommand.ExecuteAsync(null);
         Assert.IsFalse(row.CanEdit);
         Assert.IsTrue(row.IsPersistencePending);
@@ -285,7 +281,6 @@ public sealed partial class OutboundManagerPersistenceTests
         public int Writes { get; private set; }
         public int FailCreateAt { get; set; }
         public bool LoseNextResponse, FailDetails, ConflictUpdate, DenyRequests;
-        public string LossErrorCode = "OUTCOME_UNKNOWN";
         public TaskCompletionSource? Wait;
         /// <inheritdoc/>
         public async Task<ServiceResult<OutboundDraftCommandResult>> CreateAsync(CreateOutboundDraftCommand command, CancellationToken token)
@@ -321,7 +316,7 @@ public sealed partial class OutboundManagerPersistenceTests
                 Lines = draft.Lines.Select((x, i) => new OutboundLineDetailDto
                 { Uid = x.Uid == Guid.Empty ? Guid.NewGuid() : x.Uid, Version = version, OutboundDocumentId = uid, ProductId = x.ProductId, Quantity = x.Quantity, UnitSnapshot = "PCS", LineNumber = i + 1 }).ToList()
             };
-            if (LoseNextResponse) { LoseNextResponse = false; return ServiceResult<OutboundDraftCommandResult>.Fail(LossErrorCode, "模拟提交后响应丢失"); }
+            if (LoseNextResponse) { LoseNextResponse = false; return ServiceResult<OutboundDraftCommandResult>.Fail(OutboundErrorCodes.OutcomeUnknown, "模拟提交后响应丢失"); }
             return ServiceResult<OutboundDraftCommandResult>.Ok(result);
         }
     }

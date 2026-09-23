@@ -49,7 +49,7 @@ public sealed class PackingListDraftApiContractTests
     public void DraftPersistence_RequiresPositiveQuantityAndUniqueCreateCommand()
     {
         Assert.AreEqual("PL", DocumentTypeStaticsEnum.PackingList);
-        Assert.AreEqual("COMMAND_CONFLICT", PackingListErrorCodes.CommandConflict);
+        Assert.AreEqual("IDEMPOTENCY_CONFLICT", PackingListErrorCodes.IdempotencyConflict);
         var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
         StringAssert.Contains(baseline, "CK_PackingListLine_Qty");
         StringAssert.Contains(baseline, "UX_PackingListHead_CreateCommand");

@@ -59,9 +59,9 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
                 if (warehouse is null || warehouse.IsDeleted || !warehouse.IsActive) Fail("WAREHOUSE_INVALID", "仓库不可用于新库存事实。", group.GroupId);
                 if (isInbound)
                 {
-                    if (await inbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("COMMAND_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
+                    if (await inbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("IDEMPOTENCY_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
                 }
-                else if (await outbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("COMMAND_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
+                else if (await outbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("IDEMPOTENCY_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
                 var number = await numbers.GetNextDocumentNoAsync(new()
                 {
                     DocType = isInbound ? DocumentTypeStaticsEnum.InboundDocument : DocumentTypeStaticsEnum.OutboundDocument,
@@ -194,7 +194,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
         var prior = await logs.GetByModuleCommandAsync(Module, command);
         if (prior is null) return null;
         if (prior.OperationType != operation || prior.UserUid != user.UserId || prior.ChangedFieldsJson != fingerprint)
-            Fail("COMMAND_CONFLICT", "命令已用于不同用户、操作或内容。");
+            Fail("IDEMPOTENCY_CONFLICT", "命令已用于不同用户、操作或内容。");
         var result = JsonSerializer.Deserialize<AutomaticPostingResult>(prior.RelatedObjectsJson ?? "null");
         if (result is null || result.Documents.Count == 0 || result.Documents.Any(x => x.DocumentId == Guid.Empty || x.Lines.Count == 0))
             Fail("OUTCOME_INVALID", "历史自动单据结果不完整，不能重放。");
@@ -226,8 +226,8 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         AutomaticPostingException or OperationCanceledException => error,
         System.Data.DBConcurrencyException => new AutomaticPostingException("VERSION_CONFLICT", error.Message),
-        InventoryPostingException => new AutomaticPostingException(error.Message.StartsWith("COMMAND_CONFLICT", StringComparison.Ordinal)
-            ? "COMMAND_CONFLICT" : "INVENTORY_BLOCKED", error.Message),
+        InventoryPostingException => new AutomaticPostingException(error.Message.StartsWith("IDEMPOTENCY_CONFLICT", StringComparison.Ordinal)
+            ? "IDEMPOTENCY_CONFLICT" : "INVENTORY_BLOCKED", error.Message),
         _ => new AutomaticPostingException("WRITE_FAILED", "自动库存操作失败，当前事务已回滚：" + error.Message)
     };
     [System.Diagnostics.CodeAnalysis.DoesNotReturn]

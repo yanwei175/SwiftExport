@@ -62,8 +62,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception ex)
             {
                 _logger.LogError(ex, "构建字典类型分组树失败");
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                return ServiceResult<List<DictTypeGroupTreeDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<List<DictTypeGroupTreeDto>>.Fail($"构建分组树失败: {ex.Message}");
             }
         }
 
@@ -250,9 +249,7 @@ namespace SwiftExport.Application.Services.Systems
             }
             catch (Exception ex)
             {
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                Logger.LogError(ex, "应用服务执行失败。");
-                return ServiceResult<IReadOnlyList<SysDictTypeDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<IReadOnlyList<SysDictTypeDto>>.Fail(ex.Message);
             }
         }
 
@@ -266,8 +263,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception exception)
             {
                 _logger.LogError(exception, "分页查询字典类型失败。");
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                return ServiceResult<PagedResponseBase<SysDictTypeDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<PagedResponseBase<SysDictTypeDto>>.Fail($"查询失败：{exception.Message}");
             }
         }
 
@@ -335,7 +331,7 @@ namespace SwiftExport.Application.Services.Systems
             {
                 SystemBatchSaveSupport.TryRollback(_session, _logger, "字典类型批量保存");
                 _logger.LogError(exception, "字典类型批量保存发生未预期异常。");
-                return ServiceResult<SysDictTypeBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "字典类型批量保存失败，所有操作已回滚，请刷新后重试。");
+                return ServiceResult<SysDictTypeBatchSaveResponse>.Fail("字典类型批量保存失败，所有操作已回滚，请刷新后重试。");
             }
             finally
             {

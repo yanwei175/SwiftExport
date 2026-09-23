@@ -1,4 +1,3 @@
-using SwiftExport.Contracts.DTOs.Errors;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Inventory;
@@ -114,7 +113,7 @@ public sealed class InventoryService(
     {
         var validation = ValidateCreateWarehouse(command);
         if (validation is not null) return ServiceResult<WarehouseSiteDto>.Fail(validation);
-        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.Forbidden, ManagePermissionDeniedMessage);
+        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ManagePermissionDeniedMessage);
         var code = command.Code.Trim();
         var name = command.Name.Trim();
         var fingerprint = Fingerprint("create", command.SupplierId, code, name);
@@ -145,7 +144,7 @@ public sealed class InventoryService(
     {
         var validation = ValidateUpdateWarehouse(uid, command);
         if (validation is not null) return ServiceResult<WarehouseSiteDto>.Fail(validation);
-        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.Forbidden, ManagePermissionDeniedMessage);
+        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ManagePermissionDeniedMessage);
         var name = command.Name.Trim();
         var fingerprint = Fingerprint("update", uid, command.ExpectedVersion, name);
         return await ExecuteWarehouseCommandAsync(command.CommandId, "WarehouseSite.Updated", fingerprint, async () =>
@@ -166,7 +165,7 @@ public sealed class InventoryService(
     {
         var validation = ValidateReasonCommand(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0, command?.Reason, "停用");
         if (validation is not null) return ServiceResult<WarehouseSiteDto>.Fail(validation);
-        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.Forbidden, ManagePermissionDeniedMessage);
+        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ManagePermissionDeniedMessage);
         var reason = command!.Reason.Trim();
         var fingerprint = Fingerprint("deactivate", uid, command.ExpectedVersion, reason);
         return await ExecuteWarehouseCommandAsync(command.CommandId, "WarehouseSite.Deactivated", fingerprint, async () =>
@@ -188,7 +187,7 @@ public sealed class InventoryService(
     {
         var validation = ValidateReasonCommand(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0, command?.Reason, "启用");
         if (validation is not null) return ServiceResult<WarehouseSiteDto>.Fail(validation);
-        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.Forbidden, ManagePermissionDeniedMessage);
+        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ManagePermissionDeniedMessage);
         var reason = command!.Reason.Trim();
         var fingerprint = Fingerprint("activate", uid, command.ExpectedVersion, reason);
         return await ExecuteWarehouseCommandAsync(command.CommandId, "WarehouseSite.Activated", fingerprint, async () =>
@@ -216,7 +215,7 @@ public sealed class InventoryService(
     {
         var validation = ValidateReasonCommand(uid, command?.CommandId ?? Guid.Empty, command?.ExpectedVersion ?? 0, command?.Reason, "删除");
         if (validation is not null) return ServiceResult<WarehouseSiteDto>.Fail(validation);
-        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.Forbidden, ManagePermissionDeniedMessage);
+        if (!await HasWarehouseManagePermissionAsync(cancellationToken)) return ServiceResult<WarehouseSiteDto>.Fail(ManagePermissionDeniedMessage);
         var reason = command!.Reason.Trim();
         var fingerprint = Fingerprint("delete", uid, command.ExpectedVersion, reason);
         return await ExecuteWarehouseCommandAsync(command.CommandId, "WarehouseSite.Deleted", fingerprint, async () =>
@@ -243,7 +242,7 @@ public sealed class InventoryService(
     {
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } userId
             || !await _permissions.HasPermissionAsync(userId, PermissionKeys.ModuleInventoryAccess, cancellationToken))
-            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, ReadPermissionDeniedMessage);
+            return ServiceResult<T>.Fail(ReadPermissionDeniedMessage);
         return await ReadAsync(action, failure);
     }
 
@@ -277,7 +276,7 @@ public sealed class InventoryService(
                     || !TryReadWarehouseResult(existing.RelatedObjectsJson, out var savedResult))
                 {
                     _session.Transaction.Rollback();
-                    return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.CommandConflict, "COMMAND_CONFLICT：同一 CommandId 已用于不同仓库操作或不同内容。");
+                    return ServiceResult<WarehouseSiteDto>.Fail("IDEMPOTENCY_CONFLICT：同一 CommandId 已用于不同仓库操作或不同内容。");
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -299,13 +298,13 @@ public sealed class InventoryService(
         catch (InventoryPostingException exception)
         {
             _session.Transaction.Rollback();
-            return ServiceResult<WarehouseSiteDto>.Fail(exception.Code, exception.Message);
+            return ServiceResult<WarehouseSiteDto>.Fail(exception.Message);
         }
         catch (Exception exception)
         {
             _session.Transaction.Rollback();
             _logger.LogError(exception, "虚拟仓命令 {OperationType}/{CommandId} 执行失败。", operationType, commandId);
-            return ServiceResult<WarehouseSiteDto>.Fail(ServiceErrorCodes.Unexpected, "虚拟仓命令执行失败。");
+            return ServiceResult<WarehouseSiteDto>.Fail("虚拟仓命令执行失败。");
         }
         finally
         {
@@ -425,7 +424,7 @@ public sealed class InventoryService(
 
     private async Task<ServiceResult<T>> ReadAsync<T>(Func<Task<T>> action, string failure)
     {
-        try { return ServiceResult<T>.Ok(await action()); } catch (OperationCanceledException) { throw; } catch (InventoryPostingException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message); } catch (Exception ex) { _logger.LogError(ex, "{Failure}", failure); return ServiceResult<T>.Fail(ServiceErrorCodes.Unexpected, failure); }
+        try { return ServiceResult<T>.Ok(await action()); } catch (OperationCanceledException) { throw; } catch (InventoryPostingException ex) { return ServiceResult<T>.Fail(ex.Message); } catch (Exception ex) { _logger.LogError(ex, "{Failure}", failure); return ServiceResult<T>.Fail(failure); }
     }
     private static string? Normalize(string? text, int max) { var value = text?.Trim(); return string.IsNullOrEmpty(value) ? null : value[..Math.Min(value.Length, max)]; }
 

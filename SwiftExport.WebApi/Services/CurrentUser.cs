@@ -2,7 +2,7 @@ using SwiftExport.Core.Interfaces.Auth;
 using System;
 using System.Security.Claims;
 
-namespace SwiftExport.WebApi.Authentication;
+namespace SwiftExport.WebApi.Services;
 
 /// <summary>
 /// 从 HttpContext Claims 中读取当前用户信息。

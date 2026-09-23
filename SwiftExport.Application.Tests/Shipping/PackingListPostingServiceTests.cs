@@ -35,9 +35,9 @@ public sealed class PackingListPostingServiceTests
         Assert.AreEqual(typeof(CancellationToken), controller.GetParameters()[2].ParameterType);
     }
 
-    /// <summary>正式命令失败使用 Error，失败 Data 为空；逐来源阻断由预览契约提供。</summary>
+    /// <summary>多个来源阻断不丢失数量定位，预览失效分类稳定。</summary>
     [TestMethod]
-    public async Task FailureUsesErrorAndNullData()
+    public async Task KeepsAllBlockersAndStableStatus()
     {
         var source = Guid.NewGuid();
         var failure = new PackingListPostingFailure("SUPPLY_SHORTFALL", "库存不足")
@@ -45,11 +45,12 @@ public sealed class PackingListPostingServiceTests
         var service = Create((_, _) => Task.FromException<PackingListPostOutcome>(failure));
         var result = await service.PostAsync(Guid.NewGuid(), new(), default);
         Assert.IsFalse(result.Success);
-        Assert.IsNull(result.Data);
-        Assert.AreEqual("SUPPLY_SHORTFALL", result.Error.Code);
-        Assert.AreEqual("库存不足", result.Error.Message);
+        Assert.AreEqual("Blocked", result.Data.Status);
+        Assert.AreEqual(2, result.Data.Blockers.Count);
+        Assert.AreEqual(source, result.Data.Blockers[0].GrossDemandId);
+        Assert.AreEqual(2m, result.Data.Blockers[0].ShortfallQty);
         service = Create((_, _) => Task.FromException<PackingListPostOutcome>(new PackingListPostingFailure("PREVIEW_STALE", "重新预览")));
-        Assert.AreEqual("PREVIEW_STALE", (await service.PostAsync(Guid.NewGuid(), new(), default)).Error.Code);
+        Assert.AreEqual("PreviewExpired", (await service.PostAsync(Guid.NewGuid(), new(), default)).Data.Status);
     }
 
     /// <summary>命令只转交用户确认字段，成功重放返回原单据版本而不再读取仓储。</summary>

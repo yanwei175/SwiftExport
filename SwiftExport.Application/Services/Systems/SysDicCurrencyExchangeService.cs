@@ -82,9 +82,7 @@ public partial class SysDicCurrencyExchangeService(
         }
         catch (Exception ex)
         {
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<IReadOnlyList<SysDicCurrencyExchangeDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<IReadOnlyList<SysDicCurrencyExchangeDto>>.Fail(ex.Message);
         }
     }
 
@@ -98,8 +96,7 @@ public partial class SysDicCurrencyExchangeService(
         catch (Exception exception)
         {
             _logger.LogError(exception, "分页查询货币汇率失败。");
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            return ServiceResult<PagedResponseBase<SysDicCurrencyExchangeDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<PagedResponseBase<SysDicCurrencyExchangeDto>>.Fail($"查询失败：{exception.Message}");
         }
     }
 
@@ -155,7 +152,7 @@ public partial class SysDicCurrencyExchangeService(
         {
             SystemBatchSaveSupport.TryRollback(_session, _logger, "货币汇率批量保存");
             _logger.LogError(exception, "货币汇率批量保存发生未预期异常。");
-            return ServiceResult<SysDicCurrencyExchangeBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "货币汇率批量保存失败，所有操作已回滚，请刷新后重试。");
+            return ServiceResult<SysDicCurrencyExchangeBatchSaveResponse>.Fail("货币汇率批量保存失败，所有操作已回滚，请刷新后重试。");
         }
         finally
         {

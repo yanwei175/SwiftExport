@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.MasterData;
 using SwiftExport.Contracts.DTOs.MasterData.ExecutionEligibility;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.MasterData;
 

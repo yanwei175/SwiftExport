@@ -1,7 +1,7 @@
 using SwiftExport.Application.Models.Auth;
 using SwiftExport.Contracts.DTOs.Auth;
 
-namespace SwiftExport.WebApi.Authentication;
+namespace SwiftExport.WebApi.Services.Auth;
 
 /// <summary>在 WebApi 边界根据已认证身份签发 JWT。</summary>
 public interface IAuthTokenFactory

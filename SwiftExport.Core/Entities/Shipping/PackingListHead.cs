@@ -1,6 +1,5 @@
 using SwiftExport.Contracts.SysEnums.Shipping;
 using SwiftExport.Core.Common;
-using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Shipping;
@@ -24,7 +23,6 @@ public sealed partial class PackingListHead : BaseEntity
     /// <summary>集装箱号。</summary>
     public string? ContainerNo { get; set; }
     /// <summary>整单出货地点文本快照，不决定库存仓库。</summary>
-    [DbColumn(StoreType = "nvarchar(200)")]
     public string? ShippingLocationSnapshot { get; set; }
 
     /// <summary>封条号。</summary>

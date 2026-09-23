@@ -5,7 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace SwiftExport.WebApi.Authentication;
+namespace SwiftExport.WebApi.Services.Auth;
 
 /// <summary>使用宿主 JWT 配置签发十二小时访问令牌。</summary>
 public sealed class AuthTokenFactory(IConfiguration configuration) : IAuthTokenFactory

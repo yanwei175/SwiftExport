@@ -38,7 +38,7 @@ public sealed class GrossDemandDecompositionPlanner
         var orderedLines = bomLines.OrderBy(x => x.LineNumber).ThenBy(x => x.Uid).ToArray();
         foreach (var line in orderedLines)
         {
-            if (!line.ComponentProductId.HasValue || !products.TryGetValue(line.ComponentProductId.Value, out var child))
+            if (!line.SubSkuId.HasValue || !products.TryGetValue(line.SubSkuId.Value, out var child))
                 return GrossDemandDecompositionPlan.Fail("BOM_CHILD_NOT_FOUND", $"BOM 第 {line.LineNumber} 行未关联有效子产品。");
             var error = CustomerSuppliedMaterialPolicy.ValidateBomLine(line, child);
             if (error is not null)
@@ -46,7 +46,7 @@ public sealed class GrossDemandDecompositionPlanner
         }
 
         var customerSuppliedLines = orderedLines
-            .Select(line => new CustomerSuppliedBomLine(line, products[line.ComponentProductId!.Value]))
+            .Select(line => new CustomerSuppliedBomLine(line, products[line.SubSkuId!.Value]))
             .Where(x => CustomerSuppliedMaterialPolicy.IsCustomerSupplied(x.Product))
             .ToArray();
         if (string.Equals(rootProduct.SupplyType, SupplyTypeEnums.生产, StringComparison.Ordinal)

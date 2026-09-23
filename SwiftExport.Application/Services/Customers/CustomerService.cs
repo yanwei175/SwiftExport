@@ -32,9 +32,7 @@ public partial class CustomerService(
         }
         catch (Exception ex)
         {
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<PagedResponseBase<CustomerDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<PagedResponseBase<CustomerDto>>.Fail($"查询失败：{ex.Message}");
         }
     }
 

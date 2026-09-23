@@ -75,7 +75,7 @@ public sealed partial class InboundManagerService
                     SourceDocumentNoSnapshot = header.DocumentNo, Reason = command.Reason, OccurredDate = occurred
                 }).ToArray();
                 try { await inventoryPosting.ReverseAsync(command.CommandId, items, token); }
-                catch (InventoryPostingException ex) { throw new DraftException(ex.Message, ex.Code); }
+                catch (InventoryPostingException ex) { throw new DraftException(ex.Message); }
                 header.ReversedDate = occurred; header.ReversedBy = user.UserName; header.ReverseReason = command.Reason;
                 await repository.MarkReversedAsync(header, token);
                 var result = new InboundReverseResult { Uid = uid, Version = header.Version, DocumentNo = header.DocumentNo,

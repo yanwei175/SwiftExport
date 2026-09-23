@@ -1,7 +1,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Text.Json;
 using Refit;
 using SwiftExport.Client.VSTO.Diagnostics;
 
@@ -20,27 +19,6 @@ namespace SwiftExport.Client.VSTO.Api
             var api = exception as ApiException;
             if (api != null)
             {
-                // 只接纳标准失败正文中的用户提示，绝不回显网关 HTML 或原始响应。
-                if (!string.IsNullOrWhiteSpace(api.Content))
-                {
-                    try
-                    {
-                        using (var document = JsonDocument.Parse(api.Content))
-                        {
-                            var root = document.RootElement;
-                            JsonElement success, error, code, message;
-                            if (root.ValueKind == JsonValueKind.Object
-                                && root.TryGetProperty("success", out success) && success.ValueKind == JsonValueKind.False
-                                && root.TryGetProperty("error", out error) && error.ValueKind == JsonValueKind.Object
-                                && error.TryGetProperty("code", out code) && code.ValueKind == JsonValueKind.String
-                                && !string.IsNullOrWhiteSpace(code.GetString())
-                                && error.TryGetProperty("message", out message) && message.ValueKind == JsonValueKind.String
-                                && !string.IsNullOrWhiteSpace(message.GetString()))
-                                return message.GetString();
-                        }
-                    }
-                    catch (JsonException) { /* 损坏或非 JSON 响应按 HTTP 状态给安全提示。 */ }
-                }
                 if (api.StatusCode == HttpStatusCode.Unauthorized) return "账号密码错误或登录已失效，请重新登录。";
                 if (api.StatusCode == HttpStatusCode.Forbidden) return "当前账号没有访问权限。";
                 return "服务器未能完成请求，请稍后重试。";

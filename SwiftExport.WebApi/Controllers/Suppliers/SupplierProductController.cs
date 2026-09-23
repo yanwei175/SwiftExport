@@ -6,7 +6,7 @@ using SwiftExport.Contracts.DTOs.Suppliers.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.WebApi.Controllers.Base;
-using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Suppliers;
 
