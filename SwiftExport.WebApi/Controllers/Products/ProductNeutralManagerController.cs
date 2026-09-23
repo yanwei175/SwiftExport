@@ -4,7 +4,7 @@ using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager;
 using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Requests;
 using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Responses;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Products;
 

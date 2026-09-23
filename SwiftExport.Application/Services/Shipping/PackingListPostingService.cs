@@ -74,7 +74,7 @@ public sealed class PackingListPostingService(IPackingListPostingCoordinator coo
         catch (AutomaticPostingException error) { return ServiceResult<PackingListPostingPreviewDto>.Fail(error.Code, error.Message); }
     }
 
-    /// <summary>失败保留逐来源信息；未知异常和取消交由统一边界处理，禁止伪造可重发的新命令。</summary>
+    /// <summary>失败通过结构化错误报告首个阻断，逐来源信息由只读预览提供；未知异常和取消交由统一边界处理，禁止伪造可重发的新命令。</summary>
     private async Task<ServiceResult<PackingListPostingCommandResult>> Execute(Func<Task<PackingListPostOutcome>> action)
     {
         try
@@ -85,17 +85,14 @@ public sealed class PackingListPostingService(IPackingListPostingCoordinator coo
         }
         catch (PackingListPostingFailure error)
         {
-            return Failure(error.Code, error.Message, error.Blockers.Select(x => x.Adapt<PackingListPostingBlockerDto>(mapping)).ToList());
+            return Failure(error.Code, error.Message);
         }
-        catch (AutomaticPostingException error) { return Failure(error.Code, error.Message, []); }
+        catch (AutomaticPostingException error) { return Failure(error.Code, error.Message); }
     }
 
     /// <summary>稳定分类帮助客户端区分版本冲突、预览失效与业务阻断；失败不清空客户端草稿。</summary>
-    private static ServiceResult<PackingListPostingCommandResult> Failure(string code, string message, List<PackingListPostingBlockerDto> blockers)
+    private static ServiceResult<PackingListPostingCommandResult> Failure(string code, string message)
     {
-        if (blockers.Count == 0) blockers.Add(new() { Code = code, Message = message });
-        var result = ServiceResult<PackingListPostingCommandResult>.Fail(code, message);
-        result.Data = new() { ErrorCode = code, Status = code == "VERSION_CONFLICT" ? "VersionConflict" : code == "PREVIEW_STALE" ? "PreviewExpired" : "Blocked", Blockers = blockers };
-        return result;
+        return ServiceResult<PackingListPostingCommandResult>.Fail(code, message);
     }
 }

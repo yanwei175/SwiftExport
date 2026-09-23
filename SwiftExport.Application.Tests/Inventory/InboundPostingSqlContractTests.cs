@@ -18,7 +18,7 @@ public sealed class InboundPostingSqlContractTests
         StringAssert.Contains(query, "dh.PostingStatus=0 AND dh.LifecycleStatus=0");
         StringAssert.Contains(query, "rh.PostingStatus IN (1,8)");
         StringAssert.Contains(query, "COUNT(DISTINCT dh.Uid)");
-        var service = File.ReadAllText(Path.Combine(root, "SwiftExport.Application/Services/Inventory/InboundManagerService.Posting.cs"));
+        var service = File.ReadAllText(Path.Combine(root, "SwiftExport.Application/Services/Inventory/Inbounds/InboundPostingService.cs"));
         Assert.IsTrue(service.IndexOf("LockPurchaseSourcesAsync", StringComparison.Ordinal) < service.IndexOf("LockHeaderAsync", StringComparison.Ordinal));
         StringAssert.Contains(service, "inventoryPosting.PostAsync");
         var posting = File.ReadAllText(Path.Combine(root, "SwiftExport.Infrastructure/Repositories/Inventory/InboundManagerRepository.Posting.cs"));

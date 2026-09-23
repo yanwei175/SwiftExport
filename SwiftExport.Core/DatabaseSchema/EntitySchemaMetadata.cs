@@ -310,7 +310,7 @@ namespace SwiftExport.Core.Entities.Shipping
     [DbCheck("CK_PackingListLine_Measures", "([PcsPerPackage] IS NULL OR [PcsPerPackage] > 0) AND ([PackageCount] IS NULL OR [PackageCount] >= 0) AND ([NwPerPackage] IS NULL OR [NwPerPackage] >= 0) AND ([GwPerPackage] IS NULL OR [GwPerPackage] >= 0) AND ([CbmPerPackage] IS NULL OR [CbmPerPackage] >= 0)")]
     [DbIndex("UX_PackingListLine_Head_Line", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.LineNumber), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_PackingListLine_GrossDemand", nameof(PackingListLine.GrossDemandId), nameof(PackingListLine.PackingListHeadId), Filter = "[IsDeleted] = 0")]
-    [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId))]
+    [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId), IncludeColumns = new[] { nameof(PackingListLine.LineNumber) })]
     [LogicalReference(nameof(PackingListLine.PackingListHeadId), typeof(PackingListHead), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.GrossDemandId), typeof(DemandPlanning.GrossDemand), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.ProductId), typeof(Product))]

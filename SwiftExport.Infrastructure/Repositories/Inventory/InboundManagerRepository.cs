@@ -1,5 +1,6 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using Dapper;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums.StaticEnums;

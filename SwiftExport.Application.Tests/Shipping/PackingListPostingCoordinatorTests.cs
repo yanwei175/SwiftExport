@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Data;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -10,7 +11,6 @@ using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Shipping;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -81,7 +81,7 @@ public sealed class PackingListPostingCoordinatorTests
         var command = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
         await f.Service.PostAsync(command, default);
         var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.PostAsync(command with { BusinessDate = f.Date.AddDays(1) }, default));
-        Assert.AreEqual("IDEMPOTENCY_CONFLICT", conflict.Code);
+        Assert.AreEqual("COMMAND_CONFLICT", conflict.Code);
         Assert.AreEqual(1, f.Executions.Count);
     }
 
@@ -101,7 +101,7 @@ public sealed class PackingListPostingCoordinatorTests
         Assert.IsTrue((await f.Service.ReverseAsync(reverse, default)).AlreadyApplied);
         var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() =>
             f.Service.PostAsync(post with { BusinessDate = f.Date.AddDays(1) }, default));
-        Assert.AreEqual("IDEMPOTENCY_CONFLICT", conflict.Code);
+        Assert.AreEqual("COMMAND_CONFLICT", conflict.Code);
         Assert.AreEqual(2, f.Executions.Count);
     }
 

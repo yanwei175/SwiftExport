@@ -1,5 +1,7 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using Mapster;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.Mappings;

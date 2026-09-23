@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.Services;

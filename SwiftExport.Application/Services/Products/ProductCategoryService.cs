@@ -30,7 +30,8 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         catch (Exception exception)
         {
             _logger.LogError(exception, "查询全部产品分类失败。");
-            return ServiceResult<IReadOnlyList<ProductCategoryDto>>.Fail($"查询失败：{exception.Message}");
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            return ServiceResult<IReadOnlyList<ProductCategoryDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 
@@ -106,7 +107,7 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         {
             TryRollbackTransaction();
             _logger.LogError(exception, "产品分类批量保存发生未预期异常，已回滚全部操作。");
-            return ServiceResult<ProductCategoryBatchSaveResponse>.Fail(
+            return ServiceResult<ProductCategoryBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected,
                 "产品分类批量保存失败，所有操作已回滚，请刷新后重试。");
         }
         finally
@@ -133,7 +134,8 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         catch (Exception exception)
         {
             _logger.LogError(exception, "产品分类分页查询失败。");
-            return ServiceResult<PagedResponseBase<ProductCategoryDto>>.Fail($"查询失败：{exception.Message}");
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            return ServiceResult<PagedResponseBase<ProductCategoryDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 

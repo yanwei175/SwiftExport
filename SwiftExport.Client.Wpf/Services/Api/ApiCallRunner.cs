@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Refit;
 using SwiftExport.Contracts.Wrappers;
-using System.Net;
+using SwiftExport.Contracts.DTOs.Errors;
 using System.Net.Http;
 
 namespace SwiftExportClient.Services.Api;
@@ -16,7 +16,7 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
     {
         try
         {
-            return await action() ?? ServiceResult<T>.Fail($"{failureMessage}：服务端返回为空。");
+            return await action() ?? ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, $"{failureMessage}：服务端返回为空。");
         }
         catch (Exception exception) when (TryMapException<T>(exception, failureMessage, out var result))
         {
@@ -49,7 +49,7 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
     {
         try
         {
-            return await action() ?? ServiceResult<T>.Fail($"{failureMessage}：服务端返回为空。");
+            return await action() ?? ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, $"{failureMessage}：服务端返回为空。");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -69,6 +69,7 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
         }
     }
 
+    /// <summary>按异常类型识别传输错误；编程错误继续抛出。</summary>
     private bool TryMapException<T>(
         Exception exception,
         string failureMessage,
@@ -99,11 +100,11 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
         if (ContainsCancellation(exception))
         {
             logger.LogWarning(exception, "API request timed out before receiving a response.");
-            return ServiceResult<T>.Fail($"{failureMessage}：请求超时或已取消。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, $"{failureMessage}：请求超时或已取消。");
         }
 
         logger.LogWarning(exception, "API request failed before receiving a response.");
-        return ServiceResult<T>.Fail($"{failureMessage}：无法连接到服务器。");
+        return ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, $"{failureMessage}：无法连接到服务器。");
     }
 
     /// <summary>沿异常链识别 Refit 包装的取消，不依赖易变化的异常消息文本。</summary>
@@ -117,38 +118,24 @@ public sealed class ApiCallRunner(ILogger<ApiCallRunner> logger) : IApiCallRunne
         return false;
     }
 
+    /// <summary>只记录状态码，结构化业务错误由统一读取器还原，不记录响应正文。</summary>
     private ServiceResult<T> MapApiException<T>(ApiException exception, string failureMessage)
     {
-        logger.LogWarning(
-            exception,
-            "API request failed with status code {StatusCode}.",
-            exception.StatusCode);
-
-        var statusText = exception.StatusCode == 0
-            ? "HTTP 请求失败"
-            : $"HTTP {(int)exception.StatusCode}";
-
-        var message = exception.StatusCode switch
-        {
-            HttpStatusCode.Unauthorized => "登录状态无效或已过期。",
-            HttpStatusCode.Forbidden => "当前账号没有执行该操作的权限。",
-            HttpStatusCode.NotFound => "请求的接口或资源不存在。",
-            HttpStatusCode.BadRequest => "请求参数不正确。",
-            _ => $"{failureMessage}：{statusText}。"
-        };
-
-        return ServiceResult<T>.Fail(message);
+        logger.LogWarning("API request failed with status code {StatusCode}.", exception.StatusCode);
+        return ApiErrorResponseReader.Read<T>(exception, failureMessage);
     }
 
+    /// <summary>网络故障不能证明写入是否提交；结果保持未知。</summary>
     private ServiceResult<T> MapHttpRequestException<T>(HttpRequestException exception, string failureMessage)
     {
         logger.LogWarning(exception, "HTTP request failed before receiving a response.");
-        return ServiceResult<T>.Fail($"{failureMessage}：无法连接到服务器。");
+        return ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, $"{failureMessage}：无法连接到服务器。");
     }
 
+    /// <summary>超时不证明命令未执行，保留未知结果语义。</summary>
     private ServiceResult<T> MapTaskCanceledException<T>(TaskCanceledException exception, string failureMessage)
     {
         logger.LogWarning(exception, "HTTP request timed out or was canceled.");
-        return ServiceResult<T>.Fail($"{failureMessage}：请求超时或已取消。");
+        return ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, $"{failureMessage}：请求超时或已取消。");
     }
 }

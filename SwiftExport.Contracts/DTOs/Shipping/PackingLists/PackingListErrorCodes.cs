@@ -6,7 +6,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         /// <summary>头行乐观并发冲突。</summary>
         public const string VersionConflict = "VERSION_CONFLICT";
         /// <summary>命令身份已被不同语义占用。</summary>
-        public const string IdempotencyConflict = "IDEMPOTENCY_CONFLICT";
+        public const string CommandConflict = "COMMAND_CONFLICT";
         /// <summary>完整行集合或显式删除集合不匹配。</summary>
         public const string LineSetMismatch = "LINE_SET_MISMATCH";
         /// <summary>草稿字段、数量或身份无效。</summary>

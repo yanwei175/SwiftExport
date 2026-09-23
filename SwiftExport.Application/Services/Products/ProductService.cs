@@ -193,7 +193,9 @@ public partial class ProductService(IProductRepository productRepository, Servic
         }
         catch (Exception ex)
         {
-            return ServiceResult<PagedResponseBase<ProductDto>>.Fail(ex.Message);
+            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+            Logger.LogError(ex, "应用服务执行失败。");
+            return ServiceResult<PagedResponseBase<ProductDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
 
     }
@@ -278,7 +280,7 @@ public partial class ProductService(IProductRepository productRepository, Servic
         {
             TryRollbackTransaction();
             _logger.LogError(exception, "产品批量保存发生未预期异常，已回滚全部操作。");
-            return ServiceResult<ProductBatchSaveResponse>.Fail(
+            return ServiceResult<ProductBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected,
                 "产品批量保存失败，所有操作已回滚，请刷新后重试。");
         }
         finally

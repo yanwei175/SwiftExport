@@ -51,7 +51,9 @@ namespace SwiftExport.Application.Services.SystemServices
             }
             catch (Exception ex)
             {
-                return ServiceResult<IReadOnlyList<SysViewRouteDto>>.Fail(ex.Message);
+                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+                Logger.LogError(ex, "应用服务执行失败。");
+                return ServiceResult<IReadOnlyList<SysViewRouteDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
             }
         }
 
@@ -65,7 +67,8 @@ namespace SwiftExport.Application.Services.SystemServices
             catch (Exception exception)
             {
                 _logger.LogError(exception, "分页查询视图路由失败。");
-                return ServiceResult<PagedResponseBase<SysViewRouteDto>>.Fail($"查询失败：{exception.Message}");
+                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
+                return ServiceResult<PagedResponseBase<SysViewRouteDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
             }
         }
 
@@ -123,7 +126,7 @@ namespace SwiftExport.Application.Services.SystemServices
             {
                 SystemBatchSaveSupport.TryRollback(_session, _logger, "视图路由批量保存");
                 _logger.LogError(exception, "视图路由批量保存发生未预期异常。");
-                return ServiceResult<SysViewRouteBatchSaveResponse>.Fail("视图路由批量保存失败，所有操作已回滚，请刷新后重试。");
+                return ServiceResult<SysViewRouteBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "视图路由批量保存失败，所有操作已回滚，请刷新后重试。");
             }
             finally
             {

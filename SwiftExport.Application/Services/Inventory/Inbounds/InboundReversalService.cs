@@ -1,0 +1,162 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
+using System.Text.Json;
+using SwiftExport.Application.Commands;
+using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Inventory;
+using SwiftExport.Application.Interfaces.Inventory.Inbounds;
+using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.SysEnums.Inventory;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Entities.Auditing;
+using SwiftExport.Core.Entities.Inventory;
+using SwiftExport.Core.Interfaces.Auditing;
+using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Application.Services.Inventory;
+
+namespace SwiftExport.Application.Services.Inventory.Inbounds;
+
+/// <summary>手工入库整单反过账，保留原凭证与事实，不编排 PackingList 或实际退货。</summary>
+public sealed class InboundReversalService(
+    IInboundManagerRepository repository, IBusinessOperationLogRepository logs, ICurrentUser user,
+    IUserPermissionService permissions, IInventoryPostingService inventoryPosting,
+    BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
+    InboundServiceSupport support) : IInboundReversalService
+{
+    private const string Module = "InboundManager";
+    /// <inheritdoc/>
+    public Task<ServiceResult<InboundReversePreviewDto>> PreviewReverseAsync(Guid uid, InboundReversePreviewRequest request, CancellationToken token = default) =>
+        support.RunAsync(async () =>
+        {
+            await RequireReversePermissionAsync(token);
+            if (uid == Guid.Empty || request is null || request.ExpectedVersion <= 0)
+                throw new DraftException("单据身份和版本无效。", ServiceErrorCodes.Validation);
+            var detail = await repository.GetDetailAsync(uid, token) ?? throw new DraftException("入库单不存在。");
+            return (await BuildReversePreviewAsync(detail, request.ExpectedVersion, token)).Preview;
+        }, token);
+
+    /// <inheritdoc/>
+    public Task<ServiceResult<InboundReverseResult>> ReverseAsync(Guid uid, ReverseInboundCommand command, CancellationToken token = default) =>
+        pipeline.ExecuteAsync<ReverseInboundCommand, InboundReverseResult>(command, command?.CommandId,
+            "Inventory.Inbound.Reverse", AuthorizeReverseAsync<InboundReverseResult>, ct => support.RunAsync(async () =>
+        {
+            if (uid == Guid.Empty) throw new DraftException("单据标识不能为空。", ServiceErrorCodes.Validation, "Uid");
+            // Validator 已按 Trim 后的内容校验；规范化原因同时用于指纹、事实、状态与审计。
+            var reason = command!.Reason.Trim();
+            return await executor.ExecuteAsync(command.CommandId, "Inventory.Inbound.Reverse", uid,
+                new { command.ExpectedVersion, Reason = reason }, async executionToken =>
+            {
+                var initial = await repository.GetDetailAsync(uid, executionToken) ?? throw new DraftException("入库单不存在。");
+                var sourceIds = initial.Lines.Select(x => x.SourceLineId).Distinct().OrderBy(x => x).ToArray();
+                await repository.LockPurchaseSourcesAsync(sourceIds, executionToken);
+                var header = await repository.LockHeaderAsync(uid, executionToken) ?? throw new DraftException("入库单不存在。");
+                var lockedLines = await repository.LockLinesAsync(uid, executionToken);
+                if (!lockedLines.Select(x => x.SourceLineId).Distinct().OrderBy(x => x).SequenceEqual(sourceIds))
+                    throw new DraftException("入库来源已变化，请重新加载。", ServiceErrorCodes.VersionConflict);
+                var detail = await repository.GetDetailAsync(uid, executionToken) ?? throw new DraftException("入库单不存在。");
+                var check = await BuildReversePreviewAsync(detail, command.ExpectedVersion, executionToken);
+                if (header.Version != command.ExpectedVersion)
+                    throw new DraftException("入库版本已变化，请重新加载。", ServiceErrorCodes.VersionConflict, "ExpectedVersion");
+                if (!check.Preview.CanReverse) throw new DraftException(check.Preview.Blockers[0].Message, check.Preview.Blockers[0].Code);
+                var occurred = DateTime.Now;
+                // 仅首次执行进入业务委托并生成行身份；失败时整组反向事实随外层事务回滚。
+                var items = check.Originals.OrderBy(x => x.Uid).Select(x => new InventoryReverseItem
+                {
+                    CommandItemId = GuidSequentialGenerator.NewGuid(), OriginalLedgerId = x.Uid,
+                    SourceDocumentType = "InboundDocument", SourceDocumentId = uid, SourceLineId = x.SourceLineId,
+                    SourceDocumentNoSnapshot = header.DocumentNo, Reason = reason, OccurredDate = occurred
+                }).ToArray();
+                try { await inventoryPosting.ReverseAsync(command.CommandId, items, executionToken); }
+                catch (InventoryPostingException ex) { throw new DraftException(ex.Message, ex.Code); }
+                header.ReversedDate = occurred; header.ReversedBy = user.UserName; header.ReverseReason = reason;
+                await repository.MarkReversedAsync(header, executionToken);
+                var result = new InboundReverseResult { Uid = uid, Version = header.Version, DocumentNo = header.DocumentNo,
+                    PostingStatus = InboundPostingStatusEnum.Reversed, ReversedDate = occurred, ReversedBy = user.UserName, ReverseReason = reason };
+                if (await logs.InsertAsync(new BusinessOperationLog
+                {
+                    CommandId = command.CommandId, CorrelationId = correlation.CorrelationId, Module = Module,
+                    AggregateType = "InboundDocument", AggregateUid = uid, AggregateNoSnapshot = header.DocumentNo,
+                    OperationType = "Reverse", OperationName = "手工入库反过账", Summary = "整单扣减库存，原单保留已反过账只读。",
+                    Reason = reason, ChangedFieldsJson = JsonSerializer.Serialize(new { PostingStatus = new { Before = InboundPostingStatusEnum.Posted, After = InboundPostingStatusEnum.Reversed },
+                        Version = new { Before = command.ExpectedVersion, After = header.Version }, header.ReversedDate, header.ReversedBy, ReverseReason = reason }),
+                    RelatedObjectsJson = JsonSerializer.Serialize(new { InboundUid = uid,
+                        OriginalLedgerIds = check.Originals.Select(x => x.Uid).ToArray(), ReverseCommandItemIds = items.Select(x => x.CommandItemId).ToArray() }),
+                    UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = occurred
+                }) != 1) throw new DraftException("反过账日志写入失败，整单已回滚。");
+                return result;
+            }, ct);
+        }, ct, false), token);
+
+    /// <summary>在校验和回执读取前核对库存模块与反向细权限。</summary>
+    private async Task<ServiceResult<T>?> AuthorizeReverseAsync<T>(CancellationToken token)
+    {
+        var refusal = await support.AuthorizeAsync<T>(token);
+        if (refusal is not null) return refusal;
+        if (!await permissions.HasPermissionAsync(user.UserId!.Value, PermissionKeys.InventoryInboundReverse, token))
+            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有手工入库反过账权限。");
+        return null;
+    }
+
+    /// <summary>反过账是独立授权，不以正向权限或角色名代替。</summary>
+    private async Task RequireReversePermissionAsync(CancellationToken token)
+    {
+        if (!await permissions.HasPermissionAsync(user.UserId!.Value, PermissionKeys.InventoryInboundReverse, token))
+            throw new DraftException("当前账号没有手工入库反过账权限。", ServiceErrorCodes.Forbidden);
+    }
+
+    /// <summary>以原库存事实证明整单可撤销；只按仓库产品余额判断，不检查后续出库或采购收货资格。</summary>
+    private async Task<(InboundReversePreviewDto Preview, IReadOnlyList<InventoryLedgerEntry> Originals)> BuildReversePreviewAsync(
+        InboundManagerDetailDto detail, int version, CancellationToken token)
+    {
+        var h = detail.Header;
+        var preview = new InboundReversePreviewDto { Uid = h.Uid, Version = h.Version, DocumentNo = h.DocumentNo, WarehouseName = h.WarehouseNameSnapshot };
+        void Block(string message, string code = ServiceErrorCodes.BusinessBlocked, Guid? line = null) =>
+            preview.Blockers.Add(new() { Message = message, Code = code, LineId = line });
+        if (h.Version != version) Block("入库版本已变化，请重新加载。", ServiceErrorCodes.VersionConflict);
+        if (h.IsDeleted || h.LifecycleStatus != InventoryDocumentLifecycleStatusEnum.Active || h.PostingStatus != InboundPostingStatusEnum.Posted
+            || h.DocumentType != InboundDocumentTypeEnum.PurchaseReceipt || h.CreationMode != InboundCreationModeEnum.Manual || h.TriggerPackingListId.HasValue)
+            Block("仅允许活动、人工、已过账且非 PackingList 触发的采购入库整单反过账。");
+        if (preview.Blockers.Count > 0) return (preview, []);
+        var rows = detail.Lines;
+        if (rows.Count is < 1 or > 500 || rows.Select(x => x.Uid).Distinct().Count() != rows.Count)
+        { Block("原入库明细缺失或身份重复，不能证明整单反向。"); return (preview, []); }
+        var facts = await repository.ReadReverseLedgersAsync(h.Uid, token);
+        if (facts.Count != rows.Count) Block("原流水缺失、重复或存在额外、反向、替代事实，禁止部分撤销。");
+        foreach (var row in rows)
+        {
+            var matches = facts.Where(x => x.SourceLineId == row.Uid).ToArray();
+            if (row.Uid == Guid.Empty || row.ProductId == Guid.Empty || row.SourceLineId == Guid.Empty || row.InboundDocumentId != h.Uid
+                || row.OriginalLineId.HasValue || row.Quantity <= 0 || decimal.Round(row.Quantity, 4) != row.Quantity || matches.Length != 1)
+            { Block($"第 {row.LineNumber} 行无法唯一对应原库存流水。", line: row.Uid); continue; }
+            var original = matches[0];
+            if (original.IsDeleted || original.TransactionType is not (InventoryTransactionTypeEnum.PurchaseReceiptInbound or InventoryTransactionTypeEnum.CustomerSuppliedReceiptInbound)
+                || original.SourceDocumentType != "InboundDocument" || original.SourceDocumentId != h.Uid
+                || original.CommandItemId != row.Uid || original.WarehouseSiteId != h.WarehouseSiteId || original.ProductId != row.ProductId
+                || original.QuantityDelta != row.Quantity || string.IsNullOrWhiteSpace(original.UnitSnapshot)
+                || !string.Equals(original.UnitSnapshot.Trim(), row.UnitSnapshot?.Trim(), StringComparison.OrdinalIgnoreCase)
+                || original.ReversalOfLedgerId.HasValue || original.ReplacementOfLedgerId.HasValue || original.CorrectionGroupId.HasValue)
+            { Block($"第 {row.LineNumber} 行原流水身份、数量、单位或纠错关系异常。", line: row.Uid); continue; }
+            preview.Ledgers.Add(new() { LedgerId = original.Uid, LineId = row.Uid, ProductId = original.ProductId,
+                Sku = original.SkuSnapshot, Unit = original.UnitSnapshot, Quantity = original.QuantityDelta });
+        }
+        foreach (var group in preview.Ledgers.GroupBy(x => x.ProductId))
+        {
+            var first = group.First();
+            var balance = await repository.ReadReverseBalanceAsync(h.WarehouseSiteId, group.Key, token);
+            if (balance is null || balance.IsDeleted || group.Any(x => !string.Equals(x.Unit?.Trim(), first.Unit?.Trim(), StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(balance.UnitSnapshot?.Trim(), first.Unit?.Trim(), StringComparison.OrdinalIgnoreCase))
+            { Block($"产品 {first.Sku} 的原余额投影缺失、已删除或单位异常。"); continue; }
+            var quantity = group.Sum(x => x.Quantity);
+            var after = balance.OnHandQty - quantity;
+            if (after < 0 || after > 99999999999999.9999m) Block($"产品 {first.Sku} 当前库存 {balance.OnHandQty:0.####}，需要扣减 {quantity:0.####}，余额不足或超出范围。");
+            preview.StockImpacts.Add(new() { WarehouseSiteId = h.WarehouseSiteId, ProductId = group.Key, Sku = first.Sku, Unit = first.Unit,
+                OriginalQuantityDelta = quantity, ReverseQuantity = quantity, CurrentQuantity = balance.OnHandQty, ExpectedQuantity = after });
+        }
+        if (!await repository.ReverseWarehouseExistsAsync(h.WarehouseSiteId, token)) Block("原仓库不存在或已删除。");
+        preview.CanReverse = preview.Blockers.Count == 0;
+        return (preview, facts);
+    }
+}

@@ -1,4 +1,6 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Inventory;
 

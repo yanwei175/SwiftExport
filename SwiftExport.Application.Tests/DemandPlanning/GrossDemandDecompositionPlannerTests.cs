@@ -221,11 +221,11 @@ public sealed class GrossDemandDecompositionPlannerTests
             Uid = Guid.NewGuid(),
             BomNo = parent.BomNo!,
             BomVersion = parent.BomVersion,
-            ParentSkuId = parent.Uid,
-            ParentSku = parent.Sku,
+            ParentProductId = parent.Uid,
+            ParentSkuSnapshot = parent.Sku,
             LineNumber = line,
-            SubSkuId = child.Uid,
-            SubSku = child.Sku,
+            ComponentProductId = child.Uid,
+            ComponentSkuSnapshot = child.Sku,
             Numerator = numerator,
             Denominator = denominator
         };
