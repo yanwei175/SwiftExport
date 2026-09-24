@@ -40,7 +40,7 @@ public sealed class AfterSalesSqlTests
         var confirmed=await Call(s=>s.ConfirmDemandAsync(command.Uid,confirm));Assert.IsTrue(confirmed.Success,confirmed.Message);
         Assert.AreEqual(1,await fixture.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.GrossDemand WHERE SourceUid=@uid",new{uid=command.Uid}));
         var demandId=await fixture.ScalarAsync<Guid>("SELECT Uid FROM dbo.GrossDemand WHERE SourceUid=@uid",new{uid=command.Uid});
-        var enrichment=await fixture.InScopeAsync(p=>p.GetRequiredService<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListQueryRepository>()
+        var enrichment=await fixture.InScopeAsync(p=>p.GetRequiredService<SwiftExport.Core.Interfaces.Shipping.IPackingListRepository>()
             .GetSourceEnrichmentsAsync([demandId]));
         Assert.AreEqual("CLIENT-PACKING",enrichment.Single().CustomerPoNo);
         var replay=await Call(s=>s.ConfirmDemandAsync(command.Uid,confirm));Assert.IsTrue(replay.Data.AlreadyApplied);

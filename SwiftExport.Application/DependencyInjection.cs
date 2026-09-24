@@ -5,8 +5,6 @@ using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Interfaces.Inventory.Inbounds;
-using SwiftExport.Application.Interfaces.Inventory.Outbounds;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Mappings;
@@ -16,17 +14,11 @@ using SwiftExport.Application.Services.Orders;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Services.Procurement;
 using SwiftExport.Application.Services.Inventory;
-using SwiftExport.Application.Services.Inventory.Inbounds;
-using SwiftExport.Application.Services.Inventory.Outbounds;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Application.Services.Suppliers;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Application.Services.SystemServices;
 using SwiftExport.Application.Services.Auth;
-using SwiftExport.Application.Commands;
-using SwiftExport.Application.Commands.Validation;
-using SwiftExport.Application.Services.Inventory.Inbounds.Validation;
-using FluentValidation;
 namespace SwiftExport.Application;
 
 /// <summary>注册 Application 服务及其请求级依赖，不创建业务会话之外的实例。</summary>
@@ -41,11 +33,6 @@ public static class DependencyInjection
         services.AddLogging();
 
         services.AddScoped<ServiceBaseContext>();
-        services.AddScoped<BusinessCommandExecutor>();
-        services.AddScoped<CommandRequestValidator>();
-        services.AddScoped<CommandPipeline>();
-        // 仅扫描 Application 程序集；命令仍须显式接入 Pipeline 才会执行验证。
-        services.AddValidatorsFromAssemblyContaining<CreateInboundDraftCommandValidator>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserPermissionService, UserPermissionService>();
@@ -72,12 +59,10 @@ public static class DependencyInjection
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
         services.AddScoped<ISourceDeliveryService, SourceDeliveryService>();
         services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
-        services.AddScoped<SwiftExport.Application.Interfaces.Shipping.PackingLists.IPackingListQueryService, SwiftExport.Application.Services.Shipping.PackingLists.PackingListQueryService>();
-        services.AddScoped<SwiftExport.Application.Interfaces.Shipping.PackingLists.IPackingListDraftService, SwiftExport.Application.Services.Shipping.PackingLists.PackingListDraftService>();
+        services.AddScoped<IPackingListService, PackingListService>();
         services.AddScoped<IPackingListTraceService, PackingListTraceService>();
-        services.AddScoped<IPackingListPostingService, SwiftExport.Application.Services.Shipping.PackingLists.PackingListPostingService>();
-        services.AddScoped<SwiftExport.Application.Interfaces.Shipping.PackingLists.IPackingListReversalService,
-            SwiftExport.Application.Services.Shipping.PackingLists.PackingListReversalService>();
+        services.AddScoped<IPackingListPostingCoordinator, PackingListPostingCoordinator>();
+        services.AddScoped<IPackingListPostingService, PackingListPostingService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
         services.AddScoped<MaterialDemandSuggestedSupplierInitializer>();
         services.AddScoped<PurchaseDraftPreviewBuilder>();
@@ -104,17 +89,8 @@ public static class DependencyInjection
         services.AddScoped<IInboundPostingPort>(sp => sp.GetRequiredService<AutomaticPostingPorts>());
         services.AddScoped<IOutboundPostingPort>(sp => sp.GetRequiredService<AutomaticPostingPorts>());
         services.AddScoped<IInventoryService, InventoryService>();
-        services.AddScoped<InboundServiceSupport>();
-        services.AddScoped<IInboundQueryService, InboundQueryService>();
-        services.AddScoped<IInboundSourceQueryService, InboundSourceQueryService>();
-        services.AddScoped<IInboundDraftService, InboundDraftService>();
-        services.AddScoped<IInboundPostingService, InboundPostingService>();
-        services.AddScoped<IInboundReversalService, InboundReversalService>();
-        services.AddScoped<OutboundServiceSupport>();
-        services.AddScoped<IOutboundQueryService, OutboundQueryService>();
-        services.AddScoped<IOutboundDraftService, OutboundDraftService>();
-        services.AddScoped<IOutboundPostingService, OutboundPostingService>();
-        services.AddScoped<IOutboundReversalService, OutboundReversalService>();
+        services.AddScoped<IInboundManagerService, InboundManagerService>();
+        services.AddScoped<IOutboundManagerService, OutboundManagerService>();
         services.AddScoped<IWarehouseCandidateQueryService, WarehouseCandidateQueryService>();
         services.AddScoped<IDocumentNoService, DocumentNoService>();
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();

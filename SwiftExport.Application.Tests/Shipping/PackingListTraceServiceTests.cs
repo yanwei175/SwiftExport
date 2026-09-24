@@ -9,7 +9,6 @@ using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Core.Entities.Shipping;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Shipping;
-using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.WebApi.Controllers.Shipping;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
@@ -71,7 +70,7 @@ public sealed class PackingListTraceServiceTests
     {
         var user = Proxy.Make<ICurrentUser>((m, _) => m switch { "get_IsAuthenticated" => true, "get_UserId" => id, _ => throw new NotSupportedException(m) });
         var permission = Proxy.Make<IUserPermissionService>((m, _) => Task.FromResult(allowed));
-        var packing = Proxy.Make<IPackingListQueryRepository>((m, _) => allowed && m == "GetDetailAsync"
+        var packing = Proxy.Make<IPackingListRepository>((m, _) => allowed && m == "GetDetailAsync"
             ? Task.FromResult<PackingListDetailDto?>(new() { Header = new() { Uid = id, PackingListNo = "PL1" } }) : throw new AssertFailedException(m));
         var repository = Proxy.Make<IPackingListExecutionRepository>((m, _) => !allowed ? throw new AssertFailedException(m) : m switch
         {

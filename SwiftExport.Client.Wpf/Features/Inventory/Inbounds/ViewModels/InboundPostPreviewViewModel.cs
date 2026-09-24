@@ -1,5 +1,5 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using CommunityToolkit.Mvvm.ComponentModel;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.ViewModels;

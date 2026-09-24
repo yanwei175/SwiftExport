@@ -5,12 +5,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" 
-             xmlns:vm="clr-namespace:SwiftExportClient.Features.QualityControl.AfterSales.ViewModels"
              xmlns:customerComponents="clr-namespace:SwiftExportClient.Features.Customers.Components" 
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components" 
              xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components" 
-             mc:Ignorable="d" d:DesignHeight="950" d:DesignWidth="1500"
-             d:DataContext="{d:DesignInstance vm:AfterSalesDetailViewModel}">
+             mc:Ignorable="d" d:DesignHeight="950" d:DesignWidth="1500">
 
     <Grid Margin="12" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
         <!--title-->
@@ -112,18 +110,19 @@
                                 BorderThickness="1" 
                                 BorderBrush="{DynamicResource UserCardStrokeColorDefaultBrush}" CornerRadius="4">
 
-                            <controls:CachedImage Margin="4" Width="140" Height="140" Stretch="Uniform"
+                            <controls:CachedImage Margin="4"                                      
                                               SourcePath="{Binding Header.ImagePath}" DecodePixelWidth="96" />
                         </Border>
 
 
+
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="关联销售单"/>
                         <ComboBox Grid.Row="3" Grid.Column="0" IsEditable="True" Margin="0,8,8,8"
-                                    IsTextSearchEnabled="True" VerticalContentAlignment="Center"
+                                    IsTextSearchEnabled="True" 
                                     ItemsSource="{Binding SalesOrderLines}" 
                                     SelectedValue="{Binding Header.OriginalSalesOrderLineId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,
-                                    ValidatesOnExceptions=True,
-                                    NotifyOnValidationError=True}" 
+                                                      ValidatesOnExceptions=True,
+                                                      NotifyOnValidationError=True}" 
                                     SelectedValuePath="Uid" 
                                     DisplayMemberPath="Code" 
                                     IsEnabled="{Binding CanEditFacts}" 
@@ -135,9 +134,8 @@
                                                                         ItemsSource="{Binding Suppliers}" SelectedSupplier="{Binding Header.SelectedResponsibleSupplier,Mode=TwoWay}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="责任供应商" Tag="Header.ResponsibleSupplierId" />
 
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="业务员" Margin="0,0,0,4" />
-                        <ComboBox  Grid.Row="3" Grid.Column="2" Margin="0,8,8,8" VerticalContentAlignment="Center"
-                                   IsEditable="True" IsTextSearchEnabled="True" 
-                                   ItemsSource="{Binding Owners}" 
+                        <ComboBox  Grid.Row="3" Grid.Column="2" Margin="0,8,8,8"
+                                   IsEditable="True" IsTextSearchEnabled="True" ItemsSource="{Binding Owners}" 
                                    SelectedValue="{Binding Header.OwnerId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
                                    SelectedValuePath="Uid" 
                                    DisplayMemberPath="Code" 
@@ -145,24 +143,26 @@
                                    AutomationProperties.Name="业务员" Tag="Header.OwnerId" />
 
                         <TextBlock Grid.Row="2" Grid.Column="3" Text="要求交期" Margin="0,0,0,4" />
-                        <DatePicker Grid.Row="3" Grid.Column="3" Margin="0,8,8,8" SelectedDateFormat="Short"
+                        <DatePicker Grid.Row="3" Grid.Column="3" Margin="0,8,8,8"
                                     SelectedDate="{Binding Header.RequiredDate,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="要求交期" Tag="Header.RequiredDate" />
 
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="问题物料" Margin="0,0,0,4" />
-                        
-                        <productComponents:ProductLookupTextBox  Grid.Row="5" Grid.Column="0" Margin="0,8,8,8" 
+                        <productComponents:ProductLookupTextBox  Grid.Row="5" Grid.Column="0" Margin="0,8,8,8"
                                                                  Text="{Binding Header.IssueSkuSnapshot,Mode=OneWay}" 
-                                                                 ItemsSource="{Binding ProductCandidates}"
-                                                                 SelectedProduct="{Binding SelectedProductCandidate,Mode=OneWayToSource}" 
-                                                                 SearchCommand="{Binding SearchProductsCommand}"
-                                                                 SelectionCommittedCommand="{Binding CommitIssueProductCommand}" 
-                                                                 SelectionClearedCommand="{Binding ClearIssueProductCommand}"
-                                                                 IsBusy="{Binding IsProductSearchBusy}" 
-                                                                 IsEnabled="{Binding CanEditFacts}" 
-                                                                 Tag="Header.IssueProductId" 
-                                                                 AutomationProperties.Name="问题产品"/>
-                        
+                                                                        ItemsSource="{Binding ProductCandidates}"
+                                                                        SelectedProduct="{Binding SelectedProductCandidate,Mode=OneWayToSource}" 
+                                                                        SearchCommand="{Binding SearchProductsCommand}"
+                                                                        SelectionCommittedCommand="{Binding CommitIssueProductCommand}" 
+                                                                        SelectionClearedCommand="{Binding ClearIssueProductCommand}"
+                                                                        IsBusy="{Binding IsProductSearchBusy}" 
+                                                                        IsEnabled="{Binding CanEditFacts}" 
+                                                                        Tag="Header.IssueProductId" 
+                                                                        AutomationProperties.Name="问题产品"/>
+                        <ui:TextBox Grid.Row="5" Grid.Column="0" Margin="0,8,8,8"
+                                    Text="{Binding Header.IssueSkuSnapshot,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="问题物料编号" Tag="Header.IssueSkuSnapshot" />
+
+
                         <TextBlock Grid.Row="4" Grid.Column="1" Text="问题客户型号" Margin="0,0,0,4" />
                         <ui:TextBox Grid.Row="5" Grid.Column="1" Margin="0,8,8,8"
                                     Text="{Binding Header.IssueCustomerSkuSnapshot,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,
@@ -177,7 +177,7 @@
                                     Text="{Binding Header.IssueLinkSkuSnapshot,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="问题 AQ 型号" Tag="Header.IssueLinkSkuSnapshot" />
 
                         <TextBlock Grid.Row="4" Grid.Column="3" Text="退回收到日期" Margin="0,0,0,4" />
-                        <DatePicker Grid.Row="5" Grid.Column="3" Margin="0,8,8,8" SelectedDateFormat="Short"
+                        <DatePicker Grid.Row="5" Grid.Column="3" Margin="0,8,8,8"
                                     SelectedDate="{Binding Header.ReturnedReceivedDate,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditSupplement}" AutomationProperties.Name="退回收到日期" Tag="Header.ReturnedReceivedDate" />
 
                         <TextBlock Grid.Row="6" Grid.Column="0" Text="投诉单备注" Margin="0,0,0,4" />
@@ -202,7 +202,7 @@
                                    AutomationProperties.Name="处理说明" Tag="Header.TreatmentDescription" />
 
                         <TextBlock Grid.Row="6" Grid.Column="3" Text="预计处理完成" Margin="0,0,0,4" />
-                        <DatePicker Grid.Row="7" Grid.Column="3" Margin="0,8,8,8" VerticalAlignment="Top" SelectedDateFormat="Short"
+                        <DatePicker Grid.Row="7" Grid.Column="3" Margin="0,8,8,8" VerticalAlignment="Top"
                                     SelectedDate="{Binding Header.ExpectedCompletionDate,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="预计处理完成" Tag="Header.ExpectedCompletionDate" />
 
                         <TextBlock Grid.Row="6" Grid.Column="4" Text="投诉资料文件夹" Margin="0,0,0,4"/>
@@ -210,8 +210,8 @@
                                     Text="{Binding Header.LocalFileFolder,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditSupplement}"
                             PlaceholderText="填写本机文件夹路径" AutomationProperties.Name="投诉资料文件夹" Tag="Header.LocalFileFolder"/>
 
-                        <TextBlock Grid.Row="6" Grid.Column="5" Text="付费售后金额" Margin="0,0,0,4" />
-                        <ui:TextBox Grid.Row="7" Grid.Column="5" Margin="0,8,8,8" VerticalAlignment="Top"
+                        <TextBlock Grid.Row="6" Grid.Column="5" Text="付费售后金额" Visibility="Collapsed" Margin="0,0,0,4" />
+                        <ui:TextBox Grid.Row="7" Grid.Column="5" Margin="0,8,8,8" Visibility="Collapsed"
                                     Text="{Binding Header.ServiceAmountCny,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
                                     IsEnabled="{Binding CanEditFacts}" 
                                     PlaceholderText="留空为不付费售后"
@@ -285,6 +285,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>                       
 
+
                         <DataGridTextColumn Header="客户型号" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
@@ -309,8 +310,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                             <DataGridTemplateColumn.CellEditingTemplate>
                                 <DataTemplate>                                    
-                                    <ComboBox VerticalContentAlignment="Center"
-                                        ItemsSource="{Binding DataContext.Colors,RelativeSource={RelativeSource AncestorType=DataGrid}}"                                              
+                                    <ComboBox ItemsSource="{Binding DataContext.Colors,RelativeSource={RelativeSource AncestorType=DataGrid}}"                                              
                                               SelectedValue="{Binding ColorId,Mode=TwoWay}" 
                                               SelectedValuePath="Uid" 
                                               DisplayMemberPath="ColorNameZh" 

@@ -4,7 +4,6 @@ using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Contracts.DTOs.Errors;
 
 namespace SwiftExport.WebApi.Controllers.Inventory;
 
@@ -33,16 +32,16 @@ public sealed class WarehouseSitesController(IInventoryService service) : Contro
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (UnauthorizedAccessException)
         {
-            return new ObjectResult(ServiceResult<PagedResponseBase<WarehouseCandidateDto>>.Fail(ServiceErrorCodes.Forbidden, "没有仓库候选查询权限。"));
+            return StatusCode(StatusCodes.Status403Forbidden, ServiceResult<PagedResponseBase<WarehouseCandidateDto>>.Fail("没有仓库候选查询权限。"));
         }
         catch (ArgumentException)
         {
-            return new ObjectResult(ServiceResult<PagedResponseBase<WarehouseCandidateDto>>.Fail(ServiceErrorCodes.Validation, "查询条件无效。"));
+            return BadRequest(ServiceResult<PagedResponseBase<WarehouseCandidateDto>>.Fail("查询条件无效。"));
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "仓库候选查询失败。");
-            return new ObjectResult(ServiceResult<PagedResponseBase<WarehouseCandidateDto>>.Fail(ServiceErrorCodes.Unexpected, "查询失败，请稍后重试。"));
+            return StatusCode(StatusCodes.Status500InternalServerError, ServiceResult<PagedResponseBase<WarehouseCandidateDto>>.Fail("查询失败，请稍后重试。"));
         }
     }
 

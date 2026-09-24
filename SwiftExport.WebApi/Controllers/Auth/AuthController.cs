@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Contracts.DTOs.Auth;
-
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.WebApi.RequestProtection;
-using SwiftExport.WebApi.Authentication;
+using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.Services.Auth;
 
 namespace SwiftExport.WebApi.Controllers.Auth;
 
@@ -96,6 +96,14 @@ public sealed class AuthController(
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 
-    /// <summary>转交全局结果过滤器处理失败代码与 HTTP 状态。</summary>
-    private IActionResult ToActionResult<T>(ServiceResult<T> result) => new ObjectResult(result);
+    private IActionResult ToActionResult<T>(ServiceResult<T> result)
+    {
+        return result.Error?.Code switch
+        {
+            ServiceErrorCodes.Unauthenticated => Unauthorized(result),
+            ServiceErrorCodes.Forbidden => StatusCode(StatusCodes.Status403Forbidden, result),
+            ServiceErrorCodes.VersionConflict => Conflict(result),
+            _ => BadRequest(result)
+        };
+    }
 }

@@ -68,7 +68,7 @@ namespace SwiftExport.Application.Services.Systems
             {
                 SystemBatchSaveSupport.TryRollback(_session, _logger, "本位币切换");
                 if (_logger.IsEnabled(LogLevel.Error)) _logger.LogError(ex, "[{EntityName}] 保存时发生错误，事务已回滚！", nameof(SysDicCurrency));
-                return ServiceResult<int>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "重置本位币失败，所有操作已回滚。");
+                return ServiceResult<int>.Fail("重置本位币失败，所有操作已回滚。");
             }
             finally
             {
@@ -100,8 +100,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception exception)
             {
                 _logger.LogError(exception, "查询本位币失败。");
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                return ServiceResult<SysDicCurrencyDto>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<SysDicCurrencyDto>.Fail($"查询本位币失败：{exception.Message}");
             }
         }
 
@@ -118,8 +117,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception exception)
             {
                 _logger.LogError(exception, "查询启用货币列表失败。");
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail($"查询失败：{exception.Message}");
             }
         }
 
@@ -221,8 +219,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception exception)
             {
                 _logger.LogError(exception, "查询默认本位币详情失败。");
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                return ServiceResult<SysDicCurrencyDetailDto>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<SysDicCurrencyDetailDto>.Fail($"查询失败：{exception.Message}");
             }
         }
 
@@ -240,9 +237,7 @@ namespace SwiftExport.Application.Services.Systems
             }
             catch (Exception ex)
             {
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                Logger.LogError(ex, "应用服务执行失败。");
-                return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Fail(ex.Message);
             }
         }
 
@@ -256,8 +251,7 @@ namespace SwiftExport.Application.Services.Systems
             catch (Exception exception)
             {
                 _logger.LogError(exception, "分页查询货币失败。");
-                // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-                return ServiceResult<PagedResponseBase<SysDicCurrencyDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+                return ServiceResult<PagedResponseBase<SysDicCurrencyDto>>.Fail($"查询失败：{exception.Message}");
             }
         }
 
@@ -317,7 +311,7 @@ namespace SwiftExport.Application.Services.Systems
             {
                 SystemBatchSaveSupport.TryRollback(_session, _logger, "货币批量保存");
                 _logger.LogError(exception, "货币批量保存发生未预期异常。");
-                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "货币批量保存失败，所有操作已回滚，请刷新后重试。");
+                return ServiceResult<SysDicCurrencyBatchSaveResponse>.Fail("货币批量保存失败，所有操作已回滚，请刷新后重试。");
             }
             finally
             {

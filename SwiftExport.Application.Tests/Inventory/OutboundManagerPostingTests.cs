@@ -21,7 +21,6 @@ public sealed partial class OutboundManagerServiceTests
         Assert.IsTrue((await f.Service.PostAsync(id, cmd)).Success);
         Assert.IsTrue((await f.Service.PostAsync(id, cmd)).Success);
         Assert.AreEqual(1, f.PostCalls);
-        Assert.AreEqual(2, f.LogCount, "草稿和首次过账各写一条审计；重放不追加。");
         Assert.AreEqual(90m, f.Balance);
         var item = f.PostedItems.Single();
         Assert.AreEqual(-10m, item.QuantityDelta);

@@ -1,6 +1,6 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExportClient.Mvvm;
 

@@ -9,7 +9,6 @@ using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Shipping;
-using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.QualityControl;
@@ -146,7 +145,7 @@ public sealed class SourceDeliveryClosureTests
         var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
         if (withTransaction)
             session.Transaction = DispatchProxy.Create<IDbTransaction, TransactionPort>();
-        var repository = DispatchProxy.Create<IPackingListSourceExitRepository, PackingListPort>();
+        var repository = DispatchProxy.Create<IPackingListRepository, PackingListPort>();
         port = (PackingListPort)(object)repository;
         var query = DispatchProxy.Create<ISourceDeliveryQueryRepository, SourceQueryPort>();
         queryPort = (SourceQueryPort)(object)query;
@@ -180,8 +179,8 @@ public sealed class SourceDeliveryClosureTests
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => targetMethod?.Name switch
         {
-            nameof(IPackingListSourceExitRepository.IsSchemaReadyAsync) => Task.FromResult(SchemaReady),
-            nameof(IPackingListSourceExitRepository.AssessSourceExitForUpdateAsync) => Task.FromResult(Assessment),
+            nameof(IPackingListRepository.IsSchemaReadyAsync) => Task.FromResult(SchemaReady),
+            nameof(IPackingListRepository.AssessSourceExitForUpdateAsync) => Task.FromResult(Assessment),
             _ => throw new NotSupportedException(targetMethod?.Name)
         };
     }

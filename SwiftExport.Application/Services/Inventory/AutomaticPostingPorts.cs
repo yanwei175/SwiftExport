@@ -1,4 +1,3 @@
-using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -13,13 +12,12 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Inventory;
-using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 
 namespace SwiftExport.Application.Services.Inventory;
 
 /// <summary>箱单自动单据内部执行器；只处理已分配的事实，所有写入加入外层事务。</summary>
 public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, IAutomaticDocumentRepository repository,
-    IInboundDocumentRepository inbound, IInboundSourceRepository sourceRepository, IInboundExecutionReadRepository executionReads, IOutboundDocumentRepository outbound, IOutboundExecutionReadRepository outboundReads, IInventoryPostingService inventory,
+    IInboundManagerRepository inbound, IOutboundManagerRepository outbound, IInventoryPostingService inventory,
     IRepository<WarehouseSite> warehouses, IInventoryRepository stocks, IBusinessOperationLogRepository logs,
     IDocumentNoService numbers, ICurrentUser user) : IInboundPostingPort, IOutboundPostingPort
 {
@@ -61,9 +59,9 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
                 if (warehouse is null || warehouse.IsDeleted || !warehouse.IsActive) Fail("WAREHOUSE_INVALID", "仓库不可用于新库存事实。", group.GroupId);
                 if (isInbound)
                 {
-                    if (await inbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("COMMAND_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
+                    if (await inbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("IDEMPOTENCY_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
                 }
-                else if (await outbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("COMMAND_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
+                else if (await outbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("IDEMPOTENCY_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
                 var number = await numbers.GetNextDocumentNoAsync(new()
                 {
                     DocType = isInbound ? DocumentTypeStaticsEnum.InboundDocument : DocumentTypeStaticsEnum.OutboundDocument,
@@ -132,8 +130,8 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         var all = request.Groups.SelectMany(g => g.Lines.Select(l => (Group: g, Line: l))).ToArray();
         var ids = all.Select(x => x.Line.PurchaseLineId!.Value).Distinct().Order().ToArray();
-        if (await sourceRepository.HasUnprovenReceiptAsync(token)) Fail("RECEIPT_HISTORY_INVALID", "存在无法证明来源的正式收货历史。");
-        var sources = (await sourceRepository.ReadPostingSourcesAsync(ids, token)).ToDictionary(x => x.SourceLineId);
+        if (await inbound.HasUnprovenReceiptAsync(token)) Fail("RECEIPT_HISTORY_INVALID", "存在无法证明来源的正式收货历史。");
+        var sources = (await inbound.ReadPostingSourcesAsync(ids, token)).ToDictionary(x => x.SourceLineId);
         foreach (var group in all.GroupBy(x => x.Line.PurchaseLineId!.Value))
         {
             if (!sources.TryGetValue(group.Key, out var s) || !s.IsReceivable || s.IsCustomerSupplied)
@@ -196,7 +194,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
         var prior = await logs.GetByModuleCommandAsync(Module, command);
         if (prior is null) return null;
         if (prior.OperationType != operation || prior.UserUid != user.UserId || prior.ChangedFieldsJson != fingerprint)
-            Fail("COMMAND_CONFLICT", "命令已用于不同用户、操作或内容。");
+            Fail("IDEMPOTENCY_CONFLICT", "命令已用于不同用户、操作或内容。");
         var result = JsonSerializer.Deserialize<AutomaticPostingResult>(prior.RelatedObjectsJson ?? "null");
         if (result is null || result.Documents.Count == 0 || result.Documents.Any(x => x.DocumentId == Guid.Empty || x.Lines.Count == 0))
             Fail("OUTCOME_INVALID", "历史自动单据结果不完整，不能重放。");
@@ -228,8 +226,8 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         AutomaticPostingException or OperationCanceledException => error,
         System.Data.DBConcurrencyException => new AutomaticPostingException("VERSION_CONFLICT", error.Message),
-        InventoryPostingException => new AutomaticPostingException(error.Message.StartsWith("COMMAND_CONFLICT", StringComparison.Ordinal)
-            ? "COMMAND_CONFLICT" : "INVENTORY_BLOCKED", error.Message),
+        InventoryPostingException => new AutomaticPostingException(error.Message.StartsWith("IDEMPOTENCY_CONFLICT", StringComparison.Ordinal)
+            ? "IDEMPOTENCY_CONFLICT" : "INVENTORY_BLOCKED", error.Message),
         _ => new AutomaticPostingException("WRITE_FAILED", "自动库存操作失败，当前事务已回滚：" + error.Message)
     };
     [System.Diagnostics.CodeAnalysis.DoesNotReturn]

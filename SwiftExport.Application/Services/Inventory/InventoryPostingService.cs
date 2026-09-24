@@ -1,5 +1,4 @@
-using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Application.Contexts;
+﻿using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Inventory;
@@ -129,7 +128,7 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         {
             var original = originals[expected.CommandItemId];
             if (expected.WarehouseSiteId != original.WarehouseSiteId || expected.ProductId != original.ProductId || expected.QuantityDelta != -original.QuantityDelta || !Same(expected.UnitSnapshot, original.UnitSnapshot))
-                throw new InventoryPostingException("COMMAND_CONFLICT：反向请求与原流水库存事实不一致。", ServiceErrorCodes.CommandConflict);
+                throw new InventoryPostingException("IDEMPOTENCY_CONFLICT：反向请求与原流水库存事实不一致。");
         }
         return await ApplyAsync(facts, false, cancellationToken);
     }
@@ -158,7 +157,7 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
         {
             var ledger = await inventory.LockLedgerByCommandItemAsync(fact.CommandItemId);
             if (ledger is null) continue;
-            if (!SameFact(ledger, fact)) throw new InventoryPostingException("COMMAND_CONFLICT：CommandItemId 已用于不同库存事实。", ServiceErrorCodes.CommandConflict);
+            if (!SameFact(ledger, fact)) throw new InventoryPostingException("IDEMPOTENCY_CONFLICT：CommandItemId 已用于不同库存事实。");
             existing.Add(fact.CommandItemId, ledger);
         }
 
@@ -332,7 +331,7 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
 
     private static InventoryCorrectionResult ReplayCorrection(Guid commandId, IReadOnlyList<InventoryCorrectionItem> requested, IReadOnlyList<InventoryLedgerEntry> group)
     {
-        if (group.Count != requested.Count * 2 || group.Any(x => x.CommandId != commandId)) throw new InventoryPostingException("COMMAND_CONFLICT：纠错命令的事实集合已冻结且与本次不同。", ServiceErrorCodes.CommandConflict);
+        if (group.Count != requested.Count * 2 || group.Any(x => x.CommandId != commandId)) throw new InventoryPostingException("IDEMPOTENCY_CONFLICT：纠错命令的事实集合已冻结且与本次不同。");
         var reversals = new List<InventoryPostingResultDto>();
         var replacements = new List<InventoryPostingResultDto>();
         foreach (var item in requested)
@@ -340,7 +339,7 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
             var reverse = group.SingleOrDefault(x => x.CommandItemId == item.ReverseCommandItemId && x.ReversalOfLedgerId == item.OriginalLedgerId);
             var replacement = group.SingleOrDefault(x => x.CommandItemId == item.Replacement.CommandItemId && x.ReplacementOfLedgerId == item.OriginalLedgerId);
             if (reverse is null || replacement is null || !SameReverseRequest(reverse, item) || !SameFact(replacement, PostingFact.FromCorrection(commandId, item.Replacement, item.OriginalLedgerId)))
-                throw new InventoryPostingException("COMMAND_CONFLICT：纠错命令的事实集合已冻结且与本次不同。", ServiceErrorCodes.CommandConflict);
+                throw new InventoryPostingException("IDEMPOTENCY_CONFLICT：纠错命令的事实集合已冻结且与本次不同。");
             reversals.Add(Result(reverse, reverse.BalanceAfter - reverse.QuantityDelta, true));
             replacements.Add(Result(replacement, replacement.BalanceAfter - replacement.QuantityDelta, true));
         }
@@ -410,8 +409,4 @@ public sealed class InventoryPostingService(ServiceBaseContext context, IInvento
 }
 
 /// <summary>表示库存过账因业务规则或幂等冲突而被拒绝。</summary>
-public sealed class InventoryPostingException(string message, string code = ServiceErrorCodes.BusinessBlocked) : Exception(message)
-{
-    /// <summary>稳定业务错误类别，由调用方透传，不从异常消息推断。</summary>
-    public string Code { get; } = code;
-}
+public sealed class InventoryPostingException(string message) : Exception(message);

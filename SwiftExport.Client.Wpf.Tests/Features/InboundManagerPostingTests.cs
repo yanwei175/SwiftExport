@@ -1,6 +1,5 @@
-using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Inventory.Inbounds.Services;
@@ -133,7 +132,7 @@ public sealed partial class InboundManagerPersistenceTests
             if (LosePostResponse)
             {
                 LosePostResponse = false;
-                return Task.FromResult(ServiceResult<InboundPostResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "模拟响应丢失"));
+                return Task.FromResult(ServiceResult<InboundPostResult>.Fail(InboundErrorCodes.OutcomeUnknown, "模拟响应丢失"));
             }
             return Task.FromResult(ServiceResult<InboundPostResult>.Ok(result));
         }

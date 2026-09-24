@@ -1,7 +1,6 @@
-using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
@@ -50,9 +49,9 @@ public sealed partial class InboundManagerViewModel
     private async Task<ServiceResult<InboundDraftCommandResult>> SendReverseAsync(InboundPendingWrite pending)
     {
         var result = await _persistence!.ReverseAsync(pending.DocumentId, pending.Reverse!, CancellationToken.None);
-        if (!result.Success) return ServiceResult<InboundDraftCommandResult>.Fail(result.Error?.Code ?? ServiceErrorCodes.OutcomeUnknown, result.Message, result.Error?.Field);
+        if (!result.Success) return ServiceResult<InboundDraftCommandResult>.Fail(result.Error?.Code ?? InboundErrorCodes.OutcomeUnknown, result.Message, result.Error?.Field);
         if (result.Data is null || result.Data.PostingStatus != InboundPostingStatusEnum.Reversed || result.Data.ReversedDate == default)
-            return ServiceResult<InboundDraftCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "反过账响应不完整，请使用原命令确认。");
+            return ServiceResult<InboundDraftCommandResult>.Fail(InboundErrorCodes.OutcomeUnknown, "反过账响应不完整，请使用原命令确认。");
         pending.ReverseResult = result.Data;
         return ServiceResult<InboundDraftCommandResult>.Ok(new() { Uid = result.Data.Uid, Version = result.Data.Version, DocumentNo = result.Data.DocumentNo });
     }

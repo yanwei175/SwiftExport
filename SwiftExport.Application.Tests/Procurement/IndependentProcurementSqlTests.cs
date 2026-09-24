@@ -1,6 +1,4 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Dapper;
@@ -32,9 +30,9 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(context.Success, context.Message);
         Assert.IsTrue((await Db.ConfirmAsync(uid, ConfirmCommand(context.Data))).Success);
         var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
-        async Task<SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft.InboundDraftCommandResult> Draft(Guid site, decimal quantity)
+        async Task<SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundDraftCommandResult> Draft(Guid site, decimal quantity)
         {
-            var result = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.Inbounds.IInboundDraftService>()
+            var result = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
                 .CreateAsync(new() { CommandId = Guid.NewGuid(), Draft = new()
                 {
                     DocumentType = SwiftExport.Contracts.SysEnums.Inventory.InboundDocumentTypeEnum.PurchaseReceipt,
@@ -44,9 +42,9 @@ public sealed class IndependentProcurementSqlTests
             Assert.IsTrue(result.Success, result.Message);
             return result.Data!;
         }
-        async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting.InboundPostResult>> Post(
-            SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft.InboundDraftCommandResult draft) =>
-            await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.Inbounds.IInboundPostingService>()
+        async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundPostResult>> Post(
+            SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundDraftCommandResult draft) =>
+            await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
                 .PostAsync(draft.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = draft.Version }));
         var first = await Draft(Db.ReceiptSiteId, 4m);
         var second = await Draft(Db.ConsumptionSiteId, 6m);
@@ -60,7 +58,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(6m, await Balance(Db.ConsumptionSiteId));
         var excess = await Draft(Db.ReceiptSiteId, 1m);
         Assert.IsFalse((await Post(excess)).Success);
-        var reversed = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.Inbounds.IInboundReversalService>()
+        var reversed = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
             .ReverseAsync(second.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = secondPost.Data!.Version, Reason = "隔离测试反过账" }));
         Assert.IsTrue(reversed.Success, reversed.Message);
         Assert.AreEqual(4m, await Balance(Db.ReceiptSiteId));

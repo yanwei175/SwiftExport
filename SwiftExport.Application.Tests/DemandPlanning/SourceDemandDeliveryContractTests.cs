@@ -60,7 +60,7 @@ public sealed class SourceDemandDeliveryContractTests
         var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
         var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "MaterialDemandEstablishmentService.cs");
         var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandReceptionService.cs");
-        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.SourceExit.cs");
+        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
         StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
         StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, HOLDLOCK, ROWLOCK)");
         foreach (var forbidden in new[] { "DemandExecutionLink", "PurchaseOrder", "InboundDocument", "OutboundDocument", "PackingList" })

@@ -6,7 +6,7 @@ using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.WebApi.Controllers.Base;
-using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.WebApi.Filters;
 namespace SwiftExport.WebApi.Controllers.Systems;
 
 public class SysDicCurrencyController(ISysDicCurrencyService service) : BaseController<SysDicCurrency, SysDicCurrencyDto>(service)
