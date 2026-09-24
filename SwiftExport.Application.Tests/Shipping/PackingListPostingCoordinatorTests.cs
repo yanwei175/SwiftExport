@@ -1,5 +1,6 @@
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using System.Data;
 using System.Reflection;
 using System.Runtime.CompilerServices;

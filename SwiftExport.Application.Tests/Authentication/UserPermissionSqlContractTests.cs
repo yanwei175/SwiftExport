@@ -46,9 +46,9 @@ public sealed class UserPermissionSqlContractTests
     public void ProcurementConsumersUseSingleProjectionPoint()
     {
         var reads = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Support", "ProcurementOrderReadSupport.cs");
-        var warehouse = Read("SwiftExport.Application", "Services", "Inventory", "WarehouseCandidateQueryService.cs");
+        var warehouse = Read("SwiftExport.Application", "Services", "Inventory", "Warehouses", "WarehouseCandidateQueryService.cs");
         var procurementRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "ProcurementOrderDocumentRepository.cs");
-        var warehouseRepository = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseCandidateRepository.cs");
+        var warehouseRepository = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseCandidateRepository.cs");
         StringAssert.Contains(reads, "IUserPermissionService permissions");
         StringAssert.Contains(warehouse, "IUserPermissionService permissions");
         Assert.IsFalse(procurementRepository.Contains("SysUser_Roles", StringComparison.Ordinal));

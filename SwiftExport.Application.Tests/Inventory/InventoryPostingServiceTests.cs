@@ -1,5 +1,7 @@
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
+using SwiftExport.Application.Services.Inventory.Posting;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -12,6 +14,8 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Posting;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -355,7 +359,7 @@ public sealed class InventoryPostingServiceTests
         public InventoryCorrectionItem Correction(Guid originalId, decimal quantity) => new() { OriginalLedgerId = originalId, ReverseCommandItemId = Guid.NewGuid(), ReverseSourceDocumentType = "TestCorrection", ReverseSourceDocumentId = Guid.NewGuid(), ReverseSourceLineId = Guid.NewGuid(), ReverseSourceDocumentNoSnapshot = "CR-1", ReverseOccurredDate = new DateTime(2026, 9, 15), Reason = "测试纠错", Replacement = Item(quantity) };
     }
 
-    private sealed class InventoryRepositoryStub(Guid productId) : IInventoryRepository
+    private sealed class InventoryRepositoryStub(Guid productId) : IInventoryPostingRepository
     {
         private long _sequence;
         private long _snapshotSequence;
@@ -413,7 +417,7 @@ public sealed class InventoryPostingServiceTests
         public Task<InventoryReconciliationDto?> GetReconciliationAsync(Guid balanceId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
-    private sealed class WarehouseRepositoryStub(WarehouseSite warehouse) : IWarehouseSiteRepository
+    private sealed class WarehouseRepositoryStub(WarehouseSite warehouse) : IWarehouseManagementRepository
     {
         public Task<WarehouseSite?> GetForUpdateAsync(Guid uid) => Task.FromResult<WarehouseSite?>(uid == warehouse.Uid ? warehouse : null);
         public Task<PagedResponseBase<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>> GetPickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default) => throw new NotSupportedException();

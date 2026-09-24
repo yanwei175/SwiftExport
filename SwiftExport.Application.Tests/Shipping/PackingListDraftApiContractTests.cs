@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -56,7 +57,7 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListHead]");
         StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListLine]");
         Assert.IsFalse(baseline.Contains("PackingListDocument", StringComparison.Ordinal));
-        var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseSiteRepository.cs");
+        var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseManagementRepository.cs");
         // 箱单行已按确认方案移除仓库关联，实际库存仓库由流水保护，不能恢复旧行列依赖。
         foreach (var removed in new[] { "WarehouseSiteId", "WarehouseCodeSnapshot", "WarehouseNameSnapshot" })
             Assert.IsNull(typeof(SwiftExport.Core.Entities.Shipping.PackingListLine).GetProperty(removed));

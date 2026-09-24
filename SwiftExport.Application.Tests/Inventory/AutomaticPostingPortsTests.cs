@@ -1,5 +1,9 @@
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Core.Interfaces.Inventory.Outbounds;
+using SwiftExport.Core.Interfaces.Inventory.AutomaticDocuments;
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
+using SwiftExport.Application.Services.Inventory.Posting;
+using SwiftExport.Application.Services.Inventory.AutomaticDocuments;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
@@ -21,6 +25,8 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Posting;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -305,7 +311,7 @@ public sealed class AutomaticPostingPortsTests
             var wh = new WarehouseSite { Uid = WarehouseId, SupplierId = SupplierId, Code = "WH", Name = "仓库", IsActive = true };
             var product = new Product { Uid = ProductId, Sku = "SKU", Unit = "PCS" };
             var warehouse = Proxy<IRepository<WarehouseSite>>((_, _) => Task.FromResult<WarehouseSite?>(wh));
-            var inventoryRepo = Proxy<IInventoryRepository>((m, a) => m switch
+            var inventoryRepo = Proxy<IInventoryPostingRepository>((m, a) => m switch
             {
                 "AcquireCommandLockAsync" => Task.FromResult(0),
                 "LockLedgerByCommandItemAsync" => Task.FromResult(Ledgers.SingleOrDefault(x => x.CommandItemId == (Guid)a[0]!)),
@@ -361,7 +367,7 @@ public sealed class AutomaticPostingPortsTests
             _scope = new(context, auto, inRepo, executionReads, sourceRepo, outRepo, outReads, inventoryRepo, warehouse);
             var userId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
             var ports = new AutomaticPostingPorts(_scope, auto, inRepo, sourceRepo, executionReads, outRepo, outReads,
-                new InventoryPostingService(context, inventoryRepo, Proxy<IWarehouseSiteRepository>((_, _) => Task.FromResult<WarehouseSite?>(wh))),
+                new InventoryPostingService(context, inventoryRepo, Proxy<IWarehouseManagementRepository>((_, _) => Task.FromResult<WarehouseSite?>(wh))),
                 warehouse, inventoryRepo, Proxy<IBusinessOperationLogRepository>((m, a) => m switch
                 {
                     "GetByModuleCommandAsync" => Task.FromResult(Logs.GetValueOrDefault((Guid)a[1]!)),

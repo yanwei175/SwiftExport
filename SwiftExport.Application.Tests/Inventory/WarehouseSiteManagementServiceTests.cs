@@ -1,24 +1,34 @@
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Commands;
+using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Inventory;
+using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Models.Auth;
 using SwiftExport.Application.Services.Inventory;
+using SwiftExport.Application.Services.Inventory.Warehouses;
+using SwiftExport.Application.Services.Inventory.Warehouses.Validation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
+using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -35,9 +45,9 @@ public sealed class WarehouseSiteManagementServiceTests
         var noRead = new Fixture(hasReadPermission: false);
         var readOnly = new Fixture(hasManagePermission: false, hasReadPermission: true);
 
-        var anonymousResult = await anonymous.Service.GetWarehousePickerPagedAsync(new PagedRequestBase());
-        var noReadResult = await noRead.Service.GetWarehousePickerPagedAsync(new PagedRequestBase());
-        var allowedResult = await readOnly.Service.GetWarehousePickerPagedAsync(new PagedRequestBase());
+        var anonymousResult = await anonymous.Query.GetWarehousePickerPagedAsync(new PagedRequestBase());
+        var noReadResult = await noRead.Query.GetWarehousePickerPagedAsync(new PagedRequestBase());
+        var allowedResult = await readOnly.Query.GetWarehousePickerPagedAsync(new PagedRequestBase());
 
         Assert.IsFalse(anonymousResult.Success);
         Assert.IsFalse(noReadResult.Success);
@@ -281,6 +291,104 @@ public sealed class WarehouseSiteManagementServiceTests
         Assert.AreEqual(1, fixture.Logs.InsertCount);
     }
 
+    /// <summary>公共回执写入失败时同一事务必须回滚仓库写入和业务审计。</summary>
+    [TestMethod]
+    public async Task Create_ShouldRollbackWhenReceiptInsertFails()
+    {
+        var fixture = new Fixture();
+        fixture.Receipts.FailInsert = true;
+
+        var result = await fixture.Service.CreateSupplierVirtualWarehouseAsync(CreateCommand(Guid.NewGuid(), "WH-01", "测试仓"));
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(0, fixture.Connection.Transactions.Single().Commits);
+        Assert.AreEqual(1, fixture.Connection.Transactions.Single().Rollbacks);
+        Assert.AreEqual(1, fixture.Warehouses.InsertCount);
+        Assert.AreEqual(1, fixture.Logs.InsertCount);
+        Assert.AreEqual(1, fixture.Receipts.InsertCount);
+    }
+
+    /// <summary>五种正式命令分别保存公共回执，审计只记录首次业务变更。</summary>
+    [TestMethod]
+    public async Task WarehouseCommands_ShouldStoreDistinctReceiptsAndSingleAuditPerCommand()
+    {
+        var create = new Fixture();
+        var created = await create.Service.CreateSupplierVirtualWarehouseAsync(CreateCommand(Guid.NewGuid(), "WH-C", "新仓"));
+        Assert.IsTrue(created.Success);
+        Assert.AreEqual(1, create.Receipts.InsertCount);
+        Assert.AreEqual(1, create.Logs.InsertCount);
+        Assert.IsNull(create.Logs.LastInserted?.RelatedObjectsJson);
+        Assert.IsFalse(create.Logs.LastInserted?.ChangedFieldsJson?.Contains("Fingerprint") ?? true);
+
+        var update = new Fixture();
+        var target = update.Warehouses.AddExisting("WH-U", "旧名");
+        var renamed = await update.Service.UpdateWarehouseSiteAsync(target.Uid, new UpdateWarehouseSiteCommand
+        {
+            CommandId = Guid.NewGuid(), ExpectedVersion = target.Version, Name = "新名"
+        });
+        Assert.IsTrue(renamed.Success);
+        Assert.AreEqual(1, update.Receipts.InsertCount);
+        Assert.AreEqual("WarehouseSite.Updated", update.Logs.LastInserted?.OperationType);
+
+        var deactivate = new Fixture();
+        target = deactivate.Warehouses.AddExisting("WH-D", "停用仓");
+        var stopped = await deactivate.Service.DeactivateWarehouseSiteAsync(target.Uid, new DeactivateWarehouseSiteCommand
+        {
+            CommandId = Guid.NewGuid(), ExpectedVersion = target.Version, Reason = "停用原因"
+        });
+        Assert.IsTrue(stopped.Success);
+        Assert.AreEqual(1, deactivate.Receipts.InsertCount);
+        Assert.AreEqual("WarehouseSite.Deactivated", deactivate.Logs.LastInserted?.OperationType);
+
+        var activate = new Fixture();
+        target = activate.Warehouses.AddExisting("WH-A", "启用仓", isActive: false);
+        var started = await activate.Service.ActivateWarehouseSiteAsync(target.Uid, ActivateCommand(Guid.NewGuid(), target.Version, "启用原因"));
+        Assert.IsTrue(started.Success);
+        Assert.AreEqual(1, activate.Receipts.InsertCount);
+        Assert.AreEqual("WarehouseSite.Activated", activate.Logs.LastInserted?.OperationType);
+
+        var delete = new Fixture();
+        target = delete.Warehouses.AddExisting("WH-X", "删除仓");
+        var removed = await delete.Service.DeleteWarehouseSiteAsync(target.Uid, new DeleteWarehouseSiteCommand
+        {
+            CommandId = Guid.NewGuid(), ExpectedVersion = target.Version, Reason = "删除原因"
+        });
+        Assert.IsTrue(removed.Success);
+        Assert.AreEqual(1, delete.Receipts.InsertCount);
+        Assert.AreEqual("WarehouseSite.Deleted", delete.Logs.LastInserted?.OperationType);
+    }
+
+    /// <summary>公共回执把操作者计入指纹，同一命令身份不能跨用户重放。</summary>
+    [TestMethod]
+    public async Task Create_ShouldRejectSameCommandIdFromDifferentUser()
+    {
+        var fixture = new Fixture();
+        var command = CreateCommand(Guid.NewGuid(), "WH-01", "测试仓");
+        Assert.IsTrue((await fixture.Service.CreateSupplierVirtualWarehouseAsync(command)).Success);
+        fixture.User.UserId = Guid.NewGuid();
+
+        var conflict = await fixture.Service.CreateSupplierVirtualWarehouseAsync(command);
+
+        Assert.IsFalse(conflict.Success);
+        Assert.AreEqual("COMMAND_CONFLICT", conflict.Error?.Code);
+        Assert.AreEqual(1, fixture.Warehouses.InsertCount);
+        Assert.AreEqual(1, fixture.Logs.InsertCount);
+    }
+
+    /// <summary>提交结果不明时返回专用错误，不把成功或失败臆断给调用方。</summary>
+    [TestMethod]
+    public async Task Create_ShouldReportUnknownOutcomeWhenCommitThrows()
+    {
+        var fixture = new Fixture();
+        fixture.Connection.ThrowOnCommit = true;
+
+        var result = await fixture.Service.CreateSupplierVirtualWarehouseAsync(CreateCommand(Guid.NewGuid(), "WH-01", "测试仓"));
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual("OUTCOME_UNKNOWN", result.Error?.Code);
+        Assert.AreEqual(1, fixture.Connection.Transactions.Single().Rollbacks);
+    }
+
     private static CreateSupplierVirtualWarehouseCommand CreateCommand(Guid commandId, string code, string name) => new()
     {
         CommandId = commandId, SupplierId = Guid.Parse("11111111-1111-1111-1111-111111111111"), Code = code, Name = name
@@ -298,20 +406,40 @@ public sealed class WarehouseSiteManagementServiceTests
             Connection = new ConnectionStub();
             Warehouses = new WarehouseRepositoryStub();
             Logs = new OperationLogRepositoryStub();
-            Service = new InventoryService(
-                new ServiceBaseContext(Session(Connection), NullLoggerFactory.Instance),
+            var context = new ServiceBaseContext(Session(Connection), NullLoggerFactory.Instance);
+            User = new CurrentUserStub(authenticated);
+            var permissions = new PermissionServiceStub(hasManagePermission, hasReadPermission);
+            Receipts = new ReceiptStub();
+            var validators = new ServiceCollection()
+                .AddSingleton<IValidator<CreateSupplierVirtualWarehouseCommand>, CreateSupplierVirtualWarehouseCommandValidator>()
+                .AddSingleton<IValidator<UpdateWarehouseSiteCommand>, UpdateWarehouseSiteCommandValidator>()
+                .AddSingleton<IValidator<DeactivateWarehouseSiteCommand>, DeactivateWarehouseSiteCommandValidator>()
+                .AddSingleton<IValidator<ActivateWarehouseSiteCommand>, ActivateWarehouseSiteCommandValidator>()
+                .AddSingleton<IValidator<DeleteWarehouseSiteCommand>, DeleteWarehouseSiteCommandValidator>()
+                .BuildServiceProvider();
+            var correlation = new CorrelationStub();
+            var pipeline = new CommandPipeline(new CommandRequestValidator(validators), correlation, User,
+                NullLogger<CommandPipeline>.Instance);
+            Query = new WarehouseQueryService(context, Warehouses, User, permissions);
+            Service = new WarehouseManagementService(
+                context,
                 Warehouses,
-                new InventoryRepositoryStub(),
+                Warehouses,
                 Logs,
-                new CorrelationStub(),
-                new CurrentUserStub(authenticated),
-                new PermissionServiceStub(hasManagePermission, hasReadPermission));
+                correlation,
+                User,
+                permissions,
+                pipeline,
+                new BusinessCommandExecutor(context, Receipts, User));
         }
 
-        public InventoryService Service { get; }
+        public WarehouseManagementService Service { get; }
+        public WarehouseQueryService Query { get; }
         public ConnectionStub Connection { get; }
         public WarehouseRepositoryStub Warehouses { get; }
         public OperationLogRepositoryStub Logs { get; }
+        public ReceiptStub Receipts { get; }
+        public CurrentUserStub User { get; }
     }
 
     private static DbSession Session(IDbConnection connection)
@@ -323,7 +451,7 @@ public sealed class WarehouseSiteManagementServiceTests
         return session;
     }
 
-    private sealed class WarehouseRepositoryStub : IWarehouseSiteRepository
+    private sealed class WarehouseRepositoryStub : IWarehouseQueryRepository, IWarehouseManagementRepository
     {
         private WarehouseSite? _site;
         public int InsertCount { get; private set; }
@@ -346,7 +474,6 @@ public sealed class WarehouseSiteManagementServiceTests
             return _site;
         }
 
-        public Task<int> AcquireCommandLockAsync(Guid commandId, CancellationToken cancellationToken = default) => Task.FromResult(0);
         public Task<WarehouseSupplierLookupDto?> GetActiveSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default)
             => Task.FromResult<WarehouseSupplierLookupDto?>(new WarehouseSupplierLookupDto { Uid = supplierId, SupplierCode = "S-01", SupplierName = "供应商甲" });
         public Task<WarehouseSite?> FindByCodeForUpdateAsync(string code) => Task.FromResult<WarehouseSite?>(null);
@@ -409,6 +536,24 @@ public sealed class WarehouseSiteManagementServiceTests
             => Task.FromResult<IReadOnlyList<BusinessOperationTraceItemDto>>([]);
     }
 
+    /// <summary>在替身事务中保存公共命令回执，验证重放不依赖业务审计。</summary>
+    private sealed class ReceiptStub : ICommandReceiptRepository
+    {
+        private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
+        public bool FailInsert { get; set; }
+        public int InsertCount { get; private set; }
+        public Task<int> LockAsync(Guid commandId, CancellationToken token) => Task.FromResult(0);
+        public Task<CommandReceipt?> FindAsync(Guid commandId, CancellationToken token) =>
+            Task.FromResult(_receipts.GetValueOrDefault(commandId));
+        public Task InsertAsync(CommandReceipt receipt, CancellationToken token)
+        {
+            InsertCount++;
+            if (FailInsert) throw new InvalidOperationException("模拟回执写入失败");
+            _receipts.Add(receipt.CommandId, receipt);
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class PermissionServiceStub(bool manageAllowed, bool readAllowed) : IUserPermissionService
     {
         public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default)
@@ -427,35 +572,14 @@ public sealed class WarehouseSiteManagementServiceTests
     private sealed class CurrentUserStub(bool authenticated) : ICurrentUser
     {
         public string UserName => "仓库测试用户";
-        public Guid? UserId => Guid.Parse("22222222-2222-2222-2222-222222222222");
+        public Guid? UserId { get; set; } = Guid.Parse("22222222-2222-2222-2222-222222222222");
         public bool IsAuthenticated => authenticated;
     }
 
     private sealed class CorrelationStub : ICorrelationContext { public string CorrelationId => "warehouse-tests"; }
-    private sealed class InventoryRepositoryStub : IInventoryRepository
-    {
-        public Task<PagedResponseBase<InventoryBalanceDto>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<PagedResponseBase<InventoryLedgerItemDto>> SearchLedgerAsync(InventoryLedgerSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<InventoryBalanceDto?> GetBalanceDtoAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<PagedResponseBase<InventoryLedgerItemDto>> GetLedgerByBalanceAsync(Guid balanceId, int pageIndex, int pageSize, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<InventoryReconciliationDto?> GetReconciliationAsync(Guid balanceId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<InventoryBalance?> LockBalanceAsync(Guid warehouseSiteId, Guid productId) => throw new NotSupportedException();
-        public Task<InventoryLedgerEntry?> FindLedgerByCommandItemAsync(Guid commandItemId) => throw new NotSupportedException();
-        public Task<InventoryLedgerEntry?> LockLedgerByCommandItemAsync(Guid commandItemId) => throw new NotSupportedException();
-        public Task<InventoryLedgerEntry?> LockLedgerByIdAsync(Guid ledgerId) => throw new NotSupportedException();
-        public Task<InventoryLedgerEntry?> LockReversalByOriginalAsync(Guid originalLedgerId) => throw new NotSupportedException();
-        public Task<InventoryLedgerEntry?> LockReplacementByOriginalAsync(Guid originalLedgerId) => throw new NotSupportedException();
-        public Task<IReadOnlyList<InventoryLedgerEntry>> LockCorrectionGroupAsync(Guid correctionGroupId) => throw new NotSupportedException();
-        public Task<Product?> GetProductForPostingAsync(Guid productId) => throw new NotSupportedException();
-        public Task<int> AcquireCommandLockAsync(Guid commandId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<int> InsertBalanceAsync(InventoryBalance balance) => throw new NotSupportedException();
-        public Task<int> UpdateBalanceAsync(InventoryBalance balance, int expectedVersion) => throw new NotSupportedException();
-        public Task<long> NextLedgerSequenceAsync() => throw new NotSupportedException();
-        public Task<int> InsertLedgerAsync(InventoryLedgerEntry entry) => throw new NotSupportedException();
-    }
-
     private sealed class ConnectionStub : IDbConnection
     {
+        public bool ThrowOnCommit { get; set; }
         public List<TransactionStub> Transactions { get; } = [];
         public int BeginTransactionCount => Transactions.Count;
         public IDbTransaction BeginTransaction() => BeginTransaction(IsolationLevel.Unspecified);
@@ -478,11 +602,16 @@ public sealed class WarehouseSiteManagementServiceTests
 
     private sealed class TransactionStub(IDbConnection connection, IsolationLevel level) : IDbTransaction
     {
+        private readonly IDbConnection _connection = connection;
         public int Commits { get; private set; }
         public int Rollbacks { get; private set; }
         public IDbConnection? Connection { get; private set; } = connection;
         public IsolationLevel IsolationLevel { get; } = level;
-        public void Commit() => Commits++;
+        public void Commit()
+        {
+            if (_connection is ConnectionStub { ThrowOnCommit: true }) throw new InvalidOperationException("提交结果不明");
+            Commits++;
+        }
         public void Rollback() => Rollbacks++;
         public void Dispose() => Connection = null;
     }

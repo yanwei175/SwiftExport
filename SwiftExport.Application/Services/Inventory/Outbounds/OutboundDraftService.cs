@@ -14,11 +14,12 @@ using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 namespace SwiftExport.Application.Services.Inventory.Outbounds;
 
 /// <summary>维护人工出库草稿，由公共执行器提交草稿和业务审计。</summary>
-public sealed class OutboundDraftService(IOutboundQueryRepository queries, IOutboundDocumentRepository repository, IWarehouseSiteRepository warehouses,
+public sealed class OutboundDraftService(IOutboundQueryRepository queries, IOutboundDocumentRepository repository, IWarehouseManagementRepository warehouses,
     IBusinessOperationLogRepository logs, ICurrentUser user, IDocumentNoService numbers,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     OutboundServiceSupport support) : IOutboundDraftService

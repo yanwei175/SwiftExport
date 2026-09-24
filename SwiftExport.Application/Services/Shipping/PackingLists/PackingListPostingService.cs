@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using Mapster;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;

@@ -1,3 +1,7 @@
+using SwiftExport.Application.Services.Inventory.AutomaticDocuments;
+using SwiftExport.Application.Services.Inventory.Posting;
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
 // SwiftExport.Application/DependencyInjection.cs
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Contexts;
@@ -7,6 +11,8 @@ using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
 using SwiftExport.Application.Interfaces.Inventory.Outbounds;
+using SwiftExport.Application.Interfaces.Inventory.Warehouses;
+using SwiftExport.Application.Interfaces.Inventory.Query;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Mappings;
@@ -18,6 +24,8 @@ using SwiftExport.Application.Services.Procurement;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Application.Services.Inventory.Inbounds;
 using SwiftExport.Application.Services.Inventory.Outbounds;
+using SwiftExport.Application.Services.Inventory.Warehouses;
+using SwiftExport.Application.Services.Inventory.Query;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Application.Services.Suppliers;
 using SwiftExport.Application.Services.Systems;
@@ -108,7 +116,9 @@ public static class DependencyInjection
         services.AddScoped<AutomaticPostingPorts>();
         services.AddScoped<IInboundPostingPort>(sp => sp.GetRequiredService<AutomaticPostingPorts>());
         services.AddScoped<IOutboundPostingPort>(sp => sp.GetRequiredService<AutomaticPostingPorts>());
-        services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IWarehouseQueryService, WarehouseQueryService>();
+        services.AddScoped<IWarehouseManagementService, WarehouseManagementService>();
+        services.AddScoped<IInventoryQueryService, InventoryQueryService>();
         services.AddScoped<InboundServiceSupport>();
         services.AddScoped<IInboundQueryService, InboundQueryService>();
         services.AddScoped<IInboundSourceQueryService, InboundSourceQueryService>();

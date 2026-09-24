@@ -1,5 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Inventory;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
+using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Contracts.DTOs.Errors;

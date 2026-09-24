@@ -17,13 +17,14 @@ using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Services.Inventory;
 
 namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
 /// <summary>以公共命令入口原子处理人工入库草稿、审计和成功回执。</summary>
 public sealed class InboundDraftService(
-    IInboundDocumentRepository repository, IInboundExecutionReadRepository executionReads, IInboundSourceRepository sourceRepository, IWarehouseSiteRepository warehouses,
+    IInboundDocumentRepository repository, IInboundExecutionReadRepository executionReads, IInboundSourceRepository sourceRepository, IWarehouseManagementRepository warehouses,
     IBusinessOperationLogRepository logs, ICurrentUser user, IDocumentNoService numbers,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     InboundServiceSupport support) : IInboundDraftService

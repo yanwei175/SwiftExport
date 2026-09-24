@@ -11,6 +11,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Models.Auth;
 using SwiftExport.Application.Services.Inventory;
+using SwiftExport.Application.Services.Inventory.Warehouses;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -18,6 +19,7 @@ using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;

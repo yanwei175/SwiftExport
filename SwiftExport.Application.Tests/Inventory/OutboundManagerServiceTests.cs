@@ -1,5 +1,7 @@
 using System.Data;
 using System.Text.Json;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
+using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Entities.Systems;
@@ -27,6 +29,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 using SwiftExport.Infrastructure.Data;
 
@@ -258,7 +261,7 @@ public sealed partial class OutboundManagerServiceTests
         public string PostingUnit = "PCS";
         public decimal Balance = 100;
         public int PostCalls;
-        public IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem> PostedItems = [];
+        public IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryPostingItem> PostedItems = [];
         private decimal _postedDelta;
         public int CommandLockResult;
         public Exception? SaveFailure;
@@ -301,7 +304,7 @@ public sealed partial class OutboundManagerServiceTests
                 Proxy<IOutboundQueryRepository>(repositoryHandler),
                 Proxy<IOutboundDocumentRepository>(repositoryHandler),
                 Proxy<IOutboundExecutionReadRepository>(repositoryHandler),
-                Proxy<IWarehouseSiteRepository>((method, _) => method == "GetForUpdateAsync"
+                Proxy<IWarehouseManagementRepository>((method, _) => method == "GetForUpdateAsync"
                     ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = WarehouseId, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method)),
                 Proxy<IBusinessOperationLogRepository>((method, args) => method switch
                 {
@@ -319,9 +322,9 @@ public sealed partial class OutboundManagerServiceTests
                     if (FailNumber) throw new InvalidOperationException("模拟取号失败");
                     NumberCalls++;
                     return Task.FromResult(new DocumentSequence { DocType = (string)args[0]!, YearMonth = (string)args[1]!, CurrentNo = NumberCalls });
-                })), Proxy<SwiftExport.Application.Interfaces.Inventory.IInventoryPostingService>((method, args) =>
-                    method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!)
-                    : method == "ReverseAsync" ? ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryReverseItem>)args[1]!) : throw new NotSupportedException(method)),
+                })), Proxy<SwiftExport.Application.Interfaces.Inventory.Posting.IInventoryPostingService>((method, args) =>
+                    method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryPostingItem>)args[1]!)
+                    : method == "ReverseAsync" ? ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryReverseItem>)args[1]!) : throw new NotSupportedException(method)),
                 execution, correlation, pipeline);
         }
 
@@ -345,7 +348,7 @@ public sealed partial class OutboundManagerServiceTests
         };
         private Task MarkPosted() { Header!.Version++; Header.PostingStatus = OutboundPostingStatusEnum.Posted; return Task.CompletedTask; }
         /// <summary>模拟库存内核拒绝与事务回滚，验证 Application 不残留过账状态。</summary>
-        private Task<IReadOnlyList<SwiftExport.Contracts.DTOs.Inventory.InventoryPostingResultDto>> PostInventory(IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem> items)
+        private Task<IReadOnlyList<SwiftExport.Contracts.DTOs.Inventory.InventoryPostingResultDto>> PostInventory(IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryPostingItem> items)
         {
             Assert.IsNotNull(Session.Transaction);
             if (FailInventory) throw new InventoryPostingException("模拟库存拒绝");
@@ -408,7 +411,7 @@ public sealed partial class OutboundManagerServiceTests
         /// <summary>让四个服务共享同一请求级会话、仓储替身及命令执行器。</summary>
         public OutboundServices(ServiceBaseContext context, IOutboundQueryRepository queries,
             IOutboundDocumentRepository repository, IOutboundExecutionReadRepository executionReads,
-            IWarehouseSiteRepository warehouses, IBusinessOperationLogRepository logs, ICurrentUser user,
+            IWarehouseManagementRepository warehouses, IBusinessOperationLogRepository logs, ICurrentUser user,
             IUserPermissionService permissions, IDocumentNoService numbers, IInventoryPostingService inventory,
             BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline)
         {

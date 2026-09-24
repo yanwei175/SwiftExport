@@ -1,3 +1,5 @@
+using SwiftExport.Application.Services.Inventory.Posting;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Inventory;

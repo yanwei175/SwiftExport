@@ -1,5 +1,7 @@
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
+using SwiftExport.Application.Services.Inventory.Posting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Services.Inventory;

@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using System.Security.Cryptography;
 using System.Text;
 using SwiftExport.Application.Interfaces.Inventory;

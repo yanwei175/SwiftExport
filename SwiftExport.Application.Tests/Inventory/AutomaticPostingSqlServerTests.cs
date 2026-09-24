@@ -1,5 +1,8 @@
 using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 using SwiftExport.Infrastructure.Repositories.Inventory.Outbounds;
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
+using SwiftExport.Application.Services.Inventory.Posting;
+using SwiftExport.Application.Services.Inventory.AutomaticDocuments;
 using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -21,6 +24,9 @@ using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auditing;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Inventory;
+using SwiftExport.Infrastructure.Repositories.Inventory.Posting;
+using SwiftExport.Infrastructure.Repositories.Inventory.AutomaticDocuments;
+using SwiftExport.Infrastructure.Repositories.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Services.Auth;
 using SwiftExport.Application.Interfaces.Auth;
@@ -361,12 +367,12 @@ public sealed class AutomaticPostingSqlServerTests
             var sources = new InboundSourceRepository(_repository);
             var output = new OutboundDocumentRepository(_repository);
             var outputReads = new OutboundExecutionReadRepository(_repository);
-            var stocks = new InventoryRepository(_repository);
+            var stocks = new InventoryPostingRepository(_repository);
             var warehouses = new DapperRepository<WarehouseSite>(_repository);
             var auto = new AutomaticDocumentRepository(_repository);
             Scope = new(context, auto, input, executionReads, sources, output, outputReads, stocks, warehouses);
             var ports = new AutomaticPostingPorts(Scope, auto, input, sources, executionReads, output, outputReads,
-                new InventoryPostingService(context, stocks, new WarehouseSiteRepository(_repository)), warehouses, stocks,
+                new InventoryPostingService(context, stocks, new WarehouseManagementRepository(_repository)), warehouses, stocks,
                 new BusinessOperationLogRepository(_repository), new DocumentNoService(new DocumentSequenceRepository(_repository)), user);
             In = ports; Out = ports;
         }

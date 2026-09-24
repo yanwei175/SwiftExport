@@ -1,5 +1,6 @@
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
@@ -37,6 +38,7 @@ using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
+using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -411,7 +413,7 @@ public sealed partial class InboundManagerServiceTests
                 "SearchSourcesAsync" => Search(),
                 _ => PostingRepository(method, args)
             });
-            var warehouses = Proxy<IWarehouseSiteRepository>((method, _) => method == "GetForUpdateAsync"
+            var warehouses = Proxy<IWarehouseManagementRepository>((method, _) => method == "GetForUpdateAsync"
                 ? Task.FromResult<WarehouseSite?>(new WarehouseSite { Uid = WarehouseId, Code = "W", Name = "参考仓", IsActive = true }) : throw new NotSupportedException(method));
             var logs = Proxy<IBusinessOperationLogRepository>((method, args) => method switch
                 {
@@ -430,8 +432,8 @@ public sealed partial class InboundManagerServiceTests
                     NumberCalls++;
                     return Task.FromResult(new DocumentSequence { DocType = (string)args[0]!, YearMonth = (string)args[1]!, CurrentNo = NumberCalls });
                 }));
-            var inventoryPosting = Proxy<SwiftExport.Application.Interfaces.Inventory.IInventoryPostingService>((method, args) =>
-                method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryPostingItem>)args[1]!) : ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.InventoryReverseItem>)args[1]!));
+            var inventoryPosting = Proxy<SwiftExport.Application.Interfaces.Inventory.Posting.IInventoryPostingService>((method, args) =>
+                method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryPostingItem>)args[1]!) : ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryReverseItem>)args[1]!));
             var support = new InboundServiceSupport(user, permissions, NullLogger<InboundServiceSupport>.Instance);
             ReversalService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
             PostingService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);

@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using System.Data;
 using System.Text.Json;
 using SwiftExport.Application.Commands;
