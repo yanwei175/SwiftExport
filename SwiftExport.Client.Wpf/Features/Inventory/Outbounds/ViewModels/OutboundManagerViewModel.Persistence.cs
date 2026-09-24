@@ -186,7 +186,7 @@ public sealed partial class OutboundManagerViewModel
                 {
                     var code = result.Error?.Code;
                     var uncertain = code is null or OutboundErrorCodes.OutcomeUnknown or OutboundErrorCodes.CommandBusy
-                        or ServiceErrorCodes.Unexpected or ServiceErrorCodes.CommandConflict;
+                        or ServiceErrorCodes.Unexpected or ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.CommandConflict;
                     pending.WasUncertain |= uncertain;
                     if (!pending.WasUncertain)
                     {

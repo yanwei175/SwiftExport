@@ -1,4 +1,7 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExportClient.Features.Inventory.Inbounds.Services;

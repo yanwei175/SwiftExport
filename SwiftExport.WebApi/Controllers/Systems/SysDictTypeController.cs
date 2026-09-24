@@ -6,7 +6,7 @@ using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems;
 using SwiftExport.WebApi.Controllers.Base;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.RequestProtection;
 namespace SwiftExport.WebApi.Controllers.Systems;
 
 /// <summary>

@@ -6,7 +6,7 @@ using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.WebApi.Controllers.Base;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.RequestProtection;
 namespace SwiftExport.WebApi.Controllers.Customers;
 
 public class CustomerController(ICustomerService service) : BaseController<Customer, CustomerDto>(service)
@@ -17,7 +17,7 @@ public class CustomerController(ICustomerService service) : BaseController<Custo
 
 
     [HttpPost("batch-save")]
-    [PreventDuplicateRequest(WindowSeconds = 5)]
+    [PreventDuplicateRequest(WindowSeconds = 2)]
     public async Task<ServiceResult<CustomerBatchSaveResponse>> BatchSave([FromBody] CustomerBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
 

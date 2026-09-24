@@ -20,8 +20,5 @@ public interface IUserPermissionService
     Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>仅允许当前真实 Admin 原子替换普通用户的完整可分配权限集合。</summary>
-    Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(
-        Guid userId,
-        SaveUserModulePermissionsRequestDto request,
-        CancellationToken cancellationToken = default);
+    Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request, CancellationToken cancellationToken = default);
 }

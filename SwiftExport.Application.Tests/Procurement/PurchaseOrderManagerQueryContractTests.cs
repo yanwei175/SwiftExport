@@ -10,8 +10,9 @@ public sealed class PurchaseOrderManagerQueryContractTests
     [TestMethod]
     public void Controller_MustExposeManagerQueriesWithoutDuplicatingCommands()
     {
-        var manager = Read("SwiftExport.WebApi", "Controllers", "Procurement", "PurchaseOrderManagerController.cs");
-        var orders = Read("SwiftExport.WebApi", "Controllers", "Procurement", "ProcurementOrderController.cs");
+        var manager = Read("SwiftExport.WebApi", "Controllers", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryController.cs");
+        var orders = Read("SwiftExport.WebApi", "Controllers", "Procurement", "PurchaseOrders", "Confirmation", "ProcurementOrderConfirmationController.cs")
+            + Read("SwiftExport.WebApi", "Controllers", "Procurement", "PurchaseOrders", "Reversal", "ProcurementOrderReversalController.cs");
 
         StringAssert.Contains(manager, "api/procurement/order-manager");
         StringAssert.Contains(manager, "[HttpPost(\"search\")]");
@@ -26,7 +27,7 @@ public sealed class PurchaseOrderManagerQueryContractTests
     [TestMethod]
     public void RepositorySql_MustUseLatestProgressTraceableReceiptFactsAndMultiStatusFilters()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderManagerQueryRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryRepository.cs");
 
         Assert.IsFalse(repository.Contains("ExecutionModel", StringComparison.Ordinal));
         StringAssert.Contains(repository, "h.ConfirmationStatus IN @ConfirmationStatuses");
@@ -38,7 +39,7 @@ public sealed class PurchaseOrderManagerQueryContractTests
         StringAssert.Contains(repository, "FROM dbo.SupplierProgressReport");
         StringAssert.Contains(repository, "receiveHead.DocumentType=@PurchaseReceipt");
         StringAssert.Contains(repository, "receiveHead.PostingStatus IN @FormalPostingStatuses");
-        StringAssert.Contains(repository, "SUM(receiveLine.Quantity) AS ReceivedQty");
+        StringAssert.Contains(repository, "SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty");
         StringAssert.Contains(repository, "GROUP BY receiveLine.SourceLineId");
         StringAssert.Contains(repository, "LEFT JOIN ReceiptFacts receipt ON receipt.SourceLineId=l.Uid");
         StringAssert.Contains(repository, "存在无法定位采购行的正式采购入库历史");
@@ -54,8 +55,8 @@ public sealed class PurchaseOrderManagerQueryContractTests
     [TestMethod]
     public void ManagerQuery_MustRemainNarrowAndIsolatedFromLegacyWorkspace()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderManagerQueryRepository.cs");
-        var service = Read("SwiftExport.Application", "Services", "Procurement", "OrderManagement", "PurchaseOrderManagerQueryService.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryRepository.cs");
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryService.cs");
 
         Assert.IsFalse(repository.Contains("PurchaseOrderWorkspace", StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("dbo.DemandExecutionTrace", StringComparison.Ordinal));

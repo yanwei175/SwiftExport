@@ -2,7 +2,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Procurement;
-using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums.Inventory;
 
 namespace SwiftExport.Application.Tests.Procurement;
@@ -49,7 +48,7 @@ public sealed class ConfirmationDecouplingSqlTests
         await using var db = new IndependentProcurementSqlFixture();
         await db.InitializeAsync();
         async Task<SwiftExport.Contracts.Wrappers.ServiceResult<System.Collections.Generic.IReadOnlyList<SwiftExport.Contracts.DTOs.Inventory.InventoryPostingResultDto>>> Post(decimal qty) =>
-            await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderTransaction>().ExecuteAsync("Read", () =>
+            await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderReadSupport>().ReadConsistentAsync("Read", () =>
                 p.GetRequiredService<IInventoryPostingService>().PostAsync(Guid.NewGuid(), [new InventoryPostingItem
                 {
                     CommandItemId=Guid.NewGuid(), WarehouseSiteId=db.ReceiptSiteId, ProductId=db.ProductId,
@@ -68,7 +67,7 @@ public sealed class ConfirmationDecouplingSqlTests
         Assert.IsTrue(deleted.Success, deleted.Message);
         Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.InventoryLedgerEntry"));
         Assert.IsFalse((await Post(1)).Success);
-        var reversed = await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderTransaction>().ExecuteAsync("Read", () =>
+        var reversed = await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderReadSupport>().ReadConsistentAsync("Read", () =>
             p.GetRequiredService<IInventoryPostingService>().ReverseAsync(Guid.NewGuid(), [new InventoryReverseItem
             {CommandItemId=Guid.NewGuid(),OriginalLedgerId=outgoing.Data![0].LedgerId,SourceDocumentType="Test",SourceDocumentId=Guid.NewGuid(),SourceLineId=Guid.NewGuid(),Reason="验证原仓",OccurredDate=DateTime.Now}]), default));
         Assert.IsFalse(reversed.Success);

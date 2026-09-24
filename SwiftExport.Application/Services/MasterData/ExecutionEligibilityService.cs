@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using System.Data;
 using System.Text.Json;
 using SwiftExport.Application.Contexts;
@@ -25,11 +26,11 @@ public sealed class ExecutionEligibilityService(
         SetExecutionEligibilityStatusCommand command, CancellationToken cancellationToken = default)
     {
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } userId || userId == Guid.Empty)
-            return ServiceResult<ExecutionEligibilityStatusResult>.Fail("FORBIDDEN：需要真实有效的管理员身份。");
+            return ServiceResult<ExecutionEligibilityStatusResult>.Fail(ServiceErrorCodes.Unauthenticated, "需要真实有效的登录身份。");
         if (command == null || !Enum.IsDefined(typeof(ExecutionEligibilityKind), command.Kind)
             || command.Uid == Guid.Empty || command.ExpectedVersion <= 0 || command.ExpectedVersion == int.MaxValue
             || string.IsNullOrWhiteSpace(command.Reason) || command.Reason.Length > 500)
-            return ServiceResult<ExecutionEligibilityStatusResult>.Fail("INVALID_COMMAND：对象、版本和不超过500字的变更原因必填。");
+            return ServiceResult<ExecutionEligibilityStatusResult>.Fail(ServiceErrorCodes.Validation, "对象、版本和不超过500字的变更原因必填。");
         if (context.Session.Transaction != null)
             throw new InvalidOperationException("执行资格命令必须独立拥有业务事务。");
 
@@ -38,16 +39,16 @@ public sealed class ExecutionEligibilityService(
         try
         {
             if (!await repository.IsActiveAdministratorAsync(userId, cancellationToken))
-                return FailAndRollback("FORBIDDEN：账号或管理员授权已失效。");
+                return FailAndRollback(ServiceErrorCodes.Forbidden, "账号或管理员授权已失效。");
             var previous = await repository.GetForUpdateAsync(command.Kind, command.Uid, cancellationToken);
             if (previous == null)
-                return FailAndRollback("NOT_FOUND：主数据不存在或已删除。");
+                return FailAndRollback(ServiceErrorCodes.NotFound, "主数据不存在或已删除。");
             if (previous.Version != command.ExpectedVersion)
-                return FailAndRollback("CONCURRENCY_CONFLICT：资料版本已变化，请刷新后重试。");
+                return FailAndRollback(ServiceErrorCodes.VersionConflict, "资料版本已变化，请刷新后重试。");
             if (previous.IsActive == command.IsActive)
-                return FailAndRollback("STATE_UNCHANGED：目标资格与当前一致，无需重复变更。");
+                return FailAndRollback(ServiceErrorCodes.StateBlocked, "目标资格与当前一致，无需重复变更。");
             if (await repository.SetStatusAsync(command, cancellationToken) != 1)
-                return FailAndRollback("CONCURRENCY_CONFLICT：资格更新失败，请刷新后重试。");
+                return FailAndRollback(ServiceErrorCodes.VersionConflict, "资格更新失败，请刷新后重试。");
 
             var log = new BusinessOperationLog
             {
@@ -85,10 +86,10 @@ public sealed class ExecutionEligibilityService(
         }
 
         // 业务拒绝也必须结束事务，防止角色和主数据锁泄漏到同一请求的后续操作。
-        ServiceResult<ExecutionEligibilityStatusResult> FailAndRollback(string message)
+        ServiceResult<ExecutionEligibilityStatusResult> FailAndRollback(string code, string message)
         {
             transaction.Rollback();
-            return ServiceResult<ExecutionEligibilityStatusResult>.Fail(message);
+            return ServiceResult<ExecutionEligibilityStatusResult>.Fail(code, message);
         }
     }
 }

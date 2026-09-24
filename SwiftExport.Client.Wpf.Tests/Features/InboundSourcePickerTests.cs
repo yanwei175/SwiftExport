@@ -1,3 +1,5 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
+using SwiftExport.Contracts.Apis.Inventory.Inbounds;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
@@ -5,8 +7,6 @@ using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.Views;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using SwiftExport.Contracts.Apis.Inventory;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;

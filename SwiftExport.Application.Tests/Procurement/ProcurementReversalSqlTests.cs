@@ -25,7 +25,7 @@ public sealed class ProcurementReversalSqlTests
         var results = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid, command))));
         Assert.IsTrue(results.All(x => x.Success), string.Join(";", results.Select(x => x.Message)));
         Assert.AreEqual(results[0].Data!.Version, results[1].Data!.Version);
-        Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt WHERE CommandId=@CommandId", command));
+        Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt WHERE CommandId=@CommandId", command));
         Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.BusinessOperationLog WHERE CommandId=@CommandId", command));
         var stale = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid,
             new() { CommandId = Guid.NewGuid(), ExpectedVersion = created.Data.Version, Reason = "旧版本必须拒绝" }));
@@ -170,6 +170,6 @@ public sealed class ProcurementReversalSqlTests
         Assert.IsFalse(result.Success);
         Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT LifecycleStatus FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
         Assert.AreEqual(created.Data.Version, await db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
-        Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt WHERE CommandId=@CommandId", command));
+        Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt WHERE CommandId=@CommandId", command));
     }
 }

@@ -9,7 +9,7 @@ namespace SwiftExport.Application.Tests.Shipping;
 [TestClass]
 public sealed class PackingListMixedPackingTests
 {
-    private static readonly MethodInfo Validate = typeof(PackingListService).GetMethod("ValidateLineInputs", BindingFlags.Static | BindingFlags.NonPublic)!;
+    private static readonly MethodInfo Validate = typeof(SwiftExport.Application.Services.Shipping.PackingLists.PackingListDraftService).GetMethod("ValidateLineInputs", BindingFlags.Static | BindingFlags.NonPublic)!;
     private static PackingListDraftLineInput Row(int n, Guid? group = null) => new()
     { Uid = Guid.NewGuid(), GrossDemandId = Guid.NewGuid(), LineNumber = n, Qty = 3, PackingGroupId = group };
     private static void Check(params PackingListDraftLineInput[] rows) => Validate.Invoke(null, [rows, Array.Empty<PackingListDeletedLineInput>()]);
@@ -51,7 +51,7 @@ public sealed class PackingListMixedPackingTests
     [TestMethod]
     public void GroupIdentityChangesFingerprint()
     {
-        var fingerprint = typeof(PackingListService).GetMethod("Fingerprint", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var fingerprint = typeof(SwiftExport.Application.Services.Shipping.PackingLists.PackingListDraftService).GetMethod("Fingerprint", BindingFlags.Static | BindingFlags.NonPublic)!;
         var row = Row(1);
         object?[] args = ["Update", Guid.NewGuid(), 1, null, new[] { row }, Array.Empty<PackingListDeletedLineInput>()];
         var old = fingerprint.Invoke(null, args);

@@ -186,13 +186,6 @@ namespace SwiftExport.Core.Entities.DemandPlanning
 namespace SwiftExport.Core.Entities.Procurement
 {
     [DbAppendOnly]
-    [DbCheck("CK_ProcurementCommandReceipt_Result", "ISJSON([ResultJson]) = 1")]
-    [DbIndex("UX_ProcurementCommandReceipt_Command", nameof(ProcurementCommandReceipt.CommandId), nameof(ProcurementCommandReceipt.Operation), IsUnique = true)]
-    [LogicalReference(nameof(ProcurementCommandReceipt.ActorUid), typeof(SysUser), IsRequired = true)]
-    [LogicalReference(nameof(ProcurementCommandReceipt.PurchaseOrderId), typeof(PurchaseOrderHead), IsRequired = true)]
-    public sealed partial class ProcurementCommandReceipt { }
-
-    [DbAppendOnly]
     [DbIndex("UX_PurchaseConfirmationLine_Command_Line", nameof(PurchaseConfirmationLine.CommandId), nameof(PurchaseConfirmationLine.PurchaseOrderLineId), IsUnique = true)]
     [LogicalReference(nameof(PurchaseConfirmationLine.PurchaseOrderId), typeof(PurchaseOrderHead), IsRequired = true)]
     [LogicalReference(nameof(PurchaseConfirmationLine.PurchaseOrderLineId), typeof(PurchaseOrderLine), IsRequired = true)]
@@ -310,7 +303,7 @@ namespace SwiftExport.Core.Entities.Shipping
     [DbCheck("CK_PackingListLine_Measures", "([PcsPerPackage] IS NULL OR [PcsPerPackage] > 0) AND ([PackageCount] IS NULL OR [PackageCount] >= 0) AND ([NwPerPackage] IS NULL OR [NwPerPackage] >= 0) AND ([GwPerPackage] IS NULL OR [GwPerPackage] >= 0) AND ([CbmPerPackage] IS NULL OR [CbmPerPackage] >= 0)")]
     [DbIndex("UX_PackingListLine_Head_Line", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.LineNumber), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_PackingListLine_GrossDemand", nameof(PackingListLine.GrossDemandId), nameof(PackingListLine.PackingListHeadId), Filter = "[IsDeleted] = 0")]
-    [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId))]
+    [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId), IncludeColumns = new[] { nameof(PackingListLine.LineNumber) })]
     [LogicalReference(nameof(PackingListLine.PackingListHeadId), typeof(PackingListHead), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.GrossDemandId), typeof(DemandPlanning.GrossDemand), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.ProductId), typeof(Product))]
