@@ -34,7 +34,7 @@ public sealed class MaterialDemandEstablishmentContractTests
     public void SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository()
     {
         var api = Read("SwiftExport.Contracts", "Apis", "DemandPlanning", "IGrossDemandWorkspaceApi.cs");
-        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "GrossDemandWorkspaceService.cs");
+        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Manual", "ManualGrossDemandService.cs");
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
 
         Assert.IsFalse(api.Contains("DecomposeAsync", StringComparison.Ordinal));

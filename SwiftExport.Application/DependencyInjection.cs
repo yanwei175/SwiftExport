@@ -1,3 +1,13 @@
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Manual;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Delivery;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Query;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Manual;
+using SwiftExport.Application.Services.DemandPlanning.Materials.SourceExit;
 using SwiftExport.Application.Services.Inventory.AutomaticDocuments;
 using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
@@ -75,7 +85,9 @@ public static class DependencyInjection
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
         services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
-        services.AddScoped<IGrossDemandWorkspaceService, GrossDemandWorkspaceService>();
+        services.AddScoped<IGrossDemandQueryService, GrossDemandQueryService>();
+        services.AddScoped<IManualGrossDemandService, ManualGrossDemandService>();
+        services.AddScoped<IMaterialDemandSourceExitService, MaterialDemandSourceExitService>();
         services.AddScoped<IMaterialDemandEstablishmentService, MaterialDemandEstablishmentService>();
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
         services.AddScoped<ISourceDeliveryService, SourceDeliveryService>();

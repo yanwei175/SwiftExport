@@ -1,7 +1,7 @@
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
 
 /// <summary>依据毛需求拆解历史，将来源取消划分为物理删除或作废留痕。</summary>
 internal static class SourceDemandCancellationPolicy

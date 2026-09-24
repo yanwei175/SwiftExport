@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Manual;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
@@ -13,73 +15,18 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Data;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Sources.Manual;
 
-/// <summary>管理来源需求本体查询和手工来源需求，不承担物料建立、回退或执行追溯。</summary>
-public sealed class GrossDemandWorkspaceService(
+/// <summary>维护手工来源需求，拥有现有创建、修改和关闭事务。</summary>
+public sealed class ManualGrossDemandService(
     ServiceBaseContext context,
     IGrossDemandRepository grossDemandRepository,
     IProductRepository productRepository,
     IDocumentNoService documentNoService,
-    IMaterialDemandEstablishmentService materialDemandEstablishment) : IGrossDemandWorkspaceService
+    IMaterialDemandSourceExitService materialDemandSourceExit) : IManualGrossDemandService
 {
     private readonly DbSession _session = context.Session;
-    private readonly ILogger<GrossDemandWorkspaceService> _logger = context.LoggerFactory.CreateLogger<GrossDemandWorkspaceService>();
-
-    /// <summary>查询来源需求本体分页，不投影物料或执行进度。</summary>
-    public async Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new GrossDemandSearchRequest();
-            if (request.SourceUid.HasValue) request.PageIndex = 1;
-            else
-            {
-                request.PageIndex = Math.Max(1, request.PageIndex);
-                request.PageSize = Math.Clamp(request.PageSize, 1, 200);
-            }
-            return ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Ok(await grossDemandRepository.SearchWorkspaceAsync(request, cancellationToken));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询来源需求失败。");
-            return ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Fail("查询来源需求失败。");
-        }
-    }
-
-    /// <summary>查询来源单导航分组，筛选口径只属于来源需求本体。</summary>
-    public async Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            request ??= new GrossDemandSourceGroupSearchRequest();
-            return ServiceResult<List<GrossDemandSourceGroupDto>>.Ok([.. await grossDemandRepository.SearchSourceGroupsAsync(request, cancellationToken)]);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询来源需求分组失败。");
-            return ServiceResult<List<GrossDemandSourceGroupDto>>.Fail("查询来源需求分组失败。");
-        }
-    }
-
-    /// <summary>读取单条来源需求本体详情。</summary>
-    public async Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
-    {
-        if (uid == Guid.Empty) return ServiceResult<GrossDemandDetailDto>.Fail("来源需求 Uid 不能为空。");
-        try
-        {
-            var detail = await grossDemandRepository.GetWorkspaceDetailAsync(uid, cancellationToken);
-            return detail is null ? ServiceResult<GrossDemandDetailDto>.Fail("未找到来源需求。") : ServiceResult<GrossDemandDetailDto>.Ok(detail);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加载来源需求 {Uid} 失败。", uid);
-            return ServiceResult<GrossDemandDetailDto>.Fail("加载来源需求失败。");
-        }
-    }
+    private readonly ILogger<ManualGrossDemandService> _logger = context.LoggerFactory.CreateLogger<ManualGrossDemandService>();
 
     /// <summary>建立一条没有上游业务单的手工来源需求。</summary>
     public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request)
@@ -114,7 +61,7 @@ public sealed class GrossDemandWorkspaceService(
             var demand = await grossDemandRepository.GetByIdForUpdateAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求不存在或已删除。");
             EnsureEditableManual(demand);
             if (demand.Version != request.Version) throw new GrossDemandValidationException("来源需求已被其他用户修改，请刷新后重试。");
-            if (await materialDemandEstablishment.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求仍有活动物料需求，请先从物料需求页回退。");
+            if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求仍有活动物料需求，请先从物料需求页回退。");
             await ApplyManualChangesAsync(demand, request.ProductId, request.IsNonStandard, request.LinkSku,
                 request.CustomerSku, request.Description, request.Color, request.Specification, request.ImagePath,
                 request.DemandQty, request.RequiredDate, request.Remark);
@@ -132,7 +79,7 @@ public sealed class GrossDemandWorkspaceService(
             var demand = await grossDemandRepository.GetByIdForUpdateAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求不存在或已删除。");
             EnsureEditableManual(demand);
             if (demand.Version != command.Version) throw new GrossDemandValidationException("来源需求已被其他用户修改，请刷新后重试。");
-            if (await materialDemandEstablishment.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求已有活动物料需求，请先从物料需求页回退。");
+            if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求已有活动物料需求，请先从物料需求页回退。");
             EnsureWriteSucceeded(await grossDemandRepository.CloseManualAsync(uid, command.Version, reason));
             return await grossDemandRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已关闭，但重新加载失败。");
         }, "关闭手工来源需求失败");

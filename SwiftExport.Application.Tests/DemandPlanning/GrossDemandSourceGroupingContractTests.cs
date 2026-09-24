@@ -68,6 +68,8 @@ public sealed class GrossDemandSourceGroupingContractTests
         StringAssert.Contains(api, "GrossDemandSourceGroupSearchRequest request");
         StringAssert.Contains(controller, "[HttpPost(\"source-groups/search\")]");
         StringAssert.Contains(controller, "GrossDemandSourceGroupSearchRequest request");
+        StringAssert.Contains(controller, "IGrossDemandQueryService queryService");
+        StringAssert.Contains(controller, "IManualGrossDemandService manualService");
     }
 
     private static string Read(params string[] parts) =>

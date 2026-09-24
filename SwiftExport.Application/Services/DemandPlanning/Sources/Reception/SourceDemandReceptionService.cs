@@ -1,3 +1,8 @@
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -13,13 +18,13 @@ using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Data;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
 
 /// <summary>统一接收来源领域实物需求，并封装毛需求的幂等、版本和安全退出规则。</summary>
 public sealed class SourceDemandReceptionService(
     DbSession session,
     IGrossDemandRepository grossDemandRepository,
-    IMaterialDemandEstablishmentService materialDemandEstablishment,
+    IMaterialDemandSourceExitService materialDemandSourceExit,
     ISourceDeliveryService sourceDeliveryService,
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlationContext,
@@ -168,7 +173,7 @@ public sealed class SourceDemandReceptionService(
         IReadOnlyCollection<GrossDemand> demands)
     {
         var ids = demands.Select(item => item.Uid).OrderBy(id => id).ToArray();
-        var assessments = await materialDemandEstablishment.AssessSourceExitAsync(ids);
+        var assessments = await materialDemandSourceExit.AssessSourceExitAsync(ids);
         if (assessments.Count != ids.Length || ids.Any(id => !assessments.ContainsKey(id)))
             throw new SourceDemandReceptionException("SOURCE_HISTORY_INVALID",
                 "来源需求的物料历史评估不完整，不能退出确认。");

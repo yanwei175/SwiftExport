@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using SwiftExport.Core.Entities.DemandPlanning;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
 
 /// <summary>为来源需求的实物要求生成稳定指纹，不把来源单头技术版本当作实物变化。</summary>
 internal static class SourceDemandBasisFingerprintFactory

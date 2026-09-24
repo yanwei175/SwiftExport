@@ -65,7 +65,7 @@ public sealed class SalesSourceDemandContractTests
     [TestMethod]
     public void ReceptionLocksIdempotencyAndSourceRangesInsideCallerTransaction()
     {
-        var reception = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandReceptionService.cs");
+        var reception = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
         var demandRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
         var logRepository = Read("SwiftExport.Infrastructure", "Repositories", "Auditing", "BusinessOperationLogRepository.cs");
 

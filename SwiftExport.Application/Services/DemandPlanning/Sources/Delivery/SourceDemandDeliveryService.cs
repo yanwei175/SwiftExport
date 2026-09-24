@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Shipping;
@@ -6,7 +7,7 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Sources.Delivery;
 
 /// <summary>向需求计划 API 暴露 Shipping 的唯一来源交付实现，并执行模块权限校验。</summary>
 public sealed class SourceDemandDeliveryService(

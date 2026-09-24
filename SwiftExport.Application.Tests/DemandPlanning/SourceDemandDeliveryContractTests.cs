@@ -58,8 +58,8 @@ public sealed class SourceDemandDeliveryContractTests
         var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "NetDemandRepository.cs");
         var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
-        var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "MaterialDemandEstablishmentService.cs");
-        var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandReceptionService.cs");
+        var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "SourceExit", "MaterialDemandSourceExitService.cs");
+        var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
         var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.SourceExit.cs");
         StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
         StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, HOLDLOCK, ROWLOCK)");
@@ -80,8 +80,8 @@ public sealed class SourceDemandDeliveryContractTests
     [TestMethod]
     public void LegacySourceApiIsOneWayReadAdapter()
     {
-        var adapter = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandDeliveryService.cs");
-        var sourceInterface = Read("SwiftExport.Application", "Interfaces", "DemandPlanning", "ISourceDemandDeliveryService.cs");
+        var adapter = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Delivery", "SourceDemandDeliveryService.cs");
+        var sourceInterface = Read("SwiftExport.Application", "Interfaces", "DemandPlanning", "Sources", "Delivery", "ISourceDemandDeliveryService.cs");
         var afterSales = Read("SwiftExport.Application", "Services", "QualityControl", "AfterSalesService.cs");
         StringAssert.Contains(adapter, "ISourceDeliveryService delivery");
         Assert.IsFalse(sourceInterface.Contains("VerifyForUpdateAsync", StringComparison.Ordinal));

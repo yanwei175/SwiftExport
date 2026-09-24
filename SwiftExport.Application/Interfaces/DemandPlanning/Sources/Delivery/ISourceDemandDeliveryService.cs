@@ -1,7 +1,7 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.Wrappers;
 
-namespace SwiftExport.Application.Interfaces.DemandPlanning;
+namespace SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
 
 /// <summary>保留旧来源需求交付只读 API 的兼容边界，实际查询统一转发给 Shipping 交付服务。</summary>
 public interface ISourceDemandDeliveryService

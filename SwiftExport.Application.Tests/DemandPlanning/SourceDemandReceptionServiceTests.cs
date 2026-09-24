@@ -2,6 +2,11 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
+using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
+using SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
@@ -254,7 +259,7 @@ public sealed class SourceDemandReceptionServiceTests
     }
 
     /// <summary>模拟来源本体通过物料应用边界执行的退出与变更影响校验。</summary>
-    private sealed class FakeMaterialDemandEstablishmentService(FakeGrossDemandRepository repository) : IMaterialDemandEstablishmentService
+    private sealed class FakeMaterialDemandEstablishmentService(FakeGrossDemandRepository repository) : IMaterialDemandSourceExitService
     {
         public Dictionary<Guid, int> HistoryCounts { get; } = [];
         public Task<bool> HasActiveAsync(Guid grossDemandId) => Task.FromResult(repository.HasBlocker);
