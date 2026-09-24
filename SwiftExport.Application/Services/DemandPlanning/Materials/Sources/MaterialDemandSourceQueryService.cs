@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Sources;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Sources;
@@ -8,7 +9,7 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 namespace SwiftExport.Application.Services.DemandPlanning.Materials.Sources;
 
 /// <summary>提供待建立来源单分组及候选行只读查询。</summary>
-public sealed class MaterialDemandSourceQueryService(ServiceBaseContext context, INetDemandRepository netDemandRepository) : IMaterialDemandSourceQueryService
+public sealed class MaterialDemandSourceQueryService(ServiceBaseContext context, IMaterialDemandSourceRepository netDemandRepository) : IMaterialDemandSourceQueryService
 {
     private readonly ILogger<MaterialDemandSourceQueryService> _logger = context.LoggerFactory.CreateLogger<MaterialDemandSourceQueryService>();
 

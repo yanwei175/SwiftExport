@@ -3,7 +3,7 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.DemandPlanning;
 
-namespace SwiftExport.Core.Interfaces.DemandPlanning;
+namespace SwiftExport.Core.Interfaces.DemandPlanning.Materials.Execution;
 
 /// <summary>
 /// 净需求执行关系仓储接口。

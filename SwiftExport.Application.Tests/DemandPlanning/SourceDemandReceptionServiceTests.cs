@@ -20,6 +20,7 @@ using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.Infrastructure.Data;
@@ -306,7 +307,7 @@ public sealed class SourceDemandReceptionServiceTests
     }
 
     /// <summary>仅实现接收协议使用的仓储成员，其余成员禁止测试误调用。</summary>
-    private sealed class FakeGrossDemandRepository : IGrossDemandRepository
+    private sealed class FakeGrossDemandRepository : IGrossDemandDocumentRepository
     {
         public List<GrossDemand> Demands { get; } = [];
         public bool HasBlocker { get; set; }
@@ -323,9 +324,6 @@ public sealed class SourceDemandReceptionServiceTests
             demand.Version = expectedVersion + 1;
             return Task.FromResult(RepositoryWriteResult.Ok(demand.Uid, expectedVersion, demand.Version));
         }
-        public Task<PagedResponseBase<GrossDemandListItemDto>> SearchWorkspaceAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion) => throw new NotSupportedException();
         public Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason) => throw new NotSupportedException();

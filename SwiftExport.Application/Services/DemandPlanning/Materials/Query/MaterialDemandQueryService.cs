@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
@@ -8,7 +9,7 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 namespace SwiftExport.Application.Services.DemandPlanning.Materials.Query;
 
 /// <summary>提供物料需求工作台和来源导航的只读查询。</summary>
-public sealed class MaterialDemandQueryService(ServiceBaseContext context, INetDemandRepository netDemandRepository) : IMaterialDemandQueryService
+public sealed class MaterialDemandQueryService(ServiceBaseContext context, IMaterialDemandQueryRepository netDemandRepository) : IMaterialDemandQueryService
 {
     private readonly ILogger<MaterialDemandQueryService> _logger = context.LoggerFactory.CreateLogger<MaterialDemandQueryService>();
 

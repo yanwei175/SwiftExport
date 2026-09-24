@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
@@ -8,7 +9,7 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Query;
 
 /// <summary>提供来源需求本体的列表、分组和详情只读查询。</summary>
-public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDemandRepository grossDemandRepository) : IGrossDemandQueryService
+public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDemandQueryRepository grossDemandRepository) : IGrossDemandQueryService
 {
     private readonly ILogger<GrossDemandQueryService> _logger = context.LoggerFactory.CreateLogger<GrossDemandQueryService>();
 

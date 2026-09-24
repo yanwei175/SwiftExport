@@ -1,21 +1,24 @@
+using SwiftExport.Core.Interfaces.DemandPlanning;
 using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
-using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using SwiftExport.Infrastructure.Contexts;
 using System.Data;
 
-namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
+namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Document;
 
-public sealed partial class NetDemandRepository(RepositoryBaseContext context) : INetDemandRepository
+/// <summary>在调用方事务中锁定、建立、修订和回退物料需求事实。</summary>
+public sealed class MaterialDemandDocumentRepository(RepositoryBaseContext context) : IMaterialDemandDocumentRepository
 {
     private readonly RepositoryBaseContext _context = context;
     private IDbConnection Connection => _context.Session.Connection;
     private IDbTransaction? Transaction => _context.Session.Transaction;
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<NetDemand>> GetActiveByGrossDemandForUpdateAsync(Guid grossDemandId)
     {
         var rows = await Connection.QueryAsync<NetDemand>(NetDemandSelect + @"
@@ -23,54 +26,6 @@ FROM [dbo].[NetDemand] nd WITH (UPDLOCK, ROWLOCK)
 WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[LifecycleStatus]=@Active AND nd.[IsDeleted]=0
 ORDER BY nd.[DecompositionRevision],nd.[LineNumber],nd.[Uid];",
             new { GrossDemandId = grossDemandId, Active = NetDemandLifecycleStatusEnum.Active }, Transaction);
-        return [.. rows];
-    }
-
-    /// <summary>
-    /// 按来源稳定身份聚合全部待建立来源行；不从分页候选结果二次去重，也不依赖来源兼容状态。
-    /// </summary>
-    public async Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
-        CancellationToken cancellationToken = default)
-    {
-        const string sql = @"
-SELECT d.[SourceType],d.[SourceUid],MAX(d.[SourceNo]) AS [SourceNo],COUNT(1) AS [CandidateCount]
-FROM [dbo].[GrossDemand] d
-WHERE d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
-  AND NOT EXISTS (
-      SELECT 1
-      FROM [dbo].[NetDemand] nd
-      WHERE nd.[GrossDemandId]=d.[Uid] AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
-GROUP BY d.[SourceType],d.[SourceUid]
-ORDER BY MAX(d.[SourceNo]),d.[SourceType],d.[SourceUid];";
-        var rows = await Connection.QueryAsync<SourceDemandCandidateGroupDto>(new CommandDefinition(
-            sql, transaction: Transaction, cancellationToken: cancellationToken));
-        return [.. rows];
-    }
-
-    /// <summary>
-    /// 使用来源类型与来源 Uid 双重边界完整返回一张来源单的待建立行，避免同号来源被误合并。
-    /// </summary>
-    public async Task<IReadOnlyList<SourceDemandCandidateDto>> GetSourceDemandCandidatesBySourceAsync(
-        string sourceType,
-        Guid sourceUid,
-        CancellationToken cancellationToken = default)
-    {
-        const string sql = @"
-SELECT d.[Uid] AS [GrossDemandId],d.[Version] AS [SourceDemandVersion],d.[SourceVersion],
-       d.[SourceType],d.[SourceUid],d.[SourceNo],d.[SourceLineId],d.[SourceLineNumber],
-       d.[SkuSnapshot] AS [Sku],d.[LinkSkuSnapshot] AS [LinkSku],d.[CustomerSkuSnapshot] AS [CustomerSku],
-       d.[DescriptionSnapshot] AS [Description],d.[ImagePathSnapshot] AS [ImagePath],d.[DemandQty],d.[RequiredDate]
-FROM [dbo].[GrossDemand] d
-WHERE d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid
-  AND d.[LifecycleStatus]=0 AND d.[IsDeleted]=0
-  AND NOT EXISTS (
-      SELECT 1
-      FROM [dbo].[NetDemand] nd
-      WHERE nd.[GrossDemandId]=d.[Uid] AND nd.[LifecycleStatus]=0 AND nd.[IsDeleted]=0)
-ORDER BY CASE WHEN d.[RequiredDate] IS NULL THEN 1 ELSE 0 END,d.[RequiredDate],d.[SourceLineNumber],d.[Uid];";
-        var rows = await Connection.QueryAsync<SourceDemandCandidateDto>(new CommandDefinition(
-            sql, new { SourceType = sourceType, SourceUid = sourceUid }, Transaction,
-            cancellationToken: cancellationToken));
         return [.. rows];
     }
 
@@ -124,6 +79,7 @@ ORDER BY sourceIds.[GrossDemandId];";
     }
 
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<RepositoryWriteResult>> AddDecompositionAsync(IEnumerable<NetDemand> demands)
     {
         var results = new List<RepositoryWriteResult>();
@@ -189,6 +145,7 @@ WHERE [Uid]=@NetDemandId AND [Version]=@ExpectedVersion
                 Active = NetDemandLifecycleStatusEnum.Active
             }, Transaction);
 
+    /// <inheritdoc/>
     public Task<int> RollbackRevisionAsync(Guid grossDemandId, int revision, string reason)
         => Connection.ExecuteAsync(@"
 UPDATE [dbo].[NetDemand]
@@ -210,5 +167,50 @@ SELECT nd.[Uid],nd.[Version],nd.[IsDeleted],nd.[CreatedDate],nd.[CreatedBy],nd.[
        nd.[DescriptionSnapshot],nd.[ColorSnapshot],nd.[SpecificationSnapshot],
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[Remark],
        nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason] ";
+
+    /// <summary>先锁定有效来源，再按稳定行序读取并锁定同一物料树，供调用方事务复核。</summary>
+    public async Task<IReadOnlyList<NetDemand>> GetActiveFamilyForUpdateAsync(Guid netDemandId)
+    {
+        const string locatorSql = @"
+SELECT [GrossDemandId],[RootNetDemandId]
+FROM [dbo].[NetDemand] WITH (NOLOCK)
+WHERE [Uid]=@NetDemandId AND [LifecycleStatus]=@NetDemandActive AND [IsDeleted]=0;";
+        var locator = await Connection.QuerySingleOrDefaultAsync<FamilyLocator>(
+            locatorSql,
+            new { NetDemandId = netDemandId, NetDemandActive = SwiftExport.Contracts.SysEnums.NetDemandLifecycleStatusEnum.Active },
+            Transaction);
+        if (locator is null) return [];
+
+        const string grossLockSql = @"
+SELECT [Uid]
+FROM [dbo].[GrossDemand] WITH (UPDLOCK,HOLDLOCK)
+WHERE [Uid]=@GrossDemandId AND [LifecycleStatus]=@GrossDemandActive AND [IsDeleted]=0;";
+        var lockedGrossDemandId = await Connection.QuerySingleOrDefaultAsync<Guid?>(
+            grossLockSql,
+            new
+            {
+                locator.GrossDemandId,
+                GrossDemandActive = SwiftExport.Contracts.SysEnums.GrossDemandLifecycleStatusEnum.Active
+            }, Transaction);
+        if (!lockedGrossDemandId.HasValue) return [];
+        var rows = await Connection.QueryAsync<NetDemand>(NetDemandSelect + @"
+FROM [dbo].[NetDemand] nd WITH (UPDLOCK,HOLDLOCK)
+WHERE nd.[GrossDemandId]=@GrossDemandId AND nd.[RootNetDemandId]=@RootNetDemandId
+  AND nd.[LifecycleStatus]=@Active AND nd.[IsDeleted]=0
+ORDER BY nd.[LineNumber],nd.[Uid];",
+            new
+            {
+                locator.GrossDemandId,
+                locator.RootNetDemandId,
+                Active = SwiftExport.Contracts.SysEnums.NetDemandLifecycleStatusEnum.Active
+            }, Transaction);
+        return [.. rows];
+    }
+
+    private sealed class FamilyLocator
+    {
+        public Guid GrossDemandId { get; set; }
+        public Guid RootNetDemandId { get; set; }
+    }
 
 }

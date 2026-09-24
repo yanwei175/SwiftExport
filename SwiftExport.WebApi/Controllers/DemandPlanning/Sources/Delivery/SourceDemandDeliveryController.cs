@@ -8,7 +8,7 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 
-namespace SwiftExport.WebApi.Controllers.DemandPlanning;
+namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Delivery;
 
 /// <summary>暴露来源需求统一可交付只读边界；来源接收仍仅供单体内上游领域调用。</summary>
 [ApiController]

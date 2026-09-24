@@ -12,6 +12,10 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Execution;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Infrastructure.Data;
 
@@ -92,11 +96,11 @@ public sealed class PurchaseDraftSourceOrchestrationTests
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(Session, Connection);
             var context = new ServiceBaseContext(Session, NullLoggerFactory.Instance);
-            var gross = Proxy<IGrossDemandRepository>.New((method, args) => method.Name == "GetActiveBySourceForUpdateAsync"
+            var gross = Proxy<IGrossDemandDocumentRepository>.New((method, args) => method.Name == "GetActiveBySourceForUpdateAsync"
                 ? Task.FromResult<IReadOnlyList<GrossDemand>>((Guid)args[1]! == sourceId
                     ? [new GrossDemand { Uid = grossId }] : [])
                 : throw new AssertFailedException(method.Name));
-            var net = Proxy<INetDemandRepository>.New((method, _) => method.Name == "GetActiveByGrossDemandForUpdateAsync"
+            var net = Proxy<IMaterialDemandDocumentRepository>.New((method, _) => method.Name == "GetActiveByGrossDemandForUpdateAsync"
                 ? Task.FromResult<IReadOnlyList<NetDemand>>([new NetDemand { Uid = demandId, GrossDemandId = grossId }])
                 : throw new AssertFailedException(method.Name));
             var links = Proxy<INetDemandExecutionLinkRepository>.New((method, _) => method.Name switch
@@ -116,7 +120,8 @@ public sealed class PurchaseDraftSourceOrchestrationTests
                 : throw new AssertFailedException("重放不得写采购草稿：" + method.Name));
             var numbers = Proxy<IDocumentNoService>.New((method, _) =>
                 throw new AssertFailedException("重放不得取号：" + method.Name));
-            var preview = new PurchaseDraftPreviewService(context, net, orders,
+            var previewQuery = Proxy<IMaterialDemandQueryRepository>.New((method, _) => throw new AssertFailedException(method.Name));
+            var preview = new PurchaseDraftPreviewService(context, previewQuery, orders,
                 null!, null!, null!, null!, null!, null!, new PurchaseDraftPreviewBuilder());
             Service = new PurchaseDraftCreationService(context, gross, net, links, orders, numbers,
                 preview, new PurchaseDraftPreviewBuilder(), new PurchaseDraftWriteModelBuilder());

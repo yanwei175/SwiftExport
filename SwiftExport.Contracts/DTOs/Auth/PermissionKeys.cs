@@ -19,6 +19,10 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ModuleSalesAccess = "Module.Sales.Access";
         /// <summary>需求计划模块访问权限。</summary>
         public const string ModuleDemandPlanningAccess = "Module.DemandPlanning.Access";
+        /// <summary>物料需求整批建立权限，独立于模块访问及回退权限。</summary>
+        public const string DemandPlanningMaterialEstablish = "DemandPlanning.Material.Establish";
+        /// <summary>物料需求整批回退权限，独立于模块访问及建立权限。</summary>
+        public const string DemandPlanningMaterialRollback = "DemandPlanning.Material.Rollback";
         /// <summary>采购模块访问权限。</summary>
         public const string ModuleProcurementAccess = "Module.Procurement.Access";
         /// <summary>库存模块访问权限。</summary>
@@ -78,12 +82,14 @@ namespace SwiftExport.Contracts.DTOs.Auth
             .Concat(new[] { SystemSettingsManage, ProcurementOrderVoid })
             .Concat(ProcurementOperationValues)
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
+            .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
             .Concat(new[] { PackingListPost, PackingListReverse })
             .Concat(new[] { ProcurementOrderVoid })
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
+            .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback })
             .ToArray();
 
         /// <summary>获取允许管理员直接分配给普通用户的一级模块键。</summary>

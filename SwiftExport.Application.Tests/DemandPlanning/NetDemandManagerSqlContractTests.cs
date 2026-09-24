@@ -16,7 +16,7 @@ public sealed class NetDemandManagerSqlContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "NetDemandRepository.Manager.cs");
+            "Materials", "Query", "MaterialDemandQueryRepository.cs");
         var source = File.ReadAllText(sourcePath);
 
         StringAssert.Contains(source, "INTO #MaterialWorkspace");
@@ -45,11 +45,14 @@ public sealed class NetDemandManagerSqlContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "NetDemandRepository.Manager.cs");
+            "Materials", "Query", "MaterialDemandQueryRepository.cs");
         var source = File.ReadAllText(sourcePath);
         var managerQuery = source.Split("SearchManagerAsync", StringSplitOptions.None)[1]
             .Split("SearchMaterialSourceGroupsAsync", StringSplitOptions.None)[0];
-        var purchaseCandidateQuery = source.Split("GetPurchaseCandidatesAsync", StringSplitOptions.None)[1]
+        var candidateSource = File.ReadAllText(Path.Combine(FindRepositoryRoot(),
+            "SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Sources",
+            "MaterialDemandSourceRepository.cs"));
+        var purchaseCandidateQuery = candidateSource.Split("GetPurchaseCandidatesAsync", StringSplitOptions.None)[1]
             .Split("PurchaseCandidatePurchaseFactsSql", StringSplitOptions.None)[0];
 
         StringAssert.Contains(managerQuery, "CASE WHEN nd.[DeliveryMode]=1");

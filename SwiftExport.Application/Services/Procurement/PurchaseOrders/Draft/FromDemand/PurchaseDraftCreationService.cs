@@ -1,3 +1,6 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Execution;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
@@ -25,8 +28,8 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.From
 /// <summary>需求转采购创建编排；每来源独立事务、来源内多供应商原子写入并允许跨来源部分成功。</summary>
 public sealed class PurchaseDraftCreationService(
     ServiceBaseContext context,
-    IGrossDemandRepository grossDemandRepository,
-    INetDemandRepository netDemandRepository,
+    IGrossDemandDocumentRepository grossDemandRepository,
+    IMaterialDemandDocumentRepository netDemandRepository,
     INetDemandExecutionLinkRepository executionLinkRepository,
     IPurchaseOrderDraftRepository purchaseDraftRepository,
     IDocumentNoService documentNoService,

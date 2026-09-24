@@ -1,3 +1,15 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Sources;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Execution;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Query;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Document;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Query;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Sources;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Document;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Execution;
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Core.Interfaces.Inventory.Outbounds;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,8 +105,11 @@ public static class DependencyInjection
         services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
         services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
         services.AddScoped<INetDemandExecutionLinkRepository, NetDemandExecutionLinkRepository>();
-        services.AddScoped<IGrossDemandRepository, GrossDemandRepository>();
-        services.AddScoped<INetDemandRepository, NetDemandRepository>();
+        services.AddScoped<IGrossDemandQueryRepository, GrossDemandQueryRepository>();
+        services.AddScoped<IGrossDemandDocumentRepository, GrossDemandDocumentRepository>();
+        services.AddScoped<IMaterialDemandQueryRepository, MaterialDemandQueryRepository>();
+        services.AddScoped<IMaterialDemandSourceRepository, MaterialDemandSourceRepository>();
+        services.AddScoped<IMaterialDemandDocumentRepository, MaterialDemandDocumentRepository>();
         services.AddScoped<IPurchaseOrderDraftRepository, PurchaseOrderDraftRepository>();
         // 新链的事务持久化、管理投影与严格 BOM 读取使用同一请求 DbSession。
         services.AddScoped<IProcurementOrderDocumentRepository, ProcurementOrderDocumentRepository>();

@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Sources;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Procurement;
@@ -10,7 +11,7 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Sources;
 /// <summary>只读取采购候选来源与物料需求，不承担预览或写入。</summary>
 public sealed class PurchaseDraftCandidateService(
     ServiceBaseContext context,
-    INetDemandRepository materialDemandFacts) : IPurchaseDraftCandidateService
+    IMaterialDemandSourceRepository materialDemandFacts) : IPurchaseDraftCandidateService
 {
     private readonly ILogger<PurchaseDraftCandidateService> _logger = context.LoggerFactory.CreateLogger<PurchaseDraftCandidateService>();
 

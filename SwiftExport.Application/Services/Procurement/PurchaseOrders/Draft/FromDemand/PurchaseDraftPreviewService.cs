@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
@@ -25,7 +26,7 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.From
 /// <summary>需求转采购预览用例；只读构造预览并为来源事务复核锁定事实。</summary>
 public sealed class PurchaseDraftPreviewService(
     ServiceBaseContext context,
-    INetDemandRepository netDemandRepository,
+    IMaterialDemandQueryRepository netDemandRepository,
     IPurchaseOrderDraftRepository purchaseDraftRepository,
     IProductRepository productRepository,
     ICustomerRepository customerRepository,

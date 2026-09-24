@@ -11,7 +11,10 @@ using SwiftExport.Application.Services.DemandPlanning.Materials.Sources;
 using SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSuggestion;
 using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 using SwiftExport.Application.Services.DemandPlanning.Materials.Reversal;
-using SwiftExport.WebApi.Controllers.DemandPlanning;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Query;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Establishment;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Reversal;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -28,19 +31,22 @@ public sealed class NetDemandManagerServiceRoutingTests
         var suggestion = DispatchProxy.Create<IMaterialDemandSupplierSuggestionService, ForwardingProbe>();
         var establishment = DispatchProxy.Create<IMaterialDemandEstablishmentService, ForwardingProbe>();
         var reversal = DispatchProxy.Create<IMaterialDemandReversalService, ForwardingProbe>();
-        var controller = new NetDemandManagerController(query, sources, suggestion, establishment, reversal);
+        var queryController = new MaterialDemandQueryController(query, sources);
+        var suggestionController = new MaterialDemandSupplierSuggestionController(suggestion);
+        var establishmentController = new MaterialDemandEstablishmentController(establishment);
+        var reversalController = new MaterialDemandReversalController(reversal);
 
         foreach (var method in typeof(IMaterialDemandQueryService).GetMethods())
-            VerifyForwarding(controller, method.Name, method, (ForwardingProbe)(object)query);
+            VerifyForwarding(queryController, method.Name, method, (ForwardingProbe)(object)query);
         foreach (var method in typeof(IMaterialDemandSourceQueryService).GetMethods())
-            VerifyForwarding(controller, method.Name, method, (ForwardingProbe)(object)sources);
-        VerifyForwarding(controller, nameof(IMaterialDemandSupplierSuggestionService.UpdateSuggestedPurchaseSupplierAsync),
+            VerifyForwarding(queryController, method.Name, method, (ForwardingProbe)(object)sources);
+        VerifyForwarding(suggestionController, nameof(IMaterialDemandSupplierSuggestionService.UpdateSuggestedPurchaseSupplierAsync),
             typeof(IMaterialDemandSupplierSuggestionService).GetMethod(nameof(IMaterialDemandSupplierSuggestionService.UpdateSuggestedPurchaseSupplierAsync))!,
             (ForwardingProbe)(object)suggestion);
-        VerifyForwarding(controller, nameof(NetDemandManagerController.EstablishFromSourcesAsync),
+        VerifyForwarding(establishmentController, nameof(MaterialDemandEstablishmentController.EstablishFromSourcesAsync),
             typeof(IMaterialDemandEstablishmentService).GetMethod(nameof(IMaterialDemandEstablishmentService.EstablishAsync))!,
             (ForwardingProbe)(object)establishment);
-        VerifyForwarding(controller, nameof(NetDemandManagerController.RollbackSourceEstablishmentAsync),
+        VerifyForwarding(reversalController, nameof(MaterialDemandReversalController.RollbackSourceEstablishmentAsync),
             typeof(IMaterialDemandReversalService).GetMethod(nameof(IMaterialDemandReversalService.RollbackAsync))!,
             (ForwardingProbe)(object)reversal);
 
@@ -52,7 +58,9 @@ public sealed class NetDemandManagerServiceRoutingTests
     {
         foreach (var name in new[] { "ReplacePlanAsync", "ApplyDefaultSupplierAsync", "BatchAssignSupplierAsync", "GetDetailAsync" })
         {
-            Assert.IsNull(typeof(NetDemandManagerController).GetMethod(name));
+            foreach (var controller in new[] { typeof(MaterialDemandQueryController), typeof(MaterialDemandSupplierSuggestionController),
+                typeof(MaterialDemandEstablishmentController), typeof(MaterialDemandReversalController) })
+                Assert.IsNull(controller.GetMethod(name));
             foreach (var port in new[] { typeof(IMaterialDemandQueryService), typeof(IMaterialDemandSourceQueryService),
                 typeof(IMaterialDemandSupplierSuggestionService), typeof(IMaterialDemandEstablishmentService), typeof(IMaterialDemandReversalService) })
                 Assert.IsNull(port.GetMethod(name));
@@ -83,7 +91,7 @@ public sealed class NetDemandManagerServiceRoutingTests
     }
 
     /// <summary>真实调用 Controller 并检查目标、所有参数及返回任务，避免只搜索源码文本。</summary>
-    private static void VerifyForwarding(NetDemandManagerController controller, string actionName, MethodInfo method, ForwardingProbe probe)
+    private static void VerifyForwarding(object controller, string actionName, MethodInfo method, ForwardingProbe probe)
     {
         using var cancellation = new CancellationTokenSource();
         var arguments = method.GetParameters().Select(parameter =>
@@ -92,7 +100,7 @@ public sealed class NetDemandManagerServiceRoutingTests
             parameter.ParameterType == typeof(string) ? "SO" :
             Activator.CreateInstance(parameter.ParameterType)).ToArray();
         var before = probe.CallCount;
-        var result = typeof(NetDemandManagerController).GetMethod(actionName)!.Invoke(controller, arguments);
+        var result = controller.GetType().GetMethod(actionName)!.Invoke(controller, arguments);
 
         Assert.AreEqual(before + 1, probe.CallCount, method.Name);
         Assert.AreEqual(method.Name, probe.MethodName);

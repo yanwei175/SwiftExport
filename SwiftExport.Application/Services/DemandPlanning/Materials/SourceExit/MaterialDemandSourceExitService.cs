@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
 using SwiftExport.Core.Interfaces.DemandPlanning;
@@ -6,7 +7,7 @@ using SwiftExport.Infrastructure.Data;
 namespace SwiftExport.Application.Services.DemandPlanning.Materials.SourceExit;
 
 /// <summary>在来源调用方事务内锁定物料事实，提供活动和退出历史证明。</summary>
-public sealed class MaterialDemandSourceExitService(ServiceBaseContext context, INetDemandRepository netDemandRepository) : IMaterialDemandSourceExitService
+public sealed class MaterialDemandSourceExitService(ServiceBaseContext context, IMaterialDemandDocumentRepository netDemandRepository) : IMaterialDemandSourceExitService
 {
     private readonly DbSession _session = context.Session;
 

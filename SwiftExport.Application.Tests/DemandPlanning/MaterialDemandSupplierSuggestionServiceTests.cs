@@ -11,6 +11,7 @@ using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
@@ -90,7 +91,7 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(Session, Connection);
-            var demands = DispatchProxy.Create<INetDemandRepository, NetDemandPort>();
+            var demands = DispatchProxy.Create<IMaterialDemandDocumentRepository, NetDemandPort>();
             NetDemandPort = (NetDemandPort)(object)demands;
             NetDemandPort.Row = Row;
             var suppliers = DispatchProxy.Create<ISupplierRepository, SupplierPort>();
@@ -118,9 +119,9 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
         /// <summary>记录读取和写入，任何新增依赖均要求测试显式处理。</summary>
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
         {
-            nameof(INetDemandRepository.GetActiveFamilyForUpdateAsync) =>
+            nameof(IMaterialDemandDocumentRepository.GetActiveFamilyForUpdateAsync) =>
                 Task.FromResult<IReadOnlyList<NetDemand>>([Row]),
-            nameof(INetDemandRepository.UpdateSuggestedPurchaseSupplierAsync) => Update(args),
+            nameof(IMaterialDemandDocumentRepository.UpdateSuggestedPurchaseSupplierAsync) => Update(args),
             _ => throw new NotSupportedException(method?.Name)
         };
 

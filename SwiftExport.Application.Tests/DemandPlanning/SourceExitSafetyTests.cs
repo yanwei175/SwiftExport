@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Services.DemandPlanning;
@@ -23,7 +24,7 @@ public sealed class SourceExitSafetyTests
         using var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
         var callerTransaction = DispatchProxy.Create<IDbTransaction, NoOpPort>();
         session.Transaction = callerTransaction;
-        var repository = DispatchProxy.Create<INetDemandRepository, ExitRepositoryPort>();
+        var repository = DispatchProxy.Create<IMaterialDemandDocumentRepository, ExitRepositoryPort>();
         var port = (ExitRepositoryPort)(object)repository;
         var service = new MaterialDemandSourceExitService(
             new ServiceBaseContext(session, NullLoggerFactory.Instance), repository);
@@ -55,7 +56,7 @@ public sealed class SourceExitSafetyTests
         /// <summary>仅接受退出核验调用，其他调用视为测试越界。</summary>
         protected override object? Invoke(MethodInfo? method, object?[]? args)
         {
-            if (method?.Name != nameof(INetDemandRepository.AssessSourceExitForUpdateAsync))
+            if (method?.Name != nameof(IMaterialDemandDocumentRepository.AssessSourceExitForUpdateAsync))
                 throw new NotSupportedException(method?.Name);
             CallCount++;
             return Task.FromResult(Assessments);

@@ -35,6 +35,10 @@ public sealed class UserPermissionServiceTests
         }, PermissionKeys.Modules.ToArray());
         CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.SystemSettingsManage);
         CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.InventoryWarehouseManage);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
+        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
         CollectionAssert.DoesNotContain(PermissionKeys.UserAssignable.ToList(), PermissionKeys.SystemSettingsManage);
     }
 
@@ -59,6 +63,36 @@ public sealed class UserPermissionServiceTests
         CollectionAssert.Contains(repository.LastModules.ToList(), PermissionKeys.InventoryWarehouseManage);
         Assert.IsNotNull(projection);
         CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.InventoryWarehouseManage);
+    }
+
+    /// <summary>两个物料操作键可分别保存和读取，需求模块访问不会自动展开为操作权限。</summary>
+    [TestMethod]
+    public async Task MaterialOperations_AreSavedReadAndIndependentOfModuleAccess()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.Facts[targetId] = Facts(targetId, false, [], []);
+        var service = Service(repository, actorId);
+        var saved = await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleDemandPlanningAccess, PermissionKeys.DemandPlanningMaterialEstablish]
+        });
+        var loaded = await service.GetUserModulesAsync(targetId);
+        var projection = await service.GetProjectionAsync(targetId);
+        Assert.IsTrue(saved.Success);
+        Assert.IsTrue(loaded.Success);
+        CollectionAssert.Contains(loaded.Data.ModulePermissions, PermissionKeys.DemandPlanningMaterialEstablish);
+        Assert.IsTrue(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialEstablish));
+        Assert.IsFalse(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialRollback));
+        CollectionAssert.DoesNotContain(projection!.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+
+        await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleDemandPlanningAccess, PermissionKeys.DemandPlanningMaterialRollback]
+        });
+        Assert.IsFalse(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialEstablish));
+        Assert.IsTrue(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialRollback));
     }
 
     /// <summary>普通用户保留历史细权限，采购模块只在唯一投影点展开为四个既有操作键。</summary>
@@ -102,6 +136,8 @@ public sealed class UserPermissionServiceTests
         Assert.IsTrue(projection.IsAdmin);
         CollectionAssert.AreEqual(PermissionKeys.All.ToArray(), projection.Permissions.ToArray());
         CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.SystemSettingsManage);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
     }
 
     /// <summary>非管理员不能读取或保存，未知键和设置管理键在进入事务前即被拒绝。</summary>

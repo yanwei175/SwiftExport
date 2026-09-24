@@ -198,7 +198,7 @@ public sealed class SettingsViewModelTests
         viewModel.Dispose();
     }
 
-    /// <summary>验证权限维护界面真实展示供应商虚拟仓独立管理能力。</summary>
+    /// <summary>验证权限维护界面展示仓库及两项独立物料命令的分配入口。</summary>
     [TestMethod]
     public void UserModules_ShouldExposeWarehouseManagementPermission()
     {
@@ -207,6 +207,10 @@ public sealed class SettingsViewModelTests
 
         Assert.IsTrue(viewModel.Modules.Any(option =>
             option.PermissionKey == PermissionKeys.InventoryWarehouseManage));
+        Assert.IsTrue(viewModel.Modules.Any(option =>
+            option.PermissionKey == PermissionKeys.DemandPlanningMaterialEstablish));
+        Assert.IsTrue(viewModel.Modules.Any(option =>
+            option.PermissionKey == PermissionKeys.DemandPlanningMaterialRollback));
 
         viewModel.Dispose();
     }

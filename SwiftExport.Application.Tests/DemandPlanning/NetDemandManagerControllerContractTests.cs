@@ -17,7 +17,7 @@ public sealed class NetDemandManagerControllerContractTests
             "SwiftExport.WebApi",
             "Controllers",
             "DemandPlanning",
-            "NetDemandManagerController.cs");
+            "Materials", "Query", "MaterialDemandQueryController.cs");
         var source = File.ReadAllText(controllerPath);
 
         StringAssert.Contains(source, "[HttpPost(\"material-source-groups\")]");

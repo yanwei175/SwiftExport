@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
@@ -23,7 +24,7 @@ namespace SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
 /// <summary>统一接收来源领域实物需求，并封装毛需求的幂等、版本和安全退出规则。</summary>
 public sealed class SourceDemandReceptionService(
     DbSession session,
-    IGrossDemandRepository grossDemandRepository,
+    IGrossDemandDocumentRepository grossDemandRepository,
     IMaterialDemandSourceExitService materialDemandSourceExit,
     ISourceDeliveryService sourceDeliveryService,
     IBusinessOperationLogRepository operationLogs,

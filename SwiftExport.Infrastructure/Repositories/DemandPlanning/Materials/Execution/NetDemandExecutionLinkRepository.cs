@@ -3,10 +3,10 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.DemandPlanning;
-using SwiftExport.Core.Interfaces.DemandPlanning;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Execution;
 using SwiftExport.Infrastructure.Contexts;
 
-namespace SwiftExport.Infrastructure.Repositories.DemandPlanning;
+namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Execution;
 
 /// <summary>
 /// 净需求执行关系仓储实现。
@@ -33,6 +33,7 @@ ORDER BY l.[CreatedDate],l.[Uid];",
         return [.. rows];
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds)
     {
@@ -50,6 +51,7 @@ ORDER BY l.[TargetType],l.[TargetNo],l.[TargetLineId];";
     }
 
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<DemandExecutionLink>> GetByCommandItemIdsForUpdateAsync(
         IEnumerable<Guid> commandItemIds)
     {
@@ -69,6 +71,7 @@ ORDER BY l.[CommandItemId],l.[Uid];";
         return [.. rows];
     }
 
+    /// <inheritdoc/>
     public async Task<int> InsertPurchaseLinksAsync(IEnumerable<DemandExecutionLink> links)
     {
         ArgumentNullException.ThrowIfNull(links);

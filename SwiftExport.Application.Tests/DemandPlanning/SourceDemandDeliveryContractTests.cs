@@ -19,7 +19,7 @@ public sealed class SourceDemandDeliveryContractTests
         Assert.AreEqual("/{grossDemandId}", methods[nameof(ISourceDemandDeliveryApi.GetAsync)]
             .GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
 
-        var controller = Read("SwiftExport.WebApi", "Controllers", "DemandPlanning", "SourceDemandDeliveryController.cs");
+        var controller = Read("SwiftExport.WebApi", "Controllers", "DemandPlanning", "Sources", "Delivery", "SourceDemandDeliveryController.cs");
         StringAssert.Contains(controller, "api/demand-planning/source-demands/delivery");
         StringAssert.Contains(controller, "[Authorize]");
         StringAssert.Contains(controller, "PermissionKeys.ModuleDemandPlanningAccess");
@@ -31,7 +31,7 @@ public sealed class SourceDemandDeliveryContractTests
     {
         var registration = Read("SwiftExport.Infrastructure", "DependencyInjection.cs");
         var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
-        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
         StringAssert.Contains(registration, "ISourceDeliveryQueryRepository");
         StringAssert.Contains(delivery, "dbo.PackingListLine");
         StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
@@ -55,8 +55,8 @@ public sealed class SourceDemandDeliveryContractTests
     [TestMethod]
     public void SourceExitSeparatesMaterialHistoryFromShippingDeliveryProof()
     {
-        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "NetDemandRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "MaterialDemandDocumentRepository.cs");
         var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
         var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "SourceExit", "MaterialDemandSourceExitService.cs");
         var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");

@@ -1,3 +1,5 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
@@ -21,7 +23,7 @@ namespace SwiftExport.Application.Services.DemandPlanning.Sources.Manual;
 /// <summary>维护手工来源需求，拥有现有创建、修改和关闭事务。</summary>
 public sealed class ManualGrossDemandService(
     ServiceBaseContext context,
-    IGrossDemandRepository grossDemandRepository,
+    IGrossDemandDocumentRepository grossDemandRepository, IGrossDemandQueryRepository grossDemandQueryRepository,
     IProductRepository productRepository,
     IDocumentNoService documentNoService,
     IMaterialDemandSourceExitService materialDemandSourceExit) : IManualGrossDemandService
@@ -50,7 +52,7 @@ public sealed class ManualGrossDemandService(
             if (!number.Success || number.Data is null) throw new GrossDemandValidationException(number.Message);
             demand.SourceNo = number.Data.DocumentNo;
             EnsureWriteSucceeded((await grossDemandRepository.AddSourceDemandsAsync([demand])).Single());
-            return await grossDemandRepository.GetWorkspaceDetailAsync(uid)
+            return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid)
                 ?? throw new GrossDemandValidationException("手工来源需求已创建，但重新加载失败。");
         }, "创建手工来源需求失败");
 
@@ -67,7 +69,7 @@ public sealed class ManualGrossDemandService(
                 request.CustomerSku, request.Description, request.Color, request.Specification, request.ImagePath,
                 request.DemandQty, request.RequiredDate, request.Remark);
             EnsureWriteSucceeded(await grossDemandRepository.UpdateManualAsync(demand, request.Version));
-            return await grossDemandRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已更新，但重新加载失败。");
+            return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已更新，但重新加载失败。");
         }, "更新手工来源需求失败");
 
     /// <summary>关闭尚无活动物料需求的手工来源需求并保留历史。</summary>
@@ -82,7 +84,7 @@ public sealed class ManualGrossDemandService(
             if (demand.Version != command.Version) throw new GrossDemandValidationException("来源需求已被其他用户修改，请刷新后重试。");
             if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求已有活动物料需求，请先从物料需求页回退。");
             EnsureWriteSucceeded(await grossDemandRepository.CloseManualAsync(uid, command.Version, reason));
-            return await grossDemandRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已关闭，但重新加载失败。");
+            return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已关闭，但重新加载失败。");
         }, "关闭手工来源需求失败");
 
     private async Task ApplyManualChangesAsync(GrossDemand demand, Guid? productId, bool isNonStandard,

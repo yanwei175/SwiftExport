@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SupplierSuggestion;
@@ -14,7 +15,7 @@ namespace SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSugg
 public sealed class MaterialDemandSupplierSuggestionService(
     ServiceBaseContext context,
     ISupplierRepository supplierRepository,
-    INetDemandRepository netDemandRepository) : IMaterialDemandSupplierSuggestionService
+    IMaterialDemandDocumentRepository netDemandRepository) : IMaterialDemandSupplierSuggestionService
 {
     private readonly DbSession _session = context.Session;
     private readonly ILogger<MaterialDemandSupplierSuggestionService> _logger =

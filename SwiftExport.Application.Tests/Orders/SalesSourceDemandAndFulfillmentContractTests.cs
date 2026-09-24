@@ -66,7 +66,7 @@ public sealed class SalesSourceDemandContractTests
     public void ReceptionLocksIdempotencyAndSourceRangesInsideCallerTransaction()
     {
         var reception = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
-        var demandRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
+        var demandRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
         var logRepository = Read("SwiftExport.Infrastructure", "Repositories", "Auditing", "BusinessOperationLogRepository.cs");
 
         StringAssert.Contains(reception, "TRANSACTION_REQUIRED");
