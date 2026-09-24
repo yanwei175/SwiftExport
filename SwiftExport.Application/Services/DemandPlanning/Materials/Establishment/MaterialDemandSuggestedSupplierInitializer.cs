@@ -1,7 +1,7 @@
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 
 /// <summary>根据建立时读取到的有效产品和供应商主数据，为物料需求写入一次性初始采购建议。</summary>
 public sealed class MaterialDemandSuggestedSupplierInitializer

@@ -1,13 +1,16 @@
+using SwiftExport.Application.Services.DemandPlanning.Policies;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment.Models;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 
 /// <summary>无数据库副作用的毛需求拆解计算器。</summary>
 public sealed class GrossDemandDecompositionPlanner
 {
+    /// <summary>依据来源快照、根产品和当前 BOM 生成建立计划，不写数据库。</summary>
     public GrossDemandDecompositionPlan BuildPlan(
         GrossDemand grossDemand,
         Product? rootProduct,
@@ -62,6 +65,7 @@ public sealed class GrossDemandDecompositionPlanner
         return BuildRootPlan(grossDemand, rootProduct, customerSuppliedLines, nextRevision);
     }
 
+    /// <summary>非标来源只形成一条采购型根物料需求，不引入库存供货推断。</summary>
     private static GrossDemandDecompositionPlan BuildNonStandardPlan(GrossDemand grossDemand, int revision)
     {
         var uid = SwiftExport.Contracts.Common.GuidSequentialGenerator.NewGuid();
@@ -91,6 +95,7 @@ public sealed class GrossDemandDecompositionPlanner
         ]);
     }
 
+    /// <summary>从标准根产品及直接客供子件生成物料行，保持原父子数量关系。</summary>
     private static GrossDemandDecompositionPlan BuildRootPlan(
         GrossDemand grossDemand,
         Product rootProduct,
@@ -162,6 +167,7 @@ public sealed class GrossDemandDecompositionPlanner
         return GrossDemandDecompositionPlan.Ok(rows);
     }
 
+    /// <summary>按 BOM 分子和分母换算子件数量，拒绝非正数量与比例。</summary>
     public static decimal CalculateComponentQty(decimal parentQty, int numerator, int denominator)
     {
         if (parentQty <= 0) throw new ArgumentOutOfRangeException(nameof(parentQty));
@@ -173,21 +179,3 @@ public sealed class GrossDemandDecompositionPlanner
     private sealed record CustomerSuppliedBomLine(Bom Line, Product Product);
 }
 
-public sealed class GrossDemandDecompositionPlan
-{
-    private GrossDemandDecompositionPlan(bool isValid, string? errorCode, string? errorMessage, IReadOnlyList<NetDemand> netDemands)
-    {
-        IsValid = isValid;
-        ErrorCode = errorCode;
-        ErrorMessage = errorMessage;
-        NetDemands = netDemands;
-    }
-
-    public bool IsValid { get; }
-    public string? ErrorCode { get; }
-    public string? ErrorMessage { get; }
-    public IReadOnlyList<NetDemand> NetDemands { get; }
-
-    public static GrossDemandDecompositionPlan Ok(IReadOnlyList<NetDemand> rows) => new(true, null, null, rows);
-    public static GrossDemandDecompositionPlan Fail(string code, string message) => new(false, code, message, []);
-}

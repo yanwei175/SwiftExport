@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
-using SwiftExport.Application.Services.DemandPlanning;
+using SwiftExport.Application.Services.DemandPlanning.Policies;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;

@@ -17,6 +17,11 @@ using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.DemandPlanning;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Sources;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Establishment;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Reversal;
 using SwiftExport.Application.Interfaces.Procurement;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
@@ -27,7 +32,11 @@ using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Customers;
-using SwiftExport.Application.Services.DemandPlanning;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Query;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Sources;
+using SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Reversal;
 using SwiftExport.Application.Services.Orders;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Services.Procurement;
@@ -88,7 +97,11 @@ public static class DependencyInjection
         services.AddScoped<IGrossDemandQueryService, GrossDemandQueryService>();
         services.AddScoped<IManualGrossDemandService, ManualGrossDemandService>();
         services.AddScoped<IMaterialDemandSourceExitService, MaterialDemandSourceExitService>();
+        services.AddScoped<IMaterialDemandQueryService, MaterialDemandQueryService>();
+        services.AddScoped<IMaterialDemandSourceQueryService, MaterialDemandSourceQueryService>();
+        services.AddScoped<IMaterialDemandSupplierSuggestionService, MaterialDemandSupplierSuggestionService>();
         services.AddScoped<IMaterialDemandEstablishmentService, MaterialDemandEstablishmentService>();
+        services.AddScoped<IMaterialDemandReversalService, MaterialDemandReversalService>();
         services.AddScoped<ISourceDemandReceptionService, SourceDemandReceptionService>();
         services.AddScoped<ISourceDeliveryService, SourceDeliveryService>();
         services.AddScoped<ISourceDemandDeliveryService, SourceDemandDeliveryService>();
@@ -106,8 +119,6 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseDraftPreviewService>(sp => sp.GetRequiredService<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>());
         services.AddScoped<IPurchaseDraftCreationService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftCreationService>();
         services.AddScoped<IPurchaseDraftCandidateService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Sources.PurchaseDraftCandidateService>();
-        // 物料事实统一进入 Manager，旧计划编辑服务不再注册。
-        services.AddScoped<INetDemandManagerService, NetDemandManagerService>();
         // 独立采购草稿和确认使用独立服务；查询与预览通过只读边界执行。
         services.AddScoped<SwiftExport.Application.Services.Procurement.PurchaseOrders.Support.ProcurementOrderReadSupport>();
         services.AddScoped<SwiftExport.Application.Services.Procurement.PurchaseOrders.Confirmation.ProcurementConfirmationBuilder>();

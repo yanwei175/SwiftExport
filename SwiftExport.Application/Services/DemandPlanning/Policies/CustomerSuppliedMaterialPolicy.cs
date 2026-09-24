@@ -1,13 +1,14 @@
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.MasterData;
 
-namespace SwiftExport.Application.Services.DemandPlanning;
+namespace SwiftExport.Application.Services.DemandPlanning.Policies;
 
 /// <summary>
 /// 客供件领域约束的唯一实现。客供件身份完全由 Product 决定，BOM 只表达父子用量关系。
 /// </summary>
 public static class CustomerSuppliedMaterialPolicy
 {
+    /// <summary>校验客供产品为采购型终端物料，不改变非客供产品规则。</summary>
     public static string? ValidateProduct(Product product, bool hasActiveBom)
     {
         ArgumentNullException.ThrowIfNull(product);
@@ -21,6 +22,7 @@ public static class CustomerSuppliedMaterialPolicy
         return null;
     }
 
+    /// <summary>阻止客供件作为 BOM 父件。</summary>
     public static string? ValidateBomParent(Product parent)
     {
         ArgumentNullException.ThrowIfNull(parent);
@@ -29,6 +31,7 @@ public static class CustomerSuppliedMaterialPolicy
             : null;
     }
 
+    /// <summary>校验 BOM 比例、子产品身份和客供件供货类型。</summary>
     public static string? ValidateBomLine(Bom line, Product child)
     {
         ArgumentNullException.ThrowIfNull(line);
@@ -46,6 +49,7 @@ public static class CustomerSuppliedMaterialPolicy
         return null;
     }
 
+    /// <summary>仅根据产品主数据中的物料类型识别客供件。</summary>
     public static bool IsCustomerSupplied(Product product)
         => string.Equals(product.MaterialType, MaterialTypesEnum.客供件, StringComparison.Ordinal);
 }

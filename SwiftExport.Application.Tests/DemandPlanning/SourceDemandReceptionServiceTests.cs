@@ -143,7 +143,7 @@ public sealed class SourceDemandReceptionServiceTests
         command.Items = [command.Items[0], fixture.Item(secondLineId)];
         await fixture.Service.ReceiveAsync(command);
         var historical = fixture.Repository.Demands.Single(item => item.SourceLineId == secondLineId);
-        fixture.MaterialEstablishment.HistoryCounts[historical.Uid] = 2;
+        fixture.MaterialSourceExit.HistoryCounts[historical.Uid] = 2;
 
         var result = await fixture.Service.CancelConfirmationAsync(
             "SO", fixture.SourceUid, [fixture.SourceLineId, secondLineId], "销售取消确认");
@@ -215,9 +215,9 @@ public sealed class SourceDemandReceptionServiceTests
             // DbSession 的正式构造会打开 SQL 连接；此处只需要非空事务标记来隔离验证协议逻辑。
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             Session.Transaction = _connection.BeginTransaction();
-            MaterialEstablishment = new FakeMaterialDemandEstablishmentService(Repository);
+            MaterialSourceExit = new FakeMaterialDemandSourceExitService(Repository);
             SourceDelivery = new FakeSourceDeliveryService();
-            Service = new SourceDemandReceptionService(Session, Repository, MaterialEstablishment, SourceDelivery, Logs, new Correlation(), new User());
+            Service = new SourceDemandReceptionService(Session, Repository, MaterialSourceExit, SourceDelivery, Logs, new Correlation(), new User());
             DeliveryService = CreateUnavailableDeliveryService();
         }
 
@@ -227,7 +227,7 @@ public sealed class SourceDemandReceptionServiceTests
         public Guid ProductId { get; } = Guid.NewGuid();
         public FakeGrossDemandRepository Repository { get; } = new();
         public FakeOperationLogs Logs { get; } = new();
-        public FakeMaterialDemandEstablishmentService MaterialEstablishment { get; }
+        public FakeMaterialDemandSourceExitService MaterialSourceExit { get; }
         public FakeSourceDeliveryService SourceDelivery { get; }
         public DbSession Session { get; }
         public SourceDemandReceptionService Service { get; }
@@ -259,7 +259,7 @@ public sealed class SourceDemandReceptionServiceTests
     }
 
     /// <summary>模拟来源本体通过物料应用边界执行的退出与变更影响校验。</summary>
-    private sealed class FakeMaterialDemandEstablishmentService(FakeGrossDemandRepository repository) : IMaterialDemandSourceExitService
+    private sealed class FakeMaterialDemandSourceExitService(FakeGrossDemandRepository repository) : IMaterialDemandSourceExitService
     {
         public Dictionary<Guid, int> HistoryCounts { get; } = [];
         public Task<bool> HasActiveAsync(Guid grossDemandId) => Task.FromResult(repository.HasBlocker);
@@ -273,8 +273,6 @@ public sealed class SourceDemandReceptionServiceTests
                     HasActiveRevision = repository.HasBlocker,
                     IsHistoryComplete = !repository.HasBlocker
                 }));
-        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsResult>> EstablishAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.EstablishMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsResult>> RollbackAsync(SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.RollbackMaterialDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     /// <summary>默认放行来源退出的 Shipping 测试边界。</summary>
