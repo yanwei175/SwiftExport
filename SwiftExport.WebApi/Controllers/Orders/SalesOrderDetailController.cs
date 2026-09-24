@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Interfaces.Orders.SalesOrders.Confirmation;
+using Microsoft.AspNetCore.Authorization;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.RequestProtection;
@@ -11,7 +13,7 @@ namespace SwiftExport.WebApi.Controllers.Orders;
 /// </summary>
 [ApiController]
 [Route("api/sales-orders/detail")]
-public sealed class SalesOrderDetailController(ISalesOrderDetailService service) : ControllerBase
+public sealed class SalesOrderDetailController(ISalesOrderDetailService service, ISalesOrderConfirmationService confirmations) : ControllerBase
 {
     /// <summary>返回指定销售订单的完整详情。</summary>
     [HttpGet("{uid:guid}")]
@@ -42,11 +44,12 @@ public sealed class SalesOrderDetailController(ISalesOrderDetailService service)
 
     /// <summary>确认销售订单并接收来源需求。</summary>
     [HttpPost("{uid:guid}/confirm")]
+    [Authorize]
     [PreventDuplicateRequest]
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(
         [FromRoute] Guid uid,
         [FromBody] ConfirmSalesOrderCommand request)
-        => service.ConfirmAsync(uid, request);
+        => confirmations.ConfirmAsync(uid, request);
 
     /// <summary>在下游历史安全时取消销售订单确认。</summary>
     [HttpPost("{uid:guid}/cancel-confirmation")]

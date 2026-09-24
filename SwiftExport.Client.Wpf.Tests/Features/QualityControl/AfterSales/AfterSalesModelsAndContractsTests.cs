@@ -351,11 +351,11 @@ public sealed class AfterSalesModelsAndContractsTests
         var service = new AfterSalesFeatureService(api, new PassThroughApiCallRunner());
         var command = new SaveAfterSalesCommand { Uid = api.SaveResult.Data.Uid, Version = 6 };
 
-        var result = await service.SaveAndConfirmAsync(command, false, Guid.NewGuid());
-
-        Assert.IsTrue(result.Save.Success);
-        Assert.IsNotNull(result.Confirm);
-        Assert.IsFalse(result.Confirm.Success);
+        var saved = await service.SaveAsync(command, false);
+        Assert.IsTrue(saved.Success);
+        var confirmed = await service.ConfirmAsync(command.Uid,
+            new ConfirmAfterSalesDemandCommand { CommandId = Guid.NewGuid(), Version = saved.Data.Version });
+        Assert.IsFalse(confirmed.Success);
         Assert.AreEqual(7, api.ConfirmedVersion);
         Assert.AreEqual(1, api.SaveCalls);
         Assert.AreEqual(1, api.ConfirmCalls);

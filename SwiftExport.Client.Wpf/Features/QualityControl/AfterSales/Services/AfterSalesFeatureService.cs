@@ -4,26 +4,19 @@ using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Features.QualityControl.AfterSales.Services;
 
-/// <summary>执行售后保存后确认的两阶段 API 协调，明确保留每阶段结果。</summary>
+/// <summary>按页面指定的阶段分别发送售后保存或确认请求，不生成命令身份。</summary>
 public sealed class AfterSalesFeatureService(IAfterSalesApi api, IApiCallRunner runner) : IAfterSalesFeatureService
 {
     /// <inheritdoc/>
-    public async Task<AfterSalesSaveAndConfirmResult> SaveAndConfirmAsync(
-        SaveAfterSalesCommand saveCommand,
-        bool create,
-        Guid confirmCommandId,
-        CancellationToken cancellationToken = default)
-    {
-        var saved = await runner.RunAsync(
-            () => create ? api.CreateAsync(saveCommand, cancellationToken) : api.SaveAsync(saveCommand.Uid, saveCommand, cancellationToken),
+    public Task<SwiftExport.Contracts.Wrappers.ServiceResult<AfterSalesCommandResult>> SaveAsync(
+        SaveAfterSalesCommand command, bool create, CancellationToken cancellationToken = default)
+        => runner.RunAsync(
+            () => create ? api.CreateAsync(command, cancellationToken) : api.SaveAsync(command.Uid, command, cancellationToken),
             cancellationToken, "保存售后服务单失败");
-        if (!saved.Success || saved.Data is null)
-            return new AfterSalesSaveAndConfirmResult { Save = saved };
-        var confirmed = await runner.RunAsync(
-            () => api.ConfirmDemandAsync(saveCommand.Uid, new ConfirmAfterSalesDemandCommand
-            {
-                CommandId = confirmCommandId, Version = saved.Data.Version
-            }, cancellationToken), cancellationToken, "确认实物需求失败");
-        return new AfterSalesSaveAndConfirmResult { Save = saved, Confirm = confirmed };
-    }
+
+    /// <inheritdoc/>
+    public Task<SwiftExport.Contracts.Wrappers.ServiceResult<AfterSalesCommandResult>> ConfirmAsync(
+        Guid uid, ConfirmAfterSalesDemandCommand command, CancellationToken cancellationToken = default)
+        => runner.RunAsync(() => api.ConfirmDemandAsync(uid, command, cancellationToken),
+            cancellationToken, "确认实物需求失败");
 }

@@ -2,6 +2,7 @@ using Dapper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.QualityControl;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Confirmation;
 using SwiftExport.Application.Tests.Procurement;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.SysEnums;
@@ -37,19 +38,19 @@ public sealed class AfterSalesSqlTests
         var command=Command();command.Header.CustomerComplaintNo="CLIENT-PACKING";
         var saved=await Call(s=>s.SaveAsync(command.Uid,command,true));Assert.IsTrue(saved.Success,saved.Message);
         var confirm=new ConfirmAfterSalesDemandCommand{CommandId=Guid.NewGuid(),Version=saved.Data.Version};
-        var confirmed=await Call(s=>s.ConfirmDemandAsync(command.Uid,confirm));Assert.IsTrue(confirmed.Success,confirmed.Message);
+        var confirmed=await ConfirmCall(s=>s.ConfirmDemandAsync(command.Uid,confirm));Assert.IsTrue(confirmed.Success,confirmed.Message);
         Assert.AreEqual(1,await fixture.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.GrossDemand WHERE SourceUid=@uid",new{uid=command.Uid}));
         var demandId=await fixture.ScalarAsync<Guid>("SELECT Uid FROM dbo.GrossDemand WHERE SourceUid=@uid",new{uid=command.Uid});
         var enrichment=await fixture.InScopeAsync(p=>p.GetRequiredService<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListQueryRepository>()
             .GetSourceEnrichmentsAsync([demandId]));
         Assert.AreEqual("CLIENT-PACKING",enrichment.Single().CustomerPoNo);
-        var replay=await Call(s=>s.ConfirmDemandAsync(command.Uid,confirm));Assert.IsTrue(replay.Data.AlreadyApplied);
+        var replay=await ConfirmCall(s=>s.ConfirmDemandAsync(command.Uid,confirm));Assert.IsTrue(replay.Data.AlreadyApplied);
         var blocked=await Call(s=>s.CloseAsync(command.Uid,new(){CommandId=Guid.NewGuid(),Version=confirmed.Data.Version,Reason="未完成"}));
         Assert.AreEqual("AFTERSALES_DELIVERY_QUERY_UNAVAILABLE",blocked.Error.Code);
         var cancelled=await Call(s=>s.CancelDemandConfirmationAsync(command.Uid,new(){CommandId=Guid.NewGuid(),Version=confirmed.Data.Version,Reason="修改"}));
         Assert.IsTrue(cancelled.Success,cancelled.Message);
         Assert.AreEqual(0,await fixture.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.GrossDemand WHERE SourceUid=@uid AND IsDeleted=0 AND LifecycleStatus=0",new{uid=command.Uid}));
-        var again=await Call(s=>s.ConfirmDemandAsync(command.Uid,new(){CommandId=Guid.NewGuid(),Version=cancelled.Data.Version}));
+        var again=await ConfirmCall(s=>s.ConfirmDemandAsync(command.Uid,new(){CommandId=Guid.NewGuid(),Version=cancelled.Data.Version}));
         Assert.IsTrue(again.Success,again.Message);
         // 模拟来源领域已经合法关闭；这是隔离库测试数据，不是售后服务的终止入口。
         await fixture.ExecuteAsync("UPDATE dbo.GrossDemand SET LifecycleStatus=8,Version=Version+1 WHERE SourceUid=@uid",new{uid=command.Uid});
@@ -89,7 +90,7 @@ public sealed class AfterSalesSqlTests
         var rejectedLine=c.AddedLines[1].Uid;
         // 仅在本测试库加入失败注入约束，验证事务回滚；不改任何业务库结构。
         await fixture.ExecuteAsync($"ALTER TABLE dbo.GrossDemand ADD CONSTRAINT CK_Test_RejectSecond CHECK(SourceLineId<>'{rejectedLine:D}')");
-        var confirmed=await Call(s=>s.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version}));
+        var confirmed=await ConfirmCall(s=>s.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version}));
         Assert.IsFalse(confirmed.Success);
         Assert.AreEqual(0,await fixture.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.GrossDemand WHERE SourceUid=@uid",new{uid=c.Uid}));
         Assert.AreEqual(0,await fixture.ScalarAsync<int>("SELECT ConfirmationStatus FROM dbo.AfterSalesHeader WHERE Uid=@uid",new{uid=c.Uid}));
@@ -126,7 +127,7 @@ public sealed class AfterSalesSqlTests
         var changed=await Call(s=>s.SaveAsync(c.Uid,edit,false));Assert.IsTrue(changed.Success,changed.Message);
         Assert.AreEqual("NEW-PART",await fixture.ScalarAsync<string>("SELECT CustomerSkuSnapshot FROM dbo.AfterSalesLine WHERE Uid=@uid",new{uid=line.Uid}));
         Assert.AreEqual(2,await fixture.ScalarAsync<int>("SELECT Version FROM dbo.AfterSalesLine WHERE Uid=@uid",new{uid=line.Uid}));
-        var confirmed=await Call(s=>s.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=changed.Data.Version}));
+        var confirmed=await ConfirmCall(s=>s.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=changed.Data.Version}));
         Assert.IsTrue(confirmed.Success,confirmed.Message);
         Assert.AreEqual(fixture.ComponentId,await fixture.ScalarAsync<Guid>("SELECT ProductId FROM dbo.GrossDemand WHERE SourceUid=@uid",new{uid=c.Uid}));
     }
@@ -141,4 +142,8 @@ public sealed class AfterSalesSqlTests
             var service=ActivatorUtilities.CreateInstance<AfterSalesService>(p,new ServiceBaseContext(p.GetRequiredService<DbSession>(),logger));
             return await action(service);
         });
+    /// <summary>SQL 夹具只更新确认服务接线；本轮没有业务库，不执行此测试类。</summary>
+    private Task<ServiceResult<AfterSalesCommandResult>> ConfirmCall(
+        Func<IAfterSalesConfirmationService,Task<ServiceResult<AfterSalesCommandResult>>> action)
+        => fixture.InScopeAsync(p => action(p.GetRequiredService<IAfterSalesConfirmationService>()));
 }

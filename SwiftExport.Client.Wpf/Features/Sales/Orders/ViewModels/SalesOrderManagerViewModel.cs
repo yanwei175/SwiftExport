@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
@@ -20,7 +21,7 @@ namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
 /// <summary>
 /// 销售订单 Manager 页面模型，负责列表筛选、选中预览和复用 Detail API 的快捷命令。
 /// </summary>
-public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsyncInitializable
+public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel
 {
     public const string RouteKey = "sales-orders";
     public const string DetailRouteKey = "sales-order-detail";
@@ -34,6 +35,10 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private readonly IMessageService _messageService;
     private CancellationTokenSource? _lineLoadCancellation;
     private bool _initialized;
+    // 不同订单的未决确认各自保留原请求，列表刷新和切换选中项不能改变命令身份。
+    private readonly Dictionary<Guid, ConfirmSalesOrderCommand> _pendingConfirmations = [];
+    // 按命令身份隔离未知结果，切单不继承其他命令的状态。
+    private readonly HashSet<Guid> _unknownConfirmationIds = [];
 
     /// <summary>注入 Manager 查询、Detail 命令及页面导航和反馈依赖。</summary>
     public SalesOrderManagerViewModel(
@@ -61,6 +66,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         RegisterBusyAwareCommand(OpenSelectedCommand);
         RegisterBusyAwareCommand(OpenFulfillmentDetailCommand);
         RegisterBusyAwareCommand(ConfirmSelectedCommand);
+        RegisterBusyAwareCommand(RetryPendingConfirmationCommand);
         RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(CloseSelectedCommand);
         RegisterBusyAwareCommand(DeleteDraftCommand);
@@ -68,6 +74,13 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     }
 
     public ObservableCollection<SalesOrderManagerListItemDto> Orders { get; } = [];
+    /// <summary>管理页仍以固定标题显示；未决确认借用页签关闭门禁保留重试入口。</summary>
+    public string DocumentTitle => "销售订单管理";
+    /// <summary>任一订单结果未知时禁止普通关闭管理页，以免丢失原命令身份。</summary>
+    public bool HasUnsavedChanges => _pendingConfirmations.Count > 0;
+    /// <summary>只有全部确认意图已取得确定结果，才允许关闭当前页面实例。</summary>
+    public Task<bool> CanCloseAsync(CancellationToken cancellationToken)
+        => Task.FromResult(!IsBusy && _pendingConfirmations.Count == 0);
     public ObservableCollection<SalesOrderDetailLineDto> SelectedOrderLines { get; } = [];
     public ObservableCollection<string> CustomerCodeOptions { get; } = [];
     public IReadOnlyList<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> DocumentStatusOptions { get; } =
@@ -266,27 +279,39 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private async Task ConfirmSelectedAsync()
     {
         var order = SelectedOrder;
-        if (order is null || !await _dialogService.ConfirmAsync(
+        if (order is null || (!_pendingConfirmations.ContainsKey(order.Uid) && !await _dialogService.ConfirmAsync(
                 "确认销售订单",
                 $"确认订单 {order.OrderNo} 后将生成毛需求，但不会拆解 BOM。是否继续？",
-                "确认"))
+                "确认")))
         {
             return;
         }
 
         await RunWriteAsync(async () =>
         {
+            if (!_pendingConfirmations.TryGetValue(order.Uid, out var request))
+                _pendingConfirmations[order.Uid] = request = CreateConfirmCommand(order);
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
             var result = await _apiCallRunner.RunAsync(
-                () => _detailApi.ConfirmAsync(order.Uid, CreateConfirmCommand(order)),
+                () => _detailApi.ConfirmAsync(request.Uid, request),
                 "确认销售订单失败");
             if (!result.Success || result.Data is null)
             {
+                if (!MustKeepConfirmationIntent(request.CommandId, result.Error?.Code))
+                    _pendingConfirmations.Remove(order.Uid);
+                OnPropertyChanged(nameof(HasUnsavedChanges));
+                RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
                 _messageService.ShowError("确认销售订单失败", result.Message);
                 return;
             }
 
+            _pendingConfirmations.Remove(order.Uid);
+            _unknownConfirmationIds.Remove(request.CommandId);
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
             _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。等待需求工作台拆解。");
-            await LoadPageAsync();
+            await LoadPageCoreAsync();
         }, "正在确认销售订单...");
     }
 
@@ -317,6 +342,34 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
                 $"{order.OrderNo}：删除 {result.Data.HardDeletedGrossDemandCount} 条，作废保留 {result.Data.VoidedGrossDemandCount} 条毛需求。");
             await LoadPageAsync();
         }, "正在取消确认...");
+    }
+
+    /// <summary>列表筛选或切单后仍可按保存的原目标、版本和命令标识重试最早的未决确认。</summary>
+    [RelayCommand(CanExecute = nameof(CanRetryPendingConfirmation))]
+    private async Task RetryPendingConfirmationAsync()
+    {
+        if (_pendingConfirmations.Count == 0) return;
+        var request = _pendingConfirmations.Values.First();
+        await RunWriteAsync(async () =>
+        {
+            var result = await _apiCallRunner.RunAsync(
+                () => _detailApi.ConfirmAsync(request.Uid, request), "重试销售订单确认失败");
+            if (!result.Success || result.Data is null)
+            {
+                if (!MustKeepConfirmationIntent(request.CommandId, result.Error?.Code))
+                    _pendingConfirmations.Remove(request.Uid);
+                OnPropertyChanged(nameof(HasUnsavedChanges));
+                RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
+                _messageService.ShowError("重试销售订单确认失败", result.Message);
+                return;
+            }
+            _pendingConfirmations.Remove(request.Uid);
+            _unknownConfirmationIds.Remove(request.CommandId);
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
+            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。");
+            await LoadPageCoreAsync();
+        }, "正在核实销售订单确认...");
     }
 
     [RelayCommand(CanExecute = nameof(CanCloseOrder))]
@@ -395,8 +448,12 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
 
     private async Task LoadPageAsync()
     {
-        await RunBusyAsync(async () =>
-        {
+        await RunBusyAsync(LoadPageCoreAsync, "正在加载销售订单...");
+    }
+
+    /// <summary>供独立查询和确认写命令共用的实际列表刷新，避免嵌套 Busy 跳过刷新。</summary>
+    private async Task LoadPageCoreAsync()
+    {
             _lineLoadCancellation?.Cancel();
             _lineLoadCancellation = null;
             SelectedOrderLines.Clear();
@@ -422,7 +479,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             PageIndex = result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
             SelectedOrder = Orders.FirstOrDefault();
             ResultSummary = $"共 {TotalCount} 张销售订单，本页 {Orders.Count} 张。";
-        }, "正在加载销售订单...");
+
     }
 
     private async Task LoadCustomerCodesAsync()
@@ -499,11 +556,24 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
 
     private bool CanRun() => IsNotBusy;
     private bool CanUseSelected() => IsNotBusy && SelectedOrder is not null;
-    private bool CanConfirm() => CanWrite && IsNotBusy && SelectedOrder is
+    private bool CanConfirm() => IsNotBusy && SelectedOrder is not null
+        && (_pendingConfirmations.ContainsKey(SelectedOrder.Uid) || CanWrite && SelectedOrder is
     {
         DocumentStatus: SalesOrderDocumentStatusEnum.Open,
         ConfirmationStatus: ConfirmationStatusEnum.待确认,
-    };
+    });
+    private bool CanRetryPendingConfirmation() => IsNotBusy && _pendingConfirmations.Count > 0;
+    /// <summary>限流和授权等前置拒绝不查询原回执，不能据此丢弃已有的未决订单确认。</summary>
+    private bool MustKeepConfirmationIntent(Guid commandId, string? code)
+    {
+        if (code is ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable)
+            _unknownConfirmationIds.Add(commandId);
+        var keep = _unknownConfirmationIds.Contains(commandId) && code is
+            ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.RateLimited
+            or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden or ServiceErrorCodes.ServiceUnavailable;
+        if (!keep) _unknownConfirmationIds.Remove(commandId);
+        return keep;
+    }
     private bool CanCancelConfirmation() => CanWrite && IsNotBusy && SelectedOrder is
     {
         DocumentStatus: SalesOrderDocumentStatusEnum.Open,

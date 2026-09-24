@@ -65,6 +65,7 @@
                     <Button Content="履约详情" Command="{Binding OpenFulfillmentDetailCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
 
                     <Button Content="确认订单" Command="{Binding ConfirmSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
+                    <Button Content="重试待确认" Command="{Binding RetryPendingConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
 
                     <ui:Button Content="取消确认"  Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}"/>
 

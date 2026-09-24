@@ -20,9 +20,6 @@ public interface ISalesOrderDetailService
     /// <summary>保存销售订单草稿。</summary>
     Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request);
 
-    /// <summary>确认销售订单并接收来源需求。</summary>
-    Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request);
-
     /// <summary>在下游历史安全时取消销售订单确认。</summary>
     Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, CancelSalesOrderConfirmationCommand request);
 

@@ -2,6 +2,13 @@ using System.Data;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.Application.Commands;
+using SwiftExport.Application.Commands.Validation;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
+using SwiftExport.Core.Entities.Commands;
+using SwiftExport.Core.Interfaces.Commands;
 using Mapster;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -39,7 +46,7 @@ public sealed class AfterSalesServiceTests
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
         Assert.IsTrue(saved.Success,saved.Message);
         Assert.AreEqual(@"D:\投诉\客户甲",(await f.Service.GetAsync(c.Uid)).Data.Header.LocalFileFolder);
-        Assert.IsTrue((await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Success);
+        Assert.IsTrue((await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Success);
         Assert.IsFalse(JsonSerializer.Serialize(f.Received).Contains("LocalFileFolder"));
         var edit=f.Edit();edit.Header.LocalFileFolder=new string('中',1000);
         Assert.IsTrue((await f.Service.SaveAsync(c.Uid,edit,false)).Success);
@@ -72,7 +79,7 @@ public sealed class AfterSalesServiceTests
         using var f=new Fixture();var c=f.Command();c.AddedLines.Add(f.Line(3));
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
         Assert.IsTrue(saved.Success,saved.Message);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.IsTrue(confirmed.Success,confirmed.Message);
         Assert.AreEqual(2,f.Received!.Items.Count);
         Assert.IsTrue(f.Received.Items.All(x=>x.RequiredDate==c.Header.RequiredDate));
@@ -107,7 +114,7 @@ public sealed class AfterSalesServiceTests
         c.AddedLines[0].Quantity=1;c.Header.ResponsibleSupplierId=null;c.Header.QualityCategoryId=Guid.NewGuid();
         var saved=await f.Service.SaveAsync(c.Uid,c,true);Assert.IsTrue(saved.Success,saved.Message);
         Assert.AreEqual(c.Header.QualityCategoryId,f.Head!.QualityCategoryId);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.AreEqual("Header.ResponsibleSupplierId",confirmed.Error.Field);Assert.AreEqual(0,f.ReceiveCalls);
     }
 
@@ -142,7 +149,7 @@ public sealed class AfterSalesServiceTests
         using var f=new Fixture();var c=f.Command();c.Header.CustomerComplaintNo="  客诉-001  ";
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
         Assert.IsTrue(saved.Success,saved.Message);Assert.AreEqual("客诉-001",f.Head!.CustomerComplaintNo);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.IsTrue(confirmed.Success,confirmed.Message);
         var edit=f.Edit();edit.Header.CustomerComplaintNo=" 客诉-002 ";
         var changed=await f.Service.SaveAsync(c.Uid,edit,false);
@@ -179,7 +186,7 @@ public sealed class AfterSalesServiceTests
         Assert.IsTrue(saved.Success,saved.Message);
         var replay=await f.Service.SaveAsync(c.Uid,c,true);
         Assert.IsTrue(replay.Success,replay.Message);Assert.IsTrue(replay.Data.AlreadyApplied);Assert.AreEqual(1,f.NumberCalls);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.IsTrue(confirmed.Success,confirmed.Message);
         Assert.AreEqual(1,f.Received!.Items.Count);Assert.AreEqual(c.AddedLines[0].Uid,f.Received.Items[0].SourceLineId);
         Assert.AreEqual("CR",f.Received.SourceType);Assert.AreEqual(2m,f.Received.Items[0].DemandQty);
@@ -195,7 +202,7 @@ public sealed class AfterSalesServiceTests
     {
         using var f=new Fixture();var c=f.Command();c.AddedLines[0].Quantity=0;c.AddedLines.Add(f.Line(null));
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.IsTrue(confirmed.Success,confirmed.Message);Assert.IsNull(f.Received);
         Assert.AreEqual(ConfirmationStatusEnum.待确认,confirmed.Data.ConfirmationStatus);
         var closed=await f.Service.CloseAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=confirmed.Data.Version,Reason="已说明"});
@@ -207,10 +214,10 @@ public sealed class AfterSalesServiceTests
     {
         using var f=new Fixture();var c=f.Command();c.Header.ServiceAmountCny=null;
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
-        var blocked=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var blocked=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.AreEqual("VALIDATION",blocked.Error.Code);Assert.IsNull(f.Received);
         f.Head!.ServiceAmountCny=0;f.FailReception=true;
-        var failed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var failed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         Assert.AreEqual("SOURCE_EXIT_BLOCKED",failed.Error.Code);
         Assert.AreEqual(saved.Data.Version,f.Head!.Version);Assert.AreEqual(ConfirmationStatusEnum.待确认,f.Head.ConfirmationStatus);
         Assert.AreEqual(1,f.Logs.Count);
@@ -221,7 +228,7 @@ public sealed class AfterSalesServiceTests
     {
         using var f=new Fixture();var c=f.Command();
         var saved=await f.Service.SaveAsync(c.Uid,c,true);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         var edit=f.Edit();edit.Header.ServiceAmountCny=10;
         Assert.AreEqual("BUSINESS_BLOCKED",(await f.Service.SaveAsync(c.Uid,edit,false)).Error.Code);
         edit=f.Edit();edit.Header.IssueDescription="补充描述";
@@ -235,7 +242,7 @@ public sealed class AfterSalesServiceTests
         Assert.IsTrue(cancelled.Success,cancelled.Message);Assert.IsNull(f.Head.DemandConfirmedAt);
         edit=f.Edit();edit.UpdatedLines[0].Quantity=4;
         updated=await f.Service.SaveAsync(c.Uid,edit,false);
-        var again=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=updated.Data.Version});
+        var again=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=updated.Data.Version});
         Assert.IsTrue(again.Success,again.Message);Assert.AreEqual(c.AddedLines[0].Uid,f.Received!.Items[0].SourceLineId);
         Assert.AreEqual(4m,f.Received.Items[0].DemandQty);
     }
@@ -248,7 +255,7 @@ public sealed class AfterSalesServiceTests
         var edit=f.Edit();edit.Header.IssueDescription="不能残留";edit.UpdatedLines[1].Version=999;
         Assert.AreEqual("VERSION_CONFLICT",(await f.Service.SaveAsync(c.Uid,edit,false)).Error.Code);
         Assert.AreEqual("成品故障",f.Head!.IssueDescription);
-        var confirmed=await f.Service.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        var confirmed=await f.Confirm.ConfirmDemandAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
         var closed=await f.Service.CloseAsync(c.Uid,new(){CommandId=Guid.NewGuid(),Version=confirmed.Data.Version,Reason="结案"});
         Assert.AreEqual("AFTERSALES_DELIVERY_QUERY_UNAVAILABLE",closed.Error.Code);
         StringAssert.Contains(closed.Message,"PackingList");
@@ -264,22 +271,74 @@ public sealed class AfterSalesServiceTests
         Assert.AreEqual("FORBIDDEN",(await f.Service.GetAsync(c.Uid)).Error.Code);Assert.AreEqual(0,f.NumberCalls);
     }
 
+    /// <summary>确认回执在版本校验前重放，异内容、其他操作占用以及无权重放均明确拒绝。</summary>
+    [TestMethod]
+    public async Task ConfirmationReceiptAndPermissionBoundary()
+    {
+        using var f=new Fixture();var save=f.Command();
+        var saved=await f.Service.SaveAsync(save.Uid,save,true);
+        Assert.IsTrue(saved.Success,saved.Message);
+        var command=new ConfirmAfterSalesDemandCommand {CommandId=Guid.NewGuid(),Version=saved.Data.Version};
+        var first=await f.Confirm.ConfirmDemandAsync(save.Uid,command);
+        Assert.IsTrue(first.Success,first.Message);
+        f.Allowed=false;
+        Assert.AreEqual("FORBIDDEN",(await f.Confirm.ConfirmDemandAsync(save.Uid,command)).Error.Code);
+        f.Allowed=true;
+        var replay=await f.Confirm.ConfirmDemandAsync(save.Uid,command);
+        Assert.IsTrue(replay.Success,replay.Message);
+        Assert.IsTrue(replay.Data.AlreadyApplied);
+        Assert.AreEqual(first.Data.Version,replay.Data.Version);
+        Assert.AreEqual(1,f.ReceiveCalls);
+        Assert.AreEqual(2,f.Logs.Count);
+        Assert.AreEqual("COMMAND_CONFLICT",(await f.Confirm.ConfirmDemandAsync(save.Uid,
+            new(){CommandId=command.CommandId,Version=command.Version+1})).Error.Code);
+        Assert.AreEqual("COMMAND_CONFLICT",(await f.Confirm.ConfirmDemandAsync(save.Uid,
+            new(){CommandId=save.CommandId,Version=saved.Data.Version})).Error.Code);
+    }
+
+    /// <summary>来源、审计和回执失败都回滚；提交未知保持稳定错误码。</summary>
+    [TestMethod]
+    public async Task ConfirmationFailuresRollbackWholeTransaction()
+    {
+        using var f=new Fixture();var save=f.Command();
+        var saved=await f.Service.SaveAsync(save.Uid,save,true);
+        f.FailReception=true;
+        Assert.AreEqual("SOURCE_EXIT_BLOCKED",(await f.Confirm.ConfirmDemandAsync(save.Uid,
+            new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Error.Code);
+        Assert.AreEqual(ConfirmationStatusEnum.待确认,f.Head!.ConfirmationStatus);
+        f.FailReception=false;f.FailAudit=true;
+        Assert.IsFalse((await f.Confirm.ConfirmDemandAsync(save.Uid,
+            new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Success);
+        Assert.AreEqual(ConfirmationStatusEnum.待确认,f.Head!.ConfirmationStatus);
+        f.FailAudit=false;f.FailReceipt=true;
+        Assert.AreEqual("UNEXPECTED",(await f.Confirm.ConfirmDemandAsync(save.Uid,
+            new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Error.Code);
+        Assert.AreEqual(ConfirmationStatusEnum.待确认,f.Head!.ConfirmationStatus);
+        f.FailReceipt=false;f.FailCommit=true;
+        Assert.AreEqual("OUTCOME_UNKNOWN",(await f.Confirm.ConfirmDemandAsync(save.Uid,
+            new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Error.Code);
+    }
+
     // 快照回滚模拟事务，不执行真实数据库写入。
     private sealed class Fixture:IDisposable
     {
         public AfterSalesHeader? Head;
         public List<AfterSalesLine> Rows=new();
         public List<BusinessOperationLog> Logs=new();
-        public bool Allowed=true,FailReception,FailCancellation;
+        public bool Allowed=true,FailReception,FailCancellation,FailAudit,FailReceipt,FailCommit;
         public int NumberCalls,ReceiveCalls;
         public SourceDemandReceptionCommand? Received;
         public AfterSalesService Service {get;}
+        public AfterSalesConfirmationService Confirm { get; }
+        private Dictionary<Guid, CommandReceipt> receipts = [];
         private readonly DbSession session;
         private readonly Guid customer=Guid.NewGuid(),actor=Guid.NewGuid();
         public Fixture()
         {
-            var connection=new MemoryConnection();
-            connection.Begin=()=>{var h=Clone(Head);var r=Clone(Rows)!;var l=Clone(Logs)!;return ()=>{Head=h;Rows=r;Logs=l;};};
+            var connection=new MemoryConnection { ShouldFailCommit=()=>FailCommit };
+            connection.Begin=()=>{var h=Clone(Head);var r=Clone(Rows)!;var l=Clone(Logs)!;
+                var savedReceipts=new Dictionary<Guid,CommandReceipt>(receipts);
+                return ()=>{Head=h;Rows=r;Logs=l;receipts=savedReceipts;};};
             session=(DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(session,connection);
             var repo=Port<IAfterSalesRepository>((n,a)=>n switch {
@@ -296,18 +355,35 @@ public sealed class AfterSalesServiceTests
                 if(n=="HasActiveAsync")return Task.FromResult(false);throw new NotSupportedException(n);});
             var logs=Port<IBusinessOperationLogRepository>((n,a)=>n switch {
                 "GetByCommandAsync"=>Task.FromResult(Logs.SingleOrDefault(x=>x.CommandId==(Guid)a[2]!)),
+                "GetByModuleCommandAsync"=>Task.FromResult(Logs.SingleOrDefault(x=>x.Module==(string)a[0]!&&x.CommandId==(Guid)a[1]!)),
                 "InsertAsync"=>AppendLog((BusinessOperationLog)a[0]!),_=>throw new NotSupportedException(n)});
             var numbering=Port<IDocumentNoService>((_,_)=>{NumberCalls++;return Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new(){DocumentNo="CR2026090001"}));});
             var permission=Port<IUserPermissionService>((_,_)=>Task.FromResult(Allowed));
             var user=Port<ICurrentUser>((n,_)=>n switch {"get_UserId"=>(Guid?)actor,"get_UserName"=>"tester","get_IsAuthenticated"=>true,_=>throw new NotSupportedException(n)});
             Service=new(new(session,NullLoggerFactory.Instance),repo,reception,numbering,logs,permission,user);
+            var receiptPort=Port<ICommandReceiptRepository>((n,a)=>n switch {
+                "LockAsync"=>Task.FromResult(0),
+                "FindAsync"=>Task.FromResult(receipts.GetValueOrDefault((Guid)a[0]!)),
+                "InsertAsync"=>AppendReceipt((CommandReceipt)a[0]!),
+                _=>throw new NotSupportedException(n)});
+            var correlation=Port<ICorrelationContext>((n,_)=>n=="get_CorrelationId"?"after-sales-test":throw new NotSupportedException(n));
+            var validators=new ServiceCollection().AddSingleton<IValidator<ConfirmAfterSalesDemandCommand>,
+                ConfirmAfterSalesDemandCommandValidator>().BuildServiceProvider();
+            var context=new ServiceBaseContext(session,NullLoggerFactory.Instance);
+            Confirm=new(context,repo,reception,logs,permission,user,
+                new CommandPipeline(new CommandRequestValidator(validators),correlation,user,
+                    NullLogger<CommandPipeline>.Instance),
+                new BusinessCommandExecutor(context,receiptPort,user));
         }
         public SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),Header=new(){CustomerId=customer,AcceptedDate=new(2026,9,8),IssueDescription="成品故障",IssueSkuSnapshot="成品001",ResponsibleSupplierId=Guid.NewGuid(),ServiceAmountCny=0,RequiredDate=new(2026,10,1)},AddedLines=[Line(2)]};
         public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",UnitSnapshot=""};
         public SaveAfterSalesCommand Edit()=>new(){CommandId=Guid.NewGuid(),Uid=Head!.Uid,Version=Head.Version,Header=Head.Adapt<AfterSalesEditHeaderDto>(),UpdatedLines=Rows.Where(x=>!x.IsDeleted).Adapt<List<AfterSalesEditLineDto>>()};
         private Task<bool> WriteHead(AfterSalesHeader h,bool insert){if(!insert)h.Version++;Head=Clone(h);return Task.FromResult(true);}
         private Task<bool> WriteLine(AfterSalesLine l,bool insert){if(!insert)l.Version++;Rows.RemoveAll(x=>x.Uid==l.Uid);Rows.Add(Clone(l)!);return Task.FromResult(true);}
-        private Task<int> AppendLog(BusinessOperationLog l){Logs.Add(Clone(l)!);return Task.FromResult(1);}
+        private Task<int> AppendLog(BusinessOperationLog l)
+        {if(FailAudit)return Task.FromResult(0);Logs.Add(Clone(l)!);return Task.FromResult(1);}
+        private Task AppendReceipt(CommandReceipt receipt)
+        {if(FailReceipt)throw new InvalidOperationException("模拟回执失败");receipts.Add(receipt.CommandId,receipt);return Task.CompletedTask;}
         public void Dispose()=>session.Dispose();
     }
     private static T? Clone<T>(T value)=>value is null?default:JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
@@ -321,19 +397,20 @@ public sealed class AfterSalesServiceTests
     private sealed class MemoryConnection:IDbConnection
     {
         public Func<Action> Begin {get;set;}=null!;
+        public Func<bool> ShouldFailCommit {get;set;}=()=>false;
         [System.Diagnostics.CodeAnalysis.AllowNull] public string ConnectionString {get;set;}="";
         public int ConnectionTimeout=>0;public string Database=>"memory";public ConnectionState State=>ConnectionState.Open;
-        public IDbTransaction BeginTransaction()=>new MemoryTransaction(this,Begin());
+        public IDbTransaction BeginTransaction()=>new MemoryTransaction(this,Begin(),ShouldFailCommit);
         public IDbTransaction BeginTransaction(IsolationLevel level)=>BeginTransaction();
         public void ChangeDatabase(string name)=>throw new NotSupportedException();
         public void Close(){} public void Open(){} public void Dispose(){}
         public IDbCommand CreateCommand()=>throw new NotSupportedException();
     }
-    private sealed class MemoryTransaction(IDbConnection connection,Action undo):IDbTransaction
+    private sealed class MemoryTransaction(IDbConnection connection,Action undo,Func<bool> failCommit):IDbTransaction
     {
         private bool ended;
         public IDbConnection Connection=>connection;public IsolationLevel IsolationLevel=>IsolationLevel.Serializable;
-        public void Commit()=>ended=true;
+        public void Commit(){if(failCommit())throw new IOException("模拟提交未知");ended=true;}
         public void Rollback(){if(!ended)undo();ended=true;}
         public void Dispose(){if(!ended)Rollback();}
     }

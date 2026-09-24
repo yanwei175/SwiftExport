@@ -19,9 +19,9 @@ public sealed class SalesSourceDemandContractTests
     [TestMethod]
     public void SalesConfirmationUsesPostConfirmVersionProductUnitAndReceptionBoundary()
     {
-        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrderDetailService.cs");
+        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrders", "Confirmation", "SalesOrderConfirmationService.cs");
         var statusWrite = service.IndexOf("SetConfirmationStatusAsync", StringComparison.Ordinal);
-        var reception = service.IndexOf("sourceDemandReceptionService.ReceiveAsync", StringComparison.Ordinal);
+        var reception = service.IndexOf("reception.ReceiveAsync", StringComparison.Ordinal);
 
         Assert.IsTrue(statusWrite >= 0 && reception > statusWrite);
         StringAssert.Contains(service, "SourceVersion = sourceVersion");

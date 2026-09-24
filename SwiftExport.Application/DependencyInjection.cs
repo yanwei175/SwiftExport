@@ -38,6 +38,10 @@ using SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSuggesti
 using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 using SwiftExport.Application.Services.DemandPlanning.Materials.Reversal;
 using SwiftExport.Application.Services.Orders;
+using SwiftExport.Application.Services.Orders.SalesOrders.Confirmation;
+using SwiftExport.Application.Interfaces.Orders.SalesOrders.Confirmation;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Confirmation;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Services.Procurement;
 using SwiftExport.Application.Services.Inventory;
@@ -94,6 +98,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
         services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
+        services.AddScoped<ISalesOrderConfirmationService, SalesOrderConfirmationService>();
         services.AddScoped<IGrossDemandQueryService, GrossDemandQueryService>();
         services.AddScoped<IManualGrossDemandService, ManualGrossDemandService>();
         services.AddScoped<IMaterialDemandSourceExitService, MaterialDemandSourceExitService>();
@@ -161,6 +166,7 @@ public static class DependencyInjection
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
 
         services.AddScoped<SwiftExport.Application.Interfaces.QualityControl.IAfterSalesService, SwiftExport.Application.Services.QualityControl.AfterSalesService>();
+        services.AddScoped<IAfterSalesConfirmationService, AfterSalesConfirmationService>();
         return services;
     }
 }

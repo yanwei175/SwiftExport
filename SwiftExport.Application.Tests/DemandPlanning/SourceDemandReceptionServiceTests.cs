@@ -31,26 +31,42 @@ using System.Reflection;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证统一来源需求接收的幂等、来源身份、版本和下游处置边界。</summary>
+/// <summary>验证事务内来源接收的版本、审计和下游处置边界；完整命令重放由父入口测试覆盖。</summary>
 [TestClass]
 public sealed class SourceDemandReceptionServiceTests
 {
     [TestMethod]
-    public async Task RepeatedCommandReplaysAndChangedPayloadIsRejected()
+    public async Task ReceptionDoesNotReadAuditAsReceiptAndRejectsSameVersionChange()
     {
         using var fixture = new ReceptionFixture();
         var command = fixture.Command("SO", 1);
         var first = await fixture.Service.ReceiveAsync(command);
-        var replay = await fixture.Service.ReceiveAsync(command);
+        var unchanged = await fixture.Service.ReceiveAsync(fixture.Command("SO", 1));
 
         Assert.AreEqual(1, first.CreatedCount);
-        Assert.AreEqual(first.CreatedCount, replay.CreatedCount);
+        Assert.AreEqual(1, unchanged.UnchangedCount);
         Assert.AreEqual(1, fixture.Repository.Demands.Count);
-        Assert.AreEqual(1, fixture.Logs.Items.Count);
+        Assert.AreEqual(2, fixture.Logs.Items.Count);
+        Assert.IsTrue(fixture.Logs.Items.All(item => item.CommandId != Guid.Empty));
 
-        command.Items[0].DemandQty = 2;
-        var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(() => fixture.Service.ReceiveAsync(command));
-        Assert.AreEqual("COMMAND_REUSED", error.Code);
+        var changed = fixture.Command("SO", 1);
+        changed.Items[0].DemandQty = 2;
+        var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(() => fixture.Service.ReceiveAsync(changed));
+        Assert.AreEqual("SOURCE_VERSION_CONFLICT", error.Code);
+    }
+
+    /// <summary>来源审计失败必须向外层确认命令抛出，不能返回看似成功的接收结果。</summary>
+    [TestMethod]
+    public async Task AuditFailureIsPropagatedToParentTransaction()
+    {
+        using var fixture = new ReceptionFixture();
+        fixture.Logs.FailInsert = true;
+
+        var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(
+            () => fixture.Service.ReceiveAsync(fixture.Command("SO", 1)));
+
+        Assert.AreEqual("LOG_WRITE_FAILED", error.Code);
+        Assert.AreEqual(0, fixture.Logs.Items.Count);
     }
 
     [TestMethod]
@@ -118,6 +134,24 @@ public sealed class SourceDemandReceptionServiceTests
         CollectionAssert.AreEquivalent(
             new[] { DocumentTypeStaticsEnum.SalesOrder, DocumentTypeStaticsEnum.ComplaintReplenishment },
             fixture.Repository.Demands.Select(item => item.SourceType).ToArray());
+    }
+
+    /// <summary>活动 SO/CR 的空来源版本是待核查的异常事实，不得由再次确认静默补齐。</summary>
+    [DataTestMethod]
+    [DataRow(DocumentTypeStaticsEnum.SalesOrder)]
+    [DataRow(DocumentTypeStaticsEnum.ComplaintReplenishment)]
+    public async Task ActiveSourceWithoutVersionIsRejected(string sourceType)
+    {
+        using var fixture = new ReceptionFixture();
+        await fixture.Service.ReceiveAsync(fixture.Command(sourceType, 1));
+        fixture.Repository.Demands.Single().SourceVersion = null;
+
+        var error = await Assert.ThrowsAsync<SourceDemandReceptionException>(
+            () => fixture.Service.ReceiveAsync(fixture.Command(sourceType, 2)));
+
+        Assert.AreEqual("SOURCE_VERSION_MISSING", error.Code);
+        Assert.IsNull(fixture.Repository.Demands.Single().SourceVersion);
+        Assert.AreEqual(1, fixture.Logs.Items.Count);
     }
 
     [TestMethod]
@@ -350,12 +384,18 @@ public sealed class SourceDemandReceptionServiceTests
     private sealed class FakeOperationLogs : IBusinessOperationLogRepository
     {
         public List<BusinessOperationLog> Items { get; } = [];
+        public bool FailInsert { get; set; }
         /// <inheritdoc/>
         public Task<BusinessOperationLog?> GetByModuleCommandAsync(string module, Guid commandId)
             => Task.FromResult(Items.SingleOrDefault(item => item.Module == module && item.CommandId == commandId));
         public Task<BusinessOperationLog?> GetByCommandAsync(string module, string operationType, Guid commandId)
-            => Task.FromResult(Items.SingleOrDefault(item => item.Module == module && item.OperationType == operationType && item.CommandId == commandId));
-        public Task<int> InsertAsync(BusinessOperationLog log) { Items.Add(log); return Task.FromResult(1); }
+            => throw new AssertFailedException("来源接收不得从审计读取机器回执。");
+        public Task<int> InsertAsync(BusinessOperationLog log)
+        {
+            if (FailInsert) return Task.FromResult(0);
+            Items.Add(log);
+            return Task.FromResult(1);
+        }
         public Task<IReadOnlyList<SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders.BusinessOperationTraceItemDto>> GetByAggregateAsync(string module, Guid aggregateUid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 

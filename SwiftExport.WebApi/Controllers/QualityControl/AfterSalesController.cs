@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.QualityControl;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Confirmation;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.RequestProtection;
 namespace SwiftExport.WebApi.Controllers.QualityControl;
 /// <summary>售后HTTP边界，只绑定参数并调用业务服务。</summary>
 [ApiController,Authorize,Route("api/quality-control/after-sales")]
-public sealed class AfterSalesController(IAfterSalesService service) : ControllerBase
+public sealed class AfterSalesController(IAfterSalesService service, IAfterSalesConfirmationService confirmations) : ControllerBase
 {
     /// <summary>查询分页。</summary>
     [HttpGet]
@@ -26,7 +27,7 @@ public sealed class AfterSalesController(IAfterSalesService service) : Controlle
     public Task<ServiceResult<AfterSalesCommandResult>> SaveAsync(Guid uid,[FromBody] SaveAfterSalesCommand command,CancellationToken token)=>service.SaveAsync(uid,command,false,token);
     /// <summary>执行售后ConfirmDemand命令。</summary>
     [HttpPost("{uid:guid}/confirm-demand"),PreventDuplicateRequest]
-    public Task<ServiceResult<AfterSalesCommandResult>> ConfirmDemandAsync(Guid uid,[FromBody] ConfirmAfterSalesDemandCommand command,CancellationToken token)=>service.ConfirmDemandAsync(uid,command,token);
+    public Task<ServiceResult<AfterSalesCommandResult>> ConfirmDemandAsync(Guid uid,[FromBody] ConfirmAfterSalesDemandCommand command,CancellationToken token)=>confirmations.ConfirmDemandAsync(uid,command,token);
     /// <summary>执行售后CancelDemandConfirmation命令。</summary>
     [HttpPost("{uid:guid}/cancel-demand-confirmation"),PreventDuplicateRequest]
     public Task<ServiceResult<AfterSalesCommandResult>> CancelDemandConfirmationAsync(Guid uid,[FromBody] CancelAfterSalesDemandConfirmationCommand command,CancellationToken token)=>service.CancelDemandConfirmationAsync(uid,command,token);
@@ -40,4 +41,3 @@ public sealed class AfterSalesController(IAfterSalesService service) : Controlle
     [HttpPost("{uid:guid}/void"),PreventDuplicateRequest]
     public Task<ServiceResult<AfterSalesCommandResult>> VoidAsync(Guid uid,[FromBody] VoidAfterSalesCommand command,CancellationToken token)=>service.VoidAsync(uid,command,token);
 }
-

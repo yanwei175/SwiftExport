@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -45,7 +46,8 @@ public sealed class SalesOrderManagerFilterTests
         StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
         Assert.AreEqual("True", (string?)popup.Attribute("StaysOpen"));
         Assert.AreEqual(4, popup.Descendants().Count(element => element.Name.LocalName == "TextBox"));
-        Assert.AreEqual(2, popup.Descendants(presentation + "DatePicker").Count());
+        // 订单日期和交期各有起止两个筛选值，保持四个输入的完整布局断言。
+        Assert.AreEqual(4, popup.Descendants(presentation + "DatePicker").Count());
     }
 
     [TestMethod]
@@ -171,6 +173,55 @@ public sealed class SalesOrderManagerFilterTests
         Assert.AreNotEqual(Guid.Empty, api.LastCancelCommand.CommandId);
     }
 
+    /// <summary>未知结果后限流不证明原命令未提交；切单后仍以原目标和版本重试。</summary>
+    [TestMethod]
+    public async Task Confirmation_UnknownThenRateLimited_RetriesOriginalOrderAndCommand()
+    {
+        var api = new RecordingDetailApi();
+        api.ConfirmationFailures.Enqueue(ServiceErrorCodes.OutcomeUnknown);
+        api.ConfirmationFailures.Enqueue(ServiceErrorCodes.RateLimited);
+        var viewModel = new SalesOrderManagerViewModel(new RecordingManagerApi(), api,
+            new DirectApiCallRunner(), null!, new ConfirmDialogStub(), null!, new MessageServiceStub());
+        var first = new SalesOrderManagerListItemDto { Uid = Guid.NewGuid(), Version = 3,
+            OrderNo = "SO-A", DocumentStatus = SalesOrderDocumentStatusEnum.Open,
+            ConfirmationStatus = ConfirmationStatusEnum.待确认 };
+        viewModel.SelectedOrder = first;
+        await viewModel.ConfirmSelectedCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, api.ConfirmCommands.Count);
+        Assert.IsFalse(await viewModel.CanCloseAsync(CancellationToken.None));
+        viewModel.SelectedOrder = new SalesOrderManagerListItemDto { Uid = Guid.NewGuid(), Version = 4,
+            OrderNo = "SO-B", DocumentStatus = SalesOrderDocumentStatusEnum.Open,
+            ConfirmationStatus = ConfirmationStatusEnum.待确认 };
+        await viewModel.RetryPendingConfirmationCommand.ExecuteAsync(null);
+        Assert.AreEqual(2, api.ConfirmCommands.Count);
+        Assert.AreEqual(first.Uid, api.ConfirmCommands[1].Uid);
+        Assert.AreEqual(first.Version, api.ConfirmCommands[1].Version);
+        Assert.AreEqual(api.ConfirmCommands[0].CommandId, api.ConfirmCommands[1].CommandId);
+        Assert.IsFalse(await viewModel.CanCloseAsync(CancellationToken.None));
+        Assert.IsTrue(viewModel.RetryPendingConfirmationCommand.CanExecute(null));
+        await viewModel.RetryPendingConfirmationCommand.ExecuteAsync(null);
+        Assert.AreEqual(3, api.ConfirmCommands.Count);
+        Assert.AreSame(api.ConfirmCommands[0], api.ConfirmCommands[2]);
+        Assert.AreEqual(first.Uid, api.ConfirmCommands[2].Uid);
+        Assert.AreEqual(first.Version, api.ConfirmCommands[2].Version);
+        Assert.IsTrue(await viewModel.CanCloseAsync(CancellationToken.None));
+    }
+
+    /// <summary>首次无权确认没有产生未知结果，不应阻止管理页关闭或残留重试入口。</summary>
+    [TestMethod]
+    public async Task InitialConfirmationForbiddenDoesNotLockPage()
+    {
+        var api = new RecordingDetailApi();
+        api.ConfirmationFailures.Enqueue(ServiceErrorCodes.Forbidden);
+        var vm = new SalesOrderManagerViewModel(new RecordingManagerApi(), api,
+            new DirectApiCallRunner(), null!, new ConfirmDialogStub(), null!, new MessageServiceStub());
+        vm.SelectedOrder = new SalesOrderManagerListItemDto { Uid = Guid.NewGuid(), Version = 3,
+            DocumentStatus = SalesOrderDocumentStatusEnum.Open, ConfirmationStatus = ConfirmationStatusEnum.待确认 };
+        await vm.ConfirmSelectedCommand.ExecuteAsync(null);
+        Assert.IsTrue(await vm.CanCloseAsync(CancellationToken.None));
+        Assert.IsFalse(vm.RetryPendingConfirmationCommand.CanExecute(null));
+    }
+
     private static SalesOrderManagerViewModel CreateCancellationViewModel(
         RecordingDetailApi api,
         ISalesOrderCancellationDialogService cancellationDialog) =>
@@ -252,6 +303,8 @@ public sealed class SalesOrderManagerFilterTests
     /// <summary>记录 Detail 快捷命令，验证 Manager 页复用 Detail API 的权威命令入口。</summary>
     private sealed class RecordingDetailApi : ISalesOrderDetailApi
     {
+        public Queue<string> ConfirmationFailures { get; } = new();
+        public List<ConfirmSalesOrderCommand> ConfirmCommands { get; } = [];
         public CancelSalesOrderConfirmationCommand? LastCancelCommand { get; private set; }
         public int CancelCallCount { get; private set; }
 
@@ -259,7 +312,15 @@ public sealed class SalesOrderManagerFilterTests
         public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderProductLookupDto>>();
         public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<SalesOrderCustomerLookupDto>>();
         public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request) => NotSupported<SaveSalesOrderResponse>();
-        public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request) => NotSupported<SalesOrderConfirmationResultDto>();
+        public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request)
+        {
+            ConfirmCommands.Add(request);
+            return Task.FromResult(ConfirmationFailures.TryDequeue(out var code)
+                ? ServiceResult<SalesOrderConfirmationResultDto>.Fail(code, "本次请求未取得确认结果")
+                : ServiceResult<SalesOrderConfirmationResultDto>.Ok(new SalesOrderConfirmationResultDto
+                { Uid = uid, Version = request.Version + 1, GrossDemandCount = 1,
+                    ConfirmationStatus = ConfirmationStatusEnum.已确认 }));
+        }
         public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(
             Guid uid,
             CancelSalesOrderConfirmationCommand request)
@@ -287,6 +348,16 @@ public sealed class SalesOrderManagerFilterTests
             string orderNo,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(reason);
+    }
+
+    private sealed class ConfirmDialogStub : IDialogService
+    {
+        public Task ShowContentAsync(string title, object content, string closeButtonText = "关闭",
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定",
+            string closeButtonText = "取消", CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task ShowErrorAsync(string title, string message, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class MessageServiceStub : IMessageService

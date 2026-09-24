@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces;
+using SwiftExport.Application.Interfaces.Orders.SalesOrders.Confirmation;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.WebApi.Controllers.Orders;
 
@@ -29,12 +30,13 @@ public sealed class SalesOrderManagerDetailContractTests
                 "SearchProductsAsync",
                 "SearchCustomersAsync",
                 "SaveAsync",
-                "ConfirmAsync",
                 "CancelConfirmationAsync",
                 "CloseAsync",
                 "DeleteDraftAsync"
             },
             typeof(ISalesOrderDetailService).GetMethods().Select(method => method.Name).ToArray());
+        CollectionAssert.AreEquivalent(new[] { "ConfirmAsync" },
+            typeof(ISalesOrderConfirmationService).GetMethods().Select(method => method.Name).ToArray());
     }
 
     /// <summary>

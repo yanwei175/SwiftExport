@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
@@ -34,6 +35,9 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private CancellationTokenSource? _productLookupCancellation;
     private CancellationTokenSource? _customerLookupCancellation;
     private bool _loadingDocument;
+    private ConfirmSalesOrderCommand? _pendingConfirmation;
+    // 只有此前执行结果未定，前置拒绝才不能结束原意图。
+    private bool _confirmationOutcomeUnknown;
 
     /// <summary>注入 Detail API 以及页面导航、对话框和消息依赖。</summary>
     public SalesOrderDetailViewModel(
@@ -78,8 +82,9 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     public ObservableCollection<SalesOrderProductLookupDto> ProductCandidates { get; } = [];
     public ObservableCollection<SalesOrderCustomerLookupDto> CustomerCandidates { get; } = [];
     public string DocumentTitle => string.IsNullOrWhiteSpace(Header.OrderNo) ? "销售订单-新建" : Header.OrderNo;
-    public bool HasUnsavedChanges => IsDirty;
+    public bool HasUnsavedChanges => IsDirty || _pendingConfirmation is not null;
     public bool IsPersisted => Header.Uid != Guid.Empty;
+    /// <summary>单头和附加表单随当前单据状态及未决确认统一冻结。</summary>
     public bool IsEditable => !IsReadOnly;
     public decimal TotalQty => Lines.Items.Sum(line => line.Qty);
     public decimal TotalCnyAmount => Lines.Items.Sum(line => line.CnyAmount ?? 0m);
@@ -205,6 +210,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
 
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
+        // 未知结果仍可能已经提交；页签关闭会丢失唯一可安全重试的命令身份。
+        if (_pendingConfirmation is not null) return false;
         if (!HasUnsavedChanges)
         {
             return true;
@@ -353,7 +360,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanConfirm))]
     private async Task ConfirmAsync()
     {
-        if (!await _dialogService.ConfirmAsync(
+        if (_pendingConfirmation is null && !await _dialogService.ConfirmAsync(
                 "确认销售订单",
                 "确认后将为每条订单行生成毛需求，但不会拆解 BOM。是否继续？",
                 "确认"))
@@ -361,24 +368,28 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
             return;
         }
 
-        await RunWriteAsync(async () =>
+        await RunBusyAsync(async () =>
         {
+            if (_pendingConfirmation is null) SetPendingConfirmation(CreateConfirmCommand());
+            var request = _pendingConfirmation!;
             var result = await _apiCallRunner.RunAsync(
-                () => _detailApi.ConfirmAsync(Header.Uid, CreateConfirmCommand()),
+                () => _detailApi.ConfirmAsync(request.Uid, request),
                 "确认销售订单失败");
             if (!result.Success || result.Data is null)
             {
+                if (!MustKeepConfirmationIntent(result.Error?.Code))
+                    SetPendingConfirmation(null);
                 _messageService.ShowError("确认销售订单失败", result.Message);
                 return;
             }
-
-            _loadingDocument = true;
-            Header.Version = result.Data.Version;
-            Header.ConfirmationStatus = result.Data.ConfirmationStatus;
-            _loadingDocument = false;
-            ApplyReadOnlyState();
-            IsDirty = false;
-            NotifyDocumentStateChanged();
+            // 回执是首次执行结果；重新读取当前订单，避免用历史版本覆盖后续事实。
+            var current = await _apiCallRunner.RunAsync(() => _detailApi.GetAsync(request.Uid), "刷新销售订单失败");
+            if (current.Success && current.Data is not null)
+            {
+                LoadDocument(current.Data);
+                SetPendingConfirmation(null);
+            }
+            else _messageService.ShowError("销售订单已确认，刷新失败", current.Message);
             _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。等待需求工作台拆解。");
         }, "正在确认销售订单...");
     }
@@ -623,9 +634,26 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         return new ConfirmSalesOrderCommand { Uid = Header.Uid, Version = Header.Version, CommandId = Guid.NewGuid() };
     }
 
+    /// <summary>前置拒绝只说明本次重试未执行，不能证明先前结果未知的确认未提交。</summary>
+    private bool MustKeepConfirmationIntent(string? code) =>
+        (_confirmationOutcomeUnknown |= code is ServiceErrorCodes.OutcomeUnknown
+            or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable) && code is
+        ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.RateLimited
+        or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden or ServiceErrorCodes.ServiceUnavailable;
+
+    /// <summary>切换未决身份时同步通知表单、表格、页签关闭及所有相关命令门禁。</summary>
+    private void SetPendingConfirmation(ConfirmSalesOrderCommand? request)
+    {
+        _pendingConfirmation = request;
+        if (request is null) _confirmationOutcomeUnknown = false;
+        ApplyReadOnlyState();
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+    }
+
     private void ApplyReadOnlyState()
     {
-        IsReadOnly = Header.DocumentStatus == SalesOrderDocumentStatusEnum.Closed
+        IsReadOnly = _pendingConfirmation is not null
+            || Header.DocumentStatus == SalesOrderDocumentStatusEnum.Closed
             || Header.ConfirmationStatus == ConfirmationStatusEnum.已确认;
         OnPropertyChanged(nameof(IsEditable));
         NotifyDocumentCommands();
@@ -699,7 +727,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         MoveLineDownCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanEdit() => CanWrite && IsNotBusy && !IsReadOnly;
+    private bool CanEdit() => CanWrite && IsNotBusy && !IsReadOnly && _pendingConfirmation is null;
     private bool CanDeleteLine() => CanEdit() && SelectedLine is not null;
     private bool CanMoveLineUp(SalesOrderLineModel? line) =>
         CanEdit() && line is not null && Lines.Items.IndexOf(line) > 0;
@@ -714,13 +742,13 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         return index >= 0 && index < Lines.Items.Count - 1;
     }
     private bool CanSave() => CanEdit() && IsDirty;
-    private bool CanConfirm() => CanWrite
+    private bool CanConfirm() => (_pendingConfirmation is not null && IsNotBusy) || CanWrite
         && IsNotBusy
         && IsPersisted
         && !IsDirty
         && Header.DocumentStatus == SalesOrderDocumentStatusEnum.Open
         && Header.ConfirmationStatus == ConfirmationStatusEnum.待确认;
-    private bool CanCancelConfirmation() => IsNotBusy
+    private bool CanCancelConfirmation() => _pendingConfirmation is null && IsNotBusy
         && IsPersisted
         && Header.DocumentStatus == SalesOrderDocumentStatusEnum.Open
         && Header.ConfirmationStatus == ConfirmationStatusEnum.已确认;

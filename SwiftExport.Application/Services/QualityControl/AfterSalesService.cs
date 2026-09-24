@@ -165,37 +165,6 @@ public sealed class AfterSalesService(
         },cancellationToken);
 
     /// <inheritdoc />
-    public Task<ServiceResult<AfterSalesCommandResult>> ConfirmDemandAsync(Guid uid, ConfirmAfterSalesDemandCommand command, CancellationToken cancellationToken = default)
-        => ChangeAsync(uid,command.CommandId,command.Version,"Confirm",command,null,async (head,lines) =>
-        {
-            RequireOpen(head);
-            if(head.ConfirmationStatus==ConfirmationStatusEnum.已确认) Fail("BUSINESS_BLOCKED","实物需求已经确认。");
-            var positive=lines.Where(x=>x.Quantity>0).ToList();
-            if(positive.Count==0) return; // 纯投诉不调用不接受空集合的来源服务。
-            AfterSalesPolicy.ValidateHeader(head,true);
-            await ValidateHeaderReferencesAsync(head,true);
-            await ReferenceAsync("customers",head.CustomerId,head.CustomerId,true,"Header.CustomerId");
-            foreach(var line in positive)
-            {
-                AfterSalesPolicy.ValidateLine(line,true);
-                await ValidateReferencesAsync(line,head.CustomerId,true);
-            }
-            // 先确定本次头版本；来源接收与确认打戳仍处于同一事务，失败整体回滚。
-            var sourceVersion=head.Version+1;
-            await reception.ReceiveAsync(new SourceDemandReceptionCommand {
-                CommandId=command.CommandId,SourceType=DocumentTypeStaticsEnum.ComplaintReplenishment,
-                SourceUid=uid,SourceNo=head.AfterSalesNo,SourceVersion=sourceVersion,CustomerId=head.CustomerId,
-                RejectUnsubmittedActiveLines=true,
-                Items=positive.Select(x=>new SourceDemandReceptionItem {
-                    SourceLineId=x.Uid,SourceLineNumber=x.LineNumber,ProductId=x.ProductId,IsNonStandard=x.IsNonStandard,
-                    SkuSnapshot=x.SkuSnapshot!,CustomerSkuSnapshot=x.CustomerSkuSnapshot,LinkSkuSnapshot=x.LinkSkuSnapshot,
-                    DescriptionSnapshot=x.DescriptionSnapshot,ColorSnapshot=x.ColorSnapshot,SpecificationSnapshot=x.SpecificationSnapshot,
-                    UnitSnapshot=x.UnitSnapshot,DemandQty=x.Quantity!.Value,RequiredDate=head.RequiredDate,Remark=x.Remark }).ToList()
-            });
-            head.ConfirmationStatus=ConfirmationStatusEnum.已确认; head.DemandConfirmedAt=DateTime.Now; head.DemandConfirmedBy=user.UserName;
-        },cancellationToken);
-
-    /// <inheritdoc />
     public Task<ServiceResult<AfterSalesCommandResult>> CancelDemandConfirmationAsync(Guid uid, CancelAfterSalesDemandConfirmationCommand command, CancellationToken cancellationToken = default)
         => ChangeAsync(uid,command.CommandId,command.Version,"CancelConfirmation",command,command.Reason,async(head,lines)=>
         {

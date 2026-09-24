@@ -4,8 +4,6 @@ using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
 using SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Shipping;
@@ -21,7 +19,7 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
 
-/// <summary>统一接收来源领域实物需求，并封装毛需求的幂等、版本和安全退出规则。</summary>
+/// <summary>在销售或售后外层事务内接收来源需求，维护版本与安全退出规则并记录业务审计。</summary>
 public sealed class SourceDemandReceptionService(
     DbSession session,
     IGrossDemandDocumentRepository grossDemandRepository,
@@ -34,26 +32,20 @@ public sealed class SourceDemandReceptionService(
     private const string Module = "SourceDemand";
     private const string ReceiveOperation = "Receive";
 
-    /// <summary>在既有事务中幂等接收来源需求；来源业务内容变化时只允许安全更新。</summary>
+    /// <summary>只参加调用方事务；父命令持有完整回执，本服务按来源事实与版本规则接收需求。</summary>
     public async Task<SourceDemandReceptionResult> ReceiveAsync(SourceDemandReceptionCommand command)
     {
         EnsureTransaction();
         Validate(command);
         command.SourceType = command.SourceType.Trim().ToUpperInvariant();
         command.SourceNo = command.SourceNo.Trim();
-        var fingerprint = CreateFingerprint(command);
-        var prior = await operationLogs.GetByCommandAsync(Module, ReceiveOperation, command.CommandId);
-        if (prior is not null)
-        {
-            if (prior.AggregateUid != command.SourceUid || !string.Equals(prior.RelatedObjectsJson, fingerprint, StringComparison.Ordinal))
-                throw new SourceDemandReceptionException("COMMAND_REUSED", "同一 CommandId 已用于其他来源需求内容。");
-            return DeserializeResult(prior.ChangedFieldsJson);
-        }
-
         var existing = await grossDemandRepository.GetActiveBySourceForUpdateAsync(command.SourceType, command.SourceUid);
         var duplicate = existing.GroupBy(item => item.SourceLineId).FirstOrDefault(group => group.Count() > 1);
         if (duplicate is not null)
             throw new SourceDemandReceptionException("DUPLICATE_ACTIVE_SOURCE", $"来源行 {duplicate.Key} 存在重复活动需求。");
+        // SO/CR 的现行写入均带来源版本；活动旧事实缺失版本须人工核查，不能自动补齐。
+        if (existing.Any(item => !item.SourceVersion.HasValue))
+            throw new SourceDemandReceptionException("SOURCE_VERSION_MISSING", "活动销售或售后来源需求缺少来源版本，请核查历史事实后再确认。");
         if (command.RejectUnsubmittedActiveLines)
         {
             var submittedLineIds = command.Items.Select(item => item.SourceLineId).ToHashSet();
@@ -73,7 +65,7 @@ public sealed class SourceDemandReceptionService(
                 continue;
             }
 
-            if (demand.SourceVersion.HasValue && demand.SourceVersion.Value > command.SourceVersion)
+            if (demand.SourceVersion > command.SourceVersion)
                 throw new SourceDemandReceptionException("STALE_SOURCE_VERSION", "来源版本早于已接收版本，不能覆盖当前需求。");
 
             var contentMatches = ContentMatches(demand, command, item);
@@ -85,11 +77,7 @@ public sealed class SourceDemandReceptionService(
                 continue;
             }
 
-            // 历史空版本在既有业务快照一致时只补客户、单位和来源版本；真实业务内容变化必须先完成下游影响处置。
-            var requiresDisposition = demand.SourceVersion.HasValue
-                ? !contentMatches
-                : !LegacyBusinessContentMatches(demand, command, item);
-            if (requiresDisposition)
+            if (!contentMatches)
             {
                 try
                 {
@@ -108,7 +96,7 @@ public sealed class SourceDemandReceptionService(
             result.UpdatedCount++;
         }
 
-        await WriteLogAsync(command, fingerprint, result);
+        await WriteLogAsync(command, result);
         return result;
     }
 
@@ -250,23 +238,6 @@ public sealed class SourceDemandReceptionService(
            && demand.RequiredDate == item.RequiredDate
            && TextEquals(demand.Remark, item.Remark);
 
-    /// <summary>核对迁移前毛需求已有的业务快照；新增接收元数据为空不应把等价历史误判为商业修订。</summary>
-    private static bool LegacyBusinessContentMatches(GrossDemand demand, SourceDemandReceptionCommand command, SourceDemandReceptionItem item)
-        => demand.SourceLineNumber == item.SourceLineNumber
-           && demand.ProductId == item.ProductId
-           && demand.IsNonStandard == item.IsNonStandard
-           && TextEquals(demand.SourceNo, command.SourceNo)
-           && TextEquals(demand.SkuSnapshot, item.SkuSnapshot)
-           && TextEquals(demand.LinkSkuSnapshot, item.LinkSkuSnapshot)
-           && TextEquals(demand.CustomerSkuSnapshot, item.CustomerSkuSnapshot)
-           && TextEquals(demand.DescriptionSnapshot, item.DescriptionSnapshot)
-           && TextEquals(demand.ColorSnapshot, item.ColorSnapshot)
-           && TextEquals(demand.SpecificationSnapshot, item.SpecificationSnapshot)
-           && TextEquals(demand.ImagePathSnapshot, item.ImagePathSnapshot)
-           && demand.DemandQty == item.DemandQty
-           && demand.RequiredDate == item.RequiredDate
-           && TextEquals(demand.Remark, item.Remark);
-
     private static void Validate(SourceDemandReceptionCommand command)
     {
         if (command is null) throw new SourceDemandReceptionException("INVALID_COMMAND", "来源需求命令不能为空。");
@@ -287,7 +258,8 @@ public sealed class SourceDemandReceptionService(
             throw new SourceDemandReceptionException("PRODUCT_UNIT_REQUIRED", "标准需求必须提供产品和单位。");
     }
 
-    private async Task WriteLogAsync(SourceDemandReceptionCommand command, string fingerprint, SourceDemandReceptionResult result)
+    /// <summary>记录首次父命令在同一事务内产生的来源数量和行身份，不承担机器回执。</summary>
+    private async Task WriteLogAsync(SourceDemandReceptionCommand command, SourceDemandReceptionResult result)
     {
         var log = new BusinessOperationLog
         {
@@ -296,41 +268,20 @@ public sealed class SourceDemandReceptionService(
             Module = Module, AggregateType = "SourceDemand", AggregateUid = command.SourceUid,
             AggregateNoSnapshot = command.SourceNo, OperationType = ReceiveOperation, OperationName = "接收来源需求",
             Summary = $"来源版本 {command.SourceVersion}：新增 {result.CreatedCount}，更新 {result.UpdatedCount}，未变化 {result.UnchangedCount}。",
-            ChangedFieldsJson = JsonSerializer.Serialize(result), RelatedObjectsJson = fingerprint,
+            ChangedFieldsJson = JsonSerializer.Serialize(new
+            {
+                command.SourceVersion, result.CreatedCount, result.UpdatedCount, result.UnchangedCount
+            }),
+            RelatedObjectsJson = JsonSerializer.Serialize(new
+            {
+                command.SourceType, command.SourceUid,
+                SourceLineIds = command.Items.Select(item => item.SourceLineId).OrderBy(id => id)
+            }),
             UserUid = currentUser.UserId, UserNameSnapshot = currentUser.UserName, OccurredDate = DateTime.Now
         };
         if (await operationLogs.InsertAsync(log) != 1)
-            throw new SourceDemandReceptionException("LOG_WRITE_FAILED", "来源需求幂等日志写入失败。");
+            throw new SourceDemandReceptionException("LOG_WRITE_FAILED", "来源需求审计写入失败。");
     }
-
-    private static string CreateFingerprint(SourceDemandReceptionCommand command)
-    {
-        var json = JsonSerializer.Serialize(new
-        {
-            SourceType = command.SourceType.Trim(), command.SourceUid, SourceNo = command.SourceNo.Trim(),
-            command.SourceVersion, command.CustomerId, command.RejectUnsubmittedActiveLines,
-            Items = command.Items.OrderBy(item => item.SourceLineId).Select(item => new
-            {
-                item.SourceLineId, item.SourceLineNumber, item.ProductId, item.IsNonStandard,
-                Sku = item.SkuSnapshot.Trim(), LinkSku = Normalize(item.LinkSkuSnapshot),
-                CustomerSku = Normalize(item.CustomerSkuSnapshot), Description = Normalize(item.DescriptionSnapshot),
-                Color = Normalize(item.ColorSnapshot), Specification = Normalize(item.SpecificationSnapshot),
-                ImagePath = Normalize(item.ImagePathSnapshot), Unit = Normalize(item.UnitSnapshot),
-                item.DemandQty, item.RequiredDate, Remark = Normalize(item.Remark)
-            })
-        });
-        // RelatedObjectsJson 受数据库 JSON 约束保护，因此指纹以稳定 JSON 对象保存，而不是裸哈希文本。
-        return JsonSerializer.Serialize(new
-        {
-            Fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))
-        });
-    }
-
-    private static SourceDemandReceptionResult DeserializeResult(string? json)
-        => string.IsNullOrWhiteSpace(json)
-            ? throw new SourceDemandReceptionException("IDEMPOTENCY_LOG_INVALID", "来源需求幂等日志缺少结果。")
-            : JsonSerializer.Deserialize<SourceDemandReceptionResult>(json)
-              ?? throw new SourceDemandReceptionException("IDEMPOTENCY_LOG_INVALID", "来源需求幂等日志结果无效。");
 
     private void EnsureTransaction()
     {

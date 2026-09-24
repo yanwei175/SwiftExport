@@ -27,7 +27,7 @@ namespace SwiftExport.Application.Services.Orders;
 /// 销售订单 Detail 应用服务。
 /// </summary>
 /// <remarks>
-/// 负责销售订单详情读取、编辑、确认、取消确认、关闭和草稿删除等业务编排。
+/// 负责销售订单详情读取、编辑、取消确认、关闭和草稿删除等业务编排；正式确认由独立切片负责。
 /// 所有写操作均通过 <see cref="ExecuteTransactionAsync{T}"/> 在同一数据库事务中完成；
 /// Repository 负责数据访问，本服务负责校验状态、控制调用顺序以及维护销售订单与毛需求之间的一致性。
 /// </remarks>
@@ -162,64 +162,6 @@ public sealed class SalesOrderDetailService(
                 ?? throw new SalesOrderValidationException("销售订单已保存，但重新加载失败。");
             return new SaveSalesOrderResponse { Document = document };
         }, "保存销售订单失败", request?.Header?.Uid);
-
-    /// <summary>
-    /// 确认销售订单，并为每条有效订单行生成一条毛需求。
-    /// </summary>
-    /// <remarks>
-    /// 确认是销售订单进入需求链路的唯一放行动作，不执行 BOM 拆解。
-    /// 方法允许对已经确认的订单进行幂等重试，但会拒绝重复、孤立或状态异常的毛需求数据。
-    /// 标准件和非标件都会生成毛需求；非标件不要求关联产品主数据。
-    /// </remarks>
-    public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request)
-        => ExecuteTransactionAsync(async () =>
-        {
-            // 锁定订单头并检查单据生命周期；首次确认还必须通过 Version 乐观并发校验。
-            ValidateCommandIdentity(uid, request.Uid);
-            if (request.CommandId == Guid.Empty)
-                throw new SalesOrderValidationException("确认命令标识不能为空。");
-            var header = await headRepository.GetByIdAsync(uid, true)
-                ?? throw new SalesOrderValidationException("销售订单不存在或已删除。");
-            if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
-                throw new SalesOrderValidationException("已关闭的销售订单不能确认。");
-
-            var alreadyConfirmed = header.ConfirmationStatus == ConfirmationStatusEnum.已确认;
-            if (!alreadyConfirmed && header.Version != request.Version)
-                throw new SalesOrderValidationException("销售订单已被其他用户修改，请刷新后重试。");
-
-            var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
-            if (lines.Count == 0) throw new SalesOrderValidationException("销售订单没有有效明细，不能确认。");
-
-            // 先取得确认后的销售事实版本，再由需求领域按该版本幂等接收全部销售行。
-            var version = header.Version;
-            if (!alreadyConfirmed)
-            {
-                var statusResult = await headRepository.SetConfirmationStatusAsync(uid, request.Version, ConfirmationStatusEnum.已确认);
-                EnsureWriteSucceeded(statusResult);
-                version = statusResult.NewVersion ?? request.Version + 1;
-            }
-
-            var productIds = lines.Where(line => line.ProductId.HasValue).Select(line => line.ProductId!.Value).Distinct().ToArray();
-            var products = (await productRepository.GetByIdListAsync(productIds, true)).ToDictionary(product => product.Uid);
-            SourceDemandReceptionResult reception;
-            try
-            {
-                reception = await sourceDemandReceptionService.ReceiveAsync(
-                    CreateSourceDemandCommand(header, lines, products, version, request.CommandId));
-            }
-            catch (SourceDemandReceptionException ex)
-            {
-                throw new SalesOrderValidationException($"{ex.Code}：{ex.Message}");
-            }
-
-            return new SalesOrderConfirmationResultDto
-            {
-                Uid = uid,
-                Version = version,
-                ConfirmationStatus = ConfirmationStatusEnum.已确认,
-                GrossDemandCount = reception.TotalCount
-            };
-        }, "确认销售订单失败", uid);
 
     /// <summary>
     /// 取消销售订单确认，并按毛需求历史决定物理删除或作废保留。
@@ -557,48 +499,6 @@ public sealed class SalesOrderDetailService(
         header.ReplyDate = dto.ReplyDate;
         header.ETA = dto.Eta;
         header.ETD = dto.Etd;
-    }
-
-    /// <summary>将确认后的销售头行事实转换为需求领域接收命令，不在销售域构造毛需求实体。</summary>
-    private static SourceDemandReceptionCommand CreateSourceDemandCommand(
-        SalesOrderHeader header,
-        IReadOnlyList<SalesOrderLine> lines,
-        IReadOnlyDictionary<Guid, Product> products,
-        int sourceVersion,
-        Guid commandId)
-    {
-        return new SourceDemandReceptionCommand
-        {
-            CommandId = commandId,
-            SourceType = DocumentTypeStaticsEnum.SalesOrder,
-            SourceUid = header.Uid,
-            SourceNo = header.OrderNo,
-            SourceVersion = sourceVersion,
-            CustomerId = header.CustomerId ?? Guid.Empty,
-            RejectUnsubmittedActiveLines = true,
-            Items = lines.Select(line =>
-            {
-                products.TryGetValue(line.ProductId ?? Guid.Empty, out var product);
-                return new SourceDemandReceptionItem
-                {
-                    SourceLineId = line.Uid,
-                    SourceLineNumber = line.LineNumber,
-                    ProductId = line.ProductId,
-                    IsNonStandard = line.IsNonStandard,
-                    SkuSnapshot = line.Sku,
-                    LinkSkuSnapshot = line.LinkSku,
-                    CustomerSkuSnapshot = line.CustomerSku,
-                    DescriptionSnapshot = line.DescriptionEn,
-                    ColorSnapshot = line.ColorNameEn,
-                    SpecificationSnapshot = line.FeaturesEn,
-                    ImagePathSnapshot = line.MainImage,
-                    UnitSnapshot = product?.Unit,
-                    DemandQty = line.Qty,
-                    RequiredDate = line.ExpectedDeliveryDate ?? header.DeliveryDate,
-                    Remark = line.SubNote
-                };
-            }).ToArray()
-        };
     }
 
     /// <summary>
