@@ -5,6 +5,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
     /// <summary>携带新建手工来源需求的产品、数量和交付日期输入。</summary>
     public class CreateManualGrossDemandRequest
     {
+        /// <summary>一次创建意图的稳定标识；结果未知时原样重试。</summary>
+        public Guid CommandId { get; set; }
         public Guid? ProductId { get; set; }
         public bool IsNonStandard { get; set; }
         public string Sku { get; set; }

@@ -211,6 +211,10 @@ public sealed class SettingsViewModelTests
             option.PermissionKey == PermissionKeys.DemandPlanningMaterialEstablish));
         Assert.IsTrue(viewModel.Modules.Any(option =>
             option.PermissionKey == PermissionKeys.DemandPlanningMaterialRollback));
+        Assert.IsTrue(viewModel.Modules.Any(option =>
+            option.PermissionKey == PermissionKeys.DemandPlanningSourceManualManage));
+        Assert.IsTrue(viewModel.Modules.Any(option =>
+            option.PermissionKey == PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage));
 
         viewModel.Dispose();
     }

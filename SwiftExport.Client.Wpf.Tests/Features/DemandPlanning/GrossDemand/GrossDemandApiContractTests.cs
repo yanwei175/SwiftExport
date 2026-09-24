@@ -19,6 +19,15 @@ public sealed class GrossDemandApiContractTests
         AssertRoute(nameof(IGrossDemandWorkspaceApi.CloseManualAsync), typeof(PostAttribute), "/manual/{uid}/close", 1);
     }
 
+    /// <summary>三个维护请求均携带回执命令身份，公开 DTO 类型及 Refit 签名保持原位。</summary>
+    [TestMethod]
+    public void ManualCommands_ShouldCarryStableCommandId()
+    {
+        Assert.IsNotNull(typeof(CreateManualGrossDemandRequest).GetProperty("CommandId"));
+        Assert.IsNotNull(typeof(UpdateManualGrossDemandRequest).GetProperty("CommandId"));
+        Assert.IsNotNull(typeof(CloseGrossDemandCommand).GetProperty("CommandId"));
+    }
+
     [TestMethod]
     public void ReadMethods_ShouldExposeCancellationToken_ButWriteMethodsShouldNot()
     {

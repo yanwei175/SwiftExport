@@ -5,6 +5,8 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     /// <summary>更新一条活动物料需求推荐采购供应商的窄命令；不修改采购事实或其他物料字段。</summary>
     public class UpdateSuggestedPurchaseSupplierCommand
     {
+        /// <summary>一行建议修改的稳定标识；结果未知时原样重试。</summary>
+        public Guid CommandId { get; set; }
         /// <summary>物料需求 Uid。</summary>
         public Guid NetDemandId { get; set; }
 

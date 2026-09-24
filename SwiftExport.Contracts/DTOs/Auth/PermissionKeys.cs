@@ -23,6 +23,10 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string DemandPlanningMaterialEstablish = "DemandPlanning.Material.Establish";
         /// <summary>物料需求整批回退权限，独立于模块访问及建立权限。</summary>
         public const string DemandPlanningMaterialRollback = "DemandPlanning.Material.Rollback";
+        /// <summary>手工来源创建、修改和关闭权限，独立于需求模块访问。</summary>
+        public const string DemandPlanningSourceManualManage = "DemandPlanning.Source.Manual.Manage";
+        /// <summary>物料需求推荐采购供应商修改权限，独立于需求模块访问。</summary>
+        public const string DemandPlanningMaterialSupplierSuggestionManage = "DemandPlanning.Material.SupplierSuggestion.Manage";
         /// <summary>采购模块访问权限。</summary>
         public const string ModuleProcurementAccess = "Module.Procurement.Access";
         /// <summary>库存模块访问权限。</summary>
@@ -82,14 +86,14 @@ namespace SwiftExport.Contracts.DTOs.Auth
             .Concat(new[] { SystemSettingsManage, ProcurementOrderVoid })
             .Concat(ProcurementOperationValues)
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
-            .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback })
+            .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback, DemandPlanningSourceManualManage, DemandPlanningMaterialSupplierSuggestionManage })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
             .Concat(new[] { PackingListPost, PackingListReverse })
             .Concat(new[] { ProcurementOrderVoid })
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
-            .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback })
+            .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback, DemandPlanningSourceManualManage, DemandPlanningMaterialSupplierSuggestionManage })
             .ToArray();
 
         /// <summary>获取允许管理员直接分配给普通用户的一级模块键。</summary>

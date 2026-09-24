@@ -3,10 +3,21 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using FluentValidation;
+using SwiftExport.Application.Commands;
+using SwiftExport.Application.Commands.Validation;
+using SwiftExport.Application.Interfaces.Auth;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSuggestion;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Core.Entities.Commands;
+using SwiftExport.Core.Interfaces.Commands;
+using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
@@ -31,6 +42,7 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
 
         var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
         {
+            CommandId = Guid.NewGuid(),
             NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version,
             SuggestedPurchaseSupplierId = supplierId
         });
@@ -51,6 +63,7 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
 
         var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
         {
+            CommandId = Guid.NewGuid(),
             NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version,
             SuggestedPurchaseSupplierId = null
         });
@@ -72,6 +85,7 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
 
         var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
         {
+            CommandId = Guid.NewGuid(),
             NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version - 1,
             SuggestedPurchaseSupplierId = null
         });
@@ -79,6 +93,71 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
         Assert.IsFalse(result.Success);
         Assert.AreEqual("CONCURRENCY_CONFLICT", result.Error?.Code);
         Assert.AreEqual(0, fixture.NetDemandPort.UpdateCount);
+        Assert.AreEqual(1, fixture.Connection.LastTransaction!.RollbackCount);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
+    /// <summary>同一行同一身份返回首次完整结果；不同建议及操作人占用原 ID 时冲突。</summary>
+    [TestMethod]
+    public async Task ReplayAndConflict_PrecedeChangedVersion()
+    {
+        using var fixture = new Fixture();
+        var command = new UpdateSuggestedPurchaseSupplierCommand
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = fixture.Row.Uid,
+            Version = fixture.Row.Version, SuggestedPurchaseSupplierId = null
+        };
+        Assert.IsTrue((await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command)).Success);
+        fixture.Row.Version++;
+        var replay = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command);
+        Assert.IsTrue(replay.Success, replay.Message);
+        Assert.AreEqual(command.Version, replay.Data!.Version);
+        Assert.AreEqual(0, fixture.NetDemandPort.UpdateCount);
+        Assert.AreEqual(1, fixture.Receipt.InsertCount);
+        var readsBeforeDenial = fixture.Receipt.ReadCount;
+        fixture.Permission.Allow = false;
+        Assert.AreEqual(ServiceErrorCodes.Forbidden,
+            (await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command)).Error.Code);
+        Assert.AreEqual(readsBeforeDenial, fixture.Receipt.ReadCount);
+        fixture.Permission.Allow = true;
+
+        command.SuggestedPurchaseSupplierId = Guid.NewGuid();
+        Assert.AreEqual(ServiceErrorCodes.CommandConflict,
+            (await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command)).Error.Code);
+        command.SuggestedPurchaseSupplierId = null;
+        fixture.User.UserId = Guid.NewGuid();
+        Assert.AreEqual(ServiceErrorCodes.CommandConflict,
+            (await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command)).Error.Code);
+    }
+
+    /// <summary>权限在事务及回执前检查；首次无权不占用命令身份。</summary>
+    [TestMethod]
+    public async Task PermissionDenied_DoesNotStartTransaction()
+    {
+        using var fixture = new Fixture();
+        fixture.Permission.Allow = false;
+        var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version
+        });
+        Assert.AreEqual(ServiceErrorCodes.Forbidden, result.Error.Code);
+        Assert.IsNull(fixture.Connection.LastTransaction);
+        Assert.AreEqual(0, fixture.Receipt.InsertCount);
+    }
+
+    /// <summary>回执写入失败使该行事实事务回滚，不能报告已保存。</summary>
+    [TestMethod]
+    public async Task ReceiptFailure_RollsBackSuggestionUpdate()
+    {
+        using var fixture = new Fixture();
+        fixture.Receipt.FailInsert = true;
+        fixture.Row.SuggestedPurchaseSupplierId = Guid.NewGuid();
+        var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version,
+            SuggestedPurchaseSupplierId = null
+        });
+        Assert.IsFalse(result.Success);
         Assert.AreEqual(1, fixture.Connection.LastTransaction!.RollbackCount);
         Assert.IsNull(fixture.Session.Transaction);
     }
@@ -96,8 +175,21 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
             NetDemandPort.Row = Row;
             var suppliers = DispatchProxy.Create<ISupplierRepository, SupplierPort>();
             ((SupplierPort)(object)suppliers).GetSupplier = () => Supplier;
+            var user = DispatchProxy.Create<ICurrentUser, UserPort>();
+            User = (UserPort)(object)user;
+            var permission = DispatchProxy.Create<IUserPermissionService, PermissionPort>();
+            Permission = (PermissionPort)(object)permission;
+            var receipt = DispatchProxy.Create<ICommandReceiptRepository, ReceiptPort>();
+            Receipt = (ReceiptPort)(object)receipt;
+            var correlation = DispatchProxy.Create<ICorrelationContext, CorrelationPort>();
+            var validators = new ServiceCollection()
+                .AddSingleton<IValidator<UpdateSuggestedPurchaseSupplierCommand>, UpdateSuggestedPurchaseSupplierCommandValidator>()
+                .BuildServiceProvider();
+            var context = new ServiceBaseContext(Session, NullLoggerFactory.Instance);
             Service = new MaterialDemandSupplierSuggestionService(
-                new ServiceBaseContext(Session, NullLoggerFactory.Instance), suppliers, demands);
+                context, suppliers, demands, user, permission,
+                new CommandPipeline(new CommandRequestValidator(validators), correlation, user, NullLogger<CommandPipeline>.Instance),
+                new BusinessCommandExecutor(context, receipt, user));
         }
 
         public DbSession Session { get; }
@@ -105,8 +197,74 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
         public NetDemand Row { get; } = new() { Uid = Guid.NewGuid(), Version = 4 };
         public Supplier? Supplier { get; set; }
         public NetDemandPort NetDemandPort { get; }
+        public UserPort User { get; }
+        public PermissionPort Permission { get; }
+        public ReceiptPort Receipt { get; }
         public MaterialDemandSupplierSuggestionService Service { get; }
         public void Dispose() => Session.Dispose();
+    }
+
+    /// <summary>提供已登录操作人身份，不访问认证服务。</summary>
+    public class UserPort : DispatchProxy
+    {
+        public Guid? UserId { get; set; } = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
+        {
+            "get_IsAuthenticated" => UserId.HasValue,
+            "get_UserId" => UserId,
+            _ => throw new NotSupportedException(method?.Name)
+        };
+    }
+
+    /// <summary>仅授予本测试命令的独立维护权限。</summary>
+    public class PermissionPort : DispatchProxy
+    {
+        public bool Allow { get; set; } = true;
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
+        {
+            "HasPermissionAsync" => Task.FromResult(Allow && (string)args![1]! == PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage),
+            _ => throw new NotSupportedException(method?.Name)
+        };
+    }
+
+    /// <summary>内存回执端口用于证明命令事务内插入成功。</summary>
+    public class ReceiptPort : DispatchProxy
+    {
+        private readonly Dictionary<Guid, CommandReceipt> _items = [];
+        public int InsertCount { get; private set; }
+        public int ReadCount { get; private set; }
+        public bool FailInsert { get; set; }
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
+        {
+            "LockAsync" => Task.FromResult(0),
+            "FindAsync" => Find((Guid)args![0]!),
+            "InsertAsync" => Insert((CommandReceipt)args![0]!),
+            _ => throw new NotSupportedException(method?.Name)
+        };
+
+        private Task<CommandReceipt?> Find(Guid id)
+        {
+            ReadCount++;
+            return Task.FromResult(_items.GetValueOrDefault(id));
+        }
+
+        private Task Insert(CommandReceipt receipt)
+        {
+            if (FailInsert) throw new InvalidOperationException("模拟回执写入失败");
+            InsertCount++;
+            _items.Add(receipt.CommandId, receipt);
+            return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>提供固定链路身份。</summary>
+    public class CorrelationPort : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
+        {
+            "get_CorrelationId" => "supplier-test",
+            _ => throw new NotSupportedException(method?.Name)
+        };
     }
 
     /// <summary>仅模拟局部更新所需的物料仓储方法。</summary>

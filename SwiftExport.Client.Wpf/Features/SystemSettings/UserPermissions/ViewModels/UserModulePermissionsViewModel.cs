@@ -315,6 +315,8 @@ public sealed partial class UserModulePermissionsViewModel
             new(PermissionKeys.ModuleDemandPlanningAccess, "需求计划"),
             new(PermissionKeys.DemandPlanningMaterialEstablish, "需求计划 - 物料需求建立"),
             new(PermissionKeys.DemandPlanningMaterialRollback, "需求计划 - 物料需求回退"),
+            new(PermissionKeys.DemandPlanningSourceManualManage, "需求计划 - 手工来源维护"),
+            new(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage, "需求计划 - 推荐采购供应商维护"),
             new(PermissionKeys.ModuleProcurementAccess, "采购"),
             new(PermissionKeys.ModuleInventoryAccess, "库存"),
             new(PermissionKeys.InventoryWarehouseManage, "库存 - 供应商虚拟仓管理"),
