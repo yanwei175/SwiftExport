@@ -10,6 +10,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
@@ -166,7 +167,7 @@ public sealed class ProcurementOrderReversalCommandOrchestrationTests
             var correlation = new CorrelationStub();
             Receipts = new ReceiptStub(Session);
             var executor = new BusinessCommandExecutor(context, Receipts, user);
-            var permissions = Proxy<IUserPermissionService>.New((method, _) => method.Name == "HasPermissionAsync"
+            var permissions = Proxy<IPermissionEvaluationService>.New((method, _) => method.Name == "HasPermissionAsync"
                 ? Task.FromResult(Allow) : throw new NotSupportedException(method.Name));
             var logs = Proxy<IBusinessOperationLogRepository>.New((method, args) => method.Name == "InsertAsync"
                 ? RecordLog((BusinessOperationLog)args[0]!) : throw new NotSupportedException(method.Name));

@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Products.Catalog;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
@@ -12,6 +13,7 @@ using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
 using SwiftExport.Application.Services.DemandPlanning.Sources.Manual;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -141,7 +143,7 @@ public sealed class ManualGrossDemandPublicCommandTests
                 "get_UserId" => UserId,
                 _ => throw new AssertFailedException(m.Name)
             });
-            var permissions = Proxy<IUserPermissionService>((m, a) => m.Name == "HasPermissionAsync"
+            var permissions = Proxy<IPermissionEvaluationService>((m, a) => m.Name == "HasPermissionAsync"
                 ? Task.FromResult(Allow && (string)a![1]! == PermissionKeys.DemandPlanningSourceManualManage)
                 : throw new AssertFailedException(m.Name));
             var receipts = Proxy<ICommandReceiptRepository>((m, a) => m.Name switch

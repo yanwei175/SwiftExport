@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
@@ -13,7 +14,7 @@ using SwiftExport.Application.Services.Inventory;
 namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
 /// <summary>集中入库用例共用的模块访问检查、错误映射及分页上界。</summary>
-public sealed class InboundServiceSupport(ICurrentUser user, IUserPermissionService permissions,
+public sealed class InboundServiceSupport(ICurrentUser user, IPermissionEvaluationService permissions,
     ILogger<InboundServiceSupport> logger)
 {
     /// <summary>统一读取与写入访问权限及错误包装；数据库技术信息仅写服务端日志。</summary>

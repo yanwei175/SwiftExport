@@ -13,22 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Interfaces\IExcelSheetFieldsMappingService.cs" />
-    <Compile Remove="Interfaces\IViewUserRoleService.cs" />
-    <Compile Remove="Interfaces\IWhiteListServices.cs" />
-    <Compile Remove="Services\Settings\ExcelSheetFieldsMappingService.cs" />
-    <Compile Remove="Services\Settings\ViewUserRoleService.cs" />
-    <Compile Remove="Services\Settings\WhiteListServices.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
     <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
     <ProjectReference Include="..\SwiftExport.Infrastructure\SwiftExport.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Services\Settings\" />
   </ItemGroup>
 
   <ItemGroup>

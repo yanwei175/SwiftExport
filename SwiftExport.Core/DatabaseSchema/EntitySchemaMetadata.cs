@@ -1,4 +1,4 @@
-﻿using SwiftExport.Core.DatabaseSchema;
+using SwiftExport.Core.DatabaseSchema;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.SalesOrders;
@@ -332,28 +332,40 @@ namespace SwiftExport.Core.Entities.QualityControl
     public sealed partial class AfterSalesLine { }
 }
 
-namespace SwiftExport.Core.Entities.Systems
+namespace SwiftExport.Core.Entities.Systems.Numbering
 {
     [DbIndex("UX_DocumentSequence_Type_Period", nameof(DocumentSequence.DocType), nameof(DocumentSequence.YearMonth), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class DocumentSequence { }
+}
 
+namespace SwiftExport.Core.Entities.Systems.Currencies
+{
     [DbCheck("CK_SysDicCurrency_Precision", "[Precision] >= 0 AND [Precision] <= 8")]
     [DbIndex("UX_SysDicCurrency_Code", nameof(SysDicCurrency.CurrencyCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysDicCurrency { }
+}
 
+namespace SwiftExport.Core.Entities.Systems.ExchangeRates
+{
     [DbCheck("CK_SysDicCurrencyExchange_Precision", "[Precision] >= 0 AND [Precision] <= 8")]
     [DbIndex("UX_SysDicCurrencyExchange_Pair", nameof(SysDicCurrencyExchange.FromCurrencyCode), nameof(SysDicCurrencyExchange.ToCurrencyCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysDicCurrencyExchange { }
+}
 
+namespace SwiftExport.Core.Entities.Systems.Dictionaries.Data
+{
     [DbIndex("IX_SysDictData_DictCode", nameof(SysDictData.DictCode), nameof(SysDictData.SortOrder), Filter = "[IsDeleted] = 0")]
     public partial class SysDictData { }
+}
 
+namespace SwiftExport.Core.Entities.Systems.Dictionaries.Types
+{
     [DbIndex("UX_SysDictType_DictCode", nameof(SysDictType.DictCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(SysDictType.ParentId), typeof(SysDictType))]
     public partial class SysDictType { }
 }
 
-namespace SwiftExport.Core.Entities.SystemEntities
+namespace SwiftExport.Core.Entities.Systems.ViewRoutes
 {
     [DbIndex("UX_SysViewRoute_TargetViewKey", nameof(SysViewRoute.TargetViewKey), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysViewRoute { }

@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.QualityControl;
 using SwiftExport.Contracts.Common;
@@ -39,7 +41,7 @@ using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.QualityControl.AfterSales.Maintenance;
 
 /// <summary>创建、保存及合法补充售后事实；已确认单仅允许原规则许可的字段变化。</summary>
-public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAfterSalesDocumentRepository documents, IAfterSalesLookupRepository lookups, IDocumentNoService numbering, IBusinessOperationLogRepository logs, IUserPermissionService permissions, ICurrentUser user, CommandPipeline pipeline, BusinessCommandExecutor executor) : IAfterSalesMaintenanceService
+public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAfterSalesDocumentRepository documents, IAfterSalesLookupRepository lookups, IDocumentNoService numbering, IBusinessOperationLogRepository logs, IPermissionEvaluationService permissions, ICurrentUser user, CommandPipeline pipeline, BusinessCommandExecutor executor) : IAfterSalesMaintenanceService
 {
     private const string CreateType = "QualityControl.AfterSales.Create";
     private const string SaveType = "QualityControl.AfterSales.Save";

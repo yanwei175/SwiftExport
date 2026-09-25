@@ -5,6 +5,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.Common;
@@ -25,7 +26,7 @@ namespace SwiftExport.Application.Services.Inventory.Warehouses;
 public sealed class WarehouseManagementService(
     ServiceBaseContext context, IWarehouseManagementRepository warehouseSites, IWarehouseQueryRepository warehouseQueries,
     IBusinessOperationLogRepository operationLogs, ICorrelationContext correlation,
-    ICurrentUser currentUser, IUserPermissionService permissions,
+    ICurrentUser currentUser, IPermissionEvaluationService permissions,
     CommandPipeline pipeline, BusinessCommandExecutor executor) : IWarehouseManagementService
 {
     private const string Module = "Inventory";

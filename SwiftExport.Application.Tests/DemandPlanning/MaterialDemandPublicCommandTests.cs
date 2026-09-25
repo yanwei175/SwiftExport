@@ -12,6 +12,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 using SwiftExport.Application.Services.DemandPlanning.Materials.Reversal;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -253,7 +254,7 @@ public sealed class MaterialDemandPublicCommandTests
                 "InsertAsync" => WriteAudit(),
                 _ => throw new AssertFailedException($"审计不能承担回执读取：{method.Name}")
             });
-            var permissions = Proxy<IUserPermissionService>((method, args) => method.Name switch
+            var permissions = Proxy<IPermissionEvaluationService>((method, args) => method.Name switch
             {
                 "HasPermissionAsync" => Task.FromResult((string)args![1]! == PermissionKeys.DemandPlanningMaterialEstablish
                     ? AllowEstablish : AllowRollback),

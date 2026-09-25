@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -12,6 +13,7 @@ using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
@@ -194,7 +196,7 @@ public sealed class ProcurementOrderCommandOrchestrationTests
             var user = new UserStub();
             Receipts = new ReceiptStub(Session);
             Executor = new BusinessCommandExecutor(new ServiceBaseContext(Session, NullLoggerFactory.Instance), Receipts, user);
-            var permissions = Proxy<IUserPermissionService>.New((method, _) => method.Name == "HasPermissionAsync"
+            var permissions = Proxy<IPermissionEvaluationService>.New((method, _) => method.Name == "HasPermissionAsync"
                 ? Task.FromResult(Allow) : throw new NotSupportedException(method.Name));
             var logs = Proxy<IBusinessOperationLogRepository>.New((method, _) => method.Name == "InsertAsync"
                 ? CountLog() : throw new NotSupportedException(method.Name));

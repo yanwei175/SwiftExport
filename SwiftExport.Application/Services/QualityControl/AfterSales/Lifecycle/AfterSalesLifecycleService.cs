@@ -4,6 +4,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
 using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Lifecycle;
@@ -25,7 +26,7 @@ namespace SwiftExport.Application.Services.QualityControl.AfterSales.Lifecycle;
 /// <summary>分别执行售后结案、重开和作废，保留原状态与来源阻断规则。</summary>
 public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
     IAfterSalesDocumentRepository documents, IBusinessOperationLogRepository logs,
-    IUserPermissionService permissions, ICurrentUser user, ISourceDemandReceptionService reception,
+    IPermissionEvaluationService permissions, ICurrentUser user, ISourceDemandReceptionService reception,
     CommandPipeline pipeline, BusinessCommandExecutor executor) : IAfterSalesLifecycleService
 {
     private const string CloseType = "QualityControl.AfterSales.Close";

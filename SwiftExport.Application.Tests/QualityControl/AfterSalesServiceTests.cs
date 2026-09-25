@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using System.Data;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -21,6 +22,7 @@ using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Except
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Services.QualityControl;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
@@ -422,7 +424,7 @@ public sealed class AfterSalesServiceTests
                 "GetByModuleCommandAsync"=>Task.FromResult(Logs.SingleOrDefault(x=>x.Module==(string)a[0]!&&x.CommandId==(Guid)a[1]!)),
                 "InsertAsync"=>AppendLog((BusinessOperationLog)a[0]!),_=>throw new NotSupportedException(n)});
             var numbering=Port<IDocumentNoService>((_,_)=>{NumberCalls++;return Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new(){DocumentNo="CR2026090001"}));});
-            var permission=Port<IUserPermissionService>((_,_)=>Task.FromResult(Allowed));
+            var permission=Port<IPermissionEvaluationService>((_,_)=>Task.FromResult(Allowed));
             var user=Port<ICurrentUser>((n,_)=>n switch {"get_UserId"=>(Guid?)actor,"get_UserName"=>"tester","get_IsAuthenticated"=>true,_=>throw new NotSupportedException(n)});
             var receiptPort=Port<ICommandReceiptRepository>((n,a)=>n switch {
                 "LockAsync"=>Task.FromResult(0),

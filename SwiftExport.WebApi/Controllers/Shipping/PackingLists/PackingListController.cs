@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
@@ -21,7 +22,7 @@ public sealed class PackingListController(
     IPackingListPostingService posting,
     IPackingListReversalService reversal,
     ICurrentUser currentUser,
-    IUserPermissionService permissions) : ControllerBase
+    IPermissionEvaluationService permissions) : ControllerBase
 {
     /// <summary>箱单post-preview业务边界；稳定命令由服务持久化去重，不使用短时冷却。</summary>
     [HttpPost("{uid:guid}/post-preview")]

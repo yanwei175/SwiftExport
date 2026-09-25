@@ -5,6 +5,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SupplierSuggestion;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -22,7 +23,7 @@ public sealed class MaterialDemandSupplierSuggestionService(
     ServiceBaseContext context,
     ISupplierRepository supplierRepository,
     IMaterialDemandDocumentRepository netDemandRepository,
-    ICurrentUser currentUser, IUserPermissionService permissions,
+    ICurrentUser currentUser, IPermissionEvaluationService permissions,
     CommandPipeline pipeline, BusinessCommandExecutor executor) : IMaterialDemandSupplierSuggestionService
 {
     private const string CommandType = "DemandPlanning.Material.SupplierSuggestion.Update";

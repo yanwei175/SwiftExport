@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
@@ -41,7 +42,7 @@ public sealed class MaterialDemandEstablishmentService(
     ICurrentUser currentUser,
     GrossDemandDecompositionPlanner planner,
     MaterialDemandSuggestedSupplierInitializer suggestedSupplierInitializer,
-    IUserPermissionService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : IMaterialDemandEstablishmentService
+    IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : IMaterialDemandEstablishmentService
 {
     private const string Module = "MaterialDemand";
     private const string EstablishOperation = "EstablishFromSource";

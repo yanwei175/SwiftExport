@@ -29,12 +29,13 @@ using SwiftExport.Core.Interfaces.SalesOrders.Query;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.SalesOrders.Lifecycle;
 
 /// <summary>关闭销售订单并在同一事务处理尚未履约的来源需求。</summary>
-public sealed class SalesOrderLifecycleService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, ISourceDemandReceptionService sourceDemandReceptionService, ICurrentUser currentUser, IUserPermissionService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderLifecycleService
+public sealed class SalesOrderLifecycleService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, ISourceDemandReceptionService sourceDemandReceptionService, ICurrentUser currentUser, IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderLifecycleService
 {
     private const string CommandType = "Orders.SalesOrder.Close";
     /// <summary>

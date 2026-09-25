@@ -2,6 +2,7 @@ using SwiftExport.Application.Services.Inventory.Posting;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory.Query;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -16,11 +17,11 @@ namespace SwiftExport.Application.Services.Inventory.Query;
 /// <summary>按库存模块访问权限读取余额、不可变流水与余额追溯，不持有写入事务。</summary>
 public sealed class InventoryQueryService(
     ServiceBaseContext context, IInventoryQueryRepository inventory,
-    ICurrentUser currentUser, IUserPermissionService permissions) : IInventoryQueryService
+    ICurrentUser currentUser, IPermissionEvaluationService permissions) : IInventoryQueryService
 {
     private const string ReadPermissionDeniedMessage = "当前账号无库存模块访问权限。";
     private readonly ILogger<InventoryQueryService> _logger = context.LoggerFactory.CreateLogger<InventoryQueryService>();
-    private readonly IUserPermissionService _permissions = permissions;
+    private readonly IPermissionEvaluationService _permissions = permissions;
 
     /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<InventoryBalanceDto>>> SearchBalancesAsync(InventoryBalanceSearchRequest request, CancellationToken cancellationToken = default)

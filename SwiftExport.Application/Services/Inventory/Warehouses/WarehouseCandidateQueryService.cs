@@ -3,6 +3,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
@@ -16,7 +17,7 @@ namespace SwiftExport.Application.Services.Inventory.Warehouses;
 public sealed class WarehouseCandidateQueryService(
     ServiceBaseContext context,
     IWarehouseCandidateRepository repository,
-    IUserPermissionService permissions,
+    IPermissionEvaluationService permissions,
     ICurrentUser user) : IWarehouseCandidateQueryService
 {
     /// <summary>校验身份及分页，重验权限后查询；取消或失败释放事务，不修改调用方请求。</summary>

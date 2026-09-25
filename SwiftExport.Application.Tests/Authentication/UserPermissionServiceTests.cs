@@ -4,10 +4,16 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Services.Auth;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Services.Auth.Permissions.Assignment;
+using SwiftExport.Application.Services.Auth.Users;
+using SwiftExport.Application.Models.Auth.Permissions.Evaluation;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auth.Permissions;
 using SwiftExport.Core.Models.Auth;
 using SwiftExport.Infrastructure.Data;
 
@@ -296,6 +302,21 @@ public sealed class UserPermissionServiceTests
         return repository;
     }
 
+    /// <summary>用户选择列表由账号窄服务读取，仍要求真实 Admin 投影。</summary>
+    [TestMethod]
+    public async Task AdminUserListComesFromAccountService()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.ActiveUsers = [new UserSummaryDto { Uid = targetId, UserName = "target", NickName = "目标" }];
+
+        var result = await Service(repository, actorId).GetUsersAsync();
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual(targetId, result.Data.Single().Uid);
+    }
+
     private static UserPermissionFacts Facts(
         Guid userId,
         bool isAdmin,
@@ -309,14 +330,31 @@ public sealed class UserPermissionServiceTests
         ModulePermissions = modules
     };
 
-    private static UserPermissionService Service(
+    private static PermissionFixture Service(
         RepositoryStub repository,
         Guid actorId,
         ConnectionStub? connection = null)
     {
         var session = Session(connection ?? new ConnectionStub());
-        return new UserPermissionService(
-            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository, new CurrentUserStub(actorId));
+        var currentUser = new CurrentUserStub(actorId);
+        var evaluation = new PermissionEvaluationService(repository);
+        var assignment = new UserPermissionAssignmentService(
+            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository, currentUser, evaluation);
+        var accounts = new UserAccountService(null!, currentUser, null!, repository, evaluation);
+        return new PermissionFixture(evaluation, assignment, accounts);
+    }
+
+    /// <summary>把三个窄服务放入同一测试夹具，保留原权限与事务断言。</summary>
+    private sealed class PermissionFixture(
+        PermissionEvaluationService evaluation,
+        UserPermissionAssignmentService assignment,
+        UserAccountService accounts)
+    {
+        public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId) => evaluation.GetProjectionAsync(userId);
+        public Task<bool> HasPermissionAsync(Guid userId, string key) => evaluation.HasPermissionAsync(userId, key);
+        public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync() => accounts.GetUsersAsync();
+        public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId) => assignment.GetUserModulesAsync(userId);
+        public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request) => assignment.SaveUserModulesAsync(userId, request);
     }
 
     private static DbSession Session(IDbConnection connection)
@@ -338,6 +376,7 @@ public sealed class UserPermissionServiceTests
     private sealed class RepositoryStub : IUserPermissionRepository
     {
         public Dictionary<Guid, UserPermissionFacts> Facts { get; } = [];
+        public IReadOnlyList<UserSummaryDto> ActiveUsers { get; set; } = [];
         public int ReplaceCalls { get; private set; }
         public UserModuleReplaceStatus ReplaceStatus { get; set; } = UserModuleReplaceStatus.Updated;
         public bool ThrowOnReplace { get; set; }
@@ -345,7 +384,7 @@ public sealed class UserPermissionServiceTests
         public Task<UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Facts.GetValueOrDefault(userId));
         public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
+            Task.FromResult(ActiveUsers);
         public Task<UserModuleReplaceStatus> ReplaceModulesAsync(
             Guid actorUserId, Guid targetUserId, IReadOnlyCollection<string> modulePermissions,
             CancellationToken cancellationToken = default)

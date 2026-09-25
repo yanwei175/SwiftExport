@@ -1,3 +1,5 @@
+using SwiftExport.Application.Services.Systems.Numbering;
+using SwiftExport.Core.Interfaces.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
 using SwiftExport.Application.Interfaces.Inventory.Posting;
@@ -9,7 +11,7 @@ using System.Data;
 using System.Text.Json;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Core.Entities.Systems;
+using SwiftExport.Core.Entities.Systems.Numbering;
 using System.IO;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -24,6 +26,7 @@ using SwiftExport.Contracts.Apis.Inventory.Inbounds;
 using SwiftExport.WebApi.Controllers.Inventory.Inbounds;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Application.Services.Inventory.Inbounds;
@@ -421,7 +424,7 @@ public sealed partial class InboundManagerServiceTests
                     "InsertAsync" => Log((BusinessOperationLog)args[0]!),
                     _ => throw new NotSupportedException(method)
                 });
-            var permissions = Proxy<IUserPermissionService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed &&
+            var permissions = Proxy<IPermissionEvaluationService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed &&
                 ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost || AllowPost) &&
                 ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundReverse || AllowReverse)) : throw new NotSupportedException(method));
             var numbers = new DocumentNoService(Proxy<IDocumentSequenceRepository>((method, args) =>

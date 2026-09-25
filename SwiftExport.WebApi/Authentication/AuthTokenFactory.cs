@@ -1,5 +1,6 @@
 using Microsoft.IdentityModel.Tokens;
 using SwiftExport.Application.Models.Auth;
+using SwiftExport.Application.Models.Auth.Session;
 using SwiftExport.Contracts.DTOs.Auth;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;

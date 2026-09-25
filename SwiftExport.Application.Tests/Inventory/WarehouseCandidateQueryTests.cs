@@ -1,3 +1,4 @@
+using SwiftExport.Application.Models.Auth.Permissions.Evaluation;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
@@ -9,6 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Models.Auth;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Application.Services.Inventory.Warehouses;
@@ -128,7 +130,7 @@ public sealed class WarehouseCandidateQueryTests
     }
 
     /// <summary>返回是否具有采购创建权限的统一投影替身。</summary>
-    private sealed class PermissionServiceStub(bool allowed) : IUserPermissionService
+    private sealed class PermissionServiceStub(bool allowed) : IPermissionEvaluationService
     {
         public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<UserPermissionProjection?>(new UserPermissionProjection

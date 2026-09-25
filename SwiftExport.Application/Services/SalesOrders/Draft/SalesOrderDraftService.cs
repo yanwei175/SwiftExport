@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Customers.CustomerProducts;
 using SwiftExport.Core.Interfaces.Customers.Management;
 using SwiftExport.Core.Interfaces.Products.Catalog;
@@ -32,12 +33,13 @@ using SwiftExport.Core.Interfaces.SalesOrders.Query;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.SalesOrders.Draft;
 
 /// <summary>保存销售草稿头行及删除未确认草稿，保留行身份、版本和事务顺序。</summary>
-public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, IProductRepository productRepository, ICustomerRepository customerRepository, ICustomerProductRepository customerProductRepository, ISourceDemandReceptionService sourceDemandReceptionService, IDocumentNoService documentNoService, ICurrentUser currentUser, IUserPermissionService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderDraftService
+public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, IProductRepository productRepository, ICustomerRepository customerRepository, ICustomerProductRepository customerProductRepository, ISourceDemandReceptionService sourceDemandReceptionService, IDocumentNoService documentNoService, ICurrentUser currentUser, IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderDraftService
 {
     private const string CreateType = "Orders.SalesOrder.CreateDraft";
     private const string UpdateType = "Orders.SalesOrder.UpdateDraft";

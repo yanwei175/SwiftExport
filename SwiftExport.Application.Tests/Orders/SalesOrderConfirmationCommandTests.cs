@@ -12,6 +12,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
 using SwiftExport.Application.Services.SalesOrders.Confirmation;
@@ -164,7 +165,7 @@ public sealed class SalesOrderConfirmationCommandTests
                 "InsertAsync" => WriteAudit(),
                 _ => throw new AssertFailedException(method.Name)
             });
-            var permissions = Proxy<IUserPermissionService>((method, args) => method.Name switch
+            var permissions = Proxy<IPermissionEvaluationService>((method, args) => method.Name switch
             {
                 "HasPermissionAsync" => (string)args![1]! == PermissionKeys.SalesOrderConfirm
                     ? Task.FromResult(Allow) : throw new AssertFailedException("权限键错误"),

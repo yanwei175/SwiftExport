@@ -2,6 +2,7 @@ using SwiftExport.Application.Services.Inventory.Posting;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -17,11 +18,11 @@ namespace SwiftExport.Application.Services.Inventory.Warehouses;
 /// <summary>按库存模块访问权限读取仓库资料、供应商候选与活动仓库选择项，不写入仓库或库存事实。</summary>
 public sealed class WarehouseQueryService(
     ServiceBaseContext context, IWarehouseQueryRepository warehouseSites,
-    ICurrentUser currentUser, IUserPermissionService permissions) : IWarehouseQueryService
+    ICurrentUser currentUser, IPermissionEvaluationService permissions) : IWarehouseQueryService
 {
     private const string ReadPermissionDeniedMessage = "当前账号无库存模块访问权限。";
     private readonly ILogger<WarehouseQueryService> _logger = context.LoggerFactory.CreateLogger<WarehouseQueryService>();
-    private readonly IUserPermissionService _permissions = permissions;
+    private readonly IPermissionEvaluationService _permissions = permissions;
 
     /// <inheritdoc/>
     public async Task<ServiceResult<PagedResponseBase<WarehouseSitePickerDto>>> GetWarehousePickerPagedAsync(PagedRequestBase request, CancellationToken cancellationToken = default)

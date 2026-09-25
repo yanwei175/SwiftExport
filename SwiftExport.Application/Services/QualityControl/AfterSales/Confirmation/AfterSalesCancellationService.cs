@@ -4,6 +4,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
 using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Confirmation;
@@ -24,7 +25,7 @@ namespace SwiftExport.Application.Services.QualityControl.AfterSales.Confirmatio
 /// <summary>在公共回执事务中撤回售后实物需求确认，来源退出参与同一事务。</summary>
 public sealed class AfterSalesCancellationService(ServiceBaseContext context,
     IAfterSalesDocumentRepository documents, IBusinessOperationLogRepository logs,
-    IUserPermissionService permissions, ICurrentUser user, ISourceDemandReceptionService reception,
+    IPermissionEvaluationService permissions, ICurrentUser user, ISourceDemandReceptionService reception,
     CommandPipeline pipeline, BusinessCommandExecutor executor) : IAfterSalesCancellationService
 {
     private const string CommandType = "QualityControl.AfterSales.CancelDemandConfirmation";

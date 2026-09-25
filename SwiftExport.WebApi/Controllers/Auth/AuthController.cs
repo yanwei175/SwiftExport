@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Session;
+using SwiftExport.Application.Interfaces.Auth.Users;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Assignment;
 using SwiftExport.Contracts.DTOs.Auth;
 
 using SwiftExport.Contracts.Wrappers;
@@ -13,8 +15,9 @@ namespace SwiftExport.WebApi.Controllers.Auth;
 [ApiController]
 [Route("api/auth")]
 public sealed class AuthController(
-    IAuthService authService,
-    IUserPermissionService userPermissionService,
+    IAuthSessionService authService,
+    IUserAccountService accountService,
+    IUserPermissionAssignmentService assignmentService,
     IAuthTokenFactory tokenFactory) : ControllerBase
 {
     /// <summary>验证用户名和密码并签发带凭据版本的 JWT。</summary>
@@ -41,7 +44,7 @@ public sealed class AuthController(
     [PreventDuplicateRequest]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await authService.RegisterAsync(request, cancellationToken);
+        var result = await accountService.RegisterAsync(request, cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 
@@ -51,7 +54,7 @@ public sealed class AuthController(
     [PreventDuplicateRequest]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await authService.ChangeOwnPasswordAsync(request, cancellationToken);
+        var result = await accountService.ChangeOwnPasswordAsync(request, cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 
@@ -61,7 +64,7 @@ public sealed class AuthController(
     [PreventDuplicateRequest]
     public async Task<IActionResult> ResetUserPassword([FromBody] AdminResetPasswordRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await authService.ResetUserPasswordAsync(request, cancellationToken);
+        var result = await accountService.ResetUserPasswordAsync(request, cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 
@@ -70,7 +73,7 @@ public sealed class AuthController(
     [Authorize]
     public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
     {
-        var result = await userPermissionService.GetUsersAsync(cancellationToken);
+        var result = await accountService.GetUsersAsync(cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 
@@ -79,7 +82,7 @@ public sealed class AuthController(
     [Authorize]
     public async Task<IActionResult> GetUserModules(Guid userId, CancellationToken cancellationToken)
     {
-        var result = await userPermissionService.GetUserModulesAsync(userId, cancellationToken);
+        var result = await assignmentService.GetUserModulesAsync(userId, cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 
@@ -92,7 +95,7 @@ public sealed class AuthController(
         [FromBody] SaveUserModulePermissionsRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await userPermissionService.SaveUserModulesAsync(userId, request, cancellationToken);
+        var result = await assignmentService.SaveUserModulesAsync(userId, request, cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 

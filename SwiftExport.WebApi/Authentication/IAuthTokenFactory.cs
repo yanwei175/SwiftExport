@@ -1,4 +1,5 @@
 using SwiftExport.Application.Models.Auth;
+using SwiftExport.Application.Models.Auth.Session;
 using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExport.WebApi.Authentication;

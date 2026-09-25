@@ -1,3 +1,5 @@
+using SwiftExport.Application.Services.Systems.Numbering;
+using SwiftExport.Infrastructure.Repositories.Systems.Numbering;
 using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 using SwiftExport.Infrastructure.Repositories.Inventory.Outbounds;
 using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
@@ -30,6 +32,7 @@ using SwiftExport.Infrastructure.Repositories.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Services.Auth;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Application.Services.Shipping.PackingLists;
@@ -273,7 +276,7 @@ public sealed class AutomaticPostingSqlServerTests
                     "AppendAsync" => throw new InvalidOperationException("显式测试故障：库存写入后执行记录失败。"),
                     _ => throw new NotSupportedException(m) });
             }
-            var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
+            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             return new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), new PackingListRepository(_repository),
                 new PackingListPostingFactsRepository(_repository), execution, new InboundSourceRepository(_repository), Scope, In, Out,
                 new BusinessOperationLogRepository(_repository), new TestUser(), permissions,
@@ -287,7 +290,7 @@ public sealed class AutomaticPostingSqlServerTests
         public SwiftExport.Application.Services.Shipping.PackingLists.PackingListReversalService PackingReversal()
         {
             var user = new TestUser();
-            var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync"
+            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync"
                 ? Task.FromResult(true) : throw new NotSupportedException(m));
             return new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), new PackingListRepository(_repository),
                 new PackingListPostingFactsRepository(_repository), new PackingListExecutionRepository(_repository),

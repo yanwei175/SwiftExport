@@ -1,5 +1,6 @@
 using Mapster;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
@@ -12,7 +13,7 @@ namespace SwiftExport.Application.Services.Shipping;
 
 /// <summary>只读取原执行头行，保留拆箱及反向关联，不根据当前采购或库存重新推算。</summary>
 public sealed class PackingListTraceService(IPackingListQueryRepository packingLists,
-    IPackingListExecutionRepository executions, ICurrentUser user, IUserPermissionService permissions,
+    IPackingListExecutionRepository executions, ICurrentUser user, IPermissionEvaluationService permissions,
     TypeAdapterConfig mapping) : IPackingListTraceService
 {
     /// <inheritdoc/>

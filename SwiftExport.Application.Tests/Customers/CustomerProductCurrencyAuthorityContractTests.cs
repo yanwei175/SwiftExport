@@ -47,6 +47,7 @@ public sealed class CustomerProductLegacyFieldRetirementContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "Systems",
+            "Currencies",
             "SysDicCurrencyRepository.cs");
 
         Assert.IsFalse(repository.Contains("dbo.CustomerProduct", StringComparison.Ordinal));

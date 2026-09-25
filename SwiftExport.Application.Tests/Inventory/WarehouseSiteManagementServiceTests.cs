@@ -1,3 +1,4 @@
+using SwiftExport.Application.Models.Auth.Permissions.Evaluation;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -9,6 +10,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Models.Auth;
@@ -554,7 +556,7 @@ public sealed class WarehouseSiteManagementServiceTests
         }
     }
 
-    private sealed class PermissionServiceStub(bool manageAllowed, bool readAllowed) : IUserPermissionService
+    private sealed class PermissionServiceStub(bool manageAllowed, bool readAllowed) : IPermissionEvaluationService
     {
         public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default)
             => Task.FromResult(permissionKey switch

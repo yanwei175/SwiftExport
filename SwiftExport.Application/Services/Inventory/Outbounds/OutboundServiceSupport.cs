@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
@@ -14,7 +15,7 @@ using SwiftExport.Application.Commands;
 namespace SwiftExport.Application.Services.Inventory.Outbounds;
 
 /// <summary>统一出库模块访问、错误映射和分页格式检查，不持有业务事务。</summary>
-public sealed class OutboundServiceSupport(ServiceBaseContext context, ICurrentUser user, IUserPermissionService permissions)
+public sealed class OutboundServiceSupport(ServiceBaseContext context, ICurrentUser user, IPermissionEvaluationService permissions)
 {
     private readonly ILogger<OutboundServiceSupport> _logger = context.LoggerFactory.CreateLogger<OutboundServiceSupport>();
 

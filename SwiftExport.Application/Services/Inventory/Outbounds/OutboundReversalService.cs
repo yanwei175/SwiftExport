@@ -3,6 +3,7 @@ using SwiftExport.Application.Interfaces.Inventory.Posting;
 using System.Text.Json;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Outbounds;
 using SwiftExport.Contracts.Common;
@@ -21,7 +22,7 @@ namespace SwiftExport.Application.Services.Inventory.Outbounds;
 /// <summary>手工出库整单反过账，保留原凭证与事实，不编排 PackingList 或实际退货。</summary>
 public sealed class OutboundReversalService(IOutboundQueryRepository queries, IOutboundDocumentRepository repository,
     IOutboundExecutionReadRepository executionReads, IBusinessOperationLogRepository logs,
-    ICurrentUser user, IUserPermissionService permissions, IInventoryPostingService inventoryPosting,
+    ICurrentUser user, IPermissionEvaluationService permissions, IInventoryPostingService inventoryPosting,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     OutboundServiceSupport support) : IOutboundReversalService
 {

@@ -37,12 +37,12 @@ public sealed class CustomerPoConfigDefaultsContractTests
     [TestMethod]
     public void SqlContracts_ShouldProjectFieldsAndProtectCurrencyReference()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Customers", "CustomerPoConfigRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Customers", "PoConfigs", "CustomerPoConfigRepository.cs");
         Assert.IsTrue(Count(repository, "cpc.Currency, cpc.DefaultDiscountRate, cpc.DiscountRemark") >= 2);
         StringAssert.Contains(repository, "@CustomerId IS NOT NULL AND Uid=@CustomerId");
         StringAssert.Contains(repository, "@SupplierId IS NOT NULL AND Uid=@SupplierId");
         StringAssert.Contains(repository, "entity.CustomerCode = ids.CustomerCode");
-        var currencyRepository = Read("SwiftExport.Infrastructure", "Repositories", "Systems", "SysDicCurrencyRepository.cs");
+        var currencyRepository = Read("SwiftExport.Infrastructure", "Repositories", "Systems", "Currencies", "SysDicCurrencyRepository.cs");
         StringAssert.Contains(currencyRepository, "SELECT Currency FROM dbo.CustomerPoConfig");
     }
 

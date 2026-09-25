@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
@@ -7,6 +8,7 @@ using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Manual;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SourceExit;
 using SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
@@ -33,7 +35,7 @@ public sealed class ManualGrossDemandService(
     IProductRepository productRepository,
     IDocumentNoService documentNoService,
     IMaterialDemandSourceExitService materialDemandSourceExit,
-    ICurrentUser currentUser, IUserPermissionService permissions,
+    ICurrentUser currentUser, IPermissionEvaluationService permissions,
     CommandPipeline pipeline, BusinessCommandExecutor executor) : IManualGrossDemandService
 {
     private readonly ILogger<ManualGrossDemandService> _logger = context.LoggerFactory.CreateLogger<ManualGrossDemandService>();

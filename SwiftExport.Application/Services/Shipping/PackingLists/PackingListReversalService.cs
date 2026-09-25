@@ -8,6 +8,7 @@ using Mapster;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Shipping.PackingLists;
@@ -29,7 +30,7 @@ namespace SwiftExport.Application.Services.Shipping.PackingLists;
 public sealed class PackingListReversalService(ServiceBaseContext context, IPackingListDocumentRepository packingLists,
     IPackingListPostingFactsRepository factsRepository, IPackingListExecutionRepository executions,
     IAutomaticPostingScope scope, IInboundPostingPort inbound, IOutboundPostingPort outbound,
-    IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions,
+    IBusinessOperationLogRepository logs, ICurrentUser user, IPermissionEvaluationService permissions,
     BusinessCommandExecutor executor, CommandPipeline pipeline, TypeAdapterConfig mapping) : IPackingListReversalService
 {
     /// <summary>只读展示原执行单据与库存反向影响，不重新计算当前采购分配。</summary>

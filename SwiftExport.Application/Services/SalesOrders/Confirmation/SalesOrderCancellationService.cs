@@ -28,12 +28,13 @@ using SwiftExport.Application.Interfaces.SalesOrders.Confirmation;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.SalesOrders.Confirmation;
 
 /// <summary>以公共回执取消销售确认，来源退出及业务审计参加同一事务。</summary>
-public sealed class SalesOrderCancellationService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISourceDemandReceptionService sourceDemandReceptionService, IBusinessOperationLogRepository operationLogs, ICorrelationContext correlationContext, ICurrentUser currentUser, IUserPermissionService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderCancellationService
+public sealed class SalesOrderCancellationService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISourceDemandReceptionService sourceDemandReceptionService, IBusinessOperationLogRepository operationLogs, ICorrelationContext correlationContext, ICurrentUser currentUser, IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderCancellationService
 {
     private const string Module = "SalesOrder";
     private const string CancelConfirmationOperation = "CancelConfirmation";

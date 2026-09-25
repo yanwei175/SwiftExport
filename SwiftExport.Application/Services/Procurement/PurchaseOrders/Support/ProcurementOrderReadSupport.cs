@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
@@ -13,7 +14,7 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Support;
 /// <summary>采购只读权限与一致性读取边界。</summary>
 public sealed class ProcurementOrderReadSupport(
     ServiceBaseContext context,
-    IUserPermissionService permissions,
+    IPermissionEvaluationService permissions,
     ICurrentUser user)
 {
     /// <summary>读取订单、管理页或供应商跟进投影；普通查询不占用业务事务。</summary>

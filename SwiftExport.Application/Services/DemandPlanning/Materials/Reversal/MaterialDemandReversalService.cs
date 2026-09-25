@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
@@ -31,7 +32,7 @@ public sealed class MaterialDemandReversalService(
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlationContext,
     ICurrentUser currentUser,
-    IUserPermissionService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : IMaterialDemandReversalService
+    IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : IMaterialDemandReversalService
 {
     private const string Module = "MaterialDemand";
     private const string RollbackOperation = "RollbackSourceEstablishment";

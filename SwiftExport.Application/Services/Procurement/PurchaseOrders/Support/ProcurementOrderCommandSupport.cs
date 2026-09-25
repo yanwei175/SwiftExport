@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
@@ -17,7 +18,7 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Support;
 
 /// <summary>采购订单写命令共用的细权限、错误转换、结果与业务审计边界。</summary>
 public sealed class ProcurementOrderCommandSupport(
-    IUserPermissionService permissions, ICurrentUser user, IBusinessOperationLogRepository logs,
+    IPermissionEvaluationService permissions, ICurrentUser user, IBusinessOperationLogRepository logs,
     ICorrelationContext correlation, ILogger<ProcurementOrderCommandSupport> logger)
 {
     /// <summary>在参数验证和回执读取前核对当前采购细权限，重放同样需要授权。</summary>

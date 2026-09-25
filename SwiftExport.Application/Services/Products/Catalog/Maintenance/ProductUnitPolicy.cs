@@ -1,5 +1,5 @@
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Core.Entities.Systems;
+using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 
 namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 

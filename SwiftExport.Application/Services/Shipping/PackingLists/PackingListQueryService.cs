@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Shipping.PackingLists;
 using SwiftExport.Application.Services.Shipping;
@@ -33,7 +34,7 @@ namespace SwiftExport.Application.Services.Shipping.PackingLists;
 
 /// <summary>提供装箱单管理、详情及来源候选的只读查询，不占用交付或库存额度。</summary>
 public sealed class PackingListQueryService(ServiceBaseContext context, IPackingListQueryRepository repository,
-    ICurrentUser currentUser, IUserPermissionService permissions) : IPackingListQueryService
+    ICurrentUser currentUser, IPermissionEvaluationService permissions) : IPackingListQueryService
 {
     private readonly ILogger<PackingListQueryService> _logger = context.LoggerFactory.CreateLogger<PackingListQueryService>();
     /// <inheritdoc/>

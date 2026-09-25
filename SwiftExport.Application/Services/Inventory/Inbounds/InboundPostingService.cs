@@ -2,6 +2,7 @@ using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -37,7 +38,7 @@ namespace SwiftExport.Application.Services.Inventory.Inbounds;
 /// <param name="support">提供入库模块访问检查，并将模块异常转换为统一服务结果。</param>
 public sealed class InboundPostingService(
     IInboundDocumentRepository repository, IInboundExecutionReadRepository executionReads, IInboundQueryRepository queries, IInboundSourceRepository sourceRepository, IBusinessOperationLogRepository logs, ICurrentUser user,
-    IUserPermissionService permissions, IInventoryPostingService inventoryPosting,
+    IPermissionEvaluationService permissions, IInventoryPostingService inventoryPosting,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     InboundServiceSupport support) : IInboundPostingService
 {

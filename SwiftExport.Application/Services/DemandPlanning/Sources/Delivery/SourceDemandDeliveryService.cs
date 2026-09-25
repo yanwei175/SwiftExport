@@ -1,6 +1,7 @@
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
@@ -13,7 +14,7 @@ namespace SwiftExport.Application.Services.DemandPlanning.Sources.Delivery;
 public sealed class SourceDemandDeliveryService(
     ISourceDeliveryService delivery,
     ICurrentUser currentUser,
-    IUserPermissionService permissions) : ISourceDemandDeliveryService
+    IPermissionEvaluationService permissions) : ISourceDemandDeliveryService
 {
     /// <inheritdoc />
     public Task<ServiceResult<PagedResponseBase<SourceDemandDeliveryItemDto>>> SearchAsync(

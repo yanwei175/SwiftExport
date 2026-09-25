@@ -10,6 +10,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
@@ -37,7 +38,7 @@ public sealed class AfterSalesConfirmationService(
     IAfterSalesLookupRepository lookups,
     ISourceDemandReceptionService reception,
     IBusinessOperationLogRepository logs,
-    IUserPermissionService permissions,
+    IPermissionEvaluationService permissions,
     ICurrentUser user,
     CommandPipeline pipeline,
     BusinessCommandExecutor executor) : IAfterSalesConfirmationService

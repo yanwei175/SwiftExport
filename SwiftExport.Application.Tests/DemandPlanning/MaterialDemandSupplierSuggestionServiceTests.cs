@@ -9,6 +9,7 @@ using FluentValidation;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSuggestion;
@@ -178,7 +179,7 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
             ((SupplierPort)(object)suppliers).GetSupplier = () => Supplier;
             var user = DispatchProxy.Create<ICurrentUser, UserPort>();
             User = (UserPort)(object)user;
-            var permission = DispatchProxy.Create<IUserPermissionService, PermissionPort>();
+            var permission = DispatchProxy.Create<IPermissionEvaluationService, PermissionPort>();
             Permission = (PermissionPort)(object)permission;
             var receipt = DispatchProxy.Create<ICommandReceiptRepository, ReceiptPort>();
             Receipt = (ReceiptPort)(object)receipt;

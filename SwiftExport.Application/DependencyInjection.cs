@@ -1,3 +1,15 @@
+using SwiftExport.Application.Interfaces.Systems.Currencies;
+using SwiftExport.Application.Interfaces.Systems.Dictionaries.Data;
+using SwiftExport.Application.Interfaces.Systems.Dictionaries.Types;
+using SwiftExport.Application.Interfaces.Systems.ExchangeRates;
+using SwiftExport.Application.Interfaces.Systems.Numbering;
+using SwiftExport.Application.Interfaces.Systems.ViewRoutes;
+using SwiftExport.Application.Services.Systems.Currencies;
+using SwiftExport.Application.Services.Systems.Dictionaries.Data;
+using SwiftExport.Application.Services.Systems.Dictionaries.Types;
+using SwiftExport.Application.Services.Systems.ExchangeRates;
+using SwiftExport.Application.Services.Systems.Numbering;
+using SwiftExport.Application.Services.Systems.ViewRoutes;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
@@ -30,6 +42,11 @@ using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Interfaces.Inventory.Query;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Session;
+using SwiftExport.Application.Interfaces.Auth.Users;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Assignment;
+using SwiftExport.Application.Interfaces.Auth.Passwords;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Customers;
 using SwiftExport.Application.Interfaces.Customers.CustomerProducts.Query;
@@ -95,8 +112,12 @@ using SwiftExport.Application.Services.Inventory.Query;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Application.Services.Suppliers;
 using SwiftExport.Application.Services.Systems;
-using SwiftExport.Application.Services.SystemServices;
 using SwiftExport.Application.Services.Auth;
+using SwiftExport.Application.Services.Auth.Session;
+using SwiftExport.Application.Services.Auth.Users;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Services.Auth.Permissions.Assignment;
+using SwiftExport.Application.Services.Auth.Passwords;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Services.Inventory.Inbounds.Validation;
@@ -121,8 +142,10 @@ public static class DependencyInjection
         // 仅扫描 Application 程序集；命令仍须显式接入 Pipeline 才会执行验证。
         services.AddValidatorsFromAssemblyContaining<CreateInboundDraftCommandValidator>();
         services.AddScoped<IPasswordHasher, BcryptPasswordHasher>();
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserPermissionService, UserPermissionService>();
+        services.AddScoped<IAuthSessionService, AuthSessionService>();
+        services.AddScoped<IUserAccountService, UserAccountService>();
+        services.AddScoped<IPermissionEvaluationService, PermissionEvaluationService>();
+        services.AddScoped<IUserPermissionAssignmentService, UserPermissionAssignmentService>();
 
 
         services.AddScoped<IProductQueryService, ProductQueryService>();

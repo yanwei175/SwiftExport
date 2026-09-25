@@ -3,6 +3,7 @@ using SwiftExport.Application.Interfaces.Inventory.Posting;
 using System.Text.Json;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Outbounds;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -19,7 +20,7 @@ namespace SwiftExport.Application.Services.Inventory.Outbounds;
 /// <summary>正向出库过账编排；普通库存出库不消费需求或采购来源，库存内核只关联出库凭证。</summary>
 public sealed class OutboundPostingService(IOutboundQueryRepository queries, IOutboundDocumentRepository repository,
     IOutboundExecutionReadRepository executionReads, IBusinessOperationLogRepository logs,
-    ICurrentUser user, IUserPermissionService permissions, IInventoryPostingService inventoryPosting,
+    ICurrentUser user, IPermissionEvaluationService permissions, IInventoryPostingService inventoryPosting,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     OutboundServiceSupport support) : IOutboundPostingService
 {

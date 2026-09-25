@@ -2,6 +2,7 @@ using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Inventory.Inbounds;
 using SwiftExport.Contracts.Common;
@@ -23,7 +24,7 @@ namespace SwiftExport.Application.Services.Inventory.Inbounds;
 /// <summary>手工入库整单反过账，保留原凭证与事实，不编排 PackingList 或实际退货。</summary>
 public sealed class InboundReversalService(
     IInboundDocumentRepository repository, IInboundExecutionReadRepository executionReads, IInboundQueryRepository queries, IInboundSourceRepository sourceRepository, IBusinessOperationLogRepository logs, ICurrentUser user,
-    IUserPermissionService permissions, IInventoryPostingService inventoryPosting,
+    IPermissionEvaluationService permissions, IInventoryPostingService inventoryPosting,
     BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline,
     InboundServiceSupport support) : IInboundReversalService
 {

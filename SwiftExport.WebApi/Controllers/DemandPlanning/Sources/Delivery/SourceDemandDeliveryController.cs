@@ -2,6 +2,7 @@ using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
@@ -17,7 +18,7 @@ namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Delivery;
 public sealed class SourceDemandDeliveryController(
     ISourceDemandDeliveryService service,
     ICurrentUser currentUser,
-    IUserPermissionService permissions) : ControllerBase
+    IPermissionEvaluationService permissions) : ControllerBase
 {
     /// <summary>按来源、客户和产品条件查询当前可交付需求。</summary>
     [HttpPost("search")]

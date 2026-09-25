@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Core.Entities.Auditing;
@@ -26,7 +27,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
     IPackingListDocumentRepository packingLists, IPackingListPostingFactsRepository factsRepository,
     IPackingListExecutionRepository executions, IInboundSourceRepository inboundRepository,
     IAutomaticPostingScope scope, IInboundPostingPort inbound, IOutboundPostingPort outbound,
-    IBusinessOperationLogRepository logs, ICurrentUser user, IUserPermissionService permissions,
+    IBusinessOperationLogRepository logs, ICurrentUser user, IPermissionEvaluationService permissions,
     BusinessCommandExecutor executor, TypeAdapterConfig mapping, CommandPipeline pipeline)
     : IPackingListPostingService
 {

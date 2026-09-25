@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Interfaces.Inventory;
@@ -348,7 +349,7 @@ public sealed class PackingListPostingCoordinatorTests
             var userId = Guid.NewGuid();
             var user = Proxy.Make<ICurrentUser>((m, _) => m switch
             { "get_UserId" => userId, "get_UserName" => "tester", "get_IsAuthenticated" => true, _ => throw new NotSupportedException(m) });
-            var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
+            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             var receipts = Proxy.Make<ICommandReceiptRepository>((m, args) => m switch
             {
                 "LockAsync" => Task.FromResult(0),

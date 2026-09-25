@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.QualityControl;
 using SwiftExport.Contracts.Common;
@@ -36,7 +37,7 @@ using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Query;
 namespace SwiftExport.Application.Services.QualityControl.AfterSales.Query;
 
 /// <summary>提供售后列表、候选和一致性详情读取，保持原查询权限与 RepeatableRead 边界。</summary>
-public sealed class AfterSalesQueryService(ServiceBaseContext context, IAfterSalesQueryRepository queries, IAfterSalesLookupRepository lookups, IAfterSalesDocumentRepository documents, IUserPermissionService permissions, ICurrentUser user) : IAfterSalesQueryService
+public sealed class AfterSalesQueryService(ServiceBaseContext context, IAfterSalesQueryRepository queries, IAfterSalesLookupRepository lookups, IAfterSalesDocumentRepository documents, IPermissionEvaluationService permissions, ICurrentUser user) : IAfterSalesQueryService
 {
     /// <inheritdoc />
     public Task<ServiceResult<PagedResponseBase<AfterSalesListItemDto>>> SearchAsync(AfterSalesSearchRequest request, CancellationToken cancellationToken = default)

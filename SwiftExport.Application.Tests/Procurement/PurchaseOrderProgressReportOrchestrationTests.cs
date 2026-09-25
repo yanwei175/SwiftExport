@@ -10,6 +10,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.SysEnums;
@@ -128,7 +129,7 @@ public sealed class PurchaseOrderProgressReportOrchestrationTests
             User = user;
             var correlation = new CorrelationStub();
             Receipts = new ReceiptStub(Session);
-            var permissions = Proxy<IUserPermissionService>.New((method, _) => method.Name == "HasPermissionAsync"
+            var permissions = Proxy<IPermissionEvaluationService>.New((method, _) => method.Name == "HasPermissionAsync"
                 ? Task.FromResult(Allow) : throw new NotSupportedException(method.Name));
             var orders = Proxy<IProcurementOrderDocumentRepository>.New((method, _) => method.Name switch
             {

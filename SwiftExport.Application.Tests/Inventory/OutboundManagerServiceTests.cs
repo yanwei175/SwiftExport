@@ -1,10 +1,13 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
+using SwiftExport.Application.Services.Systems.Numbering;
+using SwiftExport.Core.Interfaces.Systems.Numbering;
 using System.Data;
 using System.Text.Json;
 using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Core.Entities.Systems;
+using SwiftExport.Core.Entities.Systems.Numbering;
 using System.IO;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -13,6 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Inventory;
 using SwiftExport.Application.Services.Inventory.Outbounds;
@@ -312,7 +316,7 @@ public sealed partial class OutboundManagerServiceTests
                     _ => throw new NotSupportedException(method)
                 }),
                 user,
-                Proxy<IUserPermissionService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed
+                Proxy<IPermissionEvaluationService>((method, args) => method == "HasPermissionAsync" ? Task.FromResult(Allowed
                     && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost || AllowPost)
                     && ((string)args[1]! != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse || AllowReverse)) : throw new NotSupportedException(method)),
                 new DocumentNoService(Proxy<IDocumentSequenceRepository>((method, args) =>
@@ -412,7 +416,7 @@ public sealed partial class OutboundManagerServiceTests
         public OutboundServices(ServiceBaseContext context, IOutboundQueryRepository queries,
             IOutboundDocumentRepository repository, IOutboundExecutionReadRepository executionReads,
             IWarehouseManagementRepository warehouses, IBusinessOperationLogRepository logs, ICurrentUser user,
-            IUserPermissionService permissions, IDocumentNoService numbers, IInventoryPostingService inventory,
+            IPermissionEvaluationService permissions, IDocumentNoService numbers, IInventoryPostingService inventory,
             BusinessCommandExecutor executor, ICorrelationContext correlation, CommandPipeline pipeline)
         {
             var support = new OutboundServiceSupport(context, user, permissions);

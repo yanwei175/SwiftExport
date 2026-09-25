@@ -1,3 +1,4 @@
+using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Customers.Management;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
@@ -5,6 +6,7 @@ using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Interfaces.Shipping.PackingLists;
 using SwiftExport.Application.Services.Shipping;
@@ -45,7 +47,7 @@ public sealed class PackingListDraftService(
     IBusinessOperationLogRepository logs,
     IDocumentNoService numbers,
     ICurrentUser currentUser,
-    IUserPermissionService permissions,
+    IPermissionEvaluationService permissions,
     CommandPipeline pipeline,
     BusinessCommandExecutor executor) : IPackingListDraftService
 {
