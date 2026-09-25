@@ -18,7 +18,6 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
             FindRepositoryRoot(),
             "SwiftExport.Infrastructure",
             "Repositories",
-            "Orders",
             "SalesOrders", "Query", "SalesOrderQueryRepository.cs"));
 
         StringAssert.Contains(source, "keywordLine.DescriptionEn LIKE @Keyword");
@@ -37,7 +36,6 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
             FindRepositoryRoot(),
             "SwiftExport.Infrastructure",
             "Repositories",
-            "Orders",
             "SalesOrders", "Query", "SalesOrderQueryRepository.cs"));
 
         Assert.IsFalse(source.Contains("OutboundDocumentLine", StringComparison.Ordinal));

@@ -19,7 +19,7 @@ public sealed class SalesSourceDemandContractTests
     [TestMethod]
     public void SalesConfirmationUsesPostConfirmVersionProductUnitAndReceptionBoundary()
     {
-        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrders", "Confirmation", "SalesOrderConfirmationService.cs");
+        var service = Read("SwiftExport.Application", "Services", "SalesOrders", "Confirmation", "SalesOrderConfirmationService.cs");
         var statusWrite = service.IndexOf("SetConfirmationStatusAsync", StringComparison.Ordinal);
         var reception = service.IndexOf("reception.ReceiveAsync", StringComparison.Ordinal);
 
@@ -35,7 +35,7 @@ public sealed class SalesSourceDemandContractTests
     [TestMethod]
     public void SalesCancellationUsesSourceExitBeforeChangingConfirmationStatus()
     {
-        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrders", "Confirmation", "SalesOrderCancellationService.cs");
+        var service = Read("SwiftExport.Application", "Services", "SalesOrders", "Confirmation", "SalesOrderCancellationService.cs");
         var start = service.IndexOf("public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync", StringComparison.Ordinal);
         var end = service.IndexOf("private async Task WriteCancellationLogAsync", start, StringComparison.Ordinal);
         var method = service[start..end];

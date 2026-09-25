@@ -1,7 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Entities.SalesOrders;
 
 namespace SwiftExport.Application.Tests.Procurement;
 

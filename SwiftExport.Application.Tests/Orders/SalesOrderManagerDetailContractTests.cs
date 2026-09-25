@@ -2,15 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Interfaces.Orders.SalesOrders.Confirmation;
-using SwiftExport.Application.Interfaces.Orders.SalesOrders.Query;
-using SwiftExport.Application.Interfaces.Orders.SalesOrders.Draft;
-using SwiftExport.Application.Interfaces.Orders.SalesOrders.Lifecycle;
+using SwiftExport.Application.Interfaces.SalesOrders.Confirmation;
+using SwiftExport.Application.Interfaces.SalesOrders.Query;
+using SwiftExport.Application.Interfaces.SalesOrders.Draft;
+using SwiftExport.Application.Interfaces.SalesOrders.Lifecycle;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.WebApi.Controllers.Orders.SalesOrders.Query;
-using SwiftExport.WebApi.Controllers.Orders.SalesOrders.Draft;
-using SwiftExport.WebApi.Controllers.Orders.SalesOrders.Confirmation;
-using SwiftExport.WebApi.Controllers.Orders.SalesOrders.Lifecycle;
+using SwiftExport.WebApi.Controllers.SalesOrders.Query;
+using SwiftExport.WebApi.Controllers.SalesOrders.Draft;
+using SwiftExport.WebApi.Controllers.SalesOrders.Confirmation;
+using SwiftExport.WebApi.Controllers.SalesOrders.Lifecycle;
 
 namespace SwiftExport.Application.Tests.Orders;
 

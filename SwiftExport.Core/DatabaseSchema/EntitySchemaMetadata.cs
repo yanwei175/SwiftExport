@@ -1,7 +1,7 @@
 ﻿using SwiftExport.Core.DatabaseSchema;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Entities.SalesOrders;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.QualityControl;
 
@@ -119,7 +119,7 @@ namespace SwiftExport.Core.Entities.Relations
     public partial class SupplierProduct { }
 }
 
-namespace SwiftExport.Core.Entities.Orders
+namespace SwiftExport.Core.Entities.SalesOrders
 {
     [DbCheck("CK_SalesOrderHeader_Status", "[DocumentStatus] IN (0, 8, 9) AND [ConfirmationStatus] IN (0, 1)")]
     [DbIndex("UX_SalesOrderHeader_OrderNo", nameof(SalesOrderHeader.OrderNo), IsUnique = true, Filter = "[IsDeleted] = 0")]

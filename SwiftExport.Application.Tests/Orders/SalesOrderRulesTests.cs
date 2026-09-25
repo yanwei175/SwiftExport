@@ -1,5 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Services.Orders.SalesOrders.Internal;
+using SwiftExport.Application.Services.SalesOrders.Internal;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
 

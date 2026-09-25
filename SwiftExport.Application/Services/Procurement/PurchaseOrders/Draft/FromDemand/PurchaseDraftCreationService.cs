@@ -15,7 +15,7 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Entities.SalesOrders;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
