@@ -3,6 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.QualityControl;
 using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Confirmation;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Query;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Maintenance;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Lifecycle;
 using SwiftExport.Application.Tests.Procurement;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.SysEnums;
@@ -56,7 +60,7 @@ public sealed class AfterSalesSqlTests
         await fixture.ExecuteAsync("UPDATE dbo.GrossDemand SET LifecycleStatus=8,Version=Version+1 WHERE SourceUid=@uid",new{uid=command.Uid});
         var closed=await Call(s=>s.CloseAsync(command.Uid,new(){CommandId=Guid.NewGuid(),Version=again.Data.Version,Reason="来源已处置"}));
         Assert.AreEqual("AFTERSALES_DELIVERY_QUERY_UNAVAILABLE",closed.Error.Code);
-        var detail=await fixture.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().GetAsync(command.Uid));
+        var detail=await fixture.InScopeAsync(p=>p.GetRequiredService<IAfterSalesQueryService>().GetAsync(command.Uid));
         Assert.AreEqual(DocumentStatusEnum.Open,detail.Data.Header.DocumentStatus);
         Assert.AreEqual(ConfirmationStatusEnum.已确认,detail.Data.Header.ConfirmationStatus);
     }
@@ -70,12 +74,12 @@ public sealed class AfterSalesSqlTests
         Assert.IsTrue(results.All(x=>x.Success),string.Join(";",results.Select(x=>x.Message)));
         Assert.AreEqual(1,results.Count(x=>x.Data.AlreadyApplied));
         Assert.AreEqual(1,await fixture.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.AfterSalesHeader"));
-        var search=await fixture.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().SearchAsync(new(){CustomerId=fixture.CustomerId}));
+        var search=await fixture.InScopeAsync(p=>p.GetRequiredService<IAfterSalesQueryService>().SearchAsync(new(){CustomerId=fixture.CustomerId}));
         Assert.IsTrue(search.Success,search.Message);Assert.AreEqual(1,search.Data.TotalCount);
         Assert.IsTrue(search.Data.Items[0].HasUndeterminedAmount);
         foreach(var kind in new[]{"customers","owners","suppliers","products","sales-order-lines","colors","quality-categories"})
         {
-            var lookup=await fixture.InScopeAsync(p=>p.GetRequiredService<IAfterSalesService>().LookupAsync(kind,new(){CustomerId=fixture.CustomerId}));
+            var lookup=await fixture.InScopeAsync(p=>p.GetRequiredService<IAfterSalesQueryService>().LookupAsync(kind,new(){CustomerId=fixture.CustomerId}));
             Assert.IsTrue(lookup.Success,kind+":"+lookup.Message);
         }
     }
@@ -135,13 +139,24 @@ public sealed class AfterSalesSqlTests
     private SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),
         Header=new(){CustomerId=fixture.CustomerId,AcceptedDate=new(2026,9,8),IssueDescription="问题成品补螺丝",ServiceAmountCny=0,ResponsibleSupplierId=fixture.SupplierId},
         AddedLines=[new(){Uid=Guid.NewGuid(),IsNonStandard=true,DescriptionSnapshot="螺丝",Quantity=2}]};
-    private Task<ServiceResult<AfterSalesCommandResult>> Call(Func<IAfterSalesService,Task<ServiceResult<AfterSalesCommandResult>>> action)
+    private Task<ServiceResult<AfterSalesCommandResult>> Call(Func<SqlCommandPorts,Task<ServiceResult<AfterSalesCommandResult>>> action)
         =>fixture.InScopeAsync(async p=>
         {
             using var logger=LoggerFactory.Create(builder=>builder.AddConsole());
-            var service=ActivatorUtilities.CreateInstance<AfterSalesService>(p,new ServiceBaseContext(p.GetRequiredService<DbSession>(),logger));
+            var context=new ServiceBaseContext(p.GetRequiredService<DbSession>(),logger);
+            var service=new SqlCommandPorts(
+                ActivatorUtilities.CreateInstance<AfterSalesMaintenanceService>(p,context),
+                ActivatorUtilities.CreateInstance<AfterSalesCancellationService>(p,context),
+                ActivatorUtilities.CreateInstance<AfterSalesLifecycleService>(p,context));
             return await action(service);
         });
+    /// <summary>隔离数据库夹具中组合真实窄命令服务；该类不参与本轮无数据库测试。</summary>
+    private sealed class SqlCommandPorts(AfterSalesMaintenanceService maintenance, AfterSalesCancellationService cancellation, AfterSalesLifecycleService lifecycle)
+    {
+        public Task<ServiceResult<AfterSalesCommandResult>> SaveAsync(Guid uid, SaveAfterSalesCommand command, bool create) => maintenance.SaveAsync(uid,command,create);
+        public Task<ServiceResult<AfterSalesCommandResult>> CancelDemandConfirmationAsync(Guid uid, CancelAfterSalesDemandConfirmationCommand command) => cancellation.CancelDemandConfirmationAsync(uid,command);
+        public Task<ServiceResult<AfterSalesCommandResult>> CloseAsync(Guid uid, CloseAfterSalesCommand command) => lifecycle.CloseAsync(uid,command);
+    }
     /// <summary>SQL 夹具只更新确认服务接线；本轮没有业务库，不执行此测试类。</summary>
     private Task<ServiceResult<AfterSalesCommandResult>> ConfirmCall(
         Func<IAfterSalesConfirmationService,Task<ServiceResult<AfterSalesCommandResult>>> action)

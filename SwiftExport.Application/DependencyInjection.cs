@@ -40,8 +40,20 @@ using SwiftExport.Application.Services.DemandPlanning.Materials.Reversal;
 using SwiftExport.Application.Services.Orders;
 using SwiftExport.Application.Services.Orders.SalesOrders.Confirmation;
 using SwiftExport.Application.Interfaces.Orders.SalesOrders.Confirmation;
+using SwiftExport.Application.Services.Orders.SalesOrders.Query;
+using SwiftExport.Application.Interfaces.Orders.SalesOrders.Query;
+using SwiftExport.Application.Services.Orders.SalesOrders.Draft;
+using SwiftExport.Application.Interfaces.Orders.SalesOrders.Draft;
+using SwiftExport.Application.Services.Orders.SalesOrders.Lifecycle;
+using SwiftExport.Application.Interfaces.Orders.SalesOrders.Lifecycle;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
 using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Confirmation;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Query;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Maintenance;
+using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Lifecycle;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Query;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Maintenance;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Lifecycle;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Services.Procurement;
 using SwiftExport.Application.Services.Inventory;
@@ -96,8 +108,10 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
-        services.AddScoped<ISalesOrderManagerService, SalesOrderManagerService>();
-        services.AddScoped<ISalesOrderDetailService, SalesOrderDetailService>();
+        services.AddScoped<ISalesOrderQueryService, SalesOrderQueryService>();
+        services.AddScoped<ISalesOrderDraftService, SalesOrderDraftService>();
+        services.AddScoped<ISalesOrderCancellationService, SalesOrderCancellationService>();
+        services.AddScoped<ISalesOrderLifecycleService, SalesOrderLifecycleService>();
         services.AddScoped<ISalesOrderConfirmationService, SalesOrderConfirmationService>();
         services.AddScoped<IGrossDemandQueryService, GrossDemandQueryService>();
         services.AddScoped<IManualGrossDemandService, ManualGrossDemandService>();
@@ -165,7 +179,10 @@ public static class DependencyInjection
         // 视图路由配置服务
         services.AddScoped<ISysViewRouteService, SysViewRouteService>();
 
-        services.AddScoped<SwiftExport.Application.Interfaces.QualityControl.IAfterSalesService, SwiftExport.Application.Services.QualityControl.AfterSalesService>();
+        services.AddScoped<IAfterSalesQueryService, AfterSalesQueryService>();
+        services.AddScoped<IAfterSalesMaintenanceService, AfterSalesMaintenanceService>();
+        services.AddScoped<IAfterSalesCancellationService, AfterSalesCancellationService>();
+        services.AddScoped<IAfterSalesLifecycleService, AfterSalesLifecycleService>();
         services.AddScoped<IAfterSalesConfirmationService, AfterSalesConfirmationService>();
         return services;
     }

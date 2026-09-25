@@ -82,7 +82,7 @@ public sealed class SourceDemandDeliveryContractTests
     {
         var adapter = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Delivery", "SourceDemandDeliveryService.cs");
         var sourceInterface = Read("SwiftExport.Application", "Interfaces", "DemandPlanning", "Sources", "Delivery", "ISourceDemandDeliveryService.cs");
-        var afterSales = Read("SwiftExport.Application", "Services", "QualityControl", "AfterSalesService.cs");
+        var afterSales = Read("SwiftExport.Application", "Services", "QualityControl", "AfterSales", "Lifecycle", "AfterSalesLifecycleService.cs");
         StringAssert.Contains(adapter, "ISourceDeliveryService delivery");
         Assert.IsFalse(sourceInterface.Contains("VerifyForUpdateAsync", StringComparison.Ordinal));
         Assert.IsFalse(afterSales.Contains("ISourceDeliveryService", StringComparison.Ordinal));

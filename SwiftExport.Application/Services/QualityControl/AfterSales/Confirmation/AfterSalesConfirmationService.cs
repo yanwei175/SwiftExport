@@ -1,3 +1,7 @@
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Document;
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Lookup;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Policies;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Exceptions;
 using System.Data;
 using System.Text.Json;
 using Mapster;
@@ -26,10 +30,11 @@ using SwiftExport.Core.Interfaces.QualityControl;
 
 namespace SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
 
-/// <summary>售后确认的外层事务所有者；按旧命令锁、头行和来源顺序写事实及完整回执。</summary>
+/// <summary>售后确认的外层事务所有者；公共命令锁之后按头行和来源顺序写事实及完整回执。</summary>
 public sealed class AfterSalesConfirmationService(
     ServiceBaseContext context,
-    IAfterSalesRepository repository,
+    IAfterSalesDocumentRepository repository,
+    IAfterSalesLookupRepository lookups,
     ISourceDemandReceptionService reception,
     IBusinessOperationLogRepository logs,
     IUserPermissionService permissions,
@@ -61,14 +66,10 @@ public sealed class AfterSalesConfirmationService(
         return ServiceResult<CommandExecutionResult<AfterSalesCommandResult>>.Ok(result);
     }
 
-    /// <summary>公共回执锁之后沿用售后旧命令锁，再锁头行、重验并接收来源及写审计。</summary>
+    /// <summary>公共回执锁之后锁头行、重验并接收来源及写审计。</summary>
     private async Task<AfterSalesCommandResult> ConfirmInTransactionAsync(Guid uid,
         ConfirmAfterSalesDemandCommand command, CancellationToken token)
     {
-        await repository.LockCommandAsync(command.CommandId);
-        var prior = await logs.GetByModuleCommandAsync("AfterSales", command.CommandId);
-        if (prior is not null)
-            throw new AfterSalesException("COMMAND_CONFLICT", "同一命令标识已被售后其他操作使用。");
         token.ThrowIfCancellationRequested();
         var before = await SnapshotAsync(uid);
         var head = await repository.GetHeaderAsync(uid, true)
@@ -133,7 +134,7 @@ public sealed class AfterSalesConfirmationService(
     /// <summary>将售后主数据不可用转换为原有稳定字段错误。</summary>
     private async Task ReferenceAsync(string kind, Guid uid, Guid? customerId, bool active, string field)
     {
-        if (await repository.ReferenceAsync(kind, uid, customerId, active) is null)
+        if (await lookups.ReferenceAsync(kind, uid, customerId, active) is null)
             throw new AfterSalesException("VALIDATION", "引用对象不存在、不适用或已停用。", field);
     }
 
@@ -191,7 +192,7 @@ public sealed class AfterSalesConfirmationService(
         if (!user.IsAuthenticated || user.UserId is not { } actor)
             return ServiceResult<AfterSalesCommandResult>.Fail(
                 ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
-        return await permissions.HasPermissionAsync(actor, PermissionKeys.ModuleQualityControlAccess, token)
+        return await permissions.HasPermissionAsync(actor, PermissionKeys.AfterSalesConfirm, token)
             ? null : ServiceResult<AfterSalesCommandResult>.Fail(
                 ServiceErrorCodes.Forbidden, "当前账号无品质管理权限。");
     }

@@ -44,6 +44,8 @@
             </Grid>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=Save24}" Content="保存" Command="{Binding SaveCommand}" MinWidth="76" Appearance="Primary" />
+                <ui:Button Margin="0,0,8,0" Content="重试原命令" Command="{Binding RetryPendingWriteCommand}" MinWidth="90" />
+                <ui:Button Margin="0,0,8,0" Content="刷新当前详情" Command="{Binding RefreshCurrentFactCommand}" MinWidth="100" />
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=Checkmark24}" Content="确认实物需求" Command="{Binding ConfirmDemandCommand}" MinWidth="112" />
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=Dismiss24}" Content="取消确认" Command="{Binding CancelDemandConfirmationCommand}" MinWidth="88" />
                 <ui:Button Margin="0,0,8,0" Icon="{ui:SymbolIcon Symbol=Archive24}" Content="结案" Command="{Binding CloseCommand}" MinWidth="72" />

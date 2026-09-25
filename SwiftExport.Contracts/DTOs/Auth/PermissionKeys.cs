@@ -17,6 +17,14 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ModuleSuppliersAccess = "Module.Suppliers.Access";
         /// <summary>销售模块访问权限。</summary>
         public const string ModuleSalesAccess = "Module.Sales.Access";
+        /// <summary>销售草稿维护与删除权限，独立于模块访问。</summary>
+        public const string SalesOrderMaintain = "Orders.SalesOrder.Maintain";
+        /// <summary>销售确认权限。</summary>
+        public const string SalesOrderConfirm = "Orders.SalesOrder.Confirm";
+        /// <summary>销售取消确认权限。</summary>
+        public const string SalesOrderCancelConfirmation = "Orders.SalesOrder.CancelConfirmation";
+        /// <summary>销售关闭权限。</summary>
+        public const string SalesOrderLifecycle = "Orders.SalesOrder.Lifecycle";
         /// <summary>需求计划模块访问权限。</summary>
         public const string ModuleDemandPlanningAccess = "Module.DemandPlanning.Access";
         /// <summary>物料需求整批建立权限，独立于模块访问及回退权限。</summary>
@@ -39,6 +47,14 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string PackingListReverse = "Shipping.PackingList.Reverse";
         /// <summary>品质与售后模块访问权限。</summary>
         public const string ModuleQualityControlAccess = "Module.QualityControl.Access";
+        /// <summary>售后创建、保存和合法补充权限。</summary>
+        public const string AfterSalesMaintain = "QualityControl.AfterSales.Maintain";
+        /// <summary>售后实物需求确认权限。</summary>
+        public const string AfterSalesConfirm = "QualityControl.AfterSales.Confirm";
+        /// <summary>售后取消实物需求确认权限。</summary>
+        public const string AfterSalesCancelConfirmation = "QualityControl.AfterSales.CancelConfirmation";
+        /// <summary>售后结案、重开和作废权限。</summary>
+        public const string AfterSalesLifecycle = "QualityControl.AfterSales.Lifecycle";
         /// <summary>仅由服务端为 Admin 生成的设置管理能力。</summary>
         public const string SystemSettingsManage = "System.Settings.Manage";
 
@@ -87,6 +103,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
             .Concat(ProcurementOperationValues)
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback, DemandPlanningSourceManualManage, DemandPlanningMaterialSupplierSuggestionManage })
+            .Concat(new[] { SalesOrderMaintain, SalesOrderConfirm, SalesOrderCancelConfirmation, SalesOrderLifecycle,
+                AfterSalesMaintain, AfterSalesConfirm, AfterSalesCancelConfirmation, AfterSalesLifecycle })
             .ToArray();
 
         private static readonly string[] UserAssignableValues = ModuleValues
@@ -94,6 +112,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
             .Concat(new[] { ProcurementOrderVoid })
             .Concat(new[] { InventoryWarehouseManage, InventoryInboundPost, InventoryInboundReverse, InventoryOutboundPost, InventoryOutboundReverse })
             .Concat(new[] { DemandPlanningMaterialEstablish, DemandPlanningMaterialRollback, DemandPlanningSourceManualManage, DemandPlanningMaterialSupplierSuggestionManage })
+            .Concat(new[] { SalesOrderMaintain, SalesOrderConfirm, SalesOrderCancelConfirmation, SalesOrderLifecycle,
+                AfterSalesMaintain, AfterSalesConfirm, AfterSalesCancelConfirmation, AfterSalesLifecycle })
             .ToArray();
 
         /// <summary>获取允许管理员直接分配给普通用户的一级模块键。</summary>

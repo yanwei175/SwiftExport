@@ -1,11 +1,13 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Sales.Orders.Services;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
@@ -17,6 +19,29 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 [TestClass]
 public sealed class SalesOrderManagerFilterTests
 {
+    /// <summary>查询 Busy 结束后必须再次通知列表绑定，允许继续选择和操作。</summary>
+    [TestMethod]
+    public async Task BrowseBindingRecoversAfterBusy()
+    {
+        var vm = new SalesOrderManagerViewModel(new RecordingManagerApi(), new RecordingDetailApi(),
+            new DirectApiCallRunner(), null!, null!, null!, null!, AuthorizedUser());
+        var states = new List<bool>();
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(vm.CanBrowse)) states.Add(vm.CanBrowse);
+        };
+        await vm.SearchCommand.ExecuteAsync(null);
+        CollectionAssert.AreEqual(new[] { false, true }, states);
+        Assert.IsTrue(vm.CanBrowse);
+    }
+
+    /// <summary>为命令入口提供具备已分配操作权限的测试用户。</summary>
+    private static CurrentUserService AuthorizedUser()
+    {
+        var user = new CurrentUserService();
+        user.SetCurrentUser(new MeDto { Permissions = PermissionKeys.All.ToList() });
+        return user;
+    }
     /// <summary>
     /// 验证销售订单高级筛选使用按钮控制的全宽 Popup，并完整保留原有筛选字段。
     /// </summary>
@@ -61,7 +86,8 @@ public sealed class SalesOrderManagerFilterTests
             null!,
             null!,
             null!,
-            null!);
+            null!,
+            AuthorizedUser());
 
         await viewModel.InitializeAsync();
         CollectionAssert.AreEqual(new[] { "C001", "C002" }, viewModel.CustomerCodeOptions);
@@ -93,7 +119,8 @@ public sealed class SalesOrderManagerFilterTests
             null!,
             null!,
             null!,
-            null!);
+            null!,
+            AuthorizedUser());
         viewModel.CustomerCode = "MANUAL";
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[0]);
@@ -181,7 +208,7 @@ public sealed class SalesOrderManagerFilterTests
         api.ConfirmationFailures.Enqueue(ServiceErrorCodes.OutcomeUnknown);
         api.ConfirmationFailures.Enqueue(ServiceErrorCodes.RateLimited);
         var viewModel = new SalesOrderManagerViewModel(new RecordingManagerApi(), api,
-            new DirectApiCallRunner(), null!, new ConfirmDialogStub(), null!, new MessageServiceStub());
+            new DirectApiCallRunner(), null!, new ConfirmDialogStub(), null!, new MessageServiceStub(), AuthorizedUser());
         var first = new SalesOrderManagerListItemDto { Uid = Guid.NewGuid(), Version = 3,
             OrderNo = "SO-A", DocumentStatus = SalesOrderDocumentStatusEnum.Open,
             ConfirmationStatus = ConfirmationStatusEnum.待确认 };
@@ -214,7 +241,7 @@ public sealed class SalesOrderManagerFilterTests
         var api = new RecordingDetailApi();
         api.ConfirmationFailures.Enqueue(ServiceErrorCodes.Forbidden);
         var vm = new SalesOrderManagerViewModel(new RecordingManagerApi(), api,
-            new DirectApiCallRunner(), null!, new ConfirmDialogStub(), null!, new MessageServiceStub());
+            new DirectApiCallRunner(), null!, new ConfirmDialogStub(), null!, new MessageServiceStub(), AuthorizedUser());
         vm.SelectedOrder = new SalesOrderManagerListItemDto { Uid = Guid.NewGuid(), Version = 3,
             DocumentStatus = SalesOrderDocumentStatusEnum.Open, ConfirmationStatus = ConfirmationStatusEnum.待确认 };
         await vm.ConfirmSelectedCommand.ExecuteAsync(null);
@@ -232,7 +259,8 @@ public sealed class SalesOrderManagerFilterTests
             null!,
             null!,
             cancellationDialog,
-            new MessageServiceStub());
+            new MessageServiceStub(),
+            AuthorizedUser());
 
     /// <summary>
     /// 从测试输出目录向上定位仓库根目录，用于读取销售订单页面 XAML 契约。

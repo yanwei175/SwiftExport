@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Orders.SalesOrders.Document;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
@@ -177,7 +178,7 @@ public sealed class SalesOrderConfirmationService(
         if (!user.IsAuthenticated || user.UserId is not { } actor)
             return ServiceResult<SalesOrderConfirmationResultDto>.Fail(
                 ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
-        return await permissions.HasPermissionAsync(actor, PermissionKeys.ModuleSalesAccess, token)
+        return await permissions.HasPermissionAsync(actor, PermissionKeys.SalesOrderConfirm, token)
             ? null : ServiceResult<SalesOrderConfirmationResultDto>.Fail(
                 ServiceErrorCodes.Forbidden, "当前账号没有销售模块权限。");
     }

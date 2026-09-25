@@ -22,6 +22,58 @@ namespace SwiftExport.Client.Wpf.Tests.Features.QualityControl.AfterSales;
 [TestClass]
 public sealed class AfterSalesConfirmationRetryTests
 {
+    /// <summary>普通保存的未知结果及后续限流均保留原请求；成功后只读取当前详情。</summary>
+    [TestMethod]
+    public void OrdinarySaveUnknownThenRateLimited_RetriesSameRequestAndRefreshes()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var fixture = new Fixture();
+            using var vm = fixture.ViewModel;
+            vm.Capabilities = new AfterSalesCapabilitiesDto { CanSave = true, CanEditFacts = true };
+            Assert.IsTrue(vm.CanEditFacts);
+            var editStates = new List<bool>();
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(vm.CanEditFacts)) editStates.Add(vm.CanEditFacts);
+            };
+            var original = new SaveAfterSalesCommand
+            {
+                Uid = Guid.NewGuid(), Version = 4, CommandId = Guid.NewGuid(),
+                Header = new AfterSalesEditHeaderDto { IssueDescription = "原始内容" }
+            };
+            var calls = new List<SaveAfterSalesCommand>();
+            var errors = new Queue<string>([ServiceErrorCodes.OutcomeUnknown, ServiceErrorCodes.RateLimited]);
+            Func<Task<ServiceResult<AfterSalesCommandResult>>> call = () =>
+            {
+                calls.Add(original);
+                return Task.FromResult(errors.TryDequeue(out var code)
+                    ? ServiceResult<AfterSalesCommandResult>.Fail(code, "请求尚未确定")
+                    : ServiceResult<AfterSalesCommandResult>.Ok(new AfterSalesCommandResult { Uid = original.Uid, Version = 5 }));
+            };
+            var pendingType = typeof(AfterSalesDetailViewModel).GetNestedType("PendingWrite", BindingFlags.NonPublic)!;
+            var pending = Activator.CreateInstance(pendingType, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, ["save", original.Uid, "售后服务单已保存", call], null)!;
+            typeof(AfterSalesDetailViewModel).GetMethod("SetPendingWrite", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(vm, [pending]);
+            Assert.IsFalse(vm.CanEditFacts);
+            Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
+            await vm.RetryPendingWriteCommand.ExecuteAsync(null);
+            await vm.RetryPendingWriteCommand.ExecuteAsync(null);
+            Assert.AreEqual(2, calls.Count);
+            Assert.IsTrue(vm.HasPendingIntent);
+            await vm.RetryPendingWriteCommand.ExecuteAsync(null);
+            Assert.AreEqual(3, calls.Count);
+            Assert.IsTrue(calls.All(request => ReferenceEquals(request, original)));
+            Assert.AreEqual(4, original.Version);
+            Assert.AreEqual("原始内容", original.Header.IssueDescription);
+            Assert.IsFalse(vm.HasPendingIntent);
+            Assert.IsTrue(vm.CanEditFacts);
+            Assert.IsTrue(vm.CanEditSupplement);
+            Assert.IsTrue(editStates.Count > 0 && editStates[^1], "Busy 结束后应通知编辑绑定恢复。");
+        });
+    }
+
     /// <summary>保存未知后限流仍复用原创建标记、身份、版本和完整事实，成功后才发确认。</summary>
     [TestMethod]
     public void SaveUnknownThenRateLimited_RetriesOriginalSaveBeforeConfirm()
@@ -135,7 +187,8 @@ public sealed class AfterSalesConfirmationRetryTests
             var api = Proxy<IAfterSalesApi>((method, args) => method.Name == "GetAsync"
                 ? Task.FromResult(ServiceResult<AfterSalesDetailDto>.Ok(new AfterSalesDetailDto
                 { Header = new AfterSalesHeaderDto { Uid = uid, Version = 8,
-                    AfterSalesNo = "CR-1", CustomerId = Guid.Empty } }))
+                    AfterSalesNo = "CR-1", CustomerId = Guid.Empty },
+                    Capabilities = new AfterSalesCapabilitiesDto { CanSave = true, CanEditFacts = true } }))
                 : throw new AssertFailedException(method.Name));
             var cache = DispatchProxy.Create<IReferenceDataCacheService, CachePort>();
             var user = Proxy<ICurrentUserService>((method, args) => method.Name == "HasPermission"

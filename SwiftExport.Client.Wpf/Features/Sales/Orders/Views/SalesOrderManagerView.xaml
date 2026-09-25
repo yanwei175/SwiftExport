@@ -66,6 +66,7 @@
 
                     <Button Content="确认订单" Command="{Binding ConfirmSelectedCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
                     <Button Content="重试待确认" Command="{Binding RetryPendingConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
+                    <Button Content="重试待处理" Command="{Binding RetryPendingActionCommand}" Style="{StaticResource SalesOrderToolbarButton}" />
 
                     <ui:Button Content="取消确认"  Command="{Binding CancelConfirmationCommand}" Style="{StaticResource SalesOrderToolbarButton}"/>
 
@@ -189,6 +190,7 @@
                 </Grid.RowDefinitions>
                 
                 <DataGrid x:Name="OrdersGrid" Grid.Row="0"
+                  IsEnabled="{Binding CanBrowse}"
                   RowHeight="35"
                   FontSize="12"
                   ItemsSource="{Binding Orders}"

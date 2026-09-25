@@ -17,6 +17,44 @@ namespace SwiftExport.Application.Tests.Authentication;
 [TestClass]
 public sealed class UserPermissionServiceTests
 {
+    /// <summary>销售和售后八项操作权限可独立保存读取；两个模块入口均不隐式授予写入。</summary>
+    [TestMethod]
+    public async Task SalesAndAfterSalesOperations_AreAssignableAndIndependent()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.Facts[targetId] = Facts(targetId, false, [], []);
+        var service = Service(repository, actorId);
+        var keys = new[]
+        {
+            PermissionKeys.SalesOrderMaintain, PermissionKeys.SalesOrderConfirm,
+            PermissionKeys.SalesOrderCancelConfirmation, PermissionKeys.SalesOrderLifecycle,
+            PermissionKeys.AfterSalesMaintain, PermissionKeys.AfterSalesConfirm,
+            PermissionKeys.AfterSalesCancelConfirmation, PermissionKeys.AfterSalesLifecycle
+        };
+        Assert.IsTrue((await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleSalesAccess, PermissionKeys.ModuleQualityControlAccess]
+        })).Success);
+        foreach (var key in keys)
+        {
+            CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), key);
+            Assert.IsFalse(await service.HasPermissionAsync(targetId, key), key);
+        }
+        Assert.IsTrue((await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleSalesAccess, PermissionKeys.ModuleQualityControlAccess, .. keys]
+        })).Success);
+        var loaded = await service.GetUserModulesAsync(targetId);
+        var projected = await service.GetProjectionAsync(targetId);
+        foreach (var key in keys)
+        {
+            CollectionAssert.Contains(loaded.Data.ModulePermissions, key);
+            CollectionAssert.Contains(projected!.Permissions.ToList(), key);
+        }
+    }
+
     /// <summary>一级模块目录保持不变，普通用户可分配目录额外包含虚拟仓独立管理能力。</summary>
     [TestMethod]
     public void ModuleCatalogContainsOnlyStableAssignableKeys()

@@ -1,3 +1,13 @@
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Document;
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Query;
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Lookup;
+using SwiftExport.Infrastructure.Repositories.QualityControl.AfterSales.Document;
+using SwiftExport.Infrastructure.Repositories.QualityControl.AfterSales.Query;
+using SwiftExport.Infrastructure.Repositories.QualityControl.AfterSales.Lookup;
+using SwiftExport.Core.Interfaces.Orders.SalesOrders.Document;
+using SwiftExport.Core.Interfaces.Orders.SalesOrders.Query;
+using SwiftExport.Infrastructure.Repositories.Orders.SalesOrders.Document;
+using SwiftExport.Infrastructure.Repositories.Orders.SalesOrders.Query;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
@@ -126,6 +136,7 @@ public static class DependencyInjection
         services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
         services.AddScoped<ICommandReceiptRepository, CommandReceiptRepository>();
         services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
+        services.AddScoped<ISalesOrderQueryRepository, SalesOrderQueryRepository>();
         services.AddScoped<IWarehouseQueryRepository, WarehouseQueryRepository>();
         services.AddScoped<IWarehouseManagementRepository, WarehouseManagementRepository>();
         services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
@@ -147,7 +158,9 @@ public static class DependencyInjection
         services.AddScoped<IPackingListExecutionRepository, PackingListExecutionRepository>();
         services.AddScoped<ISourceDeliveryQueryRepository, SourceDeliveryQueryRepository>();
 
-        services.AddScoped<SwiftExport.Core.Interfaces.QualityControl.IAfterSalesRepository, SwiftExport.Infrastructure.Repositories.QualityControl.AfterSalesRepository>();
+        services.AddScoped<IAfterSalesDocumentRepository, AfterSalesDocumentRepository>();
+        services.AddScoped<IAfterSalesQueryRepository, AfterSalesQueryRepository>();
+        services.AddScoped<IAfterSalesLookupRepository, AfterSalesLookupRepository>();
         return services;
     }
 }

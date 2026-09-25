@@ -35,9 +35,9 @@ public sealed class SalesSourceDemandContractTests
     [TestMethod]
     public void SalesCancellationUsesSourceExitBeforeChangingConfirmationStatus()
     {
-        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrderDetailService.cs");
+        var service = Read("SwiftExport.Application", "Services", "Orders", "SalesOrders", "Confirmation", "SalesOrderCancellationService.cs");
         var start = service.IndexOf("public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync", StringComparison.Ordinal);
-        var end = service.IndexOf("public Task<ServiceResult<SalesOrderDetailDto>> CloseAsync", start, StringComparison.Ordinal);
+        var end = service.IndexOf("private async Task WriteCancellationLogAsync", start, StringComparison.Ordinal);
         var method = service[start..end];
         var sourceExit = method.IndexOf("sourceDemandReceptionService.CancelConfirmationAsync", StringComparison.Ordinal);
         var statusWrite = method.IndexOf("SetConfirmationStatusAsync", StringComparison.Ordinal);

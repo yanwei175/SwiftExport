@@ -7,6 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Query;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Maintenance;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Lifecycle;
 using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Interfaces.Commands;
 using Mapster;
@@ -29,6 +32,9 @@ using SwiftExport.Core.Entities.QualityControl;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.QualityControl;
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Document;
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Query;
+using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Lookup;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.QualityControl;
@@ -37,6 +43,62 @@ namespace SwiftExport.Application.Tests.QualityControl;
 [TestClass]
 public sealed class AfterSalesServiceTests
 {
+    /// <summary>维护回执保留首次创建及保存结果，跨命令复用身份和修改业务输入均冲突。</summary>
+    [TestMethod]
+    public async Task MaintenanceReceiptsReplayAndRejectCrossCommandReuse()
+    {
+        using var f = new Fixture();
+        var create = f.Command();
+        var first = await f.Service.SaveAsync(create.Uid, create, true);
+        Assert.IsTrue(first.Success, first.Message);
+        var replay = await f.Service.SaveAsync(create.Uid, create, true);
+        Assert.IsTrue(replay.Success, replay.Message);
+        Assert.IsTrue(replay.Data.AlreadyApplied);
+        Assert.AreEqual(1, f.NumberCalls);
+        Assert.AreEqual(1, f.Logs.Count);
+        var changed = Clone(create)!;
+        changed.Header.IssueDescription = "另一投诉内容";
+        Assert.AreEqual("COMMAND_CONFLICT", (await f.Service.SaveAsync(create.Uid, changed, true)).Error.Code);
+        var update = f.Edit();
+        update.CommandId = create.CommandId;
+        Assert.AreEqual("COMMAND_CONFLICT", (await f.Service.SaveAsync(update.Uid, update, false)).Error.Code);
+        update.CommandId = Guid.NewGuid();
+        update.Header.CauseAnalysis = "已核实";
+        var saved = await f.Service.SaveAsync(update.Uid, update, false);
+        Assert.IsTrue(saved.Success, saved.Message);
+        Assert.IsTrue((await f.Service.SaveAsync(update.Uid, update, false)).Data.AlreadyApplied);
+        Assert.AreEqual(2, f.Logs.Count);
+    }
+
+    /// <summary>结案后原命令可以重放，异原因或异命令即使目标相同也不能取得旧回执。</summary>
+    [TestMethod]
+    public async Task LifecycleReceiptReplaysAfterStateChange()
+    {
+        using var f = new Fixture();
+        var create = f.Command();
+        create.AddedLines.Clear();
+        var saved = await f.Service.SaveAsync(create.Uid, create, true);
+        var close = new CloseAfterSalesCommand { CommandId = Guid.NewGuid(), Version = saved.Data.Version, Reason = "投诉处理完毕" };
+        var first = await f.Service.CloseAsync(create.Uid, close);
+        Assert.IsTrue(first.Success, first.Message);
+        Assert.AreEqual(DocumentStatusEnum.Closed, f.Head!.DocumentStatus);
+        var replay = await f.Service.CloseAsync(create.Uid, close);
+        Assert.IsTrue(replay.Success, replay.Message);
+        Assert.IsTrue(replay.Data.AlreadyApplied);
+        var changed = new CloseAfterSalesCommand { CommandId = close.CommandId, Version = close.Version, Reason = "不同原因" };
+        Assert.AreEqual("COMMAND_CONFLICT", (await f.Service.CloseAsync(create.Uid, changed)).Error.Code);
+        var reopen = new ReopenAfterSalesCommand { CommandId = Guid.NewGuid(), Version = first.Data.Version, Reason = "继续处理" };
+        var reopened = await f.Service.ReopenAsync(create.Uid, reopen);
+        Assert.IsTrue(reopened.Success, reopened.Message);
+        Assert.AreEqual(DocumentStatusEnum.Open, f.Head!.DocumentStatus);
+        Assert.IsTrue((await f.Service.ReopenAsync(create.Uid, reopen)).Data.AlreadyApplied);
+        var voidCommand = new VoidAfterSalesCommand { CommandId = Guid.NewGuid(), Version = reopened.Data.Version, Reason = "不再受理" };
+        var voided = await f.Service.VoidAsync(create.Uid, voidCommand);
+        Assert.IsTrue(voided.Success, voided.Message);
+        Assert.AreEqual(DocumentStatusEnum.Voided, f.Head!.DocumentStatus);
+        Assert.IsTrue((await f.Service.VoidAsync(create.Uid, voidCommand)).Data.AlreadyApplied);
+    }
+
     /// <summary>资料路径可确认后补充，限制长度、保留审计，且不传递或重发来源需求。</summary>
     [TestMethod]
     public async Task LocalFolderIsSupplementOnlyAndLimitedTo1000()
@@ -328,7 +390,7 @@ public sealed class AfterSalesServiceTests
         public bool Allowed=true,FailReception,FailCancellation,FailAudit,FailReceipt,FailCommit;
         public int NumberCalls,ReceiveCalls;
         public SourceDemandReceptionCommand? Received;
-        public AfterSalesService Service {get;}
+        public TestAfterSalesOperations Service {get;}
         public AfterSalesConfirmationService Confirm { get; }
         private Dictionary<Guid, CommandReceipt> receipts = [];
         private readonly DbSession session;
@@ -341,14 +403,16 @@ public sealed class AfterSalesServiceTests
                 return ()=>{Head=h;Rows=r;Logs=l;receipts=savedReceipts;};};
             session=(DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(session,connection);
-            var repo=Port<IAfterSalesRepository>((n,a)=>n switch {
+            var repo=Port<IAfterSalesDocumentRepository>((n,a)=>n switch {
                 "GetHeaderAsync"=>Task.FromResult(Clone(Head)),
                 "GetLinesAsync"=>Task.FromResult<IReadOnlyList<AfterSalesLine>>(Clone(Rows)!),
-                "LockCommandAsync"=>Task.CompletedTask,
                 "WriteHeaderAsync"=>WriteHead((AfterSalesHeader)a[0]!, (bool)a[1]!),
                 "WriteLineAsync"=>WriteLine((AfterSalesLine)a[0]!, (bool)a[1]!),
+                _=>throw new NotSupportedException(n)});
+            var lookups=Port<IAfterSalesLookupRepository>((n,a)=>n switch {
                 "ReferenceAsync"=>Task.FromResult<AfterSalesLookupDto?>(new(){Uid=(Guid)a[1]!,Code="CODE",Name="名称"}),
                 _=>throw new NotSupportedException(n)});
+            var queries=Port<IAfterSalesQueryRepository>((n,a)=>throw new NotSupportedException(n));
             var reception=Port<ISourceDemandReceptionService>((n,a)=>{
                 if(n=="ReceiveAsync"){if(FailReception)throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED","模拟来源阻断");ReceiveCalls++;Received=(SourceDemandReceptionCommand)a[0]!;return Task.FromResult(new SourceDemandReceptionResult());}
                 if(n=="CancelConfirmationAsync"){if(FailCancellation)throw new SourceDemandReceptionException("SOURCE_EXIT_BLOCKED","模拟已有执行");return Task.FromResult(new SourceDemandExitResult());}
@@ -360,20 +424,26 @@ public sealed class AfterSalesServiceTests
             var numbering=Port<IDocumentNoService>((_,_)=>{NumberCalls++;return Task.FromResult(ServiceResult<DocumentNoResponse>.Ok(new(){DocumentNo="CR2026090001"}));});
             var permission=Port<IUserPermissionService>((_,_)=>Task.FromResult(Allowed));
             var user=Port<ICurrentUser>((n,_)=>n switch {"get_UserId"=>(Guid?)actor,"get_UserName"=>"tester","get_IsAuthenticated"=>true,_=>throw new NotSupportedException(n)});
-            Service=new(new(session,NullLoggerFactory.Instance),repo,reception,numbering,logs,permission,user);
             var receiptPort=Port<ICommandReceiptRepository>((n,a)=>n switch {
                 "LockAsync"=>Task.FromResult(0),
                 "FindAsync"=>Task.FromResult(receipts.GetValueOrDefault((Guid)a[0]!)),
                 "InsertAsync"=>AppendReceipt((CommandReceipt)a[0]!),
                 _=>throw new NotSupportedException(n)});
             var correlation=Port<ICorrelationContext>((n,_)=>n=="get_CorrelationId"?"after-sales-test":throw new NotSupportedException(n));
-            var validators=new ServiceCollection().AddSingleton<IValidator<ConfirmAfterSalesDemandCommand>,
-                ConfirmAfterSalesDemandCommandValidator>().BuildServiceProvider();
+            var validators=new ServiceCollection()
+                .AddValidatorsFromAssemblyContaining<ConfirmAfterSalesDemandCommandValidator>()
+                .BuildServiceProvider();
             var context=new ServiceBaseContext(session,NullLoggerFactory.Instance);
-            Confirm=new(context,repo,reception,logs,permission,user,
-                new CommandPipeline(new CommandRequestValidator(validators),correlation,user,
-                    NullLogger<CommandPipeline>.Instance),
-                new BusinessCommandExecutor(context,receiptPort,user));
+            var pipeline = new CommandPipeline(new CommandRequestValidator(validators),correlation,user,
+                NullLogger<CommandPipeline>.Instance);
+            var executor = new BusinessCommandExecutor(context,receiptPort,user);
+            Service=new TestAfterSalesOperations(
+                new AfterSalesQueryService(context,queries,lookups,repo,permission,user),
+                new AfterSalesMaintenanceService(context,repo,lookups,numbering,logs,permission,user,pipeline,executor),
+                new AfterSalesCancellationService(context,repo,logs,permission,user,reception,pipeline,executor),
+                new AfterSalesLifecycleService(context,repo,logs,permission,user,reception,pipeline,executor));
+            Confirm=new(context,repo,lookups,reception,logs,permission,user,
+                pipeline, executor);
         }
         public SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),Header=new(){CustomerId=customer,AcceptedDate=new(2026,9,8),IssueDescription="成品故障",IssueSkuSnapshot="成品001",ResponsibleSupplierId=Guid.NewGuid(),ServiceAmountCny=0,RequiredDate=new(2026,10,1)},AddedLines=[Line(2)]};
         public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",UnitSnapshot=""};
@@ -385,6 +455,17 @@ public sealed class AfterSalesServiceTests
         private Task AppendReceipt(CommandReceipt receipt)
         {if(FailReceipt)throw new InvalidOperationException("模拟回执失败");receipts.Add(receipt.CommandId,receipt);return Task.CompletedTask;}
         public void Dispose()=>session.Dispose();
+    }
+    /// <summary>仅在隔离测试中组合窄服务，保持既有行为断言逐项调用真实切片。</summary>
+    private sealed class TestAfterSalesOperations(AfterSalesQueryService query, AfterSalesMaintenanceService maintenance,
+        AfterSalesCancellationService cancellation, AfterSalesLifecycleService lifecycle)
+    {
+        public Task<ServiceResult<AfterSalesDetailDto>> GetAsync(Guid uid) => query.GetAsync(uid);
+        public Task<ServiceResult<AfterSalesCommandResult>> SaveAsync(Guid uid, SaveAfterSalesCommand command, bool create) => maintenance.SaveAsync(uid,command,create);
+        public Task<ServiceResult<AfterSalesCommandResult>> CancelDemandConfirmationAsync(Guid uid, CancelAfterSalesDemandConfirmationCommand command) => cancellation.CancelDemandConfirmationAsync(uid,command);
+        public Task<ServiceResult<AfterSalesCommandResult>> CloseAsync(Guid uid, CloseAfterSalesCommand command) => lifecycle.CloseAsync(uid,command);
+        public Task<ServiceResult<AfterSalesCommandResult>> ReopenAsync(Guid uid, ReopenAfterSalesCommand command) => lifecycle.ReopenAsync(uid,command);
+        public Task<ServiceResult<AfterSalesCommandResult>> VoidAsync(Guid uid, VoidAfterSalesCommand command) => lifecycle.VoidAsync(uid,command);
     }
     private static T? Clone<T>(T value)=>value is null?default:JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
     private static T Port<T>(Func<string,object?[],object?> invoke) where T:class {var p=DispatchProxy.Create<T,TestPort>();((TestPort)(object)p).Handler=invoke;return p;}

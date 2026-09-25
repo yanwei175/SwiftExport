@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Orders.SalesOrders.Document;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -164,7 +165,7 @@ public sealed class SalesOrderConfirmationCommandTests
             });
             var permissions = Proxy<IUserPermissionService>((method, args) => method.Name switch
             {
-                "HasPermissionAsync" => (string)args![1]! == PermissionKeys.ModuleSalesAccess
+                "HasPermissionAsync" => (string)args![1]! == PermissionKeys.SalesOrderConfirm
                     ? Task.FromResult(Allow) : throw new AssertFailedException("权限键错误"),
                 _ => throw new AssertFailedException(method.Name)
             });

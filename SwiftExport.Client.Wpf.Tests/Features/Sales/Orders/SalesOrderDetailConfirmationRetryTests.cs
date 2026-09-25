@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
@@ -13,6 +14,8 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Authentication;
+using SwiftExportClient.Navigation;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
@@ -20,6 +23,113 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 [TestClass]
 public sealed class SalesOrderDetailConfirmationRetryTests
 {
+    /// <summary>销售保存结果未知后即使表单只读，重试仍发送同一原请求。</summary>
+    [TestMethod]
+    public void SaveUnknownThenRateLimited_RetriesWhileEditorsStayFrozen()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var contract = DispatchProxy.Create<ISalesOrderDetailApi, DetailApiProxy>();
+            var api = (DetailApiProxy)(object)contract;
+            var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(),
+                DispatchProxy.Create<INavigationService, NavigationProxy>(),
+                new DialogStub(), null!, new MessagesStub(),
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser());
+            var uid = Guid.NewGuid();
+            var request = new SaveSalesOrderRequest
+            {
+                CommandId = Guid.NewGuid(),
+                Header = new SalesOrderEditHeaderDto { Uid = uid, Version = 3 }
+            };
+            typeof(SalesOrderDetailViewModel).GetField("_pendingSave", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(vm, request);
+            typeof(SalesOrderDetailViewModel).GetMethod("NotifyPendingStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(vm, null);
+            Assert.IsTrue(vm.IsReadOnly);
+            Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
+            Assert.IsTrue(vm.SaveCommand.CanExecute(null));
+            api.SaveFailureCodes.Enqueue(ServiceErrorCodes.OutcomeUnknown);
+            api.SaveFailureCodes.Enqueue(ServiceErrorCodes.RateLimited);
+            await vm.SaveCommand.ExecuteAsync(null);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.AreEqual(2, api.SaveCalls.Count);
+            Assert.IsTrue(vm.IsReadOnly);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.AreEqual(3, api.SaveCalls.Count);
+            Assert.IsTrue(api.SaveCalls.All(item => ReferenceEquals(item, request)));
+            Assert.AreEqual(3, request.Header.Version);
+            Assert.IsTrue(await vm.CanCloseAsync(CancellationToken.None));
+        });
+    }
+
+    /// <summary>只有销售模块入口权限时，草稿详情和新建表单都保持实际只读。</summary>
+    [TestMethod]
+    public void ModuleAccessWithoutMaintainPermission_FreezesSalesEditors()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var user = new CurrentUserService();
+            user.SetCurrentUser(new MeDto { Permissions = [PermissionKeys.ModuleSalesAccess] });
+            var contract = DispatchProxy.Create<ISalesOrderDetailApi, DetailApiProxy>();
+            var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
+                new DialogStub(), null!, new MessagesStub(),
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), user);
+            typeof(SalesOrderDetailViewModel).GetMethod("LoadDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(vm, [new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
+                { Uid = Guid.NewGuid(), Version = 1, DocumentStatus = SalesOrderDocumentStatusEnum.Open,
+                    ConfirmationStatus = ConfirmationStatusEnum.待确认 } }]);
+            Assert.IsTrue(vm.IsReadOnly);
+            Assert.IsFalse(vm.IsEditable);
+            Assert.IsFalse(vm.SaveCommand.CanExecute(null));
+            Assert.IsTrue(await vm.CanCloseAsync(CancellationToken.None));
+            typeof(SalesOrderDetailViewModel).GetMethod("InitializeNewDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(vm, null);
+            Assert.IsTrue(vm.IsReadOnly);
+            Assert.IsFalse(vm.IsEditable);
+            Assert.IsFalse(vm.SaveCommand.CanExecute(null));
+        });
+    }
+
+    /// <summary>仅获确认权限的用户可确认已保存且无本地修改的订单，同时不能编辑草稿字段。</summary>
+    [TestMethod]
+    public void ConfirmPermissionWithoutMaintain_AllowsConfirmationWhileReadOnly()
+    {
+        StaTest.RunAsync(async () =>
+        {
+            var user = new CurrentUserService();
+            user.SetCurrentUser(new MeDto
+            { Permissions = [PermissionKeys.ModuleSalesAccess, PermissionKeys.SalesOrderConfirm] });
+            var contract = DispatchProxy.Create<ISalesOrderDetailApi, DetailApiProxy>();
+            var api = (DetailApiProxy)(object)contract;
+            api.FailureCodes.Clear();
+            var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
+                new DialogStub(), null!, new MessagesStub(),
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), user);
+            var uid = Guid.NewGuid();
+            typeof(SalesOrderDetailViewModel).GetMethod("LoadDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(vm, [new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
+                { Uid = uid, Version = 2, DocumentStatus = SalesOrderDocumentStatusEnum.Open,
+                    ConfirmationStatus = ConfirmationStatusEnum.待确认 } }]);
+            Assert.IsTrue(vm.IsReadOnly);
+            Assert.IsFalse(vm.IsEditable);
+            Assert.IsFalse(vm.SaveCommand.CanExecute(null));
+            Assert.IsTrue(vm.ConfirmCommand.CanExecute(null));
+            await vm.ConfirmCommand.ExecuteAsync(null);
+            Assert.AreEqual(1, api.Commands.Count);
+            Assert.AreEqual(uid, api.Commands[0].Uid);
+            Assert.AreEqual(2, api.Commands[0].Version);
+            Assert.IsTrue(vm.IsReadOnly);
+        });
+    }
+
+    /// <summary>客户端测试显式分配操作权限，避免用模块访问绕过后端授权语义。</summary>
+    private static CurrentUserService AuthorizedUser()
+    {
+        var user = new CurrentUserService();
+        user.SetCurrentUser(new MeDto { Permissions = PermissionKeys.All.ToList() });
+        return user;
+    }
+
     [TestMethod]
     public void UnknownThenRateLimited_RetriesOriginalRequestAndFreezesEditors()
     {
@@ -29,7 +139,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             var api = (DetailApiProxy)(object)contract;
             var cache = DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>();
             var viewModel = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
-                new DialogStub(), null!, new MessagesStub(), cache);
+                new DialogStub(), null!, new MessagesStub(), cache, AuthorizedUser());
             var uid = Guid.NewGuid();
             var document = new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
             { Uid = uid, Version = 3, OrderNo = "SO-DETAIL", DocumentStatus = SalesOrderDocumentStatusEnum.Open,
@@ -82,7 +192,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             api.FailureCodes.Enqueue(ServiceErrorCodes.VersionConflict);
             var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
                 new DialogStub(), null!, new MessagesStub(),
-                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>());
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser());
             var changed = new List<string?>();
             vm.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
             var uid = Guid.NewGuid();
@@ -135,7 +245,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
                 api.FailureCodes.Clear();
                 api.FailureCodes.Enqueue(code);
                 var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
-                    new DialogStub(), null!, new MessagesStub(), DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>());
+                    new DialogStub(), null!, new MessagesStub(), DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser());
                 typeof(SalesOrderDetailViewModel).GetMethod("LoadDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(vm, [new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
                     { Uid = Guid.NewGuid(), Version = 3, DocumentStatus = SalesOrderDocumentStatusEnum.Open,
@@ -152,9 +262,20 @@ public sealed class SalesOrderDetailConfirmationRetryTests
     public class DetailApiProxy : DispatchProxy
     {
         public List<ConfirmSalesOrderCommand> Commands { get; } = [];
+        public List<SaveSalesOrderRequest> SaveCalls { get; } = [];
+        public Queue<string> SaveFailureCodes { get; } = new();
         public Queue<string> FailureCodes { get; } = new([ServiceErrorCodes.OutcomeUnknown, ServiceErrorCodes.RateLimited]);
         protected override object? Invoke(MethodInfo? method, object?[]? arguments)
         {
+            if (method?.Name == "SaveAsync")
+            {
+                var request = (SaveSalesOrderRequest)arguments![0]!;
+                SaveCalls.Add(request);
+                return Task.FromResult(SaveFailureCodes.TryDequeue(out var code)
+                    ? ServiceResult<SaveSalesOrderResponse>.Fail(code, "本次保存尚未取得结果")
+                    : ServiceResult<SaveSalesOrderResponse>.Ok(new SaveSalesOrderResponse
+                    { Document = new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto { Uid = request.Header.Uid } } }));
+            }
             if (method?.Name == "ConfirmAsync")
             {
                 var command = (ConfirmSalesOrderCommand)arguments![1]!;
@@ -187,6 +308,13 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             }
             throw new AssertFailedException($"意外缓存调用：{method.Name}");
         }
+    }
+
+    /// <summary>保存成功时只记录页签身份更新，不替代销售 API 的当前详情读取。</summary>
+    public class NavigationProxy : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? method, object?[]? arguments)
+            => method?.Name == "UpdateDocumentKey" ? null : throw new AssertFailedException(method?.Name ?? "未知导航方法");
     }
 
     private sealed class DirectRunner : IApiCallRunner

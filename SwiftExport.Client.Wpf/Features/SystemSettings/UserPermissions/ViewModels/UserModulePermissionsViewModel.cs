@@ -312,6 +312,10 @@ public sealed partial class UserModulePermissionsViewModel
             new(PermissionKeys.ModuleCustomersAccess, "客户"),
             new(PermissionKeys.ModuleSuppliersAccess, "供应商"),
             new(PermissionKeys.ModuleSalesAccess, "销售"),
+            new(PermissionKeys.SalesOrderMaintain, "销售 - 订单维护"),
+            new(PermissionKeys.SalesOrderConfirm, "销售 - 订单确认"),
+            new(PermissionKeys.SalesOrderCancelConfirmation, "销售 - 取消确认"),
+            new(PermissionKeys.SalesOrderLifecycle, "销售 - 订单关闭"),
             new(PermissionKeys.ModuleDemandPlanningAccess, "需求计划"),
             new(PermissionKeys.DemandPlanningMaterialEstablish, "需求计划 - 物料需求建立"),
             new(PermissionKeys.DemandPlanningMaterialRollback, "需求计划 - 物料需求回退"),
@@ -325,7 +329,11 @@ public sealed partial class UserModulePermissionsViewModel
             new(PermissionKeys.ProcurementOrderVoid, "采购 - 整单作废"),
             new(PermissionKeys.InventoryOutboundPost, "库存 - 出库过账"),
             new(PermissionKeys.InventoryOutboundReverse, "库存 - 手工出库反过账"),
-            new(PermissionKeys.ModuleShippingAccess, "出货")
+            new(PermissionKeys.ModuleShippingAccess, "出货"),
+            new(PermissionKeys.AfterSalesMaintain, "品质售后 - 单据维护"),
+            new(PermissionKeys.AfterSalesConfirm, "品质售后 - 需求确认"),
+            new(PermissionKeys.AfterSalesCancelConfirmation, "品质售后 - 取消确认"),
+            new(PermissionKeys.AfterSalesLifecycle, "品质售后 - 结案、重开和作废")
         ];
     }
 
