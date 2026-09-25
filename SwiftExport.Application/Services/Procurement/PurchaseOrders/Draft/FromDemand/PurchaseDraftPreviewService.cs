@@ -1,3 +1,8 @@
+using SwiftExport.Core.Interfaces.Customers.Management;
+using SwiftExport.Core.Interfaces.Customers.PoConfigs;
+using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Suppliers.Management;
+using SwiftExport.Core.Interfaces.Suppliers.SupplierProducts;
 using SwiftExport.Core.Interfaces.Orders.SalesOrders.Document;
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
 using Microsoft.Extensions.Logging;

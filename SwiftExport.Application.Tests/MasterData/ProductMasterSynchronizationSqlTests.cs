@@ -1,3 +1,9 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
+using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
+using SwiftExport.Core.Interfaces.Suppliers.Management;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -8,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Services.Products;
+using SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
@@ -31,7 +37,7 @@ public sealed class ProductMasterSynchronizationSqlTests
     private ServiceProvider _provider = null!;
     private IServiceScope _scope = null!;
     private DbSession _session = null!;
-    private ProductMasterService _service = null!;
+    private ProductMasterMaintenanceService _service = null!;
     private IProductRepository _products = null!;
     private Guid _masterId;
     private Guid _supplierId;
@@ -65,7 +71,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         foreach (var type in new[] { typeof(Product), typeof(ProductMaster), typeof(ProductNeutral), typeof(ProductCategory), typeof(ProductColor), typeof(Supplier) })
             await _session.Connection.ExecuteAsync(CreateTable(type));
         _products = provider.GetRequiredService<IProductRepository>();
-        _service = new ProductMasterService(provider.GetRequiredService<IProductMasterRepository>(),
+        _service = new ProductMasterMaintenanceService(provider.GetRequiredService<IProductMasterRepository>(),
             provider.GetRequiredService<IProductNeutralRepository>(), provider.GetRequiredService<IProductCategoryRepository>(),
             provider.GetRequiredService<ISupplierRepository>(), provider.GetRequiredService<IProductColorRepository>(), _products,
             new ServiceBaseContext(_session, NullLoggerFactory.Instance));

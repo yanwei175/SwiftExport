@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.Orders.SalesOrders.Document;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;

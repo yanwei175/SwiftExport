@@ -9,8 +9,11 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Repositories.Products;
+using SwiftExport.Infrastructure.Repositories.Products.Catalog;
 using SwiftExport.Infrastructure.Repositories.Customers;
+using SwiftExport.Infrastructure.Repositories.Customers.Management;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
+using SwiftExport.Infrastructure.Repositories.Suppliers.Management;
 
 namespace SwiftExport.Application.Tests.MasterData;
 

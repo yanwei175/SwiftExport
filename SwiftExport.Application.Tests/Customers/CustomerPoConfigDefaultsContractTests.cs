@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Customers;
+using SwiftExport.Application.Services.Customers.PoConfigs;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Core.Entities.Relations;
 

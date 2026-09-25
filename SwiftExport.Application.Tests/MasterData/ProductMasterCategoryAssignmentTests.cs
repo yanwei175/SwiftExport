@@ -1,3 +1,9 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
+using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
+using SwiftExport.Core.Interfaces.Suppliers.Management;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -5,7 +11,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Services.Products;
+using SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
@@ -83,7 +89,7 @@ public sealed class ProductMasterCategoryAssignmentTests
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(session, Connection);
             Session = session;
-            Service = new ProductMasterService(
+            Service = new ProductMasterMaintenanceService(
                 Proxy<IProductMasterRepository>(MasterCall),
                 Proxy<IProductNeutralRepository>(UnexpectedCall),
                 Proxy<IProductCategoryRepository>(CategoryCall),
@@ -100,7 +106,7 @@ public sealed class ProductMasterCategoryAssignmentTests
         public List<ProductMaster> Masters { get; private set; }
         public ConnectionStub Connection { get; }
         public DbSession Session { get; }
-        public ProductMasterService Service { get; }
+        public ProductMasterMaintenanceService Service { get; }
 
         /// <summary>创建包含全部主型号当前版本的批量归类请求。</summary>
         public AssignProductMastersToCategoryRequest CreateRequest() => new()

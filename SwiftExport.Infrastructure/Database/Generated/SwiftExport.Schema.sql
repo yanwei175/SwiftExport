@@ -1261,7 +1261,7 @@ CREATE TABLE [dbo].[SupplierProduct]
     [UpdatedBy] nvarchar(500) NULL,
     [SupplierId] uniqueidentifier NOT NULL,
     [SupplierCode] nvarchar(300) NOT NULL,
-    [SkuId] uniqueidentifier NOT NULL,
+    [SkuId] uniqueidentifier NULL,
     [ProductSku] nvarchar(300) NOT NULL,
     [SupplierSku] nvarchar(300) NOT NULL,
     [SupplierSkuDescriptionZh] nvarchar(2000) NULL,
@@ -1613,7 +1613,7 @@ CREATE UNIQUE INDEX [UX_SalesOrderLine_Head_Line] ON [dbo].[SalesOrderLine] ([Sa
 CREATE UNIQUE INDEX [UX_Supplier_SupplierCode] ON [dbo].[Supplier] ([SupplierCode]) WHERE [IsDeleted] = 0;
 
 CREATE INDEX [IX_SupplierProduct_Product] ON [dbo].[SupplierProduct] ([SkuId]) WHERE [IsDeleted] = 0;
-CREATE UNIQUE INDEX [UX_SupplierProduct_Supplier_Product] ON [dbo].[SupplierProduct] ([SupplierId], [SkuId]) WHERE [IsDeleted] = 0;
+CREATE UNIQUE INDEX [UX_SupplierProduct_Supplier_Product] ON [dbo].[SupplierProduct] ([SupplierId], [SkuId]) WHERE [IsDeleted] = 0 AND [SkuId] IS NOT NULL;
 
 CREATE UNIQUE INDEX [UX_SupplierProgress_Command] ON [dbo].[SupplierProgressReport] ([CommandId]);
 CREATE UNIQUE INDEX [UX_SupplierProgress_Line_Sequence] ON [dbo].[SupplierProgressReport] ([PurchaseOrderLineId], [Sequence]);
@@ -6239,7 +6239,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'Supplier',
     @level2type=N'COLUMN', @level2name=N'DefaultLeadTime';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'供应商产品关系实体，保存供应商与公司产品之间的采购编码、描述和价格约定。',
+    @name=N'MS_Description', @value=N'供应商产品资料，保存供应商自有编码、描述与价格；公司产品关联可以留空。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SupplierProduct';
 EXEC sys.sp_addextendedproperty
@@ -6288,7 +6288,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SupplierProduct',
     @level2type=N'COLUMN', @level2name=N'SupplierCode';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'关联的公司产品主数据唯一标识。',
+    @name=N'MS_Description', @value=N'可选的公司产品主数据唯一标识；独立建档时为空。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SupplierProduct',
     @level2type=N'COLUMN', @level2name=N'SkuId';

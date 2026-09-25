@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;

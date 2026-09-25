@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
 using Microsoft.Extensions.Logging;

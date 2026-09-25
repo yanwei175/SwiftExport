@@ -1,3 +1,6 @@
+using SwiftExport.Core.Interfaces.Customers.CustomerProducts;
+using SwiftExport.Core.Interfaces.Customers.Management;
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.Orders.SalesOrders.Document;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;

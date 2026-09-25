@@ -1,3 +1,4 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;

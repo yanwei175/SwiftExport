@@ -112,10 +112,10 @@ namespace SwiftExport.Core.Entities.Relations
     [LogicalReference(nameof(CustomerProduct.SkuId), typeof(Product))]
     public partial class CustomerProduct { }
 
-    [DbIndex("UX_SupplierProduct_Supplier_Product", nameof(SupplierProduct.SupplierId), nameof(SupplierProduct.SkuId), IsUnique = true, Filter = "[IsDeleted] = 0")]
+    [DbIndex("UX_SupplierProduct_Supplier_Product", nameof(SupplierProduct.SupplierId), nameof(SupplierProduct.SkuId), IsUnique = true, Filter = "[IsDeleted] = 0 AND [SkuId] IS NOT NULL")]
     [DbIndex("IX_SupplierProduct_Product", nameof(SupplierProduct.SkuId), Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(SupplierProduct.SupplierId), typeof(Supplier), IsRequired = true)]
-    [LogicalReference(nameof(SupplierProduct.SkuId), typeof(Product), IsRequired = true)]
+    [LogicalReference(nameof(SupplierProduct.SkuId), typeof(Product), IsRequired = false)]
     public partial class SupplierProduct { }
 }
 

@@ -2,9 +2,11 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using SwiftExport.Application.Services.Products;
+using SwiftExport.Application.Services.Products.Catalog.DefaultSupplier;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Infrastructure.Repositories.Products;
+using SwiftExport.Infrastructure.Repositories.Products.Catalog;
 
 namespace SwiftExport.Application.Tests.Products;
 

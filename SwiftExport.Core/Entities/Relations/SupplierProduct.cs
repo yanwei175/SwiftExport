@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Relations;
 
-/// <summary>供应商产品关系实体，保存供应商与公司产品之间的采购编码、描述和价格约定。</summary>
+/// <summary>供应商产品资料，保存供应商自有编码、描述与价格；公司产品关联可以留空。</summary>
 [Table("SupplierProduct")]
 public partial class SupplierProduct : BaseEntity
 {
@@ -11,8 +11,8 @@ public partial class SupplierProduct : BaseEntity
     public Guid SupplierId { get; set; }
     /// <summary>该实体保存的供应商业务编码。</summary>
     public required string SupplierCode { get; set; }
-    /// <summary>关联的公司产品主数据唯一标识。</summary>
-    public Guid SkuId { get; set; }
+    /// <summary>可选的公司产品主数据唯一标识；独立建档时为空。</summary>
+    public Guid? SkuId { get; set; }
     /// <summary>该实体保存的产品编码。</summary>
     public required string ProductSku { get; set; }
     /// <summary>该实体保存的供应商产品编码。</summary>
