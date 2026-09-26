@@ -3,9 +3,11 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Services.DemandPlanning;
+using SwiftExport.Application.Services.DemandPlanning.Materials.SourceExit;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Infrastructure.Data;
 
@@ -20,12 +22,12 @@ public sealed class SourceExitSafetyTests
     public async Task MaterialAssessmentReturnsHistoryAndActivityFacts()
     {
         using var session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
-        session.Transaction = DispatchProxy.Create<IDbTransaction, NoOpPort>();
-        var repository = DispatchProxy.Create<INetDemandRepository, ExitRepositoryPort>();
+        var callerTransaction = DispatchProxy.Create<IDbTransaction, NoOpPort>();
+        session.Transaction = callerTransaction;
+        var repository = DispatchProxy.Create<IMaterialDemandDocumentRepository, ExitRepositoryPort>();
         var port = (ExitRepositoryPort)(object)repository;
-        var service = new MaterialDemandEstablishmentService(
-            new ServiceBaseContext(session, NullLoggerFactory.Instance), null!, repository,
-            null!, null!, null!, null!, null!, null!, null!, null!, null!);
+        var service = new MaterialDemandSourceExitService(
+            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository);
         var empty = Guid.NewGuid();
         var active = Guid.NewGuid();
         var safe = Guid.NewGuid();
@@ -43,6 +45,7 @@ public sealed class SourceExitSafetyTests
         Assert.AreEqual(3, result[safe].HistoryCount);
         Assert.IsTrue(result[safe].IsHistoryComplete);
         Assert.AreEqual(1, port.CallCount);
+        Assert.AreSame(callerTransaction, session.Transaction, "退出评估必须保留调用方事务。");
     }
 
     /// <summary>只模拟仓储已知阻断结果，不提供虚构交付余额或连接生产数据库。</summary>
@@ -53,7 +56,7 @@ public sealed class SourceExitSafetyTests
         /// <summary>仅接受退出核验调用，其他调用视为测试越界。</summary>
         protected override object? Invoke(MethodInfo? method, object?[]? args)
         {
-            if (method?.Name != nameof(INetDemandRepository.AssessSourceExitForUpdateAsync))
+            if (method?.Name != nameof(IMaterialDemandDocumentRepository.AssessSourceExitForUpdateAsync))
                 throw new NotSupportedException(method?.Name);
             CallCount++;
             return Task.FromResult(Assessments);

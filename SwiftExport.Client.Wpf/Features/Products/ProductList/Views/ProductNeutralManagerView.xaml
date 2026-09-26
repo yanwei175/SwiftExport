@@ -85,7 +85,7 @@
                                                         FilterMemberPaths="ColorCodeUnique,ColorCode,ColorNameZh,ColorNameEn"
                                                         SelectionCommittedCommand="{Binding SearchCommand}"
                                                         SelectedValuePath="Uid" 
-                                                        SelectedItems="{Binding FilterColorList}"/>
+                                                        SelectedItems="{Binding FilterColorList, Mode=OneWay}"/>
                         
 
                         <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
@@ -143,24 +143,11 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="8" />
-                        <RowDefinition Height="200"/>
-                        <RowDefinition Height="8" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="8" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="产品颜色" 
-                               Grid.Row="0" 
-                               Style="{StaticResource BodyStrongTextBlock}"/>
+                    <TextBlock Text="产品分类" Grid.Row="0" Style="{StaticResource BodyStrongTextBlock}"/>
                     
-                    <productComponents:ProductColorFilterList Grid.Row="2"
-                                      Colors="{Binding ReferenceDataCache.ProductColors}"
-                                      Selection="{Binding ColorFilter, Mode=TwoWay}"
-                                      AutomationProperties.Name="中性产品颜色多选筛选" />
-
-                    <TextBlock Text="产品分类" Grid.Row="4" Style="{StaticResource BodyStrongTextBlock}"/>
-                    
-                    <productComponents:ProductCategoryFilterTreeView Grid.Row="6"
+                    <productComponents:ProductCategoryFilterTreeView Grid.Row="2"
                                         Categories="{Binding ReferenceDataCache.ProductCategoryTree}"
                                         Selection="{Binding CategoryFilter, Mode=TwoWay}"
                                         SelectionChangedCommand="{Binding ApplyCategoryFilterCommand}"

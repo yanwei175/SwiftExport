@@ -1,5 +1,5 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 namespace SwiftExportClient.Features.Inventory.Inbounds.Services;
 
 /// <summary>展示过账影响和阻断项，只返回用户是否确认，不执行写入。</summary>

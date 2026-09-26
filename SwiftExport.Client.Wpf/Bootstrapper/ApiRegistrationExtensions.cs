@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.Apis.Inventory.Inbounds;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Refit;
@@ -55,7 +56,6 @@ public static class ApiRegistrationExtensions
     {
         services.AddControllerApi<ISysDictTypeApi>("SysDictType");
         services.AddControllerApi<ISysDictDataApi>("SysDictData");
-        services.AddControllerApi<IDictApi>("Dict");
         services.AddControllerApi<ISysDicCurrencyApi>("SysDicCurrency");
         services.AddControllerApi<ISysDicCurrencyExchangeApi>("SysDicCurrencyExchange");
         services.AddControllerApi<ISysViewRouteApi>("SysViewRoute");

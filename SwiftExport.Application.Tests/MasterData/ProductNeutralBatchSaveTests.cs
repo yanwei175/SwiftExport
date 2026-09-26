@@ -1,3 +1,9 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
+using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
+using SwiftExport.Core.Interfaces.Suppliers.Management;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -5,7 +11,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Services.Products;
+using SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
@@ -102,7 +108,7 @@ public sealed class ProductNeutralBatchSaveTests
         public List<ProductNeutralDto> Rows { get; private set; }
         public ConnectionStub Connection { get; }
         public DbSession Session { get; }
-        public ProductMasterService Service { get; }
+        public ProductMasterMaintenanceService Service { get; }
 
         public Fixture()
         {
@@ -112,7 +118,7 @@ public sealed class ProductNeutralBatchSaveTests
             Connection.Transaction.OnRollback = () => Rows = _original!;
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Session, Connection);
-            Service = new ProductMasterService(
+            Service = new ProductMasterMaintenanceService(
                 Proxy<IProductMasterRepository>(MasterCall), Proxy<IProductNeutralRepository>(NeutralCall),
                 Proxy<IProductCategoryRepository>((_, _) => throw new AssertFailedException("独立明细不能校验头部分类。")),
                 Proxy<ISupplierRepository>((_, _) => throw new AssertFailedException("独立明细不能校验头部供应商。")),

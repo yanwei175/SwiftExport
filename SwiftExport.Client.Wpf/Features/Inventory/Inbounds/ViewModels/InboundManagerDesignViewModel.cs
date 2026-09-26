@@ -1,5 +1,5 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using CommunityToolkit.Mvvm.ComponentModel;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
 using SwiftExportClient.Mvvm;

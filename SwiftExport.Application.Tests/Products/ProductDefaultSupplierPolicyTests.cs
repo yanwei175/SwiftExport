@@ -2,9 +2,11 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using SwiftExport.Application.Services.Products;
+using SwiftExport.Application.Services.Products.Catalog.DefaultSupplier;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Infrastructure.Repositories.Products;
+using SwiftExport.Infrastructure.Repositories.Products.Catalog;
 
 namespace SwiftExport.Application.Tests.Products;
 
@@ -70,20 +72,20 @@ public sealed class ProductDefaultSupplierPolicyTests
     }
 
     [TestMethod]
-    public void ProductRepository_ShouldPersistDefaultSupplierIdAndCanonicalCodeInNormalWrites()
+    public void ProductRepository_ShouldPersistSupplierIdentityWithoutLegacyCodes()
     {
         var repository = (ProductRepository)RuntimeHelpers.GetUninitializedObject(typeof(ProductRepository));
         var insertProperties = ReadWriteProperties(repository, "InsertProperties");
         var updateProperties = ReadWriteProperties(repository, "UpdateProperties");
 
         CollectionAssert.Contains(insertProperties, nameof(Product.DefaultSupplierId));
-        CollectionAssert.Contains(insertProperties, nameof(Product.DefaultSupplierCode));
         CollectionAssert.Contains(updateProperties, nameof(Product.DefaultSupplierId));
-        CollectionAssert.Contains(updateProperties, nameof(Product.DefaultSupplierCode));
         CollectionAssert.Contains(insertProperties, nameof(Product.Unit));
         CollectionAssert.Contains(updateProperties, nameof(Product.Unit));
-        CollectionAssert.DoesNotContain(insertProperties, nameof(Product.DefaultSupplierSku));
-        CollectionAssert.DoesNotContain(updateProperties, nameof(Product.DefaultSupplierSku));
+        CollectionAssert.DoesNotContain(insertProperties, "DefaultSupplierCode");
+        CollectionAssert.DoesNotContain(updateProperties, "DefaultSupplierCode");
+        CollectionAssert.DoesNotContain(insertProperties, "DefaultSupplierSku");
+        CollectionAssert.DoesNotContain(updateProperties, "DefaultSupplierSku");
     }
 
     private static List<string> ReadWriteProperties(ProductRepository repository, string propertyName)

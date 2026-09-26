@@ -12,6 +12,12 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 [TestClass]
 public sealed class NetDemandApiContractTests
 {
+    /// <summary>单行推荐供应商命令携带稳定身份，不改变原有 Refit 方法。</summary>
+    [TestMethod]
+    public void SupplierSuggestionCommand_ShouldCarryStableCommandId()
+    {
+        Assert.IsNotNull(typeof(UpdateSuggestedPurchaseSupplierCommand).GetProperty("CommandId"));
+    }
     /// <summary>来源追溯退为空壳后，不再暴露独占远程查询及传输模型。</summary>
     [TestMethod]
     public void SourceTrace_ShouldNotExposeRemovedContract()

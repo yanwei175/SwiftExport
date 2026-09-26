@@ -37,7 +37,7 @@ internal sealed class ProcurementMasterDataSqlFixture : IAsyncDisposable
             CREATE TABLE dbo.Supplier(Uid uniqueidentifier PRIMARY KEY,SupplierCode nvarchar(100),SupplierName nvarchar(300),IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.ProductColor(Uid uniqueidentifier PRIMARY KEY,ColorNameZh nvarchar(300),IsDeleted bit);
             CREATE TABLE dbo.Product(Uid uniqueidentifier PRIMARY KEY,Sku nvarchar(200),DescriptionZh nvarchar(300),DescriptionEn nvarchar(300),
-              MainImage nvarchar(1000),LinkSku nvarchar(200),FeaturesZh nvarchar(300),ColorId uniqueidentifier,DefaultSupplierSku nvarchar(200),
+              MainImage nvarchar(1000),LinkSku nvarchar(200),FeaturesZh nvarchar(300),ColorId uniqueidentifier,
               Unit nvarchar(100),SupplyType nvarchar(100),MaterialType nvarchar(100),IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.CustomerProduct(Uid uniqueidentifier PRIMARY KEY,CustomerId uniqueidentifier,SkuId uniqueidentifier,CustomerSku nvarchar(200),IsActive bit,IsDeleted bit);
             CREATE TABLE dbo.SupplierProduct(Uid uniqueidentifier PRIMARY KEY,SupplierId uniqueidentifier,SkuId uniqueidentifier,SupplierSku nvarchar(200),UnitPrice decimal(18,6),TaxPrice decimal(18,6),IsDeleted bit);
@@ -77,8 +77,8 @@ internal sealed class ProcurementMasterDataSqlFixture : IAsyncDisposable
     {
         var uid = Guid.NewGuid();
         await ExecuteAsync("""
-            INSERT dbo.Product(Uid,Sku,DescriptionZh,DescriptionEn,MainImage,LinkSku,FeaturesZh,ColorId,DefaultSupplierSku,Unit,SupplyType,MaterialType,IsActive,IsDeleted)
-            VALUES(@uid,@sku,N'产品描述',N'Product description',N'/images/main.png',N'LINK-1',N'配置',NULL,N'DEFAULT-SKU',@unit,@supply,@material,@active,@deleted);
+            INSERT dbo.Product(Uid,Sku,DescriptionZh,DescriptionEn,MainImage,LinkSku,FeaturesZh,ColorId,Unit,SupplyType,MaterialType,IsActive,IsDeleted)
+            VALUES(@uid,@sku,N'产品描述',N'Product description',N'/images/main.png',N'LINK-1',N'配置',NULL,@unit,@supply,@material,@active,@deleted);
             """, new { uid, sku, unit, supply, material, active, deleted });
         return uid;
     }

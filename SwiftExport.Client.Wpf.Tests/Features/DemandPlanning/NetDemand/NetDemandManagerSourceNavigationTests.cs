@@ -2,10 +2,12 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using System.IO;
@@ -20,6 +22,89 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 [TestClass]
 public sealed class NetDemandManagerSourceNavigationTests
 {
+    /// <summary>逐行成功后结果未知及限流保持 B 行原请求，A 不重交且 C 只在 B 确认后发送。</summary>
+    [TestMethod]
+    public async Task SupplierSuggestion_PartialSuccessUnknownRateLimited_ResumesOriginalRow()
+    {
+        var sourceUid = Guid.NewGuid();
+        var api = new RecordingNetDemandApi(sourceUid)
+        {
+            SearchItems = [
+                new() { Uid = Guid.NewGuid(), Version = 1, GrossDemandId = Guid.NewGuid(), RootNetDemandId = Guid.NewGuid(), SourceUid = sourceUid, SourceType = "SO", NetQty = 1m },
+                new() { Uid = Guid.NewGuid(), Version = 1, GrossDemandId = Guid.NewGuid(), RootNetDemandId = Guid.NewGuid(), SourceUid = sourceUid, SourceType = "SO", NetQty = 1m },
+                new() { Uid = Guid.NewGuid(), Version = 1, GrossDemandId = Guid.NewGuid(), RootNetDemandId = Guid.NewGuid(), SourceUid = sourceUid, SourceType = "SO", NetQty = 1m }
+            ]
+        };
+        api.SuggestionOutcomes.Enqueue(null);
+        api.SuggestionOutcomes.Enqueue(ServiceErrorCodes.OutcomeUnknown);
+        api.SuggestionOutcomes.Enqueue(ServiceErrorCodes.RateLimited);
+        api.SuggestionOutcomes.Enqueue(null);
+        api.SuggestionOutcomes.Enqueue(null);
+        using var vm = CreateViewModel(api);
+        await vm.InitializeAsync();
+        for (var i = 0; i < 3; i++) vm.Items[i].ApplySuggestedSupplier(new ProcurementSupplierCandidateDto { Uid = Guid.NewGuid(), SupplierCode = $"S{i}", SupplierName = $"供应商{i}" });
+        var ids = vm.Items.Select(x => x.Uid).ToArray();
+
+        await vm.SaveSuggestedSuppliersCommand.ExecuteAsync(null);
+        Assert.IsTrue(vm.HasPendingSuggestion);
+        Assert.IsFalse(vm.CanEditSuggestion);
+        Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
+        Assert.AreEqual(2, api.SuggestedSupplierCommands.Count);
+        Assert.AreEqual(ids[0], api.SuggestedSupplierCommands[0].NetDemandId);
+        Assert.AreEqual(ids[1], api.SuggestedSupplierCommands[1].NetDemandId);
+
+        await vm.SaveSuggestedSuppliersCommand.ExecuteAsync(null);
+        Assert.IsTrue(vm.HasPendingSuggestion);
+        await vm.SaveSuggestedSuppliersCommand.ExecuteAsync(null);
+        Assert.IsFalse(vm.HasPendingSuggestion);
+        Assert.AreEqual(5, api.SuggestedSupplierCommands.Count);
+        Assert.IsTrue(api.SuggestedSupplierCommands.Skip(1).Take(3).All(x => ReferenceEquals(x, api.SuggestedSupplierCommands[1])));
+        Assert.AreEqual(ids[2], api.SuggestedSupplierCommands[4].NetDemandId);
+        Assert.AreNotEqual(api.SuggestedSupplierCommands[0].CommandId, api.SuggestedSupplierCommands[1].CommandId);
+        Assert.AreNotEqual(api.SuggestedSupplierCommands[1].CommandId, api.SuggestedSupplierCommands[4].CommandId);
+    }
+
+    /// <summary>首次请求限流只拒绝该次尝试，不把页面置为无法编辑的未决状态。</summary>
+    [TestMethod]
+    public async Task SupplierSuggestion_FirstRateLimited_AllowsNewAttempt()
+    {
+        var api = new RecordingNetDemandApi(Guid.NewGuid());
+        api.SuggestionOutcomes.Enqueue(ServiceErrorCodes.RateLimited);
+        api.SuggestionOutcomes.Enqueue(null);
+        using var vm = CreateViewModel(api);
+        await vm.InitializeAsync();
+        vm.Items.Single().ApplySuggestedSupplier(new ProcurementSupplierCandidateDto { Uid = Guid.NewGuid(), SupplierCode = "S", SupplierName = "供应商" });
+        await vm.SaveSuggestedSuppliersCommand.ExecuteAsync(null);
+        Assert.IsFalse(vm.HasPendingSuggestion);
+        Assert.IsTrue(vm.CanEditSuggestion);
+        await vm.SaveSuggestedSuppliersCommand.ExecuteAsync(null);
+        Assert.AreNotEqual(api.SuggestedSupplierCommands[0].CommandId, api.SuggestedSupplierCommands[1].CommandId);
+    }
+
+    /// <summary>模块查询权限不会让建议列在缺少独立维护权限时进入编辑状态。</summary>
+    [TestMethod]
+    public async Task SupplierSuggestionPermission_DisablesEditorAndSave()
+    {
+        var api = new RecordingNetDemandApi(Guid.NewGuid());
+        using var vm = CreateViewModel(api, allowSuggestion: false);
+        await vm.InitializeAsync();
+        Assert.IsFalse(vm.CanEditSuggestion);
+        vm.Items.Single().ApplySuggestedSupplier(new ProcurementSupplierCandidateDto { Uid = Guid.NewGuid(), SupplierCode = "S", SupplierName = "供应商" });
+        Assert.IsFalse(vm.SaveSuggestedSuppliersCommand.CanExecute(null));
+    }
+
+    /// <summary>未决门禁连接表格只读状态及实际 Lookup 控件，不依赖仅禁用工具栏按钮。</summary>
+    [TestMethod]
+    public void SupplierSuggestionEditor_BindsActualGridAndLookupGate()
+    {
+        var view = XDocument.Load(Path.Combine(FindRepositoryRoot(), "SwiftExport.Client.Wpf", "Features",
+            "DemandPlanning", "NetDemand", "Views", "NetDemandManagerView.xaml"));
+        XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var grid = view.Descendants(ns + "DataGrid").Single();
+        Assert.AreEqual("{Binding IsSuggestionReadOnly}", (string?)grid.Attribute("IsReadOnly"));
+        var lookup = view.Descendants().Single(element => element.Name.LocalName == "PurchaseSupplierLookupTextBox");
+        StringAssert.Contains((string?)lookup.Attribute("IsEnabled") ?? string.Empty, "CanEditSuggestion");
+    }
     [TestMethod]
     public async Task SelectingSource_ShouldUseSourceFactFilterAndKeepNormalPageSize()
     {
@@ -246,18 +331,21 @@ public sealed class NetDemandManagerSourceNavigationTests
         Assert.AreEqual("True", (string?)pagerTrigger.Attribute("Value"));
     }
 
-    private static NetDemandManagerViewModel CreateViewModel(RecordingNetDemandApi api)
+    private static NetDemandManagerViewModel CreateViewModel(RecordingNetDemandApi api, bool allowSuggestion = true)
     {
         var runner = new DirectApiCallRunner();
         var messages = new MessageServiceStub();
         var dialogs = new DialogServiceStub();
+        var user = DispatchProxy.Create<ICurrentUserService, PermissionProxy>();
+        ((PermissionProxy)(object)user).Allow = allowSuggestion;
         return new NetDemandManagerViewModel(
             api,
             DispatchProxy.Create<IProcurementMasterDataQueryApi, NoCallProxy>(),
             runner,
             dialogs,
             messages,
-            DispatchProxy.Create<INetDemandDialogService, NoCallProxy>());
+            DispatchProxy.Create<INetDemandDialogService, NoCallProxy>(),
+            user);
     }
 
     /// <summary>创建父子联动测试使用的物料工作台行。</summary>
@@ -320,6 +408,7 @@ public sealed class NetDemandManagerSourceNavigationTests
         public List<MaterialDemandSourceGroupSearchRequest> SourceGroupRequests { get; } = [];
         public List<RollbackMaterialDemandsCommand> RollbackCommands { get; } = [];
         public List<UpdateSuggestedPurchaseSupplierCommand> SuggestedSupplierCommands { get; } = [];
+        public Queue<string?> SuggestionOutcomes { get; } = new();
         /// <summary>指定测试需要的当前页物料行；为空时使用默认夹具。</summary>
         public List<MaterialDemandManagerItemDto>? SearchItems { get; init; }
 
@@ -363,6 +452,8 @@ public sealed class NetDemandManagerSourceNavigationTests
             CancellationToken cancellationToken = default)
         {
             SuggestedSupplierCommands.Add(command);
+            if (SuggestionOutcomes.Count > 0 && SuggestionOutcomes.Dequeue() is { } code)
+                return Task.FromResult(ServiceResult<UpdateSuggestedPurchaseSupplierResult>.Fail(code, code));
             return Task.FromResult(ServiceResult<UpdateSuggestedPurchaseSupplierResult>.Ok(new UpdateSuggestedPurchaseSupplierResult
             {
                 NetDemandId = command.NetDemandId,
@@ -405,6 +496,17 @@ public sealed class NetDemandManagerSourceNavigationTests
         public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, string failureMessage = "请求失败") => action();
         public Task<ServiceResult<T>> RunAsync<T>(Func<Task<ServiceResult<T>>> action, CancellationToken cancellationToken, string failureMessage = "请求失败") => action();
         public async Task<ServiceResult<T>> RunValueAsync<T>(Func<Task<T>> action, string successMessage = "成功", string failureMessage = "请求失败") => ServiceResult<T>.Ok(await action(), successMessage);
+    }
+
+    /// <summary>仅向当前工作台提供允许权限的内存会话。</summary>
+    public class PermissionProxy : DispatchProxy
+    {
+        public bool Allow { get; set; } = true;
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
+        {
+            "HasPermission" => Allow,
+            _ => throw new NotSupportedException(method?.Name)
+        };
     }
 
     private sealed class DialogServiceStub : IDialogService

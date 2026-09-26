@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
+using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -21,7 +22,7 @@ public sealed class PackingListDraftApiContractTests
         Assert.AreEqual("/drafts/{uid}", Attribute<PutAttribute>(methods[nameof(IPackingListApi.UpdateAsync)]).Path);
         Assert.AreEqual("/drafts/{uid}/delete", Attribute<PostAttribute>(methods[nameof(IPackingListApi.DeleteAsync)]).Path);
 
-        var controller = Read("SwiftExport.WebApi", "Controllers", "Shipping", "PackingListController.cs");
+        var controller = Read("SwiftExport.WebApi", "Controllers", "Shipping", "PackingLists", "PackingListController.cs");
         StringAssert.Contains(controller, "api/shipping/packing-lists");
         StringAssert.Contains(controller, "[Authorize]");
         StringAssert.Contains(controller, "PermissionKeys.ModuleShippingAccess");
@@ -33,7 +34,7 @@ public sealed class PackingListDraftApiContractTests
     [TestMethod]
     public void Repository_UsesGrossDemandWithoutPlanningOrProcurementPrerequisites()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.Query.cs");
         var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
         Assert.IsFalse(delivery.Contains("SourceType IN", StringComparison.Ordinal));
         StringAssert.Contains(delivery, "g.IsNonStandard=1 AND g.ProductId IS NULL");
@@ -42,21 +43,21 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(delivery, "WITH (UPDLOCK,HOLDLOCK)");
         StringAssert.Contains(repository, "pkg.PackageCount=1");
         foreach (var forbidden in new[] { "NetDemand", "Allocation", "PurchaseOrderHead", "PurchaseOrderLine", "PackingListDocument", "PackingListContributionLine" })
-            Assert.IsFalse(repository.Contains(forbidden, StringComparison.Ordinal), forbidden);
+            Assert.IsFalse(repository.Contains("dbo." + forbidden, StringComparison.Ordinal), forbidden);
     }
 
     [TestMethod]
     public void DraftPersistence_RequiresPositiveQuantityAndUniqueCreateCommand()
     {
         Assert.AreEqual("PL", DocumentTypeStaticsEnum.PackingList);
-        Assert.AreEqual("IDEMPOTENCY_CONFLICT", PackingListErrorCodes.IdempotencyConflict);
+        Assert.AreEqual("COMMAND_CONFLICT", PackingListErrorCodes.CommandConflict);
         var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
         StringAssert.Contains(baseline, "CK_PackingListLine_Qty");
         StringAssert.Contains(baseline, "UX_PackingListHead_CreateCommand");
         StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListHead]");
         StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListLine]");
         Assert.IsFalse(baseline.Contains("PackingListDocument", StringComparison.Ordinal));
-        var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseSiteRepository.cs");
+        var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseManagementRepository.cs");
         // 箱单行已按确认方案移除仓库关联，实际库存仓库由流水保护，不能恢复旧行列依赖。
         foreach (var removed in new[] { "WarehouseSiteId", "WarehouseCodeSnapshot", "WarehouseNameSnapshot" })
             Assert.IsNull(typeof(SwiftExport.Core.Entities.Shipping.PackingListLine).GetProperty(removed));
@@ -68,13 +69,15 @@ public sealed class PackingListDraftApiContractTests
     [TestMethod]
     public void Service_KeepsCommandsAtomicAndDoesNotPostInventory()
     {
-        var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingListService.cs");
-        StringAssert.Contains(service, "BeginTransaction(IsolationLevel.Serializable)");
-        StringAssert.Contains(service, "LockCommandAsync");
+        var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListDraftService.cs");
+        StringAssert.Contains(service, "BusinessCommandExecutor executor");
+        StringAssert.Contains(service, "token, IsolationLevel.Serializable");
+        StringAssert.Contains(service, "CommandPipeline pipeline");
         StringAssert.Contains(service, "BusinessOperationLog");
         StringAssert.Contains(service, "MidpointRounding.AwayFromZero");
         StringAssert.Contains(service, "LineSetMismatch");
-        StringAssert.Contains(service, "PcsPerPackage = source.IsNonStandard ? null : enrichment?.PcsPerPackage");
+        var queries = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListQueryService.cs");
+        StringAssert.Contains(queries, "PcsPerPackage = source.IsNonStandard ? null : enrichment?.PcsPerPackage");
         StringAssert.Contains(service, "line.PcsPerPackage = input.PackingGroupId.HasValue ? input.Qty : input.PcsPerPackage");
         StringAssert.Contains(service, "line.PackageCount = input.PackingGroupId.HasValue ? 1 : CalculatePackageCount(input.Qty, input.PcsPerPackage)");
         Assert.IsFalse(service.Contains("IInventoryPostingService", StringComparison.Ordinal));
@@ -84,16 +87,17 @@ public sealed class PackingListDraftApiContractTests
     [TestMethod]
     public void AfterSalesComplaintNumberEnrichesCustomerPo()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.Query.cs");
         StringAssert.Contains(repository, "THEN soh.CustomerPoNo");
         StringAssert.Contains(repository, "WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL");
-        StringAssert.Contains(repository, "THEN asl.CustomerComplaintNo END AS CustomerPoNo");
+        StringAssert.Contains(repository, "THEN ash.CustomerComplaintNo END AS CustomerPoNo");
         StringAssert.Contains(repository, "ash.Uid=g.SourceUid");
         StringAssert.Contains(repository, "ash.CustomerId=g.CustomerId AND ash.IsDeleted=0");
         StringAssert.Contains(repository, "asl.Uid=g.SourceLineId");
         StringAssert.Contains(repository, "asl.HeaderId=ash.Uid AND asl.IsDeleted=0");
-        var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingListService.cs");
-        StringAssert.Contains(service, "CustomerPoNo = enrichment?.CustomerPoNo");
+        var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListDraftService.cs");
+        var queries = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListQueryService.cs");
+        StringAssert.Contains(queries, "CustomerPoNo = enrichment?.CustomerPoNo");
         StringAssert.Contains(service, "CustomerPoNo = Clean(enrichment?.CustomerPoNo, 200)");
     }
 

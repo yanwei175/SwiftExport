@@ -107,7 +107,7 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
         AfterSalesDetailViewModel.RouteKey, $"after-sales:{SelectedOrder!.Uid:N}",
         new AfterSalesDocumentOpenRequest { AfterSalesId = SelectedOrder.Uid });
     private bool CanOpenDetail() => HasAccess && IsNotBusy && SelectedOrder is not null;
-    private bool CanCreate() => HasAccess && IsNotBusy;
+    private bool CanCreate() => _currentUser.HasPermission(PermissionKeys.AfterSalesMaintain) && IsNotBusy;
     private bool CanPreviousPage() => HasAccess && IsNotBusy && PageIndex > 1;
     private bool CanNextPage() => HasAccess && IsNotBusy && PageIndex < TotalPages;
 

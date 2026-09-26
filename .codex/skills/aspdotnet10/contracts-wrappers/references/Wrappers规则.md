@@ -9,15 +9,15 @@
 - `Success`
 - `Message`
 - `Data`
-- `Error`：结构化错误，包含 `Code`、`Message` 和可选 `Field`；旧式失败结果可以为空
+- `Error`：结构化错误，包含 `Code`、`Message` 和可选 `Field`；失败必须有 Code，成功为空
 
 静态方法：
 
 - `Ok(T data, string msg = "成功")`
-- `Fail(string msg)`
+- `Fail(string msg)`：明确返回 BUSINESS_BLOCKED，其他类别使用带代码的重载
 - `Fail(string code, string message, string field = null)`
 
-新接口应使用稳定错误码；前端不得解析中文 `Message` 判断 Version、权限、幂等或状态分支。
+HTTP 失败 Data 为 null，Message 与 Error.Message 一致；统一状态映射位于 WebApi/ErrorHandling。所有接口应使用稳定错误码；前端不得解析中文 `Message` 判断 Version、权限、幂等或状态分支。
 
 ## BatchSaveRequestBase<TDto>
 

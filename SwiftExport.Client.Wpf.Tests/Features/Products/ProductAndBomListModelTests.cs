@@ -53,6 +53,44 @@ public sealed class ProductAndBomListModelTests
         Assert.AreEqual("tester", colorDto.CreatedBy);
     }
 
+    /// <summary>验证新增的可空关联和独立型号经产品行、批量请求与撤销流程完整保留。</summary>
+    [TestMethod]
+    public void ProductReferenceFields_ShouldSurviveBatchAndRejectChanges()
+    {
+        var manufacturerId = Guid.NewGuid();
+        var warehouseId = Guid.NewGuid();
+        var list = new ProductListModel();
+        list.LoadFromDtos([new ProductDto
+        {
+            Uid = Guid.NewGuid(), Version = 2, Sku = "P-REF",
+            ManufacturerId = manufacturerId, ManufacturerCode = "M-01",
+            ManufacturerName = "制造方", ManufacturerModel = "MODEL-A",
+            DefaultWarehouseSiteId = warehouseId, DefaultWarehouseCode = "W-01",
+            DefaultWarehouseName = "主仓"
+        }]);
+
+        var line = list.Items.Single();
+        Assert.AreEqual(manufacturerId, line.ManufacturerId);
+        Assert.AreEqual(warehouseId, line.DefaultWarehouseSiteId);
+        line.ManufacturerId = null;
+        line.ManufacturerCode = string.Empty;
+        line.ManufacturerName = string.Empty;
+        line.DefaultWarehouseSiteId = null;
+        line.DefaultWarehouseCode = string.Empty;
+        line.DefaultWarehouseName = string.Empty;
+        line.ManufacturerModel = "MODEL-B";
+
+        var update = list.CreateSaveRequest().UpdateItems.Single().Data;
+        Assert.IsNull(update.ManufacturerId);
+        Assert.IsNull(update.DefaultWarehouseSiteId);
+        Assert.AreEqual("MODEL-B", update.ManufacturerModel);
+
+        list.RejectChanges();
+        Assert.AreEqual(manufacturerId, list.Items.Single().ManufacturerId);
+        Assert.AreEqual(warehouseId, list.Items.Single().DefaultWarehouseSiteId);
+        Assert.AreEqual("MODEL-A", list.Items.Single().ManufacturerModel);
+    }
+
     [TestMethod]
     public void ProductListModel_ShouldReuseBaseStateAndBuildBatchRequest()
     {

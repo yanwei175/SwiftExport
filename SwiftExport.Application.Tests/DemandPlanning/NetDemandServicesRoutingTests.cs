@@ -1,25 +1,54 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Interfaces.DemandPlanning;
-using SwiftExport.Application.Services.DemandPlanning;
-using SwiftExport.WebApi.Controllers.DemandPlanning;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Sources;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Establishment;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Reversal;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Query;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Sources;
+using SwiftExport.Application.Services.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Reversal;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Query;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Establishment;
+using SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Reversal;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证物料管理 HTTP 用例完整转发，且旧计划边界已经退出。</summary>
+/// <summary>验证物料 HTTP 用例分别转发给窄服务，且旧宽边界已经退出。</summary>
 [TestClass]
 public sealed class NetDemandManagerServiceRoutingTests
 {
-    /// <summary>全部物料 action 必须调用新接口，不能继续进入旧混合服务。</summary>
+    /// <summary>全部物料 action 必须调用所属窄接口并完整传递参数。</summary>
     [TestMethod]
     public void MaterialActions_ForwardToNewService()
     {
-        var material = DispatchProxy.Create<INetDemandManagerService, ForwardingProbe>();
-        var controller = new NetDemandManagerController(material);
+        var query = DispatchProxy.Create<IMaterialDemandQueryService, ForwardingProbe>();
+        var sources = DispatchProxy.Create<IMaterialDemandSourceQueryService, ForwardingProbe>();
+        var suggestion = DispatchProxy.Create<IMaterialDemandSupplierSuggestionService, ForwardingProbe>();
+        var establishment = DispatchProxy.Create<IMaterialDemandEstablishmentService, ForwardingProbe>();
+        var reversal = DispatchProxy.Create<IMaterialDemandReversalService, ForwardingProbe>();
+        var queryController = new MaterialDemandQueryController(query, sources);
+        var suggestionController = new MaterialDemandSupplierSuggestionController(suggestion);
+        var establishmentController = new MaterialDemandEstablishmentController(establishment);
+        var reversalController = new MaterialDemandReversalController(reversal);
 
-        foreach (var method in typeof(INetDemandManagerService).GetMethods())
-            VerifyForwarding(controller, method, (ForwardingProbe)(object)material);
+        foreach (var method in typeof(IMaterialDemandQueryService).GetMethods())
+            VerifyForwarding(queryController, method.Name, method, (ForwardingProbe)(object)query);
+        foreach (var method in typeof(IMaterialDemandSourceQueryService).GetMethods())
+            VerifyForwarding(queryController, method.Name, method, (ForwardingProbe)(object)sources);
+        VerifyForwarding(suggestionController, nameof(IMaterialDemandSupplierSuggestionService.UpdateSuggestedPurchaseSupplierAsync),
+            typeof(IMaterialDemandSupplierSuggestionService).GetMethod(nameof(IMaterialDemandSupplierSuggestionService.UpdateSuggestedPurchaseSupplierAsync))!,
+            (ForwardingProbe)(object)suggestion);
+        VerifyForwarding(establishmentController, nameof(MaterialDemandEstablishmentController.EstablishFromSourcesAsync),
+            typeof(IMaterialDemandEstablishmentService).GetMethod(nameof(IMaterialDemandEstablishmentService.EstablishAsync))!,
+            (ForwardingProbe)(object)establishment);
+        VerifyForwarding(reversalController, nameof(MaterialDemandReversalController.RollbackSourceEstablishmentAsync),
+            typeof(IMaterialDemandReversalService).GetMethod(nameof(IMaterialDemandReversalService.RollbackAsync))!,
+            (ForwardingProbe)(object)reversal);
 
     }
 
@@ -29,26 +58,40 @@ public sealed class NetDemandManagerServiceRoutingTests
     {
         foreach (var name in new[] { "ReplacePlanAsync", "ApplyDefaultSupplierAsync", "BatchAssignSupplierAsync", "GetDetailAsync" })
         {
-            Assert.IsNull(typeof(NetDemandManagerController).GetMethod(name));
-            Assert.IsNull(typeof(INetDemandManagerService).GetMethod(name));
+            foreach (var controller in new[] { typeof(MaterialDemandQueryController), typeof(MaterialDemandSupplierSuggestionController),
+                typeof(MaterialDemandEstablishmentController), typeof(MaterialDemandReversalController) })
+                Assert.IsNull(controller.GetMethod(name));
+            foreach (var port in new[] { typeof(IMaterialDemandQueryService), typeof(IMaterialDemandSourceQueryService),
+                typeof(IMaterialDemandSupplierSuggestionService), typeof(IMaterialDemandEstablishmentService), typeof(IMaterialDemandReversalService) })
+                Assert.IsNull(port.GetMethod(name));
         }
     }
 
-    /// <summary>仅注册请求级 Manager 服务，不遗留已退出的计划服务。</summary>
+    /// <summary>只注册请求级窄服务，不遗留 Manager 与旧计划服务。</summary>
     [TestMethod]
-    public void ApplicationRegistration_RegistersManagerOnly()
+    public void ApplicationRegistration_RegistersNarrowServicesOnly()
     {
         var services = new ServiceCollection();
         services.AddApplicationServices();
-        var material = services.Single(item => item.ServiceType == typeof(INetDemandManagerService));
-
-        Assert.AreEqual(typeof(NetDemandManagerService), material.ImplementationType);
-        Assert.AreEqual(ServiceLifetime.Scoped, material.Lifetime);
+        foreach (var pair in new[]
+        {
+            (typeof(IMaterialDemandQueryService), typeof(MaterialDemandQueryService)),
+            (typeof(IMaterialDemandSourceQueryService), typeof(MaterialDemandSourceQueryService)),
+            (typeof(IMaterialDemandSupplierSuggestionService), typeof(MaterialDemandSupplierSuggestionService)),
+            (typeof(IMaterialDemandEstablishmentService), typeof(MaterialDemandEstablishmentService)),
+            (typeof(IMaterialDemandReversalService), typeof(MaterialDemandReversalService))
+        })
+        {
+            var registration = services.Single(item => item.ServiceType == pair.Item1);
+            Assert.AreEqual(pair.Item2, registration.ImplementationType);
+            Assert.AreEqual(ServiceLifetime.Scoped, registration.Lifetime);
+        }
+        Assert.IsFalse(services.Any(item => item.ServiceType.Name == "INetDemandManagerService"));
         Assert.IsFalse(services.Any(item => item.ServiceType.Name == "INetDemandWorkspaceService"));
     }
 
     /// <summary>真实调用 Controller 并检查目标、所有参数及返回任务，避免只搜索源码文本。</summary>
-    private static void VerifyForwarding(NetDemandManagerController controller, MethodInfo method, ForwardingProbe probe)
+    private static void VerifyForwarding(object controller, string actionName, MethodInfo method, ForwardingProbe probe)
     {
         using var cancellation = new CancellationTokenSource();
         var arguments = method.GetParameters().Select(parameter =>
@@ -57,7 +100,7 @@ public sealed class NetDemandManagerServiceRoutingTests
             parameter.ParameterType == typeof(string) ? "SO" :
             Activator.CreateInstance(parameter.ParameterType)).ToArray();
         var before = probe.CallCount;
-        var result = typeof(NetDemandManagerController).GetMethod(method.Name)!.Invoke(controller, arguments);
+        var result = controller.GetType().GetMethod(actionName)!.Invoke(controller, arguments);
 
         Assert.AreEqual(before + 1, probe.CallCount, method.Name);
         Assert.AreEqual(method.Name, probe.MethodName);

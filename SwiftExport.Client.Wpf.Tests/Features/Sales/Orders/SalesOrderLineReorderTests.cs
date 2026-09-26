@@ -1,10 +1,12 @@
 using System.Reflection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Mvvm;
+using SwiftExportClient.Authentication;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
@@ -125,8 +127,12 @@ public sealed class SalesOrderLineReorderTests
         return list;
     }
 
-    private static SalesOrderDetailViewModel CreateViewModel() =>
-        new(null!, null!, null!, null!, null!, null!, new ReferenceDataCacheServiceStub());
+    private static SalesOrderDetailViewModel CreateViewModel()
+    {
+        var user = new CurrentUserService();
+        user.SetCurrentUser(new MeDto { Permissions = PermissionKeys.All.ToList() });
+        return new(null!, null!, null!, null!, null!, null!, new ReferenceDataCacheServiceStub(), user);
+    }
 
     private static void SetReadOnly(ViewModelBaseEx viewModel, bool value)
     {

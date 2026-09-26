@@ -118,6 +118,7 @@
                 <DataGridTextColumn Header="自定义采购单号" Binding="{Binding BoNo}" Width="144"/>
                 <DataGridTextColumn Header="Sku" Binding="{Binding Sku}" Width="128"/>
                 <DataGridTextColumn Header="产品型号" Binding="{Binding LinkSku}" Width="128"/>
+                <DataGridTextColumn Header="产品默认仓库（参考）" Binding="{Binding DefaultWarehouseName}" Width="150"/>
                 <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*" MinWidth="180"/>
                 <DataGridTextColumn Header="原数量" Binding="{Binding OriginalQty, StringFormat=N4}" Width="104"/>
                 <DataGridTextColumn Header="待入库数量" Binding="{Binding RemainingReceivableQty, StringFormat=N4}" Width="112"/>

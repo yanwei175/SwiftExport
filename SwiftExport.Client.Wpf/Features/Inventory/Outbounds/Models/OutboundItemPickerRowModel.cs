@@ -13,6 +13,8 @@ public sealed partial class OutboundItemPickerRowModel : ObservableObject
     public string ImagePath { get; init; } = string.Empty;
     public string Unit { get; init; } = string.Empty;
     public decimal OnHandQty { get; init; }
+    /// <summary>产品当前建议仓库，只读参考；候选余额仍限定在所选实际仓库。</summary>
+    public string DefaultWarehouseName { get; init; } = string.Empty;
     /// <summary>已选择产品从候选排除，不把其他草稿算作本单选择。</summary>
     public decimal SelectedQuantity => 0;
     /// <summary>无预留机制，候选剩余量等于读取时余额。</summary>

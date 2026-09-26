@@ -88,6 +88,7 @@
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Sku" Binding="{Binding Sku}" Width="128"/>
                 <DataGridTextColumn Header="产品型号" Binding="{Binding LinkSku}" Width="128"/>
+                <DataGridTextColumn Header="产品默认仓库（参考）" Binding="{Binding DefaultWarehouseName}" Width="150"/>
                 <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*" MinWidth="180"/>
                 <DataGridTextColumn Header="库存数量" Binding="{Binding OnHandQty, StringFormat=N4}" Width="112"/>
                 <DataGridTextColumn Header="本单已选数量" Binding="{Binding SelectedQuantity, StringFormat=0.####}" Width="112"/>

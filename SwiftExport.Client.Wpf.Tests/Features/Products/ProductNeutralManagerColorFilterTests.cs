@@ -14,7 +14,6 @@ using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Responses;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Bootstrapper;
-using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
@@ -24,7 +23,7 @@ using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证 NeutralManager 颜色筛选快照及图片路径重建命令。</summary>
+/// <summary>验证 NeutralManager 工具栏颜色筛选快照及图片路径重建命令。</summary>
 [TestClass]
 public sealed class ProductNeutralManagerColorFilterTests
 {
@@ -41,22 +40,23 @@ public sealed class ProductNeutralManagerColorFilterTests
             new SilentMessageService(),
             new AcceptDialogService(),
             Options.Create(new ProductOptions()));
-        var first = Guid.NewGuid();
-        var second = Guid.NewGuid();
+        var first = new ProductColorDto { Uid = Guid.NewGuid(), ColorNameZh = "红色" };
+        var second = new ProductColorDto { Uid = Guid.NewGuid(), ColorNameZh = "蓝色" };
 
-        viewModel.ColorFilter = new ProductColorFilterSelection([first]);
+        viewModel.FilterColorList.Add(first);
         Assert.IsEmpty(api.Requests);
         await ((IAsyncRelayCommand)viewModel.SearchCommand).ExecuteAsync(null);
-        CollectionAssert.AreEqual(new[] { first }, api.Requests.Last().ColorIds);
+        CollectionAssert.AreEqual(new[] { first.Uid }, api.Requests.Last().ColorIds);
 
-        viewModel.ColorFilter = new ProductColorFilterSelection([second]);
+        viewModel.FilterColorList.Clear();
+        viewModel.FilterColorList.Add(second);
         await ((IAsyncRelayCommand)viewModel.RefreshCommand).ExecuteAsync(null);
-        CollectionAssert.AreEqual(new[] { first }, api.Requests.Last().ColorIds,
+        CollectionAssert.AreEqual(new[] { first.Uid }, api.Requests.Last().ColorIds,
             "刷新应继续使用上一次成功应用的颜色快照。");
 
         api.FailNext = true;
         await ((IAsyncRelayCommand)viewModel.SearchCommand).ExecuteAsync(null);
-        CollectionAssert.AreEqual(new[] { first }, viewModel.ColorFilter.ColorIds.ToArray(),
+        CollectionAssert.AreEqual(new[] { first }, viewModel.FilterColorList.ToArray(),
             "查询失败后应恢复上一次成功应用的颜色选择。");
     }
 

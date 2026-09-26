@@ -9,6 +9,8 @@ using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
@@ -24,6 +26,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
+/// <summary>编排产品资料列表、可选关联选择和批量保存；实际仓库由单据页面决定。</summary>
 public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     private const int DefaultPageSize = 20;
@@ -77,6 +80,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public BomDrawerViewModel BomDrawer { get; }
     public IReferenceDataCacheService ReferenceDataCache => _referenceDataCache;
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
+    /// <summary>产品模块独立授权的精简仓库候选；不借用库存模块的仓库缓存。</summary>
+    public ObservableCollection<WarehouseSitePickerDto> WarehouseCandidates { get; } = [];
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
 
     [ObservableProperty]
@@ -101,9 +106,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [ObservableProperty]
     public partial ProductColorDto? EditColor { get; set; }
     [ObservableProperty]
-    public partial CustomerDto? EditCustomer { get; set; }
-    [ObservableProperty]
     public partial SupplierDto? EditSupplier { get; set; }
+    [ObservableProperty] public partial SupplierDto? EditManufacturer { get; set; }
+    [ObservableProperty] public partial WarehouseSitePickerDto? EditWarehouse { get; set; }
 
     [ObservableProperty]
     public partial bool IsCategoryCacheRefreshing { get; set; }
@@ -150,6 +155,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         {
             _messageService.ShowError("加载基础资料失败", cacheResult.Message);
         }
+        await LoadProductWarehouseCandidatesAsync();
         await LoadPageAsync(false);
     }
 
@@ -311,13 +317,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     }
 
     [RelayCommand]
-    private void CommitCustomer(ProductLineModel? line)
-    {
-        if (line is null || EditCustomer is null) return;
-        line.DefaultCustomerCode = EditCustomer.CustomerCode ?? string.Empty;
-    }
-
-    [RelayCommand]
     private void CommitSupplier(ProductLineModel? line)
     {
         if (line is null || EditSupplier is null) return;
@@ -335,6 +334,75 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         line.DefaultSupplierCode = string.Empty;
         line.SupplierName = string.Empty;
         EditSupplier = null;
+    }
+
+    /// <summary>记录当前产品的制造商，不触碰默认采购供应商及独立型号。</summary>
+    [RelayCommand]
+    private void CommitManufacturer(ProductLineModel? line)
+    {
+        if (line is null || EditManufacturer is null) return;
+        line.ManufacturerId = EditManufacturer.Uid;
+        line.ManufacturerCode = EditManufacturer.SupplierCode ?? string.Empty;
+        line.ManufacturerName = EditManufacturer.SupplierName ?? string.Empty;
+        EditManufacturer = null;
+    }
+
+    /// <summary>显式清空制造商；已录入的制造商型号保持原值。</summary>
+    [RelayCommand]
+    private void ClearManufacturer(ProductLineModel? line)
+    {
+        if (line is null) return;
+        line.ManufacturerId = null;
+        line.ManufacturerCode = string.Empty;
+        line.ManufacturerName = string.Empty;
+        EditManufacturer = null;
+    }
+
+    /// <summary>更新产品参考仓库，不改任何出入库单头仓库。</summary>
+    [RelayCommand]
+    private void CommitWarehouse(ProductLineModel? line)
+    {
+        if (line is null || EditWarehouse is null) return;
+        line.DefaultWarehouseSiteId = EditWarehouse.Uid;
+        line.DefaultWarehouseCode = EditWarehouse.Code ?? string.Empty;
+        line.DefaultWarehouseName = EditWarehouse.Name ?? string.Empty;
+        EditWarehouse = null;
+    }
+
+    /// <summary>显式清空产品参考仓库，不触碰其他产品资料。</summary>
+    [RelayCommand]
+    private void ClearWarehouse(ProductLineModel? line)
+    {
+        if (line is null) return;
+        line.DefaultWarehouseSiteId = null;
+        line.DefaultWarehouseCode = string.Empty;
+        line.DefaultWarehouseName = string.Empty;
+        EditWarehouse = null;
+    }
+
+    /// <summary>逐页读取产品权限下的活动仓库，完整成功后才发布本地选择集合。</summary>
+    private async Task LoadProductWarehouseCandidatesAsync()
+    {
+        const int pageSize = 200;
+        var loaded = new List<WarehouseSitePickerDto>();
+        for (var pageIndex = 1; ; pageIndex++)
+        {
+            var request = new PagedRequestBase { PageIndex = pageIndex, PageSize = pageSize };
+            var result = await _apiCallRunner.RunAsync(
+                () => _productApi.GetDefaultWarehouseCandidatesAsync(request), "加载产品默认仓库候选失败");
+            if (!result.Success || result.Data is null)
+            {
+                _messageService.ShowWarning("仓库候选未加载", result.Message);
+                return;
+            }
+            loaded.AddRange(result.Data.Items.Select(item => new WarehouseSitePickerDto
+            {
+                Uid = item.Uid, Code = item.Code, Name = item.Name, IsActive = true
+            }));
+            if (loaded.Count >= result.Data.TotalCount || result.Data.Items.Count == 0) break;
+        }
+        WarehouseCandidates.Clear();
+        foreach (var warehouse in loaded) WarehouseCandidates.Add(warehouse);
     }
 
     private async Task<bool> LoadPageAsync(bool confirmChanges)

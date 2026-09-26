@@ -21,7 +21,7 @@ using System.IO;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>中性产品管理页模型，编排分类和颜色筛选、跨主型号编辑、分页与原子批量保存。</summary>
+/// <summary>中性产品管理页模型，编排分类和工具栏颜色筛选、跨主型号编辑、分页与原子批量保存。</summary>
 public sealed partial class ProductNeutralManagerViewModel
     : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
@@ -40,7 +40,7 @@ public sealed partial class ProductNeutralManagerViewModel
     private long _querySequence;
     private long _masterLookupSequence;
     private ProductCategoryFilterSelection _appliedCategoryFilter = ProductCategoryFilterSelection.AllCategories;
-    private ProductColorFilterSelection _appliedColorFilter = ProductColorFilterSelection.AllColors;
+    private IReadOnlyList<ProductColorDto> _appliedColorFilter = [];
     private bool _initialized;
     private bool _disposed;
 
@@ -94,10 +94,8 @@ public sealed partial class ProductNeutralManagerViewModel
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     /// <summary>获取或设置共享分类筛选组件发布的选择快照。</summary>
     [ObservableProperty] public partial ProductCategoryFilterSelection CategoryFilter { get; set; } = ProductCategoryFilterSelection.AllCategories;
-    /// <summary>获取或设置颜色筛选组件发布的选择快照；空集合表示全部颜色。</summary>
-    [ObservableProperty] public partial ProductColorFilterSelection ColorFilter { get; set; } = ProductColorFilterSelection.AllColors;
-
-    public ObservableCollection<ProductColorDto> FilterColorList { get; set; } = [];
+    /// <summary>获取工具栏颜色多选筛选的已提交对象集合；空集合表示全部颜色。</summary>
+    public ObservableCollection<ProductColorDto> FilterColorList { get; } = [];
 
     /// <summary>获取或设置当前中性产品行。</summary>
     [ObservableProperty]
@@ -172,17 +170,15 @@ public sealed partial class ProductNeutralManagerViewModel
     {
         if (!await EnsureCanDiscardChangesAsync())
         {
-            ColorFilter = _appliedColorFilter;
+            RestoreAppliedColorFilter();
             return;
         }
-        var previousFilter = _appliedColorFilter;
-        _appliedColorFilter = ColorFilter;
+        var requestedColorFilter = FilterColorList
+            .Where(color => color.Uid != Guid.Empty)
+            .DistinctBy(color => color.Uid)
+            .ToArray();
         PageIndex = 1;
-        if (await LoadPageCoreAsync() == PageLoadOutcome.Failed)
-        {
-            _appliedColorFilter = previousFilter;
-            ColorFilter = previousFilter;
-        }
+        if (await LoadPageCoreAsync(requestedColorFilter) == PageLoadOutcome.Failed) RestoreAppliedColorFilter();
     }
 
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -400,8 +396,9 @@ public sealed partial class ProductNeutralManagerViewModel
     private Task<PageLoadOutcome> LoadPageAsync() => LoadPageCoreAsync();
 
     /// <summary>执行 latest-request-wins 分页查询，仅最新且页面仍存活的结果可以替换集合。</summary>
-    private async Task<PageLoadOutcome> LoadPageCoreAsync()
+    private async Task<PageLoadOutcome> LoadPageCoreAsync(IReadOnlyList<ProductColorDto>? requestedColorFilter = null)
     {
+        var colors = requestedColorFilter ?? _appliedColorFilter;
         var selectedId = SelectedLine?.Uid;
         var sequence = Interlocked.Increment(ref _querySequence);
         var currentCts = new CancellationTokenSource();
@@ -419,7 +416,7 @@ public sealed partial class ProductNeutralManagerViewModel
                     ? []
                     : requestedCategoryFilter.CategoryIds.Where(id => id != Guid.Empty).Distinct().ToList(),
                 IncludeUncategorized = !requestedCategoryFilter.IsAll && requestedCategoryFilter.IncludeUncategorized,
-                ColorIds = _appliedColorFilter.ColorIds.ToList(),
+                ColorIds = colors.Select(color => color.Uid).ToList(),
                 PageIndex = PageIndex,
                 PageSize = PageSize
             };
@@ -440,6 +437,7 @@ public sealed partial class ProductNeutralManagerViewModel
             PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
             ResultSummary = $"共 {TotalCount} 条中性产品，本页 {Lines.Items.Count} 条。";
             _appliedCategoryFilter = requestedCategoryFilter;
+            _appliedColorFilter = colors.ToArray();
             AcceptChanges();
             UpdateChangeState();
             return PageLoadOutcome.Success;
@@ -457,6 +455,13 @@ public sealed partial class ProductNeutralManagerViewModel
         left.IsAll == right.IsAll
         && left.IncludeUncategorized == right.IncludeUncategorized
         && left.CategoryIds.SequenceEqual(right.CategoryIds);
+
+    /// <summary>把工具栏颜色选择恢复为最后一次成功查询的快照，避免取消或失败后显示未应用条件。</summary>
+    private void RestoreAppliedColorFilter()
+    {
+        FilterColorList.Clear();
+        foreach (var color in _appliedColorFilter) FilterColorList.Add(color);
+    }
 
     private async Task<bool> EnsureCanDiscardChangesAsync()
     {

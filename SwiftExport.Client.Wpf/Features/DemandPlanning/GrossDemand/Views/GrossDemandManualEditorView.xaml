@@ -24,14 +24,14 @@
                         Command="{Binding DataContext.CloseDrawerCommand, RelativeSource={RelativeSource AncestorType={x:Type views:GrossDemandWorkspaceView}}}"
                         MinWidth="72"
                         Margin="0,0,8,0" />
-                <ui:Button Content="保存" Command="{Binding SaveCommand}"
+                <ui:Button Content="{Binding SaveButtonText}" Command="{Binding SaveCommand}"
                            Appearance="Primary"
                         MinWidth="72" />
             </StackPanel>
         </Grid>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <Grid DataContext="{Binding Edit}">
+            <Grid DataContext="{Binding Edit}" IsEnabled="{Binding DataContext.CanEditFields, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="112" />
                     <ColumnDefinition Width="*" />

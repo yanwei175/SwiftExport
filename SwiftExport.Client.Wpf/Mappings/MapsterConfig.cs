@@ -17,7 +17,6 @@ using SwiftExportClient.Features.Customers.CustomerProducts.Models;
 using SwiftExportClient.Features.Products.Bom.Models;
 using SwiftExportClient.Features.Products.Categories.Models;
 using SwiftExportClient.Features.Products.Colors.Models;
-using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.Models;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
@@ -69,9 +68,6 @@ public sealed class MapsterConfig : IRegister
             .Ignore(dest => dest.IsAllSources);
 
         config.NewConfig<PurchaseDraftPreviewLineDto, PurchaseDraftPreviewLineModel>();
-
-        config.NewConfig<ProductColorDto, ProductColorFilterOption>()
-            .Ignore(dest => dest.IsChecked);
 
         config.NewConfig<ProductCategoryDto, ProductCategoryTreeItemModel>()
             .IgnoreNullValues(true)

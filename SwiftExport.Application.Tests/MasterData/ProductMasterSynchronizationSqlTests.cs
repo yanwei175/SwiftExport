@@ -1,3 +1,9 @@
+using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
+using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
+using SwiftExport.Core.Interfaces.Suppliers.Management;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -8,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Services.Products;
+using SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
@@ -31,7 +37,7 @@ public sealed class ProductMasterSynchronizationSqlTests
     private ServiceProvider _provider = null!;
     private IServiceScope _scope = null!;
     private DbSession _session = null!;
-    private ProductMasterService _service = null!;
+    private ProductMasterMaintenanceService _service = null!;
     private IProductRepository _products = null!;
     private Guid _masterId;
     private Guid _supplierId;
@@ -65,7 +71,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         foreach (var type in new[] { typeof(Product), typeof(ProductMaster), typeof(ProductNeutral), typeof(ProductCategory), typeof(ProductColor), typeof(Supplier) })
             await _session.Connection.ExecuteAsync(CreateTable(type));
         _products = provider.GetRequiredService<IProductRepository>();
-        _service = new ProductMasterService(provider.GetRequiredService<IProductMasterRepository>(),
+        _service = new ProductMasterMaintenanceService(provider.GetRequiredService<IProductMasterRepository>(),
             provider.GetRequiredService<IProductNeutralRepository>(), provider.GetRequiredService<IProductCategoryRepository>(),
             provider.GetRequiredService<ISupplierRepository>(), provider.GetRequiredService<IProductColorRepository>(), _products,
             new ServiceBaseContext(_session, NullLoggerFactory.Instance));
@@ -114,7 +120,8 @@ public sealed class ProductMasterSynchronizationSqlTests
             Assert.AreEqual(descriptions ? "英文配置" : "原配置", saved.FeaturesEn);
             Assert.AreEqual(descriptions ? null : "原中文配置", saved.FeaturesZh);
             Assert.AreEqual(supplier ? _supplierId : active.DefaultSupplierId, saved.DefaultSupplierId);
-            Assert.AreEqual(supplier ? "SERVER-SUP" : "OLD-SUP", saved.DefaultSupplierCode);
+            Assert.AreEqual(supplier ? "SERVER-SUP" : null,
+                (await _products.GetDtoByIdAsync(id))!.DefaultSupplierCode);
             Assert.AreEqual(2, saved.Version);
             Assert.AreEqual("master-sync-test", saved.UpdatedBy);
             Assert.IsNotNull(saved.UpdatedDate);
@@ -148,7 +155,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         Assert.IsNull(saved.FeaturesEn);
         Assert.IsNull(saved.FeaturesZh);
         Assert.IsNull(saved.DefaultSupplierId);
-        Assert.IsNull(saved.DefaultSupplierCode);
+        Assert.IsNull((await _products.GetDtoByIdAsync(product.Uid))!.DefaultSupplierCode);
         request.ExpectedVersion = result.Data.Detail.Version;
         Assert.IsTrue((await _service.SaveDetailAsync(request)).Success);
         var unchanged = (await _products.GetByIdAsync(product.Uid))!;
@@ -257,7 +264,7 @@ public sealed class ProductMasterSynchronizationSqlTests
             ProductMasterId = masterId, MasterSku = "OLD", Sku = Guid.NewGuid().ToString("N"),
             SupplyType = "采购", IsActive = active, IsDeleted = deleted,
             DescriptionEn = "原描述", DescriptionZh = "原中文", FeaturesEn = "原配置", FeaturesZh = "原中文配置",
-            DefaultSupplierId = Guid.Empty, DefaultSupplierCode = "OLD-SUP", CNYPrice = 99m
+            DefaultSupplierId = Guid.Empty, CNYPrice = 99m
         };
         var result = await _products.AddAsync(product);
         Assert.IsTrue(result.Success, result.Message);

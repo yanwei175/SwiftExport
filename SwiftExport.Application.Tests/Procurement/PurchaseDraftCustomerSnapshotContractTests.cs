@@ -10,7 +10,7 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     [TestMethod]
     public void DraftRepositoriesMustPersistAndProjectCompleteCustomerSnapshot()
     {
-        var draftRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderDraftRepository.cs");
+        var draftRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "PurchaseOrderDraftRepository.cs");
 
         StringAssert.Contains(draftRepository, "CustomerPoNo,CustomerId,CustomerCode,CustomerNameSnapshot,Currency");
         StringAssert.Contains(draftRepository, "@CustomerPoNo,@CustomerId,@CustomerCode,@CustomerNameSnapshot,@Currency");
@@ -21,8 +21,8 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     [TestMethod]
     public void AppendMustRequireSameCustomerIdentityWithoutUpdatingCustomerSnapshots()
     {
-        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftCreationService.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderDraftRepository.cs");
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Draft", "FromDemand", "PurchaseDraftCreationService.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "PurchaseOrderDraftRepository.cs");
         var appendSection = Slice(repository, "private Task<int> AdvanceDraftVersionAsync", "private static void ValidateHeadKey");
 
         StringAssert.Contains(service, "head.CustomerId != document.CustomerId");
@@ -37,12 +37,13 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     [TestMethod]
     public void WriteModelMustUseDocumentCustomerFactsAndLeaveConfirmationBatchEmpty()
     {
-        var builder = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftWriteModelBuilder.cs");
-        var creation = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftCreationService.cs");
-        var preview = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseDraftPreviewBuilder.cs");
+        var builder = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Draft", "FromDemand", "PurchaseDraftWriteModelBuilder.cs");
+        var creation = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Draft", "FromDemand", "PurchaseDraftCreationService.cs");
+        var preview = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Draft", "FromDemand", "PurchaseDraftPreviewBuilder.cs");
 
-        StringAssert.Contains(creation, "customerRepository.GetByIdListAsync(customerIds, withUpdLock: true)");
-        StringAssert.Contains(creation, "CustomerName = customer?.CustomerName ?? string.Empty");
+        var previewService = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Draft", "FromDemand", "PurchaseDraftPreviewService.cs");
+        StringAssert.Contains(previewService, "customerRepository.GetByIdListAsync(customerIds, withUpdLock: true)");
+        StringAssert.Contains(previewService, "CustomerName = customer?.CustomerName ?? string.Empty");
         StringAssert.Contains(preview, "CustomerName = first.CustomerName");
         StringAssert.Contains(builder, "CustomerId = document.CustomerId");
         StringAssert.Contains(builder, "CustomerCode = document.CustomerCode");

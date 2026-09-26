@@ -23,6 +23,8 @@ public sealed partial class InboundSourcePickerRowModel : ObservableObject
     public string? ImagePath { get; init; }
     public string Unit { get; init; } = string.Empty;
     public string SupplierName { get; init; } = string.Empty;
+    /// <summary>产品当前建议仓库，只读参考；实际入库仓库仍由单头决定。</summary>
+    public string DefaultWarehouseName { get; init; } = string.Empty;
     public decimal OriginalQty { get; init; }
 
     /// <summary>由来源查询提供的正式剩余可收量；不是本次实收输入，也不在客户端扣减草稿。</summary>

@@ -32,7 +32,7 @@ public sealed class UserPermissionSqlContractTests
     [TestMethod]
     public void RepositoryReplacementKeepsTransactionAuditAndSecurityGuards()
     {
-        var source = Read("SwiftExport.Infrastructure", "Repositories", "Auth", "UserPermissionRepository.cs");
+        var source = Read("SwiftExport.Infrastructure", "Repositories", "Auth", "Permissions", "UserPermissionRepository.cs");
         StringAssert.Contains(source, "context.Session.Transaction ?? throw");
         StringAssert.Contains(source, "context.AuditStamp.StampForInsert");
         StringAssert.Contains(source, "SET IsDeleted=1,Version=Version+1");
@@ -45,12 +45,12 @@ public sealed class UserPermissionSqlContractTests
     [TestMethod]
     public void ProcurementConsumersUseSingleProjectionPoint()
     {
-        var transaction = Read("SwiftExport.Application", "Services", "Procurement", "OrderManagement", "ProcurementOrderTransaction.cs");
-        var warehouse = Read("SwiftExport.Application", "Services", "Inventory", "WarehouseCandidateQueryService.cs");
-        var procurementRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "ProcurementOrderRepository.cs");
-        var warehouseRepository = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseCandidateRepository.cs");
-        StringAssert.Contains(transaction, "IUserPermissionService permissions");
-        StringAssert.Contains(warehouse, "IUserPermissionService permissions");
+        var reads = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Support", "ProcurementOrderReadSupport.cs");
+        var warehouse = Read("SwiftExport.Application", "Services", "Inventory", "Warehouses", "WarehouseCandidateQueryService.cs");
+        var procurementRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "ProcurementOrderDocumentRepository.cs");
+        var warehouseRepository = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseCandidateRepository.cs");
+        StringAssert.Contains(reads, "IPermissionEvaluationService permissions");
+        StringAssert.Contains(warehouse, "IPermissionEvaluationService permissions");
         Assert.IsFalse(procurementRepository.Contains("SysUser_Roles", StringComparison.Ordinal));
         Assert.IsFalse(warehouseRepository.Contains("SysUser_Roles", StringComparison.Ordinal));
     }

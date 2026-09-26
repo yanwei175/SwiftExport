@@ -1,8 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Services.Procurement;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Orders;
+using SwiftExport.Core.Entities.SalesOrders;
 
 namespace SwiftExport.Application.Tests.Procurement;
 
@@ -15,7 +14,7 @@ public sealed class PurchaseDraftHeaderMappingTests
     public void BuildNewHeader_SalesSourceUsesSourceAndConfigurationSnapshots()
     {
         var expectedDate = new DateTime(2026, 9, 20);
-        var header = PurchaseDraftCreationService.BuildNewHeader(
+        var header = PurchaseDraftPreviewService.BuildNewHeader(
             new Customer { CustomerCode = "C001", DocRelateNo = "C-" },
             new Supplier { SupplierCode = "S001", SupplierName = "供应商", DocRelateNo = "-S" },
             new SalesOrderHeader
@@ -53,7 +52,7 @@ public sealed class PurchaseDraftHeaderMappingTests
     [TestMethod]
     public void BuildNewHeader_IndependentSourceDoesNotGuessSalesOrCurrencyFacts()
     {
-        var header = PurchaseDraftCreationService.BuildNewHeader(
+        var header = PurchaseDraftPreviewService.BuildNewHeader(
             new Customer { CustomerCode = "C001", DocRelateNo = "C-" },
             new Supplier { SupplierCode = "S001", SupplierName = "供应商", DocRelateNo = "-S" },
             salesHead: null,

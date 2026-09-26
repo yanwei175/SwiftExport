@@ -18,8 +18,7 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
             FindRepositoryRoot(),
             "SwiftExport.Infrastructure",
             "Repositories",
-            "Orders",
-            "SalesOrderHeadRepository.cs"));
+            "SalesOrders", "Query", "SalesOrderQueryRepository.cs"));
 
         StringAssert.Contains(source, "keywordLine.DescriptionEn LIKE @Keyword");
         StringAssert.Contains(source, "l.Sku, l.LinkSku, l.CustomerSku, l.DescriptionEn");
@@ -37,8 +36,7 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
             FindRepositoryRoot(),
             "SwiftExport.Infrastructure",
             "Repositories",
-            "Orders",
-            "SalesOrderHeadRepository.cs"));
+            "SalesOrders", "Query", "SalesOrderQueryRepository.cs"));
 
         Assert.IsFalse(source.Contains("OutboundDocumentLine", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("OutboundDocument", StringComparison.Ordinal));

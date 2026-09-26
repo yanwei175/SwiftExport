@@ -1,0 +1,11 @@
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Query;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Sources;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.Validation;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Confirmation;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Reversal;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Reversal.Validation;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.Validation;
+global using SwiftExport.Application.Services.Procurement.PurchaseOrders.Support;

@@ -2,6 +2,7 @@ using Mapster;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -9,6 +10,7 @@ using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Core.Entities.Shipping;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Shipping;
+using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.WebApi.Controllers.Shipping;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
@@ -69,8 +71,8 @@ public sealed class PackingListTraceServiceTests
         PackingListPostingExecutionLine row, bool allowed = true)
     {
         var user = Proxy.Make<ICurrentUser>((m, _) => m switch { "get_IsAuthenticated" => true, "get_UserId" => id, _ => throw new NotSupportedException(m) });
-        var permission = Proxy.Make<IUserPermissionService>((m, _) => Task.FromResult(allowed));
-        var packing = Proxy.Make<IPackingListRepository>((m, _) => allowed && m == "GetDetailAsync"
+        var permission = Proxy.Make<IPermissionEvaluationService>((m, _) => Task.FromResult(allowed));
+        var packing = Proxy.Make<IPackingListQueryRepository>((m, _) => allowed && m == "GetDetailAsync"
             ? Task.FromResult<PackingListDetailDto?>(new() { Header = new() { Uid = id, PackingListNo = "PL1" } }) : throw new AssertFailedException(m));
         var repository = Proxy.Make<IPackingListExecutionRepository>((m, _) => !allowed ? throw new AssertFailedException(m) : m switch
         {

@@ -17,7 +17,7 @@ public sealed class NetDemandManagerControllerContractTests
             "SwiftExport.WebApi",
             "Controllers",
             "DemandPlanning",
-            "NetDemandManagerController.cs");
+            "Materials", "Query", "MaterialDemandQueryController.cs");
         var source = File.ReadAllText(controllerPath);
 
         StringAssert.Contains(source, "[HttpPost(\"material-source-groups\")]");
@@ -34,7 +34,9 @@ public sealed class NetDemandManagerControllerContractTests
             "SwiftExport.WebApi",
             "Controllers",
             "Procurement",
-            "PurchaseDraftController.cs");
+            "PurchaseOrders",
+            "Draft",
+            "PurchaseDraftCreationController.cs");
         var source = File.ReadAllText(controllerPath);
         const string route = "[HttpPost(\"create\")]";
         var routeIndex = source.IndexOf(route, StringComparison.Ordinal);

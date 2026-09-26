@@ -1,5 +1,6 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Sources;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;

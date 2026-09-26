@@ -1,7 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Procurement;
 
 namespace SwiftExport.Application.Tests.Procurement;
@@ -10,6 +11,17 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class ProcurementOrderPolicyTests
 {
+    /// <summary>产品主档的 SKU 恰好以 NS 开头也仍按真实主档资格判断，非标类型由单据身份表达。</summary>
+    [TestMethod]
+    public void ProductWithNsPrefix_IsNotAutomaticallyNonStandard()
+    {
+        ProcurementOrderPolicy.RequireProduct(new Product
+        {
+            Sku = "NS-ORDINARY-PRODUCT", IsActive = true,
+            SupplyType = SupplyTypeEnums.采购, MaterialType = MaterialTypesEnum.成品
+        });
+    }
+
     /// <summary>空价留待确认补齐，明确零价保留，金额仅在最终四位舍入。</summary>
     [TestMethod]
     public void AmountDistinguishesMissingAndZeroAndRoundsFinalResult()

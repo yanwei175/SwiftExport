@@ -106,9 +106,11 @@ public sealed class SalesOrderModelsAndContractsTests
 
         var sku = NonStandardSkuGenerator.Create(uid);
 
-        Assert.AreEqual($"{DocumentTypeStaticsEnum.NonStandardPart}-0123456789AB", sku);
+        Assert.AreEqual("NS-0123456789AB", sku);
+        Assert.AreEqual(sku, NonStandardSkuGenerator.Create(uid));
         Assert.IsTrue(NonStandardSkuGenerator.IsGeneratedNonStandardSku(sku));
         Assert.IsFalse(NonStandardSkuGenerator.IsGeneratedNonStandardSku("非标件-anything"));
+        Assert.IsFalse(NonStandardSkuGenerator.IsGeneratedNonStandardSku("NS-0123456789ab"));
         Assert.ThrowsExactly<ArgumentException>(() => NonStandardSkuGenerator.Create(Guid.Empty));
     }
 

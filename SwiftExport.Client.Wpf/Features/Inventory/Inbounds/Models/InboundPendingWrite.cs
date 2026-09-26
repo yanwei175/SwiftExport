@@ -1,5 +1,7 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 namespace SwiftExportClient.Features.Inventory.Inbounds.Models;
 
 /// <summary>仅在当前窗口保留一次已发送意图；命令快照不能用后续编辑重新生成。</summary>

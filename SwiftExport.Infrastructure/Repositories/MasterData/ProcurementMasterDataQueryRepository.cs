@@ -72,8 +72,8 @@ public sealed class ProcurementMasterDataQueryRepository(RepositoryBaseContext c
 
         if (!request.SupplierId.HasValue)
             return ReadPageAsync<ProcurementProductCandidateDto>(
-                string.Format(commonColumns, "COALESCE(p.DefaultSupplierSku,N'')", "CAST(NULL AS decimal(18,6))", "CAST(NULL AS decimal(18,6))"),
-                string.Format(commonFrom, string.Empty, "COALESCE(p.DefaultSupplierSku,N'')"), "p.Sku,p.Uid", request, cancellationToken);
+                string.Format(commonColumns, "CAST(N'' AS nvarchar(200))", "CAST(NULL AS decimal(18,6))", "CAST(NULL AS decimal(18,6))"),
+                string.Format(commonFrom, string.Empty, "CAST(N'' AS nvarchar(200))"), "p.Sku,p.Uid", request, cancellationToken);
 
         const string supplierApply = """
             OUTER APPLY (

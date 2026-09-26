@@ -1,5 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Services.DemandPlanning;
+using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -221,11 +221,11 @@ public sealed class GrossDemandDecompositionPlannerTests
             Uid = Guid.NewGuid(),
             BomNo = parent.BomNo!,
             BomVersion = parent.BomVersion,
-            ParentSkuId = parent.Uid,
-            ParentSku = parent.Sku,
+            ParentProductId = parent.Uid,
+            ParentSkuSnapshot = parent.Sku,
             LineNumber = line,
-            SubSkuId = child.Uid,
-            SubSku = child.Sku,
+            ComponentProductId = child.Uid,
+            ComponentSkuSnapshot = child.Sku,
             Numerator = numerator,
             Denominator = denominator
         };

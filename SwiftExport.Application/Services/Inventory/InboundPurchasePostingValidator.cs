@@ -1,5 +1,6 @@
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 
 namespace SwiftExport.Application.Services.Inventory;
 

@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Auth;
-using SwiftExport.Application.Models.Auth;
+using SwiftExport.Application.Interfaces.Auth.Session;
+using SwiftExport.Application.Models.Auth.Session;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Controllers.Auth;
-using SwiftExport.WebApi.Services.Auth;
-using SwiftExport.WebApi.Filters;
+using SwiftExport.WebApi.Authentication;
+using SwiftExport.WebApi.RequestProtection;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -83,7 +84,7 @@ public sealed class JwtAndControllerContractTests
     private static ClaimsPrincipal PrincipalWithoutVersion(Guid userId) => new(new ClaimsIdentity(
         [new(ClaimTypes.NameIdentifier, userId.ToString())], "test"));
 
-    private sealed class AuthServiceStub(Guid userId, int currentVersion) : IAuthService
+    private sealed class AuthServiceStub(Guid userId, int currentVersion) : IAuthSessionService
     {
         public int CurrentVersion { get; set; } = currentVersion;
         public Task<bool> IsCredentialVersionValidAsync(Guid id, int version, CancellationToken cancellationToken = default) =>

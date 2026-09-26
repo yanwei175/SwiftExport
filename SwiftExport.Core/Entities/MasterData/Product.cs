@@ -1,10 +1,11 @@
 ﻿using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
+using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>产品主数据实体，保存公司内部稳定产品身份、物料属性和当前默认供应商关系。</summary>
+/// <summary>产品主数据实体，保存稳定产品身份、物料属性及当前可选的采购、制造和仓库参考关系。</summary>
 [Table("Product")]
 public partial class Product : BaseEntity
 {
@@ -67,19 +68,13 @@ public partial class Product : BaseEntity
     /// </summary>
     public decimal? UnitWeight { get; set; }
 
-    /// <summary>旧模型保留的默认客户编码兼容字段；目标模型以 CustomerProduct 关系为准。</summary>
-    public string? DefaultCustomerCode { get; set; }
-    /// <summary>旧模型保留的默认客户产品编码兼容字段；目标模型以 CustomerProduct 关系为准。</summary>
-    public string? DefaultCustomerSku { get; set; }
-    /// <summary>默认供应商权威关系；编码仅作为兼容和人工查账字段。</summary>
+    /// <summary>默认供应商权威关系；当前编码由供应商资料实时投影。</summary>
     public Guid? DefaultSupplierId { get; set; }
-    /// <summary>旧模型保留的默认供应商编码兼容字段；目标模型以 DefaultSupplierId 及 SupplierProduct 关系为准。</summary>
-    public string? DefaultSupplierCode { get; set; }
-    /// <summary>旧模型保留的默认供应商产品编码兼容字段；目标模型以 SupplierProduct 关系为准。</summary>
-    public string? DefaultSupplierSku { get; set; }
-
-    // Dapper 不会映射这个，因为它没有 setter
-    public bool IsNonStandard => !string.IsNullOrWhiteSpace(Sku) && Sku.StartsWith(DocumentTypeStaticsEnum.NonStandardPart);
-
-
+    /// <summary>产品建议使用的仓库标识；仅作当前参考，不决定单据实际仓库。</summary>
+    public Guid? DefaultWarehouseSiteId { get; set; }
+    /// <summary>实际制造商标识，独立于默认采购供应商。</summary>
+    public Guid? ManufacturerId { get; set; }
+    /// <summary>制造商型号；允许不选择制造商时独立记录。</summary>
+    [DbColumn(StoreType = "nvarchar(200)")]
+    public string? ManufacturerModel { get; set; }
 }

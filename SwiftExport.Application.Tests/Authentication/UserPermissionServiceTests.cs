@@ -4,10 +4,16 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Services.Auth;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Services.Auth.Permissions.Assignment;
+using SwiftExport.Application.Services.Auth.Users;
+using SwiftExport.Application.Models.Auth.Permissions.Evaluation;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auth.Permissions;
 using SwiftExport.Core.Models.Auth;
 using SwiftExport.Infrastructure.Data;
 
@@ -17,6 +23,44 @@ namespace SwiftExport.Application.Tests.Authentication;
 [TestClass]
 public sealed class UserPermissionServiceTests
 {
+    /// <summary>销售和售后八项操作权限可独立保存读取；两个模块入口均不隐式授予写入。</summary>
+    [TestMethod]
+    public async Task SalesAndAfterSalesOperations_AreAssignableAndIndependent()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.Facts[targetId] = Facts(targetId, false, [], []);
+        var service = Service(repository, actorId);
+        var keys = new[]
+        {
+            PermissionKeys.SalesOrderMaintain, PermissionKeys.SalesOrderConfirm,
+            PermissionKeys.SalesOrderCancelConfirmation, PermissionKeys.SalesOrderLifecycle,
+            PermissionKeys.AfterSalesMaintain, PermissionKeys.AfterSalesConfirm,
+            PermissionKeys.AfterSalesCancelConfirmation, PermissionKeys.AfterSalesLifecycle
+        };
+        Assert.IsTrue((await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleSalesAccess, PermissionKeys.ModuleQualityControlAccess]
+        })).Success);
+        foreach (var key in keys)
+        {
+            CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), key);
+            Assert.IsFalse(await service.HasPermissionAsync(targetId, key), key);
+        }
+        Assert.IsTrue((await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleSalesAccess, PermissionKeys.ModuleQualityControlAccess, .. keys]
+        })).Success);
+        var loaded = await service.GetUserModulesAsync(targetId);
+        var projected = await service.GetProjectionAsync(targetId);
+        foreach (var key in keys)
+        {
+            CollectionAssert.Contains(loaded.Data.ModulePermissions, key);
+            CollectionAssert.Contains(projected!.Permissions.ToList(), key);
+        }
+    }
+
     /// <summary>一级模块目录保持不变，普通用户可分配目录额外包含虚拟仓独立管理能力。</summary>
     [TestMethod]
     public void ModuleCatalogContainsOnlyStableAssignableKeys()
@@ -35,6 +79,14 @@ public sealed class UserPermissionServiceTests
         }, PermissionKeys.Modules.ToArray());
         CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.SystemSettingsManage);
         CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.InventoryWarehouseManage);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningSourceManualManage);
+        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage);
+        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
+        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.DemandPlanningSourceManualManage);
+        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage);
         CollectionAssert.DoesNotContain(PermissionKeys.UserAssignable.ToList(), PermissionKeys.SystemSettingsManage);
     }
 
@@ -59,6 +111,66 @@ public sealed class UserPermissionServiceTests
         CollectionAssert.Contains(repository.LastModules.ToList(), PermissionKeys.InventoryWarehouseManage);
         Assert.IsNotNull(projection);
         CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.InventoryWarehouseManage);
+    }
+
+    /// <summary>两个物料操作键可分别保存和读取，需求模块访问不会自动展开为操作权限。</summary>
+    [TestMethod]
+    public async Task MaterialOperations_AreSavedReadAndIndependentOfModuleAccess()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.Facts[targetId] = Facts(targetId, false, [], []);
+        var service = Service(repository, actorId);
+        var saved = await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleDemandPlanningAccess, PermissionKeys.DemandPlanningMaterialEstablish]
+        });
+        var loaded = await service.GetUserModulesAsync(targetId);
+        var projection = await service.GetProjectionAsync(targetId);
+        Assert.IsTrue(saved.Success);
+        Assert.IsTrue(loaded.Success);
+        CollectionAssert.Contains(loaded.Data.ModulePermissions, PermissionKeys.DemandPlanningMaterialEstablish);
+        Assert.IsTrue(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialEstablish));
+        Assert.IsFalse(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialRollback));
+        CollectionAssert.DoesNotContain(projection!.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+
+        await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleDemandPlanningAccess, PermissionKeys.DemandPlanningMaterialRollback]
+        });
+        Assert.IsFalse(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialEstablish));
+        Assert.IsTrue(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialRollback));
+    }
+
+    /// <summary>两项维护权限可独立保存读取；单独模块访问不授予写入能力。</summary>
+    [TestMethod]
+    public async Task MaintenancePermissions_AreIndependentAndProjected()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.Facts[targetId] = Facts(targetId, false, [], []);
+        var service = Service(repository, actorId);
+        await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleDemandPlanningAccess]
+        });
+        Assert.IsFalse(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningSourceManualManage));
+        Assert.IsFalse(await service.HasPermissionAsync(targetId, PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage));
+        var saved = await service.SaveUserModulesAsync(targetId, new SaveUserModulePermissionsRequestDto
+        {
+            ModulePermissions = [PermissionKeys.ModuleDemandPlanningAccess,
+                PermissionKeys.DemandPlanningSourceManualManage,
+                PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage]
+        });
+        var loaded = await service.GetUserModulesAsync(targetId);
+        var projection = await service.GetProjectionAsync(targetId);
+        Assert.IsTrue(saved.Success);
+        CollectionAssert.Contains(loaded.Data.ModulePermissions, PermissionKeys.DemandPlanningSourceManualManage);
+        CollectionAssert.Contains(loaded.Data.ModulePermissions, PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage);
+        CollectionAssert.Contains(projection!.Permissions.ToList(), PermissionKeys.DemandPlanningSourceManualManage);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage);
     }
 
     /// <summary>普通用户保留历史细权限，采购模块只在唯一投影点展开为四个既有操作键。</summary>
@@ -102,6 +214,10 @@ public sealed class UserPermissionServiceTests
         Assert.IsTrue(projection.IsAdmin);
         CollectionAssert.AreEqual(PermissionKeys.All.ToArray(), projection.Permissions.ToArray());
         CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.SystemSettingsManage);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningSourceManualManage);
+        CollectionAssert.Contains(projection.Permissions.ToList(), PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage);
     }
 
     /// <summary>非管理员不能读取或保存，未知键和设置管理键在进入事务前即被拒绝。</summary>
@@ -186,6 +302,21 @@ public sealed class UserPermissionServiceTests
         return repository;
     }
 
+    /// <summary>用户选择列表由账号窄服务读取，仍要求真实 Admin 投影。</summary>
+    [TestMethod]
+    public async Task AdminUserListComesFromAccountService()
+    {
+        var actorId = Guid.NewGuid();
+        var targetId = Guid.NewGuid();
+        var repository = AdminRepository(actorId);
+        repository.ActiveUsers = [new UserSummaryDto { Uid = targetId, UserName = "target", NickName = "目标" }];
+
+        var result = await Service(repository, actorId).GetUsersAsync();
+
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual(targetId, result.Data.Single().Uid);
+    }
+
     private static UserPermissionFacts Facts(
         Guid userId,
         bool isAdmin,
@@ -199,14 +330,31 @@ public sealed class UserPermissionServiceTests
         ModulePermissions = modules
     };
 
-    private static UserPermissionService Service(
+    private static PermissionFixture Service(
         RepositoryStub repository,
         Guid actorId,
         ConnectionStub? connection = null)
     {
         var session = Session(connection ?? new ConnectionStub());
-        return new UserPermissionService(
-            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository, new CurrentUserStub(actorId));
+        var currentUser = new CurrentUserStub(actorId);
+        var evaluation = new PermissionEvaluationService(repository);
+        var assignment = new UserPermissionAssignmentService(
+            new ServiceBaseContext(session, NullLoggerFactory.Instance), repository, currentUser, evaluation);
+        var accounts = new UserAccountService(null!, currentUser, null!, repository, evaluation);
+        return new PermissionFixture(evaluation, assignment, accounts);
+    }
+
+    /// <summary>把三个窄服务放入同一测试夹具，保留原权限与事务断言。</summary>
+    private sealed class PermissionFixture(
+        PermissionEvaluationService evaluation,
+        UserPermissionAssignmentService assignment,
+        UserAccountService accounts)
+    {
+        public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId) => evaluation.GetProjectionAsync(userId);
+        public Task<bool> HasPermissionAsync(Guid userId, string key) => evaluation.HasPermissionAsync(userId, key);
+        public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync() => accounts.GetUsersAsync();
+        public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId) => assignment.GetUserModulesAsync(userId);
+        public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request) => assignment.SaveUserModulesAsync(userId, request);
     }
 
     private static DbSession Session(IDbConnection connection)
@@ -228,6 +376,7 @@ public sealed class UserPermissionServiceTests
     private sealed class RepositoryStub : IUserPermissionRepository
     {
         public Dictionary<Guid, UserPermissionFacts> Facts { get; } = [];
+        public IReadOnlyList<UserSummaryDto> ActiveUsers { get; set; } = [];
         public int ReplaceCalls { get; private set; }
         public UserModuleReplaceStatus ReplaceStatus { get; set; } = UserModuleReplaceStatus.Updated;
         public bool ThrowOnReplace { get; set; }
@@ -235,7 +384,7 @@ public sealed class UserPermissionServiceTests
         public Task<UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Facts.GetValueOrDefault(userId));
         public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
+            Task.FromResult(ActiveUsers);
         public Task<UserModuleReplaceStatus> ReplaceModulesAsync(
             Guid actorUserId, Guid targetUserId, IReadOnlyCollection<string> modulePermissions,
             CancellationToken cancellationToken = default)

@@ -15,6 +15,20 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 public sealed class ProductsMaterialTypeFilterTests
 {
     [TestMethod]
+    public async Task DefaultWarehouseCandidates_UseProductApiWithoutInventoryCache()
+    {
+        var productApi = new RecordingProductApi();
+        var viewModel = CreateViewModel(productApi);
+        var load = typeof(ProductsViewModel).GetMethod("LoadProductWarehouseCandidatesAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+
+        await (Task)load.Invoke(viewModel, null)!;
+
+        Assert.AreEqual(1, productApi.WarehouseCandidateCalls);
+        Assert.AreEqual("W-01", viewModel.WarehouseCandidates.Single().Code);
+    }
+
+    [TestMethod]
     public async Task Search_ShouldSendAllSelectedMaterialTypes()
     {
         var productApi = new RecordingProductApi();
@@ -69,6 +83,7 @@ public sealed class ProductsMaterialTypeFilterTests
     private sealed class RecordingProductApi : IProductApi
     {
         public ProductSearchRequest? LastSearchRequest { get; private set; }
+        public int WarehouseCandidateCalls { get; private set; }
 
         public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request)
         {
@@ -91,6 +106,17 @@ public sealed class ProductsMaterialTypeFilterTests
         public Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku) => NotSupported<ProductDto>();
 
         public Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest request) => NotSupported<ProductBatchSaveResponse>();
+        public Task<ServiceResult<PagedResponseBase<ProductDefaultWarehouseCandidateDto>>> GetDefaultWarehouseCandidatesAsync(
+            PagedRequestBase request, CancellationToken cancellationToken = default)
+        {
+            WarehouseCandidateCalls++;
+            return Task.FromResult(ServiceResult<PagedResponseBase<ProductDefaultWarehouseCandidateDto>>.Ok(
+                new PagedResponseBase<ProductDefaultWarehouseCandidateDto>
+                {
+                    PageIndex = request.PageIndex, PageSize = request.PageSize, TotalCount = 1,
+                    Items = [new ProductDefaultWarehouseCandidateDto { Uid = Guid.NewGuid(), Code = "W-01", Name = "主仓" }]
+                }));
+        }
 
 
         public Task<ServiceResult<ProductDto>> GetByIdAsync(Guid id) => NotSupported<ProductDto>();

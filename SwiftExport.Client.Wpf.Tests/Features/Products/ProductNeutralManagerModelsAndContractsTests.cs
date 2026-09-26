@@ -16,7 +16,7 @@ using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证中性产品管理专用契约、编辑模型、颜色多选和客户端注册。</summary>
+/// <summary>验证中性产品管理专用契约、编辑模型、工具栏颜色多选和客户端注册。</summary>
 [TestClass]
 public sealed class ProductNeutralManagerModelsAndContractsTests
 {
@@ -107,17 +107,16 @@ public sealed class ProductNeutralManagerModelsAndContractsTests
         Assert.IsNull(typeof(ProductNeutralManagerWriteDto).GetProperty("IsMainImage"));
     }
 
-    /// <summary>页面应把颜色多选放在分类树之前，并且不再公开默认主图编辑入口。</summary>
+    /// <summary>页面应只保留工具栏颜色多选，并且不再公开默认主图编辑入口。</summary>
     [TestMethod]
-    public void View_ShouldUseLeftMultiColorFilterWithoutMainImageColumn()
+    public void View_ShouldUseToolbarMultiColorFilterWithoutMainImageColumn()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Products", "ProductList", "Views", "ProductNeutralManagerView.xaml");
-        var colorFilter = view.IndexOf("<productComponents:ProductColorFilterList", StringComparison.Ordinal);
-        var categoryTree = view.IndexOf("<productComponents:ProductCategoryFilterTreeView", StringComparison.Ordinal);
 
-        Assert.IsGreaterThanOrEqualTo(0, colorFilter);
-        Assert.IsGreaterThan(colorFilter, categoryTree);
-        StringAssert.Contains(view, "Selection=\"{Binding ColorFilter, Mode=TwoWay}\"");
+        StringAssert.Contains(view, "<filter:MultiSelectLookupButton");
+        StringAssert.Contains(view, "SelectedItems=\"{Binding FilterColorList, Mode=OneWay}\"");
+        Assert.IsFalse(view.Contains("<productComponents:ProductColorFilterList", StringComparison.Ordinal));
+        Assert.IsFalse(view.Contains("ColorFilter", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("<controls:DropDownCheckBox", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("默认主图", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("SetMainImageCommand", StringComparison.Ordinal));

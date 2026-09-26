@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Text.Json;
 using Mapster;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,6 +8,7 @@ using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
@@ -42,7 +42,9 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private readonly IProductApi _productApi;
     private int _productSearchVersion;
     private int _detailVersion;
-    private readonly Dictionary<string, (string Fingerprint, Guid CommandId)> _pendingCommands = [];
+    private PendingWrite? _pendingWrite;
+    private Guid? _refreshOnlyUid;
+    private PendingDemandConfirmation? _pendingConfirmation;
     private CancellationTokenSource? _loadCancellation;
     private bool _hasServerIdentity;
     private bool _loading;
@@ -58,6 +60,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         _referenceDataCache = referenceDataCache;
         _productApi = productApi;
         Title = "售后服务单-新建";
+        PropertyChanged += OnBusyPropertyChanged;
         Header.PropertyChanged += OnEditChanged;
         LineList.ListStateChanged += OnLineListChanged;
         RegisterBusyAwareCommand(SaveCommand); RegisterBusyAwareCommand(ConfirmDemandCommand);
@@ -88,13 +91,27 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     public ReadOnlyObservableCollection<ProductColorDto> Colors => _referenceDataCache.ProductColors;
     public ObservableCollection<AfterSalesLookupDto> QualityCategories { get; } = [];
     public string DocumentTitle => string.IsNullOrWhiteSpace(Header.AfterSalesNo) ? "售后服务单-新建" : Header.AfterSalesNo;
-    public bool HasUnsavedChanges => IsDirty;
+    public bool HasUnsavedChanges => IsDirty || HasPendingIntent;
+    /// <summary>表示页面仍持有原写入意图，直到取得确定结果并读到当前详情。</summary>
+    public bool HasPendingIntent => _pendingWrite is not null || _pendingConfirmation is not null || _refreshOnlyUid.HasValue;
     public bool IsPersisted => _hasServerIdentity;
     public bool HasAccess => _currentUser.HasPermission(PermissionKeys.ModuleQualityControlAccess);
     public string DocumentStatusText => DocumentStatus switch { DocumentStatusEnum.Closed => "已结案", DocumentStatusEnum.Voided => "已作废", _ => "开放" };
     public string ConfirmationStatusText => ConfirmationStatus == ConfirmationStatusEnum.已确认 ? "实物需求已确认" : "实物需求待确认";
-    public bool CanEditSupplement => Capabilities.CanSave && HasAccess;
-    public bool CanEditFacts => Capabilities.CanEditFacts && HasAccess;
+    public bool CanMaintain => _currentUser.HasPermission(PermissionKeys.AfterSalesMaintain);
+    public bool CanConfirmDemand => _currentUser.HasPermission(PermissionKeys.AfterSalesConfirm);
+    public bool CanCancelDemand => _currentUser.HasPermission(PermissionKeys.AfterSalesCancelConfirmation);
+    public bool CanManageLifecycle => _currentUser.HasPermission(PermissionKeys.AfterSalesLifecycle);
+    public bool CanEditSupplement => Capabilities.CanSave && CanMaintain && !HasPendingIntent && !IsBusy;
+    public bool CanEditFacts => Capabilities.CanEditFacts && CanMaintain && !HasPendingIntent && !IsBusy;
+
+    /// <summary>加载和提交结束时重新通知实际输入控件，避免 Busy 内清除未决后仍保持禁用。</summary>
+    private void OnBusyPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IsBusy)) return;
+        OnPropertyChanged(nameof(CanEditFacts));
+        OnPropertyChanged(nameof(CanEditSupplement));
+    }
 
     [ObservableProperty][NotifyCanExecuteChangedFor(nameof(DeleteLineCommand))] public partial AfterSalesLineModel? SelectedLine { get; set; }
     /// <summary>获取或设置售后单头当前选中的完整客户。</summary>
@@ -140,6 +157,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
         if (IsBusy) return false;
+        if (HasPendingIntent)
+        {
+            _messages.ShowWarning("售后确认结果未定", "请使用原请求重试确认，取得确定结果后再关闭页签。");
+            return false;
+        }
         return !HasUnsavedChanges || await _dialogs.ConfirmAsync("关闭售后服务单", "当前服务单有未保存修改，确定放弃并关闭吗？", "放弃并关闭", "继续编辑", cancellationToken);
     }
 
@@ -154,90 +176,175 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         var line = SelectedLine!;
         LineList.Remove(line); SelectedLine = Lines.FirstOrDefault(); UpdateDirtyState();
     }
-    [RelayCommand(CanExecute = nameof(CanSave))] private async Task SaveAsync() => await RunWriteAsync(async () =>
+    [RelayCommand(CanExecute = nameof(CanSave))] private async Task SaveAsync()
     {
-        if (!Validate(false)) return;
-        var create = !IsPersisted;
-        var command = CreateSaveCommand("save");
-        var result = await _runner.RunAsync(() => create ? _api.CreateAsync(command) : _api.SaveAsync(Header.Uid, command), "保存售后服务单失败");
-        CompleteCommand("save", result);
-        if (!result.Success || result.Data is null) { HandleFailure("保存失败", result); return; }
-        ApplyCommandResult(result.Data);
-        await ReloadAfterWriteAsync(result.Data.Uid, "售后服务单已保存");
-    }, "正在保存售后服务单...");
+        if (_pendingWrite is null)
+        {
+            if (!Validate(false)) return;
+            var command = CreateSaveCommand();
+            var create = !IsPersisted;
+            SetPendingWrite(new PendingWrite("save", command.Uid, "售后服务单已保存",
+                () => _runner.RunAsync(() => create ? _api.CreateAsync(command) : _api.SaveAsync(command.Uid, command), "保存售后服务单失败")));
+        }
+        await RunPendingWriteAsync();
+    }
 
     [RelayCommand(CanExecute = nameof(CanConfirm))] private async Task ConfirmDemandAsync()
     {
-        if (!Validate(true)) return;
-        if (!Lines.Any(x => x.Quantity > 0)) { _messages.ShowInfo("无需确认", "当前没有正数量补发要求，投诉单可以直接保存并在处理完成后结案。"); return; }
-        if (!await _dialogs.ConfirmAsync("确认实物需求", "将先保存当前修改，再把正数量补件交给来源需求。确认后相关事实会锁定。", "保存并确认")) return;
-        await RunWriteAsync(async () =>
+        if (_pendingConfirmation is null)
         {
-            var create = !IsPersisted;
-            var save = CreateSaveCommand("confirm-save");
-            var confirmId = CommandId("confirm", JsonSerializer.Serialize(new { save.Uid, Header.Version }));
-            var result = await _feature.SaveAndConfirmAsync(save, create, confirmId);
-            CompleteCommand("confirm-save", result.Save);
-            if (!result.Save.Success || result.Save.Data is null) { HandleFailure("确认前保存失败", result.Save); return; }
-            ApplyCommandResult(result.Save.Data);
-            _navigation.UpdateDocumentKey(this, $"after-sales:{Header.Uid:N}");
-            if (result.Confirm is null || !result.Confirm.Success || result.Confirm.Data is null)
+            if (!Validate(true)) return;
+            if (!Lines.Any(x => x.Quantity > 0)) { _messages.ShowInfo("无需确认", "当前没有正数量补发要求，投诉单可以直接保存并在处理完成后结案。"); return; }
+            if (!await _dialogs.ConfirmAsync("确认实物需求", "将先保存当前修改，再把正数量补件交给来源需求。确认后相关事实会锁定。", "保存并确认")) return;
+            SetPendingConfirmation(new PendingDemandConfirmation(CreateSaveCommand(), !IsPersisted, Guid.NewGuid()));
+        }
+        await RunBusyAsync(async () =>
+        {
+            var pending = _pendingConfirmation!;
+            if (pending.Confirm is null)
             {
-                CompleteCommand("confirm", result.Confirm);
-                await ReloadCoreAsync(Header.Uid, CancellationToken.None);
-                HandleFailure("服务单已保存，但实物需求未确认", result.Confirm);
+                // 保存结果未知时保留完整原请求、创建标记和 CommandId，不发确认。
+                var saved = await _feature.SaveAsync(pending.Save, pending.Create);
+                if (!saved.Success || saved.Data is null)
+                {
+                    if (!MustKeepPendingIntent(saved.Error?.Code, ref pending.SaveOutcomeUnknown))
+                    {
+                        SetPendingConfirmation(null);
+                    }
+                    HandleFailure("确认前保存失败", saved);
+                    return;
+                }
+                ApplyCommandResult(saved.Data);
+                _navigation.UpdateDocumentKey(this, $"after-sales:{saved.Data.Uid:N}");
+                pending.Confirm = new ConfirmAfterSalesDemandCommand
+                { CommandId = pending.ConfirmId, Version = saved.Data.Version };
+            }
+            // 确认结果未知时只重试确认，不能再次保存并推进头版本。
+            var confirmed = await _feature.ConfirmAsync(pending.Save.Uid, pending.Confirm);
+            if (!confirmed.Success || confirmed.Data is null)
+            {
+                if (!MustKeepPendingIntent(confirmed.Error?.Code, ref pending.ConfirmOutcomeUnknown))
+                {
+                    SetPendingConfirmation(null);
+                    _refreshOnlyUid = pending.Save.Uid;
+                    NotifyPendingState();
+                    if (await ReloadCoreAsync(pending.Save.Uid, CancellationToken.None))
+                    {
+                        _refreshOnlyUid = null;
+                        NotifyPendingState();
+                    }
+                }
+                HandleFailure("服务单已保存，但实物需求未确认", confirmed);
                 return;
             }
-            CompleteCommand("confirm", result.Confirm);
-            ApplyCommandResult(result.Confirm.Data);
-            await ReloadAfterWriteAsync(Header.Uid, "实物需求已确认");
+            SetPendingConfirmation(null);
+            await RefreshAfterSuccessAsync(pending.Save.Uid, "实物需求已确认");
         }, "正在保存并确认实物需求...");
     }
 
     [RelayCommand(CanExecute = nameof(CanCancelConfirmation))] private async Task CancelDemandConfirmationAsync()
     {
+        if (_pendingWrite?.Operation == "cancel") { await RunPendingWriteAsync(); return; }
         var reason = await _reasonDialog.RequestAsync("取消实物需求确认", "来源需求会先检查是否能够安全撤回；失败时服务单仍保持确认和锁定状态。");
         if (reason is null) return;
-        await ExecuteCommandAsync("cancel", id => _api.CancelDemandConfirmationAsync(Header.Uid,
-            new CancelAfterSalesDemandConfirmationCommand { CommandId = id, Version = Header.Version, Reason = reason }), "已取消实物需求确认", reason);
+        var uid = Header.Uid;
+        var request = new CancelAfterSalesDemandConfirmationCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
+        SetPendingWrite(new PendingWrite("cancel", uid, "已取消实物需求确认",
+            () => _runner.RunAsync(() => _api.CancelDemandConfirmationAsync(uid, request), "取消实物需求确认失败")));
+        await RunPendingWriteAsync();
     }
     [RelayCommand(CanExecute = nameof(CanCloseDocument))] private async Task CloseAsync()
     {
+        if (_pendingWrite?.Operation == "close") { await RunPendingWriteAsync(); return; }
         var reason = await _reasonDialog.RequestAsync("结案", "正数量要求必须已正式交付完成或由下游合法关闭。请输入结案说明。");
         if (reason is null) return;
-        await ExecuteCommandAsync("close", id => _api.CloseAsync(Header.Uid, new CloseAfterSalesCommand { CommandId = id, Version = Header.Version, Reason = reason }), "售后服务单已结案", reason);
+        var uid = Header.Uid;
+        var request = new CloseAfterSalesCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
+        SetPendingWrite(new PendingWrite("close", uid, "售后服务单已结案",
+            () => _runner.RunAsync(() => _api.CloseAsync(uid, request), "结案失败")));
+        await RunPendingWriteAsync();
     }
     [RelayCommand(CanExecute = nameof(CanReopen))] private async Task ReopenAsync()
     {
+        if (_pendingWrite?.Operation == "reopen") { await RunPendingWriteAsync(); return; }
         var reason = await _reasonDialog.RequestAsync("重开售后服务单", "重开只恢复售后生命周期，不会重新发布来源需求。请输入原因。");
         if (reason is null) return;
-        await ExecuteCommandAsync("reopen", id => _api.ReopenAsync(Header.Uid, new ReopenAfterSalesCommand { CommandId = id, Version = Header.Version, Reason = reason }), "售后服务单已重开", reason);
+        var uid = Header.Uid;
+        var request = new ReopenAfterSalesCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
+        SetPendingWrite(new PendingWrite("reopen", uid, "售后服务单已重开",
+            () => _runner.RunAsync(() => _api.ReopenAsync(uid, request), "重开失败")));
+        await RunPendingWriteAsync();
     }
     [RelayCommand(CanExecute = nameof(CanVoid))] private async Task VoidAsync()
     {
+        if (_pendingWrite?.Operation == "void") { await RunPendingWriteAsync(); return; }
         var reason = await _reasonDialog.RequestAsync("作废售后服务单", "作废要求服务单开放、未确认且没有活动来源需求。请输入原因。");
         if (reason is null) return;
-        await ExecuteCommandAsync("void", id => _api.VoidAsync(Header.Uid, new VoidAfterSalesCommand { CommandId = id, Version = Header.Version, Reason = reason }), "售后服务单已作废", reason);
+        var uid = Header.Uid;
+        var request = new VoidAfterSalesCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
+        SetPendingWrite(new PendingWrite("void", uid, "售后服务单已作废",
+            () => _runner.RunAsync(() => _api.VoidAsync(uid, request), "作废失败")));
+        await RunPendingWriteAsync();
     }
     [RelayCommand(CanExecute = nameof(CanReload))] private async Task ReloadAsync()
     {
+        if (HasPendingIntent) return;
         if (IsDirty && !await _dialogs.ConfirmAsync("重新加载售后服务单", "重新加载会放弃当前未保存修改，确定继续吗？", "放弃并重新加载", "继续编辑")) return;
         await LoadAsync(Header.Uid, CancellationToken.None);
     }
     [RelayCommand(CanExecute = nameof(CanRefreshLookups))] private Task RefreshLookupsAsync() => LoadLookupsAsync(CancellationToken.None);
 
-    // 生命周期命令共享写入门禁，服务端结构化错误保留当前编辑状态。
-    private async Task ExecuteCommandAsync(string operation, Func<Guid, Task<ServiceResult<AfterSalesCommandResult>>> call, string success, string reason)
+    /// <summary>重试页面保存的原请求；确认结果后只查询当前详情。</summary>
+    [RelayCommand(CanExecute = nameof(CanRetryPendingWrite))]
+    private Task RetryPendingWriteAsync() => RunPendingWriteAsync();
+
+    private bool CanRetryPendingWrite() => _pendingWrite is not null && IsNotBusy;
+
+    /// <summary>刷新失败只重新查询，不重复提交已经成功的命令。</summary>
+    [RelayCommand(CanExecute = nameof(CanRefreshCurrentFact))]
+    private async Task RefreshCurrentFactAsync()
     {
-        await RunWriteAsync(async () =>
+        if (_refreshOnlyUid is Guid uid)
         {
-            var id = CommandId(operation, JsonSerializer.Serialize(new { Header.Uid, Header.Version, reason }));
-            var result = await _runner.RunAsync(() => call(id), success + "失败");
-            CompleteCommand(operation, result);
-            if (!result.Success || result.Data is null) { HandleFailure(success + "失败", result); return; }
-            ApplyCommandResult(result.Data);
-            await ReloadAfterWriteAsync(Header.Uid, success);
-        }, "正在执行售后状态操作...");
+            await RunBusyAsync(async () => await RefreshAfterSuccessAsync(uid, "已刷新售后服务单"), "正在刷新售后服务单...");
+        }
+    }
+
+    private bool CanRefreshCurrentFact() => _refreshOnlyUid.HasValue && IsNotBusy;
+
+    /// <summary>完整请求由页面持有；前置拒绝只有发生在结果未知之后才保留原意图。</summary>
+    private async Task RunPendingWriteAsync()
+    {
+        if (_pendingWrite is not { } pending) return;
+        await RunBusyAsync(async () =>
+        {
+            var result = await pending.Call();
+            if (!result.Success || result.Data is null)
+            {
+                if (!MustKeepPendingIntent(result.Error?.Code, ref pending.OutcomeUnknown)) SetPendingWrite(null);
+                HandleFailure(pending.Success + "失败", result);
+                return;
+            }
+            SetPendingWrite(null);
+            _hasServerIdentity = true;
+            await RefreshAfterSuccessAsync(result.Data.Uid, pending.Success);
+        }, "正在执行售后命令...");
+    }
+
+    private void SetPendingWrite(PendingWrite? pending)
+    {
+        _pendingWrite = pending;
+        NotifyPendingState();
+    }
+
+    private sealed class PendingWrite(string operation, Guid uid, string success,
+        Func<Task<ServiceResult<AfterSalesCommandResult>>> call)
+    {
+        public string Operation { get; } = operation;
+        public Guid Uid { get; } = uid;
+        public string Success { get; } = success;
+        public Func<Task<ServiceResult<AfterSalesCommandResult>>> Call { get; } = call;
+        public bool OutcomeUnknown;
     }
 
     // 本地验证只负责明显输入错误，状态及跨领域资格仍由后端决定。
@@ -262,28 +369,56 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
 
     private bool ValidationFailed(string message) { ValidationSummary = message; _messages.ShowWarning("售后服务单未提交", message); return false; }
 
-    private SaveAfterSalesCommand CreateSaveCommand(string operation)
+    private SaveAfterSalesCommand CreateSaveCommand()
     {
         var command = new SaveAfterSalesCommand
         {
-            Uid = Header.Uid, Version = Header.Version,
+            CommandId = Guid.NewGuid(), Uid = Header.Uid, Version = Header.Version,
             Header = Header.ToDto(), AddedLines = Lines.Where(x => x.IsNew && !x.IsEmptyPlaceholder).Select(x => x.ToEditDto()).ToList(),
             UpdatedLines = Lines.Where(x => !x.IsNew && x.IsDirty).Select(x => x.ToEditDto()).ToList(),
             DeletedLines = LineList.DeletedItems.Select(x => new AfterSalesDeletedLineDto { Uid = x.Uid, Version = x.Version }).ToList()
         };
-        var fingerprint = JsonSerializer.Serialize(command);
-        command.CommandId = CommandId(operation, fingerprint);
         return command;
     }
 
-    private Guid CommandId(string operation, string fingerprint)
+    /// <summary>限流、授权和服务暂不可用均未证明旧意图结局；确定业务失败才结束当前阶段。</summary>
+    private static bool MustKeepPendingIntent(string? code, ref bool outcomeUnknown) =>
+        (outcomeUnknown |= code is ServiceErrorCodes.OutcomeUnknown
+            or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable) && MustKeepPendingIntent(code);
+
+    /// <summary>保留其他已有命令的错误分类；确认流程额外判断该阶段是否曾结果未知。</summary>
+    private static bool MustKeepPendingIntent(string? code) => code is
+        ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.RateLimited
+        or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden or ServiceErrorCodes.ServiceUnavailable;
+
+    /// <summary>统一通知编辑、重试和页签关闭门禁，避免阶段切换遗漏 CanExecute。</summary>
+    private void SetPendingConfirmation(PendingDemandConfirmation? pending)
     {
-        if (_pendingCommands.TryGetValue(operation, out var pending) && pending.Fingerprint == fingerprint) return pending.CommandId;
-        var id = Guid.NewGuid(); _pendingCommands[operation] = (fingerprint, id); return id;
+        _pendingConfirmation = pending;
+        NotifyPendingState();
     }
-    private void CompleteCommand<T>(string operation, ServiceResult<T>? result)
+
+    private void NotifyPendingState()
     {
-        if (result?.Success == true || result?.Error is not null) _pendingCommands.Remove(operation);
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(HasPendingIntent));
+        OnPropertyChanged(nameof(CanEditFacts));
+        OnPropertyChanged(nameof(CanEditSupplement));
+        RetryPendingWriteCommand.NotifyCanExecuteChanged();
+        RefreshCurrentFactCommand.NotifyCanExecuteChanged();
+        NotifyCommands();
+    }
+
+    /// <summary>页面实例内保存两阶段不可替换的原保存请求与确认身份。</summary>
+    private sealed class PendingDemandConfirmation(SaveAfterSalesCommand save, bool create, Guid confirmId)
+    {
+        public SaveAfterSalesCommand Save { get; } = save;
+        public bool Create { get; } = create;
+        public Guid ConfirmId { get; } = confirmId;
+        public ConfirmAfterSalesDemandCommand? Confirm { get; set; }
+        // 两阶段独立记录结果未知，保存重放成功不代表确认曾经执行。
+        public bool SaveOutcomeUnknown;
+        public bool ConfirmOutcomeUnknown;
     }
     private void HandleFailure<T>(string title, ServiceResult<T>? result)
     {
@@ -324,20 +459,29 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         cts.Dispose();
     }
 
-    private async Task ReloadAfterWriteAsync(Guid uid, string success)
+    private async Task RefreshAfterSuccessAsync(Guid uid, string success)
     {
-        await ReloadCoreAsync(uid, CancellationToken.None);
-        ResultSummary = success; _messages.ShowSuccess(success, DocumentTitle);
+        _refreshOnlyUid = uid;
+        NotifyPendingState();
+        if (await ReloadCoreAsync(uid, CancellationToken.None))
+        {
+            _refreshOnlyUid = null;
+            NotifyPendingState();
+            ResultSummary = success;
+            _messages.ShowSuccess(success, DocumentTitle);
+        }
     }
-    private async Task ReloadCoreAsync(Guid uid, CancellationToken token)
+    private async Task<bool> ReloadCoreAsync(Guid uid, CancellationToken token)
     {
         var result = await _runner.RunAsync(() => _api.GetAsync(uid, token), token, "刷新售后服务单失败");
         if (result.Success && result.Data is not null)
         {
             ApplyDetail(result.Data);
             await LoadProductImagesAsync(token);
+            return true;
         }
-        else _messages.ShowWarning("操作已完成，刷新失败", result.Error?.Message ?? result.Message);
+        _messages.ShowWarning("操作已完成，刷新失败", result.Error?.Message ?? result.Message);
+        return false;
     }
 
     private void ApplyDetail(AfterSalesDetailDto detail)
@@ -514,15 +658,21 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     }
     private bool CanAddLine() => CanEditFacts && IsNotBusy;
     private bool CanDeleteLine() => CanEditFacts && IsNotBusy && SelectedLine is not null;
-    private bool CanReload() => HasAccess && IsNotBusy && IsPersisted;
-    private bool CanRefreshLookups() => HasAccess && IsNotBusy;
-    private bool CanSave() => HasAccess && IsNotBusy && !HasInputErrors && Capabilities.CanSave && IsDirty;
-    private bool CanConfirm() => HasAccess && IsNotBusy && !HasInputErrors && DocumentStatus == DocumentStatusEnum.Open
-        && ConfirmationStatus != ConfirmationStatusEnum.已确认 && (Capabilities.CanConfirm || IsDirty);
-    private bool CanCancelConfirmation() => HasAccess && IsNotBusy && Capabilities.CanCancelConfirmation && !IsDirty;
-    private bool CanCloseDocument() => HasAccess && IsNotBusy && Capabilities.CanClose && !IsDirty;
-    private bool CanReopen() => HasAccess && IsNotBusy && Capabilities.CanReopen && !IsDirty;
-    private bool CanVoid() => HasAccess && IsNotBusy && Capabilities.CanVoid && !IsDirty;
+    private bool CanReload() => HasAccess && IsNotBusy && IsPersisted && !HasPendingIntent;
+    private bool CanRefreshLookups() => HasAccess && IsNotBusy && !HasPendingIntent;
+    private bool CanSave() => CanMaintain && IsNotBusy && (_pendingWrite?.Operation == "save"
+        || !HasPendingIntent && !HasInputErrors && Capabilities.CanSave && IsDirty);
+    private bool CanConfirm() => CanConfirmDemand && IsNotBusy && (_pendingConfirmation is not null
+        || CanMaintain && !HasPendingIntent && !HasInputErrors && DocumentStatus == DocumentStatusEnum.Open
+        && ConfirmationStatus != ConfirmationStatusEnum.已确认 && (Capabilities.CanConfirm || IsDirty));
+    private bool CanCancelConfirmation() => CanCancelDemand && IsNotBusy && (_pendingWrite?.Operation == "cancel"
+        || !HasPendingIntent && Capabilities.CanCancelConfirmation && !IsDirty);
+    private bool CanCloseDocument() => CanManageLifecycle && IsNotBusy && (_pendingWrite?.Operation == "close"
+        || !HasPendingIntent && Capabilities.CanClose && !IsDirty);
+    private bool CanReopen() => CanManageLifecycle && IsNotBusy && (_pendingWrite?.Operation == "reopen"
+        || !HasPendingIntent && Capabilities.CanReopen && !IsDirty);
+    private bool CanVoid() => CanManageLifecycle && IsNotBusy && (_pendingWrite?.Operation == "void"
+        || !HasPendingIntent && Capabilities.CanVoid && !IsDirty);
     private void NotifyCommands()
     {
         SaveCommand.NotifyCanExecuteChanged(); ConfirmDemandCommand.NotifyCanExecuteChanged();
@@ -530,12 +680,14 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         ReopenCommand.NotifyCanExecuteChanged(); VoidCommand.NotifyCanExecuteChanged();
         AddLineCommand.NotifyCanExecuteChanged(); DeleteLineCommand.NotifyCanExecuteChanged();
         ReloadCommand.NotifyCanExecuteChanged(); RefreshLookupsCommand.NotifyCanExecuteChanged();
+        RetryPendingWriteCommand.NotifyCanExecuteChanged(); RefreshCurrentFactCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>取消可替代读取并解除行订阅；重复释放安全。</summary>
     public void Dispose()
     {
         if (_disposed) return; _disposed = true;
+        PropertyChanged -= OnBusyPropertyChanged;
         _loadCancellation?.Cancel(); _loadCancellation?.Dispose(); _loadCancellation = null;
         Header.PropertyChanged -= OnEditChanged;
         LineList.ListStateChanged -= OnLineListChanged;

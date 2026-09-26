@@ -1,6 +1,7 @@
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
@@ -52,9 +53,9 @@ public sealed partial class InboundManagerViewModel
     private async Task<ServiceResult<InboundDraftCommandResult>> SendPostAsync(InboundPendingWrite pending)
     {
         var result = await _persistence!.PostAsync(pending.DocumentId, pending.Post!, CancellationToken.None);
-        if (!result.Success) return ServiceResult<InboundDraftCommandResult>.Fail(result.Error?.Code ?? InboundErrorCodes.OutcomeUnknown, result.Message, result.Error?.Field);
+        if (!result.Success) return ServiceResult<InboundDraftCommandResult>.Fail(result.Error?.Code ?? ServiceErrorCodes.OutcomeUnknown, result.Message, result.Error?.Field);
         if (result.Data is null || result.Data.PostingStatus != InboundPostingStatusEnum.Posted)
-            return ServiceResult<InboundDraftCommandResult>.Fail(InboundErrorCodes.OutcomeUnknown, "过账响应状态不完整，请以原命令确认。");
+            return ServiceResult<InboundDraftCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "过账响应状态不完整，请以原命令确认。");
         return ServiceResult<InboundDraftCommandResult>.Ok(new() { Uid = result.Data.Uid, Version = result.Data.Version, DocumentNo = result.Data.DocumentNo });
     }
 

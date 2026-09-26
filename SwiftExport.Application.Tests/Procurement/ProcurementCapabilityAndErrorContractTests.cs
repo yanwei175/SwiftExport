@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
-using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
@@ -65,7 +64,7 @@ public sealed class ProcurementCapabilityAndErrorContractTests
     public void Reversal_routes_are_exposed_as_separate_commands()
     {
         var controller = File.ReadAllText(Path.Combine(
-            Root(), "SwiftExport.WebApi", "Controllers", "Procurement", "ProcurementOrderController.cs"));
+            Root(), "SwiftExport.WebApi", "Controllers", "Procurement", "PurchaseOrders", "Reversal", "ProcurementOrderReversalController.cs"));
         foreach (var name in new[] { "CancelConfirmationAsync", "VoidAsync", "DeleteLinesAsync", "PreviewCancelConfirmationAsync", "PreviewVoidAsync", "PreviewDeleteLinesAsync" })
             Assert.IsNotNull(typeof(IProcurementOrderApi).GetMethod(name));
         foreach (var route in new[] { "cancel-confirmation", "void", "delete-lines" })
@@ -98,7 +97,7 @@ public sealed class ProcurementCapabilityAndErrorContractTests
     [TestMethod]
     public void Detail_sql_has_real_sources_for_restored_fields()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Procurement", "ProcurementOrderQueryRepository.cs"));
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "ProcurementOrderQueryRepository.cs"));
         foreach (var token in new[] { "h.BoNo", "h.CustomerPoNo", "h.SoPerson AS SalesPerson", "h.InletrHoseType AS InletHoseType",
                      "l.CustomerSku", "l.LinkSku", "l.FinishZh", "l.FeaturesZh", "l.MaterialType", "l.SupplyType",
                      "l.SourceUid", "l.SourceLineId" })

@@ -14,6 +14,8 @@ public partial class WarehouseAutoSuggestComboBox : UserControl
 
     /// <summary>标识可供本地筛选的仓库候选集合。</summary>
     public static readonly DependencyProperty ItemsSourceProperty = Register(nameof(ItemsSource), typeof(IEnumerable));
+    /// <summary>当前仓库编码的显示文本；选择提交仍由完整仓库对象决定。</summary>
+    public static readonly DependencyProperty TextProperty = Register(nameof(Text), typeof(string), string.Empty);
     /// <summary>标识双向绑定的已选仓库。</summary>
     public static readonly DependencyProperty SelectedWarehouseProperty = RegisterTwoWay(nameof(SelectedWarehouse), typeof(WarehouseSitePickerDto));
     /// <summary>标识选择确认命令。</summary>
@@ -29,6 +31,8 @@ public partial class WarehouseAutoSuggestComboBox : UserControl
 
     /// <summary>获取或设置当前登录会话可见的活动仓库缓存。</summary>
     public IEnumerable? ItemsSource { get => (IEnumerable?)GetValue(ItemsSourceProperty); set => SetValue(ItemsSourceProperty, value); }
+    /// <summary>获取或设置输入框显示的仓库编码。</summary>
+    public string Text { get => (string)GetValue(TextProperty); set => SetValue(TextProperty, value); }
     /// <summary>获取或设置当前确认的完整仓库选择 DTO。</summary>
     public WarehouseSitePickerDto? SelectedWarehouse { get => (WarehouseSitePickerDto?)GetValue(SelectedWarehouseProperty); set => SetValue(SelectedWarehouseProperty, value); }
     /// <summary>获取或设置选择确认命令；未指定参数时传递完整仓库 DTO。</summary>

@@ -7,6 +7,23 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class ProductsDefaultSupplierTests
 {
+    /// <summary>兼容编辑列退出产品页后，真实客户筛选和供应商选择仍保留。</summary>
+    [TestMethod]
+    public void ProductPage_RemovesLegacyColumnsButKeepsCustomerFilter()
+    {
+        var path = Path.Combine(FindRepositoryRoot(), "SwiftExport.Client.Wpf", "Features", "Products",
+            "ProductList", "Views", "ProductsView.xaml");
+        var document = XDocument.Load(path);
+        var keys = document.Descendants().Attributes()
+            .Where(attribute => attribute.Name.LocalName.EndsWith("Key", StringComparison.Ordinal))
+            .Select(attribute => attribute.Value).ToArray();
+        foreach (var legacyKey in new[] { "default-customer-code", "default-customer-sku", "default-supplier-sku" })
+            CollectionAssert.DoesNotContain(keys, legacyKey);
+        Assert.IsTrue(document.Descendants().Attributes().Any(attribute =>
+            attribute.Name.LocalName == "SelectedItems" && attribute.Value == "{Binding FilterCustomerList}"));
+        CollectionAssert.Contains(keys, "default-supplier-code");
+    }
+
     [TestMethod]
     public void DefaultSupplierCodeColumn_ShouldUseAtomicSupplierLookupTemplate()
     {

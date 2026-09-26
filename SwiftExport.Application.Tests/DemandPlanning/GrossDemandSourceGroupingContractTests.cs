@@ -12,7 +12,7 @@ public sealed class GrossDemandSourceGroupingContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "GrossDemandRepository.cs");
+            "Sources", "Query", "GrossDemandQueryRepository.cs");
 
         StringAssert.Contains(source, "GrossDemandSourceGroupSearchRequest request");
         StringAssert.Contains(source, "SourceLifecycleStatuses");
@@ -33,7 +33,7 @@ public sealed class GrossDemandSourceGroupingContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "GrossDemandRepository.cs");
+            "Sources", "Query", "GrossDemandQueryRepository.cs");
         var start = source.IndexOf("var selectSql = $@\"", StringComparison.Ordinal);
         var end = source.IndexOf("var countSql =", start, StringComparison.Ordinal);
         Assert.IsTrue(start >= 0 && end > start, "无法定位来源需求主列表 SQL。");
@@ -55,12 +55,16 @@ public sealed class GrossDemandSourceGroupingContractTests
             "SwiftExport.Contracts",
             "Apis",
             "DemandPlanning",
+            "Sources",
             "IGrossDemandWorkspaceApi.cs");
         var controller = Read(
             "SwiftExport.WebApi",
             "Controllers",
             "DemandPlanning",
-            "GrossDemandWorkspaceController.cs");
+            "Sources", "Query", "GrossDemandQueryController.cs");
+        var manualController = Read(
+            "SwiftExport.WebApi", "Controllers", "DemandPlanning",
+            "Sources", "Manual", "ManualGrossDemandController.cs");
 
         StringAssert.Contains(api, "Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync");
         StringAssert.Contains(api, "[Post(\"/source-groups/search\")]");
@@ -68,6 +72,8 @@ public sealed class GrossDemandSourceGroupingContractTests
         StringAssert.Contains(api, "GrossDemandSourceGroupSearchRequest request");
         StringAssert.Contains(controller, "[HttpPost(\"source-groups/search\")]");
         StringAssert.Contains(controller, "GrossDemandSourceGroupSearchRequest request");
+        StringAssert.Contains(controller, "IGrossDemandQueryService queryService");
+        StringAssert.Contains(manualController, "IManualGrossDemandService manualService");
     }
 
     private static string Read(params string[] parts) =>

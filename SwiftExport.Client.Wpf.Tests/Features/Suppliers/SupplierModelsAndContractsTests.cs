@@ -103,7 +103,7 @@ public sealed class SupplierModelsAndContractsTests
         Assert.AreEqual("/page", page!.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path);
         Assert.AreEqual("/batch-save", batchSave!.GetCustomAttributes(typeof(PostAttribute), false).Cast<PostAttribute>().Single().Path);
         Assert.AreEqual(typeof(Guid), typeof(SupplierProductDto).GetProperty(nameof(SupplierProductDto.SupplierId))!.PropertyType);
-        Assert.AreEqual(typeof(Guid), typeof(SupplierProductDto).GetProperty(nameof(SupplierProductDto.SkuId))!.PropertyType);
+        Assert.AreEqual(typeof(Guid?), typeof(SupplierProductDto).GetProperty(nameof(SupplierProductDto.SkuId))!.PropertyType);
 
         var registry = new NavigationRouteRegistry();
         Assert.IsTrue(registry.TryGetRoute("suppliers", out var route));
@@ -172,9 +172,14 @@ public sealed class SupplierModelsAndContractsTests
         Assert.AreEqual(110m, line.TaxPrice, "供应商含税价不得从销售价自动带入。");
 
         viewModel.ClearProductCommand.Execute(line);
-        Assert.AreEqual(Guid.Empty, line.SkuId);
+        Assert.IsNull(line.SkuId);
         Assert.AreEqual(string.Empty, line.ProductSku);
         Assert.AreEqual("供应商自定义描述", line.SupplierSkuDescriptionZh);
         Assert.AreEqual(99m, line.UnitPrice);
+        line.SupplierId = Guid.NewGuid();
+        line.SupplierCode = "SUP-1";
+        line.SupplierSku = "OWN-1";
+        Assert.IsNull(line.ValidateRow(), "清除 Product 后供应商自己的资料仍可保存。");
+        Assert.IsNull(line.ToDto().SkuId);
     }
 }
