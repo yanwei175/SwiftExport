@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.Inventory;
@@ -7,15 +6,8 @@ using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Controllers.Inventory;
-using SwiftExport.WebApi.Controllers.Inventory.Query;
-using SwiftExport.WebApi.Controllers.Inventory.Warehouses;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
-using SwiftExport.Infrastructure.Repositories.Inventory.Warehouses;
-using SwiftExport.Application.Interfaces.Inventory.Query;
-using SwiftExport.Application.Interfaces.Inventory.Warehouses;
-using SwiftExport.Application.Services.Inventory.Query;
-using SwiftExport.Application.Services.Inventory.Warehouses;
+using SwiftExport.Infrastructure.Repositories.Inventory;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
@@ -23,66 +15,6 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class InventoryQueryContractTests
 {
-    /// <summary>目录迁移后逐项核对仓库十项与库存三项 HTTP 用例的动词、路径和控制器基路由。</summary>
-    [TestMethod]
-    public void InventoryAndWarehouseApis_ShouldKeepAllThirteenRoutes()
-    {
-        var routes = new (Type Controller, Type Api, string Method, string Verb)[]
-        {
-            (typeof(InventoryController), typeof(IInventoryApi), "SearchBalancesAsync", "POST"),
-            (typeof(InventoryController), typeof(IInventoryApi), "SearchLedgerAsync", "POST"),
-            (typeof(InventoryController), typeof(IInventoryApi), "GetTraceAsync", "GET"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "GetWarehousePickerPagedAsync", "GET"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "SearchCandidatesAsync", "POST"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "SearchAsync", "POST"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "SearchSuppliersAsync", "POST"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "GetAsync", "GET"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "CreateSupplierVirtualAsync", "POST"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "UpdateAsync", "PUT"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "DeactivateAsync", "POST"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "ActivateAsync", "POST"),
-            (typeof(WarehouseSitesController), typeof(IWarehouseSiteApi), "DeleteAsync", "DELETE")
-        };
-        Assert.AreEqual(3, typeof(IInventoryApi).GetMethods().Length);
-        Assert.AreEqual(10, typeof(IWarehouseSiteApi).GetMethods().Length);
-
-        foreach (var route in routes)
-        {
-            var controllerMethod = route.Controller.GetMethod(route.Method)!;
-            var http = controllerMethod.GetCustomAttributes(false).OfType<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>().Single();
-            Assert.AreEqual(route.Verb, http.HttpMethods.Single(), route.Method);
-            var apiMethod = route.Api.GetMethod(route.Method)!;
-            var apiPath = route.Verb switch
-            {
-                "GET" => apiMethod.GetCustomAttributes(false).OfType<GetAttribute>().Single().Path,
-                "POST" => apiMethod.GetCustomAttributes(false).OfType<PostAttribute>().Single().Path,
-                "PUT" => apiMethod.GetCustomAttributes(false).OfType<PutAttribute>().Single().Path,
-                _ => apiMethod.GetCustomAttributes(false).OfType<DeleteAttribute>().Single().Path
-            };
-            Assert.AreEqual("/" + http.Template!.Replace(":guid", "", StringComparison.Ordinal), apiPath, route.Method);
-            Assert.AreEqual(route.Controller == typeof(InventoryController) ? "api/inventory" : "api/inventory/warehouse-sites",
-                route.Controller.GetCustomAttributes(false).OfType<RouteAttribute>().Single().Template, route.Method);
-        }
-    }
-
-    /// <summary>两个 HTTP 资源只注入各自用例接口，DI 不再注册旧宽服务。</summary>
-    [TestMethod]
-    public void InventoryServices_ShouldUseNarrowControllerAndDiBoundaries()
-    {
-        CollectionAssert.AreEquivalent(
-            new[] { typeof(IWarehouseQueryService), typeof(IWarehouseManagementService) },
-            typeof(WarehouseSitesController).GetConstructors().Single().GetParameters().Select(parameter => parameter.ParameterType).ToArray());
-        Assert.AreEqual(typeof(IInventoryQueryService),
-            typeof(InventoryController).GetConstructors().Single().GetParameters().Single().ParameterType);
-
-        var services = new ServiceCollection();
-        SwiftExport.Application.DependencyInjection.AddApplicationServices(services);
-        Assert.AreEqual(typeof(WarehouseQueryService), services.Single(item => item.ServiceType == typeof(IWarehouseQueryService)).ImplementationType);
-        Assert.AreEqual(typeof(WarehouseManagementService), services.Single(item => item.ServiceType == typeof(IWarehouseManagementService)).ImplementationType);
-        Assert.AreEqual(typeof(InventoryQueryService), services.Single(item => item.ServiceType == typeof(IInventoryQueryService)).ImplementationType);
-        Assert.AreEqual(typeof(WarehouseCandidateQueryService), services.Single(item => item.ServiceType == typeof(IWarehouseCandidateQueryService)).ImplementationType);
-    }
-
     /// <summary>Refit 只公开余额、流水与 Trace 三个查询，不重新暴露期初或余额写接口。</summary>
     [TestMethod]
     public void InventoryApi_ShouldExposeOnlyReadModelsAndStableRoutes()
@@ -145,7 +77,7 @@ public sealed class InventoryQueryContractTests
     [TestMethod]
     public void InventoryRepository_ShouldUseSupplierBusinessColumns()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Query", "InventoryQueryRepository.cs"));
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "InventoryRepository.cs"));
 
         Assert.IsFalse(source.Contains("s.Code AS SupplierCode", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("s.Name AS SupplierName", StringComparison.Ordinal));
@@ -156,7 +88,7 @@ public sealed class InventoryQueryContractTests
     [TestMethod]
     public void InventoryRepository_ShouldReadLiveProductImageWithoutFilteringBalances()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Query", "InventoryQueryRepository.cs"));
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "InventoryRepository.cs"));
 
         Assert.AreEqual(2, Count(source, "LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0"));
         Assert.AreEqual(2, Count(source, "p.MainImage AS ImagePath"));
@@ -167,7 +99,7 @@ public sealed class InventoryQueryContractTests
     [TestMethod]
     public void WarehousePickerRepository_ShouldKeepFilteringFallbackAndLiteralLikeRules()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseQueryRepository.cs"));
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "WarehouseSiteRepository.cs"));
         var pickerStart = source.IndexOf("GetPickerPagedAsync", StringComparison.Ordinal);
         var pickerEnd = source.IndexOf("SearchSupplierLookupAsync", pickerStart, StringComparison.Ordinal);
         var pickerSource = source.Substring(pickerStart, pickerEnd - pickerStart);
@@ -178,7 +110,7 @@ public sealed class InventoryQueryContractTests
         StringAssert.Contains(pickerSource, "COALESCE(s.SupplierName,w.SupplierNameSnapshot,N'')");
         StringAssert.Contains(pickerSource, "ORDER BY w.Code,w.Uid");
 
-        var escape = typeof(WarehouseQueryRepository).GetMethod("EscapeLike", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var escape = typeof(WarehouseSiteRepository).GetMethod("EscapeLike", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
         Assert.AreEqual("~%~_~[~~", escape.Invoke(null, ["%_[~"]));
     }
 

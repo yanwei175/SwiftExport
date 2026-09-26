@@ -1,8 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Products;
-using SwiftExport.Application.Services.Products.Catalog.Maintenance;
 using SwiftExport.Contracts.DTOs.Products;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
+using SwiftExport.Core.Entities.Systems;
 
 namespace SwiftExport.Application.Tests.Products;
 

@@ -225,7 +225,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     private async Task SetProductDefaultSupplierAsync()
     {
         var selected = SelectedLine;
-        if (selected is null || selected.SkuId is not Guid productId || productId == Guid.Empty
+        if (selected is null
             || !await _dialogService.ConfirmAsync(
                 "设置产品默认供应商",
                 $"将 {selected.SupplierCode} 设置为产品 {selected.ProductSku} 的默认供应商。既有净需求计划不会自动改变，是否继续？",
@@ -237,7 +237,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         await RunWriteAsync(async () =>
         {
             var productResult = await _apiCallRunner.RunAsync(
-                () => _productApi.GetByIdAsync(productId),
+                () => _productApi.GetByIdAsync(selected.SkuId),
                 "读取产品并发版本失败");
             if (!productResult.Success || productResult.Data is null)
             {
@@ -249,7 +249,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
                 () => _supplierProductApi.SetProductDefaultSupplierAsync(new SetProductDefaultSupplierCommand
                 {
                     SupplierProductId = selected.Uid,
-                    ProductId = productId,
+                    ProductId = selected.SkuId,
                     SupplierId = selected.SupplierId,
                     ExpectedProductVersion = productResult.Data.Version,
                 }),
@@ -322,7 +322,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     private void ClearProduct(SupplierProductLineModel? line)
     {
         if (line is null) return;
-        line.SkuId = null;
+        line.SkuId = Guid.Empty;
         line.ProductSku = string.Empty;
         line.LinkSku = string.Empty;
         line.DescriptionEn = string.Empty;
@@ -466,7 +466,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         && ActiveSupplier is not null
         && SelectedLine is { IsNew: false, IsDeleted: false, IsProductDefaultSupplier: false }
         && SelectedLine.Uid != Guid.Empty
-        && SelectedLine.SkuId.HasValue && SelectedLine.SkuId != Guid.Empty
+        && SelectedLine.SkuId != Guid.Empty
         && SelectedLine.SupplierId == ActiveSupplier.Uid;
     private static string FirstNonEmpty(string? first, string? second) => !string.IsNullOrWhiteSpace(first) ? first : second ?? string.Empty;
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

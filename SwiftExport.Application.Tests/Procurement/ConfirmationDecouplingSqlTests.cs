@@ -1,10 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Interfaces.Inventory.Posting;
-using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Interfaces.Procurement;
+using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums.Inventory;
 
 namespace SwiftExport.Application.Tests.Procurement;
@@ -51,7 +49,7 @@ public sealed class ConfirmationDecouplingSqlTests
         await using var db = new IndependentProcurementSqlFixture();
         await db.InitializeAsync();
         async Task<SwiftExport.Contracts.Wrappers.ServiceResult<System.Collections.Generic.IReadOnlyList<SwiftExport.Contracts.DTOs.Inventory.InventoryPostingResultDto>>> Post(decimal qty) =>
-            await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderReadSupport>().ReadConsistentAsync("Read", () =>
+            await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderTransaction>().ExecuteAsync("Read", () =>
                 p.GetRequiredService<IInventoryPostingService>().PostAsync(Guid.NewGuid(), [new InventoryPostingItem
                 {
                     CommandItemId=Guid.NewGuid(), WarehouseSiteId=db.ReceiptSiteId, ProductId=db.ProductId,
@@ -60,17 +58,17 @@ public sealed class ConfirmationDecouplingSqlTests
                 }]), default));
         var incoming = await Post(10);
         Assert.IsTrue(incoming.Success, incoming.Message);
-        var blocked = await db.InScopeAsync(p => p.GetRequiredService<IWarehouseManagementService>().DeleteWarehouseSiteAsync(db.ReceiptSiteId,
+        var blocked = await db.InScopeAsync(p => p.GetRequiredService<IInventoryService>().DeleteWarehouseSiteAsync(db.ReceiptSiteId,
             new() {CommandId=Guid.NewGuid(),ExpectedVersion=1,Reason="非零库存不得删除"}));
         Assert.IsFalse(blocked.Success);
         var outgoing = await Post(-10);
         Assert.IsTrue(outgoing.Success, outgoing.Message);
-        var deleted = await db.InScopeAsync(p => p.GetRequiredService<IWarehouseManagementService>().DeleteWarehouseSiteAsync(db.ReceiptSiteId,
+        var deleted = await db.InScopeAsync(p => p.GetRequiredService<IInventoryService>().DeleteWarehouseSiteAsync(db.ReceiptSiteId,
             new() {CommandId=Guid.NewGuid(),ExpectedVersion=1,Reason="历史保留软删除"}));
         Assert.IsTrue(deleted.Success, deleted.Message);
         Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.InventoryLedgerEntry"));
         Assert.IsFalse((await Post(1)).Success);
-        var reversed = await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderReadSupport>().ReadConsistentAsync("Read", () =>
+        var reversed = await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderTransaction>().ExecuteAsync("Read", () =>
             p.GetRequiredService<IInventoryPostingService>().ReverseAsync(Guid.NewGuid(), [new InventoryReverseItem
             {CommandItemId=Guid.NewGuid(),OriginalLedgerId=outgoing.Data![0].LedgerId,SourceDocumentType="Test",SourceDocumentId=Guid.NewGuid(),SourceLineId=Guid.NewGuid(),Reason="验证原仓",OccurredDate=DateTime.Now}]), default));
         Assert.IsFalse(reversed.Success);
@@ -81,7 +79,7 @@ public sealed class ConfirmationDecouplingSqlTests
             using var tx=session.Connection.BeginTransaction(); session.Transaction=tx;
             try { await p.GetRequiredService<IInventoryPostingService>().ReverseAsync(Guid.NewGuid(), [new InventoryReverseItem
                 {CommandItemId=Guid.NewGuid(),OriginalLedgerId=outgoing.Data![0].LedgerId,SourceDocumentType="Test",SourceDocumentId=Guid.NewGuid(),SourceLineId=Guid.NewGuid(),Reason="原仓校验",OccurredDate=DateTime.Now}]); return ""; }
-            catch (SwiftExport.Application.Services.Inventory.Posting.InventoryPostingException ex) { return ex.Message; }
+            catch (SwiftExport.Application.Services.Inventory.InventoryPostingException ex) { return ex.Message; }
             finally { session.Transaction=null; }
         });
         StringAssert.Contains(message,"恢复原仓库");
@@ -97,10 +95,10 @@ public sealed class ConfirmationDecouplingSqlTests
         {
             var session=p.GetRequiredService<SwiftExport.Infrastructure.Data.DbSession>();
             using var tx=session.Connection.BeginTransaction(); session.Transaction=tx;
-            var warehouse=p.GetRequiredService<SwiftExport.Core.Interfaces.Inventory.Warehouses.IWarehouseManagementRepository>();
+            var warehouse=p.GetRequiredService<SwiftExport.Core.Interfaces.Inventory.IWarehouseSiteRepository>();
             await warehouse.GetForUpdateAsync(db.ReceiptSiteId);
             var reader=await Dapper.SqlMapper.ExecuteScalarAsync<int>(session.Connection,"SELECT @@SPID",transaction:tx);
-            var deletion=db.InScopeAsync(other => other.GetRequiredService<IWarehouseManagementService>().DeleteWarehouseSiteAsync(db.ReceiptSiteId,
+            var deletion=db.InScopeAsync(other => other.GetRequiredService<IInventoryService>().DeleteWarehouseSiteAsync(db.ReceiptSiteId,
                 new() {CommandId=Guid.NewGuid(),ExpectedVersion=1,Reason="并发删除"}));
             try
             {

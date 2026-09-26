@@ -3,7 +3,7 @@ using SwiftExport.Application.Services.Products.Execution;
 using SwiftExport.Contracts.DTOs.Products.Execution;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
+using SwiftExport.Core.Entities.Systems;
 
 namespace SwiftExport.Application.Tests.Products;
 

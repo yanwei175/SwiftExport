@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Products;
-using SwiftExport.Application.Services.Products.Categories;
 
 namespace SwiftExport.Application.Tests.Products;
 

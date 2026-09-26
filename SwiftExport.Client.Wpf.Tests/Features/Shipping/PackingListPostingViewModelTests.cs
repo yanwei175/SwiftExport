@@ -38,7 +38,7 @@ public sealed class PackingListPostingViewModelTests
         f.Api.Post = (_, request) =>
         {
             commands.Add(request.CommandId);
-            if (commands.Count == 1) return Task.FromResult(ServiceResult<PackingListPostingCommandResult>.Fail("OUTCOME_UNKNOWN", "连接中断"));
+            if (commands.Count == 1) return Task.FromResult(ServiceResult<PackingListPostingCommandResult>.Fail("连接中断"));
             f.Detail.Header.PostingStatus = PackingListPostingStatusEnum.Posted; f.Detail.Header.Version++;
             return Task.FromResult(ServiceResult<PackingListPostingCommandResult>.Ok(new() { Status = "AlreadyApplied", Detail = f.Detail }));
         };
@@ -105,7 +105,7 @@ public sealed class PackingListPostingViewModelTests
         f.Api.Reverse = (_, request) =>
         {
             requests.Add(request);
-            if (requests.Count == 1) return Task.FromResult(ServiceResult<PackingListPostingCommandResult>.Fail("OUTCOME_UNKNOWN", "响应中断"));
+            if (requests.Count == 1) return Task.FromResult(ServiceResult<PackingListPostingCommandResult>.Fail("响应中断"));
             f.Detail.Header.PostingStatus = PackingListPostingStatusEnum.Reversed; f.Detail.Header.Version++;
             return Task.FromResult(ServiceResult<PackingListPostingCommandResult>.Ok(new() { Status = "AlreadyApplied", Detail = f.Detail }));
         };

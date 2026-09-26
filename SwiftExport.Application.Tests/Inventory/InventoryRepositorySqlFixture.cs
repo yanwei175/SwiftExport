@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
-using SwiftExport.Core.Interfaces.Inventory.Query;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
@@ -155,10 +154,10 @@ internal sealed class InventoryRepositorySqlFixture : IAsyncDisposable
     }
 
     /// <summary>在独立作用域中调用真实库存仓储，确保 count 和 page SQL 均由 SQL Server 执行。</summary>
-    public async Task<T> QueryAsync<T>(Func<IInventoryQueryRepository, Task<T>> action)
+    public async Task<T> QueryAsync<T>(Func<IInventoryRepository, Task<T>> action)
     {
         using var scope = provider!.CreateScope();
-        return await action(scope.ServiceProvider.GetRequiredService<IInventoryQueryRepository>());
+        return await action(scope.ServiceProvider.GetRequiredService<IInventoryRepository>());
     }
 
     /// <summary>只向本夹具拥有的随机数据库执行参数化建表或造数 SQL。</summary>

@@ -1,5 +1,4 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -7,41 +6,17 @@ namespace SwiftExport.Application.Tests.DemandPlanning;
 [TestClass]
 public sealed class MaterialDemandEstablishmentContractTests
 {
-    /// <summary>核对两项命令按稳定输入使用公共回执，审计不再承担机器重放。</summary>
-    [TestMethod]
-    public void MaterialCommandsUsePublicReceiptAndIndependentPermissions()
-    {
-        var establishment = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Establishment", "MaterialDemandEstablishmentService.cs");
-        var reversal = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Reversal", "MaterialDemandReversalService.cs");
-        foreach (var source in new[] { establishment, reversal })
-        {
-            StringAssert.Contains(source, "pipeline.ExecuteAsync");
-            StringAssert.Contains(source, "executor.ExecuteAsync");
-            StringAssert.Contains(source, "OrderBy(item => item.GrossDemandId)");
-            Assert.IsFalse(source.Contains("GetByCommandAsync", StringComparison.Ordinal));
-            Assert.IsFalse(source.Contains("BeginTransaction", StringComparison.Ordinal));
-        }
-        StringAssert.Contains(establishment, "PermissionKeys.DemandPlanningMaterialEstablish");
-        StringAssert.Contains(reversal, "PermissionKeys.DemandPlanningMaterialRollback");
-        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
-        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
-    }
-
     [TestMethod]
     public void MaterialUseCase_MustOwnCandidateEstablishRollbackAndBasisSnapshots()
     {
-        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Establishment", "MaterialDemandEstablishmentService.cs");
-        var reversal = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Reversal", "MaterialDemandReversalService.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Sources", "MaterialDemandSourceRepository.cs");
-        var documentRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "MaterialDemandDocumentRepository.cs");
+        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "MaterialDemandEstablishmentService.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "NetDemandRepository.cs");
 
         StringAssert.Contains(service, "GetByIdForUpdateAsync");
         StringAssert.Contains(service, "GetNextDecompositionRevisionForUpdateAsync");
         StringAssert.Contains(service, "SourceDemandBasisFingerprintSnapshot");
-        StringAssert.Contains(service, "EstablishInTransactionAsync");
-        StringAssert.Contains(reversal, "GetRollbackBlockersAsync");
-        StringAssert.Contains(reversal, "ReverseInTransactionAsync");
-        Assert.IsFalse(service.Contains("RollbackRevisionAsync", StringComparison.Ordinal));
+        StringAssert.Contains(service, "GetByCommandAsync(Module, EstablishOperation");
+        StringAssert.Contains(service, "GetRollbackBlockersAsync");
         Assert.IsFalse(service.Contains("UpdateDecompositionStateAsync", StringComparison.Ordinal));
 
         StringAssert.Contains(repository, "GetSourceDemandCandidateGroupsAsync");
@@ -50,18 +25,17 @@ public sealed class MaterialDemandEstablishmentContractTests
         StringAssert.Contains(repository, "d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid");
         StringAssert.Contains(repository, "d.[LinkSkuSnapshot] AS [LinkSku]");
         StringAssert.Contains(repository, "d.[ImagePathSnapshot] AS [ImagePath]");
-        var establishmentCandidates = repository.Split("GetPurchaseCandidateSourceGroupsAsync", StringSplitOptions.None)[0];
-        Assert.IsFalse(establishmentCandidates.Contains("OUTER APPLY", StringComparison.Ordinal));
-        StringAssert.Contains(documentRepository, "SourceDemandBasisFingerprintSnapshot");
-        StringAssert.Contains(documentRepository, "WITH (UPDLOCK,HOLDLOCK)");
+        Assert.IsFalse(repository.Contains("OUTER APPLY", StringComparison.Ordinal));
+        StringAssert.Contains(repository, "SourceDemandBasisFingerprintSnapshot");
+        StringAssert.Contains(repository, "WITH (UPDLOCK,HOLDLOCK)");
     }
 
     [TestMethod]
     public void SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository()
     {
-        var api = Read("SwiftExport.Contracts", "Apis", "DemandPlanning", "Sources", "IGrossDemandWorkspaceApi.cs");
-        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Manual", "ManualGrossDemandService.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
+        var api = Read("SwiftExport.Contracts", "Apis", "DemandPlanning", "IGrossDemandWorkspaceApi.cs");
+        var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "GrossDemandWorkspaceService.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
 
         Assert.IsFalse(api.Contains("DecomposeAsync", StringComparison.Ordinal));
         Assert.IsFalse(api.Contains("RollbackAsync", StringComparison.Ordinal));

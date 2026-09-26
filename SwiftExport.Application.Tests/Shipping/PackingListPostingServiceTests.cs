@@ -1,24 +1,14 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using Mapster;
-using FluentValidation;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces.Shipping;
-using SwiftExport.Application.Interfaces.Auth;
-using SwiftExport.Application.Commands;
-using SwiftExport.Application.Commands.Validation;
-using SwiftExport.Application.Services.Shipping.PackingLists;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.WebApi.Controllers.Shipping;
-using SwiftExport.Core.Interfaces.Auditing;
-using SwiftExport.Core.Interfaces.Auth;
 using Proxy = SwiftExport.Application.Tests.Shipping.PackingListPostingCoordinatorTests.Proxy;
 
 namespace SwiftExport.Application.Tests.Shipping;
@@ -45,40 +35,39 @@ public sealed class PackingListPostingServiceTests
         Assert.AreEqual(typeof(CancellationToken), controller.GetParameters()[2].ParameterType);
     }
 
-    /// <summary>正式命令失败使用 Error，失败 Data 为空；逐来源阻断由预览契约提供。</summary>
+    /// <summary>多个来源阻断不丢失数量定位，预览失效分类稳定。</summary>
     [TestMethod]
-    public async Task FailureUsesErrorAndNullData()
+    public async Task KeepsAllBlockersAndStableStatus()
     {
         var source = Guid.NewGuid();
         var failure = new PackingListPostingFailure("SUPPLY_SHORTFALL", "库存不足")
         { Blockers = [new("SUPPLY_SHORTFALL", source, "库存不足", 2), new("SOURCE_INVALID", Guid.NewGuid(), "来源失效")] };
-        var result = await Execute(() => Task.FromException<PackingListPostOutcome>(failure));
+        var service = Create((_, _) => Task.FromException<PackingListPostOutcome>(failure));
+        var result = await service.PostAsync(Guid.NewGuid(), new(), default);
         Assert.IsFalse(result.Success);
-        Assert.IsNull(result.Data);
-        Assert.AreEqual("SUPPLY_SHORTFALL", result.Error.Code);
-        Assert.AreEqual("库存不足", result.Error.Message);
-        Assert.AreEqual("PREVIEW_STALE", (await Execute(() => Task.FromException<PackingListPostOutcome>(
-            new PackingListPostingFailure("PREVIEW_STALE", "重新预览")))).Error.Code);
+        Assert.AreEqual("Blocked", result.Data.Status);
+        Assert.AreEqual(2, result.Data.Blockers.Count);
+        Assert.AreEqual(source, result.Data.Blockers[0].GrossDemandId);
+        Assert.AreEqual(2m, result.Data.Blockers[0].ShortfallQty);
+        service = Create((_, _) => Task.FromException<PackingListPostOutcome>(new PackingListPostingFailure("PREVIEW_STALE", "重新预览")));
+        Assert.AreEqual("PreviewExpired", (await service.PostAsync(Guid.NewGuid(), new(), default)).Data.Status);
     }
 
     /// <summary>命令只转交用户确认字段，成功重放返回原单据版本而不再读取仓储。</summary>
     [TestMethod]
     public async Task ReplayPreservesActualDocuments()
     {
-        var f = new PackingListPostingCoordinatorTests.Fixture(inventory: true);
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
-        var command = new PostPackingListCommand { CommandId = Guid.NewGuid(), ExpectedVersion = 1,
-            BusinessDate = f.Date, PreviewToken = preview.Token! };
-        var posted = await f.Service.PostAsync(f.Head.Uid, command, default);
-        var replay = await f.Service.PostAsync(f.Head.Uid, command, default);
-        Assert.IsTrue(posted.Success);
-        Assert.IsTrue(replay.Success);
-        Assert.AreEqual("AlreadyApplied", replay.Data.Status);
-        Assert.AreEqual(posted.Data.ExecutionId, replay.Data.ExecutionId);
-        CollectionAssert.AreEqual(posted.Data.Documents.Select(x => x.Uid).ToArray(), replay.Data.Documents.Select(x => x.Uid).ToArray());
-        Assert.IsTrue(replay.Data.Documents.Count > 0);
+        var uid = Guid.NewGuid(); var command = new PostPackingListCommand { CommandId = Guid.NewGuid(), ExpectedVersion = 4,
+            BusinessDate = new(2026, 9, 17), PreviewToken = "token" };
         var document = new PackingListGeneratedDocumentDto { Uid = Guid.NewGuid(), DocumentNo = "IN1", Version = 2, Direction = "Inbound" };
-        var result = await Execute(() => Task.FromResult(new PackingListPostOutcome { AlreadyApplied = true, Documents = [document] }));
+        var service = Create((name, args) =>
+        {
+            var request = (PackingListPostRequest)args[0]!;
+            Assert.AreEqual(uid, request.PackingListId); Assert.AreEqual(command.CommandId, request.CommandId);
+            Assert.AreEqual(command.PreviewToken, request.PreviewToken);
+            return Task.FromResult(new PackingListPostOutcome { AlreadyApplied = true, Documents = [document] });
+        });
+        var result = await service.PostAsync(uid, command, default);
         Assert.IsTrue(result.Success); Assert.AreEqual("AlreadyApplied", result.Data.Status);
         Assert.AreEqual("IN1", result.Data.Documents[0].DocumentNo); Assert.AreEqual(2, result.Data.Documents[0].Version);
     }
@@ -95,12 +84,10 @@ public sealed class PackingListPostingServiceTests
         Assert.AreEqual(1.2m, dto.Quantity); Assert.AreEqual("Consumption", dto.ActionKind); Assert.IsNull(dto.ImagePath);
     }
 
-    /// <summary>单独验证完成结果映射；公共入口的授权、回执和业务执行由真实夹具覆盖。</summary>
-    private static Task<SwiftExport.Contracts.Wrappers.ServiceResult<PackingListPostingCommandResult>> Execute(
-        Func<Task<PackingListPostOutcome>> action)
+    /// <summary>仅执行协调器转发，仓储传空以检测命令完成后是否意外读取数据库。</summary>
+    private static PackingListPostingService Create(Func<string, object?[], object?> handler)
     {
-        var service = (PackingListPostingService)RuntimeHelpers.GetUninitializedObject(typeof(PackingListPostingService));
-        var method = typeof(PackingListPostingService).GetMethod("Execute", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        return (Task<SwiftExport.Contracts.Wrappers.ServiceResult<PackingListPostingCommandResult>>)method.Invoke(service, [action])!;
+        var config = new TypeAdapterConfig(); new PackingListPostingMapping().Register(config);
+        return new(Proxy.Make<IPackingListPostingCoordinator>(handler), null!, null!, null!, config);
     }
 }

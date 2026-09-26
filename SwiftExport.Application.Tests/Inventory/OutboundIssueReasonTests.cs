@@ -32,8 +32,7 @@ public sealed partial class OutboundManagerServiceTests
     {
         var f = new Fixture(); var command = f.Create();
         command.Draft.IssueReason = new string('因', 501);
-        var validation = await Assert.ThrowsAsync<SwiftExport.Application.Commands.Validation.CommandValidationException>(() => f.Service.CreateAsync(command));
-        Assert.AreEqual("Draft.IssueReason", validation.Field);
+        Assert.AreEqual(ServiceErrorCodes.Validation, (await f.Service.CreateAsync(command)).Error.Code);
         command.Draft.IssueReason = new string('因', 500); command.Draft.Remark = "其他说明";
         Assert.IsTrue((await f.Service.CreateAsync(command)).Success);
         Assert.AreEqual(command.Draft.IssueReason, f.Header!.IssueReason);

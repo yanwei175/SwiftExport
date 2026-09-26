@@ -2,15 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces;
-using SwiftExport.Application.Interfaces.SalesOrders.Confirmation;
-using SwiftExport.Application.Interfaces.SalesOrders.Query;
-using SwiftExport.Application.Interfaces.SalesOrders.Draft;
-using SwiftExport.Application.Interfaces.SalesOrders.Lifecycle;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
-using SwiftExport.WebApi.Controllers.SalesOrders.Query;
-using SwiftExport.WebApi.Controllers.SalesOrders.Draft;
-using SwiftExport.WebApi.Controllers.SalesOrders.Confirmation;
-using SwiftExport.WebApi.Controllers.SalesOrders.Lifecycle;
+using SwiftExport.WebApi.Controllers.Orders;
 
 namespace SwiftExport.Application.Tests.Orders;
 
@@ -21,23 +14,27 @@ namespace SwiftExport.Application.Tests.Orders;
 public sealed class SalesOrderManagerDetailContractTests
 {
     /// <summary>
-    /// 验证列表与详情查询、草稿、确认和生命周期均由真实窄接口承接。
+    /// 验证 Manager 仅包含列表查询，Detail 独占详情读取和写命令。
     /// </summary>
     [TestMethod]
     public void ApplicationServices_ShouldKeepManagerAndDetailResponsibilitiesSeparated()
     {
         CollectionAssert.AreEquivalent(
-            new[] { "SearchAsync", "GetCustomerCodesAsync", "GetAsync", "SearchProductsAsync", "SearchCustomersAsync" },
-            typeof(ISalesOrderQueryService).GetMethods().Select(method => method.Name).ToArray());
+            new[] { "SearchAsync", "GetCustomerCodesAsync" },
+            typeof(ISalesOrderManagerService).GetMethods().Select(method => method.Name).ToArray());
         CollectionAssert.AreEquivalent(
-            new[] { "SaveAsync", "DeleteDraftAsync" },
-            typeof(ISalesOrderDraftService).GetMethods().Select(method => method.Name).ToArray());
-        CollectionAssert.AreEquivalent(new[] { "ConfirmAsync" },
-            typeof(ISalesOrderConfirmationService).GetMethods().Select(method => method.Name).ToArray());
-        CollectionAssert.AreEquivalent(new[] { "CancelConfirmationAsync" },
-            typeof(ISalesOrderCancellationService).GetMethods().Select(method => method.Name).ToArray());
-        CollectionAssert.AreEquivalent(new[] { "CloseAsync" },
-            typeof(ISalesOrderLifecycleService).GetMethods().Select(method => method.Name).ToArray());
+            new[]
+            {
+                "GetAsync",
+                "SearchProductsAsync",
+                "SearchCustomersAsync",
+                "SaveAsync",
+                "ConfirmAsync",
+                "CancelConfirmationAsync",
+                "CloseAsync",
+                "DeleteDraftAsync"
+            },
+            typeof(ISalesOrderDetailService).GetMethods().Select(method => method.Name).ToArray());
     }
 
     /// <summary>
@@ -46,14 +43,14 @@ public sealed class SalesOrderManagerDetailContractTests
     [TestMethod]
     public void ControllersAndRefitApis_ShouldUseAlignedManagerAndDetailRoutes()
     {
-        Assert.AreEqual("api/sales-orders/manager/search", RouteOf<SalesOrderQueryController>("SearchAsync"));
-        Assert.AreEqual("api/sales-orders/manager/customer-codes", RouteOf<SalesOrderQueryController>("GetCustomerCodesAsync"));
-        Assert.AreEqual("api/sales-orders/detail/{uid:guid}", RouteOf<SalesOrderQueryController>("GetAsync"));
-        Assert.AreEqual("api/sales-orders/detail/products/search", RouteOf<SalesOrderQueryController>("SearchProductsAsync"));
-        Assert.AreEqual("api/sales-orders/detail/customers/search", RouteOf<SalesOrderQueryController>("SearchCustomersAsync"));
-        Assert.AreEqual("api/sales-orders/detail", typeof(SalesOrderDraftController).GetCustomAttributes(typeof(RouteAttribute), false).Cast<RouteAttribute>().Single().Template);
-        Assert.AreEqual("api/sales-orders/detail", typeof(SalesOrderConfirmationController).GetCustomAttributes(typeof(RouteAttribute), false).Cast<RouteAttribute>().Single().Template);
-        Assert.AreEqual("api/sales-orders/detail", typeof(SalesOrderLifecycleController).GetCustomAttributes(typeof(RouteAttribute), false).Cast<RouteAttribute>().Single().Template);
+        Assert.AreEqual(
+            "api/sales-orders/manager",
+            typeof(SalesOrderManagerController).GetCustomAttributes(typeof(RouteAttribute), false)
+                .Cast<RouteAttribute>().Single().Template);
+        Assert.AreEqual(
+            "api/sales-orders/detail",
+            typeof(SalesOrderDetailController).GetCustomAttributes(typeof(RouteAttribute), false)
+                .Cast<RouteAttribute>().Single().Template);
 
         AssertRefitPath<ISalesOrderManagerApi, PostAttribute>("SearchAsync", "/search");
         AssertRefitPath<ISalesOrderManagerApi, GetAttribute>("GetCustomerCodesAsync", "/customer-codes");
@@ -74,8 +71,8 @@ public sealed class SalesOrderManagerDetailContractTests
     public void PublicSalesOrderBoundaries_ShouldNotExposeWorkspaceTypes()
     {
         var types = typeof(ISalesOrderManagerApi).Assembly.GetExportedTypes()
-            .Concat(typeof(ISalesOrderQueryService).Assembly.GetExportedTypes())
-            .Concat(typeof(SalesOrderQueryController).Assembly.GetExportedTypes())
+            .Concat(typeof(ISalesOrderManagerService).Assembly.GetExportedTypes())
+            .Concat(typeof(SalesOrderManagerController).Assembly.GetExportedTypes())
             .Where(type => type.Name.Contains("SalesOrder", StringComparison.Ordinal))
             .ToArray();
 
@@ -85,11 +82,6 @@ public sealed class SalesOrderManagerDetailContractTests
                 "SwiftExport.Contracts.DTOs.SalesOrders.Workspace",
                 StringComparison.Ordinal) == true));
     }
-
-    /// <summary>读取查询 Controller 的显式动作路由，确保两个旧根路径未因合并而变化。</summary>
-    private static string RouteOf<TController>(string methodName)
-        => typeof(TController).GetMethod(methodName)!.GetCustomAttributes(typeof(Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute), false)
-            .Cast<Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute>().Single().Template!;
 
     /// <summary>
     /// 验证指定 Refit 方法具有预期 HTTP 属性，并在要求时声明一个 Body 参数。

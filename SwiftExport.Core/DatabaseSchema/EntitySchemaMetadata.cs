@@ -1,7 +1,7 @@
-using SwiftExport.Core.DatabaseSchema;
+﻿using SwiftExport.Core.DatabaseSchema;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.SalesOrders;
+using SwiftExport.Core.Entities.Orders;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.QualityControl;
 
@@ -112,14 +112,14 @@ namespace SwiftExport.Core.Entities.Relations
     [LogicalReference(nameof(CustomerProduct.SkuId), typeof(Product))]
     public partial class CustomerProduct { }
 
-    [DbIndex("UX_SupplierProduct_Supplier_Product", nameof(SupplierProduct.SupplierId), nameof(SupplierProduct.SkuId), IsUnique = true, Filter = "[IsDeleted] = 0 AND [SkuId] IS NOT NULL")]
+    [DbIndex("UX_SupplierProduct_Supplier_Product", nameof(SupplierProduct.SupplierId), nameof(SupplierProduct.SkuId), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_SupplierProduct_Product", nameof(SupplierProduct.SkuId), Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(SupplierProduct.SupplierId), typeof(Supplier), IsRequired = true)]
-    [LogicalReference(nameof(SupplierProduct.SkuId), typeof(Product), IsRequired = false)]
+    [LogicalReference(nameof(SupplierProduct.SkuId), typeof(Product), IsRequired = true)]
     public partial class SupplierProduct { }
 }
 
-namespace SwiftExport.Core.Entities.SalesOrders
+namespace SwiftExport.Core.Entities.Orders
 {
     [DbCheck("CK_SalesOrderHeader_Status", "[DocumentStatus] IN (0, 8, 9) AND [ConfirmationStatus] IN (0, 1)")]
     [DbIndex("UX_SalesOrderHeader_OrderNo", nameof(SalesOrderHeader.OrderNo), IsUnique = true, Filter = "[IsDeleted] = 0")]
@@ -185,6 +185,13 @@ namespace SwiftExport.Core.Entities.DemandPlanning
 
 namespace SwiftExport.Core.Entities.Procurement
 {
+    [DbAppendOnly]
+    [DbCheck("CK_ProcurementCommandReceipt_Result", "ISJSON([ResultJson]) = 1")]
+    [DbIndex("UX_ProcurementCommandReceipt_Command", nameof(ProcurementCommandReceipt.CommandId), nameof(ProcurementCommandReceipt.Operation), IsUnique = true)]
+    [LogicalReference(nameof(ProcurementCommandReceipt.ActorUid), typeof(SysUser), IsRequired = true)]
+    [LogicalReference(nameof(ProcurementCommandReceipt.PurchaseOrderId), typeof(PurchaseOrderHead), IsRequired = true)]
+    public sealed partial class ProcurementCommandReceipt { }
+
     [DbAppendOnly]
     [DbIndex("UX_PurchaseConfirmationLine_Command_Line", nameof(PurchaseConfirmationLine.CommandId), nameof(PurchaseConfirmationLine.PurchaseOrderLineId), IsUnique = true)]
     [LogicalReference(nameof(PurchaseConfirmationLine.PurchaseOrderId), typeof(PurchaseOrderHead), IsRequired = true)]
@@ -303,7 +310,7 @@ namespace SwiftExport.Core.Entities.Shipping
     [DbCheck("CK_PackingListLine_Measures", "([PcsPerPackage] IS NULL OR [PcsPerPackage] > 0) AND ([PackageCount] IS NULL OR [PackageCount] >= 0) AND ([NwPerPackage] IS NULL OR [NwPerPackage] >= 0) AND ([GwPerPackage] IS NULL OR [GwPerPackage] >= 0) AND ([CbmPerPackage] IS NULL OR [CbmPerPackage] >= 0)")]
     [DbIndex("UX_PackingListLine_Head_Line", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.LineNumber), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_PackingListLine_GrossDemand", nameof(PackingListLine.GrossDemandId), nameof(PackingListLine.PackingListHeadId), Filter = "[IsDeleted] = 0")]
-    [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId), IncludeColumns = new[] { nameof(PackingListLine.LineNumber) })]
+    [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId))]
     [LogicalReference(nameof(PackingListLine.PackingListHeadId), typeof(PackingListHead), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.GrossDemandId), typeof(DemandPlanning.GrossDemand), IsRequired = true)]
     [LogicalReference(nameof(PackingListLine.ProductId), typeof(Product))]
@@ -332,40 +339,28 @@ namespace SwiftExport.Core.Entities.QualityControl
     public sealed partial class AfterSalesLine { }
 }
 
-namespace SwiftExport.Core.Entities.Systems.Numbering
+namespace SwiftExport.Core.Entities.Systems
 {
     [DbIndex("UX_DocumentSequence_Type_Period", nameof(DocumentSequence.DocType), nameof(DocumentSequence.YearMonth), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class DocumentSequence { }
-}
 
-namespace SwiftExport.Core.Entities.Systems.Currencies
-{
     [DbCheck("CK_SysDicCurrency_Precision", "[Precision] >= 0 AND [Precision] <= 8")]
     [DbIndex("UX_SysDicCurrency_Code", nameof(SysDicCurrency.CurrencyCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysDicCurrency { }
-}
 
-namespace SwiftExport.Core.Entities.Systems.ExchangeRates
-{
     [DbCheck("CK_SysDicCurrencyExchange_Precision", "[Precision] >= 0 AND [Precision] <= 8")]
     [DbIndex("UX_SysDicCurrencyExchange_Pair", nameof(SysDicCurrencyExchange.FromCurrencyCode), nameof(SysDicCurrencyExchange.ToCurrencyCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysDicCurrencyExchange { }
-}
 
-namespace SwiftExport.Core.Entities.Systems.Dictionaries.Data
-{
     [DbIndex("IX_SysDictData_DictCode", nameof(SysDictData.DictCode), nameof(SysDictData.SortOrder), Filter = "[IsDeleted] = 0")]
     public partial class SysDictData { }
-}
 
-namespace SwiftExport.Core.Entities.Systems.Dictionaries.Types
-{
     [DbIndex("UX_SysDictType_DictCode", nameof(SysDictType.DictCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(SysDictType.ParentId), typeof(SysDictType))]
     public partial class SysDictType { }
 }
 
-namespace SwiftExport.Core.Entities.Systems.ViewRoutes
+namespace SwiftExport.Core.Entities.SystemEntities
 {
     [DbIndex("UX_SysViewRoute_TargetViewKey", nameof(SysViewRoute.TargetViewKey), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysViewRoute { }

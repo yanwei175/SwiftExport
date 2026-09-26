@@ -1,12 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Auth;
-using SwiftExport.Application.Interfaces.Auth.Passwords;
-using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
-using SwiftExport.Application.Models.Auth.Session;
-using SwiftExport.Application.Models.Auth.Permissions.Evaluation;
-using SwiftExport.Application.Services.Auth.Session;
-using SwiftExport.Application.Services.Auth.Users;
-using SwiftExport.Application.Services.Auth.Passwords;
 using SwiftExport.Application.Models.Auth;
 using SwiftExport.Application.Services.Auth;
 using SwiftExport.Contracts.Apis.AuthApis;
@@ -15,8 +8,6 @@ using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Interfaces.Auth;
-using SwiftExport.Core.Interfaces.Auth.Accounts;
-using SwiftExport.Core.Interfaces.Auth.Permissions;
 
 namespace SwiftExport.Application.Tests.Authentication;
 
@@ -113,9 +104,8 @@ public sealed class AuthServiceTests
         });
         Assert.IsTrue(result.Success);
         Assert.AreEqual(1, repository.OwnPasswordUpdates);
-        var session = CreateSession(repository, user.Uid);
-        Assert.IsFalse(await session.IsCredentialVersionValidAsync(user.Uid, 4));
-        Assert.IsTrue(await session.IsCredentialVersionValidAsync(user.Uid, 5));
+        Assert.IsFalse(await service.IsCredentialVersionValidAsync(user.Uid, 4));
+        Assert.IsTrue(await service.IsCredentialVersionValidAsync(user.Uid, 5));
     }
 
     /// <summary>管理重置同时拒绝非管理员操作者和管理员目标。</summary>
@@ -170,9 +160,8 @@ public sealed class AuthServiceTests
             UserId = target.Uid, NewPassword = "new-pass", ConfirmPassword = "new-pass"
         });
         Assert.IsTrue(result.Success);
-        var session = CreateSession(repository, actorId);
-        Assert.IsFalse(await session.IsCredentialVersionValidAsync(target.Uid, 9));
-        Assert.IsTrue(await session.IsCredentialVersionValidAsync(target.Uid, 10));
+        Assert.IsFalse(await service.IsCredentialVersionValidAsync(target.Uid, 9));
+        Assert.IsTrue(await service.IsCredentialVersionValidAsync(target.Uid, 10));
     }
 
     /// <summary>me 直接采用统一服务端投影，不再从认证仓储重复展开权限。</summary>
@@ -188,7 +177,7 @@ public sealed class AuthServiceTests
                 Permissions = [PermissionKeys.ModuleProcurementAccess, PermissionKeys.ProcurementOrderRead]
             }
         };
-        var service = new AuthSessionService(
+        var service = new SwiftExport.Application.Services.Auth.AuthService(
             new AuthRepositoryStub(user), new CurrentUserStub(user.Uid), new PasswordHasherStub(), permissions);
         var result = await service.GetCurrentUserAsync();
 
@@ -208,13 +197,9 @@ public sealed class AuthServiceTests
         Assert.IsFalse(hasher.Verify("secret", "not-a-bcrypt-hash"));
     }
 
-    private static UserAccountService CreateService(
+    private static SwiftExport.Application.Services.Auth.AuthService CreateService(
         AuthRepositoryStub repository,
-        Guid userId) => new(repository, new CurrentUserStub(userId), new PasswordHasherStub(),
-            new PermissionRepositoryStub(), new PermissionServiceStub());
-
-    private static AuthSessionService CreateSession(AuthRepositoryStub repository, Guid userId) =>
-        new(repository, new CurrentUserStub(userId), new PasswordHasherStub(), new PermissionServiceStub());
+        Guid userId) => new(repository, new CurrentUserStub(userId), new PasswordHasherStub(), new PermissionServiceStub());
 
     private static SysUser User(string name, string hash, int credentialVersion) => new()
     {
@@ -235,7 +220,7 @@ public sealed class AuthServiceTests
         public bool Verify(string password, string passwordHash) => passwordHash == "hash:" + password;
     }
 
-    private sealed class PermissionServiceStub : IPermissionEvaluationService
+    private sealed class PermissionServiceStub : IUserPermissionService
     {
         public UserPermissionProjection Projection { get; set; } = new();
         public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId, CancellationToken cancellationToken = default) =>
@@ -244,13 +229,6 @@ public sealed class AuthServiceTests
         public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-    }
-
-    private sealed class PermissionRepositoryStub : IUserPermissionRepository
-    {
-        public Task<SwiftExport.Core.Models.Auth.UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
-        public Task<UserModuleReplaceStatus> ReplaceModulesAsync(Guid actorUserId, Guid targetUserId, IReadOnlyCollection<string> modulePermissions, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class AuthRepositoryStub : IAuthRepository

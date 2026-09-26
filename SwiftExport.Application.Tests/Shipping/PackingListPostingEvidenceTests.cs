@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
 
@@ -15,7 +14,7 @@ public sealed class PackingListPostingEvidenceTests
     public void MapsActualInventoryResults()
     {
         var f = new Fixture();
-        var evidence = SwiftExport.Application.Services.Shipping.PackingLists.PackingListPostingService.CreateEvidence(f.ExecutionId, f.Preview, f.Commands, new(), f.Result);
+        var evidence = PackingListPostingCoordinator.CreateEvidence(f.ExecutionId, f.Preview, f.Commands, new(), f.Result);
         var row = evidence.Single();
         Assert.AreEqual(f.Action.PackingListLineId, row.PackingListLineId);
         Assert.AreEqual(f.Document.DocumentId, row.DocumentId);
@@ -31,14 +30,14 @@ public sealed class PackingListPostingEvidenceTests
     public void RejectsIncompleteInventoryResults()
     {
         var f = new Fixture();
-        Assert.ThrowsExactly<PackingListPostingFailure>(() => SwiftExport.Application.Services.Shipping.PackingLists.PackingListPostingService.CreateEvidence(
+        Assert.ThrowsExactly<PackingListPostingFailure>(() => PackingListPostingCoordinator.CreateEvidence(
             f.ExecutionId, f.Preview, f.Commands, new(), new()));
         f.Document.Lines.Add(f.Document.Lines[0]);
-        Assert.ThrowsExactly<PackingListPostingFailure>(() => SwiftExport.Application.Services.Shipping.PackingLists.PackingListPostingService.CreateEvidence(
+        Assert.ThrowsExactly<PackingListPostingFailure>(() => PackingListPostingCoordinator.CreateEvidence(
             f.ExecutionId, f.Preview, f.Commands, new(), f.Result));
         f.Document.Lines.RemoveAt(1);
         f.Document.Lines[0] = f.Document.Lines[0] with { LedgerId = Guid.Empty };
-        Assert.ThrowsExactly<PackingListPostingFailure>(() => SwiftExport.Application.Services.Shipping.PackingLists.PackingListPostingService.CreateEvidence(
+        Assert.ThrowsExactly<PackingListPostingFailure>(() => PackingListPostingCoordinator.CreateEvidence(
             f.ExecutionId, f.Preview, f.Commands, new(), f.Result));
     }
 
@@ -50,7 +49,7 @@ public sealed class PackingListPostingEvidenceTests
         var preview = f.Preview with { Actions = [f.Action with { Kind = "Delivery", WarehouseId = null }] };
         var commands = new PackingListAutomaticCommandBuilder.Commands(null, null, null,
             new Dictionary<Guid, PackingListPostingPreviewBuilder.Action>());
-        var row = SwiftExport.Application.Services.Shipping.PackingLists.PackingListPostingService.CreateEvidence(f.ExecutionId, preview, commands, new(), new()).Single();
+        var row = PackingListPostingCoordinator.CreateEvidence(f.ExecutionId, preview, commands, new(), new()).Single();
         Assert.AreEqual("Delivery", row.ActionKind);
         Assert.IsNull(row.DocumentId);
         Assert.IsNull(row.LedgerId);

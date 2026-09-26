@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.Views;
 using SwiftExportClient.Services.UI;

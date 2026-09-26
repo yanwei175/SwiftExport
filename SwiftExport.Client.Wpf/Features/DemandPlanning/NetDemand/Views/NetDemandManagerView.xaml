@@ -209,7 +209,7 @@
                           SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
                           Style="{StaticResource SwiftExportDataGrid}"
                           AutoGenerateColumns="False"
-                          IsReadOnly="{Binding IsSuggestionReadOnly}"
+                          IsReadOnly="{Binding IsReadOnly}"
                           RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
                           FrozenColumnCount="8"
@@ -359,7 +359,7 @@
                                             SelectionCommittedCommand="{Binding CommitSuggestedSupplierSelectionCommand}"
                                             SelectionClearedCommand="{Binding ClearSuggestedSupplierSelectionCommand}"
                                             IsBusy="{Binding DataContext.IsSuggestedSupplierSearchBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            IsEnabled="{Binding DataContext.CanEditSuggestion, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            IsEnabled="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                             Placeholder="搜索推荐采购供应商"
                                             AutomationProperties.Name="推荐采购供应商" />
                             </DataTemplate>

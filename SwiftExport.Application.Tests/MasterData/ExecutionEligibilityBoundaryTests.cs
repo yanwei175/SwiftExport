@@ -9,11 +9,8 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Repositories.Products;
-using SwiftExport.Infrastructure.Repositories.Products.Catalog;
 using SwiftExport.Infrastructure.Repositories.Customers;
-using SwiftExport.Infrastructure.Repositories.Customers.Management;
 using SwiftExport.Infrastructure.Repositories.Suppliers;
-using SwiftExport.Infrastructure.Repositories.Suppliers.Management;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
@@ -47,7 +44,7 @@ public sealed class ExecutionEligibilityBoundaryTests
         var service = CreateWithoutDatabase(new TestUser(true, null));
         var result = await service.SetStatusAsync(ValidCommand());
         Assert.IsFalse(result.Success);
-        Assert.AreEqual("UNAUTHENTICATED", result.Error.Code);
+        StringAssert.StartsWith(result.Message, "FORBIDDEN");
     }
 
     /// <summary>未认证请求不能凭伪造的用户编号执行管理员动作。</summary>
@@ -56,7 +53,7 @@ public sealed class ExecutionEligibilityBoundaryTests
     {
         var result = await CreateWithoutDatabase(new TestUser(false, Guid.NewGuid())).SetStatusAsync(ValidCommand());
         Assert.IsFalse(result.Success);
-        Assert.AreEqual("UNAUTHENTICATED", result.Error.Code);
+        StringAssert.StartsWith(result.Message, "FORBIDDEN");
     }
 
     /// <summary>未定义对象、无效版本和无原因请求均不能进入数据库或枚举动态 SQL 分支。</summary>
@@ -73,7 +70,7 @@ public sealed class ExecutionEligibilityBoundaryTests
         {
             var result = await service.SetStatusAsync(command);
             Assert.IsFalse(result.Success);
-            Assert.AreEqual("VALIDATION", result.Error.Code);
+            StringAssert.StartsWith(result.Message, "INVALID_COMMAND");
         }
     }
 

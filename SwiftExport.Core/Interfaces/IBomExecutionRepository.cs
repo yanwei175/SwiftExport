@@ -1,5 +1,5 @@
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
+using SwiftExport.Core.Entities.Systems;
 
 namespace SwiftExport.Core.Interfaces;
 

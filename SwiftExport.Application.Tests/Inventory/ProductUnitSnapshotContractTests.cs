@@ -1,7 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Interfaces.Inventory.Posting;
-using SwiftExport.Application.Services.Inventory.Posting;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
@@ -22,15 +20,12 @@ public sealed class ProductUnitSnapshotContractTests
             "SwiftExport.Application",
             "Services",
             "Inventory",
-            "Posting",
-            "Models",
-            "PostingFact.cs");
+            "InventoryPostingService.cs");
         var repositorySource = Read(
             "SwiftExport.Infrastructure",
             "Repositories",
             "Inventory",
-            "Posting",
-            "InventoryPostingRepository.cs");
+            "InventoryRepository.cs");
 
         StringAssert.Contains(postingSource, "SkuSnapshot = balance.SkuSnapshot");
         StringAssert.Contains(postingSource, "ProductNameSnapshot = balance.ProductNameSnapshot");

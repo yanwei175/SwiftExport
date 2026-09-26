@@ -4,10 +4,6 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.SysEnums;
-using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
@@ -25,29 +21,19 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
     private readonly IMessageService _messageService;
     private long _searchVersion;
     private bool _disposed;
-    private CreateManualGrossDemandRequest? _pendingCreate;
-    private UpdateManualGrossDemandRequest? _pendingUpdate;
-    private bool _pendingUnknown;
-    private bool _needsCurrentDetail;
-    private Guid _confirmedUid;
-    private bool _currentDetailEditable = true;
-    private readonly ICurrentUserService _currentUser;
 
     public GrossDemandManualEditorViewModel(
         IGrossDemandWorkspaceApi api,
         IProductApi productApi,
         IApiCallRunner apiCallRunner,
-        IMessageService messageService,
-        ICurrentUserService currentUser)
+        IMessageService messageService)
     {
         _api = api;
         _productApi = productApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
-        _currentUser = currentUser;
         Title = "手工毛需求";
         Edit.PropertyChanged += OnEditPropertyChanged;
-        PropertyChanged += OnOwnPropertyChanged;
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(SearchProductsCommand);
     }
@@ -56,15 +42,6 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
     public ObservableCollection<ProductLookupDto> ProductCandidates { get; } = [];
     public bool HasUnsavedChanges => IsOpen && Edit.IsDirty;
     public bool IsNew => Edit.IsNew;
-    /// <summary>未知结果期间保留原请求并冻结真实表单；保存按钮仍可重试。</summary>
-    public bool HasPendingSave => _pendingUnknown;
-    /// <summary>请求发出至结果确认、或确认后当前详情未读到期间，禁止退出或切换编辑器。</summary>
-    public bool IsEditorLocked => IsBusy || _pendingUnknown || _needsCurrentDetail;
-    /// <summary>确认成功但当前详情读取失败时，原保存入口仅重试详情查询。</summary>
-    public string SaveButtonText => _needsCurrentDetail ? "刷新详情" : "保存";
-    /// <summary>表单输入是否可以修改，未决命令期间始终为否。</summary>
-    public bool CanEditFields => IsOpen && CanWrite && !IsEditorLocked && _currentDetailEditable
-        && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage);
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
@@ -80,10 +57,8 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
 
     public void OpenCreate()
     {
-        if (IsEditorLocked) return;
         ClearLookup();
         Edit.ResetForCreate();
-        _currentDetailEditable = true;
         IsOpen = true;
         Title = "新建手工毛需求";
         OnPropertyChanged(nameof(HasUnsavedChanges));
@@ -92,10 +67,8 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
 
     public void OpenEdit(GrossDemandDetailDto detail)
     {
-        if (IsEditorLocked) return;
         ClearLookup();
         Edit.Load(detail);
-        _currentDetailEditable = detail.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active;
         IsOpen = true;
         Title = $"编辑手工毛需求 {detail.SourceNo}";
         OnPropertyChanged(nameof(HasUnsavedChanges));
@@ -104,7 +77,6 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
 
     public void Close(bool discardChanges)
     {
-        if (IsEditorLocked) return;
         if (discardChanges)
         {
             Edit.AcceptChanges();
@@ -177,13 +149,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        if (_needsCurrentDetail)
-        {
-            await RunBusyAsync(LoadCurrentDetailAsync, "正在刷新手工毛需求详情...");
-            return;
-        }
-
-        if (!_pendingUnknown && !Edit.ValidateForSave(out var validation))
+        if (!Edit.ValidateForSave(out var validation))
         {
             ValidationSummary = validation;
             _messageService.ShowWarning("手工毛需求未保存", validation);
@@ -192,108 +158,31 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
 
         await RunWriteAsync(async () =>
         {
-            if (!_pendingUnknown)
-            {
-                if (Edit.IsNew)
-                {
-                    _pendingCreate = Edit.ToCreateRequest();
-                    _pendingCreate.CommandId = Guid.NewGuid();
-                    _pendingUpdate = null;
-                }
-                else
-                {
-                    _pendingUpdate = Edit.ToUpdateRequest();
-                    _pendingUpdate.CommandId = Guid.NewGuid();
-                    _pendingCreate = null;
-                }
-            }
-            var result = _pendingCreate is not null
+            var result = Edit.IsNew
                 ? await _apiCallRunner.RunAsync(
-                    () => _api.CreateManualAsync(_pendingCreate),
+                    () => _api.CreateManualAsync(Edit.ToCreateRequest()),
                     "新建手工毛需求失败")
                 : await _apiCallRunner.RunAsync(
-                    () => _api.UpdateManualAsync(_pendingUpdate!.Uid, _pendingUpdate),
+                    () => _api.UpdateManualAsync(Edit.Uid, Edit.ToUpdateRequest()),
                     "更新手工毛需求失败");
             if (!result.Success || result.Data is null)
             {
-                var code = result.Error?.Code;
-                var retain = code is ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable
-                    || (_pendingUnknown && code is ServiceErrorCodes.RateLimited or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden);
-                SetPendingUnknown(retain);
-                if (!retain) { _pendingCreate = null; _pendingUpdate = null; }
                 ValidationSummary = result.Message;
                 _messageService.ShowError("手工毛需求保存失败", result.Message);
                 return;
             }
 
-            _pendingCreate = null;
-            _pendingUpdate = null;
-            SetPendingUnknown(false);
-            // 命令回执是首次提交的快照，必须重新读取当前事实才能恢复编辑。
-            _confirmedUid = result.Data.Uid;
-            SetNeedsCurrentDetail(true);
+            Edit.Load(result.Data);
+            ValidationSummary = null;
+            Title = $"编辑手工毛需求 {result.Data.SourceNo}";
             _messageService.ShowSuccess("手工毛需求已保存", result.Data.SourceNo);
+            OnPropertyChanged(nameof(HasUnsavedChanges));
+            OnPropertyChanged(nameof(IsNew));
             Saved?.Invoke(this, EventArgs.Empty);
-            await LoadCurrentDetailAsync();
         }, "正在保存手工毛需求...");
     }
 
-    /// <summary>从服务端读取已确认命令的最新详情；读取失败时保持表单冻结并允许手动重试读取。</summary>
-    private async Task LoadCurrentDetailAsync()
-    {
-        var result = await _apiCallRunner.RunAsync(
-            () => _api.GetDetailAsync(_confirmedUid),
-            "刷新手工毛需求详情失败");
-        if (!result.Success || result.Data is null || result.Data.Uid != _confirmedUid)
-        {
-            ValidationSummary = "保存已确认，但当前详情读取失败。请点击“刷新详情”后继续编辑。";
-            _messageService.ShowWarning("请刷新当前详情", ValidationSummary);
-            return;
-        }
-
-        Edit.Load(result.Data);
-        _currentDetailEditable = result.Data.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active;
-        Title = $"编辑手工毛需求 {result.Data.SourceNo}";
-        ValidationSummary = null;
-        _confirmedUid = Guid.Empty;
-        SetNeedsCurrentDetail(false);
-        OnPropertyChanged(nameof(HasUnsavedChanges));
-        OnPropertyChanged(nameof(IsNew));
-    }
-
-    private bool CanSave() => IsOpen && CanWrite && IsNotBusy
-        && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage)
-        && (_needsCurrentDetail || _pendingUnknown || (_currentDetailEditable && Edit.IsDirty));
-
-    /// <summary>Busy 和只读状态改变时同步真实表单输入权限。</summary>
-    private void OnOwnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(IsBusy) or nameof(IsReadOnly) or nameof(IsOpen))
-        {
-            OnPropertyChanged(nameof(CanEditFields));
-            OnPropertyChanged(nameof(IsEditorLocked));
-        }
-    }
-
-    /// <summary>通知表单冻结、重试及父页面关闭门禁随未决状态同步变化。</summary>
-    private void SetPendingUnknown(bool value)
-    {
-        _pendingUnknown = value;
-        OnPropertyChanged(nameof(HasPendingSave));
-        OnPropertyChanged(nameof(CanEditFields));
-        OnPropertyChanged(nameof(IsEditorLocked));
-        SaveCommand.NotifyCanExecuteChanged();
-    }
-
-    /// <summary>同步确认成功后只允许刷新当前详情的状态与保存按钮文案。</summary>
-    private void SetNeedsCurrentDetail(bool value)
-    {
-        _needsCurrentDetail = value;
-        OnPropertyChanged(nameof(IsEditorLocked));
-        OnPropertyChanged(nameof(CanEditFields));
-        OnPropertyChanged(nameof(SaveButtonText));
-        SaveCommand.NotifyCanExecuteChanged();
-    }
+    private bool CanSave() => IsOpen && CanWrite && IsNotBusy && Edit.IsDirty;
 
     private void OnEditPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -317,7 +206,6 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
         }
 
         _disposed = true;
-        PropertyChanged -= OnOwnPropertyChanged;
         Edit.PropertyChanged -= OnEditPropertyChanged;
         ClearLookup();
     }

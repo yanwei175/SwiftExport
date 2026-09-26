@@ -22,16 +22,13 @@ public sealed class CustomerProductLegacyFieldRetirementContractTests
         var repository = Read(
             "SwiftExport.Infrastructure",
             "Repositories",
-            "Customers",
-            "CustomerProducts",
+            "Products",
             "CustomerProductRepository.cs");
         var service = Read(
             "SwiftExport.Application",
             "Services",
             "Customers",
-            "CustomerProducts",
-            "Maintenance",
-            "CustomerProductMaintenanceService.cs");
+            "CustomerProductServices.cs");
 
         Assert.IsFalse(repository.Contains("CustomerSkuUnit", StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("cp.Currency", StringComparison.Ordinal));
@@ -47,7 +44,6 @@ public sealed class CustomerProductLegacyFieldRetirementContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "Systems",
-            "Currencies",
             "SysDicCurrencyRepository.cs");
 
         Assert.IsFalse(repository.Contains("dbo.CustomerProduct", StringComparison.Ordinal));

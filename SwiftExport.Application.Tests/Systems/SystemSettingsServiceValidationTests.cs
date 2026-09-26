@@ -1,22 +1,13 @@
-using SwiftExport.Application.Services.Systems.Currencies;
-using SwiftExport.Application.Services.Systems.Dictionaries.Data;
-using SwiftExport.Application.Services.Systems.Dictionaries.Types;
-using SwiftExport.Application.Services.Systems.ExchangeRates;
-using SwiftExport.Application.Services.Systems.Internal;
-using SwiftExport.Application.Services.Systems.ViewRoutes;
-using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
-using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data;
-using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Application.Services.SystemServices;
 using SwiftExport.Application.Services.Systems;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Types;
+using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure;
 
@@ -340,12 +331,12 @@ public sealed class SystemSettingsServiceValidationTests
     {
         var files = new[]
         {
-            Path.Combine("SwiftExport.Application", "Services", "Systems", "ViewRoutes", "SysViewRouteService.cs"),
-            Path.Combine("SwiftExport.Application", "Services", "Systems", "Currencies", "SysDicCurrencyService.cs"),
-            Path.Combine("SwiftExport.Application", "Services", "Systems", "ExchangeRates", "SysDicCurrencyExchangeService.cs"),
-            Path.Combine("SwiftExport.Application", "Services", "Systems", "Dictionaries", "Types", "SysDictTypeService.cs"),
-            Path.Combine("SwiftExport.Application", "Services", "Systems", "Dictionaries", "Data", "SysDictDataService.cs"),
-            Path.Combine("SwiftExport.Infrastructure", "Repositories", "Systems", "Dictionaries", "Data", "SysDictDataRepository.cs")
+            Path.Combine("SwiftExport.Application", "Services", "SystemServices", "SysViewRouteService.cs"),
+            Path.Combine("SwiftExport.Application", "Services", "Systems", "SysDicCurrencyService.cs"),
+            Path.Combine("SwiftExport.Application", "Services", "Systems", "SysDicCurrencyExchangeService.cs"),
+            Path.Combine("SwiftExport.Application", "Services", "Systems", "SysDictTypeService.cs"),
+            Path.Combine("SwiftExport.Application", "Services", "Systems", "SysDictDataService.cs"),
+            Path.Combine("SwiftExport.Infrastructure", "Repositories", "Systems", "SysDictDataRepository.cs")
         };
 
         foreach (var file in files)

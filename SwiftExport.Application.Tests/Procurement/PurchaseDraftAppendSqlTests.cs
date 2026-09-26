@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Core.Interfaces.Procurement;
 using Dapper;
@@ -7,8 +7,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
-using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Draft;
+using SwiftExport.Infrastructure.Repositories.Procurement;
 using System.Text.RegularExpressions;
+using SwiftExport.Application.Services.Procurement;
+using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Models.Procurement;

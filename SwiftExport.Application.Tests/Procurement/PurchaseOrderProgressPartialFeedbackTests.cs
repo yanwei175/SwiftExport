@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.Procurement;
@@ -14,11 +15,11 @@ public sealed class PurchaseOrderProgressPartialFeedbackTests
     public void Note_only_inherits_snapshot_and_first_zero_is_not_correction()
     {
         var previous = new SupplierProgressReport { Sequence = 2, ReadyQty = 7m, ExpectedReadyDate = new DateTime(2026, 10, 1) };
-        var report = PurchaseOrderProgressReportService.CreateReport(Guid.NewGuid(), new() { Note = "  再次催货  " }, previous);
+        var report = PurchaseOrderProgressService.CreateReport(Guid.NewGuid(), new() { Note = "  再次催货  " }, previous);
         Assert.AreEqual(7m, report.ReadyQty);
         Assert.AreEqual(new DateTime(2026, 10, 1), report.ExpectedReadyDate);
         Assert.AreEqual("再次催货", report.Note);
-        var firstZero = PurchaseOrderProgressReportService.CreateReport(Guid.NewGuid(), new() { ReadyQty = 0m }, new() { Sequence = 1 });
+        var firstZero = PurchaseOrderProgressService.CreateReport(Guid.NewGuid(), new() { ReadyQty = 0m }, new() { Sequence = 1 });
         Assert.AreEqual(0m, firstZero.ReadyQty);
         Assert.IsFalse(firstZero.IsCorrection);
     }
@@ -29,7 +30,7 @@ public sealed class PurchaseOrderProgressPartialFeedbackTests
     {
         foreach (var command in new[] { new ReportPurchaseOrderProgressCommand { ExpectedReadyDate = new DateTime(2026, 10, 1) }, new ReportPurchaseOrderProgressCommand { Note = "等待回复" } })
         {
-            var report = PurchaseOrderProgressReportService.CreateReport(Guid.NewGuid(), command, null);
+            var report = PurchaseOrderProgressService.CreateReport(Guid.NewGuid(), command, null);
             Assert.IsNull(report.ReadyQty);
             Assert.AreEqual(1, report.Sequence);
             Assert.AreEqual(SupplierArrangementStatusEnum.Unknown, report.ArrangementStatus);
@@ -41,7 +42,7 @@ public sealed class PurchaseOrderProgressPartialFeedbackTests
     public void Date_only_inherits_quantity_without_overwriting_history()
     {
         var previous = new SupplierProgressReport { Sequence = 7, ReadyQty = 8m, ExpectedReadyDate = new DateTime(2026, 10, 1), Note = "旧备注", ArrangementStatus = SupplierArrangementStatusEnum.Arranged };
-        var report = PurchaseOrderProgressReportService.CreateReport(Guid.NewGuid(), new() { ExpectedReadyDate = new DateTime(2026, 10, 5) }, previous);
+        var report = PurchaseOrderProgressService.CreateReport(Guid.NewGuid(), new() { ExpectedReadyDate = new DateTime(2026, 10, 5) }, previous);
         Assert.AreEqual(8, report.Sequence);
         Assert.AreEqual(8m, report.ReadyQty);
         Assert.AreEqual(SupplierArrangementStatusEnum.Arranged, report.ArrangementStatus);
@@ -57,9 +58,9 @@ public sealed class PurchaseOrderProgressPartialFeedbackTests
     {
         var previous = new SupplierProgressReport { Sequence = 1, ReadyQty = 5m, ExpectedReadyDate = new DateTime(2026, 10, 1) };
         var command = new ReportPurchaseOrderProgressCommand { ReadyQty = 0m };
-        Assert.ThrowsExactly<ProcurementOperationException>(() => PurchaseOrderProgressReportService.CreateReport(Guid.NewGuid(), command, previous));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => PurchaseOrderProgressService.CreateReport(Guid.NewGuid(), command, previous));
         command.CorrectionReason = "供应商更正";
-        var report = PurchaseOrderProgressReportService.CreateReport(Guid.NewGuid(), command, previous);
+        var report = PurchaseOrderProgressService.CreateReport(Guid.NewGuid(), command, previous);
         Assert.AreEqual(0m, report.ReadyQty);
         Assert.AreEqual(previous.ExpectedReadyDate, report.ExpectedReadyDate);
         Assert.IsTrue(report.IsCorrection);
@@ -71,10 +72,10 @@ public sealed class PurchaseOrderProgressPartialFeedbackTests
     public void Empty_feedback_is_rejected_but_zero_is_accepted()
     {
         var command = new ReportPurchaseOrderProgressCommand { CommandId = Guid.NewGuid(), PurchaseOrderLineId = Guid.NewGuid(), ExpectedPurchaseOrderVersion = 1, ExpectedLineVersion = 1, Note = "  ", CorrectionReason = "原因" };
-        Assert.ThrowsExactly<ProcurementOperationException>(() => PurchaseOrderProgressReportService.ValidateReportCommand(Guid.NewGuid(), command));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => PurchaseOrderProgressService.ValidateReportCommand(Guid.NewGuid(), command));
         command.ReadyQty = 0m;
-        PurchaseOrderProgressReportService.ValidateReportCommand(Guid.NewGuid(), command);
+        PurchaseOrderProgressService.ValidateReportCommand(Guid.NewGuid(), command);
         command.ReadyQty = -1m;
-        Assert.ThrowsExactly<ProcurementOperationException>(() => PurchaseOrderProgressReportService.ValidateReportCommand(Guid.NewGuid(), command));
+        Assert.ThrowsExactly<ProcurementOperationException>(() => PurchaseOrderProgressService.ValidateReportCommand(Guid.NewGuid(), command));
     }
 }

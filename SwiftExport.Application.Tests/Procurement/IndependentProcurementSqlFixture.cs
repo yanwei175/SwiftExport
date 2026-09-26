@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application;
 using SwiftExport.Application.Interfaces.Procurement;
+using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.Wrappers;
@@ -96,15 +97,21 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
     }
 
     public Task<ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand? command = null)
-        => InScopeAsync(p => p.GetRequiredService<IProcurementOrderDraftService>().CreateAsync(command ?? CreateCommand()));
+        => InScopeAsync(p => p.GetRequiredService<IProcurementOrderCommandService>().CreateAsync(command ?? CreateCommand()));
     public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command)
-        => InScopeAsync(p => p.GetRequiredService<IProcurementOrderDraftService>().SaveAsync(uid, command));
+        => InScopeAsync(p => p.GetRequiredService<IProcurementOrderCommandService>().SaveAsync(uid, command));
     public Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, ConfirmProcurementOrderCommand command)
-        => InScopeAsync(p => p.GetRequiredService<IProcurementOrderConfirmationService>().ConfirmAsync(uid, command));
+        => InScopeAsync(p => p.GetRequiredService<IProcurementOrderCommandService>().ConfirmAsync(uid, command));
 
     /// <summary>通过真实事务和确认构建器读取依据，不在测试中重算业务指纹。</summary>
     public Task<ServiceResult<ProcurementConfirmationContextDto>> ContextAsync(Guid uid) => InScopeAsync(p =>
-        p.GetRequiredService<IProcurementOrderConfirmationService>().GetConfirmationContextAsync(uid));
+        p.GetRequiredService<ProcurementOrderTransaction>().ExecuteAsync("Read", async () =>
+        {
+            var repository = p.GetRequiredService<IProcurementOrderRepository>();
+            var head = await repository.GetHeadAsync(uid, default) ?? throw new InvalidOperationException("测试订单不存在。");
+            var lines = await repository.GetLinesAsync(uid, default);
+            return await p.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(await p.GetRequiredService<IProcurementReversalRepository>().LockAsync(uid, default), default);
+        }, default));
 
     public CreateIndependentPurchaseOrderCommand CreateCommand() => new()
     {

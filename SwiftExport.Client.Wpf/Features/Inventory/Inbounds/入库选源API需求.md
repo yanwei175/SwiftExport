@@ -103,7 +103,7 @@
 - 产品、单位和采购来源显示字段不回传。新增行映射为空 Uid，已有行保留 Uid，删除行从完整有效行集合中省略。前端不再用 RemainingReceivableQty 快照限制保存数量。
 - 删除勾选单据，无勾选时取当前单。存在只读、未加载或版本冲突对象时整批先阻断。本地新增确认后移除；持久化单填写共同删除原因后逐单软删除，明确成功才从页面移除。
 - 三个入库写接口按用户批准不再使用按“用户＋接口”冷却的 PreventDuplicateRequest，避免连续保存不同单据被误限流；客户端 Busy 和服务端命令锁/日志幂等仍保留，其他模块过滤器不改。
-- 普通失败使用 ServiceResult.Error 的公共代码（VALIDATION、VERSION_CONFLICT、FORBIDDEN 等），保留 Message 与可选 Field。命令忙为 COMMAND_BUSY，结果未知为 OUTCOME_UNKNOWN。客户端不按中文消息判断重试类型。
+- 普通失败使用 ServiceResult.Error 的公共代码（VALIDATION、VERSION_CONFLICT、FORBIDDEN 等），保留 Message 与可选 Field。命令忙为 INBOUND_COMMAND_BUSY，结果未知为 INBOUND_OUTCOME_UNKNOWN。客户端不按中文消息判断重试类型。
 - 结果未知时保留已发送的 CommandId、版本和完整请求，锁定该单；“刷新”对当前单重试原命令。首次进入未知后，后续权限或传输失败也不解除待确认状态；恢复前禁止替换列表和普通关闭。不支持程序崩溃或强制退出后的自动恢复。
 - 写成功但详情失败时已经保留服务器身份，单据保持锁定；“刷新”只重试详情，不重发创建。保存和删除成功不整体重查列表，总数仍标明为上次查询快照。
 - 版本冲突不换用新版本覆盖；“刷新”先确认放弃当前冲突单修改，再读取该单，其他草稿编辑不受影响。

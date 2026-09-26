@@ -19,7 +19,7 @@ public sealed class SourceDemandDeliveryContractTests
         Assert.AreEqual("/{grossDemandId}", methods[nameof(ISourceDemandDeliveryApi.GetAsync)]
             .GetCustomAttributes(typeof(GetAttribute), false).Cast<GetAttribute>().Single().Path);
 
-        var controller = Read("SwiftExport.WebApi", "Controllers", "DemandPlanning", "Sources", "Delivery", "SourceDemandDeliveryController.cs");
+        var controller = Read("SwiftExport.WebApi", "Controllers", "DemandPlanning", "SourceDemandDeliveryController.cs");
         StringAssert.Contains(controller, "api/demand-planning/source-demands/delivery");
         StringAssert.Contains(controller, "[Authorize]");
         StringAssert.Contains(controller, "PermissionKeys.ModuleDemandPlanningAccess");
@@ -31,7 +31,7 @@ public sealed class SourceDemandDeliveryContractTests
     {
         var registration = Read("SwiftExport.Infrastructure", "DependencyInjection.cs");
         var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
-        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
         StringAssert.Contains(registration, "ISourceDeliveryQueryRepository");
         StringAssert.Contains(delivery, "dbo.PackingListLine");
         StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
@@ -55,12 +55,12 @@ public sealed class SourceDemandDeliveryContractTests
     [TestMethod]
     public void SourceExitSeparatesMaterialHistoryFromShippingDeliveryProof()
     {
-        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "MaterialDemandDocumentRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "GrossDemandRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "NetDemandRepository.cs");
         var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
-        var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "SourceExit", "MaterialDemandSourceExitService.cs");
-        var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
-        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.SourceExit.cs");
+        var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "MaterialDemandEstablishmentService.cs");
+        var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandReceptionService.cs");
+        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingListRepository.cs");
         StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
         StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, HOLDLOCK, ROWLOCK)");
         foreach (var forbidden in new[] { "DemandExecutionLink", "PurchaseOrder", "InboundDocument", "OutboundDocument", "PackingList" })
@@ -80,9 +80,9 @@ public sealed class SourceDemandDeliveryContractTests
     [TestMethod]
     public void LegacySourceApiIsOneWayReadAdapter()
     {
-        var adapter = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Delivery", "SourceDemandDeliveryService.cs");
-        var sourceInterface = Read("SwiftExport.Application", "Interfaces", "DemandPlanning", "Sources", "Delivery", "ISourceDemandDeliveryService.cs");
-        var afterSales = Read("SwiftExport.Application", "Services", "QualityControl", "AfterSales", "Lifecycle", "AfterSalesLifecycleService.cs");
+        var adapter = Read("SwiftExport.Application", "Services", "DemandPlanning", "SourceDemandDeliveryService.cs");
+        var sourceInterface = Read("SwiftExport.Application", "Interfaces", "DemandPlanning", "ISourceDemandDeliveryService.cs");
+        var afterSales = Read("SwiftExport.Application", "Services", "QualityControl", "AfterSalesService.cs");
         StringAssert.Contains(adapter, "ISourceDeliveryService delivery");
         Assert.IsFalse(sourceInterface.Contains("VerifyForUpdateAsync", StringComparison.Ordinal));
         Assert.IsFalse(afterSales.Contains("ISourceDeliveryService", StringComparison.Ordinal));

@@ -1,6 +1,6 @@
 using Dapper;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
+using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 

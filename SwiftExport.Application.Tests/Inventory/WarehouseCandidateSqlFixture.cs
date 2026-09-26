@@ -3,7 +3,6 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Core.Interfaces.Auth;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -69,10 +68,10 @@ internal sealed class WarehouseCandidateSqlFixture : IAsyncDisposable
     }
 
     /// <summary>在新作用域调用真实库存服务，供仓库选择器验证读权限与生产 SQL。</summary>
-    public async Task<T> QueryInventoryAsync<T>(Func<IWarehouseQueryService, Task<T>> action)
+    public async Task<T> QueryInventoryAsync<T>(Func<IInventoryService, Task<T>> action)
     {
         using var scope = provider!.CreateScope();
-        return await action(scope.ServiceProvider.GetRequiredService<IWarehouseQueryService>());
+        return await action(scope.ServiceProvider.GetRequiredService<IInventoryService>());
     }
 
     /// <summary>仅向当前夹具数据库执行参数化准备或断言 SQL。</summary>

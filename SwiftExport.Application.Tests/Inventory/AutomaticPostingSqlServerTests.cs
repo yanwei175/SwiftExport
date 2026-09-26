@@ -1,10 +1,3 @@
-using SwiftExport.Application.Services.Systems.Numbering;
-using SwiftExport.Infrastructure.Repositories.Systems.Numbering;
-using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
-using SwiftExport.Infrastructure.Repositories.Inventory.Outbounds;
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
-using SwiftExport.Application.Services.Inventory.Posting;
-using SwiftExport.Application.Services.Inventory.AutomaticDocuments;
 using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -26,16 +19,11 @@ using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.Auditing;
 using SwiftExport.Infrastructure.Repositories.Base;
 using SwiftExport.Infrastructure.Repositories.Inventory;
-using SwiftExport.Infrastructure.Repositories.Inventory.Posting;
-using SwiftExport.Infrastructure.Repositories.Inventory.AutomaticDocuments;
-using SwiftExport.Infrastructure.Repositories.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Repositories.Systems;
 using SwiftExport.Infrastructure.Services.Auth;
 using SwiftExport.Application.Interfaces.Auth;
-using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
-using SwiftExport.Application.Services.Shipping.PackingLists;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Shipping;
 using SwiftExport.Core.Interfaces.Shipping;
@@ -60,18 +48,18 @@ public sealed class AutomaticPostingSqlServerTests
         using var f = new Fixture(connection);
         var seed = await f.SeedPackingListAsync(includeComponent: true);
         var service = f.PackingCoordinator();
-        var preview = await service.PreviewCoreAsync(seed.Packing, 1, DateTime.Today, default);
+        var preview = await service.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
         Assert.AreEqual(0, preview.Blockers.Count);
         Assert.AreEqual(4m, preview.Actions.Single(x => x.Kind == "Consumption").Qty);
-        var posted = await service.ExecutePostCommandAsync(new(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!), default);
+        var posted = await service.PostAsync(new(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!), default);
         Assert.AreEqual(3, await f.CountPackingLedgers(seed));
         Assert.AreEqual(0m, await f.Session.Connection.ExecuteScalarAsync<decimal>(
             "SELECT OnHandQty FROM dbo.InventoryBalance WHERE WarehouseSiteId=@Warehouse AND ProductId=@Component", seed));
         using var reversing = new Fixture(connection);
-        var reverseService = reversing.PackingReversal();
-        var reversePreview = await reverseService.ReversePreviewCoreAsync(seed.Packing, posted.Detail!.Header.Version, DateTime.Today, "客供件测试恢复", default);
+        var reverseService = reversing.PackingCoordinator();
+        var reversePreview = await reverseService.ReversePreviewAsync(seed.Packing, posted.Detail!.Header.Version, DateTime.Today, "客供件测试恢复", default);
         Assert.AreEqual(0, reversePreview.Blockers.Count);
-        await reverseService.ExecuteReverseCommandAsync(new(seed.Packing, Guid.NewGuid(), posted.Detail.Header.Version, DateTime.Today, "客供件测试恢复", reversePreview.Token!), default);
+        await reverseService.ReverseAsync(new(seed.Packing, Guid.NewGuid(), posted.Detail.Header.Version, DateTime.Today, "客供件测试恢复", reversePreview.Token!), default);
         Assert.AreEqual(6, await reversing.CountPackingLedgers(seed));
         Assert.AreEqual(4m, await reversing.Session.Connection.ExecuteScalarAsync<decimal>(
             "SELECT OnHandQty FROM dbo.InventoryBalance WHERE WarehouseSiteId=@Warehouse AND ProductId=@Component", seed));
@@ -86,10 +74,10 @@ public sealed class AutomaticPostingSqlServerTests
         using var f = new Fixture(connection);
         var seed = await f.SeedPackingListAsync();
         var service = f.PackingCoordinator();
-        var preview = await service.PreviewCoreAsync(seed.Packing, 1, DateTime.Today, default);
+        var preview = await service.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
         Assert.AreEqual(0, preview.Blockers.Count, string.Join(";", preview.Blockers.Select(x => x.Message)));
         var command = new PackingListPostRequest(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!);
-        var posted = await service.ExecutePostCommandAsync(command, default);
+        var posted = await service.PostAsync(command, default);
         Assert.AreEqual(PackingListPostingStatusEnum.Posted, posted.Detail!.Header.PostingStatus);
         using (var verify = new Fixture(connection))
         {
@@ -97,17 +85,17 @@ public sealed class AutomaticPostingSqlServerTests
             Assert.AreEqual(2, await verify.CountPackingLedgers(seed));
             Assert.AreEqual(1, await verify.CountPackingExecutions(seed));
         }
-        Assert.IsTrue((await service.ExecutePostCommandAsync(command, default)).AlreadyApplied);
+        Assert.IsTrue((await service.PostAsync(command, default)).AlreadyApplied);
         Assert.AreEqual(2, await f.CountPackingLedgers(seed));
         // 新请求使用新的 scoped 服务；不在已经准备过的库存作用域上启动第二个事务。
         using var reversing = new Fixture(connection);
-        var reverseService = reversing.PackingReversal();
-        var reversePreview = await reverseService.ReversePreviewCoreAsync(seed.Packing, posted.Detail.Header.Version, DateTime.Today, "测试反向", default);
+        var reverseService = reversing.PackingCoordinator();
+        var reversePreview = await reverseService.ReversePreviewAsync(seed.Packing, posted.Detail.Header.Version, DateTime.Today, "测试反向", default);
         Assert.AreEqual(0, reversePreview.Blockers.Count);
         var reverse = new PackingListReverseRequest(seed.Packing, Guid.NewGuid(), posted.Detail.Header.Version, DateTime.Today, "测试反向", reversePreview.Token!);
-        var reversed = await reverseService.ExecuteReverseCommandAsync(reverse, default);
+        var reversed = await reverseService.ReverseAsync(reverse, default);
         Assert.AreEqual(PackingListPostingStatusEnum.Reversed, reversed.Detail!.Header.PostingStatus);
-        Assert.IsTrue((await reverseService.ExecuteReverseCommandAsync(reverse, default)).AlreadyApplied);
+        Assert.IsTrue((await reverseService.ReverseAsync(reverse, default)).AlreadyApplied);
         using var final = new Fixture(connection);
         Assert.AreEqual(0m, await final.Balance(seed));
         Assert.AreEqual(4, await final.CountPackingLedgers(seed));
@@ -123,9 +111,9 @@ public sealed class AutomaticPostingSqlServerTests
         using var f = new Fixture(connection);
         var seed = await f.SeedPackingListAsync();
         var service = f.PackingCoordinator(failEvidence: true);
-        var preview = await service.PreviewCoreAsync(seed.Packing, 1, DateTime.Today, default);
+        var preview = await service.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
         Assert.AreEqual(0, preview.Blockers.Count);
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.ExecutePostCommandAsync(
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => service.PostAsync(
             new(seed.Packing, Guid.NewGuid(), 1, DateTime.Today, preview.Token!), default));
         using var verify = new Fixture(connection);
         Assert.AreEqual(0m, await verify.Balance(seed));
@@ -150,13 +138,13 @@ public sealed class AutomaticPostingSqlServerTests
         var secondId = await first.ClonePackingDraftAsync(seed);
         using var second = new Fixture(connection);
         var one = first.PackingCoordinator(); var two = second.PackingCoordinator();
-        var previewOne = await one.PreviewCoreAsync(seed.Packing, 1, DateTime.Today, default);
-        var previewTwo = await two.PreviewCoreAsync(secondId, 1, DateTime.Today, default);
+        var previewOne = await one.PreviewAsync(seed.Packing, 1, DateTime.Today, default);
+        var previewTwo = await two.PreviewAsync(secondId, 1, DateTime.Today, default);
         Assert.AreEqual(0, previewOne.Blockers.Count); Assert.AreEqual(0, previewTwo.Blockers.Count);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        async Task<bool> Attempt(PackingListPostingService service, Guid id, string token)
+        async Task<bool> Attempt(PackingListPostingCoordinator service, Guid id, string token)
         {
-            try { await service.ExecutePostCommandAsync(new(id, Guid.NewGuid(), 1, DateTime.Today, token), timeout.Token); return true; }
+            try { await service.PostAsync(new(id, Guid.NewGuid(), 1, DateTime.Today, token), timeout.Token); return true; }
             catch (PackingListPostingFailure) { return false; }
         }
         var results = await Task.WhenAll(Task.Run(() => Attempt(one, seed.Packing, previewOne.Token!)),
@@ -263,7 +251,7 @@ public sealed class AutomaticPostingSqlServerTests
         private readonly RepositoryBaseContext _repository;
 
         /// <summary>组合真实第二阶段仓储和第一阶段端口；只有权限许可和指定失败点使用替身。</summary>
-        public PackingListPostingService PackingCoordinator(bool failEvidence = false)
+        public PackingListPostingCoordinator PackingCoordinator(bool failEvidence = false)
         {
             IPackingListExecutionRepository execution = new PackingListExecutionRepository(_repository);
             if (failEvidence)
@@ -276,29 +264,10 @@ public sealed class AutomaticPostingSqlServerTests
                     "AppendAsync" => throw new InvalidOperationException("显式测试故障：库存写入后执行记录失败。"),
                     _ => throw new NotSupportedException(m) });
             }
-            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
+            var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             return new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), new PackingListRepository(_repository),
-                new PackingListPostingFactsRepository(_repository), execution, new InboundSourceRepository(_repository), Scope, In, Out,
-                new BusinessOperationLogRepository(_repository), new TestUser(), permissions,
-                new SwiftExport.Application.Commands.BusinessCommandExecutor(
-                    new ServiceBaseContext(Session, NullLoggerFactory.Instance),
-                    new SwiftExport.Infrastructure.Repositories.Commands.CommandReceiptRepository(_repository), new TestUser()),
-                null!, null!);
-        }
-
-        /// <summary>组合真实反向证据仓储、自动端口和公共命令回执执行器。</summary>
-        public SwiftExport.Application.Services.Shipping.PackingLists.PackingListReversalService PackingReversal()
-        {
-            var user = new TestUser();
-            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync"
-                ? Task.FromResult(true) : throw new NotSupportedException(m));
-            return new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), new PackingListRepository(_repository),
-                new PackingListPostingFactsRepository(_repository), new PackingListExecutionRepository(_repository),
-                Scope, In, Out, new BusinessOperationLogRepository(_repository), user, permissions,
-                new SwiftExport.Application.Commands.BusinessCommandExecutor(
-                    new ServiceBaseContext(Session, NullLoggerFactory.Instance),
-                    new SwiftExport.Infrastructure.Repositories.Commands.CommandReceiptRepository(_repository), user),
-                null!, null!);
+                new PackingListPostingFactsRepository(_repository), execution, new InboundManagerRepository(_repository), Scope, In, Out,
+                new BusinessOperationLogRepository(_repository), new TestUser(), permissions);
         }
 
         /// <summary>创建唯一前缀的普通成品箱单种子并提交，供外层协调器独占下一事务；不删除测试证据。</summary>
@@ -365,17 +334,14 @@ public sealed class AutomaticPostingSqlServerTests
             var user = new TestUser();
             _repository = new(Session, NullLoggerFactory.Instance, new AuditStampService(user), user);
             var context = new ServiceBaseContext(Session, NullLoggerFactory.Instance);
-            var input = new InboundDocumentRepository(_repository);
-            var executionReads = new InboundExecutionReadRepository(_repository);
-            var sources = new InboundSourceRepository(_repository);
-            var output = new OutboundDocumentRepository(_repository);
-            var outputReads = new OutboundExecutionReadRepository(_repository);
-            var stocks = new InventoryPostingRepository(_repository);
+            var input = new InboundManagerRepository(_repository);
+            var output = new OutboundManagerRepository(_repository);
+            var stocks = new InventoryRepository(_repository);
             var warehouses = new DapperRepository<WarehouseSite>(_repository);
             var auto = new AutomaticDocumentRepository(_repository);
-            Scope = new(context, auto, input, executionReads, sources, output, outputReads, stocks, warehouses);
-            var ports = new AutomaticPostingPorts(Scope, auto, input, sources, executionReads, output, outputReads,
-                new InventoryPostingService(context, stocks, new WarehouseManagementRepository(_repository)), warehouses, stocks,
+            Scope = new(context, auto, input, output, stocks, warehouses);
+            var ports = new AutomaticPostingPorts(Scope, auto, input, output,
+                new InventoryPostingService(context, stocks, new WarehouseSiteRepository(_repository)), warehouses, stocks,
                 new BusinessOperationLogRepository(_repository), new DocumentNoService(new DocumentSequenceRepository(_repository)), user);
             In = ports; Out = ports;
         }

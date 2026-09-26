@@ -4,7 +4,6 @@ using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Shipping;
-using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.Shipping;
@@ -13,7 +12,7 @@ namespace SwiftExport.Application.Services.Shipping;
 public sealed class SourceDeliveryService(
     ServiceBaseContext context,
     ISourceDeliveryQueryRepository queryRepository,
-    IPackingListSourceExitRepository packingListRepository) : ISourceDeliveryService
+    IPackingListRepository packingListRepository) : ISourceDeliveryService
 {
     private const string UnavailableCode = SourceDeliveryErrorCodes.QueryUnavailable;
     private const string UnavailableMessage = "来源交付查询尚未接入，无法证明已交付数量、可交付余额或完成状态。";

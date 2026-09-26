@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
-using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.WebApi.Filters;
 
 namespace SwiftExport.WebApi.Controllers.Base;
 

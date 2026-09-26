@@ -61,8 +61,6 @@
 
                     <ui:Button Margin="0,0,4,0" Command="{Binding CancelConfirmationCommand}"
                             Content="取消确认" />
-                    <ui:Button Margin="0,0,4,0" Command="{Binding RetryCurrentFactCommand}"
-                            Content="重试刷新详情" />
 
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">

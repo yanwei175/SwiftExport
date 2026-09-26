@@ -1,9 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Inventory;
-using SwiftExport.Application.Interfaces.Inventory.Posting;
-using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Application.Services.Inventory;
-using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.Outbounds;
@@ -27,7 +24,6 @@ public sealed partial class OutboundManagerServiceTests
         Assert.IsTrue(first.Success, first.Message);
         Assert.IsTrue((await f.Service.ReverseAsync(f.Header.Uid, cmd)).Success);
         Assert.AreEqual(1, f.ReverseCalls); Assert.AreEqual(100m, f.Balance);
-        Assert.AreEqual(3, f.LogCount, "草稿、过账和首次反向各写一条审计；重放不追加。");
         Assert.AreEqual(OutboundPostingStatusEnum.Reversed, f.Header.PostingStatus);
         Assert.IsNull(f.Header.IssueReason);
         Assert.AreEqual(f.Facts.Single().Uid, f.ReverseItems.Single().OriginalLedgerId);
@@ -84,10 +80,7 @@ public sealed partial class OutboundManagerServiceTests
         Assert.IsFalse((await f.Service.ReverseAsync(id, f.ReverseCommand())).Success);
         f.MissingBalance = false;
         foreach (var reason in new[] { "", " \t\n", new string('因',501) })
-        {
-            var cmd = f.ReverseCommand(); cmd.Reason = reason;
-            await Assert.ThrowsAsync<CommandValidationException>(() => f.Service.ReverseAsync(id, cmd));
-        }
+        { var cmd = f.ReverseCommand(); cmd.Reason = reason; Assert.AreEqual(ServiceErrorCodes.Validation, (await f.Service.ReverseAsync(id, cmd)).Error.Code); }
         f.CommandLockResult = -1;
         Assert.AreEqual(OutboundErrorCodes.CommandBusy, (await f.Service.ReverseAsync(id, f.ReverseCommand())).Error.Code);
         f.CommandLockResult = 0; var valid = f.ReverseCommand(); valid.Reason = new string('因',500);

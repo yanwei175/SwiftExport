@@ -4,9 +4,6 @@ using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
@@ -48,10 +45,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private bool _disposed;
     private Guid? _appliedSourceUid;
     private NetDemandManagerOpenRequest? _openRequest;
-    private UpdateSuggestedPurchaseSupplierCommand? _pendingSuggestion;
-    private bool _suggestionUnknown;
-    private bool _suggestionInFlight;
-    private readonly ICurrentUserService _currentUser;
 
     public NetDemandManagerViewModel(
         INetDemandManagerApi api,
@@ -59,8 +52,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         IApiCallRunner apiCallRunner,
         IDialogService dialogService,
         IMessageService messageService,
-        INetDemandDialogService netDemandDialogService,
-        ICurrentUserService currentUser)
+        INetDemandDialogService netDemandDialogService)
     {
         _api = api;
         _masterDataApi = masterDataApi;
@@ -68,7 +60,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         _dialogService = dialogService;
         _messageService = messageService;
         _netDemandDialogService = netDemandDialogService;
-        _currentUser = currentUser;
         Title = "物料需求";
 
         RegisterBusyAwareCommand(SearchCommand);
@@ -114,14 +105,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// </summary>
     public ObservableCollection<NetDemandFilterOption<string>> SourceSourceTypes { get; } = [];
     public string DocumentTitle => "物料需求";
-    public bool HasUnsavedChanges => _suggestionUnknown || Items.Any(item => item.IsSuggestionDirty);
-    /// <summary>原行结果未知时仅允许沿原请求重试，不允许编辑或丢弃当前页。</summary>
-    public bool HasPendingSuggestion => _suggestionUnknown;
-    /// <summary>建议编辑权限独立于模块访问；未决和发送中冻结实际表格编辑。</summary>
-    public bool CanEditSuggestion => CanWrite && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage)
-        && !_suggestionUnknown && !_suggestionInFlight;
-    /// <summary>仅推荐建议列需要的表格只读状态。</summary>
-    public bool IsSuggestionReadOnly => !CanEditSuggestion;
+    public bool HasUnsavedChanges => Items.Any(item => item.IsSuggestionDirty);
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
@@ -241,7 +225,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// <summary>写命令执行中拒绝关闭；存在建议编辑时由用户明确决定是否放弃。</summary>
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
-        if (IsBusy || _suggestionUnknown)
+        if (IsBusy)
         {
             return false;
         }
@@ -404,63 +388,32 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanSaveSuggestedSuppliers))]
     private async Task SaveSuggestedSuppliersAsync()
     {
-        // 未决行即使因编辑器迟到通知暂时不再显示为脏，也必须排在本次重试的第一位。
-        var dirtyRows = _suggestionUnknown && _pendingSuggestion is not null
-            ? Items.Where(item => item.Uid == _pendingSuggestion.NetDemandId)
-                .Concat(Items.Where(item => item.IsSuggestionDirty && item.Uid != _pendingSuggestion.NetDemandId)).ToArray()
-            : Items.Where(item => item.IsSuggestionDirty).ToArray();
-        if (_suggestionUnknown && (dirtyRows.Length == 0 || dirtyRows[0].Uid != _pendingSuggestion!.NetDemandId))
-        {
-            _messageService.ShowError("推荐采购供应商未全部保存", "未决物料行已离开当前页面，请保持页面并核查执行结果。");
-            return;
-        }
+        var dirtyRows = Items.Where(item => item.IsSuggestionDirty).ToArray();
         var allSaved = false;
         await RunBusyAsync(async () =>
         {
-            _suggestionInFlight = true;
-            NotifySuggestionState();
-            try
+            foreach (var row in dirtyRows)
             {
-                foreach (var row in dirtyRows)
-                {
-                    var request = _suggestionUnknown
-                        ? _pendingSuggestion!
-                        : new UpdateSuggestedPurchaseSupplierCommand
+                var result = await _apiCallRunner.RunAsync(
+                    () => _api.UpdateSuggestedPurchaseSupplierAsync(new UpdateSuggestedPurchaseSupplierCommand
                     {
-                        CommandId = Guid.NewGuid(), NetDemandId = row.Uid,
+                        NetDemandId = row.Uid,
                         Version = row.Version,
                         SuggestedPurchaseSupplierId = row.SuggestedPurchaseSupplierId
-                    };
-                    // 未知行只能与原行身份相同；成功行已从脏集合移除，后续行尚未发送。
-                    if (_suggestionUnknown && row.Uid != request.NetDemandId) continue;
-                    var result = await _apiCallRunner.RunAsync(
-                        () => _api.UpdateSuggestedPurchaseSupplierAsync(request),
-                        "保存推荐采购供应商失败");
-                    if (!result.Success || result.Data is null)
-                    {
-                        var code = result.Error?.Code;
-                        var retain = code is ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable
-                            || (_suggestionUnknown && code is ServiceErrorCodes.RateLimited or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden);
-                        _suggestionUnknown = retain;
-                        _pendingSuggestion = retain ? request : null;
-                        ResultSummary = result.Message;
-                        _messageService.ShowError("推荐采购供应商未全部保存", result.Message);
-                        NotifySuggestionState();
-                        return;
-                    }
-
-                    row.AcceptSuggestedSupplierUpdate(result.Data);
-                    _pendingSuggestion = null;
-                    _suggestionUnknown = false;
-                    NotifySuggestionState();
+                    }),
+                    "保存推荐采购供应商失败");
+                if (!result.Success || result.Data is null)
+                {
+                    ResultSummary = result.Message;
+                    _messageService.ShowError("推荐采购供应商未全部保存", result.Message);
+                    UpdateSuggestionCommands();
+                    return;
                 }
-                allSaved = true;
+
+                row.AcceptSuggestedSupplierUpdate(result.Data);
             }
-            finally
-            {
-                _suggestionInFlight = false;
-                NotifySuggestionState();
-            }
+
+            allSaved = true;
         }, "正在保存推荐采购供应商...");
 
         if (!allSaved)
@@ -477,7 +430,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanCancelSuggestedSupplierChanges))]
     private void CancelSuggestedSupplierChanges()
     {
-        if (_suggestionUnknown) return;
         foreach (var row in Items.Where(item => item.IsSuggestionDirty))
         {
             row.RejectSuggestedSupplierChanges();
@@ -560,7 +512,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand]
     private async Task RefreshSourceGroupsAsync()
     {
-        if (_suggestionUnknown || _suggestionInFlight) return;
         if (!IsSourcePanelOpen)
         {
             return;
@@ -577,7 +528,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ClearSourceFiltersAsync()
     {
-        if (_suggestionUnknown || _suggestionInFlight) return;
         _syncingSourceFilters = true;
         try
         {
@@ -595,7 +545,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
     private async Task LoadPageAsync(CancellationToken externalCancellation = default)
     {
-        if (_suggestionUnknown || _suggestionInFlight) return;
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(externalCancellation);
@@ -839,7 +788,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// <summary>在会丢弃当前页数据的动作前统一取得用户确认。</summary>
     private async Task<bool> EnsureCanDiscardSuggestionChangesAsync(string action)
     {
-        if (_suggestionUnknown || _suggestionInFlight) return false;
         if (!HasUnsavedChanges)
         {
             return true;
@@ -986,38 +934,23 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         RollbackSourceEstablishmentCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanRun() => IsNotBusy && !_suggestionUnknown;
+    private bool CanRun() => IsNotBusy;
     private bool CanWriteCommand() => CanWrite && IsNotBusy;
-    private bool CanSaveSuggestedSuppliers() => CanWrite && IsNotBusy
-        && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage)
-        && HasUnsavedChanges;
-    private bool CanCancelSuggestedSupplierChanges() => IsNotBusy && !_suggestionUnknown && HasUnsavedChanges;
+    private bool CanSaveSuggestedSuppliers() => CanWrite && IsNotBusy && HasUnsavedChanges;
+    private bool CanCancelSuggestedSupplierChanges() => IsNotBusy && HasUnsavedChanges;
     private bool CanRollbackSourceEstablishment() => CanWrite && IsNotBusy
         && Items.Any(item => item.IsChecked)
         && Items.Where(item => item.IsChecked)
             .GroupBy(item => item.GrossDemandId)
             .All(group => group.Select(item => item.DecompositionRevision).Distinct().Count() == 1);
-    private bool CanPageChange() => CanRun() && !IsSourceSelected;
-    private bool CanSelectSourceGroup(NetDemandSourceGroupModel? group) => CanRun() && !IsSourceGroupLoading && group is not null;
+    private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
+    private bool CanSelectSourceGroup(NetDemandSourceGroupModel? group) => IsNotBusy && !IsSourceGroupLoading && group is not null;
 
     private void UpdateSuggestionCommands()
     {
         OnPropertyChanged(nameof(HasUnsavedChanges));
         SaveSuggestedSuppliersCommand.NotifyCanExecuteChanged();
         CancelSuggestedSupplierChangesCommand.NotifyCanExecuteChanged();
-    }
-
-    /// <summary>同步通知未决关闭门禁、建议列只读状态和原请求重试入口。</summary>
-    private void NotifySuggestionState()
-    {
-        OnPropertyChanged(nameof(HasPendingSuggestion));
-        OnPropertyChanged(nameof(HasUnsavedChanges));
-        OnPropertyChanged(nameof(CanEditSuggestion));
-        OnPropertyChanged(nameof(IsSuggestionReadOnly));
-        SaveSuggestedSuppliersCommand.NotifyCanExecuteChanged();
-        CancelSuggestedSupplierChangesCommand.NotifyCanExecuteChanged();
-        RefreshCommand.NotifyCanExecuteChanged();
-        PageChangeCommand.NotifyCanExecuteChanged();
     }
 
     private void DetachRows()

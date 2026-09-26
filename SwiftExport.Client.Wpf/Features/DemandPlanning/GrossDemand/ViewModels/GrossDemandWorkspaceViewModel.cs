@@ -2,9 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
 using SwiftExportClient.Features.Sales.Orders.Models;
@@ -42,9 +39,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private bool _syncingSourceFilters;
     private bool _disposed;
     private Guid? _appliedSourceUid;
-    private CloseGrossDemandCommand? _pendingClose;
-    private bool _closeUnknown;
-    private readonly ICurrentUserService _currentUser;
 
     public GrossDemandWorkspaceViewModel(
         IGrossDemandWorkspaceApi api,
@@ -52,15 +46,13 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         INavigationService navigationService,
         IDialogService dialogService,
         IMessageService messageService,
-        GrossDemandManualEditorViewModel manualEditor,
-        ICurrentUserService currentUser)
+        GrossDemandManualEditorViewModel manualEditor)
     {
         _api = api;
         _apiCallRunner = apiCallRunner;
         _navigationService = navigationService;
         _dialogService = dialogService;
         _messageService = messageService;
-        _currentUser = currentUser;
         ManualEditor = manualEditor;
         Title = "成品需求";
         ManualEditor.PropertyChanged += OnManualEditorPropertyChanged;
@@ -116,9 +108,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SourceLifecycleStatuses { get; } = [];
 
     public string DocumentTitle => "毛需求";
-    public bool HasUnsavedChanges => ManualEditor.HasUnsavedChanges || ManualEditor.HasPendingSave || _closeUnknown;
-    /// <summary>关闭结果未知时保留原来源、版本、原因和命令身份。</summary>
-    public bool HasPendingClose => _closeUnknown;
+    public bool HasUnsavedChanges => ManualEditor.HasUnsavedChanges;
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
     public int CheckedCount => Items.Count(item => item.IsChecked);
@@ -211,7 +201,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
-        if (_closeUnknown || ManualEditor.IsEditorLocked || IsBusy) return false;
         return await ConfirmDiscardManualChangesAsync(cancellationToken);
     }
 
@@ -271,7 +260,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     #region 毛需求业务命令
 
-    [RelayCommand(CanExecute = nameof(CanCreateManual))]
+    [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task CreateManualAsync()
     {
         if (!await ConfirmDiscardManualChangesAsync())
@@ -303,8 +292,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                 () => _api.GetDetailAsync(selected.Uid, cancellation.Token),
                 cancellation.Token,
                 "加载手工毛需求失败");
-            if (cancellation.IsCancellationRequested || !ReferenceEquals(_detailCancellation, cancellation)
-                || ManualEditor.IsEditorLocked)
+            if (cancellation.IsCancellationRequested || !ReferenceEquals(_detailCancellation, cancellation))
             {
                 return;
             }
@@ -334,47 +322,33 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private async Task CloseSelectedManualAsync()
     {
         var selected = SelectedItem;
-        if (!_closeUnknown && (selected is null
+        if (selected is null
             || !await ConfirmDiscardManualChangesAsync()
             || !await _dialogService.ConfirmAsync(
                 "关闭手工毛需求",
                 $"关闭 {selected.SourceNo} 后将保留历史且不能继续拆解。是否继续？",
-                "关闭")))
+                "关闭"))
         {
             return;
         }
 
         await RunWriteAsync(async () =>
         {
-            if (!_closeUnknown)
-            {
-                _pendingClose = new CloseGrossDemandCommand
-                {
-                    CommandId = Guid.NewGuid(), Uid = selected!.Uid, Version = selected.Version,
-                    Reason = "用户从毛需求工作台关闭手工需求"
-                };
-            }
             var result = await _apiCallRunner.RunAsync(
-                () => _api.CloseManualAsync(_pendingClose!.Uid, _pendingClose),
+                () => _api.CloseManualAsync(selected.Uid, new CloseGrossDemandCommand
+                {
+                    Uid = selected.Uid,
+                    Version = selected.Version,
+                    Reason = "用户从毛需求工作台关闭手工需求",
+                }),
                 "关闭手工毛需求失败");
             if (!result.Success)
             {
-                var code = result.Error?.Code;
-                _closeUnknown = code is ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable
-                    || (_closeUnknown && code is ServiceErrorCodes.RateLimited or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden);
-                if (!_closeUnknown) _pendingClose = null;
-                OnPropertyChanged(nameof(HasPendingClose));
-                OnPropertyChanged(nameof(HasUnsavedChanges));
-                CloseSelectedManualCommand.NotifyCanExecuteChanged();
                 _messageService.ShowError("关闭失败", result.Message);
                 return;
             }
 
-            _closeUnknown = false;
-            _pendingClose = null;
-            OnPropertyChanged(nameof(HasPendingClose));
-            OnPropertyChanged(nameof(HasUnsavedChanges));
-            _messageService.ShowSuccess("手工毛需求已关闭", selected?.SourceNo ?? result.Data?.SourceNo ?? string.Empty);
+            _messageService.ShowSuccess("手工毛需求已关闭", selected.SourceNo);
             await ReloadAfterWriteAsync();
         }, "正在关闭手工毛需求...");
     }
@@ -502,7 +476,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [RelayCommand]
     private async Task RefreshSourceGroupsAsync()
     {
-        if (_closeUnknown || ManualEditor.HasPendingSave) return;
         if (IsSourcePanelOpen)
         {
             await RefreshSourceNavigationAsync(reloadCurrentData: IsSourceSelected);
@@ -512,7 +485,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ClearSourceFiltersAsync()
     {
-        if (_closeUnknown || ManualEditor.HasPendingSave) return;
         _syncingSourceFilters = true;
         try
         {
@@ -534,7 +506,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private async Task LoadPageAsync()
     {
-        if (_closeUnknown || ManualEditor.HasPendingSave) return;
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
         var cancellation = new CancellationTokenSource();
@@ -773,7 +744,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private async Task<bool> ConfirmDiscardManualChangesAsync(CancellationToken cancellationToken = default)
     {
-        if (_closeUnknown || ManualEditor.IsEditorLocked) return false;
         if (!ManualEditor.HasUnsavedChanges)
         {
             return true;
@@ -784,7 +754,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             "当前手工毛需求有未保存修改，继续将放弃这些修改。",
             "放弃修改",
             cancellationToken: cancellationToken);
-        if (ManualEditor.IsEditorLocked) return false;
         if (confirmed)
         {
             ManualEditor.Close(discardChanges: true);
@@ -860,19 +829,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     private void OnManualEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(GrossDemandManualEditorViewModel.HasUnsavedChanges) or nameof(GrossDemandManualEditorViewModel.IsOpen) or nameof(GrossDemandManualEditorViewModel.HasPendingSave) or nameof(GrossDemandManualEditorViewModel.IsEditorLocked))
+        if (e.PropertyName is nameof(GrossDemandManualEditorViewModel.HasUnsavedChanges) or nameof(GrossDemandManualEditorViewModel.IsOpen))
         {
             OnPropertyChanged(nameof(HasUnsavedChanges));
-            CreateManualCommand.NotifyCanExecuteChanged();
-            EditSelectedManualCommand.NotifyCanExecuteChanged();
-            CloseSelectedManualCommand.NotifyCanExecuteChanged();
-            RefreshCommand.NotifyCanExecuteChanged();
-            SearchCommand.NotifyCanExecuteChanged();
-            ClearFiltersCommand.NotifyCanExecuteChanged();
-            PageChangeCommand.NotifyCanExecuteChanged();
-            SelectSourceGroupCommand.NotifyCanExecuteChanged();
-            ToggleSourcePanelCommand.NotifyCanExecuteChanged();
-            ClearSourceFiltersCommand.NotifyCanExecuteChanged();
         }
     }
 
@@ -881,19 +840,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         await ReloadAfterWriteAsync();
     }
 
-    private bool CanRun() => IsNotBusy && !_closeUnknown && !ManualEditor.IsEditorLocked;
-    /// <summary>手工创建使用独立维护权限，模块只读访问不能开启编辑器。</summary>
-    private bool CanCreateManual() => CanWrite && CanRun()
-        && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage);
-    private bool CanPageChange() => CanRun() && !IsSourceSelected;
-    private bool CanSelectSourceGroup(GrossDemandSourceGroupModel? group) => CanRun() && !IsSourceGroupLoading && group is not null;
+    private bool CanRun() => IsNotBusy;
+    private bool CanPageChange() => IsNotBusy && !IsSourceSelected;
+    private bool CanSelectSourceGroup(GrossDemandSourceGroupModel? group) => IsNotBusy && !IsSourceGroupLoading && group is not null;
     private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;
-    private bool CanEditSelectedManual() => CanWrite && CanRun()
-        && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage)
-        && SelectedItem is { SourceType: "MD", LifecycleStatus: GrossDemandLifecycleStatusEnum.Active };
-    private bool CanCloseSelectedManual() => CanWrite && IsNotBusy
-        && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage)
-        && (_closeUnknown || CanEditSelectedManual());
+    private bool CanEditSelectedManual() => CanWrite && IsNotBusy && SelectedItem is { SourceType: "MD", LifecycleStatus: GrossDemandLifecycleStatusEnum.Active };
+    private bool CanCloseSelectedManual() => CanEditSelectedManual();
 
     #endregion
 

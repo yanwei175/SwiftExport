@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Reversal;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 namespace SwiftExportClient.Features.Inventory.Inbounds.Services;
 /// <summary>反过账确认弹窗边界；取消返回空，确认返回独立原因文本。</summary>
 public interface IInboundReverseDialogService

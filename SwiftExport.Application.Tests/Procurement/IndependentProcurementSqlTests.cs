@@ -1,11 +1,10 @@
-﻿using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Dapper;
 using SwiftExport.Application.Interfaces.MasterData;
 using SwiftExport.Application.Interfaces.Procurement;
+using SwiftExport.Application.Services.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.MasterData.ExecutionEligibility;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
@@ -31,9 +30,9 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(context.Success, context.Message);
         Assert.IsTrue((await Db.ConfirmAsync(uid, ConfirmCommand(context.Data))).Success);
         var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
-        async Task<SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft.InboundDraftCommandResult> Draft(Guid site, decimal quantity)
+        async Task<SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundDraftCommandResult> Draft(Guid site, decimal quantity)
         {
-            var result = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.Inbounds.IInboundDraftService>()
+            var result = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
                 .CreateAsync(new() { CommandId = Guid.NewGuid(), Draft = new()
                 {
                     DocumentType = SwiftExport.Contracts.SysEnums.Inventory.InboundDocumentTypeEnum.PurchaseReceipt,
@@ -43,9 +42,9 @@ public sealed class IndependentProcurementSqlTests
             Assert.IsTrue(result.Success, result.Message);
             return result.Data!;
         }
-        async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting.InboundPostResult>> Post(
-            SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft.InboundDraftCommandResult draft) =>
-            await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.Inbounds.IInboundPostingService>()
+        async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundPostResult>> Post(
+            SwiftExport.Contracts.DTOs.Inventory.Inbounds.InboundDraftCommandResult draft) =>
+            await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
                 .PostAsync(draft.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = draft.Version }));
         var first = await Draft(Db.ReceiptSiteId, 4m);
         var second = await Draft(Db.ConsumptionSiteId, 6m);
@@ -59,7 +58,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(6m, await Balance(Db.ConsumptionSiteId));
         var excess = await Draft(Db.ReceiptSiteId, 1m);
         Assert.IsFalse((await Post(excess)).Success);
-        var reversed = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.Inbounds.IInboundReversalService>()
+        var reversed = await Db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Inventory.IInboundManagerService>()
             .ReverseAsync(second.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = secondPost.Data!.Version, Reason = "隔离测试反过账" }));
         Assert.IsTrue(reversed.Success, reversed.Message);
         Assert.AreEqual(4m, await Balance(Db.ReceiptSiteId));
@@ -213,7 +212,7 @@ public sealed class IndependentProcurementSqlTests
         command.Lines[0].Quantity = 10;
         Db.ActorId = Db.OtherActorId;
         Assert.IsFalse((await Db.CreateAsync(command)).Success);
-        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
     /// <summary>含客供件的采购不选消耗仓即可确认，命令重试保持同一批次。</summary>
@@ -252,7 +251,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(failed.Success, failed.Message);
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT ConfirmationStatus FROM dbo.PurchaseOrderHead"));
-        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
     /// <summary>缺失主数据和失效单位仍阻断，BOM 子项损坏不影响采购确认。</summary>
@@ -287,7 +286,7 @@ public sealed class IndependentProcurementSqlTests
         var results = await Task.WhenAll(Db.ConfirmAsync(uid, ConfirmCommand(context.Data)), Db.ConfirmAsync(uid, ConfirmCommand(context.Data)));
         Assert.AreEqual(1, results.Count(r => r.Success));
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(DISTINCT ActiveConfirmationId) FROM dbo.PurchaseOrderHead"));
-        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
     /// <summary>真实日志 SQL 故障回滚采购头、行、编号序列和幂等回执。</summary>
@@ -299,7 +298,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsFalse(failed.Success);
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead"));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine"));
-        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DocumentSequence"));
     }
 
@@ -319,7 +318,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationLine"));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseConfirmationNode"));
         Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT ConfirmationStatus FROM dbo.PurchaseOrderHead"));
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
         await Db.ExecuteAsync("DROP TRIGGER dbo.TR_Test_RejectLog;");
         var retried = await Db.ConfirmAsync(uid, command);
         Assert.IsTrue(retried.Success, retried.Message);
@@ -352,7 +351,7 @@ public sealed class IndependentProcurementSqlTests
         Assert.IsTrue(created.Success, created.Message);
         await Db.ExecuteAsync("UPDATE dbo.SysUser SET IsActive=0 WHERE Uid=@uid", new { uid = Db.ActorId });
         Assert.IsFalse((await Db.CreateAsync(command)).Success);
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
     }
 
     /// <summary>非管理员只授予创建角色时不能读取、编辑或确认；撤销真实角色关联后连成功回执也不能重放。</summary>
@@ -380,7 +379,7 @@ public sealed class IndependentProcurementSqlTests
         var replay = await Db.CreateAsync(command);
         Assert.IsFalse(replay.Success);
         StringAssert.Contains(replay.Message, "权限");
-        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
+        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt"));
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
     }
 
@@ -515,7 +514,7 @@ public sealed class IndependentProcurementSqlTests
             Task<int>? pending = null;
             try
             {
-                var repository = provider.GetRequiredService<IProcurementOrderDocumentRepository>();
+                var repository = provider.GetRequiredService<IProcurementOrderRepository>();
                 var head = await repository.GetHeadAsync(uid, default);
                 var lines = await repository.GetLinesAsync(uid, default);
                 var context = await provider.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(await provider.GetRequiredService<IProcurementReversalRepository>().LockAsync(uid, default), default);

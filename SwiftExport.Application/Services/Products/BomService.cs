@@ -1,10 +1,9 @@
-using SwiftExport.Core.Interfaces.Products.Catalog;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Services.Base;
-using SwiftExport.Application.Services.DemandPlanning.Policies;
+using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
@@ -44,10 +43,10 @@ public partial class BomService(
             var line = new Bom
             {
                 BomNo = dto.BomNo,
-                ParentProductId = parent.Uid,
-                ParentSkuSnapshot = parent.Sku,
-                ComponentProductId = child.Uid,
-                ComponentSkuSnapshot = child.Sku,
+                ParentSkuId = parent.Uid,
+                ParentSku = parent.Sku,
+                SubSkuId = child.Uid,
+                SubSku = child.Sku,
                 Numerator = dto.Numerator,
                 Denominator = dto.Denominator
             };
@@ -111,14 +110,14 @@ public partial class BomService(
         // 3. 子件存在性
         foreach (var item in bomItems)
         {
-            var exists = item.ComponentProductId.HasValue
-                ? await pdRepo.ExistsIdAsync(item.ComponentProductId.Value)
-                : await pdRepo.GetBySkuAsync(item.ComponentSkuSnapshot) != null;
-            if (!exists) return ServiceResult<bool>.Fail($"子项{item.ComponentSkuSnapshot}不存在");
+            var exists = item.SubSkuId.HasValue
+                ? await pdRepo.ExistsIdAsync(item.SubSkuId.Value)
+                : await pdRepo.GetBySkuAsync(item.SubSku) != null;
+            if (!exists) return ServiceResult<bool>.Fail($"子项{item.SubSku}不存在");
         }
 
         // 4. 重复项检查
-        if (bomItems.GroupBy(i => i.ComponentSkuSnapshot).Any(g => g.Count() > 1))
+        if (bomItems.GroupBy(i => i.SubSku).Any(g => g.Count() > 1))
             return ServiceResult<bool>.Fail($"子项中存在重复项");
 
         // 5. 循环依赖检查（DFS，异步）
@@ -132,7 +131,7 @@ public partial class BomService(
             foreach (var child in children)
             {
                 // 递归检查子件的 BOM
-                var subPd = await pdRepo.GetBySkuAsync(child.ComponentSkuSnapshot);
+                var subPd = await pdRepo.GetBySkuAsync(child.SubSku);
                 if (subPd != null && !string.IsNullOrEmpty(subPd.BomNo))
                 {
                     if (await HasCycleAsync(subPd.BomNo)) return true;
@@ -177,7 +176,7 @@ public partial class BomService(
         foreach (var item in bomItems)
         {
             var dto = item.Adapt<BomTreeDto>();
-            var subPd = await pdRepo.GetBySkuAsync(item.ComponentSkuSnapshot);
+            var subPd = await pdRepo.GetBySkuAsync(item.SubSku);
             if (subPd != null)
             {
                 // 补齐显示用的字段
@@ -225,9 +224,7 @@ public partial class BomService(
         }
         catch (Exception ex)
         {
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<IReadOnlyList<BomDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<IReadOnlyList<BomDto>>.Fail(ex.Message);
         }
     }
 
@@ -297,7 +294,7 @@ public partial class BomService(
         {
             TryRollbackTransaction();
             _logger.LogError(ex, "BOM 批量保存发生未预期异常，已回滚全部操作。");
-            return ServiceResult<BomBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected,
+            return ServiceResult<BomBatchSaveResponse>.Fail(
                 "BOM 批量保存失败，所有操作已回滚，请刷新后重试。");
         }
         finally
@@ -317,8 +314,7 @@ public partial class BomService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "BOM 分页查询失败。");
-            // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
-            return ServiceResult<PagedResponseBase<BomDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<PagedResponseBase<BomDto>>.Fail($"查询失败：{ex.Message}");
         }
     }
 

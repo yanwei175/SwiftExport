@@ -12,8 +12,7 @@ public sealed partial class SupplierProductLineModel : BaseLineModel<SupplierPro
     [ObservableProperty] public partial Guid SupplierId { get; set; }
     [ObservableProperty] public partial string SupplierCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string SupplierName { get; set; } = string.Empty;
-    /// <summary>可选的公司产品关联；供应商资料可以独立维护。</summary>
-    [ObservableProperty] public partial Guid? SkuId { get; set; }
+    [ObservableProperty] public partial Guid SkuId { get; set; }
     [ObservableProperty] public partial string ProductSku { get; set; } = string.Empty;
     [ObservableProperty] public partial string LinkSku { get; set; } = string.Empty;
     [ObservableProperty] public partial string DescriptionEn { get; set; } = string.Empty;
@@ -34,7 +33,7 @@ public sealed partial class SupplierProductLineModel : BaseLineModel<SupplierPro
     public override string? ValidateRow()
     {
         if (SupplierId == Guid.Empty || string.IsNullOrWhiteSpace(SupplierCode)) return "必须关联供应商。";
-        if (SkuId == Guid.Empty) return "标准 SKU 标识无效；请清除关联后重试。";
+        if (SkuId == Guid.Empty || string.IsNullOrWhiteSpace(ProductSku)) return "必须关联标准 SKU。";
         if (string.IsNullOrWhiteSpace(SupplierSku)) return "供应商料号不能为空。";
         if (UnitPrice < 0 || TaxPrice < 0) return "价格不能小于 0。";
         return null;

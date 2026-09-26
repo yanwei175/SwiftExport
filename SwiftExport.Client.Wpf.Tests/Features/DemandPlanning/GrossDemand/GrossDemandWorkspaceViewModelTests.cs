@@ -7,11 +7,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
-using SwiftExportClient.Authentication;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
@@ -21,213 +19,6 @@ namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.GrossDemand;
 [TestClass]
 public sealed class GrossDemandWorkspaceViewModelTests
 {
-    /// <summary>创建结果未知及后续限流均保持完整原请求；成功后才允许编辑及关闭。</summary>
-    [TestMethod]
-    public async Task ManualCreate_UnknownThenRateLimited_RetriesOriginalRequest()
-    {
-        var api = new FakeGrossDemandApi();
-        var saved = new GrossDemandDetailDto { Uid = Guid.NewGuid(), Version = 1, SourceNo = "MD-1", IsNonStandard = true, DemandQty = 2m, Description = "非标" };
-        api.CreateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.OutcomeUnknown, "结果未知"));
-        api.CreateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.RateLimited, "稍后重试"));
-        api.CreateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(saved));
-        api.DetailResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(saved));
-        using var vm = CreateViewModel(api);
-        vm.ManualEditor.OpenCreate();
-        vm.ManualEditor.Edit.IsNonStandard = true;
-        vm.ManualEditor.Edit.Description = "非标";
-        vm.ManualEditor.Edit.DemandQty = 2m;
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.IsTrue(vm.ManualEditor.HasPendingSave);
-        Assert.IsFalse(vm.ManualEditor.CanEditFields);
-        Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.IsTrue(vm.ManualEditor.HasPendingSave);
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.IsFalse(vm.ManualEditor.HasPendingSave);
-        Assert.AreEqual(saved.Uid, vm.ManualEditor.Edit.Uid);
-        Assert.AreEqual(3, api.CreateRequests.Count);
-        Assert.AreNotEqual(Guid.Empty, api.CreateRequests[0].CommandId);
-        Assert.IsTrue(api.CreateRequests.All(x => ReferenceEquals(x, api.CreateRequests[0])));
-        Assert.AreEqual(2m, api.CreateRequests[0].DemandQty);
-    }
-
-    /// <summary>更新未知期间冻结输入，限流后仍按原来源版本和内容重试。</summary>
-    [TestMethod]
-    public async Task ManualUpdate_UnknownThenRateLimited_PreservesVersionAndContent()
-    {
-        var api = new FakeGrossDemandApi();
-        var uid = Guid.NewGuid();
-        api.UpdateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.OutcomeUnknown, "结果未知"));
-        api.UpdateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.RateLimited, "稍后重试"));
-        var saved = new GrossDemandDetailDto { Uid = uid, Version = 5, SourceNo = "MD-2", IsNonStandard = true, Description = "新描述", DemandQty = 3m };
-        api.UpdateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(saved));
-        api.DetailResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(saved));
-        using var vm = CreateViewModel(api);
-        vm.ManualEditor.OpenEdit(new GrossDemandDetailDto { Uid = uid, Version = 4, SourceNo = "MD-2", IsNonStandard = true, Description = "旧描述", DemandQty = 3m });
-        vm.ManualEditor.Edit.Description = "新描述";
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.IsFalse(vm.ManualEditor.CanEditFields);
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.AreEqual(3, api.UpdateRequests.Count);
-        Assert.IsTrue(api.UpdateRequests.All(x => ReferenceEquals(x, api.UpdateRequests[0])));
-        Assert.AreEqual(uid, api.UpdateRequests[0].Uid);
-        Assert.AreEqual(4, api.UpdateRequests[0].Version);
-        Assert.AreEqual("新描述", api.UpdateRequests[0].Description);
-    }
-
-    /// <summary>关闭未知后切换选中行也不能改变原关闭目标、版本及原因。</summary>
-    [TestMethod]
-    public async Task ManualClose_UnknownThenRateLimited_RetriesOriginalTarget()
-    {
-        var row = CreateItem("MD-3", canDecompose: false);
-        row.SourceType = "MD";
-        var api = new FakeGrossDemandApi { SearchResponse = CreatePage(row) };
-        api.CloseResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.OutcomeUnknown, "结果未知"));
-        api.CloseResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.RateLimited, "稍后重试"));
-        api.CloseResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(new GrossDemandDetailDto { Uid = row.Uid, Version = 2, SourceNo = row.SourceNo }));
-        using var vm = CreateViewModel(api);
-        await vm.InitializeAsync();
-        vm.SelectedItem = vm.Items.Single();
-        await vm.CloseSelectedManualCommand.ExecuteAsync(null);
-        Assert.IsTrue(vm.HasPendingClose);
-        Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
-        await vm.CloseSelectedManualCommand.ExecuteAsync(null);
-        Assert.IsTrue(vm.HasPendingClose);
-        await vm.CloseSelectedManualCommand.ExecuteAsync(null);
-        Assert.AreEqual(3, api.CloseRequests.Count);
-        Assert.IsTrue(api.CloseRequests.All(x => ReferenceEquals(x, api.CloseRequests[0])));
-        Assert.AreEqual(row.Uid, api.CloseRequests[0].Uid);
-        Assert.AreEqual(row.Version, api.CloseRequests[0].Version);
-    }
-
-    /// <summary>首次明确限流未留下未知结果时可重新编辑并以新身份提交。</summary>
-    [TestMethod]
-    public async Task ManualCreate_FirstRateLimited_DoesNotLockEditor()
-    {
-        var api = new FakeGrossDemandApi();
-        api.CreateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.RateLimited, "稍后重试"));
-        var saved = new GrossDemandDetailDto { Uid = Guid.NewGuid(), Version = 1, SourceNo = "MD-4", IsNonStandard = true, Description = "非标", DemandQty = 1m };
-        api.CreateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(saved));
-        api.DetailResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(saved));
-        using var vm = CreateViewModel(api);
-        vm.ManualEditor.OpenCreate();
-        vm.ManualEditor.Edit.IsNonStandard = true;
-        vm.ManualEditor.Edit.Description = "非标";
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.IsFalse(vm.ManualEditor.HasPendingSave);
-        Assert.IsTrue(vm.ManualEditor.CanEditFields);
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-        Assert.AreNotEqual(api.CreateRequests[0].CommandId, api.CreateRequests[1].CommandId);
-    }
-
-    /// <summary>手工保存请求发出后即冻结关闭和编辑器切换，未知结果仍保留原重试入口。</summary>
-    [TestMethod]
-    public async Task ManualCreate_InFlightCannotCloseOrSwitchEditor()
-    {
-        var api = new FakeGrossDemandApi();
-        var completion = new TaskCompletionSource<ServiceResult<GrossDemandDetailDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        api.CreateHandler = _ => completion.Task;
-        using var vm = CreateViewModel(api);
-        vm.ManualEditor.OpenCreate();
-        vm.ManualEditor.Edit.IsNonStandard = true;
-        vm.ManualEditor.Edit.Description = "请求原文";
-        var save = vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(vm.ManualEditor.IsBusy);
-        Assert.IsTrue(vm.ManualEditor.IsEditorLocked);
-        Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
-        Assert.IsFalse(vm.CreateManualCommand.CanExecute(null));
-        Assert.IsFalse(vm.ManualEditor.CanEditFields);
-        vm.ManualEditor.Close(discardChanges: true);
-        vm.ManualEditor.OpenCreate();
-        Assert.IsTrue(vm.ManualEditor.IsOpen);
-        Assert.AreEqual("请求原文", vm.ManualEditor.Edit.Description);
-
-        completion.SetResult(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.OutcomeUnknown, "结果未知"));
-        await save;
-        Assert.IsTrue(vm.ManualEditor.HasPendingSave);
-        Assert.IsTrue(vm.ManualEditor.SaveCommand.CanExecute(null));
-    }
-
-    /// <summary>命令成功后只载入当前详情；历史回执中的版本和内容不得进入可编辑表单。</summary>
-    [TestMethod]
-    public async Task ManualUpdate_ReplaySuccessLoadsCurrentDetail()
-    {
-        var api = new FakeGrossDemandApi();
-        var uid = Guid.NewGuid();
-        api.UpdateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(new GrossDemandDetailDto
-        { Uid = uid, Version = 5, SourceNo = "MD-5", Description = "历史回执", IsNonStandard = true, DemandQty = 1m }));
-        api.DetailResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(new GrossDemandDetailDto
-        { Uid = uid, Version = 7, SourceNo = "MD-5", Description = "当前详情", IsNonStandard = true, DemandQty = 2m }));
-        using var vm = CreateViewModel(api);
-        vm.ManualEditor.OpenEdit(new GrossDemandDetailDto { Uid = uid, Version = 4, SourceNo = "MD-5", Description = "原内容", IsNonStandard = true, DemandQty = 1m });
-        vm.ManualEditor.Edit.Description = "提交内容";
-
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(1, api.DetailRequests.Count);
-        Assert.AreEqual(uid, api.DetailRequests[0]);
-        Assert.AreEqual(7, vm.ManualEditor.Edit.Version);
-        Assert.AreEqual("当前详情", vm.ManualEditor.Edit.Description);
-        Assert.IsTrue(vm.ManualEditor.CanEditFields);
-    }
-
-    /// <summary>确认成功但详情读取失败时冻结旧表单，保存入口只重试读取而不重复提交命令。</summary>
-    [TestMethod]
-    public async Task ManualCreate_DetailRefreshFailureRetriesReadOnly()
-    {
-        var api = new FakeGrossDemandApi();
-        var uid = Guid.NewGuid();
-        api.CreateResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(new GrossDemandDetailDto
-        { Uid = uid, Version = 1, SourceNo = "MD-6", Description = "历史回执", IsNonStandard = true, DemandQty = 1m }));
-        api.DetailResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.ServiceUnavailable, "读取失败"));
-        api.DetailResults.Enqueue(ServiceResult<GrossDemandDetailDto>.Ok(new GrossDemandDetailDto
-        { Uid = uid, Version = 3, SourceNo = "MD-6", Description = "当前详情", IsNonStandard = true, DemandQty = 2m }));
-        using var vm = CreateViewModel(api);
-        vm.ManualEditor.OpenCreate();
-        vm.ManualEditor.Edit.IsNonStandard = true;
-        vm.ManualEditor.Edit.Description = "提交内容";
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-
-        Assert.IsTrue(vm.ManualEditor.IsEditorLocked);
-        Assert.IsFalse(vm.ManualEditor.CanEditFields);
-        Assert.AreEqual("刷新详情", vm.ManualEditor.SaveButtonText);
-        Assert.IsFalse(await vm.CanCloseAsync(CancellationToken.None));
-        Assert.AreEqual("提交内容", vm.ManualEditor.Edit.Description);
-        await vm.ManualEditor.SaveCommand.ExecuteAsync(null);
-
-        Assert.AreEqual(1, api.CreateRequests.Count);
-        Assert.AreEqual(2, api.DetailRequests.Count);
-        Assert.AreEqual(3, vm.ManualEditor.Edit.Version);
-        Assert.AreEqual("当前详情", vm.ManualEditor.Edit.Description);
-        Assert.IsFalse(vm.ManualEditor.IsEditorLocked);
-    }
-
-    /// <summary>仅有工作台访问但缺独立维护权限时，创建与编辑实际入口不可执行。</summary>
-    [TestMethod]
-    public void ManualPermission_DoesNotFollowModuleAccess()
-    {
-        using var vm = CreateViewModel(new FakeGrossDemandApi(), allowManual: false);
-        Assert.IsFalse(vm.CreateManualCommand.CanExecute(null));
-        vm.ManualEditor.OpenCreate();
-        Assert.IsFalse(vm.ManualEditor.CanEditFields);
-        Assert.IsFalse(vm.ManualEditor.SaveCommand.CanExecute(null));
-    }
-
-    /// <summary>未决状态绑定在包围全部输入的表单容器上，保存按钮仍独立保留重试。</summary>
-    [TestMethod]
-    public void ManualEditor_FieldsBindToPendingEditGate()
-    {
-        var view = XDocument.Load(Path.Combine(FindRepositoryRoot(), "SwiftExport.Client.Wpf", "Features",
-            "DemandPlanning", "GrossDemand", "Views", "GrossDemandManualEditorView.xaml"));
-        XNamespace ns = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-        var form = view.Descendants(ns + "Grid")
-            .Single(element => (string?)element.Attribute("DataContext") == "{Binding Edit}");
-        StringAssert.Contains((string?)form.Attribute("IsEnabled") ?? string.Empty, "CanEditFields");
-        var save = view.Descendants().Single(element => (string?)element.Attribute("Content") == "{Binding SaveButtonText}");
-        Assert.AreEqual("{Binding SaveCommand}", (string?)save.Attribute("Command"));
-    }
     [TestMethod]
     public async Task CurrentPageSelection_ShouldMaintainTriStateAndCommandCapability()
     {
@@ -717,19 +508,15 @@ public sealed class GrossDemandWorkspaceViewModelTests
 
     private static GrossDemandWorkspaceViewModel CreateViewModel(
         FakeGrossDemandApi api,
-        IDialogService? dialogService = null,
-        bool allowManual = true)
+        IDialogService? dialogService = null)
     {
         var runner = new PassThroughApiCallRunner();
         var messages = new TestMessageService();
-        var user = DispatchProxy.Create<ICurrentUserService, PermissionProxy>();
-        ((PermissionProxy)(object)user).Allow = allowManual;
         var manual = new GrossDemandManualEditorViewModel(
             api,
             DispatchProxy.Create<IProductApi, NoCallProxy>(),
             runner,
-            messages,
-            user);
+            messages);
         var navigation = DispatchProxy.Create<INavigationService, NoCallProxy>();
         return new GrossDemandWorkspaceViewModel(
             api,
@@ -737,8 +524,7 @@ public sealed class GrossDemandWorkspaceViewModelTests
             navigation,
             dialogService ?? new RecordingDialogService(confirmResult: true),
             messages,
-            manual,
-            user);
+            manual);
     }
 
     private static string FindRepositoryRoot()
@@ -782,15 +568,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
 
     private sealed class FakeGrossDemandApi : IGrossDemandWorkspaceApi
     {
-        public Queue<ServiceResult<GrossDemandDetailDto>> CreateResults { get; } = new();
-        public Queue<ServiceResult<GrossDemandDetailDto>> UpdateResults { get; } = new();
-        public Queue<ServiceResult<GrossDemandDetailDto>> CloseResults { get; } = new();
-        public Queue<ServiceResult<GrossDemandDetailDto>> DetailResults { get; } = new();
-        public List<Guid> DetailRequests { get; } = [];
-        public Func<CreateManualGrossDemandRequest, Task<ServiceResult<GrossDemandDetailDto>>>? CreateHandler { get; set; }
-        public List<CreateManualGrossDemandRequest> CreateRequests { get; } = [];
-        public List<UpdateManualGrossDemandRequest> UpdateRequests { get; } = [];
-        public List<CloseGrossDemandCommand> CloseRequests { get; } = [];
         public PagedResponseBase<GrossDemandListItemDto> SearchResponse { get; set; } = CreatePage();
         public List<GrossDemandSourceGroupDto> SourceGroupResponse { get; set; } = [];
         public GrossDemandSearchRequest? LastSearchRequest { get; private set; }
@@ -815,14 +592,10 @@ public sealed class GrossDemandWorkspaceViewModelTests
             return Task.FromResult(ServiceResult<List<GrossDemandSourceGroupDto>>.Ok(SourceGroupResponse));
         }
 
-        public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
-        { DetailRequests.Add(uid); return Task.FromResult(DetailResults.Dequeue()); }
-        public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request)
-        { CreateRequests.Add(request); return CreateHandler is null ? Task.FromResult(CreateResults.Dequeue()) : CreateHandler(request); }
-        public Task<ServiceResult<GrossDemandDetailDto>> UpdateManualAsync(Guid uid, UpdateManualGrossDemandRequest request)
-        { UpdateRequests.Add(request); return Task.FromResult(UpdateResults.Dequeue()); }
-        public Task<ServiceResult<GrossDemandDetailDto>> CloseManualAsync(Guid uid, CloseGrossDemandCommand command)
-        { CloseRequests.Add(command); return Task.FromResult(CloseResults.Dequeue()); }
+        public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request) => throw new NotSupportedException();
+        public Task<ServiceResult<GrossDemandDetailDto>> UpdateManualAsync(Guid uid, UpdateManualGrossDemandRequest request) => throw new NotSupportedException();
+        public Task<ServiceResult<GrossDemandDetailDto>> CloseManualAsync(Guid uid, CloseGrossDemandCommand command) => throw new NotSupportedException();
     }
 
     private sealed class PassThroughApiCallRunner : IApiCallRunner
@@ -835,17 +608,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
     public class NoCallProxy : DispatchProxy
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => throw new NotSupportedException(targetMethod?.Name);
-    }
-
-    /// <summary>只对本页业务按钮提供允许权限的内存会话。</summary>
-    public class PermissionProxy : DispatchProxy
-    {
-        public bool Allow { get; set; } = true;
-        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
-        {
-            "HasPermission" => Allow,
-            _ => throw new NotSupportedException(method?.Name)
-        };
     }
 
     private sealed class RecordingDialogService(bool confirmResult) : IDialogService

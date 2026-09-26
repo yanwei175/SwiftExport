@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Interfaces.Procurement;
-using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Reversal;
+using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
 
@@ -25,7 +25,7 @@ public sealed class ProcurementReversalSqlTests
         var results = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ => db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid, command))));
         Assert.IsTrue(results.All(x => x.Success), string.Join(";", results.Select(x => x.Message)));
         Assert.AreEqual(results[0].Data!.Version, results[1].Data!.Version);
-        Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt WHERE CommandId=@CommandId", command));
+        Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt WHERE CommandId=@CommandId", command));
         Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.BusinessOperationLog WHERE CommandId=@CommandId", command));
         var stale = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid,
             new() { CommandId = Guid.NewGuid(), ExpectedVersion = created.Data.Version, Reason = "旧版本必须拒绝" }));
@@ -84,7 +84,7 @@ public sealed class ProcurementReversalSqlTests
         var deleted = await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().DeleteLinesAsync(uid, deletion));
         Assert.IsTrue(deleted.Success, deleted.Message);
         Assert.AreEqual(10m, await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink WHERE NetDemandId=@net AND LinkStatus=0", new { net }));
-        var blocked = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandReversalService>().RollbackAsync(new() { CommandId = Guid.NewGuid(), Reason = "来源重做", Items = [new() { GrossDemandId = source, DecompositionRevision = 1 }] }));
+        var blocked = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandEstablishmentService>().RollbackAsync(new() { CommandId = Guid.NewGuid(), Reason = "来源重做", Items = [new() { GrossDemandId = source, DecompositionRevision = 1 }] }));
         Assert.IsFalse(blocked.Success);
         Assert.AreEqual("DOWNSTREAM_EXECUTION_EXISTS", blocked.Error?.Code);
         // 复现旧需求采购漏写未关联数量；整单作废仍须真实释放完整贡献，不回填历史字段。
@@ -93,7 +93,7 @@ public sealed class ProcurementReversalSqlTests
         Assert.IsTrue(voided.Success, voided.Message);
         Assert.IsNull(await db.ScalarAsync<decimal?>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE Uid=@otherLine", new { otherLine }));
         Assert.AreEqual(2, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink WHERE NetDemandId=@net AND LinkStatus=8 AND ReleasedQty=AllocatedQty", new { net }));
-        var rollback = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandReversalService>().RollbackAsync(new() { CommandId = Guid.NewGuid(), Reason = "来源重做", Items = [new() { GrossDemandId = source, DecompositionRevision = 1 }] }));
+        var rollback = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandEstablishmentService>().RollbackAsync(new() { CommandId = Guid.NewGuid(), Reason = "来源重做", Items = [new() { GrossDemandId = source, DecompositionRevision = 1 }] }));
         Assert.IsTrue(rollback.Success, rollback.Message);
         Assert.AreEqual(1, rollback.Data!.RolledBackSourceCount);
         Assert.AreEqual(1, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid AND IsDeleted=0", new { uid }));
@@ -170,6 +170,6 @@ public sealed class ProcurementReversalSqlTests
         Assert.IsFalse(result.Success);
         Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT LifecycleStatus FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
         Assert.AreEqual(created.Data.Version, await db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
-        Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt WHERE CommandId=@CommandId", command));
+        Assert.AreEqual(0, await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProcurementCommandReceipt WHERE CommandId=@CommandId", command));
     }
 }

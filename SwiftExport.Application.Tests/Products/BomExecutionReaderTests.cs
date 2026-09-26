@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.Products.Execution;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
+using SwiftExport.Core.Entities.Systems;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Data;
 using System.Data;

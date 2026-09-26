@@ -12,12 +12,12 @@ public sealed class SalesOrderCancellationSqlContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "Sources", "Document", "GrossDemandDocumentRepository.cs");
+            "GrossDemandRepository.cs");
         var materialRepository = Read(
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "Materials", "Document", "MaterialDemandDocumentRepository.cs");
+            "NetDemandRepository.cs");
         var hardDeleteSql = ExtractMethod(sourceRepository, "HardDeleteForSourceCancellationAsync");
         var voidSql = ExtractMethod(sourceRepository, "VoidRolledBackForSourceCancellationAsync");
 
@@ -39,7 +39,7 @@ public sealed class SalesOrderCancellationSqlContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "Materials", "Document", "MaterialDemandDocumentRepository.cs");
+            "NetDemandRepository.cs");
         var sql = ExtractSql(source, "AssessSourceExitForUpdateAsync");
         var compactSql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ");
 

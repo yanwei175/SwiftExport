@@ -35,7 +35,7 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     [TestMethod]
     public void ProductQueries_ShouldUseOwningMasterCategory()
     {
-        var source = ReadRepository("Products/Catalog", "ProductRepository.cs");
+        var source = ReadRepository("Products", "ProductRepository.cs");
         StringAssert.Contains(source, "p.{nameof(Product.ProductMasterId)} = pm.{nameof(ProductMaster.Uid)}");
         StringAssert.Contains(source, "pm.{nameof(ProductMaster.CategoryId)} = @CategoryId");
         StringAssert.Contains(source, "pm.{nameof(ProductMaster.CategoryId)} IN @CategoryIds");
@@ -50,8 +50,8 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     {
         foreach (var source in new[]
                  {
-                     ReadRepository("Customers/CustomerProducts", "CustomerProductRepository.cs"),
-                     ReadRepository("Suppliers/SupplierProducts", "SupplierProductRepository.cs")
+                     ReadRepository("Products", "CustomerProductRepository.cs"),
+                     ReadRepository("Suppliers", "SupplierProductRepository.cs")
                  })
         {
             StringAssert.Contains(source, "ProductMaster");
@@ -65,7 +65,7 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     [TestMethod]
     public void CategoryReferenceCheck_ShouldOnlyUseProductMaster()
     {
-        var source = ReadRepository("Products/Categories", "ProductCategoryRepository.cs");
+        var source = ReadRepository("Products", "ProductCategoryRepository.cs");
         StringAssert.Contains(source, "ProductMasterTable");
         Assert.IsFalse(source.Contains("GetTableName<Product>()", StringComparison.Ordinal));
     }
@@ -83,8 +83,7 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     /// <summary>检查仓储先清理空标识和重复值，再生成三个参数化分类条件。</summary>
     private static void AssertRepositoryFilter(string fileName, params string[] expectedFragments)
     {
-        var resource = fileName == "ProductMasterRepository.cs" ? "Products/ProductMasters" : "Products/ProductNeutrals";
-        var source = ReadRepository(resource, fileName);
+        var source = ReadRepository("Products", fileName);
 
         StringAssert.Contains(source, "Where(id => id != Guid.Empty).Distinct().ToArray()");
         foreach (var fragment in expectedFragments) StringAssert.Contains(source, fragment);
@@ -96,7 +95,7 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
         FindRepositoryRoot(),
         "SwiftExport.Infrastructure",
         "Repositories",
-        area.Replace('/', Path.DirectorySeparatorChar),
+        area,
         fileName));
 
     /// <summary>从测试运行目录向上定位仓库根目录。</summary>

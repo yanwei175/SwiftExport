@@ -1,5 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
+using SwiftExport.Application.Services.DemandPlanning;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.MasterData;
 

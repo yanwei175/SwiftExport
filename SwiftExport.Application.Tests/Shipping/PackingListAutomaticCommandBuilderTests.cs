@@ -1,6 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Services.Shipping;
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Contracts.SysEnums.Inventory;
 

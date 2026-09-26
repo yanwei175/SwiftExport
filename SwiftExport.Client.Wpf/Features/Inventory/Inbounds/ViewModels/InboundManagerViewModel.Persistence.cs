@@ -1,9 +1,8 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Query;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Draft;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mapster;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Inventory.Inbounds.Models;
 using SwiftExportClient.Features.Inventory.Inbounds.Services;
@@ -170,8 +169,8 @@ public sealed partial class InboundManagerViewModel
                 if (!result.Success)
                 {
                     var code = result.Error?.Code;
-                    var uncertain = code is null or ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy
-                        or ServiceErrorCodes.Unexpected or ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.CommandConflict;
+                    var uncertain = code is null or InboundErrorCodes.OutcomeUnknown or InboundErrorCodes.CommandBusy
+                        or ServiceErrorCodes.Unexpected or ServiceErrorCodes.CommandConflict;
                     pending.WasUncertain |= uncertain;
                     if (!pending.WasUncertain)
                     {

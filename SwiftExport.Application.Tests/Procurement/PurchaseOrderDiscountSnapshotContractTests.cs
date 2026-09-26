@@ -22,9 +22,9 @@ public sealed class PurchaseOrderDiscountSnapshotContractTests
     [TestMethod]
     public void RepositorySql_ShouldPersistAndProjectDiscountSnapshots()
     {
-        var commandRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "ProcurementOrderDocumentRepository.cs");
-        var draftRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "PurchaseOrderDraftRepository.cs");
-        var queryRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "ProcurementOrderQueryRepository.cs");
+        var commandRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "ProcurementOrderRepository.cs");
+        var draftRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderDraftRepository.cs");
+        var queryRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "ProcurementOrderQueryRepository.cs");
 
         StringAssert.Contains(commandRepository, "Currency,DiscountRate,DiscountAmount");
         StringAssert.Contains(commandRepository, "@Currency,@DiscountRate,@DiscountAmount");

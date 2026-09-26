@@ -1,26 +1,16 @@
-using SwiftExport.Core.Interfaces.Inventory.Inbounds;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using System.Data;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.DependencyInjection;
-using FluentValidation;
-using Mapster;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
-using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
-using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
-using SwiftExport.Application.Commands.Validation;
-using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
-using SwiftExport.Application.Services.Shipping.PackingLists;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Shipping;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -30,13 +20,10 @@ using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Shipping;
-using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Core.Interfaces.Shipping;
-using SwiftExport.Core.Interfaces.Shipping.PackingLists;
-using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Shipping;
@@ -50,21 +37,21 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task DeliveryOnlyPostReverseAndReplay()
     {
         var f = new Fixture();
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
         var command = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
-        await f.Service.ExecutePostCommandAsync(command, default);
+        await f.Service.PostAsync(command, default);
         Assert.AreEqual(PackingListPostingStatusEnum.Posted, f.Head.PostingStatus);
         Assert.IsTrue(f.Events.IndexOf("sources") < f.Events.IndexOf("head"));
-        Assert.IsTrue((await f.Service.ExecutePostCommandAsync(command, default)).AlreadyApplied);
+        Assert.IsTrue((await f.Service.PostAsync(command, default)).AlreadyApplied);
         Assert.AreEqual(1, f.Executions.Count);
-        var reverse = await f.Reversal.ReversePreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, "录单错误", default);
+        var reverse = await f.Service.ReversePreviewAsync(f.Head.Uid, f.Head.Version, f.Date, "录单错误", default);
         Assert.AreEqual(0, reverse.Blockers.Count);
         var reverseCommand = new PackingListReverseRequest(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, "录单错误", reverse.Token!);
-        await f.Reversal.ExecuteReverseCommandAsync(reverseCommand, default);
+        await f.Service.ReverseAsync(reverseCommand, default);
         Assert.AreEqual(PackingListPostingStatusEnum.Reversed, f.Head.PostingStatus);
         Assert.AreEqual(f.Executions[0].Uid, f.Executions[1].OriginalExecutionId);
         Assert.AreEqual(f.Evidence[0].Uid, f.Evidence[1].OriginalExecutionLineId);
-        Assert.IsTrue((await f.Reversal.ExecuteReverseCommandAsync(reverseCommand, default)).AlreadyApplied);
+        Assert.IsTrue((await f.Service.ReverseAsync(reverseCommand, default)).AlreadyApplied);
         Assert.AreEqual(4, f.Commits);
         Assert.AreEqual(0, f.Rollbacks);
     }
@@ -74,8 +61,8 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task LogFailureRollsBack()
     {
         var f = new Fixture { FailLog = true };
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
-        var error = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.ExecutePostCommandAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default));
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
+        var error = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.PostAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default));
         Assert.AreEqual("LOG_FAILED", error.Code);
         Assert.AreEqual(0, f.Commits);
         Assert.AreEqual(1, f.Rollbacks);
@@ -87,14 +74,14 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task RejectsStalePreviewAndConflictingReplay()
     {
         var f = new Fixture();
-        var stale = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.ExecutePostCommandAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, "stale"), default));
+        var stale = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.PostAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, "stale"), default));
         Assert.AreEqual("PREVIEW_STALE", stale.Code);
         Assert.AreEqual(0, f.Executions.Count);
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
         var command = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
-        await f.Service.ExecutePostCommandAsync(command, default);
-        var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.ExecutePostCommandAsync(command with { BusinessDate = f.Date.AddDays(1) }, default));
-        Assert.AreEqual("COMMAND_CONFLICT", conflict.Code);
+        await f.Service.PostAsync(command, default);
+        var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.PostAsync(command with { BusinessDate = f.Date.AddDays(1) }, default));
+        Assert.AreEqual("IDEMPOTENCY_CONFLICT", conflict.Code);
         Assert.AreEqual(1, f.Executions.Count);
     }
 
@@ -103,18 +90,18 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task ReplayDoesNotReadCurrentBusinessFacts()
     {
         var f = new Fixture();
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
         var post = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
-        await f.Service.ExecutePostCommandAsync(post, default);
-        var reversePreview = await f.Reversal.ReversePreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
+        await f.Service.PostAsync(post, default);
+        var reversePreview = await f.Service.ReversePreviewAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
         var reverse = new PackingListReverseRequest(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, "更正", reversePreview.Token!);
-        await f.Reversal.ExecuteReverseCommandAsync(reverse, default);
+        await f.Service.ReverseAsync(reverse, default);
         f.RejectCurrentReads = true;
-        Assert.IsTrue((await f.Service.ExecutePostCommandAsync(post, default)).AlreadyApplied);
-        Assert.IsTrue((await f.Reversal.ExecuteReverseCommandAsync(reverse, default)).AlreadyApplied);
+        Assert.IsTrue((await f.Service.PostAsync(post, default)).AlreadyApplied);
+        Assert.IsTrue((await f.Service.ReverseAsync(reverse, default)).AlreadyApplied);
         var conflict = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() =>
-            f.Service.ExecutePostCommandAsync(post with { BusinessDate = f.Date.AddDays(1) }, default));
-        Assert.AreEqual("COMMAND_CONFLICT", conflict.Code);
+            f.Service.PostAsync(post with { BusinessDate = f.Date.AddDays(1) }, default));
+        Assert.AreEqual("IDEMPOTENCY_CONFLICT", conflict.Code);
         Assert.AreEqual(2, f.Executions.Count);
     }
 
@@ -123,10 +110,10 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task InventoryPostPreparesReceivesIssuesAndPersistsEvidence()
     {
         var f = new Fixture(inventory: true);
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
         Assert.AreEqual(0, preview.Blockers.Count);
         var command = new PackingListPostRequest(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!);
-        var result = await f.Service.ExecutePostCommandAsync(command, default);
+        var result = await f.Service.PostAsync(command, default);
         CollectionAssert.AreEqual(new[] { "prepare", "inbound", "outbound", "mark", "append", "log", "commit" },
             f.Events.Where(x => x is "prepare" or "inbound" or "outbound" or "mark" or "append" or "log" or "commit").ToArray());
         Assert.AreEqual(3, f.Evidence.Count);
@@ -135,7 +122,7 @@ public sealed class PackingListPostingCoordinatorTests
         Assert.AreEqual(5m, f.Evidence.Single(x => x.ActionKind == "Receipt").Qty);
         Assert.AreEqual(2m, f.Evidence.Single(x => x.ActionKind == "Consumption").Qty);
         Assert.IsTrue(f.Evidence.All(x => x.DocumentId.HasValue && x.DocumentLineId.HasValue && x.LedgerId.HasValue));
-        Assert.IsTrue((await f.Service.ExecutePostCommandAsync(command, default)).AlreadyApplied);
+        Assert.IsTrue((await f.Service.PostAsync(command, default)).AlreadyApplied);
         Assert.AreEqual(1, f.Events.Count(x => x == "inbound"));
         Assert.AreEqual(1, f.Events.Count(x => x == "outbound"));
     }
@@ -151,8 +138,8 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task InventoryFailureNeverCommits(string stage)
     {
         var f = new Fixture(inventory: true) { FailureStage = stage };
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => f.Service.ExecutePostCommandAsync(
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => f.Service.PostAsync(
             new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default));
         Assert.AreEqual(0, f.Commits);
         Assert.AreEqual(1, f.Rollbacks);
@@ -165,17 +152,17 @@ public sealed class PackingListPostingCoordinatorTests
     {
         var original = new PackingListReversePreviewBuilderTests.Fixture().Facts;
         var f = new Fixture(original: original);
-        var preview = await f.Reversal.ReversePreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
+        var preview = await f.Service.ReversePreviewAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
         Assert.AreEqual(0, preview.Blockers.Count);
         var command = new PackingListReverseRequest(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, "更正", preview.Token!);
-        var result = await f.Reversal.ExecuteReverseCommandAsync(command, default);
+        var result = await f.Service.ReverseAsync(command, default);
         Assert.IsTrue(f.Events.IndexOf("reverse-outbound") < f.Events.IndexOf("reverse-inbound"));
         Assert.AreEqual(2, result.Documents.Count);
         Assert.AreEqual(4, f.Evidence.Count);
         Assert.IsTrue(f.Evidence.Skip(2).All(x => x.OriginalExecutionLineId.HasValue));
         Assert.AreEqual(4, f.Evidence.Select(x => x.LedgerId).Distinct().Count());
         Assert.AreEqual(PackingListPostingStatusEnum.Reversed, f.Head.PostingStatus);
-        Assert.IsTrue((await f.Reversal.ExecuteReverseCommandAsync(command, default)).AlreadyApplied);
+        Assert.IsTrue((await f.Service.ReverseAsync(command, default)).AlreadyApplied);
         Assert.AreEqual(1, f.Events.Count(x => x == "reverse-outbound"));
     }
 
@@ -186,8 +173,8 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task InventoryReverseFailureNeverCommits(string stage)
     {
         var f = new Fixture(original: new PackingListReversePreviewBuilderTests.Fixture().Facts) { FailureStage = stage };
-        var preview = await f.Reversal.ReversePreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => f.Reversal.ExecuteReverseCommandAsync(
+        var preview = await f.Service.ReversePreviewAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => f.Service.ReverseAsync(
             new(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, "更正", preview.Token!), default));
         Assert.AreEqual(0, f.Commits);
         Assert.AreEqual(1, f.Rollbacks);
@@ -205,14 +192,14 @@ public sealed class PackingListPostingCoordinatorTests
         f.CancelAfterLog = cancellation;
         if (reverse)
         {
-            var preview = await f.Reversal.ReversePreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
-            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => f.Reversal.ExecuteReverseCommandAsync(
+            var preview = await f.Service.ReversePreviewAsync(f.Head.Uid, f.Head.Version, f.Date, "更正", default);
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => f.Service.ReverseAsync(
                 new(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, "更正", preview.Token!), cancellation.Token));
         }
         else
         {
-            var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, default);
-            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => f.Service.ExecutePostCommandAsync(
+            var preview = await f.Service.PreviewAsync(f.Head.Uid, f.Head.Version, f.Date, default);
+            await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => f.Service.PostAsync(
                 new(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, preview.Token!), cancellation.Token));
         }
         Assert.Contains("append", f.Events);
@@ -226,10 +213,10 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task RechecksDeliveryAfterCandidateProbe()
     {
         var f = new Fixture();
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
         f.ChangeDeliveryAfterLock = true;
         var error = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() =>
-            f.Service.ExecutePostCommandAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default));
+            f.Service.PostAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default));
         Assert.AreEqual("PREVIEW_STALE", error.Code);
         Assert.AreEqual(0, f.Executions.Count);
         Assert.AreEqual(0, f.Commits);
@@ -241,11 +228,11 @@ public sealed class PackingListPostingCoordinatorTests
     public async Task RechecksReverseEvidenceAfterCandidateProbe()
     {
         var f = new Fixture();
-        var preview = await f.Service.PreviewCoreAsync(f.Head.Uid, 1, f.Date, default);
-        await f.Service.ExecutePostCommandAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default);
-        var reverse = await f.Reversal.ReversePreviewCoreAsync(f.Head.Uid, f.Head.Version, f.Date, "录单错误", default);
+        var preview = await f.Service.PreviewAsync(f.Head.Uid, 1, f.Date, default);
+        await f.Service.PostAsync(new(f.Head.Uid, Guid.NewGuid(), 1, f.Date, preview.Token!), default);
+        var reverse = await f.Service.ReversePreviewAsync(f.Head.Uid, f.Head.Version, f.Date, "录单错误", default);
         f.HideReverseEvidenceAfterLock = true;
-        var error = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Reversal.ExecuteReverseCommandAsync(
+        var error = await Assert.ThrowsExactlyAsync<PackingListPostingFailure>(() => f.Service.ReverseAsync(
             new(f.Head.Uid, Guid.NewGuid(), f.Head.Version, f.Date, "录单错误", reverse.Token!), default));
         Assert.AreEqual("EXECUTION_INVALID", error.Code);
         Assert.AreEqual(1, f.Executions.Count);
@@ -264,17 +251,15 @@ public sealed class PackingListPostingCoordinatorTests
     }
 
     /// <summary>最小售后交付环境，无数据库连接，记录事务控制调用。</summary>
-    internal sealed class Fixture
+    private sealed class Fixture
     {
         public DateTime Date { get; } = new(2026, 9, 17);
         public PackingListHead Head { get; } = new() { PackingListNo = "PL1", CustomerId = Guid.NewGuid() };
         public List<PackingListPostingExecution> Executions { get; } = [];
         public List<PackingListPostingExecutionLine> Evidence { get; } = [];
-        private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
         public List<string> Events { get; } = [];
         public DbSession Session { get; }
-        public PackingListPostingService Service { get; }
-        public PackingListReversalService Reversal { get; }
+        public PackingListPostingCoordinator Service { get; }
         public int Commits { get; private set; }
         public int Rollbacks { get; private set; }
         public bool FailLog { get; set; }
@@ -314,14 +299,12 @@ public sealed class PackingListPostingCoordinatorTests
                 capacity = [new InboundPurchasePostingSourceDto { SourceLineId = purchaseLine.Uid, PurchaseOrderId = purchase.Uid,
                     ProductId = product.Uid, Unit = "PCS", CurrentUnit = "PCS", IsReceivable = true, OriginalQty = 10 }];
             }
-            IDbConnection? connection = null;
             var transaction = Proxy.Make<IDbTransaction>((m, _) => m switch
-            { "Commit" => Count(true), "Rollback" => Count(false), "Dispose" => null, "get_IsolationLevel" => IsolationLevel.Serializable,
-                "get_Connection" => connection, _ => throw new NotSupportedException(m) });
-            connection = Proxy.Make<IDbConnection>((m, _) => m == "BeginTransaction" ? transaction : throw new NotSupportedException(m));
+            { "Commit" => Count(true), "Rollback" => Count(false), "Dispose" => null, "get_IsolationLevel" => IsolationLevel.Serializable, _ => throw new NotSupportedException(m) });
+            var connection = Proxy.Make<IDbConnection>((m, _) => m == "BeginTransaction" ? transaction : throw new NotSupportedException(m));
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Session, connection);
-            var packing = Proxy.Make<IPackingListDocumentRepository>((m, _) => m switch
+            var packing = Proxy.Make<IPackingListRepository>((m, _) => m switch
             {
                 "GetDetailAsync" when RejectCurrentReads => throw new AssertFailedException("重放不应读取当前详情。"),
                 "GetDetailAsync" => Task.FromResult<PackingListDetailDto?>(new() { Header = new() { Uid = Head.Uid, Version = Head.Version }, Lines = [new() { Uid = line.Uid, GrossDemandId = line.GrossDemandId, Qty = line.Qty }] }),
@@ -349,39 +332,17 @@ public sealed class PackingListPostingCoordinatorTests
             var userId = Guid.NewGuid();
             var user = Proxy.Make<ICurrentUser>((m, _) => m switch
             { "get_UserId" => userId, "get_UserName" => "tester", "get_IsAuthenticated" => true, _ => throw new NotSupportedException(m) });
-            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
-            var receipts = Proxy.Make<ICommandReceiptRepository>((m, args) => m switch
-            {
-                "LockAsync" => Task.FromResult(0),
-                "FindAsync" => Task.FromResult(_receipts.GetValueOrDefault((Guid)args[0]!)),
-                "InsertAsync" => InsertReceipt((CommandReceipt)args[0]!),
-                _ => throw new NotSupportedException(m)
-            });
-            var executor = new BusinessCommandExecutor(new ServiceBaseContext(Session, NullLoggerFactory.Instance), receipts, user);
-            var validators = new ServiceCollection();
-            validators.AddSingleton<IValidator<PostPackingListCommand>>(new PostPackingListCommandValidator());
-            var correlation = Proxy.Make<ICorrelationContext>((m, _) => m == "get_CorrelationId" ? "test"
-                : throw new NotSupportedException(m));
-            var pipeline = new CommandPipeline(new CommandRequestValidator(validators.BuildServiceProvider()),
-                correlation, user, NullLogger<CommandPipeline>.Instance);
-            var mapping = new TypeAdapterConfig(); new PackingListPostingMapping().Register(mapping);
-            var sourceRepository = inventory ? Proxy.Make<IInboundSourceRepository>((m, _) => m switch {
-                    "ReadPostingSourcesAsync" => Task.FromResult(capacity), "HasUnprovenReceiptAsync" => Task.FromResult(false), _ => throw new NotSupportedException(m) })
-                : Forbidden<IInboundSourceRepository>();
-            var scope = inventory || original != null ? Proxy.Make<IAutomaticPostingScope>((m, _) => m == "PrepareAsync"
-                ? Record("prepare", Task.CompletedTask) : throw new NotSupportedException(m)) : Forbidden<IAutomaticPostingScope>();
-            var inboundPort = inventory || original != null ? Proxy.Make<IInboundPostingPort>((m, a) => m switch {
-                    "CreateAndPostAsync" => Port("inbound", (AutomaticPostingRequest)a[0]!),
-                    "ReverseAsync" => ReversePort("reverse-inbound", (AutomaticReverseRequest)a[0]!), _ => throw new NotSupportedException(m) })
-                : Forbidden<IInboundPostingPort>();
-            var outboundPort = inventory || original != null ? Proxy.Make<IOutboundPostingPort>((m, a) => m switch {
-                    "CreateAndPostAsync" => Port("outbound", (AutomaticPostingRequest)a[0]!),
-                    "ReverseAsync" => ReversePort("reverse-outbound", (AutomaticReverseRequest)a[0]!), _ => throw new NotSupportedException(m) })
-                : Forbidden<IOutboundPostingPort>();
+            var permissions = Proxy.Make<IUserPermissionService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             Service = new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), packing, facts, executions,
-                sourceRepository, scope, inboundPort, outboundPort, logs, user, permissions, executor, mapping, pipeline);
-            Reversal = new(new ServiceBaseContext(Session, NullLoggerFactory.Instance), packing, facts, executions,
-                scope, inboundPort, outboundPort, logs, user, permissions, executor, null!, null!);
+                inventory ? Proxy.Make<IInboundManagerRepository>((m, _) => m switch {
+                    "ReadPostingSourcesAsync" => Task.FromResult(capacity), "HasUnprovenReceiptAsync" => Task.FromResult(false), _ => throw new NotSupportedException(m) }) : Forbidden<IInboundManagerRepository>(),
+                inventory || original != null ? Proxy.Make<IAutomaticPostingScope>((m, _) => m == "PrepareAsync" ? Record("prepare", Task.CompletedTask) : throw new NotSupportedException(m)) : Forbidden<IAutomaticPostingScope>(),
+                inventory || original != null ? Proxy.Make<IInboundPostingPort>((m, a) => m switch {
+                    "CreateAndPostAsync" => Port("inbound", (AutomaticPostingRequest)a[0]!),
+                    "ReverseAsync" => ReversePort("reverse-inbound", (AutomaticReverseRequest)a[0]!), _ => throw new NotSupportedException(m) }) : Forbidden<IInboundPostingPort>(),
+                inventory || original != null ? Proxy.Make<IOutboundPostingPort>((m, a) => m switch {
+                    "CreateAndPostAsync" => Port("outbound", (AutomaticPostingRequest)a[0]!),
+                    "ReverseAsync" => ReversePort("reverse-outbound", (AutomaticReverseRequest)a[0]!), _ => throw new NotSupportedException(m) }) : Forbidden<IOutboundPostingPort>(), logs, user, permissions);
             Task<PackingListPostingFacts> ReadFacts()
             {
                 data.Delivered = ChangeDeliveryAfterLock && Session.Transaction != null
@@ -394,7 +355,6 @@ public sealed class PackingListPostingCoordinatorTests
         private T Record<T>(string name, T value) { Events.Add(name); if (FailureStage == name) throw new InvalidOperationException("测试阶段失败：" + name); if (name == "log") CancelAfterLog?.Cancel(); return value; }
         private Task Mark(bool reverse) { Record("mark", 0); Head.PostingStatus = reverse ? PackingListPostingStatusEnum.Reversed : PackingListPostingStatusEnum.Posted; Head.Version++; return Task.CompletedTask; }
         private Task Append(PackingListPostingExecution execution, IReadOnlyList<PackingListPostingExecutionLine> lines) { Record("append", 0); Executions.Add(execution); Evidence.AddRange(lines); return Task.CompletedTask; }
-        private Task InsertReceipt(CommandReceipt receipt) { _receipts.Add(receipt.CommandId, receipt); return Task.CompletedTask; }
 
         /// <summary>模拟严格端口返回，验证同一事务及准备、入库、出库顺序，不模拟 SQL 库存。</summary>
         private Task<AutomaticPostingResult> Port(string stage, AutomaticPostingRequest request)

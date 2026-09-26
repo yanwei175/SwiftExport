@@ -27,7 +27,7 @@ public sealed class PurchaseOrderProgressContractTests
     public void Report_command_does_not_accept_client_reported_date()
     {
         Assert.IsNull(typeof(ReportPurchaseOrderProgressCommand).GetProperty("SupplierReportedDate"));
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "SupplierProgressReportRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "SupplierProgressReportRepository.cs");
         StringAssert.Contains(repository, "report.SupplierReportedDate = report.CreatedDate");
         StringAssert.Contains(repository, "context.AuditStamp.StampForInsert(report)");
     }
@@ -36,16 +36,16 @@ public sealed class PurchaseOrderProgressContractTests
     [TestMethod]
     public void Reporting_is_append_only_versioned_and_idempotent()
     {
-        var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Progress", "PurchaseOrderProgressReportService.cs");
+        var service = Read("SwiftExport.Application", "Services", "Procurement", "OrderManagement", "PurchaseOrderProgressService.cs");
         foreach (var token in new[]
                  {
-                     "BusinessCommandExecutor", "ExpectedPurchaseOrderVersion", "ExpectedLineVersion",
+                     "GetByCommandAsync", "ExpectedPurchaseOrderVersion", "ExpectedLineVersion",
                      "command.ReadyQty < latest.ReadyQty", "累计已备好数量下降时必须填写纠错原因",
                      "Sequence = (latest?.Sequence ?? 0) + 1", "command.ReadyQty > line.Quantity"
                  })
             StringAssert.Contains(service, token);
 
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "SupplierProgressReportRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "SupplierProgressReportRepository.cs");
         StringAssert.Contains(repository, "INSERT dbo.SupplierProgressReport");
         Assert.IsFalse(repository.Contains("UPDATE dbo.SupplierProgressReport", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(repository.Contains("DELETE FROM dbo.SupplierProgressReport", StringComparison.OrdinalIgnoreCase));
@@ -56,7 +56,7 @@ public sealed class PurchaseOrderProgressContractTests
     [TestMethod]
     public void Detail_uses_purchase_line_identity_for_receipts()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "PurchaseOrderProgressQueryRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrderProgressQueryRepository.cs");
         StringAssert.Contains(repository, "receipt.SourceLineId=l.Uid");
         StringAssert.Contains(repository, "receiveHead.PostingStatus IN @FormalPostingStatuses");
         Assert.IsFalse(repository.Contains("DemandExecutionLink", StringComparison.Ordinal));

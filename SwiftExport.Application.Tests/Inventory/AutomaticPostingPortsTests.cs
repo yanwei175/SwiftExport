@@ -1,11 +1,3 @@
-using SwiftExport.Application.Interfaces.Systems.Numbering;
-using SwiftExport.Core.Interfaces.Inventory.Inbounds;
-using SwiftExport.Core.Interfaces.Inventory.Outbounds;
-using SwiftExport.Core.Interfaces.Inventory.AutomaticDocuments;
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
-using SwiftExport.Application.Services.Inventory.Posting;
-using SwiftExport.Application.Services.Inventory.AutomaticDocuments;
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -16,6 +8,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Inventory;
 using SwiftExport.Application.Services.Inventory;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.Wrappers;
@@ -26,8 +19,6 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Inventory;
-using SwiftExport.Core.Interfaces.Inventory.Posting;
-using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Inventory;
@@ -126,7 +117,7 @@ public sealed class AutomaticPostingPortsTests
         await f.In.CreateAndPostAsync(f.InRequest);
         f.InRequest.Groups[0].Lines[0].Quantity = 9;
         var failure = await Assert.ThrowsAsync<AutomaticPostingException>(() => f.In.CreateAndPostAsync(f.InRequest));
-        Assert.AreEqual("COMMAND_CONFLICT", failure.Code);
+        Assert.AreEqual("IDEMPOTENCY_CONFLICT", failure.Code);
     }
 
     /// <summary>单位大小写、空白及数量尾零属于同一规范化内容，不产生伪幂等冲突。</summary>
@@ -312,7 +303,7 @@ public sealed class AutomaticPostingPortsTests
             var wh = new WarehouseSite { Uid = WarehouseId, SupplierId = SupplierId, Code = "WH", Name = "仓库", IsActive = true };
             var product = new Product { Uid = ProductId, Sku = "SKU", Unit = "PCS" };
             var warehouse = Proxy<IRepository<WarehouseSite>>((_, _) => Task.FromResult<WarehouseSite?>(wh));
-            var inventoryRepo = Proxy<IInventoryPostingRepository>((m, a) => m switch
+            var inventoryRepo = Proxy<IInventoryRepository>((m, a) => m switch
             {
                 "AcquireCommandLockAsync" => Task.FromResult(0),
                 "LockLedgerByCommandItemAsync" => Task.FromResult(Ledgers.SingleOrDefault(x => x.CommandItemId == (Guid)a[0]!)),
@@ -327,34 +318,25 @@ public sealed class AutomaticPostingPortsTests
                 "InsertLedgerAsync" => InsertLedger((InventoryLedgerEntry)a[0]!),
                 _ => throw new NotSupportedException(m)
             });
-            var inRepo = Proxy<IInboundDocumentRepository>((m, a) => m switch
-            {
-                "LockHeaderAsync" => Task.FromResult(InHeaders.GetValueOrDefault((Guid)a[0]!)),
-                "LockLinesAsync" => Task.FromResult<IReadOnlyList<InboundDocumentLine>>(InLines.Where(x => x.InboundDocumentId == (Guid)a[0]!).ToList()),
-                _ => throw new NotSupportedException(m)
-            });
-            var executionReads = Proxy<IInboundExecutionReadRepository>((m, a) => m switch
-            {
-                "ReadReverseLedgersAsync" => History((Guid)a[0]!),
-                _ => throw new NotSupportedException(m)
-            });
-            var sourceRepo = Proxy<IInboundSourceRepository>((m, a) => m switch
+            var inRepo = Proxy<IInboundManagerRepository>((m, a) => m switch
             {
                 "LockPurchaseSourcesAsync" => Task.CompletedTask,
+                "LockHeaderAsync" => Task.FromResult(InHeaders.GetValueOrDefault((Guid)a[0]!)),
+                "LockLinesAsync" => Task.FromResult<IReadOnlyList<InboundDocumentLine>>(InLines.Where(x => x.InboundDocumentId == (Guid)a[0]!).ToList()),
+                "ReadReverseLedgersAsync" => History((Guid)a[0]!),
                 "HasUnprovenReceiptAsync" => Task.FromResult(false),
                 "ReadPostingSourcesAsync" => Task.FromResult<IReadOnlyList<InboundPurchasePostingSourceDto>>([new() { SourceLineId = PurchaseId,
                     ProductId = ProductId, IsReceivable = true, IsCustomerSupplied = CustomerSuppliedSource, OriginalQty = 10,
                     PostedNetQty = InHeaders.Values.Where(x => x.PostingStatus == InboundPostingStatusEnum.Posted).Sum(h => InLines.Where(l => l.InboundDocumentId == h.Uid).Sum(l => l.Quantity)), Unit = "PCS", CurrentUnit = "PCS" }]),
                 _ => throw new NotSupportedException(m)
             });
-            var outRepo = Proxy<IOutboundDocumentRepository>((m, a) => m switch
+            var outRepo = Proxy<IOutboundManagerRepository>((m, a) => m switch
             {
                 "LockHeaderAsync" => Task.FromResult(OutHeaders.GetValueOrDefault((Guid)a[0]!)),
                 "LockLinesAsync" => Task.FromResult<IReadOnlyList<OutboundDocumentLine>>(OutLines.Where(x => x.OutboundDocumentId == (Guid)a[0]!).ToList()),
+                "ReadReverseLedgersAsync" => History((Guid)a[0]!),
                 _ => throw new NotSupportedException(m)
             });
-            var outReads = Proxy<IOutboundExecutionReadRepository>((m, a) => m == "ReadReverseLedgersAsync"
-                ? History((Guid)a[0]!) : throw new NotSupportedException(m));
             var auto = Proxy<IAutomaticDocumentRepository>((m, a) => m switch
             {
                 "IsSchemaReadyAsync" => Task.FromResult(SchemaReady), "LockProductsAsync" => Task.CompletedTask,
@@ -365,10 +347,10 @@ public sealed class AutomaticPostingPortsTests
                 "SetOutboundStateAsync" => State((OutboundDocument)a[0]!, (bool)a[1]!),
                 _ => throw new NotSupportedException(m)
             });
-            _scope = new(context, auto, inRepo, executionReads, sourceRepo, outRepo, outReads, inventoryRepo, warehouse);
+            _scope = new(context, auto, inRepo, outRepo, inventoryRepo, warehouse);
             var userId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-            var ports = new AutomaticPostingPorts(_scope, auto, inRepo, sourceRepo, executionReads, outRepo, outReads,
-                new InventoryPostingService(context, inventoryRepo, Proxy<IWarehouseManagementRepository>((_, _) => Task.FromResult<WarehouseSite?>(wh))),
+            var ports = new AutomaticPostingPorts(_scope, auto, inRepo, outRepo,
+                new InventoryPostingService(context, inventoryRepo, Proxy<IWarehouseSiteRepository>((_, _) => Task.FromResult<WarehouseSite?>(wh))),
                 warehouse, inventoryRepo, Proxy<IBusinessOperationLogRepository>((m, a) => m switch
                 {
                     "GetByModuleCommandAsync" => Task.FromResult(Logs.GetValueOrDefault((Guid)a[1]!)),
