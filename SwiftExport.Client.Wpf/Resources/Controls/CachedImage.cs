@@ -5,7 +5,7 @@ using System.Windows.Controls;
 namespace SwiftExportClient.Resources.Controls;
 
 /// <summary>
-/// 面向虚拟化列表和 DataGrid 的本地缓存图片控件。控件只接收路径，不把 BitmapSource 放入业务 ViewModel。
+/// 面向虚拟化列表和 DataGrid 的缓存图片控件。控件只接收本地路径或完整网络地址，不拼接业务 URL。
 /// </summary>
 public sealed class CachedImage : Image
 {
@@ -54,7 +54,7 @@ public sealed class CachedImage : Image
         Unloaded += OnUnloaded;
     }
 
-    /// <summary>本机绝对路径或 UNC 路径；相对路径和 HTTP 地址会被拒绝。</summary>
+    /// <summary>本机绝对路径、UNC 路径或完整 HTTP/HTTPS 地址；相对路径会被拒绝。</summary>
     public string? SourcePath
     {
         get => (string?)GetValue(SourcePathProperty);

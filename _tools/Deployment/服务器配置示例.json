@@ -1,0 +1,19 @@
+{
+  "ConnectionStrings": {
+    "Default": "填写服务器数据库连接字符串"
+  },
+  "Auth": {
+    "UseDevUser": false,
+    "JwtKey": "",
+    "JwtIssuer": "SwiftExport",
+    "JwtAudience": "SwiftExportClient"
+  },
+  "FileStorage": {
+    "Enabled": true,
+    "RootPath": "D:\\ERPFiles"
+  },
+  "AllowedHosts": "*",
+  "Serilog": {
+    "MinimumLevel": "Information"
+  }
+}

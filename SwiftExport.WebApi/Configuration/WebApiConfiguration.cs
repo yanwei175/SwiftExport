@@ -11,6 +11,7 @@ using SwiftExport.WebApi.ErrorHandling;
 using SwiftExport.WebApi.Observability;
 
 using SwiftExport.WebApi.Authentication;
+using SwiftExport.WebApi.Files;
 using System.Text;
 
 namespace SwiftExport.WebApi.Configuration;
@@ -133,6 +134,10 @@ public static class WebApiConfiguration
                 : ServiceErrorResponse.WriteAsync(context.HttpContext, code, "请求的资源不存在或当前身份无法访问。");
         });
 
+        // 图片只读入口不解析业务身份或访问数据库，仍服从宿主 HTTPS 跳转。
+        app.UseHttpsRedirection();
+        app.UseProductImages();
+
         // DevUser 免登录注入（仅 Development 且 UseDevUser=true 时激活）
         // 注意：必须在 UseAuthentication 之前，这样才能覆盖 HttpContext.User
         app.UseMiddleware<DevUserMiddleware>();
@@ -143,7 +148,6 @@ public static class WebApiConfiguration
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
         app.UseAuthentication();   // ← 先认证（解析 JWT）
         app.UseAuthorization();    // ← 再授权
         app.MapControllers();

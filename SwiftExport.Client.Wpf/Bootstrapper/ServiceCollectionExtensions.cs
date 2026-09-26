@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Services;
@@ -28,6 +29,13 @@ public static class ServiceCollectionExtensions
         services.Configure<ClientOptions>(configuration.GetSection(ClientOptions.SectionName));
         services.Configure<ProductOptions>(configuration.GetSection(ProductOptions.SectionName));
         services.Configure<ImageCacheOptions>(configuration.GetSection(ImageCacheOptions.SectionName));
+        services.AddHttpClient(ImageCacheService.HttpClientName, client =>
+            client.Timeout = Timeout.InfiniteTimeSpan)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                UseCookies = false,
+                UseDefaultCredentials = false,
+            });
         services.AddSingleton<ITokenStore, LocalTokenStore>();
         services.AddSingleton<ICurrentUserService, CurrentUserService>();
         services.AddSingleton<ISessionService, SessionService>();

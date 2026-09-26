@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Media;
@@ -8,15 +10,30 @@ using Microsoft.Extensions.Options;
 
 namespace SwiftExportClient.Services.Images;
 
-/// <summary>使用内存 LRU 和磁盘缩略图实现的本地图片缓存。</summary>
+/// <summary>为本地文件提供内存/磁盘缩略图缓存，并为完整 HTTP/HTTPS 地址提供限时内存缓存。</summary>
 public sealed class ImageCacheService : IImageCacheService, IDisposable
 {
+    /// <summary>获取不携带业务认证信息的网络图片客户端注册名称。</summary>
+    public const string HttpClientName = "SwiftExport.ImageCache";
+
+    private static readonly HttpClient SharedHttpClient = new(new HttpClientHandler
+    {
+        UseCookies = false,
+        UseDefaultCredentials = false,
+    })
+    {
+        Timeout = Timeout.InfiniteTimeSpan,
+    };
+
     private readonly object _memoryGate = new();
     private readonly Dictionary<string, MemoryEntry> _memory = new(StringComparer.Ordinal);
     private readonly LinkedList<string> _lru = new();
     private readonly ConcurrentDictionary<string, Lazy<Task<MemoryEntry?>>> _inflight = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, DateTimeOffset> _negativeCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _decodeSemaphore;
+    private readonly HttpClient _httpClient;
+    private readonly bool _disposeHttpClient;
+    private readonly TimeProvider _timeProvider;
     private readonly ImageCacheOptions _options;
     private readonly string _diskCachePath;
     private readonly long _memoryLimitBytes;
@@ -27,17 +44,42 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
     private long _decodeCount;
     private bool _disposed;
 
-    public ImageCacheService(IOptions<ImageCacheOptions> options)
-        : this(options.Value)
+    /// <summary>从依赖注入获取配置及独立网络图片客户端。</summary>
+    public ImageCacheService(IOptions<ImageCacheOptions> options, IHttpClientFactory httpClientFactory)
+        : this(
+            options.Value,
+            httpClientFactory.CreateClient(HttpClientName),
+            TimeProvider.System,
+            disposeHttpClient: true)
     {
     }
 
     /// <summary>供测试或独立宿主显式传入配置。</summary>
     public ImageCacheService(ImageCacheOptions options)
+        : this(options, SharedHttpClient, TimeProvider.System, disposeHttpClient: false)
+    {
+    }
+
+    /// <summary>供测试或独立宿主注入受控 HTTP 响应与时间源。</summary>
+    public ImageCacheService(ImageCacheOptions options, HttpClient httpClient, TimeProvider? timeProvider = null)
+        : this(options, httpClient, timeProvider, disposeHttpClient: false)
+    {
+    }
+
+    /// <summary>初始化缓存并明确网络客户端的资源所有权。</summary>
+    private ImageCacheService(
+        ImageCacheOptions options,
+        HttpClient httpClient,
+        TimeProvider? timeProvider,
+        bool disposeHttpClient)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(httpClient);
         ValidateOptions(options);
         _options = options;
+        _httpClient = httpClient;
+        _disposeHttpClient = disposeHttpClient;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _memoryLimitBytes = options.MemoryLimitMegabytes * 1024L * 1024L;
         _diskLimitBytes = options.DiskLimitMegabytes * 1024L * 1024L;
         _diskCachePath = string.IsNullOrWhiteSpace(options.DiskCachePath)
@@ -152,15 +194,41 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
 
         _disposed = true;
         _decodeSemaphore.Dispose();
+        if (_disposeHttpClient)
+        {
+            _httpClient.Dispose();
+        }
     }
 
     private ImageRequest? CreateRequest(string sourcePath, int decodePixelWidth)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath) ||
-            Uri.TryCreate(sourcePath, UriKind.Absolute, out var uri) &&
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            return null;
+        }
+
+        var width = decodePixelWidth <= 0 ? _options.DefaultDecodePixelWidth : decodePixelWidth;
+        if (width > _options.MaximumDecodePixelWidth)
+        {
+            return null;
+        }
+
+        var trimmedSource = sourcePath.Trim();
+        if (Uri.TryCreate(trimmedSource, UriKind.Absolute, out var uri) &&
             (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
-             uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)) ||
-            !Path.IsPathFullyQualified(sourcePath))
+             uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            // 网络键保留调用方给出的完整地址大小写，避免大小写敏感路径或查询串发生串图。
+            var key = HashKey($"http|{trimmedSource}|{width}");
+            if (IsNegativeCached(key))
+            {
+                return null;
+            }
+
+            return new ImageRequest(trimmedSource, uri, width, key, key);
+        }
+
+        if (!Path.IsPathFullyQualified(sourcePath))
         {
             return null;
         }
@@ -175,21 +243,15 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
             return null;
         }
 
-        var width = decodePixelWidth <= 0 ? _options.DefaultDecodePixelWidth : decodePixelWidth;
-        if (width > _options.MaximumDecodePixelWidth || Directory.Exists(fullPath))
+        if (Directory.Exists(fullPath))
         {
             return null;
         }
 
         var negativeKey = $"{fullPath}|{width}";
-        if (_negativeCache.TryGetValue(negativeKey, out var retryAfter))
+        if (IsNegativeCached(negativeKey))
         {
-            if (retryAfter > DateTimeOffset.UtcNow)
-            {
-                return null;
-            }
-
-            _negativeCache.TryRemove(negativeKey, out _);
+            return null;
         }
 
         try
@@ -202,8 +264,8 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
             }
 
             var keyText = $"{fullPath.ToUpperInvariant()}|{file.Length}|{file.LastWriteTimeUtc.Ticks}|{width}";
-            var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(keyText)));
-            return new ImageRequest(fullPath, width, key, negativeKey);
+            var key = HashKey(keyText);
+            return new ImageRequest(fullPath, null, width, key, negativeKey);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -214,7 +276,7 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
 
     private async Task<MemoryEntry?> LoadOrCreateAsync(ImageRequest request)
     {
-        if (TryLoadDisk(request.Key, out var diskEntry))
+        if (!request.IsNetwork && TryLoadDisk(request.Key, out var diskEntry))
         {
             Interlocked.Increment(ref _diskHits);
             AddMemory(request.Key, diskEntry);
@@ -224,21 +286,35 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
         await _decodeSemaphore.WaitAsync().ConfigureAwait(false);
         try
         {
-            MemoryEntry entry;
+            MemoryEntry? entry;
             try
             {
-                entry = await Task.Run(() => Decode(request.SourcePath, request.DecodePixelWidth)).ConfigureAwait(false);
+                entry = request.IsNetwork
+                    ? await LoadNetworkAsync(request).ConfigureAwait(false)
+                    : await Task.Run(() => DecodeLocal(request.Source, request.DecodePixelWidth)).ConfigureAwait(false);
+                if (entry is null)
+                {
+                    RememberFailure(request.NegativeKey);
+                    return null;
+                }
+
                 Interlocked.Increment(ref _decodeCount);
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+                                               NotSupportedException or FileFormatException or HttpRequestException or
+                                               OperationCanceledException)
             {
                 RememberFailure(request.NegativeKey);
                 return null;
             }
 
             AddMemory(request.Key, entry);
-            await WriteDiskAsync(request.Key, entry.Bitmap).ConfigureAwait(false);
-            await CleanupDiskAsync().ConfigureAwait(false);
+            if (!request.IsNetwork)
+            {
+                await WriteDiskAsync(request.Key, entry.Bitmap).ConfigureAwait(false);
+                await CleanupDiskAsync().ConfigureAwait(false);
+            }
+
             return entry;
         }
         finally
@@ -247,7 +323,79 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
         }
     }
 
-    private static MemoryEntry Decode(string sourcePath, int decodePixelWidth)
+    /// <summary>下载网络响应并在内存中限量解码；不创建临时文件或磁盘缩略图。</summary>
+    private async Task<MemoryEntry?> LoadNetworkAsync(ImageRequest request)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(_options.HttpTimeoutSeconds));
+        using var message = new HttpRequestMessage(HttpMethod.Get, request.NetworkUri);
+        using var response = await _httpClient.SendAsync(
+            message,
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var maximumBytes = _options.MaximumSourceFileMegabytes * 1024L * 1024L;
+        if (response.Content.Headers.ContentLength is long contentLength &&
+            (contentLength <= 0 || contentLength > maximumBytes))
+        {
+            return null;
+        }
+
+        await using var source = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
+        using var buffered = new MemoryStream(
+            response.Content.Headers.ContentLength is long knownLength
+                ? (int)Math.Min(knownLength, 1024 * 1024)
+                : 64 * 1024);
+        if (!await CopyWithLimitAsync(source, buffered, maximumBytes, timeout.Token).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        buffered.Position = 0;
+        var expiresAt = _timeProvider.GetUtcNow().AddSeconds(_options.HttpMemoryCacheSeconds);
+        return await Task.Run(
+            () => Decode(buffered, request.DecodePixelWidth, expiresAt),
+            CancellationToken.None).ConfigureAwait(false);
+    }
+
+    /// <summary>流式复制网络响应，并在写入缓存前拒绝超过源文件上限的响应体。</summary>
+    private static async Task<bool> CopyWithLimitAsync(
+        Stream source,
+        Stream destination,
+        long maximumBytes,
+        CancellationToken cancellationToken)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        var totalBytes = 0L;
+        try
+        {
+            while (true)
+            {
+                var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    return totalBytes > 0;
+                }
+
+                if (totalBytes > maximumBytes - read)
+                {
+                    return false;
+                }
+
+                await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                totalBytes += read;
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private static MemoryEntry DecodeLocal(string sourcePath, int decodePixelWidth)
     {
         using var stream = new FileStream(
             sourcePath,
@@ -256,6 +404,11 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
             FileShare.ReadWrite | FileShare.Delete,
             64 * 1024,
             FileOptions.SequentialScan);
+        return Decode(stream, decodePixelWidth, expiresAt: null);
+    }
+
+    private static MemoryEntry Decode(Stream stream, int decodePixelWidth, DateTimeOffset? expiresAt)
+    {
         var bitmap = new BitmapImage();
         bitmap.BeginInit();
         bitmap.CacheOption = BitmapCacheOption.OnLoad;
@@ -264,7 +417,7 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
         bitmap.StreamSource = stream;
         bitmap.EndInit();
         bitmap.Freeze();
-        return new MemoryEntry(bitmap, EstimateBytes(bitmap));
+        return new MemoryEntry(bitmap, EstimateBytes(bitmap), expiresAt);
     }
 
     private bool TryLoadDisk(string key, out MemoryEntry entry)
@@ -292,7 +445,7 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
             bitmap.StreamSource = stream;
             bitmap.EndInit();
             bitmap.Freeze();
-            entry = new MemoryEntry(bitmap, EstimateBytes(bitmap));
+            entry = new MemoryEntry(bitmap, EstimateBytes(bitmap), expiresAt: null);
             if (file.LastAccessTimeUtc < DateTime.UtcNow.AddHours(-1))
             {
                 file.LastAccessTimeUtc = DateTime.UtcNow;
@@ -394,6 +547,15 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
                 return false;
             }
 
+            if (entry.ExpiresAt is DateTimeOffset expiresAt && expiresAt <= _timeProvider.GetUtcNow())
+            {
+                _memory.Remove(key);
+                _lru.Remove(entry.Node);
+                _memoryBytes -= entry.EstimatedBytes;
+                entry = default!;
+                return false;
+            }
+
             _lru.Remove(entry.Node);
             _lru.AddFirst(entry.Node);
             return true;
@@ -428,7 +590,26 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
     private string GetDiskPath(string key) => Path.Combine(_diskCachePath, $"{key}.png");
 
     private void RememberFailure(string key) =>
-        _negativeCache[key] = DateTimeOffset.UtcNow.AddSeconds(_options.NegativeCacheSeconds);
+        _negativeCache[key] = _timeProvider.GetUtcNow().AddSeconds(_options.NegativeCacheSeconds);
+
+    private bool IsNegativeCached(string key)
+    {
+        if (!_negativeCache.TryGetValue(key, out var retryAfter))
+        {
+            return false;
+        }
+
+        if (retryAfter > _timeProvider.GetUtcNow())
+        {
+            return true;
+        }
+
+        _negativeCache.TryRemove(key, out _);
+        return false;
+    }
+
+    private static string HashKey(string keyText) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(keyText)));
 
     private static long EstimateBytes(BitmapSource bitmap) =>
         Math.Max(1L, bitmap.PixelWidth) * Math.Max(1, bitmap.PixelHeight) * Math.Max(32, bitmap.Format.BitsPerPixel) / 8;
@@ -453,19 +634,32 @@ public sealed class ImageCacheService : IImageCacheService, IDisposable
             options.ExpirationDays <= 0 || options.DefaultDecodePixelWidth <= 0 ||
             options.MaximumDecodePixelWidth < options.DefaultDecodePixelWidth ||
             options.MaximumSourceFileMegabytes <= 0 || options.MaximumConcurrentDecodes <= 0 ||
-            options.NegativeCacheSeconds <= 0)
+            options.NegativeCacheSeconds <= 0 || options.HttpTimeoutSeconds <= 0 ||
+            options.HttpMemoryCacheSeconds <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "ImageCache 配置值无效。");
         }
     }
 
-    private sealed record ImageRequest(string SourcePath, int DecodePixelWidth, string Key, string NegativeKey);
+    /// <summary>表示一次已规范化的本地或网络图片请求。</summary>
+    private sealed record ImageRequest(
+        string Source,
+        Uri? NetworkUri,
+        int DecodePixelWidth,
+        string Key,
+        string NegativeKey)
+    {
+        public bool IsNetwork => NetworkUri is not null;
+    }
 
-    private sealed class MemoryEntry(BitmapSource bitmap, long estimatedBytes)
+    /// <summary>保存冻结位图、容量估算及可选的网络新鲜期。</summary>
+    private sealed class MemoryEntry(BitmapSource bitmap, long estimatedBytes, DateTimeOffset? expiresAt)
     {
         public BitmapSource Bitmap { get; } = bitmap;
 
         public long EstimatedBytes { get; } = estimatedBytes;
+
+        public DateTimeOffset? ExpiresAt { get; } = expiresAt;
 
         public LinkedListNode<string> Node { get; set; } = null!;
     }
