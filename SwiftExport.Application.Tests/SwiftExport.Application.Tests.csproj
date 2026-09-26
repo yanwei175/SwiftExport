@@ -18,6 +18,7 @@
     <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DvFileStorage\DvFileStorage.csproj" />
     <ProjectReference Include="..\SwiftExport.Application\SwiftExport.Application.csproj" />
     <ProjectReference Include="..\SwiftExport.WebApi\SwiftExport.WebApi.csproj" />
   </ItemGroup>

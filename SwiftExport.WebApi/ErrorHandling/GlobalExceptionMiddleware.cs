@@ -1,9 +1,10 @@
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Files;
 using SwiftExport.Application.Commands.Validation;
 
 namespace SwiftExport.WebApi.ErrorHandling;
 
-/// <summary>记录未处理异常，返回安全的 HTTP 500；客户端断开不伪装成业务失败。</summary>
+/// <summary>统一处理请求取消、外层大小拒绝和未处理异常，不向客户端泄漏技术细节。</summary>
 public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
 {
     /// <summary>执行下游管道；已开始的响应不能改写，异常继续交给服务器终止连接。</summary>
@@ -22,6 +23,16 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
             context.Response.Clear();
             context.Response.Headers["X-Correlation-ID"] = correlationId;
             await ServiceErrorResponse.WriteAsync(context, ServiceErrorCodes.Validation, exception.Message, exception.Field);
+        }
+        catch (BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge)
+        {
+            if (context.Response.HasStarted) throw;
+            context.Response.Clear();
+            await ServiceErrorResponse.WriteAsync(
+                context,
+                FileErrorCodes.UploadTooLarge,
+                "上传内容超过服务器允许的大小。",
+                "Content-Length");
         }
         catch (Exception exception)
         {

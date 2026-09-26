@@ -14,7 +14,7 @@ namespace SwiftExport.Application.Tests.Files;
 [TestClass]
 public sealed class ProductImageHostingTests
 {
-    /// <summary>未启用不要求目录；显式启用时拒绝相对路径，避免依赖程序工作目录。</summary>
+    /// <summary>未启用不要求目录；显式启用时拒绝缺失或相对根目录，避免依赖程序工作目录。</summary>
     [TestMethod]
     public async Task Configuration_IsOptInAndRejectsRelativeRoot()
     {
@@ -23,15 +23,19 @@ public sealed class ProductImageHostingTests
         {
             ["FileStorage:Enabled"] = "false"
         });
+        disabledBuilder.Services.AddConfiguredFileStorage(disabledBuilder.Configuration);
         await using var disabled = disabledBuilder.Build();
         disabled.UseProductImages();
-        var enabledBuilder = WebApplication.CreateBuilder();
-        enabledBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        foreach (var rootPath in new string?[] { null, "relative-images" })
         {
-            ["FileStorage:Enabled"] = "true", ["FileStorage:RootPath"] = "relative-images"
-        });
-        await using var enabled = enabledBuilder.Build();
-        Assert.ThrowsExactly<InvalidOperationException>(() => enabled.UseProductImages());
+            var enabledBuilder = WebApplication.CreateBuilder();
+            enabledBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FileStorage:Enabled"] = "true", ["FileStorage:RootPath"] = rootPath
+            });
+            Assert.ThrowsExactly<InvalidOperationException>(() =>
+                enabledBuilder.Services.AddConfiguredFileStorage(enabledBuilder.Configuration));
+        }
     }
 
     /// <summary>验证读取、缓存条件、Range、同路径替换及目录隔离。</summary>
@@ -51,6 +55,7 @@ public sealed class ProductImageHostingTests
         {
             ["FileStorage:Enabled"] = "true", ["FileStorage:RootPath"] = root
         });
+        builder.Services.AddConfiguredFileStorage(builder.Configuration);
         await using var app = builder.Build();
         app.UseProductImages();
         try

@@ -5,6 +5,7 @@
     <Project Path="SwiftExport.Wpf.EnterpriseGrid/SwiftExport.Wpf.EnterpriseGrid.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="DvFileStorage.Tests/DvFileStorage.Tests.csproj" />
     <Project Path="SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj" />
     <Project Path="SwiftExport.Client.Wpf.Tests/SwiftExport.Client.Wpf.Tests.csproj" />
     <Project Path="SwiftExport.Wpf.EnterpriseGrid.Tests/SwiftExport.Wpf.EnterpriseGrid.Tests.csproj" />

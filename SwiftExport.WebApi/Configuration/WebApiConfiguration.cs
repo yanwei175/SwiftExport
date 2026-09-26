@@ -28,6 +28,9 @@ public static class WebApiConfiguration
         // 2. 注册应用逻辑
         builder.Services.AddApplicationServices();
 
+        // RootPath 非空时注册通用本地文件存储；Enabled 仍只控制产品图片 HTTP 入口。
+        builder.Services.AddConfiguredFileStorage(builder.Configuration);
+
         // ══════════════════════════════════════════════════════
         // 3. 注册认证与 ICurrentUser
         // ══════════════════════════════════════════════════════

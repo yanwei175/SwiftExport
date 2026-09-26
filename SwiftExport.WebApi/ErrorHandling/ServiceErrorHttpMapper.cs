@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Files;
 
 namespace SwiftExport.WebApi.ErrorHandling;
 
@@ -21,7 +22,7 @@ public static class ServiceErrorHttpMapper
         ServiceErrorCodes.NotFound or "MASTER_DATA_NOT_FOUND" or "NET_DEMAND_NOT_FOUND"
             or "SOURCE_NOT_FOUND" or "SOURCE_HEADER_NOT_FOUND" or "SOURCE_DELIVERY_NOT_FOUND"
             or "PRODUCT_NOT_FOUND" or "BOM_NOT_FOUND" or "BOM_CHILD_NOT_FOUND" => 404,
-        ServiceErrorCodes.VersionConflict or ServiceErrorCodes.CommandConflict
+        ServiceErrorCodes.VersionConflict or ServiceErrorCodes.CommandConflict or FileErrorCodes.Conflict
             or ServiceErrorCodes.StateBlocked or ServiceErrorCodes.CommandBusy
             or "APPEND_CONCURRENCY_CONFLICT" or "CONCURRENCY_CONFLICT" or "REVISION_CONFLICT"
             or "SOURCE_VERSION_CONFLICT" or "STALE_SOURCE_VERSION" or "SOURCE_DELIVERY_VERSION_CONFLICT"
@@ -30,6 +31,8 @@ public static class ServiceErrorHttpMapper
             or "PREVIEW_EXPIRED" or "PREVIEW_FACT_CHANGED" or "PREVIEW_TOKEN_MISMATCH" or "PREVIEW_STALE"
             or "PROC_BOM_BASIS_CHANGED" or "DEMAND_STALE" or "DUPLICATE_ACTIVE_SOURCE"
             or "SOURCE_DELIVERY_INACTIVE" or "MATERIAL_DEMAND_NOT_ACTIVE" => 409,
+        FileErrorCodes.UploadTooLarge => 413,
+        FileErrorCodes.UnsupportedMediaType => 415,
         ServiceErrorCodes.BusinessBlocked or "AMBIGUOUS_SOURCE" or "APPEND_TARGET_MISMATCH"
             or "APPEND_TARGET_UNSAFE" or "BALANCE_INVALID" or "COMPONENT_INVALID" or "COMPONENT_SHORTFALL"
             or "CUSTOMER_INVALID" or "CUSTOMER_MISMATCH" or "CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED"

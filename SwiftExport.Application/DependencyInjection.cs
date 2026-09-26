@@ -47,6 +47,7 @@ using SwiftExport.Application.Interfaces.Auth.Users;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Assignment;
 using SwiftExport.Application.Interfaces.Auth.Passwords;
+using SwiftExport.Application.Interfaces.Files;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Services.Customers;
 using SwiftExport.Application.Interfaces.Customers.CustomerProducts.Query;
@@ -74,6 +75,8 @@ using SwiftExport.Application.Interfaces.QualityControl.AfterSales.Lifecycle;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Query;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Maintenance;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Lifecycle;
+using SwiftExport.Application.Services.Files;
+using SwiftExport.Application.Services.Files.ProductImages;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Interfaces.Products.Catalog.Query;
 using SwiftExport.Application.Interfaces.Products.Catalog.Maintenance;
@@ -146,6 +149,10 @@ public static class DependencyInjection
         services.AddScoped<IUserAccountService, UserAccountService>();
         services.AddScoped<IPermissionEvaluationService, PermissionEvaluationService>();
         services.AddScoped<IUserPermissionAssignmentService, UserPermissionAssignmentService>();
+        services.AddScoped<IFileAccessPolicy, FileAccessPolicy>();
+        services.AddScoped<IFileTransferService, FileTransferService>();
+        services.AddSingleton<ProductImageTargetLockManager>();
+        services.AddScoped<SwiftExport.Application.Interfaces.Files.ProductImages.IProductImageUploadService, ProductImageUploadService>();
 
 
         services.AddScoped<IProductQueryService, ProductQueryService>();

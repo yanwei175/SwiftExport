@@ -10,7 +10,24 @@
   },
   "FileStorage": {
     "Enabled": true,
-    "RootPath": "D:\\ERPFiles"
+    "RootPath": "D:\\ERPFiles",
+    "ApiBaseUrl": "https://192.168.3.12/",
+    "ProductImages": {
+      "UploadEnabled": true,
+      "DirectoryName": "ProductImages",
+      "RequestPath": "/files/ProductImages",
+      "MaxFileBytes": 10485760,
+      "MaxBatchBytes": 26214400,
+      "MaxFiles": 20,
+      "MaxPixels": 24000000,
+      "MaxConcurrentProcessing": 2
+    },
+    "Containers": {
+      "files": {
+        "RootPath": "D:\\ERPFiles\\Uploads",
+        "MaxUploadBytes": 20971520
+      }
+    }
   },
   "AllowedHosts": "*",
   "Serilog": {

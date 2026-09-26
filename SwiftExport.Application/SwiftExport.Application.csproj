@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DvFileStorage\DvFileStorage.csproj" />
     <ProjectReference Include="..\SwiftExport.Contracts\SwiftExport.Contracts.csproj" />
     <ProjectReference Include="..\SwiftExport.Core\SwiftExport.Core.csproj" />
     <ProjectReference Include="..\SwiftExport.Infrastructure\SwiftExport.Infrastructure.csproj" />

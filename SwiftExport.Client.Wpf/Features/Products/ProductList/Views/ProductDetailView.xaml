@@ -5,8 +5,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
-             mc:Ignorable="d" 
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:ProductDetailViewModel}"
              d:DesignHeight="800" d:DesignWidth="1280">
     <Grid Margin="12,8">
         <Grid.RowDefinitions>
@@ -61,98 +62,138 @@
                 <Grid Grid.Column="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="35"/>
-                        <RowDefinition Height="12"/>
                         <RowDefinition Height="35"/>
-                        <RowDefinition Height="12"/>
                         <RowDefinition Height="35"/>
-                        <RowDefinition Height="12"/>
                         <RowDefinition Height="35"/>
-                        <RowDefinition Height="12"/>
                         <RowDefinition Height="35"/>
                     </Grid.RowDefinitions>
 
 
-                    <TextBlock Grid.Column="0" Grid.Row="0" Text="主型号编码: *" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="2" Grid.Row="0"
-                                    Text="{Binding Header.MasterSku, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Column="0" Grid.Row="0" Text="物料编号: *" VerticalAlignment="Center"  />
+                    <ui:TextBox Grid.Column="1" Grid.Row="0"
+                                    Text="{Binding Product.Sku, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    <TextBlock Grid.Column="2" Grid.Row="0" Text="关联主型号:" VerticalAlignment="Center"  />
+                    <ui:TextBox Grid.Column="3" Grid.Row="0"
+                                    Text="{Binding Product.MasterSku, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    <TextBlock Grid.Column="4" Grid.Row="0" Text="关联产品型号:" VerticalAlignment="Center"  />
+                    <ui:TextBox Grid.Column="5" Grid.Row="0"
+                                    Text="{Binding Product.LinkSku, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    
+                    <TextBlock Grid.Column="6" Grid.Row="0" Text="关联客户:" VerticalAlignment="Center"  />
+                    <ui:TextBox Grid.Column="7" Grid.Row="0"
+                                    Text="{Binding Product.LinkSku, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    
+                    
+                    
+                    
+                    <TextBlock Grid.Column="6" Grid.Row="0" Text="物料分类:" VerticalAlignment="Center"  />
+                    <ui:TextBox Grid.Column="7" Grid.Row="0" PlaceholderText="产品分类:"
+                                    Text="{Binding Product.CategoryId, UpdateSourceTrigger=PropertyChanged}" />                    
+                    
+                    <TextBlock Grid.Column="0" Grid.Row="1" Text="物料颜色:" VerticalAlignment="Center"  />
+                    <ui:TextBox Grid.Column="1" Grid.Row="1" PlaceholderText="改为自定义控件:"
+                                    Text="{Binding Product.ColorId, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Column="2" Grid.Row="1" Text="物料类型:" VerticalAlignment="Center" />
+                    <ui:TextBox  Grid.Column="3" Grid.Row="1"  Text="{Binding Product.MaterialType, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    <TextBlock Grid.Column="4" Grid.Row="1" Text="供货类型:" VerticalAlignment="Center" />
+                    <ui:TextBox  Grid.Column="5" Grid.Row="1"  Text="{Binding Product.SupplyType, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <TextBlock Grid.Column="6" Grid.Row="1" Text="单位:" VerticalAlignment="Center" />
+                    <ui:TextBox  Grid.Column="7" Grid.Row="1"  Text="{Binding Product.Unit, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    <TextBlock Grid.Column="0" Grid.Row="2" Text="是否有BOM:" VerticalAlignment="Center" />
+                    <CheckBox  Grid.Column="1" Grid.Row="2"  IsChecked="{Binding Product.BomVersion,Mode=TwoWay}" />
+                    
+                    <TextBlock Grid.Column="2" Grid.Row="2" Text="BOM号:" VerticalAlignment="Center" />
+                    <ui:TextBox  Grid.Column="3" Grid.Row="2"  Text="{Binding Product.BomVersion, UpdateSourceTrigger=PropertyChanged}" />
+
+
+                    <TextBlock Grid.Column="4" Grid.Row="2" Text="供应商:" VerticalAlignment="Center" />
+                    
+                    
+                    <TextBlock Grid.Column="6" Grid.Row="2" Text="仓库:" VerticalAlignment="Center" />
+                    
+                    
+                    <TextBlock Grid.Column="0" Grid.Row="3" Text="制造商:" VerticalAlignment="Center" />
+                    
+                    
+                    <TextBlock Grid.Column="2" Grid.Row="3" Text="制造商型号:" VerticalAlignment="Center" />
+
+
+
+
+
 
                     <TextBlock Grid.Column="4" Grid.Row="0" Text="中文描述:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Column="6" Grid.Row="0" Grid.ColumnSpan="5"
-                                    Text="{Binding Header.DefaultDescriptionZh, UpdateSourceTrigger=PropertyChanged}" />
+                                    Text="{Binding Product.DescriptionZh, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Column="12" Grid.Row="0" 
                                Text="产品分类:" VerticalAlignment="Center" />
 
 
-                    <TextBlock Grid.Column="12" Grid.Row="2" Text="产品类型:" VerticalAlignment="Center" />
-                    <ui:TextBox  Grid.Column="14" Grid.Row="2"  Text="{Binding Header.ProductType, UpdateSourceTrigger=PropertyChanged}" />
 
-                    <TextBlock Grid.Column="0" Grid.Row="2" Text="默认供应商:" VerticalAlignment="Center" />
+
+
 
 
                     <TextBlock Grid.Column="4" Grid.Row="2" Text="英文描述:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Column="6" Grid.Row="2" Grid.ColumnSpan="5"
-                                Text="{Binding Header.DefaultDescriptionEn, UpdateSourceTrigger=PropertyChanged}" />
+                                Text="{Binding Product.DescriptionEn, UpdateSourceTrigger=PropertyChanged}" />
 
 
                     <TextBlock  Grid.Column="0" Grid.Row="4" Text="每箱数量: *" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="2" Grid.Row="4" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Product.PcsOfCarton, UpdateSourceTrigger=LostFocus}" />
 
                     <TextBlock Grid.Column="4" Grid.Row="4" Text="净重:" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="6" Grid.Row="4" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultNetWeight, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Product.NwOfCarton, UpdateSourceTrigger=LostFocus}" />
 
                     <TextBlock Grid.Column="8" Grid.Row="4" Text="中文配置:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Column="10" Grid.Row="4" Grid.RowSpan="6"
                                 FontSize="12"
-                                Text="{Binding Header.DefaultFeaturesZh, UpdateSourceTrigger=PropertyChanged}"                                     
+                                Text="{Binding Product.FeaturesZh, UpdateSourceTrigger=PropertyChanged}"                                     
                                 TextWrapping="Wrap" AcceptsReturn="True"/>
 
                     <TextBlock Grid.Column="12" Grid.Row="4" Text="英文配置:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Column="14" Grid.Row="4" Grid.RowSpan="5"
                                 FontSize="12"
-                                Text="{Binding Header.DefaultFeaturesEn, UpdateSourceTrigger=PropertyChanged}"                                    
+                                Text="{Binding Product.FeaturesEn, UpdateSourceTrigger=PropertyChanged}"                                    
                                 TextWrapping="Wrap" AcceptsReturn="True"/>
 
                     <TextBlock Grid.Column="0" Grid.Row="6" Text="毛重:" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="2" Grid.Row="6" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultGrossWeight, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Product.GwOfCarton, UpdateSourceTrigger=LostFocus}" />
 
                     <TextBlock  Grid.Column="4" Grid.Row="6" Text="体积:" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="6" Grid.Row="6" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
                                   PlaceholderText="0.000"
-                                  Text="{Binding Header.DefaultCbm, UpdateSourceTrigger=LostFocus}" />
-
-                    <TextBlock Grid.Column="0" Grid.Row="8" Text="附加标签:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="2" Grid.Row="8" IsReadOnly="True"
-                                PlaceholderText="暂未接入"
-                                Text="{Binding Header.ProductTag, UpdateSourceTrigger=PropertyChanged}" />
+                                  Text="{Binding Product.CbmOfCarton, UpdateSourceTrigger=LostFocus}" />
                 </Grid>
 
                 <Grid Grid.Column="2">

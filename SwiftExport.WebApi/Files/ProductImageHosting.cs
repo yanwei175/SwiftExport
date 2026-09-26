@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
+using SwiftExport.WebApi.Files.ProductImages;
 
 namespace SwiftExport.WebApi.Files;
 
@@ -9,19 +10,9 @@ public static class ProductImageHosting
     /// <summary>按启动时配置挂载固定图片目录；未启用时保持原管道，启用但目录无效时阻止启动。</summary>
     public static void UseProductImages(this WebApplication app)
     {
-        if (!app.Configuration.GetValue<bool>("FileStorage:Enabled")) return;
-
-        var root = app.Configuration["FileStorage:RootPath"];
-        if (string.IsNullOrWhiteSpace(root) || !Path.IsPathFullyQualified(root))
-            throw new InvalidOperationException("启用图片服务时 FileStorage:RootPath 必须是服务器绝对目录。");
-
-        var images = Path.Combine(Path.GetFullPath(root), "ProductImages");
-        if (!Directory.Exists(images))
-            throw new InvalidOperationException("产品图片目录不存在，请先创建根目录下的 ProductImages 并配置服务账户读取权限。");
-
-        // 只读枚举用来尽早发现部署权限问题，不自动创建或修改服务器目录。
-        using (var entries = Directory.EnumerateFileSystemEntries(images).GetEnumerator())
-            _ = entries.MoveNext();
+        var options = app.Services.GetRequiredService<ProductImageStorageOptions>();
+        if (!options.PublicHostingEnabled) return;
+        var images = options.ImageDirectoryPath!;
 
         var provider = new PhysicalFileProvider(images);
         app.Lifetime.ApplicationStopped.Register(provider.Dispose);
@@ -35,7 +26,7 @@ public static class ProductImageHosting
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = provider,
-            RequestPath = "/files/ProductImages",
+            RequestPath = options.RequestPath,
             ContentTypeProvider = types,
             ServeUnknownFileTypes = false,
             OnPrepareResponse = context =>
