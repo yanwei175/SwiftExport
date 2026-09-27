@@ -4,7 +4,8 @@ namespace SwiftExport.WebApi.Files.ProductImages;
 internal static class ProductImageConfiguration
 {
     private const string StorageTemporaryDirectoryName = ".dvfilestorage-tmp";
-    private const string ProductImageStateDirectoryName = ".product-image-state";
+    /// <summary>旧 JSON 状态目录不再写入，但继续保留，防止被公开图片或通用容器占用。</summary>
+    internal const string LegacyProductImageStateDirectoryName = ".product-image-state";
     private static readonly char[] InvalidSegmentCharacters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
     private static readonly HashSet<string> ReservedDirectoryNames = new(
         ["CON", "PRN", "AUX", "NUL", "CLOCK$", "CONIN$", "CONOUT$",
@@ -77,7 +78,7 @@ internal static class ProductImageConfiguration
     {
         if (string.IsNullOrEmpty(value) || value is "." or ".." ||
             value.Equals(StorageTemporaryDirectoryName, StringComparison.OrdinalIgnoreCase) ||
-            value.Equals(ProductImageStateDirectoryName, StringComparison.OrdinalIgnoreCase) ||
+            value.Equals(LegacyProductImageStateDirectoryName, StringComparison.OrdinalIgnoreCase) ||
             value.IndexOfAny(InvalidSegmentCharacters) >= 0 ||
             value.EndsWith(' ') || value.EndsWith('.') ||
             value.Any(character => character == '\0' || char.IsControl(character)) ||

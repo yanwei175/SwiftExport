@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Security.Cryptography;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Interfaces.Files;
 using SwiftExport.Application.Interfaces.Files.ProductImages;
@@ -10,7 +9,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Services.Files.ProductImages;
 
-/// <summary>实现产品图片批次的逐项处理、同名互斥和原图/缩略图/配对记录顺序发布。</summary>
+/// <summary>实现产品图片批次的逐项处理、同名互斥和原图/带来源标签缩略图的顺序发布。</summary>
 public sealed class ProductImageUploadService(
     IFileAccessPolicy accessPolicy,
     IProductImageStorageProvider storageProvider,
@@ -18,13 +17,8 @@ public sealed class ProductImageUploadService(
     ProductImageTargetLockManager targetLocks,
     ILogger<ProductImageUploadService> logger) : IProductImageUploadService
 {
-    private const string SpecificationVersion = "product-image-jpeg-v1";
-    private const int OriginalJpegQuality = 90;
-    private const int ThumbnailJpegQuality = 85;
-    private const int ThumbnailMaxEdge = 256;
     private static readonly char[] InvalidNameCharacters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
     private static readonly HashSet<string> ReservedNames = BuildReservedNames();
-    private static readonly JsonSerializerOptions MetadataJsonOptions = new() { WriteIndented = true };
 
     /// <inheritdoc />
     public async Task<ServiceResult<ProductImageBatchSession>> BeginBatchAsync(
@@ -131,7 +125,7 @@ public sealed class ProductImageUploadService(
         };
     }
 
-    /// <summary>在同名进程锁内先发布 pending，再依次发布两图，最后发布完成记录。</summary>
+    /// <summary>在同名进程锁内依次发布原图和已携带该原图指纹的最终缩略图。</summary>
     private async Task<ProductImageUploadItemResultDto> PublishAsync(
         ProductImageBatchSession session,
         int index,
@@ -143,49 +137,20 @@ public sealed class ProductImageUploadService(
         var storage = session.Storage;
         var originalPath = $"{storage.ImageDirectoryName}/{targetFileName}";
         var thumbnailPath = $"{storage.ImageDirectoryName}/Thumbnails/{targetFileName}";
-        var statePath = $"{storage.StateDirectoryPath}/{targetFileName}.json";
         var originalHash = Convert.ToHexString(SHA256.HashData(processed.OriginalBytes));
         var thumbnailHash = Convert.ToHexString(SHA256.HashData(processed.ThumbnailBytes));
-        var generatedAtUtc = DateTimeOffset.UtcNow;
-        var record = new ProductImagePairRecord
-        {
-            SchemaVersion = 1,
-            Complete = false,
-            TargetPath = originalPath,
-            ThumbnailPath = thumbnailPath,
-            OriginalSha256 = originalHash,
-            ThumbnailSha256 = thumbnailHash,
-            OriginalWidth = processed.OriginalWidth,
-            OriginalHeight = processed.OriginalHeight,
-            ThumbnailWidth = processed.ThumbnailWidth,
-            ThumbnailHeight = processed.ThumbnailHeight,
-            OriginalBytes = processed.OriginalBytes.LongLength,
-            ThumbnailBytes = processed.ThumbnailBytes.LongLength,
-            GeneratedAtUtc = generatedAtUtc,
-            SpecificationVersion = SpecificationVersion,
-            OriginalJpegQuality = OriginalJpegQuality,
-            ThumbnailJpegQuality = ThumbnailJpegQuality,
-            ThumbnailMaxEdge = ThumbnailMaxEdge,
-            TransparentPixelsUseWhiteBackground = true,
-            ExifOrientationNormalized = true
-        };
 
         using var targetLock = await targetLocks.AcquireAsync(targetFileName, cancellationToken).ConfigureAwait(false);
         try
         {
-            await WriteBytesAsync(storage.Storage, statePath, SerializeRecord(record), cancellationToken)
-                .ConfigureAwait(false);
             await WriteBytesAsync(storage.Storage, originalPath, processed.OriginalBytes, cancellationToken)
                 .ConfigureAwait(false);
             await WriteBytesAsync(storage.Storage, thumbnailPath, processed.ThumbnailBytes, cancellationToken)
                 .ConfigureAwait(false);
-            record.Complete = true;
-            await WriteBytesAsync(storage.Storage, statePath, SerializeRecord(record), cancellationToken)
-                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            // pending 已发布时保留它标记不完整状态；不删除可能已经生效的正式图片。
+            // 发布已开始时不删除可能生效的正式文件；重传同名图片可重新建立一致配对。
             throw;
         }
         catch (Exception exception)
@@ -254,7 +219,8 @@ public sealed class ProductImageUploadService(
         var extensionIndex = inputFileName.LastIndexOf('.');
         if (extensionIndex <= 0 || extensionIndex == inputFileName.Length - 1) return false;
         var baseName = inputFileName[..extensionIndex];
-        if (baseName.EndsWith(' ') || baseName.EndsWith('.') ||
+        // 静态文件服务会隐藏点号开头的文件，上传时拒绝，避免发布成功却无法访问。
+        if (baseName.StartsWith('.') || baseName.EndsWith(' ') || baseName.EndsWith('.') ||
             ReservedNames.Contains(baseName.Split('.', 2)[0]))
             return false;
 
@@ -275,9 +241,6 @@ public sealed class ProductImageUploadService(
         var relative = storage.PublicRequestPath.TrimStart('/') + "/" + string.Join("/", segments);
         return new Uri(storage.ApiBaseUri, relative).AbsoluteUri;
     }
-
-    private static byte[] SerializeRecord(ProductImagePairRecord record) =>
-        JsonSerializer.SerializeToUtf8Bytes(record, MetadataJsonOptions);
 
     private static ProductImageUploadItemResultDto AddFailure(
         ProductImageBatchSession session,
@@ -319,28 +282,5 @@ public sealed class ProductImageUploadService(
         }
 
         return names;
-    }
-
-    private sealed class ProductImagePairRecord
-    {
-        public int SchemaVersion { get; set; }
-        public bool Complete { get; set; }
-        public required string TargetPath { get; set; }
-        public required string ThumbnailPath { get; set; }
-        public required string OriginalSha256 { get; set; }
-        public required string ThumbnailSha256 { get; set; }
-        public int OriginalWidth { get; set; }
-        public int OriginalHeight { get; set; }
-        public int ThumbnailWidth { get; set; }
-        public int ThumbnailHeight { get; set; }
-        public long OriginalBytes { get; set; }
-        public long ThumbnailBytes { get; set; }
-        public DateTimeOffset GeneratedAtUtc { get; set; }
-        public required string SpecificationVersion { get; set; }
-        public int OriginalJpegQuality { get; set; }
-        public int ThumbnailJpegQuality { get; set; }
-        public int ThumbnailMaxEdge { get; set; }
-        public bool TransparentPixelsUseWhiteBackground { get; set; }
-        public bool ExifOrientationNormalized { get; set; }
     }
 }

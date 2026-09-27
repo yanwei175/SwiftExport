@@ -37,5 +37,4 @@ public sealed class ProductImageStorageOptions
     public int MaxConcurrentProcessing { get; init; } = 2;
 
     internal string? ImageDirectoryPath => RootPath is null ? null : Path.Combine(RootPath, DirectoryName);
-    internal string? StateDirectoryPath => RootPath is null ? null : Path.Combine(RootPath, ".product-image-state");
 }

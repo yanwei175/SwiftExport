@@ -77,7 +77,8 @@ public sealed class ProductsMaterialTypeFilterTests
             null!,
             messageService,
             dialogService,
-            bomDrawer);
+            bomDrawer,
+            null!);
     }
 
     private sealed class RecordingProductApi : IProductApi

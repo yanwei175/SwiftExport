@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SkiaSharp;
 using SwiftExport.Application.Interfaces.Files.ProductImages;
@@ -26,6 +27,7 @@ public sealed class ProductImageProcessorTests
             var result = await processor.ProcessAsync(new MemoryStream(source), item.Item2, source.Length, 1_000_000);
             AssertJpeg(result.OriginalBytes, 400, 200);
             AssertJpeg(result.ThumbnailBytes, 256, 128);
+            AssertSourceFingerprint(result);
         }
 
         var small = await processor.ProcessAsync(
@@ -35,6 +37,7 @@ public sealed class ProductImageProcessorTests
             1_000_000);
         Assert.AreEqual(10, small.ThumbnailWidth);
         Assert.AreEqual(5, small.ThumbnailHeight);
+        AssertSourceFingerprint(small);
     }
 
     /// <summary>透明像素合成白底，编码结果不保留 Alpha。</summary>
@@ -160,6 +163,15 @@ public sealed class ProductImageProcessorTests
         Assert.IsNotNull(bitmap);
         Assert.AreEqual(width, bitmap.Width);
         Assert.AreEqual(height, bitmap.Height);
+    }
+
+    /// <summary>确认缩略图标签绑定最终原图字节，并使用处理器的唯一规格来源。</summary>
+    private static void AssertSourceFingerprint(ProductImageProcessingResult result)
+    {
+        Assert.IsTrue(JpegThumbnailSourceFingerprintCodec.TryRead(result.ThumbnailBytes, out var fingerprint));
+        Assert.IsNotNull(fingerprint);
+        Assert.AreEqual(Convert.ToHexString(SHA256.HashData(result.OriginalBytes)), fingerprint.SourceSha256);
+        Assert.AreEqual(ProductImageEncodingSpecification.ThumbnailSourceSpecification, fingerprint.Specification);
     }
 
     /// <summary>在 SOI 后插入最小 little-endian EXIF Orientation IFD，不改变原 JPEG 像素。</summary>

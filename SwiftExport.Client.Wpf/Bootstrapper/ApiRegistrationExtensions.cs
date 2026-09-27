@@ -64,6 +64,9 @@ public static class ApiRegistrationExtensions
 
     private static void AddProductApis(this IServiceCollection services)
     {
+        // 图片处理包含上传、转码和磁盘发布，使用独立超时，不重试覆盖请求。
+        services.AddControllerApi<SwiftExport.Contracts.Apis.Files.IProductImageApi>("product-images")
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromMinutes(5));
         services.AddControllerApi<IProductApi>("Product");
         services.AddControllerApi<IProductMasterApi>("ProductMaster");
         services.AddControllerApi<IProductNeutralApi>("ProductNeutral");

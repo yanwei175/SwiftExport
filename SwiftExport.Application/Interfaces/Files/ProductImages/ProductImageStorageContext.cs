@@ -11,9 +11,6 @@ public sealed class ProductImageStorageContext
     /// <summary>获取根目录内的产品图片单目录名。</summary>
     public required string ImageDirectoryName { get; init; }
 
-    /// <summary>获取内部配对状态目录的逻辑路径。</summary>
-    public required string StateDirectoryPath { get; init; }
-
     /// <summary>获取客户端可达的 API 基址。</summary>
     public required Uri ApiBaseUri { get; init; }
 

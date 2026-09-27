@@ -1,19 +1,21 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
+using System.Security.Cryptography;
 using DvFileStorage.Abstractions;
 using DvFileStorage.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SkiaSharp;
 using SwiftExport.Application.Interfaces.Files;
 using SwiftExport.Application.Interfaces.Files.ProductImages;
 using SwiftExport.Application.Services.Files.ProductImages;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Files.ProductImages;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.WebApi.Files.ProductImages;
 
 namespace SwiftExport.Application.Tests.Files;
 
-/// <summary>验证产品图片批次命名、部分成功、发布状态、指纹和同名进程锁。</summary>
+/// <summary>验证产品图片批次命名、部分成功、双文件发布、来源指纹和同名进程锁。</summary>
 [TestClass]
 public sealed class ProductImageUploadServiceTests
 {
@@ -41,11 +43,11 @@ public sealed class ProductImageUploadServiceTests
         Assert.IsTrue(storage.Files.ContainsKey("ProductImages/A.jpg"));
     }
 
-    /// <summary>第二张正式文件发布失败时不误报成功，完成记录保持 pending；重传可修复并更新指纹。</summary>
+    /// <summary>缩略图发布失败时不误报成功、不写 JSON；重传可修复并建立来源指纹。</summary>
     [TestMethod]
-    public async Task PublishFailure_ShouldLeavePendingAndAllowRepair()
+    public async Task ThumbnailPublishFailure_ShouldNotReportSuccessAndRetryRepairsPair()
     {
-        var storage = new InMemoryFileStorage { FailOnWriteNumber = 3 };
+        var storage = new InMemoryFileStorage { FailOnWriteNumber = 2 };
         var service = CreateService(storage, maxFileBytes: 10);
         var first = (await service.BeginBatchAsync()).Data;
 
@@ -55,20 +57,20 @@ public sealed class ProductImageUploadServiceTests
         Assert.AreEqual(ProductImageErrorCodes.PublishFailed, failed.ErrorCode);
         Assert.IsTrue(storage.Files.ContainsKey("ProductImages/same.jpg"));
         Assert.IsFalse(storage.Files.ContainsKey("ProductImages/Thumbnails/same.jpg"));
-        Assert.IsFalse(ReadComplete(storage.Files[".product-image-state/product-images/same.jpg.json"]));
+        Assert.IsFalse(storage.Files.Keys.Any(path => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)));
 
         var repair = (await service.BeginBatchAsync()).Data;
         var repaired = await service.UploadItemAsync(repair, 0, "same.png", new MemoryStream([9]));
 
         Assert.IsTrue(repaired.Success);
-        Assert.IsTrue(ReadComplete(storage.Files[".product-image-state/product-images/same.jpg.json"]));
         Assert.AreEqual(repaired.OriginalSha256, Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(storage.Files["ProductImages/same.jpg"])));
+            SHA256.HashData(storage.Files["ProductImages/same.jpg"])));
         Assert.AreEqual(repaired.ThumbnailSha256, Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(storage.Files["ProductImages/Thumbnails/same.jpg"])));
+            SHA256.HashData(storage.Files["ProductImages/Thumbnails/same.jpg"])));
+        AssertThumbnailMatchesSource(storage, "same.jpg");
     }
 
-    /// <summary>两个批次并发覆盖同名目标时，最终完成记录必与两份最终文件属于同一版本。</summary>
+    /// <summary>两个批次并发覆盖同名目标时，最终缩略图标签必与最终原图属于同一版本。</summary>
     [TestMethod]
     public async Task ConcurrentSameTarget_ShouldNotPublishMixedCompletedRecord()
     {
@@ -81,15 +83,8 @@ public sealed class ProductImageUploadServiceTests
             service.UploadItemAsync(first, 0, "same.png", new MemoryStream([1])),
             service.UploadItemAsync(second, 0, "SAME.png", new MemoryStream([2])));
 
-        var metadata = storage.Files[".product-image-state/product-images/same.jpg.json"];
-        using var document = JsonDocument.Parse(metadata);
-        Assert.IsTrue(document.RootElement.GetProperty("Complete").GetBoolean());
-        Assert.AreEqual(
-            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(storage.Files["ProductImages/same.jpg"])),
-            document.RootElement.GetProperty("OriginalSha256").GetString());
-        Assert.AreEqual(
-            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(storage.Files["ProductImages/Thumbnails/same.jpg"])),
-            document.RootElement.GetProperty("ThumbnailSha256").GetString());
+        AssertThumbnailMatchesSource(storage, "same.jpg");
+        Assert.IsFalse(storage.Files.Keys.Any(path => path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)));
     }
 
     /// <summary>不同目标使用独立锁，持有一个目标不会阻断另一个目标进入发布区。</summary>
@@ -109,7 +104,6 @@ public sealed class ProductImageUploadServiceTests
         {
             Storage = storage,
             ImageDirectoryName = "ProductImages",
-            StateDirectoryPath = ".product-image-state/product-images",
             ApiBaseUri = new Uri("https://example.test/erp/"),
             PublicRequestPath = "/files/ProductImages",
             MaxFileBytes = maxFileBytes,
@@ -125,10 +119,15 @@ public sealed class ProductImageUploadServiceTests
             NullLogger<ProductImageUploadService>.Instance);
     }
 
-    private static bool ReadComplete(byte[] json)
+    /// <summary>读取最终缩略图标签并确认其来源哈希等于当前最终原图。</summary>
+    private static void AssertThumbnailMatchesSource(InMemoryFileStorage storage, string fileName)
     {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.GetProperty("Complete").GetBoolean();
+        var original = storage.Files[$"ProductImages/{fileName}"];
+        var thumbnail = storage.Files[$"ProductImages/Thumbnails/{fileName}"];
+        Assert.IsTrue(JpegThumbnailSourceFingerprintCodec.TryRead(thumbnail, out var fingerprint));
+        Assert.IsNotNull(fingerprint);
+        Assert.AreEqual(Convert.ToHexString(SHA256.HashData(original)), fingerprint.SourceSha256);
+        Assert.AreEqual(ProductImageEncodingSpecification.ThumbnailSourceSpecification, fingerprint.Specification);
     }
 
     private sealed class AllowAdminPolicy : IFileAccessPolicy
@@ -149,7 +148,7 @@ public sealed class ProductImageUploadServiceTests
         }
     }
 
-    /// <summary>用输入首字节生成可区分的两份完整内容，隔离发布编排测试与 Skia 行为。</summary>
+    /// <summary>用输入首字节生成可区分且带正确来源标签的 JPEG，隔离发布编排与真实转码规则。</summary>
     private sealed class EchoProcessor : IProductImageProcessor
     {
         public async Task<ProductImageProcessingResult> ProcessAsync(
@@ -166,19 +165,33 @@ public sealed class ProductImageUploadServiceTests
                     ProductImageErrorCodes.FileTooLarge,
                     "文件超过单张上传大小上限。");
             var value = content.ToArray()[0];
+            var originalBytes = CreateJpeg(new SKColor(value, 32, 64));
+            var thumbnailBytes = CreateJpeg(new SKColor(64, value, 32));
+            thumbnailBytes = JpegThumbnailSourceFingerprintCodec.Embed(
+                thumbnailBytes,
+                SHA256.HashData(originalBytes));
             return new ProductImageProcessingResult
             {
-                OriginalBytes = [value, 0xA1],
-                ThumbnailBytes = [value, 0xB2],
+                OriginalBytes = originalBytes,
+                ThumbnailBytes = thumbnailBytes,
                 OriginalWidth = 2,
                 OriginalHeight = 1,
                 ThumbnailWidth = 2,
                 ThumbnailHeight = 1
             };
         }
+
+        private static byte[] CreateJpeg(SKColor color)
+        {
+            using var bitmap = new SKBitmap(2, 1);
+            bitmap.Erase(color);
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+            return data.ToArray();
+        }
     }
 
-    /// <summary>提供原子字节快照和可控写入故障，用于观察三阶段非事务发布。</summary>
+    /// <summary>提供原子字节快照和可控写入故障，用于观察双文件非事务发布。</summary>
     private sealed class InMemoryFileStorage : IFileStorage
     {
         private int _writeCount;

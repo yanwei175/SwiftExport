@@ -65,6 +65,9 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISupplierPickerService, SupplierPickerService>();
         services.AddTransient<ISalesOrderCancellationDialogService, SalesOrderCancellationDialogService>();
         services.AddTransient<IProductMasterSyncDialogService, ProductMasterSyncDialogService>();
+        services.AddTransient<IProductImageUploadClient, ProductImageUploadClient>();
+        services.AddTransient<IProductImageUploadDialogService, ProductImageUploadDialogService>();
+        services.AddTransient<SwiftExportClient.Features.Products.ProductList.ViewModels.ProductImageUploadViewModel>();
         services.AddTransient<AuthTokenHandler>();
         services.AddSwiftExportApis();
 

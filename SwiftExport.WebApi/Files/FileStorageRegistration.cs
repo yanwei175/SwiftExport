@@ -41,7 +41,12 @@ public static class FileStorageRegistration
             services.AddSingleton<IFileStorage>(storage);
         }
 
-        var reservedRoots = new[] { productImages.ImageDirectoryPath, productImages.StateDirectoryPath }
+        var legacyStateDirectoryPath = productImages.RootPath is null
+            ? null
+            : Path.Combine(
+                productImages.RootPath,
+                ProductImageConfiguration.LegacyProductImageStateDirectoryName);
+        var reservedRoots = new[] { productImages.ImageDirectoryPath, legacyStateDirectoryPath }
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Cast<string>()
             .ToArray();

@@ -15,6 +15,7 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
@@ -37,10 +38,12 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private readonly IReferenceDataCacheService _referenceDataCache = null!;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
+    private readonly IProductImageUploadDialogService _imageUploadDialog;
     private bool _isInitialized;
     private bool _restoringSelection;
     private long _supplierSearchVersion;
 
+    /// <summary>注入产品查询维护、资料候选及独立图片上传弹窗，初始化页面命令。</summary>
     public ProductsViewModel(
         IProductApi productApi,
         ICustomerApi customerApi,
@@ -49,7 +52,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         IReferenceDataCacheService referenceDataCache,
         IMessageService messageService,
         IDialogService dialogService,
-        BomDrawerViewModel bomDrawer)
+        BomDrawerViewModel bomDrawer,
+        IProductImageUploadDialogService imageUploadDialog)
     {
         _productApi = productApi;
         _customerApi = customerApi;
@@ -58,6 +62,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         _referenceDataCache = referenceDataCache!;
         _messageService = messageService;
         _dialogService = dialogService;
+        _imageUploadDialog = imageUploadDialog;
         BomDrawer = bomDrawer;
         Title = "产品资料";
         Products.PropertyChanged += OnProductsPropertyChanged;
@@ -74,7 +79,14 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(RejectProductChangesCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(UploadImagesCommand);
     }
+
+    /// <summary>打开独立图片上传用例，不保存或刷新当前产品表格中的未保存编辑。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenImageUpload))]
+    private Task UploadImagesAsync() => RunBusyAsync(() => _imageUploadDialog.ShowAsync(), "产品主图上传");
+
+    private bool CanOpenImageUpload() => IsNotBusy;
 
     public ProductListModel Products { get; } = new();
     public BomDrawerViewModel BomDrawer { get; }

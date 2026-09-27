@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -27,6 +28,7 @@ using SwiftExport.WebApi.Authentication;
 using SwiftExport.WebApi.Controllers.Files;
 using SwiftExport.WebApi.ErrorHandling;
 using SwiftExport.WebApi.Files;
+using SwiftExport.WebApi.Files.ProductImages;
 
 namespace SwiftExport.Application.Tests.Files;
 
@@ -86,9 +88,46 @@ public sealed class ProductImageApiIntegrationTests
         Assert.AreEqual("image/jpeg", original.Content.Headers.ContentType!.MediaType);
         using var thumbnail = await publicClient.GetAsync("/files/ProductImages/Thumbnails/" + Uri.EscapeDataString("中文 图.jpg"));
         Assert.AreEqual(HttpStatusCode.OK, thumbnail.StatusCode);
+        var originalBytes = await original.Content.ReadAsByteArrayAsync();
+        var thumbnailBytes = await thumbnail.Content.ReadAsByteArrayAsync();
+        Assert.AreEqual(envelope.Data.Items[0].OriginalSha256, Convert.ToHexString(SHA256.HashData(originalBytes)));
+        Assert.AreEqual(envelope.Data.Items[0].ThumbnailSha256, Convert.ToHexString(SHA256.HashData(thumbnailBytes)));
+        Assert.IsTrue(JpegThumbnailSourceFingerprintCodec.TryRead(thumbnailBytes, out var fingerprint));
+        Assert.IsNotNull(fingerprint);
+        Assert.AreEqual(envelope.Data.Items[0].OriginalSha256, fingerprint.SourceSha256);
+        Assert.IsFalse(Directory.Exists(Path.Combine(adminHost.Root, ".product-image-state")));
         using var state = await publicClient.GetAsync(
             "/files/ProductImages/%2e%2e/.product-image-state/product-images/%E4%B8%AD%E6%96%87%20%E5%9B%BE.jpg.json");
         Assert.AreEqual(HttpStatusCode.NotFound, state.StatusCode);
+    }
+
+    /// <summary>隐藏文件名在发布前被拒绝，同批普通名称仍可上传并公开读取原图与缩略图。</summary>
+    [TestMethod]
+    public async Task DotPrefixedName_ShouldBeRejectedWithoutBlockingPublicImages()
+    {
+        await using var host = await ApiHost.StartAsync(active: true, isAdmin: true);
+        using var client = host.CreateClient(authenticated: true);
+        using var response = await client.PostAsync(
+            "/api/product-images/batch",
+            CreateMultipart((".hidden.png", CreatePng(2, 2)), ("visible.part.png", CreatePng(2, 2))));
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        var envelope = await response.Content.ReadFromJsonAsync<ServiceResult<ProductImageBatchUploadResultDto>>();
+        Assert.IsNotNull(envelope);
+        Assert.IsTrue(envelope.Success);
+        Assert.AreEqual(1, envelope.Data.Succeeded);
+        Assert.AreEqual(1, envelope.Data.Failed);
+        Assert.IsFalse(envelope.Data.Items[0].Success);
+        Assert.AreEqual(ProductImageErrorCodes.InvalidFileName, envelope.Data.Items[0].ErrorCode);
+        Assert.IsFalse(File.Exists(Path.Combine(host.ImageDirectory, ".hidden.jpg")));
+        Assert.IsFalse(File.Exists(Path.Combine(host.ImageDirectory, "Thumbnails", ".hidden.jpg")));
+        Assert.IsFalse(Directory.Exists(Path.Combine(host.Root, ".product-image-state")));
+
+        using var publicClient = host.CreateClient(authenticated: false);
+        using var original = await publicClient.GetAsync("/files/ProductImages/visible.part.jpg");
+        using var thumbnail = await publicClient.GetAsync("/files/ProductImages/Thumbnails/visible.part.jpg");
+        Assert.AreEqual(HttpStatusCode.OK, original.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, thumbnail.StatusCode);
     }
 
     /// <summary>文件数和包含 multipart 开销的总请求上限返回 413；已完成的前项不回滚。</summary>

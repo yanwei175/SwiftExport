@@ -1,5 +1,6 @@
 using SkiaSharp;
 using System.Buffers;
+using System.Security.Cryptography;
 using SwiftExport.Application.Interfaces.Files.ProductImages;
 using SwiftExport.Contracts.DTOs.Files.ProductImages;
 
@@ -8,9 +9,6 @@ namespace SwiftExport.WebApi.Files.ProductImages;
 /// <summary>使用 SkiaSharp 4.152.1 在受限并发下验证、方向修正并编码产品原图和缩略图。</summary>
 public sealed class SkiaProductImageProcessor : IProductImageProcessor, IDisposable
 {
-    private const int OriginalJpegQuality = 90;
-    private const int ThumbnailJpegQuality = 85;
-    private const int ThumbnailMaxEdge = 256;
     private readonly SemaphoreSlim _processingSlots;
 
     /// <summary>使用宿主配置的正并发数建立进程内原生解码限流器。</summary>
@@ -144,9 +142,11 @@ public sealed class SkiaProductImageProcessor : IProductImageProcessor, IDisposa
 
         cancellationToken.ThrowIfCancellationRequested();
         using var oriented = RenderOrientedOnWhite(decoded, codec.EncodedOrigin);
-        var originalBytes = EncodeJpeg(oriented, OriginalJpegQuality);
+        var originalBytes = EncodeJpeg(oriented, ProductImageEncodingSpecification.OriginalJpegQuality);
         using var thumbnail = RenderThumbnail(oriented);
-        var thumbnailBytes = EncodeJpeg(thumbnail, ThumbnailJpegQuality);
+        var thumbnailBytes = EncodeJpeg(thumbnail, ProductImageEncodingSpecification.ThumbnailJpegQuality);
+        var sourceSha256 = SHA256.HashData(originalBytes);
+        thumbnailBytes = JpegThumbnailSourceFingerprintCodec.Embed(thumbnailBytes, sourceSha256);
         cancellationToken.ThrowIfCancellationRequested();
         return new ProductImageProcessingResult
         {
@@ -211,7 +211,10 @@ public sealed class SkiaProductImageProcessor : IProductImageProcessor, IDisposa
     /// <summary>按最长边 256 等比缩小；小图保持原像素尺寸但仍独立编码。</summary>
     private static SKBitmap RenderThumbnail(SKBitmap source)
     {
-        var scale = Math.Min(1d, ThumbnailMaxEdge / (double)Math.Max(source.Width, source.Height));
+        var scale = Math.Min(
+            1d,
+            ProductImageEncodingSpecification.ThumbnailMaxEdge /
+            (double)Math.Max(source.Width, source.Height));
         var width = Math.Max(1, (int)Math.Round(source.Width * scale));
         var height = Math.Max(1, (int)Math.Round(source.Height * scale));
         var result = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque));
