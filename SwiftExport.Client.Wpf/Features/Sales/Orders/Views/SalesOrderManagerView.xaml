@@ -16,6 +16,7 @@
              d:Height="900">
     <UserControl.Resources>
         <salesComponents:SalesOrderStateTextConverter x:Key="SalesOrderStateTextConverter" />
+        <salesComponents:SalesOrderDueAlertConverter x:Key="SalesOrderDueAlertConverter" />
         <Style x:Key="SalesOrderToolbarButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Margin" Value="0,0,8,0" />
             <Setter Property="MinWidth" Value="70" />
@@ -100,15 +101,15 @@
                                            DisplayMemberPath="DisplayText"
                                            ItemsSource="{Binding DocumentStatusOptions}"
                                            SelectedItems="{Binding SelectedDocumentStatuses, Mode=OneWay}" />
+                    <ComboBox Width="130" Margin="0,0,8,0" ToolTip="快捷视图"
+                              ItemsSource="{Binding QuickViewOptions}"
+                              DisplayMemberPath="DisplayText" SelectedValuePath="Value"
+                              SelectedValue="{Binding QuickView, Mode=TwoWay}" />
                     <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Grid.Column="10"
                               Margin="0,0,8,0"
                               IsChecked="{Binding IsAdvancedFilterOpen, Mode=TwoWay}"
                               HorizontalAlignment="Left" />
 
-                    <TextBlock Margin="0,0,8,0"
-                       Style="{StaticResource CaptionTextBlock}"
-                       Foreground="Gray"
-                       Text="交付统计待接入；已发、未发及履约状态当前显示为未知。" />
                 </DockPanel>
 
 
@@ -141,15 +142,15 @@
                                         SelectedDate="{Binding OrderDateTo}" />
 
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text=" 订单交期起 : " Margin="0,0,8,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text=" 有效交期起 : " Margin="0,0,8,0"/>
                                 <DatePicker Grid.Row="1" Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Top"
                                         SelectedDateFormat="Short"  
-                                        SelectedDate="{Binding DeliveryDateFrom}" />
+                                        SelectedDate="{Binding EffectiveDeliveryDateFrom}" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="2" Text=" 订单交期至 : " Margin="0,0,8,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text=" 有效交期至 : " Margin="0,0,8,0"/>
                                 <DatePicker Grid.Row="1" Grid.Column="3" Margin="0,0,8,0" VerticalAlignment="Top" 
                                         SelectedDateFormat="Short" 
-                                        SelectedDate="{Binding DeliveryDateTo}" />
+                                        SelectedDate="{Binding EffectiveDeliveryDateTo}" />
                             </Grid>
                             <ui:TextBox  Width="140" Margin="0,0,8,0"
                                     PlaceholderText="订单号" VerticalAlignment="Top"
@@ -246,64 +247,35 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
 EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     gridColumns:GridColumn.Key="customer-name" />
-                        <DataGridTextColumn Header="客户PO" Width="130" 
-                                    Binding="{Binding CustomerPoNo}" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="customer-po" />
                         <DataGridTextColumn Header="发票号" Width="110" 
                                     Binding="{Binding InvoiceNo}" 
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
 EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                     gridColumns:GridColumn.Key="invoice-no" />
-                        <DataGridTextColumn Header="交期" Width="96" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    Binding="{Binding DeliveryDate, StringFormat=yyyy-MM-dd}" 
-                                    gridColumns:GridColumn.Key="delivery-date" />
+                        <DataGridTextColumn Header="未完成最早交期" Width="118"
+                                    Binding="{Binding EarliestOpenDueDate, StringFormat=yyyy-MM-dd}"
+                                    gridColumns:GridColumn.Key="earliest-open-due" />
+                        <DataGridTextColumn Header="交期提醒" Width="178"
+                                    Binding="{Binding Converter={StaticResource SalesOrderDueAlertConverter}}"
+                                    gridColumns:GridColumn.Key="due-alert" />
                         <DataGridTextColumn Header="数量" Width="80" 
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding TotalQty, StringFormat=N2}" 
+                                    Binding="{Binding TotalQty, StringFormat=N2, TargetNullValue=查看明细}"
                                     gridColumns:GridColumn.Key="total-qty" />
-                        <DataGridTextColumn Header="已发" Width="80" 
+                        <DataGridTextColumn Header="已交" Width="80"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding TotalShippedQty, StringFormat=N2, TargetNullValue=未知}"
+                                    Binding="{Binding TotalShippedQty, StringFormat=N2, TargetNullValue=查看明细}"
                                     gridColumns:GridColumn.Key="shipped-qty" />
-                        <DataGridTextColumn Header="未发" Width="80" 
+                        <DataGridTextColumn Header="未交" Width="80"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding TotalUnshippedQty, StringFormat=N2, TargetNullValue=未知}"
+                                    Binding="{Binding TotalUnshippedQty, StringFormat=N2, TargetNullValue=查看明细}"
                                     gridColumns:GridColumn.Key="unshipped-qty" />
-                        <DataGridTextColumn Header="币种" Width="62" 
-                                    Binding="{Binding Currency}" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="currency" />
-                        <DataGridTextColumn Header="原币金额" Width="100" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding TotalAmountOriginalCurrency, StringFormat=N2}" 
-                                    gridColumns:GridColumn.Key="original-amount" />
-                        <DataGridTextColumn Header="本币金额" Width="100" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding TotalAmountLocalCurrency, StringFormat=N2}" 
-                                    gridColumns:GridColumn.Key="local-amount" />
-                        <DataGridTextColumn Header="创建人" Width="90" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    Binding="{Binding CreatedBy}" 
-                                    gridColumns:GridColumn.Key="created-by" />
-                        <DataGridTextColumn Header="创建时间" Width="135" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding CreatedDate, StringFormat=yyyy-MM-dd HH:mm}" 
-                                    gridColumns:GridColumn.Key="created-date" />
-                        <DataGridTextColumn Header="修改人" Width="90" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    Binding="{Binding UpdatedBy}" 
-                                    gridColumns:GridColumn.Key="updated-by" />
-                        <DataGridTextColumn Header="修改时间" Width="135"
-                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                    Binding="{Binding UpdatedDate, StringFormat=yyyy-MM-dd HH:mm}" 
-                                    gridColumns:GridColumn.Key="updated-date" />
+                        <DataGridTextColumn Header="单位" Width="66"
+                                    Binding="{Binding UnitSnapshot, TargetNullValue=—}"
+                                    gridColumns:GridColumn.Key="unit" />
+                        <DataGridTextColumn Header="需核实原因" Width="170"
+                                    Binding="{Binding ReviewReason}"
+                                    gridColumns:GridColumn.Key="review-reason" />
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -374,12 +346,16 @@ EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                     <DataGridTextColumn Header="数量" Width="80"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     Binding="{Binding Qty, StringFormat=N2}" />
-                    <DataGridTextColumn Header="已发" Width="80" 
+                    <DataGridTextColumn Header="已交" Width="80"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     Binding="{Binding ShippedQty, StringFormat=N2, TargetNullValue=未知}" />
-                    <DataGridTextColumn Header="未发" Width="80" 
+                    <DataGridTextColumn Header="未交" Width="80"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     Binding="{Binding UnshippedQty, StringFormat=N2, TargetNullValue=未知}" />
+                    <DataGridTextColumn Header="单位" Width="65"
+                                    Binding="{Binding UnitSnapshot}" />
+                    <DataGridTextColumn Header="核实提示" Width="130"
+                                    Binding="{Binding ReviewReason}" />
                     <DataGridTextColumn Header="USD单价" Width="88" 
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     Binding="{Binding UsdPrice, StringFormat=N2}" />

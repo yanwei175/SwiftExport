@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Interfaces.SalesOrders.Query;
 public interface ISalesOrderQueryRepository
 {
     /// <summary>按管理页条件读取稳定分页列表。</summary>
-    Task<PagedResponseBase<SalesOrderManagerListItemDto>> SearchManagerAsync(SalesOrderManagerSearchRequest request, CancellationToken cancellationToken = default);
+    Task<PagedResponseBase<SalesOrderManagerListItemDto>> SearchManagerAsync(SalesOrderManagerSearchRequest request, DateTime businessToday, CancellationToken cancellationToken = default);
     /// <summary>读取订单头行及编辑投影。</summary>
     Task<SalesOrderDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
 }

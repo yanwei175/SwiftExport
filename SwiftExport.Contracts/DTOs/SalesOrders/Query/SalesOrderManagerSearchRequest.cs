@@ -15,8 +15,12 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Manager
         public string InvoiceNo { get; set; }
         public DateTime? OrderDateFrom { get; set; }
         public DateTime? OrderDateTo { get; set; }
-        public DateTime? DeliveryDateFrom { get; set; }
-        public DateTime? DeliveryDateTo { get; set; }
+        /// <summary>按活动销售行有效交期筛选的起始日期，行交期优先于头交期。</summary>
+        public DateTime? EffectiveDeliveryDateFrom { get; set; }
+        /// <summary>按活动销售行有效交期筛选的结束日期（含）。</summary>
+        public DateTime? EffectiveDeliveryDateTo { get; set; }
+        /// <summary>单选快捷视图；与其余普通条件取交集。</summary>
+        public SalesOrderManagerQuickView QuickView { get; set; }
         public List<string> CustomerSkus { get; set; } = new List<string>();
         public List<SalesOrderDocumentStatusEnum> DocumentStatuses { get; set; } = new List<SalesOrderDocumentStatusEnum>();
         public List<ConfirmationStatusEnum> ConfirmationStatuses { get; set; } = new List<ConfirmationStatusEnum>();

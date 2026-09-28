@@ -27,7 +27,7 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
     }
 
     /// <summary>
-    /// 验证销售查询不再经 Allocation 反查出库，并在 PackingList 交付净额接入前返回可空占位。
+    /// 验证销售查询直接采用来源需求与箱单净交付，不经 Allocation 或自动出库重复计数。
     /// </summary>
     [TestMethod]
     public void RepositorySql_MustNotUseAllocationOutboundCompatibilityChain()
@@ -42,11 +42,16 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
         Assert.IsFalse(source.Contains("OutboundDocument", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("NetDemandAllocation", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("NetDemand", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("GrossDemand", StringComparison.Ordinal));
-        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS TotalShippedQty");
-        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS TotalUnshippedQty");
-        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS ShippedQty");
-        StringAssert.Contains(source, "CAST(NULL AS decimal(18, 4)) AS UnshippedQty");
+        StringAssert.Contains(source, "SalesOrderFulfillmentQuerySql.CreateLineFacts");
+        StringAssert.Contains(source, "f.ShippedQty END AS TotalShippedQty");
+        StringAssert.Contains(source, "f.UnshippedQty END AS TotalUnshippedQty");
+        StringAssert.Contains(source, "facts.ShippedQty, facts.UnshippedQty");
+        var facts = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure",
+            "Repositories", "SalesOrders", "Query", "SalesOrderFulfillmentQuerySql.cs"));
+        StringAssert.Contains(facts, "FROM dbo.GrossDemand g");
+        StringAssert.Contains(facts, "FROM dbo.PackingListLine pl");
+        StringAssert.Contains(facts, "ph.PostingStatus=@Posted");
+        StringAssert.Contains(facts, "DemandBasisFingerprint");
     }
 
     /// <summary>

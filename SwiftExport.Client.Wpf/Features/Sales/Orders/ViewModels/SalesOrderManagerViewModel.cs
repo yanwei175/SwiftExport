@@ -65,6 +65,8 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         _currentUser = currentUser;
         Title = "销售订单管理";
         PropertyChanged += OnBusyPropertyChanged;
+        SelectedDocumentStatuses.CollectionChanged += (_, _) => PageIndex = 1;
+        SelectedConfirmationStatuses.CollectionChanged += (_, _) => PageIndex = 1;
 
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
@@ -95,6 +97,12 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private void OnBusyPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(IsBusy)) OnPropertyChanged(nameof(CanBrowse));
+        // 修改任一查询条件后，从第一页重新检索，避免旧页码漏掉新命中结果。
+        if (e.PropertyName is nameof(Keyword) or nameof(CustomerCode) or nameof(OrderNo)
+            or nameof(CustomerPoNo) or nameof(InvoiceNo) or nameof(CustomerSkusText)
+            or nameof(OrderDateFrom) or nameof(OrderDateTo)
+            or nameof(EffectiveDeliveryDateFrom) or nameof(EffectiveDeliveryDateTo)
+            or nameof(QuickView)) PageIndex = 1;
     }
     /// <summary>维护权限独立于销售导航权限。</summary>
     public bool CanMaintain => _currentUser.HasPermission(PermissionKeys.SalesOrderMaintain);
@@ -123,6 +131,19 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     ];
     public ObservableCollection<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> SelectedDocumentStatuses { get; } = [];
     public ObservableCollection<SalesOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
+    /// <summary>单选快捷视图与其他普通条件取交集。</summary>
+    public IReadOnlyList<SalesOrderFilterOption<SalesOrderManagerQuickView>> QuickViewOptions { get; } =
+    [
+        new(SalesOrderManagerQuickView.All, "全部订单"),
+        new(SalesOrderManagerQuickView.PendingConfirmation, "待确认"),
+        new(SalesOrderManagerQuickView.NotShipped, "未发货"),
+        new(SalesOrderManagerQuickView.PartiallyShipped, "部分发货"),
+        new(SalesOrderManagerQuickView.FullyShipped, "全部发货"),
+        new(SalesOrderManagerQuickView.DueSoon, "临近交期"),
+        new(SalesOrderManagerQuickView.Overdue, "逾期未交"),
+        new(SalesOrderManagerQuickView.ClosedWithOutstanding, "关闭仍未交"),
+        new(SalesOrderManagerQuickView.NeedsReview, "需核实")
+    ];
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
@@ -134,8 +155,9 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     [ObservableProperty] public partial string CustomerSkusText { get; set; } = string.Empty;
     [ObservableProperty] public partial DateTime? OrderDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
-    [ObservableProperty] public partial DateTime? DeliveryDateFrom { get; set; }
-    [ObservableProperty] public partial DateTime? DeliveryDateTo { get; set; }
+    [ObservableProperty] public partial DateTime? EffectiveDeliveryDateFrom { get; set; }
+    [ObservableProperty] public partial DateTime? EffectiveDeliveryDateTo { get; set; }
+    [ObservableProperty] public partial SalesOrderManagerQuickView QuickView { get; set; }
 
     /// <summary>
     /// 获取或设置高级筛选 Popup 是否打开，仅控制筛选区域显隐，不改变当前筛选值。
@@ -205,8 +227,9 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         CustomerSkusText = string.Empty;
         OrderDateFrom = null;
         OrderDateTo = null;
-        DeliveryDateFrom = null;
-        DeliveryDateTo = null;
+        EffectiveDeliveryDateFrom = null;
+        EffectiveDeliveryDateTo = null;
+        QuickView = SalesOrderManagerQuickView.All;
         SelectedDocumentStatuses.Clear();
         SelectedConfirmationStatuses.Clear();
         PageIndex = 1;
@@ -596,8 +619,9 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             InvoiceNo = InvoiceNo.Trim(),
             OrderDateFrom = OrderDateFrom,
             OrderDateTo = OrderDateTo,
-            DeliveryDateFrom = DeliveryDateFrom,
-            DeliveryDateTo = DeliveryDateTo,
+            EffectiveDeliveryDateFrom = EffectiveDeliveryDateFrom,
+            EffectiveDeliveryDateTo = EffectiveDeliveryDateTo,
+            QuickView = QuickView,
             PageIndex = PageIndex,
             PageSize = PageSize,
             CustomerSkus = SplitValues(CustomerSkusText),

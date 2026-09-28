@@ -113,6 +113,10 @@ public sealed class SalesOrderManagerFilterTests
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[1]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[1]);
+        viewModel.PageIndex = 3;
+        viewModel.QuickView = SalesOrderManagerQuickView.DueSoon;
+        Assert.AreEqual(1, viewModel.PageIndex);
+        viewModel.EffectiveDeliveryDateFrom = new DateTime(2026, 10, 1);
         await viewModel.SearchCommand.ExecuteAsync(null);
 
         Assert.IsNotNull(api.LastSearchRequest);
@@ -123,6 +127,8 @@ public sealed class SalesOrderManagerFilterTests
         CollectionAssert.AreEqual(
             new[] { SalesOrderDocumentStatusEnum.Closed },
             api.LastSearchRequest.DocumentStatuses);
+        Assert.AreEqual(SalesOrderManagerQuickView.DueSoon, api.LastSearchRequest.QuickView);
+        Assert.AreEqual(new DateTime(2026, 10, 1), api.LastSearchRequest.EffectiveDeliveryDateFrom);
     }
 
     [TestMethod]
@@ -141,6 +147,7 @@ public sealed class SalesOrderManagerFilterTests
         viewModel.CustomerCode = "MANUAL";
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[0]);
+        viewModel.QuickView = SalesOrderManagerQuickView.Overdue;
         await viewModel.ClearFiltersCommand.ExecuteAsync(null);
 
         Assert.AreEqual(string.Empty, viewModel.CustomerCode);
@@ -148,13 +155,14 @@ public sealed class SalesOrderManagerFilterTests
         Assert.IsEmpty(viewModel.SelectedDocumentStatuses);
         Assert.IsNotNull(api.LastSearchRequest);
         Assert.IsEmpty(api.LastSearchRequest.CustomerCodes);
+        Assert.AreEqual(SalesOrderManagerQuickView.All, api.LastSearchRequest.QuickView);
     }
 
     /// <summary>
-    /// 验证 PackingList 交付净额接入前，契约使用空值且页面明确显示待接入和未知。
+    /// 验证交付字段对历史异常保持可空，并且管理页呈现交期与核实提示。
     /// </summary>
     [TestMethod]
-    public void DeliveryStatistics_ShouldRemainNullableAndDisplayUnknown()
+    public void DeliveryStatistics_ShouldExposeDueAlertsAndReviewReasons()
     {
         Assert.AreEqual(
             typeof(decimal?),
@@ -171,7 +179,7 @@ public sealed class SalesOrderManagerFilterTests
         Assert.AreEqual(
             typeof(decimal?),
             typeof(SalesOrderDetailLineDto).GetProperty(nameof(SalesOrderDetailLineDto.UnshippedQty))!.PropertyType);
-        Assert.IsNull(typeof(SalesOrderManagerSearchRequest).GetProperty("FulfillmentStatuses"));
+        Assert.IsNotNull(typeof(SalesOrderManagerSearchRequest).GetProperty(nameof(SalesOrderManagerSearchRequest.QuickView)));
 
         var viewPath = Path.Combine(
             FindRepositoryRoot(),
@@ -182,9 +190,10 @@ public sealed class SalesOrderManagerFilterTests
             "Views",
             "SalesOrderManagerView.xaml");
         var viewSource = File.ReadAllText(viewPath);
-        StringAssert.Contains(viewSource, "交付统计待接入");
-        Assert.AreEqual(4, CountOccurrences(viewSource, "TargetNullValue=未知"));
-        Assert.IsFalse(viewSource.Contains("Placeholder=\"执行状态\"", StringComparison.Ordinal));
+        StringAssert.Contains(viewSource, "Header=\"交期提醒\"");
+        StringAssert.Contains(viewSource, "Header=\"需核实原因\"");
+        StringAssert.Contains(viewSource, "SelectedValue=\"{Binding QuickView");
+        Assert.IsFalse(viewSource.Contains("交付统计待接入", StringComparison.Ordinal));
     }
 
     [TestMethod]
