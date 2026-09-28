@@ -1,0 +1,164 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
+                    xmlns:converters="clr-namespace:SwiftExport.Client.VSTO.Resources.Converters">
+    <converters:DatePickerButtonPaddingConverter x:Key="DatePickerButtonPaddingConverter"/>
+
+    <Style x:Key="CompactDatePickerStyle" TargetType="{x:Type DatePicker}" BasedOn="{StaticResource {x:Type DatePicker}}">
+
+        <!-- 不强制固定高度，让字体 + Padding 自然决定 -->
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="MinWidth" Value="120"/>
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DatePicker}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" HorizontalAlignment="{TemplateBinding HorizontalAlignment}" VerticalAlignment="{TemplateBinding VerticalAlignment}">
+
+                            <!-- 内部文本框 -->
+                            <DatePickerTextBox x:Name="PART_TextBox"
+                                    MinWidth="{TemplateBinding MinWidth}"
+                                    MinHeight="{TemplateBinding MinHeight}"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    ContextMenu="{TemplateBinding ContextMenu}"
+                                    Focusable="{TemplateBinding Focusable}"
+                                    FontFamily="{TemplateBinding FontFamily}"
+                                    FontSize="{TemplateBinding FontSize}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    KeyboardNavigation.TabIndex="0"
+                                    Tag="{TemplateBinding Border.CornerRadius}">
+
+                                <DatePickerTextBox.Padding>
+                                    <MultiBinding Converter="{StaticResource DatePickerButtonPaddingConverter}">
+                                        <Binding Path="Padding" RelativeSource="{RelativeSource TemplatedParent}"/>
+                                        <!-- 这里不再用官方 DatePickerCalendarButtonMargin,因为那个上下 6px 会影响居中。-->
+                                        <Binding>
+                                            <Binding.Source>
+                                                <Thickness>0,0,4,0</Thickness>
+                                            </Binding.Source>
+                                        </Binding>
+
+                                        <Binding ElementName="PART_Button" Path="ActualWidth"/>
+                                    </MultiBinding>
+                                </DatePickerTextBox.Padding>
+
+                            </DatePickerTextBox>
+
+
+                            <!-- 日历按钮 -->
+                            <Button x:Name="PART_Button"
+                                    Width="{DynamicResource UserDatePickerCalendarButtonHeight}"
+                                    Height="{DynamicResource UserDatePickerCalendarButtonHeight}"
+                                    Margin="{DynamicResource UserDatePickerCalendarButtonMargin}"
+                                    Padding="0"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0"
+                                    Cursor="Arrow"
+                                    KeyboardNavigation.TabIndex="1">
+
+                                <Button.Template>
+                                    <ControlTemplate TargetType="{x:Type Button}">
+                                        <Border x:Name="ButtonBorder"
+                                                Background="{TemplateBinding Background}"
+                                                CornerRadius="{DynamicResource ControlCornerRadius}">
+
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                        </Border>
+
+                                        <ControlTemplate.Triggers>
+
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ButtonBorder"  Property="Background"  Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+                                            </Trigger>
+
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}"/>
+                                            </Trigger>
+
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Opacity" Value="0.5"/>
+                                            </Trigger>
+
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+
+                                <controls:SymbolIcon
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            FontSize="{DynamicResource DatePickerCalendarButtonIconSize}"
+                                            Foreground="{TemplateBinding Foreground}"
+                                            Symbol="CalendarRtl24"/>
+
+                            </Button>
+
+
+                            <!-- 底部强调边 -->
+                            <Border x:Name="AccentBorder"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="{DynamicResource DatePickerAccentBorderThemeThickness}"
+                                    CornerRadius="{TemplateBinding Border.CornerRadius}"/>
+
+                        </Grid>
+
+
+                        <!-- 日历 Popup -->
+                        <Popup x:Name="PART_Popup"
+                                Grid.Row="1"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Top"
+                                AllowsTransparency="True"
+                                Placement="Bottom"
+                                PlacementTarget="{Binding ElementName=PART_TextBox}"
+                                StaysOpen="False"/>
+
+                    </Grid>
+
+
+                    <ControlTemplate.Triggers>
+
+                        <Trigger Property="IsEnabled" Value="True">
+                            <Setter Property="Cursor" Value="IBeam"/>
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}"/>
+                        </Trigger>
+
+                    </ControlTemplate.Triggers>
+
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+
+    </Style>
+    
+    <Style BasedOn="{StaticResource {x:Type TextBox}}" TargetType="{x:Type DatePickerTextBox}" >
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+    </Style>
+
+    <Style BasedOn="{StaticResource CompactDatePickerStyle}" TargetType="{x:Type DatePicker}" >
+    </Style>
+
+
+</ResourceDictionary>

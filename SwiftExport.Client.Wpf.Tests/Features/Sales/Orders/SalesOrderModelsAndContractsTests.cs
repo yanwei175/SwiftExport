@@ -22,6 +22,22 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 [TestClass]
 public sealed class SalesOrderModelsAndContractsTests
 {
+    /// <summary>详情单位列只允许非标行编辑，并由 Unit 字典提供代码选项。</summary>
+    [TestMethod]
+    public void DetailUnitColumn_ShouldUseDictionaryForNonStandardLines()
+    {
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "SwiftExport.Client.Wpf",
+            "Features", "Sales", "Orders", "Views", "SalesOrderDetailView.xaml"));
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var column = document.Descendants(presentation + "DataGridTemplateColumn")
+            .Single(element => (string?)element.Attribute("Header") == "单位");
+        var comboBox = column.Descendants(presentation + "ComboBox").Single();
+
+        StringAssert.Contains((string?)comboBox.Attribute("ItemsSource"), "UnitOptions");
+        StringAssert.Contains((string?)comboBox.Attribute("SelectedValue"), "UnitSnapshot");
+        Assert.AreEqual("{Binding IsNonStandard}", (string?)comboBox.Attribute("IsEnabled"));
+    }
+
     [TestMethod]
     public void DetailHeader_ShouldUseCachedDictionaryAndCurrencyComboBoxes()
     {
@@ -133,6 +149,8 @@ public sealed class SalesOrderModelsAndContractsTests
         Assert.AreEqual("非标行必须填写产品描述。", line.ValidateRow());
         Assert.AreEqual("非标行必须填写产品描述。", line[nameof(SalesOrderLineModel.DescriptionEn)]);
         line.DescriptionEn = "Temporary custom brass component";
+        Assert.AreEqual("非标行必须填写单位。", line.ValidateRow());
+        line.UnitSnapshot = "PCS";
         Assert.IsNull(line.ValidateRow());
     }
 
@@ -168,6 +186,7 @@ public sealed class SalesOrderModelsAndContractsTests
         var line = new SalesOrderLineListModel().AddNonStandardLine(null);
         line.Qty = 2;
         line.DescriptionEn = "Custom item";
+        line.UnitSnapshot = "PCS";
         line.ProductId = Guid.NewGuid();
         line.CustomerProductId = Guid.NewGuid();
         line.Sku = "client-tampered";
@@ -177,6 +196,7 @@ public sealed class SalesOrderModelsAndContractsTests
         Assert.IsNull(dto.ProductId);
         Assert.IsNull(dto.CustomerProductId);
         Assert.AreEqual(NonStandardSkuGenerator.Create(line.Uid), dto.Sku);
+        Assert.AreEqual("PCS", dto.UnitSnapshot);
     }
 
     [TestMethod]

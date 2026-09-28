@@ -1,4 +1,3 @@
-using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.SalesOrders.Document;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
@@ -23,7 +22,6 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.Commands;
-using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.SalesOrders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auditing;
@@ -118,6 +116,36 @@ public sealed class SalesOrderConfirmationCommandTests
         Assert.IsNull(unknown.Session.Transaction);
     }
 
+    /// <summary>产品主数据单位变更后，确认仍沿用销售行保存时的单位快照。</summary>
+    [TestMethod]
+    public async Task Confirmation_UsesSalesLineUnitSnapshotInsteadOfCurrentProductUnit()
+    {
+        var f = new Fixture();
+        var productId = Guid.NewGuid();
+        f.Line.ProductId = productId;
+        f.Line.IsNonStandard = false;
+        f.Line.UnitSnapshot = "PCS";
+
+        var result = await f.Service.ConfirmAsync(f.Header.Uid, f.Command(Guid.NewGuid()));
+
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.AreEqual("PCS", f.ReceivedCommand!.Items.Single().UnitSnapshot);
+    }
+
+    /// <summary>旧销售行缺少单位快照时，确认在变更状态及接收来源前失败。</summary>
+    [TestMethod]
+    public async Task Confirmation_RejectsMissingSalesLineUnitSnapshot()
+    {
+        var f = new Fixture();
+        f.Line.UnitSnapshot = string.Empty;
+
+        var result = await f.Service.ConfirmAsync(f.Header.Uid, f.Command(Guid.NewGuid()));
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(0, f.StatusWrites);
+        Assert.AreEqual(0, f.SourceCalls);
+    }
+
     /// <summary>仅替代确认路径真实调用的仓储方法，并观察事务与回执次数。</summary>
     private sealed class Fixture
     {
@@ -126,13 +154,17 @@ public sealed class SalesOrderConfirmationCommandTests
         public readonly UserStub User = new();
         public readonly SalesOrderHeader Header = new()
         { Uid = Guid.NewGuid(), Version = 1, OrderNo = "SO-1", CustomerId = Guid.NewGuid() };
+        public readonly SalesOrderLine Line;
         public readonly SalesOrderConfirmationService Service;
+        public SourceDemandReceptionCommand? ReceivedCommand;
         public bool Allow = true, FailSource, FailAudit, FailReceipt;
         public int HeadReads, StatusWrites, SourceCalls, AuditWrites, ReceiptWrites, ReceiptReads;
         private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
 
         public Fixture()
         {
+            Line = new SalesOrderLine { Uid = Guid.NewGuid(), SalesOrderId = Header.Uid,
+                Sku = "NS-1", Qty = 1, IsNonStandard = true, LineNumber = 1, UnitSnapshot = "PCS" };
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(Session, Connection);
@@ -145,14 +177,7 @@ public sealed class SalesOrderConfirmationCommandTests
             });
             var lines = Proxy<ISalesOrderLineRepository>((method, args) => method.Name switch
             {
-                "GetLinesByOrderIdAsync" => Task.FromResult<IReadOnlyList<SalesOrderLine>>(
-                    [new SalesOrderLine { Uid = Guid.NewGuid(), SalesOrderId = Header.Uid,
-                        Sku = "NS-1", Qty = 1, IsNonStandard = true, LineNumber = 1 }]),
-                _ => throw new AssertFailedException(method.Name)
-            });
-            var products = Proxy<IProductRepository>((method, args) => method.Name switch
-            {
-                "GetByIdListAsync" => Task.FromResult<IReadOnlyList<Product>>([]),
+                "GetLinesByOrderIdAsync" => Task.FromResult<IReadOnlyList<SalesOrderLine>>([Line]),
                 _ => throw new AssertFailedException(method.Name)
             });
             var reception = Proxy<ISourceDemandReceptionService>((method, args) => method.Name switch
@@ -185,7 +210,7 @@ public sealed class SalesOrderConfirmationCommandTests
                 .BuildServiceProvider();
             var pipeline = new CommandPipeline(new CommandRequestValidator(validators), correlation, User,
                 NullLogger<CommandPipeline>.Instance);
-            Service = new SalesOrderConfirmationService(context, heads, lines, products, reception,
+            Service = new SalesOrderConfirmationService(context, heads, lines, reception,
                 logs, correlation, User, permissions, pipeline, new BusinessCommandExecutor(context, receipts, User));
         }
 
@@ -198,6 +223,7 @@ public sealed class SalesOrderConfirmationCommandTests
         {
             Assert.IsNotNull(Session.Transaction);
             SourceCalls++;
+            ReceivedCommand = command;
             if (FailSource) throw new InvalidOperationException("模拟来源失败");
             return Task.FromResult(new SourceDemandReceptionResult { SourceVersion = command.SourceVersion, CreatedCount = 1 });
         }

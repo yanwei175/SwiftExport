@@ -17,7 +17,7 @@ public sealed class SalesSourceDemandContractTests
     }
 
     [TestMethod]
-    public void SalesConfirmationUsesPostConfirmVersionProductUnitAndReceptionBoundary()
+    public void SalesConfirmationUsesPostConfirmVersionSalesUnitSnapshotAndReceptionBoundary()
     {
         var service = Read("SwiftExport.Application", "Services", "SalesOrders", "Confirmation", "SalesOrderConfirmationService.cs");
         var statusWrite = service.IndexOf("SetConfirmationStatusAsync", StringComparison.Ordinal);
@@ -25,7 +25,7 @@ public sealed class SalesSourceDemandContractTests
 
         Assert.IsTrue(statusWrite >= 0 && reception > statusWrite);
         StringAssert.Contains(service, "SourceVersion = sourceVersion");
-        StringAssert.Contains(service, "UnitSnapshot = product?.Unit");
+        StringAssert.Contains(service, "UnitSnapshot = line.UnitSnapshot");
         StringAssert.Contains(service, "RejectUnsubmittedActiveLines = true");
         Assert.IsFalse(service.Contains("IGrossDemandRepository", StringComparison.Ordinal));
         Assert.IsFalse(service.Contains("new GrossDemand", StringComparison.Ordinal));

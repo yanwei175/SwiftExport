@@ -19,6 +19,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Detail
         public string ColorNameEn { get; set; }
         public string FeaturesEn { get; set; }
         public decimal Qty { get; set; }
+        /// <summary>销售行订购数量使用的计量单位代码快照。</summary>
+        public string UnitSnapshot { get; set; }
         public decimal? CnyPrice { get; set; }
         public decimal? UsdPrice { get; set; }
         public decimal? PcsOfCarton { get; set; }

@@ -423,6 +423,25 @@
                                         gridColumns:GridColumn.Key="qty" 
                                         gridColumns:GridColumn.FieldPath="QtyText" />
 
+                    <DataGridTemplateColumn Header="单位" Width="100" SortMemberPath="UnitSnapshot"
+                                            gridColumns:GridColumn.Key="unit" gridColumns:GridColumn.FieldPath="UnitSnapshot">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding UnitSnapshot}"
+                                           Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <ComboBox ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                          ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
+                                          SelectedValuePath="DataNameEn"
+                                          SelectedValue="{Binding UnitSnapshot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          IsEnabled="{Binding IsNonStandard}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
                     <DataGridTextColumn Header="USD单价" Width="88" 
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"

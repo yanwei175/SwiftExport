@@ -3,6 +3,18 @@
   <ui:ThemesDictionary Theme="Light"/>
   <ui:ControlsDictionary/>
   <ResourceDictionary Source="Colors.xaml"/>
+  <ResourceDictionary Source="Variables.xaml"/>
+  <ResourceDictionary Source="UserWpfUiThemeResources.xaml"/>
   <ResourceDictionary Source="Typography.xaml"/>
+  <ResourceDictionary Source="Borders.xaml"/>
+  <ResourceDictionary Source="Button.xaml"/>
+  <ResourceDictionary Source="TextBoxes.xaml"/>
+  <ResourceDictionary Source="ContextMenu.xaml"/>
+  <ResourceDictionary Source="Grids.xaml"/>
+  <ResourceDictionary Source="ListBox.xaml"/>
+  <ResourceDictionary Source="DatePicker.xaml"/>
+  <ResourceDictionary Source="DataGrid.xaml"/>
+  <ResourceDictionary Source="TabControl.xaml"/>
+  <ResourceDictionary Source="Image.xaml"/>
  </ResourceDictionary.MergedDictionaries>
 </ResourceDictionary>

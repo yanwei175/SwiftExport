@@ -1,4 +1,3 @@
-using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.SalesOrders.Document;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -19,7 +18,6 @@ using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
-using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.SalesOrders;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auditing;
@@ -32,7 +30,6 @@ public sealed class SalesOrderConfirmationService(
     ServiceBaseContext context,
     ISalesOrderHeadRepository heads,
     ISalesOrderLineRepository lines,
-    IProductRepository products,
     ISourceDemandReceptionService reception,
     IBusinessOperationLogRepository logs,
     ICorrelationContext correlation,
@@ -79,6 +76,8 @@ public sealed class SalesOrderConfirmationService(
         var orderLines = await lines.GetLinesByOrderIdAsync(uid, true);
         if (orderLines.Count == 0)
             throw new SalesConfirmationException("销售订单没有有效明细，不能确认。");
+        if (orderLines.Any(line => string.IsNullOrWhiteSpace(line.UnitSnapshot)))
+            throw new SalesConfirmationException("销售订单行缺少单位快照，请先补齐再确认。");
 
         var version = header.Version;
         if (!alreadyConfirmed)
@@ -88,15 +87,11 @@ public sealed class SalesOrderConfirmationService(
             version = write.NewVersion ?? request.Version + 1;
         }
 
-        var productIds = orderLines.Where(line => line.ProductId.HasValue)
-            .Select(line => line.ProductId!.Value).Distinct().ToArray();
-        var productMap = (await products.GetByIdListAsync(productIds, true))
-            .ToDictionary(product => product.Uid);
         SourceDemandReceptionResult received;
         try
         {
             received = await reception.ReceiveAsync(CreateSourceDemandCommand(
-                header, orderLines, productMap, version, request.CommandId));
+                header, orderLines, version, request.CommandId));
         }
         catch (SourceDemandReceptionException ex)
         {
@@ -113,11 +108,12 @@ public sealed class SalesOrderConfirmationService(
         return result;
     }
 
-    /// <summary>把确认后的销售事实交给来源领域，不在销售服务直接构造毛需求实体。</summary>
+    /// <summary>把经确认前校验的销售行单位快照交给来源领域，避免以实时产品单位改写历史。</summary>
     private static SourceDemandReceptionCommand CreateSourceDemandCommand(
         SalesOrderHeader header, IReadOnlyList<SalesOrderLine> orderLines,
-        IReadOnlyDictionary<Guid, Product> productMap, int sourceVersion, Guid commandId)
-        => new()
+        int sourceVersion, Guid commandId)
+    {
+        return new()
         {
             CommandId = commandId,
             SourceType = DocumentTypeStaticsEnum.SalesOrder,
@@ -128,7 +124,6 @@ public sealed class SalesOrderConfirmationService(
             RejectUnsubmittedActiveLines = true,
             Items = orderLines.Select(line =>
             {
-                productMap.TryGetValue(line.ProductId ?? Guid.Empty, out var product);
                 return new SourceDemandReceptionItem
                 {
                     SourceLineId = line.Uid,
@@ -142,13 +137,14 @@ public sealed class SalesOrderConfirmationService(
                     ColorSnapshot = line.ColorNameEn,
                     SpecificationSnapshot = line.FeaturesEn,
                     ImagePathSnapshot = line.MainImage,
-                    UnitSnapshot = product?.Unit,
+                    UnitSnapshot = line.UnitSnapshot,
                     DemandQty = line.Qty,
                     RequiredDate = line.ExpectedDeliveryDate ?? header.DeliveryDate,
                     Remark = line.SubNote
                 };
             }).ToArray()
         };
+    }
 
     /// <summary>只记录业务前后版本、接收数量、操作者和链路；机器回执由执行器持久化。</summary>
     private async Task WriteAuditAsync(SalesOrderHeader header, ConfirmSalesOrderCommand request,

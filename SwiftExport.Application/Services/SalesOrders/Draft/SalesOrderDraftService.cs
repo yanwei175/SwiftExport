@@ -272,7 +272,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
     /// </summary>
     /// <remarks>
     /// 标准件必须关联有效产品；非标件禁止关联产品，并按行 Uid 生成稳定的临时 SKU。
-    /// 描述、价格等字段在此保存为订单历史快照。
+    /// 描述、价格等字段在此保存为订单历史快照；标准件单位只在新建、换产品或旧行缺失时取当前产品单位。
     /// </remarks>
     private static void ApplyLineChanges(
         SalesOrderLine entity,
@@ -290,6 +290,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
         entity.IsNonStandard = dto.IsNonStandard;
 
         Product? product = null;
+        var originalProductId = entity.ProductId;
         if (dto.IsNonStandard)
         {
             if (dto.ProductId.HasValue || dto.CustomerProductId.HasValue)
@@ -300,6 +301,9 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
             entity.CustomerProductId = null;
             entity.Sku = NonStandardSkuGenerator.Create(dto.Uid);
             entity.MainImage = null;
+            if (string.IsNullOrWhiteSpace(dto.UnitSnapshot))
+                throw new SalesOrderValidationException($"第 {lineNumber} 行非标件必须填写单位。");
+            entity.UnitSnapshot = dto.UnitSnapshot.Trim();
         }
         else
         {
@@ -310,6 +314,10 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
             entity.ProductId = product.Uid;
             entity.Sku = product.Sku;
             entity.MainImage = product.MainImage;
+            if (string.IsNullOrWhiteSpace(product.Unit))
+                throw new SalesOrderValidationException($"第 {lineNumber} 行产品未设置单位，不能保存销售订单。");
+            if (originalProductId != product.Uid || string.IsNullOrWhiteSpace(entity.UnitSnapshot))
+                entity.UnitSnapshot = product.Unit.Trim();
             if (dto.CustomerProductId.HasValue)
             {
                 if (!customerProducts.TryGetValue(dto.CustomerProductId.Value, out var customerProduct)

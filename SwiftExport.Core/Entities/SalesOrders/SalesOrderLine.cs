@@ -41,6 +41,8 @@ public partial class SalesOrderLine : BaseEntity
     public decimal? UsdPrice { get; set; }
     /// <summary>客户在本销售订单明细中订购的数量。</summary>
     public decimal Qty { get; set; }
+    /// <summary>销售行订购数量使用的计量单位代码快照；保存时必须明确单位。</summary>
+    public string UnitSnapshot { get; set; } = string.Empty;
 
     /// <summary>该实体保存的人民币金额。</summary>
     public decimal? CnyAmount { get; set; }

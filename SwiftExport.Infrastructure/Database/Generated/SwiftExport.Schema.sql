@@ -1203,6 +1203,7 @@ CREATE TABLE [dbo].[SalesOrderLine]
     [CnyPrice] decimal(18,4) NULL,
     [UsdPrice] decimal(18,4) NULL,
     [Qty] decimal(18,4) NOT NULL,
+    [UnitSnapshot] nvarchar(300) NOT NULL,
     [CnyAmount] decimal(18,4) NULL,
     [UsdAmount] decimal(18,4) NULL,
     [PcsOfCarton] decimal(18,4) NULL,
@@ -6056,6 +6057,11 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SalesOrderLine',
     @level2type=N'COLUMN', @level2name=N'Qty';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'销售行订购数量使用的计量单位代码快照；保存时必须明确单位。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SalesOrderLine',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'该实体保存的人民币金额。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

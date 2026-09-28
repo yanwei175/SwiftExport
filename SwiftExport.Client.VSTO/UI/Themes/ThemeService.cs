@@ -86,6 +86,7 @@ namespace SwiftExport.Client.VSTO.UI.Themes
             resources["SwiftExportBackground"] = contrast ? SystemColors.WindowBrush : Brush(250, 250, 250);
             resources["SwiftExportForeground"] = contrast ? SystemColors.WindowTextBrush : Brush(32, 32, 32);
             resources["SwiftExportError"] = contrast ? SystemColors.WindowTextBrush : Brush(180, 35, 24);
+            ApplyStyleContrast(contrast);
             // Light 的文字别名使用 StaticResource，不会跟随官方根颜色变化；在项目层明确同步。
             var foreground = contrast ? SystemColors.HighlightTextBrush
                 : new SolidColorBrush((Color)applicationResources["TextOnAccentFillColorPrimary"]);
@@ -102,6 +103,30 @@ namespace SwiftExport.Client.VSTO.UI.Themes
             {
                 if (contrast) resources[key] = key == "ButtonBackgroundDisabled" ? SystemColors.WindowBrush : SystemColors.GrayTextBrush;
                 else resources.Remove(key);
+            }
+        }
+
+        // 移植的业务色在高对比度下使用系统语义，恢复浅色时回到原字典，不改变正常配色。
+        private void ApplyStyleContrast(bool contrast)
+        {
+            var overrides = new Dictionary<string, object>
+            {
+                { "SwiftExportBrush.DataGridSelectedBackground", SystemColors.HighlightBrush },
+                { "SwiftExportBrush.DataGridSelectedForeground", SystemColors.HighlightTextBrush },
+                { "UserTextFillColorPrimaryBrush", SystemColors.WindowTextBrush },
+                { "UserTextFillColorSecondaryBrush", SystemColors.WindowTextBrush },
+                { "UserBusinessTextAccentBrush", SystemColors.WindowTextBrush },
+                { "UserBusinessTextWarningBrush", SystemColors.WindowTextBrush },
+                { "UserBusinessTextSuccessBrush", SystemColors.WindowTextBrush },
+                { "UserBusinessTextCriticalBrush", SystemColors.WindowTextBrush },
+                { "UserCardBackgroundFillColorDefaultBrush", SystemColors.WindowBrush },
+                { "UserLayerFillColorAltBrush", SystemColors.WindowBrush },
+                { "SwiftExportBrush.DataGridHoverBackground", SystemColors.WindowBrush }
+            };
+            foreach (var item in overrides)
+            {
+                if (contrast) resources[item.Key] = item.Value;
+                else resources.Remove(item.Key);
             }
         }
 

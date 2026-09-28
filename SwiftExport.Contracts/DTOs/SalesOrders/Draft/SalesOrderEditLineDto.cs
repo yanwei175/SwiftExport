@@ -18,6 +18,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Detail
         public string ColorNameEn { get; set; }
         public string FeaturesEn { get; set; }
         public decimal Qty { get; set; }
+        /// <summary>非标行由用户录入的单位代码；标准行单位由服务端产品主数据决定。</summary>
+        public string UnitSnapshot { get; set; }
         public decimal? CnyPrice { get; set; }
         public decimal? UsdPrice { get; set; }
         public decimal? PcsOfCarton { get; set; }

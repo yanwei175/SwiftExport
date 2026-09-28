@@ -29,6 +29,8 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDetail
     [NotifyPropertyChangedFor(nameof(CnyAmount))]
     [NotifyPropertyChangedFor(nameof(UsdAmount))]
     public partial decimal Qty { get; set; }
+    /// <summary>保存销售行订购数量使用的单位；非标行由用户选择，标准行由服务端产品单位确定。</summary>
+    [ObservableProperty] public partial string UnitSnapshot { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CnyAmount))]
     public partial decimal? CnyPrice { get; set; }
@@ -62,6 +64,7 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDetail
         nameof(CnyPriceText) => GetNullableDecimalTextError(CnyPriceText, "CNY 单价") ?? string.Empty,
         nameof(UsdPriceText) => GetNullableDecimalTextError(UsdPriceText, "USD 单价") ?? string.Empty,
         nameof(DescriptionEn) when IsNonStandard && string.IsNullOrWhiteSpace(DescriptionEn) => "非标行必须填写产品描述。",
+        nameof(UnitSnapshot) when IsNonStandard && string.IsNullOrWhiteSpace(UnitSnapshot) => "非标行必须填写单位。",
         _ => string.Empty,
     };
 
@@ -131,6 +134,11 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDetail
             if (string.IsNullOrWhiteSpace(DescriptionEn))
             {
                 return "非标行必须填写产品描述。";
+            }
+
+            if (string.IsNullOrWhiteSpace(UnitSnapshot))
+            {
+                return "非标行必须填写单位。";
             }
 
             return null;

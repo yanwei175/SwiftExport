@@ -28,6 +28,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 Check(app.Resources.MergedDictionaries.Count == count, "重复初始化不重复合并");
                 CheckAccent();
                 CheckButton();
+                CheckStyles();
+                CheckConverters();
                 host.Dispose();
                 host.Dispose();
                 Check(app.Resources.MergedDictionaries.Count == count - 1, "幂等卸载移除自有字典");
@@ -57,6 +59,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     Check(ReferenceEquals(dictionary["AccentButtonBackground"], SystemColors.HighlightBrush), "高对比度遵循系统选择背景");
                     Check(ReferenceEquals(dictionary["AccentButtonForeground"], SystemColors.HighlightTextBrush), "高对比度遵循系统选择文字");
                     CheckButton();
+                    CheckStyles();
                 }
                 theme.ApplyTheme("Light", false);
                 CheckAccent();
@@ -120,6 +123,75 @@ namespace SwiftExport.Client.VSTO.WpfTests
         }
 
         private static bool Visible(Brush brush) { return brush is SolidColorBrush solid && solid.Color.A > 0 && solid.Opacity > 0; }
+
+        // 逐一解析移植资源，实例化实际控件；避免仅编译通过但延迟资源引用在开页时失败。
+        private static void CheckStyles()
+        {
+            var root = Application.Current.Resources.MergedDictionaries[Application.Current.Resources.MergedDictionaries.Count - 1];
+            foreach (var dictionary in root.MergedDictionaries)
+            {
+                if (dictionary.Source == null || dictionary.Source.ToString().IndexOf("Wpf.Ui", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                foreach (var key in dictionary.Keys)
+                {
+                    var value = dictionary[key];
+                    Check(value != null, "资源解析：" + key);
+                    var style = value as Style;
+                    if (style == null || style.TargetType.IsAbstract) continue;
+                    var element = Activator.CreateInstance(style.TargetType) as FrameworkElement;
+                    if (element == null) continue;
+                    element.Style = style;
+                    if (element is ContextMenu)
+                    {
+                        element.ApplyTemplate();
+                        Check(style.IsSealed, "独立菜单样式实例化");
+                        continue;
+                    }
+                    var window = new Window { Content = element };
+                    window.Measure(new Size(640, 480));
+                    window.Arrange(new Rect(0, 0, 640, 480));
+                    element.ApplyTemplate();
+                    Check(element.Style.IsSealed, "样式实例化：" + key);
+                    window.Content = null;
+                    window.Close();
+                }
+            }
+            var grid = new DataGrid { Style = (Style)Application.Current.FindResource("SwiftExportDataGrid") };
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Binding = new System.Windows.Data.Binding("Name"),
+                ElementStyle = (Style)Application.Current.FindResource("SwiftExportDataGridTextBlock"),
+                EditingElementStyle = (Style)Application.Current.FindResource("SwiftExportDataGridTextBox")
+            });
+            grid.ItemsSource = new[] { new { Name = "订单预览" }, new { Name = "API 匹配结果" } };
+            var host = new Window { Content = grid };
+            grid.ApplyTemplate();
+            grid.Measure(new Size(640, 480));
+            grid.Arrange(new Rect(0, 0, 640, 480));
+            grid.UpdateLayout();
+            var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
+            Check(row != null, "原生 DataGrid 行已生成");
+            grid.SelectedItem = grid.Items[0];
+            Check(row.IsSelected, "原生选中行可用");
+            Check(Equals(((SolidColorBrush)row.Foreground).Color,
+                ((SolidColorBrush)Application.Current.FindResource("SwiftExportBrush.DataGridSelectedForeground")).Color), "选中行文字使用主题配对颜色");
+            Check(DependencyPropertyHelper.GetValueSource(grid, DataGrid.SelectionUnitProperty).BaseValueSource == BaseValueSource.Default,
+                "样式不接管选择模式");
+            host.Content = null;
+            host.Close();
+        }
+
+        // 验证样式所需转换器的未就绪与正常输入，不加载导入业务或网络。
+        private static void CheckConverters()
+        {
+            var padding = new Resources.Converters.DatePickerButtonPaddingConverter();
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            Check(Equals(new Thickness(1, 2, 32, 4), padding.Convert(new object[] { new Thickness(1, 2, 3, 4), new Thickness(2, 0, 3, 0), 24d }, typeof(Thickness), null, culture)), "日期按钮预留宽度");
+            Check(ReferenceEquals(DependencyProperty.UnsetValue, padding.Convert(new object[] { DependencyProperty.UnsetValue }, typeof(Thickness), null, culture)), "未就绪绑定不产生错误布局");
+            var error = new Resources.Converters.FirstValidationErrorConverter();
+            Check(error.Convert(new object[0], typeof(string), null, culture) == null, "验证错误清空时无提示");
+            var validation = new ValidationError(new ExceptionValidationRule(), new object(), "匹配失败", null);
+            Check(Equals("匹配失败", error.Convert(new[] { validation }, typeof(string), null, culture)), "显示首条原生验证提示");
+        }
         private static ResourceDictionary Load(string path)
         {
             return new ResourceDictionary { Source = new Uri("/" + typeof(Program).Assembly.GetName().Name + ";component/" + path, UriKind.Relative) };

@@ -127,6 +127,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> PaymentMethodOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> ShippedByOptions { get; set; } = [];
+    /// <summary>非标销售行可选用的单位字典代码。</summary>
+    [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> UnitOptions { get; set; } = [];
 
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
@@ -204,6 +206,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         PaymentMethodOptions = CreateDictionaryOptions(DictCodes.PaymentMethod);
         IncotermOptions = CreateDictionaryOptions(DictCodes.Incoterm);
         ShippedByOptions = CreateDictionaryOptions(DictCodes.ShippedBy);
+        UnitOptions = CreateDictionaryOptions(DictCodes.Unit);
     }
 
     private IReadOnlyList<SysDictDataDto> CreateDictionaryOptions(string dictCode)

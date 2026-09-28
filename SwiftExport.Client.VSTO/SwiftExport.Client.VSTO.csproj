@@ -283,6 +283,8 @@
     <Compile Include="Excel\Context\ExcelContextService.cs" />
     <Compile Include="Diagnostics\AddInLog.cs" />
     <Compile Include="UI\Themes\ThemeService.cs" />
+    <Compile Include="Resources\Converters\FirstValidationErrorConverter.cs" />
+    <Compile Include="Resources\Converters\DatePickerButtonPaddingConverter.cs" />
     <Page Include="Authentication\LoginWindow.xaml;Resources\*.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

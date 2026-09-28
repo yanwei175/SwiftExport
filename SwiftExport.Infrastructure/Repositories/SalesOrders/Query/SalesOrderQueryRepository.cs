@@ -178,7 +178,7 @@ public sealed class SalesOrderQueryRepository(RepositoryBaseContext context) : D
                 l.Uid, l.Version, l.CreatedDate, l.CreatedBy, l.UpdatedDate, l.UpdatedBy,
                 l.LineNumber, l.IsNonStandard, l.ProductId, l.CustomerProductId,
                 l.Sku, l.LinkSku, l.CustomerSku, l.DescriptionEn, l.ColorNameEn, l.FeaturesEn,
-                l.Qty, l.CnyPrice, l.UsdPrice, l.PcsOfCarton, l.NwOfCarton, l.GwOfCarton,
+                l.Qty, l.UnitSnapshot, l.CnyPrice, l.UsdPrice, l.PcsOfCarton, l.NwOfCarton, l.GwOfCarton,
                 l.CbmOfCarton, l.ExpectedDeliveryDate, l.SubNote, l.MainImage,
                 CAST(NULL AS decimal(18, 4)) AS ShippedQty,
                 CAST(NULL AS decimal(18, 4)) AS UnshippedQty,
