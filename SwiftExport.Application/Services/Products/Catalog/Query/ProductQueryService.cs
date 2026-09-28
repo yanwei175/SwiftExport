@@ -89,7 +89,7 @@ public sealed class ProductQueryService(
     {
         // 产品页只能取得精简参考候选；先授权再验证、查询，避免回用库存模块权限或读取库存资料。
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } userId
-            || !await permissions.HasPermissionAsync(userId, PermissionKeys.ModuleProductsAccess, cancellationToken))
+            || !await permissions.HasPermissionAsync(userId, "Products.Product.View", cancellationToken))
             return ServiceResult<PagedResponseBase<ProductDefaultWarehouseCandidateDto>>.Fail(
                 ServiceErrorCodes.Forbidden, "当前账号无产品模块访问权限。");
         if (request is null || request.PageIndex < 1 || request.PageSize is < 1 or > 200

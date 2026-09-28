@@ -13,11 +13,11 @@ using SwiftExport.Application.Services.Inventory;
 
 namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
-/// <summary>集中入库用例共用的模块访问检查、错误映射及分页上界。</summary>
+/// <summary>集中入库用例共用的操作授权、错误映射及分页上界。</summary>
 public sealed class InboundServiceSupport(ICurrentUser user, IPermissionEvaluationService permissions,
     ILogger<InboundServiceSupport> logger)
 {
-    /// <summary>统一读取与写入访问权限及错误包装；数据库技术信息仅写服务端日志。</summary>
+    /// <summary>统一读取访问权限及错误包装；写命令在管线中按操作键授权。</summary>
     public async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token, bool checkPermission = true)
     {
         try
@@ -51,13 +51,13 @@ public sealed class InboundServiceSupport(ICurrentUser user, IPermissionEvaluati
         }
     }
 
-    /// <summary>在验证和回执读取之前核对身份与库存模块权限。</summary>
-    public async Task<ServiceResult<T>?> AuthorizeAsync<T>(CancellationToken token)
+    /// <summary>在验证和回执读取之前核对身份与指定入库操作权限。</summary>
+    public async Task<ServiceResult<T>?> AuthorizeAsync<T>(CancellationToken token, string permissionKey = "Inventory.Inbound.View")
     {
         if (!user.IsAuthenticated || user.UserId is not { } id)
             return ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
-        if (!await permissions.HasPermissionAsync(id, PermissionKeys.ModuleInventoryAccess, token))
-            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无库存模块访问权限。");
+        if (!await permissions.HasPermissionAsync(id, permissionKey, token))
+            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无入库操作权限。");
         return null;
     }
 

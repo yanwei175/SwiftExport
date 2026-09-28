@@ -93,7 +93,7 @@ public sealed class OutboundReversalService(IOutboundQueryRepository queries, IO
     /// <summary>在请求验证和回执读取前检查库存模块与独立反向权限。</summary>
     private async Task<ServiceResult<T>?> AuthorizeReverseAsync<T>(CancellationToken token)
     {
-        var refusal = await support.AuthorizeAsync<T>(token);
+        var refusal = await support.AuthorizeAsync<T>(token, PermissionKeys.InventoryOutboundReverse);
         if (refusal is not null) return refusal;
         if (!await permissions.HasPermissionAsync(user.UserId!.Value, PermissionKeys.InventoryOutboundReverse, token))
             return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有手工出库反过账权限。");

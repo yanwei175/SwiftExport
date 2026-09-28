@@ -30,9 +30,6 @@ public sealed partial class DictionaryTypeEditModel : BaseLineModel<SysDictTypeD
     public partial int SortOrder { get; set; }
 
     [ObservableProperty]
-    public partial string TargetViewKey { get; set; } = string.Empty;
-
-    [ObservableProperty]
     public partial string GroupCode { get; set; } = string.Empty;
 
     [ObservableProperty]

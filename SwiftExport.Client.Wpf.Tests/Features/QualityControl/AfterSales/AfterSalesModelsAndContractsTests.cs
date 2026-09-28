@@ -40,7 +40,7 @@ public sealed class AfterSalesModelsAndContractsTests
         vm.HasInputErrors=false;Assert.IsTrue(vm.SaveCommand.CanExecute(null));
         vm.AddLineCommand.Execute(null);
         SaveAfterSalesCommand Submission()=>(SaveAfterSalesCommand)typeof(AfterSalesDetailViewModel)
-            .GetMethod("CreateSaveCommand",flags)!.Invoke(vm,["test"])!;
+            .GetMethod("CreateSaveCommand",flags)!.Invoke(vm,null)!;
         Assert.AreEqual(0,Submission().AddedLines.Count);
         vm.SelectedLine!.Quantity=0;
         var submitted=Submission();
@@ -381,9 +381,9 @@ public sealed class AfterSalesModelsAndContractsTests
     {
         var registry = new NavigationRouteRegistry();
         Assert.IsTrue(registry.TryGetRoute(AfterSalesManagerViewModel.RouteKey, out var manager));
-        Assert.AreEqual(PermissionKeys.ModuleQualityControlAccess, manager.RequiredPermission);
+        Assert.AreEqual("QualityControl.AfterSales.View", manager.RequiredPermission);
         Assert.IsTrue(registry.TryGetRoute(AfterSalesDetailViewModel.RouteKey, out var detail));
-        Assert.AreEqual(PermissionKeys.ModuleQualityControlAccess, detail.RequiredPermission);
+        Assert.AreEqual("QualityControl.AfterSales.View", detail.RequiredPermission);
         var quality = registry.MenuItems.Single(item => item.RouteKey == NavigationModuleKeys.QualityControl);
         Assert.IsTrue(quality.Children.Any(item => item.RouteKey == AfterSalesManagerViewModel.RouteKey));
         Assert.IsFalse(quality.Children.Any(item => item.RouteKey == AfterSalesDetailViewModel.RouteKey));

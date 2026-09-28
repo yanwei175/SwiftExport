@@ -18,12 +18,30 @@ public sealed class NavigationAuthorizationTests
     public void RouteRegistry_ShouldClassifyEveryRegisteredRoute()
     {
         var registry = new NavigationRouteRegistry();
+        string?[] expected =
+        [
+            null,
+            "Shipping.PackingList.View", "Shipping.PackingList.View",
+            "Products.Product.View", "Products.Master.View", "Products.Neutral.View", "Products.Master.View",
+            "Products.Category.View", "Products.Color.View", "Products.Bom.View",
+            "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",
+            "Suppliers.Supplier.View", "Suppliers.Products.View",
+            "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
+            "DemandPlanning.Source.View", "DemandPlanning.Material.View",
+            "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
+            "QualityControl.AfterSales.View", "QualityControl.AfterSales.View",
+            "Inventory.Warehouse.View", "Inventory.Balance.View", "Inventory.Inbound.View", "Inventory.Outbound.View",
+            "Inventory.Balance.View", "DemandPlanning.Source.View", null
+        ];
 
         Assert.AreEqual(34, registry.Routes.Count);
-        foreach (var route in registry.Routes)
+        for (var index = 0; index < registry.Routes.Count; index++)
         {
+            var route = registry.Routes[index];
             Assert.IsFalse(string.IsNullOrWhiteSpace(route.ModuleKey), route.Key);
-            Assert.AreEqual(GetExpectedPermission(route.ModuleKey), route.RequiredPermission, route.Key);
+            Assert.AreEqual(expected[index], route.RequiredPermission, route.Key);
+            if (route.RequiredPermission is not null)
+                Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
         }
     }
 
@@ -33,8 +51,8 @@ public sealed class NavigationAuthorizationTests
     {
         var routes = new[]
         {
-            Route("sales-orders", typeof(TestPage), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
-            Route("sales-order-detail", typeof(TestDocumentPage), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess)
+            Route("sales-orders", typeof(TestPage), NavigationModuleKeys.Sales, "Sales.Order.View"),
+            Route("sales-order-detail", typeof(TestDocumentPage), NavigationModuleKeys.Sales, "Sales.Order.View")
         };
         var context = CreateContext(routes);
 
@@ -53,11 +71,11 @@ public sealed class NavigationAuthorizationTests
     {
         var routes = new[]
         {
-            Route("gross-demands", typeof(TestPage), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
-            Route("net-demands", typeof(TestDocumentPage), NavigationModuleKeys.DemandPlanning, PermissionKeys.ModuleDemandPlanningAccess),
-            Route("sales-order-detail", typeof(TestDocumentPage), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess)
+            Route("gross-demands", typeof(TestPage), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
+            Route("net-demands", typeof(TestDocumentPage), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Material.View"),
+            Route("sales-order-detail", typeof(TestDocumentPage), NavigationModuleKeys.Sales, "Sales.Order.View")
         };
-        var context = CreateContext(routes, PermissionKeys.ModuleDemandPlanningAccess);
+        var context = CreateContext(routes, "DemandPlanning.Source.View", "DemandPlanning.Material.View");
 
         await context.Navigation.OpenAsync("gross-demands");
         await context.Navigation.OpenDocumentAsync("net-demands", "net-demand:1");
@@ -73,13 +91,13 @@ public sealed class NavigationAuthorizationTests
     {
         var routes = new[]
         {
-            Route("sales-detail", typeof(TestDocumentPage), NavigationModuleKeys.Sales, PermissionKeys.ModuleSalesAccess),
-            Route("shipping-detail", typeof(TestDocumentPage), NavigationModuleKeys.Shipping, PermissionKeys.ModuleShippingAccess)
+            Route("sales-detail", typeof(TestDocumentPage), NavigationModuleKeys.Sales, "Sales.Order.View"),
+            Route("shipping-detail", typeof(TestDocumentPage), NavigationModuleKeys.Shipping, "Shipping.PackingList.View")
         };
         var context = CreateContext(
             routes,
-            PermissionKeys.ModuleSalesAccess,
-            PermissionKeys.ModuleShippingAccess);
+            "Sales.Order.View",
+            "Shipping.PackingList.View");
 
         await context.Navigation.OpenDocumentAsync("sales-detail", "document:1");
         await context.Navigation.OpenDocumentAsync("shipping-detail", "document:1");
@@ -96,13 +114,13 @@ public sealed class NavigationAuthorizationTests
             "products",
             typeof(DisposablePage),
             NavigationModuleKeys.Products,
-            PermissionKeys.ModuleProductsAccess);
-        var context = CreateContext([productRoute], PermissionKeys.ModuleProductsAccess);
+            "Products.Product.View");
+        var context = CreateContext([productRoute], "Products.Product.View");
 
         await context.Navigation.OpenAsync("products");
         var oldPage = (DisposablePage)context.Navigation.SelectedTab!.ContentViewModel;
 
-        context.CurrentUser.SetCurrentUser(CreateMe(PermissionKeys.ModuleSalesAccess));
+        context.CurrentUser.SetCurrentUser(CreateMe("Sales.Order.View"));
 
         Assert.AreEqual(0, context.Navigation.OpenTabs.Count);
         Assert.IsNull(context.Navigation.SelectedTab);
@@ -117,12 +135,51 @@ public sealed class NavigationAuthorizationTests
         context.Navigation.Reset();
     }
 
+    /// <summary>同一账号刷新后失去 View 权限，未编辑页签释放且旧页面不能继续展示。</summary>
+    [TestMethod]
+    public async Task SameUserRevocation_RemovesUnauthorizedCleanTab()
+    {
+        var route = Route("supplier-page", typeof(DisposablePage), NavigationModuleKeys.Suppliers, "Suppliers.Supplier.View");
+        var context = CreateContext([route], "Suppliers.Supplier.View");
+        await context.Navigation.OpenAsync(route.Key);
+        var page = (DisposablePage)context.Navigation.SelectedTab!.ContentViewModel!;
+        var userId = context.CurrentUser.CurrentUser!.UserId;
+
+        context.CurrentUser.SetCurrentUser(new MeDto { UserId = userId, Permissions = [] });
+
+        Assert.HasCount(0, context.Navigation.OpenTabs);
+        Assert.IsNull(context.Navigation.SelectedTab);
+        Assert.IsTrue(page.IsDisposed);
+    }
+
+    /// <summary>撤权时未保存编辑不被静默丢弃，但页签失活且不能继续加载。</summary>
+    [TestMethod]
+    public async Task SameUserRevocation_SuspendsDirtyTabWithoutDiscardingIt()
+    {
+        var route = Route("supplier-edit", typeof(DirtyPage), NavigationModuleKeys.Suppliers, "Suppliers.Supplier.View");
+        var context = CreateContext([route], "Suppliers.Supplier.View");
+        await context.Navigation.OpenAsync(route.Key);
+        var tab = context.Navigation.SelectedTab!;
+        var page = (DirtyPage)tab.ContentViewModel!;
+        var userId = context.CurrentUser.CurrentUser!.UserId;
+
+        context.CurrentUser.SetCurrentUser(new MeDto { UserId = userId, Permissions = [] });
+
+        Assert.HasCount(1, context.Navigation.OpenTabs);
+        Assert.IsNull(context.Navigation.SelectedTab);
+        Assert.IsFalse(page.IsDisposed);
+        StringAssert.Contains(context.Status.LastMessage, "未保存编辑");
+        context.Navigation.Activate(tab);
+        Assert.IsNull(context.Navigation.SelectedTab);
+        context.Navigation.Reset();
+    }
+
     /// <summary>Shell 仅显示首页和已授权模块，并在搜索父组时继续排除未授权子项。</summary>
     [TestMethod]
     public void ShellMenuFilter_ShouldHideUnauthorizedAndEmptyGroups()
     {
         var registry = new NavigationRouteRegistry();
-        var currentUser = CreateCurrentUser(PermissionKeys.ModuleSalesAccess);
+        var currentUser = CreateCurrentUser("Sales.Order.View");
         var filter = new ShellNavigationMenuFilter(new NavigationAccessService(registry, currentUser));
         var items = registry.MenuItems.Select(item => new ShellNavigationItem(item)).ToArray();
 
@@ -151,26 +208,6 @@ public sealed class NavigationAuthorizationTests
         Assert.IsTrue(access.CanAccess("home"));
         Assert.IsFalse(access.CanAccess("system-dictionaries"));
         Assert.IsTrue(access.CanAccess("settings-center"));
-    }
-
-    private static string? GetExpectedPermission(string moduleKey)
-    {
-        return moduleKey switch
-        {
-            NavigationModuleKeys.Home => null,
-            NavigationModuleKeys.Products => PermissionKeys.ModuleProductsAccess,
-            NavigationModuleKeys.Customers => PermissionKeys.ModuleCustomersAccess,
-            NavigationModuleKeys.Suppliers => PermissionKeys.ModuleSuppliersAccess,
-            NavigationModuleKeys.Sales => PermissionKeys.ModuleSalesAccess,
-            NavigationModuleKeys.DemandPlanning => PermissionKeys.ModuleDemandPlanningAccess,
-            NavigationModuleKeys.Procurement => PermissionKeys.ModuleProcurementAccess,
-            NavigationModuleKeys.QualityControl => PermissionKeys.ModuleQualityControlAccess,
-            NavigationModuleKeys.Inventory => PermissionKeys.ModuleInventoryAccess,
-            NavigationModuleKeys.Shipping => PermissionKeys.ModuleShippingAccess,
-            NavigationModuleKeys.SystemSettings => PermissionKeys.SystemSettingsManage,
-            NavigationModuleKeys.SettingsCenter => null,
-            _ => throw new AssertFailedException($"未知模块归属：{moduleKey}")
-        };
     }
 
     private static NavigationRoute Route(
@@ -281,6 +318,16 @@ public sealed class NavigationAuthorizationTests
         {
             IsDisposed = true;
         }
+    }
+
+    /// <summary>模拟需要保留未保存编辑的文档页签。</summary>
+    private sealed class DirtyPage : IDocumentTabViewModel, IDisposable
+    {
+        public string DocumentTitle => "供应商编辑";
+        public bool HasUnsavedChanges => true;
+        public bool IsDisposed { get; private set; }
+        public Task<bool> CanCloseAsync(CancellationToken cancellationToken) => Task.FromResult(false);
+        public void Dispose() => IsDisposed = true;
     }
 
     private sealed class TestStatusMessageService : IStatusMessageService

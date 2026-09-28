@@ -2,7 +2,7 @@ using Microsoft.Data.SqlClient;
 
 namespace SwiftExport.Tools.AdminPasswordRecovery;
 
-/// <summary>通过参数化 SQL 在串行化事务内恢复既有活动 Admin。</summary>
+/// <summary>通过参数化 SQL 在串行化事务内恢复既有活动 SYSTEM_ADMIN 成员。</summary>
 public sealed class SqlAdminPasswordRecoveryStore(string connectionString) : IAdminPasswordRecoveryStore
 {
     /// <inheritdoc />
@@ -22,8 +22,8 @@ public sealed class SqlAdminPasswordRecoveryStore(string connectionString) : IAd
                 SELECT TOP(1) u.Uid,u.Version,u.CredentialVersion,
                     CAST(CASE WHEN EXISTS(
                         SELECT 1 FROM dbo.SysUser_Roles ur
-                        JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
-                        WHERE ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0 AND r.RoleName=N'Admin'
+                        JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0 AND r.IsActive=1
+                        WHERE ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0 AND r.RoleCode=N'SYSTEM_ADMIN'
                     ) THEN 1 ELSE 0 END AS bit) IsAdmin
                 FROM dbo.SysUser u WITH(UPDLOCK,HOLDLOCK)
                 WHERE u.UserName=@UserName AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0;
@@ -61,8 +61,8 @@ public sealed class SqlAdminPasswordRecoveryStore(string connectionString) : IAd
                   AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
                   AND EXISTS(
                       SELECT 1 FROM dbo.SysUser_Roles ur
-                      JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
-                      WHERE ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0 AND r.RoleName=N'Admin');
+                      JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0 AND r.IsActive=1
+                      WHERE ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0 AND r.RoleCode=N'SYSTEM_ADMIN');
                 """;
             await using var update = new SqlCommand(updateSql, connection, transaction);
             update.Parameters.AddWithValue("@PasswordHash", passwordHash);

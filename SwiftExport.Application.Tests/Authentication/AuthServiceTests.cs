@@ -35,10 +35,8 @@ public sealed class AuthServiceTests
         Assert.IsNotNull(typeof(IAuthApi).GetMethod(nameof(IAuthApi.ResetUserPasswordAsync)));
         Assert.AreEqual(typeof(Task<ServiceResult<List<UserSummaryDto>>>),
             typeof(IAuthApi).GetMethod(nameof(IAuthApi.GetUsersAsync))!.ReturnType);
-        Assert.AreEqual(typeof(Task<ServiceResult<UserModulePermissionsDto>>),
-            typeof(IAuthApi).GetMethod(nameof(IAuthApi.GetUserModulesAsync))!.ReturnType);
-        Assert.AreEqual(typeof(Task<ServiceResult<UserModulePermissionsDto>>),
-            typeof(IAuthApi).GetMethod(nameof(IAuthApi.SaveUserModulesAsync))!.ReturnType);
+        Assert.IsNull(typeof(IAuthApi).GetMethod("GetUserModulesAsync"));
+        Assert.IsNull(typeof(IAuthApi).GetMethod("SaveUserModulesAsync"));
     }
 
     /// <summary>只有真实 Admin 能创建用户；用户名规范化且结果保持预生成 Guid。</summary>
@@ -185,7 +183,7 @@ public sealed class AuthServiceTests
             Projection = new UserPermissionProjection
             {
                 Roles = ["Buyer"],
-                Permissions = [PermissionKeys.ModuleProcurementAccess, PermissionKeys.ProcurementOrderRead]
+                Permissions = ["Procurement.Order.View", PermissionKeys.ProcurementOrderRead]
             }
         };
         var service = new AuthSessionService(
@@ -242,15 +240,12 @@ public sealed class AuthServiceTests
             Task.FromResult<UserPermissionProjection?>(Projection);
         public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class PermissionRepositoryStub : IUserPermissionRepository
     {
         public Task<SwiftExport.Core.Models.Auth.UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
-        public Task<UserModuleReplaceStatus> ReplaceModulesAsync(Guid actorUserId, Guid targetUserId, IReadOnlyCollection<string> modulePermissions, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class AuthRepositoryStub : IAuthRepository

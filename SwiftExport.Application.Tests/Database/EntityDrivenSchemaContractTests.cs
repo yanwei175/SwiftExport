@@ -48,16 +48,16 @@ public sealed class EntityDrivenSchemaContractTests
         var path = Path.Combine(root, "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
         Assert.AreEqual(Normalize(Generate()), Normalize(File.ReadAllText(path)));
 
-        var files = Directory.EnumerateFiles(root, "*.sql", SearchOption.AllDirectories)
-            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}.git{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
-            .Select(file => Path.GetRelativePath(root, file))
-            .OrderBy(file => file, StringComparer.Ordinal)
+        var generatedDirectory = Path.GetDirectoryName(path)!;
+        var files = Directory.EnumerateFiles(generatedDirectory, "*.sql", SearchOption.AllDirectories)
+            .Select(file => Path.GetRelativePath(generatedDirectory, file))
             .ToArray();
-        CollectionAssert.AreEqual(new[]
-        {
-            Path.Combine("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql"),
-            Path.Combine("SwiftExport.Infrastructure", "Database", "主数据跨库复制.sql")
-        }, files);
+        CollectionAssert.AreEqual(new[] { "SwiftExport.Schema.sql" }, files);
+        var copyPath = Path.Combine(root, "SwiftExport.Infrastructure", "Database", "主数据跨库复制.sql");
+        Assert.IsTrue(File.Exists(copyPath));
+        Assert.IsFalse(Path.GetFullPath(copyPath).StartsWith(Path.GetFullPath(generatedDirectory) + Path.DirectorySeparatorChar,
+            StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(File.ReadAllText(path).Contains("SysUser_ModulePermissions", StringComparison.Ordinal));
     }
 
     /// <summary>主数据复制脚本只包含批准的主数据、账号和权限关系，并保留空目标及事务保护。</summary>
@@ -73,15 +73,16 @@ public sealed class EntityDrivenSchemaContractTests
         {
             "ProductCategory", "ProductColor", "Supplier", "Customer", "SysDicCurrency",
             "SysDicCurrencyExchange", "SysDictType", "SysDictData", "SysRoles", "SysUser",
-            "SysViewRoute", "ProductMaster", "Product", "ProductNeutral", "ProductDetails",
+            "ProductMaster", "Product", "ProductNeutral", "ProductDetails",
             "ProductPackage", "Bom", "CustomerPoConfig", "CustomerProduct", "SupplierProduct",
-            "WarehouseSite", "SysUser_ModulePermissions", "SysUser_Roles"
+            "WarehouseSite", "SysPermissionDefinitions", "SysRole_Permissions", "SysUser_Roles"
         }, tables);
         StringAssert.Contains(sql, "目标表 dbo.");
         StringAssert.Contains(sql, "BEGIN TRANSACTION");
         StringAssert.Contains(sql, "ROLLBACK TRANSACTION");
         StringAssert.Contains(sql, "@MissingColumns");
         StringAssert.Contains(sql, "#IntegrityIssues");
+        StringAssert.Contains(sql, "SysPermissionDefinitions.PermissionKey->Uid");
         Assert.IsFalse(sql.Contains("Product.CategoryId", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("WITHIN GROUP", StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(sql, "MigrationStage");

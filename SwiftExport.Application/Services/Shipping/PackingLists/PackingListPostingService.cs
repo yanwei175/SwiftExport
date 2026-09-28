@@ -37,7 +37,6 @@ public sealed partial class PackingListPostingService
         {
             return await pipeline.ExecuteAsync<TRequest, PackingListPostingCommandResult>(request, commandId, commandType,
                 async ct => !user.IsAuthenticated || user.UserId is not { } actor
-                    || !await permissions.HasPermissionAsync(actor, PermissionKeys.ModuleShippingAccess, ct)
                     || !await permissions.HasPermissionAsync(actor, permission, ct)
                     ? ServiceResult<PackingListPostingCommandResult>.Fail(ServiceErrorCodes.Forbidden, "没有当前装箱单操作权限。")
                     : null,

@@ -18,7 +18,7 @@ public sealed partial class InboundManagerViewModel
 
     private bool CanPost() => CanEdit() && _persistence is not null && _postDialogs is not null
         && _postingUser?.HasPermission(PermissionKeys.InventoryInboundPost) == true
-        && _postingUser.HasPermission(PermissionKeys.ModuleInventoryAccess)
+        && _postingUser.HasPermission("Inventory.Inbound.View")
         && SelectedItem is { CanEdit: true, IsNew: false, HasVersionConflict: false, DocumentType: InboundDocumentTypeEnum.PurchaseReceipt };
 
     /// <summary>只操作当前已保存且无修改的单，不自动保存，不用预览替代正式重验。</summary>

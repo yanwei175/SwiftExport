@@ -258,7 +258,7 @@ public sealed partial class OutboundManagerPersistenceTests
         public OutboundManagerViewModel Vm { get; }
         public Fixture()
         {
-            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
+            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryOutboundReverse, "Inventory.Outbound.View"] });
             Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs, issueReasonDialogs: IssueReasonDialogs);
         }
         public OutboundHeaderModel Add()

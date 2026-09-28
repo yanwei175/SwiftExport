@@ -14,7 +14,7 @@ public sealed partial class InboundManagerViewModel
     private readonly IInboundReverseDialogService? _reverseDialogs;
     private bool CanReverse() => CanEdit() && _persistence is not null && _reverseDialogs is not null
         && _postingUser?.HasPermission(PermissionKeys.InventoryInboundReverse) == true
-        && _postingUser.HasPermission(PermissionKeys.ModuleInventoryAccess)
+        && _postingUser.HasPermission("Inventory.Inbound.View")
         && SelectedItem is { IsNew: false, IsDetailLoaded: true, IsPersistencePending: false, HasVersionConflict: false,
             PostingStatus: InboundPostingStatusEnum.Posted, DocumentType: InboundDocumentTypeEnum.PurchaseReceipt,
             CreationMode: InboundCreationModeEnum.Manual, LifecycleStatus: InventoryDocumentLifecycleStatusEnum.Active, TriggerPackingListId: null, PersistedIsDeleted: false };

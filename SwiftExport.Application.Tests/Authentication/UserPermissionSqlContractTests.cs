@@ -4,7 +4,7 @@ using SwiftExport.Core.Entities.Auth;
 
 namespace SwiftExport.Application.Tests.Authentication;
 
-/// <summary>静态验证模块关系元数据和采购消费者的单点接线。</summary>
+/// <summary>静态验证 RBAC 关系元数据和采购消费者的单点接线。</summary>
 [TestClass]
 public sealed class UserPermissionSqlContractTests
 {
@@ -17,28 +17,29 @@ public sealed class UserPermissionSqlContractTests
         StringAssert.Contains(check.Expression, "[CredentialVersion] >= 1");
     }
 
-    /// <summary>用户模块权限必须用活动唯一索引保证幂等并声明逻辑用户关系。</summary>
+    /// <summary>角色权限必须用活动唯一索引保证幂等并声明逻辑权限关系。</summary>
     [TestMethod]
-    public void ModulePermissionMetadataIsUniqueAndTraceable()
+    public void RolePermissionMetadataIsUniqueAndTraceable()
     {
-        var index = typeof(SysUserModulePermission).GetCustomAttributes(typeof(DbIndexAttribute), true).Cast<DbIndexAttribute>()
-            .Single(item => item.Name == "UX_SysUserModulePermissions_User_Key");
+        var index = typeof(SysRolePermission).GetCustomAttributes(typeof(DbIndexAttribute), true).Cast<DbIndexAttribute>()
+            .Single(item => item.Name == "UX_SysRolePermissions_Role_Permission");
         Assert.IsTrue(index.IsUnique);
         Assert.AreEqual("[IsDeleted] = 0", index.Filter);
-        Assert.IsNotEmpty(typeof(SysUserModulePermission).GetCustomAttributes(typeof(LogicalReferenceAttribute), true));
+        Assert.IsNotEmpty(typeof(SysRolePermission).GetCustomAttributes(typeof(LogicalReferenceAttribute), true));
     }
 
-    /// <summary>模块替换使用调用方事务、软删除、审计和最终 Admin/目标重验。</summary>
+    /// <summary>角色整组替换使用聚合版本、关系软删除和锁定的管理员重验。</summary>
     [TestMethod]
     public void RepositoryReplacementKeepsTransactionAuditAndSecurityGuards()
     {
-        var source = Read("SwiftExport.Infrastructure", "Repositories", "Auth", "Permissions", "UserPermissionRepository.cs");
-        StringAssert.Contains(source, "context.Session.Transaction ?? throw");
-        StringAssert.Contains(source, "context.AuditStamp.StampForInsert");
-        StringAssert.Contains(source, "SET IsDeleted=1,Version=Version+1");
-        StringAssert.Contains(source, "ar.RoleName=N'Admin'");
-        StringAssert.Contains(source, "tr.RoleName=N'Admin'");
+        var source = Read("SwiftExport.Infrastructure", "Repositories", "Auth", "Permissions", "RbacManagementRepository.cs");
+        var service = Read("SwiftExport.Application", "Services", "Auth", "Permissions", "RbacManagementService.cs");
         StringAssert.Contains(source, "WITH(UPDLOCK,HOLDLOCK)");
+        StringAssert.Contains(source, "SYSTEM_ADMIN");
+        StringAssert.Contains(source, "SysUser_Roles");
+        StringAssert.Contains(source, "IsDeleted=1");
+        StringAssert.Contains(service, "ReplaceUserRolesAsync");
+        StringAssert.Contains(service, "AuditAsync(\"ReplaceUserRoles\"");
     }
 
     /// <summary>采购与仓库候选不再各自读取角色 SQL，统一消费权限投影服务。</summary>

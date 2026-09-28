@@ -1,11 +1,15 @@
-﻿namespace SwiftExport.Core.Entities.Auth
+using System.ComponentModel.DataAnnotations.Schema;
+using SwiftExport.Core.Common;
+
+namespace SwiftExport.Core.Entities.Auth;
+
+/// <summary>角色与权限定义的授权关系；删除关系后不再贡献有效权限。</summary>
+[Table("SysRole_Permissions")]
+public partial class SysRolePermission : BaseEntity
 {
-    /// <summary>角色权限关系实体，保存角色与权限之间的授权关系。</summary>
-    public class SysRolePermission
-    {
-        /// <summary>关联的系统角色唯一标识。</summary>
-        public Guid RoleId { get; set; }
-        /// <summary>关联的系统权限唯一标识。</summary>
-        public Guid PermissionId { get; set; }
-    }
+    /// <summary>角色标识，逻辑引用 SysRole。</summary>
+    public Guid RoleId { get; set; }
+
+    /// <summary>权限定义标识，逻辑引用 SysPermission。</summary>
+    public Guid PermissionId { get; set; }
 }

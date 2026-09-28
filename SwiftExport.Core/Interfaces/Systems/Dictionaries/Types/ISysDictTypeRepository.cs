@@ -13,5 +13,4 @@ public interface ISysDictTypeRepository : IRepository<SysDictType>
 
     Task<IReadOnlyList<SysDictType>> GetByDictCodesAsync(IEnumerable<string> dictCodes, bool withUpdLock = false);
 
-    Task<IReadOnlyList<string>> GetReferencedTargetViewKeysAsync(IEnumerable<string> targetViewKeys);
 }

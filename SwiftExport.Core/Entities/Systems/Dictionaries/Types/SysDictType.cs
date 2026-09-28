@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Systems.Dictionaries.Types;
 
-/// <summary>系统字典类型实体，用于定义字典分类、层级和维护入口。</summary>
+/// <summary>系统字典类型实体，保存分类、层级、分组和排序，不配置客户端页面。</summary>
 [Table("SysDictType")]
 public partial class SysDictType : BaseEntity
 {
@@ -22,9 +22,6 @@ public partial class SysDictType : BaseEntity
     /// <summary>该实体保存的显示排序号。</summary>
     public int? SortOrder { get; set; }
 
-    // 新增：告诉前端右侧应该加载哪个 View
-    /// <summary>该实体保存的字典维护目标视图标识。</summary>
-    public string? TargetViewKey { get; set; }
     // 👇 新增：组别标识（用于逻辑分组）
     /// <summary>如 &quot;Basic&quot; (基础档案), &quot;Finance&quot; (财务), &quot;Sales&quot; (销售)。</summary>
     public string? GroupCode { get; set; } // 如 "Basic" (基础档案), "Finance" (财务), "Sales" (销售)

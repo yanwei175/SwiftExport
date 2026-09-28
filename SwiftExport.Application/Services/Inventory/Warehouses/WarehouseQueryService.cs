@@ -66,7 +66,7 @@ public sealed class WarehouseQueryService(
     private async Task<ServiceResult<T>> ReadWarehouseAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken, string failure)
     {
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } userId
-            || !await _permissions.HasPermissionAsync(userId, PermissionKeys.ModuleInventoryAccess, cancellationToken))
+            || !await _permissions.HasPermissionAsync(userId, "Inventory.Warehouse.View", cancellationToken))
             return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, ReadPermissionDeniedMessage);
         return await ReadAsync(action, failure);
     }

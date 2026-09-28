@@ -59,7 +59,7 @@ public sealed partial class AfterSalesManagerViewModel : ViewModelBaseEx, IAsync
         new(null, "全部确认状态"), new(ConfirmationStatusEnum.待确认, "待确认"),
         new(ConfirmationStatusEnum.已确认, "已确认")
     ];
-    public bool HasAccess => _currentUser.HasPermission(PermissionKeys.ModuleQualityControlAccess);
+    public bool HasAccess => _currentUser.HasPermission("QualityControl.AfterSales.View");
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 

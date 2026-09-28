@@ -130,7 +130,7 @@ public sealed class SalesOrderLineReorderTests
     private static SalesOrderDetailViewModel CreateViewModel()
     {
         var user = new CurrentUserService();
-        user.SetCurrentUser(new MeDto { Permissions = PermissionKeys.All.ToList() });
+        user.SetCurrentUser(new MeDto { Permissions = PermissionCatalog.All.Select(item => item.PermissionKey).ToList() });
         return new(null!, null!, null!, null!, null!, null!, new ReferenceDataCacheServiceStub(), user);
     }
 

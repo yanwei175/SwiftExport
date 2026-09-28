@@ -3,11 +3,11 @@ using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Core.Interfaces.MasterData;
 
-/// <summary>在调用方事务中读取真实管理员身份及主数据状态，并按版本更新资格。</summary>
+/// <summary>在调用方事务中读取有效执行资格授权及主数据状态，并按版本更新资格。</summary>
 public interface IExecutionEligibilityRepository
 {
-    /// <summary>锁定并验证数据库中的活动用户、角色关联和管理员角色，不使用客户端角色信息。</summary>
-    Task<bool> IsActiveAdministratorAsync(Guid userId, CancellationToken cancellationToken = default);
+    /// <summary>锁定并验证活动用户的系统管理员角色或执行资格权限，不使用客户端角色信息。</summary>
+    Task<bool> HasExecutionEligibilityPermissionAsync(Guid userId, CancellationToken cancellationToken = default);
 
     /// <summary>锁定未软删除主数据的当前资格；未知对象返回空。</summary>
     Task<ExecutionEligibilityStatusResult?> GetForUpdateAsync(

@@ -3,13 +3,11 @@ using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Core.Interfaces.Systems.ExchangeRates;
 using SwiftExport.Core.Interfaces.Systems.Numbering;
-using SwiftExport.Core.Interfaces.Systems.ViewRoutes;
 using SwiftExport.Infrastructure.Repositories.Systems.Currencies;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
 using SwiftExport.Infrastructure.Repositories.Systems.ExchangeRates;
 using SwiftExport.Infrastructure.Repositories.Systems.Numbering;
-using SwiftExport.Infrastructure.Repositories.Systems.ViewRoutes;
 using SwiftExport.Core.Interfaces.Customers.CustomerProducts;
 using SwiftExport.Core.Interfaces.Customers.Management;
 using SwiftExport.Core.Interfaces.Customers.PoConfigs;
@@ -120,10 +118,7 @@ public static class DependencyInjection
         services.AddScoped<ISysUserRepository, SysUserRepository>();
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
-        // 角色主表仓储
-        services.AddScoped<ISysRoleRepository, SysRoleRepository>();
-        // 用户-角色关联仓储
-        services.AddScoped<ISysUserRoleRepository, SysUserRoleRepository>();
+        services.AddScoped<IRbacManagementRepository, RbacManagementRepository>();
 
 
         services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>));
@@ -145,8 +140,6 @@ public static class DependencyInjection
         services.AddScoped<IDocumentSequenceRepository, DocumentSequenceRepository>();
         services.AddScoped<ISysDictDataRepository, SysDictDataRepository>();
         services.AddScoped<ISysDictTypeRepository, SysDictTypeRepository>();
-        // 视图路由配置仓储
-        services.AddScoped<ISysViewRouteRepository, SysViewRouteRepository>();
         services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
         services.AddScoped<INetDemandExecutionLinkRepository, NetDemandExecutionLinkRepository>();
         services.AddScoped<IGrossDemandQueryRepository, GrossDemandQueryRepository>();

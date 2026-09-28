@@ -32,6 +32,22 @@ public static class ApiRegistrationExtensions
             })
             .AddHttpMessageHandler<AuthTokenHandler>();
 
+        services.AddRefitClient<ISystemRbacApi>()
+            .ConfigureHttpClient((provider, client) =>
+            {
+                client.BaseAddress = BuildSiteRoot(provider);
+                client.Timeout = DefaultTimeout;
+            })
+            .AddHttpMessageHandler<AuthTokenHandler>();
+
+        services.AddRefitClient<ISystemRbacApi>()
+            .ConfigureHttpClient((provider, client) =>
+            {
+                client.BaseAddress = BuildSiteRoot(provider);
+                client.Timeout = DefaultTimeout;
+            })
+            .AddHttpMessageHandler<AuthTokenHandler>();
+
         services.AddRefitClient<IClientVersionApi>()
             .ConfigureHttpClient((provider, client) =>
             {
@@ -58,7 +74,6 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<ISysDictDataApi>("SysDictData");
         services.AddControllerApi<ISysDicCurrencyApi>("SysDicCurrency");
         services.AddControllerApi<ISysDicCurrencyExchangeApi>("SysDicCurrencyExchange");
-        services.AddControllerApi<ISysViewRouteApi>("SysViewRoute");
         services.AddControllerApi<IDocumentNoApi>("DocumentNo");
     }
 

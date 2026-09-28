@@ -42,7 +42,7 @@ public sealed class SourceDemandDeliveryController(
         if (!currentUser.UserId.HasValue
             || !await permissions.HasPermissionAsync(
                 currentUser.UserId.Value,
-                PermissionKeys.ModuleDemandPlanningAccess,
+                "DemandPlanning.Source.View",
                 cancellationToken))
             return Forbid();
         return await action();

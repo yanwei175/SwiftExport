@@ -63,6 +63,9 @@ public sealed class NavigationTabItem : ObservableObjectEx, IDisposable
     /// <summary>获取页签是否已被 Reset、失败收尾或关闭使其失效。</summary>
     internal bool IsLifetimeCancellationRequested => _lifetimeCancellation?.IsCancellationRequested ?? true;
 
+    /// <summary>撤销页面读取权限时取消在途加载；未保存编辑仍留在非活动页签等待用户决定。</summary>
+    internal void SuspendForRevokedPermission() => _lifetimeCancellation?.Cancel();
+
     /// <summary>获取供 ViewModel-first DataTemplate 呈现的 ViewModel；占位阶段可能为空。</summary>
     public object? ContentViewModel
     {

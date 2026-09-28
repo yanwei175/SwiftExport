@@ -3,12 +3,15 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Core.Entities.Shipping;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auth.Permissions;
+using SwiftExport.Core.Models.Auth;
 using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Core.Interfaces.Shipping.PackingLists;
 using SwiftExport.WebApi.Controllers.Shipping;
@@ -41,17 +44,21 @@ public sealed class PackingListTraceServiceTests
         Assert.AreEqual("EXECUTION_INVALID", (await Create(id, execution, row).GetAsync(id, default)).Error.Code);
     }
 
-    /// <summary>权限拒绝时不查询数据库；模块访问不自动授予过账及反向能力。</summary>
+    /// <summary>权限拒绝时不查询数据库；只读角色不能获得过账及反向能力。</summary>
     [TestMethod]
     public async Task PermissionIsIndependentAndFailsClosed()
     {
         var id = Guid.NewGuid();
         var result = await Create(id, new(), new(), false).GetAsync(id, default);
         Assert.AreEqual("FORBIDDEN", result.Error.Code);
-        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.PackingListPost);
-        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.PackingListReverse);
-        CollectionAssert.DoesNotContain(PermissionKeys.Modules.ToList(), PermissionKeys.PackingListPost);
-        CollectionAssert.DoesNotContain(PermissionKeys.ExtractPermissions([PermissionKeys.ModuleShippingAccess]), PermissionKeys.PackingListReverse);
+        var evaluator = new PermissionEvaluationService(new ReadOnlyFacts(new UserPermissionFacts
+        {
+            UserId = id, IsActive = true, RoleCodes = ["SHIPPING_VIEW"],
+            PermissionKeys = ["Shipping.PackingList.View"]
+        }));
+        Assert.IsTrue(await evaluator.HasPermissionAsync(id, "Shipping.PackingList.View"));
+        Assert.IsFalse(await evaluator.HasPermissionAsync(id, PermissionKeys.PackingListPost));
+        Assert.IsFalse(await evaluator.HasPermissionAsync(id, PermissionKeys.PackingListReverse));
     }
 
     /// <summary>追踪 Controller 与 Refit 使用相同 GET 路径和取消参数。</summary>
@@ -82,5 +89,15 @@ public sealed class PackingListTraceServiceTests
             _ => throw new AssertFailedException(m)
         });
         return new(packing, repository, user, permission, new TypeAdapterConfig());
+    }
+
+    /// <summary>只提供角色读取事实，使过账权限断言走统一评估服务。</summary>
+    private sealed class ReadOnlyFacts(UserPermissionFacts facts) : IUserPermissionRepository
+    {
+        public Task<UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<UserPermissionFacts?>(userId == facts.UserId ? facts : null);
+
+        public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
     }
 }

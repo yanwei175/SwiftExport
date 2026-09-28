@@ -5,7 +5,7 @@ using SwiftExport.Core.Interfaces.Auth.Permissions;
 
 namespace SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 
-/// <summary>生成唯一权限投影并判断稳定权限键，保留现有采购兼容映射。</summary>
+/// <summary>由有效角色和代码目录生成唯一权限投影，不从显示名或旧模块关系授予权限。</summary>
 public sealed class PermissionEvaluationService(
     IUserPermissionRepository repository) : IPermissionEvaluationService
 {
@@ -21,40 +21,28 @@ public sealed class PermissionEvaluationService(
         if (facts is null || !facts.IsActive)
             return null;
 
-        var roles = PermissionKeys.ExtractRoles(facts.RoleNames);
+        var roles = facts.RoleNames.Distinct(StringComparer.Ordinal).ToArray();
+        var roleCodes = facts.RoleCodes.Distinct(StringComparer.Ordinal).ToArray();
         if (facts.IsAdmin)
         {
             return new UserPermissionProjection
             {
                 IsAdmin = true,
                 Roles = roles,
-                Permissions = PermissionKeys.All.ToArray()
+                RoleCodes = roleCodes,
+                Permissions = PermissionCatalog.All.Select(item => item.PermissionKey).ToArray()
             };
         }
 
-        var modules = facts.ModulePermissions
-            .Where(permission => permission is not null && PermissionKeys.UserAssignable.Contains(permission, StringComparer.Ordinal))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        var permissions = new HashSet<string>(modules, StringComparer.Ordinal);
-        foreach (var legacyPermission in PermissionKeys.ProcurementOperations.Where(permission =>
-                     facts.RoleNames.Any(role => string.Equals(role, permission, StringComparison.OrdinalIgnoreCase))))
-        {
-            permissions.Add(legacyPermission);
-        }
-
-        // 一级采购模块在唯一投影点展开，旧客户端和既有后端操作检查无需复制映射规则。
-        if (permissions.Contains(PermissionKeys.ModuleProcurementAccess))
-        {
-            foreach (var operation in PermissionKeys.ProcurementOperations)
-                permissions.Add(operation);
-        }
+        var permissions = new HashSet<string>(facts.PermissionKeys, StringComparer.Ordinal);
 
         return new UserPermissionProjection
         {
             IsAdmin = false,
             Roles = roles,
-            Permissions = PermissionKeys.All.Where(permissions.Contains).ToArray()
+            RoleCodes = roleCodes,
+            Permissions = PermissionCatalog.All.Where(item => item.IsAssignable && permissions.Contains(item.PermissionKey))
+                .Select(item => item.PermissionKey).ToArray()
         };
     }
 
@@ -64,7 +52,7 @@ public sealed class PermissionEvaluationService(
         string permissionKey,
         CancellationToken cancellationToken = default)
     {
-        if (!PermissionKeys.All.Contains(permissionKey, StringComparer.Ordinal))
+        if (PermissionCatalog.Find(permissionKey) is null)
             return false;
         var projection = await GetProjectionAsync(userId, cancellationToken);
         return projection?.Permissions.Contains(permissionKey, StringComparer.Ordinal) == true;

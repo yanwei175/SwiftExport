@@ -14,12 +14,12 @@ using SwiftExport.Application.Commands;
 
 namespace SwiftExport.Application.Services.Inventory.Outbounds;
 
-/// <summary>统一出库模块访问、错误映射和分页格式检查，不持有业务事务。</summary>
+/// <summary>统一出库操作授权、错误映射和分页格式检查，不持有业务事务。</summary>
 public sealed class OutboundServiceSupport(ServiceBaseContext context, ICurrentUser user, IPermissionEvaluationService permissions)
 {
     private readonly ILogger<OutboundServiceSupport> _logger = context.LoggerFactory.CreateLogger<OutboundServiceSupport>();
 
-    /// <summary>包装出库用例结果；命令管道已授权时可跳过重复的模块权限检查。</summary>
+    /// <summary>包装出库用例结果；命令管道已授权时可跳过重复的读取权限检查。</summary>
     public async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token, bool checkPermission = true)
     {
         try
@@ -48,13 +48,13 @@ public sealed class OutboundServiceSupport(ServiceBaseContext context, ICurrentU
         }
     }
 
-    /// <summary>在请求验证及命令回执读取之前核对身份与库存模块权限。</summary>
-    public async Task<ServiceResult<T>?> AuthorizeAsync<T>(CancellationToken token)
+    /// <summary>在请求验证及命令回执读取之前核对身份与指定出库操作权限。</summary>
+    public async Task<ServiceResult<T>?> AuthorizeAsync<T>(CancellationToken token, string permissionKey = "Inventory.Outbound.View")
     {
         if (!user.IsAuthenticated || user.UserId is not { } id)
             return ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
-        if (!await permissions.HasPermissionAsync(id, PermissionKeys.ModuleInventoryAccess, token))
-            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无库存模块访问权限。");
+        if (!await permissions.HasPermissionAsync(id, permissionKey, token))
+            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号无出库操作权限。");
         return null;
     }
 

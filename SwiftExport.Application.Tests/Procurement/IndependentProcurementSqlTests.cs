@@ -359,7 +359,13 @@ public sealed class IndependentProcurementSqlTests
     [TestMethod]
     public async Task OperationRoleGrantsOnlyItsCommandAndRevocationBlocksReplay()
     {
-        await Db.ExecuteAsync("UPDATE dbo.SysRoles SET RoleName=N'Procurement.Order.Create' WHERE Uid=@uid", new { uid = Db.RoleId });
+        await Db.ExecuteAsync("""
+            UPDATE dbo.SysRoles SET RoleCode=N'CREATE_ONLY',RoleName=N'仅创建',IsSystem=0 WHERE Uid=@RoleId;
+            DECLARE @PermissionId uniqueidentifier=NEWID();
+            INSERT dbo.SysPermissionDefinitions(Uid,PermissionKey,DisplayName,GroupKey,SortOrder,IsActive)
+            VALUES(@PermissionId,N'Procurement.Order.Create',N'采购创建',N'Procurement',1,1);
+            INSERT dbo.SysRole_Permissions(Uid,RoleId,PermissionId) VALUES(NEWID(),@RoleId,@PermissionId);
+            """, new { Db.RoleId });
         var command = Db.CreateCommand();
         var created = await Db.CreateAsync(command);
         Assert.IsTrue(created.Success, created.Message);
@@ -384,15 +390,23 @@ public sealed class IndependentProcurementSqlTests
         Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid", new { uid }));
     }
 
-    /// <summary>普通用户仅获采购一级模块时，通过统一投影获得既有采购读写兼容能力。</summary>
+    /// <summary>普通用户显式获得采购创建和读取权限后，可完成创建并读取上下文。</summary>
     [TestMethod]
-    public async Task ProcurementModuleAloneExpandsToExistingOperationPermissions()
+    public async Task ExplicitProcurementRoleGrantsCreateAndRead()
     {
+        var roleId = Guid.NewGuid();
         await Db.ExecuteAsync("""
             UPDATE dbo.SysUser_Roles SET IsDeleted=1 WHERE UserId=@ActorId;
-            INSERT dbo.SysUser_ModulePermissions(Uid,UserId,PermissionKey)
-            VALUES(NEWID(),@ActorId,N'Module.Procurement.Access');
-            """, new { Db.ActorId });
+            INSERT dbo.SysRoles(Uid,RoleCode,RoleName,IsActive,IsSystem)
+            VALUES(@RoleId,N'PROCUREMENT_CREATE_READ',N'采购创建读取',1,0);
+            INSERT dbo.SysUser_Roles(Uid,UserId,RoleId) VALUES(NEWID(),@ActorId,@RoleId);
+            INSERT dbo.SysPermissionDefinitions(Uid,PermissionKey,DisplayName,GroupKey,SortOrder,IsActive)
+            VALUES(NEWID(),N'Procurement.Order.Create',N'采购创建',N'Procurement',1,1),
+                  (NEWID(),N'Procurement.Order.Read',N'采购读取',N'Procurement',2,1);
+            INSERT dbo.SysRole_Permissions(Uid,RoleId,PermissionId)
+            SELECT NEWID(),@RoleId,Uid FROM dbo.SysPermissionDefinitions
+            WHERE PermissionKey IN (N'Procurement.Order.Create',N'Procurement.Order.Read');
+            """, new { Db.ActorId, RoleId = roleId });
         var created = await Db.CreateAsync();
         Assert.IsTrue(created.Success, created.Message);
         var context = await Db.ContextAsync(created.Data.PurchaseOrderId);

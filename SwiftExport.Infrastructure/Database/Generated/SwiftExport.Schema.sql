@@ -1379,14 +1379,47 @@ CREATE TABLE [dbo].[SysDictType]
     [Remark] nvarchar(2000) NULL,
     [ParentId] uniqueidentifier NULL,
     [SortOrder] int NULL,
-    [TargetViewKey] nvarchar(500) NULL,
     [GroupCode] nvarchar(300) NULL,
     [GroupName] nvarchar(500) NULL,
     CONSTRAINT [PK_SysDictType] PRIMARY KEY ([Uid]),
     CONSTRAINT [CK_SysDictType_Version] CHECK ([Version] >= 1)
 );
 
--- 逻辑依赖: [ParentRoleId] -> [dbo].[SysRoles].[Uid]（由 Application 校验）
+CREATE TABLE [dbo].[SysPermissionDefinitions]
+(
+    [Uid] uniqueidentifier NOT NULL,
+    [Version] int NOT NULL CONSTRAINT [DF_SysPermissionDefinitions_Version] DEFAULT (1),
+    [IsDeleted] bit NOT NULL CONSTRAINT [DF_SysPermissionDefinitions_IsDeleted] DEFAULT (0),
+    [CreatedDate] datetime2(7) NULL,
+    [CreatedBy] nvarchar(500) NULL,
+    [UpdatedDate] datetime2(7) NULL,
+    [UpdatedBy] nvarchar(500) NULL,
+    [PermissionKey] nvarchar(500) NOT NULL,
+    [DisplayName] nvarchar(500) NOT NULL,
+    [GroupKey] nvarchar(500) NOT NULL,
+    [SortOrder] int NOT NULL,
+    [IsActive] bit NOT NULL,
+    CONSTRAINT [PK_SysPermissionDefinitions] PRIMARY KEY ([Uid]),
+    CONSTRAINT [CK_SysPermissionDefinitions_Version] CHECK ([Version] >= 1)
+);
+
+-- 逻辑依赖: [RoleId] -> [dbo].[SysRoles].[Uid]（由 Application 校验）
+-- 逻辑依赖: [PermissionId] -> [dbo].[SysPermissionDefinitions].[Uid]（由 Application 校验）
+CREATE TABLE [dbo].[SysRole_Permissions]
+(
+    [Uid] uniqueidentifier NOT NULL,
+    [Version] int NOT NULL CONSTRAINT [DF_SysRole_Permissions_Version] DEFAULT (1),
+    [IsDeleted] bit NOT NULL CONSTRAINT [DF_SysRole_Permissions_IsDeleted] DEFAULT (0),
+    [CreatedDate] datetime2(7) NULL,
+    [CreatedBy] nvarchar(500) NULL,
+    [UpdatedDate] datetime2(7) NULL,
+    [UpdatedBy] nvarchar(500) NULL,
+    [RoleId] uniqueidentifier NOT NULL,
+    [PermissionId] uniqueidentifier NOT NULL,
+    CONSTRAINT [PK_SysRole_Permissions] PRIMARY KEY ([Uid]),
+    CONSTRAINT [CK_SysRole_Permissions_Version] CHECK ([Version] >= 1)
+);
+
 CREATE TABLE [dbo].[SysRoles]
 (
     [Uid] uniqueidentifier NOT NULL,
@@ -1396,9 +1429,11 @@ CREATE TABLE [dbo].[SysRoles]
     [CreatedBy] nvarchar(500) NULL,
     [UpdatedDate] datetime2(7) NULL,
     [UpdatedBy] nvarchar(500) NULL,
+    [RoleCode] nvarchar(300) NOT NULL,
     [RoleName] nvarchar(500) NOT NULL,
     [Description] nvarchar(2000) NULL,
-    [ParentRoleId] uniqueidentifier NULL,
+    [IsActive] bit NOT NULL,
+    [IsSystem] bit NOT NULL,
     CONSTRAINT [PK_SysRoles] PRIMARY KEY ([Uid]),
     CONSTRAINT [CK_SysRoles_Version] CHECK ([Version] >= 1)
 );
@@ -1425,22 +1460,6 @@ CREATE TABLE [dbo].[SysUser]
 );
 
 -- 逻辑依赖: [UserId] -> [dbo].[SysUser].[Uid]（由 Application 校验）
-CREATE TABLE [dbo].[SysUser_ModulePermissions]
-(
-    [Uid] uniqueidentifier NOT NULL,
-    [Version] int NOT NULL CONSTRAINT [DF_SysUser_ModulePermissions_Version] DEFAULT (1),
-    [IsDeleted] bit NOT NULL CONSTRAINT [DF_SysUser_ModulePermissions_IsDeleted] DEFAULT (0),
-    [CreatedDate] datetime2(7) NULL,
-    [CreatedBy] nvarchar(500) NULL,
-    [UpdatedDate] datetime2(7) NULL,
-    [UpdatedBy] nvarchar(500) NULL,
-    [UserId] uniqueidentifier NOT NULL,
-    [PermissionKey] nvarchar(500) NOT NULL,
-    CONSTRAINT [PK_SysUser_ModulePermissions] PRIMARY KEY ([Uid]),
-    CONSTRAINT [CK_SysUser_ModulePermissions_Version] CHECK ([Version] >= 1)
-);
-
--- 逻辑依赖: [UserId] -> [dbo].[SysUser].[Uid]（由 Application 校验）
 -- 逻辑依赖: [RoleId] -> [dbo].[SysRoles].[Uid]（由 Application 校验）
 CREATE TABLE [dbo].[SysUser_Roles]
 (
@@ -1452,33 +1471,9 @@ CREATE TABLE [dbo].[SysUser_Roles]
     [UpdatedDate] datetime2(7) NULL,
     [UpdatedBy] nvarchar(500) NULL,
     [UserId] uniqueidentifier NOT NULL,
-    [UserName] nvarchar(500) NULL,
     [RoleId] uniqueidentifier NOT NULL,
-    [RoleName] nvarchar(500) NULL,
     CONSTRAINT [PK_SysUser_Roles] PRIMARY KEY ([Uid]),
     CONSTRAINT [CK_SysUser_Roles_Version] CHECK ([Version] >= 1)
-);
-
-CREATE TABLE [dbo].[SysViewRoute]
-(
-    [Uid] uniqueidentifier NOT NULL,
-    [Version] int NOT NULL CONSTRAINT [DF_SysViewRoute_Version] DEFAULT (1),
-    [IsDeleted] bit NOT NULL CONSTRAINT [DF_SysViewRoute_IsDeleted] DEFAULT (0),
-    [CreatedDate] datetime2(7) NULL,
-    [CreatedBy] nvarchar(500) NULL,
-    [UpdatedDate] datetime2(7) NULL,
-    [UpdatedBy] nvarchar(500) NULL,
-    [TargetViewKey] nvarchar(500) NOT NULL,
-    [ViewModelTypeName] nvarchar(500) NOT NULL,
-    [ViewTypeName] nvarchar(500) NULL,
-    [DisplayName] nvarchar(500) NULL,
-    [IsEnabled] bit NOT NULL,
-    [SortOrder] int NOT NULL,
-    [RouteCategory] nvarchar(500) NULL,
-    [AssemblyName] nvarchar(500) NULL,
-    [Remark] nvarchar(2000) NULL,
-    CONSTRAINT [PK_SysViewRoute] PRIMARY KEY ([Uid]),
-    CONSTRAINT [CK_SysViewRoute_Version] CHECK ([Version] >= 1)
 );
 
 -- 逻辑依赖: [SupplierId] -> [dbo].[Supplier].[Uid]（由 Application 校验）
@@ -1627,16 +1622,17 @@ CREATE INDEX [IX_SysDictData_DictCode] ON [dbo].[SysDictData] ([DictCode], [Sort
 
 CREATE UNIQUE INDEX [UX_SysDictType_DictCode] ON [dbo].[SysDictType] ([DictCode]) WHERE [IsDeleted] = 0;
 
-CREATE UNIQUE INDEX [UX_SysRoles_RoleName] ON [dbo].[SysRoles] ([RoleName]) WHERE [IsDeleted] = 0;
+CREATE UNIQUE INDEX [UX_SysPermissionDefinitions_Key] ON [dbo].[SysPermissionDefinitions] ([PermissionKey]);
+
+CREATE INDEX [IX_SysRolePermissions_Permission] ON [dbo].[SysRole_Permissions] ([PermissionId]) WHERE [IsDeleted] = 0;
+CREATE UNIQUE INDEX [UX_SysRolePermissions_Role_Permission] ON [dbo].[SysRole_Permissions] ([RoleId], [PermissionId]) WHERE [IsDeleted] = 0;
+
+CREATE UNIQUE INDEX [UX_SysRoles_RoleCode] ON [dbo].[SysRoles] ([RoleCode]);
 
 CREATE UNIQUE INDEX [UX_SysUser_UserName] ON [dbo].[SysUser] ([UserName]) WHERE [IsDeleted] = 0;
 
-CREATE INDEX [IX_SysUserModulePermissions_Key] ON [dbo].[SysUser_ModulePermissions] ([PermissionKey]) WHERE [IsDeleted] = 0;
-CREATE UNIQUE INDEX [UX_SysUserModulePermissions_User_Key] ON [dbo].[SysUser_ModulePermissions] ([UserId], [PermissionKey]) WHERE [IsDeleted] = 0;
-
+CREATE INDEX [IX_SysUserRoles_Role] ON [dbo].[SysUser_Roles] ([RoleId]) WHERE [IsDeleted] = 0;
 CREATE UNIQUE INDEX [UX_SysUserRoles_User_Role] ON [dbo].[SysUser_Roles] ([UserId], [RoleId]) WHERE [IsDeleted] = 0;
-
-CREATE UNIQUE INDEX [UX_SysViewRoute_TargetViewKey] ON [dbo].[SysViewRoute] ([TargetViewKey]) WHERE [IsDeleted] = 0;
 
 CREATE UNIQUE INDEX [UX_WarehouseSite_ActiveSupplier] ON [dbo].[WarehouseSite] ([SupplierId], [SiteType]) WHERE [IsDeleted] = 0 AND [SupplierId] IS NOT NULL AND [IsActive] = 1;
 CREATE UNIQUE INDEX [UX_WarehouseSite_Code] ON [dbo].[WarehouseSite] ([Code]) WHERE [IsDeleted] = 0;
@@ -6645,7 +6641,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysDictData',
     @level2type=N'COLUMN', @level2name=N'IsEnabled';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'系统字典类型实体，用于定义字典分类、层级和维护入口。',
+    @name=N'MS_Description', @value=N'系统字典类型实体，保存分类、层级、分组和排序，不配置客户端页面。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysDictType';
 EXEC sys.sp_addextendedproperty
@@ -6714,11 +6710,6 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysDictType',
     @level2type=N'COLUMN', @level2name=N'SortOrder';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'该实体保存的字典维护目标视图标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysDictType',
-    @level2type=N'COLUMN', @level2name=N'TargetViewKey';
-EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'如 "Basic" (基础档案), "Finance" (财务), "Sales" (销售)。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysDictType',
@@ -6729,7 +6720,120 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysDictType',
     @level2type=N'COLUMN', @level2name=N'GroupName';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'角色主表实体，对应数据库 [dbo].[SysRoles]。 支持父角色嵌套（ParentRoleId），可构建角色树。',
+    @name=N'MS_Description', @value=N'代码权限目录的数据库投影；权限含义由代码目录统一定义。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'不可复用的稳定权限键。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'PermissionKey';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'管理界面显示名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'DisplayName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'权限分组键。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'GroupKey';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'组内排序序号。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'SortOrder';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否启用；停用权限不贡献有效授权。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysPermissionDefinitions',
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色与权限定义的授权关系；删除关系后不再贡献有效权限。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色标识，逻辑引用 SysRole。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'RoleId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'权限定义标识，逻辑引用 SysPermission。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRole_Permissions',
+    @level2type=N'COLUMN', @level2name=N'PermissionId';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色主表实体，对应数据库 [dbo].[SysRoles]。 使用稳定编码识别内置角色，不提供角色继承。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysRoles';
 EXEC sys.sp_addextendedproperty
@@ -6768,7 +6872,12 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysRoles',
     @level2type=N'COLUMN', @level2name=N'UpdatedBy';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'角色名称（唯一，数据库有 UQ_Roles 唯一索引）',
+    @name=N'MS_Description', @value=N'稳定角色编码；内置管理员使用 SYSTEM_ADMIN。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'RoleCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'角色显示名称，不参与授权判断。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysRoles',
     @level2type=N'COLUMN', @level2name=N'RoleName';
@@ -6778,10 +6887,15 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysRoles',
     @level2type=N'COLUMN', @level2name=N'Description';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'父角色 ID（顶级角色为 null，支持角色层级继承）',
+    @name=N'MS_Description', @value=N'角色是否启用；停用角色不贡献权限。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysRoles',
-    @level2type=N'COLUMN', @level2name=N'ParentRoleId';
+    @level2type=N'COLUMN', @level2name=N'IsActive';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'内置角色标志，普通管理命令不能删除或停用。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'SysRoles',
+    @level2type=N'COLUMN', @level2name=N'IsSystem';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'系统用户实体，保存登录身份、账号状态和用户资料。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
@@ -6857,56 +6971,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysUser',
     @level2type=N'COLUMN', @level2name=N'IsActive';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'保存普通用户直接获得的一级模块权限，不承载角色或管理员身份。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'Uid';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'Version';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'IsDeleted';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录创建时间。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'CreatedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录创建人标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'CreatedBy';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录最后更新时间。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录最后更新人标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'被授予模块的用户标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'UserId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'代码目录中定义的稳定一级模块键。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_ModulePermissions',
-    @level2type=N'COLUMN', @level2name=N'PermissionKey';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'用户-角色关联表实体，对应数据库 [dbo].[SysUser_Roles]。 一条记录表示某用户拥有某角色。',
+    @name=N'MS_Description', @value=N'用户与角色的授权关系；显示名称由有效角色查询投影提供。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysUser_Roles';
 EXEC sys.sp_addextendedproperty
@@ -6950,104 +7015,10 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'SysUser_Roles',
     @level2type=N'COLUMN', @level2name=N'UserId';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'用户名（冗余字段，方便查询展示，无需 Join）',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
-    @level2type=N'COLUMN', @level2name=N'UserName';
-EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'角色 ID（外键 → SysRole.Uid，如有角色主表）',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'SysUser_Roles',
     @level2type=N'COLUMN', @level2name=N'RoleId';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'角色名称（冗余字段，方便查询展示）',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysUser_Roles',
-    @level2type=N'COLUMN', @level2name=N'RoleName';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'视图路由配置实体 职责：将 TargetViewKey 映射到对应的 ViewModel 类型名称， 替代硬编码的 ViewRoutes.cs，实现路由数据库化。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'Uid';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'Version';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'IsDeleted';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录创建时间。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'CreatedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录创建人标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'CreatedBy';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录最后更新时间。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录最后更新人标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'路由键，与 SysDictType.TargetViewKey 字段值保持一致。 大小写不敏感，唯一约束由数据库保证。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'TargetViewKey';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'ViewModel 完整类型名（含命名空间），用于反射创建实例。 示例：SwiftExport.View.FW.ProductViews.ViewModels.ProductColorManagerViewModel',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'ViewModelTypeName';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'View 完整类型名（可选覆盖）。 为 NULL 时，由 ViewLocatorSelector 按约定（ViewModel→View）自动解析； 不为 NULL 时，强制使用此类型，跳过约定映射（适合命名不规范的旧页面）。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'ViewTypeName';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'路由配置的可读名称，仅用于管理界面展示。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'DisplayName';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'是否启用。false 时路由不生效（不加载该页面），但数据不删除。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'IsEnabled';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'排序号，管理列表按升序展示。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'SortOrder';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'路由分类：Dict（字典专属页）/ Standalone（独立功能页）等。 便于后续按分类筛选路由。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'RouteCategory';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'程序集名称（扩展字段）。 单程序集场景留 NULL，多程序集插件化场景填写程序集名。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'AssemblyName';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'备注说明。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'SysViewRoute',
-    @level2type=N'COLUMN', @level2name=N'Remark';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'仓库站点实体，当前用于维护供应商虚拟仓及其启用状态。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

@@ -78,7 +78,7 @@ public sealed class AfterSalesQueryService(ServiceBaseContext context, IAfterSal
 
     private Task<bool> AuthorizedAsync(CancellationToken token)
         => user.IsAuthenticated && user.UserId.HasValue
-            ? permissions.HasPermissionAsync(user.UserId.Value,PermissionKeys.ModuleQualityControlAccess,token)
+            ? permissions.HasPermissionAsync(user.UserId.Value,"QualityControl.AfterSales.View",token)
             : Task.FromResult(false);
     private async Task<AfterSalesHeader> RequireHeaderAsync(Guid uid,bool locked=false)
         => await documents.GetHeaderAsync(uid,locked) ?? throw new AfterSalesException("NOT_FOUND","售后单不存在。");

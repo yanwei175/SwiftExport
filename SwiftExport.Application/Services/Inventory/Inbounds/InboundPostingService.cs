@@ -209,7 +209,7 @@ public sealed class InboundPostingService(
     /// </summary>
     private async Task<ServiceResult<T>?> AuthorizePostingAsync<T>(CancellationToken token)
     {
-        var refusal = await support.AuthorizeAsync<T>(token);
+        var refusal = await support.AuthorizeAsync<T>(token, PermissionKeys.InventoryInboundPost);
         if (refusal is not null) return refusal;
         if (!await permissions.HasPermissionAsync(user.UserId!.Value, PermissionKeys.InventoryInboundPost, token))
             return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有入库过账权限。");

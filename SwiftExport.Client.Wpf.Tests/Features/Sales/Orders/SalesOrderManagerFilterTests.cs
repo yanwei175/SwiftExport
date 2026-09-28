@@ -19,6 +19,23 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 [TestClass]
 public sealed class SalesOrderManagerFilterTests
 {
+    /// <summary>草稿删除按钮只接受独立 Delete 键，维护键不能替代。</summary>
+    [TestMethod]
+    public void DeleteDraftButton_UsesIndependentDeletePermission()
+    {
+        var user = new CurrentUserService();
+        user.SetCurrentUser(new MeDto { Permissions = [PermissionKeys.SalesOrderMaintain] });
+        var model = new SalesOrderManagerViewModel(new RecordingManagerApi(), new RecordingDetailApi(),
+            new DirectApiCallRunner(), null!, null!, null!, null!, user);
+        model.SelectedOrder = new SalesOrderManagerListItemDto { Uid = Guid.NewGuid(), Version = 1,
+            DocumentStatus = SalesOrderDocumentStatusEnum.Open,
+            ConfirmationStatus = ConfirmationStatusEnum.待确认 };
+        Assert.IsFalse(model.DeleteDraftCommand.CanExecute(null));
+
+        user.SetCurrentUser(new MeDto { Permissions = [PermissionKeys.SalesOrderDelete] });
+        Assert.IsTrue(model.DeleteDraftCommand.CanExecute(null));
+    }
+
     /// <summary>查询 Busy 结束后必须再次通知列表绑定，允许继续选择和操作。</summary>
     [TestMethod]
     public async Task BrowseBindingRecoversAfterBusy()
@@ -39,7 +56,7 @@ public sealed class SalesOrderManagerFilterTests
     private static CurrentUserService AuthorizedUser()
     {
         var user = new CurrentUserService();
-        user.SetCurrentUser(new MeDto { Permissions = PermissionKeys.All.ToList() });
+        user.SetCurrentUser(new MeDto { Permissions = PermissionCatalog.All.Select(item => item.PermissionKey).ToList() });
         return user;
     }
     /// <summary>

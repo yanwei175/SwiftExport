@@ -3,7 +3,6 @@ using SwiftExport.Application.Services.Systems.Dictionaries.Data;
 using SwiftExport.Application.Services.Systems.Dictionaries.Types;
 using SwiftExport.Application.Services.Systems.ExchangeRates;
 using SwiftExport.Application.Services.Systems.Internal;
-using SwiftExport.Application.Services.Systems.ViewRoutes;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
@@ -29,21 +28,21 @@ public sealed class SystemSettingsServiceValidationTests
     public void BatchStructure_RejectsEmptyDuplicateAndInvalidVersion()
     {
         StringAssert.Contains(
-            SystemBatchSaveSupport.ValidateRequest(new SysViewRouteBatchSaveRequest()),
+            SystemBatchSaveSupport.ValidateRequest(new SysDictTypeBatchSaveRequest()),
             "没有需要保存的数据");
 
         var uid = Guid.NewGuid();
-        var duplicate = new SysViewRouteBatchSaveRequest
+        var duplicate = new SysDictTypeBatchSaveRequest
         {
             UpdateItems =
             [
-                new UpdateItemRequest<SysViewRouteDto> { Uid = uid, Version = 1, Data = Route("one") },
-                new UpdateItemRequest<SysViewRouteDto> { Uid = uid, Version = 1, Data = Route("two") }
+                new UpdateItemRequest<SysDictTypeDto> { Uid = uid, Version = 1, Data = DictType("one") },
+                new UpdateItemRequest<SysDictTypeDto> { Uid = uid, Version = 1, Data = DictType("two") }
             ]
         };
         StringAssert.Contains(SystemBatchSaveSupport.ValidateRequest(duplicate), "重复修改");
 
-        var invalidVersion = new SysViewRouteBatchSaveRequest
+        var invalidVersion = new SysDictTypeBatchSaveRequest
         {
             DeleteItems = [new DeleteItemRequest { Uid = uid, Version = 0 }]
         };
@@ -218,10 +217,20 @@ public sealed class SystemSettingsServiceValidationTests
     }
 
     [TestMethod]
-    public void ViewRoute_FinalKeysMustBeUniqueIgnoringCase()
+    public void DictType_FinalCodesMustBeUniqueIgnoringCase()
     {
-        StringAssert.Contains(SysViewRouteService.ValidateFinalKeys(new[] { "Products", "products" }), "不能重复");
-        Assert.IsNull(SysViewRouteService.ValidateFinalKeys(new[] { "Products", "Suppliers" }));
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        StringAssert.Contains(SysDictTypeService.ValidateFinalGraph(new Dictionary<Guid, SysDictTypeService.DictTypeNode>
+        {
+            [first] = new(first, null, "Products"),
+            [second] = new(second, null, "products")
+        }), "不能重复");
+        Assert.IsNull(SysDictTypeService.ValidateFinalGraph(new Dictionary<Guid, SysDictTypeService.DictTypeNode>
+        {
+            [first] = new(first, null, "Products"),
+            [second] = new(second, null, "Suppliers")
+        }));
     }
 
     [TestMethod]
@@ -282,21 +291,21 @@ public sealed class SystemSettingsServiceValidationTests
         var orphan = Guid.NewGuid();
         StringAssert.Contains(SysDictTypeService.ValidateFinalGraph(new Dictionary<Guid, SysDictTypeService.DictTypeNode>
         {
-            [orphan] = new(orphan, missingId, "ORPHAN", null)
+            [orphan] = new(orphan, missingId, "ORPHAN")
         }), "上级不存在");
 
         var first = Guid.NewGuid();
         var second = Guid.NewGuid();
         StringAssert.Contains(SysDictTypeService.ValidateFinalGraph(new Dictionary<Guid, SysDictTypeService.DictTypeNode>
         {
-            [first] = new(first, second, "ONE", null),
-            [second] = new(second, first, "TWO", null)
+            [first] = new(first, second, "ONE"),
+            [second] = new(second, first, "TWO")
         }), "循环引用");
 
         StringAssert.Contains(SysDictTypeService.ValidateFinalGraph(new Dictionary<Guid, SysDictTypeService.DictTypeNode>
         {
-            [first] = new(first, null, "Code", null),
-            [second] = new(second, null, "code", null)
+            [first] = new(first, null, "Code"),
+            [second] = new(second, null, "code")
         }), "不能重复");
     }
 
@@ -312,7 +321,6 @@ public sealed class SystemSettingsServiceValidationTests
     {
         foreach (var apiType in new[]
         {
-            typeof(ISysViewRouteApi),
             typeof(ISysDicCurrencyApi),
             typeof(ISysDicCurrencyExchangeApi),
             typeof(ISysDictTypeApi),
@@ -340,7 +348,6 @@ public sealed class SystemSettingsServiceValidationTests
     {
         var files = new[]
         {
-            Path.Combine("SwiftExport.Application", "Services", "Systems", "ViewRoutes", "SysViewRouteService.cs"),
             Path.Combine("SwiftExport.Application", "Services", "Systems", "Currencies", "SysDicCurrencyService.cs"),
             Path.Combine("SwiftExport.Application", "Services", "Systems", "ExchangeRates", "SysDicCurrencyExchangeService.cs"),
             Path.Combine("SwiftExport.Application", "Services", "Systems", "Dictionaries", "Types", "SysDictTypeService.cs"),
@@ -352,11 +359,11 @@ public sealed class SystemSettingsServiceValidationTests
             Assert.IsFalse(File.ReadAllText(Path.Combine(Root(), file)).Contains("NotImplementedException", StringComparison.Ordinal), file);
     }
 
-    private static SysViewRouteDto Route(string key) => new()
+    /// <summary>为字典批量请求构造有唯一编码的最小有效传输对象。</summary>
+    private static SysDictTypeDto DictType(string key) => new()
     {
-        TargetViewKey = key,
-        DisplayName = key,
-        ViewModelTypeName = $"Views.{key}ViewModel"
+        DictCode = key,
+        DictName = key
     };
 
     private static void AssertRoute(Type apiType, string methodName, string attributeName, string expectedPath)

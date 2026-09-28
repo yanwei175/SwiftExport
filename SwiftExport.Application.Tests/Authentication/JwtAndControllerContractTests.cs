@@ -59,22 +59,19 @@ public sealed class JwtAndControllerContractTests
             Assert.IsTrue(route.Method.IsDefined(typeof(AuthorizeAttribute), false), route.Template);
     }
 
-    /// <summary>三个模块管理端点均要求授权，整组写入使用 PUT 和防重复提交。</summary>
+    /// <summary>旧模块管理端点已退出，账号列表仍要求授权。</summary>
     [TestMethod]
     public void ModuleManagementControllerEndpointsAreProtected()
     {
         var methods = typeof(AuthController).GetMethods()
             .Where(method => method.DeclaringType == typeof(AuthController)).ToArray();
         var users = methods.Single(method => method.Name == nameof(AuthController.GetUsers));
-        var read = methods.Single(method => method.Name == nameof(AuthController.GetUserModules));
-        var save = methods.Single(method => method.Name == nameof(AuthController.SaveUserModules));
         Assert.IsTrue(users.IsDefined(typeof(AuthorizeAttribute), false));
-        Assert.IsTrue(read.IsDefined(typeof(AuthorizeAttribute), false));
-        Assert.IsTrue(save.IsDefined(typeof(AuthorizeAttribute), false));
         Assert.AreEqual("admin/users", users.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Single().Template);
-        Assert.AreEqual("admin/users/{userId:guid}/modules", read.GetCustomAttributes(typeof(HttpGetAttribute), false).Cast<HttpGetAttribute>().Single().Template);
-        Assert.AreEqual("admin/users/{userId:guid}/modules", save.GetCustomAttributes(typeof(HttpPutAttribute), false).Cast<HttpPutAttribute>().Single().Template);
-        Assert.IsTrue(save.IsDefined(typeof(PreventDuplicateRequestAttribute), false));
+        Assert.IsFalse(methods.SelectMany(method => method.GetCustomAttributes(typeof(HttpGetAttribute), false)
+            .Cast<HttpGetAttribute>().Select(route => route.Template)).Any(route => route?.Contains("modules", StringComparison.OrdinalIgnoreCase) == true));
+        Assert.IsFalse(methods.SelectMany(method => method.GetCustomAttributes(typeof(HttpPutAttribute), false)
+            .Cast<HttpPutAttribute>().Select(route => route.Template)).Any(route => route?.Contains("modules", StringComparison.OrdinalIgnoreCase) == true));
     }
 
     private static ClaimsPrincipal Principal(Guid userId, int version) => new(new ClaimsIdentity(

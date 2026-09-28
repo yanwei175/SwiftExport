@@ -1,5 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Core.Interfaces.Auth.Permissions;
+using SwiftExport.Core.Models.Auth;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -9,7 +12,7 @@ public sealed class MaterialDemandEstablishmentContractTests
 {
     /// <summary>核对两项命令按稳定输入使用公共回执，审计不再承担机器重放。</summary>
     [TestMethod]
-    public void MaterialCommandsUsePublicReceiptAndIndependentPermissions()
+    public async Task MaterialCommandsUsePublicReceiptAndIndependentPermissions()
     {
         var establishment = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Establishment", "MaterialDemandEstablishmentService.cs");
         var reversal = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Reversal", "MaterialDemandReversalService.cs");
@@ -23,8 +26,14 @@ public sealed class MaterialDemandEstablishmentContractTests
         }
         StringAssert.Contains(establishment, "PermissionKeys.DemandPlanningMaterialEstablish");
         StringAssert.Contains(reversal, "PermissionKeys.DemandPlanningMaterialRollback");
-        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialEstablish);
-        CollectionAssert.Contains(PermissionKeys.UserAssignable.ToList(), PermissionKeys.DemandPlanningMaterialRollback);
+        var userId = Guid.NewGuid();
+        var evaluator = new PermissionEvaluationService(new MaterialPermissionFacts(new UserPermissionFacts
+        {
+            UserId = userId, IsActive = true, RoleCodes = ["MATERIAL_ESTABLISH"],
+            PermissionKeys = [PermissionKeys.DemandPlanningMaterialEstablish]
+        }));
+        Assert.IsTrue(await evaluator.HasPermissionAsync(userId, PermissionKeys.DemandPlanningMaterialEstablish));
+        Assert.IsFalse(await evaluator.HasPermissionAsync(userId, PermissionKeys.DemandPlanningMaterialRollback));
     }
 
     [TestMethod]
@@ -70,6 +79,16 @@ public sealed class MaterialDemandEstablishmentContractTests
         Assert.IsFalse(service.Contains("INetDemandAllocationRepository", StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("HasSourceCancellationBlockerAsync", StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("GetNetDemandHistoryCountsForUpdateAsync", StringComparison.Ordinal));
+    }
+
+    /// <summary>只提供单个角色的权限事实，验证独立操作键的评估结果。</summary>
+    private sealed class MaterialPermissionFacts(UserPermissionFacts facts) : IUserPermissionRepository
+    {
+        public Task<UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<UserPermissionFacts?>(userId == facts.UserId ? facts : null);
+
+        public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

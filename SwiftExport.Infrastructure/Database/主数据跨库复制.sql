@@ -1,6 +1,6 @@
 /*
 用途：
-  在同一 SQL Server 实例内，把旧 SwiftExport 数据库的主数据复制到已经执行
+  在同一 SQL Server 实例内，把同版本 SwiftExport 数据库的主数据复制到已经执行
   Generated/SwiftExport.Schema.sql 的全新空数据库。
 
 使用前：
@@ -12,7 +12,8 @@
 边界：
   - 只复制 @MasterTables 中列出的主数据、账号和权限关系。
   - 不复制销售、需求、采购、入库、出库、库存、PackingList、售后或操作日志。
-  - 源库和目标库必须位于同一 SQL Server 实例。
+  - 源库和目标库必须位于同一 SQL Server 实例且都使用当前 RBAC 结构；不转换旧授权数据。
+  - 权限定义先复制，再复制角色权限关系，并核对 PermissionKey 对应的 Uid 相同。
   - 目标必填列若在旧库不存在且没有默认值，脚本会失败并回滚。
   - 无目标的逻辑引用会原样保留并作为迁移警告返回，不阻断主数据复制。
 */
@@ -67,7 +68,6 @@ VALUES
     (80,  N'SysDictData'),
     (90,  N'SysRoles'),
     (100, N'SysUser'),
-    (110, N'SysViewRoute'),
     (120, N'ProductMaster'),
     (130, N'Product'),
     (140, N'ProductNeutral'),
@@ -78,8 +78,9 @@ VALUES
     (190, N'CustomerProduct'),
     (200, N'SupplierProduct'),
     (210, N'WarehouseSite'),
-    (220, N'SysUser_ModulePermissions'),
-    (230, N'SysUser_Roles');
+    (220, N'SysPermissionDefinitions'),
+    (230, N'SysRole_Permissions'),
+    (240, N'SysUser_Roles');
 
 /* 支持在同一个查询会话内修正配置后安全重跑。 */
 DROP TABLE IF EXISTS #MigrationCounts;
@@ -314,10 +315,6 @@ BEGIN TRY
         FROM ' + @TargetQuoted + N'.dbo.[SysDictType] c
         LEFT JOIN ' + @TargetQuoted + N'.dbo.[SysDictType] p ON p.Uid=c.ParentId
         WHERE c.ParentId IS NOT NULL AND p.Uid IS NULL
-        UNION ALL SELECT N''SysRoles.ParentRoleId'',COUNT_BIG(1)
-        FROM ' + @TargetQuoted + N'.dbo.[SysRoles] c
-        LEFT JOIN ' + @TargetQuoted + N'.dbo.[SysRoles] p ON p.Uid=c.ParentRoleId
-        WHERE c.ParentRoleId IS NOT NULL AND p.Uid IS NULL
         UNION ALL SELECT N''ProductMaster.CategoryId'',COUNT_BIG(1)
         FROM ' + @TargetQuoted + N'.dbo.[ProductMaster] x
         LEFT JOIN ' + @TargetQuoted + N'.dbo.[ProductCategory] p ON p.Uid=x.CategoryId
@@ -390,9 +387,13 @@ BEGIN TRY
         FROM ' + @TargetQuoted + N'.dbo.[WarehouseSite] x
         LEFT JOIN ' + @TargetQuoted + N'.dbo.[Supplier] p ON p.Uid=x.SupplierId
         WHERE x.SupplierId IS NOT NULL AND p.Uid IS NULL
-        UNION ALL SELECT N''SysUser_ModulePermissions.UserId'',COUNT_BIG(1)
-        FROM ' + @TargetQuoted + N'.dbo.[SysUser_ModulePermissions] x
-        LEFT JOIN ' + @TargetQuoted + N'.dbo.[SysUser] p ON p.Uid=x.UserId
+        UNION ALL SELECT N''SysRole_Permissions.RoleId'',COUNT_BIG(1)
+        FROM ' + @TargetQuoted + N'.dbo.[SysRole_Permissions] x
+        LEFT JOIN ' + @TargetQuoted + N'.dbo.[SysRoles] p ON p.Uid=x.RoleId
+        WHERE p.Uid IS NULL
+        UNION ALL SELECT N''SysRole_Permissions.PermissionId'',COUNT_BIG(1)
+        FROM ' + @TargetQuoted + N'.dbo.[SysRole_Permissions] x
+        LEFT JOIN ' + @TargetQuoted + N'.dbo.[SysPermissionDefinitions] p ON p.Uid=x.PermissionId
         WHERE p.Uid IS NULL
         UNION ALL SELECT N''SysUser_Roles.UserId'',COUNT_BIG(1)
         FROM ' + @TargetQuoted + N'.dbo.[SysUser_Roles] x
@@ -403,6 +404,17 @@ BEGIN TRY
         LEFT JOIN ' + @TargetQuoted + N'.dbo.[SysRoles] p ON p.Uid=x.RoleId
         WHERE p.Uid IS NULL;';
 
+    EXEC sys.sp_executesql @Sql;
+
+    /* 同版本复制必须保持稳定键与标识一致，否则角色权限关系不得提交。 */
+    SET @Stage = N'核对权限定义稳定键与标识';
+    SET @Sql = N'
+        INSERT INTO #IntegrityIssues(RelationName,InvalidRows)
+        SELECT N''SysPermissionDefinitions.PermissionKey->Uid'',COUNT_BIG(1)
+        FROM ' + @SourceQuoted + N'.dbo.[SysPermissionDefinitions] s
+        FULL JOIN ' + @TargetQuoted + N'.dbo.[SysPermissionDefinitions] t
+            ON t.PermissionKey=s.PermissionKey
+        WHERE s.Uid IS NULL OR t.Uid IS NULL OR s.Uid<>t.Uid;';
     EXEC sys.sp_executesql @Sql;
 
     DELETE FROM #IntegrityIssues WHERE InvalidRows=0;

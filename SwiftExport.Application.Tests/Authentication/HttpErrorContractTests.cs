@@ -1,19 +1,26 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
+using System.Security.Claims;
 using System.Text;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Application.Commands.Validation;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.WebApi.Configuration;
+using SwiftExport.WebApi.ErrorHandling;
 using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.Application.Tests.Authentication;
@@ -34,6 +41,19 @@ public sealed class HttpErrorContractTests
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.AddWebApiServices();
+        // 业务过滤器需要真实权限库；协议探针用独立测试身份验证 HTTP 包装与默认认证。
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = "ErrorProbe";
+            options.DefaultChallengeScheme = "ErrorProbe";
+            options.DefaultForbidScheme = "ErrorProbe";
+        }).AddScheme<AuthenticationSchemeOptions, ErrorProbeAuthenticationHandler>("ErrorProbe", _ => { });
+        builder.Services.PostConfigure<MvcOptions>(options =>
+        {
+            var businessFilter = options.Filters.OfType<ServiceFilterAttribute>()
+                .FirstOrDefault(filter => filter.ServiceType == typeof(SwiftExport.WebApi.Authentication.EndpointPermissionFilter));
+            if (businessFilter is not null) options.Filters.Remove(businessFilter);
+        });
         builder.Services.AddControllers().AddApplicationPart(typeof(ErrorProbeController).Assembly);
         _app = builder.Build();
         _app.UseWebApiPipeline();
@@ -83,7 +103,9 @@ public sealed class HttpErrorContractTests
     [DataRow("missing", 404, "NOT_FOUND")]
     public async Task FrameworkFailures_UseEnvelope(string path, int status, string code)
     {
-        using var response = await _client.GetAsync($"error-probe/{path}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"error-probe/{path}");
+        if (path == "missing") request.Headers.Add("X-Error-Probe-Authenticated", "1");
+        using var response = await _client.SendAsync(request);
         await AssertFailureAsync(response, status, code);
         if (status == 401) Assert.IsTrue(response.Headers.WwwAuthenticate.Any(x => x.Scheme == "Bearer"));
     }
@@ -153,7 +175,7 @@ public sealed class HttpErrorContractTests
 public sealed class ErrorProbeController : ControllerBase
 {
     /// <summary>返回带值类型脏数据的失败，验证 HTTP 出口清空 Data。</summary>
-    [HttpGet("failure/{code}")]
+    [AllowAnonymous, HttpGet("failure/{code}")]
     public ServiceResult<int> Failure(string code)
     {
         var result = ServiceResult<int>.Fail(code, "secret-sql", "Lines[1].Qty");
@@ -166,24 +188,50 @@ public sealed class ErrorProbeController : ControllerBase
     public IActionResult Secured() => Ok();
 
     /// <summary>测试显式权限拒绝出口。</summary>
-    [HttpGet("forbidden")]
+    [AllowAnonymous, HttpGet("forbidden")]
     public IActionResult Forbidden() => Forbid();
 
     /// <summary>测试自动模型校验出口。</summary>
-    [HttpPost("validate")]
+    [AllowAnonymous, HttpPost("validate")]
     public IActionResult Validate(ErrorProbeRequest request) => Ok(request);
 
     /// <summary>测试系统异常出口。</summary>
-    [HttpGet("throw")]
+    [AllowAnonymous, HttpGet("throw")]
     public IActionResult Throw() => throw new InvalidOperationException("secret-sql");
 
     /// <summary>模拟 Application 请求验证拒绝，检查全局异常出口。</summary>
-    [HttpGet("command-validation")]
+    [AllowAnonymous, HttpGet("command-validation")]
     public IActionResult CommandValidation() => throw new CommandValidationException("数量必须为正数。", "Draft.Lines[0].Quantity");
 
     /// <summary>测试动作过滤器短路。</summary>
-    [HttpPost("throttle"), PreventDuplicateRequest(WindowSeconds = 60)]
+    [AllowAnonymous, HttpPost("throttle"), PreventDuplicateRequest(WindowSeconds = 60)]
     public ServiceResult<int> Throttle() => ServiceResult<int>.Ok(1);
+}
+
+/// <summary>只在无数据库协议测试宿主生效；显式测试头代表已认证请求，未携带时保持 401。</summary>
+public sealed class ErrorProbeAuthenticationHandler(
+    IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+{
+    /// <summary>允许测试无路由 404 通过默认认证，同时保留受保护动作的匿名拒绝。</summary>
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    {
+        if (Request.Headers["X-Error-Probe-Authenticated"] != "1")
+            return Task.FromResult(AuthenticateResult.NoResult());
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "probe")], Scheme.Name));
+        return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));
+    }
+
+    /// <summary>测试认证挑战仍返回生产协议形状。</summary>
+    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    {
+        Response.Headers.WWWAuthenticate = "Bearer";
+        return ServiceErrorResponse.WriteAsync(Context, ServiceErrorCodes.Unauthenticated, "登录状态无效或已过期。");
+    }
+
+    /// <summary>测试显式拒绝仍返回生产协议形状。</summary>
+    protected override Task HandleForbiddenAsync(AuthenticationProperties properties) =>
+        ServiceErrorResponse.WriteAsync(Context, ServiceErrorCodes.Forbidden, "当前账号没有执行该操作的权限。");
 }
 
 /// <summary>用于框架必填验证的最小请求。</summary>

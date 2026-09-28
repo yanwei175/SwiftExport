@@ -22,7 +22,7 @@ public sealed class SourceDemandDeliveryContractTests
         var controller = Read("SwiftExport.WebApi", "Controllers", "DemandPlanning", "Sources", "Delivery", "SourceDemandDeliveryController.cs");
         StringAssert.Contains(controller, "api/demand-planning/source-demands/delivery");
         StringAssert.Contains(controller, "[Authorize]");
-        StringAssert.Contains(controller, "PermissionKeys.ModuleDemandPlanningAccess");
+        StringAssert.Contains(controller, "DemandPlanning.Source.View");
         Assert.IsFalse(controller.Contains("ReceiveAsync", StringComparison.Ordinal));
     }
 

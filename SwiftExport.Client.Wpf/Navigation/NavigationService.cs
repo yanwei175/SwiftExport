@@ -19,6 +19,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
     private readonly IStatusMessageService _statusMessageService;
     private readonly ILogger<NavigationService> _logger;
     private NavigationTabItem? _selectedTab;
+    private string? _sessionUserId;
     private bool _isDisposed;
 
     /// <summary>创建会话级导航协调器，并订阅当前用户变化以隔离不同会话的页签状态。</summary>
@@ -36,6 +37,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         _currentUserService = currentUserService;
         _statusMessageService = statusMessageService;
         _logger = logger;
+        _sessionUserId = currentUserService.CurrentUser?.UserId;
         _currentUserService.CurrentUserChanged += OnCurrentUserChanged;
     }
 
@@ -391,16 +393,44 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         return false;
     }
 
-    /// <summary>身份或权限快照切换后立即清除上一用户创建的页面状态。</summary>
+    /// <summary>账号切换清除全部页签；同一账号刷新仅关闭已撤权的页面。</summary>
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher is not null && !dispatcher.CheckAccess())
         {
-            dispatcher.Invoke(Reset);
+            dispatcher.Invoke(ReconcileSession);
             return;
         }
 
-        Reset();
+        ReconcileSession();
+    }
+
+    /// <summary>撤权后阻止旧页签继续展示和加载；含未保存编辑的页签等待用户确认关闭。</summary>
+    private void ReconcileSession()
+    {
+        var currentId = _currentUserService.CurrentUser?.UserId;
+        if (currentId is null || currentId != _sessionUserId)
+        {
+            _sessionUserId = currentId;
+            Reset();
+            return;
+        }
+
+        foreach (var tab in OpenTabs.ToArray())
+        {
+            if (_routeRegistry.TryGetRoute(tab.RouteKey, out var route) && _accessService.CanAccess(route)) continue;
+            if (tab.IsDirty)
+            {
+                tab.SuspendForRevokedPermission();
+                _statusMessageService.Show("导航", $"“{tab.Title}”的读取权限已撤销，未保存编辑仍保留；请确认后关闭页签。", UiMessageSeverity.Warning);
+                continue;
+            }
+            OpenTabs.Remove(tab);
+            tab.Dispose();
+        }
+        if (SelectedTab is not null && !OpenTabs.Contains(SelectedTab)) SelectedTab = null;
+        if (SelectedTab is not null && !_accessService.CanAccess(SelectedTab.RouteKey)) SelectedTab = null;
+        SelectedTab ??= OpenTabs.FirstOrDefault(tab => _accessService.CanAccess(tab.RouteKey));
     }
 }

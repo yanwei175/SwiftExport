@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
@@ -26,6 +27,7 @@ public sealed partial class DictionaryManagerViewModel
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
     private readonly IReferenceDataCacheService _referenceDataCache;
+    private readonly ICurrentUserService _currentUser;
     private bool _isInitialized;
     private bool _isDisposed;
     private long _queryVersion;
@@ -39,7 +41,8 @@ public sealed partial class DictionaryManagerViewModel
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
-        IReferenceDataCacheService referenceDataCache)
+        IReferenceDataCacheService referenceDataCache,
+        ICurrentUserService currentUser)
     {
         _dictTypeApi = dictTypeApi;
         _dictDataApi = dictDataApi;
@@ -47,6 +50,8 @@ public sealed partial class DictionaryManagerViewModel
         _messageService = messageService;
         _dialogService = dialogService;
         _referenceDataCache = referenceDataCache;
+        _currentUser = currentUser;
+        _currentUser.CurrentUserChanged += OnCurrentUserChanged;
 
         Title = "字典管理";
         Lines = new BaseListModel<DictionaryDataLineModel, SysDictDataDto>(
@@ -104,7 +109,8 @@ public sealed partial class DictionaryManagerViewModel
     public bool CanEditValues => SelectedDictionary?.IsConfigured == true
         && TypeEditor is { IsNew: false, IsDirty: false };
 
-    public bool IsValueEditorReadOnly => !CanEditValues;
+    public bool IsValueEditorReadOnly => !CanEditValues
+        || !(_currentUser.HasPermission("System.Dictionary.Create") || _currentUser.HasPermission("System.Dictionary.Edit"));
 
     public bool IsEmpty => CanEditValues && !IsBusy && Lines.Items.Count == 0;
 
@@ -137,6 +143,33 @@ public sealed partial class DictionaryManagerViewModel
             "字典类型或字典值有未保存的修改，确定关闭页面吗？",
             "放弃并关闭",
             cancellationToken: cancellationToken);
+    }
+
+    /// <summary>离开缓存字典页时，确认后恢复已加载快照，避免返回页面再保存已放弃的修改。</summary>
+    public async Task<bool> CanLeavePageAsync(CancellationToken cancellationToken)
+    {
+        if (!HasUnsavedChanges) return true;
+        if (!await _dialogService.ConfirmAsync("放弃未保存变更",
+                "字典类型或字典值有未保存的修改，确定离开页面吗？", "放弃并离开",
+                cancellationToken: cancellationToken)) return false;
+
+        if (TypeEditor?.IsNew == true)
+        {
+            SetTypeEditor(null);
+            Lines.Clear();
+            SelectedLine = null;
+            _isInitialized = false;
+        }
+        else
+        {
+            TypeEditor?.RejectChanges();
+            Lines.RejectChanges();
+            SelectedLine = Lines.Items.FirstOrDefault();
+        }
+
+        SetValidationFeedback(null);
+        UpdateChangeState();
+        return true;
     }
 
     [RelayCommand(CanExecute = nameof(CanSelectDictionary))]
@@ -337,7 +370,7 @@ public sealed partial class DictionaryManagerViewModel
         UpdateChangeState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanWriteDictionaryValues))]
+    [RelayCommand(CanExecute = nameof(CanAddDictionaryValue))]
     private void AddRow()
     {
         var dictionary = SelectedDictionary;
@@ -672,6 +705,7 @@ public sealed partial class DictionaryManagerViewModel
         OnPropertyChanged(nameof(CanEditValues));
         OnPropertyChanged(nameof(IsValueEditorReadOnly));
         OnPropertyChanged(nameof(IsEmpty));
+        AddDictionaryTypeCommand.NotifyCanExecuteChanged();
         SaveDictionaryTypeCommand.NotifyCanExecuteChanged();
         DeleteDictionaryTypeCommand.NotifyCanExecuteChanged();
         RejectDictionaryTypeChangesCommand.NotifyCanExecuteChanged();
@@ -711,24 +745,37 @@ public sealed partial class DictionaryManagerViewModel
 
     private bool CanSelectDictionary(DictionaryTypeItemModel? item) => item is not null && IsNotBusy;
 
-    private bool CanAddDictionaryType() => CanWrite && IsNotBusy;
+    private bool CanAddDictionaryType() => CanWrite && IsNotBusy && HasDictionaryPermission("Create");
 
     private bool CanSaveDictionaryType() => CanWrite
         && IsNotBusy
-        && TypeEditor is { IsDirty: true, IsProtected: false };
+        && TypeEditor is { IsDirty: true, IsProtected: false } editor
+        && HasDictionaryPermission(editor.IsNew ? "Create" : "Edit");
 
     private bool CanDeleteDictionaryType() => CanWrite
         && IsNotBusy
-        && TypeEditor is { IsProtected: false };
+        && TypeEditor is { IsProtected: false } editor
+        && (editor.IsNew || HasDictionaryPermission("Delete"));
 
     private bool CanRejectDictionaryTypeChanges() => IsNotBusy && TypeEditor?.IsDirty == true;
 
     private bool CanWriteDictionaryValues() => CanWrite && IsNotBusy && CanEditValues;
 
-    private bool CanDeleteSelected() => CanWriteDictionaryValues()
+    /// <summary>字典值新建只要求创建能力，避免将读取或编辑误当新增权限。</summary>
+    private bool CanAddDictionaryValue() => CanWriteDictionaryValues() && HasDictionaryPermission("Create");
+
+    private bool CanDeleteSelected() => CanWriteDictionaryValues() && HasDictionaryPermission("Delete")
         && SelectedLine is { IsSystem: false };
 
-    private bool CanSaveValues() => CanWriteDictionaryValues() && Lines.HasChanges;
+    private bool CanSaveValues() => CanWriteDictionaryValues() && Lines.HasChanges
+        && (!Lines.AddedItems.Any() || HasDictionaryPermission("Create"))
+        && (!Lines.ModifiedItems.Any() || HasDictionaryPermission("Edit"))
+        && (!Lines.DeletedItems.Any(item => item.Uid != Guid.Empty) || HasDictionaryPermission("Delete"));
+
+    /// <summary>以当前 me 快照控制字典写按钮；后端仍逐操作重验授权。</summary>
+    private bool HasDictionaryPermission(string operation) => _currentUser.HasPermission($"System.Dictionary.{operation}");
+
+    private void OnCurrentUserChanged(object? sender, EventArgs e) => UpdateChangeState();
 
     private bool CanRejectValueChanges() => IsNotBusy && Lines.HasChanges;
 
@@ -778,6 +825,7 @@ public sealed partial class DictionaryManagerViewModel
         }
 
         _isDisposed = true;
+        _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
         _lifetimeCancellation.Cancel();
         _queryCancellation?.Cancel();
         _queryCancellation?.Dispose();

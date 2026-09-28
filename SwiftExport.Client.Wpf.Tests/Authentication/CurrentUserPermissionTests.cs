@@ -54,13 +54,13 @@ public sealed class CurrentUserPermissionTests
         {
             UserId = Guid.NewGuid().ToString(),
             UserName = "first",
-            Permissions = new List<string> { PermissionKeys.ModuleProductsAccess }
+            Permissions = new List<string> { "Products.Product.View" }
         });
         service.SetCurrentUser(new MeDto
         {
             UserId = Guid.NewGuid().ToString(),
             UserName = "second",
-            Permissions = new List<string> { PermissionKeys.ModuleSalesAccess }
+            Permissions = new List<string> { "Sales.Order.View" }
         });
         service.Clear();
         service.Clear();

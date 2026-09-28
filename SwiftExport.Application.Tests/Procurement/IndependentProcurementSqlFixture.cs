@@ -148,7 +148,7 @@ internal sealed class IndependentProcurementSqlFixture : IAsyncDisposable
         """);
 
     private Task<int> SeedAsync() => ExecuteAsync("""
-        INSERT dbo.SysRoles(Uid,RoleName) VALUES(@RoleId,N'Admin');
+        INSERT dbo.SysRoles(Uid,RoleCode,RoleName,IsActive,IsSystem) VALUES(@RoleId,N'SYSTEM_ADMIN',N'隔离测试管理员',1,1);
         INSERT dbo.SysUser(Uid,UserName,PasswordHash,CredentialVersion,IsActive) VALUES(@ActorId,N'sql-test-admin',N'test-only',1,1),(@OtherActorId,N'sql-test-admin-2',N'test-only',1,1);
         INSERT dbo.SysUser_Roles(Uid,UserId,RoleId) VALUES(NEWID(),@ActorId,@RoleId),(NEWID(),@OtherActorId,@RoleId);
         INSERT dbo.Customer(Uid,CustomerCode,CustomerName,DocRelateNo,DepositRate,LeadTimeDays,IsActive) VALUES(@CustomerId,N'TEST-C',N'归属客户',N'TEST-C',0,0,1);

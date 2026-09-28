@@ -95,7 +95,7 @@ public sealed class PackingListQueryService(ServiceBaseContext context, IPacking
     {
         var userId = currentUser.UserId;
         if (!currentUser.IsAuthenticated || !userId.HasValue
-            || !await permissions.HasPermissionAsync(userId.Value, PermissionKeys.ModuleShippingAccess, token))
+            || !await permissions.HasPermissionAsync(userId.Value, "Shipping.PackingList.View", token))
             throw new PackingListException(ServiceErrorCodes.Forbidden, "当前账号没有出货模块访问权限。");
         return await action();
     }

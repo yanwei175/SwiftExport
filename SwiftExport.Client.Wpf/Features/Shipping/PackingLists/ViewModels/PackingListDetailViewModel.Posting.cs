@@ -24,7 +24,7 @@ public sealed partial class PackingListDetailViewModel
         && Header.PostingStatus == PackingListPostingStatusEnum.Posted && !PostCommand.IsRunning;
     private bool PostingAvailable(string permission) => !_disposed && _loaded && !IsBusy && !_dialogOpen
         && _postingDialogs != null && _postingUser?.HasPermission(permission) == true
-        && _postingUser.HasPermission(PermissionKeys.ModuleShippingAccess);
+        && _postingUser.HasPermission("Shipping.PackingList.View");
 
     /// <summary>先保存最新草稿；已发出但结果不确定的请求直接重试原命令，不重新预览或保存。</summary>
     [RelayCommand(CanExecute = nameof(CanPost))]
@@ -69,7 +69,7 @@ public sealed partial class PackingListDetailViewModel
             if (!confirmed || _disposed || preview.Blockers.Count != 0 || string.IsNullOrWhiteSpace(preview.PreviewToken)) return;
             if (Header.Version != version || HasUnsavedChanges) { ReportValidationWarning("草稿已变化，请保存后重新预览。"); return; }
             // 弹窗期间会话权限可能被刷新，不能沿用打开弹窗时的客户端授权快照。
-            if (_postingUser?.HasPermission(PermissionKeys.ModuleShippingAccess) != true
+            if (_postingUser?.HasPermission("Shipping.PackingList.View") != true
                 || !_postingUser.HasPermission(reverse ? PermissionKeys.PackingListReverse : PermissionKeys.PackingListPost))
             { ReportValidationWarning("操作权限已变化，未提交过账命令。"); return; }
             if (reverse) _pendingReverse = new() { CommandId = Guid.NewGuid(), ExpectedVersion = version, BusinessDate = date.Date, Reason = reason, PreviewToken = preview.PreviewToken };

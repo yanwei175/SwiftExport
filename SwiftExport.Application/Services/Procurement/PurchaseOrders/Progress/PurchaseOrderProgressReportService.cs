@@ -32,7 +32,7 @@ public sealed class PurchaseOrderProgressReportService(
         CancellationToken cancellationToken = default)
         => pipeline.ExecuteAsync<ReportPurchaseOrderProgressCommand, PurchaseOrderProgressReportResult>(
             command, command?.CommandId, "Procurement.Progress.Report",
-            token => support.AuthorizeAsync<PurchaseOrderProgressReportResult>("Edit", token),
+            token => support.AuthorizeAsync<PurchaseOrderProgressReportResult>("ProgressReport", token),
             token => ExecuteReportCommandAsync(purchaseOrderId, command!, token), cancellationToken);
 
     /// <summary>在公共回执查验前验证路由和命令，再以 Serializable 事务执行首次反馈。</summary>

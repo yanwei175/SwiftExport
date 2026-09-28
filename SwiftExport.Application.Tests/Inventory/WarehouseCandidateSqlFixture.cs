@@ -40,15 +40,15 @@ internal sealed class WarehouseCandidateSqlFixture : IAsyncDisposable
               SiteType int NOT NULL,SupplierId uniqueidentifier NULL,SupplierCodeSnapshot nvarchar(100) NULL,SupplierNameSnapshot nvarchar(300) NULL,
               IsActive bit NOT NULL,IsDeleted bit);
             CREATE TABLE dbo.SysUser(Uid uniqueidentifier PRIMARY KEY,IsActive bit NOT NULL,IsDeleted bit);
-            CREATE TABLE dbo.SysRoles(Uid uniqueidentifier PRIMARY KEY,RoleName nvarchar(100),IsDeleted bit);
+            CREATE TABLE dbo.SysRoles(Uid uniqueidentifier PRIMARY KEY,RoleCode nvarchar(100),RoleName nvarchar(100),IsActive bit,IsDeleted bit);
             CREATE TABLE dbo.SysUser_Roles(Uid uniqueidentifier PRIMARY KEY,UserId uniqueidentifier,RoleId uniqueidentifier,IsDeleted bit);
-            CREATE TABLE dbo.SysUser_ModulePermissions(Uid uniqueidentifier PRIMARY KEY,Version int NOT NULL DEFAULT(1),IsDeleted bit NOT NULL DEFAULT(0),
-              CreatedDate datetime2 NULL,CreatedBy nvarchar(256) NULL,UpdatedDate datetime2 NULL,UpdatedBy nvarchar(256) NULL,
-              UserId uniqueidentifier NOT NULL,PermissionKey nvarchar(128) NOT NULL);
+            CREATE TABLE dbo.SysPermissionDefinitions(Uid uniqueidentifier PRIMARY KEY,PermissionKey nvarchar(128),IsActive bit,IsDeleted bit);
+            CREATE TABLE dbo.SysRole_Permissions(Uid uniqueidentifier PRIMARY KEY,RoleId uniqueidentifier,PermissionId uniqueidentifier,IsDeleted bit);
             INSERT dbo.SysUser VALUES(@UserId,1,0);
-            INSERT dbo.SysRoles VALUES(@RoleId,N'Procurement.Order.Create',0);
+            INSERT dbo.SysRoles VALUES(@RoleId,N'WAREHOUSE_CANDIDATE',N'仓库候选',1,0);
             INSERT dbo.SysUser_Roles VALUES(NEWID(),@UserId,@RoleId,0);
-            INSERT dbo.SysUser_ModulePermissions(Uid,UserId,PermissionKey) VALUES(NEWID(),@UserId,N'Module.Inventory.Access');
+            INSERT dbo.SysPermissionDefinitions VALUES(NEWID(),N'Procurement.Order.Create',1,0),(NEWID(),N'Inventory.Warehouse.View',1,0);
+            INSERT dbo.SysRole_Permissions SELECT NEWID(),@RoleId,Uid,0 FROM dbo.SysPermissionDefinitions;
             """, new { UserId, RoleId });
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace SwiftExport.Contracts.Apis.AuthApis
 {
     /// <summary>
-    /// 认证相关 Refit 接口：登录、当前用户、账号密码及模块权限管理。
+    /// 认证相关 Refit 接口：登录、当前用户及账号密码管理。
     /// </summary>
     public interface IAuthApi
     {
@@ -50,14 +50,5 @@ namespace SwiftExport.Contracts.Apis.AuthApis
         [Get("/api/auth/admin/users")]
         Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync();
 
-        /// <summary>读取目标用户当前直接分配的一级模块。</summary>
-        [Get("/api/auth/admin/users/{userId}/modules")]
-        Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(System.Guid userId);
-
-        /// <summary>原子替换目标普通用户的完整一级模块集合。</summary>
-        [Put("/api/auth/admin/users/{userId}/modules")]
-        Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(
-            System.Guid userId,
-            [Body] SaveUserModulePermissionsRequestDto request);
     }
 }

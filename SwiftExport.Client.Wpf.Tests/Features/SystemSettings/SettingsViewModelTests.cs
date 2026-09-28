@@ -7,7 +7,6 @@ using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.SystemSettings.Passwords.Models;
 using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
-using SwiftExportClient.Features.SystemSettings.UserPermissions.ViewModels;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.Models;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
 using SwiftExportClient.Services.Api;
@@ -15,7 +14,7 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.SystemSettings;
 
-/// <summary>验证设置中心权限、账号密码写命令和模块整组保存行为。</summary>
+/// <summary>验证设置中心权限与账号密码写命令。</summary>
 [TestClass]
 public sealed class SettingsViewModelTests
 {
@@ -48,7 +47,7 @@ public sealed class SettingsViewModelTests
         viewModel.ChangePasswordCommand.Execute(null);
 
         Assert.IsFalse(viewModel.CanManageSettings);
-        Assert.IsFalse(viewModel.RegisterUserCommand.CanExecute(null));
+        Assert.IsFalse(viewModel.OpenSystemSettingsCommand.CanExecute(null));
         Assert.AreEqual(1, windows.ChangePasswordCount);
     }
 
@@ -56,20 +55,14 @@ public sealed class SettingsViewModelTests
     [TestMethod]
     public void SettingsCenter_ShouldEnableManagementFromPermissionSnapshot()
     {
-        var currentUser = CreateCurrentUser([PermissionKeys.SystemSettingsManage]);
+        var currentUser = CreateCurrentUser(["System.Users.View", "System.Roles.View", "System.Dictionary.View"]);
         var windows = new FakeSettingsWindowService();
         var viewModel = new SettingsCenterViewModel(currentUser, windows);
 
-        viewModel.RegisterUserCommand.Execute(null);
-        viewModel.ResetPasswordCommand.Execute(null);
-        viewModel.ManageUserModulesCommand.Execute(null);
-        viewModel.ManageDictionariesCommand.Execute(null);
+        viewModel.OpenSystemSettingsCommand.Execute(null);
 
         Assert.IsTrue(viewModel.CanManageSettings);
-        Assert.AreEqual(1, windows.RegisterCount);
-        Assert.AreEqual(1, windows.ResetCount);
-        Assert.AreEqual(1, windows.ModulesCount);
-        Assert.AreEqual(1, windows.DictionariesCount);
+        Assert.AreEqual(1, windows.SystemSettingsCount);
     }
 
     /// <summary>验证创建用户防重复提交并提示后续模块分配。</summary>
@@ -104,7 +97,7 @@ public sealed class SettingsViewModelTests
         await Task.WhenAll(first, second);
 
         Assert.AreEqual(1, closeCount);
-        StringAssert.Contains(messages.LastMessage, "默认没有模块权限");
+        StringAssert.Contains(messages.LastMessage, "默认没有角色与业务权限");
         Assert.AreEqual(nameof(UserRegistrationPasswordInput), passwords.ToString());
     }
 
@@ -164,94 +157,41 @@ public sealed class SettingsViewModelTests
         viewModel.Dispose();
     }
 
-    /// <summary>验证新用户空模块状态和完整模块集合保存。</summary>
+    /// <summary>会话切换释放表单后，创建与重置的迟到成功均不得发出关闭事件或成功提示。</summary>
     [TestMethod]
-    public async Task UserModules_ShouldLoadEmptyUserAndSaveCompleteModuleSet()
+    public async Task AccountForms_DisposedDuringWriteIgnoreLateSuccess()
     {
-        var user = User("new-user", isAdmin: false);
+        var registrationResponse = new TaskCompletionSource<ServiceResult<Guid>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var resetResponse = new TaskCompletionSource<ServiceResult<bool>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         var api = new FakeAuthApi
         {
-            UsersResult = ServiceResult<List<UserSummaryDto>>.Ok([user]),
-            GetModulesHandler = _ => ServiceResult<UserModulePermissionsDto>.Ok(new UserModulePermissionsDto
-            {
-                UserId = user.Uid,
-                ModulePermissions = []
-            })
+            RegisterHandler = _ => registrationResponse.Task,
+            ResetPasswordHandler = _ => resetResponse.Task
         };
-        var viewModel = new UserModulePermissionsViewModel(
-            api,
-            new PassThroughApiCallRunner(),
-            new FakeDialogService());
+        var messages = new FakeMessageService();
+        var registration = new UserRegistrationViewModel(api, new PassThroughApiCallRunner(), messages)
+        { UserName = "new-user" };
+        var reset = new ResetPasswordViewModel(api, new PassThroughApiCallRunner(), messages)
+        { SelectedUser = User("normal", isAdmin: false) };
+        var closeCount = 0;
+        registration.RequestClose += (_, _) => closeCount++;
+        reset.RequestClose += (_, _) => closeCount++;
 
-        await viewModel.InitializeAsync();
+        var registrationWrite = registration.SubmitCommand.ExecuteAsync(
+            new UserRegistrationPasswordInput("secret1", "secret1"));
+        var resetWrite = reset.SubmitCommand.ExecuteAsync(new ResetPasswordInput("secret2", "secret2"));
+        Assert.AreEqual(1, api.RegisterCallCount);
+        Assert.AreEqual(1, api.ResetPasswordCallCount);
+        registration.Dispose();
+        reset.Dispose();
+        registrationResponse.SetResult(ServiceResult<Guid>.Ok(Guid.NewGuid()));
+        resetResponse.SetResult(ServiceResult<bool>.Ok(true));
+        await Task.WhenAll(registrationWrite, resetWrite);
 
-        StringAssert.Contains(viewModel.StatusMessage, "没有模块权限");
-        viewModel.Modules.Single(module => module.PermissionKey == PermissionKeys.ModuleSalesAccess).IsSelected = true;
-        viewModel.Modules.Single(module => module.PermissionKey == PermissionKeys.ModuleShippingAccess).IsSelected = true;
-        await viewModel.SaveCommand.ExecuteAsync(null);
-
-        CollectionAssert.AreEquivalent(
-            new[] { PermissionKeys.ModuleSalesAccess, PermissionKeys.ModuleShippingAccess },
-            api.LastSavedModules!.ToArray());
-        Assert.IsFalse(viewModel.IsDirty);
-        StringAssert.Contains(viewModel.StatusMessage, "下次登录");
-        viewModel.Dispose();
-    }
-
-    /// <summary>验证权限维护界面展示仓库、需求及销售售后独立操作的分配入口。</summary>
-    [TestMethod]
-    public void UserModules_ShouldExposeWarehouseManagementPermission()
-    {
-        var viewModel = new UserModulePermissionsViewModel(
-            new FakeAuthApi(), new PassThroughApiCallRunner(), new FakeDialogService());
-
-        Assert.IsTrue(viewModel.Modules.Any(option =>
-            option.PermissionKey == PermissionKeys.InventoryWarehouseManage));
-        Assert.IsTrue(viewModel.Modules.Any(option =>
-            option.PermissionKey == PermissionKeys.DemandPlanningMaterialEstablish));
-        Assert.IsTrue(viewModel.Modules.Any(option =>
-            option.PermissionKey == PermissionKeys.DemandPlanningMaterialRollback));
-        Assert.IsTrue(viewModel.Modules.Any(option =>
-            option.PermissionKey == PermissionKeys.DemandPlanningSourceManualManage));
-        Assert.IsTrue(viewModel.Modules.Any(option =>
-            option.PermissionKey == PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage));
-        foreach (var key in new[]
-        {
-            PermissionKeys.SalesOrderMaintain, PermissionKeys.SalesOrderConfirm,
-            PermissionKeys.SalesOrderCancelConfirmation, PermissionKeys.SalesOrderLifecycle,
-            PermissionKeys.AfterSalesMaintain, PermissionKeys.AfterSalesConfirm,
-            PermissionKeys.AfterSalesCancelConfirmation, PermissionKeys.AfterSalesLifecycle
-        })
-            Assert.IsTrue(viewModel.Modules.Any(option => option.PermissionKey == key), key);
-
-        viewModel.Dispose();
-    }
-
-    /// <summary>验证取消放弃变更后保持原用户与原勾选。</summary>
-    [TestMethod]
-    public async Task UserModules_ShouldKeepCurrentUserWhenDiscardConfirmationIsCancelled()
-    {
-        var firstUser = User("first", isAdmin: false);
-        var secondUser = User("second", isAdmin: false);
-        var api = new FakeAuthApi
-        {
-            UsersResult = ServiceResult<List<UserSummaryDto>>.Ok([firstUser, secondUser]),
-            GetModulesHandler = userId => ServiceResult<UserModulePermissionsDto>.Ok(new UserModulePermissionsDto
-            {
-                UserId = userId,
-                ModulePermissions = []
-            })
-        };
-        var dialogs = new FakeDialogService { ConfirmationResult = false };
-        var viewModel = new UserModulePermissionsViewModel(api, new PassThroughApiCallRunner(), dialogs);
-        await viewModel.InitializeAsync();
-        viewModel.Modules[0].IsSelected = true;
-
-        await viewModel.SelectUserCommand.ExecuteAsync(secondUser);
-
-        Assert.AreSame(firstUser, viewModel.SelectedUser);
-        Assert.IsTrue(viewModel.Modules[0].IsSelected);
-        viewModel.Dispose();
+        Assert.AreEqual(0, closeCount);
+        Assert.AreEqual(string.Empty, messages.LastMessage);
     }
 
     private static CurrentUserService CreateCurrentUser(
@@ -275,27 +215,20 @@ public sealed class SettingsViewModelTests
     private sealed class FakeSettingsWindowService : ISettingsWindowService
     {
         public int ChangePasswordCount { get; private set; }
-        public int RegisterCount { get; private set; }
-        public int ResetCount { get; private set; }
-        public int ModulesCount { get; private set; }
-        public int DictionariesCount { get; private set; }
+        public int SystemSettingsCount { get; private set; }
         public void ShowChangePassword() => ChangePasswordCount++;
-        public void ShowUserRegistration() => RegisterCount++;
-        public void ShowResetPassword() => ResetCount++;
-        public void ShowUserModules() => ModulesCount++;
-        public void ShowDictionaries() => DictionariesCount++;
+        public void ShowSystemSettings() => SystemSettingsCount++;
     }
 
     private sealed class FakeAuthApi : IAuthApi
     {
         public Func<RegisterRequestDto, Task<ServiceResult<Guid>>>? RegisterHandler { get; init; }
+        public Func<AdminResetPasswordRequestDto, Task<ServiceResult<bool>>>? ResetPasswordHandler { get; init; }
         public ServiceResult<bool> ChangePasswordResult { get; set; } = ServiceResult<bool>.Ok(true);
         public ServiceResult<List<UserSummaryDto>> UsersResult { get; init; } = ServiceResult<List<UserSummaryDto>>.Ok([]);
-        public Func<Guid, ServiceResult<UserModulePermissionsDto>>? GetModulesHandler { get; init; }
         public int RegisterCallCount { get; private set; }
         public int ResetPasswordCallCount { get; private set; }
         public ChangePasswordRequestDto? LastChangePasswordRequest { get; private set; }
-        public List<string>? LastSavedModules { get; private set; }
 
         public Task<LoginTokenDto> LoginAsync(LoginRequestDto request) => throw new NotSupportedException();
         public Task<MeDto> GetMeAsync() => throw new NotSupportedException();
@@ -316,27 +249,13 @@ public sealed class SettingsViewModelTests
         public Task<ServiceResult<bool>> ResetUserPasswordAsync(AdminResetPasswordRequestDto request)
         {
             ResetPasswordCallCount++;
-            return Task.FromResult(ServiceResult<bool>.Ok(true));
+            return ResetPasswordHandler?.Invoke(request)
+                ?? Task.FromResult(ServiceResult<bool>.Ok(true));
         }
 
         public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync()
             => Task.FromResult(UsersResult);
 
-        public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId)
-            => Task.FromResult(GetModulesHandler?.Invoke(userId)
-                ?? ServiceResult<UserModulePermissionsDto>.Fail("未配置测试结果"));
-
-        public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(
-            Guid userId,
-            SaveUserModulePermissionsRequestDto request)
-        {
-            LastSavedModules = request.ModulePermissions.ToList();
-            return Task.FromResult(ServiceResult<UserModulePermissionsDto>.Ok(new UserModulePermissionsDto
-            {
-                UserId = userId,
-                ModulePermissions = request.ModulePermissions.ToList()
-            }));
-        }
     }
 
     private sealed class PassThroughApiCallRunner : IApiCallRunner

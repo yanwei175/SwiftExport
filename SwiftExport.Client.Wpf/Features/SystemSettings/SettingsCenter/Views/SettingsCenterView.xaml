@@ -53,51 +53,26 @@
                        Text="个人设置"
                        Style="{StaticResource BodyTextBlock}"/>
                 
-                <ui:Button Grid.Row="2" Content="修改我的密码" 
-                           HorizontalAlignment="Stretch"
-                           HorizontalContentAlignment="Left"
-                           Icon="{ui:SymbolIcon Symbol=Key24}"
-                           Command="{Binding ChangePasswordCommand}"
-                           AutomationProperties.Name="修改我的密码"/>
+                <StackPanel Grid.Row="2">
+                    <ui:Button Content="修改我的密码" HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Left" Icon="{ui:SymbolIcon Symbol=Key24}"
+                               Command="{Binding ChangePasswordCommand}" AutomationProperties.Name="修改我的密码"/>
+                    <ui:Button Content="刷新我的权限" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                               Command="{Binding RefreshPermissionsCommand}" AutomationProperties.Name="刷新我的权限"/>
+                    <TextBlock Text="{Binding RefreshStatus}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
                 
                 <TextBlock Grid.Row="4"
                        Text="系统设置"
                        Style="{StaticResource BodyTextBlock}"/>
                 
                 <Grid Grid.Row="6" Visibility="{Binding CanManageSettings, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="12" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <ui:Button Grid.Row="0" Content="创建用户" HorizontalAlignment="Stretch"
+                    <ui:Button Content="打开系统设置" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left"
-                               Icon="{ui:SymbolIcon Symbol=PersonAdd24}"
-                               Command="{Binding RegisterUserCommand}"
-                               AutomationProperties.Name="创建用户"/>
-
-                    <ui:Button Grid.Row="2" Content="重置用户密码" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left"
-                               Icon="{ui:SymbolIcon Symbol=KeyReset24}"
-                               Command="{Binding ResetPasswordCommand}"
-                               AutomationProperties.Name="重置用户密码"/>
-
-                    <ui:Button Grid.Row="4" Content="模块权限" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left"
-                               Icon="{ui:SymbolIcon Symbol=ShieldKeyhole24}"
-                               Command="{Binding ManageUserModulesCommand}"
-                               AutomationProperties.Name="模块权限"/>
-
-                    <ui:Button Grid.Row="6" Content="字典管理" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left"
-                               Command="{Binding ManageDictionariesCommand}"
-                               Icon="{ui:SymbolIcon Symbol=BookDatabase24}"
-                               AutomationProperties.Name="字典管理"/>
+                               Icon="{ui:SymbolIcon Symbol=Settings24}"
+                               Command="{Binding OpenSystemSettingsCommand}"
+                               AutomationProperties.Name="打开系统设置"/>
 
                 </Grid>
                 </Grid>

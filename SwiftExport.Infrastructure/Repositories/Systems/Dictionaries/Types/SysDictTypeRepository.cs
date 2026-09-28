@@ -13,7 +13,7 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
 public sealed class SysDictTypeRepository(RepositoryBaseContext context)
     : DapperRepository<SysDictType>(context), ISysDictTypeRepository
 {
-    private const string Columns = "Uid, Version, IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, DictCode, DictName, IsSystem, Remark, ParentId, SortOrder, TargetViewKey, GroupCode, GroupName";
+    private const string Columns = "Uid, Version, IsDeleted, CreatedDate, CreatedBy, UpdatedDate, UpdatedBy, DictCode, DictName, IsSystem, Remark, ParentId, SortOrder, GroupCode, GroupName";
 
     public async Task<PagedResponseBase<SysDictTypeDto>> GetPagedAsync(SysDictTypeSearchRequest request)
     {
@@ -24,7 +24,7 @@ public sealed class SysDictTypeRepository(RepositoryBaseContext context)
         var filters = new List<string> { "(IsDeleted = 0 OR IsDeleted IS NULL)" };
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            filters.Add("(DictCode LIKE @Keyword OR DictName LIKE @Keyword OR GroupCode LIKE @Keyword OR GroupName LIKE @Keyword OR TargetViewKey LIKE @Keyword)");
+            filters.Add("(DictCode LIKE @Keyword OR DictName LIKE @Keyword OR GroupCode LIKE @Keyword OR GroupName LIKE @Keyword)");
             parameters.Add("Keyword", $"%{request.Keyword.Trim()}%");
         }
 
@@ -78,15 +78,4 @@ public sealed class SysDictTypeRepository(RepositoryBaseContext context)
         return rows.AsList();
     }
 
-    public async Task<IReadOnlyList<string>> GetReferencedTargetViewKeysAsync(IEnumerable<string> targetViewKeys)
-    {
-        var keys = targetViewKeys.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        if (keys.Length == 0) return [];
-        var rows = await Connection.QueryAsync<string>(@"
-            SELECT DISTINCT TargetViewKey
-            FROM dbo.SysDictType WITH (UPDLOCK, ROWLOCK)
-            WHERE TargetViewKey IN @Keys AND (IsDeleted = 0 OR IsDeleted IS NULL);",
-            new { Keys = keys }, Transaction);
-        return rows.AsList();
-    }
 }

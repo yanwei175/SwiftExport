@@ -2,7 +2,6 @@ using SwiftExport.Application.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Application.Services.Systems.Internal;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
-using SwiftExport.Core.Interfaces.Systems.ViewRoutes;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
@@ -25,7 +24,6 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
     public partial class SysDictTypeService(
         ISysDictTypeRepository repository,
         ISysDictDataRepository dictDataRepository,
-        ISysViewRouteRepository viewRouteRepository,
         ServiceBaseContext context)
         : BaseService<SysDictType, SysDictTypeDto>(repository, context), ISysDictTypeService
     {
@@ -205,7 +203,6 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                     Remark = dictType.Remark,
                     ParentId = dictType.ParentId,
                     SortOrder = dictType.SortOrder,
-                    TargetViewKey = dictType.TargetViewKey,
                     GroupCode = dictType.GroupCode,
                     GroupName = dictType.GroupName,
                     Children = new List<DictTypeTreeDto>()
@@ -363,16 +360,6 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                 if (error is not null) return DictTypeBatchPreparation.Fail(error);
             }
 
-            var submittedRouteKeys = request.CreateItems.Select(x => x.Data.TargetViewKey)
-                .Concat(request.UpdateItems.Select(x => x.Data.TargetViewKey))
-                .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            var routes = await viewRouteRepository.GetByTargetViewKeysAsync(submittedRouteKeys, withUpdLock: true);
-            var existingRouteKeys = routes.Select(x => x.TargetViewKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var missingRouteKeys = submittedRouteKeys.Where(x => !existingRouteKeys.Contains(x)).ToArray();
-            if (missingRouteKeys.Length > 0)
-                return DictTypeBatchPreparation.Fail("以下目标路由不存在：" + string.Join(", ", missingRouteKeys));
-
             var all = await repository.GetAllForUpdateAsync();
             var existing = all.ToDictionary(x => x.Uid);
             var targetIds = request.UpdateItems.Select(x => x.Uid).Concat(request.DeleteItems.Select(x => x.Uid)).Distinct().ToArray();
@@ -391,13 +378,13 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             foreach (var entity in all.Where(x => !deleteIds.Contains(x.Uid)))
             {
                 var node = updateById.TryGetValue(entity.Uid, out var update)
-                    ? new DictTypeNode(entity.Uid, update.Data.ParentId, update.Data.DictCode, update.Data.TargetViewKey)
-                    : new DictTypeNode(entity.Uid, entity.ParentId, entity.DictCode, entity.TargetViewKey);
+                    ? new DictTypeNode(entity.Uid, update.Data.ParentId, update.Data.DictCode)
+                    : new DictTypeNode(entity.Uid, entity.ParentId, entity.DictCode);
                 nodes.Add(node.Uid, node);
             }
             foreach (var item in request.CreateItems)
             {
-                var node = new DictTypeNode(item.Data.Uid, item.Data.ParentId, item.Data.DictCode, item.Data.TargetViewKey);
+                var node = new DictTypeNode(item.Data.Uid, item.Data.ParentId, item.Data.DictCode);
                 nodes.Add(node.Uid, node);
             }
 
@@ -498,14 +485,14 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             if (string.IsNullOrWhiteSpace(dto.DictName)) return $"第 {row} 行：字典名称不能为空。";
             dto.DictCode = dto.DictCode.Trim();
             dto.DictName = dto.DictName.Trim();
-            dto.TargetViewKey = dto.TargetViewKey?.Trim();
             dto.GroupCode = dto.GroupCode?.Trim();
             dto.GroupName = dto.GroupName?.Trim();
             dto.Remark = dto.Remark?.Trim();
             return null;
         }
 
-        internal sealed record DictTypeNode(Guid Uid, Guid? ParentId, string DictCode, string? TargetViewKey);
+        /// <summary>保存字典类型最终树校验所需的最小节点，不包含客户端页面信息。</summary>
+        internal sealed record DictTypeNode(Guid Uid, Guid? ParentId, string DictCode);
 
         private sealed record DictTypeBatchPreparation(
             string? Error,

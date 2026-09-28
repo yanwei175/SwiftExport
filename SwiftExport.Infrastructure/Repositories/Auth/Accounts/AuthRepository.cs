@@ -35,9 +35,9 @@ public sealed class AuthRepository(RepositoryBaseContext context) : IAuthReposit
                 SELECT 1
                 FROM dbo.SysUser u
                 JOIN dbo.SysUser_Roles ur ON ur.UserId=u.Uid AND ISNULL(ur.IsDeleted,0)=0
-                JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
+                JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0 AND r.IsActive=1
                 WHERE u.Uid=@UserId AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
-                  AND r.RoleName=N'Admin'
+                  AND r.RoleCode=N'SYSTEM_ADMIN'
             ) THEN 1 ELSE 0 END AS bit);
             """, new { UserId = userId }, cancellationToken));
 
@@ -73,9 +73,9 @@ public sealed class AuthRepository(RepositoryBaseContext context) : IAuthReposit
                     SELECT 1
                     FROM dbo.SysUser actor
                     JOIN dbo.SysUser_Roles ur ON ur.UserId=actor.Uid AND ISNULL(ur.IsDeleted,0)=0
-                    JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0
+                    JOIN dbo.SysRoles r ON r.Uid=ur.RoleId AND ISNULL(r.IsDeleted,0)=0 AND r.IsActive=1
                     WHERE actor.Uid=@ActorUserId AND actor.IsActive=1 AND ISNULL(actor.IsDeleted,0)=0
-                      AND r.RoleName=N'Admin');
+                      AND r.RoleCode=N'SYSTEM_ADMIN');
                 SELECT CASE WHEN @@ROWCOUNT=1 THEN 0 ELSE 1 END;
                 """, new
                 {
@@ -131,9 +131,9 @@ public sealed class AuthRepository(RepositoryBaseContext context) : IAuthReposit
             IF NOT EXISTS(
                 SELECT 1 FROM dbo.SysUser actor
                 JOIN dbo.SysUser_Roles aur ON aur.UserId=actor.Uid AND ISNULL(aur.IsDeleted,0)=0
-                JOIN dbo.SysRoles ar ON ar.Uid=aur.RoleId AND ISNULL(ar.IsDeleted,0)=0
+                JOIN dbo.SysRoles ar ON ar.Uid=aur.RoleId AND ISNULL(ar.IsDeleted,0)=0 AND ar.IsActive=1
                 WHERE actor.Uid=@ActorUserId AND actor.IsActive=1 AND ISNULL(actor.IsDeleted,0)=0
-                  AND ar.RoleName=N'Admin')
+                  AND ar.RoleCode=N'SYSTEM_ADMIN')
             BEGIN SELECT 1; RETURN; END;
 
             IF NOT EXISTS(SELECT 1 FROM dbo.SysUser
@@ -141,8 +141,8 @@ public sealed class AuthRepository(RepositoryBaseContext context) : IAuthReposit
             BEGIN SELECT 2; RETURN; END;
 
             IF EXISTS(SELECT 1 FROM dbo.SysUser_Roles tur
-                      JOIN dbo.SysRoles tr ON tr.Uid=tur.RoleId AND ISNULL(tr.IsDeleted,0)=0
-                      WHERE tur.UserId=@Uid AND ISNULL(tur.IsDeleted,0)=0 AND tr.RoleName=N'Admin')
+                      JOIN dbo.SysRoles tr ON tr.Uid=tur.RoleId AND ISNULL(tr.IsDeleted,0)=0 AND tr.IsActive=1
+                      WHERE tur.UserId=@Uid AND ISNULL(tur.IsDeleted,0)=0 AND tr.RoleCode=N'SYSTEM_ADMIN')
             BEGIN SELECT 3; RETURN; END;
 
             UPDATE target
@@ -158,13 +158,13 @@ public sealed class AuthRepository(RepositoryBaseContext context) : IAuthReposit
               AND EXISTS(
                   SELECT 1 FROM dbo.SysUser actor
                   JOIN dbo.SysUser_Roles aur ON aur.UserId=actor.Uid AND ISNULL(aur.IsDeleted,0)=0
-                  JOIN dbo.SysRoles ar ON ar.Uid=aur.RoleId AND ISNULL(ar.IsDeleted,0)=0
+                  JOIN dbo.SysRoles ar ON ar.Uid=aur.RoleId AND ISNULL(ar.IsDeleted,0)=0 AND ar.IsActive=1
                   WHERE actor.Uid=@ActorUserId AND actor.IsActive=1 AND ISNULL(actor.IsDeleted,0)=0
-                    AND ar.RoleName=N'Admin')
+                    AND ar.RoleCode=N'SYSTEM_ADMIN')
               AND NOT EXISTS(
                   SELECT 1 FROM dbo.SysUser_Roles tur
-                  JOIN dbo.SysRoles tr ON tr.Uid=tur.RoleId AND ISNULL(tr.IsDeleted,0)=0
-                  WHERE tur.UserId=target.Uid AND ISNULL(tur.IsDeleted,0)=0 AND tr.RoleName=N'Admin');
+                  JOIN dbo.SysRoles tr ON tr.Uid=tur.RoleId AND ISNULL(tr.IsDeleted,0)=0 AND tr.IsActive=1
+                  WHERE tur.UserId=target.Uid AND ISNULL(tur.IsDeleted,0)=0 AND tr.RoleCode=N'SYSTEM_ADMIN');
             SELECT CASE WHEN @@ROWCOUNT=1 THEN 0 ELSE 4 END;
             """, new
             {

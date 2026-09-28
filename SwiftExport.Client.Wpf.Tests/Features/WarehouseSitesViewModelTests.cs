@@ -34,7 +34,7 @@ public sealed class WarehouseSitesViewModelTests
     [TestMethod]
     public void RouteAndPermission_ShouldKeepAccessOnlyUserReadOnly()
     {
-        using var viewModel = CreateViewModel(new FakeWarehouseApi(), permissions: [PermissionKeys.ModuleInventoryAccess]);
+        using var viewModel = CreateViewModel(new FakeWarehouseApi(), permissions: ["Inventory.Warehouse.View"]);
 
         Assert.AreEqual("inventory-warehouse-sites", WarehouseSitesViewModel.RouteKey);
         Assert.IsTrue(viewModel.IsReadOnly);

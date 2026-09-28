@@ -261,7 +261,7 @@ public sealed partial class InboundManagerPersistenceTests
         public InboundManagerViewModel Vm { get; }
         public Fixture()
         {
-            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ModuleInventoryAccess] });
+            User.SetCurrentUser(new() { Permissions = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundReverse, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.InventoryInboundPost, "Inventory.Inbound.View"] });
             Vm = new(new WarehouseStub(), new SourceStub(), Dialogs, persistence: Service, deleteDialogs: DeleteDialogs, postDialogs: PostDialogs, postingUser: User, reverseDialogs: ReverseDialogs);
         }
         public InboundHeaderModel Add()

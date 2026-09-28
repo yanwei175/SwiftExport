@@ -108,6 +108,17 @@
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
 
+    <Style x:Key="SwiftExportDataGridCheckBoxElementStyle" TargetType="{x:Type CheckBox}"  BasedOn="{StaticResource DefaultDataGridCheckBoxElementStyle}">
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="SwiftExportDataGridCheckBoxEditingElementStyle" TargetType="{x:Type CheckBox}"  BasedOn="{StaticResource DefaultDataGridCheckBoxEditingElementStyle}">
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    
+
     <Style x:Key="SwiftExportDataGridDatePicker" TargetType="{x:Type DatePicker}" BasedOn="{StaticResource {x:Type DatePicker}}">
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Margin" Value="0" />
@@ -416,7 +427,13 @@
         </Style.Triggers>
     </Style>
 
-    <Style x:Key="SwiftExportDataGrid" TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
+
+    <Style TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
+        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}" />
+        <Setter Property="Padding" Value="8"/>
+    </Style>
+
+        <Style x:Key="SwiftExportDataGrid" TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
         <Setter Property="RowBackground" Value="Transparent" />
         <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
@@ -439,4 +456,6 @@
         <Setter Property="RowStyle" Value="{StaticResource SwiftExportDataGridRow}" />
         <Setter Property="CellStyle" Value="{StaticResource SwiftExportDataGridCell}" />
     </Style>
+    
+    
 </ResourceDictionary>

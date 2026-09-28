@@ -20,7 +20,7 @@ public sealed class PackingListTraceService(IPackingListQueryRepository packingL
     public async Task<ServiceResult<PackingListTraceDto>> GetAsync(Guid uid, CancellationToken token)
     {
         if (!user.IsAuthenticated || user.UserId is not { } actor
-            || !await permissions.HasPermissionAsync(actor, PermissionKeys.ModuleShippingAccess, token))
+            || !await permissions.HasPermissionAsync(actor, "Shipping.PackingList.View", token))
             return ServiceResult<PackingListTraceDto>.Fail("FORBIDDEN", "没有出货模块访问权限。");
         if (uid == Guid.Empty) return ServiceResult<PackingListTraceDto>.Fail("INVALID_COMMAND", "箱单身份不能为空。");
         var detail = await packingLists.GetDetailAsync(uid, token);

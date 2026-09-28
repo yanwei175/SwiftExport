@@ -21,7 +21,7 @@ public sealed class ExecutionEligibilityService(
     ICurrentUser currentUser,
     ICorrelationContext correlationContext) : IExecutionEligibilityService
 {
-    /// <summary>重验管理员和主数据版本后，将启停状态与带原因的业务日志原子提交。</summary>
+    /// <summary>事务内重验有效执行资格权限和主数据版本后，将启停状态与业务日志原子提交。</summary>
     public async Task<ServiceResult<ExecutionEligibilityStatusResult>> SetStatusAsync(
         SetExecutionEligibilityStatusCommand command, CancellationToken cancellationToken = default)
     {
@@ -38,8 +38,8 @@ public sealed class ExecutionEligibilityService(
         context.Session.Transaction = transaction;
         try
         {
-            if (!await repository.IsActiveAdministratorAsync(userId, cancellationToken))
-                return FailAndRollback(ServiceErrorCodes.Forbidden, "账号或管理员授权已失效。");
+            if (!await repository.HasExecutionEligibilityPermissionAsync(userId, cancellationToken))
+                return FailAndRollback(ServiceErrorCodes.Forbidden, "账号或执行资格授权已失效。");
             var previous = await repository.GetForUpdateAsync(command.Kind, command.Uid, cancellationToken);
             if (previous == null)
                 return FailAndRollback(ServiceErrorCodes.NotFound, "主数据不存在或已删除。");

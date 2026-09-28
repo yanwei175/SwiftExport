@@ -14,9 +14,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
-        <Style x:Key="DictionaryNavigationButton"
-               TargetType="{x:Type Button}"
-               BasedOn="{StaticResource {x:Type Button}}">
+        <Style x:Key="DictionaryNavigationButton" TargetType="{x:Type Button}"  BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="Margin" Value="0,0,0,4" />
@@ -33,7 +31,7 @@
 
         <Border Grid.Column="0"
                 Padding="8"
-                Background="Transparent"
+                Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                 BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
                 BorderThickness="{StaticResource SwiftExportBorderThickness}"
                 CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
@@ -71,7 +69,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Button Style="{StaticResource DictionaryNavigationButton}"
-                                         HorizontalAlignment="Stretch"
+                                        BorderThickness="0"
+                                        HorizontalAlignment="Stretch"
                                         Command="{Binding DataContext.SelectDictionaryCommand, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}}"
                                         CommandParameter="{Binding}">
                                     <Grid>
@@ -93,15 +92,18 @@
                                                 </Style>
                                             </Border.Style>
                                         </Border>
+                                        
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="{Binding Name}"
                                                        TextTrimming="CharacterEllipsis"
                                                        Style="{StaticResource BodyStrongTextBlock}" />
+                                            
                                             <TextBlock Margin="0,2,0,0"
                                                        Text="{Binding Code}"
                                                        TextTrimming="CharacterEllipsis"
                                                        Style="{StaticResource CaptionTextBlock}"
                                                        Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+                                            
                                             <TextBlock Margin="0,2,0,0"
                                                        Text="未配置"
                                                        Foreground="{DynamicResource UserBusinessTextWarningBrush}">
@@ -117,6 +119,7 @@
                                                 </TextBlock.Style>
                                             </TextBlock>
                                         </StackPanel>
+                                        
                                         <ui:SymbolIcon Grid.Column="3"
                                                        Margin="8,0,0,0"
                                                        Symbol="LockClosed24"
@@ -317,6 +320,8 @@
                         <DataGridCheckBoxColumn Header="启用"
                                                 Width="72"
                                                 Binding="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"
+                                                ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
+                                                EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"
                                                 gridColumns:GridColumn.Key="is-enabled"
                                                 gridColumns:GridColumn.FieldPath="IsEnabled" />
                         <DataGridTextColumn Header="备注"
@@ -330,6 +335,8 @@
                                                 Width="76"
                                                 IsReadOnly="True"
                                                 Binding="{Binding IsSystem}"
+                                                ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
+                                                EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"
                                                 gridColumns:GridColumn.Key="is-system"
                                                 gridColumns:GridColumn.FieldPath="IsSystem" />
                     </DataGrid.Columns>

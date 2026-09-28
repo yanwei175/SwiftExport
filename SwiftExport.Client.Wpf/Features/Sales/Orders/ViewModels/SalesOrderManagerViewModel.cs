@@ -98,6 +98,8 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     }
     /// <summary>维护权限独立于销售导航权限。</summary>
     public bool CanMaintain => _currentUser.HasPermission(PermissionKeys.SalesOrderMaintain);
+    /// <summary>草稿删除使用独立授权，与保存维护能力分开。</summary>
+    public bool CanDeleteOrderDraft => _currentUser.HasPermission(PermissionKeys.SalesOrderDelete);
     /// <summary>正向确认权限独立于取消确认权限。</summary>
     public bool CanConfirmOrder => _currentUser.HasPermission(PermissionKeys.SalesOrderConfirm);
     /// <summary>取消确认权限独立于正向确认权限。</summary>
@@ -667,7 +669,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     };
     private bool CanCloseOrder() => CanCloseOrderLifecycle && CanWrite && CanBrowse
         && SelectedOrder?.DocumentStatus == SalesOrderDocumentStatusEnum.Open;
-    private bool CanDeleteDraft() => CanMaintain && CanWrite && CanBrowse && SelectedOrder is
+    private bool CanDeleteDraft() => CanDeleteOrderDraft && CanWrite && CanBrowse && SelectedOrder is
     {
         DocumentStatus: SalesOrderDocumentStatusEnum.Open,
         ConfirmationStatus: ConfirmationStatusEnum.待确认,

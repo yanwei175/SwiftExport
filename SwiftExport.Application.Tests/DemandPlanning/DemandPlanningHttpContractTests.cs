@@ -111,21 +111,23 @@ public sealed class DemandPlanningHttpContractTests
         }
     }
 
-    /// <summary>手工请求拆为单类型文件后仍保持原公开命名空间与字段集合。</summary>
+    /// <summary>手工请求保持公开命名空间、业务字段及用于幂等重试的 CommandId 契约。</summary>
     [TestMethod]
     public void ManualRequestsKeepPublicShape()
     {
         Assert.AreEqual("SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand",
             typeof(CreateManualGrossDemandRequest).Namespace);
         CollectionAssert.AreEquivalent(
-            new[] { "ProductId", "IsNonStandard", "Sku", "LinkSku", "CustomerSku", "Description",
+            new[] { "CommandId", "ProductId", "IsNonStandard", "Sku", "LinkSku", "CustomerSku", "Description",
                 "Color", "Specification", "ImagePath", "DemandQty", "RequiredDate", "Remark" },
             typeof(CreateManualGrossDemandRequest).GetProperties().Select(property => property.Name).ToArray());
         CollectionAssert.AreEquivalent(
-            new[] { "Uid", "Version", "ProductId", "IsNonStandard", "Sku", "LinkSku", "CustomerSku",
+            new[] { "CommandId", "Uid", "Version", "ProductId", "IsNonStandard", "Sku", "LinkSku", "CustomerSku",
                 "Description", "Color", "Specification", "ImagePath", "DemandQty", "RequiredDate", "Remark" },
             typeof(UpdateManualGrossDemandRequest).GetProperties().Select(property => property.Name).ToArray());
-        CollectionAssert.AreEquivalent(new[] { "Uid", "Version", "Reason" },
+        CollectionAssert.AreEquivalent(new[] { "CommandId", "Uid", "Version", "Reason" },
             typeof(CloseGrossDemandCommand).GetProperties().Select(property => property.Name).ToArray());
+        foreach (var requestType in new[] { typeof(CreateManualGrossDemandRequest), typeof(UpdateManualGrossDemandRequest), typeof(CloseGrossDemandCommand) })
+            Assert.AreEqual(typeof(Guid), requestType.GetProperty("CommandId")!.PropertyType, requestType.Name);
     }
 }

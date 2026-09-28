@@ -73,7 +73,7 @@ public sealed class ProductDefaultWarehouseCandidateTests
     {
         public bool ProductAccess { get; set; }
         public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default)
-            => Task.FromResult(permissionKey == PermissionKeys.ModuleProductsAccess && ProductAccess);
+            => Task.FromResult(permissionKey == "Products.Product.View" && ProductAccess);
         public Task<SwiftExport.Application.Models.Auth.Permissions.Evaluation.UserPermissionProjection?> GetProjectionAsync(
             Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

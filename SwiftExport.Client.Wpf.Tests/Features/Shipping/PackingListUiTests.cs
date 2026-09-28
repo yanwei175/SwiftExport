@@ -29,8 +29,8 @@ public sealed class PackingListUiTests
         var routes = new NavigationRouteRegistry();
         Assert.IsTrue(routes.TryGetRoute(PackingListManagerViewModel.RouteKey, out var manager));
         Assert.IsTrue(routes.TryGetRoute(PackingListDetailViewModel.RouteKey, out var detail));
-        Assert.AreEqual(PermissionKeys.ModuleShippingAccess, manager.RequiredPermission);
-        Assert.AreEqual(PermissionKeys.ModuleShippingAccess, detail.RequiredPermission);
+        Assert.AreEqual("Shipping.PackingList.View", manager.RequiredPermission);
+        Assert.AreEqual("Shipping.PackingList.View", detail.RequiredPermission);
         var services = new ServiceCollection(); services.AddSwiftExportClientViews();
         Assert.IsTrue(services.Any(x => x.ServiceType == typeof(PackingListManagerViewModel)));
         Assert.IsTrue(services.Any(x => x.ServiceType == typeof(PackingListDetailViewModel)));

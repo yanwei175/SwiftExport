@@ -168,7 +168,7 @@ public sealed class InboundReversalService(
     /// <summary>在校验和回执读取前核对库存模块与反向细权限。</summary>
     private async Task<ServiceResult<T>?> AuthorizeReverseAsync<T>(CancellationToken token)
     {
-        var refusal = await support.AuthorizeAsync<T>(token);
+        var refusal = await support.AuthorizeAsync<T>(token, PermissionKeys.InventoryInboundReverse);
         if (refusal is not null) return refusal;
         if (!await permissions.HasPermissionAsync(user.UserId!.Value, PermissionKeys.InventoryInboundReverse, token))
             return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有手工入库反过账权限。");

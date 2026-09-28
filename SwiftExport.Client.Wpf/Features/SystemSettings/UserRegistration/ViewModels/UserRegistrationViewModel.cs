@@ -9,12 +9,13 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
 
-/// <summary>创建普通用户；成功后明确提示新用户默认没有模块权限。</summary>
-public sealed partial class UserRegistrationViewModel : ViewModelBaseEx
+/// <summary>创建普通用户；成功后提示需显式分配角色才能获得业务权限。</summary>
+public sealed partial class UserRegistrationViewModel : ViewModelBaseEx, IDisposable
 {
     private readonly IAuthApi _authApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
+    private bool _isDisposed;
 
     /// <summary>创建普通用户注册用例。</summary>
     public UserRegistrationViewModel(
@@ -54,7 +55,7 @@ public sealed partial class UserRegistrationViewModel : ViewModelBaseEx
 
     /// <summary>获取当前操作提示或错误消息。</summary>
     [ObservableProperty]
-    public partial string StatusMessage { get; private set; } = "新用户创建后默认没有模块权限。";
+    public partial string StatusMessage { get; private set; } = "新用户创建后默认没有角色与业务权限。";
 
     /// <summary>指示当前状态消息是否为错误。</summary>
     [ObservableProperty]
@@ -82,6 +83,8 @@ public sealed partial class UserRegistrationViewModel : ViewModelBaseEx
                     ConfirmPassword = passwordInput.ConfirmPassword
                 }),
                 "创建用户失败");
+            // 宿主已因撤权或会话切换关闭时，迟到的响应不能再写回状态或提示成功。
+            if (_isDisposed) return;
             if (!result.Success)
             {
                 SetStatus(result.Message, isError: true);
@@ -89,12 +92,12 @@ public sealed partial class UserRegistrationViewModel : ViewModelBaseEx
             }
 
             succeeded = true;
-            const string successMessage = "用户已创建，默认没有模块权限，请继续在“模块权限”中分配。";
+            const string successMessage = "用户已创建，默认没有角色与业务权限，请继续在“用户、角色与权限”中分配角色。";
             SetStatus(successMessage, isError: false);
             _messageService.ShowSuccess("用户已创建", successMessage);
         }, "正在创建用户...");
 
-        if (succeeded)
+        if (succeeded && !_isDisposed)
         {
             RequestClose?.Invoke(this, EventArgs.Empty);
         }
@@ -138,4 +141,7 @@ public sealed partial class UserRegistrationViewModel : ViewModelBaseEx
         IsError = isError;
         ValidationSummary = isError ? message : null;
     }
+
+    /// <summary>结束一次性创建表单生命周期，阻止迟到的请求结果操作已关闭页面。</summary>
+    public void Dispose() => _isDisposed = true;
 }

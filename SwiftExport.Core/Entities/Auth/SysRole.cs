@@ -5,19 +5,25 @@ namespace SwiftExport.Core.Entities.Auth;
 
 /// <summary>
 /// 角色主表实体，对应数据库 [dbo].[SysRoles]。
-/// 支持父角色嵌套（ParentRoleId），可构建角色树。
+/// 使用稳定编码识别内置角色，不提供角色继承。
 /// </summary>
 [Table("SysRoles")]
 public partial class SysRole : BaseEntity
 {
-    /// <summary>角色名称（唯一，数据库有 UQ_Roles 唯一索引）</summary>
+    /// <summary>稳定角色编码；内置管理员使用 SYSTEM_ADMIN。</summary>
+    public string RoleCode { get; set; } = default!;
+
+    /// <summary>角色显示名称，不参与授权判断。</summary>
     public string RoleName { get; set; } = default!;
 
     /// <summary>角色描述</summary>
     public string? Description { get; set; }
 
-    /// <summary>父角色 ID（顶级角色为 null，支持角色层级继承）</summary>
-    public Guid? ParentRoleId { get; set; }
+    /// <summary>角色是否启用；停用角色不贡献权限。</summary>
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>内置角色标志，普通管理命令不能删除或停用。</summary>
+    public bool IsSystem { get; set; }
 
 }
 

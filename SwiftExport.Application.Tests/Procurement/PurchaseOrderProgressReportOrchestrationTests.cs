@@ -12,6 +12,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.Auditing;
@@ -42,6 +43,7 @@ public sealed class PurchaseOrderProgressReportOrchestrationTests
         Assert.AreEqual(1, f.Reports);
         Assert.AreEqual(1, f.Logs);
         Assert.AreEqual(1, f.Receipts.Rows.Count);
+        CollectionAssert.AreEqual(new[] { PermissionKeys.ProcurementProgressReport }, f.CheckedKeys.Take(1).ToArray());
 
         f.Head.Version = 2; // 重放先核对公共回执，不重新核对当前版本。
         var replay = await f.Service.ReportAsync(f.Head.Uid, command);
@@ -117,6 +119,7 @@ public sealed class PurchaseOrderProgressReportOrchestrationTests
         };
         public readonly PurchaseOrderLine Line = new() { Uid = Guid.NewGuid(), Version = 1, Quantity = 10m, LineNumber = 1 };
         public bool Allow = true;
+        public readonly List<string> CheckedKeys = [];
         public int Reports, Logs, LogResult = 1;
 
         public Fixture()
@@ -129,8 +132,8 @@ public sealed class PurchaseOrderProgressReportOrchestrationTests
             User = user;
             var correlation = new CorrelationStub();
             Receipts = new ReceiptStub(Session);
-            var permissions = Proxy<IPermissionEvaluationService>.New((method, _) => method.Name == "HasPermissionAsync"
-                ? Task.FromResult(Allow) : throw new NotSupportedException(method.Name));
+            var permissions = Proxy<IPermissionEvaluationService>.New((method, args) => method.Name == "HasPermissionAsync"
+                ? Task.FromResult(CheckPermission((string)args[1]!)) : throw new NotSupportedException(method.Name));
             var orders = Proxy<IProcurementOrderDocumentRepository>.New((method, _) => method.Name switch
             {
                 "GetHeadAsync" => Task.FromResult<PurchaseOrderHead?>(Head),
@@ -163,6 +166,11 @@ public sealed class PurchaseOrderProgressReportOrchestrationTests
             ExpectedPurchaseOrderVersion = 1, ExpectedLineVersion = 1, ReadyQty = 3m, Note = "预计发货"
         };
         private int RecordLog() { Logs++; return LogResult; }
+        private bool CheckPermission(string key)
+        {
+            CheckedKeys.Add(key);
+            return Allow && key == PermissionKeys.ProcurementProgressReport;
+        }
     }
 
     /// <summary>只转发所需的仓储方法，以捕获额外业务读取。</summary>

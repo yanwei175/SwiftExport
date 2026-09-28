@@ -88,5 +88,6 @@ public sealed class LoginWindowLifecycleTests
             }));
 
         public Task<bool> TryRestoreSessionAsync() => Task.FromResult(false);
+        public Task<ServiceResult<MeDto>> RefreshCurrentUserAsync() => throw new NotSupportedException();
     }
 }

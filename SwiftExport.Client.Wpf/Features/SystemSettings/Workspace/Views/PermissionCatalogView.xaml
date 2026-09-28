@@ -1,0 +1,47 @@
+<Page x:Class="SwiftExportClient.Features.SystemSettings.Workspace.Views.PermissionCatalogView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        AutomationProperties.Name="权限定义页面">
+    
+    <Grid Margin="24" RowDefinitions="Auto,12,Auto,8,*,8,Auto">
+        <DockPanel Grid.Row="0">
+            <TextBlock Text="权限定义" Style="{StaticResource TitleTextBlock}" DockPanel.Dock="Left" />
+            
+            <Button Content="刷新目录" DockPanel.Dock="Right" Click="OnRefresh" Margin="8,0,0,0"
+                    AutomationProperties.Name="刷新权限目录" />
+        </DockPanel>
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            
+            <ui:TextBox x:Name="SearchBox" Width="280" Margin="0,0,8,0"
+                        TextChanged="OnFilterChanged" 
+                        AutomationProperties.Name="筛选权限" />
+            
+            <ComboBox x:Name="GroupFilter" Width="200" 
+                      SelectionChanged="OnFilterChanged"
+                      VerticalContentAlignment="Center"
+                      AutomationProperties.Name="权限分组筛选" />
+        </StackPanel>
+        
+        <DataGrid Grid.Row="4" 
+                  ItemsSource="{Binding Permissions}"
+                  IsReadOnly="True"
+                  AutoGenerateColumns="False" CanUserAddRows="False"
+                  AutomationProperties.Name="服务端权限定义目录">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="分组" Binding="{Binding GroupKey}" Width="160" />
+                <DataGridTextColumn Header="名称" Binding="{Binding DisplayName}" Width="220" />
+                <DataGridTextColumn Header="权限键" Binding="{Binding PermissionKey}" Width="*" />
+
+                <DataGridCheckBoxColumn Header="活动" Binding="{Binding IsActive}" Width="72" 
+                                        ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"/>
+                <DataGridCheckBoxColumn Header="可分配" Binding="{Binding IsAssignable}" Width="88" 
+                                        ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <TextBlock x:Name="CountText" Grid.Row="6" Text="0 条" AutomationProperties.LiveSetting="Polite" />
+    </Grid>
+</Page>

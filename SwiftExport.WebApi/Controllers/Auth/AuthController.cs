@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Auth.Session;
 using SwiftExport.Application.Interfaces.Auth.Users;
-using SwiftExport.Application.Interfaces.Auth.Permissions.Assignment;
 using SwiftExport.Contracts.DTOs.Auth;
 
 using SwiftExport.Contracts.Wrappers;
@@ -11,13 +10,12 @@ using SwiftExport.WebApi.Authentication;
 
 namespace SwiftExport.WebApi.Controllers.Auth;
 
-/// <summary>公开登录、当前身份及受保护的账号、密码和模块权限管理 HTTP 边界。</summary>
+/// <summary>公开登录、当前身份及受保护的账号和密码管理 HTTP 边界。</summary>
 [ApiController]
 [Route("api/auth")]
 public sealed class AuthController(
     IAuthSessionService authService,
     IUserAccountService accountService,
-    IUserPermissionAssignmentService assignmentService,
     IAuthTokenFactory tokenFactory) : ControllerBase
 {
     /// <summary>验证用户名和密码并签发带凭据版本的 JWT。</summary>
@@ -74,28 +72,6 @@ public sealed class AuthController(
     public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
     {
         var result = await accountService.GetUsersAsync(cancellationToken);
-        return result.Success ? Ok(result) : ToActionResult(result);
-    }
-
-    /// <summary>仅由当前有效 Admin 读取目标用户的直接模块集合。</summary>
-    [HttpGet("admin/users/{userId:guid}/modules")]
-    [Authorize]
-    public async Task<IActionResult> GetUserModules(Guid userId, CancellationToken cancellationToken)
-    {
-        var result = await assignmentService.GetUserModulesAsync(userId, cancellationToken);
-        return result.Success ? Ok(result) : ToActionResult(result);
-    }
-
-    /// <summary>仅由当前有效 Admin 原子替换普通用户的完整模块集合。</summary>
-    [HttpPut("admin/users/{userId:guid}/modules")]
-    [Authorize]
-    [PreventDuplicateRequest]
-    public async Task<IActionResult> SaveUserModules(
-        Guid userId,
-        [FromBody] SaveUserModulePermissionsRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        var result = await assignmentService.SaveUserModulesAsync(userId, request, cancellationToken);
         return result.Success ? Ok(result) : ToActionResult(result);
     }
 

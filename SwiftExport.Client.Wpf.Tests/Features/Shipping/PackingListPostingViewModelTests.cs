@@ -136,7 +136,7 @@ public sealed class PackingListPostingViewModelTests
         }
         public PackingListDetailViewModel Create()
         {
-            User.SetCurrentUser(new() { Permissions = [PermissionKeys.ModuleShippingAccess, PermissionKeys.PackingListPost, PermissionKeys.PackingListReverse] });
+            User.SetCurrentUser(new() { Permissions = ["Shipping.PackingList.View", PermissionKeys.PackingListPost, PermissionKeys.PackingListReverse] });
             var ui = new PackingListUiStub();
             return new(Api, new ApiCallRunner(NullLogger<ApiCallRunner>.Instance), new ReferenceDataCacheServiceStub(), new PackingListSourceStub(),
                 new PackingListNavigationStub(), ui, ui, Dialogs, User);

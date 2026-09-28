@@ -85,6 +85,7 @@ public sealed class ProcurementOrderReadSupport(
     private static string ResolvePermissionKey(string operation) => operation switch
     {
         "Read" => PermissionKeys.ProcurementOrderRead,
+        "ProgressView" => PermissionKeys.ProcurementProgressView,
         "Edit" => PermissionKeys.ProcurementOrderEdit,
         "Confirm" => PermissionKeys.ProcurementOrderConfirm,
         "Void" => PermissionKeys.ProcurementOrderVoid,

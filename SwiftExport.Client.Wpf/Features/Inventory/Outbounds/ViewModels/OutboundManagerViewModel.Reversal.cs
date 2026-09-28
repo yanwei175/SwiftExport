@@ -13,7 +13,7 @@ public sealed partial class OutboundManagerViewModel
     private readonly IOutboundReverseDialogService? _reverseDialogs;
     private bool CanReverse() => CanEdit() && _persistence is not null && _reverseDialogs is not null
         && _postingUser?.HasPermission(PermissionKeys.InventoryOutboundReverse) == true
-        && _postingUser.HasPermission(PermissionKeys.ModuleInventoryAccess)
+        && _postingUser.HasPermission("Inventory.Outbound.View")
         && SelectedItem is { IsNew: false, IsDetailLoaded: true, IsPersistencePending: false, HasVersionConflict: false,
             PostingStatus: OutboundPostingStatusEnum.Posted, DocumentType: OutboundDocumentTypeEnum.StockIssue,
             LifecycleStatus: InventoryDocumentLifecycleStatusEnum.Active, TriggerPackingListId: null, PersistedIsDeleted: false };

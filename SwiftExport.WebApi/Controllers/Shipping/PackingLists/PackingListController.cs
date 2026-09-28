@@ -69,29 +69,27 @@ public sealed class PackingListController(
     [HttpPost("drafts")]
     public Task<ActionResult<ServiceResult<PackingListDraftCommandResult>>> CreateAsync(
         [FromBody] CreatePackingListDraftCommand command, CancellationToken token) =>
-        AuthorizedAsync(() => drafts.CreateAsync(command, token), token);
+        AuthorizedAsync(() => drafts.CreateAsync(command, token), token, "Shipping.PackingList.Create");
 
     /// <summary>按头行版本和显式删除集合原子更新草稿。</summary>
     [HttpPut("drafts/{uid:guid}")]
     public Task<ActionResult<ServiceResult<PackingListDraftCommandResult>>> UpdateAsync(
         Guid uid, [FromBody] UpdatePackingListDraftCommand command, CancellationToken token) =>
-        AuthorizedAsync(() => drafts.UpdateAsync(uid, command, token), token);
+        AuthorizedAsync(() => drafts.UpdateAsync(uid, command, token), token, "Shipping.PackingList.Edit");
 
     /// <summary>按版本软删除活动未过账草稿。</summary>
     [HttpPost("drafts/{uid:guid}/delete")]
     public Task<ActionResult<ServiceResult<PackingListDraftCommandResult>>> DeleteAsync(
         Guid uid, [FromBody] DeletePackingListDraftCommand command, CancellationToken token) =>
-        AuthorizedAsync(() => drafts.DeleteAsync(uid, command, token), token);
+        AuthorizedAsync(() => drafts.DeleteAsync(uid, command, token), token, "Shipping.PackingList.Delete");
 
     /// <summary>在 HTTP 边界返回真实 403；Application 仍保留同一权限校验供非 HTTP 调用。</summary>
     private async Task<ActionResult<ServiceResult<T>>> AuthorizedAsync<T>(
         Func<Task<ServiceResult<T>>> action, CancellationToken token, string? operationPermission = null)
     {
         if (!currentUser.UserId.HasValue
-            || !await permissions.HasPermissionAsync(currentUser.UserId.Value, PermissionKeys.ModuleShippingAccess, token))
-            return Forbid();
-        if (operationPermission != null
-            && !await permissions.HasPermissionAsync(currentUser.UserId.Value, operationPermission, token))
+            || !await permissions.HasPermissionAsync(currentUser.UserId.Value,
+                operationPermission ?? "Shipping.PackingList.View", token))
             return Forbid();
         return await action();
     }

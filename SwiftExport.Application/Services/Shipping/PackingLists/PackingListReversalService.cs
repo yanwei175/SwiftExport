@@ -77,7 +77,6 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
                 request?.CommandId, "Shipping.PackingList.Reverse", async ct =>
                 {
                     if (!user.IsAuthenticated || user.UserId is not { } actor
-                        || !await permissions.HasPermissionAsync(actor, PermissionKeys.ModuleShippingAccess, ct)
                         || !await permissions.HasPermissionAsync(actor, PermissionKeys.PackingListReverse, ct))
                         return ServiceResult<PackingListPostingCommandResult>.Fail(ServiceErrorCodes.Forbidden, "没有当前装箱单操作权限。");
                     return null;

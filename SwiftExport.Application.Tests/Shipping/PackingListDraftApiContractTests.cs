@@ -25,8 +25,11 @@ public sealed class PackingListDraftApiContractTests
         var controller = Read("SwiftExport.WebApi", "Controllers", "Shipping", "PackingLists", "PackingListController.cs");
         StringAssert.Contains(controller, "api/shipping/packing-lists");
         StringAssert.Contains(controller, "[Authorize]");
-        StringAssert.Contains(controller, "PermissionKeys.ModuleShippingAccess");
-        // 第二阶段新增独立过账命令；继续保留原草稿路由和模块授权断言。
+        StringAssert.Contains(controller, "Shipping.PackingList.View");
+        StringAssert.Contains(controller, "Shipping.PackingList.Create");
+        StringAssert.Contains(controller, "Shipping.PackingList.Edit");
+        StringAssert.Contains(controller, "Shipping.PackingList.Delete");
+        // 草稿与过账、反向分别授权，读取权限不能隐式授予写入。
         StringAssert.Contains(controller, "PermissionKeys.PackingListPost");
         StringAssert.Contains(controller, "PermissionKeys.PackingListReverse");
     }

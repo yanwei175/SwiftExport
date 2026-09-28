@@ -27,7 +27,7 @@ public sealed class NavigationServiceTests
         Assert.AreEqual("产品分类管理", route.Title);
         Assert.IsTrue(route.CanClose);
         Assert.AreEqual(NavigationModuleKeys.Products, route.ModuleKey);
-        Assert.AreEqual(PermissionKeys.ModuleProductsAccess, route.RequiredPermission);
+        Assert.AreEqual("Products.Category.View", route.RequiredPermission);
     }
 
     [TestMethod]

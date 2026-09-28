@@ -399,19 +399,19 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
 
     /// <summary>在验证及回执读取前分别检查登录与销售维护权限。</summary>
     private Task<ServiceResult<SaveSalesOrderResponse>?> AuthorizeSaveAsync(CancellationToken token)
-        => AuthorizeAsync<SaveSalesOrderResponse>(token);
+        => AuthorizeAsync<SaveSalesOrderResponse>(PermissionKeys.SalesOrderMaintain, token);
 
-    /// <summary>删除草稿与保存共用维护权限，不由销售模块访问自动授权。</summary>
+    /// <summary>删除草稿使用独立删除权限，不由保存或销售导航自动授权。</summary>
     private Task<ServiceResult<bool>?> AuthorizeDeleteAsync(CancellationToken token)
-        => AuthorizeAsync<bool>(token);
+        => AuthorizeAsync<bool>(PermissionKeys.SalesOrderDelete, token);
 
-    /// <summary>用当前权限服务和 Admin 规则检查本次维护操作。</summary>
-    private async Task<ServiceResult<T>?> AuthorizeAsync<T>(CancellationToken token)
+    /// <summary>用当前权限服务检查本次销售操作的具体稳定键。</summary>
+    private async Task<ServiceResult<T>?> AuthorizeAsync<T>(string permissionKey, CancellationToken token)
     {
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } actor)
             return ServiceResult<T>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
-        return await permissions.HasPermissionAsync(actor, PermissionKeys.SalesOrderMaintain, token)
-            ? null : ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有销售订单维护权限。");
+        return await permissions.HasPermissionAsync(actor, permissionKey, token)
+            ? null : ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有此销售订单操作权限。");
     }
 
     /// <summary>仅转换已知请求和业务错误；公共执行器的结果不明码原样返回。</summary>

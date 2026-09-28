@@ -39,7 +39,7 @@ namespace SwiftExport.Application.Tests.Inventory;
 [TestClass]
 public sealed class WarehouseSiteManagementServiceTests
 {
-    /// <summary>验证选择器查询仅依赖库存模块读权限，未认证和无读权限均在访问仓储前拒绝。</summary>
+    /// <summary>验证选择器查询仅依赖仓库查看权限，未认证和无读权限均在访问仓储前拒绝。</summary>
     [TestMethod]
     public async Task Picker_ShouldRequireInventoryReadPermissionWithoutStartingTransaction()
     {
@@ -568,13 +568,11 @@ public sealed class WarehouseSiteManagementServiceTests
             => Task.FromResult(permissionKey switch
             {
                 PermissionKeys.InventoryWarehouseManage => manageAllowed,
-                PermissionKeys.ModuleInventoryAccess => readAllowed,
+                "Inventory.Warehouse.View" => readAllowed,
                 _ => false
             });
         public Task<UserPermissionProjection?> GetProjectionAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<List<UserSummaryDto>>> GetUsersAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<UserModulePermissionsDto>> GetUserModulesAsync(Guid userId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<UserModulePermissionsDto>> SaveUserModulesAsync(Guid userId, SaveUserModulePermissionsRequestDto request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class CurrentUserStub(bool authenticated) : ICurrentUser

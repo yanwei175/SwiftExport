@@ -95,7 +95,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     /// <summary>表示页面仍持有原写入意图，直到取得确定结果并读到当前详情。</summary>
     public bool HasPendingIntent => _pendingWrite is not null || _pendingConfirmation is not null || _refreshOnlyUid.HasValue;
     public bool IsPersisted => _hasServerIdentity;
-    public bool HasAccess => _currentUser.HasPermission(PermissionKeys.ModuleQualityControlAccess);
+    public bool HasAccess => _currentUser.HasPermission("QualityControl.AfterSales.View");
     public string DocumentStatusText => DocumentStatus switch { DocumentStatusEnum.Closed => "已结案", DocumentStatusEnum.Voided => "已作废", _ => "开放" };
     public string ConfirmationStatusText => ConfirmationStatus == ConfirmationStatusEnum.已确认 ? "实物需求已确认" : "实物需求待确认";
     public bool CanMaintain => _currentUser.HasPermission(PermissionKeys.AfterSalesMaintain);

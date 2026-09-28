@@ -1,27 +1,29 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace SwiftExport.Contracts.DTOs.Auth
 {
-    /// <summary>
-    /// 当前登录用户信息（/api/auth/me 返回结构）。
-    /// 分别包含用户基本信息、角色列表和用于客户端体验提示的稳定权限键。
-    /// </summary>
+    /// <summary>向客户端提供当前账号、有效角色与权限快照；服务端请求仍实时校验权限。</summary>
     public class MeDto
     {
+        /// <summary>当前用户标识。</summary>
         public string UserId { get; set; }
+
+        /// <summary>登录名。</summary>
         public string UserName { get; set; }
+
+        /// <summary>显示名称。</summary>
         public string NickName { get; set; }
 
-        /// <summary>用户拥有的所有角色名称列表（如 ["Admin", "Sales"]）</summary>
+        /// <summary>有效角色的当前显示名称，仅供界面展示。</summary>
         public List<string> Roles { get; set; } = new List<string>();
 
-        /// <summary>用户拥有的稳定权限键；服务端仍须在每个命令执行时实时校验。</summary>
+        /// <summary>有效角色的稳定编码。</summary>
+        public List<string> RoleCodes { get; set; } = new List<string>();
+
+        /// <summary>有效的已知权限键。</summary>
         public List<string> Permissions { get; set; } = new List<string>();
 
-        /// <summary>是否为管理员（RoleName 包含 "Admin"，忽略大小写）</summary>
-        public bool IsAdmin => Roles != null && Roles.Any(r =>
-            string.Equals(r, "Admin", System.StringComparison.OrdinalIgnoreCase));
+        /// <summary>服务端计算的有效内置管理员身份。</summary>
+        public bool IsAdmin { get; set; }
     }
 }

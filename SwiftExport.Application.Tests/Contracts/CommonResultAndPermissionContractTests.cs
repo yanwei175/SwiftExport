@@ -1,10 +1,13 @@
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Interfaces.Auth.Permissions;
+using SwiftExport.Core.Models.Auth;
 
 namespace SwiftExport.Application.Tests.Contracts;
 
@@ -70,16 +73,33 @@ public sealed class CommonResultAndPermissionContractTests
                 .Select(field => field.Name).ToArray());
     }
 
-    /// <summary>角色与权限分别投影，管理员保留角色身份并获得全部稳定权限。</summary>
+    /// <summary>角色代码与权限分别投影，系统管理员获得完整目录且显示名不决定授权。</summary>
     [TestMethod]
-    public void Role_and_permission_projection_are_distinct()
+    public async Task Role_and_permission_projection_are_distinct()
     {
-        var assigned = new[] { "Buyer", PermissionKeys.ProcurementOrderRead, "Admin" };
+        var userId = Guid.NewGuid();
+        var evaluator = new PermissionEvaluationService(new PermissionFactsStub(new UserPermissionFacts
+        {
+            UserId = userId, IsActive = true, IsAdmin = true,
+            RoleCodes = [SystemRoleCodes.SystemAdmin], RoleNames = ["重命名的管理员"],
+            PermissionKeys = [PermissionKeys.ProcurementOrderRead]
+        }));
 
-        CollectionAssert.AreEquivalent(new[] { "Buyer", "Admin" },
-            PermissionKeys.ExtractRoles(assigned));
-        CollectionAssert.AreEqual(PermissionKeys.All.ToArray(),
-            PermissionKeys.ExtractPermissions(assigned));
+        var projection = await evaluator.GetProjectionAsync(userId);
+        Assert.IsNotNull(projection);
+        CollectionAssert.AreEquivalent(new[] { SystemRoleCodes.SystemAdmin }, projection.RoleCodes.ToArray());
+        CollectionAssert.AreEquivalent(PermissionCatalog.All.Select(item => item.PermissionKey).ToArray(), projection.Permissions.ToArray());
+        Assert.IsFalse(await evaluator.HasPermissionAsync(userId, "Unknown.Permission"));
+    }
+
+    /// <summary>仅提供当前用户的角色与权限事实，验证评估服务的真实投影边界。</summary>
+    private sealed class PermissionFactsStub(UserPermissionFacts facts) : IUserPermissionRepository
+    {
+        public Task<UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<UserPermissionFacts?>(userId == facts.UserId ? facts : null);
+
+        public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
     }
 
     /// <summary>当前用户 JSON 同时公开角色和权限集合，且两者均有稳定空集合默认值。</summary>

@@ -19,8 +19,8 @@ public sealed class SalesFulfillmentContractsTests
 
         Assert.AreEqual("Manager", manager.Group);
         Assert.AreEqual("Detail", detail.Group);
-        Assert.AreEqual(PermissionKeys.ModuleSalesAccess, manager.RequiredPermission);
-        Assert.AreEqual(PermissionKeys.ModuleSalesAccess, detail.RequiredPermission);
+        Assert.AreEqual("Sales.Order.View", manager.RequiredPermission);
+        Assert.AreEqual("Sales.Order.View", detail.RequiredPermission);
         Assert.IsFalse(manager.ViewModelType.Name.Contains("Workspace", StringComparison.Ordinal));
         Assert.IsFalse(detail.ViewModelType.Name.Contains("Workspace", StringComparison.Ordinal));
     }

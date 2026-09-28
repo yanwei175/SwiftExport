@@ -29,7 +29,7 @@ public sealed class OutboundDraftService(IOutboundQueryRepository queries, IOutb
     /// <inheritdoc/>
     public Task<ServiceResult<OutboundDraftCommandResult>> CreateAsync(CreateOutboundDraftCommand command, CancellationToken token = default) =>
         pipeline.ExecuteAsync<CreateOutboundDraftCommand, OutboundDraftCommandResult>(command, command?.CommandId,
-            "Inventory.Outbound.Draft.Create", support.AuthorizeAsync<OutboundDraftCommandResult>, ct => support.RunAsync(async () =>
+            "Inventory.Outbound.Draft.Create", ct => support.AuthorizeAsync<OutboundDraftCommandResult>(ct, "Inventory.Outbound.Create"), ct => support.RunAsync(async () =>
         {
             return await ExecuteDraftAsync(command!.CommandId, "Create", null, command.Draft, async () =>
             {
@@ -57,7 +57,7 @@ public sealed class OutboundDraftService(IOutboundQueryRepository queries, IOutb
     /// <inheritdoc/>
     public Task<ServiceResult<OutboundDraftCommandResult>> UpdateAsync(Guid uid, UpdateOutboundDraftCommand command, CancellationToken token = default) =>
         pipeline.ExecuteAsync<UpdateOutboundDraftCommand, OutboundDraftCommandResult>(command, command?.CommandId,
-            "Inventory.Outbound.Draft.Update", support.AuthorizeAsync<OutboundDraftCommandResult>, ct => support.RunAsync(async () =>
+            "Inventory.Outbound.Draft.Update", ct => support.AuthorizeAsync<OutboundDraftCommandResult>(ct, "Inventory.Outbound.Edit"), ct => support.RunAsync(async () =>
         {
             if (uid == Guid.Empty) throw new OutboundDraftException("出库单标识不能为空。", ServiceErrorCodes.Validation, "Uid");
             return await ExecuteDraftAsync(command!.CommandId, "Update", uid,
@@ -74,7 +74,7 @@ public sealed class OutboundDraftService(IOutboundQueryRepository queries, IOutb
     /// <inheritdoc/>
     public Task<ServiceResult<OutboundDraftCommandResult>> DeleteAsync(Guid uid, DeleteOutboundDraftCommand command, CancellationToken token = default) =>
         pipeline.ExecuteAsync<DeleteOutboundDraftCommand, OutboundDraftCommandResult>(command, command?.CommandId,
-            "Inventory.Outbound.Draft.Delete", support.AuthorizeAsync<OutboundDraftCommandResult>, ct => support.RunAsync(async () =>
+            "Inventory.Outbound.Draft.Delete", ct => support.AuthorizeAsync<OutboundDraftCommandResult>(ct, "Inventory.Outbound.Delete"), ct => support.RunAsync(async () =>
         {
             if (uid == Guid.Empty) throw new OutboundDraftException("出库单标识不能为空。", ServiceErrorCodes.Validation, "Uid");
             return await ExecuteDraftAsync(command!.CommandId, "Delete", uid,

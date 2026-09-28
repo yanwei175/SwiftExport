@@ -18,23 +18,28 @@ namespace SwiftExport.Core.Entities.Auditing
 
 namespace SwiftExport.Core.Entities.Auth
 {
-    [DbIndex("UX_SysRoles_RoleName", nameof(SysRole.RoleName), IsUnique = true, Filter = "[IsDeleted] = 0")]
-    [LogicalReference(nameof(SysRole.ParentRoleId), typeof(SysRole))]
+    [DbIndex("UX_SysRoles_RoleCode", nameof(SysRole.RoleCode), IsUnique = true)]
     public partial class SysRole { }
+
+    [DbIndex("UX_SysPermissionDefinitions_Key", nameof(SysPermission.PermissionKey), IsUnique = true)]
+    public partial class SysPermission { }
+
+    [DbIndex("UX_SysRolePermissions_Role_Permission", nameof(SysRolePermission.RoleId), nameof(SysRolePermission.PermissionId), IsUnique = true, Filter = "[IsDeleted] = 0")]
+    [DbIndex("IX_SysRolePermissions_Permission", nameof(SysRolePermission.PermissionId), Filter = "[IsDeleted] = 0")]
+    [LogicalReference(nameof(SysRolePermission.RoleId), typeof(SysRole), IsRequired = true)]
+    [LogicalReference(nameof(SysRolePermission.PermissionId), typeof(SysPermission), IsRequired = true)]
+    public partial class SysRolePermission { }
 
     [DbCheck("CK_SysUser_CredentialVersion", "[CredentialVersion] >= 1")]
     [DbIndex("UX_SysUser_UserName", nameof(SysUser.UserName), IsUnique = true, Filter = "[IsDeleted] = 0")]
     public partial class SysUser { }
 
     [DbIndex("UX_SysUserRoles_User_Role", nameof(SysUserRole.UserId), nameof(SysUserRole.RoleId), IsUnique = true, Filter = "[IsDeleted] = 0")]
+    [DbIndex("IX_SysUserRoles_Role", nameof(SysUserRole.RoleId), Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(SysUserRole.UserId), typeof(SysUser), IsRequired = true)]
     [LogicalReference(nameof(SysUserRole.RoleId), typeof(SysRole), IsRequired = true)]
     public partial class SysUserRole { }
 
-    [DbIndex("UX_SysUserModulePermissions_User_Key", nameof(SysUserModulePermission.UserId), nameof(SysUserModulePermission.PermissionKey), IsUnique = true, Filter = "[IsDeleted] = 0")]
-    [DbIndex("IX_SysUserModulePermissions_Key", nameof(SysUserModulePermission.PermissionKey), Filter = "[IsDeleted] = 0")]
-    [LogicalReference(nameof(SysUserModulePermission.UserId), typeof(SysUser), IsRequired = true)]
-    public sealed partial class SysUserModulePermission { }
 }
 
 namespace SwiftExport.Core.Entities.MasterData
@@ -365,10 +370,4 @@ namespace SwiftExport.Core.Entities.Systems.Dictionaries.Types
     [DbIndex("UX_SysDictType_DictCode", nameof(SysDictType.DictCode), IsUnique = true, Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(SysDictType.ParentId), typeof(SysDictType))]
     public partial class SysDictType { }
-}
-
-namespace SwiftExport.Core.Entities.Systems.ViewRoutes
-{
-    [DbIndex("UX_SysViewRoute_TargetViewKey", nameof(SysViewRoute.TargetViewKey), IsUnique = true, Filter = "[IsDeleted] = 0")]
-    public partial class SysViewRoute { }
 }

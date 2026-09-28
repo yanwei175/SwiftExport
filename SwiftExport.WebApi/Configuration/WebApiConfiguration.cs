@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Contracts.DTOs.Errors;
@@ -71,6 +72,12 @@ public static class WebApiConfiguration
                 };
             });
 
+        // 未显式标记匿名的 Controller 端点默认要求有效 JWT；业务权限仍逐端点核验。
+        builder.Services.AddAuthorization(options =>
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build());
+
         // HttpContextAccessor 是 ICurrentUser 的依赖，必须注册
         builder.Services.AddHttpContextAccessor();
         // 注册 ICurrentUser（Scoped，每次请求从 HttpContext 读取）
@@ -78,6 +85,7 @@ public static class WebApiConfiguration
         builder.Services.AddScoped<ICorrelationContext, HttpCorrelationContext>();
         builder.Services.AddSingleton<IAuthTokenFactory, AuthTokenFactory>();
         builder.Services.AddScoped<CredentialVersionTokenValidator>();
+        builder.Services.AddScoped<EndpointPermissionFilter>();
 
         // ══════════════════════════════════════════════════════
         // 4. 注册 Web API 核心服务
@@ -87,7 +95,11 @@ public static class WebApiConfiguration
         builder.Services.AddMemoryCache();
         // 中文注释：统一使用 Newtonsoft.Json，与前端 Refit（.NET Framework 4.8）行为完全一致。
         // 枚举字符串/整数双向支持、驼峰命名、null 忽略等均由 Newtonsoft 处理，无需额外 Converter。
-        builder.Services.AddControllers(options => options.Filters.Add<ServiceResultHttpFilter>())
+        builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<ServiceResultHttpFilter>();
+                options.Filters.AddService<EndpointPermissionFilter>();
+            })
             .ConfigureApiBehaviorOptions(options =>
             {
                 options.SuppressMapClientErrors = true;

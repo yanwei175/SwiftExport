@@ -29,7 +29,6 @@ using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Passwords.Views;
 using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
-using SwiftExportClient.Features.SystemSettings.UserRegistration.Views;
 using SwiftExportClient.Shell;
 
 namespace SwiftExportClient.Bootstrapper;
@@ -124,9 +123,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ChangePasswordViewModel>();
         services.AddTransient<ChangePasswordWindow>();
         services.AddTransient<UserRegistrationViewModel>();
-        services.AddTransient<UserRegistrationWindow>();
         services.AddTransient<ResetPasswordViewModel>();
-        services.AddTransient<ResetPasswordWindow>();
 
         return services;
     }

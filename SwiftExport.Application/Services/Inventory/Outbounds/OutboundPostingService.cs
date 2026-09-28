@@ -101,7 +101,7 @@ public sealed class OutboundPostingService(IOutboundQueryRepository queries, IOu
     /// <summary>在请求验证和回执读取前检查库存模块与出库过账权限。</summary>
     private async Task<ServiceResult<T>?> AuthorizePostingAsync<T>(CancellationToken token)
     {
-        var refusal = await support.AuthorizeAsync<T>(token);
+        var refusal = await support.AuthorizeAsync<T>(token, PermissionKeys.InventoryOutboundPost);
         if (refusal is not null) return refusal;
         if (!await permissions.HasPermissionAsync(user.UserId!.Value, PermissionKeys.InventoryOutboundPost, token))
             return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有出库过账权限。");

@@ -15,7 +15,7 @@ public sealed class PurchaseOrderProgressQueryService(
     public Task<ServiceResult<PagedResponseBase<PurchaseOrderProgressListItemDto>>> SearchAsync(
         PurchaseOrderProgressSearchRequest request,
         CancellationToken cancellationToken = default)
-        => reads.ReadAsync("Read", async () =>
+        => reads.ReadAsync("ProgressView", async () =>
         {
             ValidateSearchRequest(request);
             return await queries.SearchAsync(request, cancellationToken);
@@ -25,7 +25,7 @@ public sealed class PurchaseOrderProgressQueryService(
     public Task<ServiceResult<PurchaseOrderProgressDetailDto>> GetDetailAsync(
         Guid purchaseOrderId,
         CancellationToken cancellationToken = default)
-        => reads.ReadAsync("Read", async () =>
+        => reads.ReadAsync("ProgressView", async () =>
         {
             if (purchaseOrderId == Guid.Empty)
                 throw ProcurementOperationException.Validation("采购单标识不能为空。", "PurchaseOrderId");

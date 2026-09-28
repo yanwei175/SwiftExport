@@ -12,9 +12,9 @@ public partial class DictionaryManagerView : UserControl
     }
 
     /// <summary>提交当前单元格和行编辑，使窗口关闭前的未保存检查读取到最新输入。</summary>
-    public void CommitPendingEdits()
+    public bool CommitPendingEdits()
     {
-        DictionaryGrid.CommitEdit(DataGridEditingUnit.Cell, exitEditingMode: true);
-        DictionaryGrid.CommitEdit(DataGridEditingUnit.Row, exitEditingMode: true);
+        return DictionaryGrid.CommitEdit(DataGridEditingUnit.Cell, exitEditingMode: true)
+            && DictionaryGrid.CommitEdit(DataGridEditingUnit.Row, exitEditingMode: true);
     }
 }

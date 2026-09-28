@@ -30,6 +30,7 @@ public sealed class ProcurementOrderCommandSupport(
         {
             "Create" => PermissionKeys.ProcurementOrderCreate,
             "Edit" => PermissionKeys.ProcurementOrderEdit,
+            "ProgressReport" => PermissionKeys.ProcurementProgressReport,
             "Confirm" => PermissionKeys.ProcurementOrderConfirm,
             "Void" => PermissionKeys.ProcurementOrderVoid,
             _ => string.Empty

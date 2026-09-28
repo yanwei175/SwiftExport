@@ -36,7 +36,7 @@ public sealed class SourceDemandDeliveryService(
         if (!currentUser.IsAuthenticated || !currentUser.UserId.HasValue
             || !await permissions.HasPermissionAsync(
                 currentUser.UserId.Value,
-                PermissionKeys.ModuleDemandPlanningAccess,
+                "DemandPlanning.Source.View",
                 cancellationToken))
             return ServiceResult<T>.Fail("FORBIDDEN", "当前用户没有需求计划模块访问权限。");
         return await action();

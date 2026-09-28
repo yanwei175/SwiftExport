@@ -113,6 +113,8 @@ public sealed partial class ResetPasswordViewModel : ViewModelBaseEx, IAsyncInit
                     ConfirmPassword = input.ConfirmPassword
                 }),
                 "重置密码失败");
+            // 表单关闭后忽略迟到的写入结果，避免撤权后的状态或成功提示回写。
+            if (_isDisposed) return;
             if (!result.Success)
             {
                 SetStatus(result.Message, isError: true);
@@ -124,7 +126,7 @@ public sealed partial class ResetPasswordViewModel : ViewModelBaseEx, IAsyncInit
             _messageService.ShowSuccess("密码已重置", "目标用户需要使用新密码重新登录。");
         }, "正在重置密码...");
 
-        if (succeeded)
+        if (succeeded && !_isDisposed)
         {
             RequestClose?.Invoke(this, EventArgs.Empty);
         }

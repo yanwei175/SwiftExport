@@ -1,25 +1,22 @@
 using Microsoft.Extensions.DependencyInjection;
-using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.Views;
 using SwiftExportClient.Features.SystemSettings.Passwords.Views;
-using SwiftExportClient.Features.SystemSettings.UserPermissions.ViewModels;
-using SwiftExportClient.Features.SystemSettings.UserPermissions.Views;
-using SwiftExportClient.Features.SystemSettings.UserRegistration.Views;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.ViewModels;
+using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Workspace.Views;
 using System.Windows;
 using Wpf.Ui;
 
 namespace SwiftExportClient.Services.UI;
 
-/// <summary>解析设置窗口、设置 Shell Owner、阻止重复实例，并在会话结束时关闭全部窗口。</summary>
+/// <summary>解析个人改密与单实例系统设置窗口，设置 Shell Owner 并在会话结束时清理。</summary>
 public sealed class SettingsWindowService : ISettingsWindowService, IDisposable
 {
     private const string ChangePasswordKey = "change-password";
-    private const string RegisterUserKey = "register-user";
-    private const string ResetPasswordKey = "reset-password";
-    private const string UserModulesKey = "user-modules";
-    private const string DictionariesKey = "dictionaries";
+    private const string SystemSettingsKey = "system-settings";
 
     private readonly IServiceProvider _serviceProvider;
     private readonly ICurrentUserService _currentUserService;
@@ -51,37 +48,23 @@ public sealed class SettingsWindowService : ISettingsWindowService, IDisposable
             return;
         }
 
-        ShowModal(ChangePasswordKey, () => _serviceProvider.GetRequiredService<ChangePasswordWindow>());
+        ShowWindow(ChangePasswordKey, () => _serviceProvider.GetRequiredService<ChangePasswordWindow>(), modal: true);
     }
 
     /// <inheritdoc />
-    public void ShowUserRegistration()
-        => ShowManagementWindow(RegisterUserKey, () => _serviceProvider.GetRequiredService<UserRegistrationWindow>());
-
-    /// <inheritdoc />
-    public void ShowResetPassword()
-        => ShowManagementWindow(ResetPasswordKey, () => _serviceProvider.GetRequiredService<ResetPasswordWindow>());
-
-    /// <inheritdoc />
-    public void ShowUserModules()
-        => ShowManagementWindow(UserModulesKey, CreateUserModulesWindow);
-
-    /// <inheritdoc />
-    public void ShowDictionaries()
-        => ShowManagementWindow(DictionariesKey, CreateDictionaryWindow);
-
-    private void ShowManagementWindow(string key, Func<Window> factory)
+    public void ShowSystemSettings()
     {
-        if (!_currentUserService.HasPermission(PermissionKeys.SystemSettingsManage))
+        if (!new[] { "System.Users.View", "System.Roles.View", "System.Permissions.View", "System.Dictionary.View" }
+            .Any(_currentUserService.HasPermission))
         {
-            _messageService.ShowWarning("设置", "当前账号没有系统设置管理权限。");
+            _messageService.ShowWarning("设置", "当前账号没有可访问的系统设置页面。");
             return;
         }
-
-        ShowModal(key, factory);
+        ShowWindow(SystemSettingsKey, CreateSystemSettingsWindow, modal: false);
     }
 
-    private void ShowModal(string key, Func<Window> factory)
+    /// <summary>个人改密仍为模态；系统窗口为非模态且重复点击只激活已有实例。</summary>
+    private void ShowWindow(string key, Func<Window> factory, bool modal)
     {
         if (_openWindows.TryGetValue(key, out var existing))
         {
@@ -111,6 +94,11 @@ public sealed class SettingsWindowService : ISettingsWindowService, IDisposable
         }
 
         window.Closed += RemoveWindow;
+        if (!modal)
+        {
+            window.Show();
+            return;
+        }
         try
         {
             window.ShowDialog();
@@ -122,29 +110,18 @@ public sealed class SettingsWindowService : ISettingsWindowService, IDisposable
         }
     }
 
-    private Window CreateUserModulesWindow()
-    {
-        IContentDialogService contentDialogs = new ContentDialogService();
-        var localDialogService = new WpfUiDialogService(contentDialogs);
-        var viewModel = ActivatorUtilities.CreateInstance<UserModulePermissionsViewModel>(
-            _serviceProvider,
-            localDialogService);
-        return new UserModulePermissionsWindow(viewModel, contentDialogs);
-    }
-
-    private Window CreateDictionaryWindow()
+    private Window CreateSystemSettingsWindow()
     {
         IContentDialogService contentDialogs = new ContentDialogService();
         var localDialogService = new WpfUiDialogService(contentDialogs);
         var localMessageService = new WindowMessageService();
-        var viewModel = ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(
-            _serviceProvider,
-            localDialogService,
-            localMessageService);
-        return new DictionaryManagerWindow(
-            viewModel,
-            contentDialogs,
-            localMessageService);
+        return new SystemSettingsWindow(
+            () => ActivatorUtilities.CreateInstance<RbacManagementViewModel>(_serviceProvider, localDialogService),
+            () => ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(
+                _serviceProvider, localDialogService, localMessageService),
+            () => ActivatorUtilities.CreateInstance<UserRegistrationViewModel>(_serviceProvider, localMessageService),
+            () => ActivatorUtilities.CreateInstance<ResetPasswordViewModel>(_serviceProvider, localMessageService),
+            _currentUserService, contentDialogs, localMessageService);
     }
 
     private void OnSessionEnded(object? sender, SessionEndedEventArgs e)

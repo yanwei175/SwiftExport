@@ -69,7 +69,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
         StaTest.RunAsync(async () =>
         {
             var user = new CurrentUserService();
-            user.SetCurrentUser(new MeDto { Permissions = [PermissionKeys.ModuleSalesAccess] });
+            user.SetCurrentUser(new MeDto { Permissions = ["Sales.Order.View"] });
             var contract = DispatchProxy.Create<ISalesOrderDetailApi, DetailApiProxy>();
             var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
                 new DialogStub(), null!, new MessagesStub(),
@@ -98,7 +98,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
         {
             var user = new CurrentUserService();
             user.SetCurrentUser(new MeDto
-            { Permissions = [PermissionKeys.ModuleSalesAccess, PermissionKeys.SalesOrderConfirm] });
+            { Permissions = ["Sales.Order.View", PermissionKeys.SalesOrderConfirm] });
             var contract = DispatchProxy.Create<ISalesOrderDetailApi, DetailApiProxy>();
             var api = (DetailApiProxy)(object)contract;
             api.FailureCodes.Clear();
@@ -126,7 +126,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
     private static CurrentUserService AuthorizedUser()
     {
         var user = new CurrentUserService();
-        user.SetCurrentUser(new MeDto { Permissions = PermissionKeys.All.ToList() });
+        user.SetCurrentUser(new MeDto { Permissions = PermissionCatalog.All.Select(item => item.PermissionKey).ToList() });
         return user;
     }
 

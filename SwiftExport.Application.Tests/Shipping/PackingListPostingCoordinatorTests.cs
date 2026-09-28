@@ -13,6 +13,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Commands.Validation;
 using SwiftExport.Application.Mappings;
 using SwiftExport.Application.Interfaces.Inventory;
@@ -20,6 +21,7 @@ using SwiftExport.Application.Interfaces.Shipping;
 using SwiftExport.Application.Services.Shipping;
 using SwiftExport.Application.Services.Shipping.PackingLists;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.SysEnums.Shipping;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums;
@@ -33,6 +35,8 @@ using SwiftExport.Core.Entities.Shipping;
 using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Auth.Permissions;
+using SwiftExport.Core.Models.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Core.Interfaces.Shipping.PackingLists;
@@ -67,6 +71,29 @@ public sealed class PackingListPostingCoordinatorTests
         Assert.IsTrue((await f.Reversal.ExecuteReverseCommandAsync(reverseCommand, default)).AlreadyApplied);
         Assert.AreEqual(4, f.Commits);
         Assert.AreEqual(0, f.Rollbacks);
+    }
+
+    /// <summary>系统管理员经真实权限评估自动拥有过账键，但已过账单据仍不得再次过账。</summary>
+    [TestMethod]
+    public async Task SystemAdministrator_CannotPostAlreadyPostedDocument()
+    {
+        var f = new Fixture(systemAdmin: true);
+        f.Head.PostingStatus = PackingListPostingStatusEnum.Posted;
+
+        var preview = await f.Service.PreviewAsync(f.Head.Uid,
+            new PackingListPostPreviewRequest { ExpectedVersion = f.Head.Version, BusinessDate = f.Date }, default);
+        Assert.IsTrue(preview.Success, preview.Message);
+        CollectionAssert.Contains(preview.Data.Blockers.Select(item => item.Code).ToArray(), "INVALID_STATE");
+
+        var result = await f.Service.PostAsync(f.Head.Uid, new PostPackingListCommand
+        {
+            CommandId = Guid.NewGuid(), ExpectedVersion = f.Head.Version,
+            BusinessDate = f.Date, PreviewToken = "invalid-state-test"
+        }, default);
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(PackingListPostingStatusEnum.Posted, f.Head.PostingStatus);
+        Assert.AreEqual(0, f.Commits);
+        Assert.AreEqual(0, f.Executions.Count);
     }
 
     /// <summary>日志失败不提交，并清除共享事务；这里只验证回滚调用。</summary>
@@ -283,7 +310,7 @@ public sealed class PackingListPostingCoordinatorTests
         public CancellationTokenSource? CancelAfterLog { get; set; }
         public bool ChangeDeliveryAfterLock { get; set; }
         public bool HideReverseEvidenceAfterLock { get; set; }
-        public Fixture(bool inventory = false, PackingListReverseFacts? original = null)
+        public Fixture(bool inventory = false, PackingListReverseFacts? original = null, bool systemAdmin = false)
         {
             if (original != null) { Head = original.Head!; Executions.AddRange(original.Executions); Evidence.AddRange(original.Evidence); }
             var source = new GrossDemand { CustomerId = Head.CustomerId, SourceType = "CR", IsNonStandard = true, DemandQty = 10 };
@@ -349,7 +376,9 @@ public sealed class PackingListPostingCoordinatorTests
             var userId = Guid.NewGuid();
             var user = Proxy.Make<ICurrentUser>((m, _) => m switch
             { "get_UserId" => userId, "get_UserName" => "tester", "get_IsAuthenticated" => true, _ => throw new NotSupportedException(m) });
-            var permissions = Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
+            IPermissionEvaluationService permissions = systemAdmin
+                ? new PermissionEvaluationService(new AdminPermissionFacts(userId))
+                : Proxy.Make<IPermissionEvaluationService>((m, _) => m == "HasPermissionAsync" ? Task.FromResult(true) : throw new NotSupportedException(m));
             var receipts = Proxy.Make<ICommandReceiptRepository>((m, args) => m switch
             {
                 "LockAsync" => Task.FromResult(0),
@@ -422,5 +451,21 @@ public sealed class PackingListPostingCoordinatorTests
                     x.DocumentLineId!.Value, x.DocumentLineId.Value, Guid.NewGuid())).ToList()
             }).ToList() });
         }
+    }
+
+    /// <summary>提供稳定 SYSTEM_ADMIN 角色事实，让非法状态测试经过真实权限评估器。</summary>
+    private sealed class AdminPermissionFacts(Guid adminId) : IUserPermissionRepository
+    {
+        /// <summary>仅为指定管理员提供稳定角色代码与活动身份。</summary>
+        public Task<UserPermissionFacts?> GetPermissionFactsAsync(Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult<UserPermissionFacts?>(userId == adminId ? new UserPermissionFacts
+            {
+                UserId = adminId, IsActive = true, IsAdmin = true,
+                RoleCodes = [SystemRoleCodes.SystemAdmin], RoleNames = ["已改名的管理员"]
+            } : null);
+
+        /// <summary>业务状态测试不需要管理端用户列表。</summary>
+        public Task<IReadOnlyList<UserSummaryDto>> GetActiveUsersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<UserSummaryDto>>([]);
     }
 }

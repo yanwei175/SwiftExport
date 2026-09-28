@@ -75,6 +75,8 @@ public sealed class AuthSessionService(
             UserName = user.UserName,
             NickName = string.IsNullOrWhiteSpace(user.NickName) ? user.UserName : user.NickName,
             Roles = projection.Roles.ToList(),
+            RoleCodes = projection.RoleCodes.ToList(),
+            IsAdmin = projection.IsAdmin,
             Permissions = projection.Permissions.ToList()
         });
     }

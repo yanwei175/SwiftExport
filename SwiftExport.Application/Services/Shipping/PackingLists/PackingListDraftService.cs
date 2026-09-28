@@ -58,7 +58,7 @@ public sealed class PackingListDraftService(
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListDraftCommandResult>> CreateAsync(
         CreatePackingListDraftCommand command, CancellationToken cancellationToken = default) =>
-        RunDraftPipelineAsync(command, command?.CommandId, "Shipping.PackingList.Draft.Create",
+        RunDraftPipelineAsync(command, command?.CommandId, "Shipping.PackingList.Draft.Create", "Shipping.PackingList.Create",
             ct => CreateCoreAsync(command!, ct), cancellationToken);
 
     /// <summary>验证创建输入并把首次业务执行交给公共事务和回执执行器。</summary>
@@ -112,7 +112,7 @@ public sealed class PackingListDraftService(
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListDraftCommandResult>> UpdateAsync(
         Guid uid, UpdatePackingListDraftCommand command, CancellationToken cancellationToken = default) =>
-        RunDraftPipelineAsync(command, command?.CommandId, "Shipping.PackingList.Draft.Update",
+        RunDraftPipelineAsync(command, command?.CommandId, "Shipping.PackingList.Draft.Update", "Shipping.PackingList.Edit",
             ct => UpdateCoreAsync(uid, command!, ct), cancellationToken);
 
     /// <summary>验证更新输入并在同一事务内重验版本、来源和完整明细集合。</summary>
@@ -152,7 +152,7 @@ public sealed class PackingListDraftService(
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListDraftCommandResult>> DeleteAsync(
         Guid uid, DeletePackingListDraftCommand command, CancellationToken cancellationToken = default) =>
-        RunDraftPipelineAsync(command, command?.CommandId, "Shipping.PackingList.Draft.Delete",
+        RunDraftPipelineAsync(command, command?.CommandId, "Shipping.PackingList.Draft.Delete", "Shipping.PackingList.Delete",
             ct => DeleteCoreAsync(uid, command!, ct), cancellationToken);
 
     /// <summary>验证删除身份，并在事务内重验草稿状态后软删除。</summary>
@@ -471,14 +471,14 @@ public sealed class PackingListDraftService(
 
     /// <summary>统一草稿入口的授权、请求验证与耗时日志，保留装箱单原有结构错误代码。</summary>
     private async Task<ServiceResult<PackingListDraftCommandResult>> RunDraftPipelineAsync<TRequest>(TRequest? request,
-        Guid? commandId, string commandType,
+        Guid? commandId, string commandType, string permissionKey,
         Func<CancellationToken, Task<ServiceResult<CommandExecutionResult<PackingListDraftCommandResult>>>> execute,
         CancellationToken token)
     {
         try
         {
             return await pipeline.ExecuteAsync<TRequest, PackingListDraftCommandResult>(request, commandId,
-                commandType, AuthorizeDraftAsync, execute, token);
+                commandType, ct => AuthorizeDraftAsync(permissionKey, ct), execute, token);
         }
         catch (CommandValidationException ex)
         {
@@ -486,27 +486,19 @@ public sealed class PackingListDraftService(
         }
     }
 
-    /// <summary>草稿与查询沿用出货模块访问权限；授权必须早于回执重放。</summary>
-    private async Task<ServiceResult<PackingListDraftCommandResult>?> AuthorizeDraftAsync(CancellationToken token)
+    /// <summary>按草稿操作键授权；授权必须早于回执重放。</summary>
+    private async Task<ServiceResult<PackingListDraftCommandResult>?> AuthorizeDraftAsync(string permissionKey, CancellationToken token)
     {
         if (!currentUser.IsAuthenticated || currentUser.UserId is not { } actor
-            || !await permissions.HasPermissionAsync(actor, PermissionKeys.ModuleShippingAccess, token))
-            return ServiceResult<PackingListDraftCommandResult>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有出货模块访问权限。");
+            || !await permissions.HasPermissionAsync(actor, permissionKey, token))
+            return ServiceResult<PackingListDraftCommandResult>.Fail(ServiceErrorCodes.Forbidden, "当前账号没有装箱单操作权限。");
         return null;
     }
 
-    private async Task<T> RunAuthorizedAsync<T>(Func<Task<T>> action, CancellationToken token)
-    {
-        var userId = currentUser.UserId;
-        if (!currentUser.IsAuthenticated || !userId.HasValue
-            || !await permissions.HasPermissionAsync(userId.Value, PermissionKeys.ModuleShippingAccess, token))
-            throw new PackingListException(ServiceErrorCodes.Forbidden, "当前账号没有出货模块访问权限。");
-        return await action();
-    }
-
+    /// <summary>包装已由命令管线按操作键授权的草稿执行结果。</summary>
     private async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token)
     {
-        try { return ServiceResult<T>.Ok(await RunAuthorizedAsync(action, token)); }
+        try { return ServiceResult<T>.Ok(await action()); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch (PackingListException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
         catch (BusinessCommandException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }

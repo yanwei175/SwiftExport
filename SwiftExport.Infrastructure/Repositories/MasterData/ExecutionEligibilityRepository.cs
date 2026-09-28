@@ -7,11 +7,11 @@ using SwiftExport.Infrastructure.Contexts;
 
 namespace SwiftExport.Infrastructure.Repositories.MasterData;
 
-/// <summary>使用既有主数据表和角色表管理执行资格；表名只来自固定枚举白名单。</summary>
+/// <summary>使用既有主数据表和有效角色权限管理执行资格；表名只来自固定枚举白名单。</summary>
 public sealed class ExecutionEligibilityRepository(RepositoryBaseContext context) : IExecutionEligibilityRepository
 {
-    /// <summary>在当前事务中验证并锁住真实用户与管理员授权，防止角色撤销竞态。</summary>
-    public async Task<bool> IsActiveAdministratorAsync(Guid userId, CancellationToken cancellationToken = default)
+    /// <summary>在当前事务中锁定活动身份及角色权限，防止授权撤销与资格修改竞态。</summary>
+    public async Task<bool> HasExecutionEligibilityPermissionAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         const string sql = """
             SELECT CAST(CASE WHEN EXISTS (
@@ -19,7 +19,16 @@ public sealed class ExecutionEligibilityRepository(RepositoryBaseContext context
                 INNER JOIN dbo.SysUser_Roles ur WITH(HOLDLOCK) ON ur.UserId=u.Uid
                 INNER JOIN dbo.SysRoles r WITH(HOLDLOCK) ON r.Uid=ur.RoleId
                 WHERE u.Uid=@UserId AND u.IsActive=1 AND ISNULL(u.IsDeleted,0)=0
-                  AND ISNULL(ur.IsDeleted,0)=0 AND ISNULL(r.IsDeleted,0)=0 AND r.RoleName=N'Admin'
+                  AND ISNULL(ur.IsDeleted,0)=0 AND ISNULL(r.IsDeleted,0)=0
+                  AND r.IsActive=1 AND (
+                      r.RoleCode=N'SYSTEM_ADMIN' OR EXISTS (
+                          SELECT 1 FROM dbo.SysRole_Permissions rp WITH(HOLDLOCK)
+                          JOIN dbo.SysPermissionDefinitions p WITH(HOLDLOCK) ON p.Uid=rp.PermissionId
+                          WHERE rp.RoleId=r.Uid AND ISNULL(rp.IsDeleted,0)=0
+                            AND p.PermissionKey=N'MasterData.Eligibility.Manage'
+                            AND p.IsActive=1 AND ISNULL(p.IsDeleted,0)=0
+                      )
+                  )
             ) THEN 1 ELSE 0 END AS bit);
             """;
         return await context.Session.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(

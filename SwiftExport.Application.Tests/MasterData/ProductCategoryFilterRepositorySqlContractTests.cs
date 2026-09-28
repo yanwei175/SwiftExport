@@ -70,14 +70,12 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
         Assert.IsFalse(source.Contains("GetTableName<Product>()", StringComparison.Ordinal));
     }
 
-    /// <summary>旧产品分类列必须保留但显式标记为废弃。</summary>
+    /// <summary>产品分类仅归属主型号，已删除的产品冗余分类字段不得恢复。</summary>
     [TestMethod]
-    public void ProductCategoryId_ShouldBeObsoleteCompatibilityField()
+    public void ProductCategoryId_ShouldBeRemovedAndOwnedByProductMaster()
     {
-        var property = typeof(Product).GetProperty("CategoryId");
-        var obsolete = property?.GetCustomAttributes(typeof(ObsoleteAttribute), false).SingleOrDefault() as ObsoleteAttribute;
-        Assert.IsNotNull(obsolete);
-        StringAssert.Contains(obsolete.Message, "ProductMaster.CategoryId");
+        Assert.IsNull(typeof(Product).GetProperty("CategoryId"));
+        Assert.IsNotNull(typeof(ProductMaster).GetProperty(nameof(ProductMaster.CategoryId)));
     }
 
     /// <summary>检查仓储先清理空标识和重复值，再生成三个参数化分类条件。</summary>
