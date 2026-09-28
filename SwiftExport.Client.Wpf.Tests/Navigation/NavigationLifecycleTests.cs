@@ -9,36 +9,39 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Navigation;
 
+/// <summary>验证业务页签容量、重复激活与导航生命周期边界。</summary>
 [TestClass]
 public sealed class NavigationLifecycleTests
 {
+    /// <summary>首页不占名额，第二十一个业务页签应在创建资源前被拒绝。</summary>
     [TestMethod]
-    public async Task Capacity_ShouldAllowTenBusinessTabsExcludeHomeAndRejectEleventhWithoutCreatingResources()
+    public async Task Capacity_ShouldAllowTwentyBusinessTabsExcludeHomeAndRejectTwentyFirstWithoutCreatingResources()
     {
         var routes = new[] { Route("home", canClose: false) }
-            .Concat(Enumerable.Range(1, 11).Select(index => Route($"business-{index}")))
+            .Concat(Enumerable.Range(1, 21).Select(index => Route($"business-{index}")))
             .ToArray();
         var factory = new TrackingFactory(_ => new PlainViewModel());
         var context = CreateContext(routes, factory);
 
         await context.Navigation.OpenAsync("home");
-        foreach (var index in Enumerable.Range(1, 10))
+        foreach (var index in Enumerable.Range(1, 20))
         {
             await context.Navigation.OpenAsync($"business-{index}");
         }
 
-        await context.Navigation.OpenAsync("business-11");
+        await context.Navigation.OpenAsync("business-21");
 
-        Assert.AreEqual(11, context.Navigation.OpenTabs.Count);
-        Assert.AreEqual(11, factory.CreatedCount);
-        Assert.AreEqual("business-10", context.Navigation.SelectedTab?.RouteKey);
-        StringAssert.Contains(context.Status.LastMessage, "最多同时打开 10 个业务页签");
+        Assert.AreEqual(21, context.Navigation.OpenTabs.Count);
+        Assert.AreEqual(21, factory.CreatedCount);
+        Assert.AreEqual("business-20", context.Navigation.SelectedTab?.RouteKey);
+        StringAssert.Contains(context.Status.LastMessage, "最多同时打开 20 个业务页签");
     }
 
+    /// <summary>达到容量上限后仍可激活已存在的页签。</summary>
     [TestMethod]
     public async Task FullCapacity_ShouldStillActivateExistingTab()
     {
-        var routes = Enumerable.Range(1, 10).Select(index => Route($"business-{index}")).ToArray();
+        var routes = Enumerable.Range(1, 20).Select(index => Route($"business-{index}")).ToArray();
         var factory = new TrackingFactory(_ => new PlainViewModel());
         var context = CreateContext(routes, factory);
         foreach (var route in routes)
@@ -50,7 +53,7 @@ public sealed class NavigationLifecycleTests
         await context.Navigation.OpenAsync(existing.RouteKey);
 
         Assert.AreSame(existing, context.Navigation.SelectedTab);
-        Assert.AreEqual(10, factory.CreatedCount);
+        Assert.AreEqual(20, factory.CreatedCount);
     }
 
     [TestMethod]

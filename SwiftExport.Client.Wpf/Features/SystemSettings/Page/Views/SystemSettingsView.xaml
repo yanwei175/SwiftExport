@@ -1,0 +1,62 @@
+<UserControl x:Class="SwiftExportClient.Features.SystemSettings.Page.Views.SystemSettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             AutomationProperties.Name="系统设置">
+
+    <ui:NavigationView x:Name="SettingsNavigation"
+                       PaneDisplayMode="Left"
+                       OpenPaneLength="208"
+                       IsPaneOpen="True"
+                       IsPaneToggleVisible="False"
+                       IsBackButtonVisible="Collapsed"
+                       HeaderVisibility="Collapsed"
+                       AlwaysShowHeader="False">
+
+        <ui:NavigationView.MenuItems>
+
+            <ui:NavigationViewItem x:Name="PersonalNavigation" Content="个人设置" 
+                                   Icon="{ui:SymbolIcon Symbol=Person24}"
+                                   IsExpanded="True" 
+                                   Click="OnPersonalNavigation">
+                <ui:NavigationViewItem.MenuItems>
+                    <ui:NavigationViewItem x:Name="ChangePasswordNavigation" Content="修改我的密码" 
+                                           Icon="{ui:SymbolIcon Symbol=Password24}"
+                                           Command="{Binding ChangePasswordCommand}" AutomationProperties.Name="修改我的密码"/>
+                    <ui:NavigationViewItem x:Name="RefreshPermissionsNavigation" Content="刷新我的权限" 
+                                           Icon="{ui:SymbolIcon Symbol=ShieldPerson20}"
+                                           Command="{Binding RefreshPermissionsCommand}" AutomationProperties.Name="刷新我的权限"/>
+                </ui:NavigationViewItem.MenuItems>
+            </ui:NavigationViewItem>
+
+            <ui:NavigationViewItem x:Name="ManagementNavigation" Content="系统设置"
+                                   Icon="{ui:SymbolIcon Symbol=Settings24}"
+                                   IsExpanded="True">
+                <ui:NavigationViewItem.MenuItems>
+
+                    <ui:NavigationViewItem x:Name="UsersNavigation" Content="用户管理"
+                                           Icon="{ui:SymbolIcon Symbol=People24}"
+                                           Click="OnUsersNavigation"
+                                           AutomationProperties.Name="用户管理" />
+                    <ui:NavigationViewItem x:Name="RolesNavigation" Content="角色管理" 
+                                           Icon="{ui:SymbolIcon Symbol=PersonTag24}"
+                                           Click="OnRolesNavigation"
+                                           AutomationProperties.Name="角色管理" />
+                    <ui:NavigationViewItem x:Name="PermissionsNavigation" Content="权限定义" 
+                                           Icon="{ui:SymbolIcon Symbol=ShieldTask24}"
+                                           Click="OnPermissionsNavigation"
+                                           AutomationProperties.Name="权限定义" />
+
+                    <ui:NavigationViewItem x:Name="DictionaryNavigation" Content="字典管理" 
+                                           Icon="{ui:SymbolIcon Symbol=BookDatabase24}"
+                                           Click="OnDictionaryNavigation"
+                                           AutomationProperties.Name="字典管理" />
+
+                </ui:NavigationViewItem.MenuItems>
+            </ui:NavigationViewItem>
+        </ui:NavigationView.MenuItems>
+
+
+
+    </ui:NavigationView>
+</UserControl>

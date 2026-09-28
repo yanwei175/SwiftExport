@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Authentication;
@@ -31,23 +31,16 @@ public sealed class NavigationAuthorizationTests
             "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
             "QualityControl.AfterSales.View", "QualityControl.AfterSales.View",
             "Inventory.Warehouse.View", "Inventory.Balance.View", "Inventory.Inbound.View", "Inventory.Outbound.View",
-            "Inventory.Balance.View", "DemandPlanning.Source.View", null, null
+            "Inventory.Balance.View", "DemandPlanning.Source.View", null
         ];
 
-        Assert.AreEqual(35, registry.Routes.Count);
+        Assert.AreEqual(34, registry.Routes.Count);
         for (var index = 0; index < registry.Routes.Count; index++)
         {
             var route = registry.Routes[index];
             Assert.IsFalse(string.IsNullOrWhiteSpace(route.ModuleKey), route.Key);
             Assert.AreEqual(expected[index], route.RequiredPermission, route.Key);
-            if (route.Key == "system-settings")
-            {
-                CollectionAssert.AreEquivalent(new[] { "System.Users.View", "System.Roles.View", "System.Permissions.View", "System.Dictionary.View" },
-                    route.AnyRequiredPermissions!.ToArray());
-                foreach (var permission in route.AnyRequiredPermissions!)
-                    Assert.IsNotNull(PermissionCatalog.Find(permission));
-            }
-            else Assert.IsNull(route.AnyRequiredPermissions);
+            Assert.IsNull(route.AnyRequiredPermissions);
             Assert.AreEqual(route.Key == "system-settings", route.DiscardOnAccessRevoked);
             if (route.RequiredPermission is not null)
                 Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
@@ -67,7 +60,7 @@ public sealed class NavigationAuthorizationTests
         var access = new NavigationAccessService(registry, user);
         Assert.IsFalse(access.CanAccess("system-settings"));
         user.SetCurrentUser(new MeDto { UserId = "test", Permissions = [] });
-        Assert.IsFalse(access.CanAccess("system-settings"));
+        Assert.IsTrue(access.CanAccess("system-settings"));
         user.SetCurrentUser(new MeDto { UserId = "test", Permissions = [permission] });
         Assert.IsTrue(access.CanAccess("system-settings"));
     }
@@ -234,7 +227,7 @@ public sealed class NavigationAuthorizationTests
 
         Assert.IsTrue(access.CanAccess("home"));
         Assert.IsFalse(access.CanAccess("system-dictionaries"));
-        Assert.IsTrue(access.CanAccess("settings-center"));
+        Assert.IsTrue(access.CanAccess("system-settings"));
     }
 
     private static NavigationRoute Route(

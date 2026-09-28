@@ -1,9 +1,3 @@
-using SwiftExport.Core.Interfaces.Products.Catalog;
-using SwiftExport.Core.Interfaces.Products.Categories;
-using SwiftExport.Core.Interfaces.Products.Colors;
-using SwiftExport.Core.Interfaces.Products.ProductMasters;
-using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
-using SwiftExport.Core.Interfaces.Suppliers.Management;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Products.ProductMasters.Maintenance;
@@ -15,7 +9,12 @@ using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
-using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
+using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
+using SwiftExport.Core.Interfaces.Suppliers.Management;
 using SwiftExport.Infrastructure.Data;
 using System.Text;
 
@@ -422,20 +421,32 @@ public sealed partial class ProductMasterMaintenanceService(
 
     private static ProductMaster ToEntity(ProductMasterWriteDto data) => new()
     {
-        MasterSku = data.MasterSku.Trim(), DefaultDescriptionEn = Normalize(data.DefaultDescriptionEn),
-        DefaultDescriptionZh = Normalize(data.DefaultDescriptionZh), DefaultFeaturesEn = Normalize(data.DefaultFeaturesEn),
-        DefaultFeaturesZh = Normalize(data.DefaultFeaturesZh), DefaultPcsPerPackage = data.DefaultPcsPerPackage,
-        DefaultNetWeight = data.DefaultNetWeight, DefaultGrossWeight = data.DefaultGrossWeight,
-        DefaultCbm = data.DefaultCbm, ProductType = Normalize(data.ProductType), ProductTag = Normalize(data.ProductTag),
-        CategoryId = data.CategoryId, DefaultSupplierId = data.DefaultSupplierId
+        MasterSku = data.MasterSku.Trim(),
+        DefaultDescriptionEn = Normalize(data.DefaultDescriptionEn),
+        DefaultDescriptionZh = Normalize(data.DefaultDescriptionZh),
+        DefaultFeaturesEn = Normalize(data.DefaultFeaturesEn),
+        DefaultFeaturesZh = Normalize(data.DefaultFeaturesZh),
+        DefaultPcsPerPackage = data.DefaultPcsPerPackage,
+        DefaultNetWeight = data.DefaultNetWeight,
+        DefaultGrossWeight = data.DefaultGrossWeight,
+        DefaultCbm = data.DefaultCbm,
+        ProductType = Normalize(data.ProductType),
+        ProductTag = Normalize(data.ProductTag),
+        CategoryId = data.CategoryId,
+        DefaultSupplierId = data.DefaultSupplierId
     };
 
     private static ProductNeutral ToEntity(ProductNeutralWriteDto data, Guid productMasterId) => new()
     {
-        ProductMasterId = productMasterId, ProductCode = data.ProductCode.Trim(), ColorId = data.ColorId,
-        DefaultSalesPriceUsd = data.DefaultSalesPriceUsd, DefaultExchangeRate = data.DefaultExchangeRate,
-        ProfitMargin = data.ProfitMargin, DefaultPurchasePriceCny = data.DefaultPurchasePriceCny,
-        ImagePath = Normalize(data.ImagePath), IsMainImage = data.IsMainImage
+        ProductMasterId = productMasterId,
+        ProductCode = data.ProductCode.Trim(),
+        ColorId = data.ColorId,
+        DefaultSalesPriceUsd = data.DefaultSalesPriceUsd,
+        DefaultExchangeRate = data.DefaultExchangeRate,
+        ProfitMargin = data.ProfitMargin,
+        DefaultPurchasePriceCny = data.DefaultPurchasePriceCny,
+        ImagePath = Normalize(data.ImagePath),
+        IsMainImage = data.IsMainImage
     };
 
     private static void NormalizeBatchRequest(ProductMasterBatchSaveRequest request)

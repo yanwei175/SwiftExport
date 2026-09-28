@@ -29,12 +29,7 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0"
-                Padding="8"
-                Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
-                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                BorderThickness="{StaticResource SwiftExportBorderThickness}"
-                CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
+        <ui:Card Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -132,7 +127,7 @@
                     </ItemsControl>
                 </ScrollViewer>
             </Grid>
-        </Border>
+        </ui:Card>
 
         <Grid Grid.Column="2">
             <Grid.RowDefinitions>
@@ -147,12 +142,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Border Padding="12"
-                    IsEnabled="{Binding HasTypeEditor}"
-                    Background="Transparent"
-                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                    BorderThickness="{StaticResource SwiftExportBorderThickness}"
-                    CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
+            <ui:Card Padding="12" IsEnabled="{Binding HasTypeEditor}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -232,7 +222,7 @@
                         </StackPanel>
                     </Grid>
                 </Grid>
-            </Border>
+            </ui:Card>
 
             <ui:InfoBar Grid.Row="2"
                         Title="请检查当前数据"
@@ -295,43 +285,43 @@
                           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                           gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                           gridValidation:GridValidation.IsEnabled="True">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="英文名称"
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="英文名称"
                                             Width="1.4*"
                                             Binding="{Binding DataNameEn, UpdateSourceTrigger=PropertyChanged}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="data-name-en"
                                             gridColumns:GridColumn.FieldPath="DataNameEn" />
-                        <DataGridTextColumn Header="中文名称"
+                            <DataGridTextColumn Header="中文名称"
                                             Width="1.4*"
                                             Binding="{Binding DataNameZh, UpdateSourceTrigger=PropertyChanged}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="data-name-zh"
                                             gridColumns:GridColumn.FieldPath="DataNameZh" />
-                        <DataGridTextColumn Header="排序"
+                            <DataGridTextColumn Header="排序"
                                             Width="88"
                                             Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="sort-order"
                                             gridColumns:GridColumn.FieldPath="SortOrder" />
-                        <DataGridCheckBoxColumn Header="启用"
+                            <DataGridCheckBoxColumn Header="启用"
                                                 Width="72"
                                                 Binding="{Binding IsEnabled, UpdateSourceTrigger=PropertyChanged}"
                                                 ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
                                                 EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"
                                                 gridColumns:GridColumn.Key="is-enabled"
                                                 gridColumns:GridColumn.FieldPath="IsEnabled" />
-                        <DataGridTextColumn Header="备注"
+                            <DataGridTextColumn Header="备注"
                                             Width="2*"
                                             Binding="{Binding Remark, UpdateSourceTrigger=PropertyChanged}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                             gridColumns:GridColumn.Key="remark"
                                             gridColumns:GridColumn.FieldPath="Remark" />
-                        <DataGridCheckBoxColumn Header="系统项"
+                            <DataGridCheckBoxColumn Header="系统项"
                                                 Width="76"
                                                 IsReadOnly="True"
                                                 Binding="{Binding IsSystem}"
@@ -339,8 +329,8 @@
                                                 EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"
                                                 gridColumns:GridColumn.Key="is-system"
                                                 gridColumns:GridColumn.FieldPath="IsSystem" />
-                    </DataGrid.Columns>
-                </DataGrid>
+                        </DataGrid.Columns>
+                    </DataGrid>
 
                 <StackPanel HorizontalAlignment="Center"
                             VerticalAlignment="Center"

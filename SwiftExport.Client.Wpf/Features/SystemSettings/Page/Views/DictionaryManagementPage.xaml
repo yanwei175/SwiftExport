@@ -1,0 +1,7 @@
+<Page x:Class="SwiftExportClient.Features.SystemSettings.Page.Views.DictionaryManagementPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:dictionary="clr-namespace:SwiftExportClient.Features.SystemSettings.Dictionaries.Views"
+      AutomationProperties.Name="字典管理页面">
+    <dictionary:DictionaryManagerView x:Name="DictionaryView" />
+</Page>

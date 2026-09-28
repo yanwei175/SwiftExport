@@ -27,6 +27,7 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
                 RowIndex = line.RowIndex,
                 Data = line.ToWriteDto()
             }).ToList(),
+
             UpdateItems = ModifiedItems.Select(line => new UpdateItemRequest<ProductMasterWriteDto>
             {
                 Uid = line.Uid,
@@ -35,6 +36,7 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
                 RowIndex = line.RowIndex,
                 Data = line.ToWriteDto()
             }).ToList(),
+
             DeleteItems = DeletedItems.Where(line => line.Uid != Guid.Empty).Select(line => new DeleteItemRequest
             {
                 Uid = line.Uid,
@@ -43,6 +45,7 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
                 RowIndex = line.RowIndex,
                 IsSoftDelete = true
             }).ToList()
+
         };
     }
 

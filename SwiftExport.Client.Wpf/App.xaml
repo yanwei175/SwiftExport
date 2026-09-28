@@ -16,6 +16,8 @@
                 <ResourceDictionary Source="Resources/Typography.xaml" />
                 <ResourceDictionary Source="Resources/Grids.xaml" />
                 <ResourceDictionary Source="Resources/Borders.xaml" />
+                <ResourceDictionary Source="Resources/TextBoxes.xaml" />
+                
                 <ResourceDictionary Source="Resources/Button.xaml" />
                 <ResourceDictionary Source="Resources/ContextMenu.xaml" />
                 <ResourceDictionary Source="Resources/DatePicker.xaml" />

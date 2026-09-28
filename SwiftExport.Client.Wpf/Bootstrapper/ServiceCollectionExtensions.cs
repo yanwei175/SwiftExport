@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http;
 using SwiftExportClient.Authentication;
@@ -50,7 +50,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStatusMessageService, StatusMessageService>();
         services.AddSingleton<IMessageService, WpfUiMessageService>();
         services.AddSingleton<IDialogService, WpfUiDialogService>();
-        services.AddSingleton<ISettingsWindowService, SettingsWindowService>();
         services.AddSingleton<IClientVersionService, ClientVersionService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();

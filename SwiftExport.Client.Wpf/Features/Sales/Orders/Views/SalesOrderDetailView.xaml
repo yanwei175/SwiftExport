@@ -85,24 +85,19 @@
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="4" />
+                <RowDefinition Height="8" />
                 <RowDefinition Height="Auto" MinHeight="60"/>
-                <RowDefinition Height="4" />
+                <RowDefinition Height="8" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="4" />
+                <RowDefinition Height="8" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="4" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!--单头-->
-            <Border Grid.Row="0"
-                    Padding="8"
-                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="4"
-                    IsEnabled="{Binding IsEditable}">
-                <Grid Grid.Row="2">
+            <ui:Card Grid.Row="0" IsEnabled="{Binding IsEditable}">
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="4" />
@@ -210,14 +205,9 @@
                              TextSearch.TextPath="DataNameEn" />
 
                 </Grid>
-            </Border>
+            </ui:Card>
             
-            <Border Grid.Row="2"
-                    Padding="8"
-                    BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="4"
-                    IsEnabled="{Binding IsEditable}">
+            <ui:Card Grid.Row="2" IsEnabled="{Binding IsEditable}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -297,18 +287,13 @@
                                     ToolTip="ETA"/>
 
                         <TextBlock Grid.Row="8" Grid.Column="4" Text="Shipped By:" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6" VerticalContentAlignment="Center"
+                         <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6" VerticalContentAlignment="Center"
                                   ItemsSource="{Binding ShippedByOptions}"
                                   ItemTemplate="{StaticResource SalesOrderDictionaryOptionTemplate}"
                                   Text="{Binding Header.ShippedBy, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                   TextSearch.TextPath="DataNameEn" />
-
-
-
-                        
-
                 </Grid>
-            </Border>
+            </ui:Card>
 
             <GridSplitter Grid.Row="3"/>
 

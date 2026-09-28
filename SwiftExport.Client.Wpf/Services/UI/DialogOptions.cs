@@ -1,3 +1,5 @@
+using CommunityToolkit.Mvvm.Input;
+
 namespace SwiftExportClient.Services.UI;
 
 /// <summary>描述公共内容弹窗的标题、按钮、尺寸和滚动策略。</summary>
@@ -15,6 +17,8 @@ public sealed class DialogOptions
     public string Title { get; }
     /// <summary>获取主按钮文字；空值或空字符串表示不显示。</summary>
     public string? PrimaryButtonText { get; init; }
+    /// <summary>可选的异步主操作；配置后点击主按钮不自动关闭，由业务成功后请求关闭。</summary>
+    public IAsyncRelayCommand? PrimaryButtonCommand { get; init; }
     /// <summary>获取次按钮文字；空值或空字符串表示不显示。</summary>
     public string? SecondaryButtonText { get; init; }
     /// <summary>获取关闭按钮文字；空值或空字符串表示不显示。</summary>

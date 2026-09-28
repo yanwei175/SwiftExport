@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Options;
 using SwiftExportClient.Authentication;
@@ -16,7 +16,7 @@ namespace SwiftExportClient.Shell;
 public sealed partial class ShellViewModel : ViewModelBaseEx, IDisposable
 {
     private const string HomeRouteKey = "home";
-    private const string SettingsRouteKey = "settings-center";
+    private const string SettingsRouteKey = "system-settings";
     private static readonly TimeSpan TransientStatusDuration = TimeSpan.FromSeconds(5);
     private readonly INavigationService _navigationService;
     private readonly ICurrentUserService _currentUserService;

@@ -1,3 +1,5 @@
+﻿using CommunityToolkit.Mvvm.Input;
+using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Controls;
 using Wpf.Ui;
@@ -55,6 +57,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             throw;
         }
         var completed = false;
+        Exception? commandFailure = null;
         FrameworkElement? dialogShell = null;
 
         void ApplyCurrentSize() => ApplyHostBounds(dialog, dialogShell, host, options);
@@ -62,7 +65,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         void OnDialogLoaded(object sender, RoutedEventArgs args)
         {
             dialogShell = FindDialogShell(dialog);
-            ApplyButtonState(dialog, state);
+            ApplyButtonState(dialog, state, options.PrimaryButtonCommand);
             ApplyCurrentSize();
         }
         void OnStateChanged(object? sender, EventArgs args)
@@ -70,14 +73,22 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             if (completed) return;
             if (dialog.Dispatcher.CheckAccess())
             {
-                ApplyButtonState(dialog, state);
+                ApplyButtonState(dialog, state, options.PrimaryButtonCommand);
                 return;
             }
 
             _ = dialog.Dispatcher.BeginInvoke(() =>
             {
-                if (!completed) ApplyButtonState(dialog, state);
+                if (!completed) ApplyButtonState(dialog, state, options.PrimaryButtonCommand);
             });
+        }
+
+        void OnCommandStateChanged(object? sender, EventArgs args) => OnStateChanged(sender, args);
+        void OnCommandFailed(Exception exception)
+        {
+            if (completed) return;
+            commandFailure = exception;
+            dialog.Hide(WpfContentDialogResult.None);
         }
 
         void OnCloseRequested(object? sender, DialogCloseRequestedEventArgs args)
@@ -97,7 +108,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
 
         void OnClosing(ContentDialog sender, ContentDialogClosingEventArgs args)
         {
-            if (state is not null && !state.CanClose(MapResult(args.Result)))
+            if (commandFailure is null && state is not null && !state.CanClose(MapResult(args.Result)))
             {
                 args.Cancel = true;
             }
@@ -111,6 +122,8 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
 
         try
         {
+            if (dialog is CommandContentDialog commandDialog) commandDialog.Failed += OnCommandFailed;
+            if (options.PrimaryButtonCommand is { } command) command.CanExecuteChanged += OnCommandStateChanged;
             host.SizeChanged += OnHostSizeChanged;
             hostSubscribed = true;
             dialog.Loaded += OnDialogLoaded;
@@ -130,11 +143,14 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             ApplyCurrentSize();
 
             var result = await contentDialogService.ShowAsync(dialog, cancellationToken);
+            if (commandFailure is not null) ExceptionDispatchInfo.Capture(commandFailure).Throw();
             return MapResult(result);
         }
         finally
         {
             completed = true;
+            if (dialog is CommandContentDialog commandDialog) commandDialog.Failed -= OnCommandFailed;
+            if (options.PrimaryButtonCommand is { } command) command.CanExecuteChanged -= OnCommandStateChanged;
             try
             {
                 if (hostSubscribed) host.SizeChanged -= OnHostSizeChanged;
@@ -193,8 +209,10 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     /// <summary>创建只使用 WPF-UI 官方 Dialog 属性的外壳。</summary>
     private static ContentDialog CreateDialog(object content, DialogOptions options, IDialogContentState? state)
     {
-        var dialog = new ContentDialog
+        var dialog = new CommandContentDialog(options.PrimaryButtonCommand)
         {
+            // 派生控件显式复用原控件的隐式样式，避免按派生类型查找时丢失官方模板。
+            Style = Application.Current?.TryFindResource(typeof(ContentDialog)) as Style,
             Title = options.Title,
             Content = content,
             PrimaryButtonText = options.PrimaryButtonText ?? string.Empty,
@@ -202,7 +220,7 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
             CloseButtonText = options.CloseButtonText ?? string.Empty,
             DefaultButton = MapButton(options.DefaultButton)
         };
-        ApplyButtonState(dialog, state);
+        ApplyButtonState(dialog, state, options.PrimaryButtonCommand);
 
         if (options.ScrollStrategy == DialogScrollStrategy.Content)
         {
@@ -347,10 +365,11 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
     private static bool AreClose(double left, double right) => Math.Abs(left - right) < 0.01;
 
     /// <summary>按钮有文字即显示，业务状态只控制可点击性；适配 WPF-UI 4.3 将禁用与隐藏绑定的模板。</summary>
-    private static void ApplyButtonState(ContentDialog dialog, IDialogContentState? state)
+    private static void ApplyButtonState(ContentDialog dialog, IDialogContentState? state, IAsyncRelayCommand? command)
     {
         dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(dialog.PrimaryButtonText)
-            && (state?.IsPrimaryButtonEnabled ?? true);
+            && (state?.IsPrimaryButtonEnabled ?? true)
+            && (command is null || (!command.IsRunning && command.CanExecute(null)));
         dialog.IsSecondaryButtonEnabled = !string.IsNullOrWhiteSpace(dialog.SecondaryButtonText)
             && (state?.IsSecondaryButtonEnabled ?? true);
         if (dialog.Template is null) return;
@@ -440,4 +459,22 @@ public sealed class WpfUiDialogService(IContentDialogService contentDialogServic
         WpfContentDialogResult.Secondary => DialogResult.Secondary,
         _ => DialogResult.Close
     };
+    /// <summary>仅接管配置过命令的主按钮；其他按钮继续使用 WPF-UI 原生流程。</summary>
+    private sealed class CommandContentDialog(IAsyncRelayCommand? command) : ContentDialog
+    {
+        internal event Action<Exception>? Failed;
+        /// <summary>命令执行成功与否由 Feature 判断，点击主按钮本身不会关闭表单。</summary>
+        protected override async void OnButtonClick(WpfContentDialogButton button)
+        {
+            if (button != WpfContentDialogButton.Primary || command is null)
+            {
+                base.OnButtonClick(button);
+                return;
+            }
+            if (!IsPrimaryButtonEnabled || command.IsRunning || !command.CanExecute(null)) return;
+            try { await command.ExecuteAsync(null); }
+            catch (Exception exception) { Failed?.Invoke(exception); }
+        }
+    }
+
 }

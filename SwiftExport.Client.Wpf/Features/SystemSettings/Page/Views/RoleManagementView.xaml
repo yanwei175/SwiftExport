@@ -1,0 +1,62 @@
+<Page x:Class="SwiftExportClient.Features.SystemSettings.Page.Views.RoleManagementView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                   mc:Ignorable="d" 
+             d:DesignHeight="460" d:DesignWidth="840"
+        AutomationProperties.Name="角色管理页面">
+    <Grid Margin="24" RowDefinitions="Auto,12,*,Auto">
+        <DockPanel Grid.Row="0">
+            <TextBlock Text="角色管理" Style="{StaticResource TitleTextBlock}"
+                          DockPanel.Dock="Left" Margin="0,0,8,0"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="CreateRoleButton" Content="新增角色" Click="OnCreateRole"
+                        Margin="0,0,8,0" AutomationProperties.Name="新增角色" />
+                <Button Content="刷新角色" Click="OnRefresh" AutomationProperties.Name="刷新角色列表" />
+            </StackPanel>
+        </DockPanel>
+        <Grid Grid.Row="2" RowDefinitions="Auto,8,*">
+            
+            <ui:TextBox x:Name="SearchBox" Grid.Row="0" Width="260" HorizontalAlignment="Left"
+                     TextChanged="OnRoleFilterChanged" AutomationProperties.Name="筛选角色" />
+            
+            <DataGrid x:Name="RoleGrid" Grid.Row="2" ItemsSource="{Binding Roles}"
+                      FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                      RowHeight="{DynamicResource DataGridRowHeightSmall}"
+                      SelectedItem="{Binding SelectedRole, Mode=OneWay}"
+                      AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                      SelectionMode="Single" AutomationProperties.Name="角色列表">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="编码" Binding="{Binding RoleCode}" Width="220" />
+                    
+                    <DataGridTextColumn Header="名称" Binding="{Binding RoleName}" Width="*" />
+                    
+                    <DataGridCheckBoxColumn Header="启用" Binding="{Binding IsActive}" Width="64" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"/>
+                    
+                    <DataGridCheckBoxColumn Header="内置" Binding="{Binding IsSystem}" Width="64" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridCheckBoxElementStyle}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridCheckBoxEditingElementStyle}"/>
+                    
+                    <DataGridTemplateColumn Header="操作" Width="380">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="编辑" Click="OnEditRole" Margin="0,0,4,0" />
+                                    <Button Content="分配权限" Click="OnAssignPermissions" Margin="0,0,4,0" />
+                                    <Button Content="启用/停用" Click="OnSetRoleStatus" Margin="0,0,4,0" />
+                                    <Button Content="删除" Click="OnDeleteRole" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+        <TextBlock Grid.Row="3" Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap" Margin="0,12,0,0" AutomationProperties.LiveSetting="Polite" />
+    </Grid>
+</Page>

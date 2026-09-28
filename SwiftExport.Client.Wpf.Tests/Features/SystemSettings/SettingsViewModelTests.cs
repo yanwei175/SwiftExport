@@ -4,9 +4,11 @@ using SwiftExport.Contracts.Apis.AuthApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
-using SwiftExportClient.Features.SystemSettings.Passwords.Models;
-using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
-using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Passwords.Change.Models;
+using SwiftExportClient.Features.SystemSettings.Passwords.Reset.Models;
+using SwiftExportClient.Features.SystemSettings.Passwords.Change.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Passwords.Reset.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.Models;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
 using SwiftExportClient.Services.Api;
@@ -22,18 +24,9 @@ public sealed class SettingsViewModelTests
     [TestMethod]
     public void SettingsWindowService_ShouldRejectPersonalWindowWithoutAuthenticatedSession()
     {
-        var messages = new FakeMessageService();
-        var session = new FakeSessionService();
-        using var provider = new ServiceCollection().BuildServiceProvider();
-        using var service = new SettingsWindowService(
-            provider,
-            new CurrentUserService(),
-            session,
-            messages);
-
-        service.ShowChangePassword();
-
-        StringAssert.Contains(messages.LastMessage, "请先登录");
+        using var model = CreateWorkspace(new CurrentUserService());
+        Assert.IsFalse(model.ChangePasswordCommand.CanExecute(null));
+        Assert.IsFalse(model.CanRead(SettingsPage.Personal));
     }
 
     /// <summary>验证角色名称不会替代管理权限，个人入口仍保留。</summary>
@@ -41,15 +34,12 @@ public sealed class SettingsViewModelTests
     public void SettingsCenter_ShouldKeepPersonalEntryAndHideManagementWithoutPermission()
     {
         var currentUser = CreateCurrentUser(roles: ["Admin"]);
-        var windows = new FakeSettingsWindowService();
-        var navigation = new SettingsNavigationSpy();
-        var viewModel = new SettingsCenterViewModel(currentUser, windows, navigation);
-
+        var dialogs = new SettingsDialogStub();
+        using var viewModel = CreateWorkspace(currentUser, dialogs);
         viewModel.ChangePasswordCommand.Execute(null);
-
-        Assert.IsFalse(viewModel.CanManageSettings);
-        Assert.IsFalse(viewModel.OpenSystemSettingsCommand.CanExecute(null));
-        Assert.AreEqual(1, windows.ChangePasswordCount);
+        Assert.IsFalse(viewModel.CanRead(SettingsPage.Users));
+        Assert.IsFalse(viewModel.CanRead(SettingsPage.Roles));
+        Assert.AreEqual(1, dialogs.ChangePasswordCalls);
     }
 
     /// <summary>验证管理入口只由稳定权限快照启用。</summary>
@@ -57,14 +47,11 @@ public sealed class SettingsViewModelTests
     public void SettingsCenter_ShouldEnableManagementFromPermissionSnapshot()
     {
         var currentUser = CreateCurrentUser(["System.Users.View", "System.Roles.View", "System.Dictionary.View"]);
-        var windows = new FakeSettingsWindowService();
-        var navigation = new SettingsNavigationSpy();
-        var viewModel = new SettingsCenterViewModel(currentUser, windows, navigation);
-
-        viewModel.OpenSystemSettingsCommand.Execute(null);
-
-        Assert.IsTrue(viewModel.CanManageSettings);
-        Assert.AreEqual("system-settings", navigation.LastRoute);
+        using var viewModel = CreateWorkspace(currentUser);
+        Assert.IsTrue(viewModel.CanRead(SettingsPage.Users));
+        Assert.IsTrue(viewModel.CanRead(SettingsPage.Roles));
+        Assert.IsTrue(viewModel.CanRead(SettingsPage.Dictionary));
+        Assert.AreEqual("system-settings", SettingsPageViewModel.RouteKey);
     }
 
     /// <summary>验证创建用户防重复提交并提示后续模块分配。</summary>
@@ -214,13 +201,11 @@ public sealed class SettingsViewModelTests
     private static UserSummaryDto User(string name, bool isAdmin)
         => new() { Uid = Guid.NewGuid(), UserName = name, NickName = name, IsAdmin = isAdmin };
 
-    private sealed class FakeSettingsWindowService : ISettingsWindowService
-    {
-        public int ChangePasswordCount { get; private set; }
-        public int SystemSettingsCount { get; private set; }
-        public void ShowChangePassword() => ChangePasswordCount++;
-        public void ShowSystemSettings() => SystemSettingsCount++;
-    }
+    /// <summary>权限测试禁止意外加载管理模型。</summary>
+    private static SettingsPageViewModel CreateWorkspace(ICurrentUserService user, SettingsDialogStub? dialogs = null) => new(
+        () => throw new NotSupportedException(), () => throw new NotSupportedException(),
+        () => throw new NotSupportedException(), () => throw new NotSupportedException(),
+        user, dialogs ?? new SettingsDialogStub());
 
     private sealed class FakeAuthApi : IAuthApi
     {

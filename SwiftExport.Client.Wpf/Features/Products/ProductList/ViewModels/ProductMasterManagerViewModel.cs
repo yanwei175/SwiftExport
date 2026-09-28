@@ -238,8 +238,11 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
                 _messages.ShowWarning("主型号未保存", error);
                 return;
             }
+
             var request = Masters.CreateSaveRequest();
+
             if (!request.HasChanges) return;
+
             if (request.CreateItems.Count > 0 || request.UpdateItems.Count > 0)
             {
                 var selection = await _syncDialog.ConfirmSaveAsync();
@@ -247,7 +250,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
                 request.UpdateProductDescriptions = selection.UpdateProductDescriptions;
                 request.UpdateProductDefaultSupplier = selection.UpdateProductDefaultSupplier;
             }
+
             var result = await _runner.RunAsync(() => _api.BatchSaveAsync(request), "保存主型号失败");
+
             if (!result.Success || result.Data is null)
             {
                 ValidationSummary = result.Message;

@@ -154,8 +154,23 @@ Feature dialog service 可以负责：
 
 接口中不应增加采购、销售或其他业务模块专属方法。
 
-## 9. 当前渐进迁移边界
+## 9. 系统设置表单与异步主按钮
 
-现有少量 Feature service 和独立设置窗口仍直接依赖 WPF-UI `IContentDialogService`。它们在迁移前不受公共服务的并发保护和统一释放逻辑约束；本次公共基础设施不会自动改变这些业务流程。
+系统设置已进入 Shell 页签。每个页签创建独立的 `Features/SystemSettings/Services/SettingsDialogService.cs`，由它建立一次性表单、调用 Shell 的 `IDialogService.ShowAsync`、提取保存结果并在 `finally` 清理。`Features/SystemSettings/Forms/Views/SettingsFormContent.xaml` 承载正文与同一弹窗内的放弃提示；页签关闭时释放该服务。
 
-独立窗口当前会把 Singleton `IContentDialogService` 切换到窗口本地宿主。后续迁移多窗口 Dialog 时，需要为本地宿主建立进入和恢复闭环；不要在业务 ViewModel 中保存或切换 `ContentDialogHost`。
+需要在弹窗内提交并等待结果时，设置可选的 `PrimaryButtonCommand`：
+
+```csharp
+await dialogs.ShowAsync(view, new DialogOptions("用户资料")
+{
+    PrimaryButtonText = "保存资料",
+    PrimaryButtonCommand = editor.SaveCommand,
+    CloseButtonText = "关闭"
+}, editor.CloseState);
+```
+
+该命令为 `IAsyncRelayCommand`。公共服务结合 `CanExecute`、`IsRunning` 和 `IDialogContentState` 控制主按钮，点击本身不关闭；业务 ViewModel 确认成功后通过 `IDialogCloseRequest` 请求关闭。校验或服务端业务失败保留输入，允许重试。未配置命令的弹窗仍按原方式返回按钮结果。未被业务层处理的异常会结束弹窗并传播给调用方，不会被静默吞掉。
+
+正文不再重复放置保存按钮。UserControl 右上角关闭按钮绑定 `CloseState.CloseCommand`，不直接依赖 ContentDialog。`SettingsFormContent` 订阅关闭意图并显示放弃提示。Busy 时阻止普通关闭，放弃确认在当前弹窗内部完成；会话失效则强制关闭并清理敏感输入。
+
+用户资料、用户角色、角色资料、角色权限分别位于 `RbacManagement/Users`、`RbacManagement/Roles` 下对应的用例目录；重置密码位于 `Passwords/Reset`。View 只负责控件、焦点和 PasswordBox 的读取清理，保存判断及关闭状态由 ViewModel 管理。个人修改密码位于 Passwords/Change，同样使用 Shell 公共 ContentDialog；成功后仍结束旧凭据会话。Shell 设置入口直接进入该工作区，默认个人概览，无管理权限也可使用个人功能。

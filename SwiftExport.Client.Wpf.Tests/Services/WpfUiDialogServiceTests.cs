@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -18,6 +18,58 @@ namespace SwiftExport.Client.Wpf.Tests.Services;
 [DoNotParallelize]
 public sealed class WpfUiDialogServiceTests
 {
+    /// <summary>真实主按钮等待异步写入，阻止重复提交，失败留窗，重试成功后由内容主动关闭。</summary>
+    [TestMethod]
+    public void PrimaryCommand_WaitsPreventsDuplicatesAndAllowsRetry() =>
+        Controls.DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
+            var host = new ContentDialogHost();
+            var window = new Window { Width = 800, Height = 500, Content = host };
+            var native = new ContentDialogService();
+            native.SetDialogHost(host);
+            var service = new WpfUiDialogService(native);
+            var state = new TestDialogState();
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var calls = 0;
+            var command = new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(async () =>
+            {
+                calls++;
+                if (calls == 1) await release.Task;
+                else state.RaiseCloseRequested(PublicDialogResult.Primary);
+            });
+            try
+            {
+                window.Show();
+                var pending = service.ShowAsync(new Grid(), new DialogOptions("异步保存")
+                {
+                    PrimaryButtonText = "保存", PrimaryButtonCommand = command
+                }, state);
+                await host.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                var dialog = (ContentDialog)host.Content!;
+                var button = dialog.Template.FindName("PrimaryButton", dialog)
+                    as System.Windows.Controls.Primitives.ButtonBase;
+                Assert.IsNotNull(button, "必须使用官方模板中的真实主按钮。");
+                button.Command.Execute(button.CommandParameter);
+                Assert.IsTrue(command.IsRunning);
+                Assert.IsFalse(dialog.IsPrimaryButtonEnabled);
+                button.Command.Execute(button.CommandParameter);
+                Assert.AreEqual(1, calls);
+                var execution = command.ExecutionTask!;
+                release.SetResult();
+                await execution;
+                await host.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                Assert.IsFalse(pending.IsCompleted, "没有成功关闭信号时应保留表单。");
+                Assert.IsTrue(dialog.IsPrimaryButtonEnabled);
+                button.Command.Execute(button.CommandParameter);
+                Assert.AreEqual(PublicDialogResult.Primary, await pending);
+                Assert.AreEqual(2, calls);
+                Assert.AreEqual(1, state.CloseRequestRemoveCount);
+            }
+            finally { window.Close(); }
+        });
+
     /// <summary>真实 WPF-UI 模板在比例占满时应保留外围留白，并让标题和按钮处于可见外壳内。</summary>
     [TestMethod]
     public void RatioSize_RealTemplate_PreservesOuterMarginInsideHost() =>

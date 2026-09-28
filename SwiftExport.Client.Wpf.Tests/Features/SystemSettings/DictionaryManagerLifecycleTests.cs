@@ -9,7 +9,7 @@ using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.Views;
-using SwiftExportClient.Features.SystemSettings.Workspace.Views;
+using SwiftExportClient.Features.SystemSettings.Page.Views;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
@@ -111,11 +111,11 @@ public sealed class DictionaryManagerLifecycleTests
             });
             var dictionary = CreateViewModel(typeApi, CreateThrowingProxy<ISysDictDataApi>(), new FakeDialogService(false), currentUser);
             using var provider = new ServiceCollection()
-                .AddTransient<SwiftExportClient.Features.SystemSettings.Workspace.ViewModels.SystemSettingsWorkspaceViewModel>(_ =>
+                .AddTransient<SwiftExportClient.Features.SystemSettings.Page.ViewModels.SettingsPageViewModel>(_ =>
                     new(() => throw new AssertFailedException("未访问用户页"),
-                        () => dictionary,
-                        () => throw new AssertFailedException(), () => throw new AssertFailedException(),
-                        currentUser, new FakeDialogService(true)))
+                        () => throw new AssertFailedException(),
+                        () => throw new AssertFailedException(), () => dictionary,
+                        currentUser, new SettingsDialogStub()))
                 .BuildServiceProvider();
             var registry = new SwiftExportClient.Navigation.NavigationRouteRegistry();
             using var navigation = new SwiftExportClient.Navigation.NavigationService(
@@ -129,16 +129,20 @@ public sealed class DictionaryManagerLifecycleTests
             await navigation.OpenAsync("system-settings");
             Assert.AreSame(first, navigation.SelectedTab);
             Assert.HasCount(1, navigation.OpenTabs);
-            var model = (SwiftExportClient.Features.SystemSettings.Workspace.ViewModels.SystemSettingsWorkspaceViewModel)first.ContentViewModel!;
+            var model = (SwiftExportClient.Features.SystemSettings.Page.ViewModels.SettingsPageViewModel)first.ContentViewModel!;
             await model.InitializeAsync();
+            await model.NavigateAsync(SwiftExportClient.Features.SystemSettings.Page.ViewModels.SettingsPage.Dictionary);
             dictionary.Lines.AddNew(new SysDictDataDto { DictCode = "TEST", DataNameZh = "敏感草稿" });
             Assert.IsTrue(first.IsDirty);
             var userId = currentUser.CurrentUser!.UserId;
             currentUser.SetCurrentUser(new MeDto { UserId = userId, Permissions = [] });
-            Assert.HasCount(0, navigation.OpenTabs, "全部撤权必须移除含草稿的管理页签。");
+            await System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Assert.HasCount(1, navigation.OpenTabs, "全部管理撤权后保留个人设置页签。");
+            Assert.IsFalse(model.HasUnsavedChanges, "管理草稿必须清理。");
+            Assert.AreEqual(SwiftExportClient.Features.SystemSettings.Page.ViewModels.SettingsPage.Personal, model.CurrentPage);
             currentUser.SetCurrentUser(new MeDto { UserId = userId, Permissions = ["System.Dictionary.View"] });
             await navigation.OpenAsync("system-settings");
-            Assert.AreNotSame(model, navigation.SelectedTab!.ContentViewModel);
+            Assert.AreSame(model, navigation.SelectedTab!.ContentViewModel);
             currentUser.Clear();
             Assert.HasCount(0, navigation.OpenTabs);
         });
@@ -299,9 +303,9 @@ public sealed class DictionaryManagerLifecycleTests
                 return Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([]));
             });
             var dictionary = CreateViewModel(typeApi, CreateThrowingProxy<ISysDictDataApi>(), new FakeDialogService(false), currentUser);
-            using var model = new SwiftExportClient.Features.SystemSettings.Workspace.ViewModels.SystemSettingsWorkspaceViewModel(
-                () => throw new AssertFailedException(), () => dictionary,
-                () => throw new AssertFailedException(), () => throw new AssertFailedException(), currentUser, new FakeDialogService(false));
+            using var model = new SwiftExportClient.Features.SystemSettings.Page.ViewModels.SettingsPageViewModel(
+                () => throw new AssertFailedException(), () => throw new AssertFailedException(),
+                () => throw new AssertFailedException(), () => dictionary, currentUser, new SettingsDialogStub());
             var registry = new SwiftExportClient.Navigation.NavigationRouteRegistry();
             Assert.IsTrue(registry.TryGetRoute("system-settings", out var route));
             using var tab = new SwiftExportClient.Navigation.NavigationTabItem(route, model);
@@ -315,6 +319,7 @@ public sealed class DictionaryManagerLifecycleTests
                 window.Show();
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
                 var view = FindVisualDescendants<SystemSettingsView>(host).Single();
+                await model.NavigateAsync(SwiftExportClient.Features.SystemSettings.Page.ViewModels.SettingsPage.Dictionary);
                 dictionary.Lines.AddNew(new SysDictDataDto { DictCode = "TEST", DataNameZh = "未保存" });
                 Assert.IsTrue(model.HasUnsavedChanges);
                 Assert.IsTrue(tab.IsDirty);

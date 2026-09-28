@@ -159,6 +159,7 @@
 
             <DataGrid x:Name="NeutralGrid" Grid.Column="2"
                       ItemsSource="{Binding Lines.Items}"
+                      Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
                       Style="{StaticResource SwiftExportDataGrid}"
                       RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                       RowHeight="{StaticResource DataGridRowHeightMedium}"

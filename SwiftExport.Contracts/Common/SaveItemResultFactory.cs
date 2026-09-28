@@ -6,9 +6,7 @@ namespace SwiftExport.Contracts.Common
 {
     public static class SaveItemResultFactory
     {
-        public static SaveItemResult FromCreate<T>(
-            CreateItemRequest<T> request,
-            RepositoryWriteResult writeResult)
+        public static SaveItemResult FromCreate<T>(CreateItemRequest<T> request, RepositoryWriteResult writeResult)
         {
             return new SaveItemResult
             {
@@ -24,9 +22,7 @@ namespace SwiftExport.Contracts.Common
             };
         }
 
-        public static SaveItemResult FromUpdate<T>(
-            UpdateItemRequest<T> request,
-            RepositoryWriteResult writeResult)
+        public static SaveItemResult FromUpdate<T>(UpdateItemRequest<T> request, RepositoryWriteResult writeResult)
         {
             return new SaveItemResult
             {
@@ -42,9 +38,7 @@ namespace SwiftExport.Contracts.Common
             };
         }
 
-        public static SaveItemResult FromDelete(
-            DeleteItemRequest request,
-            RepositoryWriteResult writeResult)
+        public static SaveItemResult FromDelete(DeleteItemRequest request, RepositoryWriteResult writeResult)
         {
             return new SaveItemResult
             {
@@ -60,13 +54,7 @@ namespace SwiftExport.Contracts.Common
             };
         }
 
-        public static SaveItemResult Failed(
-            SaveItemRequestBase request,
-            SaveOperation operation,
-            string errorCode,
-            string message,
-            Guid? uid = null,
-            int? oldVersion = null)
+        public static SaveItemResult Failed(SaveItemRequestBase request, SaveOperation operation, string errorCode, string message, Guid? uid = null, int? oldVersion = null)
         {
             return new SaveItemResult
             {

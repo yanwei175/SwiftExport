@@ -1,0 +1,21 @@
+<UserControl x:Class="SwiftExportClient.Features.SystemSettings.Forms.Views.SettingsFormContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </UserControl.Resources>
+    <Grid MaxHeight="620" RowDefinitions="*,Auto">
+        <ContentControl x:Name="FormBody" Grid.Row="0" />
+        <Border Grid.Row="1" Padding="12" Margin="12"
+                Visibility="{Binding IsDiscardPromptVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel>
+                <TextBlock Text="表单有未保存变更，确定放弃吗？" Margin="0,0,0,8" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ui:Button Content="继续编辑" Command="{Binding KeepEditingCommand}" Margin="0,0,8,0" Appearance="Primary"/>
+                    <ui:Button Content="放弃变更" Command="{Binding DiscardCommand}" Appearance="Danger"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

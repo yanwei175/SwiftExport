@@ -5,9 +5,7 @@ using SwiftExportClient.Services.UI;
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 
 /// <summary>创建需求选择与旧采购预览视图，并管理业务状态的打开、结果接纳和关闭。</summary>
-public sealed class NetDemandDialogService(
-    SourceDemandCandidatePickerViewModel sourceDemandPicker,
-    IDialogService dialogService) : INetDemandDialogService
+public sealed class NetDemandDialogService(SourceDemandCandidatePickerViewModel sourceDemandPicker, IDialogService dialogService) : INetDemandDialogService
 {
     /// <summary>展示物料领域候选，建立成功后在对话框内刷新来源单与当前明细。</summary>
     public async Task<bool> ShowSourceDemandCandidatesAsync(

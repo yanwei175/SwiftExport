@@ -429,22 +429,20 @@
 
 
     <Style TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
-        <Setter Property="Background" Value="{DynamicResource UserControlFillColorDefaultBrush}" />
+        <Setter Property="Background" Value="{DynamicResource UserCardBackgroundFillColorDefaultBrush}" />
         <Setter Property="Padding" Value="8"/>
     </Style>
 
         <Style x:Key="SwiftExportDataGrid" TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
         <Setter Property="RowBackground" Value="Transparent" />
-        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource UserCardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="{DynamicResource SwiftExportBorderThickness}" />
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />
         <Setter Property="HeadersVisibility" Value="All" />
-        <Setter Property="GridLinesVisibility" Value="All" />
-        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
-        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
         <Setter Property="RowHeaderWidth" Value="32" />
         <Setter Property="RowHeaderStyle" Value="{StaticResource SwiftExportDataGridRowHeader}" />
         <Setter Property="RowHeaderTemplate" Value="{StaticResource SwiftExportEnterpriseGridRowHeaderTemplate}" />

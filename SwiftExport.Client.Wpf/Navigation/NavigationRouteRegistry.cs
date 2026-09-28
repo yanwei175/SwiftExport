@@ -1,4 +1,4 @@
-using SwiftExportClient.Features.SystemSettings.Workspace.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels;
@@ -24,7 +24,6 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
-using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -100,10 +99,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new("planning", "计划", "Workspace", typeof(PlanningViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
 
-        new(SystemSettingsWorkspaceViewModel.RouteKey, "系统设置", "Workspace",
-            typeof(SystemSettingsWorkspaceViewModel), NavigationModuleKeys.SettingsCenter, RequiredPermission: null,
-            AnyRequiredPermissions: SystemSettingsWorkspaceViewModel.EntryPermissions, DiscardOnAccessRevoked: true),
-        new(SettingsCenterViewModel.RouteKey, "设置", "Workspace", typeof(SettingsCenterViewModel), NavigationModuleKeys.SettingsCenter, RequiredPermission: null),
+        new(SettingsPageViewModel.RouteKey, "设置", "Workspace",
+            typeof(SettingsPageViewModel), NavigationModuleKeys.SystemSettings, RequiredPermission: null,
+            DiscardOnAccessRevoked: true),
     ];
 
     private readonly Dictionary<string, NavigationRoute> _routeMap;

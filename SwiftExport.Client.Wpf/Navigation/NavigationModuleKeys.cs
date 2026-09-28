@@ -1,4 +1,4 @@
-namespace SwiftExportClient.Navigation;
+﻿namespace SwiftExportClient.Navigation;
 
 /// <summary>集中定义客户端导航路由所属的稳定模块标识；权限键仍由共享契约定义。</summary>
 public static class NavigationModuleKeys
@@ -23,8 +23,6 @@ public static class NavigationModuleKeys
     public const string Inventory = "inventory";
     /// <summary>出货模块。</summary>
     public const string Shipping = "shipping";
-    /// <summary>受管理能力保护的系统设置模块。</summary>
+    /// <summary>所有已登录用户可访问的设置模块。</summary>
     public const string SystemSettings = "system-settings";
-    /// <summary>所有已登录用户可访问的个人设置中心。</summary>
-    public const string SettingsCenter = "settings-center";
 }

@@ -1,5 +1,12 @@
-using SwiftExportClient.Features.SystemSettings.Workspace.ViewModels;
-using SwiftExportClient.Features.SystemSettings.RbacManagement.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Users.Query;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Roles.Query;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Permissions.Query;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Users.Profile.ViewModels;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Users.RoleAssignment.ViewModels;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Roles.Profile.ViewModels;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Roles.PermissionAssignment.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Services;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Services.UI;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,9 +36,10 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Suppliers.Components.ViewModel;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Passwords.Views;
-using SwiftExportClient.Features.SystemSettings.SettingsCenter.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Passwords.Change.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Passwords.Reset.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Passwords.Change.Views;
+using SwiftExportClient.Features.SystemSettings.Passwords.Reset.Views;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
 using SwiftExportClient.Shell;
 
@@ -122,17 +130,27 @@ public static class ViewRegistrationExtensions
 
 
 
-        services.AddTransient<SettingsCenterViewModel>();
-        // 子模型由工作区按需创建并释放，复用 Shell 的 Dialog 与消息服务。
-        services.AddTransient<SystemSettingsWorkspaceViewModel>(provider => new(
-            () => ActivatorUtilities.CreateInstance<RbacManagementViewModel>(provider),
-            () => ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(provider),
-            () => ActivatorUtilities.CreateInstance<UserRegistrationViewModel>(provider),
-            () => ActivatorUtilities.CreateInstance<ResetPasswordViewModel>(provider),
-            provider.GetRequiredService<ICurrentUserService>(), provider.GetRequiredService<IDialogService>()));
-
+        // 每个设置页签创建独立 Dialog 用例服务；列表与表单共用当前页签的活动门禁。
+        services.AddTransient<SettingsPageViewModel>(provider =>
+        {
+            var dialogs = new SettingsDialogService(
+                provider.GetRequiredService<IDialogService>(), provider.GetRequiredService<ICurrentUserService>(),
+                () => ActivatorUtilities.CreateInstance<ChangePasswordViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<UserRegistrationViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<ResetPasswordViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<UserProfileFormViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<UserRolesFormViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<RoleProfileFormViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<RolePermissionsFormViewModel>(provider));
+            return new SettingsPageViewModel(
+                () => ActivatorUtilities.CreateInstance<UsersQueryViewModel>(provider, dialogs),
+                () => ActivatorUtilities.CreateInstance<RolesQueryViewModel>(provider, dialogs),
+                () => ActivatorUtilities.CreateInstance<PermissionsQueryViewModel>(provider),
+                () => ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(provider),
+                provider.GetRequiredService<ICurrentUserService>(), dialogs,
+                provider.GetRequiredService<IAuthService>(), provider.GetRequiredService<IMessageService>());
+        });
         services.AddTransient<ChangePasswordViewModel>();
-        services.AddTransient<ChangePasswordWindow>();
         services.AddTransient<UserRegistrationViewModel>();
         services.AddTransient<ResetPasswordViewModel>();
 

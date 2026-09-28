@@ -10,7 +10,7 @@ namespace SwiftExportClient.Navigation;
 /// <summary>管理工作区页签，并在所有打开和激活入口统一执行当前用户的路由权限校验。</summary>
 public sealed class NavigationService : ObservableObjectEx, INavigationService, IDisposable
 {
-    private const int MaximumBusinessTabCount = 10;
+    private const int MaximumBusinessTabCount = 20;
     private const string HomeRouteKey = "home";
     private readonly INavigationTabFactory _tabFactory;
     private readonly INavigationRouteRegistry _routeRegistry;
@@ -280,7 +280,7 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         }
     }
 
-    /// <summary>权限与查重完成后检查业务页签名额，首页不占用十个业务名额。</summary>
+    /// <summary>权限与查重完成后检查业务页签名额，首页不占用业务名额。</summary>
     private bool EnsureCapacity(NavigationRoute route)
     {
         if (string.Equals(route.Key, HomeRouteKey, StringComparison.OrdinalIgnoreCase)

@@ -3,11 +3,12 @@ using System.Windows;
 using System.Windows.Controls;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
-using SwiftExportClient.Features.SystemSettings.RbacManagement.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Passwords.ViewModels;
-using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Workspace.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Workspace.Views;
+using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Page.Views;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Permissions.Query;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Roles.Query;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.Users.Query;
+using SwiftExportClient.Features.SystemSettings.Services;
 using SwiftExportClient.Services.UI;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
@@ -20,22 +21,32 @@ internal sealed class SettingsTabTestHost : FluentWindow
     private bool _allowClose, _checkingClose;
     private readonly ICurrentUserService _currentUser;
     private readonly string? _userId;
-    public SystemSettingsWorkspaceViewModel Model { get; }
+    /// <summary>与窗口一同释放的设置页签模型。</summary>
+    public SettingsPageViewModel Model { get; }
+    /// <summary>真实设置导航视图。</summary>
     public SystemSettingsView View { get; }
+    /// <summary>模拟 Shell 的单页签容器。</summary>
     public TabControl Tabs { get; } = new();
+    /// <summary>当前内部页面名称。</summary>
     public string? CurrentPageName => View.CurrentPageName;
-    /// <summary>创建带真实公共弹窗服务的测试页签宿主。</summary>
-    public SettingsTabTestHost(Func<RbacManagementViewModel> rbac,
-        Func<DictionaryManagerViewModel> dictionary, Func<UserRegistrationViewModel> registration,
-        Func<ResetPasswordViewModel> reset, ICurrentUserService user, IContentDialogService dialogs,
-        WindowMessageService messages)
+
+    /// <summary>创建公共 DialogHost；四个工厂仅在访问对应内部页面时调用。</summary>
+    public SettingsTabTestHost(Func<UsersQueryViewModel> users,
+        Func<DictionaryManagerViewModel> dictionary, Func<RolesQueryViewModel> roles,
+        Func<PermissionsQueryViewModel> permissions, ICurrentUserService user, IContentDialogService dialogs,
+        WindowMessageService messages, ISettingsDialogService? settingsDialogs = null)
     {
         _currentUser = user; _userId = user.CurrentUser?.UserId;
         Width = 1280; Height = 820; ShowInTaskbar = false;
-        Model = new(rbac, dictionary, registration, reset, user, new WpfUiDialogService(dialogs));
+        Model = new(users, roles, permissions, dictionary, user, settingsDialogs ?? new SettingsDialogStub());
+        Loaded += async (_, _) =>
+        {
+            var page = Enum.GetValues<SettingsPage>().FirstOrDefault(p => p != SettingsPage.Personal && Model.CanRead(p));
+            if (Model.CanRead(page)) await Model.NavigateAsync(page);
+        };
         View = new() { DataContext = Model };
         var root = new Grid();
-        Tabs.Items.Add(new TabItem { Header = "系统设置", Content = View });
+        Tabs.Items.Add(new TabItem { Header = "设置", Content = View });
         root.Children.Add(Tabs);
         var host = new ContentDialogHost(); root.Children.Add(host);
         Content = root;
@@ -44,14 +55,16 @@ internal sealed class SettingsTabTestHost : FluentWindow
         Closed += (_, _) => { user.CurrentUserChanged -= OnUserChanged; Model.Dispose(); };
         user.CurrentUserChanged += OnUserChanged;
     }
+
     /// <summary>查询页签内容中的命名导航控件。</summary>
     public new object FindName(string name) => View.FindName(name);
-    /// <summary>模拟 Shell 会话结束时移除页签。</summary>
+
     private void OnUserChanged(object? sender, EventArgs e)
     {
-        if (_currentUser.CurrentUser?.UserId != _userId || !SystemSettingsWorkspaceViewModel.EntryPermissions.Any(_currentUser.HasPermission)) ForceClose();
+        if (_currentUser.CurrentUser?.UserId != _userId || !_currentUser.IsAuthenticated) ForceClose();
     }
-    /// <summary>模拟页签关闭按钮调用文档关闭门禁。</summary>
+
+    /// <summary>模拟 Shell 页签关闭时的业务门禁。</summary>
     private async void OnClosing(object? sender, CancelEventArgs e)
     {
         if (_allowClose) return;
@@ -66,6 +79,7 @@ internal sealed class SettingsTabTestHost : FluentWindow
         }
         finally { _checkingClose = false; }
     }
-    /// <summary>测试结束或会话失效时强制释放模型及窗口。</summary>
+
+    /// <summary>注销或测试结束时强制释放页签及窗口。</summary>
     public void ForceClose() { _allowClose = true; Model.Dispose(); Close(); }
 }

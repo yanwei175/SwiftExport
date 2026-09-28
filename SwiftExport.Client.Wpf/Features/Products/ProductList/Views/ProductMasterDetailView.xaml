@@ -53,11 +53,7 @@
 
         </Grid>
 
-        <Border Grid.Row="2" 
-                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" 
-                BorderThickness="1"
-                CornerRadius="{StaticResource SwiftExportCornerRadius}" 
-                Padding="16">
+        <ui:Card Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -187,20 +183,19 @@
                         <RowDefinition Height="240"/>
                     </Grid.RowDefinitions>
 
-                    <Border Background="White" Width="240" MinHeight="240"
-                            CornerRadius="4"
-                            Padding="8">
+                    <ui:Card Width="240" MinHeight="240"
+                             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                         <controls:CachedImage Style="{StaticResource SwiftExportCachedImage}"
                                           Width="Auto"
                                           Height="Auto"
                                           DecodePixelWidth="800"
                                           SourcePath="{Binding MainImagePath}"
                                           Stretch="Uniform" />
-                    </Border>
+                    </ui:Card>
 
                 </Grid>
             </Grid>
-        </Border>
+        </ui:Card>
 
         <Grid Grid.Row="4">
             <Grid.RowDefinitions>

@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.Models;
@@ -17,12 +16,13 @@ public partial class UserRegistrationView : UserControl, IDisposable
         InitializeComponent();
         _model = model;
         DataContext = model;
+        model.ReadInput = () => new UserRegistrationPasswordInput(PasswordInput.Password, ConfirmInput.Password);
+        model.HasInputDraft = () => HasDraft;
+        model.ClearInput = ClearSensitiveInput;
+        model.SaveCommand.NotifyCanExecuteChanged();
         _model.FocusRequested += OnFocusRequested;
-        _model.PropertyChanged += OnModelPropertyChanged;
     }
 
-    /// <summary>请求宿主执行取消及草稿确认。</summary>
-    public event EventHandler? CancelRequested;
 
     /// <summary>任一输入仍在内存中时要求取消确认。</summary>
     public bool HasDraft => !string.IsNullOrWhiteSpace(_model.UserName)
@@ -37,18 +37,6 @@ public partial class UserRegistrationView : UserControl, IDisposable
         _model.UserName = _model.NickName = _model.Email = _model.PhoneNumber = string.Empty;
     }
 
-    private async void OnSubmit(object sender, RoutedEventArgs e)
-    {
-        var input = new UserRegistrationPasswordInput(PasswordInput.Password, ConfirmInput.Password);
-        if (_model.SubmitCommand.CanExecute(input))
-        {
-            // 服务端拒绝后保留全部输入供修改重试；成功与强制关闭由弹窗释放时清理。
-            await _model.SubmitCommand.ExecuteAsync(input);
-        }
-    }
-
-    private void OnCancel(object sender, RoutedEventArgs e) => CancelRequested?.Invoke(this, EventArgs.Empty);
-
     private void OnFocusRequested(string field)
     {
         if (field == "UserName") UserNameBox.Focus();
@@ -56,16 +44,11 @@ public partial class UserRegistrationView : UserControl, IDisposable
         else ConfirmInput.Focus();
     }
 
-    private void OnModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(_model.IsBusy)) FormPanel.IsEnabled = !_model.IsBusy;
-    }
-
     /// <summary>解除 ViewModel 事件，迟到的注册响应不得再操作已关闭表单。</summary>
     public void Dispose()
     {
+        _model.ReadInput = null; _model.HasInputDraft = null; _model.ClearInput = null;
         _model.FocusRequested -= OnFocusRequested;
-        _model.PropertyChanged -= OnModelPropertyChanged;
         _model.Dispose();
         ClearSensitiveInput();
     }
