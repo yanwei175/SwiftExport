@@ -10,10 +10,10 @@ namespace SwiftExportClient.Features.Products.ProductList.Services;
 /// <summary>通过应用 ContentDialog 宿主提供主型号同步确认；文案和控件只归本功能所有。</summary>
 public sealed class ProductMasterSyncDialogService(IContentDialogService contentDialogService) : IProductMasterSyncDialogService
 {
-    /// <inheritdoc/>
+    /// <summary>每次保存重新收集两组物料覆盖选项；取消时返回未确认结果，使调用方停止提交。</summary>
     public async Task<ProductMasterSyncDialogResult> ConfirmSaveAsync(CancellationToken cancellationToken = default)
     {
-        // 每次新建控件，不记忆上次勾选，防止重试或另一文档继承覆盖授权。
+        // 每次新建控件且默认不勾选，防止重试或另一文档继承覆盖授权。
         var descriptions = new CheckBox { Content = "更新描述配置", IsChecked = false, Margin = new Thickness(0, 16, 0, 8) };
         var supplier = new CheckBox { Content = "更新默认供应商", IsChecked = false };
 

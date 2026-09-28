@@ -16,7 +16,7 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
     /// <summary>新增一条未保存主型号。</summary>
     public ProductMasterLineModel AddNewMaster() => AddNew(new ProductMasterListItemDto());
 
-    /// <summary>按照当前行状态构造批量保存请求。</summary>
+    /// <summary>按行状态生成主型号新增、修改、软删除变更集；同步选项留给保存确认步骤设置。</summary>
     public ProductMasterBatchSaveRequest CreateSaveRequest()
     {
         return new ProductMasterBatchSaveRequest
@@ -49,7 +49,7 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
         };
     }
 
-    /// <summary>使用服务端逐行结果回填标识和版本，并在全部成功后接纳变更。</summary>
+    /// <summary>按客户端行键回填服务端标识和新版本，并在整批成功后接纳本地变更。</summary>
     public void ApplySaveResponse(ProductMasterBatchSaveResponse response)
     {
         var byKey = AllLines.ToDictionary(line => line.ClientKey, StringComparer.Ordinal);

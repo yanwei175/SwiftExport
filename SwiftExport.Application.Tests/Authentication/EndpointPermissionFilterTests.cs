@@ -38,7 +38,7 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        Assert.AreEqual(205, routes.Count);
+        Assert.AreEqual(215, routes.Count);
         foreach (var (action, key) in routes)
         {
             var denied = await ExecuteAsync(action, []);

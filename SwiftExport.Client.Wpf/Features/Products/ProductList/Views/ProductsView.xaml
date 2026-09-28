@@ -146,6 +146,12 @@
                             <ui:DropDownButton.Flyout>
                                 <ContextMenu MinWidth="180" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                                     <MenuItem  Header="批量上传主图" Command="{Binding UploadImagesCommand}"/>
+                                    <Separator />
+                                    <MenuItem Header="从主型号拉取描述" Command="{Binding PullMasterDescriptionsCommand}" />
+                                    <MenuItem Header="从主型号拉取配置" Command="{Binding PullMasterFeaturesCommand}" />
+                                    <MenuItem Header="从主型号拉取供应商" Command="{Binding PullMasterSupplierCommand}" />
+                                    <MenuItem Header="从主型号拉取毛重和体积" Command="{Binding PullMasterWeightVolumeCommand}" />
+                                    <MenuItem Header="从主型号拉取全部资料" Command="{Binding PullMasterAllCommand}" />
                                 </ContextMenu>
                             </ui:DropDownButton.Flyout>
                         </ui:DropDownButton>

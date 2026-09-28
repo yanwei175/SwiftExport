@@ -12,3 +12,5 @@
 - 新增手写源码使用中文职责注释，公开类型与非显然成员补 XML summary；不修改生成文件。
 - 修改仅限用户授权的 VSTO 及对应测试／文档，不把 VSTO 例外扩散到 .NET 10 Skills。
 - 构建使用 Visual Studio MSBuild，实机验收与自动测试分别报告。
+- 主题统一由 ThemeService 初始化；WPF-UI 4.3.0 的 UiApplication 资源入口必须显式连接并在释放时恢复。设计器资源只走 Properties/DesignTimeResources.xaml，不在运行时合并设计器补丁。
+- Primary 样式改动运行独立 SwiftExport.Client.VSTO.WpfTests STA 验证；颜色、画刷及控件状态按实际包模板检查。

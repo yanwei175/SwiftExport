@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.ProductApis
 {
-    /// <summary>主产品资料管理 API，负责主型号分页、详情和主从保存。</summary>
+    /// <summary>主产品资料管理 API，负责主型号查询、主从保存和已保存资料的独立下发。</summary>
     public interface IProductMasterApi
     {
         /// <summary>分页查询主型号。</summary>
@@ -30,7 +30,7 @@ namespace SwiftExport.Contracts.Apis.ProductApis
             Guid productMasterId,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>批量保存管理页中的主型号变更。</summary>
+        /// <summary>提交管理页主型号变更和本批次物料同步选项，返回逐行保存结果。</summary>
         [Post("/batch-save")]
         Task<ServiceResult<ProductMasterBatchSaveResponse>> BatchSaveAsync(
             [Body] ProductMasterBatchSaveRequest request,
@@ -41,5 +41,21 @@ namespace SwiftExport.Contracts.Apis.ProductApis
         Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(
             [Body] SaveProductMasterDetailRequest request,
             CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>下发中英文描述。</summary>
+        [Post("/sync-descriptions")]
+        Task<ServiceResult<SyncProductMasterDataResponse>> SyncDescriptionsAsync([Body] SyncProductMasterDataRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>下发中英文配置。</summary>
+        [Post("/sync-features")]
+        Task<ServiceResult<SyncProductMasterDataResponse>> SyncFeaturesAsync([Body] SyncProductMasterDataRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>下发默认供应商。</summary>
+        [Post("/sync-supplier")]
+        Task<ServiceResult<SyncProductMasterDataResponse>> SyncSupplierAsync([Body] SyncProductMasterDataRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>直接下发毛重和体积到产品单位字段。</summary>
+        [Post("/sync-weight-volume")]
+        Task<ServiceResult<SyncProductMasterDataResponse>> SyncWeightVolumeAsync([Body] SyncProductMasterDataRequest request, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>同时下发四组产品资料。</summary>
+        [Post("/sync-all")]
+        Task<ServiceResult<SyncProductMasterDataResponse>> SyncAllAsync([Body] SyncProductMasterDataRequest request, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

@@ -28,6 +28,11 @@ public sealed class ProductMasterModelsAndContractsTests
         AssertRoute(nameof(IProductMasterApi.BatchSaveAsync), "/batch-save", typeof(PostAttribute));
         AssertRoute(nameof(IProductMasterApi.SaveDetailAsync), "/save-detail", typeof(PostAttribute));
         AssertRoute(nameof(IProductMasterApi.AssignCategoryAsync), "/assign-category", typeof(PostAttribute));
+        AssertRoute(nameof(IProductMasterApi.SyncDescriptionsAsync), "/sync-descriptions", typeof(PostAttribute));
+        AssertRoute(nameof(IProductMasterApi.SyncFeaturesAsync), "/sync-features", typeof(PostAttribute));
+        AssertRoute(nameof(IProductMasterApi.SyncSupplierAsync), "/sync-supplier", typeof(PostAttribute));
+        AssertRoute(nameof(IProductMasterApi.SyncWeightVolumeAsync), "/sync-weight-volume", typeof(PostAttribute));
+        AssertRoute(nameof(IProductMasterApi.SyncAllAsync), "/sync-all", typeof(PostAttribute));
         foreach (var method in typeof(IProductMasterApi).GetMethods())
             Assert.AreEqual(typeof(CancellationToken), method.GetParameters().Last().ParameterType, method.Name);
     }
@@ -189,6 +194,12 @@ public sealed class ProductMasterModelsAndContractsTests
     {
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         var manager = XDocument.Load(ViewPath("ProductMasterManagerView.xaml"));
+        foreach (var command in new[] { "SyncDescriptionsCommand", "SyncFeaturesCommand", "SyncSupplierCommand", "SyncWeightVolumeCommand", "SyncAllCommand" })
+        {
+            var menu = manager.Descendants(presentation + "MenuItem")
+                .Single(item => ((string?)item.Attribute("Command"))?.Contains(command, StringComparison.Ordinal) == true);
+            StringAssert.Contains((string?)menu.Attribute("Command"), "PlacementTarget.DataContext.");
+        }
         var managerGrid = manager.Descendants(presentation + "DataGrid")
             .Single(grid => (string?)grid.Attribute("ItemsSource") == "{Binding Masters.Items}");
         var searchBox = manager.Descendants().Single(element =>

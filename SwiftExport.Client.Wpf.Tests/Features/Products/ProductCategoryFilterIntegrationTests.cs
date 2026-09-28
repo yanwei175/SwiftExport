@@ -186,6 +186,11 @@ public sealed class ProductCategoryFilterIntegrationTests
 
         public Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default) =>
             throw new AssertFailedException("分类筛选不应保存主型号详情。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncDescriptionsAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncFeaturesAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncSupplierAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncWeightVolumeAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncAllAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应下发产品资料。");
     }
 
     /// <summary>记录中性产品分页请求，并返回稳定空页。</summary>

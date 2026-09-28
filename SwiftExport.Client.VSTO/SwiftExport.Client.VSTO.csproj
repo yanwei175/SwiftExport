@@ -269,7 +269,9 @@
     <Compile Include="Bootstrapper\AddInBootstrapper.cs" />
     <Compile Include="Bootstrapper\ApiOptions.cs" />
     <Compile Include="Ioc\ServiceRegistration.cs" />
-    <Compile Include="Hosting\TaskPanes\TaskPaneHostControl.cs" />
+    <Compile Include="Hosting\TaskPanes\TaskPaneHostControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Hosting\TaskPanes\TaskPaneManager.cs" />
     <Compile Include="Hosting\Threading\ExcelDispatcher.cs" />
     <Compile Include="Hosting\Threading\IUiDispatcher.cs" />
@@ -283,6 +285,11 @@
     <Compile Include="UI\Themes\ThemeService.cs" />
     <Page Include="Authentication\LoginWindow.xaml;Resources\*.xaml">
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Properties\DesignTimeResources.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+      <ContainsDesignTimeResources>true</ContainsDesignTimeResources>
     </Page>
     <Content Include="vsto.config.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

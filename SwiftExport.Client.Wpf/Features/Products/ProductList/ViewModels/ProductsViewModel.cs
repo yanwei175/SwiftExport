@@ -6,6 +6,8 @@ using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products.Responses;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -14,6 +16,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Mvvm;
@@ -27,8 +30,8 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>编排产品资料列表、可选关联选择和批量保存；实际仓库由单据页面决定。</summary>
-public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable
+/// <summary>编排产品资料列表、批量保存及从已关联主型号拉取所选资料；实际仓库由单据页面决定。</summary>
+public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializable, IDisposable
 {
     private const int DefaultPageSize = 20;
     private readonly IProductApi _productApi;
@@ -39,6 +42,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
     private readonly IProductImageUploadDialogService _imageUploadDialog;
+    private readonly ICurrentUserService? _currentUser;
+    private bool _disposed;
     private bool _isInitialized;
     private bool _restoringSelection;
     private long _supplierSearchVersion;
@@ -53,7 +58,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         IMessageService messageService,
         IDialogService dialogService,
         BomDrawerViewModel bomDrawer,
-        IProductImageUploadDialogService imageUploadDialog)
+        IProductImageUploadDialogService imageUploadDialog,
+        ICurrentUserService? currentUser = null)
     {
         _productApi = productApi;
         _customerApi = customerApi;
@@ -63,10 +69,13 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         _messageService = messageService;
         _dialogService = dialogService;
         _imageUploadDialog = imageUploadDialog;
+        _currentUser = currentUser;
+        if (_currentUser is not null) _currentUser.CurrentUserChanged += OnCurrentUserChanged;
         BomDrawer = bomDrawer;
         Title = "产品资料";
         Products.PropertyChanged += OnProductsPropertyChanged;
-        BomDrawer.SelectionRestoreRequested += (_, product) => RestoreSelection(product);
+        Products.ListStateChanged += OnProductsListStateChanged;
+        BomDrawer.SelectionRestoreRequested += OnBomDrawerSelectionRestoreRequested;
         if (_referenceDataCache?.DictionaryValues is { } dictionaryValues)
             CollectionChangedEventManager.AddHandler(
                 dictionaryValues,
@@ -80,6 +89,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         RegisterBusyAwareCommand(RejectProductChangesCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(UploadImagesCommand);
+        RegisterBusyAwareCommand(PullMasterDescriptionsCommand);
+        RegisterBusyAwareCommand(PullMasterFeaturesCommand);
+        RegisterBusyAwareCommand(PullMasterSupplierCommand);
+        RegisterBusyAwareCommand(PullMasterWeightVolumeCommand);
+        RegisterBusyAwareCommand(PullMasterAllCommand);
     }
 
     /// <summary>打开独立图片上传用例，不保存或刷新当前产品表格中的未保存编辑。</summary>
@@ -87,6 +101,75 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private Task UploadImagesAsync() => RunBusyAsync(() => _imageUploadDialog.ShowAsync(), "产品主图上传");
 
     private bool CanOpenImageUpload() => IsNotBusy;
+
+    /// <summary>从关联主型号拉取中英文描述。</summary>
+    [RelayCommand(CanExecute = nameof(CanPullMasterData))]
+    private Task PullMasterDescriptionsAsync() => PullMasterDataAsync("中英文描述", request => _productApi.PullMasterDescriptionsAsync(request));
+
+    /// <summary>从关联主型号拉取中英文配置。</summary>
+    [RelayCommand(CanExecute = nameof(CanPullMasterData))]
+    private Task PullMasterFeaturesAsync() => PullMasterDataAsync("中英文配置", request => _productApi.PullMasterFeaturesAsync(request));
+
+    /// <summary>从关联主型号拉取默认供应商。</summary>
+    [RelayCommand(CanExecute = nameof(CanPullMasterData))]
+    private Task PullMasterSupplierAsync() => PullMasterDataAsync("默认供应商", request => _productApi.PullMasterSupplierAsync(request));
+
+    /// <summary>从关联主型号直接拉取毛重和体积到产品单位字段。</summary>
+    [RelayCommand(CanExecute = nameof(CanPullMasterData))]
+    private Task PullMasterWeightVolumeAsync() => PullMasterDataAsync("毛重和体积", request => _productApi.PullMasterWeightVolumeAsync(request));
+
+    /// <summary>从关联主型号拉取全部四组资料。</summary>
+    [RelayCommand(CanExecute = nameof(CanPullMasterData))]
+    private Task PullMasterAllAsync() => PullMasterDataAsync("中英文描述、中英文配置、默认供应商、毛重和体积", request => _productApi.PullMasterAllAsync(request));
+
+    /// <summary>确认所选范围后发起单次拉取；成功时刷新数据库现值，取消时不发送请求。</summary>
+    private Task PullMasterDataAsync(string fields, Func<PullProductMasterDataRequest, Task<ServiceResult<PullProductMasterDataResponse>>> send)
+    {
+        if (!CanPullMasterData()) return Task.CompletedTask;
+        var ids = SelectedPullLines().Select(line => line.Uid).Distinct().ToArray();
+        return RunBusyAsync(async () =>
+        {
+            if (!await _dialogService.ConfirmAsync("从主型号拉取资料",
+                $"将从数据库中已保存的主型号把{fields}覆盖到所选 {ids.Length} 个产品；无可用主型号的产品会跳过。是否继续？", "拉取")) return;
+            if (_disposed || IsReadOnly || Products.HasChanges || _currentUser?.HasPermission(PermissionKeys.ProductsProductEdit) != true
+                || !ids.SequenceEqual(SelectedPullLines().Select(line => line.Uid).Distinct())) return;
+
+            var result = await _apiCallRunner.RunAsync(() => send(new PullProductMasterDataRequest { ProductIds = ids.ToList() }), "从主型号拉取资料失败");
+            if (_disposed) return;
+            if (!result.Success || result.Data is null)
+            {
+                _messageService.ShowError("从主型号拉取资料失败", result.Message);
+                return;
+            }
+            _messageService.ShowSuccess("主型号资料已拉取",
+                $"已选 {result.Data.SelectedProductCount} 个产品，跳过 {result.Data.SkippedProductCount} 个，实际更新 {result.Data.UpdatedProductCount} 个。");
+            if (!await LoadPageCoreAsync())
+                _messageService.ShowWarning("拉取成功", "资料已拉取，但列表刷新失败。请稍后手动刷新。");
+        }, "正在从主型号拉取资料...");
+    }
+
+    /// <summary>勾选行优先，无勾选时使用当前行。</summary>
+    private IReadOnlyList<ProductLineModel> SelectedPullLines() => Products.CheckedItems.Count > 0
+        ? Products.CheckedItems : SelectedLine is null ? [] : [SelectedLine];
+
+    /// <summary>只允许有产品编辑权限、无草稿且所选均为已保存产品时拉取。</summary>
+    private bool CanPullMasterData() => !_disposed && IsNotBusy && !IsReadOnly && !Products.HasChanges
+        && _currentUser?.HasPermission(PermissionKeys.ProductsProductEdit) == true
+        && SelectedPullLines() is { Count: > 0 } lines
+        && lines.All(line => !line.IsNew && !line.IsDeleted && line.Uid != Guid.Empty);
+
+    /// <summary>刷新五个资料拉取入口的可执行状态。</summary>
+    private void NotifyPullCommands()
+    {
+        PullMasterDescriptionsCommand.NotifyCanExecuteChanged();
+        PullMasterFeaturesCommand.NotifyCanExecuteChanged();
+        PullMasterSupplierCommand.NotifyCanExecuteChanged();
+        PullMasterWeightVolumeCommand.NotifyCanExecuteChanged();
+        PullMasterAllCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>权限快照变化时即时更新拉取入口。</summary>
+    private void OnCurrentUserChanged(object? sender, EventArgs e) => NotifyPullCommands();
 
     public ProductListModel Products { get; } = new();
     public BomDrawerViewModel BomDrawer { get; }
@@ -175,6 +258,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         Products.SelectedItem = value;
         if (!_restoringSelection) BomDrawer.NotifyProductSelection(value);
+        NotifyPullCommands();
     }
 
     partial void OnPageIndexChanged(int value) => PageChangeCommand.NotifyCanExecuteChanged();
@@ -502,6 +586,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         UpdateChangeState();
 
+    /// <summary>勾选及行状态变化时更新拉取入口，避免沿用旧的选择快照。</summary>
+    private void OnProductsListStateChanged(object? sender, ListStateChangedEventArgs<ProductLineModel> e) => UpdateChangeState();
+
     private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         RefreshUnitOptions();
 
@@ -513,6 +600,23 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         IsDirty = Products.HasChanges; OnPropertyChanged(nameof(HasChanges));
         SaveCommand.NotifyCanExecuteChanged(); RejectProductChangesCommand.NotifyCanExecuteChanged(); DeleteSelectedCommand.NotifyCanExecuteChanged();
+        NotifyPullCommands();
+    }
+
+    /// <summary>BOM 抽屉请求恢复选择时转发给产品列表，并允许页面释放时解除订阅。</summary>
+    private void OnBomDrawerSelectionRestoreRequested(object? sender, ProductLineModel? product) => RestoreSelection(product);
+
+    /// <summary>页面释放时解除产品列表和权限订阅。</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Products.PropertyChanged -= OnProductsPropertyChanged;
+        Products.ListStateChanged -= OnProductsListStateChanged;
+        BomDrawer.SelectionRestoreRequested -= OnBomDrawerSelectionRestoreRequested;
+        if (_currentUser is not null) _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
+        if (_referenceDataCache?.DictionaryValues is { } dictionaryValues)
+            CollectionChangedEventManager.RemoveHandler(dictionaryValues, OnDictionaryValuesChanged);
     }
 
 

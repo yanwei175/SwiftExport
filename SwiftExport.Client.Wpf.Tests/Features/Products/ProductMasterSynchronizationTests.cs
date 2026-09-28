@@ -12,6 +12,9 @@ using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Bootstrapper;
+using SwiftExportClient.Authentication;
+using SwiftExport.Contracts.DTOs.Auth;
+using CommunityToolkit.Mvvm.Input;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
@@ -27,6 +30,108 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class ProductMasterSynchronizationTests
 {
+    /// <summary>五个独立命令按勾选优先、当前行回退提交同一主型号集合，并在确认后调用各自端点。</summary>
+    [TestMethod]
+    [DataRow("descriptions", nameof(IProductMasterApi.SyncDescriptionsAsync))]
+    [DataRow("features", nameof(IProductMasterApi.SyncFeaturesAsync))]
+    [DataRow("supplier", nameof(IProductMasterApi.SyncSupplierAsync))]
+    [DataRow("weight-volume", nameof(IProductMasterApi.SyncWeightVolumeAsync))]
+    [DataRow("all", nameof(IProductMasterApi.SyncAllAsync))]
+    public async Task IndependentSync_UsesCheckedRowsAndDedicatedApi(string group, string expectedMethod)
+    {
+        var ids = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var calls = 0;
+        SyncProductMasterDataRequest? sent = null;
+        string? actualMethod = null;
+        var api = Proxy<IProductMasterApi>((method, args) =>
+        {
+            calls++;
+            actualMethod = method.Name;
+            sent = (SyncProductMasterDataRequest)args[0]!;
+            return Task.FromResult(ServiceResult<SyncProductMasterDataResponse>.Ok(new()
+            { ProductMasterCount = sent.ProductMasterIds.Count, UpdatedProductCount = 3 }));
+        });
+        var confirms = 0;
+        var dialogs = Proxy<IDialogService>((method, _) =>
+        {
+            if (method.Name == nameof(IDialogService.ConfirmAsync)) { confirms++; return Task.FromResult(true); }
+            return null;
+        });
+        using var vm = SyncManager(api, dialogs, true);
+        vm.Masters.LoadFromDtos(ids.Select((id, index) => new ProductMasterListItemDto
+        { Uid = id, Version = 1, Data = new() { MasterSku = $"M{index}" } }));
+        vm.SelectedMaster = vm.Masters.Items[0];
+        vm.Masters.Items[1].IsChecked = true;
+        await SyncCommand(vm, group).ExecuteAsync(null);
+        Assert.AreEqual(1, confirms);
+        Assert.AreEqual(1, calls);
+        Assert.AreEqual(expectedMethod, actualMethod);
+        CollectionAssert.AreEqual(new[] { ids[1] }, sent!.ProductMasterIds);
+        vm.Masters.Items[1].IsChecked = false;
+        await SyncCommand(vm, group).ExecuteAsync(null);
+        CollectionAssert.AreEqual(new[] { ids[0] }, sent!.ProductMasterIds);
+    }
+
+    /// <summary>未保存修改、无产品编辑权限和取消确认均不能发送独立下发请求。</summary>
+    [TestMethod]
+    public async Task IndependentSync_BlocksDirtyUnauthorizedAndCancelled()
+    {
+        var calls = 0;
+        var api = Proxy<IProductMasterApi>((_, _) => { calls++; throw new AssertFailedException("不应发送下发请求。"); });
+        var dialogs = Proxy<IDialogService>((method, _) => method.Name == nameof(IDialogService.ConfirmAsync)
+            ? Task.FromResult(false) : null);
+        using var noPermission = SyncManager(api, dialogs, false);
+        noPermission.Masters.LoadFromDtos([new() { Uid = Guid.NewGuid(), Version = 1, Data = new() { MasterSku = "A" } }]);
+        noPermission.SelectedMaster = noPermission.Masters.Items[0];
+        Assert.IsFalse(noPermission.SyncAllCommand.CanExecute(null));
+
+        using var dirty = SyncManager(api, dialogs, true);
+        dirty.Masters.LoadFromDtos([new() { Uid = Guid.NewGuid(), Version = 1, Data = new() { MasterSku = "B" } }]);
+        dirty.SelectedMaster = dirty.Masters.Items[0];
+        dirty.SelectedMaster.DefaultDescriptionEn = "未保存";
+        Assert.IsFalse(dirty.SyncAllCommand.CanExecute(null));
+        dirty.Masters.RejectChanges();
+        Assert.IsTrue(dirty.SyncAllCommand.CanExecute(null));
+        await dirty.SyncAllCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, calls);
+    }
+
+    /// <summary>一个下发请求运行期间，其他字段组命令不能再次进入。</summary>
+    [TestMethod]
+    public async Task IndependentSync_BusyBlocksOtherGroups()
+    {
+        var completion = new TaskCompletionSource<ServiceResult<SyncProductMasterDataResponse>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        var api = Proxy<IProductMasterApi>((_, _) => { calls++; return completion.Task; });
+        var dialogs = Proxy<IDialogService>((method, _) => method.Name == nameof(IDialogService.ConfirmAsync)
+            ? Task.FromResult(true) : null);
+        using var vm = SyncManager(api, dialogs, true);
+        vm.Masters.LoadFromDtos([new() { Uid = Guid.NewGuid(), Version = 1, Data = new() { MasterSku = "A" } }]);
+        vm.SelectedMaster = vm.Masters.Items[0];
+        var pending = vm.SyncDescriptionsCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, calls);
+        Assert.IsFalse(vm.SyncFeaturesCommand.CanExecute(null));
+        await vm.SyncFeaturesCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, calls);
+        completion.SetResult(ServiceResult<SyncProductMasterDataResponse>.Ok(new() { ProductMasterCount = 1, UpdatedProductCount = 1 }));
+        await pending;
+        Assert.IsFalse(vm.IsBusy);
+    }
+
+    private static ProductMasterManagerViewModel SyncManager(IProductMasterApi api, IDialogService dialogs, bool allowed) => new(
+        api, null!, Runner(), null!, Messages(), dialogs, null!, null!, Options.Create(new ProductOptions()),
+        new ProductMasterSyncDialogStub(), Proxy<ICurrentUserService>((method, _) =>
+            method.Name == nameof(ICurrentUserService.HasPermission) ? allowed : null));
+
+    private static IAsyncRelayCommand SyncCommand(ProductMasterManagerViewModel vm, string group) => group switch
+    {
+        "descriptions" => vm.SyncDescriptionsCommand,
+        "features" => vm.SyncFeaturesCommand,
+        "supplier" => vm.SyncSupplierCommand,
+        "weight-volume" => vm.SyncWeightVolumeCommand,
+        _ => vm.SyncAllCommand
+    };
+
     /// <summary>两个入口四种选项均准确传输；API 拒绝时不接纳本地编辑。</summary>
     [TestMethod]
     [DataRow(false, false, false)] [DataRow(false, true, false)]

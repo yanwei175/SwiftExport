@@ -60,7 +60,7 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
         return null;
     }
 
-    /// <summary>转换为主型号写入数据。</summary>
+    /// <summary>将当前可编辑行映射为主型号写入数据；同步选项不属于单行数据。</summary>
     public ProductMasterWriteDto ToWriteDto() => this.Adapt<ProductMasterWriteDto>();
 
     /// <summary>从列表契约载入可编辑字段。</summary>

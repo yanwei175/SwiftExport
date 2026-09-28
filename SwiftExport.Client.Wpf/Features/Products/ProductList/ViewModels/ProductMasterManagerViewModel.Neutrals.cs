@@ -291,7 +291,11 @@ public sealed partial class ProductMasterManagerViewModel
     /// <summary>接收基类 Busy 通知，确保两张表在写入期间同时冻结。</summary>
     private void OnManagerStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(IsBusy) or nameof(CanWrite)) NotifyNeutralCommands();
+        if (e.PropertyName is nameof(IsBusy) or nameof(CanWrite))
+        {
+            NotifyNeutralCommands();
+            NotifySyncCommands();
+        }
     }
 
     /// <summary>统一刷新上下文可编辑状态与相关命令。</summary>

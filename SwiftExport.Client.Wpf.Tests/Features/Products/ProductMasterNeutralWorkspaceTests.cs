@@ -251,6 +251,11 @@ public sealed class ProductMasterNeutralWorkspaceTests
             => Task.FromResult(ServiceResult<ProductMasterBatchSaveResponse>.Ok(new ProductMasterBatchSaveResponse()));
         public Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default)
             => throw new AssertFailedException("管理页不应调用头部聚合保存。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncDescriptionsAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncFeaturesAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncSupplierAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncWeightVolumeAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncAllAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
     }
 
     /// <summary>直接执行接口委托，不引入网络或错误转换。</summary>

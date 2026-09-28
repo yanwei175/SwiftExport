@@ -164,6 +164,11 @@ public sealed class ProductNeutralManagerColorFilterTests
         public Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(Guid productMasterId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProductMasterBatchSaveResponse>> BatchSaveAsync(ProductMasterBatchSaveRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncDescriptionsAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncFeaturesAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncSupplierAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncWeightVolumeAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncAllAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class EmptyReferenceDataCache : IReferenceDataCacheService

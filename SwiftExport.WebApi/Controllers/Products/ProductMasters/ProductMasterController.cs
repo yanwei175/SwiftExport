@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Products.ProductMasters;
@@ -33,7 +34,7 @@ public sealed class ProductMasterController(IProductMasterQueryService query, IP
         Guid productMasterId,
         CancellationToken cancellationToken) => query.GetDetailAsync(productMasterId, cancellationToken);
 
-    /// <summary>批量保存管理页主型号变更并防止短时间重复提交。</summary>
+    /// <summary>接收批量主型号变更及同步选项，防短时间重复提交后交由应用服务处理。</summary>
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
     public Task<ServiceResult<ProductMasterBatchSaveResponse>> BatchSaveAsync(
@@ -46,4 +47,34 @@ public sealed class ProductMasterController(IProductMasterQueryService query, IP
     public Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(
         [FromBody] SaveProductMasterDetailRequest request,
         CancellationToken cancellationToken) => maintenance.SaveDetailAsync(request, cancellationToken);
+
+    /// <summary>按产品编辑权限下发中英文描述。</summary>
+    [HttpPost("sync-descriptions")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SyncProductMasterDataResponse>> SyncDescriptionsAsync([FromBody] SyncProductMasterDataRequest request, CancellationToken cancellationToken)
+        => maintenance.SyncProductsAsync(request, ProductMasterSyncFields.Descriptions, cancellationToken);
+
+    /// <summary>按产品编辑权限下发中英文配置。</summary>
+    [HttpPost("sync-features")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SyncProductMasterDataResponse>> SyncFeaturesAsync([FromBody] SyncProductMasterDataRequest request, CancellationToken cancellationToken)
+        => maintenance.SyncProductsAsync(request, ProductMasterSyncFields.Features, cancellationToken);
+
+    /// <summary>按产品编辑权限下发默认供应商。</summary>
+    [HttpPost("sync-supplier")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SyncProductMasterDataResponse>> SyncSupplierAsync([FromBody] SyncProductMasterDataRequest request, CancellationToken cancellationToken)
+        => maintenance.SyncProductsAsync(request, ProductMasterSyncFields.Supplier, cancellationToken);
+
+    /// <summary>按产品编辑权限下发毛重和体积。</summary>
+    [HttpPost("sync-weight-volume")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SyncProductMasterDataResponse>> SyncWeightVolumeAsync([FromBody] SyncProductMasterDataRequest request, CancellationToken cancellationToken)
+        => maintenance.SyncProductsAsync(request, ProductMasterSyncFields.WeightVolume, cancellationToken);
+
+    /// <summary>按产品编辑权限同时下发四组资料。</summary>
+    [HttpPost("sync-all")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SyncProductMasterDataResponse>> SyncAllAsync([FromBody] SyncProductMasterDataRequest request, CancellationToken cancellationToken)
+        => maintenance.SyncProductsAsync(request, ProductMasterSyncFields.All, cancellationToken);
 }

@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SwiftExport.Application.Interfaces.Products.Catalog.Maintenance;
 using SwiftExport.Application.Interfaces.Products.Catalog.Query;
+using SwiftExport.Application.Interfaces.Products.ProductMasters.Maintenance;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Products.Catalog;
@@ -13,7 +15,8 @@ namespace SwiftExport.WebApi.Controllers.Products.Catalog;
 /// <summary>产品 HTTP 边界，分别委托只读查询和资料维护服务。</summary>
 [ApiController]
 [Route("api/[controller]")]
-public sealed class ProductController(IProductQueryService query, IProductMaintenanceService maintenance) : ControllerBase
+public sealed class ProductController(IProductQueryService query, IProductMaintenanceService maintenance,
+    IProductMasterMaintenanceService masterMaintenance) : ControllerBase
 {
     /// <summary>保留基础详情路由。</summary>
     [HttpGet("{id}")]
@@ -59,6 +62,36 @@ public sealed class ProductController(IProductQueryService query, IProductMainte
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
     public Task<ServiceResult<ProductBatchSaveResponse>> BatchSave([FromBody] ProductBatchSaveRequest request) => maintenance.BatchSaveAsync(request);
+
+    /// <summary>按产品编辑权限从所选产品的主型号拉取中英文描述。</summary>
+    [HttpPost("pull-master-descriptions")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterDescriptionsAsync([FromBody] PullProductMasterDataRequest request, CancellationToken cancellationToken)
+        => masterMaintenance.PullProductsAsync(request, ProductMasterSyncFields.Descriptions, cancellationToken);
+
+    /// <summary>按产品编辑权限从所选产品的主型号拉取中英文配置。</summary>
+    [HttpPost("pull-master-features")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterFeaturesAsync([FromBody] PullProductMasterDataRequest request, CancellationToken cancellationToken)
+        => masterMaintenance.PullProductsAsync(request, ProductMasterSyncFields.Features, cancellationToken);
+
+    /// <summary>按产品编辑权限从所选产品的主型号拉取默认供应商。</summary>
+    [HttpPost("pull-master-supplier")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterSupplierAsync([FromBody] PullProductMasterDataRequest request, CancellationToken cancellationToken)
+        => masterMaintenance.PullProductsAsync(request, ProductMasterSyncFields.Supplier, cancellationToken);
+
+    /// <summary>按产品编辑权限直接拉取主型号每箱毛重和体积到产品单位字段。</summary>
+    [HttpPost("pull-master-weight-volume")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterWeightVolumeAsync([FromBody] PullProductMasterDataRequest request, CancellationToken cancellationToken)
+        => masterMaintenance.PullProductsAsync(request, ProductMasterSyncFields.WeightVolume, cancellationToken);
+
+    /// <summary>按产品编辑权限一次拉取四组主型号资料。</summary>
+    [HttpPost("pull-master-all")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterAllAsync([FromBody] PullProductMasterDataRequest request, CancellationToken cancellationToken)
+        => masterMaintenance.PullProductsAsync(request, ProductMasterSyncFields.All, cancellationToken);
 
     /// <summary>产品维护专用的活动仓库参考候选；不开放库存模块的仓库查询。</summary>
     [Authorize]

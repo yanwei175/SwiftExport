@@ -138,6 +138,11 @@ public sealed class BomProductLookupTests
         public Task<ServiceResult<List<string>>> GetAllCustomerCodeListAsync() => NotSupported<List<string>>();
         public Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku) => NotSupported<ProductDto>();
         public Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest request) => NotSupported<ProductBatchSaveResponse>();
+        public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterDescriptionsAsync(PullProductMasterDataRequest request, CancellationToken cancellationToken = default) => NotSupported<PullProductMasterDataResponse>();
+        public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterFeaturesAsync(PullProductMasterDataRequest request, CancellationToken cancellationToken = default) => NotSupported<PullProductMasterDataResponse>();
+        public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterSupplierAsync(PullProductMasterDataRequest request, CancellationToken cancellationToken = default) => NotSupported<PullProductMasterDataResponse>();
+        public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterWeightVolumeAsync(PullProductMasterDataRequest request, CancellationToken cancellationToken = default) => NotSupported<PullProductMasterDataResponse>();
+        public Task<ServiceResult<PullProductMasterDataResponse>> PullMasterAllAsync(PullProductMasterDataRequest request, CancellationToken cancellationToken = default) => NotSupported<PullProductMasterDataResponse>();
         public Task<ServiceResult<PagedResponseBase<ProductDefaultWarehouseCandidateDto>>> GetDefaultWarehouseCandidatesAsync(
             PagedRequestBase request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<ProductDefaultWarehouseCandidateDto>>();
 

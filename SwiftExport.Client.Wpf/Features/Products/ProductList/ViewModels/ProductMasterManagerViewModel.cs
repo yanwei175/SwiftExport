@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExportClient.Bootstrapper;
@@ -20,7 +24,7 @@ using System.Collections.ObjectModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>主产品管理页模型，负责主型号筛选、列表编辑、卡片展示和详情导航。</summary>
+/// <summary>主产品管理页模型，负责主型号筛选、列表编辑、详情导航，以及将已保存主型号资料独立下发到关联产品。</summary>
 public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
     /// <summary>获取主产品管理导航路由键。</summary>
@@ -33,6 +37,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
     private readonly IProductMasterSyncDialogService _syncDialog;
+    private readonly ICurrentUserService? _currentUser;
     private readonly INavigationService _navigation;
     private readonly IOptions<ProductOptions> _productOptions;
     private CancellationTokenSource? _queryCts;
@@ -52,7 +57,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         IDialogService dialogs,
         INavigationService navigation,
         IProductNeutralApi neutralApi, IOptions<ProductOptions> productOptions,
-        IProductMasterSyncDialogService syncDialog)
+        IProductMasterSyncDialogService syncDialog,
+        ICurrentUserService? currentUser = null)
     {
         _api = api;
         _neutralApi = neutralApi;
@@ -62,6 +68,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         _messages = messages;
         _dialogs = dialogs;
         _syncDialog = syncDialog;
+        _currentUser = currentUser;
+        if (_currentUser is not null) _currentUser.CurrentUserChanged += OnCurrentUserChanged;
         _navigation = navigation;
         _productOptions = productOptions;
         Title = "父级产品";
@@ -71,6 +79,11 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(OpenDetailCommand);
+        RegisterBusyAwareCommand(SyncDescriptionsCommand);
+        RegisterBusyAwareCommand(SyncFeaturesCommand);
+        RegisterBusyAwareCommand(SyncSupplierCommand);
+        RegisterBusyAwareCommand(SyncWeightVolumeCommand);
+        RegisterBusyAwareCommand(SyncAllCommand);
     }
 
     /// <summary>获取主型号编辑集合。</summary>
@@ -154,6 +167,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     partial void OnSelectedMasterChanged(ProductMasterLineModel? value)
     {
         Masters.SelectedItem = value;
+        NotifySyncCommands();
         // 原生选择已变化、异步切换尚未完成时，不能继续编辑旧主型号的明细。
         NotifyNeutralCommands();
     }
@@ -224,7 +238,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         UpdateChangeState();
     }
 
-    /// <summary>验证后采集本批次同步授权，确认才提交；取消和失败均保留编辑。</summary>
+    /// <summary>保存主型号列表变更；先提交表格编辑并校验，再为新增或修改项收集本批次的物料同步选项。</summary>
+    /// <remarks>取消确认或保存失败保留当前编辑；成功后回填行版本，下表有未保存草稿时跳过列表刷新。</remarks>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -239,18 +254,21 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
                 return;
             }
 
+            // 行模型只组装主型号的新增、修改、删除；两个物料同步选项由本次确认结果单独赋值。
             var request = Masters.CreateSaveRequest();
 
             if (!request.HasChanges) return;
 
             if (request.CreateItems.Count > 0 || request.UpdateItems.Count > 0)
             {
+                // 选项作用于本批次全部新增和修改项；纯删除不弹窗，也不会同步物料资料。
                 var selection = await _syncDialog.ConfirmSaveAsync();
                 if (!selection.Confirmed || _disposed) return;
                 request.UpdateProductDescriptions = selection.UpdateProductDescriptions;
                 request.UpdateProductDefaultSupplier = selection.UpdateProductDefaultSupplier;
             }
 
+            // Refit POST /api/ProductMaster/batch-save；后端负责同事务写入主型号和关联物料。
             var result = await _runner.RunAsync(() => _api.BatchSaveAsync(request), "保存主型号失败");
 
             if (!result.Success || result.Data is null)
@@ -269,6 +287,54 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
                 if (!refreshed) _messages.ShowWarning("保存成功", "数据已保存，但列表刷新失败。请稍后手动刷新。");
             }
         }, "正在保存主型号...");
+    }
+
+    /// <summary>从已保存主型号下发中英文描述。</summary>
+    [RelayCommand(CanExecute = nameof(CanSync))]
+    private Task SyncDescriptionsAsync() => SyncSelectedAsync("中英文描述", request => _api.SyncDescriptionsAsync(request));
+
+    /// <summary>从已保存主型号下发中英文配置。</summary>
+    [RelayCommand(CanExecute = nameof(CanSync))]
+    private Task SyncFeaturesAsync() => SyncSelectedAsync("中英文配置", request => _api.SyncFeaturesAsync(request));
+
+    /// <summary>从已保存主型号下发默认供应商。</summary>
+    [RelayCommand(CanExecute = nameof(CanSync))]
+    private Task SyncSupplierAsync() => SyncSelectedAsync("默认供应商", request => _api.SyncSupplierAsync(request));
+
+    /// <summary>将已保存主型号的毛重和体积直接下发到产品单位字段。</summary>
+    [RelayCommand(CanExecute = nameof(CanSync))]
+    private Task SyncWeightVolumeAsync() => SyncSelectedAsync("毛重和体积", request => _api.SyncWeightVolumeAsync(request));
+
+    /// <summary>一次下发描述、配置、供应商、毛重和体积。</summary>
+    [RelayCommand(CanExecute = nameof(CanSync))]
+    private Task SyncAllAsync() => SyncSelectedAsync("中英文描述、中英文配置、默认供应商、毛重和体积", request => _api.SyncAllAsync(request));
+
+    /// <summary>确认下发范围并提交；页面草稿不参与数据库现值同步。</summary>
+    private async Task SyncSelectedAsync(string fields, Func<SyncProductMasterDataRequest, Task<ServiceResult<SyncProductMasterDataResponse>>> send)
+    {
+        if (!IsInteractionEnabled || !TryCommitPendingEdits() || !CanSync()) return;
+        var lines = Masters.CheckedItems.Count > 0 ? Masters.CheckedItems.ToArray()
+            : SelectedMaster is null ? [] : [SelectedMaster];
+        var request = new SyncProductMasterDataRequest { ProductMasterIds = lines.Select(line => line.Uid).Distinct().ToList() };
+        IsSelectionPrompt = true;
+        bool confirmed;
+        try
+        {
+            confirmed = await _dialogs.ConfirmAsync("下发主型号资料",
+                $"将 {request.ProductMasterIds.Count} 个主型号数据库中已保存的{fields}覆盖到其未删除关联产品。是否继续？", "下发");
+        }
+        finally { IsSelectionPrompt = false; }
+        if (!confirmed || _disposed || !CanSync()) return;
+        await RunBusyAsync(async () =>
+        {
+            var result = await _runner.RunAsync(() => send(request), "下发主型号资料失败");
+            if (!result.Success || result.Data is null)
+            {
+                _messages.ShowError("下发主型号资料失败", result.Message);
+                return;
+            }
+            _messages.ShowSuccess("主型号资料已下发", $"已检查 {result.Data.ProductMasterCount} 个主型号，更新 {result.Data.UpdatedProductCount} 个关联产品。");
+        }, "正在下发主型号资料...");
     }
 
     [RelayCommand]
@@ -432,10 +498,31 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         SaveCommand.NotifyCanExecuteChanged();
         DeleteSelectedCommand.NotifyCanExecuteChanged();
         OpenDetailCommand.NotifyCanExecuteChanged();
+        NotifySyncCommands();
         NotifyNeutralCommands();
     }
 
     private bool CanSave() => IsNotBusy && CanWrite && Masters.HasChanges;
+    /// <summary>仅允许有产品编辑权限且页面两张表均无草稿时下发已保存主型号。</summary>
+    private bool CanSync()
+    {
+        if (!IsInteractionEnabled || HasUnsavedChanges || _currentUser?.HasPermission(PermissionKeys.ProductsProductEdit) != true) return false;
+        var lines = Masters.CheckedItems.Count > 0 ? Masters.CheckedItems : SelectedMaster is null ? [] : [SelectedMaster];
+        return lines.Count > 0 && lines.All(line => !line.IsNew && !line.IsDeleted && line.Uid != Guid.Empty);
+    }
+
+    /// <summary>在选择、草稿、Busy 或权限变化时刷新五个下发入口的可执行状态。</summary>
+    private void NotifySyncCommands()
+    {
+        SyncDescriptionsCommand.NotifyCanExecuteChanged();
+        SyncFeaturesCommand.NotifyCanExecuteChanged();
+        SyncSupplierCommand.NotifyCanExecuteChanged();
+        SyncWeightVolumeCommand.NotifyCanExecuteChanged();
+        SyncAllCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>身份权限快照变化时立即收回或开放产品资料下发入口。</summary>
+    private void OnCurrentUserChanged(object? sender, EventArgs e) => NotifySyncCommands();
     private bool CanDeleteSelected() => IsNotBusy && CanWrite && (Masters.CheckedCount > 0 || SelectedMaster is not null);
     private bool CanOpenDetail(ProductMasterLineModel? line = null)
     {
@@ -451,6 +538,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         Masters.ListStateChanged -= OnListStateChanged;
         Neutrals.ListStateChanged -= OnNeutralListStateChanged;
         PropertyChanged -= OnManagerStateChanged;
+        if (_currentUser is not null) _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
         CommitPendingEdits = null;
         CancelNeutralQuery();
         var cts = Interlocked.Exchange(ref _queryCts, null);

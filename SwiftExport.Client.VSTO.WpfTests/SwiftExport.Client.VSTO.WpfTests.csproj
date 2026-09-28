@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <OutputType>Exe</OutputType>
+    <UseWPF>true</UseWPF>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.3.0"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Hosting/WpfRuntimeHost.cs" Link="Production/WpfRuntimeHost.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/UI/Themes/ThemeService.cs" Link="Production/ThemeService.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Diagnostics/AddInLog.cs" Link="Production/AddInLog.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/Resources/*.xaml" Link="Resources/%(Filename)%(Extension)"/>
+    <Page Include="../SwiftExport.Client.VSTO/Properties/DesignTimeResources.xaml" Link="Properties/DesignTimeResources.xaml"/>
+  </ItemGroup>
+</Project>

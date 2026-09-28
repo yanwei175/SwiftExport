@@ -39,7 +39,7 @@
 
     </UserControl.Resources>
 
-    <Grid Margin="12,8" IsEnabled="{Binding IsInteractionEnabled}">
+    <Grid Margin="12" IsEnabled="{Binding IsInteractionEnabled}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="8" />
@@ -48,66 +48,117 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="主产品管理" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}"
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="搜索主型号、描述、类型、标签或中性产品编码">
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
+                    </ui:TextBox.InputBindings>
+                </ui:TextBox>
 
-            <ui:TextBox PlaceholderText="搜索主型号、描述、类型、标签或中性产品编码"
-                        Text="{Binding Keyword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <ui:TextBox.InputBindings>
-                    <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
-                </ui:TextBox.InputBindings>
-            </ui:TextBox>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
 
-            <ui:Button Grid.Column="1" Margin="4,0,0,0" Content="查询" Appearance="Primary" Command="{Binding SearchCommand}" MinWidth="70"/>
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
 
-            <StackPanel Grid.Column="3" Orientation="Horizontal">
-                <ui:Button Content="新增" MinWidth="70"
-                           IsEnabled="{Binding IsCardView,Converter={StaticResource InverseBooleanConverter}}"
-                           Command="{Binding AddRowCommand}" 
-                           Margin="0,0,4,0" />
-                <ui:Button Content="编辑" Command="{Binding OpenDetailCommand}" Margin="0,0,4,0" MinWidth="70"/>
-                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,4,0" MinWidth="70"/>
-                <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" MinWidth="70" />
-                <ui:Button Content="放弃修改" Command="{Binding RejectListChangesCommand}" Margin="0,0,4,0" MinWidth="70"/>
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" MinWidth="70"/>
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+                </StackPanel>
 
-                <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
-                    <ui:DropDownButton.Flyout>
-                        <ContextMenu>
-                            <MenuItem Header="从详情新建" Command="{Binding CreateDetailCommand}"/>
-                        </ContextMenu>
-                    </ui:DropDownButton.Flyout>
-                </ui:DropDownButton>
+            </Grid>
 
-                <ui:ToggleSwitch Margin="0,0,12,0"
+
+            <StackPanel Grid.Row="2">
+                <DockPanel LastChildFill="True">
+                    <WrapPanel HorizontalAlignment="Left">
+
+                        <StackPanel Orientation="Horizontal">
+
+                            <ui:Button Content="新增" MinWidth="70" IsEnabled="{Binding IsCardView,Converter={StaticResource InverseBooleanConverter}}"
+                                       Command="{Binding AddRowCommand}"
+                                       Margin="0,0,8,0" />
+
+                            <ui:Button Content="编辑" Command="{Binding OpenDetailCommand}" Margin="0,0,8,0" MinWidth="70"/>
+
+                            <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,8,0" MinWidth="70"/>
+
+                            <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" MinWidth="70" />
+
+                            <ui:Button Content="放弃修改" Command="{Binding RejectListChangesCommand}" Margin="0,0,8,0" MinWidth="70"/>
+
+                            <ui:DropDownButton Content="更多功能" Margin="0,0,8,0">
+                                <ui:DropDownButton.Flyout>
+                                    <ContextMenu>
+                                        <MenuItem Header="从详情新建" Command="{Binding PlacementTarget.DataContext.CreateDetailCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="描述,配置,供应商,重量体积统一下发" Command="{Binding PlacementTarget.DataContext.SyncAllCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="描述下发" Command="{Binding PlacementTarget.DataContext.SyncDescriptionsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="配置下发" Command="{Binding PlacementTarget.DataContext.SyncFeaturesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="供应商下发" Command="{Binding PlacementTarget.DataContext.SyncSupplierCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="重量体积下发" Command="{Binding PlacementTarget.DataContext.SyncWeightVolumeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    </ContextMenu>
+                                </ui:DropDownButton.Flyout>
+                            </ui:DropDownButton>
+
+                            <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
+
+
+                            <ui:ToggleSwitch Margin="0,0,12,0"
                                  IsEnabled="{Binding IsCardView,Converter={StaticResource InverseBooleanConverter}}"
                                  VerticalAlignment="Center"
                                  OffContent="隐藏英文"
                                  OnContent="显示英文"
                                  IsChecked="{Binding IsEnglishFieldsVisible, Mode=TwoWay}" />
-                <ui:ToggleSwitch Margin="0,0,12,0"
+                            <ui:ToggleSwitch Margin="0,0,12,0"
                                  IsEnabled="{Binding IsCardView,Converter={StaticResource InverseBooleanConverter}}"
                                  VerticalAlignment="Center"
                                  OffContent="整行模式"
                                  OnContent="格子模式"
                                  IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-            </StackPanel>
+                        </StackPanel>
 
-            <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="12,0,0,0">
-
-                <ui:ToggleSwitch Margin="0,0,12,0"
+                        <StackPanel Orientation="Horizontal" Margin="12,0,0,0">
+                            <ui:ToggleSwitch Margin="0,0,12,0"
                                  VerticalAlignment="Center"
                                  OffContent="列表"
                                  OnContent="卡片"
                                  IsChecked="{Binding IsCardView, Mode=TwoWay}" />
+                        </StackPanel>
+                    </WrapPanel>
+                </DockPanel>
+
+                <Popup IsOpen="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"
+                       Placement="Bottom"
+                       PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+                       Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                       VerticalOffset="4"
+                       AllowsTransparency="True"
+                       PopupAnimation="Fade"
+                       StaysOpen="True">
+                    <Border Padding="8"
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                        <StackPanel Orientation="Horizontal" MinHeight="120">
+
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+
             </StackPanel>
         </Grid>
+
+
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
