@@ -1,3 +1,5 @@
+using SwiftExportClient.Navigation;
+using SwiftExportClient.Features.SystemSettings.Workspace.ViewModels;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExportClient.Authentication;
@@ -13,6 +15,7 @@ public sealed partial class SettingsCenterViewModel : ViewModelBaseEx, IDisposab
     public const string RouteKey = "settings-center";
 
     private readonly ISettingsWindowService _windowService;
+    private readonly INavigationService _navigation;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthService? _authService;
 
@@ -20,9 +23,11 @@ public sealed partial class SettingsCenterViewModel : ViewModelBaseEx, IDisposab
     public SettingsCenterViewModel(
         ICurrentUserService currentUserService,
         ISettingsWindowService windowService,
+        INavigationService navigation,
         IAuthService? authService = null)
     {
         _windowService = windowService;
+        _navigation = navigation;
         _currentUser = currentUserService;
         _authService = authService;
         Title = "设置";
@@ -56,8 +61,9 @@ public sealed partial class SettingsCenterViewModel : ViewModelBaseEx, IDisposab
         }, "正在刷新权限...");
     }
 
+    /// <summary>在 Shell 打开或激活唯一系统设置页签。</summary>
     [RelayCommand(CanExecute = nameof(CanManageSettings))]
-    private void OpenSystemSettings() => _windowService.ShowSystemSettings();
+    private Task OpenSystemSettingsAsync() => _navigation.OpenAsync(SystemSettingsWorkspaceViewModel.RouteKey);
 
     private void OnCurrentUserChanged(object? sender, EventArgs e) => NotifyPermissionsChanged();
 

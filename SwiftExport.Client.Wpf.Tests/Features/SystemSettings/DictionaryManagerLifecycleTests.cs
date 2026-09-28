@@ -67,7 +67,7 @@ public sealed class DictionaryManagerLifecycleTests
                 new FakeDialogService(true), currentUser);
             var owner = new FluentWindow
             { Width = 640, Height = 480, ShowInTaskbar = false, WindowStyle = WindowStyle.None };
-            var window = new SystemSettingsWindow(
+            var window = new SettingsTabTestHost(
                 () => throw new AssertFailedException("字典页不应创建 RBAC 页面"),
                 () => viewModel,
                 () => throw new AssertFailedException("字典页不应创建用户表单"),
@@ -82,7 +82,7 @@ public sealed class DictionaryManagerLifecycleTests
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
                 Assert.AreEqual("Dictionary", window.CurrentPageName);
                 Assert.IsNotNull(FindVisualDescendants<DictionaryManagerView>(window).SingleOrDefault());
-                Assert.IsTrue(FindVisualDescendants<TitleBar>(window).Single().ShowClose);
+                Assert.IsFalse(FindVisualDescendants<TitleBar>(window.View).Any());
                 Assert.AreEqual(Visibility.Collapsed,
                     ((FrameworkElement)window.FindName("UsersNavigation")).Visibility);
                 window.Close();
@@ -97,49 +97,50 @@ public sealed class DictionaryManagerLifecycleTests
         });
     }
 
-    /// <summary>服务入口重复打开只激活同一非模态窗口，并由 Shell 持有 Owner。</summary>
+    /// <summary>真实导航复用系统设置页签，注销后释放模型并清空页签。</summary>
     [TestMethod]
-    public void SettingsWindowService_ShouldReuseOneOwnedSystemWindow()
+    public void Navigation_ShouldReuseSettingsTabAndClearOnLogout()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
-            ApplicationResourceLoader.Load();
             var currentUser = CreateDictionaryUser();
-            var session = new FakeSessionService();
             var typeApi = CreateProxy<ISysDictTypeApi>((method, _) => method.Name switch
             {
-                nameof(ISysDictTypeApi.GetAllAsync) => Task.FromResult(
-                    ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([])),
+                nameof(ISysDictTypeApi.GetAllAsync) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([])),
                 _ => throw new NotSupportedException(method.Name)
             });
+            var dictionary = CreateViewModel(typeApi, CreateThrowingProxy<ISysDictDataApi>(), new FakeDialogService(false), currentUser);
             using var provider = new ServiceCollection()
-                .AddSingleton<ICurrentUserService>(currentUser)
-                .AddSingleton<ISysDictTypeApi>(typeApi)
-                .AddSingleton<ISysDictDataApi>(CreateThrowingProxy<ISysDictDataApi>())
-                .AddSingleton<IApiCallRunner>(new PassThroughApiCallRunner())
-                .AddSingleton<IReferenceDataCacheService>(CreateThrowingProxy<IReferenceDataCacheService>())
+                .AddTransient<SwiftExportClient.Features.SystemSettings.Workspace.ViewModels.SystemSettingsWorkspaceViewModel>(_ =>
+                    new(() => throw new AssertFailedException("未访问用户页"),
+                        () => dictionary,
+                        () => throw new AssertFailedException(), () => throw new AssertFailedException(),
+                        currentUser, new FakeDialogService(true)))
                 .BuildServiceProvider();
-            using var service = new SettingsWindowService(provider, currentUser, session, new NullMessageService());
-            var owner = new FluentWindow
-            { Width = 640, Height = 480, ShowInTaskbar = false, WindowStyle = WindowStyle.None };
-            try
-            {
-                Application.Current.MainWindow = owner;
-                owner.Show();
-                service.ShowSystemSettings();
-                await owner.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
-                var first = Application.Current.Windows.OfType<SystemSettingsWindow>().Single();
-                Assert.AreSame(owner, first.Owner);
-                Assert.AreEqual("Dictionary", first.CurrentPageName);
-                first.WindowState = WindowState.Minimized;
-                service.ShowSystemSettings();
-                await owner.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
-                Assert.AreSame(first, Application.Current.Windows.OfType<SystemSettingsWindow>().Single());
-                Assert.AreEqual(WindowState.Normal, first.WindowState);
-                session.EndSession(SessionEndReason.Logout);
-                Assert.IsFalse(first.IsVisible);
-            }
-            finally { owner.Close(); }
+            var registry = new SwiftExportClient.Navigation.NavigationRouteRegistry();
+            using var navigation = new SwiftExportClient.Navigation.NavigationService(
+                new SwiftExportClient.Navigation.NavigationTabFactory(provider.GetRequiredService<IServiceScopeFactory>()),
+                registry, new SwiftExportClient.Navigation.NavigationAccessService(registry, currentUser), currentUser,
+                new SwiftExportClient.Services.UI.StatusMessageService(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<SwiftExportClient.Navigation.NavigationService>.Instance);
+            await navigation.OpenAsync("system-settings");
+            var first = navigation.SelectedTab;
+            Assert.IsNotNull(first);
+            await navigation.OpenAsync("system-settings");
+            Assert.AreSame(first, navigation.SelectedTab);
+            Assert.HasCount(1, navigation.OpenTabs);
+            var model = (SwiftExportClient.Features.SystemSettings.Workspace.ViewModels.SystemSettingsWorkspaceViewModel)first.ContentViewModel!;
+            await model.InitializeAsync();
+            dictionary.Lines.AddNew(new SysDictDataDto { DictCode = "TEST", DataNameZh = "敏感草稿" });
+            Assert.IsTrue(first.IsDirty);
+            var userId = currentUser.CurrentUser!.UserId;
+            currentUser.SetCurrentUser(new MeDto { UserId = userId, Permissions = [] });
+            Assert.HasCount(0, navigation.OpenTabs, "全部撤权必须移除含草稿的管理页签。");
+            currentUser.SetCurrentUser(new MeDto { UserId = userId, Permissions = ["System.Dictionary.View"] });
+            await navigation.OpenAsync("system-settings");
+            Assert.AreNotSame(model, navigation.SelectedTab!.ContentViewModel);
+            currentUser.Clear();
+            Assert.HasCount(0, navigation.OpenTabs);
         });
     }
 
@@ -167,7 +168,7 @@ public sealed class DictionaryManagerLifecycleTests
                 _ => throw new NotSupportedException(method.Name)
             });
             var viewModel = CreateViewModel(typeApi, dataApi, new FakeDialogService(true), currentUser);
-            var window = new SystemSettingsWindow(
+            var window = new SettingsTabTestHost(
                 () => throw new AssertFailedException("字典页不应创建 RBAC 页面"),
                 () => viewModel,
                 () => throw new AssertFailedException("字典页不应创建用户表单"),
@@ -280,6 +281,55 @@ public sealed class DictionaryManagerLifecycleTests
         Assert.IsFalse(viewModel.HasUnsavedChanges);
         Assert.AreEqual("原类型", viewModel.TypeEditor.DictName);
         Assert.HasCount(0, viewModel.Lines.Items);
+    }
+
+    /// <summary>在 Shell 实际保活容器中切换页签，不重建设置页面、不丢失字典草稿。</summary>
+    [TestMethod]
+    public void SettingsTab_ShouldKeepDraftAndViewAcrossShellSwitches()
+    {
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            var currentUser = CreateDictionaryUser();
+            var reads = 0;
+            var typeApi = CreateProxy<ISysDictTypeApi>((method, _) =>
+            {
+                if (method.Name != nameof(ISysDictTypeApi.GetAllAsync)) throw new NotSupportedException(method.Name);
+                reads++;
+                return Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([]));
+            });
+            var dictionary = CreateViewModel(typeApi, CreateThrowingProxy<ISysDictDataApi>(), new FakeDialogService(false), currentUser);
+            using var model = new SwiftExportClient.Features.SystemSettings.Workspace.ViewModels.SystemSettingsWorkspaceViewModel(
+                () => throw new AssertFailedException(), () => dictionary,
+                () => throw new AssertFailedException(), () => throw new AssertFailedException(), currentUser, new FakeDialogService(false));
+            var registry = new SwiftExportClient.Navigation.NavigationRouteRegistry();
+            Assert.IsTrue(registry.TryGetRoute("system-settings", out var route));
+            using var tab = new SwiftExportClient.Navigation.NavigationTabItem(route, model);
+            using var other = new SwiftExportClient.Navigation.NavigationTabItem(
+                new("other", "其他", "Workspace", typeof(object), "test", null), new object());
+            var tabs = new System.Collections.ObjectModel.ObservableCollection<SwiftExportClient.Navigation.NavigationTabItem> { tab, other };
+            var host = new SwiftExportClient.Shell.KeepAliveTabContentHost { ItemsSource = tabs, SelectedItem = tab };
+            var window = new FluentWindow { Width = 1000, Height = 700, ShowInTaskbar = false, Content = host };
+            try
+            {
+                window.Show();
+                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                var view = FindVisualDescendants<SystemSettingsView>(host).Single();
+                dictionary.Lines.AddNew(new SysDictDataDto { DictCode = "TEST", DataNameZh = "未保存" });
+                Assert.IsTrue(model.HasUnsavedChanges);
+                Assert.IsTrue(tab.IsDirty);
+                host.SelectedItem = other;
+                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                host.SelectedItem = tab;
+                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                Assert.AreSame(view, FindVisualDescendants<SystemSettingsView>(host).Single());
+                Assert.AreEqual(1, reads);
+                Assert.IsTrue(model.HasUnsavedChanges);
+                Assert.AreEqual("未保存", dictionary.Lines.Items.Single().DataNameZh);
+                Assert.IsFalse(await model.CanCloseAsync(CancellationToken.None));
+            }
+            finally { window.Close(); }
+        });
     }
 
     private static DictionaryManagerViewModel CreateViewModel(

@@ -1,3 +1,7 @@
+using SwiftExportClient.Features.SystemSettings.Workspace.ViewModels;
+using SwiftExportClient.Features.SystemSettings.RbacManagement.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
+using SwiftExportClient.Services.UI;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
@@ -119,6 +123,13 @@ public static class ViewRegistrationExtensions
 
 
         services.AddTransient<SettingsCenterViewModel>();
+        // 子模型由工作区按需创建并释放，复用 Shell 的 Dialog 与消息服务。
+        services.AddTransient<SystemSettingsWorkspaceViewModel>(provider => new(
+            () => ActivatorUtilities.CreateInstance<RbacManagementViewModel>(provider),
+            () => ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(provider),
+            () => ActivatorUtilities.CreateInstance<UserRegistrationViewModel>(provider),
+            () => ActivatorUtilities.CreateInstance<ResetPasswordViewModel>(provider),
+            provider.GetRequiredService<ICurrentUserService>(), provider.GetRequiredService<IDialogService>()));
 
         services.AddTransient<ChangePasswordViewModel>();
         services.AddTransient<ChangePasswordWindow>();

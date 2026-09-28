@@ -15,7 +15,9 @@ public sealed class NavigationAccessService(
         return currentUserService.IsAuthenticated
             && !string.IsNullOrWhiteSpace(route.ModuleKey)
             && (route.RequiredPermission is null
-                || currentUserService.HasPermission(route.RequiredPermission));
+                || currentUserService.HasPermission(route.RequiredPermission))
+            && (route.AnyRequiredPermissions is null
+                || route.AnyRequiredPermissions.Any(currentUserService.HasPermission));
     }
 
     /// <inheritdoc />

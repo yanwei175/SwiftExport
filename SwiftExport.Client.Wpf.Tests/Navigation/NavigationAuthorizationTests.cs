@@ -31,18 +31,45 @@ public sealed class NavigationAuthorizationTests
             "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
             "QualityControl.AfterSales.View", "QualityControl.AfterSales.View",
             "Inventory.Warehouse.View", "Inventory.Balance.View", "Inventory.Inbound.View", "Inventory.Outbound.View",
-            "Inventory.Balance.View", "DemandPlanning.Source.View", null
+            "Inventory.Balance.View", "DemandPlanning.Source.View", null, null
         ];
 
-        Assert.AreEqual(34, registry.Routes.Count);
+        Assert.AreEqual(35, registry.Routes.Count);
         for (var index = 0; index < registry.Routes.Count; index++)
         {
             var route = registry.Routes[index];
             Assert.IsFalse(string.IsNullOrWhiteSpace(route.ModuleKey), route.Key);
             Assert.AreEqual(expected[index], route.RequiredPermission, route.Key);
+            if (route.Key == "system-settings")
+            {
+                CollectionAssert.AreEquivalent(new[] { "System.Users.View", "System.Roles.View", "System.Permissions.View", "System.Dictionary.View" },
+                    route.AnyRequiredPermissions!.ToArray());
+                foreach (var permission in route.AnyRequiredPermissions!)
+                    Assert.IsNotNull(PermissionCatalog.Find(permission));
+            }
+            else Assert.IsNull(route.AnyRequiredPermissions);
+            Assert.AreEqual(route.Key == "system-settings", route.DiscardOnAccessRevoked);
             if (route.RequiredPermission is not null)
                 Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
         }
+    }
+
+    /// <summary>任一系统读取权限可以进入；无权限或匿名不能进入。</summary>
+    [TestMethod]
+    [DataRow("System.Users.View")]
+    [DataRow("System.Roles.View")]
+    [DataRow("System.Permissions.View")]
+    [DataRow("System.Dictionary.View")]
+    public void SettingsRoute_ShouldAcceptAnyOneReadPermission(string permission)
+    {
+        var registry = new NavigationRouteRegistry();
+        var user = new CurrentUserService();
+        var access = new NavigationAccessService(registry, user);
+        Assert.IsFalse(access.CanAccess("system-settings"));
+        user.SetCurrentUser(new MeDto { UserId = "test", Permissions = [] });
+        Assert.IsFalse(access.CanAccess("system-settings"));
+        user.SetCurrentUser(new MeDto { UserId = "test", Permissions = [permission] });
+        Assert.IsTrue(access.CanAccess("system-settings"));
     }
 
     /// <summary>无模块权限时，列表和详情路由都在实例化页面前被拒绝。</summary>

@@ -429,7 +429,7 @@
 
 
     <Style TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
-        <Setter Property="Background" Value="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}" />
+        <Setter Property="Background" Value="{DynamicResource UserControlFillColorDefaultBrush}" />
         <Setter Property="Padding" Value="8"/>
     </Style>
 

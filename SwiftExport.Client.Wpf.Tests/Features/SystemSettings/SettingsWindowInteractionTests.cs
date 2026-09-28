@@ -49,7 +49,7 @@ public sealed class SettingsWindowInteractionTests
             });
             var view = new SettingsCenterView
             {
-                DataContext = new SettingsCenterViewModel(currentUser, new FakeSettingsWindowService())
+                DataContext = new SettingsCenterViewModel(currentUser, new FakeSettingsWindowService(), new SettingsNavigationSpy())
             };
             var window = new Window
             {
@@ -150,7 +150,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>独立系统窗口在 STA 中按用户读取权加载，并完成普通关闭。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_ShouldLoadAndCloseWithoutReentrancy()
+    public void SettingsTabTestHost_ShouldLoadAndCloseWithoutReentrancy()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -186,7 +186,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>在真实 WPF 视觉树中完成用户与角色授权，并切到只读目录页。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_CheckboxesAndButtonsBindToVersionedWrites()
+    public void SettingsTabTestHost_CheckboxesAndButtonsBindToVersionedWrites()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -280,7 +280,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>行内编辑分别提交用户与角色资料，保存成功后关闭各自的本地表单。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RowProfileFormsSaveSelectedTargets()
+    public void SettingsTabTestHost_RowProfileFormsSaveSelectedTargets()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -369,7 +369,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>同用户撤销用户读取权后切到剩余目录页；账号切换强制关闭旧窗口。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RevocationSwitchesPageAndSessionCloses()
+    public void SettingsTabTestHost_RevocationSwitchesPageAndSessionCloses()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -409,7 +409,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>用户列表读取未完成时撤权，旧页结果被拒绝且加载结束后转到仍可读的目录页。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RevocationDuringLoadDefersAuthorizedNavigation()
+    public void SettingsTabTestHost_RevocationDuringLoadDefersAuthorizedNavigation()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -469,7 +469,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>未保存用户资料取消放弃时，侧栏切页保持原页和输入。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_CancelDiscardKeepsUserPage()
+    public void SettingsTabTestHost_CancelDiscardKeepsUserPage()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -633,7 +633,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>服务端拒绝创建时表单与一次性密码保留，用户可修改后重试。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RegistrationFailureKeepsEditableInput()
+    public void SettingsTabTestHost_RegistrationFailureKeepsEditableInput()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -672,7 +672,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>服务端拒绝重置时目标固定，密码草稿仍可修改重试。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_ResetFailureKeepsPasswordInput()
+    public void SettingsTabTestHost_ResetFailureKeepsPasswordInput()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -711,7 +711,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>用户页从本地 ContentDialog 创建账号，成功后关闭并清除一次性密码。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RegistrationDialogReturnsCreatedUser()
+    public void SettingsTabTestHost_RegistrationDialogReturnsCreatedUser()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -768,7 +768,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>ContentDialog 创建提交期间禁用输入、拒绝普通取消，响应完成后才关闭。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RegistrationLocksModalFormUntilResponse()
+    public void SettingsTabTestHost_RegistrationLocksModalFormUntilResponse()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -826,7 +826,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>行内重置入口固定目标，ContentDialog 成功后关闭并擦除密码。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_ResetDialogUsesSelectedUser()
+    public void SettingsTabTestHost_ResetDialogUsesSelectedUser()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -892,7 +892,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>创建表单仅填写邮箱也视为草稿；拒绝放弃保留，确认后关闭。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_EmailOnlyRegistrationDraftRequiresDiscard()
+    public void SettingsTabTestHost_EmailOnlyRegistrationDraftRequiresDiscard()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -934,7 +934,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>仅电话和仅确认密码也属于草稿，拒绝放弃后保留各自输入。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_RejectDiscardKeepsBothFormDrafts()
+    public void SettingsTabTestHost_RejectDiscardKeepsBothFormDrafts()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -988,7 +988,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>本地创建弹窗写入途中会话切换，宿主和表单关闭、密码清除且迟到响应不重开。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_SessionSwitchClosesInFlightRegistration()
+    public void SettingsTabTestHost_SessionSwitchClosesInFlightRegistration()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -1060,7 +1060,7 @@ public sealed class SettingsWindowInteractionTests
 
     /// <summary>行内重置固定父页所选用户，打开表单后不另发全用户列表请求。</summary>
     [TestMethod]
-    public void SystemSettingsWindow_ResetPasswordUsesSelectedUserAndClearsInput()
+    public void SettingsTabTestHost_ResetPasswordUsesSelectedUserAndClearsInput()
     {
         DatePickerAssistTests.RunWithApplication(async () =>
         {
@@ -1204,7 +1204,7 @@ public sealed class SettingsWindowInteractionTests
         Assert.IsTrue(((ICollection<PermissionDefinition>)PermissionCatalog.All).IsReadOnly);
     }
 
-    private static SystemSettingsWindow CreateSystemWindow(RbacManagementViewModel model,
+    private static SettingsTabTestHost CreateSystemWindow(RbacManagementViewModel model,
         CurrentUserService currentUser, IAuthApi? formApi = null)
         => new(() => model, () => throw new AssertFailedException("未授权读取字典页"),
             () => new UserRegistrationViewModel(formApi ?? CreateThrowingAuthApi(), new PassThroughApiCallRunner(),
@@ -1214,7 +1214,7 @@ public sealed class SettingsWindowInteractionTests
             currentUser, new ContentDialogService(), new WindowMessageService());
 
     /// <summary>在真实系统设置宿主中打开创建表单，供取消和密码清理回归复用。</summary>
-    private static async Task<(SystemSettingsWindow Window, global::Wpf.Ui.Controls.FluentWindow Owner,
+    private static async Task<(SettingsTabTestHost Window, global::Wpf.Ui.Controls.FluentWindow Owner,
         UserRegistrationView Form)> OpenRegistrationFormAsync(IAuthApi? formApi = null)
     {
         var currentUser = new CurrentUserService();
@@ -1236,7 +1236,7 @@ public sealed class SettingsWindowInteractionTests
     }
 
     /// <summary>从真实 DataGrid 行按钮打开固定目标重置表单。</summary>
-    private static async Task<(SystemSettingsWindow Window, global::Wpf.Ui.Controls.FluentWindow Owner,
+    private static async Task<(SettingsTabTestHost Window, global::Wpf.Ui.Controls.FluentWindow Owner,
         ResetPasswordView Form)> OpenResetFormAsync(IAuthApi? formApi = null)
     {
         var state = new RbacManagement.RbacManagementViewModelTests.ApiState();
@@ -1309,7 +1309,7 @@ public sealed class SettingsWindowInteractionTests
     }
 
     /// <summary>等待权限变更后的目标页实际出现，超时报告最终状态而不依赖固定次数的 Dispatcher 空闲。</summary>
-    private static async Task WaitForPageAsync(SystemSettingsWindow window, string expectedPage,
+    private static async Task WaitForPageAsync(SettingsTabTestHost window, string expectedPage,
         Func<bool> isReady)
     {
         bool HasReachedFinalState() => window.CurrentPageName == expectedPage && isReady();

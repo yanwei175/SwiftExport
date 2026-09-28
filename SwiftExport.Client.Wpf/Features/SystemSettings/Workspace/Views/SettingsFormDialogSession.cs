@@ -1,16 +1,15 @@
 using System.Windows;
 using System.Windows.Controls;
 using SwiftExportClient.Services.UI;
-using Wpf.Ui;
-using Wpf.Ui.Controls;
 
 namespace SwiftExportClient.Features.SystemSettings.Workspace.Views;
 
-/// <summary>仅为系统设置表单承载本地 ContentDialog；放弃确认在同一弹窗内完成。</summary>
-internal sealed class SettingsFormDialogSession : IDisposable
+/// <summary>通过 Shell 公共服务承载系统设置表单；放弃确认在同一弹窗内完成。</summary>
+internal sealed class SettingsFormDialogSession : IDisposable, IDialogContentState, IDialogCloseRequest
 {
-    private readonly IContentDialogService _host;
-    private readonly ContentDialog _dialog;
+    private readonly IDialogService _host;
+    private readonly Grid _content;
+    private readonly string _title;
     private readonly Border _discardPrompt;
     private readonly Func<bool> _hasDraft;
     private readonly Func<bool> _isBusy;
@@ -24,10 +23,11 @@ internal sealed class SettingsFormDialogSession : IDisposable
     public bool WasForced => _forced || _disposed;
 
     /// <summary>表单自己负责保存，宿主只控制取消、成功和强制撤权关闭。</summary>
-    public SettingsFormDialogSession(IContentDialogService host, string title, FrameworkElement form,
+    public SettingsFormDialogSession(IDialogService host, string title, FrameworkElement form,
         Func<bool> hasDraft, Func<bool> isBusy, Action discard, Action cleanup)
     {
         _host = host;
+        _title = title;
         _hasDraft = hasDraft;
         _isBusy = isBusy;
         _discard = discard;
@@ -44,7 +44,7 @@ internal sealed class SettingsFormDialogSession : IDisposable
             if (_isBusy()) return;
             _forced = true;
             _discard();
-            _dialog!.Hide(ContentDialogResult.None);
+            RequestCancel();
         };
         var actions = new StackPanel { Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right };
@@ -58,26 +58,25 @@ internal sealed class SettingsFormDialogSession : IDisposable
             Margin = new Thickness(12), Visibility = Visibility.Collapsed };
         Grid.SetRow(_discardPrompt, 1);
         content.Children.Add(_discardPrompt);
-        _dialog = new ContentDialog { Title = title, Content = content, CloseButtonText = "取消" };
-        _dialog.Closing += OnClosing;
+        _content = content;
     }
 
-    /// <summary>显示系统设置窗口自己的 ContentDialogHost，结束后释放表单及密码。</summary>
+    /// <summary>使用 Shell 已绑定的公共 DialogHost，结束后释放表单及密码。</summary>
     public async Task ShowAsync()
     {
-        try { await _host.ShowAsync(_dialog, CancellationToken.None); }
+        try { await _host.ShowAsync(_content, new DialogOptions(_title) { CloseButtonText = "取消" }, this); }
         finally { Dispose(); }
     }
 
     /// <summary>表单内取消与弹窗取消走同一关闭门禁。</summary>
-    public void RequestCancel() => _dialog.Hide(ContentDialogResult.None);
+    public void RequestCancel() => CloseRequested?.Invoke(this, new(DialogResult.Close));
 
     /// <summary>仅在对应保存确实成功后结束弹窗。</summary>
     public void Complete()
     {
         if (_disposed || _forced) return;
         _completed = true;
-        _dialog.Hide(ContentDialogResult.Primary);
+        CloseRequested?.Invoke(this, new(DialogResult.Primary));
     }
 
     /// <summary>会话切换或撤权绕过确认并立即擦除敏感输入。</summary>
@@ -86,21 +85,25 @@ internal sealed class SettingsFormDialogSession : IDisposable
         if (_disposed) return;
         _forced = true;
         _discard();
-        _dialog.Hide(ContentDialogResult.None);
+        CloseRequested?.Invoke(this, new(DialogResult.Close));
     }
 
-    private void OnClosing(ContentDialog sender, ContentDialogClosingEventArgs e)
+    /// <inheritdoc />
+    public event EventHandler? StateChanged { add { } remove { } }
+    /// <inheritdoc />
+    public event EventHandler<DialogCloseRequestedEventArgs>? CloseRequested;
+    /// <inheritdoc />
+    public bool IsPrimaryButtonEnabled => true;
+    /// <inheritdoc />
+    public bool IsSecondaryButtonEnabled => true;
+    /// <inheritdoc />
+    public bool CanClose(DialogResult requestedResult)
     {
-        if (_forced || _completed) return;
-        e.Cancel = true;
-        if (_isBusy()) return;
-        if (!_hasDraft())
-        {
-            _forced = true;
-            _dialog.Dispatcher.BeginInvoke(new Action(() => _dialog.Hide(ContentDialogResult.None)));
-            return;
-        }
+        if (_forced || _completed) return true;
+        if (_isBusy()) return false;
+        if (!_hasDraft()) return true;
         _discardPrompt.Visibility = Visibility.Visible;
+        return false;
     }
 
     /// <summary>解除 WPF-UI 事件并清理表单，避免迟到响应触及已关闭内容。</summary>
@@ -108,8 +111,7 @@ internal sealed class SettingsFormDialogSession : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        _dialog.Closing -= OnClosing;
         _cleanup();
-        _dialog.Content = null;
+        _content.Children.Clear();
     }
 }

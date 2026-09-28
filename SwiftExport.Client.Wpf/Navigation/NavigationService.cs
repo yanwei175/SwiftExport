@@ -420,7 +420,8 @@ public sealed class NavigationService : ObservableObjectEx, INavigationService, 
         foreach (var tab in OpenTabs.ToArray())
         {
             if (_routeRegistry.TryGetRoute(tab.RouteKey, out var route) && _accessService.CanAccess(route)) continue;
-            if (tab.IsDirty)
+            // 管理页面撤权必须立即清除敏感草稿；其他业务页保持原有的确认关闭策略。
+            if (tab.IsDirty && route?.DiscardOnAccessRevoked != true)
             {
                 tab.SuspendForRevokedPermission();
                 _statusMessageService.Show("导航", $"“{tab.Title}”的读取权限已撤销，未保存编辑仍保留；请确认后关闭页签。", UiMessageSeverity.Warning);

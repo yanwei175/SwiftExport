@@ -42,7 +42,8 @@ public sealed class SettingsViewModelTests
     {
         var currentUser = CreateCurrentUser(roles: ["Admin"]);
         var windows = new FakeSettingsWindowService();
-        var viewModel = new SettingsCenterViewModel(currentUser, windows);
+        var navigation = new SettingsNavigationSpy();
+        var viewModel = new SettingsCenterViewModel(currentUser, windows, navigation);
 
         viewModel.ChangePasswordCommand.Execute(null);
 
@@ -57,12 +58,13 @@ public sealed class SettingsViewModelTests
     {
         var currentUser = CreateCurrentUser(["System.Users.View", "System.Roles.View", "System.Dictionary.View"]);
         var windows = new FakeSettingsWindowService();
-        var viewModel = new SettingsCenterViewModel(currentUser, windows);
+        var navigation = new SettingsNavigationSpy();
+        var viewModel = new SettingsCenterViewModel(currentUser, windows, navigation);
 
         viewModel.OpenSystemSettingsCommand.Execute(null);
 
         Assert.IsTrue(viewModel.CanManageSettings);
-        Assert.AreEqual(1, windows.SystemSettingsCount);
+        Assert.AreEqual("system-settings", navigation.LastRoute);
     }
 
     /// <summary>验证创建用户防重复提交并提示后续模块分配。</summary>
