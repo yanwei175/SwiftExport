@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Query;
@@ -27,4 +28,9 @@ public sealed class GrossDemandQueryController(IGrossDemandQueryService querySer
     [HttpGet("{uid:guid}")]
     public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
         => queryService.GetDetailAsync(uid, cancellationToken);
+
+    /// <summary>按来源需求身份读取只读链路证据。</summary>
+    [HttpGet("{uid:guid}/trace")]
+    public Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
+        => queryService.GetTraceAsync(uid, cancellationToken);
 }

@@ -20,7 +20,7 @@ using System.Text.Json;
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Query;
 
 /// <summary>读取物料需求工作台和来源导航。</summary>
-public sealed class MaterialDemandQueryRepository(RepositoryBaseContext context) : IMaterialDemandQueryRepository
+public sealed partial class MaterialDemandQueryRepository(RepositoryBaseContext context) : IMaterialDemandQueryRepository
 {
     private IDbConnection Connection => context.Session.Connection;
     private IDbTransaction? Transaction => context.Session.Transaction;
@@ -44,9 +44,21 @@ public sealed class MaterialDemandQueryRepository(RepositoryBaseContext context)
         {
             Offset = (pageIndex - 1) * pageSize,
             PageSize = pageSize,
-            PurchaseTargetType = "PO"
+            PurchaseTargetType = "PO",
+            BusinessDate = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("China Standard Time")).Date
         });
         var where = CreateMaterialWorkspaceWhere(request, parameters);
+        var quickWhere = request.QuickView switch
+        {
+            "Unassigned" => "[ProcurementStatus]=N'未承接'",
+            "Partial" => "[ProcurementStatus]=N'部分承接'",
+            "Assigned" => "[ProcurementStatus]=N'已承接'",
+            "Overdue" => "[DueHint]=N'已逾期'",
+            "DueSoon" => "[DueHint]=N'临近交期'",
+            "Review" => "[ReviewReason]<>N''",
+            _ => "1=1"
+        };
         var pageClause = paged ? "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY" : string.Empty;
         var sql = $@"
 IF OBJECT_ID(N'tempdb..#MaterialWorkspace',N'U') IS NOT NULL DROP TABLE #MaterialWorkspace;
@@ -64,7 +76,7 @@ SELECT
          THEN COALESCE(p.[MainImage],N'')
          ELSE COALESCE(NULLIF(LTRIM(RTRIM(gd.[ImagePathSnapshot])),N''),p.[MainImage],N'')
     END AS [ImagePath],nd.[MaterialTypeSnapshot] AS [MaterialType],
-    COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit],nd.[SupplyTypeSnapshot] AS [SupplyType],
+    unitFacts.[Unit] AS [Unit],nd.[SupplyTypeSnapshot] AS [SupplyType],
     nd.[SuggestedPurchaseSupplierId],suggestedSupplier.[SupplierCode] AS [SuggestedPurchaseSupplierCode],
     suggestedSupplier.[SupplierName] AS [SuggestedPurchaseSupplierName],
     CASE WHEN nd.[DeliveryMode]=1 THEN deliveryTarget.[SuggestedPurchaseSupplierId] END AS [SuggestedDeliverySupplierId],
@@ -76,8 +88,20 @@ SELECT
          WHEN deliverySupplier.[Uid] IS NULL THEN N'父件推荐采购供应商已失效'
          ELSE NULL END AS [SuggestedDeliverySupplierHint],
     nd.[GrossQty],nd.[NetQty],nd.[RequiredDate] AS [DemandRequiredDate],
-    COALESCE(purchaseFacts.[AssociatedPurchaseQty],0) AS [AssociatedPurchaseQty],
-    purchaseNumbers.[PurchaseOrderNos]
+    CASE WHEN nd.[LifecycleStatus]=0 AND assessment.[ReviewReason]=N''
+         THEN COALESCE(purchaseFacts.[AssociatedPurchaseQty],0) END AS [AssociatedPurchaseQty],
+    purchaseNumbers.[PurchaseOrderNos],purchaseNumbers.[ActualPurchaseSuppliers],
+    CASE WHEN nd.[LifecycleStatus]<>0 THEN N'历史'
+         WHEN assessment.[ReviewReason]<>N'' THEN N'需核实'
+         WHEN COALESCE(purchaseFacts.[AssociatedPurchaseQty],0)=0 THEN N'未承接'
+         WHEN purchaseFacts.[AssociatedPurchaseQty]<nd.[NetQty] THEN N'部分承接'
+         ELSE N'已承接' END AS [ProcurementStatus],
+    CASE WHEN nd.[LifecycleStatus]<>0 OR assessment.[ReviewReason]<>N''
+               OR nd.[RequiredDate] IS NULL OR COALESCE(purchaseFacts.[AssociatedPurchaseQty],0)>=nd.[NetQty]
+         THEN N''
+         WHEN CONVERT(date,nd.[RequiredDate])<@BusinessDate THEN N'已逾期'
+         WHEN CONVERT(date,nd.[RequiredDate])<=DATEADD(day,7,@BusinessDate) THEN N'临近交期'
+         ELSE N'' END AS [DueHint],assessment.[ReviewReason]
 INTO #MaterialWorkspace
 FROM [dbo].[NetDemand] nd
 INNER JOIN [dbo].[GrossDemand] gd ON gd.[Uid]=nd.[GrossDemandId]
@@ -95,25 +119,45 @@ LEFT JOIN [dbo].[NetDemand] deliveryTarget
  AND deliveryTarget.[LifecycleStatus]=0 AND deliveryTarget.[IsDeleted]=0
 LEFT JOIN [dbo].[Supplier] deliverySupplier
   ON deliverySupplier.[Uid]=deliveryTarget.[SuggestedPurchaseSupplierId] AND ISNULL(deliverySupplier.[IsDeleted],0)=0
+OUTER APPLY (SELECT COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),
+    CASE WHEN nd.[ParentNetDemandId] IS NULL THEN NULLIF(LTRIM(RTRIM(gd.[UnitSnapshot])),N'') END) AS [Unit]) unitFacts
 OUTER APPLY
 (
     SELECT SUM(link.[AllocatedQty]-link.[ReleasedQty]) AS [AssociatedPurchaseQty]
     FROM [dbo].[DemandExecutionLink] link
-    INNER JOIN [dbo].[PurchaseOrderHead] purchaseHead
+    LEFT JOIN [dbo].[PurchaseOrderHead] purchaseHead
       ON purchaseHead.[Uid]=link.[TargetHeadId]
      AND purchaseHead.[LifecycleStatus]=0 AND ISNULL(purchaseHead.[IsDeleted],0)=0
-    INNER JOIN [dbo].[PurchaseOrderLine] purchaseLine
+    LEFT JOIN [dbo].[PurchaseOrderLine] purchaseLine
       ON purchaseLine.[Uid]=link.[TargetLineId]
      AND purchaseLine.[PurchaseOrderId]=purchaseHead.[Uid] AND ISNULL(purchaseLine.[IsDeleted],0)=0
     WHERE link.[NetDemandId]=nd.[Uid]
       AND link.[TargetType]=@PurchaseTargetType AND link.[LinkStatus]=0 AND link.[IsDeleted]=0
+      AND link.[AllocatedQty]>link.[ReleasedQty]
 ) purchaseFacts
 OUTER APPLY
 (
-    SELECT STRING_AGG(numbers.[OrderNo],N',') AS [PurchaseOrderNos]
+    SELECT COUNT(*) AS [InvalidCount]
+    FROM dbo.DemandExecutionLink suspectLink
+    LEFT JOIN dbo.PurchaseOrderHead suspectHead ON suspectHead.Uid=suspectLink.TargetHeadId
+        AND suspectHead.LifecycleStatus=0 AND suspectHead.IsDeleted=0
+    LEFT JOIN dbo.PurchaseOrderLine suspectLine ON suspectLine.Uid=suspectLink.TargetLineId
+        AND suspectLine.PurchaseOrderId=suspectLink.TargetHeadId AND suspectLine.IsDeleted=0
+    WHERE suspectLink.NetDemandId=nd.Uid AND suspectLink.TargetType=N'PO'
+      AND suspectLink.LinkStatus=0 AND suspectLink.IsDeleted=0
+      AND suspectLink.AllocatedQty>suspectLink.ReleasedQty
+      AND (suspectHead.Uid IS NULL OR suspectLine.Uid IS NULL OR suspectHead.CustomerId IS NULL
+           OR suspectHead.CustomerId<>gd.CustomerId OR unitFacts.Unit IS NULL
+           OR NULLIF(LTRIM(RTRIM(suspectLine.UnitSnapshot)),N'') IS NULL
+           OR LTRIM(RTRIM(suspectLine.UnitSnapshot))<>unitFacts.Unit)
+) purchaseIssues
+OUTER APPLY
+(
+    SELECT STRING_AGG(numbers.[OrderNo],N',') AS [PurchaseOrderNos],
+           STRING_AGG(numbers.[SupplierName],N',') AS [ActualPurchaseSuppliers]
     FROM
     (
-        SELECT DISTINCT purchaseHead.[OrderNo]
+        SELECT DISTINCT purchaseHead.[OrderNo],supplier.[SupplierName]
         FROM [dbo].[DemandExecutionLink] link
         INNER JOIN [dbo].[PurchaseOrderHead] purchaseHead
           ON purchaseHead.[Uid]=link.[TargetHeadId]
@@ -121,13 +165,31 @@ OUTER APPLY
         INNER JOIN [dbo].[PurchaseOrderLine] purchaseLine
           ON purchaseLine.[Uid]=link.[TargetLineId]
          AND purchaseLine.[PurchaseOrderId]=purchaseHead.[Uid] AND ISNULL(purchaseLine.[IsDeleted],0)=0
+        LEFT JOIN [dbo].[Supplier] supplier ON supplier.[Uid]=purchaseHead.[SupplierId]
         WHERE link.[NetDemandId]=nd.[Uid]
           AND link.[TargetType]=@PurchaseTargetType AND link.[LinkStatus]=0 AND link.[IsDeleted]=0
+          AND link.[AllocatedQty]>link.[ReleasedQty]
     ) numbers
 ) purchaseNumbers
+OUTER APPLY (SELECT CASE
+    WHEN nd.[LifecycleStatus]<>0 THEN N''
+    WHEN gd.[CustomerId] IS NULL THEN N'来源客户缺失'
+    WHEN nd.[SourceDemandVersionSnapshot] IS NULL OR nd.[SourceDemandVersionSnapshot]<>gd.[Version]
+      OR NULLIF(gd.[DemandBasisFingerprint],N'') IS NULL
+      OR nd.[SourceDemandBasisFingerprintSnapshot] IS NULL
+      OR nd.[SourceDemandBasisFingerprintSnapshot]<>gd.[DemandBasisFingerprint]
+      OR (gd.[SourceType]<>N'MD' AND (gd.[SourceVersion] IS NULL OR nd.[SourceVersionSnapshot] IS NULL
+          OR nd.[SourceVersionSnapshot]<>gd.[SourceVersion]))
+      OR (gd.[SourceType]=N'MD' AND nd.[SourceVersionSnapshot] IS NOT NULL)
+      THEN N'来源版本或需求指纹需核实'
+    WHEN unitFacts.[Unit] IS NULL THEN N'物料单位需核实'
+    WHEN nd.[NetQty]<=0 THEN N'物料需求数量需核实'
+    WHEN purchaseIssues.[InvalidCount]>0 THEN N'采购目标、客户或单位需核实'
+    WHEN COALESCE(purchaseFacts.[AssociatedPurchaseQty],0)>nd.[NetQty] THEN N'采购承接超量需核实'
+    ELSE N'' END AS [ReviewReason]) assessment
 WHERE {string.Join(" AND ", where)};
 
-SELECT COUNT(1) FROM #MaterialWorkspace;
+SELECT COUNT(1) FROM #MaterialWorkspace WHERE {quickWhere};
 SELECT [Uid],[Version],[LifecycleStatus],[GrossDemandId],[DecompositionRevision],[LineNumber],
        [CustomerId],[CustomerCode],[CustomerName],
        [SourceType],[SourceUid],[SourceNo],[SourceLineNumber],[SourceLineId],[RootNetDemandId],[RootSku],
@@ -136,8 +198,9 @@ SELECT [Uid],[Version],[LifecycleStatus],[GrossDemandId],[DecompositionRevision]
        [SuggestedPurchaseSupplierId],[SuggestedPurchaseSupplierCode],[SuggestedPurchaseSupplierName],
        [SuggestedDeliverySupplierId],[SuggestedDeliverySupplierCode],[SuggestedDeliverySupplierName],
        [SuggestedDeliverySupplierHint],[GrossQty],[NetQty],[DemandRequiredDate],
-       [AssociatedPurchaseQty],[PurchaseOrderNos]
+       [AssociatedPurchaseQty],[PurchaseOrderNos],[ActualPurchaseSuppliers],[ProcurementStatus],[DueHint],[ReviewReason]
 FROM #MaterialWorkspace
+WHERE {quickWhere}
 ORDER BY [SourceNo],[SourceLineNumber],[LineNumber],[Uid]
 {pageClause};
 DROP TABLE #MaterialWorkspace;";
@@ -164,11 +227,13 @@ DROP TABLE #MaterialWorkspace;";
         var parameters = new DynamicParameters();
         var where = new List<string>
         {
-            "nd.[LifecycleStatus]=0",
+            "nd.[LifecycleStatus]=@LifecycleStatus",
             "nd.[IsDeleted]=0",
-            "gd.[LifecycleStatus]=0",
             "gd.[IsDeleted]=0"
         };
+        parameters.Add("LifecycleStatus", (int)(request.LifecycleStatus ?? NetDemandLifecycleStatusEnum.Active));
+        if (!request.LifecycleStatus.HasValue || request.LifecycleStatus == NetDemandLifecycleStatusEnum.Active)
+            where.Add("gd.[LifecycleStatus]=0");
         AddListFilter(request.SourceTypes, "gd.[SourceType]", "SourceTypes", where, parameters);
         var sql = $@"
 SELECT gd.[SourceUid],MAX(gd.[SourceType]) AS [SourceType],MAX(gd.[SourceNo]) AS [SourceNo],COUNT(1) AS [DemandCount]
@@ -188,11 +253,13 @@ ORDER BY MAX(gd.[SourceType]),MAX(gd.[SourceNo]),gd.[SourceUid];";
     {
         var where = new List<string>
         {
-            "nd.[LifecycleStatus]=0",
+            "nd.[LifecycleStatus]=@LifecycleStatus",
             "nd.[IsDeleted]=0",
-            "gd.[LifecycleStatus]=0",
             "gd.[IsDeleted]=0"
         };
+        parameters.Add("LifecycleStatus", (int)(request.LifecycleStatus ?? NetDemandLifecycleStatusEnum.Active));
+        if (!request.LifecycleStatus.HasValue || request.LifecycleStatus == NetDemandLifecycleStatusEnum.Active)
+            where.Add("gd.[LifecycleStatus]=0");
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             where.Add(@"(gd.[SourceNo] LIKE @Keyword ESCAPE '~'
@@ -214,6 +281,36 @@ ORDER BY MAX(gd.[SourceType]),MAX(gd.[SourceNo]),gd.[SourceUid];";
         AddListFilter(request.SourceNos, "gd.[SourceNo]", "SourceNos", where, parameters);
         AddListFilter(request.Skus, "nd.[SkuSnapshot]", "Skus", where, parameters);
         AddListFilter(request.CustomerSkus, "nd.[CustomerSkuSnapshot]", "CustomerSkus", where, parameters);
+        if (request.SuggestedPurchaseSupplierId.HasValue)
+        {
+            where.Add("nd.[SuggestedPurchaseSupplierId]=@SuggestedPurchaseSupplierId");
+            parameters.Add("SuggestedPurchaseSupplierId", request.SuggestedPurchaseSupplierId.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(request.SuggestedPurchaseSupplierKeyword))
+        {
+            where.Add(@"(suggestedSupplier.SupplierCode LIKE @SuggestedSupplierKeyword ESCAPE '~'
+                        OR suggestedSupplier.SupplierName LIKE @SuggestedSupplierKeyword ESCAPE '~')");
+            parameters.Add("SuggestedSupplierKeyword", SqlLikePattern.Build(request.SuggestedPurchaseSupplierKeyword));
+        }
+        if (request.ActualPurchaseSupplierId.HasValue || !string.IsNullOrWhiteSpace(request.ActualPurchaseSupplierKeyword)
+            || !string.IsNullOrWhiteSpace(request.PurchaseOrderNo))
+        {
+            where.Add(@"EXISTS (SELECT 1 FROM dbo.DemandExecutionLink filteredLink
+                JOIN dbo.PurchaseOrderHead filteredHead ON filteredHead.Uid=filteredLink.TargetHeadId
+                LEFT JOIN dbo.Supplier filteredSupplier ON filteredSupplier.Uid=filteredHead.SupplierId
+                WHERE filteredLink.NetDemandId=nd.Uid AND filteredLink.TargetType=N'PO'
+                  AND (@LifecycleStatus<>0 OR (filteredLink.LinkStatus=0 AND filteredLink.IsDeleted=0
+                       AND filteredLink.AllocatedQty>filteredLink.ReleasedQty AND filteredHead.LifecycleStatus=0
+                       AND filteredHead.IsDeleted=0))
+                  AND (@ActualPurchaseSupplierId IS NULL OR filteredHead.SupplierId=@ActualPurchaseSupplierId)
+                  AND (@ActualSupplierKeyword IS NULL OR filteredSupplier.SupplierCode LIKE @ActualSupplierKeyword ESCAPE '~'
+                       OR filteredSupplier.SupplierName LIKE @ActualSupplierKeyword ESCAPE '~')
+                  AND (@PurchaseOrderNo IS NULL OR filteredHead.OrderNo=@PurchaseOrderNo))");
+            parameters.Add("ActualPurchaseSupplierId", request.ActualPurchaseSupplierId);
+            parameters.Add("ActualSupplierKeyword", string.IsNullOrWhiteSpace(request.ActualPurchaseSupplierKeyword)
+                ? null : SqlLikePattern.Build(request.ActualPurchaseSupplierKeyword));
+            parameters.Add("PurchaseOrderNo", string.IsNullOrWhiteSpace(request.PurchaseOrderNo) ? null : request.PurchaseOrderNo.Trim());
+        }
         AddDateRange(request.DemandRequiredDateFrom, request.DemandRequiredDateTo, "nd.[RequiredDate]",
             "DemandRequiredDate", where, parameters);
         if (request.IsCustomerSupplied.HasValue)

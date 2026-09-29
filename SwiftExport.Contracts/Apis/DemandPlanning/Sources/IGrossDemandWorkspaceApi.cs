@@ -1,5 +1,6 @@
 using Refit;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -21,6 +22,10 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
 
         [Get("/{uid}")]
         Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取指定来源需求的拆解、采购与交付历史。</summary>
+        [Get("/{uid}/trace")]
+        Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
 
         [Post("/manual")]
         Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync([Body] CreateManualGrossDemandRequest request);

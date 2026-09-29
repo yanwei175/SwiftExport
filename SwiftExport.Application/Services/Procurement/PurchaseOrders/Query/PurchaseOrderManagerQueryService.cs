@@ -45,10 +45,17 @@ public sealed class PurchaseOrderManagerQueryService(
             || request.OrderDateFrom?.Date > request.OrderDateTo?.Date
             || request.ConfirmationStatuses is null
             || request.LifecycleStatuses is null
+            || request.ReadyStatuses is null
+            || request.ReceiptStatuses is null
             || request.ConfirmationStatuses.Count > 20
             || request.LifecycleStatuses.Count > 20
+            || request.ReadyStatuses.Count > 20
+            || request.ReceiptStatuses.Count > 20
             || request.ConfirmationStatuses.Any(status => !Enum.IsDefined(status))
             || request.LifecycleStatuses.Any(status => !Enum.IsDefined(status))
+            || request.ReadyStatuses.Any(status => !Enum.IsDefined(status))
+            || request.ReceiptStatuses.Any(status => !Enum.IsDefined(status))
+            || !Enum.IsDefined(request.DueView)
             || request.PlannedDeliveryDateFrom > request.PlannedDeliveryDateTo
             || request.ExpectedCompletionDateFrom > request.ExpectedCompletionDateTo)
             throw new InvalidOperationException("采购管理筛选参数无效。");

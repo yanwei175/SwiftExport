@@ -28,6 +28,26 @@ public sealed partial class InboundManagerViewModel
         return Headers.Items.Count == 0 && !HasUnsavedChanges ? SearchAsync() : Task.CompletedTask;
     }
 
+    /// <summary>从采购追溯打开只读入库文档，按单号过滤并核对稳定 Uid 后定位原单。</summary>
+    public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
+    {
+        if (parameter is not InboundDocumentOpenRequest request || request.InboundDocumentId == Guid.Empty)
+            return;
+        cancellationToken.ThrowIfCancellationRequested();
+        IsReadOnly = true;
+        SelectedDocumentType = SwiftExport.Contracts.SysEnums.Inventory.InboundDocumentTypeEnum.PurchaseReceipt;
+        SelectedPostingStatus = request.PostingStatus;
+        Keyword = request.DocumentNo;
+        _initialSearchRequested = true;
+        await SearchAsync();
+        cancellationToken.ThrowIfCancellationRequested();
+        SelectedItem = Headers.Items.FirstOrDefault(x => x.Uid == request.InboundDocumentId);
+        if (SelectedItem is not null)
+            await LoadSelectedDetailAsync();
+        else
+            ResultSummary = $"未能在当前入库查询中定位 {request.DocumentNo}，请核实入库单状态。";
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int PageIndex { get; private set; } = 1;

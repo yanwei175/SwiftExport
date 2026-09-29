@@ -144,6 +144,9 @@
                 <ui:Button Content="上追踪" MinWidth="70" Margin="0,0,8,0"
                         Command="{Binding OpenSourceCommand}" 
                        Style="{StaticResource GrossDemandToolbarButton}"/>
+
+                <ui:Button Content="链路追踪" MinWidth="80" Margin="0,0,8,0"
+                        Command="{Binding OpenTraceCommand}" />
                 
                 <ToggleButton Content="来源单号分组" Margin="0,0,8,0"
                               Command="{Binding ToggleSourcePanelCommand}"
@@ -170,6 +173,13 @@
                                   ItemsSource="{Binding StandardTypeOptions}"
                                   DisplayMemberPath="DisplayText"
                                   SelectedItem="{Binding SelectedStandardType}" />
+
+                <ComboBox Width="125" VerticalContentAlignment="Center" Margin="0,0,8,0"
+                          ItemsSource="{Binding TraceViewOptions}" DisplayMemberPath="DisplayText"
+                          SelectedItem="{Binding SelectedTraceView}" />
+
+                <ui:TextBox Width="120" Margin="0,0,8,0" PlaceholderText="客户编码/名称"
+                            Text="{Binding CustomerKeyword,UpdateSourceTrigger=PropertyChanged}" />
                 
                 <ToggleButton x:Name="OptionsToggle"  Content="更多条件" Margin="0,0,8,0"/>
 
@@ -291,6 +301,10 @@
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="链路证据" Width="180" Binding="{Binding TraceSummary}"
+                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                                gridColumns:GridColumn.Key="trace-summary" />
 
                             <DataGridTextColumn Header="来源单号" Width="100" Binding="{Binding SourceNo}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"

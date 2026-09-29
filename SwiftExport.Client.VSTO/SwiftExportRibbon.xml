@@ -7,5 +7,9 @@
    <button id="switchAccount" label="切换登录" onAction="OnLogin" getVisible="GetAccountVisible" getEnabled="GetAccountEnabled" screentip="新账号验证成功后才替换原账号"/>
    <button id="logout" label="退出登录" onAction="OnLogout" getVisible="GetAccountVisible" getEnabled="GetAccountEnabled"/>
   </group>
+  <group id="importGroup" label="数据导入">
+   <button id="salesOrderImport" label="销售订单导入" onAction="OnSalesImport" getEnabled="GetSalesImportEnabled" screentip="本地编辑预览，暂不保存至服务器"/>
+   <button id="purchaseOrderImportPreview" label="采购订单导入预览" onAction="OnPurchaseImportPreview" getEnabled="GetPurchaseImportPreviewEnabled" screentip="查看采购导入页面布局，业务操作待审批"/>
+  </group>
  </tab></tabs></ribbon>
 </customUI>

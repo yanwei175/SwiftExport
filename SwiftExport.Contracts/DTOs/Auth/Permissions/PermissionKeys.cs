@@ -205,6 +205,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string SystemDictionaryEdit = "System.Dictionary.Edit";
         /// <summary>字典查看权限。</summary>
         public const string SystemDictionaryView = "System.Dictionary.View";
+        /// <summary>Excel 字段映射维护权限。</summary>
+        public const string SystemExcelFieldMappingManage = "System.ExcelFieldMapping.Manage";
         /// <summary>汇率创建权限。</summary>
         public const string SystemExchangeRateCreate = "System.ExchangeRate.Create";
         /// <summary>汇率删除权限。</summary>

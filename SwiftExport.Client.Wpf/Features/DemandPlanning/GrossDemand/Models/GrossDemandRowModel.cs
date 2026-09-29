@@ -30,6 +30,11 @@ public sealed partial class GrossDemandRowModel : ObservableObject
     public decimal DemandQty { get; private set; }
     public DateTime? RequiredDate { get; private set; }
     public string Remark { get; private set; } = string.Empty;
+    public bool HasActiveMaterial { get; private set; }
+    public bool HasValidPurchase { get; private set; }
+    public bool HasPostedDelivery { get; private set; }
+    /// <summary>独立存在性提示；不表示采购数量已覆盖需求或交付已完成。</summary>
+    public string TraceSummary => $"拆解{(HasActiveMaterial ? "有" : "无")} / 采购{(HasValidPurchase ? "有" : "无")} / 交付{(HasPostedDelivery ? "有" : "无")}";
     public DateTime? CreatedDate { get; private set; }
     public string CreatedBy { get; private set; } = string.Empty;
     public DateTime? UpdatedDate { get; private set; }
@@ -80,6 +85,9 @@ public sealed partial class GrossDemandRowModel : ObservableObject
             DemandQty = dto.DemandQty,
             RequiredDate = dto.RequiredDate,
             Remark = dto.Remark ?? string.Empty,
+            HasActiveMaterial = dto.HasActiveMaterial,
+            HasValidPurchase = dto.HasValidPurchase,
+            HasPostedDelivery = dto.HasPostedDelivery,
             CreatedDate = dto.CreatedDate,
             CreatedBy = dto.CreatedBy ?? string.Empty,
             UpdatedDate = dto.UpdatedDate,

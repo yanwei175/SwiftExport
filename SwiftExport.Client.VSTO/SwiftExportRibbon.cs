@@ -37,12 +37,20 @@ namespace SwiftExport.Client.VSTO
         public void OnLogin(Office.IRibbonControl control) { host?.Login(control); }
         /// <summary>退出插件登录。</summary>
         public void OnLogout(Office.IRibbonControl control) { host?.Logout(); }
+        /// <summary>销售导入仅在身份已验证且未切换登录时可打开。</summary>
+        public bool GetSalesImportEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && host.IsAuthenticated; }
+        /// <summary>转交窗口协调器，回调不读取工作簿或请求网络。</summary>
+        public void OnSalesImport(Office.IRibbonControl control) { host?.OpenSalesOrderImport(control); }
+        /// <summary>预览入口沿用已验证身份和宿主就绪门禁。</summary>
+        public bool GetPurchaseImportPreviewEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && host.IsAuthenticated; }
+        /// <summary>将采购页面布局预览交给任务窗格协调器。</summary>
+        public void OnPurchaseImportPreview(Office.IRibbonControl control) { host?.OpenPurchaseOrderImportPreview(control); }
         private void Host_Changed(object sender, EventArgs args) { Refresh(); }
         // Office 缓存动态属性，状态变化后必须主动失效。
         private void Refresh()
         {
             if (ribbon == null) return;
-            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout" }) ribbon.InvalidateControl(id); }
+            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview" }) ribbon.InvalidateControl(id); }
             catch (COMException) { ribbon = null; }
         }
         /// <summary>断开宿主事件与 Ribbon 引用。</summary>

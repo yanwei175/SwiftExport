@@ -587,9 +587,10 @@ public sealed class PurchaseDraftPreviewService(
             CustomerName = row.CustomerName ?? string.Empty,
             IsSelected = selected,
             IsCustomerSupplied = row.IsCustomerSupplied,
-            IsPlanningFactValid = row.NetQty > 0 && row.AssociatedPurchaseQty <= row.NetQty,
+            IsPlanningFactValid = row.NetQty > 0 && row.AssociatedPurchaseQty.HasValue
+                && row.AssociatedPurchaseQty.Value <= row.NetQty && string.IsNullOrEmpty(row.ReviewReason),
             ExecutionType = ResolveExecutionType(row.SupplyType),
-            RemainingQty = row.RemainingQty,
+            RemainingQty = row.RemainingQty ?? 0m,
             RequestedPurchaseQty = item?.PurchaseQty,
             DemandRequiredDate = row.DemandRequiredDate,
             PlannedDeliveryDate = item is null ? row.DemandRequiredDate : item.PlannedDeliveryDate,

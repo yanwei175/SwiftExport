@@ -1,8 +1,10 @@
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
+using Microsoft.Data.SqlClient;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 
@@ -65,6 +67,28 @@ public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDe
         {
             _logger.LogError(ex, "加载来源需求 {Uid} 失败。", uid);
             return ServiceResult<GrossDemandDetailDto>.Fail("加载来源需求失败。");
+        }
+    }
+
+    /// <summary>读取来源需求的拆解、采购与正式交付历史，不生成或修改执行关系。</summary>
+    public async Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
+    {
+        if (uid == Guid.Empty) return ServiceResult<GrossDemandTraceDetailDto>.Fail("来源需求 Uid 不能为空。");
+        try
+        {
+            var detail = await grossDemandRepository.GetTraceAsync(uid, cancellationToken);
+            return detail is null ? ServiceResult<GrossDemandTraceDetailDto>.Fail("未找到来源需求。") : ServiceResult<GrossDemandTraceDetailDto>.Ok(detail);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (SqlException ex) when (ex.Number == 51001)
+        {
+            _logger.LogWarning(ex, "来源需求追踪的正式入库反向历史尚未核实，来源需求 {Uid}", uid);
+            return ServiceResult<GrossDemandTraceDetailDto>.Fail("正式入库反向历史需核实，收货量未知。");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "加载来源需求追踪 {Uid} 失败。", uid);
+            return ServiceResult<GrossDemandTraceDetailDto>.Fail("加载来源需求追踪失败。");
         }
     }
 }

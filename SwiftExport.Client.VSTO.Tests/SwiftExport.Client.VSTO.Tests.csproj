@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
  <PropertyGroup>
   <TargetFramework>net48</TargetFramework><LangVersion>7.3</LangVersion>
   <IsTestProject>true</IsTestProject><IsPackable>false</IsPackable>
@@ -16,6 +16,12 @@
   <Compile Include="../SwiftExport.Client.VSTO/Authentication/*.cs" Exclude="../SwiftExport.Client.VSTO/Authentication/LoginWindow.xaml.cs;../SwiftExport.Client.VSTO/Authentication/LoginCoordinator.cs" LinkBase="Production/Authentication"/>
   <Compile Include="../SwiftExport.Client.VSTO/Mvvm/*.cs;../SwiftExport.Client.VSTO/Api/*.cs;../SwiftExport.Client.VSTO/Diagnostics/*.cs;../SwiftExport.Client.VSTO/Hosting/Threading/IUiDispatcher.cs" LinkBase="Production"/>
   <None Include="../SwiftExport.Client.VSTO/SwiftExportRibbon.xml" Link="SwiftExportRibbon.xml" CopyToOutputDirectory="PreserveNewest"/>
+  <Compile Include="../SwiftExport.Client.VSTO/Services/Caching/*.cs" LinkBase="Production/Caching"/>
   <None Include="../SwiftExport.Client.VSTO/SwiftExportRibbon.cs" Link="SwiftExportRibbon.cs" CopyToOutputDirectory="PreserveNewest"/>
  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Models/*.cs" LinkBase="Production/Import/Models"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/ViewModels/*.cs" LinkBase="Production/Import/ViewModels"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/ISalesOrderImportPrompt.cs" Link="Production/Import/ISalesOrderImportPrompt.cs"/>
+  </ItemGroup>
 </Project>

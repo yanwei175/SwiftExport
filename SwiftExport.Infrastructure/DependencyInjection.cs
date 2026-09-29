@@ -1,11 +1,13 @@
 using SwiftExport.Core.Interfaces.Systems.Currencies;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
+using SwiftExport.Core.Interfaces.Systems.ExcelFieldMappings;
 using SwiftExport.Core.Interfaces.Systems.ExchangeRates;
 using SwiftExport.Core.Interfaces.Systems.Numbering;
 using SwiftExport.Infrastructure.Repositories.Systems.Currencies;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
+using SwiftExport.Infrastructure.Repositories.Systems.ExcelFieldMappings;
 using SwiftExport.Infrastructure.Repositories.Systems.ExchangeRates;
 using SwiftExport.Infrastructure.Repositories.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Customers.CustomerProducts;
@@ -140,6 +142,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentSequenceRepository, DocumentSequenceRepository>();
         services.AddScoped<ISysDictDataRepository, SysDictDataRepository>();
         services.AddScoped<ISysDictTypeRepository, SysDictTypeRepository>();
+        services.AddScoped<IExcelFieldMappingRepository, ExcelFieldMappingRepository>();
         services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
         services.AddScoped<INetDemandExecutionLinkRepository, NetDemandExecutionLinkRepository>();
         services.AddScoped<IGrossDemandQueryRepository, GrossDemandQueryRepository>();
@@ -155,6 +158,7 @@ public static class DependencyInjection
         services.AddScoped<IProcurementOrderFactLockRepository>(sp => sp.GetRequiredService<IProcurementReversalRepository>());
         services.AddScoped<IProcurementOrderQueryRepository, ProcurementOrderQueryRepository>();
         services.AddScoped<IPurchaseOrderManagerQueryRepository, PurchaseOrderManagerQueryRepository>();
+        services.AddScoped<IPurchaseOrderTraceRepository, SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Trace.PurchaseOrderTraceRepository>();
         services.AddScoped<IPurchaseOrderProgressQueryRepository, PurchaseOrderProgressQueryRepository>();
         services.AddScoped<IBomExecutionRepository, BomExecutionRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IExecutionEligibilityRepository, SwiftExport.Infrastructure.Repositories.MasterData.ExecutionEligibilityRepository>();

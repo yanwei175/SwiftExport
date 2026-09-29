@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -18,4 +19,6 @@ public interface IGrossDemandQueryRepository
         CancellationToken cancellationToken = default);
     /// <summary>按身份读取一条未删除来源需求的详情。</summary>
     Task<GrossDemandDetailDto?> GetWorkspaceDetailAsync(Guid uid, CancellationToken cancellationToken = default);
+    /// <summary>按来源需求身份读取拆解、采购及正式交付历史证据。</summary>
+    Task<GrossDemandTraceDetailDto?> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);
 }

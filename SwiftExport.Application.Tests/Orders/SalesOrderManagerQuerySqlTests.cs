@@ -58,6 +58,11 @@ public sealed class SalesOrderManagerQuerySqlTests
         var draftItem = await Single(new() { QuickView = SalesOrderManagerQuickView.PendingConfirmation });
         Assert.AreEqual(0m, draftItem.TotalShippedQty);
         Assert.AreEqual(10m, draftItem.TotalUnshippedQty);
+        var draftFulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(draft));
+        Assert.AreEqual(0m, draftFulfillment.Data!.Lines.Single().ShippedQty);
+        Assert.AreEqual(10m, draftFulfillment.Data.Lines.Single().UnshippedQty);
+        Assert.AreEqual("待确认", draftFulfillment.Data.Lines.Single().SourceState);
+        Assert.AreEqual("未关联", draftFulfillment.Data.Lines.Single().PurchaseState);
         var item = await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped });
         Assert.AreEqual(4m, item.TotalShippedQty);
         Assert.AreEqual(6m, item.TotalUnshippedQty);
@@ -66,6 +71,69 @@ public sealed class SalesOrderManagerQuerySqlTests
         var detail = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().GetAsync(confirmed));
         Assert.IsTrue(detail.Success, detail.Message);
         Assert.AreEqual(4m, detail.Data!.Lines.Single().ShippedQty);
+        var fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.IsTrue(fulfillment.Success, fulfillment.Message);
+        Assert.AreEqual(4m, fulfillment.Data!.Lines.Single().ShippedQty);
+        Assert.AreEqual(6m, fulfillment.Data.Lines.Single().UnshippedQty);
+        Assert.AreEqual(demand, fulfillment.Data.Lines.Single().GrossDemandId);
+        Assert.AreEqual(1, fulfillment.Data.Lines.Single().Deliveries.Count);
+        var net = Guid.NewGuid(); var otherGross = Guid.NewGuid(); var otherNet = Guid.NewGuid();
+        var purchase = Guid.NewGuid(); var purchaseLine = Guid.NewGuid();
+        var independent = Guid.NewGuid(); var independentLine = Guid.NewGuid();
+        var ownLink = Guid.NewGuid(); var sharedLink = Guid.NewGuid();
+        await db.ExecuteAsync("""
+            INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceVersionSnapshot,SourceDemandBasisFingerprintSnapshot,
+                DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)
+            VALUES(@net,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),1,@fingerprint,
+                1,1,0,@net,0,N'采购',N'CONF-SKU',10,10);
+            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,IsNonStandard,SkuSnapshot,DemandQty)
+            VALUES(@otherGross,0,N'Manual',NEWID(),N'OTHER',NEWID(),1,N'OTHER-SKU',2);
+            INSERT dbo.NetDemand(Uid,GrossDemandId,DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)
+            VALUES(@otherNet,@otherGross,1,1,0,@otherNet,0,N'采购',N'OTHER-SKU',2,2);
+            INSERT dbo.PurchaseOrderHead(Uid,OriginKind,ConfirmationStatus,LifecycleStatus,OrderNo,CustomerId,CustomerCode,Currency,SupplierId,SupplierCode,ExecutionRequestId,OrderDate)
+            VALUES(@purchase,1,0,0,N'PO-LINKED',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02'),
+                  (@independent,2,0,0,N'PO-INDEPENDENT',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02');
+            INSERT dbo.PurchaseOrderLine(Uid,PurchaseOrderId,LineNumber,OrderNo,Sku,UnitSnapshot,QTY)
+            VALUES(@purchaseLine,@purchase,1,N'PO-LINKED',N'CONF-SKU',N'PCS',10),
+                  (@independentLine,@independent,1,N'PO-INDEPENDENT',N'CONF-SKU',N'PCS',10);
+            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
+            VALUES(@ownLink,@net,NEWID(),NEWID(),N'PO',@purchase,N'PO-LINKED',@purchaseLine,0,6,0),
+                  (@sharedLink,@otherNet,NEWID(),NEWID(),N'PO',@purchase,N'PO-LINKED',@purchaseLine,0,2,0);
+            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,ExpectedReadyDate,SupplierReportedDate,IsCorrection,CommandId)
+            VALUES(NEWID(),@purchaseLine,1,2,8,'2026-10-01','2026-09-10',0,NEWID()),
+                  (NEWID(),@purchaseLine,2,2,5,'2026-10-03','2026-09-11',1,NEWID());
+            """, new { net, demand, fingerprint, otherGross, otherNet, purchase, purchaseLine,
+                independent, independentLine, ownLink, sharedLink, customerId = db.CustomerId, supplierId = db.SupplierId });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        var linked = fulfillment.Data!.Lines.Single().Purchases.Single();
+        Assert.AreEqual(6m, linked.LinkedQty);
+        Assert.AreEqual(5m, linked.PurchaseLineReadyQty);
+        Assert.IsTrue(linked.IsSharedPurchaseLine);
+        Assert.AreEqual(purchase, linked.PurchaseOrderId);
+        await db.ExecuteAsync("""
+            UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@componentId;
+            UPDATE dbo.NetDemand SET ProductId=@componentId WHERE Uid=@net;
+            UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'KG' WHERE Uid=@purchaseLine;
+            """, new { componentId = db.ComponentId, net, purchaseLine });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.AreEqual(6m, fulfillment.Data!.Lines.Single().Purchases.Single().LinkedQty);
+        Assert.AreEqual(string.Empty, fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason);
+        await db.ExecuteAsync("UPDATE dbo.NetDemand SET ProductId=NULL WHERE Uid=@net", new { net });
+        await db.ExecuteAsync("UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=NULL WHERE Uid=@purchaseLine", new { purchaseLine });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.IsNull(fulfillment.Data!.Lines.Single().Purchases.Single().LinkedQty);
+        StringAssert.Contains(fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason, "单位");
+        await db.ExecuteAsync("UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'PCS' WHERE Uid=@purchaseLine", new { purchaseLine });
+        await db.ExecuteAsync("UPDATE dbo.DemandExecutionLink SET ReleasedQty=AllocatedQty,LinkStatus=8 WHERE Uid=@ownLink", new { ownLink });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.AreEqual(0, fulfillment.Data!.Lines.Single().Purchases.Count);
+        await db.ExecuteAsync("""
+            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
+            VALUES(NEWID(),@net,NEWID(),NEWID(),N'PO',NEWID(),N'PO-MISSING',NEWID(),0,1,0)
+            """, new { net });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.AreEqual("需核实", fulfillment.Data!.Lines.Single().PurchaseState);
+        StringAssert.Contains(fulfillment.Data.Lines.Single().PurchaseReviewReason, "证据异常");
         var secondPacking = Guid.NewGuid(); var secondLine = Guid.NewGuid();
         await db.ExecuteAsync("""
             INSERT dbo.PackingListHead(Uid,PackingListNo,CustomerId,InvoiceDate,LifecycleStatus,PostingStatus,PostingDate,PostedDate,CreateCommandId)
@@ -75,6 +143,9 @@ public sealed class SalesOrderManagerQuerySqlTests
             VALUES(@secondLine,@secondPacking,1,@demand,1,N'SO',N'SO-CONFIRMED',1,N'CONF-SKU',N'PCS',3);
             """, new { secondPacking, secondLine, demand, customerId = db.CustomerId });
         Assert.AreEqual(7m, (await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped })).TotalShippedQty);
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.AreEqual(2, fulfillment.Data!.Lines.Single().Deliveries.Count);
+        Assert.AreEqual(7m, fulfillment.Data.Lines.Single().ShippedQty);
         async Task<int> CountAt(SalesOrderManagerSearchRequest request, DateTime today)
         {
             var page = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()
@@ -99,6 +170,9 @@ public sealed class SalesOrderManagerQuerySqlTests
         var reversed = await Single(new() { QuickView = SalesOrderManagerQuickView.NotShipped, InvoiceNo = "INV-CONFIRMED" });
         Assert.AreEqual(0m, reversed.TotalShippedQty);
         Assert.AreEqual(10m, reversed.TotalUnshippedQty);
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.AreEqual(0m, fulfillment.Data!.Lines.Single().ShippedQty);
+        Assert.IsTrue(fulfillment.Data.Lines.Single().Deliveries.All(row => !row.CountsTowardDelivery));
         await db.ExecuteAsync("UPDATE dbo.PackingListHead SET PostingStatus=1,ReversedDate=NULL WHERE Uid=@packing; UPDATE dbo.PackingListLine SET Qty=12 WHERE Uid=@packingLine", new { packing, packingLine });
         var overage = await Single(new() { OrderNo = "SO-CONFIRMED" });
         Assert.AreEqual(12m, overage.TotalShippedQty);
@@ -113,9 +187,15 @@ public sealed class SalesOrderManagerQuerySqlTests
         var legacyDetail = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().GetAsync(confirmed));
         Assert.IsTrue(legacyDetail.Success, legacyDetail.Message);
         Assert.IsNull(legacyDetail.Data!.Lines.Single().ShippedQty);
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.IsNull(fulfillment.Data!.Lines.Single().ShippedQty);
+        Assert.IsNull(fulfillment.Data.Lines.Single().GrossDemandId);
         await db.ExecuteAsync("UPDATE dbo.GrossDemand SET DemandBasisFingerprint=@fingerprint WHERE Uid=@demand; UPDATE dbo.PackingListHead SET PostingStatus=8,ReversedDate='2026-09-03' WHERE Uid=@packing; UPDATE dbo.SalesOrderHeader SET DocumentStatus=9 WHERE Uid=@confirmed", new { demand, packing, confirmed, fingerprint });
         var closed = await Single(new() { QuickView = SalesOrderManagerQuickView.ClosedWithOutstanding });
         Assert.AreEqual(10m, closed.TotalUnshippedQty);
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.AreEqual(10m, fulfillment.Data!.Lines.Single().UnshippedQty);
+        Assert.AreEqual(0m, fulfillment.Data.Lines.Single().AllowedFurtherDeliveryQty);
         var empty = Guid.NewGuid();
         await db.ExecuteAsync("INSERT dbo.SalesOrderHeader(Uid,DocumentStatus,ConfirmationStatus,OrderNo,CustomerId,CustomerCode,LeadTimeDays) VALUES(@empty,0,0,N'SO-EMPTY',@customerId,N'TEST-C',7)", new { empty, customerId = db.CustomerId });
         var emptyItem = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview });

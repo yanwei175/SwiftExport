@@ -1,0 +1,158 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Data;
+using System.Windows.Media;
+using System.Windows.Threading;
+using SwiftExport.Client.VSTO.Testing;
+using SwiftExport.Client.VSTO.Features.Sales.Orders.Views;
+using SwiftExport.Client.VSTO.Features.Sales.Orders.Components;
+using SwiftExport.Client.VSTO.Features.Customers.Components;
+using SwiftExport.Client.VSTO.Resources.Controls;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+
+namespace SwiftExport.Client.VSTO.WpfTests
+{
+    /// <summary>加载实际导入页并验证 WPF 绑定、选择器和 DataGrid 编辑模板，不连接 Excel。</summary>
+    internal static class ImportPageChecks
+    {
+        internal static void Run(Action<bool, string> check)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                var view = new SalesOrderImportView(f.Model);
+                var window = new Window { Content = view, Width = 1500, Height = 900, ShowInTaskbar = false };
+                window.Show(); Pump();
+                try
+                {
+                    check(f.Model.IsEditable && f.Cache.Loads == 1, "实际 Loaded 首次加载基础资料");
+                    check(ReferenceEquals(view.DataContext, f.Model), "页面接入注入的 DataContext");
+                    var customer = Descendants<CustomerAutoSuggestComboBox>(view).Single();
+                    var customerEditor = (LookupTextBox)customer.FindName("LookupEditor");
+                    customerEditor.CommitExternalSelection(f.Cache.Customers[0], LookupCommitReason.Mouse); Pump();
+                    check(f.Model.Header.CustomerId == f.Cache.Customers[0].Uid && f.Model.Header.ShipToName == "甲", "真实客户提交回填独立单头");
+                    var currency = Descendants<ComboBox>(view).Single(c => BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "Header.Currency");
+                    check((string)currency.SelectedValue == "USD", "币种 SelectedValue 回显");
+                    f.Cache.CurrencyItems.Add(new SysDicCurrencyDto { CurrencyCode = "CNY", IsEnabled = true }); Pump();
+                    currency.SetCurrentValue(Selector.SelectedValueProperty, "CNY"); Pump();
+                    check(f.Model.Header.Currency == "CNY", "币种选择双向回写编码");
+                    f.Cache.CurrencyItems.Clear(); Pump();
+                    check(f.Model.Header.Currency == "CNY" && (string)currency.SelectedValue == "CNY", "缓存清空保留当前币种与界面回显");
+                    var payment = Descendants<ComboBox>(view).Single(c => BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "Header.PaymentMethod");
+                    f.Cache.DictionaryItems.Clear(); Pump();
+                    check(f.Model.Header.PaymentMethod == "TT" && (string)payment.SelectedValue == "TT", "字典刷新不清掉当前付款方式");
+                    f.Model.AddStandardLineCommand.Execute(null); Pump();
+                    var standard = f.Model.Lines[0];
+                    var secondCustomer = new CustomerDto { Uid = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "乙" };
+                    f.Cache.CustomerItems.Add(secondCustomer); Pump(); f.Confirm = false;
+                    customerEditor.CommitExternalSelection(secondCustomer, LookupCommitReason.Mouse); Pump();
+                    check(customer.SelectedCustomer == f.Cache.Customers[0] && f.Model.Lines.Count == 1, "取消更换客户恢复控件显示并保留行");
+                    var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                    grid.SelectedItem = standard; grid.CurrentCell = new DataGridCellInfo(standard, grid.Columns[1]); grid.BeginEdit(); Pump();
+                    var product = Descendants<SalesProductLookupTextBox>(grid).Single();
+                    var candidate = new SalesOrderProductLookupDto { ProductId = Guid.NewGuid(), Sku = "SKU1", UsdPrice = 5m };
+                    standard.ProductCandidates.Add(candidate); Pump();
+                    ((LookupTextBox)product.FindName("LookupEditor")).CommitExternalSelection(candidate, LookupCommitReason.Mouse); Pump();
+                    check(standard.Sku == "SKU1" && standard.ProductId == candidate.ProductId, "标准行产品选择通过实际编辑器回填");
+                    grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
+                    f.Model.AddNonStandardLineCommand.Execute(null); Pump();
+                    var nonStandard = f.Model.Lines[1];
+                    grid.SelectedItem = nonStandard; grid.CurrentCell = new DataGridCellInfo(nonStandard, grid.Columns[7]); grid.BeginEdit(); Pump();
+                    check(Descendants<ComboBox>(grid).Any(c => c.IsEnabled && BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "UnitSnapshot"), "非标单位使用可编辑下拉");
+                    grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
+                    grid.CurrentCell = new DataGridCellInfo(nonStandard, grid.Columns[12]); grid.BeginEdit(); Pump();
+                    var date = Descendants<DatePicker>(grid).Single(); var expected = new DateTime(2026, 11, 2);
+                    date.SetCurrentValue(DatePicker.SelectedDateProperty, expected); Pump();
+                    check(nonStandard.ExpectedDeliveryDate == expected, "行交期编辑器双向绑定");
+                    grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
+                    grid.SelectAll(); Pump(); f.Model.DeleteSelectedLineCommand.Execute(null); Pump();
+                    check(f.Model.Lines.Count == 0, "DataGrid 多选桥接删除所有选中行");
+                    var dates = Descendants<DatePicker>(view).Where(d => BindingOperations.GetBinding(d, DatePicker.SelectedDateProperty)?.Path.Path == "Header.Etd").ToArray();
+                    check(dates.Length == 1, "ETD 已绑定而不是空白占位");
+                    check(Descendants<Button>(view).Where(b => (b.Content as string)?.Contains("待实现") == true).All(b => !b.IsEnabled), "保存和两个解析入口不可执行");
+                    f.Login("another"); Pump(); check(!f.Model.IsEditable && f.Model.Header.CustomerId == Guid.Empty, "换号清空并禁用实际页面");
+                }
+                finally { window.Close(); }
+            }
+            CheckPaneHostLifetime(check);
+            CheckPaneRegistration(check);
+        }
+        // 使用真实 ElementHost 验证侧栏隐藏保留内容、移除宿主断开 WPF；不伪装成 Office 集成测试。
+        private static void CheckPaneHostLifetime(Action<bool, string> check)
+        {
+            using (var f = new ImportTestFixture())
+            using (var form = new System.Windows.Forms.Form { Width = 760, Height = 800, ShowInTaskbar = false })
+            {
+                var view = new SalesOrderImportView(f.Model);
+                var host = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(view)
+                    { Dock = System.Windows.Forms.DockStyle.Fill };
+                form.Controls.Add(host); form.Show(); Pump();
+                check(f.Model.IsEditable && f.Cache.Loads == 1, "ElementHost 加载实际页面及缓存");
+                f.Model.Header.Remark = "保留草稿";
+                form.Hide(); Pump(); form.Show(); Pump();
+                check(f.Model.Header.Remark == "保留草稿" && f.Cache.Loads == 1, "隐藏重新显示不重置草稿或重复加载");
+                var scroll = (ScrollViewer)view.Content;
+                check(scroll.ScrollableHeight > 0, "窄窗格可纵向滚动访问完整页面");
+                host.Dispose(); host.Dispose(); f.Model.Dispose(); Pump();
+                check(host.IsDisposed, "Office 与会话先后释放同一宿主不抛异常");
+                var childFirst = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(new UserControl());
+                childFirst.Controls[0].Dispose();
+                childFirst.Dispose(); childFirst.Dispose();
+                check(childFirst.IsDisposed, "ElementHost 先释放后仍可安全释放宿主");
+                check(System.Windows.PresentationSource.FromVisual(view) == null && f.Model.IsDisposed, "宿主释放断开 WPF 且页面可释放");
+                using (var context = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneContext())
+                {
+                    var prompt = new SalesOrderImportPrompt(context);
+                    check(!prompt.ConfirmDiscard("不应弹窗"), "无所属 Excel 窗口时不丢弃数据");
+                    context.Handle = form.Handle; context.Dispose();
+                    check(context.Handle == IntPtr.Zero, "作用域释放清除提示框 Owner");
+                }
+            }
+        }
+        // 注册不构造需要服务的业务页面，且每个配置独立保存尺寸。
+        private static void CheckPaneRegistration(Action<bool, string> check)
+        {
+            var registry = SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.CreateDefault();
+            var sales = registry.Get(SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.SalesOrderImport);
+            var purchase = registry.Get(SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.PurchaseOrderImport);
+            check(sales.ViewType == typeof(SalesOrderImportView) && purchase.ViewType == typeof(SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views.PurchaseOrderImportView), "销售采购统一注册且无需实例化页面");
+            registry.Register(new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneConfig("narrow", "窄窗格", typeof(UserControl), 420, Dock.Left));
+            check(registry.Get("narrow").DefaultWidth == 420 && sales.DefaultWidth == 760 && registry.Get("narrow").DockPosition == Dock.Left, "不同页面独立宽度与停靠配置");
+            var duplicateRejected = false;
+            try { registry.Register(sales); } catch (ArgumentException) { duplicateRejected = true; }
+            check(duplicateRejected && ReferenceEquals(registry.Get(sales.Id), sales), "重复注册不覆盖原配置");
+            var invalidRejected = false;
+            try { new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneConfig("bad", "非法", typeof(UserControl), 0); }
+            catch (ArgumentOutOfRangeException) { invalidRejected = true; }
+            check(invalidRejected, "非法宽度在注册阶段被拒绝");
+            using (var first = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneContext { Handle = new IntPtr(1) })
+            using (var second = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneContext { Handle = new IntPtr(2) })
+            {
+                first.Dispose();
+                check(second.Handle == new IntPtr(2), "释放一个窗格上下文不影响其他窗格");
+            }
+        }
+        private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
+        {
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is T typed) yield return typed;
+                foreach (var descendant in Descendants<T>(child)) yield return descendant;
+            }
+        }
+        private static void Pump()
+        {
+            var frame = new DispatcherFrame();
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => frame.Continue = false));
+            Dispatcher.PushFrame(frame);
+        }
+    }
+}
+
+

@@ -15,6 +15,7 @@ public sealed partial class PurchaseOrderManagementLineModel
     public string MaterialType { get; set; } = string.Empty;
     public string SupplyType { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
+    public string UnitSnapshot { get; set; } = string.Empty;
     public string DeliverySupplierName { get; set; } = string.Empty;
     public DateTime? PlannedDeliveryDate { get; set; }
     public decimal? TaxPrice { get; set; }

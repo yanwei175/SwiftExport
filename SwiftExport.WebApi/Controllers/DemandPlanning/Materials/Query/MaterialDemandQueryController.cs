@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Sources;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Query;
@@ -15,6 +16,10 @@ public sealed class MaterialDemandQueryController(
     IMaterialDemandQueryService queryService,
     IMaterialDemandSourceQueryService sourceQueryService) : ControllerBase
 {
+    /// <summary>按物料需求 Uid 查询只读拆解和采购收货证据。</summary>
+    [HttpGet("{uid:guid}/trace")]
+    public Task<ServiceResult<MaterialDemandTraceDetailDto>> GetTraceAsync([FromRoute] Guid uid,
+        CancellationToken cancellationToken) => queryService.GetTraceAsync(uid, cancellationToken);
     /// <summary>查询不依赖计划分配表的物料需求工作台列表。</summary>
     [HttpPost("material-search")]
     public Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchManagerAsync(

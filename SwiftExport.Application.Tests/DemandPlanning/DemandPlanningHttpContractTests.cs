@@ -15,13 +15,13 @@ using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>冻结需求模块 15 个 HTTP 动作的完整路径、绑定、返回类型、授权和 Refit 身份。</summary>
+/// <summary>冻结需求模块 17 个 HTTP 动作的完整路径、绑定、返回类型、授权和 Refit 身份。</summary>
 [TestClass]
 public sealed class DemandPlanningHttpContractTests
 {
     /// <summary>按实施前逐项记录的契约核对拆分后的 Controller 与统一 Refit 接口。</summary>
     [TestMethod]
-    public void FifteenActionsKeepHttpAndRefitContracts()
+    public void SixteenActionsKeepHttpAndRefitContracts()
     {
         var cases = new (Type Controller, string Action, string Verb, string Prefix, string Template,
             Type Api, string ApiAction, bool Authorized, int? DuplicateWindow, string Bindings)[]
@@ -32,6 +32,8 @@ public sealed class DemandPlanningHttpContractTests
                 typeof(IGrossDemandWorkspaceApi), "SearchSourceGroupsAsync", false, null, "body,none"),
             (typeof(GrossDemandQueryController), "GetDetailAsync", "GET", "api/demand-planning/gross-demands", "{uid:guid}",
                 typeof(IGrossDemandWorkspaceApi), "GetDetailAsync", false, null, "route,none"),
+            (typeof(GrossDemandQueryController), "GetTraceAsync", "GET", "api/demand-planning/gross-demands", "{uid:guid}/trace",
+                typeof(IGrossDemandWorkspaceApi), "GetTraceAsync", false, null, "route,none"),
             (typeof(ManualGrossDemandController), "CreateManualAsync", "POST", "api/demand-planning/gross-demands", "manual",
                 typeof(IGrossDemandWorkspaceApi), "CreateManualAsync", false, 0, "body"),
             (typeof(ManualGrossDemandController), "UpdateManualAsync", "PUT", "api/demand-planning/gross-demands", "manual/{uid:guid}",
@@ -40,6 +42,8 @@ public sealed class DemandPlanningHttpContractTests
                 typeof(IGrossDemandWorkspaceApi), "CloseManualAsync", false, 0, "route,body"),
             (typeof(MaterialDemandQueryController), "SearchManagerAsync", "POST", "api/demand-planning/net-demands", "material-search",
                 typeof(INetDemandManagerApi), "SearchAsync", false, null, "body,none"),
+            (typeof(MaterialDemandQueryController), "GetTraceAsync", "GET", "api/demand-planning/net-demands", "{uid:guid}/trace",
+                typeof(INetDemandManagerApi), "GetTraceAsync", false, null, "route,none"),
             (typeof(MaterialDemandQueryController), "SearchMaterialSourceGroupsAsync", "POST", "api/demand-planning/net-demands", "material-source-groups",
                 typeof(INetDemandManagerApi), "SearchSourceGroupsAsync", false, null, "body,none"),
             (typeof(MaterialDemandQueryController), "GetSourceDemandCandidateGroupsAsync", "GET", "api/demand-planning/net-demands", "source-demands/candidate-groups",
@@ -58,12 +62,12 @@ public sealed class DemandPlanningHttpContractTests
                 typeof(ISourceDemandDeliveryApi), "GetAsync", true, null, "route,none")
         };
 
-        Assert.HasCount(15, cases);
-        Assert.AreEqual(15, cases.Select(item => item.Controller).Distinct()
+        Assert.HasCount(17, cases);
+        Assert.AreEqual(17, cases.Select(item => item.Controller).Distinct()
             .SelectMany(controller => controller.GetMethods(System.Reflection.BindingFlags.Public
                 | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
             .Count(method => method.IsDefined(typeof(HttpMethodAttribute), false)));
-        Assert.AreEqual(15, cases.Select(item => (item.Verb, item.Prefix, item.Template)).Distinct().Count());
+        Assert.AreEqual(17, cases.Select(item => (item.Verb, item.Prefix, item.Template)).Distinct().Count());
         foreach (var item in cases)
         {
             var action = item.Controller.GetMethod(item.Action)!;

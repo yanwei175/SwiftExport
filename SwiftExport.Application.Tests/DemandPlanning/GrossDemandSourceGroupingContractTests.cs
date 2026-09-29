@@ -25,9 +25,9 @@ public sealed class GrossDemandSourceGroupingContractTests
         Assert.IsFalse(source.Contains("10000", StringComparison.Ordinal));
     }
 
-    /// <summary>验证来源需求列表不再投影物料数量、采购收货或执行进度。</summary>
+    /// <summary>验证来源需求列表只增加链路存在性提示，不跨单位汇总物料或采购数量。</summary>
     [TestMethod]
-    public void RepositoryMainQuery_MustNotCalculateDownstreamProgress()
+    public void RepositoryMainQuery_ProjectsIndependentTraceEvidenceWithoutQuantityRollup()
     {
         var source = Read(
             "SwiftExport.Infrastructure",
@@ -43,6 +43,9 @@ public sealed class GrossDemandSourceGroupingContractTests
         Assert.IsFalse(query.Contains("ActiveNetDemandCount", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("CustomerSuppliedNetDemandCount", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("InboundDocument", StringComparison.Ordinal));
+        StringAssert.Contains(query, "[HasActiveMaterial]");
+        StringAssert.Contains(query, "[HasValidPurchase]");
+        StringAssert.Contains(query, "[HasPostedDelivery]");
         StringAssert.Contains(query, "d.[SourceVersion], d.[CustomerId]");
         StringAssert.Contains(query, "d.[UnitSnapshot] AS [Unit]");
         StringAssert.Contains(query, "d.[DescriptionSnapshot] AS [Description]");

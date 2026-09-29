@@ -1,4 +1,4 @@
-# 从本项目读懂 Ribbon XML
+﻿# 从本项目读懂 Ribbon XML
 
 ## XML 与 XAML 的区别
 
@@ -79,3 +79,17 @@ ribbon.InvalidateControl("accountStatus");
 - [InvalidateControl](https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.core.iribbonui.invalidatecontrol?view=office-pia)
 
 本教程以项目实际账号组为准，不介绍 WPF Ribbon 控件，因为那不是 Excel 的 Ribbon 扩展机制。
+
+## 打开注册的任务窗格
+
+销售、采购按钮的 `onAction` 仍调用 Ribbon 回调，再由 Bootstrapper 打开页面；Ribbon XML 不设置窗格宽度，也不直接创建 View 或 DI Scope。例如销售入口最终调用：
+
+```csharp
+taskPanes.TogglePane(context.GetWindow(control), TaskPaneRegistrar.SalesOrderImport);
+```
+
+`control.Context` 优先确定触发按钮的 Excel 窗口，缺少上下文时使用活动窗口。入口保留初始化、登录验证和登录窗口打开状态门禁；Manager 再检查当前身份与有效窗口。getter 仍只读取内存状态。
+
+标题、默认宽度和左右停靠在 `TaskPaneRegistrar.CreateDefault()` 中对应的 `TaskPaneConfig` 设置。新增页面还需在 ServiceRegistration 注册 Scoped View／ViewModel、添加唯一 XML 控件 ID 和对应回调，不再新增专用窗格 Coordinator。完整步骤见 [架构与目录说明](架构与目录说明.md#注册新的侧边栏页面)。
+
+重复点击按旧示例切换窗格显示／隐藏；点 × 隐藏后可再次点击按钮恢复，保留编辑内容与调整后的宽度。不同 Excel 窗口使用独立页面，所属窗口实际关闭后释放。

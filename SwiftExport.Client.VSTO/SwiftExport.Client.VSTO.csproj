@@ -1,4 +1,4 @@
-<Project ToolsVersion="18.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="18.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <!--
     This section defines project-level properties.
@@ -185,6 +185,14 @@
     can be found.
   -->
   <ItemGroup>
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderImportView.xaml.cs">
+      <DependentUpon>PurchaseOrderImportView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Features\Sales\Orders\Views\SalesOrderImportView.xaml.cs">
+      <DependentUpon>SalesOrderImportView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -226,6 +234,8 @@
     <Folder Include="Excel\Writing\" />
     <Folder Include="Features\DataImport\" />
     <Folder Include="Features\DocumentGeneration\" />
+    <Folder Include="Features\Sales\Orders\Models\" />
+    <Folder Include="Features\Sales\Orders\Services\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
@@ -260,7 +270,9 @@
     <Compile Include="Authentication\ITokenStore.cs" />
     <Compile Include="Authentication\LoginCoordinator.cs" />
     <Compile Include="Authentication\LoginViewModel.cs" />
-    <Compile Include="Authentication\LoginWindow.xaml.cs" />
+    <Compile Include="Authentication\LoginWindow.xaml.cs">
+      <DependentUpon>LoginWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Authentication\ProtectedTokenStore.cs" />
     <Compile Include="Authentication\SessionService.cs" />
     <Compile Include="Api\ApiCallRunner.cs" />
@@ -268,7 +280,54 @@
     <Compile Include="Api\AuthTokenHandler.cs" />
     <Compile Include="Bootstrapper\AddInBootstrapper.cs" />
     <Compile Include="Bootstrapper\ApiOptions.cs" />
+    <Compile Include="Features\Sales\Orders\ISalesOrderImportPrompt.cs" />
+    <Compile Include="Hosting\TaskPanes\TaskPaneConfig.cs" />
+    <Compile Include="Hosting\TaskPanes\TaskPaneRegistrar.cs" />
+    <Compile Include="Hosting\TaskPanes\TaskPaneContext.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportHeader.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportLine.cs" />
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Options.cs" />
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Search.cs" />
+    <Compile Include="Features\Sales\Orders\Views\SalesOrderImportPrompt.cs" />
     <Compile Include="Ioc\ServiceRegistration.cs" />
+    <Compile Include="Resources\Controls\LookupTextBox.xaml.cs">
+      <DependentUpon>LookupTextBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Resources\Controls\LookupTextMatcher.cs" />
+    <Compile Include="Resources\Controls\HttpsImage.cs" />
+    <Compile Include="Features\Customers\Components\CustomerAutoSuggestComboBox.xaml.cs">
+      <DependentUpon>CustomerAutoSuggestComboBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Features\Suppliers\Components\SupplierAutoSuggestComboBox.xaml.cs">
+      <DependentUpon>SupplierAutoSuggestComboBox.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Features\Sales\Orders\Components\SalesProductLookupTextBox.xaml.cs">
+      <DependentUpon>SalesProductLookupTextBox.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Features\Customers\Components\CustomerAutoSuggestComboBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Features\Suppliers\Components\SupplierAutoSuggestComboBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Features\Sales\Orders\Components\SalesProductLookupTextBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="Resources\Controls\LookupCommitReason.cs" />
+    <Compile Include="Resources\Controls\LookupSelectionCommittedEventArgs.cs" />
+    <Compile Include="Resources\Controls\ILookupResultHost.cs" />
+    <Page Include="Resources\Controls\LookupTextBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Compile Include="Services\Caching\IReferenceDataCacheService.cs" />
+    <Compile Include="Services\Caching\ReferenceDataCacheService.cs" />
+    <Compile Include="Services\Caching\CacheRefreshResult.cs" />
+    <Compile Include="Services\Caching\CacheObservableCollection.cs" />
+    <Compile Include="Services\Caching\ProductCategoryCacheNode.cs" />
     <Compile Include="Hosting\TaskPanes\TaskPaneHostControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -278,6 +337,14 @@
     <Compile Include="Hosting\Threading\WpfUiDispatcher.cs" />
     <Compile Include="Hosting\Windows\WindowManager.cs" />
     <Compile Include="Hosting\WpfRuntimeHost.cs" />
+    <Compile Include="App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
+    </Compile>
+    <!-- VSTO 是 DLL；Page 编译资源和 InitializeComponent，不生成独立 WPF Main。 -->
+    <Page Include="App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Compile Include="Mvvm\ViewModelBase.cs" />
     <Compile Include="Mvvm\ViewModelBaseEx.cs" />
     <Compile Include="Excel\Context\ExcelContextService.cs" />
@@ -287,6 +354,14 @@
     <Compile Include="Resources\Converters\DatePickerButtonPaddingConverter.cs" />
     <Page Include="Authentication\LoginWindow.xaml;Resources\*.xaml">
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Features\Sales\Orders\Views\SalesOrderImportView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderImportView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="Properties\DesignTimeResources.xaml">
       <Generator>MSBuild:Compile</Generator>

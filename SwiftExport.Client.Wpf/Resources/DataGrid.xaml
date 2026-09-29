@@ -430,6 +430,9 @@
 
     <Style TargetType="{x:Type DataGrid}" BasedOn="{StaticResource {x:Type DataGrid}}">
         <Setter Property="Background" Value="{DynamicResource UserCardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="FontSize" Value="{DynamicResource SwiftExportDefaltFontSize}"/>
+        <Setter Property="RowHeight" Value="{DynamicResource DataGridRowHeightSmall}"/>
+        <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         <Setter Property="Padding" Value="8"/>
     </Style>
 

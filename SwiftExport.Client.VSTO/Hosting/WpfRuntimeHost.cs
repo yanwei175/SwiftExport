@@ -16,21 +16,21 @@ namespace SwiftExport.Client.VSTO.Hosting
             if (disposed) throw new ObjectDisposedException(nameof(WpfRuntimeHost));
             application?.Dispatcher.VerifyAccess();
             if (resources != null) return;
-            var app = Application.Current ?? new Application
-            {
-                ShutdownMode = ShutdownMode.OnExplicitShutdown
-            };
+            var ownsApplication = Application.Current == null;
+            var app = Application.Current ?? new App();
 
             app.Dispatcher.VerifyAccess();
 
-            var dictionary = new ResourceDictionary
+            // 自建 Application 的字典已由 InitializeComponent 加载，不再合并第二份。
+            // 借用其他宿主的 Application 时只添加和卸载本插件字典，不替换其资源根。
+            var dictionary = ownsApplication ? app.Resources.MergedDictionaries[0] : new ResourceDictionary
             {
                 Source = new Uri("/" + typeof(WpfRuntimeHost).Assembly.GetName().Name + ";component/Resources/Themes.xaml", UriKind.Relative)
             };
-            app.Resources.MergedDictionaries.Add(dictionary);
+            if (!ownsApplication) app.Resources.MergedDictionaries.Add(dictionary);
             try
             {
-                theme = new UI.Themes.ThemeService(dictionary, app.Dispatcher);
+                theme = new UI.Themes.ThemeService(dictionary, app.Dispatcher, ownsApplication);
                 application = app;
                 resources = dictionary;
             }

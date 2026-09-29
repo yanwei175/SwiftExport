@@ -1,8 +1,8 @@
 ﻿using System.Windows.Controls;
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Views;
-/// <summary>采购追溯占位视图，仅说明后续功能，不请求旧快照或业务追溯数据。</summary>
+/// <summary>采购追溯只读视图，业务证据由页签 ViewModel 从专用查询接口读取。</summary>
 public partial class PurchaseOrderTraceView : UserControl
 {
-    /// <summary>初始化静态占位内容。</summary>
+    /// <summary>初始化只读追溯视图。</summary>
     public PurchaseOrderTraceView() => InitializeComponent();
 }

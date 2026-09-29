@@ -7,5 +7,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     {
         /// <summary>允许显示的来源类型；空集合表示全部。</summary>
         public List<string> SourceTypes { get; set; } = new List<string>();
+        /// <summary>物料生命周期；为空时仅汇总活动行。</summary>
+        public SwiftExport.Contracts.SysEnums.NetDemandLifecycleStatusEnum? LifecycleStatus { get; set; }
     }
 }

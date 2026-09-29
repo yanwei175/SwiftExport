@@ -92,11 +92,13 @@ public static class ViewRegistrationExtensions
         services.AddTransient<GrossDemandManualEditorViewModel>();
         services.AddTransient<GrossDemandTraceViewModel>();
         services.AddTransient<NetDemandManagerViewModel>();
+        services.AddTransient<MaterialDemandTraceViewModel>();
         services.AddTransient<SourceDemandCandidatePickerViewModel>();
         services.AddTransient<PurchaseDraftWorkflowViewModel>();
         services.AddTransient<PurchasePreparationService>();
         services.AddTransient<PurchaseOrderManagerViewModel>();
         services.AddTransient<PurchaseOrderProgressWorkspaceViewModel>();
+        services.AddTransient<PurchaseOrderTraceViewModel>();
         services.AddTransient<PurchaseOrderDetailViewModel>();
         services.AddTransient<AfterSalesManagerViewModel>();
         services.AddTransient<AfterSalesDetailViewModel>();

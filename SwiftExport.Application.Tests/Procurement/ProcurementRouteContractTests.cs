@@ -7,11 +7,11 @@ using System.Reflection;
 
 namespace SwiftExport.Application.Tests.Procurement;
 
-/// <summary>逐项核对采购四组 Refit API 与拆分后的 Controller 路由、HTTP 方法和返回类型。</summary>
+/// <summary>逐项核对采购 Refit API 与拆分后的 Controller 路由、HTTP 方法和返回类型。</summary>
 [TestClass]
 public sealed class ProcurementRouteContractTests
 {
-    /// <summary>确保 21 项公开用例在服务端均有唯一对应入口，且客户端协议未丢失参数或返回类型。</summary>
+    /// <summary>确保采购公开用例在服务端均有唯一对应入口，且客户端协议未丢失参数或返回类型。</summary>
     [TestMethod]
     public void AllProcurementRoutesMatchRefitContracts()
     {
@@ -20,7 +20,8 @@ public sealed class ProcurementRouteContractTests
             [typeof(IProcurementOrderApi)] = "api/procurement/orders",
             [typeof(IPurchaseOrderManagerApi)] = "api/procurement/order-manager",
             [typeof(IPurchaseDraftApi)] = "api/procurement/purchase-drafts",
-            [typeof(IPurchaseOrderProgressApi)] = "api/procurement/purchase-order-progress"
+            [typeof(IPurchaseOrderProgressApi)] = "api/procurement/purchase-order-progress",
+            [typeof(IPurchaseOrderTraceApi)] = "api/procurement/purchase-order-trace"
         };
         var controllers = typeof(ProcurementOrderQueryController).Assembly.GetTypes()
             .Where(type => type.IsClass && type.Namespace?.StartsWith(
@@ -46,7 +47,7 @@ public sealed class ProcurementRouteContractTests
             var suffix = (string?)route.ConstructorArguments[0].Value;
             return Key(pair.Value, http, suffix, method.Name, method.ReturnType, method.GetParameters());
         })).ToArray();
-        Assert.AreEqual(21, expected.Length);
+        Assert.AreEqual(22, expected.Length);
         CollectionAssert.AreEquivalent(expected, actual);
     }
 

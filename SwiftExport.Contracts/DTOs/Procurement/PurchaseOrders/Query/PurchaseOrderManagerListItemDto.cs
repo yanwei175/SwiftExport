@@ -19,9 +19,19 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
         public DateTime? ExpectedDate { get; set; }
         public DateTime? ReplyDate { get; set; }
         public int LineCount { get; set; }
-        public decimal ReadyQty { get; set; }
-        public decimal TotalQty { get; set; }
-        public decimal ReceiptProgress { get; set; }
+        /// <summary>同单位且全部有效行可核实时的累计货好合计。</summary>
+        public decimal? ReadyQty { get; set; }
+        /// <summary>同单位且全部有效行可核实时的采购数量合计。</summary>
+        public decimal? TotalQty { get; set; }
+        /// <summary>同单位且全部有效行可核实时的正式净收货进度。</summary>
+        public decimal? ReceiptProgress { get; set; }
+        public string UnitSnapshot { get; set; }
+        public PurchaseReadyStatusEnum ReadyStatus { get; set; }
+        public PurchaseReceiptStatusEnum ReceiptStatus { get; set; }
+        public int DueHitLineCount { get; set; }
+        public DateTime? EarliestDueHitDate { get; set; }
+        public bool HasUnconfirmedReadyRisk { get; set; }
+        public string ReviewReason { get; set; }
         public decimal TaxTotalAmount { get; set; }
         public int ReportedLineCount { get; set; }
         public DateTime? ExpectedCompletionDate { get; set; }

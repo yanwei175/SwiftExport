@@ -73,6 +73,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(EditSelectedManualCommand);
         RegisterBusyAwareCommand(CloseSelectedManualCommand);
         RegisterBusyAwareCommand(OpenSourceCommand);
+        RegisterBusyAwareCommand(OpenTraceCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(SelectSourceGroupCommand);
         RegisterBusyAwareCommand(ToggleSourcePanelCommand);
@@ -107,6 +108,18 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         new(true, "非标件"),
     ];
 
+    /// <summary>当前链路节点筛选；“已交付”仅表示有有效正式交付行。</summary>
+    public IReadOnlyList<GrossDemandFilterOption<string>> TraceViewOptions { get; } =
+    [
+        new("All", "全部链路"),
+        new("NoMaterial", "无活动拆解"),
+        new("HasMaterial", "有活动拆解"),
+        new("NoPurchase", "无可核实采购"),
+        new("HasPurchase", "有可核实采购"),
+        new("NoDelivery", "无正式交付"),
+        new("HasDelivery", "有正式交付"),
+    ];
+
     public ObservableCollection<GrossDemandFilterOption<string>> SelectedSourceTypes { get; } = [];
     public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } =
         [
@@ -136,6 +149,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string CustomerKeyword { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial GrossDemandFilterOption<string>? SelectedTraceView { get; set; }
 
     [ObservableProperty]
     public partial string SourceNosText { get; set; } = string.Empty;
@@ -169,6 +188,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [NotifyCanExecuteChangedFor(nameof(EditSelectedManualCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloseSelectedManualCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenSourceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
     public partial GrossDemandRowModel? SelectedItem { get; set; }
 
     [ObservableProperty]
@@ -206,6 +226,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
         _initialized = true;
         SelectedStandardType = StandardTypeOptions[0];
+        SelectedTraceView = TraceViewOptions[0];
         await LoadPageAsync();
     }
 
@@ -254,6 +275,8 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         Keyword = string.Empty;
+        CustomerKeyword = string.Empty;
+        SelectedTraceView = TraceViewOptions[0];
         SourceNosText = string.Empty;
         SkusText = string.Empty;
         CustomerSkusText = string.Empty;
@@ -382,6 +405,18 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     #endregion
 
     #region 抽屉与来源追溯
+
+    /// <summary>用来源需求 Uid 打开独立只读追踪，页面重新加载当前下游证据。</summary>
+    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    private async Task OpenTraceAsync()
+    {
+        var selected = SelectedItem;
+        if (selected is null || !await ConfirmDiscardManualChangesAsync()) return;
+        await _navigationService.OpenDocumentAsync(
+            GrossDemandTraceViewModel.RouteKey,
+            $"gross-demand-trace:{selected.Uid:N}",
+            new GrossDemandTraceOpenRequest(selected.Uid));
+    }
 
     // 来源单据、拆解结果和手工编辑器共用现有抽屉及脏状态保护。
 
@@ -601,6 +636,8 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private GrossDemandSearchRequest CreateMainSearchRequest() => new()
     {
         Keyword = Keyword.Trim(),
+        CustomerKeyword = CustomerKeyword.Trim(),
+        TraceView = SelectedTraceView?.Value ?? "All",
         PageIndex = PageIndex,
         PageSize = PageSize,
         SourceTypes = SelectedSourceTypes.Select(item => item.Value).ToList(),

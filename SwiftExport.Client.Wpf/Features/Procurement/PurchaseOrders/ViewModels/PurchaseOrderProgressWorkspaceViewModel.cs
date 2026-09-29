@@ -9,6 +9,9 @@ using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Navigation;
+using SwiftExportClient.Authentication;
+using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
@@ -22,6 +25,8 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     private readonly IApiCallRunner _runner;
     private readonly IDialogService _dialogs;
     private readonly IMessageService _messages;
+    private readonly INavigationService? _navigation;
+    private readonly ICurrentUserService? _currentUser;
     private CancellationTokenSource? _searchCancellation;
     private CancellationTokenSource? _detailCancellation;
     private bool _restoringSelection;
@@ -31,12 +36,15 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         IPurchaseOrderProgressApi api,
         IApiCallRunner runner,
         IDialogService dialogs,
-        IMessageService messages)
+        IMessageService messages, INavigationService? navigation = null,
+        ICurrentUserService? currentUser = null)
     {
         _api = api;
         _runner = runner;
         _dialogs = dialogs;
         _messages = messages;
+        _navigation = navigation;
+        _currentUser = currentUser;
         Title = "采购订单跟进";
         ApplyDefaultStatuses();
         RegisterBusyAwareCommand(SearchCommand);
@@ -46,6 +54,7 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
         RegisterBusyAwareCommand(OpenDrawerCommand);
         RegisterBusyAwareCommand(ReportProgressCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
+        RegisterBusyAwareCommand(OpenTraceCommand);
     }
 
     public ObservableCollection<PurchaseOrderProgressListItemDto> Orders { get; } = [];
@@ -98,9 +107,19 @@ public sealed partial class PurchaseOrderProgressWorkspaceViewModel : ViewModelB
     [NotifyCanExecuteChangedFor(nameof(LoadSelectedOrderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenDrawerCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReportProgressCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
     [NotifyPropertyChangedFor(nameof(CanReportSelectedOrder))]
     [NotifyPropertyChangedFor(nameof(FollowUpPermissionText))]
     public partial PurchaseOrderProgressListItemDto? SelectedOrder { get; set; }
+
+    /// <summary>从跟进工作台以所选采购单身份打开独立只读追溯页签。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenTrace))]
+    private Task OpenTraceAsync() => _navigation!.OpenDocumentAsync(PurchaseOrderTraceViewModel.RouteKey,
+        $"purchase-order-trace:{SelectedOrder!.PurchaseOrderId:N}",
+        new PurchaseOrderTraceOpenRequest { PurchaseOrderId = SelectedOrder.PurchaseOrderId });
+
+    private bool CanOpenTrace() => _navigation is not null && SelectedOrder is not null && IsNotBusy
+        && _currentUser?.HasPermission(PermissionKeys.ProcurementOrderRead) == true;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenDrawerCommand))]

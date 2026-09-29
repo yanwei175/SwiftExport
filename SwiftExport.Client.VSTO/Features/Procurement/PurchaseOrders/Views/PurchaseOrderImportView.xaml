@@ -1,0 +1,206 @@
+<UserControl x:Class="SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views.PurchaseOrderImportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:customers="clr-namespace:SwiftExport.Client.VSTO.Features.Customers.Components"
+             FontFamily="Microsoft YaHei, Segoe UI, Arial, sans-serif"
+             mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1000">
+    <UserControl.Resources>
+        <Style x:Key="PurchasePreviewField" TargetType="StackPanel">
+            <Setter Property="Width" Value="220"/>
+            <Setter Property="Margin" Value="0,0,12,12"/>
+        </Style>
+        <Style x:Key="PurchasePreviewFieldLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="12,8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="采购订单导入" FontSize="20" FontWeight="SemiBold"/>
+            <TextBlock Text="布局预览 · 业务操作待页面审批后接入" Margin="0,4,0,10"
+                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"/>
+            <WrapPanel>
+                <ui:Button Content="从选区解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <ui:Button Content="保存草稿（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+            </WrapPanel>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <ui:Card Padding="12" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="采购单头" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <WrapPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="客户" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <customers:CustomerAutoSuggestComboBox IsEnabled="False" Placeholder="客户选择待接入"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="供应商" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="供应商选择待接入" IsEnabled="False"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="采购单号" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="采购单号" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="客户 PO 号" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="客户 PO 号" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="来源单号" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="来源单号" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="系统单号" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="服务端生成" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="下单日期" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <DatePicker IsEnabled="False" ToolTip="页面审批后接入日期"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="期望交期" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <DatePicker IsEnabled="False" ToolTip="页面审批后接入日期"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="回复交期" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <DatePicker IsEnabled="False" ToolTip="页面审批后接入日期"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="业务员" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="业务员" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="跟单员" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="跟单员" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="币种" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="币种" IsReadOnly="True"/>
+                            </StackPanel>
+                        </WrapPanel>
+                    </StackPanel>
+                </ui:Card>
+
+                <ui:Card Padding="12" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="产品与包装要求" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <WrapPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="进水管" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="进水管" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="起泡器" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="起泡器" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="托盘" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="托盘" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="内盒" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="内盒" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="标贴" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="标贴" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="说明书" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="说明书" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="外箱" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="外箱" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="包装要求" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="包装商务要求" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="折扣备注" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="折扣备注" IsReadOnly="True"/>
+                            </StackPanel>
+                        </WrapPanel>
+                        <TextBlock Text="特殊要求" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                        <ui:TextBox PlaceholderText="特殊要求" IsReadOnly="True" AcceptsReturn="True"
+                                    TextWrapping="Wrap" MinHeight="56" Margin="0,0,0,10"/>
+                        <TextBlock Text="文件地址" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                        <ui:TextBox PlaceholderText="采购订单文件夹地址" IsReadOnly="True"/>
+                    </StackPanel>
+                </ui:Card>
+
+                <ui:Card Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="300"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="采购行" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                            <ui:Button Content="新增采购行（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                            <ui:Button Content="删除选定行（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                        </WrapPanel>
+                        <DataGrid x:Name="PurchaseLinesGrid" Grid.Row="2"
+                                  Style="{StaticResource SwiftExportDataGrid}"
+                                  Background="Transparent"
+                                  FontSize="{DynamicResource SwiftExportDefaltFontSize}"
+                                  RowHeight="{StaticResource DataGridRowHeightMedium}"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                  AutoGenerateColumns="False" CanUserAddRows="False"
+                                  CanUserDeleteRows="False" CanUserSortColumns="False"
+                                  IsReadOnly="True" HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="行号" Width="55"/>
+                                <DataGridTemplateColumn Header="图片" Width="64">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate><Border Width="52" Height="52"/></DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="SKU" Width="155"/>
+                                <DataGridTextColumn Header="客户型号" Width="105"/>
+                                <DataGridTextColumn Header="关联型号" Width="110"/>
+                                <DataGridTextColumn Header="供应商型号" Width="120"/>
+                                <DataGridTextColumn Header="中文描述" Width="180"/>
+                                <DataGridTextColumn Header="表面处理" Width="110"/>
+                                <DataGridTextColumn Header="配置" Width="130"/>
+                                <DataGridTextColumn Header="物料类型" Width="80"/>
+                                <DataGridTextColumn Header="供货方式" Width="80"/>
+                                <DataGridTextColumn Header="产品单位" Width="80"/>
+                                <DataGridTextColumn Header="数量" Width="85"/>
+                                <DataGridTextColumn Header="未税单价" Width="85"/>
+                                <DataGridTextColumn Header="未税总价" Width="95"/>
+                                <DataGridTextColumn Header="计划交期" Width="105"/>
+                                <DataGridTextColumn Header="送至供应商" Width="150"/>
+                                <DataGridTextColumn Header="来源单/行" Width="120"/>
+                                <DataGridTextColumn Header="备注" Width="180"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </ui:Card>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" Padding="0,10,0,0" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0">
+            <WrapPanel>
+                <TextBlock Text="产品行数：—" Margin="0,0,16,4"/>
+                <TextBlock Text="订单数量：—" Margin="0,0,16,4"/>
+                <TextBlock Text="人民币总额：—" Margin="0,0,16,4"/>
+            </WrapPanel>
+        </Border>
+    </Grid>
+</UserControl>

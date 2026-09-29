@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using SwiftExportClient.Features.Sales.Fulfillment.Models;
+using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -105,6 +107,17 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     /// <summary>取消确认权限与正向确认相互独立。</summary>
     public bool CanCancelOrderConfirmation => _currentUser.HasPermission(PermissionKeys.SalesOrderCancelConfirmation);
     public bool IsPersisted => Header.Uid != Guid.Empty;
+
+    /// <summary>按当前已保存订单身份打开同一个只读履约页签。</summary>
+    [RelayCommand]
+    private Task OpenFulfillmentDetailAsync()
+    {
+        var uid = Header.Uid;
+        return uid == Guid.Empty ? Task.CompletedTask : _navigationService.OpenDocumentAsync(
+            SalesFulfillmentDetailViewModel.RouteKey,
+            $"sales-fulfillment-detail:{uid:N}",
+            new SalesFulfillmentDetailOpenRequest(uid));
+    }
     /// <summary>单头和附加表单随当前单据状态及未决确认统一冻结。</summary>
     public bool IsEditable => !IsReadOnly;
     public decimal TotalQty => Lines.Items.Sum(line => line.Qty);

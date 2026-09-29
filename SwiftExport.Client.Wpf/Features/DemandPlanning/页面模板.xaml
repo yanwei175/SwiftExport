@@ -1,4 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:grossViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views" xmlns:grossViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels" xmlns:netViews="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.Views" xmlns:netViewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels">
     <DataTemplate DataType="{x:Type grossViewModels:GrossDemandWorkspaceViewModel}"><grossViews:GrossDemandWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type grossViewModels:GrossDemandTraceViewModel}"><grossViews:GrossDemandTraceView /></DataTemplate>
     <DataTemplate DataType="{x:Type netViewModels:NetDemandManagerViewModel}"><netViews:NetDemandManagerView /></DataTemplate>
+    <DataTemplate DataType="{x:Type netViewModels:MaterialDemandTraceViewModel}"><netViews:MaterialDemandTraceView /></DataTemplate>
 </ResourceDictionary>

@@ -30,9 +30,9 @@ public sealed class NetDemandApiContractTests
 
     /// <summary>净需求追溯退为空壳后，不再暴露独占远程查询及传输模型。</summary>
     [TestMethod]
-    public void NetDemandTrace_ShouldNotExposeRemovedContract()
+    public void NetDemandTrace_ShouldExposeNewReadOnlyContractWithoutRestoringLegacyDto()
     {
-        Assert.IsNull(typeof(INetDemandManagerApi).GetMethod("GetTraceAsync"));
+        AssertRoute(nameof(INetDemandManagerApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
         Assert.IsNull(typeof(INetDemandManagerApi).Assembly.GetType(
             "SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.NetDemandTraceDto"));
     }
@@ -90,6 +90,7 @@ public sealed class NetDemandApiContractTests
     {
         AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchSourceGroupsAsync));
+        AssertHasCancellationToken(nameof(INetDemandManagerApi.GetTraceAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.EstablishFromSourcesAsync));

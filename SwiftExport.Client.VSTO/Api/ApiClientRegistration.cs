@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -15,17 +16,37 @@ namespace SwiftExport.Client.VSTO.Api
         private readonly HttpClient candidates;
         private readonly HttpMessageHandler candidateTransport;
         private readonly HttpClient authenticated;
-        /// <summary>当前账号 API 创建入口；未来业务接口从此取得。</summary>
-        public T Create<T>() { return RestService.For<T>(authenticated); }
+        private readonly HttpMessageHandler authenticatedTransport;
+        private readonly List<HttpClient> apiClients = new List<HttpClient>();
+        private bool disposed;
+        /// <summary>按契约路由创建长期代理，共享当前账号处理器；相对路径例如 api/Customer。</summary>
+        public T Create<T>(string relativePath = null)
+        {
+            lock (apiClients)
+            {
+                if (disposed) throw new ObjectDisposedException(nameof(ApiClientRegistration));
+                if (string.IsNullOrWhiteSpace(relativePath)) return RestService.For<T>(authenticated);
+                var client = new HttpClient(authenticatedTransport, false)
+                {
+                    // Refit 自己拼接方法前导斜线，控制器前缀不能带末尾斜线。
+                    BaseAddress = new Uri(authenticated.BaseAddress, relativePath.Trim('/')),
+                    Timeout = authenticated.Timeout
+                };
+                apiClients.Add(client);
+                return RestService.For<T>(client);
+            }
+        }
         /// <summary>设置受信服务器和明确超时，不改变证书验证。</summary>
         public ApiClientRegistration(Uri server, SessionService session)
             : this(server, session, new HttpClientHandler()) { }
         // 测试可替换传输，仍执行 Contracts 中真实生成的 Refit 代理。
-        internal ApiClientRegistration(Uri server, SessionService session, HttpMessageHandler candidateTransport)
+        internal ApiClientRegistration(Uri server, SessionService session, HttpMessageHandler candidateTransport,
+            HttpMessageHandler businessTransport = null)
         {
             this.candidateTransport = candidateTransport;
             candidates = new HttpClient(candidateTransport, false) { BaseAddress = server, Timeout = TimeSpan.FromSeconds(15) };
-            authenticated = new HttpClient(new AuthTokenHandler(session) { InnerHandler = new HttpClientHandler() })
+            authenticatedTransport = new AuthTokenHandler(session) { InnerHandler = businessTransport ?? new HttpClientHandler() };
+            authenticated = new HttpClient(authenticatedTransport, false)
             { BaseAddress = server, Timeout = TimeSpan.FromSeconds(30) };
         }
         /// <inheritdoc />
@@ -45,6 +66,19 @@ namespace SwiftExport.Client.VSTO.Api
             }
         }
         /// <summary>停止插件时中止自有连接上的未完成请求。</summary>
-        public void Dispose() { candidates.Dispose(); authenticated.Dispose(); candidateTransport.Dispose(); }
+        public void Dispose()
+        {
+            lock (apiClients)
+            {
+                if (disposed) return;
+                disposed = true;
+                foreach (var client in apiClients) client.Dispose();
+                apiClients.Clear();
+                candidates.Dispose();
+                authenticated.Dispose();
+                candidateTransport.Dispose();
+                authenticatedTransport.Dispose();
+            }
+        }
     }
 }

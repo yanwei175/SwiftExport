@@ -1,7 +1,6 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -9,7 +8,7 @@ using Wpf.Ui.Appearance;
 
 namespace SwiftExport.Client.VSTO.UI.Themes
 {
-    /// <summary>维护插件浅色、高对比度和强调色；只替换插件字典，不改变 Office 主题。</summary>
+    /// <summary>初始化插件固定 Light 和强调色；不订阅系统主题切换，不改变 Office 主题。</summary>
     public sealed class ThemeService : IDisposable
     {
         private readonly ResourceDictionary resources;
@@ -23,7 +22,7 @@ namespace SwiftExport.Client.VSTO.UI.Themes
         private volatile bool disposed;
 
         /// <summary>在 Application 所属 STA 初始化主题；失败时恢复官方 API 写入的资源。</summary>
-        public ThemeService(ResourceDictionary resources, Dispatcher dispatcher)
+        public ThemeService(ResourceDictionary resources, Dispatcher dispatcher, bool initializeApplicationTheme = false)
         {
             this.resources = resources;
             this.dispatcher = dispatcher;
@@ -35,109 +34,44 @@ namespace SwiftExport.Client.VSTO.UI.Themes
             ui.ApplySystemAccentColor = false;
             previousUiResources = ui.Resources;
             ui.Resources = applicationResources;
-            try { Apply(); }
+            try { InitializeLight(initializeApplicationTheme); }
             catch { RestoreAccentResources(); RestoreUiResources(); throw; }
-            SystemParameters.StaticPropertyChanged += SystemChanged;
         }
 
-        // 系统事件可能来自后台线程，排队回调必须再次检查释放状态。
-        private void SystemChanged(object sender, PropertyChangedEventArgs args)
+        // 官方 Apply 负责自建 Application 的主题状态；借用宿主时只替换插件自己的 Light 字典。
+        private void InitializeLight(bool initializeApplicationTheme)
         {
-            QueueRefresh();
-        }
-
-        /// <summary>跨线程排队刷新系统主题，释放后的通知被丢弃。</summary>
-        internal void QueueRefresh()
-        {
-            if (disposed || dispatcher.HasShutdownStarted) return;
-            dispatcher.BeginInvoke(new Action(() =>
+            // 先检查字典结构，失败交由构造函数恢复 WPF-UI 入口。
+            var currentTheme = resources.MergedDictionaries[0];
+            if (initializeApplicationTheme)
+                ApplyAccent(() => ApplicationThemeManager.Apply(ApplicationTheme.Light, Wpf.Ui.Controls.WindowBackdropType.None));
+            else
             {
-                if (disposed) return;
-                try { Apply(); }
-                catch (Exception ex) { new Diagnostics.AddInLog().Write("ThemeUpdateFailure", ex); }
-            }));
-        }
-
-        // 只更新本插件的第一层主题，不调用会搜索并替换其他应用字典的全局主题 API。
-        private void Apply()
-        {
-            SystemThemeManager.UpdateSystemThemeCache();
-            var contrast = SystemParameters.HighContrast;
-            var name = "Light";
-            if (contrast)
-            {
-                var system = SystemThemeManager.GetCachedSystemTheme().ToString();
-                name = system == "HC1" || system == "HC2" || system == "HCBlack" || system == "HCWhite"
-                    ? system : "HCWhite";
+                resources.MergedDictionaries[0] = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/Wpf.Ui;component/Resources/Theme/Light.xaml")
+                };
+                ApplyAccent();
             }
-            ApplyTheme(name, contrast);
-        }
-
-        /// <summary>在 STA 应用已解析的主题；内部入口供独立 WPF 验证模拟高对比度切换。</summary>
-        internal void ApplyTheme(string name, bool contrast)
-        {
-            dispatcher.VerifyAccess();
-            if (disposed) throw new ObjectDisposedException(nameof(ThemeService));
-            ApplyAccent();
-            resources.MergedDictionaries[0] = new ResourceDictionary
-            {
-                Source = new Uri("pack://application:,,,/Wpf.Ui;component/Resources/Theme/" + name + ".xaml")
-            };
-            resources["SwiftExportBackground"] = contrast ? SystemColors.WindowBrush : Brush(250, 250, 250);
-            resources["SwiftExportForeground"] = contrast ? SystemColors.WindowTextBrush : Brush(32, 32, 32);
-            resources["SwiftExportError"] = contrast ? SystemColors.WindowTextBrush : Brush(180, 35, 24);
-            ApplyStyleContrast(contrast);
-            // Light 的文字别名使用 StaticResource，不会跟随官方根颜色变化；在项目层明确同步。
-            var foreground = contrast ? SystemColors.HighlightTextBrush
-                : new SolidColorBrush((Color)applicationResources["TextOnAccentFillColorPrimary"]);
+            resources["SwiftExportBackground"] = Brush(250, 250, 250);
+            resources["SwiftExportForeground"] = Brush(32, 32, 32);
+            resources["SwiftExportError"] = Brush(180, 35, 24);
+            // Light 的文字别名使用 StaticResource；在项目层同步官方强调色文字，避免主色按钮文字失配。
+            var foreground = new SolidColorBrush((Color)applicationResources["TextOnAccentFillColorPrimary"]);
             resources["AccentButtonForeground"] = foreground;
             resources["AccentButtonForegroundPointerOver"] = foreground;
-            resources["AccentButtonForegroundPressed"] = contrast ? SystemColors.HighlightTextBrush
-                : new SolidColorBrush((Color)applicationResources["TextOnAccentFillColorSecondary"]);
-            foreach (var key in new[] { "AccentButtonBackground", "AccentButtonBackgroundPointerOver", "AccentButtonBackgroundPressed" })
-            {
-                if (contrast) resources[key] = SystemColors.HighlightBrush;
-                else resources.Remove(key);
-            }
-            foreach (var key in new[] { "ButtonBackgroundDisabled", "ButtonForegroundDisabled", "ButtonBorderBrushDisabled", "AccentControlElevationBorderBrush" })
-            {
-                if (contrast) resources[key] = key == "ButtonBackgroundDisabled" ? SystemColors.WindowBrush : SystemColors.GrayTextBrush;
-                else resources.Remove(key);
-            }
-        }
-
-        // 移植的业务色在高对比度下使用系统语义，恢复浅色时回到原字典，不改变正常配色。
-        private void ApplyStyleContrast(bool contrast)
-        {
-            var overrides = new Dictionary<string, object>
-            {
-                { "SwiftExportBrush.DataGridSelectedBackground", SystemColors.HighlightBrush },
-                { "SwiftExportBrush.DataGridSelectedForeground", SystemColors.HighlightTextBrush },
-                { "UserTextFillColorPrimaryBrush", SystemColors.WindowTextBrush },
-                { "UserTextFillColorSecondaryBrush", SystemColors.WindowTextBrush },
-                { "UserBusinessTextAccentBrush", SystemColors.WindowTextBrush },
-                { "UserBusinessTextWarningBrush", SystemColors.WindowTextBrush },
-                { "UserBusinessTextSuccessBrush", SystemColors.WindowTextBrush },
-                { "UserBusinessTextCriticalBrush", SystemColors.WindowTextBrush },
-                { "UserCardBackgroundFillColorDefaultBrush", SystemColors.WindowBrush },
-                { "UserLayerFillColorAltBrush", SystemColors.WindowBrush },
-                { "SwiftExportBrush.DataGridHoverBackground", SystemColors.WindowBrush }
-            };
-            foreach (var item in overrides)
-            {
-                if (contrast) resources[item.Key] = item.Value;
-                else resources.Remove(item.Key);
-            }
+            resources["AccentButtonForegroundPressed"] = new SolidColorBrush((Color)applicationResources["TextOnAccentFillColorSecondary"]);
         }
 
         // 官方管理器写入 Application 根资源。记录实际变更及原值，卸载时不覆盖后来者的写入。
-        private void ApplyAccent()
+        private void ApplyAccent(Action initializeTheme = null)
         {
             var before = new Dictionary<object, object>();
             foreach (DictionaryEntry item in applicationResources) before[item.Key] = item.Value;
             try
             {
-                ApplicationAccentColorManager.Apply(ApplicationAccentColorManager.GetColorizationColor(), ApplicationTheme.Light);
+                if (initializeTheme != null) initializeTheme();
+                else ApplicationAccentColorManager.Apply(ApplicationAccentColorManager.GetColorizationColor(), ApplicationTheme.Light);
             }
             finally
             {
@@ -181,13 +115,12 @@ namespace SwiftExport.Client.VSTO.UI.Themes
             ui.ApplySystemAccentColor = previousAutoAccent;
         }
 
-        /// <summary>在所属 STA 解绑静态事件并恢复自有强调色写入，排队通知不再访问资源。</summary>
+        /// <summary>在所属 STA 恢复自有强调色和 WPF-UI 入口，不关闭 Application。</summary>
         public void Dispose()
         {
             dispatcher.VerifyAccess();
             if (disposed) return;
             disposed = true;
-            SystemParameters.StaticPropertyChanged -= SystemChanged;
             RestoreAccentResources();
             RestoreUiResources();
         }

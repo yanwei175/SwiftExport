@@ -29,6 +29,15 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         var lifecycleStatuses = request.LifecycleStatuses.Count == 0
             ? [-1]
             : request.LifecycleStatuses.Distinct().Select(static value => (int)value).ToArray();
+        var readyStatuses = request.ReadyStatuses.Count == 0
+            ? [-1]
+            : request.ReadyStatuses.Distinct().Select(static value => (int)value).ToArray();
+        var receiptStatuses = request.ReceiptStatuses.Count == 0
+            ? [-1]
+            : request.ReceiptStatuses.Distinct().Select(static value => (int)value).ToArray();
+        // 单次查询只取一次北京时间，计数与分页共享同一风险窗口。
+        var businessToday = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow,
+            "China Standard Time").Date;
 
         var parameters = new
         {
@@ -43,6 +52,13 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             LimitConfirmationStatuses = request.ConfirmationStatuses.Count > 0,
             LifecycleStatuses = lifecycleStatuses,
             LimitLifecycleStatuses = request.LifecycleStatuses.Count > 0,
+            ReadyStatuses = readyStatuses,
+            ReceiptStatuses = receiptStatuses,
+            LimitReadyStatuses = request.ReadyStatuses.Count > 0,
+            LimitReceiptStatuses = request.ReceiptStatuses.Count > 0,
+            DueView = (int)request.DueView,
+            BusinessToday = businessToday,
+            DueSoonExclusive = businessToday.AddDays(8),
             request.PlannedDeliveryDateFrom,
             request.PlannedDeliveryDateTo,
             request.ExpectedCompletionDateFrom,
@@ -150,13 +166,18 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             .Replace("[", "~[") + "%";
     }
 
-    // 正式收货先按采购行聚合，再联接采购行和最新跟进，避免需求 Link 展开导致数量倍增。
+    // 正式收货先按采购行聚合，再计算行状态和整单状态；不展开需求 Link，避免数量倍增。
     private const string SearchSql = """
         WITH ReceiptFacts AS
         (
-            SELECT receiveLine.SourceLineId,SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty
+            SELECT receiveLine.SourceLineId,
+                   SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty,
+                   MAX(CASE WHEN receiveHead.PostingStatus=1 AND
+                       (NULLIF(LTRIM(RTRIM(receiveLine.UnitSnapshot)),N'') IS NULL OR receiveLine.UnitSnapshot<>purchaseLine.UnitSnapshot)
+                       THEN 1 ELSE 0 END) AS HasReceiptUnitMismatch
             FROM dbo.InboundDocumentLine receiveLine
             INNER JOIN dbo.InboundDocument receiveHead ON receiveHead.Uid=receiveLine.InboundDocumentId
+            LEFT JOIN dbo.PurchaseOrderLine purchaseLine ON purchaseLine.Uid=receiveLine.SourceLineId
             WHERE receiveHead.DocumentType=@PurchaseReceipt
               AND receiveHead.PostingStatus IN @FormalPostingStatuses
               AND ISNULL(receiveLine.IsDeleted,0)=0
@@ -165,11 +186,24 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         ),
         LineFacts AS
         (
-            SELECT l.PurchaseOrderId,l.Uid,l.QTY,l.TaxAmount,l.PlannedDeliveryDate,
-                   COALESCE(latest.ReadyQty,0) AS ReadyQty,
-                   latest.ExpectedReadyDate,
+            SELECT l.PurchaseOrderId,l.Uid,l.QTY,l.UnitSnapshot,l.TaxAmount,l.PlannedDeliveryDate,
+                   latest.ReadyQty,latest.ExpectedReadyDate,
                    CASE WHEN latest.PurchaseOrderLineId IS NULL THEN 0 ELSE 1 END AS HasProgress,
-                   COALESCE(receipt.ReceivedQty,0) AS ReceivedQty
+                   COALESCE(receipt.ReceivedQty,0) AS ReceivedQty,
+                   CASE WHEN l.QTY<=0 OR NULLIF(LTRIM(RTRIM(l.UnitSnapshot)),N'') IS NULL
+                          THEN 1 ELSE 0 END AS InvalidBaseFact,
+                   CASE WHEN l.QTY<=0 OR NULLIF(LTRIM(RTRIM(l.UnitSnapshot)),N'') IS NULL
+                          OR latest.ReadyQty<0 OR latest.ReadyQty>l.QTY THEN 1 ELSE 0 END AS InvalidReadyFact,
+                   CASE WHEN l.QTY<=0 OR NULLIF(LTRIM(RTRIM(l.UnitSnapshot)),N'') IS NULL
+                          OR COALESCE(receipt.HasReceiptUnitMismatch,0)=1
+                          OR COALESCE(receipt.ReceivedQty,0)<0 OR COALESCE(receipt.ReceivedQty,0)>l.QTY
+                          THEN 1 ELSE 0 END AS InvalidReceiptFact,
+                   CASE WHEN l.QTY>0 AND NULLIF(LTRIM(RTRIM(l.UnitSnapshot)),N'') IS NOT NULL
+                          AND (latest.ReadyQty IS NULL OR (latest.ReadyQty>=0 AND latest.ReadyQty<l.QTY))
+                          AND l.PlannedDeliveryDate IS NOT NULL
+                          AND ((@DueView=1 AND l.PlannedDeliveryDate<@BusinessToday)
+                            OR (@DueView=2 AND l.PlannedDeliveryDate>=@BusinessToday AND l.PlannedDeliveryDate<@DueSoonExclusive))
+                       THEN 1 ELSE 0 END AS DueHit
             FROM dbo.PurchaseOrderLine l
             OUTER APPLY
             (
@@ -187,10 +221,21 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
                    h.CustomerCode AS CustomerCode,h.SupplierName,h.ConfirmationStatus,
                    h.OrderDate,h.ExpectedDate,h.ReplyDate,
                    COUNT(f.Uid) AS LineCount,
-                   COALESCE(SUM(f.ReadyQty),0) AS ReadyQty,
-                   COALESCE(SUM(f.QTY),0) AS TotalQty,
-                   CASE WHEN COALESCE(SUM(f.QTY),0)=0 THEN CONVERT(decimal(18,6),0)
-                        ELSE CONVERT(decimal(18,6),COALESCE(SUM(f.ReceivedQty),0)/NULLIF(SUM(f.QTY),0)) END AS ReceiptProgress,
+                   SUM(f.ReadyQty) AS RawReadyQty,
+                   SUM(f.QTY) AS RawTotalQty,
+                   SUM(f.ReceivedQty) AS RawReceivedQty,
+                   MIN(f.UnitSnapshot) AS MinUnit,MAX(f.UnitSnapshot) AS MaxUnit,
+                   COALESCE(SUM(f.InvalidBaseFact),0) AS InvalidBaseCount,
+                   COALESCE(SUM(f.InvalidReadyFact),0) AS InvalidReadyCount,
+                   COALESCE(SUM(f.InvalidReceiptFact),0) AS InvalidReceiptCount,
+                   COALESCE(SUM(CASE WHEN f.Uid IS NOT NULL AND f.ReadyQty IS NULL THEN 1 ELSE 0 END),0) AS UnknownReadyCount,
+                   COALESCE(SUM(CASE WHEN f.Uid IS NOT NULL AND f.ReadyQty=0 THEN 1 ELSE 0 END),0) AS ZeroReadyCount,
+                   COALESCE(SUM(CASE WHEN f.Uid IS NOT NULL AND f.ReadyQty=f.QTY THEN 1 ELSE 0 END),0) AS FullReadyCount,
+                   COALESCE(SUM(CASE WHEN f.Uid IS NOT NULL AND f.ReceivedQty=0 THEN 1 ELSE 0 END),0) AS ZeroReceiptCount,
+                   COALESCE(SUM(CASE WHEN f.Uid IS NOT NULL AND f.ReceivedQty=f.QTY THEN 1 ELSE 0 END),0) AS FullReceiptCount,
+                   COALESCE(SUM(f.DueHit),0) AS DueHitLineCount,
+                   MIN(CASE WHEN f.DueHit=1 THEN f.PlannedDeliveryDate END) AS EarliestDueHitDate,
+                   COALESCE(SUM(CASE WHEN f.DueHit=1 AND f.ReadyQty IS NULL THEN 1 ELSE 0 END),0) AS UnconfirmedDueCount,
                    COALESCE(SUM(f.TaxAmount),0) AS TaxTotalAmount,
                    COALESCE(SUM(f.HasProgress),0) AS ReportedLineCount,
                    MAX(f.ExpectedReadyDate) AS ExpectedCompletionDate
@@ -226,19 +271,47 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
                      h.SupplierName,h.ConfirmationStatus,h.OrderDate,h.ExpectedDate,h.ReplyDate
         )
         SELECT facts.*,
+               CASE WHEN facts.InvalidReadyCount>0 OR facts.MinUnit<>facts.MaxUnit OR facts.UnknownReadyCount>0
+                         OR facts.LineCount=0 THEN NULL ELSE facts.RawReadyQty END AS ReadyQty,
+               CASE WHEN facts.InvalidBaseCount>0 OR facts.MinUnit<>facts.MaxUnit OR facts.LineCount=0
+                         THEN NULL ELSE facts.RawTotalQty END AS TotalQty,
+               CASE WHEN facts.InvalidReceiptCount>0 OR facts.MinUnit<>facts.MaxUnit OR facts.LineCount=0
+                         THEN NULL ELSE CONVERT(decimal(18,6),facts.RawReceivedQty/NULLIF(facts.RawTotalQty,0)) END AS ReceiptProgress,
+               CASE WHEN facts.InvalidBaseCount>0 OR facts.MinUnit<>facts.MaxUnit OR facts.LineCount=0
+                         THEN NULL ELSE facts.MinUnit END AS UnitSnapshot,
+               CASE WHEN facts.LineCount=0 THEN 0 WHEN facts.InvalidReadyCount>0 THEN 9
+                    WHEN facts.ReportedLineCount=0 THEN 1 WHEN facts.UnknownReadyCount>0 THEN 2
+                    WHEN facts.ZeroReadyCount=facts.LineCount THEN 3
+                    WHEN facts.FullReadyCount=facts.LineCount THEN 5 ELSE 4 END AS ReadyStatus,
+               CASE WHEN facts.LineCount=0 THEN 0 WHEN facts.InvalidReceiptCount>0 THEN 9
+                    WHEN facts.ZeroReceiptCount=facts.LineCount THEN 1
+                    WHEN facts.FullReceiptCount=facts.LineCount THEN 3 ELSE 2 END AS ReceiptStatus,
+               CONVERT(bit,CASE WHEN facts.UnconfirmedDueCount>0 THEN 1 ELSE 0 END) AS HasUnconfirmedReadyRisk,
+               CASE WHEN facts.InvalidBaseCount>0 OR facts.InvalidReadyCount>0 OR facts.InvalidReceiptCount>0
+                         THEN N'采购数量、单位、货好或收货事实不一致，需逐行核实。'
+                    WHEN facts.MinUnit<>facts.MaxUnit THEN N'采购行单位不同，不提供跨行数量合计。'
+                    WHEN facts.UnknownReadyCount>0 THEN N'部分采购行尚未反馈货好数量。'
+                    ELSE NULL END AS ReviewReason,
                CONVERT(bit,CASE WHEN facts.LifecycleStatus=@ActiveLifecycle AND facts.ConfirmationStatus=@PendingConfirmation THEN 1 ELSE 0 END) AS CanConfirm,
                CONVERT(bit,CASE WHEN facts.LifecycleStatus=@ActiveLifecycle AND facts.ConfirmationStatus=@Confirmed THEN 1 ELSE 0 END) AS CanCancelConfirmation,
                CASE WHEN facts.LifecycleStatus<>@ActiveLifecycle THEN N'采购单不是活动状态。' ELSE NULL END AS CommandBlockedReason
         INTO #PurchaseOrderManagerHeads
         FROM HeadFacts facts
         WHERE (@ExpectedCompletionDateFrom IS NULL OR facts.ExpectedCompletionDate>=@ExpectedCompletionDateFrom)
-          AND (@ExpectedCompletionDateTo IS NULL OR facts.ExpectedCompletionDate<=@ExpectedCompletionDateTo);
+          AND (@ExpectedCompletionDateTo IS NULL OR facts.ExpectedCompletionDate<=@ExpectedCompletionDateTo)
+          AND (@DueView=0 OR (facts.LifecycleStatus=@ActiveLifecycle AND facts.ConfirmationStatus=@Confirmed AND facts.DueHitLineCount>0));
+
+        DELETE FROM #PurchaseOrderManagerHeads
+        WHERE (@LimitReadyStatuses=1 AND ReadyStatus NOT IN @ReadyStatuses)
+           OR (@LimitReceiptStatuses=1 AND ReceiptStatus NOT IN @ReceiptStatuses);
 
         SELECT COUNT(*) FROM #PurchaseOrderManagerHeads;
 
         SELECT PurchaseOrderId,Version,LifecycleStatus,OrderNo,BoNo,CustomerCode,SupplierName,
                ConfirmationStatus,OrderDate,ExpectedDate,ReplyDate,LineCount,ReadyQty,TotalQty,
-               ReceiptProgress,TaxTotalAmount,ReportedLineCount,ExpectedCompletionDate,
+               ReceiptProgress,UnitSnapshot,ReadyStatus,ReceiptStatus,ReviewReason,
+               DueHitLineCount,EarliestDueHitDate,HasUnconfirmedReadyRisk,
+               TaxTotalAmount,ReportedLineCount,ExpectedCompletionDate,
                CanConfirm,CanCancelConfirmation,CommandBlockedReason
         FROM #PurchaseOrderManagerHeads
         ORDER BY OrderDate DESC,OrderNo DESC,PurchaseOrderId DESC
@@ -262,7 +335,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
         )
         SELECT l.Uid AS PurchaseOrderLineId,l.Version,COALESCE(l.ProductId,'00000000-0000-0000-0000-000000000000') AS ProductId,
                l.LineNumber,product.MainImage,l.CustomerSku,l.Sku,l.LinkSku,l.SupplierSku,l.DescriptionZh,
-               l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,l.QTY AS Quantity,
+               l.FinishZh,l.FeaturesZh,l.MaterialType,l.SupplyType,l.QTY AS Quantity,l.UnitSnapshot,
                COALESCE(receipt.ReceivedQty,0) AS ReceivedQty,
                CASE WHEN l.QTY>COALESCE(receipt.ReceivedQty,0) THEN l.QTY-COALESCE(receipt.ReceivedQty,0) ELSE 0 END AS UnreceivedQty,
                latest.ReadyQty AS ReadyQty,l.PlannedDeliveryDate,

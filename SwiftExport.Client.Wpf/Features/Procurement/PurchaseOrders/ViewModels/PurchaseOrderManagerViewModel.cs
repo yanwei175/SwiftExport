@@ -62,6 +62,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         RegisterBusyAwareCommand(OpenDetailCommand); RegisterBusyAwareCommand(CreateIndependentCommand);
         RegisterBusyAwareCommand(GetFromNetDemandCommand); RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(OpenFollowUpCommand);
+        RegisterBusyAwareCommand(OpenTraceCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
     }
 
@@ -71,9 +72,18 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     public static IReadOnlyList<ConfirmationStatusEnum> ConfirmationStatuses { get; } = Array.AsReadOnly(Enum.GetValues<ConfirmationStatusEnum>());
     /// <summary>生命周期多选候选，避免在页面模型中重复维护中文描述。</summary>
     public static IReadOnlyList<PurchaseOrderLifecycleStatusEnum> LifecycleStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseOrderLifecycleStatusEnum>());
+    /// <summary>服务端计算的整单货好状态候选。</summary>
+    public static IReadOnlyList<PurchaseReadyStatusEnum> ReadyStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseReadyStatusEnum>());
+    /// <summary>服务端计算的整单正式收货状态候选。</summary>
+    public static IReadOnlyList<PurchaseReceiptStatusEnum> ReceiptStatuses { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseReceiptStatusEnum>());
+    /// <summary>采购行计划交期风险单选候选。</summary>
+    public static IReadOnlyList<PurchaseDueViewEnum> DueViews { get; } = Array.AsReadOnly(Enum.GetValues<PurchaseDueViewEnum>());
     /// <summary>首次打开默认待确认；清空集合表示不限制确认状态。</summary>
     public ObservableCollection<ConfirmationStatusEnum> SelectedConfirmationStatuses { get; } = [ConfirmationStatusEnum.待确认];
     public ObservableCollection<PurchaseOrderLifecycleStatusEnum> SelectedLifecycleStatuses { get; } = [];
+    public ObservableCollection<PurchaseReadyStatusEnum> SelectedReadyStatuses { get; } = [];
+    public ObservableCollection<PurchaseReceiptStatusEnum> SelectedReceiptStatuses { get; } = [];
+    [ObservableProperty] public partial PurchaseDueViewEnum SelectedDueView { get; set; } = PurchaseDueViewEnum.All;
     /// <summary>直接提供完整客户缓存，不按是否存在采购裁剪。</summary>
     public ReadOnlyObservableCollection<CustomerDto>? CustomerOptions => _referenceDataCache?.Customers;
     /// <summary>直接提供完整供应商缓存，不按当前筛选或采购历史裁剪。</summary>
@@ -107,6 +117,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(VoidOrderCommand))]
     [NotifyCanExecuteChangedFor(nameof(RetryReversalCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenTraceCommand))]
     public partial PurchaseOrderManagementRowModel? SelectedOrder { get; set; }
     [ObservableProperty] public partial PurchaseOrderManagementLineModel? SelectedLine { get; set; }
     [ObservableProperty][NotifyPropertyChangedFor(nameof(TotalPages))][NotifyPropertyChangedFor(nameof(PageStatus))] public partial int TotalCount { get; set; }
@@ -157,6 +168,7 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
         OrderDateFrom = OrderDateTo = null;
         SelectedConfirmationStatuses.Clear();
         SelectedLifecycleStatuses.Clear();
+        SelectedReadyStatuses.Clear(); SelectedReceiptStatuses.Clear(); SelectedDueView = PurchaseDueViewEnum.All;
         PlannedDeliveryDateFrom = PlannedDeliveryDateTo = ExpectedCompletionDateFrom = ExpectedCompletionDateTo = null;
         PageIndex = 1;
         return LoadPageAsync();
@@ -370,6 +382,11 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
     private Task CreateIndependentAsync() => _navigation.OpenDocumentAsync(PurchaseOrderDetailViewModel.RouteKey,
         $"purchase-order:new:{Guid.NewGuid():N}", new PurchaseOrderDocumentOpenRequest());
     [RelayCommand] private Task OpenFollowUpAsync() => _navigation.OpenAsync(PurchaseOrderProgressWorkspaceViewModel.RouteKey);
+    /// <summary>以采购单稳定身份打开只读追溯页签，重复打开激活同一页签。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenDetail))]
+    private Task OpenTraceAsync() => _navigation.OpenDocumentAsync(PurchaseOrderTraceViewModel.RouteKey,
+        $"purchase-order-trace:{SelectedOrder!.PurchaseOrderId:N}",
+        new PurchaseOrderTraceOpenRequest { PurchaseOrderId = SelectedOrder.PurchaseOrderId });
     [RelayCommand(CanExecute = nameof(CanCreateIndependent))]
     private async Task GetFromNetDemandAsync()
     {
@@ -408,6 +425,9 @@ public sealed partial class PurchaseOrderManagerViewModel : ViewModelBaseEx, IAs
                     OrderDateTo = OrderDateTo,
                     ConfirmationStatuses = SelectedConfirmationStatuses.ToList(),
                     LifecycleStatuses = SelectedLifecycleStatuses.ToList(),
+                    ReadyStatuses = SelectedReadyStatuses.ToList(),
+                    ReceiptStatuses = SelectedReceiptStatuses.ToList(),
+                    DueView = SelectedDueView,
                     PlannedDeliveryDateFrom = PlannedDeliveryDateFrom,
                     PlannedDeliveryDateTo = PlannedDeliveryDateTo,
                     ExpectedCompletionDateFrom = ExpectedCompletionDateFrom,

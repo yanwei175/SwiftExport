@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,7 +52,8 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 login = provider.GetRequiredService<LoginCoordinator>();
                 login.Changed += Session_Changed;
                 context = new ExcelContextService(addIn.Application);
-                taskPanes = new TaskPaneManager(addIn.CustomTaskPanes, addIn.Application);
+                taskPanes = new TaskPaneManager(addIn.CustomTaskPanes, log,
+                    provider, provider.GetRequiredService<TaskPaneRegistrar>(), session);
                 session.Changed += Session_Changed;
                 IsRestoring = true;
                 Status = "正在验证登录状态";
@@ -103,8 +104,22 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         public void Logout()
         {
             if (!IsReady) return;
-            try { provider.GetRequiredService<WindowManager>().Dispose(); session.TryEnd(session.Capture().Version); }
+            try { session.TryEnd(session.Capture().Version); }
             catch (Exception ex) { log.Write("LogoutFailure", ex); Status = "退出未完成，请重试"; Changed?.Invoke(this, EventArgs.Empty); }
+        }
+        /// <summary>在触发操作的 Excel 窗口下打开本地销售导入预览。</summary>
+        public void OpenSalesOrderImport(Office.IRibbonControl control)
+        {
+            if (!IsReady || !IsAuthenticated || IsRestoring || IsLoginOpen) return;
+            try { taskPanes.TogglePane(context.GetWindow(control), TaskPaneRegistrar.SalesOrderImport); }
+            catch (Exception ex) { log.Write("OpenSalesImportFailure", ex); Status = "无法打开销售导入窗格，请查看日志"; Changed?.Invoke(this, EventArgs.Empty); }
+        }
+        /// <summary>在触发操作的 Excel 窗口显示采购导入静态布局预览。</summary>
+        public void OpenPurchaseOrderImportPreview(Office.IRibbonControl control)
+        {
+            if (!IsReady || !IsAuthenticated || IsRestoring || IsLoginOpen) return;
+            try { taskPanes.TogglePane(context.GetWindow(control), TaskPaneRegistrar.PurchaseOrderImport); }
+            catch (Exception ex) { log.Write("OpenPurchaseImportPreviewFailure", ex); Status = "无法打开采购导入预览，请查看日志"; Changed?.Invoke(this, EventArgs.Empty); }
         }
         /// <summary>逐项尽力清理，不结束宿主进程和消息循环。</summary>
         public void Dispose()

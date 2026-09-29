@@ -15,7 +15,7 @@ using SwiftExport.Core.Interfaces.SalesOrders.Query;
 namespace SwiftExport.Infrastructure.Repositories.SalesOrders.Query;
 
 /// <summary>使用请求级连接查询销售订单列表和详情，保持原筛选、排序和投影 SQL。</summary>
-public sealed class SalesOrderQueryRepository(RepositoryBaseContext context) : DapperRepository<SalesOrderHeader>(context), ISalesOrderQueryRepository
+public sealed partial class SalesOrderQueryRepository(RepositoryBaseContext context) : DapperRepository<SalesOrderHeader>(context), ISalesOrderQueryRepository
 {
     /// <summary>按业务日期计算销售行交付事实，在同一候选集合中完成筛选、总数和稳定分页。</summary>
     public async Task<PagedResponseBase<SalesOrderManagerListItemDto>> SearchManagerAsync(

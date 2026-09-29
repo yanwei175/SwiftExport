@@ -34,6 +34,13 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     public string ReceiptProgress { get; set; } = string.Empty;
     public int? ReportedLineCount { get; set; }
     public decimal? LatestReadyQty { get; set; }
+    public string UnitSnapshot { get; set; } = string.Empty;
+    public PurchaseReadyStatusEnum ReadyStatus { get; set; }
+    public PurchaseReceiptStatusEnum ReceiptStatus { get; set; }
+    public int DueHitLineCount { get; set; }
+    public DateTime? EarliestDueHitDate { get; set; }
+    public bool HasUnconfirmedReadyRisk { get; set; }
+    public string ReviewReason { get; set; } = string.Empty;
     public DateTime? ExpectedCompletionDate { get; set; }
     public int Version { get; set; }
     public bool CanConfirm { get; set; }

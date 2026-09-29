@@ -1,6 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <!-- 仅迁移缩略图视觉；Source 由页面提供，不包含网络加载、解码或缓存行为。 -->
+    <!-- 缩略图视觉；普通 Image 的 Source 由页面提供，HttpsImage 以同一样式显示直接下载的 HTTPS 图片。 -->
     <ToolTip x:Key="SwiftExportImageToolTip" x:Shared="False" Placement="Mouse" Padding="0" HasDropShadow="True">
         <Image MaxWidth="500" MaxHeight="500" Stretch="Uniform"
                Source="{Binding PlacementTarget.Source, RelativeSource={RelativeSource AncestorType={x:Type ToolTip}}}"/>

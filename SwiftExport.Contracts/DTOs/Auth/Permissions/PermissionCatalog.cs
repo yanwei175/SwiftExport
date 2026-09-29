@@ -109,6 +109,7 @@ namespace SwiftExport.Contracts.DTOs.Auth
             new PermissionDefinition(PermissionKeys.SystemDictionaryDelete, "字典删除", "System", true),
             new PermissionDefinition(PermissionKeys.SystemDictionaryEdit, "字典编辑", "System", true),
             new PermissionDefinition(PermissionKeys.SystemDictionaryView, "字典查看", "System", true),
+            new PermissionDefinition(PermissionKeys.SystemExcelFieldMappingManage, "Excel字段映射维护", "System", true),
             new PermissionDefinition(PermissionKeys.SystemExchangeRateCreate, "汇率创建", "System", true),
             new PermissionDefinition(PermissionKeys.SystemExchangeRateDelete, "汇率删除", "System", true),
             new PermissionDefinition(PermissionKeys.SystemExchangeRateEdit, "汇率编辑", "System", true),

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <LangVersion>7.3</LangVersion>
@@ -10,11 +10,48 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WPF-UI" Version="4.3.0"/>
+    <ProjectReference Include="../SwiftExport.Contracts/SwiftExport.Contracts.csproj"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Customers/Components/CustomerAutoSuggestComboBox.xaml.cs" Link="Features/Customers/Components/CustomerAutoSuggestComboBox.xaml.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/Features/Customers/Components/CustomerAutoSuggestComboBox.xaml" Link="Features/Customers/Components/CustomerAutoSuggestComboBox.xaml"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Suppliers/Components/SupplierAutoSuggestComboBox.xaml.cs" Link="Features/Suppliers/Components/SupplierAutoSuggestComboBox.xaml.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/Features/Suppliers/Components/SupplierAutoSuggestComboBox.xaml" Link="Features/Suppliers/Components/SupplierAutoSuggestComboBox.xaml"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Components/SalesProductLookupTextBox.xaml.cs" Link="Features/Sales/Orders/Components/SalesProductLookupTextBox.xaml.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Components/SalesProductLookupTextBox.xaml" Link="Features/Sales/Orders/Components/SalesProductLookupTextBox.xaml"/>
     <Compile Include="../SwiftExport.Client.VSTO/Hosting/WpfRuntimeHost.cs" Link="Production/WpfRuntimeHost.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/App.xaml.cs" Link="App.xaml.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/App.xaml" Link="App.xaml"/>
     <Compile Include="../SwiftExport.Client.VSTO/UI/Themes/ThemeService.cs" Link="Production/ThemeService.cs"/>
     <Compile Include="../SwiftExport.Client.VSTO/Diagnostics/AddInLog.cs" Link="Production/AddInLog.cs"/>
     <Compile Include="../SwiftExport.Client.VSTO/Resources/Converters/*.cs" Link="Production/Converters/%(Filename)%(Extension)"/>
     <Page Include="../SwiftExport.Client.VSTO/Resources/*.xaml" Link="Resources/%(Filename)%(Extension)"/>
     <Page Include="../SwiftExport.Client.VSTO/Properties/DesignTimeResources.xaml" Link="Properties/DesignTimeResources.xaml"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Resources/Controls/*.cs" Link="Resources/Controls/%(Filename)%(Extension)"/>
+    <Page Include="../SwiftExport.Client.VSTO/Resources/Controls/LookupTextBox.xaml" Link="Resources/Controls/LookupTextBox.xaml"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Models/*.cs" LinkBase="Production/Import/Models"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/ViewModels/*.cs" LinkBase="Production/Import/ViewModels"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/ISalesOrderImportPrompt.cs" Link="Production/Import/ISalesOrderImportPrompt.cs"/>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" ExcludeAssets="analyzers"/>
+    <PackageReference Include="Refit" Version="10.0.1" ExcludeAssets="analyzers"/>
+    <Reference Include="System.Net.Http"/>
+    <Reference Include="System.Windows.Forms"/>
+    <Reference Include="WindowsFormsIntegration"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Hosting/Windows/WindowManager.cs" Link="Production/WindowManager.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Hosting/TaskPanes/TaskPaneConfig.cs" Link="Production/TaskPaneConfig.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Hosting/TaskPanes/TaskPaneRegistrar.cs" Link="Production/TaskPaneRegistrar.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Hosting/TaskPanes/TaskPaneContext.cs" Link="Production/TaskPaneContext.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Hosting/TaskPanes/TaskPaneHostControl.cs" Link="Production/TaskPaneHostControl.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Views/SalesOrderImportPrompt.cs" Link="Production/SalesOrderImportPrompt.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Authentication/SessionService.cs;../SwiftExport.Client.VSTO/Authentication/ITokenStore.cs;../SwiftExport.Client.VSTO/Mvvm/*.cs;../SwiftExport.Client.VSTO/Api/ApiCallRunner.cs;../SwiftExport.Client.VSTO/Hosting/Threading/IUiDispatcher.cs" LinkBase="Production"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Services/Caching/IReferenceDataCacheService.cs;../SwiftExport.Client.VSTO/Services/Caching/CacheRefreshResult.cs;../SwiftExport.Client.VSTO/Services/Caching/ProductCategoryCacheNode.cs;../SwiftExport.Client.VSTO/Services/Caching/CacheObservableCollection.cs" LinkBase="Production/Caching"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Views/SalesOrderImportView.xaml.cs" Link="Features/Sales/Orders/Views/SalesOrderImportView.xaml.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Views/SalesOrderImportView.xaml" Link="Features/Sales/Orders/Views/SalesOrderImportView.xaml"/>
+    <Compile Include="../SwiftExport.Client.VSTO.Tests/ImportTestFixture.cs" Link="ImportTestFixture.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.cs" Link="Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.cs"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml.cs" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml.cs"/>
+    <Page Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml"/>
   </ItemGroup>
 </Project>

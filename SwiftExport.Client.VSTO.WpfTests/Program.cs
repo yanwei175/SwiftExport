@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -15,13 +15,54 @@ namespace SwiftExport.Client.VSTO.WpfTests
 
         /// <summary>返回零表示所有断言通过；进程退出回收测试 Application，不停止宿主 Dispatcher。</summary>
         [STAThread]
-        private static int Main()
+        private static int Main(string[] args)
         {
             try
             {
+                if (args.Length == 1 && args[0] == "--purchase-preview-only")
+                {
+                    using (var previewHost = new WpfRuntimeHost())
+                    {
+                        previewHost.Initialize();
+                        PurchasePreviewChecks.Run(Check);
+                    }
+                    Console.WriteLine("PASS Purchase preview: " + checks + " assertions");
+                    return 0;
+                }
+                if (args.Length == 1 && args[0] == "--design-resources-only")
+                {
+                    var designApp = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                    designApp.Resources.MergedDictionaries.Add(Load("Properties/DesignTimeResources.xaml"));
+                    ImplicitStyleChecks.Run(Check);
+                    Console.WriteLine("PASS Design resources: " + checks + " assertions");
+                    return 0;
+                }
+                if (args.Length == 1 && args[0] == "--implicit-only")
+                {
+                    ImplicitStyleChecks.RunLifecycle(Check);
+                    Console.WriteLine("PASS Implicit: " + checks + " assertions");
+                    return 0;
+                }
+                if (args.Length == 1 && args[0] == "--import-only")
+                {
+                    using (var importHost = new WpfRuntimeHost())
+                    {
+                        importHost.Initialize();
+                        ImportPageChecks.Run(Check);
+                    }
+                    Console.WriteLine("PASS Import: " + checks + " assertions");
+                    return 0;
+                }
+                if (args.Length == 1 && args[0] == "--lookup-only")
+                {
+                    RunLookupOnly();
+                    Console.WriteLine("PASS Lookup: " + checks + " assertions");
+                    return 0;
+                }
                 var host = new WpfRuntimeHost();
                 host.Initialize();
                 var app = Application.Current;
+                ImplicitStyleChecks.Run(Check);
                 Check(app.ShutdownMode == ShutdownMode.OnExplicitShutdown, "资源 Application 使用显式关闭模式");
                 var count = app.Resources.MergedDictionaries.Count;
                 host.Initialize();
@@ -30,6 +71,9 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 CheckButton();
                 CheckStyles();
                 CheckConverters();
+                ImportPageChecks.Run(Check);
+                LookupTextBoxChecks.Run(Check);
+                BusinessLookupChecks.Run(Check);
                 host.Dispose();
                 host.Dispose();
                 Check(app.Resources.MergedDictionaries.Count == count - 1, "幂等卸载移除自有字典");
@@ -52,28 +96,17 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 var dictionary = Load("Resources/Themes.xaml");
                 app.Resources.MergedDictionaries.Add(dictionary);
                 var theme = new ThemeService(dictionary, app.Dispatcher);
-                foreach (var name in new[] { "HC1", "HC2", "HCBlack", "HCWhite" })
-                {
-                    theme.ApplyTheme(name, true);
-                    Check(dictionary.MergedDictionaries[0].Source.ToString().EndsWith(name + ".xaml"), name + "主题加载");
-                    Check(ReferenceEquals(dictionary["AccentButtonBackground"], SystemColors.HighlightBrush), "高对比度遵循系统选择背景");
-                    Check(ReferenceEquals(dictionary["AccentButtonForeground"], SystemColors.HighlightTextBrush), "高对比度遵循系统选择文字");
-                    CheckButton();
-                    CheckStyles();
-                }
-                theme.ApplyTheme("Light", false);
+                Check(dictionary.MergedDictionaries[0].Source.ToString().EndsWith("Light.xaml"), "固定 Light 主题加载");
                 CheckAccent();
                 CheckButton();
                 var newer = new SolidColorBrush(Colors.Purple);
                 app.Resources["SystemAccentBrush"] = newer;
-                theme.QueueRefresh();
                 theme.Dispose();
                 var frame = new DispatcherFrame();
                 app.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false));
                 Dispatcher.PushFrame(frame);
                 Check(ReferenceEquals(newer, app.Resources["SystemAccentBrush"]), "卸载不覆盖后来者的根资源写入");
-                Check(!app.Resources.Contains("AccentFillColorDefault"), "释放后排队刷新不重新写入资源");
-                ThrowsDisposed(() => theme.ApplyTheme("Light", false));
+                Check(!app.Resources.Contains("AccentFillColorDefault"), "释放后移除自有强调色资源");
                 app.Resources.MergedDictionaries.Remove(dictionary);
 
                 var uiResources = Wpf.Ui.UiApplication.Current.Resources;
@@ -91,6 +124,27 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 return 0;
             }
             catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
+        }
+
+        /// <summary>单独验证 Lookup，便于其他样式有在途改动时明确报告专项结果；默认仍运行完整断言。</summary>
+        private static void RunLookupOnly()
+        {
+            using (var host = new WpfRuntimeHost())
+            {
+                host.Initialize();
+                LookupTextBoxChecks.Run(Check);
+                BusinessLookupChecks.Run(Check);
+            }
+            var dictionary = Load("Resources/Themes.xaml");
+            Application.Current.Resources.MergedDictionaries.Add(dictionary);
+            try
+            {
+                using (var theme = new ThemeService(dictionary, Application.Current.Dispatcher))
+                {
+                    LookupTextBoxChecks.CheckAppearance(Check);
+                }
+            }
+            finally { Application.Current.Resources.MergedDictionaries.Remove(dictionary); }
         }
 
         // 检查实际 Color，避免仅存在同名 Brush 却遗漏按钮所需颜色。

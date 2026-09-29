@@ -1,8 +1,10 @@
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
+using Microsoft.Data.SqlClient;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 
@@ -12,6 +14,29 @@ namespace SwiftExport.Application.Services.DemandPlanning.Materials.Query;
 public sealed class MaterialDemandQueryService(ServiceBaseContext context, IMaterialDemandQueryRepository netDemandRepository) : IMaterialDemandQueryService
 {
     private readonly ILogger<MaterialDemandQueryService> _logger = context.LoggerFactory.CreateLogger<MaterialDemandQueryService>();
+
+    /// <summary>按稳定物料行身份读取追踪，保留历史修订及异常关系。</summary>
+    public async Task<ServiceResult<MaterialDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
+    {
+        if (uid == Guid.Empty) return ServiceResult<MaterialDemandTraceDetailDto>.Fail("物料需求 Uid 不能为空。");
+        try
+        {
+            var detail = await netDemandRepository.GetTraceAsync(uid, cancellationToken);
+            return detail is null ? ServiceResult<MaterialDemandTraceDetailDto>.Fail("未找到物料需求。")
+                : ServiceResult<MaterialDemandTraceDetailDto>.Ok(detail);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (SqlException ex) when (ex.Number == 51001)
+        {
+            _logger.LogWarning(ex, "物料需求追踪的正式入库反向历史尚未核实，物料需求 {NetDemandId}", uid);
+            return ServiceResult<MaterialDemandTraceDetailDto>.Fail("正式入库反向历史需核实，收货量未知。");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "查询物料需求追踪失败，物料需求 {NetDemandId}", uid);
+            return ServiceResult<MaterialDemandTraceDetailDto>.Fail("查询物料需求追踪失败。");
+        }
+    }
 
     /// <summary>查询物料需求工作台的物料事实和有效采购关联汇总。</summary>
     public async Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchManagerAsync(

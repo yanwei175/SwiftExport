@@ -6,7 +6,7 @@ using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Fulfillment;
 
-/// <summary>验证销售履约 Manager/Detail 仅保留可导航的前端空壳。</summary>
+/// <summary>验证销售履约详情已接入只读查询而 Manager 仍不承担读写。</summary>
 [TestClass]
 public sealed class SalesFulfillmentContractsTests
 {
@@ -26,7 +26,7 @@ public sealed class SalesFulfillmentContractsTests
     }
 
     [TestMethod]
-    public void ViewsAndViewModelsDoNotRetainBackendQueryDependencies()
+    public void DetailUsesDedicatedReadOnlyQueryWhileManagerStaysShell()
     {
         var managerView = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "Views", "SalesFulfillmentManagerView.xaml");
         var detailView = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "Views", "SalesFulfillmentDetailView.xaml");
@@ -34,13 +34,13 @@ public sealed class SalesFulfillmentContractsTests
         var detailViewModel = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentDetailViewModel.cs");
 
         StringAssert.Contains(managerView, "Manager 页面空壳");
-        StringAssert.Contains(detailView, "Detail 页面空壳");
+        StringAssert.Contains(detailView, "SelectedLine.Deliveries");
         Assert.IsFalse(managerView.Contains("DataGrid", StringComparison.Ordinal));
-        Assert.IsFalse(detailView.Contains("DataGrid", StringComparison.Ordinal));
+        StringAssert.Contains(detailView, "DataGrid");
         Assert.IsFalse(managerViewModel.Contains("ISalesFulfillment", StringComparison.Ordinal));
-        Assert.IsFalse(detailViewModel.Contains("ISalesFulfillment", StringComparison.Ordinal));
+        StringAssert.Contains(detailViewModel, "ISalesFulfillmentApi");
         Assert.IsFalse(managerViewModel.Contains("Contracts.DTOs", StringComparison.Ordinal));
-        Assert.IsFalse(detailViewModel.Contains("Contracts.DTOs", StringComparison.Ordinal));
+        StringAssert.Contains(detailViewModel, "Contracts.DTOs.SalesOrders.Fulfillment");
     }
 
     [TestMethod]

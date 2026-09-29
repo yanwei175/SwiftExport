@@ -31,5 +31,19 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public bool? IsCustomerSupplied { get; set; }
         /// <summary>限定标准或非标物料；为空表示全部。</summary>
         public bool? IsNonStandard { get; set; }
+        /// <summary>物料生命周期；为空时仅查询活动行。</summary>
+        public SwiftExport.Contracts.SysEnums.NetDemandLifecycleStatusEnum? LifecycleStatus { get; set; }
+        /// <summary>单选快捷视图：All、Unassigned、Partial、Assigned、Overdue、DueSoon、Review。</summary>
+        public string QuickView { get; set; } = "All";
+        /// <summary>推荐采购供应商 Uid。</summary>
+        public Guid? SuggestedPurchaseSupplierId { get; set; }
+        /// <summary>按推荐供应商编码或名称模糊查询。</summary>
+        public string SuggestedPurchaseSupplierKeyword { get; set; }
+        /// <summary>有效采购单实际供应商 Uid。</summary>
+        public Guid? ActualPurchaseSupplierId { get; set; }
+        /// <summary>按实际采购供应商编码或名称模糊查询。</summary>
+        public string ActualPurchaseSupplierKeyword { get; set; }
+        /// <summary>采购单号精确匹配。</summary>
+        public string PurchaseOrderNo { get; set; }
     }
 }

@@ -15,7 +15,7 @@ using SwiftExportClient.Services.Api;
 namespace SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 
 /// <summary>入库管理查询、草稿持久化与当前单正向过账会话；不直接操作库存。</summary>
-public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDisposable
+public sealed partial class InboundManagerViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     /// <summary>单实例管理页路由。</summary>
     public const string RouteKey = "inventory.inbound-manager";

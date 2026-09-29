@@ -100,10 +100,18 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         /// <summary>来源需求交期。</summary>
         public DateTime? DemandRequiredDate { get; set; }
         /// <summary>有效采购 Link 的分配量减释放量合计。</summary>
-        public decimal AssociatedPurchaseQty { get; set; }
+        public decimal? AssociatedPurchaseQty { get; set; }
         /// <summary>当前尚未被有效采购 Link 承接的数量。</summary>
-        public decimal RemainingQty { get { return Math.Max(0m, NetQty - AssociatedPurchaseQty); } }
+        public decimal? RemainingQty { get { return AssociatedPurchaseQty.HasValue ? Math.Max(0m, NetQty - AssociatedPurchaseQty.Value) : (decimal?)null; } }
         /// <summary>有效采购 Link 对应的采购单号集合。</summary>
         public string PurchaseOrderNos { get; set; }
+        /// <summary>有效采购单实际供应商名称；多供应商时按单据汇总显示。</summary>
+        public string ActualPurchaseSuppliers { get; set; }
+        /// <summary>承接进度：未承接、部分承接、已承接、需核实或历史。</summary>
+        public string ProcurementStatus { get; set; }
+        /// <summary>交期提示：已逾期、临近交期或空。</summary>
+        public string DueHint { get; set; }
+        /// <summary>来源、采购目标、单位或数量不可信的原因。</summary>
+        public string ReviewReason { get; set; }
     }
 }

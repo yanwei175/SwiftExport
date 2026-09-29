@@ -1,4 +1,5 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
@@ -12,4 +13,6 @@ public interface IGrossDemandQueryService
     Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default);
     /// <summary>读取单条来源需求本体详情。</summary>
     Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
+    /// <summary>读取来源需求的只读链路追踪。</summary>
+    Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default);
 }

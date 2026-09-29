@@ -250,7 +250,7 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<PurchaseOrderManagerListItemDto, PurchaseOrderManagementRowModel>()
             .Map(dest => dest.LatestReadyQty, src => src.ReadyQty)
-            .Map(dest => dest.ReceiptProgress, src => src.ReceiptProgress.ToString("P0"));
+            .Map(dest => dest.ReceiptProgress, src => src.ReceiptProgress.HasValue ? src.ReceiptProgress.Value.ToString("P0") : "需核实");
 
         config.NewConfig<PurchaseOrderManagerLineDto, PurchaseOrderManagementLineModel>()
             // 查询快照中的未知数量保留“尚未反馈”，不把空值格式化成零。

@@ -138,6 +138,15 @@
                     <ui:Button Content="取消修改" Margin="0,0,8,0" 
                                Command="{Binding CancelSuggestedSupplierChangesCommand}"/>
 
+                    <ui:Button Content="追踪选中物料" Margin="0,0,8,0"
+                               Command="{Binding OpenTraceCommand}"/>
+
+                    <ComboBox Width="105" Margin="0,0,8,0" ItemsSource="{Binding LifecycleOptions}"
+                              DisplayMemberPath="DisplayText" SelectedItem="{Binding SelectedLifecycle}" />
+
+                    <ComboBox Width="125" Margin="0,0,8,0" ItemsSource="{Binding QuickViewOptions}"
+                              DisplayMemberPath="DisplayText" SelectedItem="{Binding SelectedQuickView}" />
+
                     <ToggleButton Content="来源单号" Margin="0,0,8,0"                                   
                                   Command="{Binding ToggleSourcePanelCommand}"
                                   IsChecked="{Binding IsSourcePanelOpen, Mode=OneWay}"
@@ -179,7 +188,7 @@
                             Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
                             BorderThickness="1"
                             CornerRadius="4">
-                        <StackPanel Margin="0,4" Orientation="Horizontal">
+                        <WrapPanel Margin="0,4">
                             <TextBlock Text=" 需求交期起 : "/>
                             <DatePicker  Margin="0,0,8,0" VerticalAlignment="Top" SelectedDate="{Binding DemandRequiredDateFrom}" />
                             
@@ -200,7 +209,14 @@
                                             Text="{Binding CustomerSkusText}" AcceptsReturn="True" TextWrapping="Wrap"
                                             VerticalAlignment="Top"/>
 
-                        </StackPanel>
+                            <ui:TextBox Margin="0,0,8,0" Width="150" PlaceholderText="推荐供应商编码/名称"
+                                        Text="{Binding SuggestedSupplierKeyword}" VerticalAlignment="Top"/>
+                            <ui:TextBox Margin="0,0,8,0" Width="150" PlaceholderText="实际采购供应商编码/名称"
+                                        Text="{Binding ActualSupplierKeyword}" VerticalAlignment="Top"/>
+                            <ui:TextBox Width="130" PlaceholderText="采购单号（精确）"
+                                        Text="{Binding PurchaseOrderNoFilter}" VerticalAlignment="Top"/>
+
+                        </WrapPanel>
                     </Border>
                 </Popup>
             </StackPanel>
@@ -359,7 +375,7 @@
                                             SelectionCommittedCommand="{Binding CommitSuggestedSupplierSelectionCommand}"
                                             SelectionClearedCommand="{Binding ClearSuggestedSupplierSelectionCommand}"
                                             IsBusy="{Binding DataContext.IsSuggestedSupplierSearchBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            IsEnabled="{Binding DataContext.CanEditSuggestion, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            IsEnabled="{Binding IsSuggestionEditable}"
                                             Placeholder="搜索推荐采购供应商"
                                             AutomationProperties.Name="推荐采购供应商" />
                             </DataTemplate>
@@ -384,6 +400,17 @@
                     <DataGridTextColumn Header="关联采购量" Width="80" Binding="{Binding AssociatedPurchaseQty, StringFormat=N1}" IsReadOnly="True"
                                              ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                              gridColumns:GridColumn.Key="associated-purchase-qty" />
+
+                    <DataGridTextColumn Header="未承接量" Width="80" Binding="{Binding RemainingQty, StringFormat=N1, TargetNullValue=需核实}" IsReadOnly="True"
+                                        gridColumns:GridColumn.Key="remaining-qty" />
+                    <DataGridTextColumn Header="承接状态" Width="85" Binding="{Binding ProcurementStatus}" IsReadOnly="True"
+                                        gridColumns:GridColumn.Key="procurement-status" />
+                    <DataGridTextColumn Header="交期提示" Width="90" Binding="{Binding DueHint}" IsReadOnly="True"
+                                        gridColumns:GridColumn.Key="due-hint" />
+                    <DataGridTextColumn Header="实际采购供应商" Width="140" Binding="{Binding ActualPurchaseSuppliers}" IsReadOnly="True"
+                                        gridColumns:GridColumn.Key="actual-supplier" />
+                    <DataGridTextColumn Header="需核实" Width="160" Binding="{Binding ReviewReason}" IsReadOnly="True"
+                                        gridColumns:GridColumn.Key="review-reason" />
 
                     <DataGridTextColumn Header="采购单号" Width="160" Binding="{Binding PurchaseOrderNos}" 
                                         IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"

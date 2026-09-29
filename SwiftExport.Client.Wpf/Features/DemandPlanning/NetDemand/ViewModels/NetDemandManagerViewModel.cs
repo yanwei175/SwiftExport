@@ -5,6 +5,7 @@ using SwiftExport.Contracts.Apis.MasterData;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.Wrappers;
@@ -52,6 +53,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private bool _suggestionUnknown;
     private bool _suggestionInFlight;
     private readonly ICurrentUserService _currentUser;
+    private readonly INavigationService? _navigation;
 
     public NetDemandManagerViewModel(
         INetDemandManagerApi api,
@@ -60,7 +62,8 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         IDialogService dialogService,
         IMessageService messageService,
         INetDemandDialogService netDemandDialogService,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        INavigationService? navigation = null)
     {
         _api = api;
         _masterDataApi = masterDataApi;
@@ -69,6 +72,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         _messageService = messageService;
         _netDemandDialogService = netDemandDialogService;
         _currentUser = currentUser;
+        _navigation = navigation;
         Title = "物料需求";
 
         RegisterBusyAwareCommand(SearchCommand);
@@ -108,6 +112,22 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         new(true, "客供件"),
     ];
 
+    /// <summary>物料生命周期筛选，默认仅活动行。</summary>
+    public IReadOnlyList<NetDemandFilterOption<NetDemandLifecycleStatusEnum?>> LifecycleOptions { get; } =
+    [
+        new(null, "活动"),
+        new(NetDemandLifecycleStatusEnum.RolledBack, "已回退"),
+        new(NetDemandLifecycleStatusEnum.Voided, "已作废"),
+    ];
+
+    /// <summary>服务端单选快捷视图。</summary>
+    public IReadOnlyList<NetDemandFilterOption<string>> QuickViewOptions { get; } =
+    [
+        new("All", "全部"), new("Unassigned", "未承接"), new("Partial", "部分承接"),
+        new("Assigned", "已承接"), new("Overdue", "逾期未承接"),
+        new("DueSoon", "临期未承接"), new("Review", "需核实"),
+    ];
+
     public ObservableCollection<NetDemandFilterOption<string>> SelectedSourceTypes { get; } = [];
     /// <summary>
     /// 来源导航独立使用的来源类型筛选。
@@ -119,7 +139,8 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     public bool HasPendingSuggestion => _suggestionUnknown;
     /// <summary>建议编辑权限独立于模块访问；未决和发送中冻结实际表格编辑。</summary>
     public bool CanEditSuggestion => CanWrite && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage)
-        && !_suggestionUnknown && !_suggestionInFlight;
+        && !_suggestionUnknown && !_suggestionInFlight
+        && SelectedLifecycle?.Value is null;
     /// <summary>仅推荐建议列需要的表格只读状态。</summary>
     public bool IsSuggestionReadOnly => !CanEditSuggestion;
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
@@ -161,6 +182,32 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [ObservableProperty]
     public partial string CustomerSkusText { get; set; } = string.Empty;
 
+    /// <summary>推荐供应商编码或名称条件。</summary>
+    [ObservableProperty]
+    public partial string SuggestedSupplierKeyword { get; set; } = string.Empty;
+
+    /// <summary>实际采购供应商编码或名称条件。</summary>
+    [ObservableProperty]
+    public partial string ActualSupplierKeyword { get; set; } = string.Empty;
+
+    /// <summary>采购单号精确条件。</summary>
+    [ObservableProperty]
+    public partial string PurchaseOrderNoFilter { get; set; } = string.Empty;
+
+    /// <summary>当前生命周期条件。</summary>
+    [ObservableProperty]
+    public partial NetDemandFilterOption<NetDemandLifecycleStatusEnum?>? SelectedLifecycle { get; set; }
+
+    partial void OnSelectedLifecycleChanged(NetDemandFilterOption<NetDemandLifecycleStatusEnum?>? value)
+    {
+        OnPropertyChanged(nameof(CanEditSuggestion));
+        OnPropertyChanged(nameof(IsSuggestionReadOnly));
+    }
+
+    /// <summary>当前单选快捷视图。</summary>
+    [ObservableProperty]
+    public partial NetDemandFilterOption<string>? SelectedQuickView { get; set; }
+
     /// <summary>
     /// 控制更多条件 Popup 的打开状态。
     /// </summary>
@@ -188,6 +235,19 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     public partial MaterialDemandManagerRowModel? SelectedItem { get; set; }
+
+    /// <summary>以选中物料行的稳定身份打开只读追踪。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenTrace))]
+    private Task OpenTraceAsync()
+    {
+        var uid = SelectedItem!.Uid;
+        return _navigation!.OpenDocumentAsync(MaterialDemandTraceViewModel.RouteKey,
+            $"material-demand-trace:{uid:N}", new MaterialDemandTraceOpenRequest { NetDemandId = uid });
+    }
+
+    private bool CanOpenTrace() => SelectedItem is not null && _navigation is not null;
+
+    partial void OnSelectedItemChanged(MaterialDemandManagerRowModel? value) => OpenTraceCommand.NotifyCanExecuteChanged();
 
     [ObservableProperty]
     public partial bool? IsAllChecked { get; set; }
@@ -267,6 +327,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         _openRequest = null;
         ExitSourceMode();
         PageIndex = 1;
+        if (IsSourcePanelOpen) await RefreshSourceNavigationAsync(reloadCurrentData: false);
         await LoadPageAsync();
     }
 
@@ -293,11 +354,17 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         SourceNosText = string.Empty;
         SkusText = string.Empty;
         CustomerSkusText = string.Empty;
+        SuggestedSupplierKeyword = string.Empty;
+        ActualSupplierKeyword = string.Empty;
+        PurchaseOrderNoFilter = string.Empty;
+        SelectedLifecycle = LifecycleOptions[0];
+        SelectedQuickView = QuickViewOptions[0];
         DemandRequiredDateFrom = null;
         DemandRequiredDateTo = null;
         SelectedDemandRole = DemandRoleOptions[0];
         SelectedSourceTypes.Clear();
         PageIndex = 1;
+        if (IsSourcePanelOpen) await RefreshSourceNavigationAsync(reloadCurrentData: false);
         await LoadPageAsync();
     }
 
@@ -673,6 +740,11 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             SourceNos = SplitLines(SourceNosText),
             Skus = SplitLines(SkusText),
             CustomerSkus = SplitLines(CustomerSkusText),
+            SuggestedPurchaseSupplierKeyword = SuggestedSupplierKeyword.Trim(),
+            ActualPurchaseSupplierKeyword = ActualSupplierKeyword.Trim(),
+            PurchaseOrderNo = PurchaseOrderNoFilter.Trim(),
+            LifecycleStatus = SelectedLifecycle?.Value,
+            QuickView = SelectedQuickView?.Value ?? "All",
             DemandRequiredDateFrom = DemandRequiredDateFrom,
             DemandRequiredDateTo = DemandRequiredDateTo,
             IsCustomerSupplied = SelectedDemandRole?.Value,
@@ -698,12 +770,9 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
     private MaterialDemandManagerSearchRequest CreateSelectedSourceSearchRequest()
     {
-        var request = new MaterialDemandManagerSearchRequest
-        {
-            SourceUid = _appliedSourceUid,
-            PageIndex = 1,
-            PageSize = PageSize,
-        };
+        var request = CreateMainSearchRequest();
+        request.SourceUid = _appliedSourceUid;
+        request.PageIndex = 1;
         if (SelectedSourceGroup is not null)
         {
             request.SourceTypes.Add(SelectedSourceGroup.SourceType);
@@ -715,6 +784,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private MaterialDemandSourceGroupSearchRequest CreateSourceGroupSearchRequest() => new()
     {
         SourceTypes = SourceSourceTypes.Select(item => item.Value).ToList(),
+        LifecycleStatus = SelectedLifecycle?.Value,
     };
 
     /// <summary>
@@ -886,6 +956,8 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private void InitializeDefaults()
     {
         SelectedDemandRole ??= DemandRoleOptions[0];
+        SelectedLifecycle ??= LifecycleOptions[0];
+        SelectedQuickView ??= QuickViewOptions[0];
     }
 
     partial void OnIsAllCheckedChanged(bool? value)
@@ -994,6 +1066,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private bool CanCancelSuggestedSupplierChanges() => IsNotBusy && !_suggestionUnknown && HasUnsavedChanges;
     private bool CanRollbackSourceEstablishment() => CanWrite && IsNotBusy
         && Items.Any(item => item.IsChecked)
+        && Items.Where(item => item.IsChecked).All(item => item.LifecycleStatus == NetDemandLifecycleStatusEnum.Active)
         && Items.Where(item => item.IsChecked)
             .GroupBy(item => item.GrossDemandId)
             .All(group => group.Select(item => item.DecompositionRevision).Distinct().Count() == 1);

@@ -5,7 +5,8 @@
         <ResourceDictionary Source="pack://application:,,,/Wpf.Ui;component/Controls/TextBox/TextBox.xaml"/>
     </ResourceDictionary.MergedDictionaries>
     
-    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <!-- 使用官方命名基样式，避免覆盖同类型隐式键时 BasedOn 解析成空值。 -->
+    <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
         <Style.Triggers>
             <Trigger Property="IsReadOnly" Value="True">
                 <Setter Property="BorderThickness" Value="0" />
@@ -16,7 +17,7 @@
     </Style>
     
     <!-- 全局隐式生效：当前项目中所有 ui:TextBox 在 IsReadOnly=True 时自动无边框 -->
-    <Style TargetType="ui:TextBox" BasedOn="{StaticResource {x:Type ui:TextBox}}">
+    <Style TargetType="ui:TextBox" BasedOn="{StaticResource DefaultUiTextBoxStyle}">
         <Style.Triggers>
             <Trigger Property="IsReadOnly" Value="True">
                 <Setter Property="BorderThickness" Value="0" />
@@ -27,7 +28,7 @@
     </Style>
 
     <!-- 可选：显式命名样式，仅对指定 Style="{StaticResource ReadOnlyNoBorderStyle}" 的控件生效 -->
-    <Style x:Key="ReadOnlyNoBorderStyle" TargetType="ui:TextBox" BasedOn="{StaticResource {x:Type ui:TextBox}}">
+    <Style x:Key="ReadOnlyNoBorderStyle" TargetType="ui:TextBox" BasedOn="{StaticResource DefaultUiTextBoxStyle}">
         <Style.Triggers>
             <Trigger Property="IsReadOnly" Value="True">
                 <Setter Property="BorderThickness" Value="0" />

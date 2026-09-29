@@ -20,6 +20,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
         public string MaterialType { get; set; }
         public string SupplyType { get; set; }
         public decimal Quantity { get; set; }
+        public string UnitSnapshot { get; set; }
         public decimal ReceivedQty { get; set; }
         public decimal UnreceivedQty { get; set; }
         /// <summary>最新已知累计货好数量；空值表示尚未取得数量反馈。</summary>

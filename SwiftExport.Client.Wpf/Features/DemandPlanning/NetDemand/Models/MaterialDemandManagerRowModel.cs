@@ -103,12 +103,23 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     /// <summary>来源需求交期。</summary>
     public DateTime? DemandRequiredDate { get; init; }
     /// <summary>有效采购 Link 的净关联数量。</summary>
-    public decimal AssociatedPurchaseQty { get; init; }
+    public decimal? AssociatedPurchaseQty { get; init; }
+    /// <summary>实际采购供应商摘要，区别于本行推荐供应商。</summary>
+    public string ActualPurchaseSuppliers { get; init; } = string.Empty;
+    /// <summary>有效采购承接进度。</summary>
+    public string ProcurementStatus { get; init; } = string.Empty;
+    /// <summary>服务端确定的交期提示。</summary>
+    public string DueHint { get; init; } = string.Empty;
+    /// <summary>无法证明来源或采购数量时的原因。</summary>
+    public string ReviewReason { get; init; } = string.Empty;
+    /// <summary>历史物料只允许追踪，不允许编辑建议。</summary>
+    public bool IsSuggestionEditable => LifecycleStatus == NetDemandLifecycleStatusEnum.Active;
     /// <summary>有效采购 Link 对应的采购单号。</summary>
     public string PurchaseOrderNos { get; init; } = string.Empty;
 
     /// <summary>当前尚未被有效采购 Link 承接的数量。</summary>
-    public decimal RemainingQty => Math.Max(0m, NetQty - AssociatedPurchaseQty);
+    public decimal? RemainingQty => AssociatedPurchaseQty.HasValue
+        ? Math.Max(0m, NetQty - AssociatedPurchaseQty.Value) : null;
 
     /// <summary>推荐采购供应商是否有尚未保存的本地修改。</summary>
     public bool IsSuggestionDirty => SuggestedPurchaseSupplierId != _originalSuggestedPurchaseSupplierId;
@@ -169,7 +180,7 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     [RelayCommand]
     private void CommitSuggestedSupplierSelection(ProcurementSupplierCandidateDto? supplier)
     {
-        if (supplier is not null)
+        if (IsSuggestionEditable && supplier is not null)
         {
             ApplySuggestedSupplier(supplier);
         }
@@ -177,7 +188,10 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
 
     /// <summary>只响应 Lookup 清除按钮的显式清空操作。</summary>
     [RelayCommand]
-    private void ClearSuggestedSupplierSelection() => ClearSuggestedSupplier();
+    private void ClearSuggestedSupplierSelection()
+    {
+        if (IsSuggestionEditable) ClearSuggestedSupplier();
+    }
 
     /// <summary>接纳 Lookup 中明确选择的供应商并保留本地脏状态。</summary>
     public void ApplySuggestedSupplier(ProcurementSupplierCandidateDto supplier)

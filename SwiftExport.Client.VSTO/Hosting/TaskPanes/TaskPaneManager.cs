@@ -1,74 +1,121 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Windows.Forms;
+using System.Runtime.InteropServices;
 using Microsoft.Office.Tools;
+using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.Client.VSTO.Authentication;
+using SwiftExport.Client.VSTO.Diagnostics;
 using ExcelInterop = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
 {
-    /// <summary>按 Excel 窗口创建独立窗格，定时核对已关闭窗口以处理关闭取消和句柄失效。</summary>
+    /// <summary>沿用 MateExcel 的 HWND＋页面标识索引及点击切换；不定时枚举 COM 窗口删除窗格。</summary>
     public sealed class TaskPaneManager : IDisposable
     {
         private readonly CustomTaskPaneCollection panes;
-        private readonly ExcelInterop.Application application;
-        private readonly List<TaskPaneSession> sessions = new List<TaskPaneSession>();
-        private readonly Timer timer = new Timer { Interval = 1500 };
-        /// <summary>借用宿主窗格集合；关闭期间不移除已被 VSTO 自动释放的窗格。</summary>
-        public TaskPaneManager(CustomTaskPaneCollection panes, ExcelInterop.Application application)
-        { this.panes = panes; this.application = application; timer.Tick += Reconcile; }
-        /// <summary>为指定窗口添加窗格，资源所有者随窗格会话释放。</summary>
-        public void Show(ExcelInterop.Window window, string title, System.Windows.UIElement content, IDisposable scope)
+        private readonly AddInLog log;
+        private readonly IServiceProvider provider;
+        private readonly TaskPaneRegistrar registrar;
+        private readonly SessionService authentication;
+        private readonly Dictionary<string, TaskPaneSession> sessions = new Dictionary<string, TaskPaneSession>();
+        private bool disposed;
+        /// <summary>借用宿主窗格集合与 COM 身份，不主动释放共享 RCW。</summary>
+        public TaskPaneManager(CustomTaskPaneCollection panes, AddInLog log,
+            IServiceProvider provider, TaskPaneRegistrar registrar, SessionService authentication)
         {
-            var host = new TaskPaneHostControl(content);
+            this.panes = panes; this.log = log;
+            this.provider = provider; this.registrar = registrar; this.authentication = authentication;
+        }
+
+        /// <summary>按示例点击切换显示／隐藏；复用时不创建 Scope、不覆盖用户调整的尺寸。</summary>
+        public void TogglePane(ExcelInterop.Window window, string key)
+        {
+            TaskPaneHostControl host = null;
             CustomTaskPane pane = null;
+            IServiceScope scope = null;
             try
             {
-                pane = panes.Add(host, title, window);
-                pane.Visible = true;
-                sessions.Add(new TaskPaneSession(pane, host, scope, window));
-                timer.Start();
-            }
-            catch { if (pane != null) panes.Remove(pane); host.Dispose(); scope?.Dispose(); throw; }
-        }
-        // BeforeClose 可以取消，因此只在实际窗口集合变化后释放；Excel 忙时下轮再核对。
-        private void Reconcile(object sender, EventArgs args)
-        {
-            try
-            {
-                var live = new List<ExcelInterop.Window>();
-                foreach (ExcelInterop.Window window in application.Windows) live.Add(window);
-                for (var i = sessions.Count - 1; i >= 0; i--)
+                if (disposed) throw new ObjectDisposedException(nameof(TaskPaneManager));
+                if (window == null || authentication.Capture().User == null) return;
+                if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("窗格页面键不能为空", nameof(key));
+                var config = registrar.Get(key);
+                var owner = new IntPtr(window.Hwnd);
+                var instanceKey = owner.ToInt64() + "_" + key;
+                TaskPaneSession existing;
+                if (sessions.TryGetValue(instanceKey, out existing))
                 {
-                    var session = sessions[i];
-                    if (live.Contains(session.Window)) continue;
-                    try { panes.Remove(session.Pane); }
-                    catch (System.Runtime.InteropServices.COMException) { }
-                    catch (ObjectDisposedException) { }
-                    finally { session.Dispose(); sessions.RemoveAt(i); }
+                    bool visible;
+                    try { visible = existing.Pane.Visible; }
+                    catch (ObjectDisposedException) { Remove(instanceKey, existing); visible = false; existing = null; }
+                    catch (COMException ex) when (ex.ErrorCode == unchecked((int)0x80010108) || ex.ErrorCode == unchecked((int)0x800401FD))
+                    {
+                        // 只把已断开的 COM 对象视为失效；Excel 忙碌错误保留原页面并交给入口报告。
+                        Remove(instanceKey, existing); visible = false; existing = null;
+                    }
+                    if (existing != null)
+                    {
+                        existing.Pane.Visible = !visible;
+                        return;
+                    }
                 }
-                if (sessions.Count == 0) timer.Stop();
+                scope = provider.CreateScope();
+                scope.ServiceProvider.GetRequiredService<TaskPaneContext>().Handle = owner;
+                host = new TaskPaneHostControl();
+                host.LoadWpfUI((System.Windows.UIElement)scope.ServiceProvider.GetRequiredService(config.ViewType));
+                pane = panes.Add(host, config.Title, window);
+                pane.DockPosition = config.DockPosition == System.Windows.Controls.Dock.Left
+                    ? Office.MsoCTPDockPosition.msoCTPDockPositionLeft
+                    : Office.MsoCTPDockPosition.msoCTPDockPositionRight;
+                // 留出工作表操作空间；创建后不再覆盖用户调整的宽度和停靠位置。
+                pane.Width = config.DefaultWidth;
+                pane.Visible = true;
+                sessions.Add(instanceKey, new TaskPaneSession(pane, host, scope));
+                host = null; pane = null; scope = null;
             }
-            catch (System.Runtime.InteropServices.COMException) { }
+            finally
+            {
+                if (pane != null) Cleanup(() => panes.Remove(pane));
+                if (host != null) Cleanup(host.Dispose);
+                if (scope != null) Cleanup(scope.Dispose);
+            }
         }
-        /// <summary>停止观察并释放自有资源，集合最终销毁由 VSTO 负责。</summary>
+
+        // 仅在再次访问确认失效后移出索引；不使用 RCW 引用比较推断 Excel 窗口已关闭。
+        private void Remove(string instanceKey, TaskPaneSession session)
+        {
+            sessions.Remove(instanceKey);
+            Cleanup(() => panes.Remove(session.Pane));
+            Cleanup(session.Dispose);
+        }
+        private void Cleanup(Action action)
+        { try { action(); } catch (Exception ex) { log.Write("TaskPaneCleanupFailure", ex); } }
+
+        /// <summary>插件退出释放全部缓存页面；窗格集合最终销毁由 VSTO 负责。</summary>
         public void Dispose()
         {
-            timer.Stop(); timer.Tick -= Reconcile; timer.Dispose();
-            foreach (var session in sessions) session.Dispose();
+            if (disposed) return;
+            disposed = true;
+            foreach (var session in sessions.Values) Cleanup(session.Dispose);
             sessions.Clear();
         }
     }
-    /// <summary>保持窗口 COM 身份而非只用可复用 HWND，窗口结束后释放引用。</summary>
+    /// <summary>保存窗格和页面 Scope；隐藏不释放，失效重建或插件退出释放。</summary>
     internal sealed class TaskPaneSession : IDisposable
     {
         private readonly TaskPaneHostControl host;
         private readonly IDisposable scope;
         private bool disposed;
         internal CustomTaskPane Pane { get; }
-        internal ExcelInterop.Window Window { get; private set; }
-        internal TaskPaneSession(CustomTaskPane pane, TaskPaneHostControl host, IDisposable scope, ExcelInterop.Window window)
-        { Pane = pane; this.host = host; this.scope = scope; Window = window; }
-        /// <summary>幂等断开 UI 和作用域，不强制释放共享 COM RCW。</summary>
-        public void Dispose() { if (disposed) return; disposed = true; host.Dispose(); scope?.Dispose(); Window = null; }
+        internal TaskPaneSession(CustomTaskPane pane, TaskPaneHostControl host, IDisposable scope)
+        { Pane = pane; this.host = host; this.scope = scope; }
+        /// <summary>即使宿主控件释放失败也释放 Scope，解绑页面事件并取消查询。</summary>
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true;
+            try { host.Dispose(); }
+            finally { scope?.Dispose(); }
+        }
     }
 }

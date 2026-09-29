@@ -26,9 +26,9 @@ public sealed class NetDemandManagerSqlContractTests
         Assert.IsFalse(
             source.Contains("WITH MaterialWorkspace AS", StringComparison.Ordinal),
             "SQL Server CTE 只能服务紧随其后的一条语句，不能同时供统计和分页查询复用。");
-        StringAssert.Contains(
-            source,
-            "COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),N'PCS') AS [Unit]");
+        StringAssert.Contains(source, "unitFacts.[Unit] AS [Unit]");
+        StringAssert.Contains(source, "WHEN unitFacts.[Unit] IS NULL THEN N'物料单位需核实'");
+        StringAssert.Contains(source, "WHERE {quickWhere}");
         StringAssert.Contains(source, "!request.SourceUid.HasValue");
         StringAssert.Contains(source, "gd.[SourceUid]=@SelectedSourceUid");
         StringAssert.Contains(source, "SearchMaterialSourceGroupsAsync");

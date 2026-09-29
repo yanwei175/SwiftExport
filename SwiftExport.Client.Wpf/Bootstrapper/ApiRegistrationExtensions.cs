@@ -108,11 +108,13 @@ public static class ApiRegistrationExtensions
     {
         services.AddControllerApi<ISalesOrderManagerApi>("sales-orders/manager");
         services.AddControllerApi<ISalesOrderDetailApi>("sales-orders/detail");
+        services.AddControllerApi<ISalesFulfillmentApi>("sales-orders/fulfillment");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandManagerApi>("demand-planning/net-demands");
         services.AddControllerApi<IPurchaseDraftApi>("procurement/purchase-drafts");
         services.AddControllerApi<IProcurementOrderApi>("procurement/orders");
         services.AddControllerApi<IPurchaseOrderManagerApi>("procurement/order-manager");
+        services.AddControllerApi<IPurchaseOrderTraceApi>("procurement/purchase-order-trace");
         services.AddControllerApi<IPurchaseOrderProgressApi>("procurement/purchase-order-progress");
         services.AddControllerApi<IProcurementMasterDataQueryApi>("master-data/procurement-lookups");
     }

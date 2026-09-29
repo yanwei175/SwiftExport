@@ -66,6 +66,7 @@
                     <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="0,0,8,0"/>
 
                     <Button Content="采购跟进" Command="{Binding OpenFollowUpCommand}" Margin="0,0,8,0"/>
+                    <Button Content="采购追溯" Command="{Binding OpenTraceCommand}" Margin="0,0,8,0"/>
 
                     <Separator Margin="0,0,8,0"/>
 
@@ -86,6 +87,20 @@
                                            ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.LifecycleStatuses}"
                                            DisplayConverter="{StaticResource EnumDescriptionConverter}"
                                            SelectedItems="{Binding SelectedLifecycleStatuses,Mode=OneWay}"/>
+                    <controls:DropDownCheckBox Placeholder="货好状态" Width="110" Margin="0,0,8,0"
+                                           ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.ReadyStatuses}"
+                                           DisplayConverter="{StaticResource EnumDescriptionConverter}"
+                                           SelectedItems="{Binding SelectedReadyStatuses,Mode=OneWay}"/>
+                    <controls:DropDownCheckBox Placeholder="收货状态" Width="105" Margin="0,0,8,0"
+                                           ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.ReceiptStatuses}"
+                                           DisplayConverter="{StaticResource EnumDescriptionConverter}"
+                                           SelectedItems="{Binding SelectedReceiptStatuses,Mode=OneWay}"/>
+                    <ComboBox Width="130" Margin="0,0,8,0" ItemsSource="{x:Static vm:PurchaseOrderManagerViewModel.DueViews}"
+                              SelectedItem="{Binding SelectedDueView}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDescriptionConverter}}"/></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                     
                     <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Grid.Column="10" Margin="0,0,8,0"
                               HorizontalAlignment="Left" />
@@ -201,9 +216,16 @@
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="预计交期" Binding="{Binding ExpectedDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="回复交期" Binding="{Binding ReplyDate,StringFormat=yyyy-MM-dd}" Width="105"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="行数" Binding="{Binding LineCount}" Width="60"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="货好状态" Binding="{Binding ReadyStatus,Converter={StaticResource EnumDescriptionConverter}}" Width="105"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="收货状态" Binding="{Binding ReceiptStatus,Converter={StaticResource EnumDescriptionConverter}}" Width="95"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="已知已备好合计" Binding="{Binding LatestReadyQty,StringFormat={}{0:0.####}}" Width="120"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="总数量" Binding="{Binding TotalQty,StringFormat=N1}" Width="95"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="单位" Binding="{Binding UnitSnapshot}" Width="70"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="收货进度" Binding="{Binding ReceiptProgress}" Width="100"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="交期命中行" Binding="{Binding DueHitLineCount}" Width="95"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="最早命中交期" Binding="{Binding EarliestDueHitDate,StringFormat=yyyy-MM-dd}" Width="110"/>
+                        <DataGridCheckBoxColumn Header="货好未确认" Binding="{Binding HasUnconfirmedReadyRisk}" Width="105"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="核实提示" Binding="{Binding ReviewReason}" Width="220"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="含税总金额" Binding="{Binding TaxTotalAmount,StringFormat=N2}" Width="110"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="已反馈行数" Binding="{Binding ReportedLineCount}" Width="90"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="预计完成" Binding="{Binding ExpectedCompletionDate,StringFormat=yyyy-MM-dd}" Width="105"/>
@@ -281,6 +303,7 @@
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="物料类型" Binding="{Binding MaterialType}" Width="85"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="供货方式" Binding="{Binding SupplyType}" Width="85"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="数量" Binding="{Binding Quantity,StringFormat=N1}" Width="85"/>
+                        <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="单位" Binding="{Binding UnitSnapshot}" Width="65"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="未收货" Binding="{Binding UnreceivedQty,StringFormat=N1}" Width="85"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="已备好" Binding="{Binding LatestReadyQtyText}" Width="105"/>
                         <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="计划交期" Binding="{Binding PlannedDeliveryDate,StringFormat=yyyy-MM-dd}" Width="105"/>

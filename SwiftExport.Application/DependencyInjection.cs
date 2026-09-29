@@ -176,6 +176,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<ISalesOrderQueryService, SalesOrderQueryService>();
+        services.AddScoped<ISalesFulfillmentQueryService, SalesFulfillmentQueryService>();
         services.AddScoped<ISalesOrderDraftService, SalesOrderDraftService>();
         services.AddScoped<ISalesOrderCancellationService, SalesOrderCancellationService>();
         services.AddScoped<ISalesOrderLifecycleService, SalesOrderLifecycleService>();
@@ -214,6 +215,7 @@ public static class DependencyInjection
         services.AddScoped<IProcurementOrderReversalService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Reversal.ProcurementOrderReversalService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Query.ProcurementOrderQueryService>();
         services.AddScoped<IPurchaseOrderManagerQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Query.PurchaseOrderManagerQueryService>();
+        services.AddScoped<IPurchaseOrderTraceService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Trace.PurchaseOrderTraceService>();
         services.AddScoped<IPurchaseOrderProgressQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.PurchaseOrderProgressQueryService>();
         services.AddScoped<IPurchaseOrderProgressReportService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.PurchaseOrderProgressReportService>();
         services.AddScoped<IBomExecutionReader, SwiftExport.Application.Services.Products.Execution.BomExecutionReader>();
