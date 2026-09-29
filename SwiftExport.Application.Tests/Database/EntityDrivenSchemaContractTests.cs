@@ -30,6 +30,8 @@ public sealed class EntityDrivenSchemaContractTests
         Assert.IsFalse(Regex.IsMatch(first, @"\bFOREIGN\s+KEY\b|\bREFERENCES\b", RegexOptions.IgnoreCase));
         StringAssert.Contains(first, "CREATE SEQUENCE [dbo].[InventoryLedgerSequence]");
         StringAssert.Contains(first, "CREATE TABLE [dbo].[DemandExecutionLink]");
+        StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelFieldMapping]");
+        StringAssert.Contains(first, "CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header]");
         StringAssert.Contains(first, "@name=N'MS_Description'");
         StringAssert.Contains(first, "@level1type=N'TABLE', @level1name=N'Customer';");
         StringAssert.Contains(first, "@level2type=N'COLUMN', @level2name=N'CustomerCode';");
@@ -72,7 +74,7 @@ public sealed class EntityDrivenSchemaContractTests
         CollectionAssert.AreEqual(new[]
         {
             "ProductCategory", "ProductColor", "Supplier", "Customer", "SysDicCurrency",
-            "SysDicCurrencyExchange", "SysDictType", "SysDictData", "SysRoles", "SysUser",
+            "SysDicCurrencyExchange", "SysDictType", "SysDictData", "ExcelFieldMapping", "SysRoles", "SysUser",
             "ProductMaster", "Product", "ProductNeutral", "ProductDetails",
             "ProductPackage", "Bom", "CustomerPoConfig", "CustomerProduct", "SupplierProduct",
             "WarehouseSite", "SysPermissionDefinitions", "SysRole_Permissions", "SysUser_Roles"

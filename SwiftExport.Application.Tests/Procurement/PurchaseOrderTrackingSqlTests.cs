@@ -93,6 +93,17 @@ public sealed class PurchaseOrderTrackingSqlTests
             INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
             VALUES(NEWID(),N'IR-TRACE-UNVERIFIED',10,0,0,8,@site,SYSUTCDATETIME());
             """, new { site = db.ReceiptSiteId });
+        var unrelatedReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));
+        Assert.IsTrue(unrelatedReceipt.Success, unrelatedReceipt.Message);
+        var purchaseLineId = await db.ScalarAsync<Guid>(
+            "SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid ORDER BY LineNumber", new { uid });
+        await db.ExecuteAsync("""
+            DECLARE @receipt uniqueidentifier=NEWID();
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(@receipt,N'IR-TRACE-RELATED',10,0,0,8,@site,SYSUTCDATETIME());
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)
+            VALUES(NEWID(),@receipt,1,@productId,N'TEST-FG',N'PCS',1,@purchaseLineId);
+            """, new { site = db.ReceiptSiteId, productId = db.ProductId, purchaseLineId });
         var unknownReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));
         Assert.IsFalse(unknownReceipt.Success);
         StringAssert.Contains(unknownReceipt.Message, "收货量未知");

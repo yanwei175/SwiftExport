@@ -15,7 +15,10 @@ public sealed class PurchaseOrderTraceRepository(RepositoryBaseContext context) 
         CancellationToken cancellationToken = default)
     {
         using var grid = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
-            InboundReceiptHistorySql.Guard + TraceSql,
+            """
+            SELECT Uid AS PurchaseLineId INTO #TracePurchaseLines
+            FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@PurchaseOrderId;
+            """ + InboundReceiptHistorySql.ScopedGuard + TraceSql + "DROP TABLE #TracePurchaseLines;",
             new { PurchaseOrderId = purchaseOrderId, PurchaseReceipt = (int)InboundDocumentTypeEnum.PurchaseReceipt,
                 FormalPostingStatuses = new[] { (int)InboundPostingStatusEnum.Posted, (int)InboundPostingStatusEnum.Reversed } },
             context.Session.Transaction, cancellationToken: cancellationToken));

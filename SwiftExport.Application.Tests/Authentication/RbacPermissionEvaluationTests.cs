@@ -51,6 +51,21 @@ public sealed class RbacPermissionEvaluationTests
         Assert.IsFalse(await service.HasPermissionAsync(userId, "System.Users.Manage"));
     }
 
+    /// <summary>普通角色获显式授权后可维护字段映射，未获授权时不可维护。</summary>
+    [TestMethod]
+    public async Task AssignedRole_CanManageExcelFieldMappings()
+    {
+        var userId = Guid.NewGuid();
+        var service = new PermissionEvaluationService(new FactsRepository(new UserPermissionFacts
+        {
+            UserId = userId, IsActive = true, RoleCodes = ["IMPORT_CONFIG_ADMIN"],
+            PermissionKeys = [PermissionKeys.SystemExcelFieldMappingManage]
+        }));
+
+        Assert.IsTrue(await service.HasPermissionAsync(userId, PermissionKeys.SystemExcelFieldMappingManage));
+        Assert.IsFalse(await service.HasPermissionAsync(userId, PermissionKeys.SystemUsersManage));
+    }
+
     /// <summary>内置管理员自动拥有完整代码目录，未知键仍被拒绝。</summary>
     [TestMethod]
     public async Task SystemAdministrator_HasCatalogOnly()
@@ -68,6 +83,7 @@ public sealed class RbacPermissionEvaluationTests
         Assert.IsTrue(projection.IsAdmin);
         Assert.AreEqual(PermissionCatalog.All.Count, projection.Permissions.Count);
         Assert.IsTrue(await service.HasPermissionAsync(userId, "System.Users.Manage"));
+        Assert.IsTrue(await service.HasPermissionAsync(userId, PermissionKeys.SystemExcelFieldMappingManage));
         Assert.IsFalse(await service.HasPermissionAsync(userId, "Unknown.Permission"));
     }
 

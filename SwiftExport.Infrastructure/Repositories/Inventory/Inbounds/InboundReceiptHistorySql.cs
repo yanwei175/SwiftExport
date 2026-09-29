@@ -3,10 +3,17 @@ namespace SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 /// <summary>净收货查询共享的历史门禁：已反过账只有完整原/反向流水证明时才可按零贡献处理。</summary>
 internal static class InboundReceiptHistorySql
 {
+    /// <summary>追踪查询只检查与当前采购行关联的入库单；相关单据仍执行与全局门禁相同的反向证明。</summary>
+    internal static readonly string ScopedGuard = Guard.Replace(
+        "/* RECEIPT_SCOPE */",
+        "AND EXISTS (SELECT 1 FROM dbo.InboundDocumentLine scopeLine JOIN #TracePurchaseLines scope ON scope.PurchaseLineId=scopeLine.SourceLineId WHERE scopeLine.InboundDocumentId=h.Uid)",
+        StringComparison.Ordinal);
+
     /// <summary>只读检查，不迁移历史、不把旧负数反向单或不完整反向事实当作零收货。</summary>
     internal const string Guard = """
         IF EXISTS(SELECT 1 FROM dbo.InboundDocument h
             WHERE h.IsDeleted=0 AND h.PostingStatus IN(1,8) AND h.DocumentType=10
+            /* RECEIPT_SCOPE */
             AND (
                 NOT EXISTS(SELECT 1 FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid AND l.IsDeleted=0)
                 OR EXISTS(SELECT 1 FROM dbo.InboundDocumentLine l WHERE l.InboundDocumentId=h.Uid AND l.IsDeleted=0

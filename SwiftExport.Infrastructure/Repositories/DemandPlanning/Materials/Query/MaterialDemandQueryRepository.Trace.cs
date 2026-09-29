@@ -11,7 +11,12 @@ public sealed partial class MaterialDemandQueryRepository
     /// <inheritdoc/>
     public async Task<MaterialDemandTraceDetailDto?> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        var sql = InboundReceiptHistorySql.Guard + """
+        // 当前物料的历史 Link 同样需要反向证明；其他采购行的异常不阻断本页。
+        var sql = """
+            SELECT DISTINCT TargetLineId AS PurchaseLineId INTO #TracePurchaseLines
+            FROM dbo.DemandExecutionLink
+            WHERE NetDemandId=@Uid AND TargetType=N'PO';
+            """ + InboundReceiptHistorySql.ScopedGuard + """
             SELECT n.Uid AS NetDemandId,n.GrossDemandId,g.SourceType,g.SourceNo,g.SourceLineNumber,
                    n.DecompositionRevision,n.LineNumber,n.LifecycleStatus,n.SkuSnapshot AS Sku,
                    COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
@@ -168,6 +173,7 @@ public sealed partial class MaterialDemandQueryRepository
             WHERE l.NetDemandId=@Uid AND l.TargetType=N'PO'
             ORDER BY poh.OrderNo,pol.LineNumber,l.Uid;
             DROP TABLE #MaterialReceiptCoverage;
+            DROP TABLE #TracePurchaseLines;
             """;
 
         using var multi = await Connection.QueryMultipleAsync(new CommandDefinition(

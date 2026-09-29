@@ -38,7 +38,10 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        Assert.AreEqual(219, routes.Count);
+        Assert.AreEqual(222, routes.Count);
+        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.CreateAsync"]);
+        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.UpdateAsync"]);
+        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.DeleteAsync"]);
         Assert.AreEqual("Procurement.Order.Read", routes["PurchaseOrderTraceController.GetAsync"]);
         foreach (var (action, key) in routes)
         {
@@ -101,8 +104,28 @@ public sealed class EndpointPermissionFilterTests
         Assert.IsTrue((await ExecuteAsync(candidate, ["Procurement.Order.Confirm"])).Continued);
     }
 
+    /// <summary>映射读取只要求有效身份，不触发单独业务权限检查。</summary>
+    [TestMethod]
+    public async Task ExcelFieldMappingReads_RequireIdentityButNoBusinessPermission()
+    {
+        foreach (var action in new[]
+        {
+            "ExcelFieldMappingController.GetGroupsAsync", "ExcelFieldMappingController.GetFieldsAsync",
+            "ExcelFieldMappingController.GetMappingsAsync"
+        })
+        {
+            var allowed = await ExecuteAsync(action, []);
+            Assert.IsTrue(allowed.Continued, action);
+            Assert.HasCount(0, allowed.RequestedKeys, action);
+
+            var denied = await ExecuteAsync(action, [], authenticated: false);
+            Assert.IsFalse(denied.Continued, action);
+            Assert.AreEqual(ServiceErrorCodes.Unauthenticated, denied.ErrorCode, action);
+        }
+    }
+
     /// <summary>用真实 ActionExecutingContext 执行过滤器，并记录实际检查的权限键。</summary>
-    private static async Task<Outcome> ExecuteAsync(string action, IReadOnlyCollection<string> allowed, object? request = null)
+    private static async Task<Outcome> ExecuteAsync(string action, IReadOnlyCollection<string> allowed, object? request = null, bool authenticated = true)
     {
         var descriptor = MvcActions.Value.TryGetValue(action, out var actual)
             ? actual
@@ -118,7 +141,7 @@ public sealed class EndpointPermissionFilterTests
         if (request is not null) arguments["request"] = request;
         var context = new ActionExecutingContext(actionContext, filters, arguments, new object());
         var evaluator = new PermissionStub(allowed);
-        var filter = new EndpointPermissionFilter(new UserStub(), evaluator);
+        var filter = new EndpointPermissionFilter(new UserStub(authenticated), evaluator);
         var continued = false;
         await filter.OnActionExecutionAsync(context, () =>
         {
@@ -163,14 +186,14 @@ public sealed class EndpointPermissionFilterTests
     }
 
     /// <summary>测试身份始终已登录，以便精确验证业务权限分支。</summary>
-    private sealed class UserStub : ICurrentUser
+    private sealed class UserStub(bool authenticated) : ICurrentUser
     {
         /// <summary>提供测试身份显示名，不参与授权决策。</summary>
         public string UserName => "permission-test";
         /// <summary>提供当前测试用户标识。</summary>
         public Guid? UserId { get; } = Guid.NewGuid();
         /// <summary>将测试会话固定为有效登录。</summary>
-        public bool IsAuthenticated => true;
+        public bool IsAuthenticated => authenticated;
     }
 
     /// <summary>按显式键答复权限检查，并记录过滤器实际请求的每个键。</summary>

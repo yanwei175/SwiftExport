@@ -29,7 +29,9 @@
             <TextBlock Text="布局预览 · 业务操作待页面审批后接入" Margin="0,4,0,10"
                        Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"/>
             <WrapPanel>
-                <ui:Button Content="从选区解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <ui:Button Content="采购单头解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <ui:Button Content="采购产品解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <ui:Button Content="校验采购采购（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
                 <ui:Button Content="保存草稿（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
             </WrapPanel>
         </StackPanel>
@@ -151,6 +153,7 @@
                         </Grid.RowDefinitions>
                         <TextBlock Text="采购行" FontWeight="SemiBold" Margin="0,0,0,8"/>
                         <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                            <ui:Button Content="采购产品解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
                             <ui:Button Content="新增采购行（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
                             <ui:Button Content="删除选定行（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
                         </WrapPanel>

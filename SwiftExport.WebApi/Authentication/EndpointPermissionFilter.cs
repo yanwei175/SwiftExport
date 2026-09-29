@@ -18,6 +18,9 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["AuthController.Register"] = PermissionKeys.SystemUsersManage,
         ["AuthController.ResetUserPassword"] = PermissionKeys.SystemUsersManage,
         ["AuthController.GetUsers"] = PermissionKeys.SystemUsersView,
+        ["ExcelFieldMappingController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
+        ["ExcelFieldMappingController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
+        ["ExcelFieldMappingController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["CustomerProductController.GetById"] = PermissionKeys.CustomersProductsView,
         ["CustomerProductController.Create"] = PermissionKeys.CustomersProductsCreate,
         ["CustomerProductController.Update"] = PermissionKeys.CustomersProductsEdit,
@@ -262,6 +265,13 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         "FileController.Download", "ClientVersionController.Get"
     };
 
+    // 已登录用户均可读取配置；此集合只在身份校验通过后放行。
+    private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
+    {
+        "ExcelFieldMappingController.GetGroupsAsync", "ExcelFieldMappingController.GetFieldsAsync",
+        "ExcelFieldMappingController.GetMappingsAsync"
+    };
+
     /// <summary>请求进入业务 Action 前检查稳定键；批量保存按每种实际操作分别检查。</summary>
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
@@ -282,6 +292,12 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         if (!currentUser.IsAuthenticated || userId == Guid.Empty)
         {
             Deny(context, ServiceErrorCodes.Unauthenticated, "登录状态无效，请重新登录。");
+            return;
+        }
+
+        if (AuthenticatedReadActions.Contains(action))
+        {
+            await next();
             return;
         }
 

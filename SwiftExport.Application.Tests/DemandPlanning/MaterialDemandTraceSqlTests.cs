@@ -48,6 +48,10 @@ public sealed class MaterialDemandTraceSqlTests
             VALUES(NEWID(),@receipt,1,@productId,N'SKU',N'PCS',7,@line);
             """, new { demand, first, second, order, line, customerId = db.CustomerId,
                 supplierId = db.SupplierId, warehouseId = db.ReceiptSiteId, productId = db.ProductId });
+        await db.ExecuteAsync("""
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(NEWID(),N'IR-MATERIAL-UNRELATED',10,0,0,8,@site,'2026-09-03');
+            """, new { site = db.ReceiptSiteId });
 
         var list = await db.InScopeAsync(p => p.GetRequiredService<IMaterialDemandQueryService>()
             .SearchManagerAsync(new MaterialDemandManagerSearchRequest

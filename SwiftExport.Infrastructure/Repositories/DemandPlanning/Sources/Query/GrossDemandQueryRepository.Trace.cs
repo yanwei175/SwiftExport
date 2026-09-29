@@ -11,7 +11,13 @@ public sealed partial class GrossDemandQueryRepository
     /// <inheritdoc/>
     public async Task<GrossDemandTraceDetailDto?> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        var sql = InboundReceiptHistorySql.Guard + """
+        // 历史 Link 仍可能对应正式收货；只审查本来源实际关联的采购行。
+        var sql = """
+            SELECT DISTINCT link.TargetLineId AS PurchaseLineId INTO #TracePurchaseLines
+            FROM dbo.NetDemand net
+            JOIN dbo.DemandExecutionLink link ON link.NetDemandId=net.Uid
+            WHERE net.GrossDemandId=@Uid AND link.TargetType=N'PO';
+            """ + InboundReceiptHistorySql.ScopedGuard + """
             SELECT g.Uid AS GrossDemandId,g.SourceType,g.SourceUid,g.SourceLineId,g.SourceNo,g.SourceLineNumber,
                    ISNULL(c.CustomerName,N'') AS CustomerName,g.SkuSnapshot AS Sku,
                    ISNULL(g.CustomerSkuSnapshot,N'') AS CustomerSku,ISNULL(g.UnitSnapshot,N'') AS Unit,
@@ -173,6 +179,7 @@ public sealed partial class GrossDemandQueryRepository
                     OR pl.UnitSnapshot<>g.UnitSnapshot
                     OR (ph.PostingStatus IN (1,8) AND ph.PostedDate IS NULL)
                     OR (ph.PostingStatus=8 AND ph.ReversedDate IS NULL))));
+            DROP TABLE #TracePurchaseLines;
             """;
         using var multi = await Connection.QueryMultipleAsync(new CommandDefinition(
             sql, new { Uid = uid }, Transaction, cancellationToken: cancellationToken));
@@ -198,18 +205,20 @@ public sealed partial class GrossDemandQueryRepository
         };
         var invalidPackingHistoryCount = await multi.ReadSingleAsync<int>();
         // 来源自身与全部关联箱单历史都可证明时才给出确定的交付净额。
-        detail.ReviewReason = header.SourceUid == Guid.Empty || header.SourceLineId == Guid.Empty
+        var sourceReviewReason = header.SourceUid == Guid.Empty || header.SourceLineId == Guid.Empty
             || string.IsNullOrWhiteSpace(header.SourceNo)
             || header.SourceType is not ("MD" or "SO" or "CR")
             || (header.SourceType == "MD" ? header.SourceVersion is not null : header.SourceVersion is null or <= 0)
             || header.DemandBasisFingerprint is not { Length: 64 }
             || header.DemandBasisFingerprint.Any(ch => !((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F')))
-            ? "来源身份、版本或需求指纹需核实" :
-            header.CustomerId is null ? "来源客户缺失" :
+            ? "来源身份、版本或需求指纹需核实" : string.Empty;
+        var deliveryReviewReason = header.CustomerId is null ? "来源客户缺失" :
             string.IsNullOrWhiteSpace(header.Unit) ? "来源单位缺失" :
             invalidPackingHistoryCount>0 || detail.Deliveries.Any(row => !string.IsNullOrEmpty(row.ReviewReason))
                 ? "装箱历史客户、来源、数量或单位需核实" : string.Empty;
-        detail.DeliveredQty = string.IsNullOrEmpty(detail.ReviewReason)
+        detail.ReviewReason = string.Join("；", new[] { sourceReviewReason, deliveryReviewReason }
+            .Where(reason => !string.IsNullOrEmpty(reason)));
+        detail.DeliveredQty = string.IsNullOrEmpty(deliveryReviewReason)
             ? detail.Deliveries.Where(row => row.CountsTowardDelivery).Sum(row => row.Qty)
             : null;
         return detail;

@@ -104,11 +104,20 @@ public sealed class GrossDemandTraceSqlTests
         Assert.IsNull(trace.Data!.Materials.Single(row => row.NetDemandId == material).ActivePurchaseQty);
         StringAssert.Contains(trace.Data.Materials.Single(row => row.NetDemandId == material).ReviewReason, "需核实");
 
-        // 反向标志没有原/反向库存流水证明时，整行实收保持未知，不允许作为零收货展示。
+        // 无关历史不阻断本来源；相关反向缺少流水证明时整行实收保持未知。
         await db.ExecuteAsync("""
             INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
             VALUES(NEWID(),N'IR-UNVERIFIED-REVERSE',10,0,0,8,@warehouseId,'2026-09-03');
             """, new { warehouseId = db.ReceiptSiteId });
+        var unaffected = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));
+        Assert.IsTrue(unaffected.Success, unaffected.Message);
+        await db.ExecuteAsync("""
+            DECLARE @receipt uniqueidentifier=NEWID();
+            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
+            VALUES(@receipt,N'IR-RELATED-REVERSE',10,0,0,8,@warehouseId,'2026-09-03');
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)
+            VALUES(NEWID(),@receipt,1,@productId,N'TEST-B',N'KG',2,@line);
+            """, new { warehouseId = db.ReceiptSiteId, productId = db.ComponentId, line });
         var uncertain = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));
         Assert.IsFalse(uncertain.Success);
         StringAssert.Contains(uncertain.Message, "收货量未知");
@@ -152,7 +161,7 @@ public sealed class GrossDemandTraceSqlTests
         await db.ExecuteAsync("UPDATE dbo.GrossDemand SET DemandBasisFingerprint=NULL WHERE Uid=@first", new { first });
         var unverified = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(first));
         Assert.IsTrue(unverified.Success, unverified.Message);
-        Assert.IsNull(unverified.Data!.DeliveredQty);
+        Assert.AreEqual(4m, unverified.Data!.DeliveredQty);
         StringAssert.Contains(unverified.Data.ReviewReason, "指纹");
         await db.ExecuteAsync("UPDATE dbo.GrossDemand SET DemandBasisFingerprint=@fingerprint WHERE Uid=@first", new { first, fingerprint });
 
@@ -172,10 +181,13 @@ public sealed class GrossDemandTraceSqlTests
         Assert.AreEqual(2, customer.Data!.TotalCount);
         Assert.HasCount(1, customer.Data.Items);
 
-        await db.ExecuteAsync("UPDATE dbo.GrossDemand SET SourceType=N'SO',SourceVersion=NULL WHERE Uid=@first", new { first });
+        await db.ExecuteAsync("""
+            UPDATE dbo.GrossDemand SET SourceType=N'SO',SourceVersion=NULL WHERE Uid=@first;
+            UPDATE dbo.PackingListLine SET SourceTypeSnapshot=N'SO' WHERE GrossDemandId=@first;
+            """, new { first });
         var legacySource = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(first));
         Assert.IsTrue(legacySource.Success, legacySource.Message);
-        Assert.IsNull(legacySource.Data!.DeliveredQty);
+        Assert.AreEqual(4m, legacySource.Data!.DeliveredQty);
         StringAssert.Contains(legacySource.Data.ReviewReason, "版本");
     }
 }

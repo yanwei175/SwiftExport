@@ -77,21 +77,23 @@ public sealed partial class SalesOrderQueryRepository
                    pol.LineNumber AS PurchaseLineNumber,po.OrderNo AS PurchaseOrderNo,
                    pol.Sku,ISNULL(pol.UnitSnapshot,N'') AS UnitSnapshot,
                    po.ConfirmationStatus,po.LifecycleStatus,
-                    CASE WHEN po.CustomerId IS NULL OR po.CustomerId<>gross.CustomerId
-                              OR NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
-                              OR COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                                  CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END) IS NULL
-                              OR LTRIM(RTRIM(pol.UnitSnapshot))<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                                  CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END)
+                   CASE WHEN po.CustomerId IS NULL OR po.CustomerId<>gross.CustomerId
+                              OR MAX(CASE WHEN NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
+                                  OR COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
+                                      CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END) IS NULL
+                                  OR LTRIM(RTRIM(pol.UnitSnapshot))<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
+                                      CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END)
+                                  THEN 1 ELSE 0 END)>0
                         THEN NULL ELSE SUM(link.AllocatedQty-link.ReleasedQty) END AS LinkedQty,
                    pol.QTY AS PurchaseLineQty,
                    CASE WHEN po.CustomerId IS NULL OR po.CustomerId<>gross.CustomerId
                         THEN N'采购客户归属需核实'
-                         WHEN NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
-                           OR COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                               CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END) IS NULL
-                           OR LTRIM(RTRIM(pol.UnitSnapshot))<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                               CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END)
+                        WHEN MAX(CASE WHEN NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
+                            OR COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
+                                CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END) IS NULL
+                            OR LTRIM(RTRIM(pol.UnitSnapshot))<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
+                                CASE WHEN net.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(gross.UnitSnapshot)),N'') END)
+                            THEN 1 ELSE 0 END)>0
                          THEN N'采购行与物料单位需核实'
                         ELSE N'' END AS ReviewReason,
                    CONVERT(bit,CASE WHEN EXISTS (
@@ -129,7 +131,7 @@ public sealed partial class SalesOrderQueryRepository
                 ORDER BY report.Sequence DESC,report.Uid DESC
             ) latest
             GROUP BY fl.SalesOrderLineId,fl.GrossDemandId,gross.CustomerId,gross.UnitSnapshot,
-                     net.ParentNetDemandId,p.Unit,po.Uid,pol.Uid,pol.LineNumber,
+                     po.Uid,pol.Uid,pol.LineNumber,
                      po.OrderNo,po.CustomerId,pol.Sku,pol.UnitSnapshot,po.ConfirmationStatus,po.LifecycleStatus,pol.QTY,
                      latest.Uid,latest.ReadyQty,latest.ExpectedReadyDate,latest.SupplierReportedDate
             ORDER BY po.OrderNo,pol.LineNumber,pol.Uid;

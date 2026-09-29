@@ -111,13 +111,35 @@ public sealed class SalesOrderManagerQuerySqlTests
         Assert.IsTrue(linked.IsSharedPurchaseLine);
         Assert.AreEqual(purchase, linked.PurchaseOrderId);
         await db.ExecuteAsync("""
-            UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@componentId;
+            UPDATE dbo.Product SET Unit=N'KG',Sku=N'CONF-SKU' WHERE Uid=@componentId;
             UPDATE dbo.NetDemand SET ProductId=@componentId WHERE Uid=@net;
             UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'KG' WHERE Uid=@purchaseLine;
             """, new { componentId = db.ComponentId, net, purchaseLine });
         fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
         Assert.AreEqual(6m, fulfillment.Data!.Lines.Single().Purchases.Single().LinkedQty);
         Assert.AreEqual(string.Empty, fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason);
+        var childNet = Guid.NewGuid(); var childLink = Guid.NewGuid();
+        await db.ExecuteAsync("""
+            INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceVersionSnapshot,
+                SourceDemandBasisFingerprintSnapshot,DecompositionRevision,LineNumber,LifecycleStatus,
+                RootNetDemandId,ParentNetDemandId,ProductId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)
+            VALUES(@childNet,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),1,@fingerprint,
+                1,2,0,@net,@net,@componentId,0,N'采购',N'CONF-SKU',2,2);
+            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,
+                TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
+            VALUES(@childLink,@childNet,NEWID(),NEWID(),N'PO',@purchase,N'PO-LINKED',@purchaseLine,0,2,0);
+            """, new { childNet, childLink, demand, fingerprint, net, componentId = db.ComponentId, purchase, purchaseLine });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.HasCount(1, fulfillment.Data!.Lines.Single().Purchases);
+        Assert.AreEqual(8m, fulfillment.Data.Lines.Single().Purchases.Single().LinkedQty);
+        Assert.AreEqual(5m, fulfillment.Data.Lines.Single().Purchases.Single().PurchaseLineReadyQty);
+        await db.ExecuteAsync("UPDATE dbo.NetDemand SET ProductId=@productId WHERE Uid=@childNet",
+            new { productId = db.ProductId, childNet });
+        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
+        Assert.HasCount(1, fulfillment.Data!.Lines.Single().Purchases);
+        Assert.IsNull(fulfillment.Data.Lines.Single().Purchases.Single().LinkedQty);
+        StringAssert.Contains(fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason, "单位");
+        await db.ExecuteAsync("UPDATE dbo.DemandExecutionLink SET ReleasedQty=AllocatedQty,LinkStatus=8 WHERE Uid=@childLink", new { childLink });
         await db.ExecuteAsync("UPDATE dbo.NetDemand SET ProductId=NULL WHERE Uid=@net", new { net });
         await db.ExecuteAsync("UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=NULL WHERE Uid=@purchaseLine", new { purchaseLine });
         fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
