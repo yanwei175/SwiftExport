@@ -160,7 +160,7 @@ public sealed class PurchaseOrderManagerContractsTests
         foreach (var field in new[] { "CustomerSku", "LinkSku", "FinishZh", "FeaturesZh", "MaterialType", "SupplyType", "MainImage",
                      "UnitSnapshot", "SourceSummary" })
             StringAssert.Contains(line, field);
-        StringAssert.Contains(header, "LoadNew("); StringAssert.Contains(line, "BaseLineModel<PurchaseOrderLineDetailDto>");
+        StringAssert.Contains(header, "Load(PurchaseOrderDetailDto dto)"); StringAssert.Contains(line, "BaseLineModel<PurchaseOrderLineDetailDto>");
     }
 
     [TestMethod]

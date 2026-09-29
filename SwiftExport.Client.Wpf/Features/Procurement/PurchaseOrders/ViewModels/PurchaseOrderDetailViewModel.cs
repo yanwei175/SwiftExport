@@ -373,7 +373,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         var dto = result.Data!; PurchaseOrderId = dto.PurchaseOrderId; OrderNo = dto.OrderNo ?? string.Empty;
         IsReadOnly = false;
         Version = dto.Version; ConfirmationStatus = dto.ConfirmationStatus; LifecycleStatus = dto.LifecycleStatus;
-        Header.LoadNew(dto); Lines.LoadFromDtos(dto.Lines);
+        Header.Load(dto); Lines.LoadFromDtos(dto.Lines);
         CustomerLookupText = Header.CustomerDisplay; SupplierLookupText = Header.SupplierDisplay;
         SelectedDetailTabIndex = 0; HeaderHasChanges = false; _loading = false;
         StatusText = $"已加载 {Lines.Items.Count} 条采购行。"; NotifyState();
