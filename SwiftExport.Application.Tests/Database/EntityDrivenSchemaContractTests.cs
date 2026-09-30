@@ -32,6 +32,7 @@ public sealed class EntityDrivenSchemaContractTests
         StringAssert.Contains(first, "CREATE TABLE [dbo].[DemandExecutionLink]");
         StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelFieldMapping]");
         StringAssert.Contains(first, "CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header]");
+        StringAssert.Contains(first, "[NormalizedHeader] <> N''");
         StringAssert.Contains(first, "@name=N'MS_Description'");
         StringAssert.Contains(first, "@level1type=N'TABLE', @level1name=N'Customer';");
         StringAssert.Contains(first, "@level2type=N'COLUMN', @level2name=N'CustomerCode';");

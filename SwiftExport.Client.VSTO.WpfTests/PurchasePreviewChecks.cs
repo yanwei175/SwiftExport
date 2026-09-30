@@ -7,10 +7,11 @@ using System.Windows.Media;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
 using SwiftExport.Client.VSTO.Features.Customers.Components;
+using SwiftExport.Client.VSTO.Features.Suppliers.Components;
 
 namespace SwiftExport.Client.VSTO.WpfTests
 {
-    /// <summary>用真实 WPF 资源验证采购静态预览在任务窗格宽度下可呈现。</summary>
+    /// <summary>用真实 WPF 资源验证采购静态预览在独立窗口宽度下可呈现。</summary>
     internal static class PurchasePreviewChecks
     {
         /// <summary>检查页面分区、原生明细表与尚未接线的操作门禁。</summary>
@@ -18,7 +19,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
         {
             var model = new PurchaseOrderImportViewModel();
             var view = new PurchaseOrderImportView(model);
-            var window = new Window { Style = null, Width = 760, Height = 900, Content = view, ShowInTaskbar = false };
+            var window = new Window { Style = null, Width = 1280, Height = 820, Content = view, ShowInTaskbar = false };
             window.Show();
             try
             {
@@ -35,11 +36,16 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     && grid.Columns.Any(c => (string)c.Header == "未税总价"), "采购关键列完整");
                 check(grid.IsReadOnly && !grid.CanUserAddRows && ScrollViewer.GetHorizontalScrollBarVisibility(grid) == ScrollBarVisibility.Auto,
                     "明细表只读且允许横向滚动");
-                check(grid.ActualWidth > 0 && grid.ActualWidth < window.ActualWidth, "760 宽预览中明细表未把任务窗格撑宽");
+                check(grid.ActualWidth > 0 && grid.ActualWidth < window.ActualWidth, "独立窗口中明细表未把窗体撑宽");
                 var buttons = Descendants<Button>(view).Where(button => (button.Content as string)?.Contains("待实现") == true).ToArray();
-                check(buttons.Length == 4 && buttons.All(button => !button.IsEnabled), "四个业务操作明确标记待实现并禁用");
+                check(buttons.Length == 7 && buttons.All(button => !button.IsEnabled), "七个业务操作明确标记待实现并禁用");
                 check(Descendants<CustomerAutoSuggestComboBox>(view).Single().IsEnabled == false,
                     "客户选择位置复用现有控件但不触发加载");
+                check(Descendants<SupplierAutoSuggestComboBox>(view).Single().IsEnabled == false,
+                    "供应商选择位置复用本地缓存控件但不触发加载");
+                check(new[] { "价格浮动率", "价格直接浮动", "商标类型" }
+                    .All(label => Descendants<TextBlock>(view).Any(text => text.Text == label)),
+                    "详情页导入相关的价格与商标字段保留在静态布局中");
                 check(Descendants<DatePicker>(view).Count() == 3 && Descendants<DatePicker>(view).All(picker => !picker.IsEnabled),
                     "采购日期保留布局且不生成编辑结果");
                 check(Descendants<TextBox>(view).All(box => box.IsReadOnly || !box.IsEnabled), "文本预览不会收集未接线的输入");

@@ -17,6 +17,7 @@ using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Client.VSTO.Authentication;
 using SwiftExport.Client.VSTO.Api;
@@ -37,6 +38,7 @@ namespace SwiftExport.Client.VSTO.Services.Caching
         private readonly ISysDicCurrencyApi _currencyApi;
         private readonly ISysDictTypeApi _dictTypeApi;
         private readonly ISysDictDataApi _dictDataApi;
+        private readonly IExcelFieldMappingApi _excelFieldMappingApi;
         private readonly ApiCallRunner _apiCallRunner;
         private readonly SessionService _sessionService;
         private readonly CacheObservableCollection<ProductColorDto> _productColors = new CacheObservableCollection<ProductColorDto>();
@@ -50,6 +52,11 @@ namespace SwiftExport.Client.VSTO.Services.Caching
         private readonly CacheObservableCollection<SysDictDataDto> _dictionaryValues = new CacheObservableCollection<SysDictDataDto>();
         private readonly SemaphoreSlim _refreshGate = new SemaphoreSlim(1, 1);
         private readonly object _ensureSync = new object();
+        // 字段映射按业务组独立加载；它不是 Excel 启动或基础资料全量刷新的前置条件。
+        private readonly Dictionary<string, IReadOnlyList<ExcelFieldMappingDto>> _excelFieldMappings =
+            new Dictionary<string, IReadOnlyList<ExcelFieldMappingDto>>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Task<CacheRefreshResult>> _mappingEnsureTasks =
+            new Dictionary<string, Task<CacheRefreshResult>>(StringComparer.OrdinalIgnoreCase);
         private Task<CacheRefreshResult> _ensureTask;
         private Task<CacheRefreshResult> _warehouseEnsureTask;
         private volatile bool _colorsLoaded;
@@ -75,6 +82,7 @@ namespace SwiftExport.Client.VSTO.Services.Caching
             ISysDicCurrencyApi currencyApi,
             ISysDictTypeApi dictTypeApi,
             ISysDictDataApi dictDataApi,
+            IExcelFieldMappingApi excelFieldMappingApi,
             ApiCallRunner apiCallRunner,
             SessionService sessionService,
             IUiDispatcher dispatcher)
@@ -87,6 +95,7 @@ namespace SwiftExport.Client.VSTO.Services.Caching
             _currencyApi = currencyApi;
             _dictTypeApi = dictTypeApi;
             _dictDataApi = dictDataApi;
+            _excelFieldMappingApi = excelFieldMappingApi;
             _apiCallRunner = apiCallRunner;
             _sessionService = sessionService;
             ProductColors = new ReadOnlyObservableCollection<ProductColorDto>(_productColors);
@@ -143,6 +152,99 @@ namespace SwiftExport.Client.VSTO.Services.Caching
                     && (!enabledOnly || item.IsEnabled))
                 .ToArray();
         }
+
+        /// <inheritdoc />
+        public IReadOnlyList<ExcelFieldMappingDto> GetExcelFieldMappings(string groupCode)
+        {
+            SynchronizeSession();
+            if (string.IsNullOrWhiteSpace(groupCode)) return new ExcelFieldMappingDto[0];
+            lock (_ensureSync)
+            {
+                IReadOnlyList<ExcelFieldMappingDto> items;
+                if (_disposed || _sessionService.Capture().User == null
+                    || !_excelFieldMappings.TryGetValue(groupCode.Trim(), out items))
+                    return new ExcelFieldMappingDto[0];
+                // 返回独立 DTO，防止导入页面意外改动共享配置快照。
+                return items.Select(CopyMapping).ToArray();
+            }
+        }
+
+        /// <inheritdoc />
+        public Task<CacheRefreshResult> EnsureExcelFieldMappingsLoadedAsync(string groupCode)
+        {
+            if (string.IsNullOrWhiteSpace(groupCode))
+                return Task.FromResult(CacheRefreshResult.Fail("字段映射分组不能为空。"));
+            var key = groupCode.Trim();
+            lock (_ensureSync)
+            {
+                SynchronizeSession();
+                if (_disposed || _sessionService.Capture().User == null)
+                    return Task.FromResult(CacheRefreshResult.Fail("请先登录有效账号。"));
+                if (_excelFieldMappings.ContainsKey(key))
+                    return Task.FromResult(CacheRefreshResult.Ok("字段映射缓存已经加载。"));
+                Task<CacheRefreshResult> task;
+                if (!_mappingEnsureTasks.TryGetValue(key, out task) || task.IsCompleted)
+                {
+                    task = RefreshExcelFieldMappingsCoreAsync(key);
+                    _mappingEnsureTasks[key] = task;
+                }
+                return task;
+            }
+        }
+
+        /// <inheritdoc />
+        public Task<CacheRefreshResult> RefreshExcelFieldMappingsAsync(string groupCode)
+        {
+            if (string.IsNullOrWhiteSpace(groupCode))
+                return Task.FromResult(CacheRefreshResult.Fail("字段映射分组不能为空。"));
+            return RefreshExcelFieldMappingsCoreAsync(groupCode.Trim());
+        }
+
+        /// <summary>请求启用配置并按登录会话原子替换单个分组；失败不覆盖该账号已有快照。</summary>
+        private async Task<CacheRefreshResult> RefreshExcelFieldMappingsCoreAsync(string groupCode)
+        {
+            SynchronizeSession();
+            var generation = Volatile.Read(ref _sessionGeneration);
+            var version = _sessionService.Capture().Version;
+            if (!IsCurrent(generation, version))
+                return CacheRefreshResult.Fail("请先登录有效账号，或重新打开页面。");
+            await _refreshGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (!IsCurrent(generation, version))
+                    return CacheRefreshResult.Fail("缓存已释放或登录会话已改变，请登录后重试。");
+                var result = await RunApiAsync(
+                    () => _excelFieldMappingApi.GetMappingsAsync(groupCode),
+                    "加载 Excel 字段映射失败").ConfigureAwait(false);
+                if (!result.Success) return CacheRefreshResult.Fail(result.Message);
+                lock (_ensureSync)
+                {
+                    if (!IsCurrent(generation, version))
+                        return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次字段映射结果。");
+                    _excelFieldMappings[groupCode] = (result.Data ?? new ExcelFieldMappingDto[0])
+                        .Where(item => item != null && item.IsEnabled)
+                        .Select(CopyMapping)
+                        .ToArray();
+                }
+                return CacheRefreshResult.Ok("Excel 字段映射缓存已更新。");
+            }
+            catch (Exception exception)
+            {
+                return CacheRefreshResult.Fail(_apiCallRunner.Describe(exception));
+            }
+            finally
+            {
+                _refreshGate.Release();
+            }
+        }
+
+        /// <summary>隔离缓存 DTO 与调用方，防止共享快照被修改。</summary>
+        private static ExcelFieldMappingDto CopyMapping(ExcelFieldMappingDto source) => new ExcelFieldMappingDto
+        {
+            Uid = source.Uid, Version = source.Version, GroupCode = source.GroupCode,
+            ExcelHeader = source.ExcelHeader, TargetFieldKey = source.TargetFieldKey,
+            IsEnabled = source.IsEnabled, Remark = source.Remark
+        };
 
         /// <inheritdoc />
         public Task<CacheRefreshResult> EnsureLoadedAsync()
@@ -572,6 +674,8 @@ namespace SwiftExport.Client.VSTO.Services.Caching
             _colorsLoaded = _customersLoaded = _suppliersLoaded = _warehouseSitesLoaded = false;
             _currenciesLoaded = _categoriesLoaded = _dictionariesLoaded = false;
             _ensureTask = _warehouseEnsureTask = null;
+            _mappingEnsureTasks.Clear();
+            _excelFieldMappings.Clear();
             // 异步事件不能把异常传播给登录流程；清理失败由统一日志记录。
             _ = ObserveClearAsync(generation);
         }
@@ -619,6 +723,8 @@ namespace SwiftExport.Client.VSTO.Services.Caching
                 Interlocked.Increment(ref _sessionGeneration);
                 _sessionService.Changed -= OnSessionChanged;
                 _ensureTask = _warehouseEnsureTask = null;
+                _mappingEnsureTasks.Clear();
+                _excelFieldMappings.Clear();
                 // 不释放仍被异步请求持有的信号量；未创建 WaitHandle，无需提前销毁内核资源。
             }
         }

@@ -17,3 +17,4 @@
 
 - 普通任务窗格页面统一在 `Hosting/TaskPanes/TaskPaneRegistrar.CreateDefault()` 注册 `TaskPaneConfig`，并在 DI 注册 Scoped View／ViewModel；不为仅做打开接线的页面复制专用 Coordinator。
 - 宽度及初始左／右停靠属于页面配置，不硬编码在 Manager；Manager 统一管理 Scope 和 TaskPaneContext。重复打开复用，× 隐藏保留，失效实例再次访问或插件退出时释放。接入步骤见 `docs/架构与目录说明.md`。
+- 当前销售、采购导入及字段映射设置使用 `ModelessElementHostWindowManager` 的非模态 WinForms＋ElementHost 宿主；销售普通关闭须确认内存草稿，插件退出跳过确认。`TaskPaneRegistrar` 仅保留未来普通侧栏页面的注册能力。

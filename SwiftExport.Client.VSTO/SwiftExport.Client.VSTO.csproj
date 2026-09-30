@@ -196,6 +196,9 @@
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
+    <EmbeddedResource Include="Hosting\TaskPanes\TaskPaneHostControl.resx">
+      <DependentUpon>TaskPaneHostControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -234,7 +237,6 @@
     <Folder Include="Excel\Writing\" />
     <Folder Include="Features\DataImport\" />
     <Folder Include="Features\DocumentGeneration\" />
-    <Folder Include="Features\Sales\Orders\Models\" />
     <Folder Include="Features\Sales\Orders\Services\" />
   </ItemGroup>
   <PropertyGroup>
@@ -281,6 +283,13 @@
     <Compile Include="Bootstrapper\AddInBootstrapper.cs" />
     <Compile Include="Bootstrapper\ApiOptions.cs" />
     <Compile Include="Features\Sales\Orders\ISalesOrderImportPrompt.cs" />
+    <Compile Include="Features\Settings\ExcelFieldMappings\IExcelFieldMappingPrompt.cs" />
+    <Compile Include="Features\Settings\ExcelFieldMappings\Models\ExcelFieldMappingRow.cs" />
+    <Compile Include="Features\Settings\ExcelFieldMappings\ViewModels\ExcelFieldMappingViewModel.cs" />
+    <Compile Include="Features\Settings\ExcelFieldMappings\Views\ExcelFieldMappingPrompt.cs" />
+    <Compile Include="Features\Settings\ExcelFieldMappings\Views\ExcelFieldMappingView.xaml.cs">
+      <DependentUpon>ExcelFieldMappingView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Hosting\TaskPanes\TaskPaneConfig.cs" />
     <Compile Include="Hosting\TaskPanes\TaskPaneRegistrar.cs" />
     <Compile Include="Hosting\TaskPanes\TaskPaneContext.cs" />
@@ -336,6 +345,9 @@
     <Compile Include="Hosting\Threading\IUiDispatcher.cs" />
     <Compile Include="Hosting\Threading\WpfUiDispatcher.cs" />
     <Compile Include="Hosting\Windows\WindowManager.cs" />
+    <Compile Include="Hosting\Windows\ModelessWindowContext.cs" />
+    <Compile Include="Hosting\Windows\ModelessElementHostWindowManager.cs" />
+    <Compile Include="Hosting\Windows\ModelessElementHostForm.cs" />
     <Compile Include="Hosting\WpfRuntimeHost.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -360,6 +372,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderImportView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Features\Settings\ExcelFieldMappings\Views\ExcelFieldMappingView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

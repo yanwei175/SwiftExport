@@ -178,6 +178,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
         services.AddScoped<IExcelFieldMappingService, ExcelFieldMappingService>();
+        services.AddScoped<IExcelFieldMappingBatchService, ExcelFieldMappingBatchService>();
         services.AddScoped<ISalesOrderQueryService, SalesOrderQueryService>();
         services.AddScoped<ISalesFulfillmentQueryService, SalesFulfillmentQueryService>();
         services.AddScoped<ISalesOrderDraftService, SalesOrderDraftService>();

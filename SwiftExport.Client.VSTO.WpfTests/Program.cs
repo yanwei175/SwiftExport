@@ -29,6 +29,26 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     Console.WriteLine("PASS Purchase preview: " + checks + " assertions");
                     return 0;
                 }
+                if (args.Length == 1 && args[0] == "--field-mapping-only")
+                {
+                    using (var settingsHost = new WpfRuntimeHost())
+                    {
+                        settingsHost.Initialize();
+                        FieldMappingPageChecks.Run(Check);
+                    }
+                    Console.WriteLine("PASS Field mapping: " + checks + " assertions");
+                    return 0;
+                }
+                if (args.Length == 1 && args[0] == "--modeless-host-only")
+                {
+                    using (var settingsHost = new WpfRuntimeHost())
+                    {
+                        settingsHost.Initialize();
+                        ModelessHostChecks.Run(Check);
+                    }
+                    Console.WriteLine("PASS Modeless host: " + checks + " assertions");
+                    return 0;
+                }
                 if (args.Length == 1 && args[0] == "--design-resources-only")
                 {
                     var designApp = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };

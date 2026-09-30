@@ -74,6 +74,12 @@ public sealed class ExcelFieldMappingServiceTests
         public Task<IReadOnlyList<ExcelFieldMapping>> GetByGroupAsync(string groupCode, bool includeDisabled, CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<ExcelFieldMapping>>(rows.Where(row => !row.IsDeleted && row.GroupCode == groupCode && (includeDisabled || row.IsEnabled)).ToArray());
         /// <inheritdoc />
+        public Task<IReadOnlyList<ExcelFieldMapping>> GetByGroupForUpdateAsync(string groupCode, CancellationToken cancellationToken)
+            => GetByGroupAsync(groupCode, true, cancellationToken);
+        /// <inheritdoc />
+        public Task<bool> ReleaseHeadersAsync(IReadOnlyList<Guid> uids, CancellationToken cancellationToken)
+            => Task.FromResult(true);
+        /// <inheritdoc />
         public Task<ExcelFieldMapping?> GetByNormalizedHeaderAsync(string groupCode, string normalizedHeader, CancellationToken cancellationToken)
             => Task.FromResult(rows.FirstOrDefault(row => !row.IsDeleted && row.GroupCode == groupCode && row.NormalizedHeader == normalizedHeader));
         /// <inheritdoc />

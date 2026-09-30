@@ -105,12 +105,12 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 childFirst.Dispose(); childFirst.Dispose();
                 check(childFirst.IsDisposed, "ElementHost 先释放后仍可安全释放宿主");
                 check(System.Windows.PresentationSource.FromVisual(view) == null && f.Model.IsDisposed, "宿主释放断开 WPF 且页面可释放");
-                using (var context = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneContext())
+                using (var context = new SwiftExport.Client.VSTO.Hosting.Windows.ModelessWindowContext())
                 {
                     var prompt = new SalesOrderImportPrompt(context);
-                    check(!prompt.ConfirmDiscard("不应弹窗"), "无所属 Excel 窗口时不丢弃数据");
+                    check(!prompt.ConfirmDiscard("不应弹窗"), "无所属窗体时不丢弃数据");
                     context.Handle = form.Handle; context.Dispose();
-                    check(context.Handle == IntPtr.Zero, "作用域释放清除提示框 Owner");
+                    check(context.Handle == IntPtr.Zero, "作用域释放清除销售提示框 Owner");
                 }
             }
         }
@@ -118,14 +118,17 @@ namespace SwiftExport.Client.VSTO.WpfTests
         private static void CheckPaneRegistration(Action<bool, string> check)
         {
             var registry = SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.CreateDefault();
-            var sales = registry.Get(SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.SalesOrderImport);
-            var purchase = registry.Get(SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.PurchaseOrderImport);
-            check(sales.ViewType == typeof(SalesOrderImportView) && purchase.ViewType == typeof(SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views.PurchaseOrderImportView), "销售采购统一注册且无需实例化页面");
+            var salesNotInPanes = false;
+            var purchaseNotInPanes = false;
+            try { registry.Get("sales-order-import"); } catch (KeyNotFoundException) { salesNotInPanes = true; }
+            try { registry.Get("purchase-order-import-preview"); } catch (KeyNotFoundException) { purchaseNotInPanes = true; }
+            check(salesNotInPanes && purchaseNotInPanes, "销售采购导入均改用非模态窗体，不再注册侧边栏");
             registry.Register(new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneConfig("narrow", "窄窗格", typeof(UserControl), 420, Dock.Left));
-            check(registry.Get("narrow").DefaultWidth == 420 && sales.DefaultWidth == 760 && registry.Get("narrow").DockPosition == Dock.Left, "不同页面独立宽度与停靠配置");
+            check(registry.Get("narrow").DefaultWidth == 420 && registry.Get("narrow").DockPosition == Dock.Left, "未来侧栏页面保留独立宽度与停靠配置");
             var duplicateRejected = false;
-            try { registry.Register(sales); } catch (ArgumentException) { duplicateRejected = true; }
-            check(duplicateRejected && ReferenceEquals(registry.Get(sales.Id), sales), "重复注册不覆盖原配置");
+            var narrow = registry.Get("narrow");
+            try { registry.Register(narrow); } catch (ArgumentException) { duplicateRejected = true; }
+            check(duplicateRejected && ReferenceEquals(registry.Get(narrow.Id), narrow), "重复注册不覆盖原配置");
             var invalidRejected = false;
             try { new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneConfig("bad", "非法", typeof(UserControl), 0); }
             catch (ArgumentOutOfRangeException) { invalidRejected = true; }

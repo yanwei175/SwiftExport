@@ -1544,7 +1544,7 @@ CREATE UNIQUE INDEX [UX_DemandExecutionLink_CommandItem] ON [dbo].[DemandExecuti
 
 CREATE UNIQUE INDEX [UX_DocumentSequence_Type_Period] ON [dbo].[DocumentSequence] ([DocType], [YearMonth]) WHERE [IsDeleted] = 0;
 
-CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header] ON [dbo].[ExcelFieldMapping] ([GroupCode], [NormalizedHeader]) WHERE [IsDeleted] = 0;
+CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header] ON [dbo].[ExcelFieldMapping] ([GroupCode], [NormalizedHeader]) WHERE [IsDeleted] = 0 AND [NormalizedHeader] <> N'';
 
 CREATE INDEX [IX_GrossDemand_Source] ON [dbo].[GrossDemand] ([SourceType], [SourceUid]) WHERE [IsDeleted] = 0;
 CREATE UNIQUE INDEX [UX_GrossDemand_SourceLine] ON [dbo].[GrossDemand] ([SourceType], [SourceUid], [SourceLineId]) WHERE [IsDeleted] = 0 AND [LifecycleStatus] = 0;
@@ -2859,7 +2859,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'DocumentSequence',
     @level2type=N'COLUMN', @level2name=N'CurrentNo';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'保存业务分组内一个 Excel 表头别名到可配置目标字段的对应关系。',
+    @name=N'MS_Description', @value=N'保存业务分组内一个 Excel 表头别名到目标字段的对应关系；停用且表头为空时表示待配置字段。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'ExcelFieldMapping';
 EXEC sys.sp_addextendedproperty
@@ -2903,12 +2903,12 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
     @level2type=N'COLUMN', @level2name=N'GroupCode';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'管理员录入的原始表头别名。',
+    @name=N'MS_Description', @value=N'管理员录入的原始表头别名；待配置种子行为空字符串。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
     @level2type=N'COLUMN', @level2name=N'ExcelHeader';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'统一规范化表头，用于同组唯一约束与未来客户端匹配。',
+    @name=N'MS_Description', @value=N'统一规范化表头；空值种子行不进入唯一索引或客户端匹配。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
     @level2type=N'COLUMN', @level2name=N'NormalizedHeader';

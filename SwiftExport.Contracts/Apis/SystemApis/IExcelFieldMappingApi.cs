@@ -31,6 +31,10 @@ namespace SwiftExport.Contracts.Apis.SystemApis
         [Put("/api/excel-field-mappings/{uid}")]
         Task<ServiceResult<ExcelFieldMappingDto>> UpdateAsync(Guid uid, [Body] UpdateExcelFieldMappingRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>在一个事务中新增或更新当前分组提交的全部行；缺席行不删除。</summary>
+        [Put("/api/excel-field-mappings/{groupCode}/batch")]
+        Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> SaveGroupAsync(string groupCode, [Body] SaveExcelFieldMappingGroupRequest request, CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>软删除映射；版本由查询参数传入。</summary>
         [Delete("/api/excel-field-mappings/{uid}")]
         Task<ServiceResult<bool>> DeleteAsync(Guid uid, [Query] int expectedVersion, CancellationToken cancellationToken = default(CancellationToken));

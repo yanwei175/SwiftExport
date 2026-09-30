@@ -20,6 +20,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["AuthController.GetUsers"] = PermissionKeys.SystemUsersView,
         ["ExcelFieldMappingController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelFieldMappingController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
+        ["ExcelFieldMappingController.SaveGroupAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelFieldMappingController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["CustomerProductController.GetById"] = PermissionKeys.CustomersProductsView,
         ["CustomerProductController.Create"] = PermissionKeys.CustomersProductsCreate,

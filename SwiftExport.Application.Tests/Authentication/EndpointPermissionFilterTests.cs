@@ -38,8 +38,9 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        Assert.AreEqual(222, routes.Count);
+        Assert.AreEqual(223, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.CreateAsync"]);
+        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.SaveGroupAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.DeleteAsync"]);
         Assert.AreEqual("Procurement.Order.Read", routes["PurchaseOrderTraceController.GetAsync"]);

@@ -8,7 +8,7 @@ namespace SwiftExport.WebApi.Controllers.Systems.ExcelFieldMappings;
 /// <summary>提供字段映射配置的 HTTP 边界；身份与维护权限由全局过滤器检查。</summary>
 [ApiController]
 [Route("api/excel-field-mappings")]
-public sealed class ExcelFieldMappingController(IExcelFieldMappingService service) : ControllerBase
+public sealed class ExcelFieldMappingController(IExcelFieldMappingService service, IExcelFieldMappingBatchService batchService) : ControllerBase
 {
     /// <summary>读取业务分组目录。</summary>
     [HttpGet("groups")]
@@ -32,6 +32,11 @@ public sealed class ExcelFieldMappingController(IExcelFieldMappingService servic
     [HttpPut("{uid:guid}")]
     public Task<ServiceResult<ExcelFieldMappingDto>> UpdateAsync(Guid uid, [FromBody] UpdateExcelFieldMappingRequest request, CancellationToken cancellationToken)
         => service.UpdateAsync(uid, request, cancellationToken);
+
+    /// <summary>整组原子保存映射，不把缺席行解释为删除。</summary>
+    [HttpPut("{groupCode}/batch")]
+    public Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> SaveGroupAsync(string groupCode, [FromBody] SaveExcelFieldMappingGroupRequest request, CancellationToken cancellationToken)
+        => batchService.SaveGroupAsync(groupCode, request, cancellationToken);
 
     /// <summary>按预期版本软删除配置。</summary>
     [HttpDelete("{uid:guid}")]

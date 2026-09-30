@@ -17,6 +17,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
             InitializeComponent(); model = vm; DataContext = vm;
             Loaded += OnLoaded;
         }
+        /// <summary>普通关闭前确认内存草稿；插件退出由窗口宿主跳过此检查。</summary>
+        public bool CanClose() => model.CanClose();
         private async void OnLoaded(object sender, RoutedEventArgs args)
         {
             try { await model.InitializeAsync(); }

@@ -1,16 +1,20 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Client.VSTO.Authentication;
 using SwiftExport.Client.VSTO.Diagnostics;
 using SwiftExport.Client.VSTO.Excel.Context;
+using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
+using SwiftExport.Client.VSTO.Features.Sales.Orders.Views;
+using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Views;
 using SwiftExport.Client.VSTO.Hosting;
-using SwiftExport.Client.VSTO.Hosting.TaskPanes;
 using SwiftExport.Client.VSTO.Hosting.Threading;
 using SwiftExport.Client.VSTO.Hosting.Windows;
 using SwiftExport.Client.VSTO.Ioc;
+using SwiftExport.Contracts.DTOs.Auth;
+using System;
+using System.Drawing;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using Office = Microsoft.Office.Core;
 
 namespace SwiftExport.Client.VSTO.Bootstrapper
@@ -23,7 +27,6 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         private ServiceProvider provider;
         private ExcelDispatcher dispatcher;
         private WpfRuntimeHost wpf;
-        private TaskPaneManager taskPanes;
         private ExcelContextService context;
         private SessionService session;
         private CurrentUserService user;
@@ -32,6 +35,8 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         public bool IsRestoring { get; private set; }
         public bool IsLoginOpen { get { return login?.IsOpen == true; } }
         public bool IsAuthenticated { get { return user?.IsAuthenticated == true; } }
+        /// <summary>根据已验证会话的内存权限控制字段映射入口。</summary>
+        public bool CanManageExcelFieldMappings { get { return user?.HasPermission(PermissionKeys.SystemExcelFieldMappingManage) == true; } }
         public bool IsReady { get { return provider != null && !disposed; } }
         public string Status { get; private set; } = "未登录";
         /// <summary>只在 Excel STA 发布，Ribbon 据此刷新动态控件。</summary>
@@ -52,8 +57,6 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 login = provider.GetRequiredService<LoginCoordinator>();
                 login.Changed += Session_Changed;
                 context = new ExcelContextService(addIn.Application);
-                taskPanes = new TaskPaneManager(addIn.CustomTaskPanes, log,
-                    provider, provider.GetRequiredService<TaskPaneRegistrar>(), session);
                 session.Changed += Session_Changed;
                 IsRestoring = true;
                 Status = "正在验证登录状态";
@@ -98,28 +101,73 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         {
             if (!IsReady || IsRestoring) return;
             try { provider.GetRequiredService<LoginCoordinator>().Show(context.GetOwner(control)); }
-            catch (Exception ex) { log.Write("OpenLoginFailure", ex); Status = "无法打开登录窗口，请查看日志"; Changed?.Invoke(this, EventArgs.Empty); }
+            catch (Exception ex)
+            {
+                log.Write("OpenLoginFailure", ex);
+                Status = "无法打开登录窗口，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
         }
         /// <summary>清除插件身份，不修改工作簿。</summary>
         public void Logout()
         {
             if (!IsReady) return;
             try { session.TryEnd(session.Capture().Version); }
-            catch (Exception ex) { log.Write("LogoutFailure", ex); Status = "退出未完成，请重试"; Changed?.Invoke(this, EventArgs.Empty); }
+            catch (Exception ex)
+            {
+                log.Write("LogoutFailure", ex);
+                Status = "退出未完成，请重试";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
         }
-        /// <summary>在触发操作的 Excel 窗口下打开本地销售导入预览。</summary>
+        /// <summary>在触发操作的 Excel 窗口打开非模态销售导入；重复点击激活原窗体。</summary>
         public void OpenSalesOrderImport(Office.IRibbonControl control)
         {
             if (!IsReady || !IsAuthenticated || IsRestoring || IsLoginOpen) return;
-            try { taskPanes.TogglePane(context.GetWindow(control), TaskPaneRegistrar.SalesOrderImport); }
-            catch (Exception ex) { log.Write("OpenSalesImportFailure", ex); Status = "无法打开销售导入窗格，请查看日志"; Changed?.Invoke(this, EventArgs.Empty); }
+            try
+            {
+                provider.GetRequiredService<ModelessElementHostWindowManager>()
+                .Show<SalesOrderImportView>("sales-order-import", "销售订单导入", context.GetOwner(control),
+                    new Size(1280, 820), view => view.CanClose());
+            }
+            catch (Exception ex)
+            {
+                log.Write("OpenSalesImportFailure", ex);
+                Status = "无法打开销售导入窗口，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
         }
-        /// <summary>在触发操作的 Excel 窗口显示采购导入静态布局预览。</summary>
+        /// <summary>在触发操作的 Excel 窗口打开非模态采购导入预览；重复点击激活原窗体。</summary>
         public void OpenPurchaseOrderImportPreview(Office.IRibbonControl control)
         {
             if (!IsReady || !IsAuthenticated || IsRestoring || IsLoginOpen) return;
-            try { taskPanes.TogglePane(context.GetWindow(control), TaskPaneRegistrar.PurchaseOrderImport); }
-            catch (Exception ex) { log.Write("OpenPurchaseImportPreviewFailure", ex); Status = "无法打开采购导入预览，请查看日志"; Changed?.Invoke(this, EventArgs.Empty); }
+            try
+            {
+                provider.GetRequiredService<ModelessElementHostWindowManager>()
+                .Show<PurchaseOrderImportView>("purchase-order-import-preview", "采购订单导入预览", context.GetOwner(control), new Size(1280, 820));
+            }
+            catch (Exception ex)
+            {
+                log.Write("OpenPurchaseImportPreviewFailure", ex);
+                Status = "无法打开采购导入预览，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        /// <summary>在当前 Excel 窗口打开非模态 WinForms 设置窗体。</summary>
+        public void OpenExcelFieldMappingSettings(Office.IRibbonControl control)
+        {
+            if (!IsReady || !CanManageExcelFieldMappings || IsRestoring || IsLoginOpen) return;
+            try
+            {
+                provider.GetRequiredService<ModelessElementHostWindowManager>()
+                .Show<ExcelFieldMappingView>("excel-field-mapping-settings", "Excel 字段映射", context.GetOwner(control), new Size(1920, 1080));
+            }
+            catch (Exception ex)
+            {
+                log.Write("OpenFieldMappingSettingsFailure", ex);
+                Status = "无法打开字段映射设置，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
         }
         /// <summary>逐项尽力清理，不结束宿主进程和消息循环。</summary>
         public void Dispose()
@@ -129,7 +177,7 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
             lifetime.Cancel();
             if (session != null) { session.Changed -= Session_Changed; session.Dispose(); }
             if (login != null) login.Changed -= Session_Changed;
-            Cleanup(() => taskPanes?.Dispose());
+            Cleanup(() => provider?.GetRequiredService<ModelessElementHostWindowManager>().Dispose());
             Cleanup(() => provider?.GetRequiredService<WindowManager>().Dispose());
             Cleanup(() => provider?.Dispose());
             Cleanup(() => wpf?.Dispose());

@@ -25,6 +25,29 @@ public sealed class ExcelFieldMappingRepository(RepositoryBaseContext context)
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<ExcelFieldMapping>> GetByGroupForUpdateAsync(string groupCode, CancellationToken cancellationToken)
+    {
+        var rows = await Connection.QueryAsync<ExcelFieldMapping>(new CommandDefinition(
+            $@"SELECT {Columns} FROM dbo.ExcelFieldMapping WITH (UPDLOCK, HOLDLOCK)
+               WHERE GroupCode = @GroupCode AND IsDeleted = 0
+               ORDER BY Uid",
+            new { GroupCode = groupCode }, Transaction, cancellationToken: cancellationToken));
+        return rows.AsList();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ReleaseHeadersAsync(IReadOnlyList<Guid> uids, CancellationToken cancellationToken)
+    {
+        if (uids.Count == 0) return true;
+        // 唯一索引排除空表头；事务提交前必须由应用服务写回最终表头。
+        var changed = await Connection.ExecuteAsync(new CommandDefinition(
+            @"UPDATE dbo.ExcelFieldMapping SET NormalizedHeader = N''
+              WHERE Uid IN @Uids AND IsDeleted = 0",
+            new { Uids = uids }, Transaction, cancellationToken: cancellationToken));
+        return changed == uids.Count;
+    }
+
+    /// <inheritdoc />
     public Task<ExcelFieldMapping?> GetByNormalizedHeaderAsync(string groupCode, string normalizedHeader, CancellationToken cancellationToken)
         => Connection.QuerySingleOrDefaultAsync<ExcelFieldMapping>(new CommandDefinition(
             $@"SELECT {Columns} FROM dbo.ExcelFieldMapping

@@ -40,5 +40,17 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
             }
             finally { base.Dispose(disposing); }
         }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // TaskPaneHostControl
+            // 
+            this.Font = new System.Drawing.Font("微软雅黑", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.Name = "TaskPaneHostControl";
+            this.ResumeLayout(false);
+
+        }
     }
 }

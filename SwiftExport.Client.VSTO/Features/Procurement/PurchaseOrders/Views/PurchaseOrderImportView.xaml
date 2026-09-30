@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:customers="clr-namespace:SwiftExport.Client.VSTO.Features.Customers.Components"
+             xmlns:suppliers="clr-namespace:SwiftExport.Client.VSTO.Features.Suppliers.Components"
              FontFamily="Microsoft YaHei, Segoe UI, Arial, sans-serif"
              mc:Ignorable="d" d:DesignWidth="1920" d:DesignHeight="1000">
     <UserControl.Resources>
@@ -31,7 +32,7 @@
             <WrapPanel>
                 <ui:Button Content="采购单头解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
                 <ui:Button Content="采购产品解析（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
-                <ui:Button Content="校验采购采购（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <ui:Button Content="校验采购订单（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
                 <ui:Button Content="保存草稿（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
             </WrapPanel>
         </StackPanel>
@@ -49,7 +50,7 @@
                             </StackPanel>
                             <StackPanel Style="{StaticResource PurchasePreviewField}">
                                 <TextBlock Text="供应商" Style="{StaticResource PurchasePreviewFieldLabel}"/>
-                                <ui:TextBox PlaceholderText="供应商选择待接入" IsEnabled="False"/>
+                                <suppliers:SupplierAutoSuggestComboBox IsEnabled="False" Placeholder="供应商选择待接入"/>
                             </StackPanel>
                             <StackPanel Style="{StaticResource PurchasePreviewField}">
                                 <TextBlock Text="采购单号" Style="{StaticResource PurchasePreviewFieldLabel}"/>
@@ -134,6 +135,18 @@
                             <StackPanel Style="{StaticResource PurchasePreviewField}">
                                 <TextBlock Text="折扣备注" Style="{StaticResource PurchasePreviewFieldLabel}"/>
                                 <ui:TextBox PlaceholderText="折扣备注" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="价格浮动率" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="价格浮动率" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="价格直接浮动" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="价格直接浮动" IsReadOnly="True"/>
+                            </StackPanel>
+                            <StackPanel Style="{StaticResource PurchasePreviewField}">
+                                <TextBlock Text="商标类型" Style="{StaticResource PurchasePreviewFieldLabel}"/>
+                                <ui:TextBox PlaceholderText="商标类型" IsReadOnly="True"/>
                             </StackPanel>
                         </WrapPanel>
                         <TextBlock Text="特殊要求" Style="{StaticResource PurchasePreviewFieldLabel}"/>

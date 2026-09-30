@@ -4,20 +4,20 @@ using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Entities.Systems.ExcelFieldMappings;
 
-/// <summary>保存业务分组内一个 Excel 表头别名到可配置目标字段的对应关系。</summary>
+/// <summary>保存业务分组内一个 Excel 表头别名到目标字段的对应关系；停用且表头为空时表示待配置字段。</summary>
 [Table("ExcelFieldMapping")]
-[DbIndex("UX_ExcelFieldMapping_Group_Header", nameof(GroupCode), nameof(NormalizedHeader), IsUnique = true, Filter = "[IsDeleted] = 0")]
+[DbIndex("UX_ExcelFieldMapping_Group_Header", nameof(GroupCode), nameof(NormalizedHeader), IsUnique = true, Filter = "[IsDeleted] = 0 AND [NormalizedHeader] <> N''")]
 public sealed class ExcelFieldMapping : BaseEntity
 {
     /// <summary>稳定业务分组编码，不随显示名称变化。</summary>
     [DbColumn(StoreType = "nvarchar(40)")]
     public required string GroupCode { get; set; }
 
-    /// <summary>管理员录入的原始表头别名。</summary>
+    /// <summary>管理员录入的原始表头别名；待配置种子行为空字符串。</summary>
     [DbColumn(StoreType = "nvarchar(200)")]
     public required string ExcelHeader { get; set; }
 
-    /// <summary>统一规范化表头，用于同组唯一约束与未来客户端匹配。</summary>
+    /// <summary>统一规范化表头；空值种子行不进入唯一索引或客户端匹配。</summary>
     [DbColumn(StoreType = "nvarchar(200)")]
     public required string NormalizedHeader { get; set; }
 

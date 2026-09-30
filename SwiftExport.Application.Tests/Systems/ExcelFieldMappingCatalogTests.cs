@@ -83,6 +83,7 @@ public sealed class ExcelFieldMappingCatalogTests
         Assert.AreEqual("api/excel-field-mappings", typeof(ExcelFieldMappingController).GetCustomAttribute<RouteAttribute>()?.Template);
         Assert.AreEqual("/api/excel-field-mappings/groups", typeof(IExcelFieldMappingApi).GetMethod("GetGroupsAsync")?.GetCustomAttribute<GetAttribute>()?.Path);
         Assert.AreEqual("/api/excel-field-mappings/{uid}", typeof(IExcelFieldMappingApi).GetMethod("DeleteAsync")?.GetCustomAttribute<DeleteAttribute>()?.Path);
+        Assert.AreEqual("/api/excel-field-mappings/{groupCode}/batch", typeof(IExcelFieldMappingApi).GetMethod("SaveGroupAsync")?.GetCustomAttribute<PutAttribute>()?.Path);
         Assert.IsTrue(PermissionCatalog.All.Any(item => item.PermissionKey == PermissionKeys.SystemExcelFieldMappingManage && item.IsAssignable));
         Assert.AreEqual(409, ServiceErrorHttpMapper.GetStatusCode(ExcelFieldMappingErrorCodes.DuplicateHeader));
     }

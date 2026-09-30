@@ -82,6 +82,12 @@ namespace SwiftExport.Client.VSTO.Testing
         public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; } = Empty<SysDictTypeDto>();
         private static ReadOnlyObservableCollection<T> Empty<T>() => new ReadOnlyObservableCollection<T>(new ObservableCollection<T>());
         public IReadOnlyList<SysDictDataDto> GetDictionaryValues(string code, bool enabledOnly = true) => DictionaryItems.Where(d => d.DictCode == code && (!enabledOnly || d.IsEnabled)).ToArray();
+        /// <summary>导入测试不依赖字段映射，返回空快照。</summary>
+        public IReadOnlyList<SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings.ExcelFieldMappingDto> GetExcelFieldMappings(string groupCode) => new SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings.ExcelFieldMappingDto[0];
+        /// <summary>模拟已完成的分组配置加载。</summary>
+        public Task<CacheRefreshResult> EnsureExcelFieldMappingsLoadedAsync(string groupCode) => Task.FromResult(CacheRefreshResult.Ok());
+        /// <summary>模拟已完成的分组配置刷新。</summary>
+        public Task<CacheRefreshResult> RefreshExcelFieldMappingsAsync(string groupCode) => Task.FromResult(CacheRefreshResult.Ok());
         public Task<CacheRefreshResult> EnsureLoadedAsync() { Loads++; return Load(); }
         public Task<CacheRefreshResult> RefreshAllAsync() => EnsureLoadedAsync();
         public Task<CacheRefreshResult> RefreshProductColorsAsync() => EnsureLoadedAsync();
