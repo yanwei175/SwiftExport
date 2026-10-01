@@ -1,4 +1,5 @@
 -- 用于已建有 dbo.ExcelFieldMapping 的数据库；先执行结构部署，再单独执行本脚本。
+-- 已淘汰：旧表头别名配置仅保留历史兼容，新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 -- DetailDto 是查询快照，种子只覆盖当前 ExcelFieldCatalog 允许导入的写入字段。
 -- 空表头不是有效别名：种子行保持停用，配置真实表头后再通过维护 API 启用。
 -- SQLCMD 的默认会话选项可能不满足筛选索引的创建条件。

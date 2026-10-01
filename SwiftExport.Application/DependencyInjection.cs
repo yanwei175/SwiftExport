@@ -1,4 +1,4 @@
-using SwiftExport.Application.Interfaces.Systems.Currencies;
+﻿using SwiftExport.Application.Interfaces.Systems.Currencies;
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Application.Interfaces.Systems.ExchangeRates;
@@ -255,6 +255,10 @@ public static class DependencyInjection
         services.AddScoped<IAfterSalesCancellationService, AfterSalesCancellationService>();
         services.AddScoped<IAfterSalesLifecycleService, AfterSalesLifecycleService>();
         services.AddScoped<IAfterSalesConfirmationService, AfterSalesConfirmationService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.ForExcel.IForExcelSalesOrderService, SwiftExport.Application.Services.ForExcel.ForExcelSalesOrderService>();
+        // 地址配置使用独立聚合服务，不改变旧表头别名映射的语义。
+        services.AddScoped<SwiftExport.Application.Interfaces.Systems.ExcelReadProfiles.IExcelReadProfileService,
+            SwiftExport.Application.Services.Systems.ExcelReadProfiles.ExcelReadProfileService>();
         return services;
     }
 }

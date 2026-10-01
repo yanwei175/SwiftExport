@@ -18,10 +18,13 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["AuthController.Register"] = PermissionKeys.SystemUsersManage,
         ["AuthController.ResetUserPassword"] = PermissionKeys.SystemUsersManage,
         ["AuthController.GetUsers"] = PermissionKeys.SystemUsersView,
+        ["ExcelReadProfileController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelFieldMappingController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelFieldMappingController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelFieldMappingController.SaveGroupAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelFieldMappingController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
+        ["ExcelReadProfileController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
+        ["ExcelReadProfileController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["CustomerProductController.GetById"] = PermissionKeys.CustomersProductsView,
         ["CustomerProductController.Create"] = PermissionKeys.CustomersProductsCreate,
         ["CustomerProductController.Update"] = PermissionKeys.CustomersProductsEdit,
@@ -175,6 +178,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["AfterSalesQueryController.LookupAsync"] = PermissionKeys.QualityControlAfterSalesView,
         ["SalesOrderConfirmationController.ConfirmAsync"] = PermissionKeys.SalesOrderConfirm,
         ["SalesOrderConfirmationController.CancelConfirmationAsync"] = PermissionKeys.SalesOrderCancelConfirmation,
+        ["ForExcelSalesOrderController.CheckAsync"] = PermissionKeys.SalesOrderMaintain,
         ["SalesOrderDraftController.SaveAsync"] = PermissionKeys.SalesOrderMaintain,
         ["SalesOrderDraftController.DeleteDraftAsync"] = PermissionKeys.SalesOrderDelete,
         ["SalesOrderLifecycleController.CloseAsync"] = PermissionKeys.SalesOrderLifecycle,
@@ -269,8 +273,9 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
     // 已登录用户均可读取配置；此集合只在身份校验通过后放行。
     private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
     {
-        "ExcelFieldMappingController.GetGroupsAsync", "ExcelFieldMappingController.GetFieldsAsync",
-        "ExcelFieldMappingController.GetMappingsAsync"
+        "ExcelReadProfileController.ListAsync",
+        "ExcelFieldMappingController.GetMappingsAsync",
+        "ExcelReadProfileController.GetAsync"
     };
 
     /// <summary>请求进入业务 Action 前检查稳定键；批量保存按每种实际操作分别检查。</summary>

@@ -64,4 +64,18 @@
     <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml.cs" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml.cs"/>
     <Page Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml"/>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../SwiftExport.Client.VSTO/Services/ExcelImport/*.cs" LinkBase="Production/ExcelImport"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Excel/Reading/ExcelRangeSnapshot.cs" LinkBase="Production/Excel"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Services/*.cs" LinkBase="Production/Import/Services"/>
+  </ItemGroup>
+ <ItemGroup>
+ <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Services/*.cs;../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Models/*.cs;../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/ViewModels/*.cs" LinkBase="Production/ReadProfiles"/>
+ </ItemGroup>
+ <ItemGroup>
+ <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Views/*.cs" LinkBase="Features/Settings/ExcelReadProfiles/Views"/>
+ <Page Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Views/ExcelReadProfileView.xaml" Link="Features/Settings/ExcelReadProfiles/Views/ExcelReadProfileView.xaml"/>
+ <Page Include="../SwiftExport.Client.VSTO/Resources/Controls/ExcelCellAddressBox.xaml" Link="Resources/Controls/ExcelCellAddressBox.xaml"/>
+ </ItemGroup>
+ <ItemGroup><Compile Include="../SwiftExport.Client.VSTO.Tests/AddressReadTestDoubles.cs" Link="AddressReadTestDoubles.cs"/></ItemGroup>
 </Project>

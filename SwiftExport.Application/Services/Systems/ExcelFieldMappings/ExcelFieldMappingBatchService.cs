@@ -1,3 +1,4 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -21,7 +22,7 @@ public sealed class ExcelFieldMappingBatchService(
     public async Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> SaveGroupAsync(
         string groupCode, SaveExcelFieldMappingGroupRequest request, CancellationToken cancellationToken)
     {
-        var group = ExcelFieldCatalog.ResolveGroup(groupCode);
+        var group = ExcelFieldMappingFormat.NormalizeGroup(groupCode);
         if (group is null || request?.Rows is null)
             return Fail(ServiceErrorCodes.Validation, "分组或保存内容无效。");
         if (request.Rows.Any(row => row is null) || request.Rows.Where(row => row.Uid != Guid.Empty)
@@ -50,7 +51,7 @@ public sealed class ExcelFieldMappingBatchService(
                 var field = row.TargetFieldKey?.Trim();
                 var remark = row.Remark?.Trim();
                 if (header.Length > 200 || normalized.Length > 200 || remark?.Length > 500
-                    || string.IsNullOrWhiteSpace(field) || !ExcelFieldCatalog.ContainsField(group, field))
+                    || string.IsNullOrWhiteSpace(field) || !ExcelFieldMappingFormat.IsValidField(field))
                     throw new SaveFailure(ServiceErrorCodes.Validation, "表头、目标字段或备注无效。");
                 if (normalized.Length == 0 && (old is null || row.IsEnabled))
                     throw new SaveFailure(ServiceErrorCodes.Validation, "新映射必须填写表头；空表头种子行必须保持停用。");

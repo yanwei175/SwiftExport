@@ -11,6 +11,10 @@ using SwiftExport.Client.VSTO.Hosting.Threading;
 using SwiftExport.Client.VSTO.Services.Caching;
 using SwiftExport.Client.VSTO.Features.Sales.Orders;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels;
+using SwiftExport.Client.VSTO.Excel.Reading;
+using SwiftExport.Client.VSTO.Features.Sales.Orders.Services;
+using SwiftExport.Client.VSTO.Services.ExcelImport;
+using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Customers;
@@ -24,14 +28,21 @@ using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Client.VSTO.Testing
 {
     /// <summary>纯内存销售导入夹具；可被 STA 测试复用，不加载 Excel 或访问真实 API。</summary>
-    internal sealed class ImportTestFixture : IDisposable, ISalesOrderImportPrompt, IUiDispatcher, ITokenStore
+    internal sealed class ImportTestFixture : IDisposable, ISalesOrderImportPrompt, IUiDispatcher, ITokenStore, IExcelRangeReader
     {
         internal readonly ImportCache Cache = new ImportCache();
+        internal readonly ImportLegacyMappingApi MappingApi = new ImportLegacyMappingApi();
         internal readonly ImportApi Api = new ImportApi();
+        internal readonly AddressProfileApi ProfileApi = new AddressProfileApi();
+        internal readonly AddressReaderStub AddressReader = new AddressReaderStub();
+        internal readonly SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services.ExcelReadProfileService ProfileService;
         internal readonly SessionService Session;
         internal readonly SalesOrderImportViewModel Model;
         internal bool Confirm = true;
         internal int Prompts;
+        internal int Selections;
+        internal Func<bool, Task<ExcelRangeSnapshot>> Select = _ => Task.FromResult<ExcelRangeSnapshot>(null);
+        internal Func<Action, Task> Dispatch = action => { action(); return Task.CompletedTask; };
         internal ImportTestFixture()
         {
             Session = new SessionService(this); Login("first");
@@ -39,7 +50,10 @@ namespace SwiftExport.Client.VSTO.Testing
             Cache.CurrencyItems.Add(new SysDicCurrencyDto { CurrencyCode = "USD", IsEnabled = true });
             Cache.DictionaryItems.Add(new SysDictDataDto { DictCode = "PaymentMethod", DataNameEn = "TT", IsEnabled = true });
             Cache.DictionaryItems.Add(new SysDictDataDto { DictCode = "Unit", DataNameEn = "PCS", IsEnabled = true });
-            Model = new SalesOrderImportViewModel(Cache, Session, this, Api, new ApiCallRunner(new AddInLog()), this);
+            ProfileService = new SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services.ExcelReadProfileService(ProfileApi);
+            Model = new SalesOrderImportViewModel(Cache, Session, this, Api, new ApiCallRunner(new AddInLog()), this, this,
+                new SalesOrderExcelParser(ExcelImportRegistry.CreateDefault()), MappingApi,
+                ProfileService, AddressReader);
         }
         internal void Login(string id) => Session.TryCommit(Session.Capture().Version, "test-token", new MeDto { UserId = id, UserName = id });
         internal async Task Start()
@@ -47,7 +61,9 @@ namespace SwiftExport.Client.VSTO.Testing
             await Model.InitializeAsync(); Model.SelectedCustomer = Cache.Customers[0]; Model.CustomerSelectedCommand.Execute(null);
         }
         /// <summary>测试线程直接接纳，STA 场景在同一 Dispatcher 消息循环运行。</summary>
-        public Task InvokeAsync(Action action) { action(); return Task.CompletedTask; }
+        public Task InvokeAsync(Action action) => Dispatch(action);
+        /// <summary>模拟区域选择的取消、延迟和快照，不加载 Excel。</summary>
+        public Task<ExcelRangeSnapshot> SelectAsync(bool detail) { Selections++; return Select(detail); }
         /// <summary>返回测试设定的确认结果并计数。</summary>
         public bool ConfirmDiscard(string message) { Prompts++; return Confirm; }
         public string Read() => null;
@@ -82,12 +98,6 @@ namespace SwiftExport.Client.VSTO.Testing
         public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; } = Empty<SysDictTypeDto>();
         private static ReadOnlyObservableCollection<T> Empty<T>() => new ReadOnlyObservableCollection<T>(new ObservableCollection<T>());
         public IReadOnlyList<SysDictDataDto> GetDictionaryValues(string code, bool enabledOnly = true) => DictionaryItems.Where(d => d.DictCode == code && (!enabledOnly || d.IsEnabled)).ToArray();
-        /// <summary>导入测试不依赖字段映射，返回空快照。</summary>
-        public IReadOnlyList<SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings.ExcelFieldMappingDto> GetExcelFieldMappings(string groupCode) => new SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings.ExcelFieldMappingDto[0];
-        /// <summary>模拟已完成的分组配置加载。</summary>
-        public Task<CacheRefreshResult> EnsureExcelFieldMappingsLoadedAsync(string groupCode) => Task.FromResult(CacheRefreshResult.Ok());
-        /// <summary>模拟已完成的分组配置刷新。</summary>
-        public Task<CacheRefreshResult> RefreshExcelFieldMappingsAsync(string groupCode) => Task.FromResult(CacheRefreshResult.Ok());
         public Task<CacheRefreshResult> EnsureLoadedAsync() { Loads++; return Load(); }
         public Task<CacheRefreshResult> RefreshAllAsync() => EnsureLoadedAsync();
         public Task<CacheRefreshResult> RefreshProductColorsAsync() => EnsureLoadedAsync();
@@ -99,6 +109,24 @@ namespace SwiftExport.Client.VSTO.Testing
         public Task<CacheRefreshResult> RefreshCurrenciesAsync() => EnsureLoadedAsync();
         public Task<CacheRefreshResult> RefreshDictionariesAsync() => EnsureLoadedAsync();
         public void Clear() { CustomerItems.Clear(); CurrencyItems.Clear(); DictionaryItems.Clear(); }
+    }
+
+    /// <summary>旧链路的直接 API 测试替身，不向基础资料缓存添加映射能力。</summary>
+    internal sealed class ImportLegacyMappingApi : SwiftExport.Contracts.Apis.SystemApis.IExcelFieldMappingApi
+    {
+        internal readonly List<ExcelFieldMappingDto> Mappings = new List<ExcelFieldMappingDto>();
+        internal Func<Task<CacheRefreshResult>> Load = () => Task.FromResult(CacheRefreshResult.Ok());
+        /// <summary>模拟每次直接读取旧配置，用于旧解析兼容性回归。</summary>
+        public async Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> GetMappingsAsync(string groupCode, bool includeDisabled = false, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            var loaded = await Load();
+            return loaded.Success ? ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>.Ok(Mappings.ToArray())
+                : ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>.Fail(loaded.Message);
+        }
+        public Task<ServiceResult<ExcelFieldMappingDto>> CreateAsync(CreateExcelFieldMappingRequest request, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
+        public Task<ServiceResult<ExcelFieldMappingDto>> UpdateAsync(Guid uid, UpdateExcelFieldMappingRequest request, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
+        public Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> SaveGroupAsync(string groupCode, SaveExcelFieldMappingGroupRequest request, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
+        public Task<ServiceResult<bool>> DeleteAsync(Guid uid, int expectedVersion, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
     }
 
     /// <summary>只允许产品搜索，任何误接入保存或生命周期 API 都立即使测试失败。</summary>

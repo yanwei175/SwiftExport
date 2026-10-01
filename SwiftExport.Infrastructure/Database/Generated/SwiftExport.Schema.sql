@@ -352,6 +352,45 @@ CREATE TABLE [dbo].[ExcelFieldMapping]
     CONSTRAINT [CK_ExcelFieldMapping_Version] CHECK ([Version] >= 1)
 );
 
+-- 逻辑依赖: [ProfileUid] -> [dbo].[ExcelReadProfile].[Uid]（由 Application 校验）
+CREATE TABLE [dbo].[ExcelReadField]
+(
+    [Uid] uniqueidentifier NOT NULL,
+    [Version] int NOT NULL CONSTRAINT [DF_ExcelReadField_Version] DEFAULT (1),
+    [IsDeleted] bit NOT NULL CONSTRAINT [DF_ExcelReadField_IsDeleted] DEFAULT (0),
+    [CreatedDate] datetime2(7) NULL,
+    [CreatedBy] nvarchar(500) NULL,
+    [UpdatedDate] datetime2(7) NULL,
+    [UpdatedBy] nvarchar(500) NULL,
+    [ProfileUid] uniqueidentifier NOT NULL,
+    [TargetFieldKey] nvarchar(100) NOT NULL,
+    [WorksheetName] nvarchar(31) NULL,
+    [CellAddress] nvarchar(10) NOT NULL,
+    [IsDownward] bit NOT NULL CONSTRAINT [DF_ExcelReadField_IsDownward] DEFAULT (0),
+    CONSTRAINT [PK_ExcelReadField] PRIMARY KEY ([Uid]),
+    CONSTRAINT [CK_ExcelReadField_Version] CHECK ([Version] >= 1)
+);
+
+CREATE TABLE [dbo].[ExcelReadProfile]
+(
+    [Uid] uniqueidentifier NOT NULL,
+    [Version] int NOT NULL CONSTRAINT [DF_ExcelReadProfile_Version] DEFAULT (1),
+    [IsDeleted] bit NOT NULL CONSTRAINT [DF_ExcelReadProfile_IsDeleted] DEFAULT (0),
+    [CreatedDate] datetime2(7) NULL,
+    [CreatedBy] nvarchar(500) NULL,
+    [UpdatedDate] datetime2(7) NULL,
+    [UpdatedBy] nvarchar(500) NULL,
+    [GroupCode] nvarchar(40) NOT NULL,
+    [ConfigName] nvarchar(100) NOT NULL,
+    [EndMode] int NOT NULL CONSTRAINT [DF_ExcelReadProfile_EndMode] DEFAULT (0),
+    [LastRowColumn] nvarchar(3) NULL,
+    [SummaryCellAddress] nvarchar(10) NULL,
+    [Remark] nvarchar(500) NULL,
+    CONSTRAINT [PK_ExcelReadProfile] PRIMARY KEY ([Uid]),
+    CONSTRAINT [CK_ExcelReadProfile_EndMode] CHECK ([EndMode] IN (0, 1, 2)),
+    CONSTRAINT [CK_ExcelReadProfile_Version] CHECK ([Version] >= 1)
+);
+
 -- 逻辑依赖: [CustomerId] -> [dbo].[Customer].[Uid]（由 Application 校验）
 -- 逻辑依赖: [ProductId] -> [dbo].[Product].[Uid]（由 Application 校验）
 -- 多态逻辑依赖: SourceType=SO 时 [SourceUid] -> [dbo].[SalesOrderHeader]（由 Application 校验）
@@ -1545,6 +1584,10 @@ CREATE UNIQUE INDEX [UX_DemandExecutionLink_CommandItem] ON [dbo].[DemandExecuti
 CREATE UNIQUE INDEX [UX_DocumentSequence_Type_Period] ON [dbo].[DocumentSequence] ([DocType], [YearMonth]) WHERE [IsDeleted] = 0;
 
 CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header] ON [dbo].[ExcelFieldMapping] ([GroupCode], [NormalizedHeader]) WHERE [IsDeleted] = 0 AND [NormalizedHeader] <> N'';
+
+CREATE UNIQUE INDEX [UX_ExcelReadField_Profile_Key] ON [dbo].[ExcelReadField] ([ProfileUid], [TargetFieldKey]) WHERE [IsDeleted] = 0;
+
+CREATE UNIQUE INDEX [UX_ExcelReadProfile_Group_Name] ON [dbo].[ExcelReadProfile] ([GroupCode], [ConfigName]) WHERE [IsDeleted] = 0;
 
 CREATE INDEX [IX_GrossDemand_Source] ON [dbo].[GrossDemand] ([SourceType], [SourceUid]) WHERE [IsDeleted] = 0;
 CREATE UNIQUE INDEX [UX_GrossDemand_SourceLine] ON [dbo].[GrossDemand] ([SourceType], [SourceUid], [SourceLineId]) WHERE [IsDeleted] = 0 AND [LifecycleStatus] = 0;
@@ -2926,6 +2969,139 @@ EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'管理员备注，不参与匹配。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
+    @level2type=N'COLUMN', @level2name=N'Remark';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存配置内一个目标字段的工作表、起始单元格和读取方式；只能随主配置事务维护。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'所属主配置的逻辑主键。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'ProfileUid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'客户端认可的稳定字段路径；服务端仅校验格式，不绑定 ViewModel 类型。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'TargetFieldKey';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'指定位置时的可选工作表名称，仅供参考；客户端实际读取使用本次捕获的活动工作表。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'WorksheetName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'规范化的单个 A1 地址；向下读取时代表该列的首条明细位置。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'CellAddress';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'是否从起始单元格逐行向下读取；同一配置的向下字段必须共用起始行，名称不决定读取源。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadField',
+    @level2type=N'COLUMN', @level2name=N'IsDownward';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'保存全员共享的一份 Excel 单据读取配置及明细结束规则；不保存工作簿数据。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'Uid';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'Version';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'IsDeleted';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'CreatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录创建人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'CreatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新时间。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'记录最后更新人标识。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'稳定单据分组，与客户端注册的导入模型分组对应，创建后不可修改。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'GroupCode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'同一单据分组内唯一的配置名称。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'ConfigName';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'明细结束方式：0 未配置，1 指定列最后有值行，2 指定汇总单元格所在行之前。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'EndMode';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'末行判断列的字母标识，例如 A；仅结束方式为 1 时保存。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'LastRowColumn';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'汇总单元格的规范 A1 地址，例如 D30；仅结束方式为 2 时保存。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
+    @level2type=N'COLUMN', @level2name=N'SummaryCellAddress';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'配置说明，不参与单元格读取。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'ExcelReadProfile',
     @level2type=N'COLUMN', @level2name=N'Remark';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'原始业务需求。',

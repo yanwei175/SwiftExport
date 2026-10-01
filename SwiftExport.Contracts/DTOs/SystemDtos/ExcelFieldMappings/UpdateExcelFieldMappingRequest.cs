@@ -1,3 +1,4 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 namespace SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings
 {
     /// <summary>按预期版本修改表头、目标字段和启用状态；分组不允许跨组更改。</summary>

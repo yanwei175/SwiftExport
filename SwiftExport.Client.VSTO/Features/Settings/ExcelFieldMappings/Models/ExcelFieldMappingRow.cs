@@ -1,3 +1,4 @@
+﻿// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
@@ -17,7 +18,8 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Models
         /// <summary>已有记录的乐观并发版本。</summary>
         public int Version { get; private set; }
         public string ExcelHeader { get { return excelHeader; } set { SetProperty(ref excelHeader, value); } }
-        public string TargetFieldKey { get { return targetFieldKey; } set { SetProperty(ref targetFieldKey, value); } }
+        /// <summary>保留稳定目标键；候选重建时的空回写不能抹掉历史配置。</summary>
+        public string TargetFieldKey { get { return targetFieldKey; } set { if (value != null) SetProperty(ref targetFieldKey, value); } }
         public bool IsEnabled { get { return isEnabled; } set { SetProperty(ref isEnabled, value); } }
         public string Remark { get { return remark; } set { SetProperty(ref remark, value); } }
 

@@ -1,3 +1,4 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Systems.ExcelFieldMappings;
 using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
@@ -10,14 +11,6 @@ namespace SwiftExport.WebApi.Controllers.Systems.ExcelFieldMappings;
 [Route("api/excel-field-mappings")]
 public sealed class ExcelFieldMappingController(IExcelFieldMappingService service, IExcelFieldMappingBatchService batchService) : ControllerBase
 {
-    /// <summary>读取业务分组目录。</summary>
-    [HttpGet("groups")]
-    public ServiceResult<IReadOnlyList<ExcelFieldGroupDto>> GetGroupsAsync() => service.GetGroups();
-
-    /// <summary>读取指定分组的可映射目标字段。</summary>
-    [HttpGet("{groupCode}/fields")]
-    public ServiceResult<IReadOnlyList<ExcelTargetFieldDto>> GetFieldsAsync(string groupCode) => service.GetFields(groupCode);
-
     /// <summary>读取指定分组的映射；维护页面可请求包含停用项。</summary>
     [HttpGet("{groupCode}")]
     public Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> GetMappingsAsync(string groupCode, [FromQuery] bool includeDisabled = false, CancellationToken cancellationToken = default)

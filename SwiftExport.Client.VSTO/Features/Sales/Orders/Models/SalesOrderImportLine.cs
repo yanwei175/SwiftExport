@@ -1,4 +1,5 @@
 ﻿using System;
+using SwiftExport.Client.VSTO.Services.ExcelImport;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -10,7 +11,7 @@ using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
 {
     /// <summary>承载一条内存导入明细及其搜索编辑状态，不包含 CRUD 基线或持久化行为。</summary>
-    public sealed class SalesOrderImportLine : ObservableObject, IDataErrorInfo
+    public sealed partial class SalesOrderImportLine : ObservableObject, IDataErrorInfo
     {
         private string sku = "", customerSku = "", descriptionEn = "", colorNameEn = "", featuresEn = "", unitSnapshot = "", subNote = "", mainImage = "";
         private string qtyText = "1", usdPriceText = "", cnyPriceText = "";
@@ -22,26 +23,39 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         /// <summary>创建稳定行身份，非标编号只生成一次。</summary>
         public SalesOrderImportLine(bool nonStandard, DateTime? deliveryDate)
         {
-            IsNonStandard = nonStandard;
+            isNonStandard = nonStandard;
+            Source.PropertyChanged += (sender, args) => { InvalidateCheck(); OnPropertyChanged(nameof(Error)); };
             expectedDeliveryDate = deliveryDate;
             if (nonStandard) sku = NonStandardSkuGenerator.Create(Uid);
         }
+        /// <summary>本地稳定行标识，检查请求作为 ClientLineId，保存作为明细 Uid。</summary>
         public Guid Uid { get; } = Guid.NewGuid();
-        public bool IsNonStandard { get; }
+        /// <summary>只能通过受控转换切换行类型，不能由字段配置直接写入。</summary>
+        public bool IsNonStandard => isNonStandard;
         public string LineTypeText => IsNonStandard ? "非标" : "标准";
         public Guid? ProductId { get => productId; private set => SetProperty(ref productId, value); }
         public Guid? CustomerProductId { get => customerProductId; private set => SetProperty(ref customerProductId, value); }
         public string Sku { get => sku; private set => SetProperty(ref sku, value); }
+        [ExcelImportField("Line.CustomerSku", "客户型号")]
         public string CustomerSku { get => customerSku; set => SetProperty(ref customerSku, value); }
+        [ExcelImportField("Line.DescriptionEn", "英文描述")]
         public string DescriptionEn { get => descriptionEn; set => SetProperty(ref descriptionEn, value); }
+        [ExcelImportField("Line.ColorNameEn", "英文颜色")]
         public string ColorNameEn { get => colorNameEn; set => SetProperty(ref colorNameEn, value); }
+        [ExcelImportField("Line.FeaturesEn", "英文特性")]
         public string FeaturesEn { get => featuresEn; set => SetProperty(ref featuresEn, value); }
+        [ExcelImportField("Line.Unit", "非标行单位")]
         public string UnitSnapshot { get => unitSnapshot; set { if (value != null) SetProperty(ref unitSnapshot, value); } }
+        [ExcelImportField("Line.SubNote", "行备注")]
         public string SubNote { get => subNote; set => SetProperty(ref subNote, value); }
         public string MainImage { get => mainImage; private set => SetProperty(ref mainImage, value); }
+        [ExcelImportField("Line.ExpectedDeliveryDate", "预计交货日期")]
         public DateTime? ExpectedDeliveryDate { get => expectedDeliveryDate; set => SetProperty(ref expectedDeliveryDate, value); }
+        [ExcelImportField("Line.Qty", "数量")]
         public string QtyText { get => qtyText; set { if (SetProperty(ref qtyText, value)) NotifyAmounts(); } }
+        [ExcelImportField("Line.UsdPrice", "美元单价")]
         public string UsdPriceText { get => usdPriceText; set { if (SetProperty(ref usdPriceText, value)) NotifyAmounts(); } }
+        [ExcelImportField("Line.CnyPrice", "人民币单价")]
         public string CnyPriceText { get => cnyPriceText; set { if (SetProperty(ref cnyPriceText, value)) NotifyAmounts(); } }
         public decimal? Qty => Parse(QtyText, true);
         public decimal? UsdPrice => Parse(UsdPriceText, false);
@@ -56,21 +70,27 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public IRelayCommand ClearProductCommand { get; internal set; }
 
         /// <summary>仅检查本地输入完整性，不代替服务端保存校验。</summary>
-        public string Error => this[nameof(QtyText)] + this[nameof(UsdPriceText)] + this[nameof(CnyPriceText)]
+        public string Error => Source.Error + PackagingError + CheckError + this[nameof(QtyText)] + this[nameof(UsdPriceText)] + this[nameof(CnyPriceText)]
             + (IsNonStandard ? (string.IsNullOrWhiteSpace(DescriptionEn) ? "非标行需要描述。" : "") + (string.IsNullOrWhiteSpace(UnitSnapshot) ? "非标行需要单位。" : "")
                 : (!ProductId.HasValue ? "标准行需要选择产品。" : ""))
             + (Qty.HasValue && ((UsdPrice.HasValue && !UsdAmount.HasValue) || (CnyPrice.HasValue && !CnyAmount.HasValue)) ? "金额超过支持范围。" : "");
         /// <summary>保留非法输入文本并由 WPF 显示软校验。</summary>
         public string this[string name] => name == nameof(QtyText) && !Qty.HasValue ? "数量必须大于零。"
             : name == nameof(UsdPriceText) && !string.IsNullOrWhiteSpace(UsdPriceText) && !UsdPrice.HasValue ? "USD 单价必须为非负数字。"
-            : name == nameof(CnyPriceText) && !string.IsNullOrWhiteSpace(CnyPriceText) && !CnyPrice.HasValue ? "CNY 单价必须为非负数字。" : "";
+            : name == nameof(CnyPriceText) && !string.IsNullOrWhiteSpace(CnyPriceText) && !CnyPrice.HasValue ? "CNY 单价必须为非负数字。"
+            : name == nameof(PcsOfCartonText) ? PackagingIssue(PcsOfCartonText, true, "每箱数量")
+            : name == nameof(NwOfCartonText) ? PackagingIssue(NwOfCartonText, false, "每箱净重")
+            : name == nameof(GwOfCartonText) ? PackagingIssue(GwOfCartonText, false, "每箱毛重")
+            : name == nameof(CbmOfCartonText) ? PackagingIssue(CbmOfCartonText, false, "每箱体积") : "";
 
         /// <summary>复制选择结果，保留用户输入的数量、交期和备注。</summary>
         public void ApplyProduct(SalesOrderProductLookupDto product)
         {
             if (IsNonStandard || product == null) return;
+            ResetMismatchConfirmation(); InvalidateCheck();
+            CustomerSku = product.CustomerSku ?? "";
             ProductId = product.ProductId; CustomerProductId = product.CustomerProductId;
-            Sku = product.Sku ?? ""; CustomerSku = product.CustomerSku ?? "";
+            Sku = product.Sku ?? ""; LinkSku = product.LinkSku ?? "";
             DescriptionEn = product.DescriptionEn ?? ""; ColorNameEn = product.ColorNameEn ?? "";
             FeaturesEn = product.FeaturesEn ?? ""; MainImage = product.MainImage ?? "";
             UsdPriceText = product.UsdPrice?.ToString(CultureInfo.CurrentCulture) ?? "";
@@ -80,7 +100,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public void ClearProduct()
         {
             if (IsNonStandard) return;
-            ProductId = null; CustomerProductId = null; Sku = ""; CustomerSku = "";
+            ResetMismatchConfirmation(); InvalidateCheck();
+            ProductId = null; CustomerProductId = null; LinkSku = ""; Sku = ""; CustomerSku = "";
             DescriptionEn = ""; ColorNameEn = ""; FeaturesEn = ""; MainImage = "";
             UsdPriceText = ""; CnyPriceText = ""; SelectedProduct = null;
         }
@@ -94,7 +115,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         }
         private void NotifyAmounts()
         {
-            OnPropertyChanged(nameof(Qty)); OnPropertyChanged(nameof(UsdAmount)); OnPropertyChanged(nameof(CnyAmount)); OnPropertyChanged(nameof(Error));
+            OnPropertyChanged(nameof(Qty)); OnPropertyChanged(nameof(UsdPrice)); OnPropertyChanged(nameof(CnyPrice)); OnPropertyChanged(nameof(UsdAmount)); OnPropertyChanged(nameof(CnyAmount)); OnPropertyChanged(nameof(Error));
         }
     }
 }

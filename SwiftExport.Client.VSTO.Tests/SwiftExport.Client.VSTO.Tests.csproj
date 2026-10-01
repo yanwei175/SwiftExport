@@ -13,6 +13,8 @@
   <PackageReference Include="Refit" Version="10.0.1" ExcludeAssets="analyzers"/>
   <ProjectReference Include="../SwiftExport.Contracts/SwiftExport.Contracts.csproj"/>
   <Reference Include="System.Net.Http"/><Reference Include="System.Security"/>
+  <Reference Include="System.Xml.Linq"/>
+  <None Update="TestData/销售订单47选区.xml" CopyToOutputDirectory="PreserveNewest"/>
   <Compile Include="../SwiftExport.Client.VSTO/Authentication/*.cs" Exclude="../SwiftExport.Client.VSTO/Authentication/LoginWindow.xaml.cs;../SwiftExport.Client.VSTO/Authentication/LoginCoordinator.cs" LinkBase="Production/Authentication"/>
   <Compile Include="../SwiftExport.Client.VSTO/Mvvm/*.cs;../SwiftExport.Client.VSTO/Api/*.cs;../SwiftExport.Client.VSTO/Diagnostics/*.cs;../SwiftExport.Client.VSTO/Hosting/Threading/IUiDispatcher.cs" LinkBase="Production"/>
   <None Include="../SwiftExport.Client.VSTO/SwiftExportRibbon.xml" Link="SwiftExportRibbon.xml" CopyToOutputDirectory="PreserveNewest"/>
@@ -24,4 +26,12 @@
     <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/ViewModels/*.cs" LinkBase="Production/Import/ViewModels"/>
     <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/ISalesOrderImportPrompt.cs" Link="Production/Import/ISalesOrderImportPrompt.cs"/>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../SwiftExport.Client.VSTO/Services/ExcelImport/*.cs" LinkBase="Production/ExcelImport"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Excel/Reading/ExcelRangeSnapshot.cs" LinkBase="Production/Excel"/>
+    <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Services/*.cs" LinkBase="Production/Import/Services"/>
+  </ItemGroup>
+ <ItemGroup>
+ <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Services/*.cs;../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Models/*.cs;../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/ViewModels/*.cs" LinkBase="Production/ReadProfiles"/>
+ </ItemGroup>
 </Project>

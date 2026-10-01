@@ -1,3 +1,4 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 namespace SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings
 {
     /// <summary>字段映射配置的稳定业务错误代码。</summary>

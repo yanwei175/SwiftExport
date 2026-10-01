@@ -1,3 +1,4 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using Microsoft.Data.SqlClient;
 using SwiftExport.Application.Interfaces.Systems.ExcelFieldMappings;
 using SwiftExport.Contracts.Common;
@@ -9,26 +10,14 @@ using SwiftExport.Core.Interfaces.Systems.ExcelFieldMappings;
 
 namespace SwiftExport.Application.Services.Systems.ExcelFieldMappings;
 
-/// <summary>验证字段目录、别名唯一性和预期版本，再委托仓储持久化。</summary>
+/// <summary>验证配置格式、别名唯一性和预期版本，再委托仓储持久化。</summary>
 public sealed class ExcelFieldMappingService(IExcelFieldMappingRepository repository) : IExcelFieldMappingService
 {
     /// <inheritdoc />
-    public ServiceResult<IReadOnlyList<ExcelFieldGroupDto>> GetGroups() => ServiceResult<IReadOnlyList<ExcelFieldGroupDto>>.Ok(ExcelFieldCatalog.GetGroups());
-
-    /// <inheritdoc />
-    public ServiceResult<IReadOnlyList<ExcelTargetFieldDto>> GetFields(string groupCode)
-    {
-        var group = ExcelFieldCatalog.ResolveGroup(groupCode);
-        return group is null
-            ? ServiceResult<IReadOnlyList<ExcelTargetFieldDto>>.Fail(ServiceErrorCodes.Validation, "未知业务分组。", nameof(groupCode))
-            : ServiceResult<IReadOnlyList<ExcelTargetFieldDto>>.Ok(ExcelFieldCatalog.GetFields(group));
-    }
-
-    /// <inheritdoc />
     public async Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> GetMappingsAsync(string groupCode, bool includeDisabled, CancellationToken cancellationToken)
     {
-        var group = ExcelFieldCatalog.ResolveGroup(groupCode);
-        if (group is null) return ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>.Fail(ServiceErrorCodes.Validation, "未知业务分组。", nameof(groupCode));
+        var group = ExcelFieldMappingFormat.NormalizeGroup(groupCode);
+        if (group is null) return ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>.Fail(ServiceErrorCodes.Validation, "分组必须是 1 至 40 个字符的 ASCII 标识。", nameof(groupCode));
         var rows = await repository.GetByGroupAsync(group, includeDisabled, cancellationToken);
         return ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>.Ok(rows.Select(ToDto).ToArray());
     }
@@ -37,7 +26,7 @@ public sealed class ExcelFieldMappingService(IExcelFieldMappingRepository reposi
     public async Task<ServiceResult<ExcelFieldMappingDto>> CreateAsync(CreateExcelFieldMappingRequest request, CancellationToken cancellationToken)
     {
         if (request is null) return Invalid("请求不能为空。");
-        var group = ExcelFieldCatalog.ResolveGroup(request.GroupCode);
+        var group = ExcelFieldMappingFormat.NormalizeGroup(request.GroupCode);
         var validation = Validate(group, request.ExcelHeader, request.TargetFieldKey, request.Remark);
         if (validation is not null) return validation;
         var header = request.ExcelHeader.Trim();
@@ -101,15 +90,15 @@ public sealed class ExcelFieldMappingService(IExcelFieldMappingRepository reposi
             : ServiceResult<bool>.Fail(ServiceErrorCodes.VersionConflict, "字段映射已由其他人修改，请刷新后重试。");
     }
 
-    // 统一校验原始长度和规范化长度，避免 SQL 列截断及绕过字段白名单。
+    // 统一校验原始长度和规范化长度，避免 SQL 列截断；不承担模型字段或订单业务校验。
     private static ServiceResult<ExcelFieldMappingDto>? Validate(string? group, string? header, string? field, string? remark)
     {
-        if (group is null) return Invalid("未知业务分组。", "GroupCode");
+        if (ExcelFieldMappingFormat.NormalizeGroup(group) is null) return Invalid("分组必须是 1 至 40 个字符的 ASCII 标识。", "GroupCode");
         if (string.IsNullOrWhiteSpace(header)) return Invalid("Excel 表头不能为空。", "ExcelHeader");
         if (header.Trim().Length > 200 || ExcelHeaderNormalizer.Normalize(header).Length > 200)
             return Invalid("Excel 表头不能超过 200 个字符。", "ExcelHeader");
-        if (string.IsNullOrWhiteSpace(field) || !ExcelFieldCatalog.ContainsField(group, field.Trim()))
-            return Invalid("目标字段不在该分组的可映射目录中。", "TargetFieldKey");
+        if (string.IsNullOrWhiteSpace(field) || !ExcelFieldMappingFormat.IsValidField(field.Trim()))
+            return Invalid("目标字段必须是最多 100 个字符的点分隔 ASCII 标识。", "TargetFieldKey");
         if (remark?.Length > 500) return Invalid("备注不能超过 500 个字符。", "Remark");
         return null;
     }

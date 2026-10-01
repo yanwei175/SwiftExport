@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Client.VSTO.Diagnostics;
 using System;
 using System.Collections.Generic;
@@ -20,8 +20,8 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
         public ModelessElementHostWindowManager(IServiceProvider provider, AddInLog log)
         { this.provider = provider; this.log = log; }
 
-        /// <summary>按 Excel 窗口及页面键复用窗体；可在用户关闭时检查页面未保存内容，插件退出不阻塞。</summary>
-        public void Show<TView>(string key, string title, IntPtr owner, DrawingSize size, Func<TView, bool> canClose = null) where TView : UIElement
+        /// <summary>按 Owner 及页面键复用窗体；首次创建时可设置页面参数，重复打开保留编辑；普通关闭可检查未保存内容，插件退出不阻塞。</summary>
+        public void Show<TView>(string key, string title, IntPtr owner, DrawingSize size, Func<TView, bool> canClose = null, Action<TView> initialize = null) where TView : UIElement
         {
             if (disposed) throw new ObjectDisposedException(nameof(ModelessElementHostWindowManager));
 
@@ -48,7 +48,9 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
                 context.Handle = owner;
 
                 form = new ModelessElementHostForm(title, size, owner);
-                form.LoadWpfUI(scope.ServiceProvider.GetRequiredService<TView>());
+                var initialView = scope.ServiceProvider.GetRequiredService<TView>();
+                initialize?.Invoke(initialView);
+                form.LoadWpfUI(initialView);
                 context.Handle = form.Handle;
                 var pageForm = form;
                 form.FormClosing += (sender, args) =>

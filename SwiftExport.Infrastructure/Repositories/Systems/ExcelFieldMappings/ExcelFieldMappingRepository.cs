@@ -1,3 +1,4 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using Dapper;
 using SwiftExport.Core.Entities.Systems.ExcelFieldMappings;
 using SwiftExport.Core.Interfaces.Systems.ExcelFieldMappings;

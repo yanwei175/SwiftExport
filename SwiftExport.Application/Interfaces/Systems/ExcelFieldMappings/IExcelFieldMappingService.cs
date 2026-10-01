@@ -1,15 +1,12 @@
+// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.Systems.ExcelFieldMappings;
 
-/// <summary>提供按组字段目录及映射配置的版本化维护操作。</summary>
+/// <summary>提供按组映射配置的版本化维护操作；可导入字段由客户端模型声明。</summary>
 public interface IExcelFieldMappingService
 {
-    /// <summary>列出可配置业务分组。</summary>
-    ServiceResult<IReadOnlyList<ExcelFieldGroupDto>> GetGroups();
-    /// <summary>列出分组允许映射的目标字段。</summary>
-    ServiceResult<IReadOnlyList<ExcelTargetFieldDto>> GetFields(string groupCode);
     /// <summary>按分组读取配置，默认排除停用项。</summary>
     Task<ServiceResult<IReadOnlyList<ExcelFieldMappingDto>>> GetMappingsAsync(string groupCode, bool includeDisabled, CancellationToken cancellationToken);
     /// <summary>创建一条表头别名配置。</summary>

@@ -62,10 +62,10 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
                     f.Model.AddNonStandardLineCommand.Execute(null); Pump();
                     var nonStandard = f.Model.Lines[1];
-                    grid.SelectedItem = nonStandard; grid.CurrentCell = new DataGridCellInfo(nonStandard, grid.Columns[7]); grid.BeginEdit(); Pump();
+                    grid.SelectedItem = nonStandard; grid.CurrentCell = new DataGridCellInfo(nonStandard, grid.Columns.Single(c => (string)c.Header == "单位")); grid.BeginEdit(); Pump();
                     check(Descendants<ComboBox>(grid).Any(c => c.IsEnabled && BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "UnitSnapshot"), "非标单位使用可编辑下拉");
                     grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
-                    grid.CurrentCell = new DataGridCellInfo(nonStandard, grid.Columns[12]); grid.BeginEdit(); Pump();
+                    grid.CurrentCell = new DataGridCellInfo(nonStandard, grid.Columns.Single(c => (string)c.Header == "预计交期")); grid.BeginEdit(); Pump();
                     var date = Descendants<DatePicker>(grid).Single(); var expected = new DateTime(2026, 11, 2);
                     date.SetCurrentValue(DatePicker.SelectedDateProperty, expected); Pump();
                     check(nonStandard.ExpectedDeliveryDate == expected, "行交期编辑器双向绑定");
@@ -74,7 +74,20 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(f.Model.Lines.Count == 0, "DataGrid 多选桥接删除所有选中行");
                     var dates = Descendants<DatePicker>(view).Where(d => BindingOperations.GetBinding(d, DatePicker.SelectedDateProperty)?.Path.Path == "Header.Etd").ToArray();
                     check(dates.Length == 1, "ETD 已绑定而不是空白占位");
-                    check(Descendants<Button>(view).Where(b => (b.Content as string)?.Contains("待实现") == true).All(b => !b.IsEnabled), "保存和两个解析入口不可执行");
+                    check(Descendants<Button>(view).Where(b => (b.Content as string)?.Contains("待实现") == true).All(b => !b.IsEnabled), "服务器保存入口仍不可执行");
+                    var headerButton = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.ReadHeaderCommand));
+                    var linesButton = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.ReadLinesCommand));
+                    check(headerButton.IsEnabled && linesButton.IsEnabled, "两个地址读取按钮绑定命令且当前会话可执行");
+                    f.Confirm = true; f.Model.AddStandardLineCommand.Execute(null);
+                    f.Dispatch = action => window.Dispatcher.CheckAccess() ? Immediate(action) : window.Dispatcher.InvokeAsync(action).Task;
+                    var parse = f.Model.ReadHeaderCommand.ExecuteAsync(null);
+                    var timeout = System.Diagnostics.Stopwatch.StartNew();
+                    while (!parse.IsCompleted && timeout.ElapsedMilliseconds < 10000) Pump();
+                    check(parse.IsCompleted && !parse.IsFaulted, "STA 消息循环接纳地址读取转换结果：" + (parse.Exception?.GetBaseException().Message ?? f.Model.ErrorMessage)); Pump();
+                    check(f.Model.Header.InvoiceNo == "260820" && f.Model.Lines.Count == 1, "替换 Header 后实际绑定回显且明细保留");
+                    check(Descendants<TextBox>(view).Any(t => BindingOperations.GetBinding(t, TextBox.TextProperty)?.Path.Path == "Header.InvoiceNo" && t.Text == "260820"), "发票输入框绑定新单头实例");
+                    check(grid.Columns.OfType<DataGridTextColumn>().Any(c => (c.Binding as Binding)?.Path.Path == "OriginalLinkSku"), "原表中性型号独立展示");
+                    check(grid.Columns.OfType<DataGridTextColumn>().Any(c => (c.Binding as Binding)?.Path.Path == "PcsOfCartonText"), "包装数据具有可修正的编辑列");
                     f.Login("another"); Pump(); check(!f.Model.IsEditable && f.Model.Header.CustomerId == Guid.Empty, "换号清空并禁用实际页面");
                 }
                 finally { window.Close(); }
@@ -155,6 +168,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
             Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => frame.Continue = false));
             Dispatcher.PushFrame(frame);
         }
+        // STA 夹具短操作直接完成，后台结果通过真实 WPF Dispatcher 接纳。
+        private static System.Threading.Tasks.Task Immediate(Action action) { action(); return System.Threading.Tasks.Task.CompletedTask; }
     }
 }
 

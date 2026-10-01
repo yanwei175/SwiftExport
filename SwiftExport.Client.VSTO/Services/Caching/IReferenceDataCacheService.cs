@@ -6,7 +6,6 @@ using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 
 namespace SwiftExport.Client.VSTO.Services.Caching
 {
@@ -65,15 +64,6 @@ namespace SwiftExport.Client.VSTO.Services.Caching
         /// 按字典编码读取字典值。业务下拉默认只返回启用值。
         /// </summary>
         IReadOnlyList<SysDictDataDto> GetDictionaryValues(string dictCode, bool enabledOnly = true);
-
-        /// <summary>读取已加载分组的启用字段映射快照；未加载或当前未登录时返回空集合。</summary>
-        IReadOnlyList<ExcelFieldMappingDto> GetExcelFieldMappings(string groupCode);
-
-        /// <summary>首次使用指定分组时加载启用映射；同组并发调用共享本次请求，不参与基础资料全量预热。</summary>
-        Task<CacheRefreshResult> EnsureExcelFieldMappingsLoadedAsync(string groupCode);
-
-        /// <summary>强制刷新指定分组映射；请求失败时保留当前账号的旧快照。</summary>
-        Task<CacheRefreshResult> RefreshExcelFieldMappingsAsync(string groupCode);
 
         /// <summary>
         /// 首次使用时加载基础资料（不含独立仓库缓存）；本会话已完整加载时不会重复请求。

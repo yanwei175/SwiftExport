@@ -24,11 +24,28 @@
         </Grid.RowDefinitions>
         <!--Excel操作功能区域-->
         <Grid Grid.Row="0" Margin="0,0,0,8">
+            <StackPanel>
+            <WrapPanel>
+                <ComboBox Width="200" IsEnabled="{Binding CanSelectReadProfile}" ItemsSource="{Binding ReadProfiles}" DisplayMemberPath="ConfigName" SelectedItem="{Binding SelectedReadProfile, Mode=TwoWay}" Margin="0,0,8,0"/>
+                <ui:Button Content="刷新配置" Command="{Binding RefreshReadProfilesCommand}" Margin="0,0,8,0"/>
+                <ui:Button Content="设计读取配置" Command="{Binding DesignReadProfileCommand}" Margin="0,0,8,0"/>
+            </WrapPanel>
             <WrapPanel>
                 <ui:Button Content="加载基础资料 / 重试" Command="{Binding InitializeCommand}" Margin="0,0,8,0"/>
                 <ui:Button Content="保存草稿至服务器（待实现）" IsEnabled="False" Margin="0,0,8,0" Appearance="Primary"/>
-                <ui:Button Content="从选区解析销售订单（待实现）" IsEnabled="False" Margin="0,0,8,0"/>
+                <ui:Button Content="按配置读取单头" Command="{Binding ReadHeaderCommand}" Margin="0,0,8,0"
+                           AutomationProperties.Name="按地址配置读取 Excel 单头"/>
             </WrapPanel>
+            <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
+                <TextBlock Text="{Binding ParseMessage}" TextWrapping="Wrap" AutomationProperties.Name="Excel 解析结果"/>
+            </ScrollViewer>
+            <Expander Header="Excel 单头原文（仅供核对）" Margin="0,4,0,0">
+                <StackPanel>
+                    <TextBlock Text="{Binding Header.OriginalTerms, StringFormat='Terms: {0}'}" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding Header.OriginalUpdateDateText, StringFormat='UpdateDate: {0}'}"/>
+                </StackPanel>
+            </Expander>
+            </StackPanel>
         </Grid>
 
         <!--销售订单详情-->
@@ -176,7 +193,8 @@
 
             <!--DataGrid操作-->
             <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,4,0,4">
-                <ui:Button Margin="0,0,4,0"  IsEnabled="False" Content="从Excel解析（待实现）" />
+                <ui:Button Margin="0,0,4,0" Command="{Binding ReadLinesCommand}" Content="按配置读取明细"
+                           AutomationProperties.Name="选择包含表头的 Excel 明细区域并解析"/>
                 <ui:Button Margin="0,0,4,0"  Command="{Binding AddStandardLineCommand}"  Content="添加产品" />
                 <ui:Button Margin="0,0,4,0"  Command="{Binding AddNonStandardLineCommand}"  Content="添加非标件" />
                 <ui:Button Margin="0,0,4,0"  Command="{Binding DeleteSelectedLineCommand}"  Content="删除行" />
@@ -227,6 +245,16 @@
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <DataGridTextColumn Header="原表中性型号" Width="135"
+                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                        Binding="{Binding OriginalLinkSku, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <DataGridTextColumn Header="原表中性型号" Width="135"
+                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                        Binding="{Binding OriginalLinkSku, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <DataGridTextColumn Header="英文描述" Width="210" 
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
@@ -279,6 +307,40 @@
                     <DataGridTextColumn Header="CNY金额" Width="92" IsReadOnly="True" 
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         Binding="{Binding CnyAmount, StringFormat=N2}" />
+
+                    <DataGridTextColumn Header="PCS/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding PcsOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                    <DataGridTextColumn Header="NW/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding NwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                    <DataGridTextColumn Header="GW/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding GwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                    <DataGridTextColumn Header="M3/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding CbmOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+
+                    <DataGridTextColumn Header="PCS/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding PcsOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                    <DataGridTextColumn Header="NW/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding NwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                    <DataGridTextColumn Header="GW/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding GwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                    <DataGridTextColumn Header="M3/CTN" Width="85"
+                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
+                                        Binding="{Binding CbmOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
 
                     <DataGridTemplateColumn Header="预计交期" Width="125">
                         <DataGridTemplateColumn.CellTemplate>

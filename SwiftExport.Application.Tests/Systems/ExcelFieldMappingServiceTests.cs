@@ -26,17 +26,38 @@ public sealed class ExcelFieldMappingServiceTests
         Assert.IsTrue((await service.CreateAsync(Create("PackingList", "customer sku", "Line.CustomerSkuSnapshot"), default)).Success);
     }
 
-    /// <summary>未知分组、身份字段和空表头均不能入库。</summary>
+    /// <summary>后端仅保存稳定逻辑键，不根据客户端模型判断字段语义；新业务分组无需后端目录登记。</summary>
     [TestMethod]
-    public async Task Create_RejectsUnknownFieldsAndEmptyHeader()
+    public async Task Create_AcceptsNewGroupsAndModelIndependentKeys()
+    {
+        var service = new ExcelFieldMappingService(new RepositoryStub());
+        foreach (var field in new[] { "Line.Uid", "Line.LinkSku", "Custom.Extra.Value" })
+        {
+            var saved = await service.CreateAsync(Create(" NewImport ", field, " " + field + " "), default);
+            Assert.IsTrue(saved.Success, saved.Message);
+            Assert.AreEqual("NewImport", saved.Data.GroupCode);
+            Assert.AreEqual(field, saved.Data.TargetFieldKey);
+        }
+        var read = await service.GetMappingsAsync(" NewImport ", true, default);
+        Assert.IsTrue(read.Success);
+        Assert.HasCount(3, read.Data);
+    }
+
+    /// <summary>无效标识、超长字段和空表头拒绝入库，但不维护字段白名单。</summary>
+    [TestMethod]
+    public async Task Create_RejectsInvalidFormatLengthAndEmptyHeader()
     {
         var service = new ExcelFieldMappingService(new RepositoryStub());
         foreach (var request in new[]
         {
-            Create("Unknown", "SKU", "Line.CustomerSku"), Create("SalesOrder", "SKU", "Line.Uid"),
+            Create("中文", "SKU", "Line.CustomerSku"), Create("Sales/Order", "SKU", "Line.CustomerSku"),
+            Create(new string('A', 41), "SKU", "Line.CustomerSku"), Create("SalesOrder", "SKU", "Line..Qty"),
+            Create("SalesOrder", "SKU", "Line.Qty\n" + "Bad"), Create("SalesOrder", "SKU", "Line.数量"),
+            Create("SalesOrder", "SKU", new string('A', 101)), Create("SalesOrder", new string('A', 201), "Line.Qty"),
             Create("SalesOrder", " \t ", "Line.CustomerSku")
         })
             Assert.AreEqual(ServiceErrorCodes.Validation, (await service.CreateAsync(request, default)).Error.Code);
+        Assert.AreEqual(ServiceErrorCodes.Validation, (await service.GetMappingsAsync("bad/path", true, default)).Error.Code);
     }
 
     /// <summary>旧版本不能覆盖配置或删除配置，更新成功只增加一次版本。</summary>

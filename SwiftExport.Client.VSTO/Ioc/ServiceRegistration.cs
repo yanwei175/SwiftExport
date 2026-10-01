@@ -1,4 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services;
+using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Views;
+using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels;
 using SwiftExport.Client.VSTO.Api;
 using SwiftExport.Client.VSTO.Authentication;
 using SwiftExport.Client.VSTO.Bootstrapper;
@@ -19,6 +22,9 @@ using SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings;
+using SwiftExport.Client.VSTO.Services.ExcelImport;
+using SwiftExport.Client.VSTO.Excel.Reading;
+using SwiftExport.Client.VSTO.Features.Sales.Orders.Services;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModels;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Views;
 
@@ -28,12 +34,19 @@ namespace SwiftExport.Client.VSTO.Ioc
     public static class ServiceRegistration
     {
         /// <summary>注册认证与按需缓存；构造服务不预热资料，外部调度器由 Bootstrapper 释放。</summary>
-        public static ServiceProvider Build(ApiOptions options, ExcelDispatcher dispatcher, AddInLog log)
+        public static ServiceProvider Build(ApiOptions options, ExcelDispatcher dispatcher, AddInLog log, Microsoft.Office.Interop.Excel.Application application)
         {
             var services = new ServiceCollection();
             services.AddSingleton(log);
             services.AddSingleton<IUiDispatcher>(dispatcher);
             services.AddSingleton<IExcelDispatcher>(dispatcher);
+            services.AddSingleton<IExcelRangeReader>(new ExcelRangeReader(application, dispatcher));
+            services.AddSingleton<SalesOrderExcelParser>();
+            services.AddSingleton<IExcelAddressReader>(new ExcelAddressReader(application, dispatcher));
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IExcelReadProfileApi>());
+            services.AddSingleton<ExcelReadProfileService>();
+            services.AddScoped<ExcelReadProfileViewModel>();
+            services.AddScoped<ExcelReadProfileView>();
             services.AddSingleton<ITokenStore>(new ProtectedTokenStore(options.BaseAddress, log));
             services.AddSingleton<SessionService>();
             services.AddSingleton<CurrentUserService>();
@@ -51,6 +64,7 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISysDictDataApi>("api/SysDictData"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IExcelFieldMappingApi>());
             services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
+            services.AddSingleton(ExcelImportRegistry.CreateDefault());
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISalesOrderDetailApi>("api/sales-orders/detail"));
             services.AddSingleton(TaskPaneRegistrar.CreateDefault());
             services.AddScoped<TaskPaneContext>();

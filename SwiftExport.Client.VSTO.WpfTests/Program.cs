@@ -29,6 +29,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     Console.WriteLine("PASS Purchase preview: " + checks + " assertions");
                     return 0;
                 }
+                if (args.Length == 1 && args[0] == "--read-profile-only")
+                {
+                    using (var profileHost = new WpfRuntimeHost()) { profileHost.Initialize(); ReadProfilePageChecks.Run(Check); }
+                    Console.WriteLine("PASS Read profile: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--field-mapping-only")
                 {
                     using (var settingsHost = new WpfRuntimeHost())

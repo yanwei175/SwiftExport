@@ -27,6 +27,20 @@ namespace SwiftExport.Client.VSTO.Tests
     [TestClass]
     public sealed class ReferenceDataCacheTests
     {
+        /// <summary>旧映射退出基础资料缓存，既不暴露映射操作，也不依赖旧映射 API。</summary>
+        [TestMethod, Timeout(10000)]
+        public async Task LegacyMappingIsNotPartOfReferenceDataCache()
+        {
+            Assert.IsFalse(typeof(IReferenceDataCacheService).GetMethods().Any(method => method.Name.Contains("ExcelFieldMappings")));
+            Assert.IsFalse(typeof(ReferenceDataCacheService).GetConstructors().SelectMany(constructor => constructor.GetParameters())
+                .Any(parameter => parameter.ParameterType == typeof(IExcelFieldMappingApi)));
+            using (var f = new Fixture())
+            {
+                Assert.IsTrue((await f.Cache.EnsureLoadedAsync()).Success);
+                Assert.IsFalse(f.Transport.Calls.Any(path => path.StartsWith("/api/excel-field-mappings", StringComparison.Ordinal)));
+            }
+        }
+
         /// <summary>创建缓存、登录和换号都不预加载，未认证使用不请求服务器。</summary>
         [TestMethod, Timeout(10000)]
         public async Task ConstructionAndSessionChangesDoNotLoad()
@@ -39,107 +53,6 @@ namespace SwiftExport.Client.VSTO.Tests
                 f.Login("two");
                 Assert.AreEqual(0, f.Transport.Calls.Count);
                 Assert.AreEqual(0, f.Cache.Customers.Count);
-            }
-        }
-
-        /// <summary>映射按业务组首次使用时请求，基础资料全量加载不会预热任何映射。</summary>
-        [TestMethod, Timeout(10000)]
-        public async Task ExcelMappingsLoadOnlyWhenGroupIsUsed()
-        {
-            using (var f = new Fixture())
-            {
-                Assert.AreEqual(0, f.Transport.Calls.Count);
-                Assert.AreEqual(0, f.Cache.GetExcelFieldMappings("SalesOrder").Count);
-                Assert.IsTrue((await f.Cache.EnsureLoadedAsync()).Success);
-                Assert.IsFalse(f.Transport.Calls.Any(path => path.StartsWith("/api/excel-field-mappings/", StringComparison.Ordinal)));
-
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("SalesOrder")).Success);
-                Assert.AreEqual(1, f.Transport.Calls.Count(path => path == "/api/excel-field-mappings/SalesOrder"));
-                Assert.AreEqual("Line.CustomerSku", f.Cache.GetExcelFieldMappings("SalesOrder").Single().TargetFieldKey);
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("salesorder")).Success);
-                Assert.AreEqual(1, f.Transport.Calls.Count(path => path == "/api/excel-field-mappings/SalesOrder"));
-
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("PurchaseOrder")).Success);
-                Assert.AreEqual("Line.Quantity", f.Cache.GetExcelFieldMappings("PurchaseOrder").Single().TargetFieldKey);
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("PackingList")).Success);
-                Assert.AreEqual("Line.CustomerSkuSnapshot", f.Cache.GetExcelFieldMappings("PackingList").Single().TargetFieldKey);
-            }
-        }
-
-        /// <summary>同组并发首次使用共享网络请求；调用方修改返回 DTO 不污染缓存快照。</summary>
-        [TestMethod, Timeout(10000)]
-        public async Task ExcelMappingConcurrentEnsureCoalescesAndReturnsCopy()
-        {
-            using (var f = new Fixture())
-            {
-                var gate = new TaskCompletionSource<HttpResponseMessage>();
-                f.Transport.Override = (path, request) => path == "/api/excel-field-mappings/SalesOrder" ? gate.Task : null;
-                var first = f.Cache.EnsureExcelFieldMappingsLoadedAsync("SalesOrder");
-                var second = f.Cache.EnsureExcelFieldMappingsLoadedAsync("salesorder");
-                Assert.AreSame(first, second);
-                Assert.AreEqual(1, f.Transport.Calls.Count);
-                gate.SetResult(Ok(new[] { new { excelHeader = "客户型号", targetFieldKey = "Line.CustomerSku", groupCode = "SalesOrder", isEnabled = true } }));
-                Assert.IsTrue((await first).Success);
-                var item = f.Cache.GetExcelFieldMappings("SalesOrder").Single();
-                item.TargetFieldKey = "Line.Uid";
-                Assert.AreEqual("Line.CustomerSku", f.Cache.GetExcelFieldMappings("SalesOrder").Single().TargetFieldKey);
-            }
-        }
-
-        /// <summary>即使服务端响应意外包含停用项，客户端共享快照也只发布启用映射。</summary>
-        [TestMethod, Timeout(10000)]
-        public async Task ExcelMappingCacheExcludesDisabledRows()
-        {
-            using (var f = new Fixture())
-            {
-                f.Transport.Override = (path, request) => Task.FromResult(Ok(new[]
-                {
-                    new { excelHeader = "可用", targetFieldKey = "Line.CustomerSku", groupCode = "SalesOrder", isEnabled = true },
-                    new { excelHeader = "停用", targetFieldKey = "Line.CustomerSku", groupCode = "SalesOrder", isEnabled = false }
-                }));
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("SalesOrder")).Success);
-                Assert.AreEqual("可用", f.Cache.GetExcelFieldMappings("SalesOrder").Single().ExcelHeader);
-            }
-        }
-
-        /// <summary>刷新失败保留本账号旧配置，退出或切换账号立即清空，并拒绝旧响应回填。</summary>
-        [TestMethod, Timeout(10000)]
-        public async Task ExcelMappingRefreshPreservesOldAndSessionChangeRejectsLateResult()
-        {
-            using (var f = new Fixture())
-            {
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("SalesOrder")).Success);
-                f.Transport.Override = (path, request) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden));
-                Assert.IsFalse((await f.Cache.RefreshExcelFieldMappingsAsync("SalesOrder")).Success);
-                Assert.AreEqual("Line.CustomerSku", f.Cache.GetExcelFieldMappings("SalesOrder").Single().TargetFieldKey);
-
-                var gate = new TaskCompletionSource<HttpResponseMessage>();
-                f.Transport.Override = (path, request) => gate.Task;
-                var pending = f.Cache.RefreshExcelFieldMappingsAsync("SalesOrder");
-                f.Login("two");
-                Assert.AreEqual(0, f.Cache.GetExcelFieldMappings("SalesOrder").Count);
-                gate.SetResult(Ok(new[] { new { excelHeader = "旧账号", targetFieldKey = "Line.CustomerSku", groupCode = "SalesOrder", isEnabled = true } }));
-                Assert.IsFalse((await pending).Success);
-                Assert.AreEqual(0, f.Cache.GetExcelFieldMappings("SalesOrder").Count);
-                f.Transport.Override = null;
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("SalesOrder")).Success);
-                Assert.AreEqual("客户型号", f.Cache.GetExcelFieldMappings("SalesOrder").Single().ExcelHeader);
-                f.Session.TryEnd(f.Session.Capture().Version);
-                Assert.AreEqual(0, f.Cache.GetExcelFieldMappings("SalesOrder").Count);
-            }
-        }
-
-        /// <summary>当前账号的字段映射请求返回 401 时，认证管道清除会话与缓存。</summary>
-        [TestMethod, Timeout(10000)]
-        public async Task ExcelMappingUnauthorizedClearsCurrentSession()
-        {
-            using (var f = new Fixture())
-            {
-                Assert.IsTrue((await f.Cache.EnsureExcelFieldMappingsLoadedAsync("SalesOrder")).Success);
-                f.Transport.Override = (path, request) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
-                Assert.IsFalse((await f.Cache.RefreshExcelFieldMappingsAsync("SalesOrder")).Success);
-                Assert.IsNull(f.Session.Capture().User);
-                Assert.AreEqual(0, f.Cache.GetExcelFieldMappings("SalesOrder").Count);
             }
         }
 
@@ -443,7 +356,6 @@ namespace SwiftExport.Client.VSTO.Tests
                     registration.Create<ISysDicCurrencyApi>("api/SysDicCurrency"),
                     registration.Create<ISysDictTypeApi>("api/SysDictType"),
                     registration.Create<ISysDictDataApi>("api/SysDictData"),
-                    registration.Create<IExcelFieldMappingApi>(),
                     new ApiCallRunner(new AddInLog()), Session, Dispatcher);
             }
             /// <summary>模拟已经过后端验证的身份提交。</summary>
@@ -517,9 +429,6 @@ namespace SwiftExport.Client.VSTO.Tests
                     case "/api/SysDicCurrency/enabled": data = new[] { new { currencyCode = "USD", isEnabled = true }, new { currencyCode = "OFF", isEnabled = false } }; break;
                     case "/api/SysDictType/all": data = new[] { new { dictCode = "UNIT" } }; break;
                     case "/api/SysDictData/all": data = new[] { new { dictCode = "UNIT", isEnabled = true }, new { dictCode = "UNIT", isEnabled = false } }; break;
-                    case "/api/excel-field-mappings/SalesOrder": data = new[] { new { excelHeader = "客户型号", targetFieldKey = "Line.CustomerSku", groupCode = "SalesOrder", isEnabled = true } }; break;
-                    case "/api/excel-field-mappings/PurchaseOrder": data = new[] { new { excelHeader = "数量", targetFieldKey = "Line.Quantity", groupCode = "PurchaseOrder", isEnabled = true } }; break;
-                    case "/api/excel-field-mappings/PackingList": data = new[] { new { excelHeader = "客户型号", targetFieldKey = "Line.CustomerSkuSnapshot", groupCode = "PackingList", isEnabled = true } }; break;
                     default: throw new InvalidOperationException("未预期的 API 路由：" + path);
                 }
                 return Task.FromResult(Ok(data));

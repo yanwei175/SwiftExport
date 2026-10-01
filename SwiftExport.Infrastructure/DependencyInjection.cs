@@ -1,14 +1,14 @@
-using SwiftExport.Core.Interfaces.Systems.Currencies;
+﻿using SwiftExport.Core.Interfaces.Systems.Currencies;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
-using SwiftExport.Core.Interfaces.Systems.ExcelFieldMappings;
 using SwiftExport.Core.Interfaces.Systems.ExchangeRates;
+using SwiftExport.Core.Interfaces.Systems.ExcelFieldMappings;
 using SwiftExport.Core.Interfaces.Systems.Numbering;
 using SwiftExport.Infrastructure.Repositories.Systems.Currencies;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data;
 using SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
-using SwiftExport.Infrastructure.Repositories.Systems.ExcelFieldMappings;
 using SwiftExport.Infrastructure.Repositories.Systems.ExchangeRates;
+using SwiftExport.Infrastructure.Repositories.Systems.ExcelFieldMappings;
 using SwiftExport.Infrastructure.Repositories.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Customers.CustomerProducts;
 using SwiftExport.Core.Interfaces.Customers.Management;
@@ -192,6 +192,10 @@ public static class DependencyInjection
         services.AddScoped<IAfterSalesDocumentRepository, AfterSalesDocumentRepository>();
         services.AddScoped<IAfterSalesQueryRepository, AfterSalesQueryRepository>();
         services.AddScoped<IAfterSalesLookupRepository, AfterSalesLookupRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelSalesOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.ForExcelSalesOrderRepository>();
+        // 主配置和字段共享当前请求的 DbSession，由应用层统一控制事务。
+        services.AddScoped<SwiftExport.Core.Interfaces.Systems.ExcelReadProfiles.IExcelReadProfileRepository,
+            SwiftExport.Infrastructure.Repositories.Systems.ExcelReadProfiles.ExcelReadProfileRepository>();
         return services;
     }
 }

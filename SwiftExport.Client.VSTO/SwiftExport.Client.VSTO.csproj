@@ -233,11 +233,9 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="Excel\Reading\" />
     <Folder Include="Excel\Writing\" />
     <Folder Include="Features\DataImport\" />
     <Folder Include="Features\DocumentGeneration\" />
-    <Folder Include="Features\Sales\Orders\Services\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
@@ -295,6 +293,15 @@
     <Compile Include="Hosting\TaskPanes\TaskPaneContext.cs" />
     <Compile Include="Features\Sales\Orders\Models\SalesOrderImportHeader.cs" />
     <Compile Include="Features\Sales\Orders\Models\SalesOrderImportLine.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportSource.cs" />
+    <Compile Include="Services\ExcelImport\ExcelImportFieldAttribute.cs" />
+    <Compile Include="Services\ExcelImport\ExcelImportField.cs" />
+    <Compile Include="Services\ExcelImport\ExcelImportDefinition.cs" />
+    <Compile Include="Services\ExcelImport\ExcelImportRegistry.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportHeader.Import.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportLine.Import.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportMatchCandidate.cs" />
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderImportCheckIssue.cs" />
     <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Options.cs" />
     <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Search.cs" />
     <Compile Include="Features\Sales\Orders\Views\SalesOrderImportPrompt.cs" />
@@ -347,7 +354,9 @@
     <Compile Include="Hosting\Windows\WindowManager.cs" />
     <Compile Include="Hosting\Windows\ModelessWindowContext.cs" />
     <Compile Include="Hosting\Windows\ModelessElementHostWindowManager.cs" />
-    <Compile Include="Hosting\Windows\ModelessElementHostForm.cs" />
+    <Compile Include="Hosting\Windows\ModelessElementHostForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Hosting\WpfRuntimeHost.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -360,6 +369,11 @@
     <Compile Include="Mvvm\ViewModelBase.cs" />
     <Compile Include="Mvvm\ViewModelBaseEx.cs" />
     <Compile Include="Excel\Context\ExcelContextService.cs" />
+    <Compile Include="Excel\Reading\ExcelRangeSnapshot.cs" />
+    <Compile Include="Excel\Reading\ExcelRangeReader.cs" />
+    <Compile Include="Features\Sales\Orders\Services\SalesOrderExcelParseResult.cs" />
+    <Compile Include="Features\Sales\Orders\Services\SalesOrderExcelParser.cs" />
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Excel.cs" />
     <Compile Include="Diagnostics\AddInLog.cs" />
     <Compile Include="UI\Themes\ThemeService.cs" />
     <Compile Include="Resources\Converters\FirstValidationErrorConverter.cs" />
@@ -388,6 +402,20 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Include="docs\**\*.md;AGENTS.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="Services\ExcelImport\ExcelAddressRead.cs" />
+    <Compile Include="Excel\Reading\ExcelAddressReader.cs" />
+    <Compile Include="Features\Sales\Orders\Services\SalesOrderAddressParser.cs" />
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Addresses.cs" />
+    <Compile Include="Resources\Controls\ExcelCellAddressBox.xaml.cs" />
+    <Compile Include="Features\Settings\ExcelReadProfiles\Models\ExcelReadFieldModel.cs" />
+    <Compile Include="Features\Settings\ExcelReadProfiles\Services\ExcelReadProfileService.cs" />
+    <Compile Include="Features\Settings\ExcelReadProfiles\ViewModels\ExcelReadProfileViewModel.cs" />
+    <Compile Include="Features\Settings\ExcelReadProfiles\Views\ExcelReadProfileView.xaml.cs" />
+    <Page Include="Resources\Controls\ExcelCellAddressBox.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Features\Settings\ExcelReadProfiles\Views\ExcelReadProfileView.xaml"><Generator>MSBuild:Compile</Generator></Page>
   </ItemGroup>
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

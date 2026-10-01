@@ -1,3 +1,4 @@
+﻿// 已淘汰：旧表头别名映射链路，仅保留历史兼容；新导入使用 ExcelReadProfile／ExcelReadField 地址配置。
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -12,7 +13,7 @@ using SwiftExport.Client.VSTO.Authentication;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Models;
 using SwiftExport.Client.VSTO.Hosting.Threading;
 using SwiftExport.Client.VSTO.Mvvm;
-using SwiftExport.Client.VSTO.Services.Caching;
+using SwiftExport.Client.VSTO.Services.ExcelImport;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -24,7 +25,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
     public sealed class ExcelFieldMappingViewModel : ViewModelBaseEx
     {
         private readonly IExcelFieldMappingApi api;
-        private readonly IReferenceDataCacheService cache;
+        private readonly ExcelImportRegistry imports;
         private readonly CurrentUserService user;
         private readonly SessionService session;
         private readonly IUiDispatcher dispatcher;
@@ -39,11 +40,12 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
         private bool dirty;
 
         /// <summary>注入页面需要的窄接口；构造期间不访问服务器。</summary>
-        public ExcelFieldMappingViewModel(IExcelFieldMappingApi api, IReferenceDataCacheService cache,
+        public ExcelFieldMappingViewModel(IExcelFieldMappingApi api,
             CurrentUserService user, SessionService session, IUiDispatcher dispatcher,
-            ApiCallRunner errors, IExcelFieldMappingPrompt prompt)
+            ApiCallRunner errors, IExcelFieldMappingPrompt prompt, ExcelImportRegistry imports = null)
         {
-            this.api = api; this.cache = cache; this.user = user; this.session = session;
+            this.imports = imports ?? ExcelImportRegistry.CreateDefault();
+            this.api = api; this.user = user; this.session = session;
             this.dispatcher = dispatcher; this.errors = errors; this.prompt = prompt;
             sessionVersion = session.Capture().Version;
             Title = "Excel 字段映射设置";
@@ -75,7 +77,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
         public bool CanEdit => !IsDisposed && user.HasPermission(PermissionKeys.SystemExcelFieldMappingManage)
             && session.Capture().Version == sessionVersion;
 
-        /// <summary>首次打开时按需加载分组及默认组，重复 Loaded 不覆盖编辑。</summary>
+        /// <summary>首次打开时从注册模型生成分组，再按需加载默认组配置，重复 Loaded 不覆盖编辑。</summary>
         public async Task InitializeAsync()
         {
             if (loaded || IsBusy || !CanEdit) return;
@@ -83,11 +85,9 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
             IsBusy = true;
             try
             {
-                var result = await api.GetGroupsAsync(lifetime.Token);
                 if (!Accept(version)) return;
-                if (!result.Success) { StatusMessage = result.Message; return; }
                 Groups.Clear();
-                foreach (var group in result.Data ?? new ExcelFieldGroupDto[0]) Groups.Add(group);
+                foreach (var group in imports.Groups) Groups.Add(new ExcelFieldGroupDto { GroupCode = group.GroupCode, DisplayName = group.DisplayName });
                 if (Groups.Count == 0) { StatusMessage = "没有可维护的业务分组。"; return; }
                 IsBusy = false;
                 await SelectGroupAsync(Groups[0].GroupCode);
@@ -97,10 +97,13 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
             finally { IsBusy = false; RefreshCommands(); }
         }
 
-        /// <summary>切组前处理当前组的修改，随后加载目标组全部映射和字段目录。</summary>
+        /// <summary>切组前处理当前组的修改，随后从模型生成字段目录并加载目标组全部映射。</summary>
         public async Task<bool> SelectGroupAsync(string groupCode)
         {
             if (!CanEdit || IsBusy || string.IsNullOrWhiteSpace(groupCode)) return false;
+            var definition = imports.Find(groupCode);
+            if (definition == null) { StatusMessage = "该组尚未注册导入模型，现有数据库配置保留。"; return false; }
+            groupCode = definition.GroupCode;
             if (string.Equals(CurrentGroup, groupCode, StringComparison.Ordinal)) return true;
             if (dirty)
             {
@@ -112,19 +115,29 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
             IsBusy = true; RefreshCommands();
             try
             {
-                var fields = await api.GetFieldsAsync(groupCode, lifetime.Token);
                 var mappings = await api.GetMappingsAsync(groupCode, true, lifetime.Token);
                 if (!Accept(version)) return false;
-                if (!fields.Success || !mappings.Success)
+                if (!mappings.Success)
                 {
-                    StatusMessage = !fields.Success ? fields.Message : mappings.Message;
+                    StatusMessage = mappings.Message;
                     return false;
                 }
                 ClearRows(); Fields.Clear();
-                foreach (var field in fields.Data ?? new ExcelTargetFieldDto[0]) Fields.Add(field);
-                foreach (var dto in mappings.Data ?? new ExcelFieldMappingDto[0]) AddTracked(ExcelFieldMappingRow.FromDto(dto));
+                foreach (var field in definition.Fields) Fields.Add(new ExcelTargetFieldDto
+                {
+                    FieldKey = field.FieldKey, DisplayName = field.DisplayName,
+                    SupportsCreate = field.SupportsCreate, SupportsUpdate = field.SupportsUpdate
+                });
+                foreach (var dto in mappings.Data ?? new ExcelFieldMappingDto[0])
+                {
+                    // 未知历史键必须可见且保留原值；不能让 ComboBox 无候选时回写 null。
+                    if (!definition.ContainsField(dto.TargetFieldKey) && !Fields.Any(field => field.FieldKey == dto.TargetFieldKey))
+                        Fields.Add(new ExcelTargetFieldDto { FieldKey = dto.TargetFieldKey, DisplayName = "[不支持] " + dto.TargetFieldKey });
+                    AddTracked(ExcelFieldMappingRow.FromDto(dto));
+                }
                 CurrentGroup = groupCode; dirty = false; loaded = true;
-                StatusMessage = "已加载 " + Rows.Count + " 条映射。";
+                var unknown = Rows.Count(row => !definition.ContainsField(row.TargetFieldKey));
+                StatusMessage = "已加载 " + Rows.Count + " 条映射。" + (unknown > 0 ? "有 " + unknown + " 个目标字段不受当前模型支持，请修正或停用。" : "");
                 RowsView.Refresh();
                 return true;
             }
@@ -180,8 +193,11 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
             IsBusy = true; RefreshCommands();
             try
             {
+                var definition = imports.Find(group);
                 foreach (var row in request.Rows)
                 {
+                    if (row.IsEnabled && (definition == null || !definition.ContainsField(row.TargetFieldKey)))
+                    { StatusMessage = "启用的映射含不受当前模型支持的字段：" + row.TargetFieldKey + "，请修正或停用。"; return false; }
                     var normalized = ExcelHeaderNormalizer.Normalize(row.ExcelHeader);
                     if (normalized.Length == 0 && (row.Uid == Guid.Empty || row.IsEnabled))
                     { StatusMessage = "新行必须填写表头；空表头种子行必须保持停用。"; return false; }
@@ -192,9 +208,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
                 ClearRows();
                 foreach (var dto in result.Data ?? new ExcelFieldMappingDto[0]) AddTracked(ExcelFieldMappingRow.FromDto(dto));
                 dirty = false; RowsView.Refresh();
-                var refreshed = await cache.RefreshExcelFieldMappingsAsync(group);
-                if (!Accept(version)) return false;
-                StatusMessage = refreshed.Success ? "字段映射已保存。" : "字段映射已保存，但导入缓存刷新失败：" + refreshed.Message;
+                StatusMessage = "旧字段映射已保存（已淘汰，不再维护导入缓存）。";
                 return true;
             }
             catch (OperationCanceledException) { return false; }
@@ -215,9 +229,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModel
                 if (!Accept(version)) return;
                 if (!result.Success) { StatusMessage = result.Message; return; }
                 row.PropertyChanged -= OnRowChanged; Rows.Remove(row);
-                var refreshed = await cache.RefreshExcelFieldMappingsAsync(CurrentGroup);
-                if (!Accept(version)) return;
-                StatusMessage = refreshed.Success ? "映射已删除。" : "映射已删除，但导入缓存刷新失败：" + refreshed.Message;
+                StatusMessage = "旧映射已删除（已淘汰，不再维护导入缓存）。";
             }
             catch (OperationCanceledException) { }
             catch (Exception error) { if (Accept(version)) StatusMessage = errors.Describe(error); }
