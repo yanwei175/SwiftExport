@@ -9,12 +9,12 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Views
     {
         private readonly ExcelReadProfileViewModel model;
         private bool selecting;
-        /// <summary>使用窗口 Scope 的模型，不通过全局容器解析服务。</summary>
+        /// <summary>使用窗格 Scope 的模型，不通过全局容器解析服务。</summary>
         public ExcelReadProfileView(ExcelReadProfileViewModel model)
         { InitializeComponent(); this.model = model; DataContext = model; Loaded += OnLoaded; }
         /// <summary>首次打开定位导入页配置。</summary>
         public void SetInitialProfile(Guid? uid) => model.SetInitialProfile(uid);
-        /// <summary>由宿主在普通关闭时确认未保存修改。</summary>
+        /// <summary>供销毁页面的宿主确认未保存修改；侧栏 × 仅隐藏，不销毁。</summary>
         public bool CanClose() => model.CanClose();
         private async void OnLoaded(object sender, RoutedEventArgs args) { await model.InitializeAsync(); }
         private async void ProfileChanged(object sender, SelectionChangedEventArgs args)

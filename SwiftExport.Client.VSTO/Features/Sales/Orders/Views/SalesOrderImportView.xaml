@@ -32,12 +32,15 @@
             </WrapPanel>
             <WrapPanel>
                 <ui:Button Content="加载基础资料 / 重试" Command="{Binding InitializeCommand}" Margin="0,0,8,0"/>
-                <ui:Button Content="保存草稿至服务器（待实现）" IsEnabled="False" Margin="0,0,8,0" Appearance="Primary"/>
+                <ui:Button Content="检验与匹配" Command="{Binding CheckImportCommand}" Margin="0,0,8,0"/>
+                <ui:Button Content="保存草稿至服务器" ToolTip="需要销售订单维护权限，且当前编辑版本已通过检验" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" Appearance="Primary"/>
+                <ui:Button Content="重试原保存请求" Command="{Binding RetrySaveCommand}" Margin="0,0,8,0"/>
+                <ui:Button Content="开始新导入" Command="{Binding NewImportCommand}" Margin="0,0,8,0"/>
                 <ui:Button Content="按配置读取单头" Command="{Binding ReadHeaderCommand}" Margin="0,0,8,0"
                            AutomationProperties.Name="按地址配置读取 Excel 单头"/>
             </WrapPanel>
             <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
-                <TextBlock Text="{Binding ParseMessage}" TextWrapping="Wrap" AutomationProperties.Name="Excel 解析结果"/>
+                <StackPanel><TextBlock Text="{Binding SubmissionMessage}" TextWrapping="Wrap" AutomationProperties.Name="检查与保存结果"/><TextBlock Text="{Binding ParseMessage}" TextWrapping="Wrap" AutomationProperties.Name="Excel 解析结果"/></StackPanel>
             </ScrollViewer>
             <Expander Header="Excel 单头原文（仅供核对）" Margin="0,4,0,0">
                 <StackPanel>
@@ -194,7 +197,7 @@
             <!--DataGrid操作-->
             <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,4,0,4">
                 <ui:Button Margin="0,0,4,0" Command="{Binding ReadLinesCommand}" Content="按配置读取明细"
-                           AutomationProperties.Name="选择包含表头的 Excel 明细区域并解析"/>
+                           AutomationProperties.Name="按地址配置读取 Excel 明细"/>
                 <ui:Button Margin="0,0,4,0"  Command="{Binding AddStandardLineCommand}"  Content="添加产品" />
                 <ui:Button Margin="0,0,4,0"  Command="{Binding AddNonStandardLineCommand}"  Content="添加非标件" />
                 <ui:Button Margin="0,0,4,0"  Command="{Binding DeleteSelectedLineCommand}"  Content="删除行" />
@@ -209,7 +212,7 @@
                               CanUserSortColumns="False"
                               IsReadOnly="{Binding IsReadOnly}"
                               SelectionMode="Extended"
-                              SelectionUnit="FullRow">
+                              SelectionUnit="FullRow" RowDetailsVisibilityMode="VisibleWhenSelected">
 
                 <DataGrid.Columns>
 
@@ -355,7 +358,29 @@
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
                                         Binding="{Binding SubNote, UpdateSourceTrigger=PropertyChanged}"/>
+                    <DataGridTextColumn Header="系统中性型号" Binding="{Binding LinkSku}" IsReadOnly="True" Width="130"/>
+                    <DataGridTextColumn Header="匹配状态" Binding="{Binding MatchStatus}" IsReadOnly="True" Width="100"/>
+                    <DataGridTemplateColumn Header="行类型处理" Width="105">
+                        <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                            <ui:Button Content="切换标准/非标" Command="{Binding DataContext.ToggleNonStandardCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                        </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
+                <DataGrid.RowDetailsTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="8" IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                            <TextBlock Text="{Binding MatchMessage}" TextWrapping="Wrap"/>
+                            <WrapPanel>
+                                <TextBlock Text="多候选：" VerticalAlignment="Center"/>
+                                <ComboBox Width="230" ItemsSource="{Binding MatchCandidates}" SelectedItem="{Binding SelectedMatchCandidate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="产品匹配候选">
+                                    <ComboBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Sku}"/><TextBlock Text="{Binding LinkSku, StringFormat=' / {0}'}"/><TextBlock Text="{Binding IsUsable, StringFormat=' / 可用：{0}'}"/></StackPanel></DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <ui:Button Content="使用所选候选后重新检验" Command="{Binding DataContext.ChooseMatchCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Margin="8,0"/>
+                                <CheckBox Content="已核对原表与系统中性型号，确认差异" IsChecked="{Binding AcceptLinkSkuMismatch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </DataGrid.RowDetailsTemplate>
             </DataGrid>
 
             <!--汇总-->

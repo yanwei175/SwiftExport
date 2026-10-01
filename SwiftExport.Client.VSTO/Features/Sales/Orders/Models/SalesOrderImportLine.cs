@@ -89,6 +89,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
             if (IsNonStandard || product == null) return;
             ResetMismatchConfirmation(); InvalidateCheck();
             CustomerSku = product.CustomerSku ?? "";
+            selectedMatchId = product.CustomerProductId;
             ProductId = product.ProductId; CustomerProductId = product.CustomerProductId;
             Sku = product.Sku ?? ""; LinkSku = product.LinkSku ?? "";
             DescriptionEn = product.DescriptionEn ?? ""; ColorNameEn = product.ColorNameEn ?? "";

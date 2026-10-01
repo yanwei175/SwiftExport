@@ -1,4 +1,4 @@
-using SwiftExport.Client.VSTO.Bootstrapper;
+﻿using SwiftExport.Client.VSTO.Bootstrapper;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -51,12 +51,14 @@ namespace SwiftExport.Client.VSTO
         public bool GetFieldMappingSettingsEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && GetFieldMappingSettingsVisible(control); }
         /// <summary>打开当前 Excel 窗口的字段映射任务窗格。</summary>
         public void OnExcelFieldMappingSettings(Office.IRibbonControl control) { host?.OpenExcelFieldMappingSettings(control); }
+        /// <summary>复用配置维护权限门禁，直接从 Ribbon 切换读取配置侧栏。</summary>
+        public void OnExcelReadProfile(Office.IRibbonControl control) { host?.OpenExcelReadProfile(control); }
         private void Host_Changed(object sender, EventArgs args) { Refresh(); }
         // Office 缓存动态属性，状态变化后必须主动失效。
         private void Refresh()
         {
             if (ribbon == null) return;
-            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelFieldMappingSettings" }) ribbon.InvalidateControl(id); }
+            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelFieldMappingSettings", "excelReadProfile" }) ribbon.InvalidateControl(id); }
             catch (COMException) { ribbon = null; }
         }
         /// <summary>断开宿主事件与 Ribbon 引用。</summary>

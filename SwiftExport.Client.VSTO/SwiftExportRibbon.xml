@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load">
  <ribbon><tabs><tab id="swiftExportTab" label="SwiftExport">
   <group id="accountGroup" label="账号">
@@ -8,6 +8,7 @@
    <button id="logout" label="退出登录" onAction="OnLogout" getVisible="GetAccountVisible" getEnabled="GetAccountEnabled"/>
   </group>
   <group id="settingsGroup" label="设置">
+   <button id="excelReadProfile" label="Excel 读取配置" onAction="OnExcelReadProfile" getVisible="GetFieldMappingSettingsVisible" getEnabled="GetFieldMappingSettingsEnabled" screentip="在右侧栏设置读取地址，可同时操作工作表"/>
    <button id="excelFieldMappingSettings" label="Excel 字段映射" onAction="OnExcelFieldMappingSettings" getVisible="GetFieldMappingSettingsVisible" getEnabled="GetFieldMappingSettingsEnabled"/>
   </group>
   <group id="importGroup" label="数据导入">

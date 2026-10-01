@@ -29,7 +29,14 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
         }
 
         /// <summary>按示例点击切换显示／隐藏；复用时不创建 Scope、不覆盖用户调整的尺寸。</summary>
-        public void TogglePane(ExcelInterop.Window window, string key)
+        public void TogglePane(ExcelInterop.Window window, string key) => OpenPane(window, key, true, null);
+
+        /// <summary>显示指定页面，已存在时保持可见；初始化回调仅在首次创建时执行，避免覆盖未保存内容。</summary>
+        public void ShowPane(ExcelInterop.Window window, string key, Action<System.Windows.UIElement> initialize = null)
+            => OpenPane(window, key, false, initialize);
+
+        // Ribbon 使用切换，业务页面使用显示；二者共享同一窗口与页面键，隐藏不释放编辑 Scope。
+        private void OpenPane(ExcelInterop.Window window, string key, bool toggle, Action<System.Windows.UIElement> initialize)
         {
             TaskPaneHostControl host = null;
             CustomTaskPane pane = null;
@@ -55,14 +62,16 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
                     }
                     if (existing != null)
                     {
-                        existing.Pane.Visible = !visible;
+                        existing.Pane.Visible = toggle ? !visible : true;
                         return;
                     }
                 }
                 scope = provider.CreateScope();
                 scope.ServiceProvider.GetRequiredService<TaskPaneContext>().Handle = owner;
                 host = new TaskPaneHostControl();
-                host.LoadWpfUI((System.Windows.UIElement)scope.ServiceProvider.GetRequiredService(config.ViewType));
+                var content = (System.Windows.UIElement)scope.ServiceProvider.GetRequiredService(config.ViewType);
+                initialize?.Invoke(content);
+                host.LoadWpfUI(content);
                 pane = panes.Add(host, config.Title, window);
                 pane.DockPosition = config.DockPosition == System.Windows.Controls.Dock.Left
                     ? Office.MsoCTPDockPosition.msoCTPDockPositionLeft

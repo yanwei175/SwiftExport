@@ -33,6 +33,7 @@ namespace SwiftExport.Client.VSTO.Testing
         internal readonly ImportCache Cache = new ImportCache();
         internal readonly ImportLegacyMappingApi MappingApi = new ImportLegacyMappingApi();
         internal readonly ImportApi Api = new ImportApi();
+        internal readonly ImportCheckApi CheckApi = new ImportCheckApi();
         internal readonly AddressProfileApi ProfileApi = new AddressProfileApi();
         internal readonly AddressReaderStub AddressReader = new AddressReaderStub();
         internal readonly SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services.ExcelReadProfileService ProfileService;
@@ -40,6 +41,7 @@ namespace SwiftExport.Client.VSTO.Testing
         internal readonly SalesOrderImportViewModel Model;
         internal bool Confirm = true;
         internal int Prompts;
+        internal Action OnConfirm = null;
         internal int Selections;
         internal Func<bool, Task<ExcelRangeSnapshot>> Select = _ => Task.FromResult<ExcelRangeSnapshot>(null);
         internal Func<Action, Task> Dispatch = action => { action(); return Task.CompletedTask; };
@@ -53,7 +55,7 @@ namespace SwiftExport.Client.VSTO.Testing
             ProfileService = new SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services.ExcelReadProfileService(ProfileApi);
             Model = new SalesOrderImportViewModel(Cache, Session, this, Api, new ApiCallRunner(new AddInLog()), this, this,
                 new SalesOrderExcelParser(ExcelImportRegistry.CreateDefault()), MappingApi,
-                ProfileService, AddressReader);
+                ProfileService, AddressReader, null, CheckApi);
         }
         internal void Login(string id) => Session.TryCommit(Session.Capture().Version, "test-token", new MeDto { UserId = id, UserName = id });
         internal async Task Start()
@@ -65,12 +67,21 @@ namespace SwiftExport.Client.VSTO.Testing
         /// <summary>模拟区域选择的取消、延迟和快照，不加载 Excel。</summary>
         public Task<ExcelRangeSnapshot> SelectAsync(bool detail) { Selections++; return Select(detail); }
         /// <summary>返回测试设定的确认结果并计数。</summary>
-        public bool ConfirmDiscard(string message) { Prompts++; return Confirm; }
+        public bool ConfirmDiscard(string message) { Prompts++; OnConfirm?.Invoke(); return Confirm; }
         public string Read() => null;
         public void Write(string token) { }
         public void Clear() { }
         /// <summary>终止页面并释放会话。</summary>
         public void Dispose() { Model.Dispose(); Session.Dispose(); }
+    }
+
+    /// <summary>只读检查替身，测试显式提供每次响应和取消行为。</summary>
+    internal sealed class ImportCheckApi : SwiftExport.Contracts.Apis.ForExcel.IForExcelSalesOrderApi
+    {
+        internal Func<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportRequest, CancellationToken,
+            Task<ServiceResult<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportResponse>>> Check = (r, t) => throw new NotSupportedException();
+        public Task<ServiceResult<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportResponse>> CheckAsync(
+            SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportRequest request, CancellationToken cancellationToken = default(CancellationToken)) => Check(request, cancellationToken);
     }
 
     /// <summary>返回可控基础资料快照，用于验证加载、失败及刷新绑定。</summary>
@@ -129,14 +140,15 @@ namespace SwiftExport.Client.VSTO.Testing
         public Task<ServiceResult<bool>> DeleteAsync(Guid uid, int expectedVersion, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
     }
 
-    /// <summary>只允许产品搜索，任何误接入保存或生命周期 API 都立即使测试失败。</summary>
+    /// <summary>提供显式设定的产品搜索与草稿保存响应；其他生命周期 API 仍禁止。</summary>
     internal sealed class ImportApi : ISalesOrderDetailApi
     {
         internal Func<SalesOrderProductSearchRequest, CancellationToken, Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>>> Search = (r, t) => throw new NotSupportedException("测试必须显式提供查询响应。");
         public Task<ServiceResult<PagedResponseBase<SalesOrderProductLookupDto>>> SearchProductsAsync(SalesOrderProductSearchRequest request, CancellationToken cancellationToken = default(CancellationToken)) => Search(request, cancellationToken);
         public Task<ServiceResult<SalesOrderDetailDto>> GetAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
         public Task<ServiceResult<PagedResponseBase<SalesOrderCustomerLookupDto>>> SearchCustomersAsync(SalesOrderCustomerSearchRequest request, CancellationToken cancellationToken = default(CancellationToken)) => throw new NotSupportedException();
-        public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request) => throw new NotSupportedException();
+        internal Func<SaveSalesOrderRequest, Task<ServiceResult<SaveSalesOrderResponse>>> Save = _ => throw new NotSupportedException("测试必须显式提供保存响应。");
+        public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request) => Save(request);
         public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(Guid uid, ConfirmSalesOrderCommand request) => throw new NotSupportedException();
         public Task<ServiceResult<SalesOrderConfirmationResultDto>> CancelConfirmationAsync(Guid uid, CancelSalesOrderConfirmationCommand request) => throw new NotSupportedException();
         public Task<ServiceResult<SalesOrderDetailDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request) => throw new NotSupportedException();

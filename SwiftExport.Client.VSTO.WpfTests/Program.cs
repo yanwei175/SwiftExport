@@ -74,6 +74,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     {
                         importHost.Initialize();
                         ImportPageChecks.Run(Check);
+                        SubmissionPageChecks.Run(Check);
                     }
                     Console.WriteLine("PASS Import: " + checks + " assertions");
                     return 0;
@@ -97,6 +98,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 CheckStyles();
                 CheckConverters();
                 ImportPageChecks.Run(Check);
+                        SubmissionPageChecks.Run(Check);
                 LookupTextBoxChecks.Run(Check);
                 BusinessLookupChecks.Run(Check);
                 host.Dispose();

@@ -74,7 +74,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(f.Model.Lines.Count == 0, "DataGrid 多选桥接删除所有选中行");
                     var dates = Descendants<DatePicker>(view).Where(d => BindingOperations.GetBinding(d, DatePicker.SelectedDateProperty)?.Path.Path == "Header.Etd").ToArray();
                     check(dates.Length == 1, "ETD 已绑定而不是空白占位");
-                    check(Descendants<Button>(view).Where(b => (b.Content as string)?.Contains("待实现") == true).All(b => !b.IsEnabled), "服务器保存入口仍不可执行");
+                    check(!Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.SaveDraftCommand)).IsEnabled, "未获维护权限且未检验时服务器保存入口不可执行");
                     var headerButton = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.ReadHeaderCommand));
                     var linesButton = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.ReadLinesCommand));
                     check(headerButton.IsEnabled && linesButton.IsEnabled, "两个地址读取按钮绑定命令且当前会话可执行");

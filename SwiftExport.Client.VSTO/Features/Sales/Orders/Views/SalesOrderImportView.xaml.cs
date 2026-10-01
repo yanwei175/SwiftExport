@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Linq;
-using SwiftExport.Client.VSTO.Hosting.Windows;
-using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Views;
 using System.Windows;
 using System.Windows.Controls;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Models;
@@ -13,19 +11,16 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
     public partial class SalesOrderImportView : UserControl
     {
         private readonly SalesOrderImportViewModel model;
+        private Action<Guid?> openConfiguration;
         /// <summary>使用窗口 Scope 提供的页面模型，不查询全局容器。</summary>
-        public SalesOrderImportView(SalesOrderImportViewModel vm, ModelessElementHostWindowManager windows = null, ModelessWindowContext context = null)
+        public SalesOrderImportView(SalesOrderImportViewModel vm)
         {
             InitializeComponent(); model = vm; DataContext = vm;
             Loaded += OnLoaded;
-            if (windows != null && context != null)
-                vm.DesignReadProfileRequested += uid =>
-                {
-                    try { windows.Show<ExcelReadProfileView>("sales-read-profile", "销售订单读取配置", context.Handle,
-                        new System.Drawing.Size(1280, 820), view => view.CanClose(), view => view.SetInitialProfile(uid)); }
-                    catch (Exception error) { vm.ReportConfigurationOpenFailure(error); }
-                };
+            vm.DesignReadProfileRequested += uid => openConfiguration?.Invoke(uid);
         }
+        /// <summary>首次打开时由组合入口接线到读取配置侧栏，视图不持有 Excel COM 或创建另一配置窗体。</summary>
+        public void SetConfigurationOpener(Action<Guid?> opener) { openConfiguration = opener; }
         /// <summary>普通关闭前确认内存草稿；插件退出由窗口宿主跳过此检查。</summary>
         public bool CanClose() => model.CanClose();
         private async void OnLoaded(object sender, RoutedEventArgs args)

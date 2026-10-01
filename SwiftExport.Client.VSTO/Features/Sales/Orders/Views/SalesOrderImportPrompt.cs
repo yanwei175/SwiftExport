@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using SwiftExport.Client.VSTO.Hosting.Windows;
+using SwiftExport.Client.VSTO.Hosting.TaskPanes;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
 {
@@ -8,11 +9,15 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
     public sealed class SalesOrderImportPrompt : ISalesOrderImportPrompt
     {
         private readonly ModelessWindowContext context;
-        /// <summary>注入与当前页面同 Scope 的 WinForms 窗体上下文。</summary>
-        public SalesOrderImportPrompt(ModelessWindowContext context) { this.context = context; }
-        /// <summary>客户切换、重新解析或关闭确认归属销售窗体；宿主已释放时拒绝丢弃。</summary>
-        public bool ConfirmDiscard(string message) => context.Handle != IntPtr.Zero &&
-            MessageBox.Show(context, message, "销售订单导入", MessageBoxButtons.YesNo,
+        private readonly TaskPaneContext paneContext;
+        /// <summary>注入同 Scope 的窗体与侧栏上下文，由实际宿主提供确认框 Owner。</summary>
+        public SalesOrderImportPrompt(ModelessWindowContext context, TaskPaneContext paneContext = null) { this.context = context; this.paneContext = paneContext; }
+        /// <summary>客户切换、重新读取、关闭或重复订单确认归属销售窗体；宿主已释放时拒绝继续。</summary>
+        public bool ConfirmDiscard(string message)
+        {
+            IWin32Window owner = context.Handle != IntPtr.Zero ? (IWin32Window)context : paneContext;
+            return owner != null && owner.Handle != IntPtr.Zero && MessageBox.Show(owner, message, "SwiftExport", MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+        }
     }
 }

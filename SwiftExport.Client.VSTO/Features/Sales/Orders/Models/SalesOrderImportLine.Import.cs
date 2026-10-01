@@ -12,6 +12,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
     {
         private bool isNonStandard, applyingCheck, acceptLinkSkuMismatch;
         private long editRevision;
+        private Guid? selectedMatchId;
+        private SalesOrderImportMatchCandidate selectedMatchCandidate;
         private string originalLinkSku = "", linkSku = "", matchStatus = "NotChecked";
         private string pcsOfCartonText = "", nwOfCartonText = "", gwOfCartonText = "", cbmOfCartonText = "";
         private string originalAmountText = "", originalCartonsText = "", originalCbmText = "";
@@ -61,6 +63,25 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         /// <summary>原表 CBMS，仅供后续对账，不能代替计算值或落库。</summary>
         public string OriginalCbmText { get => originalCbmText; set => SetProperty(ref originalCbmText, value); }
 
+        /// <summary>多候选列表的待选项，仅为 UI 状态；使用候选命令后才进入检查请求。</summary>
+        public SalesOrderImportMatchCandidate SelectedMatchCandidate { get => selectedMatchCandidate; set => SetProperty(ref selectedMatchCandidate, value); }
+        /// <summary>用户明确选定的客户产品关联；修改客户型号或转换行类型后清除。</summary>
+        public Guid? SelectedMatchId => selectedMatchId;
+        /// <summary>显示本行的匹配反馈及需确认问题。</summary>
+        public string MatchMessage => MatchStatus + "：" + string.Join("；", CheckIssues.Select(v => v.Message));
+        /// <summary>仅接纳当前候选集中的可用关联，不取第一项，也不直接赋产品身份。</summary>
+        public bool ChooseMatchCandidate()
+        {
+            var candidate = SelectedMatchCandidate;
+            if (candidate == null || !MatchCandidates.Contains(candidate) || !candidate.IsUsable) return false;
+            selectedMatchId = candidate.CustomerProductId;
+            ResetMismatchConfirmation(); InvalidateCheck();
+            OnPropertyChanged(nameof(SelectedMatchId)); return true;
+        }
+        /// <summary>独立校验输入文字，避免非法可空单价被序列化成未填写；产品匹配由后端执行。</summary>
+        public string InputError => Source.Error + PackagingError + this[nameof(QtyText)] + this[nameof(UsdPriceText)] + this[nameof(CnyPriceText)]
+            + (Qty.HasValue && ((UsdPrice.HasValue && !UsdAmount.HasValue) || (CnyPrice.HasValue && !CnyAmount.HasValue)) ? "金额超过支持范围。" : "");
+
         // 未确认警告与后端错误进入本地汇总，最终整单保存仍由页面和服务端控制。
         private string CheckError => string.Join("；", CheckIssues.Where(v => !v.RequiresConfirmation || !v.Acknowledged).Select(v => v.Message));
 
@@ -77,7 +98,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public void SetNonStandard(bool value)
         {
             if (isNonStandard == value) return;
-            isNonStandard = value;
+            isNonStandard = value; selectedMatchId = null;
             ProductId = null; CustomerProductId = null; LinkSku = ""; MainImage = "";
             Sku = value ? NonStandardSkuGenerator.Create(Uid) : "";
             SelectedProduct = null; ProductCandidates.Clear();
@@ -109,7 +130,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
                 LinkSku = status == "Matched" ? product.LinkSku ?? "" : "";
                 MainImage = status == "Matched" ? product.MainImage ?? "" : "";
                 if (status == "Matched") UnitSnapshot = product.Unit;
-                matchStatus = status;
+                matchStatus = status; selectedMatchCandidate = null;
+                OnPropertyChanged(nameof(SelectedMatchCandidate)); OnPropertyChanged(nameof(MatchMessage));
                 OnPropertyChanged(nameof(MatchStatus)); OnPropertyChanged(nameof(MatchCandidates)); OnPropertyChanged(nameof(CheckIssues)); OnPropertyChanged(nameof(Error));
                 return true;
             }
@@ -120,11 +142,12 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public void InvalidateCheck()
         {
             editRevision++;
-            matchStatus = "NotChecked";
+            matchStatus = "NotChecked"; selectedMatchCandidate = null;
+            OnPropertyChanged(nameof(SelectedMatchCandidate));
             matchCandidates = Array.AsReadOnly(new SalesOrderImportMatchCandidate[0]);
             checkIssues = Array.AsReadOnly(new SalesOrderImportCheckIssue[0]);
             OnPropertyChanged(nameof(EditRevision)); OnPropertyChanged(nameof(MatchStatus));
-            OnPropertyChanged(nameof(MatchCandidates)); OnPropertyChanged(nameof(CheckIssues)); OnPropertyChanged(nameof(Error));
+            OnPropertyChanged(nameof(MatchCandidates)); OnPropertyChanged(nameof(CheckIssues)); OnPropertyChanged(nameof(MatchMessage)); OnPropertyChanged(nameof(Error));
         }
 
         // 人工输入引起检查失效；派生值、搜索 UI 状态和检查结果通知不能反过来递增编辑版本。
@@ -136,6 +159,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
                 if (e.PropertyName == nameof(CustomerSku) || e.PropertyName == nameof(OriginalLinkSku)) ResetMismatchConfirmation();
                 if (e.PropertyName == nameof(CustomerSku))
                 {
+                    selectedMatchId = null;
                     ProductId = null; CustomerProductId = null; LinkSku = ""; MainImage = "";
                     if (!IsNonStandard) Sku = "";
                 }

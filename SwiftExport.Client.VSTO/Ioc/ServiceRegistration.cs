@@ -70,6 +70,7 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddScoped<TaskPaneContext>();
             services.AddScoped<SalesOrderImportPrompt>();
             services.AddScoped<ISalesOrderImportPrompt>(p => p.GetRequiredService<SalesOrderImportPrompt>());
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.ForExcel.IForExcelSalesOrderApi>("api/for-excel/sales-orders"));
             services.AddScoped<SalesOrderImportViewModel>();
             services.AddScoped<SalesOrderImportView>();
             services.AddScoped<PurchaseOrderImportViewModel>();

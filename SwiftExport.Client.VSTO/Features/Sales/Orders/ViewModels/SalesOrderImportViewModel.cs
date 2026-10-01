@@ -22,7 +22,7 @@ using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
 {
-    /// <summary>编排销售导入的本地编辑与只读搜索；不访问 Excel COM，不提交单据。</summary>
+    /// <summary>编排销售导入、产品匹配和新建草稿；不访问 Excel COM，不维护既有单据。</summary>
     public sealed partial class SalesOrderImportViewModel : ViewModelBaseEx
     {
         private readonly SessionService session;
@@ -41,7 +41,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public SalesOrderImportViewModel(IReferenceDataCacheService referenceData, SessionService session,
             IUiDispatcher dispatcher, ISalesOrderDetailApi api, ApiCallRunner errors, ISalesOrderImportPrompt prompt,
             IExcelRangeReader rangeReader = null, SalesOrderExcelParser excelParser = null, IExcelFieldMappingApi legacyMappingApi = null, ExcelReadProfileService profileService = null,
-            IExcelAddressReader addressReader = null, ExcelImportRegistry imports = null)
+            IExcelAddressReader addressReader = null, ExcelImportRegistry imports = null, SwiftExport.Contracts.Apis.ForExcel.IForExcelSalesOrderApi checkApi = null)
         {
             ReferenceData = referenceData; this.session = session; this.dispatcher = dispatcher;
             this.api = api; this.errors = errors; this.prompt = prompt;
@@ -49,8 +49,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             this.legacyMappingApi = legacyMappingApi;
             pageVersion = session.Capture().Version;
             header = new SalesOrderImportHeader(); header.PropertyChanged += HeaderChanged;
-            Title = "销售订单导入（本地预览）";
-            InitializeCommand = new AsyncRelayCommand(InitializeAsync, () => !IsDisposed && !initializing && !parsing && session.Capture().User != null);
+            Title = "销售订单导入";
+            InitializeCommand = new AsyncRelayCommand(InitializeAsync, () => !IsDisposed && !initializing && !parsing && !SubmissionLocked && session.Capture().User != null);
             ParseHeaderCommand = new AsyncRelayCommand(() => ParseExcelAsync(false), CanParse);
             ParseLinesCommand = new AsyncRelayCommand(() => ParseExcelAsync(true), CanParse);
             RegisterCommand(ParseHeaderCommand); RegisterCommand(ParseLinesCommand);
@@ -66,6 +66,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             ((INotifyCollectionChanged)ReferenceData.Customers).CollectionChanged += ReferenceChanged;
             session.Changed += SessionChanged;
             InitializeAddresses(profileService, addressReader, imports);
+            InitializeSubmission(checkApi);
             RefreshOptions();
         }
         public IReferenceDataCacheService ReferenceData { get; }
@@ -73,7 +74,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public ObservableCollection<SalesOrderImportLine> Lines { get; } = new ObservableCollection<SalesOrderImportLine>();
         public CustomerDto SelectedCustomer { get => selectedCustomer; set => SetProperty(ref selectedCustomer, value); }
         /// <summary>仅当前已加载、已认证的会话可以编辑。</summary>
-        public bool IsEditable => !IsDisposed && ready && !initializing && !parsing && session.Capture().User != null && session.Capture().Version == pageVersion;
+        public bool IsEditable => !IsDisposed && ready && !initializing && !parsing && !SubmissionLocked && session.Capture().User != null && session.Capture().Version == pageVersion;
         /// <summary>提供 DataGrid 的只读状态。</summary>
         public bool IsReadOnly => !IsEditable;
         /// <summary>记录本地草稿是否发生编辑，用于关闭确认。</summary>
@@ -135,8 +136,10 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             if (IsDisposed) return;
             selectedLines.Clear(); selectedLines.AddRange(values.Where(Lines.Contains)); RefreshCommands();
         }
-        /// <summary>读取期间拒绝普通关闭；其余时间确认内存草稿丢弃，宿主停止直接跳过。</summary>
-        public bool CanClose() => !parsing && (!HasEdits || prompt.ConfirmDiscard("本期数据只保留在内存中，关闭将丢失编辑内容。是否关闭？"));
+        /// <summary>读取、检验和保存期间拒绝普通关闭；未保存或结果未知须确认丢弃，宿主停止直接跳过。</summary>
+        public bool CanClose() => !parsing && !checking && !saving && (!HasEdits || prompt.ConfirmDiscard(HasPendingSave
+            ? "保存结果尚未确定，关闭将丢失原请求，不能安全重试。CommandId: " + PendingCommandId + "。仍要关闭吗？"
+            : "编辑内容尚未保存，关闭将丢失。是否关闭？"));
         private bool Accept(long version) => !IsDisposed && pageVersion == version && session.Capture().Version == version && session.Capture().User != null;
         // 确认框存在嵌套消息循环，返回后再次核对会话，避免确认期间失效后仍回填。
         private void ChangeCustomer(CustomerDto candidate)
@@ -183,23 +186,23 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                 line.SearchCommand?.NotifyCanExecuteChanged(); line.CommitProductCommand?.NotifyCanExecuteChanged(); line.ClearProductCommand?.NotifyCanExecuteChanged();
             }
             foreach (var line in Lines.Where(line => !trackedLines.Contains(line))) { trackedLines.Add(line); line.PropertyChanged += LineChanged; }
-            if (!resetting) dirty = true;
+            if (!resetting) { dirty = true; InvalidateSubmission(); }
             RefreshOptions(); NotifyState();
         }
         // 只改变当前草稿，候选集重建不写回共享资料。
         private void HeaderChanged(object sender, PropertyChangedEventArgs args)
         {
-            if (resetting) return;
-            dirty = true;
+            if (resetting || applyingSubmission) return;
+            InvalidateSubmission(); dirty = true;
             if (new[] { "Currency", "PaymentMethod", "Incoterm", "ShippedBy" }.Contains(args.PropertyName)) RefreshOptions();
             NotifyState();
         }
         // 搜索忙碌和候选选择不是业务编辑，避免仅查询就标记草稿。
         private void LineChanged(object sender, PropertyChangedEventArgs args)
         {
-            if (applyingParsedPart) return;
-            if (args.PropertyName == nameof(SalesOrderImportLine.SelectedProduct) || args.PropertyName == nameof(SalesOrderImportLine.IsSearchBusy)) return;
-            dirty = true;
+            if (applyingParsedPart || applyingSubmission || resetting) return;
+            if (args.PropertyName == nameof(SalesOrderImportLine.SelectedProduct) || args.PropertyName == nameof(SalesOrderImportLine.IsSearchBusy) || args.PropertyName == nameof(SalesOrderImportLine.SelectedMatchCandidate)) return;
+            InvalidateSubmission(); dirty = true;
             if (args.PropertyName == nameof(SalesOrderImportLine.UnitSnapshot)) RefreshOptions();
             NotifyState();
         }
@@ -219,7 +222,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             resetting = true;
             try
             {
-                CancelSearches(); ResetAddressSession(); pageVersion = session.Capture().Version;
+                CancelSearches(); ResetSubmission(); ResetAddressSession(); pageVersion = session.Capture().Version;
                 ready = false; initializing = false;
                 ParseMessage = "";
                 Lines.Clear(); selectedLines.Clear(); acceptedCustomer = null; SelectedCustomer = null;
@@ -239,13 +242,14 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         // 所有派生属性和命令统一通知，避免增删或换号后按钮状态残留。
         private void NotifyState()
         {
-            foreach (var name in new[] { nameof(CanSelectReadProfile), nameof(IsEditable), nameof(IsReadOnly), nameof(HasEdits), nameof(BusyMessage), nameof(TotalQty), nameof(TotalUsdAmount), nameof(TotalCnyAmount), nameof(ValidationSummary), nameof(HasValidationError) }) OnPropertyChanged(name);
+            foreach (var name in new[] { nameof(CanSaveDraft), nameof(HasPendingSave), nameof(PendingCommandId), nameof(CanSelectReadProfile), nameof(IsEditable), nameof(IsReadOnly), nameof(HasEdits), nameof(BusyMessage), nameof(TotalQty), nameof(TotalUsdAmount), nameof(TotalCnyAmount), nameof(ValidationSummary), nameof(HasValidationError) }) OnPropertyChanged(name);
             RefreshCommands();
             foreach (var line in Lines) { line.SearchCommand?.NotifyCanExecuteChanged(); line.CommitProductCommand?.NotifyCanExecuteChanged(); line.ClearProductCommand?.NotifyCanExecuteChanged(); }
         }
         /// <summary>关闭窗口时解绑缓存和身份通知，取消所有行查询。</summary>
         protected override void DisposeCore()
         {
+            submissionLifetime.Cancel(); submissionLifetime.Dispose();
             DisposeAddresses();
             session.Changed -= SessionChanged;
             ((INotifyCollectionChanged)ReferenceData.Currencies).CollectionChanged -= ReferenceChanged;

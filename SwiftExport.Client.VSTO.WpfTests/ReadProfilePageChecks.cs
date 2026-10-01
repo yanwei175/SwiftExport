@@ -68,6 +68,42 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     finally { window.Close(); }
                 }
             }
+            CheckSidePane(check);
+        }
+        // 使用真实 ElementHost 模拟窄侧栏；隐藏重开不得丢失配置，实际 Office 显隐仍需实机验收。
+        private static void CheckSidePane(Action<bool, string> check)
+        {
+            var config = SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.CreateDefault().Get("excel-read-profile");
+            check(config.ViewType == typeof(ExcelReadProfileView) && config.DefaultWidth == 560 && config.DockPosition == Dock.Right,
+                "读取配置注册为 560 宽右侧窗格");
+            using (var f = new ImportTestFixture())
+            using (var form = new System.Windows.Forms.Form { Width = config.DefaultWidth, Height = 820, ShowInTaskbar = false })
+            {
+                f.Session.TryCommit(f.Session.Capture().Version, "token", new MeDto { UserId = "admin", Permissions = new List<string> { PermissionKeys.SystemExcelFieldMappingManage } });
+                using (var model = new ExcelReadProfileViewModel(f.ProfileService, f.AddressReader, ExcelImportRegistry.CreateDefault(), f.Session, f, new ApiCallRunner(new AddInLog()), f))
+                {
+                    var view = new ExcelReadProfileView(model);
+                    var salesView = new SwiftExport.Client.VSTO.Features.Sales.Orders.Views.SalesOrderImportView(f.Model);
+                    var requests = 0; salesView.SetConfigurationOpener(uid => requests++);
+                    f.Model.DesignReadProfileCommand.Execute(null);
+                    check(requests == 1, "销售设计入口通过组合层打开侧栏，不再创建大型配置窗体");
+                    var host = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(view) { Dock = System.Windows.Forms.DockStyle.Fill };
+                    form.Controls.Add(host); form.Show(); Pump();
+                    var scroll = (ScrollViewer)view.Content; var layout = (Grid)scroll.Content;
+                    check(layout.MinWidth == 0 && layout.ActualWidth <= form.ClientSize.Width, "配置页不再强制 700 宽，适应窄侧栏");
+                    check(scroll.ScrollableWidth == 0 && scroll.ScrollableHeight > 0, "窄侧栏纵向滚动且不需横向访问整个页面");
+                    var row = model.HeaderFields.Single(r => r.FieldKey == "Header.InvoiceNo"); row.CellAddress = "M99";
+                    form.Hide(); Pump(); form.Show(); Pump();
+                    check(row.CellAddress == "M99" && model.HasChanges, "隐藏后再次显示保留未保存地址");
+                    view.SetInitialProfile(Guid.NewGuid()); Pump();
+                    check(ReferenceEquals(row, model.HeaderFields.Single(r => r.FieldKey == "Header.InvoiceNo")), "再次打开不重定位或替换已编辑配置");
+                    var context = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneContext { Handle = form.Handle };
+                    var prompt = new SwiftExport.Client.VSTO.Features.Sales.Orders.Views.SalesOrderImportPrompt(new SwiftExport.Client.VSTO.Hosting.Windows.ModelessWindowContext(), context);
+                    context.Dispose(); check(!prompt.ConfirmDiscard("已释放不应弹窗"), "侧栏上下文释放后禁止使用旧 Owner 确认");
+                    host.Dispose(); host.Dispose(); Pump();
+                    check(PresentationSource.FromVisual(view) == null, "侧栏宿主幂等释放并断开配置可视树");
+                }
+            }
         }
         private static Task Immediate(Action action) { action(); return Task.CompletedTask; }
         private static void Pump() { var frame = new DispatcherFrame(); Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false)); Dispatcher.PushFrame(frame); }

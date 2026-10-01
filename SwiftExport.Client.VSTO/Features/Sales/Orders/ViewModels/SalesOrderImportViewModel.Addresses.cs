@@ -50,13 +50,13 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             RefreshReadProfilesCommand = new AsyncRelayCommand(RefreshReadProfilesAsync, () => !IsDisposed && profileService != null && !profilesLoading && !parsing && Accept(pageVersion));
             ReadHeaderCommand = new AsyncRelayCommand(() => ReadAddressesAsync(false), CanReadAddresses);
             ReadLinesCommand = new AsyncRelayCommand(() => ReadAddressesAsync(true), CanReadAddresses);
-            DesignReadProfileCommand = new RelayCommand(() => DesignReadProfileRequested?.Invoke(SelectedReadProfile?.Uid), () => !IsDisposed && !parsing && !profilesLoading && Accept(pageVersion)
+            DesignReadProfileCommand = new RelayCommand(() => DesignReadProfileRequested?.Invoke(SelectedReadProfile?.Uid), () => !IsDisposed && !parsing && !SubmissionLocked && !profilesLoading && Accept(pageVersion)
                 && session.Capture().User.Permissions?.Contains(SwiftExport.Contracts.DTOs.Auth.PermissionKeys.SystemExcelFieldMappingManage) == true);
             foreach (var command in new IRelayCommand[] { RefreshReadProfilesCommand, ReadHeaderCommand, ReadLinesCommand, DesignReadProfileCommand }) RegisterCommand(command);
             if (profileService != null) profileService.Changed += ReadProfilesChanged;
         }
         /// <summary>读取和配置请求期间锁定配置选择，避免旧配置结果覆盖新选择。</summary>
-        public bool CanSelectReadProfile => !IsDisposed && !parsing && !profilesLoading && Accept(pageVersion);
+        public bool CanSelectReadProfile => !IsDisposed && !parsing && !SubmissionLocked && !profilesLoading && Accept(pageVersion);
         private bool CanReadAddresses() => IsEditable && !profilesLoading && addressReader != null && readProfile != null;
         /// <summary>Loaded 时按需加载配置，与基础资料请求分开；重复 Loaded 不覆盖当前选择。</summary>
         public async Task EnsureReadProfilesAsync()
@@ -182,7 +182,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                     }
                     finally { applyingParsedPart = false; }
                     if (detail) LinesChanged(Lines, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-                    dirty = true; ParseMessage = result.Message; RefreshOptions(); NotifyState();
+                    InvalidateSubmission(); dirty = true; ParseMessage = result.Message; RefreshOptions(); NotifyState();
                 });
             }
             catch (OperationCanceledException) { }

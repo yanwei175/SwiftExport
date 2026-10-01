@@ -95,3 +95,7 @@ provider.GetRequiredService<ModelessElementHostWindowManager>()
 采购入口同样使用 `ModelessElementHostWindowManager.Show<PurchaseOrderImportView>()`。两页都在所属 Excel 窗口打开 WinForms 窗体，以 `ElementHost` 承载 WPF 页面；重复点击激活原窗体，关闭后释放页面 Scope。销售页的 `CanClose()` 在有内存编辑时确认丢弃，插件退出跳过确认。新增页面仍需在 ServiceRegistration 注册 Scoped View／ViewModel、添加唯一 XML 控件 ID 和对应回调。
 
 窗口显示和关闭行为属于宿主，不写在 Ribbon XML 中。普通侧栏页面如以后重新加入，可按 [架构与目录说明](架构与目录说明.md#注册新的侧边栏页面) 注册。
+
+## Excel 读取配置侧栏按钮
+
+`settingsGroup` 新增 `excelReadProfile`：`onAction=OnExcelReadProfile`，复用配置维护权限的 `GetFieldMappingSettingsVisible/Enabled`。回调交给 Bootstrapper，在所属 Excel 窗口调用 TaskPaneManager.TogglePane。登录变化时 InvalidateControl 包含该控件。销售页面设计入口使用 ShowPane，仅显示而不切换隐藏；两者复用相同页面键 `excel-read-profile`。

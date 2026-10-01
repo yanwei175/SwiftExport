@@ -6,6 +6,8 @@ using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Views;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Views;
 using SwiftExport.Client.VSTO.Hosting;
+using SwiftExport.Client.VSTO.Hosting.TaskPanes;
+using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Views;
 using SwiftExport.Client.VSTO.Hosting.Threading;
 using SwiftExport.Client.VSTO.Hosting.Windows;
 using SwiftExport.Client.VSTO.Ioc;
@@ -28,6 +30,7 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         private ExcelDispatcher dispatcher;
         private WpfRuntimeHost wpf;
         private ExcelContextService context;
+        private TaskPaneManager taskPanes;
         private SessionService session;
         private CurrentUserService user;
         private LoginCoordinator login;
@@ -57,6 +60,7 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 login = provider.GetRequiredService<LoginCoordinator>();
                 login.Changed += Session_Changed;
                 context = new ExcelContextService(addIn.Application);
+                taskPanes = new TaskPaneManager(addIn.CustomTaskPanes, log, provider, provider.GetRequiredService<TaskPaneRegistrar>(), session);
                 session.Changed += Session_Changed;
                 IsRestoring = true;
                 Status = "正在验证登录状态";
@@ -128,7 +132,8 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
             {
                 provider.GetRequiredService<ModelessElementHostWindowManager>()
                 .Show<SalesOrderImportView>("sales-order-import", "销售订单导入", context.GetOwner(control),
-                    new Size(1280, 820), view => view.CanClose());
+                    new Size(1280, 820), view => view.CanClose(),
+                    view => view.SetConfigurationOpener(uid => OpenExcelReadProfile(null, uid)));
             }
             catch (Exception ex)
             {
@@ -150,6 +155,24 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
             {
                 log.Write("OpenPurchaseImportPreviewFailure", ex);
                 Status = "无法打开采购导入预览，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        /// <summary>Ribbon 切换当前 Excel 窗口的读取配置侧栏；销售入口只显示，复用时不重置未保存内容。</summary>
+        public void OpenExcelReadProfile(Office.IRibbonControl control, Guid? initialProfile = null)
+        {
+            if (!IsReady || !CanManageExcelFieldMappings || IsRestoring || IsLoginOpen) return;
+            try
+            {
+                var window = context.GetWindow(control);
+                if (window == null) return;
+                if (control != null) taskPanes.TogglePane(window, "excel-read-profile");
+                else taskPanes.ShowPane(window, "excel-read-profile", view => ((ExcelReadProfileView)view).SetInitialProfile(initialProfile));
+            }
+            catch (Exception ex)
+            {
+                log.Write("OpenReadProfileFailure", ex);
+                Status = "无法打开读取配置侧栏，请查看日志";
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -179,6 +202,7 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
             if (login != null) login.Changed -= Session_Changed;
             Cleanup(() => provider?.GetRequiredService<ModelessElementHostWindowManager>().Dispose());
             Cleanup(() => provider?.GetRequiredService<WindowManager>().Dispose());
+            Cleanup(() => taskPanes?.Dispose());
             Cleanup(() => provider?.Dispose());
             Cleanup(() => wpf?.Dispose());
             Cleanup(() => dispatcher?.Dispose());

@@ -186,6 +186,8 @@
   -->
   <ItemGroup>
     <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.cs" />
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Submission.cs" />
+    <Compile Include="Features\Sales\Orders\Services\SalesOrderImportRequests.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderImportView.xaml.cs">
       <DependentUpon>PurchaseOrderImportView.xaml</DependentUpon>

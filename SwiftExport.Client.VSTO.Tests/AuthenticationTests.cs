@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -112,6 +112,12 @@ namespace SwiftExport.Client.VSTO.Tests
             Assert.AreEqual(ids.Length, ids.Distinct().Count());
             foreach (var attribute in xml.Descendants().Attributes().Where(a => a.Name.LocalName.StartsWith("get") || a.Name.LocalName == "onAction" || a.Name.LocalName == "onLoad"))
                 StringAssert.Contains(source, attribute.Value + "(");
+            var readProfile = xml.Descendants().Single(element => (string)element.Attribute("id") == "excelReadProfile");
+            Assert.AreEqual("OnExcelReadProfile", (string)readProfile.Attribute("onAction"));
+            Assert.AreEqual("GetFieldMappingSettingsVisible", (string)readProfile.Attribute("getVisible"));
+            Assert.IsTrue(source.Contains("ribbon.InvalidateControl(id)"));
+            Assert.IsTrue(source.Contains("\"excelReadProfile\""));
+
         }
         private static MeDto User(string name) { return new MeDto { UserId = name, UserName = name }; }
         /// <summary>真实 Refit 代理可在 net48 消费共享 Contracts，候选头互不污染。</summary>
