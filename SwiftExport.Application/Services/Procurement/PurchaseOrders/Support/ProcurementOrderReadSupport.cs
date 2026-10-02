@@ -53,11 +53,6 @@ public sealed class ProcurementOrderReadSupport(
             RollbackSafely();
             return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field);
         }
-        catch (ProcurementConcurrencyException ex)
-        {
-            RollbackSafely();
-            return ServiceResult<T>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, ex.Message, "ExpectedVersion");
-        }
         catch (InvalidOperationException ex)
         {
             RollbackSafely();

@@ -1,4 +1,5 @@
 using SwiftExport.Core.Entities.Procurement;
+using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Core.Interfaces.Procurement;
 /// <summary>独立采购订单头行锁定及创建、商务保存、确认的事务持久化端口。</summary>
 public interface IProcurementOrderDocumentRepository
@@ -9,8 +10,8 @@ public interface IProcurementOrderDocumentRepository
     Task<List<PurchaseOrderLine>> GetLinesAsync(Guid uid, CancellationToken ct);
     /// <summary>插入新头行，依赖调用方事务。</summary>
     Task InsertAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct);
-    /// <summary>仅更新商务白名单并推进头行版本。</summary>
-    Task SaveAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct);
-    /// <summary>保存采购确认状态、批次与审计；不生成 BOM 节点或库存事实。</summary>
-    Task ConfirmAsync(PurchaseOrderHead head, CancellationToken ct);
+    /// <summary>仅更新商务白名单并推进头行版本；失败返回结构化结果，由调用方终止并回滚事务。</summary>
+    Task<RepositoryWriteResult> SaveAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct);
+    /// <summary>保存采购确认状态、批次与审计；版本或状态冲突返回失败，由调用方回滚事务。</summary>
+    Task<RepositoryWriteResult> ConfirmAsync(PurchaseOrderHead head, CancellationToken ct);
 }

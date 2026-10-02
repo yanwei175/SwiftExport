@@ -12,6 +12,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.Inventory;
@@ -141,6 +142,51 @@ public sealed class ProcurementOrderReversalCommandOrchestrationTests
         }
     }
 
+    /// <summary>三种反向命令的锁定或写入冲突均回滚，不能留下成功审计或回执。</summary>
+    [TestMethod]
+    [DataRow(ProcurementReversalOperation.CancelConfirmation, false)]
+    [DataRow(ProcurementReversalOperation.DeleteLines, false)]
+    [DataRow(ProcurementReversalOperation.Void, false)]
+    [DataRow(ProcurementReversalOperation.CancelConfirmation, true)]
+    [DataRow(ProcurementReversalOperation.DeleteLines, true)]
+    [DataRow(ProcurementReversalOperation.Void, true)]
+    public async Task RepositoryConflict_RollsBackEveryReversal(ProcurementReversalOperation operation, bool duringLock)
+    {
+        var f = new Fixture { FailApply = !duringLock,
+            LockError = duringLock ? new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "引用变化" } : null };
+        if (operation == ProcurementReversalOperation.CancelConfirmation) f.Head.ConfirmationStatus = ConfirmationStatusEnum.已确认;
+        f.Facts.Lines.Add(new PurchaseOrderLine { Uid = Guid.NewGuid(), Version = 1, Quantity = 1, UnlinkedQty = 1 });
+        var commandId = Guid.NewGuid();
+        var result = operation switch
+        {
+            ProcurementReversalOperation.CancelConfirmation => await f.Service.CancelConfirmationAsync(f.Head.Uid, new() { CommandId = commandId, ExpectedVersion = 1, Reason = "测试冲突" }),
+            ProcurementReversalOperation.DeleteLines => await f.Service.DeleteLinesAsync(f.Head.Uid, new() { CommandId = commandId, ExpectedVersion = 1, Reason = "测试冲突", Lines = [new() { PurchaseOrderLineId = f.Facts.Lines[0].Uid, Version = 1 }] }),
+            _ => await f.Service.VoidAsync(f.Head.Uid, new() { CommandId = commandId, ExpectedVersion = 1, Reason = "测试冲突" })
+        };
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual("ExpectedVersion", result.Error.Field);
+        Assert.AreEqual(duringLock ? 0 : 1, f.Applies);
+        Assert.AreEqual(0, f.Logs);
+        Assert.AreEqual(0, f.Receipts.Rows.Count);
+        Assert.AreEqual(1, f.Connection.Rollbacks);
+        Assert.AreEqual(0, f.Connection.Commits);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
+    /// <summary>反向预览的锁定冲突也采用版本错误，事务安全释放且不执行写入。</summary>
+    [TestMethod]
+    public async Task LockConflict_BlocksReversalPreview()
+    {
+        var f = new Fixture { LockError = new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "引用变化" } };
+        var result = await f.Service.PreviewAsync(f.Head.Uid, ProcurementReversalOperation.Void, new() { ExpectedVersion = 1 });
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual("ExpectedVersion", result.Error.Field);
+        Assert.AreEqual(1, f.Connection.Rollbacks);
+        Assert.AreEqual(0, f.Connection.Commits);
+        Assert.AreEqual(0, f.Applies);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
     /// <summary>仅模拟 Application 编排与回执，不模拟 SQL Server 持久化和锁。</summary>
     private sealed class Fixture
     {
@@ -151,6 +197,8 @@ public sealed class ProcurementOrderReversalCommandOrchestrationTests
         public readonly PurchaseOrderHead Head = new() { Uid = Guid.NewGuid(), Version = 1, OriginKind = 2 };
         public readonly ProcurementReversalFacts Facts;
         public bool Allow = true;
+        public bool FailApply;
+        public ServiceErrorDto? LockError;
         public int Applies, Logs, LogResult = 1;
         public ProcurementReversalOperation? LastOperation;
         public Guid[] LastLineIds = [];
@@ -173,7 +221,7 @@ public sealed class ProcurementOrderReversalCommandOrchestrationTests
                 ? RecordLog((BusinessOperationLog)args[0]!) : throw new NotSupportedException(method.Name));
             var reversals = Proxy<IProcurementReversalRepository>.New((method, args) => method.Name switch
             {
-                "LockAsync" => Task.FromResult(Facts),
+                "LockAsync" => Task.FromResult<(ProcurementReversalFacts?, ServiceErrorDto?)>((LockError is null ? Facts : null, LockError)),
                 "ApplyAsync" => Apply((ProcurementReversalOperation)args[1]!, (IReadOnlyCollection<Guid>)args[2]!),
                 _ => throw new NotSupportedException(method.Name)
             });
@@ -191,14 +239,17 @@ public sealed class ProcurementOrderReversalCommandOrchestrationTests
         }
 
         private Task<int> RecordLog(BusinessOperationLog log) { Logs++; LastLog = log; return Task.FromResult(LogResult); }
-        private Task Apply(ProcurementReversalOperation operation, IReadOnlyCollection<Guid> lineIds)
+        /// <summary>模拟反向仓储的结果；冲突时不改事实，让测试观察 Application 是否继续执行。</summary>
+        private Task<RepositoryWriteResult> Apply(ProcurementReversalOperation operation, IReadOnlyCollection<Guid> lineIds)
         {
-            Applies++; LastOperation = operation; LastLineIds = lineIds.ToArray(); Head.Version++;
+            Applies++;
+            if (FailApply) return Task.FromResult(RepositoryWriteResult.Fail(Head.Uid, Head.Version, "CONCURRENCY_CONFLICT", "反向冲突"));
+            LastOperation = operation; LastLineIds = lineIds.ToArray(); Head.Version++;
             if (operation == ProcurementReversalOperation.CancelConfirmation)
             { Head.ConfirmationStatus = ConfirmationStatusEnum.待确认; Head.ActiveConfirmationId = null; }
             else if (operation == ProcurementReversalOperation.Void) Head.LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Voided;
             else foreach (var line in Facts.Lines.Where(x => lineIds.Contains(x.Uid))) { line.IsDeleted = true; line.Version++; }
-            return Task.CompletedTask;
+            return Task.FromResult(RepositoryWriteResult.Ok(Head.Uid, Head.Version - 1, Head.Version));
         }
     }
 

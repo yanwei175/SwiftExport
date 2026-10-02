@@ -47,8 +47,6 @@ public sealed class ProcurementOrderCommandSupport(
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (BusinessCommandException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
         catch (ProcurementOperationException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
-        catch (ProcurementConcurrencyException ex)
-        { return ServiceResult<T>.Fail(ServiceErrorCodes.VersionConflict, ex.Message, "ExpectedVersion"); }
         catch (InvalidOperationException ex)
         { return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, ex.Message); }
         catch (Exception ex)
@@ -56,6 +54,34 @@ public sealed class ProcurementOrderCommandSupport(
             logger.LogError(ex, "采购命令结果未能确认。");
             return ServiceResult<T>.Fail(ServiceErrorCodes.OutcomeUnknown, "采购操作结果未能确认；请保留同一命令标识重试。");
         }
+    }
+
+    /// <summary>按销售订单的仓储结果协议拒绝失败写入，必须在事务内检查，防止部分结果提交。</summary>
+    public static void EnsureWriteSucceeded(RepositoryWriteResult result)
+    {
+        if (result.Success) return;
+        var code = result.ErrorCode switch
+        {
+            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
+            ServiceErrorCodes.VersionConflict or ServiceErrorCodes.NotFound or ServiceErrorCodes.Validation
+                or ServiceErrorCodes.BusinessBlocked => result.ErrorCode,
+            _ => ServiceErrorCodes.BusinessBlocked
+        };
+        throw new ProcurementOperationException(
+            code,
+            result.Message ?? "数据库写入失败。",
+            code == ServiceErrorCodes.VersionConflict ? "ExpectedVersion" : null);
+    }
+
+    /// <summary>检查锁定读取的错误后才允许消费事实；冲突沿用版本错误，不使用未完整锁定的数据。</summary>
+    public static SwiftExport.Core.Models.Procurement.ProcurementReversalFacts RequireLockedFacts(
+        (SwiftExport.Core.Models.Procurement.ProcurementReversalFacts? Facts, ServiceErrorDto? Error) result)
+    {
+        if (result.Error is { } error)
+            throw new ProcurementOperationException(
+                error.Code == "CONCURRENCY_CONFLICT" ? ServiceErrorCodes.VersionConflict : error.Code,
+                error.Message, error.Code is "CONCURRENCY_CONFLICT" or ServiceErrorCodes.VersionConflict ? "ExpectedVersion" : error.Field);
+        return result.Facts ?? throw new InvalidOperationException("采购锁定读取未返回完整事实。");
     }
 
     /// <summary>将订单头行当前版本压缩为持久化成功回执的结果。</summary>

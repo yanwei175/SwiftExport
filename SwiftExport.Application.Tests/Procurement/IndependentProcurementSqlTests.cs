@@ -577,7 +577,7 @@ public sealed class IndependentProcurementSqlTests
                 var repository = provider.GetRequiredService<IProcurementOrderDocumentRepository>();
                 var head = await repository.GetHeadAsync(uid, default);
                 var lines = await repository.GetLinesAsync(uid, default);
-                var context = await provider.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(await provider.GetRequiredService<IProcurementReversalRepository>().LockAsync(uid, default), default);
+                var context = await provider.GetRequiredService<ProcurementConfirmationBuilder>().BuildAsync(ProcurementOrderCommandSupport.RequireLockedFacts(await provider.GetRequiredService<IProcurementReversalRepository>().LockAsync(uid, default)), default);
                 pending = writer.ExecuteAsync(sql, args, commandTimeout: 20);
                 Assert.AreEqual(1, await pending.WaitAsync(TimeSpan.FromSeconds(5)), "采购确认读取不应锁定 BOM 范围。");
                 transaction.Commit();

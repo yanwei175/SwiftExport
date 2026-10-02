@@ -173,6 +173,53 @@ public sealed class ProcurementOrderCommandOrchestrationTests
         Assert.IsNull(failure.Session.Transaction);
     }
 
+    /// <summary>仓储报告保存或确认冲突时，先回滚再返回版本错误，不写成功审计及回执。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task RepositoryWriteConflict_StopsAuditAndReceipt(bool confirm)
+    {
+        var f = new Fixture { FailConfirm = true, FailSave = true };
+        f.PrepareConfirmation();
+        var line = f.Facts!.Lines.Single();
+        var basis = await f.Builder.BuildAsync(f.Facts, default);
+        var result = confirm
+            ? await f.Confirmations.ConfirmAsync(f.Head!.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = 1, ContextFingerprint = basis.Fingerprint })
+            : await f.Drafts.SaveAsync(f.Head!.Uid, new UpdatePurchaseOrderDraftCommand
+            {
+                CommandId = Guid.NewGuid(), ExpectedVersion = 1,
+                Lines = [new() { PurchaseOrderLineId = line.Uid, ExpectedVersion = 1, UnitPrice = 0, TaxPrice = 0 }]
+            });
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual("ExpectedVersion", result.Error.Field);
+        Assert.AreEqual(1, f.ConfirmCalls + f.SaveCalls);
+        Assert.AreEqual(0, f.LogCalls);
+        Assert.AreEqual(0, f.Receipts.Rows.Count);
+        Assert.AreEqual(0, f.Connection.Commits);
+        Assert.AreEqual(1, f.Connection.Rollbacks);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
+    /// <summary>确认预览和提交共同拒绝未完整锁定的事实，读取与写命令均清理事务。</summary>
+    [TestMethod]
+    public async Task LockConflict_BlocksConfirmationPreviewAndCommit()
+    {
+        var f = new Fixture { LockError = new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "引用变化" } };
+        f.PrepareConfirmation();
+        var preview = await f.Confirmations.GetConfirmationContextAsync(f.Head!.Uid);
+        var result = await f.Confirmations.ConfirmAsync(f.Head.Uid, new() { CommandId = Guid.NewGuid(), ExpectedVersion = 1, ContextFingerprint = "basis" });
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, preview.Error.Code);
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual("ExpectedVersion", preview.Error.Field);
+        Assert.AreEqual("ExpectedVersion", result.Error.Field);
+        Assert.AreEqual(0, f.ConfirmCalls);
+        Assert.AreEqual(0, f.LogCalls);
+        Assert.AreEqual(0, f.Receipts.Rows.Count);
+        Assert.AreEqual(2, f.Connection.Rollbacks);
+        Assert.AreEqual(0, f.Connection.Commits);
+        Assert.IsNull(f.Session.Transaction);
+    }
+
     /// <summary>测试替身只模拟调用顺序和事务结果，不代表 SQL Server 锁或持久化。</summary>
     private sealed class Fixture
     {
@@ -184,6 +231,9 @@ public sealed class ProcurementOrderCommandOrchestrationTests
         public readonly ProcurementOrderConfirmationService Confirmations;
         public readonly ProcurementConfirmationBuilder Builder;
         public bool Allow = true;
+        public bool FailConfirm, FailSave;
+        public ServiceErrorDto? LockError;
+        public int SaveCalls;
         public int NumberCalls, BusinessReads, LogCalls, ConfirmCalls, LogResult = 1;
         public PurchaseOrderHead? Head;
         public ProcurementReversalFacts? Facts;
@@ -203,7 +253,8 @@ public sealed class ProcurementOrderCommandOrchestrationTests
             var repository = Proxy<IProcurementOrderDocumentRepository>.New((method, _) => method.Name switch
             {
                 "GetHeadAsync" => ReadHead(),
-                "GetLinesAsync" => Task.FromResult(new List<PurchaseOrderLine>()),
+                "GetLinesAsync" => Task.FromResult(Facts?.Lines ?? new List<PurchaseOrderLine>()),
+                "SaveAsync" => RecordSave(),
                 "ConfirmAsync" => RecordConfirm(),
                 _ => throw new AssertFailedException("重放或拒绝不应读取采购仓储：" + method.Name)
             });
@@ -216,7 +267,7 @@ public sealed class ProcurementOrderCommandOrchestrationTests
                 _ => throw new AssertFailedException("重放或拒绝不应读取采购资格：" + method.Name)
             });
             var reversal = Proxy<IProcurementReversalRepository>.New((method, _) => method.Name == "LockAsync"
-                ? Task.FromResult(Facts!) : throw new NotSupportedException(method.Name));
+                ? Task.FromResult<(ProcurementReversalFacts?, ServiceErrorDto?)>((LockError is null ? Facts : null, LockError)) : throw new NotSupportedException(method.Name));
             var numbers = Proxy<IDocumentNoService>.New((method, _) => { NumberCalls++; throw new AssertFailedException("失败或重放不应取号：" + method.Name); });
             var validators = new ServiceCollection()
                 .AddSingleton<IValidator<CreateIndependentPurchaseOrderCommand>, CreateIndependentPurchaseOrderCommandValidator>()
@@ -247,7 +298,20 @@ public sealed class ProcurementOrderCommandOrchestrationTests
         }
 
         private Task<int> CountLog() { LogCalls++; return Task.FromResult(LogResult); }
-        private Task RecordConfirm() { ConfirmCalls++; return Task.CompletedTask; }
+        /// <summary>记录确认写入次数，并模拟仓储返回的成功或版本冲突。</summary>
+        private Task<RepositoryWriteResult> RecordConfirm()
+        {
+            ConfirmCalls++;
+            return Task.FromResult(FailConfirm ? RepositoryWriteResult.Fail(Head!.Uid, Head.Version, "CONCURRENCY_CONFLICT", "确认冲突")
+                : RepositoryWriteResult.Ok(Head!.Uid, Head.Version, Head.Version + 1));
+        }
+        /// <summary>记录保存写入次数，验证调用方在仓储冲突后停止审计和回执。</summary>
+        private Task<RepositoryWriteResult> RecordSave()
+        {
+            SaveCalls++;
+            return Task.FromResult(FailSave ? RepositoryWriteResult.Fail(Head!.Uid, Head.Version, "CONCURRENCY_CONFLICT", "保存冲突")
+                : RepositoryWriteResult.Ok(Head!.Uid, Head.Version, Head.Version + 1));
+        }
         private Task<PurchaseOrderHead?> ReadHead() { BusinessReads++; return Task.FromResult(Head); }
         private Task<Customer?> ReadCustomer()
         { BusinessReads++; return Task.FromResult(Facts is null ? null : new Customer { Uid = customerId, CustomerCode = "C", DocRelateNo = "C" }); }

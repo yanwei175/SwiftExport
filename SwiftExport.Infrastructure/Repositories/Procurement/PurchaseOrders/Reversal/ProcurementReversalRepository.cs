@@ -1,4 +1,6 @@
 using Dapper;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Entities.Inventory;
@@ -16,7 +18,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
         new(sql, args, context.Session.Transaction ?? throw new InvalidOperationException("采购反向需要事务。"), cancellationToken: ct);
 
     /// <inheritdoc/>
-    public async Task<ProcurementReversalFacts> LockAsync(Guid uid, CancellationToken ct)
+    public async Task<(ProcurementReversalFacts? Facts, ServiceErrorDto? Error)> LockAsync(Guid uid, CancellationToken ct)
     {
         // 发现阶段只读取已提交身份，不持有采购锁；实际使用前按固定锁序重新读取并验证集合。
         const string discover = """
@@ -49,7 +51,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
             """;
         var ownLinks = (await context.Session.Connection.QueryAsync<DemandExecutionLink>(Command(ownLinkSql, new { uid }, ct))).ToList();
         if (ownLinks.Any(x => !demandIds.Contains(x.NetDemandId)))
-            throw new ProcurementConcurrencyException("采购引用已变化或物料来源缺失，请重新预览。");
+            return (null, new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "采购引用已变化或物料来源缺失，请重新预览。", Field = "ExpectedVersion" });
         facts.Links = facts.Links.Concat(ownLinks).DistinctBy(x => x.Uid).ToList();
         facts.Head = await context.Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>(Command(
             "SELECT * FROM dbo.PurchaseOrderHead WITH(UPDLOCK,HOLDLOCK) WHERE Uid=@uid;", new { uid }, ct));
@@ -59,7 +61,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
         var finalLinks = (await context.Session.Connection.QueryAsync<DemandExecutionLink>(Command(ownLinkSql, new { uid }, ct))).ToList();
         if (!ownLinks.Select(x => (x.Uid, x.Version, x.NetDemandId, x.TargetLineId))
             .ToHashSet().SetEquals(finalLinks.Select(x => (x.Uid, x.Version, x.NetDemandId, x.TargetLineId))))
-            throw new ProcurementConcurrencyException("锁定过程中采购引用集合发生变化，请重新预览。");
+            return (null, new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "锁定过程中采购引用集合发生变化，请重新预览。", Field = "ExpectedVersion" });
         // 采购头锁与入库过账/反过账共用；草稿新引用亦受可串行化范围检查保护。
         var lineIds = facts.Lines.Select(x => x.Uid).ToArray();
         facts.HasUnattributedInbound = await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
@@ -72,7 +74,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
                      (h.DocumentType=10 AND p.Uid IS NULL AND (h.PostingStatus IN(1,8) OR h.LifecycleStatus=0))))
                 THEN 1 ELSE 0 END);
             """, null, ct));
-        if (lineIds.Length == 0) return facts;
+        if (lineIds.Length == 0) return (facts, null);
         facts.Inbounds = (await context.Session.Connection.QueryAsync<InboundDocument>(Command("""
             SELECT h.* FROM dbo.InboundDocument h WITH(UPDLOCK,HOLDLOCK)
             WHERE EXISTS(SELECT 1 FROM dbo.InboundDocumentLine l WITH(HOLDLOCK)
@@ -93,13 +95,14 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
         }
         facts.Reports = (await context.Session.Connection.QueryAsync<SupplierProgressReport>(Command(
             "SELECT * FROM dbo.SupplierProgressReport WITH(HOLDLOCK) WHERE PurchaseOrderLineId IN @lineIds AND IsDeleted=0 ORDER BY PurchaseOrderLineId,Sequence;", new { lineIds }, ct))).ToList();
-        return facts;
+        return (facts, null);
     }
 
     /// <inheritdoc/>
-    public async Task ApplyAsync(ProcurementReversalFacts facts, ProcurementReversalOperation operation, IReadOnlyCollection<Guid> lineIds, string reason, CancellationToken ct)
+    public async Task<RepositoryWriteResult> ApplyAsync(ProcurementReversalFacts facts, ProcurementReversalOperation operation, IReadOnlyCollection<Guid> lineIds, string reason, CancellationToken ct)
     {
         var head = facts.Head!;
+        var oldVersion = head.Version;
         context.AuditStamp.StampForUpdate(head);
         var cancel = operation == ProcurementReversalOperation.CancelConfirmation;
         var delete = operation == ProcurementReversalOperation.DeleteLines;
@@ -112,7 +115,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
                 UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy,Version=Version+1
             WHERE Uid=@Uid AND Version=@Version AND LifecycleStatus=0 AND IsDeleted=0;
             """, new { head.Uid, head.Version, head.UpdatedDate, head.UpdatedBy, Cancel = cancel, Void = operation == ProcurementReversalOperation.Void }, ct)) != 1)
-            throw new ProcurementConcurrencyException("采购状态已变化，反向操作未执行。");
+            return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购状态已变化，反向操作未执行。");
         head.Version++;
         if (cancel)
         {
@@ -129,7 +132,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
                         CancelledBy=@UpdatedBy,CancelledReason=@reason,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy,Version=Version+1
                     WHERE Uid=@Uid AND Version=@Version AND LinkStatus=0 AND IsDeleted=0;
                     """, new { link.Uid, link.Version, link.UpdatedDate, link.UpdatedBy, reason }, ct)) != 1)
-                    throw new ProcurementConcurrencyException("采购贡献已变化，解除引用未执行。");
+                    return RepositoryWriteResult.Fail(link.Uid, link.Version, "CONCURRENCY_CONFLICT", "采购贡献已变化，解除引用未执行。");
                 link.Version++; link.LinkStatus = DemandExecutionLinkStatusEnum.Cancelled; link.ReleasedQty = link.AllocatedQty;
                 link.CancelledAt = link.UpdatedDate; link.CancelledBy = link.UpdatedBy; link.CancelledReason = reason;
             }
@@ -141,7 +144,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
                     if (await context.Session.Connection.ExecuteAsync(Command("""
                         UPDATE dbo.PurchaseOrderLine SET IsDeleted=1,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
                         WHERE Uid=@Uid AND PurchaseOrderId=@PurchaseOrderId AND Version=@Version AND IsDeleted=0;
-                        """, line, ct)) != 1) throw new ProcurementConcurrencyException("采购行已变化，删除未执行。");
+                        """, line, ct)) != 1) return RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "采购行已变化，删除未执行。");
                     line.IsDeleted = true; line.Version++;
                 }
                 head.ExpectedDate = facts.Lines.Where(x => !x.IsDeleted).Min(x => x.PlannedDeliveryDate);
@@ -150,5 +153,6 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
             }
             else head.LifecycleStatus = PurchaseOrderLifecycleStatusEnum.Voided;
         }
+        return RepositoryWriteResult.Ok(head.Uid, oldVersion, head.Version);
     }
 }

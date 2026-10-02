@@ -1,4 +1,5 @@
 using Dapper;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.MasterData;
@@ -60,14 +61,14 @@ public sealed class ProcurementOrderDocumentRepository(RepositoryBaseContext con
         }
     }
     /// <inheritdoc/>
-    public async Task SaveAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct)
+    public async Task<RepositoryWriteResult> SaveAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct)
     {
         context.AuditStamp.StampForUpdate(head);
         if (await context.Session.Connection.ExecuteAsync(Command("""
             UPDATE dbo.PurchaseOrderHead SET Remark=@Remark,PackagingRequirements=@PackagingRequirements,
               ExpectedDate=@ExpectedDate,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
             WHERE Uid=@Uid AND Version=@Version AND ConfirmationStatus=0 AND LifecycleStatus=0 AND IsDeleted=0;
-            """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购头并发冲突。");
+            """, head, ct)) != 1) return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购头并发冲突。");
         foreach (var line in lines)
         {
             context.AuditStamp.StampForUpdate(line);
@@ -78,11 +79,12 @@ public sealed class ProcurementOrderDocumentRepository(RepositoryBaseContext con
                 FROM dbo.PurchaseOrderLine l JOIN dbo.PurchaseOrderHead h ON h.Uid=l.PurchaseOrderId
                 WHERE l.Uid=@Uid AND l.PurchaseOrderId=@PurchaseOrderId AND l.Version=@Version AND l.IsDeleted=0
                   AND h.IsDeleted=0 AND h.ConfirmationStatus=0 AND h.LifecycleStatus=0;
-                """, line, ct)) != 1) throw new ProcurementConcurrencyException("采购行并发冲突。");
+                """, line, ct)) != 1) return RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "采购行并发冲突。");
         }
+        return RepositoryWriteResult.Ok(head.Uid, head.Version, head.Version + 1);
     }
     /// <inheritdoc/>
-    public async Task ConfirmAsync(PurchaseOrderHead head, CancellationToken ct)
+    public async Task<RepositoryWriteResult> ConfirmAsync(PurchaseOrderHead head, CancellationToken ct)
     {
         context.AuditStamp.StampForUpdate(head);
         if (await context.Session.Connection.ExecuteAsync(Command("""
@@ -90,6 +92,7 @@ public sealed class ProcurementOrderDocumentRepository(RepositoryBaseContext con
               ConfirmedDate=@ConfirmedDate,ConfirmedBy=@ConfirmedBy,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy
             WHERE Uid=@Uid AND Version=@Version
               AND ConfirmationStatus=0 AND LifecycleStatus=0 AND IsDeleted=0;
-            """, head, ct)) != 1) throw new ProcurementConcurrencyException("采购确认并发冲突。");
+            """, head, ct)) != 1) return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购确认并发冲突。");
+        return RepositoryWriteResult.Ok(head.Uid, head.Version, head.Version + 1);
     }
 }

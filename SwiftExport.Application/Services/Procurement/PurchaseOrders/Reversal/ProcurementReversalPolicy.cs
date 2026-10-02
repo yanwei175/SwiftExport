@@ -17,7 +17,7 @@ public static class ProcurementReversalPolicy
         var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
         var preview = new ProcurementReversalPreviewDto { PurchaseOrderId = head.Uid, Version = head.Version, OrderNo = head.OrderNo, Operation = operation };
         if (request.ExpectedVersion <= 0 || head.Version != request.ExpectedVersion)
-            throw new ProcurementConcurrencyException("采购版本已变化，请重新预览。");
+            throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "采购版本已变化，请重新预览。", "ExpectedVersion");
         if (!Enum.IsDefined(operation)) throw new InvalidOperationException("未知采购反向操作。");
         if (head.IsDeleted || head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active)
             preview.Blockers.Add("仅活动采购允许此操作。");
@@ -36,7 +36,7 @@ public static class ProcurementReversalPolicy
                 throw new InvalidOperationException("请选择有效且不重复的采购行及版本。");
             selected = active.Where(x => request.Lines.Any(y => y.PurchaseOrderLineId == x.Uid)).ToList();
             if (selected.Count != request.Lines.Count || selected.Any(x => request.Lines.Single(y => y.PurchaseOrderLineId == x.Uid).Version != x.Version))
-                throw new ProcurementConcurrencyException("选定采购行不存在或版本已变化。");
+                throw new ProcurementOperationException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.VersionConflict, "选定采购行不存在或版本已变化。", "ExpectedVersion");
             if (selected.Count >= active.Count) preview.Blockers.Add("不能删除全部剩余行，请使用整单作废。");
         }
         else if (request.Lines is null || request.Lines.Count != 0) throw new InvalidOperationException("整单操作不能指定部分行。");

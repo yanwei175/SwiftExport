@@ -1,4 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Application.Services.Procurement.PurchaseOrders.Support;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.Inventory;
@@ -89,7 +91,9 @@ public sealed class ProcurementReversalPolicyTests
         var request = new ProcurementReversalPreviewRequest { ExpectedVersion = 3, Lines = [new() { PurchaseOrderLineId = first.Uid, Version = 2 }] };
         Assert.IsTrue(ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.DeleteLines, request).CanExecute);
         request.Lines[0].Version = 1;
-        Assert.ThrowsExactly<ProcurementConcurrencyException>(() => ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.DeleteLines, request));
+        var conflict = Assert.ThrowsExactly<ProcurementOperationException>(() => ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.DeleteLines, request));
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, conflict.Code);
+        Assert.AreEqual("ExpectedVersion", conflict.Field);
         request.Lines[0].Version = 2;
         request.Lines.Add(new() { PurchaseOrderLineId = other.Uid, Version = 1 });
         Assert.IsFalse(ProcurementReversalPolicy.Build(facts, ProcurementReversalOperation.DeleteLines, request).CanExecute);

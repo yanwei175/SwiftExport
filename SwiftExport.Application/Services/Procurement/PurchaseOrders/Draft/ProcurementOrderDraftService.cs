@@ -154,7 +154,7 @@ public sealed class ProcurementOrderDraftService(
         var head = await RequireHeadAsync(uid, ct);
         var lines = await repository.GetLinesAsync(uid, ct);
         ProcurementOrderPolicy.ApplySave(head, lines, command);
-        await repository.SaveAsync(head, lines, ct);
+        ProcurementOrderCommandSupport.EnsureWriteSucceeded(await repository.SaveAsync(head, lines, ct));
         head.Version++;
         foreach (var line in lines) line.Version++;
         var result = ProcurementOrderCommandSupport.Result(head, lines);

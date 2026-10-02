@@ -22,7 +22,7 @@ public sealed class ProcurementOrderConfirmationService(
     public Task<ServiceResult<ProcurementConfirmationContextDto>> GetConfirmationContextAsync(Guid uid, CancellationToken ct = default)
         => reads.ReadConsistentAsync("Read", async () =>
         {
-            var facts = await reversalFacts.LockAsync(uid, ct);
+            var facts = ProcurementOrderCommandSupport.RequireLockedFacts(await reversalFacts.LockAsync(uid, ct));
             ProcurementConfirmationBuilder.RequireSourceReferences(facts);
             _ = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
             return await confirmation.BuildAsync(facts, ct);
@@ -48,7 +48,7 @@ public sealed class ProcurementOrderConfirmationService(
     private async Task<ProcurementOrderCommandResult> ConfirmInTransactionAsync(Guid uid, ConfirmProcurementOrderCommand command, CancellationToken ct)
     {
         // 与解除引用保持同一锁序，防止确认过程中来源已回退或贡献集合改变。
-        var facts = await reversalFacts.LockAsync(uid, ct);
+        var facts = ProcurementOrderCommandSupport.RequireLockedFacts(await reversalFacts.LockAsync(uid, ct));
         ProcurementConfirmationBuilder.RequireSourceReferences(facts);
         var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
         ProcurementOrderPolicy.RequireDraft(head, command.ExpectedVersion);
@@ -67,7 +67,7 @@ public sealed class ProcurementOrderConfirmationService(
         var batchId = GuidSequentialGenerator.NewGuid();
         var now = DateTime.Now;
         head.ActiveConfirmationId = batchId; head.ConfirmedDate = now; head.ConfirmedBy = user.UserName;
-        await repository.ConfirmAsync(head, ct);
+        ProcurementOrderCommandSupport.EnsureWriteSucceeded(await repository.ConfirmAsync(head, ct));
         head.Version++; head.ConfirmationStatus = ConfirmationStatusEnum.已确认;
         var result = ProcurementOrderCommandSupport.Result(head, lines);
         await support.RecordSuccessAsync(command.CommandId, "Confirm", result, ct);

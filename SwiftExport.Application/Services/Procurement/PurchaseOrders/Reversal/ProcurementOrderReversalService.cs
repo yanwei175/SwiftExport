@@ -27,7 +27,7 @@ public sealed class ProcurementOrderReversalService(
         => reads.ReadConsistentAsync(Permission(operation), async () =>
         {
             Validate(uid, request?.ExpectedVersion ?? 0);
-            return ProcurementReversalPolicy.Build(await reversals.LockAsync(uid, ct), operation, request!);
+            return ProcurementReversalPolicy.Build(ProcurementOrderCommandSupport.RequireLockedFacts(await reversals.LockAsync(uid, ct)), operation, request!);
         }, ct);
 
     /// <inheritdoc/>
@@ -75,13 +75,13 @@ public sealed class ProcurementOrderReversalService(
     private async Task<ProcurementOrderCommandResult> ReversalInTransactionAsync(Guid uid, ProcurementReversalOperation operation,
         Guid commandId, int version, string reason, List<ProcurementLineVersionDto> lines, CancellationToken ct)
     {
-        var facts = await reversals.LockAsync(uid, ct);
+        var facts = ProcurementOrderCommandSupport.RequireLockedFacts(await reversals.LockAsync(uid, ct));
         var request = new ProcurementReversalPreviewRequest { ExpectedVersion = version, Lines = lines };
         var preview = ProcurementReversalPolicy.Build(facts, operation, request);
         if (!preview.CanExecute) throw ProcurementOperationException.Blocked(string.Join("\n", preview.Blockers));
         // 保存操作前快照，避免后续实体变更覆盖恢复资格所需的版本及原始引用。
         var before = JsonSerializer.SerializeToElement(new { facts.Head, facts.Lines, facts.Sources, facts.Demands, facts.Links });
-        await reversals.ApplyAsync(facts, operation, preview.Lines.Select(x => x.PurchaseOrderLineId).ToArray(), reason, ct);
+        ProcurementOrderCommandSupport.EnsureWriteSucceeded(await reversals.ApplyAsync(facts, operation, preview.Lines.Select(x => x.PurchaseOrderLineId).ToArray(), reason, ct));
         var head = facts.Head!;
         var operationName = operation.ToString();
         var result = new ProcurementOrderCommandResult { PurchaseOrderId = uid, OrderNo = head.OrderNo, Version = head.Version,
