@@ -19,6 +19,21 @@ namespace SwiftExport.Client.Wpf.Tests.Features.QualityControl.AfterSales;
 [TestClass]
 public sealed class AfterSalesModelsAndContractsTests
 {
+    /// <summary>新非标补件无默认单位，明确单位进入保存 DTO，单位丢失时确认阻断。</summary>
+    [TestMethod]
+    public void ExplicitUnitsRoundTripAndUnknownBlocksConfirmation()
+    {
+        var line = AfterSalesLineModel.CreateNew(1);
+        Assert.IsTrue(string.IsNullOrWhiteSpace(line.UnitSnapshot));
+        line.IsNonStandard = true; line.Quantity = 1; line.DescriptionSnapshot = "非标";
+        Assert.IsNotNull(line.Validate(true));
+        line.UnitSnapshot = "SET";
+        Assert.IsNull(line.Validate(true));
+        Assert.AreEqual("SET", line.ToEditDto().UnitSnapshot);
+        line.Load(new() { Uid = line.Uid, UnitSnapshot = null });
+        Assert.IsTrue(string.IsNullOrWhiteSpace(line.UnitSnapshot));
+    }
+
     /// <summary>实际页面提交忽略空新占位，保留显式零数量，并允许通过删除集合移除最后一个已有补件。</summary>
     [TestMethod]
     public void DetailSubmissionFiltersOnlyNewPlaceholders()
@@ -104,13 +119,14 @@ public sealed class AfterSalesModelsAndContractsTests
         vm.CommitIssueProductCommand.Execute(null);
         Assert.AreEqual(issue.Uid, vm.Header.IssueProductId);
         Assert.AreEqual(issue.MainImage, vm.Header.ImagePath);
-        var part = new ProductLookupDto { Uid = Guid.NewGuid(), Sku = "PART001", MainImage = "part.png", LinkSku = "AQ1" };
+        var part = new ProductLookupDto { Uid = Guid.NewGuid(), Sku = "PART001", MainImage = "part.png", LinkSku = "AQ1", Unit = "KG" };
         vm.SelectedProductCandidate = part;
         vm.CommitProductCommand.Execute(line);
         Assert.AreEqual(uid, line.Uid);
         Assert.AreEqual(part.Uid, line.ProductId);
         Assert.AreEqual(part.MainImage, line.ImagePath);
         Assert.AreEqual("AQ1", line.LinkSkuSnapshot);
+        Assert.AreEqual("KG", line.UnitSnapshot);
         Assert.AreEqual(issue.Uid, vm.Header.IssueProductId);
         vm.Capabilities = new() { CanSave = true, CanEditFacts = false };
         vm.ClearProductCommand.Execute(line);
@@ -120,6 +136,7 @@ public sealed class AfterSalesModelsAndContractsTests
         vm.Capabilities = new() { CanSave = true, CanEditFacts = true };
         vm.ClearProductCommand.Execute(line);
         Assert.IsNull(line.ProductId); Assert.IsNull(line.ImagePath);
+        Assert.IsTrue(string.IsNullOrWhiteSpace(line.UnitSnapshot));
     }
 
     /// <summary>原生行编辑取消仅恢复本次修改，保留此前待保存内容和新增状态。</summary>
@@ -187,6 +204,16 @@ public sealed class AfterSalesModelsAndContractsTests
                 Assert.IsFalse(vm.HasInputErrors);
                 Assert.IsTrue(vm.CommitPendingEdits!());
                 Assert.AreEqual(12m, line.ToEditDto().Quantity);
+                var unitColumn = grid.Columns.Single(x => x.SortMemberPath == "UnitSnapshot");
+                grid.ScrollIntoView(line, unitColumn); grid.UpdateLayout(); grid.CurrentCell = new(line, unitColumn);
+                Assert.IsFalse(grid.BeginEdit());
+                line.IsNonStandard = true;
+                Assert.IsTrue(grid.BeginEdit()); grid.UpdateLayout();
+                var unitEditor = (System.Windows.Controls.TextBox)unitColumn.GetCellContent(line);
+                unitEditor.Text = "SET";
+                unitEditor.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)!.UpdateSource();
+                Assert.IsTrue(vm.CommitPendingEdits!());
+                Assert.AreEqual("SET", line.ToEditDto().UnitSnapshot);
                 var productColumn = grid.Columns.Single(x => x.SortMemberPath == "ProductId");
                 grid.ScrollIntoView(line, productColumn); grid.UpdateLayout(); grid.CurrentCell = new(line, productColumn);
                 Assert.IsTrue(grid.BeginEdit()); grid.UpdateLayout();
@@ -290,7 +317,8 @@ public sealed class AfterSalesModelsAndContractsTests
         line.Quantity=0;Assert.IsFalse(line.IsEmptyPlaceholder);Assert.IsNull(line.Validate(true));
         line.Quantity=-1;Assert.AreEqual("补发数量不能为负数。",line.Validate(false));
         line.Quantity=1;Assert.AreEqual("标准补件必须选择产品。",line.Validate(true));
-        line.ProductId=Guid.NewGuid();Assert.IsNull(line.Validate(true));
+        line.ProductId=Guid.NewGuid();Assert.IsNotNull(line.Validate(true));
+        line.UnitSnapshot="SET";Assert.IsNull(line.Validate(true));
         line.IsNonStandard=true;Assert.AreEqual("非标补件不能同时选择标准产品。",line.Validate(false));
         line.ProductId=null;line.DescriptionSnapshot=new string('中',301);Assert.AreEqual("确认时补发描述不能超过 300 字。",line.Validate(true));
         line.Load(new(){Uid=Guid.NewGuid()});Assert.IsFalse(line.IsNew);Assert.IsTrue(line.IsEmptyPlaceholder);Assert.IsFalse(line.IsDirty);
@@ -305,7 +333,7 @@ public sealed class AfterSalesModelsAndContractsTests
         header.ServiceAmountCny=0;Assert.IsNull(header.Validate(true));
         Assert.AreEqual(header.IssueProductId,header.ToDto().IssueProductId);Assert.AreEqual(line.ProductId,line.ToDto().ProductId);
         Assert.AreEqual("成品型号",header.ToDto().IssueCustomerSkuSnapshot);Assert.AreEqual("配件型号",line.ToDto().CustomerSkuSnapshot);
-        Assert.AreEqual("Pcs",line.ToDto().UnitSnapshot);
+        Assert.IsTrue(string.IsNullOrWhiteSpace(line.ToDto().UnitSnapshot));
         Assert.IsNull(typeof(AfterSalesEditLineDto).GetProperty("IssueProductId"));
     }
     /// <summary>供应商缓存回显不制造修改，用户选择和清空更新整单责任方。</summary>

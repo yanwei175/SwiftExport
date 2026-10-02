@@ -346,7 +346,7 @@
                                              ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                              gridColumns:GridColumn.Key="supply-type" />
 
-                    <DataGridTemplateColumn Header="默认供应商" Width="100"
+                    <DataGridTemplateColumn Header="推荐采购供应商" Width="100"
                                                     SortMemberPath="SuggestedPurchaseSupplierCode"
                                                     gridColumns:GridColumn.Key="suggested-purchase-supplier">
                         <DataGridTemplateColumn.CellTemplate>

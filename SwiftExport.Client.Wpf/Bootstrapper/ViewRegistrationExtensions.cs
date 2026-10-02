@@ -48,6 +48,7 @@ namespace SwiftExportClient.Bootstrapper;
 /// <summary>注册客户端窗口、视图模型及其瞬态生命周期。</summary>
 public static class ViewRegistrationExtensions
 {
+    /// <summary>注册 Shell 及各业务页签的瞬态视图模型，由导航作用域负责释放。</summary>
     public static IServiceCollection AddSwiftExportClientViews(this IServiceCollection services)
     {
         services.AddTransient<LoginViewModel>();
@@ -100,6 +101,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<PurchaseOrderProgressWorkspaceViewModel>();
         services.AddTransient<PurchaseOrderTraceViewModel>();
         services.AddTransient<PurchaseOrderDetailViewModel>();
+        services.AddTransient<PurchaseDemandAssociationViewModel>();
         services.AddTransient<AfterSalesManagerViewModel>();
         services.AddTransient<AfterSalesDetailViewModel>();
         services.AddTransient<PurchaseCandidateSelectionViewModel>();

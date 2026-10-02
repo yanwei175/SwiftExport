@@ -5,26 +5,28 @@ using System.Linq;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Procurement;
 
-/// <summary>采购工作台与详情页面契约测试；沿用原文件并按能力地图迁移已废弃的旧写职责断言。</summary>
+/// <summary>保留采购枚举与编辑字段门禁；淘汰旧确认消耗绑定和固定源码排版断言。</summary>
 [TestClass]
 public sealed class PurchaseOrderManagerContractsTests
 {
+    /// <summary>管理页保留查询、主从表与分页，分隔方向由公共样式提供。</summary>
     [TestMethod]
     public void ManagerMustPreserveToolbarMasterDetailAndPagingSkeletonWithoutDrawer()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         foreach (var token in new[] { "WrapPanel", "ItemsSource=\"{Binding Orders}\"", "ItemsSource=\"{Binding Lines}\"",
-                     "GridSplitter", "ResizeDirection=\"Rows\"", "PageNavigator", "新建采购单", "采购跟进" })
+                     "GridSplitter", "SwiftExportGridSplitterHorizontal", "PageNavigator", "新建采购单", "采购跟进" })
             StringAssert.Contains(view, token);
         Assert.IsFalse(view.Contains("RightDrawerHost", StringComparison.Ordinal));
     }
 
+    /// <summary>四类状态使用当前枚举集合，管理页不承接旧编辑与反馈写入。</summary>
     [TestMethod]
-    public void ManagerMustUseNewChainOnlyAndExposeTwoMultiSelectStatusFilters()
+    public void ManagerMustUseCurrentChainAndExposeDocumentAndTrackingStatusFilters()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
-        Assert.AreEqual(2, view.Split("<controls:DropDownCheckBox", StringSplitOptions.None).Length - 1);
+        Assert.AreEqual(4, view.Split("<controls:DropDownCheckBox", StringSplitOptions.None).Length - 1);
         StringAssert.Contains(view, "SelectedConfirmationStatuses");
         StringAssert.Contains(view, "SelectedLifecycleStatuses");
         foreach (var forbidden in new[] { "SelectedDataScope", "DataScopes", "安排状态", "ArrangementStatus", "IPurchaseOrderWorkspaceApi", "FromLegacy", "IsLegacy" })
@@ -37,12 +39,14 @@ public sealed class PurchaseOrderManagerContractsTests
         StringAssert.Contains(source, "IPurchaseOrderManagerApi");
         StringAssert.Contains(source, "PurchaseOrderManagerSearchRequest");
         StringAssert.Contains(source, "GetConfirmationContextAsync(order.PurchaseOrderId)");
-        StringAssert.Contains(source, "取消采购确认暂未开放");
+        StringAssert.Contains(source, "StartReversalAsync(ProcurementReversalOperation.CancelConfirmation)");
         Assert.IsFalse(source.Contains("_orderApi.CancelConfirmationAsync", StringComparison.Ordinal));
         StringAssert.Contains(source, "HandleCommandFailureAsync");
         Assert.IsFalse(source.Contains("ProcurementOrderSearchRequest", StringComparison.Ordinal));
-        Assert.AreEqual(2, view.Split("DisplayMemberPath=\"DisplayText\"", StringSplitOptions.None).Length - 1);
-        StringAssert.Contains(source, "Select(static option => option.Value).ToList()");
+        StringAssert.Contains(view, "SelectedReadyStatuses");
+        StringAssert.Contains(view, "SelectedReceiptStatuses");
+        StringAssert.Contains(source, "ConfirmationStatuses = SelectedConfirmationStatuses.ToList()");
+        StringAssert.Contains(source, "LifecycleStatuses = SelectedLifecycleStatuses.ToList()");
     }
 
     [TestMethod]
@@ -65,13 +69,14 @@ public sealed class PurchaseOrderManagerContractsTests
         Assert.IsFalse(mapster.Contains("LifecycleStatus.ToString()", StringComparison.Ordinal));
     }
 
+    /// <summary>头行关键列按业务顺序出现，不固定全部列数。</summary>
     [TestMethod]
     public void ManagerColumnsMustFollowFrozenHeaderAndLineOrder()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
-        AssertOrdered(view, "Header=\"生命周期\"", "Header=\"采购单号\"", "Header=\"诗亦霖采购单号\"", "Header=\"客户代码\"",
+        AssertOrdered(view, "Header=\"单据状态\"", "Header=\"采购单号\"", "Header=\"自定义采购单号\"", "Header=\"客户代码\"",
             "Header=\"供应商\"", "Header=\"确认状态\"", "Header=\"采购日期\"", "Header=\"预计交期\"", "Header=\"回复交期\"",
-            "Header=\"行数\"", "Header=\"已备好数量\"", "Header=\"总数量\"", "Header=\"收货进度\"", "Header=\"含税总金额\"",
+            "Header=\"行数\"", "Header=\"已知已备好合计\"", "Header=\"总数量\"", "Header=\"收货进度\"", "Header=\"含税总金额\"",
             "Header=\"已反馈行数\"", "Header=\"预计完成\"");
         AssertOrdered(view, "Header=\"行\"", "Header=\"图片\"", "Header=\"客户型号\"", "Header=\"物料编号\"", "Header=\"AQ/关联型号\"",
             "Header=\"供应商型号\"", "Header=\"中文描述\"", "Header=\"表面处理\"", "Header=\"配置\"", "Header=\"物料类型\"",
@@ -81,6 +86,7 @@ public sealed class PurchaseOrderManagerContractsTests
     }
 
     /// <summary>批量选择只作用于当前页，并保持勾选与双击详情两个交互边界分离。</summary>
+    /// <summary>勾选仅作用当前页，双击详情与批量确认的未决命令边界独立。</summary>
     [TestMethod]
     public void ManagerMustExposeCurrentPageSelectionAndSeparateBatchConfirmation()
     {
@@ -88,7 +94,7 @@ public sealed class PurchaseOrderManagerContractsTests
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
         var codeBehind = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml.cs");
 
-        AssertOrdered(view, "<DataGridTemplateColumn Width=\"42\"", "Header=\"生命周期\"");
+        AssertOrdered(view, "<DataGridTemplateColumn Width=\"45\"", "Header=\"单据状态\"");
         StringAssert.Contains(view, "IsAllCurrentPageChecked");
         StringAssert.Contains(view, "IsChecked=\"{Binding IsChecked");
         StringAssert.Contains(view, "IsEnabled=\"{Binding DataContext.IsNotBusy");
@@ -107,23 +113,25 @@ public sealed class PurchaseOrderManagerContractsTests
         StringAssert.Contains(source, "BuildBatchCountSummary");
     }
 
+    /// <summary>详情保留工具栏、头字段、采购行和取消原因，不恢复旧确认绑定页签。</summary>
     [TestMethod]
     public void DetailMustPreserveToolbarHeaderCardLineTabsAndBottomStatusSkeleton()
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderDetailView.xaml");
-        foreach (var token in new[] { "Header.OrderNo", "Header.OrderStatusText", "WrapPanel", "Border", "客户", "实际供应商", "TabControl", "采购行",
-                     "确认消耗绑定", "BOM 路径", "取消确认原因" })
+        foreach (var token in new[] { "Header.OrderNo", "Header.OrderStatusText", "WrapPanel", "客户", "实际供应商", "DataGrid", "采购行",
+                     "取消确认原因" })
             StringAssert.Contains(view, token);
         Assert.IsFalse(view.Contains("Header.InboundStatusText", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("Header.ShippedStatusText", StringComparison.Ordinal));
     }
 
+    /// <summary>详情只用当前采购写契约，取消确认复用反向会话而非旧兼容接口。</summary>
     [TestMethod]
     public void DetailMustKeepNewWriteContractsSeparateFromLegacyReadCompatibility()
     {
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderDetailViewModel.cs");
         foreach (var token in new[] { "IProcurementOrderApi", "CreateIndependentPurchaseOrderCommand", "UpdatePurchaseOrderDraftCommand",
-                     "ConfirmProcurementOrderCommand", "PurchaseOrderLineListModel", "取消采购确认暂未开放" })
+                     "ConfirmProcurementOrderCommand", "PurchaseOrderLineListModel", "ProcurementReversalOperation.CancelConfirmation" })
             StringAssert.Contains(source, token);
         Assert.IsFalse(source.Contains("_api.CancelConfirmationAsync", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("LoadLegacyAsync", StringComparison.Ordinal));
@@ -131,6 +139,7 @@ public sealed class PurchaseOrderManagerContractsTests
         Assert.IsFalse(source.Contains("ConfirmPurchaseOrderCommand", StringComparison.Ordinal));
     }
 
+    /// <summary>保留采购头行编辑字段，旧仓库与消耗绑定页签不再作为字段要求。</summary>
     [TestMethod]
     public void DetailMustRestoreOriginalDocumentFieldsAndLineColumns()
     {
@@ -139,10 +148,10 @@ public sealed class PurchaseOrderManagerContractsTests
                      "进水管", "起泡器", "托盘", "内盒", "标贴", "说明书", "外箱", "折扣备注", "文件地址" })
             StringAssert.Contains(view, label);
         foreach (var header in new[] { "行号", "图片", "SKU", "客户型号", "关联型号", "供应商型号", "中文描述", "表面处理", "配置", "物料类型",
-                     "供货方式", "产品单位", "数量", "未税单价", "未税总价", "计划交期", "收货目标", "送至供应商", "来源单/行", "备注" })
+                     "供货方式", "产品单位", "数量", "未税单价", "未税总价", "计划交期", "送至供应商", "来源单/行", "备注" })
             StringAssert.Contains(view, $"Header=\"{header}\"");
-        foreach (var tab in new[] { "采购行", "确认消耗绑定" })
-            StringAssert.Contains(view, $"Header=\"{tab}\"");
+        StringAssert.Contains(view, "采购行");
+        Assert.IsFalse(view.Contains("确认消耗绑定", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("Header=\"来源/需求关联\"", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("Header=\"供应商跟进摘要\"", StringComparison.Ordinal));
         Assert.IsFalse(view.Contains("Header=\"入库记录\"", StringComparison.Ordinal));
@@ -163,10 +172,11 @@ public sealed class PurchaseOrderManagerContractsTests
         StringAssert.Contains(header, "Load(PurchaseOrderDetailDto dto)"); StringAssert.Contains(line, "BaseLineModel<PurchaseOrderLineDetailDto>");
     }
 
+    /// <summary>采购页模板从功能字典加载，跟进及详情导航路由继续注册。</summary>
     [TestMethod]
     public void PreviewProgressAndDocumentRoutesMustRemainRegistered()
     {
-        var shell = Read("SwiftExport.Client.Wpf", "Shell", "ShellWindow.xaml");
+        var shell = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "页面模板.xaml");
         var routes = Read("SwiftExport.Client.Wpf", "Navigation", "NavigationRouteRegistry.cs");
         StringAssert.Contains(shell, "PurchaseOrderManagerViewModel");
         StringAssert.Contains(routes, "PurchaseOrderProgressWorkspaceViewModel.RouteKey");
@@ -174,6 +184,7 @@ public sealed class PurchaseOrderManagerContractsTests
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));
+    /// <summary>只核对列顺序，附加属性和 XAML 排版不参与判定。</summary>
     private static void AssertOrdered(string source, params string[] tokens)
     {
         var previous = -1;

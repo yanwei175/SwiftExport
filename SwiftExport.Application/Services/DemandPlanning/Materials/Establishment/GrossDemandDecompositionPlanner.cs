@@ -87,6 +87,7 @@ public sealed class GrossDemandDecompositionPlanner
                 DescriptionSnapshot = grossDemand.DescriptionSnapshot,
                 ColorSnapshot = grossDemand.ColorSnapshot,
                 SpecificationSnapshot = grossDemand.SpecificationSnapshot,
+                UnitSnapshot = NormalizeUnit(grossDemand.UnitSnapshot),
                 GrossQty = grossDemand.DemandQty,
                 NetQty = grossDemand.DemandQty,
                 RequiredDate = grossDemand.RequiredDate,
@@ -123,6 +124,7 @@ public sealed class GrossDemandDecompositionPlanner
             DescriptionSnapshot = grossDemand.DescriptionSnapshot,
             ColorSnapshot = grossDemand.ColorSnapshot,
             SpecificationSnapshot = grossDemand.SpecificationSnapshot,
+            UnitSnapshot = NormalizeUnit(grossDemand.UnitSnapshot),
             GrossQty = grossDemand.DemandQty,
             NetQty = grossDemand.DemandQty,
             RequiredDate = grossDemand.RequiredDate,
@@ -158,6 +160,7 @@ public sealed class GrossDemandDecompositionPlanner
                 ParentSkuSnapshot = rootProduct.Sku,
                 DescriptionSnapshot = child.DescriptionEn,
                 SpecificationSnapshot = child.FeaturesEn,
+                UnitSnapshot = NormalizeUnit(child.Unit),
                 GrossQty = CalculateComponentQty(grossDemand.DemandQty, line.Numerator, line.Denominator),
                 NetQty = CalculateComponentQty(grossDemand.DemandQty, line.Numerator, line.Denominator),
                 RequiredDate = grossDemand.RequiredDate,
@@ -175,6 +178,9 @@ public sealed class GrossDemandDecompositionPlanner
         if (denominator <= 0) throw new ArgumentOutOfRangeException(nameof(denominator));
         return parentQty * numerator / denominator;
     }
+
+    /// <summary>规范单位文本而不推断缺失单位，也不执行单位换算。</summary>
+    private static string? NormalizeUnit(string? unit) => string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
 
     private sealed record CustomerSuppliedBomLine(Bom Line, Product Product);
 }

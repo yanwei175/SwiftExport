@@ -11,6 +11,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto
         /// <summary>按采购头保存的客户编码精确筛选，不联查客户主数据。</summary>
         public string CustomerCode { get; set; }
         public Guid? SupplierId { get; set; }
+        /// <summary>关联页面仅查询活动且仍有未关联数量的采购单；在计数和分页前筛选，默认不限制管理列表。</summary>
+        public bool OnlyWithUnlinkedQuantity { get; set; }
         /// <summary>下单日期起止均按自然日包含边界；空值表示不限制。</summary>
         public DateTime? OrderDateFrom { get; set; }
         public DateTime? OrderDateTo { get; set; }

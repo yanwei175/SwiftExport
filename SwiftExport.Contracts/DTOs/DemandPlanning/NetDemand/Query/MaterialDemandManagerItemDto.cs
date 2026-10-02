@@ -70,6 +70,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         /// <summary>物料类型快照。</summary>
         public string MaterialType { get; set; }
         /// <summary>计量单位。</summary>
+        /// <summary>物料需求建立时保存的单位快照；未知为空，不从当前产品推断。</summary>
         public string Unit { get; set; }
         /// <summary>拆解时的供货方式快照。</summary>
         public string SupplyType { get; set; }

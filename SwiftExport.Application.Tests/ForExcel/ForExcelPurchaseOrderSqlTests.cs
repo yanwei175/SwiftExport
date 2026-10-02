@@ -106,7 +106,7 @@ public sealed class ForExcelPurchaseOrderSqlTests
         Assert.AreEqual("Excel旧型号",await db.ScalarAsync<string>("SELECT LinkSku FROM dbo.PurchaseOrderLine"));
     }
 
-    /// <summary>非标无需产品主档但必须有效单位；可读取独立草稿，仍被原确认流程阻断。</summary>
+    /// <summary>明确非标无需产品主档但必须有效单位；导入草稿可确认，仍拒绝损坏身份与未知单位。</summary>
     [TestMethod]
     public async Task NonStandardDraftHasStableIdentityWithoutProductOrDemand()
     {
@@ -118,7 +118,10 @@ public sealed class ForExcelPurchaseOrderSqlTests
         Assert.AreEqual(Guid.Empty,line.ProductId);Assert.AreEqual(NonStandardSkuGenerator.Create(line.Uid),line.Sku);
         Assert.AreEqual("PCS",line.UnitSnapshot);Assert.AreEqual("非标组件",line.DescriptionZh);
         Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine WHERE ProductId IS NULL AND SourceUid IS NULL"));
-        Assert.IsFalse((await db.ContextAsync(created.Data.PurchaseOrderId)).Success);
+        var context=await db.ContextAsync(created.Data.PurchaseOrderId);Assert.IsTrue(context.Success,context.Message);
+        var confirmed=await db.ConfirmAsync(created.Data.PurchaseOrderId,new()
+        {CommandId=Guid.NewGuid(),ExpectedVersion=context.Data!.Version,ContextFingerprint=context.Data.Fingerprint});
+        Assert.IsTrue(confirmed.Success,confirmed.Message);
         var replay=await db.CreateAsync(command);Assert.AreEqual(created.Data.PurchaseOrderId,replay.Data.PurchaseOrderId);
         var invalid=db.CreateCommand();invalid.Lines[0].IsNonStandard=true;
         Assert.IsFalse((await db.CreateAsync(invalid)).Success);

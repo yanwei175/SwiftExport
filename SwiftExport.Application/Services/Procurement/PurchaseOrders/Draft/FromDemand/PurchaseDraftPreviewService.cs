@@ -325,7 +325,7 @@ public sealed class PurchaseDraftPreviewService(
                 Specification = net.SpecificationSnapshot ?? string.Empty,
                 ImagePath = product?.MainImage ?? string.Empty,
                 MaterialType = net.MaterialTypeSnapshot ?? string.Empty,
-                Unit = EffectiveUnit(product?.Unit),
+                Unit = EffectiveUnit(net.UnitSnapshot),
                 QuantityScale = 4,
                 PurchaseSupplierId = purchaseSupplierId,
                 PurchaseSupplierIsActive = purchaseSupplier?.IsActive == true,
@@ -622,8 +622,8 @@ public sealed class PurchaseDraftPreviewService(
         };
     }
 
-    private static string EffectiveUnit(string? unit) =>
-        string.IsNullOrWhiteSpace(unit) ? "PCS" : unit.Trim();
+    /// <summary>只传递物料单位快照；未知单位由预览阻断，不能默认 PCS。</summary>
+    private static string EffectiveUnit(string? unit) => unit?.Trim() ?? string.Empty;
 
     private static PurchaseDraftPreviewBuildTarget MapTarget(PurchaseDraftTargetSelectionDto target)
         => new()

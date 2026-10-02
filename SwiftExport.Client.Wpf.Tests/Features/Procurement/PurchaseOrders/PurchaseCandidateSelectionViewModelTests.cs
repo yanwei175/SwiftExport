@@ -24,6 +24,7 @@ using System.Windows.Threading;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 
+/// <summary>验证采购准备页输入、来源刷新、原生编辑与复合填充的状态边界。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class PurchaseCandidateSelectionViewModelTests
@@ -60,7 +61,8 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             SupplierName = "供应商乙",
         };
         Assert.AreEqual(manualId, row.SupplierId);
-        Assert.AreEqual("SUP-B 供应商乙", row.PurchaseSupplierDisplay);
+        Assert.AreEqual("供应商乙", row.PurchaseSupplierDisplay);
+        Assert.AreEqual("SUP-B", row.PurchaseSupplierCode);
 
         var filledId = Guid.NewGuid();
         row.SupplierId = filledId;
@@ -184,7 +186,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
     [TestMethod]
     public void BusinessValidation_ShouldRemainRowScopedInPurchaseGrid()
     {
-        StaTest.RunAsync(() =>
+        Controls.DatePickerAssistTests.RunWithApplication(() =>
         {
             ApplicationResourceLoader.Load();
             using var viewModel = CreateViewModel(new CandidateApiStub());
@@ -223,7 +225,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
     [TestMethod]
     public void PurchaseSupplierColumn_ShouldBeginEditFocusLookupAndCommitStableIdentity()
     {
-        StaTest.RunAsync(() =>
+        Controls.DatePickerAssistTests.RunWithApplication(() =>
         {
             ApplicationResourceLoader.Load();
             using var viewModel = CreateViewModel(new CandidateApiStub());
@@ -283,7 +285,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
     [TestMethod]
     public void DeliverySupplierColumn_ShouldRemainReadOnly()
     {
-        StaTest.RunAsync(() =>
+        Controls.DatePickerAssistTests.RunWithApplication(() =>
         {
             ApplicationResourceLoader.Load();
             using var viewModel = CreateViewModel(new CandidateApiStub());
@@ -314,7 +316,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
     [TestMethod]
     public void PurchaseSupplierColumn_CtrlDShouldFillCompositeFactsSkipDisabledAndUndoTogether()
     {
-        StaTest.RunAsync(() =>
+        Controls.DatePickerAssistTests.RunWithApplication(() =>
         {
             ApplicationResourceLoader.Load();
             using var viewModel = CreateViewModel(new CandidateApiStub());
@@ -771,7 +773,8 @@ public sealed class PurchaseCandidateSelectionViewModelTests
 
     /// <summary>刷新失败保持原集合可重试；关闭后取消请求并拒绝迟到结果覆盖旧事实。</summary>
     [TestMethod]
-    public async Task RefreshCandidateData_ShouldPreserveOnFailureAndRejectLateResultAfterClose()
+    public void RefreshCandidateData_ShouldPreserveOnFailureAndRejectLateResultAfterClose() =>
+        StaTest.RunAsync(async () =>
     {
         var api = new CandidateApiStub();
         var original = CreateCandidate(api.FirstSourceUid, "SO-A", 1);
@@ -819,7 +822,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         await restoreTask;
         Assert.AreEqual(2, viewModel.Items.Single().Version);
         Assert.AreEqual(3m, viewModel.Items.Single().PurchaseQty);
-    }
+    });
 
     /// <summary>刷新必须先有当前来源并提交原生编辑；转换失败时不查询、不丢输入。</summary>
     [TestMethod]

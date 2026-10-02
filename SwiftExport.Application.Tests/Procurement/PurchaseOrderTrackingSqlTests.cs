@@ -10,6 +10,39 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass, DoNotParallelize]
 public sealed class PurchaseOrderTrackingSqlTests
 {
+    /// <summary>待关联资格先于分页；包含部分关联及已确认采购，排除零剩余、未知、软删行和作废单。</summary>
+    [TestMethod]
+    public async Task UnlinkedOrderFilterRunsBeforeCountAndPaging()
+    {
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_SQL_TESTS") != "1")
+            Assert.Inconclusive("设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行随机隔离 LocalDB 测试。");
+        await using var db = new IndependentProcurementSqlFixture();
+        await db.InitializeAsync();
+        var ids = new List<Guid>();
+        for (var i = 0; i < 6; i++) ids.Add((await db.CreateAsync()).Data!.PurchaseOrderId);
+        await db.ExecuteAsync("""
+            UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=1 WHERE Uid=@partial;
+            UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=4 WHERE PurchaseOrderId=@partial;
+            UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=0 WHERE PurchaseOrderId=@zero;
+            UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=NULL WHERE PurchaseOrderId=@unknown;
+            UPDATE dbo.PurchaseOrderLine SET IsDeleted=1 WHERE PurchaseOrderId=@removed;
+            UPDATE dbo.PurchaseOrderHead SET LifecycleStatus=@voidedStatus WHERE Uid=@voided;
+            """, new { partial = ids[1], zero = ids[2], unknown = ids[3], removed = ids[4], voided = ids[5], voidedStatus = (int)PurchaseOrderLifecycleStatusEnum.Voided });
+        var selected = new List<Guid>();
+        for (var page = 1; page <= 2; page++)
+        {
+            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
+                .SearchAsync(new() { OnlyWithUnlinkedQuantity = true, PageIndex = page, PageSize = 1 }));
+            Assert.IsTrue(result.Success, result.Message);
+            Assert.AreEqual(2, result.Data!.TotalCount);
+            selected.Add(result.Data.Items.Single().PurchaseOrderId);
+        }
+        CollectionAssert.AreEquivalent(ids.Take(2).ToList(), selected);
+        var normal = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>().SearchAsync(new()));
+        Assert.IsTrue(normal.Success, normal.Message);
+        Assert.AreEqual(6, normal.Data!.TotalCount);
+    }
+
     /// <summary>未反馈、明确零与部分货好分开筛选；空明细不会被误判为全部完成。</summary>
     [TestMethod]
     public async Task ReadyAndReceiptStatesFilterBeforePaging()
@@ -25,9 +58,9 @@ public sealed class PurchaseOrderTrackingSqlTests
         var secondLine = await db.ScalarAsync<Guid>("SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@id", new { id = second.PurchaseOrderId });
         var thirdLine = await db.ScalarAsync<Guid>("SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@id", new { id = third.PurchaseOrderId });
         await db.ExecuteAsync("""
-            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,SupplierReportedDate,CommandId)
-            VALUES(NEWID(),@secondLine,1,0,0,SYSUTCDATETIME(),NEWID()),
-                  (NEWID(),@thirdLine,1,0,4,SYSUTCDATETIME(),NEWID());
+            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,SupplierReportedDate,CommandId,IsCorrection)
+            VALUES(NEWID(),@secondLine,1,0,0,SYSUTCDATETIME(),NEWID(),0),
+                  (NEWID(),@thirdLine,1,0,4,SYSUTCDATETIME(),NEWID(),0);
             UPDATE dbo.PurchaseOrderLine SET IsDeleted=1 WHERE PurchaseOrderId=@emptyId;
             """, new { secondLine, thirdLine, emptyId = empty.PurchaseOrderId });
 
@@ -72,7 +105,8 @@ public sealed class PurchaseOrderTrackingSqlTests
         await using var db = new IndependentProcurementSqlFixture();
         await db.InitializeAsync();
         var command = db.CreateCommand();
-        command.Lines.Add(new() { ProductId = db.ComponentId, Quantity = 5m, UnitPrice = 2m, TaxPrice = 2.5m });
+        command.Lines.Add(new() { ProductId = db.ComponentId, Quantity = 5m, UnitPrice = 2m, TaxPrice = 2.5m,
+            DeliverySupplierId = db.SupplierId });
         var created = await db.CreateAsync(command);
         Assert.IsTrue(created.Success, created.Message);
         var uid = created.Data!.PurchaseOrderId;
@@ -145,8 +179,8 @@ public sealed class PurchaseOrderTrackingSqlTests
 
         var soonLine = await db.ScalarAsync<Guid>("SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@id", new { id = soon.PurchaseOrderId });
         await db.ExecuteAsync("""
-            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,SupplierReportedDate,CommandId)
-            VALUES(NEWID(),@soonLine,1,0,10,SYSUTCDATETIME(),NEWID());
+            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,SupplierReportedDate,CommandId,IsCorrection)
+            VALUES(NEWID(),@soonLine,1,0,10,SYSUTCDATETIME(),NEWID(),0);
             """, new { soonLine });
         var noSoon = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()
             .SearchAsync(new PurchaseOrderManagerSearchRequest { DueView = PurchaseDueViewEnum.DueSoonNotReady }));

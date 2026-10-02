@@ -584,6 +584,7 @@ CREATE TABLE [dbo].[NetDemand]
     [DescriptionSnapshot] nvarchar(2000) NULL,
     [ColorSnapshot] nvarchar(500) NULL,
     [SpecificationSnapshot] nvarchar(500) NULL,
+    [UnitSnapshot] nvarchar(300) NULL,
     [GrossQty] decimal(18,4) NOT NULL,
     [NetQty] decimal(18,4) NOT NULL,
     [RequiredDate] datetime2(7) NULL,
@@ -1981,7 +1982,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'AfterSalesLine',
     @level2type=N'COLUMN', @level2name=N'Quantity';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'单位，默认Pcs。',
+    @name=N'MS_Description', @value=N'补件单位快照；缺失保持未知，确认实物需求前必须明确。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'AfterSalesLine',
     @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
@@ -3774,6 +3775,11 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'NetDemand',
     @level2type=N'COLUMN', @level2name=N'SpecificationSnapshot';
+EXEC sys.sp_addextendedproperty
+    @name=N'MS_Description', @value=N'建立时的计量单位快照；根行沿用来源单位，客供子件采用拆解时子产品单位，历史未知为空。',
+    @level0type=N'SCHEMA', @level0name=N'dbo',
+    @level1type=N'TABLE', @level1name=N'NetDemand',
+    @level2type=N'COLUMN', @level2name=N'UnitSnapshot';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'BOM 展开后得到的原始需求数量。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
@@ -5639,7 +5645,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
     @level2type=N'COLUMN', @level2name=N'DemandSourceNo';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'创建请求 Uid；旧链用于需求转换，新链对应独立创建命令。',
+    @name=N'MS_Description', @value=N'创建请求 Uid；记录需求转采购或独立采购创建请求的身份。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'PurchaseOrderHead',
     @level2type=N'COLUMN', @level2name=N'ExecutionRequestId';

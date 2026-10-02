@@ -332,6 +332,11 @@
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                             Binding="{Binding Quantity,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" Width="90"/>
 
+                        <DataGridTextColumn Header="单位" SortMemberPath="UnitSnapshot"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                            Binding="{Binding UnitSnapshot,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+
                         <DataGridTextColumn Header="备注" SortMemberPath="Remark" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"

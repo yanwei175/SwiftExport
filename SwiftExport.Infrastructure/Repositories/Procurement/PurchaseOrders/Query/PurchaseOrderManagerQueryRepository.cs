@@ -44,6 +44,7 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             Keyword = ToLikePattern(request.Keyword),
             CustomerCode = string.IsNullOrWhiteSpace(request.CustomerCode) ? null : request.CustomerCode.Trim(),
             request.SupplierId,
+            request.OnlyWithUnlinkedQuantity,
             OrderDateFrom = request.OrderDateFrom?.Date,
             // 用半开区间包含结束日全部时间，保持 OrderDate 列可利用索引。
             OrderDateToExclusive = request.OrderDateTo.HasValue && request.OrderDateTo.Value.Date < DateTime.MaxValue.Date
@@ -242,6 +243,12 @@ public sealed class PurchaseOrderManagerQueryRepository(RepositoryBaseContext co
             FROM dbo.PurchaseOrderHead h
             LEFT JOIN LineFacts f ON f.PurchaseOrderId=h.Uid
             WHERE ISNULL(h.IsDeleted,0)=0
+              -- 待关联资格先进入头集合，避免分页后过滤造成空页或错误总数。
+              AND (@OnlyWithUnlinkedQuantity=0 OR
+                   (h.LifecycleStatus=@ActiveLifecycle AND h.ConfirmationStatus IN (@PendingConfirmation,@Confirmed)
+                    AND EXISTS (SELECT 1 FROM dbo.PurchaseOrderLine unlinkedLine
+                                WHERE unlinkedLine.PurchaseOrderId=h.Uid AND ISNULL(unlinkedLine.IsDeleted,0)=0
+                                  AND unlinkedLine.UnlinkedQty>0)))
               AND (@Keyword IS NULL OR h.OrderNo LIKE @Keyword ESCAPE N'~'
                    OR h.BoNo LIKE @Keyword ESCAPE N'~'
                    OR h.DemandSourceNo LIKE @Keyword ESCAPE N'~'

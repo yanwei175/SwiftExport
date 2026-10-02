@@ -35,6 +35,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public string Specification { get; set; }
         public string ImagePath { get; set; }
         public string MaterialType { get; set; }
+        /// <summary>物料需求建立时保存的单位快照；未知为空，不从当前产品推断。</summary>
         public string Unit { get; set; }
         public string SupplyType { get; set; }
         public Guid? SuggestedPurchaseSupplierId { get; set; }

@@ -1049,7 +1049,7 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
     partial void OnSelectedDocumentChanged(PurchaseDraftDocumentReviewModel? value) =>
         SelectedLine = value?.Lines.FirstOrDefault();
 
-    /// <summary>立即失效当前预览、取消在途查询并清除旧警告确认；累计执行结果保持不变。</summary>
+    /// <summary>失效预览时清空审核单据及警告确认，取消在途查询；准备输入与累计执行结果保留。</summary>
     private void InvalidatePreview(string statusText, bool incrementRevision)
     {
         if (incrementRevision)
@@ -1061,6 +1061,11 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
         IsStale = true;
         DetachWarningEvents();
         Warnings.Clear();
+        // 审核数据已失效，不继续展示可被误认为当前事实的旧行或旧单据。
+        PreviewLines.Clear();
+        Documents.Clear();
+        SelectedDocument = null;
+        SelectedLine = null;
         StatusText = statusText;
         NotifyPreviewStateChanged();
     }

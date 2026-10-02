@@ -17,11 +17,11 @@ public interface INetDemandExecutionLinkRepository
     Task<IReadOnlyList<MaterialDemandRollbackBlockerDto>> GetRollbackBlockersAsync(
         IEnumerable<Guid> netDemandIds);
 
-    /// <summary>按命令项锁定已有 Link，用于创建命令幂等判断。</summary>
+    /// <summary>按命令项锁定活动及已取消 Link；取消不释放命令身份，创建和补关联均不能复用。</summary>
     Task<IReadOnlyList<DemandExecutionLink>> GetByCommandItemIdsForUpdateAsync(
-        IEnumerable<Guid> commandItemIds);
+        IEnumerable<Guid> commandItemIds, CancellationToken cancellationToken = default);
 
     /// <summary>显式批量插入采购 Link，保留 Application 预生成的 Uid。</summary>
-    Task<int> InsertPurchaseLinksAsync(IEnumerable<DemandExecutionLink> links);
+    Task<int> InsertPurchaseLinksAsync(IEnumerable<DemandExecutionLink> links, CancellationToken cancellationToken = default);
 
 }

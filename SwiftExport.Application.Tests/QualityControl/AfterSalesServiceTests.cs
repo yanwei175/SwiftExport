@@ -45,6 +45,51 @@ namespace SwiftExport.Application.Tests.QualityControl;
 [TestClass]
 public sealed class AfterSalesServiceTests
 {
+    /// <summary>非标补件无单位可以保存草稿，但确认必须拒绝；明确单位后原样交给来源需求。</summary>
+    [TestMethod]
+    public async Task NonStandardRequiresExplicitUnitForConfirmation()
+    {
+        using var f = new Fixture(); var command = f.Command();
+        command.AddedLines[0].UnitSnapshot = " ";
+        var saved = await f.Service.SaveAsync(command.Uid, command, true);
+        Assert.IsTrue(saved.Success, saved.Message);
+        Assert.AreEqual(string.Empty, f.Rows.Single().UnitSnapshot);
+        var rejected = await f.Confirm.ConfirmDemandAsync(command.Uid, new() { CommandId = Guid.NewGuid(), Version = saved.Data.Version });
+        Assert.IsFalse(rejected.Success); Assert.AreEqual(0, f.ReceiveCalls);
+    }
+
+    /// <summary>标准补件首次选择产品采用当前单位；同一身份重存保留历史快照，未知历史不补成 PCS。</summary>
+    [TestMethod]
+    public async Task StandardUnitCapturesOnceAndPreservesUnknownHistory()
+    {
+        using var f = new Fixture(); var command = f.Command();
+        command.AddedLines[0].IsNonStandard = false; command.AddedLines[0].ProductId = Guid.NewGuid();
+        command.AddedLines[0].UnitSnapshot = "CLIENT";
+        Assert.IsTrue((await f.Service.SaveAsync(command.Uid, command, true)).Success);
+        Assert.AreEqual("BOX", f.Rows.Single().UnitSnapshot);
+        var edit = f.Edit(); edit.UpdatedLines[0].UnitSnapshot = "CLIENT";
+        Assert.IsTrue((await f.Service.SaveAsync(command.Uid, edit, false)).Success);
+        Assert.AreEqual("BOX", f.Rows.Single().UnitSnapshot);
+        f.Rows.Single().UnitSnapshot = string.Empty;
+        edit = f.Edit(); edit.UpdatedLines[0].UnitSnapshot = "CLIENT";
+        Assert.IsTrue((await f.Service.SaveAsync(command.Uid, edit, false)).Success);
+        Assert.AreEqual(string.Empty, f.Rows.Single().UnitSnapshot);
+    }
+
+    /// <summary>标准售后实际确认入口把已保存单位交给来源需求，不接受客户端伪造单位。</summary>
+    [TestMethod]
+    public async Task StandardConfirmationPassesSavedUnitToSource()
+    {
+        using var f = new Fixture(); var command = f.Command();
+        command.AddedLines[0].IsNonStandard = false; command.AddedLines[0].ProductId = Guid.NewGuid();
+        command.AddedLines[0].UnitSnapshot = "CLIENT";
+        var saved = await f.Service.SaveAsync(command.Uid, command, true);
+        Assert.IsTrue(saved.Success, saved.Message);
+        var confirmed = await f.Confirm.ConfirmDemandAsync(command.Uid, new() { CommandId = Guid.NewGuid(), Version = saved.Data.Version });
+        Assert.IsTrue(confirmed.Success, confirmed.Message);
+        Assert.AreEqual("BOX", f.Received!.Items.Single().UnitSnapshot);
+    }
+
     /// <summary>维护回执保留首次创建及保存结果，跨命令复用身份和修改业务输入均冲突。</summary>
     [TestMethod]
     public async Task MaintenanceReceiptsReplayAndRejectCrossCommandReuse()
@@ -255,7 +300,7 @@ public sealed class AfterSalesServiceTests
         Assert.AreEqual(1,f.Received!.Items.Count);Assert.AreEqual(c.AddedLines[0].Uid,f.Received.Items[0].SourceLineId);
         Assert.AreEqual("CR",f.Received.SourceType);Assert.AreEqual(2m,f.Received.Items[0].DemandQty);
         Assert.AreEqual(c.Header.RequiredDate,f.Received.Items[0].RequiredDate);
-        Assert.AreEqual("Pcs",f.Received.Items[0].UnitSnapshot);Assert.AreEqual(confirmed.Data.Version,f.Received.SourceVersion);
+        Assert.AreEqual("SET",f.Received.Items[0].UnitSnapshot);Assert.AreEqual(confirmed.Data.Version,f.Received.SourceVersion);
         Assert.AreEqual(SwiftExport.Contracts.Common.NonStandardSkuGenerator.Create(c.AddedLines[0].Uid),
             f.Received.Items[0].SkuSnapshot);
         c.AddedLines[0].Quantity=3;
@@ -413,7 +458,7 @@ public sealed class AfterSalesServiceTests
                 "WriteLineAsync"=>WriteLine((AfterSalesLine)a[0]!, (bool)a[1]!),
                 _=>throw new NotSupportedException(n)});
             var lookups=Port<IAfterSalesLookupRepository>((n,a)=>n switch {
-                "ReferenceAsync"=>Task.FromResult<AfterSalesLookupDto?>(new(){Uid=(Guid)a[1]!,Code="CODE",Name="名称"}),
+                "ReferenceAsync"=>Task.FromResult<AfterSalesLookupDto?>(new(){Uid=(Guid)a[1]!,Code="CODE",Name="名称",Unit="BOX"}),
                 _=>throw new NotSupportedException(n)});
             var queries=Port<IAfterSalesQueryRepository>((n,a)=>throw new NotSupportedException(n));
             var reception=Port<ISourceDemandReceptionService>((n,a)=>{
@@ -449,7 +494,7 @@ public sealed class AfterSalesServiceTests
                 pipeline, executor);
         }
         public SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),Header=new(){CustomerId=customer,AcceptedDate=new(2026,9,8),IssueDescription="成品故障",IssueSkuSnapshot="成品001",ResponsibleSupplierId=Guid.NewGuid(),ServiceAmountCny=0,RequiredDate=new(2026,10,1)},AddedLines=[Line(2)]};
-        public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",UnitSnapshot=""};
+        public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",UnitSnapshot="SET"};
         public SaveAfterSalesCommand Edit()=>new(){CommandId=Guid.NewGuid(),Uid=Head!.Uid,Version=Head.Version,Header=Head.Adapt<AfterSalesEditHeaderDto>(),UpdatedLines=Rows.Where(x=>!x.IsDeleted).Adapt<List<AfterSalesEditLineDto>>()};
         private Task<bool> WriteHead(AfterSalesHeader h,bool insert){if(!insert)h.Version++;Head=Clone(h);return Task.FromResult(true);}
         private Task<bool> WriteLine(AfterSalesLine l,bool insert){if(!insert)l.Version++;Rows.RemoveAll(x=>x.Uid==l.Uid);Rows.Add(Clone(l)!);return Task.FromResult(true);}

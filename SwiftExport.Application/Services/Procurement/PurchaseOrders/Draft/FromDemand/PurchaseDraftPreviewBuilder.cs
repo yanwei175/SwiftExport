@@ -109,6 +109,15 @@ public sealed class PurchaseDraftPreviewBuilder
         var candidate = selection.Candidate;
         var valid = true;
 
+        // 缺失单位不能形成可写采购预览，否则后续数量贡献无法证明相同计量口径。
+        if (string.IsNullOrWhiteSpace(candidate.Unit))
+        {
+            AddWarning(response, candidate, PurchaseDraftWarningCodes.CorruptedPlanningState,
+                "物料单位需核实；请明确需求单位后重新预览。",
+                isBlocker: true, requiresConfirmation: false);
+            valid = false;
+        }
+
         if (!candidate.IsPlanningFactValid)
         {
             AddWarning(response, candidate, PurchaseDraftWarningCodes.CorruptedPlanningState,

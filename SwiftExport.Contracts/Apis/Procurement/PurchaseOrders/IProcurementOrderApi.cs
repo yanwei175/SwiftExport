@@ -10,6 +10,18 @@ namespace SwiftExport.Contracts.Apis.Procurement
     /// <summary>采购查询、独立草稿创建及订单操作协议；详情、保存、确认和反向操作同时服务需求来源与独立采购。</summary>
     public interface IProcurementOrderApi
     {
+        /// <summary>读取独立关联页面使用的采购上下文。</summary>
+        [Get("/{uid}/demand-association-context")]
+        Task<ServiceResult<ProcurementDemandAssociationContextDto>> GetDemandAssociationContextAsync(Guid uid, CancellationToken cancellationToken = default);
+        /// <summary>按明确采购行检索待关联物料；不自动选择。</summary>
+        [Post("/{uid}/demand-association-candidates")]
+        Task<ServiceResult<PagedResponseBase<ProcurementDemandCandidateDto>>> SearchDemandAssociationCandidatesAsync(Guid uid, [Body] ProcurementDemandCandidateSearchRequest request, CancellationToken cancellationToken = default);
+        /// <summary>只读预览人工分配的采购需求贡献。</summary>
+        [Post("/{uid}/demand-association-preview")]
+        Task<ServiceResult<ProcurementDemandAssociationPreviewDto>> PreviewDemandAssociationAsync(Guid uid, [Body] PreviewProcurementDemandAssociationRequest request, CancellationToken cancellationToken = default);
+        /// <summary>以独立命令身份原子追加需求贡献，已确认采购亦可执行。</summary>
+        [Post("/{uid}/associate-demands")]
+        Task<ServiceResult<ProcurementOrderCommandResult>> AssociateDemandsAsync(Guid uid, [Body] AssociateProcurementDemandsCommand command, CancellationToken cancellationToken = default);
         /// <summary>执行专用采购SearchAsync用例。</summary>
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<ProcurementOrderListItemDto>>> SearchAsync([Body] ProcurementOrderSearchRequest request, CancellationToken cancellationToken = default);

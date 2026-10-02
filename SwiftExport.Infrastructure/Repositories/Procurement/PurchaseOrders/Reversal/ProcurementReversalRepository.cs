@@ -11,29 +11,38 @@ using SwiftExport.Infrastructure.Contexts;
 
 namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Reversal;
 
-/// <summary>采购反向事务的事实读取和持久化；不自行开启事务，不修改库存。</summary>
+/// <summary>采购确认、反向及补关联共用的事实锁定与反向持久化；不自行开启事务，不修改库存。</summary>
 public sealed class ProcurementReversalRepository(RepositoryBaseContext context) : IProcurementReversalRepository
 {
     private CommandDefinition Command(string sql, object? args, CancellationToken ct) =>
-        new(sql, args, context.Session.Transaction ?? throw new InvalidOperationException("采购反向需要事务。"), cancellationToken: ct);
+        new(sql, args, context.Session.Transaction ?? throw new InvalidOperationException("采购事实锁定需要事务。"), cancellationToken: ct);
 
     /// <inheritdoc/>
-    public async Task<(ProcurementReversalFacts? Facts, ServiceErrorDto? Error)> LockAsync(Guid uid, CancellationToken ct)
+    public Task<(ProcurementReversalFacts? Facts, ServiceErrorDto? Error)> LockAsync(Guid uid, CancellationToken ct)
+        => LockCoreAsync(uid, [], true, ct);
+
+    /// <inheritdoc/>
+    public Task<(ProcurementReversalFacts? Facts, ServiceErrorDto? Error)> LockForAssociationAsync(Guid uid, IReadOnlyCollection<Guid> netDemandIds, CancellationToken ct)
+        => LockCoreAsync(uid, netDemandIds, false, ct);
+
+    /// <summary>发现并合并全部来源后锁定，禁止取得采购锁后再追加来源锁；关联只补引用，不读取库存或收货。</summary>
+    private async Task<(ProcurementReversalFacts? Facts, ServiceErrorDto? Error)> LockCoreAsync(Guid uid, IReadOnlyCollection<Guid> netDemandIds, bool includeDownstream, CancellationToken ct)
     {
         // 发现阶段只读取已提交身份，不持有采购锁；实际使用前按固定锁序重新读取并验证集合。
         const string discover = """
             SELECT DISTINCT n.GrossDemandId FROM dbo.DemandExecutionLink l WITH(READCOMMITTED)
             JOIN dbo.NetDemand n WITH(READCOMMITTED) ON n.Uid=l.NetDemandId
             WHERE l.TargetType=N'PO' AND (l.TargetHeadId=@uid OR l.TargetLineId IN
-              (SELECT Uid FROM dbo.PurchaseOrderLine WITH(READCOMMITTED) WHERE PurchaseOrderId=@uid));
+              (SELECT Uid FROM dbo.PurchaseOrderLine WITH(READCOMMITTED) WHERE PurchaseOrderId=@uid))
+            UNION SELECT GrossDemandId FROM dbo.NetDemand WITH(READCOMMITTED) WHERE Uid IN @netDemandIds;
             """;
-        var sourceIds = (await context.Session.Connection.QueryAsync<Guid>(Command(discover, new { uid }, ct))).OrderBy(x => x).ToArray();
+        var sourceIds = (await context.Session.Connection.QueryAsync<Guid>(Command(discover, new { uid, netDemandIds }, ct))).OrderBy(x => x).ToArray();
         var facts = new ProcurementReversalFacts();
         foreach (var id in sourceIds)
         {
             var source = await context.Session.Connection.QuerySingleOrDefaultAsync<GrossDemand>(Command(
                 "SELECT * FROM dbo.GrossDemand WITH(UPDLOCK,HOLDLOCK) WHERE Uid=@id;", new { id }, ct));
-            if (source is null) throw new InvalidOperationException("采购来源需求缺失，不能解除引用。");
+            if (source is null) throw new InvalidOperationException("采购来源需求缺失，不能完成操作。");
             facts.Sources.Add(source);
         }
         foreach (var id in sourceIds)
@@ -62,6 +71,7 @@ public sealed class ProcurementReversalRepository(RepositoryBaseContext context)
         if (!ownLinks.Select(x => (x.Uid, x.Version, x.NetDemandId, x.TargetLineId))
             .ToHashSet().SetEquals(finalLinks.Select(x => (x.Uid, x.Version, x.NetDemandId, x.TargetLineId))))
             return (null, new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "锁定过程中采购引用集合发生变化，请重新预览。", Field = "ExpectedVersion" });
+        if (!includeDownstream) return (facts, null);
         // 采购头锁与入库过账/反过账共用；草稿新引用亦受可串行化范围检查保护。
         var lineIds = facts.Lines.Select(x => x.Uid).ToArray();
         facts.HasUnattributedInbound = await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""

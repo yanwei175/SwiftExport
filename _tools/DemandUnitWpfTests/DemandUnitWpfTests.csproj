@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 单位链专项验证入口，复用真实客户端测试，避免其他未接线测试夹具阻断本切片。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />
+    <ProjectReference Include="../../SwiftExport.Client.Wpf/SwiftExport.Client.Wpf.csproj" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Features/QualityControl/AfterSales/*.cs" Link="AfterSales/%(Filename)%(Extension)" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/Controls/DatePickerAssistTests.cs" Link="DatePickerAssistTests.cs" />
+    <Compile Include="../../SwiftExport.Client.Wpf.Tests/TestInfrastructure/*.cs" Link="TestInfrastructure/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../../SwiftExport.Client.Wpf/App.xaml" LogicalName="DatePickerTests.App.xaml" />
+  </ItemGroup>
+</Project>

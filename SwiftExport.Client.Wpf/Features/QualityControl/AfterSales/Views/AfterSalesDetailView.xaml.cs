@@ -44,11 +44,12 @@ public partial class AfterSalesDetailView : UserControl
     private bool CommitEdits() => ReplacementGrid.CommitEdit(DataGridEditingUnit.Cell, true)
         && ReplacementGrid.CommitEdit(DataGridEditingUnit.Row, true);
 
-    // 已确认时仅备注可编辑；关闭或作废时全部补件字段只读。
+    /// <summary>已确认仅备注可编辑；标准补件单位来自产品快照，非标才允许手工填写。</summary>
     private void OnBeginningEdit(object sender, DataGridBeginningEditEventArgs args)
     {
         if (DataContext is not AfterSalesDetailViewModel model || !model.CanEditSupplement || model.IsBusy
-            || (!model.CanEditFacts && args.Column.SortMemberPath != "Remark")) args.Cancel = true;
+            || (!model.CanEditFacts && args.Column.SortMemberPath != "Remark")
+            || (args.Column.SortMemberPath == "UnitSnapshot" && args.Row.Item is SwiftExportClient.Features.QualityControl.AfterSales.Models.AfterSalesLineModel { IsNonStandard: false })) args.Cancel = true;
     }
 
     // 模板编辑开始后把焦点交给产品输入框，不接管表格原生导航键。

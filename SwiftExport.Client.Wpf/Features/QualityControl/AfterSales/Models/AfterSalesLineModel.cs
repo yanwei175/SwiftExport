@@ -36,7 +36,7 @@ public sealed partial class AfterSalesLineModel : BaseLineModel<AfterSalesLineDt
     [ObservableProperty] public partial string ColorSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial string SpecificationSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal? Quantity { get; set; }
-    [ObservableProperty] public partial string UnitSnapshot { get; set; } = "Pcs";
+    [ObservableProperty] public partial string UnitSnapshot { get; set; } = string.Empty;
     [ObservableProperty] public partial string Remark { get; set; } = string.Empty;
     /// <summary>补件图片路径，显示变化不构成业务修改。</summary>
     [ObservableProperty] public partial string? ImagePath { get; set; }
@@ -54,7 +54,7 @@ public sealed partial class AfterSalesLineModel : BaseLineModel<AfterSalesLineDt
     protected override bool IsTrackingIgnoredProperty(string? propertyName) =>
         propertyName is nameof(ImagePath) or nameof(IsEmptyPlaceholder) || base.IsTrackingIgnoredProperty(propertyName);
 
-    /// <summary>创建稳定身份的新补件行，默认单位为 Pcs。</summary>
+    /// <summary>创建稳定身份的新补件行，单位待选择产品或明确填写。</summary>
     public static AfterSalesLineModel CreateNew(int lineNumber)
     {
         var line = new AfterSalesLineModel();
@@ -73,6 +73,7 @@ public sealed partial class AfterSalesLineModel : BaseLineModel<AfterSalesLineDt
         if (IsNonStandard && string.IsNullOrWhiteSpace(DescriptionSnapshot)) return "非标补件必须填写补发描述。";
         if (!IsNonStandard && !ProductId.HasValue) return "标准补件必须选择产品。";
         if (DescriptionSnapshot?.Length > 300) return "确认时补发描述不能超过 300 字。";
+        if (string.IsNullOrWhiteSpace(UnitSnapshot)) return "补发单位不能为空。";
         if (SpecificationSnapshot?.Length > 300) return "确认时补发规格不能超过 300 字。";
         return null;
     }
@@ -80,5 +81,5 @@ public sealed partial class AfterSalesLineModel : BaseLineModel<AfterSalesLineDt
     /// <summary>判断新行是否仅含系统默认值；已有行永不被隐式删除。</summary>
     public bool IsEmptyPlaceholder => !ProductId.HasValue && !IsNonStandard && !ColorId.HasValue && !Quantity.HasValue
         && new[] {SkuSnapshot,CustomerSkuSnapshot,LinkSkuSnapshot,DescriptionSnapshot,ColorSnapshot,SpecificationSnapshot,Remark}.All(string.IsNullOrWhiteSpace)
-        && (string.IsNullOrWhiteSpace(UnitSnapshot) || UnitSnapshot.Trim()=="Pcs");
+        && string.IsNullOrWhiteSpace(UnitSnapshot);
 }

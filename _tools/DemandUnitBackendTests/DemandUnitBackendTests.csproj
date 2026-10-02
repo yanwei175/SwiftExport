@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 单位链后端专项入口，复用真实测试及随机 LocalDB 夹具，与其他任务的未完成测试分开编译。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- 沿用原测试程序集身份，以消费 Application 已明确授权的内部规则。 -->
+    <AssemblyName>SwiftExport.Application.Tests</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />
+    <ProjectReference Include="../../SwiftExport.WebApi/SwiftExport.WebApi.csproj" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementNamespaceImports.cs" Link="ProcurementNamespaceImports.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/GrossDemandDecompositionPlannerTests.cs" Link="DemandPlanning/GrossDemandDecompositionPlannerTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/SourceDemandReceptionServiceTests.cs" Link="DemandPlanning/SourceDemandReceptionServiceTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Orders/SalesOrderUnitSnapshotTests.cs" Link="Orders/SalesOrderUnitSnapshotTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Orders/SalesOrderConfirmationCommandTests.cs" Link="Orders/SalesOrderConfirmationCommandTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/QualityControl/AfterSalesServiceTests.cs" Link="QualityControl/AfterSalesServiceTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/PurchaseDraftPreviewBuilderTests.cs" Link="Procurement/PurchaseDraftPreviewBuilderTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs" Link="DemandPlanning/NetDemandManagerSqlContractTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/DemandUnitSqlTests.cs" Link="DemandPlanning/DemandUnitSqlTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/MaterialDemandTraceSqlTests.cs" Link="DemandPlanning/MaterialDemandTraceSqlTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/GrossDemandTraceSqlTests.cs" Link="DemandPlanning/GrossDemandTraceSqlTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderTests.cs" Link="ForExcel/ForExcelSalesOrderTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderContractTests.cs" Link="ForExcel/ForExcelSalesOrderContractTests.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlFixture.cs" Link="Procurement/IndependentProcurementSqlFixture.cs" />
+  </ItemGroup>
+</Project>

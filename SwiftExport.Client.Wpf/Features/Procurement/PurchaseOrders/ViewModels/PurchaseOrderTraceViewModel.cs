@@ -55,9 +55,10 @@ public sealed partial class PurchaseOrderTraceViewModel(
 
     /// <summary>页签标题包含采购单号，便于跨单据查证。</summary>
     public string DocumentTitle => Detail is null ? "采购追溯" : $"采购追溯 {Detail.OrderNo}";
-    /// <summary>独立采购合法无需求 Link，未知来源不能由缺 Link 猜测。</summary>
+    /// <summary>保留采购创建类别，按实际 Link 展示后续关联及释放历史，未知类别不由关联集合推断。</summary>
     public string OriginText => Detail?.OriginKind switch
     {
+        2 when Detail.Lines.Any(line => line.Links.Count > 0) => "独立采购；各行需求关联及历史以 Link 为准。",
         2 => "独立采购，无需求关联。",
         1 => "需求驱动采购；各行来源以 Link 为准。",
         _ => "来源类别未确认，请核实历史采购单。"

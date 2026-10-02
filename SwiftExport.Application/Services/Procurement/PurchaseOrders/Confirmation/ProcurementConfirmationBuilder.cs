@@ -18,11 +18,12 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
         {
             var links = facts.Links.Where(x => x.TargetType == "PO" && x.TargetHeadId == head.Uid && x.TargetLineId == line.Uid
                 && !x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active).ToList();
-            if (head.OriginKind != 1 && !line.SourceUid.HasValue && links.Count == 0) continue;
             // 未关联数量为空表示创建数据缺少数量依据，应与活动 Link 缺失或贡献不一致分别报错。
             if (!line.UnlinkedQty.HasValue)
                 throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）缺少未关联数量依据，请核查创建数据；不能确认。");
-            if (links.Count == 0 || links.Any(x => x.ReleasedQty < 0 || x.AllocatedQty <= x.ReleasedQty)
+            if (line.UnlinkedQty < 0 || line.UnlinkedQty > line.Quantity
+                || ((head.OriginKind == 1 || line.SourceUid.HasValue) && links.Count == 0)
+                || links.Any(x => x.ReleasedQty < 0 || x.AllocatedQty <= x.ReleasedQty)
                 || links.Sum(x => x.AllocatedQty - x.ReleasedQty) + line.UnlinkedQty != line.Quantity
                 || links.Any(x => !facts.Demands.Any(n => n.Uid == x.NetDemandId && !n.IsDeleted && n.LifecycleStatus == NetDemandLifecycleStatusEnum.Active
                     && n.DecompositionRevision > 0
@@ -57,26 +58,17 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
         if (!head.CustomerId.HasValue || lines.Count == 0) throw new InvalidOperationException("采购客户或明细缺失。");
         await ValidatePartiesAsync(head.CustomerId.Value, head.SupplierId, ct);
         var result = new ProcurementConfirmationContextDto { PurchaseOrderId = head.Uid, Version = head.Version };
-        var sourceOrder = head.OriginKind == 1 || lines.Any(x => x.SourceUid.HasValue);
         foreach (var line in lines.OrderBy(x => x.LineNumber))
         {
-            if (!line.ProductId.HasValue
-                || (!sourceOrder && (line.UnlinkedQty != line.Quantity || line.SourceUid.HasValue)))
-                throw new InvalidOperationException("采购行身份或数量不完整。");
-            ProcurementOrderPolicy.Number(line.Quantity, 4, "采购数量", true);
-            var product = await references.GetProductAsync(line.ProductId.Value, ct);
-            ProcurementOrderPolicy.RequireProduct(product);
-            if (product!.MaterialType != line.MaterialType || product.SupplyType != line.SupplyType)
-                throw new InvalidOperationException("产品物料角色或供货方式已经改变，不能确认身份快照不一致的采购行。");
-            var unit = await references.GetUnitAsync(product!.Unit?.Trim() ?? "", ct);
-            if (string.IsNullOrWhiteSpace(unit) || unit != line.UnitSnapshot)
-                throw new InvalidOperationException("基础单位失效或已改变，不能确认历史单位不一致的采购行。");
-            // 送达供应商是客供件自身的独立目标，不再由收货仓库的供应商归属推导。
-            if (line.MaterialType == MaterialTypesEnum.客供件)
+            await ValidateLineIdentityAsync(line, head.OriginKind, ct);
+            if (!line.ProductId.HasValue)
             {
-                if (!line.DeliveryTargetSupplierId.HasValue)
-                    throw new InvalidOperationException("客供件缺少送达供应商，不能确认。");
-                _ = await RequireSupplierAsync(line.DeliveryTargetSupplierId.Value, ct);
+                // 非标关联由明确的来源非标身份证明，不以空产品或 SKU 前缀自动匹配来源。
+                var links = facts.Links.Where(x => x.TargetHeadId==head.Uid && x.TargetLineId==line.Uid
+                    && !x.IsDeleted && x.LinkStatus==DemandExecutionLinkStatusEnum.Active).ToArray();
+                if (links.Any(link => !facts.Demands.Any(n => n.Uid==link.NetDemandId && n.ProductId==null
+                    && facts.Sources.Any(s => s.Uid==n.GrossDemandId && s.IsNonStandard))))
+                    throw new InvalidOperationException("非标采购引用不能指向标准物料需求。");
             }
             result.Lines.Add(new ProcurementLineConfirmationContextDto
             {
@@ -94,4 +86,37 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
         return result;
     }
 
+    /// <summary>标准行核验真实产品，非标行核验创建身份、描述及有效单位；确认与补关联共用且不要求 BOM 或仓库。</summary>
+    public async Task ValidateLineIdentityAsync(PurchaseOrderLine line, int originKind, CancellationToken ct)
+    {
+        ProcurementOrderPolicy.Number(line.Quantity, 4, "采购数量", true);
+        if (line.ProductId.HasValue)
+        {
+            var product = await references.GetProductAsync(line.ProductId.Value, ct);
+            ProcurementOrderPolicy.RequireProduct(product);
+            if (product!.MaterialType != line.MaterialType || product.SupplyType != line.SupplyType)
+                throw new InvalidOperationException("产品物料角色或供货方式已经改变，不能确认身份快照不一致的采购行。");
+            var unit = await references.GetUnitAsync(product.Unit?.Trim() ?? "", ct);
+            if (string.IsNullOrWhiteSpace(unit) || unit != line.UnitSnapshot)
+                throw new InvalidOperationException("基础单位失效或已改变，不能确认历史单位不一致的采购行。");
+        }
+        else
+        {
+            if (originKind is not (1 or 2) || string.IsNullOrWhiteSpace(line.Sku)
+                || string.IsNullOrWhiteSpace(line.DescriptionZh) || !string.IsNullOrWhiteSpace(line.MaterialType)
+                || (!string.IsNullOrWhiteSpace(line.SupplyType) && line.SupplyType != SwiftExport.Contracts.SysEnums.StaticEnums.SupplyTypeEnums.采购)
+                || line.DeliveryTargetSupplierId.HasValue)
+                throw new InvalidOperationException("非标采购身份或描述不完整，不能把损坏的标准采购自动视为非标。");
+            var unit = await references.GetUnitAsync(line.UnitSnapshot?.Trim() ?? "", ct);
+            if (string.IsNullOrWhiteSpace(unit) || unit != line.UnitSnapshot)
+                throw new InvalidOperationException("非标采购必须具有明确且有效的单位。");
+        }
+        // 客供件继续要求实际送达供应商；收货仓由入库决定。
+        if (line.MaterialType == MaterialTypesEnum.客供件)
+        {
+            if (!line.DeliveryTargetSupplierId.HasValue)
+                throw new InvalidOperationException("客供件缺少送达供应商，不能确认。");
+            _ = await RequireSupplierAsync(line.DeliveryTargetSupplierId.Value, ct);
+        }
+    }
 }

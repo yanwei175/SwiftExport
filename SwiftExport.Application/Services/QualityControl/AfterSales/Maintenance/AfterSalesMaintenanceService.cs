@@ -170,10 +170,10 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             return result;
     }
 
-    // 只在新选择身份时采用当前主数据快照；普通编辑不刷新历史资料。
+    /// <summary>只在新选择身份时采用当前主数据单位；普通编辑保留历史快照，缺失单位不推断。</summary>
     private async Task NormalizeLineAsync(AfterSalesLine line,AfterSalesLine? old,Guid customerId,bool customerChanged=false)
     {
-        line.UnitSnapshot=string.IsNullOrWhiteSpace(line.UnitSnapshot)?"Pcs":line.UnitSnapshot.Trim();
+        line.UnitSnapshot=line.UnitSnapshot?.Trim() ?? string.Empty;
         if(line.IsNonStandard)
         {
             if(line.ProductId.HasValue) Fail("VALIDATION","非标不能绑定Product。",$"Lines[{line.Uid}].ProductId");
@@ -185,7 +185,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             line.SkuSnapshot=product.Code; line.LinkSkuSnapshot=product.LinkSku; line.CustomerSkuSnapshot=product.CustomerSku;
             line.DescriptionSnapshot=product.Name; line.ColorId=product.ColorId; line.ColorSnapshot=product.ColorName;
             line.SpecificationSnapshot=product.Specification;
-            line.UnitSnapshot=string.IsNullOrWhiteSpace(product.Unit)?"Pcs":product.Unit;
+            line.UnitSnapshot=product.Unit?.Trim() ?? string.Empty;
         }
         else if(line.ProductId.HasValue && old is not null)
         {
@@ -195,7 +195,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             line.CustomerSkuSnapshot=customerChanged
                 ? (await ReferenceAsync("products",line.ProductId.Value,customerId,false,$"Lines[{line.Uid}].ProductId")).CustomerSku
                 : old.CustomerSkuSnapshot;
-            line.UnitSnapshot=string.IsNullOrWhiteSpace(old.UnitSnapshot)?"Pcs":old.UnitSnapshot;
+            line.UnitSnapshot=old.UnitSnapshot;
         }
         else if(!line.IsNonStandard)
         {

@@ -4,7 +4,9 @@
 
 Excel 导入创建独立、未确认的采购草稿。客户代码与客户型号定位标准产品，用户可明确将无法定位的行改为非标。创建不产生需求 Link，不修改物料需求，不自动确认或入库。本期没有改 WPF/VSTO 页面、Excel 解析与地址配置。
 
-采购确认仍要求真实产品身份，因此本期非标只能创建、读取草稿，不能宣称其确认、入库链路已完成。非标类型由明确创建输入和空产品身份表达，不按 SKU 前缀推断；非标编号通过现有 NonStandardSkuGenerator 生成，不创建产品主档。
+后续采购关联实施已修复非标确认：明确非标身份、描述及有效单位可确认，无需 ProductId。非标类型由明确创建输入和空产品身份表达，不按 SKU 前缀推断；非标编号通过现有 NonStandardSkuGenerator 生成，不创建产品主档。此调整不代表非标库存入库已实现。
+
+现已提供创建后独立关联物料需求的后端用例：待确认或已确认采购都可分次分配剩余量，整单限同一来源单。导入创建本身仍不产生 Link；用户选择与人工匹配由后续独立页面承载。接口、规则及验收见《采购物料需求关联后端实施与验收》。
 
 ## API 与用例
 
@@ -12,6 +14,7 @@ Excel 导入创建独立、未确认的采购草稿。客户代码与客户型�
 |---|---|---|---|
 | 导入只读检查 | POST /api/for-excel/purchase-orders/check | IForExcelPurchaseOrderApi / CheckPurchaseOrderImportRequest / Response | ForExcelPurchaseOrderService |
 | 创建无关联草稿 | POST /api/procurement/orders | IProcurementOrderApi.CreateAsync / CreateIndependentPurchaseOrderCommand | ProcurementOrderDraftService |
+| 已有采购追加关联 | POST /api/procurement/orders/{uid}/associate-demands | IProcurementOrderApi.AssociateDemandsAsync / AssociateProcurementDemandsCommand | ProcurementDemandAssociationService |
 | 从物料需求生成采购 | POST /api/procurement/purchase-drafts/create | IPurchaseDraftApi | 现有需求采购服务，本次未修改 |
 
 检查契约位于 SwiftExport.Contracts/DTOs/ForExcel/PurchaseOrders；创建命令仍位于 Procurement/PurchaseOrders/Draft。检查与写命令分别表达只读快照和正式业务输入，不能互当授权凭据，也不复用销售导入 DTO。
@@ -74,13 +77,13 @@ DiscountRate 使用 decimal(9,6)，允许非负记录；DiscountAmount 使用可
 
 同一 CommandId、同一输入重试返回原结果，不重建、不重取号；修改 BoNo、优惠、配置、型号选择或差异确认等任意新增输入都会参与指纹并触发内容冲突。旧请求没有新增字段时保留原业务指纹结构，使已存在的旧命令回执仍可重放。
 
-创建返回既有 PurchaseOrderCommandResult，需用 PurchaseOrderId 读取详情。PurchaseOrderLineDetailDto 新增 IsNonStandard；为保持旧消费者兼容，原 ProductId 仍是 Guid，非标投影为 Guid.Empty。不得只看空产品身份便放行确认或入库。
+创建返回既有 PurchaseOrderCommandResult，需用 PurchaseOrderId 读取详情。PurchaseOrderLineDetailDto 新增 IsNonStandard；为保持旧消费者兼容，原 ProductId 仍是 Guid，非标投影为 Guid.Empty。确认核验完整非标身份及单位，人工关联还要求明确接受非标匹配；空产品身份不作为库存入库资格。
 
 ## 验证及部署
 
 本次不新增物理列，使用现有采购表字段；生产数据库须已具备当前实体基线中的这些列，不能把空库 LocalDB 测试当成生产结构已验证。
 
-自动测试覆盖精确匹配、歧义选择、停用及断链、非标、型号差异确认、单位、客供件送达、金额精度、权限、取消、路由及序列化、旧指纹兼容。隔离 LocalDB 测试覆盖从检查到创建读取、完整快照落库、重放冲突、关联失效重验、空型号拒绝、非标确认阻断，以及日志失败时头行和回执回滚。
+自动测试覆盖精确匹配、歧义选择、停用及断链、非标、型号差异确认、单位、客供件送达、金额精度、权限、取消、路由及序列化、旧指纹兼容。隔离 LocalDB 测试覆盖从检查到创建读取、完整快照落库、重放冲突、关联失效重验、空型号拒绝、有效非标确认，以及日志失败时头行和回执回滚。
 
 运行采购导入 SQL 专项：
 
@@ -91,7 +94,7 @@ dotnet test .\SwiftExport.Application.Tests\SwiftExport.Application.Tests.csproj
 
 测试夹具仅创建并清理唯一命名的 SwiftExport_ProcurementTests_* LocalDB 数据库，不读取业务连接配置。前端 API 注册、解析、页面交互和 Excel 实机联调留到下一阶段。
 
-### 本次执行结果
+### 导入初期执行结果（历史记录）
 
 - 采购、采购主数据及 ForExcel 非 SQL 回归：117 项通过。
 - 新增 ForExcelPurchaseOrderSqlTests：4 项真实 LocalDB 测试通过，包含上述落库、重放、重验和回滚场景。

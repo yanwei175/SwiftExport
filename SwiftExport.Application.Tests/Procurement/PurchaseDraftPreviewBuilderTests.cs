@@ -611,6 +611,20 @@ public sealed class PurchaseDraftPreviewBuilderTests
         };
     }
 
+    /// <summary>历史未知单位不能生成可写采购预览；不因非标或标准身份自动采用 PCS。</summary>
+    [TestMethod]
+    public void UnknownUnitBlocksPreview()
+    {
+        var candidate = CreateCandidate(2, "SO-UNIT");
+        candidate.Unit = " "; candidate.PurchaseSupplierIsActive = true;
+        var result = new PurchaseDraftPreviewBuilder().Build(new PurchaseDraftPreviewBuildRequest
+        { ExecutionRequestId = Guid.NewGuid(), EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+          Candidates = [candidate] });
+        Assert.IsTrue(result.HasBlockers);
+        Assert.IsTrue(result.Warnings.Any(x => x.IsBlocker && x.Message.Contains("单位")));
+        Assert.IsFalse(result.SourceGroups.SelectMany(x => x.Documents).Any());
+    }
+
     private static PurchaseDraftPreviewCandidate CloneForNextSourceLine(PurchaseDraftPreviewCandidate source)
         => new()
         {

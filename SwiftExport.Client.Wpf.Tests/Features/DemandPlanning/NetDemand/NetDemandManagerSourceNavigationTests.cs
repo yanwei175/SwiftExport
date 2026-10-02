@@ -103,8 +103,10 @@ public sealed class NetDemandManagerSourceNavigationTests
         var grid = view.Descendants(ns + "DataGrid").Single();
         Assert.AreEqual("{Binding IsSuggestionReadOnly}", (string?)grid.Attribute("IsReadOnly"));
         var lookup = view.Descendants().Single(element => element.Name.LocalName == "PurchaseSupplierLookupTextBox");
-        StringAssert.Contains((string?)lookup.Attribute("IsEnabled") ?? string.Empty, "CanEditSuggestion");
+        // 行门禁结合页面未决状态和行资格，不能仅检查旧页面属性名。
+        Assert.AreEqual("{Binding IsSuggestionEditable}", (string?)lookup.Attribute("IsEnabled"));
     }
+    /// <summary>来源筛选与主查询条件组合，保持正常分页大小。</summary>
     [TestMethod]
     public async Task SelectingSource_ShouldUseSourceFactFilterAndKeepNormalPageSize()
     {
@@ -112,7 +114,7 @@ public sealed class NetDemandManagerSourceNavigationTests
         var api = new RecordingNetDemandApi(sourceUid);
         using var viewModel = CreateViewModel(api);
         await viewModel.InitializeAsync();
-        viewModel.Keyword = "顶部条件不应进入来源模式";
+        viewModel.Keyword = "SKU-SEARCH";
         viewModel.SourceSourceTypes.Add(viewModel.SourceTypeOptions[0]);
 
         await viewModel.ToggleSourcePanelCommand.ExecuteAsync(null);
@@ -128,7 +130,7 @@ public sealed class NetDemandManagerSourceNavigationTests
         var sourceRequest = api.SearchRequests.Last();
         Assert.AreEqual(sourceUid, sourceRequest.SourceUid);
         CollectionAssert.AreEqual(new[] { "SO" }, sourceRequest.SourceTypes);
-        Assert.IsTrue(string.IsNullOrWhiteSpace(sourceRequest.Keyword));
+        Assert.AreEqual("SKU-SEARCH", sourceRequest.Keyword);
         Assert.IsTrue(viewModel.IsSourceSelected);
         Assert.AreEqual(20, viewModel.PageSize);
         Assert.AreEqual(1, viewModel.TotalPages);
@@ -266,6 +268,7 @@ public sealed class NetDemandManagerSourceNavigationTests
         Assert.AreEqual(2, api.SearchRequests.Count, "保存成功后应重载工作台，以重新派生客供件建议送达方。");
     }
 
+    /// <summary>来源列表与多行筛选继续可用，推荐供应商编辑和来源分页门禁保持连接。</summary>
     [TestMethod]
     public void ManagerView_ShouldExposeSourceListAndFullWidthMultilinePopup()
     {
@@ -291,7 +294,8 @@ public sealed class NetDemandManagerSourceNavigationTests
         var popup = workspace.Descendants(presentation + "Popup").Single();
         StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsMultiLineFilterOpen");
         StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
-        var textBoxes = popup.Descendants().Where(element => element.Name.LocalName == "TextBox").ToArray();
+        var textBoxes = popup.Descendants().Where(element => element.Name.LocalName == "TextBox"
+            && (string?)element.Attribute("AcceptsReturn") == "True").ToArray();
         Assert.AreEqual(3, textBoxes.Length);
         Assert.IsTrue(textBoxes.All(element => string.Equals((string?)element.Attribute("AcceptsReturn"), "True", StringComparison.Ordinal)));
         Assert.IsTrue(textBoxes.All(element => string.Equals((string?)element.Attribute("TextWrapping"), "Wrap", StringComparison.Ordinal)));
@@ -389,6 +393,10 @@ public sealed class NetDemandManagerSourceNavigationTests
     /// <summary>记录管理页调用；来源候选建立由独立选择器测试覆盖，误调用时直接失败。</summary>
     private sealed class RecordingNetDemandApi(Guid sourceUid) : INetDemandManagerApi
     {
+        /// <summary>管理页只导航到追溯页，本夹具拒绝在管理页直接读取追溯。</summary>
+        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace.MaterialDemandTraceDetailDto>> GetTraceAsync(
+            Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         /// <summary>本夹具不承担候选来源分组。</summary>
         public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
             CancellationToken cancellationToken = default)

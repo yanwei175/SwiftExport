@@ -152,6 +152,7 @@ public static class DependencyInjection
         services.AddScoped<IProcurementOrderDocumentRepository, ProcurementOrderDocumentRepository>();
         services.AddScoped<IProcurementReferenceReadRepository, ProcurementReferenceReadRepository>();
         services.AddScoped<IProcurementReversalRepository, ProcurementReversalRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Procurement.IProcurementDemandAssociationRepository, SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Association.ProcurementDemandAssociationRepository>();
         services.AddScoped<IProcurementOrderFactLockRepository>(sp => sp.GetRequiredService<IProcurementReversalRepository>());
         services.AddScoped<IProcurementOrderQueryRepository, ProcurementOrderQueryRepository>();
         services.AddScoped<IPurchaseOrderManagerQueryRepository, PurchaseOrderManagerQueryRepository>();

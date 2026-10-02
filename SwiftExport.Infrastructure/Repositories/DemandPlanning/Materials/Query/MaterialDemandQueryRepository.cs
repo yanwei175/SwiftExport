@@ -119,8 +119,7 @@ LEFT JOIN [dbo].[NetDemand] deliveryTarget
  AND deliveryTarget.[LifecycleStatus]=0 AND deliveryTarget.[IsDeleted]=0
 LEFT JOIN [dbo].[Supplier] deliverySupplier
   ON deliverySupplier.[Uid]=deliveryTarget.[SuggestedPurchaseSupplierId] AND ISNULL(deliverySupplier.[IsDeleted],0)=0
-OUTER APPLY (SELECT COALESCE(NULLIF(LTRIM(RTRIM(p.[Unit])),N''),
-    CASE WHEN nd.[ParentNetDemandId] IS NULL THEN NULLIF(LTRIM(RTRIM(gd.[UnitSnapshot])),N'') END) AS [Unit]) unitFacts
+OUTER APPLY (SELECT NULLIF(LTRIM(RTRIM(nd.[UnitSnapshot])),N'') AS [Unit]) unitFacts
 OUTER APPLY
 (
     SELECT SUM(link.[AllocatedQty]-link.[ReleasedQty]) AS [AssociatedPurchaseQty]

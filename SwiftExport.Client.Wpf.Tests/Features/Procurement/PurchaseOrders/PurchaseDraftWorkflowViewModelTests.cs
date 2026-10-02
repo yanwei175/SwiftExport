@@ -204,6 +204,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
             api.LastCreateCommand.Sources.Single().ConfirmedWarningCodes);
     }
 
+    /// <summary>准备页更新选择会替代在途审核，旧响应不能覆盖最新采购事实。</summary>
     [TestMethod]
     public async Task LatestPreviewRequest_ShouldWinWhenOlderRequestCompletesLast()
     {
@@ -222,7 +223,12 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         var olderTask = viewModel.PreviewCommand.ExecuteAsync(null);
         await Task.Yield();
-        var newerTask = viewModel.PreviewCommand.ExecuteAsync(null);
+        // Busy 时工具栏不能重复点击；准备页事实更新才会触发替代请求。
+        var newerTask = viewModel.UpdateSelectionAsync(new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(9m, api.SourceUid)],
+        });
         second.SetResult(ServiceResult<PurchaseDraftPreviewResponse>.Ok(api.CreatePreview(new PurchaseDraftPreviewRequest
         {
             ExecutionRequestId = viewModel.ExecutionRequestId,
@@ -361,19 +367,20 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.IsTrue(viewModel.HasAppliedResults);
     }
 
+    /// <summary>审核接收准备页输入，未变化项继续使用原命令项身份与行模式。</summary>
     [TestMethod]
     public async Task UpdateSelection_ShouldPreserveUnchangedInputIdentityAndLineMode()
     {
         var api = new NetDemandApiStub();
         using var viewModel = CreateViewModel(api);
         var retainedRow = CreateRow(10m, api.SourceUid);
+        retainedRow.PurchaseQty = 6m;
         await OpenSessionAsync(viewModel, new PurchaseDraftPreviewOpenRequest
         {
             EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
             Rows = [retainedRow],
         });
         var retainedItem = viewModel.Items.Single();
-        retainedItem.PurchaseQty = 6m;
         Assert.AreEqual(PurchaseDraftLineModeEnum.MergeCompatibleLines, viewModel.LineMode);
         viewModel.LineMode = PurchaseDraftLineModeEnum.KeepSourceLines;
         var executionRequestId = viewModel.ExecutionRequestId;
@@ -424,6 +431,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         StringAssert.Contains(viewModel.StatusText, "版本或剩余额度");
     }
 
+    /// <summary>准备输入变化使旧审核和警告失效，迟到成功不能重新启用创建。</summary>
     [TestMethod]
     public async Task InputChangeDuringPreview_ShouldRejectLateSuccessAndClearConfirmation()
     {
@@ -534,6 +542,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.IsTrue(viewModel.Results.All(item => item.OutcomeText == "创建成功"));
     }
 
+    /// <summary>刷新失败保留已完成来源的累计回执，同时提示重新校验剩余输入。</summary>
     [TestMethod]
     public async Task AppliedResults_ShouldSurviveSelectionUpdateAndLaterPreviewFailure()
     {
@@ -560,9 +569,11 @@ public sealed class PurchaseDraftWorkflowViewModelTests
 
         Assert.IsTrue(viewModel.HasAppliedResults);
         Assert.AreSame(appliedResult, viewModel.Results.Single());
-        Assert.AreEqual("预览失败", viewModel.StatusText);
+        StringAssert.StartsWith(viewModel.StatusText, "预览失败");
+        StringAssert.Contains(viewModel.StatusText, "重新校验");
     }
 
+    /// <summary>结果未知时冻结原命令及输入，仅能重试同一身份以核实执行结果。</summary>
     [TestMethod]
     public async Task UnknownCreateResult_ShouldRetryFrozenCommandWithoutChangingIdentityOrPayload()
     {
@@ -575,7 +586,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         });
         var call = 0;
         api.CreateHandler = (command, _) => Task.FromResult(++call == 1
-            ? ServiceResult<CreatePurchaseDraftsResult>.Fail("网络中断")
+            // Fail(message) 是确定的业务拒绝，不能模拟缺少结构化结果的网络中断。
+            ? new ServiceResult<CreatePurchaseDraftsResult> { Success = false, Message = "网络中断" }
             : CreateResult(command, (api.SourceUid, NetDemandCommandOutcomeEnum.AlreadyApplied)));
         var returnStates = new List<bool>();
         var createStates = new List<bool>();
@@ -739,6 +751,7 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.AreEqual("NEW-SESSION", viewModel.PreviewLines.Single().Sku);
     }
 
+    /// <summary>明确推荐目标不被父件历史覆盖；清除后采购方与送达方仍须分别提交。</summary>
     [TestMethod]
     public async Task SupplierSelections_ShouldRemainIndependentAndRequireExplicitDeliveryWhenParentHasMultipleActualSuppliers()
     {
@@ -787,10 +800,16 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         var item = viewModel.Items.Single();
 
         Assert.AreEqual(Guid.Empty, item.SupplierId);
+        // 明确推荐目标与父件多供应商历史是两件事实，相邻推荐保留用例也要求不覆盖该目标。
+        Assert.AreEqual(suggestedDeliverySupplierId, item.DeliveryTargetSupplierId);
+        Assert.IsFalse(item.RequiresExplicitDeliverySelection);
+        Assert.AreEqual(suggestedDeliverySupplierId, api.LastPreviewRequest!.Items.Single().DeliveryTargetSupplierId);
+        viewModel.ClearDeliverySupplierCommand.Execute(item);
         Assert.IsNull(item.DeliveryTargetSupplierId);
         Assert.IsTrue(item.RequiresExplicitDeliverySelection);
         StringAssert.Contains(item.ParentActualSupplierEvidence, "PO-001");
         StringAssert.Contains(item.ParentActualSupplierEvidence, "PO-002");
+        await viewModel.PreviewCommand.ExecuteAsync(null);
         Assert.IsNull(api.LastPreviewRequest!.Items.Single().DeliveryTargetSupplierId);
 
         item.PurchaseSupplierSelection = new ProcurementSupplierCandidateDto

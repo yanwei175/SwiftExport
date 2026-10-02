@@ -36,14 +36,11 @@ public sealed class PurchaseOrderTraceRepository(RepositoryBaseContext context) 
             line.Links = links.Where(x => x.PurchaseOrderLineId == line.PurchaseOrderLineId).ToList();
             line.ProgressHistory = reports.Where(x => x.PurchaseOrderLineId == line.PurchaseOrderLineId).ToList();
             line.Receipts = receipts.Where(x => x.PurchaseOrderLineId == line.PurchaseOrderLineId).ToList();
-            // 历史独立采购无需 Link；需求采购缺 Link 或旧来源证据时明确提示，不伪造来源。
+            // OriginKind 只记录创建类别；独立采购可后续补关联，按实际 Link 核实来源证据。
             if (trace.OriginKind != 2 && line.Links.Count == 0 && !line.IsDeleted)
                 line.ReviewReason = "当前采购行未找到需求 Link，请核实来源。";
             else if (line.Links.Any(x => x.NeedsReview))
                 line.ReviewReason = "部分需求来源身份、版本、指纹或贡献数量需核实。";
-            if (trace.OriginKind == 2 && line.Links.Count > 0)
-                line.ReviewReason = "独立采购存在需求 Link，来源类别需核实。";
-
             if (line.Receipts.Any(x =>
                 (string.IsNullOrWhiteSpace(x.UnitSnapshot) || x.UnitSnapshot != line.UnitSnapshot)))
                 line.ReviewReason = "正式入库单位与采购行不一致，净收货量需核实。";

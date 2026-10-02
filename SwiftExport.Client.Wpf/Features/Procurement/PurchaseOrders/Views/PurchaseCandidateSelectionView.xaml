@@ -222,6 +222,7 @@
                                             IsReadOnly="False"
                                             SortMemberPath="PurchaseSupplierCode"
                                             gridColumns:GridColumn.Key="PurchaseSupplier"
+                                            gridColumns:GridColumn.CanFillDownPath="CanEditPurchaseSupplier"
                                             gridColumns:GridColumn.FillDownFieldPaths="SupplierId,PurchaseSupplierCode,PurchaseSupplierName">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

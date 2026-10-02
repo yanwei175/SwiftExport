@@ -236,6 +236,7 @@ ORDER BY p.{nameof(Product.Uid)};";
                 p.{nameof(Product.FeaturesEn)} AS {nameof(ProductLookupDto.FeaturesEn)},
                 p.{nameof(Product.FeaturesZh)} AS {nameof(ProductLookupDto.FeaturesZh)},
                 p.{nameof(Product.MaterialType)} AS {nameof(ProductLookupDto.MaterialType)},
+                p.{nameof(Product.Unit)} AS {nameof(ProductLookupDto.Unit)},
                 p.{nameof(Product.USDPrice)} AS {nameof(ProductLookupDto.USDPrice)},
                 p.{nameof(Product.CNYPrice)} AS {nameof(ProductLookupDto.CNYPrice)}
             FROM [{TableName}] p WITH(NOLOCK)

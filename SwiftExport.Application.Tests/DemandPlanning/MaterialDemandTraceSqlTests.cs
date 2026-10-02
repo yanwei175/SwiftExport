@@ -27,20 +27,20 @@ public sealed class MaterialDemandTraceSqlTests
             VALUES(@demand,0,N'MD',@demand,N'MD-MATERIAL',@demand,@customerId,N'MATERIAL-BASIS',1,N'SKU',N'PCS',12);
             INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceDemandBasisFingerprintSnapshot,
                                  DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,
-                                 SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty,RequiredDate)
+                                 SupplyTypeSnapshot,SkuSnapshot,UnitSnapshot,GrossQty,NetQty,RequiredDate)
             VALUES(@first,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),N'MATERIAL-BASIS',
-                   1,1,0,@first,0,N'采购',N'SKU',6,6,'2026-09-30'),
+                   1,1,0,@first,0,N'采购',N'SKU',N'PCS',6,6,'2026-09-30'),
                   (@second,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),N'MATERIAL-BASIS',
-                   1,2,0,@second,0,N'采购',N'SKU',6,6,'2026-10-01');
+                   1,2,0,@second,0,N'采购',N'SKU',N'PCS',6,6,'2026-10-01');
             INSERT dbo.PurchaseOrderHead(Uid,OriginKind,ConfirmationStatus,LifecycleStatus,OrderNo,CustomerId,
                                           CustomerCode,Currency,SupplierId,SupplierCode,ExecutionRequestId,OrderDate)
             VALUES(@order,1,0,0,N'PO-MATERIAL',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02');
             INSERT dbo.PurchaseOrderLine(Uid,PurchaseOrderId,LineNumber,OrderNo,Sku,UnitSnapshot,QTY)
             VALUES(@line,@order,1,N'PO-MATERIAL',N'SKU',N'PCS',12);
             INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,
-                                             TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
-            VALUES(NEWID(),@first,NEWID(),NEWID(),N'PO',@order,N'PO-MATERIAL',@line,0,6,0),
-                  (NEWID(),@second,NEWID(),NEWID(),N'PO',@order,N'PO-MATERIAL',@line,0,6,0);
+                                             TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty,DemandRequiredDate)
+            VALUES(NEWID(),@first,NEWID(),NEWID(),N'PO',@order,N'PO-MATERIAL',@line,0,6,0,'2026-09-30'),
+                  (NEWID(),@second,NEWID(),NEWID(),N'PO',@order,N'PO-MATERIAL',@line,0,6,0,'2026-10-01');
             DECLARE @receipt uniqueidentifier=NEWID();
             INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
             VALUES(@receipt,N'IR-MATERIAL',10,0,0,1,@warehouseId,'2026-09-03');

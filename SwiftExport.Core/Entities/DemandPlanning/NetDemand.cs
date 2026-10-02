@@ -61,6 +61,10 @@ public sealed partial class NetDemand : BaseEntity
     /// <summary>规格特征快照。</summary>
     public string? SpecificationSnapshot { get; set; }
 
+    /// <summary>建立时的计量单位快照；根行沿用来源单位，客供子件采用拆解时子产品单位，历史未知为空。</summary>
+    [SwiftExport.Core.DatabaseSchema.DbColumn(StoreType = "nvarchar(300)")]
+    public string? UnitSnapshot { get; set; }
+
     /// <summary>BOM 展开后得到的原始需求数量。</summary>
     public decimal GrossQty { get; set; }
     /// <summary>当前净需求数量；现阶段未扣库存时通常等于 GrossQty。</summary>

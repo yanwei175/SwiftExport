@@ -601,22 +601,25 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         EndProductSelection();
     }
 
+    /// <summary>选择标准补件时采用产品单位快照，保留稳定补件行身份。</summary>
     [RelayCommand]
     private void CommitProduct(AfterSalesLineModel? line)
     {
         if (!CanEditFacts || line is null || !Lines.Contains(line) || SelectedProductCandidate is not { } product) return;
         product.Adapt(line);
+        line.UnitSnapshot = product.Unit?.Trim() ?? string.Empty;
         line.IsNonStandard = false;
         EndProductSelection();
     }
 
+    /// <summary>清除标准补件身份及其单位，后续非标单位须明确填写。</summary>
     [RelayCommand]
     private void ClearProduct(AfterSalesLineModel? line)
     {
         if (!CanEditFacts || line is null || !Lines.Contains(line)) return;
         line.ProductId = null; line.SkuSnapshot = string.Empty; line.LinkSkuSnapshot = string.Empty;
         line.CustomerSkuSnapshot = string.Empty; line.DescriptionSnapshot = string.Empty;
-        line.ColorId = null; line.ColorSnapshot = string.Empty; line.SpecificationSnapshot = string.Empty; line.ImagePath = null;
+        line.ColorId = null; line.ColorSnapshot = string.Empty; line.SpecificationSnapshot = string.Empty; line.UnitSnapshot = string.Empty; line.ImagePath = null;
         EndProductSelection();
     }
 

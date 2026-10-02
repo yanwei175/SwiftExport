@@ -47,7 +47,7 @@ public sealed class ProcurementRouteContractTests
             var suffix = (string?)route.ConstructorArguments[0].Value;
             return Key(pair.Value, http, suffix, method.Name, method.ReturnType, method.GetParameters());
         })).ToArray();
-        Assert.AreEqual(22, expected.Length);
+        Assert.AreEqual(26, expected.Length);
         CollectionAssert.AreEquivalent(expected, actual);
     }
 

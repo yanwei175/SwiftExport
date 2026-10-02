@@ -29,7 +29,7 @@ public static class AfterSalesPolicy
         => !line.ProductId.HasValue && !line.IsNonStandard && !line.ColorId.HasValue && !line.Quantity.HasValue
             && new[] {line.SkuSnapshot,line.CustomerSkuSnapshot,line.LinkSkuSnapshot,line.DescriptionSnapshot,
                 line.ColorSnapshot,line.SpecificationSnapshot,line.Remark}.All(string.IsNullOrWhiteSpace)
-            && (string.IsNullOrWhiteSpace(line.UnitSnapshot) || line.UnitSnapshot.Trim()=="Pcs");
+            && string.IsNullOrWhiteSpace(line.UnitSnapshot);
 
     /// <summary>已确认时仅允许补充追溯和处理文字，其余投诉及交接事实必须先安全取消确认。</summary>
     public static bool LockedHeaderFactsEqual(AfterSalesEditHeaderDto left, AfterSalesEditHeaderDto right)

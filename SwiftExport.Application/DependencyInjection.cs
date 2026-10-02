@@ -213,6 +213,8 @@ public static class DependencyInjection
         services.AddScoped<IProcurementOrderDraftService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.ProcurementOrderDraftService>();
         services.AddScoped<IProcurementOrderConfirmationService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Confirmation.ProcurementOrderConfirmationService>();
         services.AddScoped<IProcurementOrderReversalService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Reversal.ProcurementOrderReversalService>();
+        // 补关联是独立用例，复用公共命令执行器和采购编辑权限。
+        services.AddScoped<SwiftExport.Application.Interfaces.Procurement.IProcurementDemandAssociationService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Association.ProcurementDemandAssociationService>();
         services.AddScoped<IProcurementOrderQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Query.ProcurementOrderQueryService>();
         services.AddScoped<IPurchaseOrderManagerQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Query.PurchaseOrderManagerQueryService>();
         services.AddScoped<IPurchaseOrderTraceService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Trace.PurchaseOrderTraceService>();

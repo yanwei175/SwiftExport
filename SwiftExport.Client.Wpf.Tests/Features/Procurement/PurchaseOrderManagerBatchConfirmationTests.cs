@@ -193,8 +193,9 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         var unknown = Order("PO-U");
         var remaining = Order("PO-3");
         var fixture = CreateFixture(first, unknown, remaining);
+        // Fail(message) 明确返回 BusinessBlocked；无错误码的旧响应才能模拟本用例的未知结果。
         fixture.Orders.ConfirmHandler = (id, _) => Task.FromResult(id == unknown.PurchaseOrderId
-            ? ServiceResult<ProcurementOrderCommandResult>.Fail("传输结果不确定")
+            ? new ServiceResult<ProcurementOrderCommandResult> { Success = false, Message = "传输结果不确定" }
             : ServiceResult<ProcurementOrderCommandResult>.Ok(new ProcurementOrderCommandResult { PurchaseOrderId = id }));
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.IsAllCurrentPageChecked = true;
@@ -336,6 +337,7 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
             => Task.FromResult(ServiceResult<List<PurchaseOrderManagerLineDto>>.Ok([]));
     }
 
+    /// <summary>批量确认协议替身；独立关联用例不由管理页承载，本测试拒绝调用这些入口。</summary>
     private sealed class OrderApiStub(IEnumerable<PurchaseOrderManagerListItemDto> orders) : IProcurementOrderApi
     {
         private readonly Dictionary<Guid, PurchaseOrderManagerListItemDto> _orders = orders.ToDictionary(static order => order.PurchaseOrderId);
@@ -359,6 +361,14 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewDeleteLinesAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> VoidAsync(Guid uid, VoidProcurementOrderCommand request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> DeleteLinesAsync(Guid uid, DeleteProcurementDraftLinesCommand request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<ProcurementDemandAssociationContextDto>> GetDemandAssociationContextAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<PagedResponseBase<ProcurementDemandCandidateDto>>> SearchDemandAssociationCandidatesAsync(Guid uid, ProcurementDemandCandidateSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<ProcurementDemandAssociationPreviewDto>> PreviewDemandAssociationAsync(Guid uid, PreviewProcurementDemandAssociationRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc/>
+        public Task<ServiceResult<ProcurementOrderCommandResult>> AssociateDemandsAsync(Guid uid, AssociateProcurementDemandsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private sealed class ApiCallRunnerStub : IApiCallRunner

@@ -27,20 +27,22 @@ public sealed class NavigationAuthorizationTests
             "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",
             "Suppliers.Supplier.View", "Suppliers.Products.View",
             "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
-            "DemandPlanning.Source.View", "DemandPlanning.Material.View",
-            "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
+            "DemandPlanning.Source.View", "DemandPlanning.Source.View", "DemandPlanning.Material.View", "DemandPlanning.Material.View",
+            "Procurement.Order.Read", "Procurement.Order.Edit", "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
             "QualityControl.AfterSales.View", "QualityControl.AfterSales.View",
             "Inventory.Warehouse.View", "Inventory.Balance.View", "Inventory.Inbound.View", "Inventory.Outbound.View",
             "Inventory.Balance.View", "DemandPlanning.Source.View", null
         ];
 
-        Assert.AreEqual(34, registry.Routes.Count);
+        Assert.AreEqual(expected.Length, registry.Routes.Count);
         for (var index = 0; index < registry.Routes.Count; index++)
         {
             var route = registry.Routes[index];
             Assert.IsFalse(string.IsNullOrWhiteSpace(route.ModuleKey), route.Key);
             Assert.AreEqual(expected[index], route.RequiredPermission, route.Key);
-            Assert.IsNull(route.AnyRequiredPermissions);
+            if (route.Key == "procurement-demand-association")
+                CollectionAssert.AreEqual(new[] { PermissionKeys.ProcurementOrderRead }, route.AnyRequiredPermissions!.ToArray());
+            else Assert.IsNull(route.AnyRequiredPermissions);
             Assert.AreEqual(route.Key == "system-settings", route.DiscardOnAccessRevoked);
             if (route.RequiredPermission is not null)
                 Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
@@ -209,7 +211,10 @@ public sealed class NavigationAuthorizationTests
         CollectionAssert.AreEquivalent(
             new[] { NavigationModuleKeys.Home, NavigationModuleKeys.Sales },
             visible.Select(item => item.RouteKey).ToArray());
-        Assert.AreEqual(2, visible.Single(item => item.RouteKey == NavigationModuleKeys.Sales).Children.Count);
+        // 当前菜单只有销售订单管理；履约查询路由仍存在，但不再作为侧边菜单入口。
+        var sales = visible.Single(item => item.RouteKey == NavigationModuleKeys.Sales);
+        Assert.AreEqual(1, sales.Children.Count);
+        Assert.AreEqual(SwiftExportClient.Features.Sales.Orders.ViewModels.SalesOrderManagerViewModel.RouteKey, sales.Children.Single().RouteKey);
         Assert.AreEqual(0, matchingUnauthorizedParent.Count);
     }
 

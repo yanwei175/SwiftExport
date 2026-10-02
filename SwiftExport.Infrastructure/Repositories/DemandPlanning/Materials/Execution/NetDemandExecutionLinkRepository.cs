@@ -53,7 +53,7 @@ ORDER BY l.[TargetType],l.[TargetNo],l.[TargetLineId];";
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<DemandExecutionLink>> GetByCommandItemIdsForUpdateAsync(
-        IEnumerable<Guid> commandItemIds)
+        IEnumerable<Guid> commandItemIds, CancellationToken cancellationToken = default)
     {
         var ids = commandItemIds.Where(x => x != Guid.Empty).Distinct().ToArray();
         if (ids.Length == 0) return [];
@@ -67,12 +67,12 @@ FROM [dbo].[DemandExecutionLink] l WITH (UPDLOCK,HOLDLOCK)
 WHERE l.[CommandItemId] IN @Ids AND l.[IsDeleted]=0
 ORDER BY l.[CommandItemId],l.[Uid];";
         var rows = await context.Session.Connection.QueryAsync<DemandExecutionLink>(
-            sql, new { Ids = ids }, context.Session.Transaction);
+            new CommandDefinition(sql, new { Ids = ids }, context.Session.Transaction, cancellationToken: cancellationToken));
         return [.. rows];
     }
 
     /// <inheritdoc/>
-    public async Task<int> InsertPurchaseLinksAsync(IEnumerable<DemandExecutionLink> links)
+    public async Task<int> InsertPurchaseLinksAsync(IEnumerable<DemandExecutionLink> links, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(links);
         var materialized = links.ToArray();
@@ -85,6 +85,7 @@ ORDER BY l.[CommandItemId],l.[Uid];";
 
         foreach (var link in materialized)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             context.AuditStamp.StampForInsert(link);
             link.IsDeleted = false;
             if (link.Version <= 0) link.Version = 1;
@@ -104,7 +105,7 @@ VALUES
  @DemandRequiredDate,@PlannedDeliveryDate,@CancelledAt,@CancelledBy,@CancelledReason,
  @ReversedAt,@ReversedBy,@ReversedReason,@Remark);";
         return await context.Session.Connection.ExecuteAsync(
-            sql, materialized, context.Session.Transaction);
+            new CommandDefinition(sql, materialized, context.Session.Transaction, cancellationToken: cancellationToken));
     }
 
 }

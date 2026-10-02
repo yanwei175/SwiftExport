@@ -21,6 +21,8 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string FeaturesEn { get; set; }
         public string FeaturesZh { get; set; }
         public string MaterialType { get; set; }
+        /// <summary>当前产品单位，仅用于显式选择产品时建立新快照；历史未知单位不得据此回填。</summary>
+        public string Unit { get; set; }
         public decimal? USDPrice { get; set; }
         public decimal? CNYPrice { get; set; }
     }

@@ -19,8 +19,7 @@ public sealed partial class MaterialDemandQueryRepository
             """ + InboundReceiptHistorySql.ScopedGuard + """
             SELECT n.Uid AS NetDemandId,n.GrossDemandId,g.SourceType,g.SourceNo,g.SourceLineNumber,
                    n.DecompositionRevision,n.LineNumber,n.LifecycleStatus,n.SkuSnapshot AS Sku,
-                   COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                     CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END) AS Unit,
+                   NULLIF(LTRIM(RTRIM(n.UnitSnapshot)),N'') AS Unit,
                    n.NetQty,n.RequiredDate,n.RolledBackAt,n.RolledBackBy,n.RolledBackReason,
                    n.ParentNetDemandId,n.RootNetDemandId,
                    g.LifecycleStatus AS SourceLifecycleStatus,g.CustomerId,g.Version AS SourceDemandVersion,
@@ -53,8 +52,7 @@ public sealed partial class MaterialDemandQueryRepository
                                     OR (g.SourceType<>N'MD' AND g.SourceVersion IS NOT NULL
                                         AND n.SourceVersionSnapshot=g.SourceVersion))
                                   AND NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NOT NULL
-                                  AND LTRIM(RTRIM(pol.UnitSnapshot))=COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                                    CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END)
+                                  AND LTRIM(RTRIM(pol.UnitSnapshot))=NULLIF(LTRIM(RTRIM(n.UnitSnapshot)),N'')
                                   AND poh.LifecycleStatus=0 AND poh.IsDeleted=0 AND pol.IsDeleted=0
                             THEN 1 ELSE 0 END AS IsValid
                 FROM dbo.DemandExecutionLink l
@@ -131,9 +129,9 @@ public sealed partial class MaterialDemandQueryRepository
                    CASE WHEN l.LinkStatus<>0 OR l.IsDeleted<>0 OR n.LifecycleStatus<>0 THEN N'历史采购关联'
                         WHEN poh.Uid IS NULL OR pol.Uid IS NULL OR poh.LifecycleStatus<>0 THEN N'采购目标需核实'
                         WHEN poh.CustomerId IS NULL OR g.CustomerId IS NULL OR poh.CustomerId<>g.CustomerId THEN N'客户归属需核实'
-                        WHEN NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
-                          OR NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'')<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                             CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END)
+                        WHEN NULLIF(LTRIM(RTRIM(n.UnitSnapshot)),N'') IS NULL
+                          OR NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
+                          OR NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'')<>NULLIF(LTRIM(RTRIM(n.UnitSnapshot)),N'')
                         THEN N'采购单位需核实'
                         WHEN invalidReceipts.InvalidReceiptCount>0 THEN N'入库单位需核实'
                         WHEN coverage.CurrentReceiptCoverageQty IS NULL THEN N'来源修订或采购行贡献需核实'

@@ -1,0 +1,168 @@
+<UserControl x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseDemandAssociationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:customers="clr-namespace:SwiftExportClient.Features.Customers.Components"
+             xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components">
+    <Grid Margin="12,8" RowDefinitions="Auto,8,Auto,8,*,8,Auto">
+        <DockPanel>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button Content="重读关联依据" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
+                <Button Content="重试原命令" Command="{Binding RetryCommand}"/>
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="关联物料需求" Style="{StaticResource SubtitleTextBlock}"/>
+                <TextBlock Text="待确认和已确认采购均可追加关联；无需全部关联。"/>
+            </StackPanel>
+        </DockPanel>
+        <Expander Grid.Row="2" Header="选择待关联采购单" IsExpanded="{Binding IsPickerOpen}" IsEnabled="{Binding CanInteract}">
+            <Grid Margin="0,8,0,0" RowDefinitions="Auto,8,180,4,Auto">
+                <WrapPanel IsEnabled="{Binding OrderPicker.IsNotBusy}">
+                    <ui:TextBox Width="260" PlaceholderText="采购单号、来源单号、SKU 等关键词" Text="{Binding OrderPicker.Keyword,UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="待关联采购关键词" Margin="0,0,8,0"/>
+                    <customers:CustomerAutoSuggestComboBox Width="140" Placeholder="客户" SelectedCustomer="{Binding OrderPicker.SelectedCustomer,Mode=TwoWay}" ItemsSource="{Binding OrderPicker.CustomerOptions}" AutomationProperties.Name="采购客户" Margin="0,0,8,0"/>
+                    <suppliers:SupplierAutoSuggestComboBox Width="140" Placeholder="供应商" SelectedSupplier="{Binding OrderPicker.SelectedSupplier,Mode=TwoWay}" ItemsSource="{Binding OrderPicker.SupplierOptions}" AutomationProperties.Name="采购供应商" Margin="0,0,8,0"/>
+                    <DatePicker Width="140" SelectedDate="{Binding OrderPicker.OrderDateFrom}" AutomationProperties.Name="采购下单日期开始" Margin="0,0,8,0"/>
+                    <DatePicker Width="140" SelectedDate="{Binding OrderPicker.OrderDateTo}" AutomationProperties.Name="采购下单日期结束" Margin="0,0,8,0"/>
+                    <Button Content="查询" Command="{Binding OrderPicker.SearchCommand}" Margin="0,0,8,0"/>
+                    <Button Content="选择采购单" Command="{Binding ChooseOrderCommand}"/>
+                </WrapPanel>
+                <DataGrid Grid.Row="2" ItemsSource="{Binding OrderPicker.Orders}" SelectedItem="{Binding OrderPicker.SelectedOrder}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single" IsEnabled="{Binding OrderPicker.IsNotBusy}" AutomationProperties.Name="待关联采购单">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="采购单号" Binding="{Binding OrderNo}" Width="160"/>
+                        <DataGridTextColumn Header="自定义单号" Binding="{Binding BoNo}" Width="160"/>
+                        <DataGridTextColumn Header="客户编码" Binding="{Binding CustomerCode}" Width="120"/>
+                        <DataGridTextColumn Header="供应商" Binding="{Binding SupplierName}" Width="*"/>
+                        <DataGridTextColumn Header="确认状态" Binding="{Binding ConfirmationStatus,Converter={StaticResource EnumDescriptionConverter}}" Width="100"/>
+                        <DataGridTextColumn Header="下单日期" Binding="{Binding OrderDate,StringFormat=yyyy-MM-dd}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <DockPanel Grid.Row="4">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                        <Button Content="上一页" Command="{Binding OrderPicker.PreviousPageCommand}" Margin="0,0,8,0"/>
+                        <Button Content="下一页" Command="{Binding OrderPicker.NextPageCommand}"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="{Binding OrderPicker.StatusText}"/>
+                        <TextBlock Text="{Binding OrderPicker.ReferenceStatusText}"/>
+                    </StackPanel>
+                </DockPanel>
+            </Grid>
+        </Expander>
+        <Grid Grid.Row="4" RowDefinitions="Auto,8,2*,8,Auto,8,*">
+            <WrapPanel>
+                <TextBlock Text="{Binding Context.OrderNo}" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding Context.CustomerCode,StringFormat=客户：{0}}" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding Context.SupplierName,StringFormat=供应商：{0}}" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding Context.ConfirmationStatus,Converter={StaticResource EnumDescriptionConverter}}" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding SourceHint}"/>
+            </WrapPanel>
+            <Grid Grid.Row="2" ColumnDefinitions="2*,8,3*">
+                <Grid RowDefinitions="Auto,4,*,4,Auto,4,*">
+                    <TextBlock Text="采购行（选择后查询右侧需求）" FontWeight="SemiBold"/>
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}" SelectionChanged="OnLineSelected" IsEnabled="{Binding CanEditPlan}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="采购关联行">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="行" Binding="{Binding LineNumber}" Width="40"/>
+                            <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="*"/>
+                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="60"/>
+                            <DataGridTextColumn Header="数量" Binding="{Binding Quantity,StringFormat=0.####}" Width="80"/>
+                            <DataGridTextColumn Header="已关联" Binding="{Binding LinkedQty,StringFormat=0.####}" Width="80"/>
+                            <DataGridTextColumn Header="未关联" Binding="{Binding UnlinkedQty,StringFormat=0.####,TargetNullValue=未知}" Width="80"/>
+                            <DataGridTextColumn Header="阻断原因" Binding="{Binding BlockReason}" Width="160"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="4" Text="当前行已保存的有效引用（只读）"/>
+                    <DataGrid Grid.Row="6" ItemsSource="{Binding SelectedLine.Links}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" AutomationProperties.Name="已保存需求引用">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="来源单" Binding="{Binding SourceNo}" Width="*"/>
+                            <DataGridTextColumn Header="物料" Binding="{Binding DemandSku}" Width="*"/>
+                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="60"/>
+                            <DataGridTextColumn Header="贡献" Binding="{Binding Quantity,StringFormat=0.####}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+                <Grid Grid.Column="2" RowDefinitions="Auto,4,*,4,Auto" IsEnabled="{Binding CanEditPlan}">
+                    <DockPanel>
+                        <Button Content="查询候选" Command="{Binding SearchCandidatesCommand}" DockPanel.Dock="Right" Margin="8,0,0,0"/>
+                        <ui:TextBox Text="{Binding CandidateKeyword,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="来源单号、SKU、描述" AutomationProperties.Name="物料候选关键词"/>
+                    </DockPanel>
+                    <DataGrid Grid.Row="2" ItemsSource="{Binding Candidates}" SelectedItem="{Binding SelectedCandidate}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" AutomationProperties.Name="可分配物料需求">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="来源单" Binding="{Binding SourceNo}" Width="140"/>
+                            <DataGridTextColumn Header="来源行" Binding="{Binding SourceLineNumber}" Width="60"/>
+                            <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="150"/>
+                            <DataGridTextColumn Header="客户型号" Binding="{Binding CustomerSku}" Width="120"/>
+                            <DataGridTextColumn Header="描述" Binding="{Binding Description}" Width="*"/>
+                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="60"/>
+                            <DataGridTextColumn Header="已关联" Binding="{Binding LinkedQty,StringFormat=0.####}" Width="80"/>
+                            <DataGridTextColumn Header="可分配" Binding="{Binding RemainingQty,StringFormat=0.####}" Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <WrapPanel Grid.Row="4">
+                        <Button Content="上一页" Command="{Binding PreviousCandidatePageCommand}" Margin="0,0,8,0"/>
+                        <TextBlock Text="{Binding CandidatePage,StringFormat=第 {0} 页}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Content="下一页" Command="{Binding NextCandidatePageCommand}" Margin="0,0,16,0"/>
+                        <TextBlock Text="分配数量" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="AllocationInput" Width="100" Text="{Binding AllocationQuantity,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}" AutomationProperties.Name="本次分配数量" Margin="0,0,8,0"/>
+                        <Button x:Name="AddButton" Content="加入 / 更新暂存" IsEnabled="{Binding CanAddNow}" Click="OnPrepareClicked"/>
+                    </WrapPanel>
+                </Grid>
+            </Grid>
+            <Grid Grid.Row="4" IsEnabled="{Binding CanEditPlan}" RowDefinitions="Auto,4,Auto">
+                <WrapPanel>
+                    <TextBlock Text="采购描述：" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding SelectedLine.Description}" TextWrapping="Wrap" Margin="0,0,16,0"/>
+                    <TextBlock Text="需求描述：" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding SelectedCandidate.Description}" TextWrapping="Wrap"/>
+                </WrapPanel>
+                <CheckBox Grid.Row="2" Content="我已核对非标采购与需求的描述、单位，认可此次匹配" IsEnabled="{Binding SelectedLine.IsNonStandard}" IsChecked="{Binding AcceptNonStandardMatch}" AutomationProperties.Name="认可非标物料匹配"/>
+            </Grid>
+            <TabControl Grid.Row="6" SelectedIndex="{Binding ReviewTabIndex}">
+                <TabItem Header="暂存分配（尚未提交）">
+                    <Grid RowDefinitions="Auto,4,*">
+                        <Button Content="移除选定暂存项" HorizontalAlignment="Left" Command="{Binding RemoveAllocationCommand}"/>
+                        <DataGrid x:Name="PlanGrid" Grid.Row="2" ItemsSource="{Binding Plan}" SelectedItem="{Binding SelectedPlanRow}" IsEnabled="{Binding CanInteract}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single" AutomationProperties.Name="暂存需求分配">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="采购行" IsReadOnly="True" Binding="{Binding Line.LineNumber}" Width="60"/>
+                                <DataGridTextColumn Header="采购物料" IsReadOnly="True" Binding="{Binding Line.Sku}" Width="*"/>
+                                <DataGridTextColumn Header="来源单 / 行" IsReadOnly="True" Binding="{Binding Demand.SourceNo}" Width="140"/>
+                                <DataGridTextColumn Header="来源行" IsReadOnly="True" Binding="{Binding Demand.SourceLineNumber}" Width="60"/>
+                                <DataGridTextColumn Header="需求物料" IsReadOnly="True" Binding="{Binding Demand.Sku}" Width="*"/>
+                                <DataGridTextColumn Header="单位" IsReadOnly="True" Binding="{Binding Demand.Unit}" Width="60"/>
+                                <DataGridTextColumn Header="分配数量" Binding="{Binding Quantity,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True}" Width="100"/>
+                                <DataGridCheckBoxColumn Header="认可非标" Binding="{Binding AcceptNonStandardMatch,UpdateSourceTrigger=PropertyChanged}" Width="80"/>
+                                <DataGridCheckBoxColumn Header="待复核" IsReadOnly="True" Binding="{Binding NeedsReview,Mode=OneWay}" Width="80"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                <TabItem Header="服务端数量变化预览">
+                    <DataGrid ItemsSource="{Binding Preview.Items}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" AutomationProperties.Name="关联数量预览">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="采购行" Binding="{Binding LineNumber}" Width="60"/>
+                            <DataGridTextColumn Header="采购物料" Binding="{Binding PurchaseSku}" Width="*"/>
+                            <DataGridTextColumn Header="来源单" Binding="{Binding SourceNo}" Width="140"/>
+                            <DataGridTextColumn Header="需求物料" Binding="{Binding DemandSku}" Width="*"/>
+                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="60"/>
+                            <DataGridTextColumn Header="本次" Binding="{Binding Quantity,StringFormat=0.####}" Width="80"/>
+                            <DataGridTextColumn Header="采购未关联前" Binding="{Binding LineUnlinkedBefore,StringFormat=0.####}" Width="110"/>
+                            <DataGridTextColumn Header="采购未关联后" Binding="{Binding LineUnlinkedAfter,StringFormat=0.####}" Width="110"/>
+                            <DataGridTextColumn Header="需求剩余前" Binding="{Binding DemandRemainingBefore,StringFormat=0.####}" Width="100"/>
+                            <DataGridTextColumn Header="需求剩余后" Binding="{Binding DemandRemainingAfter,StringFormat=0.####}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+            </TabControl>
+        </Grid>
+        <StackPanel Grid.Row="6">
+            <DockPanel IsEnabled="{Binding CanInteract}">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button x:Name="PreviewButton" Content="校验并预览" IsEnabled="{Binding CanPreviewNow}" Click="OnPrepareClicked" Margin="8,0,8,0"/>
+                    <Button x:Name="SubmitButton" Content="确认提交" IsEnabled="{Binding CanSubmitNow}" Click="OnPrepareClicked"/>
+                </StackPanel>
+                <ui:TextBox Text="{Binding Reason,UpdateSourceTrigger=PropertyChanged}" MaxLength="500" PlaceholderText="关联原因（必填，最多 500 字）" AutomationProperties.Name="需求关联原因"/>
+            </DockPanel>
+            <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock Text="{Binding BusyMessage}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

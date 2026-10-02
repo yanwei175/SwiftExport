@@ -55,6 +55,30 @@ public sealed class SourceDemandReceptionServiceTests
         Assert.AreEqual("SOURCE_VERSION_CONFLICT", error.Code);
     }
 
+    /// <summary>销售及售后的标准和非标来源均保存传入单位，缺失单位在任何写入前拒绝。</summary>
+    [TestMethod]
+    [DataRow("SO", false)]
+    [DataRow("SO", true)]
+    [DataRow("CR", false)]
+    [DataRow("CR", true)]
+    public async Task ReceptionPreservesExplicitUnits(string sourceType, bool nonStandard)
+    {
+        using var f = new ReceptionFixture();
+        var command = f.Command(sourceType, 1);
+        command.Items[0].IsNonStandard = nonStandard;
+        if (nonStandard) command.Items[0].ProductId = null;
+        command.Items[0].UnitSnapshot = " SET ";
+        await f.Service.ReceiveAsync(command);
+        Assert.AreEqual("SET", f.Repository.Demands.Single().UnitSnapshot);
+        using var missing = new ReceptionFixture();
+        var invalid = missing.Command(sourceType, 1);
+        invalid.Items[0].IsNonStandard = nonStandard;
+        if (nonStandard) invalid.Items[0].ProductId = null;
+        invalid.Items[0].UnitSnapshot = " ";
+        await Assert.ThrowsAsync<SourceDemandReceptionException>(() => missing.Service.ReceiveAsync(invalid));
+        Assert.HasCount(0, missing.Repository.Demands);
+    }
+
     /// <summary>来源审计失败必须向外层确认命令抛出，不能返回看似成功的接收结果。</summary>
     [TestMethod]
     public async Task AuditFailureIsPropagatedToParentTransaction()

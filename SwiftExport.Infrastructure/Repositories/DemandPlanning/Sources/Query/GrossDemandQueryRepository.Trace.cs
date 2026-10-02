@@ -57,18 +57,17 @@ public sealed partial class GrossDemandQueryRepository
             OUTER APPLY (
                 SELECT SUM(CASE WHEN pol.Uid IS NOT NULL AND poh.Uid IS NOT NULL
                                        AND NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NOT NULL
-                                       AND LTRIM(RTRIM(pol.UnitSnapshot))=COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                                           CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END)
+                                       AND LTRIM(RTRIM(pol.UnitSnapshot))=NULLIF(LTRIM(RTRIM(materialUnit.UnitSnapshot)),N'')
                                 THEN l.AllocatedQty-l.ReleasedQty ELSE 0 END) AS LinkedQty,
                        SUM(CASE WHEN pol.Uid IS NULL OR poh.Uid IS NULL
                                      OR poh.CustomerId IS NULL
                                      OR NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
-                                     OR LTRIM(RTRIM(pol.UnitSnapshot))<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                                         CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END)
-                                     OR COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                                         CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END) IS NULL
+                                     OR LTRIM(RTRIM(pol.UnitSnapshot))<>NULLIF(LTRIM(RTRIM(materialUnit.UnitSnapshot)),N'')
+                                     OR NULLIF(LTRIM(RTRIM(materialUnit.UnitSnapshot)),N'') IS NULL
                                 THEN 1 ELSE 0 END) AS InvalidCount
                 FROM dbo.DemandExecutionLink l
+                -- 单位进入聚合内的本地关系，避免 SQL Server 聚合表达式混用外部引用。
+                JOIN dbo.NetDemand materialUnit ON materialUnit.Uid=l.NetDemandId
                 LEFT JOIN dbo.PurchaseOrderLine pol ON pol.Uid=l.TargetLineId AND pol.PurchaseOrderId=l.TargetHeadId AND pol.IsDeleted=0
                 LEFT JOIN dbo.PurchaseOrderHead poh ON poh.Uid=l.TargetHeadId AND poh.IsDeleted=0 AND poh.LifecycleStatus<>9
                 WHERE l.NetDemandId=n.Uid AND l.IsDeleted=0 AND l.LinkStatus=0
@@ -105,10 +104,8 @@ public sealed partial class GrossDemandQueryRepository
                         WHEN pol.Uid IS NULL OR poh.Uid IS NULL OR poh.LifecycleStatus=9 THEN N'采购目标需核实'
                         WHEN poh.CustomerId IS NULL OR g.CustomerId IS NULL OR poh.CustomerId<>g.CustomerId THEN N'客户归属需核实'
                         WHEN NULLIF(LTRIM(RTRIM(pol.UnitSnapshot)),N'') IS NULL
-                          OR COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                              CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END) IS NULL
-                          OR LTRIM(RTRIM(pol.UnitSnapshot))<>COALESCE(NULLIF(LTRIM(RTRIM(p.Unit)),N''),
-                              CASE WHEN n.ParentNetDemandId IS NULL THEN NULLIF(LTRIM(RTRIM(g.UnitSnapshot)),N'') END)
+                          OR NULLIF(LTRIM(RTRIM(n.UnitSnapshot)),N'') IS NULL
+                          OR LTRIM(RTRIM(pol.UnitSnapshot))<>NULLIF(LTRIM(RTRIM(n.UnitSnapshot)),N'')
                         THEN N'采购行与物料单位需核实'
                         WHEN n.LifecycleStatus<>0 OR n.SourceDemandVersionSnapshot IS NULL OR n.SourceDemandVersionSnapshot<>g.Version
                           OR NULLIF(g.DemandBasisFingerprint,N'') IS NULL

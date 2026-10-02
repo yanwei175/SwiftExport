@@ -46,6 +46,16 @@ public sealed class SalesOrderUnitSnapshotTests
         Assert.ThrowsExactly<SalesOrderValidationException>(() => Apply(line, StandardLine(product), product));
     }
 
+    /// <summary>同一产品的未知历史单位不能由当前产品默认补齐。</summary>
+    [TestMethod]
+    public void UnknownHistoricalUnitIsNotInferred()
+    {
+        var product = new Product { Uid = Guid.NewGuid(), Sku = "A", Unit = "PCS" };
+        var line = new SalesOrderLine { SalesOrderId = Guid.NewGuid(), ProductId = product.Uid, Sku = product.Sku, UnitSnapshot = string.Empty };
+        Assert.ThrowsExactly<SalesOrderValidationException>(() => Apply(line, StandardLine(product), product));
+        Assert.AreEqual(string.Empty, line.UnitSnapshot);
+    }
+
     /// <summary>非标行必须由用户明确提供单位，保存时去除首尾空格。</summary>
     [TestMethod]
     public void NonStandardLine_RequiresExplicitUnit()

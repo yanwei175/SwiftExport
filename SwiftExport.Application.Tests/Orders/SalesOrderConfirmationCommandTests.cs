@@ -132,6 +132,16 @@ public sealed class SalesOrderConfirmationCommandTests
         Assert.AreEqual("PCS", f.ReceivedCommand!.Items.Single().UnitSnapshot);
     }
 
+    /// <summary>非标销售行确认传递明确单位，不因无产品身份改成 PCS。</summary>
+    [TestMethod]
+    public async Task NonStandardConfirmationPreservesUnit()
+    {
+        var f = new Fixture(); f.Line.UnitSnapshot = "BOX";
+        var result = await f.Service.ConfirmAsync(f.Header.Uid, f.Command(Guid.NewGuid()));
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.AreEqual("BOX", f.ReceivedCommand!.Items.Single().UnitSnapshot);
+    }
+
     /// <summary>旧销售行缺少单位快照时，确认在变更状态及接收来源前失败。</summary>
     [TestMethod]
     public async Task Confirmation_RejectsMissingSalesLineUnitSnapshot()

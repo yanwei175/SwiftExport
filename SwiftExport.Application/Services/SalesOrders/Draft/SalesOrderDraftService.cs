@@ -316,8 +316,11 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
             entity.MainImage = product.MainImage;
             if (string.IsNullOrWhiteSpace(product.Unit))
                 throw new SalesOrderValidationException($"第 {lineNumber} 行产品未设置单位，不能保存销售订单。");
-            if (originalProductId != product.Uid || string.IsNullOrWhiteSpace(entity.UnitSnapshot))
+            // 同一产品的历史单位无法从当前主数据证明；仅新选择产品时建立单位快照。
+            if (originalProductId != product.Uid)
                 entity.UnitSnapshot = product.Unit.Trim();
+            else if (string.IsNullOrWhiteSpace(entity.UnitSnapshot))
+                throw new SalesOrderValidationException("历史销售行单位未知，请核实来源单位后再保存。");
             if (dto.CustomerProductId.HasValue)
             {
                 if (!customerProducts.TryGetValue(dto.CustomerProductId.Value, out var customerProduct)

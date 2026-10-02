@@ -618,14 +618,14 @@ public sealed class GrossDemandWorkspaceViewModelTests
 
         Assert.IsFalse(workspace.Descendants(presentation + "Expander")
             .Any(element => (string?)element.Attribute("Header") is "多行条件" or "更多条件"));
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
         var toggle = workspace.Descendants(presentation + "ToggleButton")
-            .Single(element => ((string?)element.Attribute("IsChecked"))
-                ?.Contains("IsMultiLineFilterOpen", StringComparison.Ordinal) == true);
+            .Single(element => (string?)element.Attribute(xaml + "Name") == "OptionsToggle");
         Assert.AreEqual("更多条件", (string?)toggle.Attribute("Content"));
-        StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsMultiLineFilterOpen");
 
         var popup = workspace.Descendants(presentation + "Popup").Single();
-        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsMultiLineFilterOpen");
+        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "ElementName=OptionsToggle");
+        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsChecked");
         StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "StackPanel");
         StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
         Assert.AreEqual("True", (string?)popup.Attribute("StaysOpen"));
@@ -666,10 +666,10 @@ public sealed class GrossDemandWorkspaceViewModelTests
         StringAssert.Contains((string?)sourceToggle.Attribute("Command") ?? string.Empty, "ToggleSourcePanelCommand");
         StringAssert.Contains((string?)sourceToggle.Attribute("IsChecked") ?? string.Empty, "IsSourcePanelOpen");
         var multilineToggle = workspace.Descendants(presentation + "ToggleButton")
-            .Single(element => ((string?)element.Attribute("IsChecked"))
-                ?.Contains("IsMultiLineFilterOpen", StringComparison.Ordinal) == true);
+            .Single(element => (string?)element.Attribute("Content") == "更多条件");
         Assert.AreEqual("更多条件", (string?)multilineToggle.Attribute("Content"));
-        Assert.IsTrue(GetGridColumn(sourceToggle) < GetGridColumn(multilineToggle));
+        // 按文档顺序检查按钮先后，布局已由固定 Grid 列迁移为 WrapPanel。
+        Assert.IsTrue(workspace.Descendants().TakeWhile(element => element != multilineToggle).Contains(sourceToggle));
 
         var sourceFilters = sourcePanel.Descendants().Where(element => element.Name.LocalName == "DropDownCheckBox").ToArray();
         Assert.AreEqual(1, sourceFilters.Length);
@@ -709,11 +709,6 @@ public sealed class GrossDemandWorkspaceViewModelTests
             StringAssert.Contains(source, $"#region {region}");
         }
     }
-
-    private static int GetGridColumn(XElement element) =>
-        int.TryParse((string?)element.Attribute("Grid.Column"), out var column)
-            ? column
-            : 0;
 
     private static GrossDemandWorkspaceViewModel CreateViewModel(
         FakeGrossDemandApi api,
@@ -798,6 +793,14 @@ public sealed class GrossDemandWorkspaceViewModelTests
         public int SearchCallCount { get; private set; }
         public int SourceGroupCallCount { get; private set; }
         public int TraceCallCount { get; private set; }
+
+        /// <summary>工作台只导航到独立追溯页，误调用详情追溯时记录并立即失败。</summary>
+        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace.GrossDemandTraceDetailDto>> GetTraceAsync(
+            Guid uid, CancellationToken cancellationToken = default)
+        {
+            TraceCallCount++;
+            throw new NotSupportedException();
+        }
 
         public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
         {

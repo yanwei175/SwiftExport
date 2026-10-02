@@ -3,4 +3,5 @@
     <DataTemplate DataType="{x:Type viewModels:PurchaseOrderProgressWorkspaceViewModel}"><views:PurchaseOrderProgressWorkspaceView /></DataTemplate>
     <DataTemplate DataType="{x:Type viewModels:PurchaseOrderTraceViewModel}"><views:PurchaseOrderTraceView /></DataTemplate>
     <DataTemplate DataType="{x:Type viewModels:PurchaseOrderDetailViewModel}"><views:PurchaseOrderDetailView /></DataTemplate>
+    <DataTemplate DataType="{x:Type viewModels:PurchaseDemandAssociationViewModel}"><views:PurchaseDemandAssociationView /></DataTemplate>
 </ResourceDictionary>

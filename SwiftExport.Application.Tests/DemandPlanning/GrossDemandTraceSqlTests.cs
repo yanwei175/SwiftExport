@@ -29,11 +29,11 @@ public sealed class GrossDemandTraceSqlTests
             VALUES(@demand,0,N'MD',@demand,N'MD-TRACE',@demand,@customerId,@fingerprint,1,N'SKU',N'PCS',10);
             INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceDemandBasisFingerprintSnapshot,
                                  DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,ParentNetDemandId,
-                                 ProductId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)
+                                 ProductId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,UnitSnapshot,GrossQty,NetQty)
             VALUES(@root,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),@fingerprint,
-                   1,1,0,@root,NULL,@productId,0,N'采购',N'SKU',10,10),
+                   1,1,0,@root,NULL,@productId,0,N'采购',N'SKU',N'PCS',10,10),
                   (@material,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),@fingerprint,
-                   1,2,0,@root,@root,@componentId,0,N'采购',N'TEST-B',10,10);
+                   1,2,0,@root,@root,@componentId,0,N'采购',N'TEST-B',N'KG',10,10);
             INSERT dbo.PurchaseOrderHead(Uid,OriginKind,ConfirmationStatus,LifecycleStatus,OrderNo,CustomerId,
                                           CustomerCode,Currency,SupplierId,SupplierCode,ExecutionRequestId,OrderDate)
             VALUES(@order,1,0,0,N'PO-TRACE',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02');

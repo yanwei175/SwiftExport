@@ -95,7 +95,7 @@ INSERT INTO [dbo].[NetDemand]
  [ParentNetDemandId],[RootNetDemandId],[DeliveryTargetNetDemandId],[DeliveryMode],
  [ProductId],[SuggestedPurchaseSupplierId],[BomLineId],[BomVersion],[BomPath],[MaterialTypeSnapshot],
  [SupplyTypeSnapshot],[SkuSnapshot],[ParentSkuSnapshot],[CustomerSkuSnapshot],
- [DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],
+ [DescriptionSnapshot],[ColorSnapshot],[SpecificationSnapshot],[UnitSnapshot],
  [GrossQty],[NetQty],[RequiredDate],[Remark],[RolledBackAt],[RolledBackBy],[RolledBackReason])
 VALUES
 (@Uid,@Version,0,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,
@@ -103,7 +103,7 @@ VALUES
  @ParentNetDemandId,@RootNetDemandId,@DeliveryTargetNetDemandId,@DeliveryMode,
  @ProductId,@SuggestedPurchaseSupplierId,@BomLineId,@BomVersion,@BomPath,@MaterialTypeSnapshot,
  @SupplyTypeSnapshot,@SkuSnapshot,@ParentSkuSnapshot,@CustomerSkuSnapshot,
- @DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,
+ @DescriptionSnapshot,@ColorSnapshot,@SpecificationSnapshot,@UnitSnapshot,
  @GrossQty,@NetQty,@RequiredDate,@Remark,@RolledBackAt,@RolledBackBy,@RolledBackReason);";
             var rows = await Connection.ExecuteAsync(sql, new
             {
@@ -113,7 +113,7 @@ VALUES
                 demand.ParentNetDemandId, demand.RootNetDemandId, demand.DeliveryTargetNetDemandId, demand.DeliveryMode,
                 demand.ProductId, demand.SuggestedPurchaseSupplierId, demand.BomLineId, demand.BomVersion, demand.BomPath, demand.MaterialTypeSnapshot,
                 demand.SupplyTypeSnapshot, demand.SkuSnapshot, demand.ParentSkuSnapshot, demand.CustomerSkuSnapshot,
-                demand.DescriptionSnapshot, demand.ColorSnapshot, demand.SpecificationSnapshot,
+                demand.DescriptionSnapshot, demand.ColorSnapshot, demand.SpecificationSnapshot, demand.UnitSnapshot,
                 demand.GrossQty, demand.NetQty, demand.RequiredDate, demand.Remark,
                 demand.RolledBackAt, demand.RolledBackBy, demand.RolledBackReason
             }, Transaction);
@@ -164,7 +164,7 @@ SELECT nd.[Uid],nd.[Version],nd.[IsDeleted],nd.[CreatedDate],nd.[CreatedBy],nd.[
        nd.[ParentNetDemandId],nd.[RootNetDemandId],nd.[DeliveryTargetNetDemandId],nd.[DeliveryMode],
        nd.[ProductId],nd.[SuggestedPurchaseSupplierId],nd.[BomLineId],nd.[BomVersion],nd.[BomPath],nd.[MaterialTypeSnapshot],
        nd.[SupplyTypeSnapshot],nd.[SkuSnapshot],nd.[ParentSkuSnapshot],nd.[CustomerSkuSnapshot],
-       nd.[DescriptionSnapshot],nd.[ColorSnapshot],nd.[SpecificationSnapshot],
+       nd.[DescriptionSnapshot],nd.[ColorSnapshot],nd.[SpecificationSnapshot],nd.[UnitSnapshot],
        nd.[GrossQty],nd.[NetQty],nd.[RequiredDate],nd.[Remark],
        nd.[RolledBackAt],nd.[RolledBackBy],nd.[RolledBackReason] ";
 

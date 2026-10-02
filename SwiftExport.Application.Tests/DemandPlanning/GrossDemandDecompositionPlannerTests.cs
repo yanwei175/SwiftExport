@@ -189,6 +189,38 @@ public sealed class GrossDemandDecompositionPlannerTests
         Assert.AreEqual("INVALID_BOM_LINE", plan.ErrorCode);
     }
 
+    /// <summary>根行数量沿用来源单位，客供子件数量采用拆解时子产品单位，后续产品变更不改写计划快照。</summary>
+    [TestMethod]
+    public void UnitsFollowSourceRootAndComponentProduct()
+    {
+        var root = CreateProduct("A", SupplyTypeEnums.采购, MaterialTypesEnum.成品, 1, "BOM-A");
+        root.Unit = "CURRENT-ROOT";
+        var child = CreateProduct("B", SupplyTypeEnums.采购, MaterialTypesEnum.客供件);
+        child.Unit = " KG ";
+        var gross = CreateGross(false, root.Uid, 10); gross.UnitSnapshot = " SET ";
+        var plan = _planner.BuildPlan(gross, root, [CreateBom(root, child, 1, 2, 1)],
+            new Dictionary<Guid, Product> { [child.Uid] = child }, 1);
+        Assert.IsTrue(plan.IsValid, plan.ErrorMessage);
+        Assert.AreEqual("SET", plan.NetDemands[0].UnitSnapshot);
+        Assert.AreEqual("KG", plan.NetDemands[1].UnitSnapshot);
+        child.Unit = "PCS"; root.Unit = "PCS";
+        Assert.AreEqual("SET", plan.NetDemands[0].UnitSnapshot);
+        Assert.AreEqual("KG", plan.NetDemands[1].UnitSnapshot);
+    }
+
+    /// <summary>非标根保留明确单位，历史来源缺单位时保持未知，不借当前产品补值。</summary>
+    [TestMethod]
+    public void NonStandardAndUnknownUnitsRemainSourceFacts()
+    {
+        var gross = CreateGross(true, null, 3); gross.UnitSnapshot = "BOX";
+        Assert.AreEqual("BOX", _planner.BuildPlan(gross, null, [], new Dictionary<Guid, Product>(), 1).NetDemands[0].UnitSnapshot);
+        gross.UnitSnapshot = null;
+        Assert.IsNull(_planner.BuildPlan(gross, null, [], new Dictionary<Guid, Product>(), 1).NetDemands[0].UnitSnapshot);
+        var root = CreateProduct("A", SupplyTypeEnums.采购, MaterialTypesEnum.成品); root.Unit = "PCS";
+        gross.IsNonStandard = false; gross.ProductId = root.Uid;
+        Assert.IsNull(_planner.BuildPlan(gross, root, [], new Dictionary<Guid, Product>(), 1).NetDemands[0].UnitSnapshot);
+    }
+
     private static GrossDemand CreateGross(bool isNonStandard, Guid? productId, decimal qty)
         => new()
         {

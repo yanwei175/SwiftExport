@@ -254,8 +254,8 @@ public sealed class SourceDemandReceptionService(
             throw new SourceDemandReceptionException("DUPLICATE_SOURCE_LINE", "同一命令不能重复提交来源行。");
         if (command.Items.Any(item => item.IsNonStandard && item.ProductId.HasValue))
             throw new SourceDemandReceptionException("NON_STANDARD_PRODUCT_FORBIDDEN", "非标需求不能关联产品主数据。");
-        if (command.Items.Any(item => !item.IsNonStandard && (!item.ProductId.HasValue || string.IsNullOrWhiteSpace(item.UnitSnapshot))))
-            throw new SourceDemandReceptionException("PRODUCT_UNIT_REQUIRED", "标准需求必须提供产品和单位。");
+        if (command.Items.Any(item => (!item.IsNonStandard && !item.ProductId.HasValue) || string.IsNullOrWhiteSpace(item.UnitSnapshot)))
+            throw new SourceDemandReceptionException("PRODUCT_UNIT_REQUIRED", "标准需求必须提供产品，所有实物需求必须提供明确单位。");
     }
 
     /// <summary>记录首次父命令在同一事务内产生的来源数量和行身份，不承担机器回执。</summary>

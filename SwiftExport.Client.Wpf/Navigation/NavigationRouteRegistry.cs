@@ -80,6 +80,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(MaterialDemandTraceViewModel.RouteKey, "物料需求追踪", "Detail", typeof(MaterialDemandTraceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Material.View"),
 
         new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", typeof(PurchaseOrderManagerViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
+        new(PurchaseDemandAssociationViewModel.RouteKey, "关联物料需求", "Workspace", typeof(PurchaseDemandAssociationViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Edit", AnyRequiredPermissions: [PermissionKeys.ProcurementOrderRead]),
         new(PurchaseOrderTraceViewModel.RouteKey, "采购追溯", "Detail", typeof(PurchaseOrderTraceViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
 
         new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购订单跟进", "Workspace", typeof(PurchaseOrderProgressWorkspaceViewModel), NavigationModuleKeys.Procurement, "Procurement.Progress.View"),
@@ -109,6 +110,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
     private readonly Dictionary<string, NavigationRoute> _routeMap;
 
+    /// <summary>构建稳定路由索引及侧边菜单，权限沿用各业务用例。</summary>
     public NavigationRouteRegistry()
     {
         _routeMap = _routes.ToDictionary(route => route.Key, StringComparer.OrdinalIgnoreCase);
@@ -183,6 +185,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(PurchaseOrderManagerViewModel.RouteKey, "采购订单", "Workspace", "DocumentBulletList24"),
+                    new(PurchaseDemandAssociationViewModel.RouteKey, "关联物料需求", "Workspace", "Branch24"),
                     new(PurchaseOrderProgressWorkspaceViewModel.RouteKey, "采购跟进", "Workspace", "ClipboardTaskListLtr24"),
                 ]),
             new(
