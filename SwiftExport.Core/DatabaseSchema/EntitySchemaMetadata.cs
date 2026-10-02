@@ -56,6 +56,8 @@ namespace SwiftExport.Core.Entities.MasterData
     public partial class Customer { }
 
     [DbIndex("UX_Product_Sku", nameof(Product.Sku), IsUnique = true, Filter = "[IsDeleted] = 0")]
+    [DbFreezeColumnOnReference(nameof(Product.Unit), typeof(PurchaseOrderLine), nameof(PurchaseOrderLine.ProductId))]
+    [DbFreezeColumnOnReference(nameof(Product.Unit), typeof(SwiftExport.Core.Entities.Inventory.InventoryLedgerEntry), nameof(SwiftExport.Core.Entities.Inventory.InventoryLedgerEntry.ProductId))]
     [DbIndex("IX_Product_DefaultSupplierId", nameof(Product.DefaultSupplierId), Filter = "[IsDeleted] = 0 AND [DefaultSupplierId] IS NOT NULL")]
     [DbIndex("IX_Product_Master_Color", nameof(Product.ProductMasterId), nameof(Product.ColorId), Filter = "[IsDeleted] = 0")]
     [LogicalReference(nameof(Product.ProductMasterId), typeof(ProductMaster))]

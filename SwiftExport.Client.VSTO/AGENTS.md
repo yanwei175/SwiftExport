@@ -17,4 +17,7 @@
 
 - 普通任务窗格页面统一在 `Hosting/TaskPanes/TaskPaneRegistrar.CreateDefault()` 注册 `TaskPaneConfig`，并在 DI 注册 Scoped View／ViewModel；不为仅做打开接线的页面复制专用 Coordinator。
 - 宽度及初始左／右停靠属于页面配置，不硬编码在 Manager；Manager 统一管理 Scope 和 TaskPaneContext。重复打开复用，× 隐藏保留，失效实例再次访问或插件退出时释放。接入步骤见 `docs/架构与目录说明.md`。
-- 当前销售、采购导入及字段映射设置使用 `ModelessElementHostWindowManager` 的非模态 WinForms＋ElementHost 宿主；销售普通关闭须确认内存草稿，插件退出跳过确认。读取配置设计页通过 `TaskPaneRegistrar` 注册为右侧任务窗格，Ribbon 和销售页共享同一窗口下的页面；× 仅隐藏保留编辑，销毁时释放 Scope。
+- 当前销售、采购导入使用 `ModelessElementHostWindowManager` 的非模态 WinForms＋ElementHost 宿主；普通关闭须确认内存草稿，插件退出跳过确认。地址读取配置设计页通过 `TaskPaneRegistrar` 注册为右侧任务窗格，Ribbon 和导入页共享同一窗口下的页面；× 仅隐藏保留编辑，销毁时释放 Scope。旧 Excel 表头别名映射链路已删除，不得重新注册其 Ribbon、缓存或 API。
+
+- 采购导入已接入地址读取、检验和独立草稿创建；特殊要求使用 Remark，本期不填写 PackagingRequirements，优惠仅记录不计算。销售与采购普通关闭均确认未保存或未知保存结果。
+- 读取配置页复用销售与采购分组，目录来自真实编辑模型特性。业务入口显示已有窗格时可定位分组，页面负责未保存确认，不由 Manager 直接覆盖输入。

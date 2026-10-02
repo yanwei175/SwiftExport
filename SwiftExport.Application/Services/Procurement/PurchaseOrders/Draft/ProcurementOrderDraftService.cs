@@ -18,7 +18,7 @@ using SwiftExport.Core.Interfaces.Procurement;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft;
 
-/// <summary>独立采购草稿的创建与商务保存；公共执行器拥有可串行化事务和成功回执。</summary>
+/// <summary>独立采购草稿创建，以及需求来源与独立采购的草稿保存；公共执行器拥有可串行化事务和成功回执。</summary>
 public sealed class ProcurementOrderDraftService(
     IProcurementOrderDocumentRepository repository, IProcurementReferenceReadRepository references,
     ProcurementConfirmationBuilder confirmation,
@@ -128,7 +128,7 @@ public sealed class ProcurementOrderDraftService(
         return result;
     }
 
-    /// <summary>读取独立采购单，缺失时沿用原有业务阻断结果。</summary>
+    /// <summary>读取草稿操作所需采购头；不存在时阻断操作。</summary>
     private async Task<PurchaseOrderHead> RequireHeadAsync(Guid uid, CancellationToken ct) =>
         await repository.GetHeadAsync(uid, ct) ?? throw new InvalidOperationException("独立采购单不存在。");
 

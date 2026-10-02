@@ -72,10 +72,12 @@ namespace SwiftExport.Client.VSTO.WpfTests
         /// <summary>用实际采购页面验证大尺寸非模态承载、重复激活和关闭释放。</summary>
         private static void CheckPurchaseWindow(Action<bool, string> check)
         {
+            using (var fixture = new SwiftExport.Client.VSTO.Testing.PurchaseImportTestFixture())
+            {
             var services = new ServiceCollection();
             services.AddSingleton(new AddInLog());
             services.AddScoped<ModelessWindowContext>();
-            services.AddScoped<PurchaseOrderImportViewModel>();
+            services.AddScoped<PurchaseOrderImportViewModel>(p => fixture.CreateModel());
             services.AddScoped<PurchaseOrderImportView>();
             services.AddSingleton<ModelessElementHostWindowManager>();
             using (var provider = services.BuildServiceProvider())
@@ -97,6 +99,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 check(model.IsDisposed && !Application.OpenForms.Cast<Form>().Any(item => item.Text == "采购订单导入预览"),
                     "关闭采购窗体释放页面 Scope");
                 manager.Dispose();
+            }
             }
         }
 

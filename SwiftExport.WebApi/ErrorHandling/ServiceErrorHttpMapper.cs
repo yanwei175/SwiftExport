@@ -1,6 +1,5 @@
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Files;
-using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 
 namespace SwiftExport.WebApi.ErrorHandling;
 
@@ -24,7 +23,6 @@ public static class ServiceErrorHttpMapper
             or "SOURCE_NOT_FOUND" or "SOURCE_HEADER_NOT_FOUND" or "SOURCE_DELIVERY_NOT_FOUND"
             or "PRODUCT_NOT_FOUND" or "BOM_NOT_FOUND" or "BOM_CHILD_NOT_FOUND" => 404,
         ServiceErrorCodes.VersionConflict or ServiceErrorCodes.CommandConflict or FileErrorCodes.Conflict
-            or ExcelFieldMappingErrorCodes.DuplicateHeader
             or ServiceErrorCodes.StateBlocked or ServiceErrorCodes.CommandBusy
             or "APPEND_CONCURRENCY_CONFLICT" or "CONCURRENCY_CONFLICT" or "REVISION_CONFLICT"
             or "SOURCE_VERSION_CONFLICT" or "STALE_SOURCE_VERSION" or "SOURCE_DELIVERY_VERSION_CONFLICT"

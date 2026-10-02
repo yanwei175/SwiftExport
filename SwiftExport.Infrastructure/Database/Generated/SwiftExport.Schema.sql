@@ -333,25 +333,6 @@ CREATE TABLE [dbo].[DocumentSequence]
     CONSTRAINT [CK_DocumentSequence_Version] CHECK ([Version] >= 1)
 );
 
-CREATE TABLE [dbo].[ExcelFieldMapping]
-(
-    [Uid] uniqueidentifier NOT NULL,
-    [Version] int NOT NULL CONSTRAINT [DF_ExcelFieldMapping_Version] DEFAULT (1),
-    [IsDeleted] bit NOT NULL CONSTRAINT [DF_ExcelFieldMapping_IsDeleted] DEFAULT (0),
-    [CreatedDate] datetime2(7) NULL,
-    [CreatedBy] nvarchar(500) NULL,
-    [UpdatedDate] datetime2(7) NULL,
-    [UpdatedBy] nvarchar(500) NULL,
-    [GroupCode] nvarchar(40) NOT NULL,
-    [ExcelHeader] nvarchar(200) NOT NULL,
-    [NormalizedHeader] nvarchar(200) NOT NULL,
-    [TargetFieldKey] nvarchar(100) NOT NULL,
-    [IsEnabled] bit NOT NULL CONSTRAINT [DF_ExcelFieldMapping_IsEnabled] DEFAULT (1),
-    [Remark] nvarchar(500) NULL,
-    CONSTRAINT [PK_ExcelFieldMapping] PRIMARY KEY ([Uid]),
-    CONSTRAINT [CK_ExcelFieldMapping_Version] CHECK ([Version] >= 1)
-);
-
 -- 逻辑依赖: [ProfileUid] -> [dbo].[ExcelReadProfile].[Uid]（由 Application 校验）
 CREATE TABLE [dbo].[ExcelReadField]
 (
@@ -1583,8 +1564,6 @@ CREATE UNIQUE INDEX [UX_DemandExecutionLink_CommandItem] ON [dbo].[DemandExecuti
 
 CREATE UNIQUE INDEX [UX_DocumentSequence_Type_Period] ON [dbo].[DocumentSequence] ([DocType], [YearMonth]) WHERE [IsDeleted] = 0;
 
-CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header] ON [dbo].[ExcelFieldMapping] ([GroupCode], [NormalizedHeader]) WHERE [IsDeleted] = 0 AND [NormalizedHeader] <> N'';
-
 CREATE UNIQUE INDEX [UX_ExcelReadField_Profile_Key] ON [dbo].[ExcelReadField] ([ProfileUid], [TargetFieldKey]) WHERE [IsDeleted] = 0;
 
 CREATE UNIQUE INDEX [UX_ExcelReadProfile_Group_Name] ON [dbo].[ExcelReadProfile] ([GroupCode], [ConfigName]) WHERE [IsDeleted] = 0;
@@ -1713,6 +1692,8 @@ EXEC(N'CREATE TRIGGER [dbo].[TR_InventoryLedgerEntry_AppendOnly] ON [dbo].[Inven
 EXEC(N'CREATE TRIGGER [dbo].[TR_PackingListPostingExecution_AppendOnly] ON [dbo].[PackingListPostingExecution] INSTEAD OF UPDATE, DELETE AS BEGIN SET NOCOUNT ON; THROW 53100, N''PackingListPostingExecution 是只追加事实，禁止更新或删除。'', 1; END;');
 
 EXEC(N'CREATE TRIGGER [dbo].[TR_PackingListPostingExecutionLine_AppendOnly] ON [dbo].[PackingListPostingExecutionLine] INSTEAD OF UPDATE, DELETE AS BEGIN SET NOCOUNT ON; THROW 53100, N''PackingListPostingExecutionLine 是只追加事实，禁止更新或删除。'', 1; END;');
+
+EXEC(N'CREATE TRIGGER [dbo].[TR_Product_Unit_FrozenOnReference] ON [dbo].[Product] AFTER UPDATE AS BEGIN SET NOCOUNT ON; IF EXISTS (SELECT 1 FROM inserted i INNER JOIN deleted d ON d.[Uid]=i.[Uid] WHERE EXISTS (SELECT i.[Unit] EXCEPT SELECT d.[Unit]) AND (EXISTS (SELECT 1 FROM [dbo].[InventoryLedgerEntry] r WITH (UPDLOCK,HOLDLOCK) WHERE r.[ProductId]=i.[Uid]) OR EXISTS (SELECT 1 FROM [dbo].[PurchaseOrderLine] r WITH (UPDLOCK,HOLDLOCK) WHERE r.[ProductId]=i.[Uid]))) THROW 53102, N''Product 的 Unit 已被事实引用，禁止修改。'', 1; END;');
 
 EXEC(N'CREATE TRIGGER [dbo].[TR_PurchaseConfirmationLine_AppendOnly] ON [dbo].[PurchaseConfirmationLine] INSTEAD OF UPDATE, DELETE AS BEGIN SET NOCOUNT ON; THROW 53100, N''PurchaseConfirmationLine 是只追加事实，禁止更新或删除。'', 1; END;');
 
@@ -2901,75 +2882,6 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'DocumentSequence',
     @level2type=N'COLUMN', @level2name=N'CurrentNo';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'保存业务分组内一个 Excel 表头别名到目标字段的对应关系；停用且表头为空时表示待配置字段。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'Uid';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'Version';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'软删除标记；为真时业务查询默认不再返回该记录。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'IsDeleted';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录创建时间。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'CreatedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录创建人标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'CreatedBy';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录最后更新时间。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'UpdatedDate';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'记录最后更新人标识。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'UpdatedBy';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'稳定业务分组编码，不随显示名称变化。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'GroupCode';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'管理员录入的原始表头别名；待配置种子行为空字符串。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'ExcelHeader';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'统一规范化表头；空值种子行不进入唯一索引或客户端匹配。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'NormalizedHeader';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'业务分组字段目录中的稳定目标路径。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'TargetFieldKey';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'停用时保留配置，普通读取默认不返回。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'IsEnabled';
-EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'管理员备注，不参与匹配。',
-    @level0type=N'SCHEMA', @level0name=N'dbo',
-    @level1type=N'TABLE', @level1name=N'ExcelFieldMapping',
-    @level2type=N'COLUMN', @level2name=N'Remark';
 EXEC sys.sp_addextendedproperty
     @name=N'MS_Description', @value=N'保存配置内一个目标字段的工作表、起始单元格和读取方式；只能随主配置事务维护。',
     @level0type=N'SCHEMA', @level0name=N'dbo',

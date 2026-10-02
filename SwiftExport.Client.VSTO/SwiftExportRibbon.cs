@@ -41,16 +41,14 @@ namespace SwiftExport.Client.VSTO
         public bool GetSalesImportEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && host.IsAuthenticated; }
         /// <summary>将销售导入交给非模态窗口宿主；回调不读取工作簿或请求网络。</summary>
         public void OnSalesImport(Office.IRibbonControl control) { host?.OpenSalesOrderImport(control); }
-        /// <summary>预览入口沿用已验证身份和宿主就绪门禁。</summary>
+        /// <summary>采购导入入口沿用已验证身份和宿主就绪门禁，创建权限由页面与后端校验。</summary>
         public bool GetPurchaseImportPreviewEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && host.IsAuthenticated; }
-        /// <summary>将采购页面布局预览交给非模态 WinForms 窗口宿主。</summary>
+        /// <summary>将采购导入交给非模态 WinForms 宿主；保留原回调名称与 XML 接线。</summary>
         public void OnPurchaseImportPreview(Office.IRibbonControl control) { host?.OpenPurchaseOrderImportPreview(control); }
-        /// <summary>仅有字段映射维护权限的用户可见设置入口。</summary>
-        public bool GetFieldMappingSettingsVisible(Office.IRibbonControl control) { return host?.CanManageExcelFieldMappings == true; }
+        /// <summary>仅有读取配置维护权限的用户可见设置入口。</summary>
+        public bool GetReadProfileSettingsVisible(Office.IRibbonControl control) { return host?.CanManageExcelReadProfiles == true; }
         /// <summary>登录恢复和切换期间禁止打开设置页。</summary>
-        public bool GetFieldMappingSettingsEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && GetFieldMappingSettingsVisible(control); }
-        /// <summary>打开当前 Excel 窗口的字段映射任务窗格。</summary>
-        public void OnExcelFieldMappingSettings(Office.IRibbonControl control) { host?.OpenExcelFieldMappingSettings(control); }
+        public bool GetReadProfileSettingsEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && GetReadProfileSettingsVisible(control); }
         /// <summary>复用配置维护权限门禁，直接从 Ribbon 切换读取配置侧栏。</summary>
         public void OnExcelReadProfile(Office.IRibbonControl control) { host?.OpenExcelReadProfile(control); }
         private void Host_Changed(object sender, EventArgs args) { Refresh(); }
@@ -58,7 +56,7 @@ namespace SwiftExport.Client.VSTO
         private void Refresh()
         {
             if (ribbon == null) return;
-            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelFieldMappingSettings", "excelReadProfile" }) ribbon.InvalidateControl(id); }
+            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelReadProfile" }) ribbon.InvalidateControl(id); }
             catch (COMException) { ribbon = null; }
         }
         /// <summary>断开宿主事件与 Ribbon 引用。</summary>

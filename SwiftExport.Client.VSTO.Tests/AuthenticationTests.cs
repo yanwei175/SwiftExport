@@ -114,7 +114,10 @@ namespace SwiftExport.Client.VSTO.Tests
                 StringAssert.Contains(source, attribute.Value + "(");
             var readProfile = xml.Descendants().Single(element => (string)element.Attribute("id") == "excelReadProfile");
             Assert.AreEqual("OnExcelReadProfile", (string)readProfile.Attribute("onAction"));
-            Assert.AreEqual("GetFieldMappingSettingsVisible", (string)readProfile.Attribute("getVisible"));
+            Assert.AreEqual("GetReadProfileSettingsVisible", (string)readProfile.Attribute("getVisible"));
+            Assert.AreEqual("GetReadProfileSettingsEnabled", (string)readProfile.Attribute("getEnabled"));
+            Assert.IsFalse(ids.Contains("excelFieldMappingSettings"));
+            Assert.IsFalse(source.Contains("OnExcelFieldMappingSettings"));
             Assert.IsTrue(source.Contains("ribbon.InvalidateControl(id)"));
             Assert.IsTrue(source.Contains("\"excelReadProfile\""));
 

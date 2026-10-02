@@ -56,17 +56,11 @@
     <Compile Include="../SwiftExport.Client.VSTO.Tests/ImportTestFixture.cs" Link="ImportTestFixture.cs"/>
     <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.cs" Link="Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.cs"/>
     <Compile Include="../SwiftExport.Client.VSTO/Authentication/CurrentUserService.cs" Link="Production/CurrentUserService.cs"/>
-    <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelFieldMappings/IExcelFieldMappingPrompt.cs" Link="Features/Settings/ExcelFieldMappings/IExcelFieldMappingPrompt.cs"/>
-    <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelFieldMappings/Models/ExcelFieldMappingRow.cs" Link="Features/Settings/ExcelFieldMappings/Models/ExcelFieldMappingRow.cs"/>
-    <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelFieldMappings/ViewModels/ExcelFieldMappingViewModel.cs" Link="Features/Settings/ExcelFieldMappings/ViewModels/ExcelFieldMappingViewModel.cs"/>
-    <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelFieldMappings/Views/ExcelFieldMappingView.xaml.cs" Link="Features/Settings/ExcelFieldMappings/Views/ExcelFieldMappingView.xaml.cs"/>
-    <Page Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelFieldMappings/Views/ExcelFieldMappingView.xaml" Link="Features/Settings/ExcelFieldMappings/Views/ExcelFieldMappingView.xaml"/>
     <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml.cs" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml.cs"/>
     <Page Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderImportView.xaml"/>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../SwiftExport.Client.VSTO/Services/ExcelImport/*.cs" LinkBase="Production/ExcelImport"/>
-    <Compile Include="../SwiftExport.Client.VSTO/Excel/Reading/ExcelRangeSnapshot.cs" LinkBase="Production/Excel"/>
     <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Services/*.cs" LinkBase="Production/Import/Services"/>
   </ItemGroup>
  <ItemGroup>
@@ -78,4 +72,7 @@
  <Page Include="../SwiftExport.Client.VSTO/Resources/Controls/ExcelCellAddressBox.xaml" Link="Resources/Controls/ExcelCellAddressBox.xaml"/>
  </ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO.Tests/AddressReadTestDoubles.cs" Link="AddressReadTestDoubles.cs"/></ItemGroup>
+ <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Models/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Services/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Addresses.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Submission.cs" LinkBase="Production/PurchaseImport"/></ItemGroup>
+ <ItemGroup><Compile Include="../SwiftExport.Client.VSTO.Tests/PurchaseImportTestFixture.cs" Link="PurchaseImportTestFixture.cs"/></ItemGroup>
+ <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Api/ApiClientRegistration.cs;../SwiftExport.Client.VSTO/Api/AuthTokenHandler.cs;../SwiftExport.Client.VSTO/Authentication/IAuthGateway.cs" LinkBase="Production/PurchaseHttp"/></ItemGroup>
 </Project>

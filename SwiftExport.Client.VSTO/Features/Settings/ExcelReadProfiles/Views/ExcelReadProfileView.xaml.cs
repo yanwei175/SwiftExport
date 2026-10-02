@@ -14,6 +14,22 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Views
         { InitializeComponent(); this.model = model; DataContext = model; Loaded += OnLoaded; }
         /// <summary>首次打开定位导入页配置。</summary>
         public void SetInitialProfile(Guid? uid) => model.SetInitialProfile(uid);
+        /// <summary>导入页打开对应业务组，受控切换保留取消时的原编辑。</summary>
+        public async void OpenGroup(string groupCode, Guid? uid)
+        {
+            if (model == null) return;
+            try { await model.SelectGroupAsync(groupCode, uid); }
+            catch (OperationCanceledException) { }
+        }
+        // 下拉变更不能直接写分组，否则取消确认时会丢失原配置。
+        private async void GroupChanged(object sender, SelectionChangedEventArgs args)
+        {
+            if (model == null || selecting || args.AddedItems.Count == 0 || model.IsBusy) return;
+            if (!(GroupSelector.SelectedValue is string code)) return;
+            selecting = true;
+            try { await model.SelectGroupAsync(code); GroupSelector.SelectedValue = model.CurrentGroupCode; }
+            finally { selecting = false; }
+        }
         /// <summary>供销毁页面的宿主确认未保存修改；侧栏 × 仅隐藏，不销毁。</summary>
         public bool CanClose() => model.CanClose();
         private async void OnLoaded(object sender, RoutedEventArgs args) { await model.InitializeAsync(); }

@@ -69,7 +69,7 @@ public sealed partial class PurchaseOrderHead : BaseEntity
     /// <summary>形成采购单的来源单号快照；独立采购没有来源单据时为空。</summary>
     public string? DemandSourceNo { get; set; }
 
-    /// <summary>创建请求 Uid；旧链用于需求转换，新链对应独立创建命令。</summary>
+    /// <summary>创建请求 Uid；记录需求转采购或独立采购创建请求的身份。</summary>
     public Guid ExecutionRequestId { get; set; }
 
     /// <summary>业务员名称快照。</summary>

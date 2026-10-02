@@ -19,10 +19,6 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["AuthController.ResetUserPassword"] = PermissionKeys.SystemUsersManage,
         ["AuthController.GetUsers"] = PermissionKeys.SystemUsersView,
         ["ExcelReadProfileController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
-        ["ExcelFieldMappingController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
-        ["ExcelFieldMappingController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
-        ["ExcelFieldMappingController.SaveGroupAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
-        ["ExcelFieldMappingController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelReadProfileController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelReadProfileController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["CustomerProductController.GetById"] = PermissionKeys.CustomersProductsView,
@@ -274,7 +270,6 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
     private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
     {
         "ExcelReadProfileController.ListAsync",
-        "ExcelFieldMappingController.GetMappingsAsync",
         "ExcelReadProfileController.GetAsync"
     };
 

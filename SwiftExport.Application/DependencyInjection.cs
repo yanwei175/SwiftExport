@@ -2,13 +2,11 @@
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Application.Interfaces.Systems.ExchangeRates;
-using SwiftExport.Application.Interfaces.Systems.ExcelFieldMappings;
 using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Application.Services.Systems.Currencies;
 using SwiftExport.Application.Services.Systems.Dictionaries.Data;
 using SwiftExport.Application.Services.Systems.Dictionaries.Types;
 using SwiftExport.Application.Services.Systems.ExchangeRates;
-using SwiftExport.Application.Services.Systems.ExcelFieldMappings;
 using SwiftExport.Application.Services.Systems.Numbering;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
@@ -177,8 +175,6 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
-        services.AddScoped<IExcelFieldMappingService, ExcelFieldMappingService>();
-        services.AddScoped<IExcelFieldMappingBatchService, ExcelFieldMappingBatchService>();
         services.AddScoped<ISalesOrderQueryService, SalesOrderQueryService>();
         services.AddScoped<ISalesFulfillmentQueryService, SalesFulfillmentQueryService>();
         services.AddScoped<ISalesOrderDraftService, SalesOrderDraftService>();

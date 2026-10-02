@@ -6,7 +6,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Procurement;
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Query;
 
-/// <summary>采购管理查询编排，不调用旧详情，也不附加跟进、库存或追溯集合。</summary>
+/// <summary>采购列表与订单详情查询编排，统一读取权限；跟进、库存和追溯集合由各自查询用例提供。</summary>
 public sealed class ProcurementOrderQueryService(ProcurementOrderReadSupport reads,
     IProcurementOrderQueryRepository queries)
     : IProcurementOrderQueryService

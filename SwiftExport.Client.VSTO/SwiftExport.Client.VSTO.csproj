@@ -283,13 +283,6 @@
     <Compile Include="Bootstrapper\AddInBootstrapper.cs" />
     <Compile Include="Bootstrapper\ApiOptions.cs" />
     <Compile Include="Features\Sales\Orders\ISalesOrderImportPrompt.cs" />
-    <Compile Include="Features\Settings\ExcelFieldMappings\IExcelFieldMappingPrompt.cs" />
-    <Compile Include="Features\Settings\ExcelFieldMappings\Models\ExcelFieldMappingRow.cs" />
-    <Compile Include="Features\Settings\ExcelFieldMappings\ViewModels\ExcelFieldMappingViewModel.cs" />
-    <Compile Include="Features\Settings\ExcelFieldMappings\Views\ExcelFieldMappingPrompt.cs" />
-    <Compile Include="Features\Settings\ExcelFieldMappings\Views\ExcelFieldMappingView.xaml.cs">
-      <DependentUpon>ExcelFieldMappingView.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Hosting\TaskPanes\TaskPaneConfig.cs" />
     <Compile Include="Hosting\TaskPanes\TaskPaneRegistrar.cs" />
     <Compile Include="Hosting\TaskPanes\TaskPaneContext.cs" />
@@ -371,11 +364,6 @@
     <Compile Include="Mvvm\ViewModelBase.cs" />
     <Compile Include="Mvvm\ViewModelBaseEx.cs" />
     <Compile Include="Excel\Context\ExcelContextService.cs" />
-    <Compile Include="Excel\Reading\ExcelRangeSnapshot.cs" />
-    <Compile Include="Excel\Reading\ExcelRangeReader.cs" />
-    <Compile Include="Features\Sales\Orders\Services\SalesOrderExcelParseResult.cs" />
-    <Compile Include="Features\Sales\Orders\Services\SalesOrderExcelParser.cs" />
-    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Excel.cs" />
     <Compile Include="Diagnostics\AddInLog.cs" />
     <Compile Include="UI\Themes\ThemeService.cs" />
     <Compile Include="Resources\Converters\FirstValidationErrorConverter.cs" />
@@ -388,10 +376,6 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderImportView.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Features\Settings\ExcelFieldMappings\Views\ExcelFieldMappingView.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -420,6 +404,12 @@
     <Page Include="Features\Settings\ExcelReadProfiles\Views\ExcelReadProfileView.xaml"><Generator>MSBuild:Compile</Generator></Page>
   </ItemGroup>
   <!-- Include the build rules for a C# project. -->
+  <ItemGroup>
+    <Compile Include="Features\Procurement\PurchaseOrders\Models\*.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\Services\*.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Addresses.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Submission.cs" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->
   <Import Project="$(VSToolsPath)\OfficeTools\Microsoft.VisualStudio.Tools.Office.targets" Condition="'$(VSToolsPath)' != ''" />

@@ -8,12 +8,11 @@
    <button id="logout" label="退出登录" onAction="OnLogout" getVisible="GetAccountVisible" getEnabled="GetAccountEnabled"/>
   </group>
   <group id="settingsGroup" label="设置">
-   <button id="excelReadProfile" label="Excel 读取配置" onAction="OnExcelReadProfile" getVisible="GetFieldMappingSettingsVisible" getEnabled="GetFieldMappingSettingsEnabled" screentip="在右侧栏设置读取地址，可同时操作工作表"/>
-   <button id="excelFieldMappingSettings" label="Excel 字段映射" onAction="OnExcelFieldMappingSettings" getVisible="GetFieldMappingSettingsVisible" getEnabled="GetFieldMappingSettingsEnabled"/>
+   <button id="excelReadProfile" label="Excel 读取配置" onAction="OnExcelReadProfile" getVisible="GetReadProfileSettingsVisible" getEnabled="GetReadProfileSettingsEnabled" screentip="在右侧栏设置读取地址，可同时操作工作表"/>
   </group>
   <group id="importGroup" label="数据导入">
    <button id="salesOrderImport" label="销售订单导入" onAction="OnSalesImport" getEnabled="GetSalesImportEnabled" screentip="本地编辑预览，暂不保存至服务器"/>
-   <button id="purchaseOrderImportPreview" label="采购订单导入预览" onAction="OnPurchaseImportPreview" getEnabled="GetPurchaseImportPreviewEnabled" screentip="查看采购导入页面布局，业务操作待审批"/>
+   <button id="purchaseOrderImportPreview" label="采购订单导入" onAction="OnPurchaseImportPreview" getEnabled="GetPurchaseImportPreviewEnabled" screentip="按地址读取、检验后创建无来源采购草稿"/>
   </group>
  </tab></tabs></ribbon>
 </customUI>

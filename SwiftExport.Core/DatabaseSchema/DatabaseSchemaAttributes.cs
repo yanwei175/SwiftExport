@@ -114,3 +114,17 @@ public sealed class DbImmutableColumnsAttribute(params string[] columns) : Attri
     /// <summary>成立后不可修改的实体属性名。</summary>
     public IReadOnlyList<string> Columns { get; } = columns;
 }
+
+/// <summary>声明指定列在被事实表引用后冻结；保留历史引用，不以软删除或当前余额放行。</summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+public sealed class DbFreezeColumnOnReferenceAttribute(string column, Type referencingEntity, string referencingColumn) : Attribute
+{
+    /// <summary>需要冻结的当前实体属性名。</summary>
+    public string Column { get; } = column;
+
+    /// <summary>持有历史引用的事实实体类型。</summary>
+    public Type ReferencingEntity { get; } = referencingEntity;
+
+    /// <summary>事实实体中指向当前实体 Uid 的属性名。</summary>
+    public string ReferencingColumn { get; } = referencingColumn;
+}

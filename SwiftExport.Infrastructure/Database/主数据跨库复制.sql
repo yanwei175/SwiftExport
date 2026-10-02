@@ -66,7 +66,6 @@ VALUES
     (60,  N'SysDicCurrencyExchange'),
     (70,  N'SysDictType'),
     (80,  N'SysDictData'),
-    (85,  N'ExcelFieldMapping'),
     (90,  N'SysRoles'),
     (100, N'SysUser'),
     (120, N'ProductMaster'),

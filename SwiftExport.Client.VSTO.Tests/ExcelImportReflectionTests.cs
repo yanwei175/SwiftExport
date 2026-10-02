@@ -5,7 +5,6 @@ using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Models;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
-using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 
 namespace SwiftExport.Client.VSTO.Tests
 {
@@ -18,8 +17,8 @@ namespace SwiftExport.Client.VSTO.Tests
         public void SalesDirectoryComesFromModelAttributes()
         {
             var registry = ExcelImportRegistry.CreateDefault(); var definition = registry.Find(" salesorder ");
-            Assert.AreEqual("SalesOrder", definition.GroupCode); Assert.AreEqual(1, registry.Groups.Count);
-            Assert.IsNull(registry.Find("PurchaseOrder")); Assert.IsNull(registry.Find("PackingList"));
+            Assert.AreEqual("SalesOrder", definition.GroupCode); Assert.AreEqual(2, registry.Groups.Count);
+            Assert.AreEqual("PurchaseOrder", registry.Find("PurchaseOrder").GroupCode); Assert.IsNull(registry.Find("PackingList"));
             var existingKeys = new[] { "Header.InvoiceNo", "Header.CustomerPoNo", "Header.ShippedBy", "Header.Currency", "Header.ExchangeRate",
                 "Header.ShipToName", "Header.ShipToAddress", "Header.ShipToPhone", "Header.Incoterm", "Header.IncotermLocation", "Header.Remark",
                 "Header.OrderDate", "Header.DeliveryDate", "Header.Etd", "Header.Eta", "Line.CustomerSku", "Line.DescriptionEn", "Line.ColorNameEn",
@@ -88,35 +87,6 @@ namespace SwiftExport.Client.VSTO.Tests
             Assert.ThrowsExactly<InvalidOperationException>(() => new ExcelImportDefinition("Test", "测试", typeof(PrivateSetterHeader), typeof(TestLine)));
             Assert.ThrowsExactly<InvalidOperationException>(() => new ExcelImportDefinition("Test", "测试", typeof(DuplicateHeader), typeof(TestLine)));
         }
-
-        /// <summary>使用缓存别名配置匹配多行／全角表头，禁止双源覆盖和配置越界，不修改缓存DTO。</summary>
-        [TestMethod]
-        public void CachedMappingsResolveHeadersAndRejectConflicts()
-        {
-            var definition = ExcelImportRegistry.CreateDefault().Find("SalesOrder"); var line = SalesOrderImportLine.CreateForImport(); string error;
-            var sku = Mapping("Customer Code", "Line.CustomerSku");
-            var quantity = Mapping("Quantity\n(PCS)", "Line.Qty");
-            var disabled = Mapping("Uid", "Line.Uid"); disabled.IsEnabled = false;
-            var mappings = new[] { sku, quantity, disabled };
-            Assert.IsTrue(definition.TryAssignMappedValues(line, mappings,
-                new[] { Pair("Ｃｕｓｔｏｍｅｒ Code", "AQ4101BG"), Pair(" Quantity (PCS) ", 64d), Pair("Photo", "ignored") }, CultureInfo.InvariantCulture, out error));
-            Assert.AreEqual("AQ4101BG", line.CustomerSku); Assert.AreEqual(64m, line.Qty);
-            Assert.AreEqual("Quantity\n(PCS)", quantity.ExcelHeader); Assert.AreEqual("Line.Qty", quantity.TargetFieldKey);
-            var alias = Mapping("数量", "Line.Qty");
-            Assert.IsFalse(definition.TryAssignMappedValues(line, new[] { quantity, alias },
-                new[] { Pair("Quantity (PCS)", "32"), Pair("数量", "99") }, CultureInfo.InvariantCulture, out error));
-            Assert.AreEqual(64m, line.Qty);
-            Assert.IsFalse(definition.TryAssignMappedValues(line, new[] { quantity, Mapping("quantity (pcs)", "Line.Qty") },
-                new[] { Pair("Quantity (PCS)", "32") }, CultureInfo.InvariantCulture, out error));
-            disabled.IsEnabled = true;
-            Assert.IsFalse(definition.TryAssignMappedValues(line, mappings, new[] { Pair("Uid", Guid.NewGuid()) }, CultureInfo.InvariantCulture, out error));
-            Assert.IsNull(line.ProductId);
-            disabled.IsEnabled = false; quantity.GroupCode = "PurchaseOrder";
-            Assert.IsFalse(definition.TryAssignMappedValues(line, mappings, new[] { Pair("Quantity (PCS)", "32") }, CultureInfo.InvariantCulture, out error));
-        }
-
-        private static ExcelFieldMappingDto Mapping(string header, string field) => new ExcelFieldMappingDto
-        { GroupCode = "SalesOrder", ExcelHeader = header, TargetFieldKey = field, IsEnabled = true };
 
         private static KeyValuePair<string, object> Pair(string key, object value) => new KeyValuePair<string, object>(key, value);
         /// <summary>模拟后续模型中新加的可导入属性，无额外字段目录声明。</summary>

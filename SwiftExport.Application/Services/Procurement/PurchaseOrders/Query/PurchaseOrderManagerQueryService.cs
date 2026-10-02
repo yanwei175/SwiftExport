@@ -5,7 +5,7 @@ using SwiftExport.Core.Interfaces.Procurement;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Query;
 
-/// <summary>编排采购管理页新链查询，统一执行读取权限与输入边界校验。</summary>
+/// <summary>编排采购管理页列表与明细查询，统一执行读取权限与输入边界校验。</summary>
 public sealed class PurchaseOrderManagerQueryService(
     ProcurementOrderReadSupport reads,
     IPurchaseOrderManagerQueryRepository repository) : IPurchaseOrderManagerQueryService

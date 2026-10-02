@@ -33,7 +33,7 @@ namespace SwiftExport.Client.VSTO.Tests
         {
             Assert.IsFalse(typeof(IReferenceDataCacheService).GetMethods().Any(method => method.Name.Contains("ExcelFieldMappings")));
             Assert.IsFalse(typeof(ReferenceDataCacheService).GetConstructors().SelectMany(constructor => constructor.GetParameters())
-                .Any(parameter => parameter.ParameterType == typeof(IExcelFieldMappingApi)));
+                .Any(parameter => parameter.ParameterType.Name == "IExcelFieldMappingApi"));
             using (var f = new Fixture())
             {
                 Assert.IsTrue((await f.Cache.EnsureLoadedAsync()).Success);

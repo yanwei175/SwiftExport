@@ -31,7 +31,7 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
         /// <summary>按示例点击切换显示／隐藏；复用时不创建 Scope、不覆盖用户调整的尺寸。</summary>
         public void TogglePane(ExcelInterop.Window window, string key) => OpenPane(window, key, true, null);
 
-        /// <summary>显示指定页面，已存在时保持可见；初始化回调仅在首次创建时执行，避免覆盖未保存内容。</summary>
+        /// <summary>显示指定页面并转交显式定位请求；复用页面负责确认分组或配置切换，不重建 Scope。</summary>
         public void ShowPane(ExcelInterop.Window window, string key, Action<System.Windows.UIElement> initialize = null)
             => OpenPane(window, key, false, initialize);
 
@@ -62,6 +62,8 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
                     }
                     if (existing != null)
                     {
+                        // 显式显示可定位当前业务组；切换和丢弃确认仍由页面负责，Toggle 不重置内容。
+                        initialize?.Invoke(existing.Content);
                         existing.Pane.Visible = toggle ? !visible : true;
                         return;
                     }
@@ -79,7 +81,7 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
                 // 留出工作表操作空间；创建后不再覆盖用户调整的宽度和停靠位置。
                 pane.Width = config.DefaultWidth;
                 pane.Visible = true;
-                sessions.Add(instanceKey, new TaskPaneSession(pane, host, scope));
+                sessions.Add(instanceKey, new TaskPaneSession(pane, host, scope, content));
                 host = null; pane = null; scope = null;
             }
             finally
@@ -116,8 +118,9 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
         private readonly IDisposable scope;
         private bool disposed;
         internal CustomTaskPane Pane { get; }
-        internal TaskPaneSession(CustomTaskPane pane, TaskPaneHostControl host, IDisposable scope)
-        { Pane = pane; this.host = host; this.scope = scope; }
+        internal System.Windows.UIElement Content { get; }
+        internal TaskPaneSession(CustomTaskPane pane, TaskPaneHostControl host, IDisposable scope, System.Windows.UIElement content)
+        { Pane = pane; this.host = host; this.scope = scope; Content = content; }
         /// <summary>即使宿主控件释放失败也释放 Scope，解绑页面事件并取消查询。</summary>
         public void Dispose()
         {

@@ -34,16 +34,6 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     using (var profileHost = new WpfRuntimeHost()) { profileHost.Initialize(); ReadProfilePageChecks.Run(Check); }
                     Console.WriteLine("PASS Read profile: " + checks + " assertions"); return 0;
                 }
-                if (args.Length == 1 && args[0] == "--field-mapping-only")
-                {
-                    using (var settingsHost = new WpfRuntimeHost())
-                    {
-                        settingsHost.Initialize();
-                        FieldMappingPageChecks.Run(Check);
-                    }
-                    Console.WriteLine("PASS Field mapping: " + checks + " assertions");
-                    return 0;
-                }
                 if (args.Length == 1 && args[0] == "--modeless-host-only")
                 {
                     using (var settingsHost = new WpfRuntimeHost())

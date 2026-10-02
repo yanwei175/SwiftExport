@@ -6,7 +6,7 @@
 
 配置全员共享，已登录用户可读取；创建、修改和删除复用现有 `System.ExcelFieldMapping.Manage` 权限。此模块不修改销售、采购单据的业务保存规则。
 
-旧 `ExcelFieldMapping` 保存“表头别名到字段”的关系，与地址定位语义不同；本期保留旧表、API 和调用方。客户端接入新规则并完成验证后，另行移除旧入口。不能把旧表头文字直接转换成单元格地址。
+旧 `ExcelFieldMapping` 的“表头别名到字段”链路已于 2026-10-02 删除：Controller、Service、Repository、Entity、Contracts、VSTO 设置页、旧解析器与 Ribbon 入口均退出。当前仅使用 ExcelReadProfile／ExcelReadField 地址配置，反射模型字段目录仍是受控赋值依据。保留 `System.ExcelFieldMapping.Manage` 权限键兼容现有授权，显示名称改为“Excel读取配置维护”。生成基线不再创建旧表；本次未删除运行数据库的旧表或数据。
 
 ## 实体与数据库
 
@@ -118,4 +118,4 @@ dotnet test .\SwiftExport.Application.Tests\SwiftExport.Application.Tests.csproj
 
 ## 前端旧缓存退出（2026-10-01）
 
-旧表头别名模块保留并标注淘汰。VSTO 的 ReferenceDataCacheService 已移除旧映射；历史页面直接查询旧 API，保存不刷新共享缓存。新地址配置的前端读取尚未接入，本次没有数据库变更。
+旧表头别名模块已删除。VSTO 的 ReferenceDataCacheService 不包含旧映射；销售、采购已接入地址配置读取。上文新旧模块联合测试数字属于历史阶段，不代表删除后的测试集；当前验证见 VSTO 基础设施验收清单。

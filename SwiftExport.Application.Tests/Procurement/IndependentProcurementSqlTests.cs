@@ -76,7 +76,15 @@ public sealed class IndependentProcurementSqlTests
         var orderId = created.Data.PurchaseOrderId;
         var lineId = created.Data.Lines.Single().PurchaseOrderLineId;
 
-        // 通过当前实体生成基线建立事实数据；草稿与已过账行用于验证收货汇总边界。
+        // 查询按收货事实展示进度；真正形成正式收货之前仍必须通过采购确认。
+        var pending = await Db.InScopeAsync(async provider =>
+            (await provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>().SearchAsync(new())).Items.Single());
+        Assert.AreEqual(0m, pending.ReceiptProgress);
+        var confirmation = await Db.ContextAsync(orderId);
+        Assert.IsTrue(confirmation.Success, confirmation.Message);
+        Assert.IsTrue((await Db.ConfirmAsync(orderId, ConfirmCommand(confirmation.Data!))).Success);
+
+        // 合法正式收货必须保存单位快照；缺失单位时查询应提示核实，不能冒充有效进度。
         await Db.ExecuteAsync("""
             INSERT dbo.DemandExecutionLink
                 (Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
@@ -88,9 +96,9 @@ public sealed class IndependentProcurementSqlTests
             INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)
             VALUES(@Draft,N'IR-DRAFT',10,0,0,0,@WarehouseId,GETDATE()),
                   (@PostedA,N'IR-POSTED-A',10,0,0,1,@WarehouseId,GETDATE());
-            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,Quantity,SourceLineId)
-            VALUES(NEWID(),@Draft,1,@ProductId,N'TEST-FG',99,@LineId),
-                  (NEWID(),@PostedA,1,@ProductId,N'TEST-FG',6,@LineId);
+            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)
+            VALUES(NEWID(),@Draft,1,@ProductId,N'TEST-FG',N'PCS',99,@LineId),
+                  (NEWID(),@PostedA,1,@ProductId,N'TEST-FG',N'PCS',6,@LineId);
             """, new { OrderId = orderId, LineId = lineId, WarehouseId = Db.ReceiptSiteId, ProductId = Db.ProductId });
 
         var withMultipleLinks = await Db.InScopeAsync(async provider =>
@@ -102,6 +110,12 @@ public sealed class IndependentProcurementSqlTests
         });
         Assert.AreEqual(6m, withMultipleLinks.line.ReceivedQty);
         Assert.AreEqual(0.6m, withMultipleLinks.head.ReceiptProgress);
+
+        await Db.ExecuteAsync("UPDATE dbo.InboundDocumentLine SET UnitSnapshot=NULL WHERE SourceLineId=@LineId", new { LineId = lineId });
+        var invalidUnit = await Db.InScopeAsync(async provider =>
+            (await provider.GetRequiredService<IPurchaseOrderManagerQueryRepository>().SearchAsync(new())).Items.Single());
+        Assert.IsNull(invalidUnit.ReceiptProgress);
+        await Db.ExecuteAsync("UPDATE dbo.InboundDocumentLine SET UnitSnapshot=N'PCS' WHERE SourceLineId=@LineId", new { LineId = lineId });
 
         await Db.ExecuteAsync("DELETE FROM dbo.DemandExecutionLink WHERE TargetHeadId=@OrderId;", new { OrderId = orderId });
         var noLinkReceipt = await Db.InScopeAsync(async provider =>
@@ -442,10 +456,41 @@ public sealed class IndependentProcurementSqlTests
     [TestMethod]
     public async Task ReferencedProductUnitCannotBeChanged()
     {
+        // 未引用时允许纠正单位；冻结防线不能把所有产品单位无条件设为不可变。
+        await Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@uid", new { uid = Db.ProductId });
+        Assert.AreEqual("KG", await Db.ScalarAsync<string>("SELECT Unit FROM dbo.Product WHERE Uid=@uid", new { uid = Db.ProductId }));
+        await Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'PCS' WHERE Uid=@uid", new { uid = Db.ProductId });
         var created = await Db.CreateAsync();
         Assert.IsTrue(created.Success, created.Message);
-        await Assert.ThrowsAsync<SqlException>(() => Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@uid", new { uid = Db.ProductId }));
+        Assert.AreEqual(1, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM sys.triggers WHERE name=N'TR_Product_Unit_FrozenOnReference' AND is_disabled=0"));
+        var error = await Assert.ThrowsAsync<SqlException>(() => Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@uid", new { uid = Db.ProductId }));
+        Assert.AreEqual(53102, error.Number);
         Assert.AreEqual("PCS", await Db.ScalarAsync<string>("SELECT Unit FROM dbo.Product WHERE Uid=@uid", new { uid = Db.ProductId }));
+        await Assert.ThrowsAsync<SqlException>(() => Db.ExecuteAsync("UPDATE dbo.Product SET Unit=NULL WHERE Uid=@uid", new { uid = Db.ProductId }));
+        await Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'PCS' WHERE Uid=@uid", new { uid = Db.ProductId });
+        Assert.AreEqual("PCS", await Db.ScalarAsync<string>("SELECT UnitSnapshot FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid", new { uid = created.Data!.PurchaseOrderId }));
+        // 多行更新中任一产品已冻结时整条语句回滚，不能留下部分单位变更。
+        await Assert.ThrowsAsync<SqlException>(() => Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'KG' WHERE Uid IN (@ProductId,@ComponentId)", new { Db.ProductId, Db.ComponentId }));
+        Assert.AreEqual(2, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.Product WHERE Unit=N'PCS'"));
+    }
+
+    /// <summary>无采购引用但已有正式库存流水的产品也冻结单位；库存归零不解除历史单位边界。</summary>
+    [TestMethod]
+    public async Task InventoryHistoryFreezesProductUnitEvenWhenBalanceIsZero()
+    {
+        await Db.ExecuteAsync("""
+            INSERT dbo.InventoryLedgerEntry(Uid,Sequence,WarehouseSiteId,ProductId,TransactionType,QuantityDelta,BalanceAfter,
+                SourceDocumentType,CommandId,CommandItemId,OccurredDate,UnitSnapshot)
+            VALUES(NEWID(),NEXT VALUE FOR dbo.InventoryLedgerSequence,@WarehouseId,@ProductId,0,5,5,N'TEST',NEWID(),NEWID(),GETDATE(),N'PCS'),
+                  (NEWID(),NEXT VALUE FOR dbo.InventoryLedgerSequence,@WarehouseId,@ProductId,0,-5,0,N'TEST',NEWID(),NEWID(),GETDATE(),N'PCS');
+            INSERT dbo.InventoryBalance(Uid,WarehouseSiteId,ProductId,OnHandQty,LastLedgerSequence,UnitSnapshot)
+            VALUES(NEWID(),@WarehouseId,@ProductId,0,2,N'PCS');
+            """, new { WarehouseId = Db.ReceiptSiteId, Db.ProductId });
+        Assert.AreEqual(0, await Db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine"));
+        Assert.AreEqual(0m, await Db.ScalarAsync<decimal>("SELECT OnHandQty FROM dbo.InventoryBalance WHERE ProductId=@ProductId", new { Db.ProductId }));
+        var error = await Assert.ThrowsAsync<SqlException>(() => Db.ExecuteAsync("UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@ProductId", new { Db.ProductId }));
+        Assert.AreEqual(53102, error.Number);
+        Assert.AreEqual("PCS", await Db.ScalarAsync<string>("SELECT Unit FROM dbo.Product WHERE Uid=@ProductId", new { Db.ProductId }));
     }
 
     /// <summary>草稿形成后改变产品物料角色，当前结构上下文和正式确认都拒绝身份含义漂移。</summary>

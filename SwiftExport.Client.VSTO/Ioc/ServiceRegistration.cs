@@ -21,12 +21,9 @@ using SwiftExport.Client.VSTO.Features.Sales.Orders.Views;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
-using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
 using SwiftExport.Client.VSTO.Excel.Reading;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Services;
-using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.ViewModels;
-using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Views;
 
 namespace SwiftExport.Client.VSTO.Ioc
 {
@@ -40,8 +37,6 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton(log);
             services.AddSingleton<IUiDispatcher>(dispatcher);
             services.AddSingleton<IExcelDispatcher>(dispatcher);
-            services.AddSingleton<IExcelRangeReader>(new ExcelRangeReader(application, dispatcher));
-            services.AddSingleton<SalesOrderExcelParser>();
             services.AddSingleton<IExcelAddressReader>(new ExcelAddressReader(application, dispatcher));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IExcelReadProfileApi>());
             services.AddSingleton<ExcelReadProfileService>();
@@ -62,7 +57,6 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISysDicCurrencyApi>("api/SysDicCurrency"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISysDictTypeApi>("api/SysDictType"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISysDictDataApi>("api/SysDictData"));
-            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IExcelFieldMappingApi>());
             services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
             services.AddSingleton(ExcelImportRegistry.CreateDefault());
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISalesOrderDetailApi>("api/sales-orders/detail"));
@@ -71,15 +65,13 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddScoped<SalesOrderImportPrompt>();
             services.AddScoped<ISalesOrderImportPrompt>(p => p.GetRequiredService<SalesOrderImportPrompt>());
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.ForExcel.IForExcelSalesOrderApi>("api/for-excel/sales-orders"));
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.ForExcel.IForExcelPurchaseOrderApi>("api/for-excel/purchase-orders"));
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.Procurement.IProcurementOrderApi>("api/procurement/orders"));
             services.AddScoped<SalesOrderImportViewModel>();
             services.AddScoped<SalesOrderImportView>();
             services.AddScoped<PurchaseOrderImportViewModel>();
             services.AddScoped<PurchaseOrderImportView>();
-            services.AddScoped<ExcelFieldMappingViewModel>();
-            services.AddScoped<ExcelFieldMappingView>();
             services.AddScoped<ModelessWindowContext>();
-            services.AddScoped<ExcelFieldMappingPrompt>();
-            services.AddScoped<IExcelFieldMappingPrompt>(p => p.GetRequiredService<ExcelFieldMappingPrompt>());
             services.AddSingleton<WindowManager>();
             services.AddSingleton<ModelessElementHostWindowManager>();
             services.AddSingleton<LoginCoordinator>();

@@ -4,7 +4,6 @@ using SwiftExport.Client.VSTO.Diagnostics;
 using SwiftExport.Client.VSTO.Excel.Context;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Views;
-using SwiftExport.Client.VSTO.Features.Settings.ExcelFieldMappings.Views;
 using SwiftExport.Client.VSTO.Hosting;
 using SwiftExport.Client.VSTO.Hosting.TaskPanes;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Views;
@@ -38,8 +37,8 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         public bool IsRestoring { get; private set; }
         public bool IsLoginOpen { get { return login?.IsOpen == true; } }
         public bool IsAuthenticated { get { return user?.IsAuthenticated == true; } }
-        /// <summary>根据已验证会话的内存权限控制字段映射入口。</summary>
-        public bool CanManageExcelFieldMappings { get { return user?.HasPermission(PermissionKeys.SystemExcelFieldMappingManage) == true; } }
+        /// <summary>根据已验证会话的内存权限控制地址配置入口，兼容已有授权键。</summary>
+        public bool CanManageExcelReadProfiles { get { return user?.HasPermission(PermissionKeys.SystemExcelFieldMappingManage) == true; } }
         public bool IsReady { get { return provider != null && !disposed; } }
         public string Status { get; private set; } = "未登录";
         /// <summary>只在 Excel STA 发布，Ribbon 据此刷新动态控件。</summary>
@@ -142,53 +141,38 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }
-        /// <summary>在触发操作的 Excel 窗口打开非模态采购导入预览；重复点击激活原窗体。</summary>
+        /// <summary>打开非模态采购导入，重复点击激活原窗体。</summary>
         public void OpenPurchaseOrderImportPreview(Office.IRibbonControl control)
         {
             if (!IsReady || !IsAuthenticated || IsRestoring || IsLoginOpen) return;
             try
             {
                 provider.GetRequiredService<ModelessElementHostWindowManager>()
-                .Show<PurchaseOrderImportView>("purchase-order-import-preview", "采购订单导入预览", context.GetOwner(control), new Size(1280, 820));
+                .Show<PurchaseOrderImportView>("purchase-order-import-preview", "采购订单导入", context.GetOwner(control), new Size(1280, 820),
+                    view => view.CanClose(), view => view.SetConfigurationOpener(uid => OpenExcelReadProfile(null, uid, "PurchaseOrder")));
             }
             catch (Exception ex)
             {
                 log.Write("OpenPurchaseImportPreviewFailure", ex);
-                Status = "无法打开采购导入预览，请查看日志";
+                Status = "无法打开采购导入，请查看日志";
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }
-        /// <summary>Ribbon 切换当前 Excel 窗口的读取配置侧栏；销售入口只显示，复用时不重置未保存内容。</summary>
-        public void OpenExcelReadProfile(Office.IRibbonControl control, Guid? initialProfile = null)
+        /// <summary>Ribbon 切换配置侧栏，导入页按业务组受控定位配置。</summary>
+        public void OpenExcelReadProfile(Office.IRibbonControl control, Guid? initialProfile = null, string groupCode = "SalesOrder")
         {
-            if (!IsReady || !CanManageExcelFieldMappings || IsRestoring || IsLoginOpen) return;
+            if (!IsReady || !CanManageExcelReadProfiles || IsRestoring || IsLoginOpen) return;
             try
             {
                 var window = context.GetWindow(control);
                 if (window == null) return;
                 if (control != null) taskPanes.TogglePane(window, "excel-read-profile");
-                else taskPanes.ShowPane(window, "excel-read-profile", view => ((ExcelReadProfileView)view).SetInitialProfile(initialProfile));
+                else taskPanes.ShowPane(window, "excel-read-profile", view => ((ExcelReadProfileView)view).OpenGroup(groupCode, initialProfile));
             }
             catch (Exception ex)
             {
                 log.Write("OpenReadProfileFailure", ex);
                 Status = "无法打开读取配置侧栏，请查看日志";
-                Changed?.Invoke(this, EventArgs.Empty);
-            }
-        }
-        /// <summary>在当前 Excel 窗口打开非模态 WinForms 设置窗体。</summary>
-        public void OpenExcelFieldMappingSettings(Office.IRibbonControl control)
-        {
-            if (!IsReady || !CanManageExcelFieldMappings || IsRestoring || IsLoginOpen) return;
-            try
-            {
-                provider.GetRequiredService<ModelessElementHostWindowManager>()
-                .Show<ExcelFieldMappingView>("excel-field-mapping-settings", "Excel 字段映射", context.GetOwner(control), new Size(1920, 1080));
-            }
-            catch (Exception ex)
-            {
-                log.Write("OpenFieldMappingSettingsFailure", ex);
-                Status = "无法打开字段映射设置，请查看日志";
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }

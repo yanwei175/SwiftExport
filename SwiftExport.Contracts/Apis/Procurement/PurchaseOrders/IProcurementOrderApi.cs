@@ -7,7 +7,7 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Contracts.Apis.Procurement
 {
-    /// <summary>独立采购管理专用协议，与旧 purchase-orders Workspace 并存。</summary>
+    /// <summary>采购查询、独立草稿创建及订单操作协议；详情、保存、确认和反向操作同时服务需求来源与独立采购。</summary>
     public interface IProcurementOrderApi
     {
         /// <summary>执行专用采购SearchAsync用例。</summary>

@@ -38,14 +38,13 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        Assert.AreEqual(227, routes.Count);
+        // 旧表头映射的四个写端点已退役，保留其余端点的逐项权限检查。
+        Assert.AreEqual(223, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.DeleteAsync"]);
-        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.CreateAsync"]);
-        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.SaveGroupAsync"]);
-        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.UpdateAsync"]);
-        Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelFieldMappingController.DeleteAsync"]);
+        Assert.IsFalse(routes.Keys.Any(key => key.StartsWith("ExcelFieldMappingController.", StringComparison.Ordinal)));
+        Assert.IsFalse(MvcActions.Value.Keys.Any(key => key.StartsWith("ExcelFieldMappingController.", StringComparison.Ordinal)));
         Assert.AreEqual("Procurement.Order.Read", routes["PurchaseOrderTraceController.GetAsync"]);
         foreach (var (action, key) in routes)
         {
@@ -108,13 +107,12 @@ public sealed class EndpointPermissionFilterTests
         Assert.IsTrue((await ExecuteAsync(candidate, ["Procurement.Order.Confirm"])).Continued);
     }
 
-    /// <summary>映射读取只要求有效身份，不触发单独业务权限检查。</summary>
+    /// <summary>地址配置读取只要求有效身份，不触发单独业务权限检查。</summary>
     [TestMethod]
-    public async Task ExcelFieldMappingReads_RequireIdentityButNoBusinessPermission()
+    public async Task ExcelReadProfileReads_RequireIdentityButNoBusinessPermission()
     {
         foreach (var action in new[]
         {
-            "ExcelFieldMappingController.GetMappingsAsync",
             "ExcelReadProfileController.ListAsync",
             "ExcelReadProfileController.GetAsync"
         })

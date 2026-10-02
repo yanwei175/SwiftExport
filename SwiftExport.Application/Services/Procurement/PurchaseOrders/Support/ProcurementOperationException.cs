@@ -2,7 +2,7 @@ using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Support;
 
-/// <summary>携带新采购稳定错误代码和字段路径的预期业务拒绝，不用于技术异常或取消。</summary>
+/// <summary>携带采购稳定错误代码和字段路径的预期业务拒绝，不用于技术异常或取消。</summary>
 public sealed class ProcurementOperationException(string code, string message, string? field = null) : Exception(message)
 {
     /// <summary>稳定错误代码。</summary>

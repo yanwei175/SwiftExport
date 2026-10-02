@@ -30,9 +30,9 @@ public sealed class EntityDrivenSchemaContractTests
         Assert.IsFalse(Regex.IsMatch(first, @"\bFOREIGN\s+KEY\b|\bREFERENCES\b", RegexOptions.IgnoreCase));
         StringAssert.Contains(first, "CREATE SEQUENCE [dbo].[InventoryLedgerSequence]");
         StringAssert.Contains(first, "CREATE TABLE [dbo].[DemandExecutionLink]");
-        StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelFieldMapping]");
-        StringAssert.Contains(first, "CREATE UNIQUE INDEX [UX_ExcelFieldMapping_Group_Header]");
-        StringAssert.Contains(first, "[NormalizedHeader] <> N''");
+        Assert.IsFalse(first.Contains("[ExcelFieldMapping]", StringComparison.Ordinal));
+        StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelReadProfile]");
+        StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelReadField]");
         StringAssert.Contains(first, "@name=N'MS_Description'");
         StringAssert.Contains(first, "@level1type=N'TABLE', @level1name=N'Customer';");
         StringAssert.Contains(first, "@level2type=N'COLUMN', @level2name=N'CustomerCode';");
@@ -75,7 +75,7 @@ public sealed class EntityDrivenSchemaContractTests
         CollectionAssert.AreEqual(new[]
         {
             "ProductCategory", "ProductColor", "Supplier", "Customer", "SysDicCurrency",
-            "SysDicCurrencyExchange", "SysDictType", "SysDictData", "ExcelFieldMapping", "SysRoles", "SysUser",
+            "SysDicCurrencyExchange", "SysDictType", "SysDictData", "SysRoles", "SysUser",
             "ProductMaster", "Product", "ProductNeutral", "ProductDetails",
             "ProductPackage", "Bom", "CustomerPoConfig", "CustomerProduct", "SupplierProduct",
             "WarehouseSite", "SysPermissionDefinitions", "SysRole_Permissions", "SysUser_Roles"
@@ -124,7 +124,7 @@ public sealed class EntityDrivenSchemaContractTests
     public void RetiredPersistenceTypes_MustNotExist()
     {
         var names = typeof(BaseEntity).Assembly.GetTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
-        foreach (var removed in new[] { "NetDemandAllocation", "NetDemandPlanCommandLog", "IndependentDemand", "DependentDemand" })
+        foreach (var removed in new[] { "ExcelFieldMapping", "NetDemandAllocation", "NetDemandPlanCommandLog", "IndependentDemand", "DependentDemand" })
             Assert.IsFalse(names.Contains(removed), removed);
     }
 

@@ -18,10 +18,14 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services
         public event EventHandler Changed;
         /// <summary>按分组按需获取配置列表。</summary>
         public Task<ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>> ListAsync(CancellationToken token) => api.ListAsync("SalesOrder", token);
+        /// <summary>按调用页面指定的模型分组读取，销售与采购配置不混用。</summary>
+        public Task<ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>> ListAsync(string groupCode, CancellationToken token) => api.ListAsync(groupCode, token);
         /// <summary>获取完整配置快照。</summary>
         public Task<ServiceResult<ExcelReadProfileDto>> GetAsync(Guid uid, CancellationToken token) => api.GetAsync(uid, token);
         /// <summary>创建空配置，实际授权由服务器校验。</summary>
         public Task<ServiceResult<ExcelReadProfileDto>> CreateAsync(string name, CancellationToken token) => api.CreateAsync(new CreateExcelReadProfileRequest { GroupCode = "SalesOrder", ConfigName = name }, token);
+        /// <summary>为显式指定的业务分组创建空配置。</summary>
+        public Task<ServiceResult<ExcelReadProfileDto>> CreateAsync(string groupCode, string name, CancellationToken token) => api.CreateAsync(new CreateExcelReadProfileRequest { GroupCode = groupCode, ConfigName = name }, token);
         /// <summary>以预期版本保存完整快照，失败时不发布通知。</summary>
         public async Task<ServiceResult<ExcelReadProfileDto>> SaveAsync(Guid uid, UpdateExcelReadProfileRequest request, CancellationToken token)
         { var result = await api.UpdateAsync(uid, request, token); if (result.Success && !token.IsCancellationRequested) Changed?.Invoke(this, EventArgs.Empty); return result; }

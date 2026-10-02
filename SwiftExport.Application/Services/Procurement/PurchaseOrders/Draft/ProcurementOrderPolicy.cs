@@ -8,7 +8,7 @@ using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Entities.MasterData;
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft;
 
-/// <summary>独立采购的精度、固定身份和商务白名单规则，不承担数据访问。</summary>
+/// <summary>采购创建与草稿保存的精度、固定身份和商务白名单规则，不承担数据访问。</summary>
 public static class ProcurementOrderPolicy
 {
     /// <summary>工厂型号按物理列 nvarchar(300) 限制，创建与商务保存共用。</summary>

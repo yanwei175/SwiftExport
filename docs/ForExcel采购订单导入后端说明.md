@@ -51,7 +51,7 @@ CanSave 仅说明本次检查没有未解决的问题。页面应根据 Header/L
 | 业务员 / 跟单员 | SalesPerson / PurchasePerson | SoPerson / PoPerson，属于单据快照，不控制审计身份 |
 | 进水管 / 起泡器 / 托盘 | InletHoseType / AeratorType / PalletType | InletrHoseType / AeratorType / PalletType |
 | 内盒 / 标贴 / 说明书 / 外箱 / 光标 | BoxType / LabelType / InstructionManualType / CartonType / LogoType | BoxType / LabelType / IMType / CartonType / LogoType |
-| 特殊要求 | PackagingRequirements | PackagingRequirements |
+| 特殊要求 | Remark | Remark |
 | 价格浮动率 / 金额调整 / 备注 | DiscountRate / DiscountAmount / DiscountRemark | DiscountRate / DiscountAmount / ZheKouBeiZhu |
 | 客户型号 / 本司型号 / 工厂型号 | CustomerSku / LinkSku / SupplierSku | 同名商业快照 |
 | 描述 / 表面处理 / 配置 | DescriptionZh / FinishZh / FeaturesZh | 同名商业快照 |

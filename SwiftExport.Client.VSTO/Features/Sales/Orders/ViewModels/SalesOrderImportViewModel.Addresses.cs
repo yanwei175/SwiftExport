@@ -14,6 +14,11 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
 {
     public sealed partial class SalesOrderImportViewModel
     {
+        private bool parsing;
+        private bool applyingParsedPart;
+        private string parseMessage = "";
+        /// <summary>显示地址读取的结果及需要用户补充的内容。</summary>
+        public string ParseMessage { get => parseMessage; private set => SetProperty(ref parseMessage, value); }
         private ExcelReadProfileService profileService;
         private IExcelAddressReader addressReader;
         private SalesOrderAddressParser addressParser;

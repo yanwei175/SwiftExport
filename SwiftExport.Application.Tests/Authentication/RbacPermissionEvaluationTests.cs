@@ -51,9 +51,9 @@ public sealed class RbacPermissionEvaluationTests
         Assert.IsFalse(await service.HasPermissionAsync(userId, "System.Users.Manage"));
     }
 
-    /// <summary>普通角色获显式授权后可维护字段映射，未获授权时不可维护。</summary>
+    /// <summary>普通角色获显式授权后可维护地址读取配置，历史权限键继续兼容已有授权。</summary>
     [TestMethod]
-    public async Task AssignedRole_CanManageExcelFieldMappings()
+    public async Task AssignedRole_CanManageExcelReadProfiles()
     {
         var userId = Guid.NewGuid();
         var service = new PermissionEvaluationService(new FactsRepository(new UserPermissionFacts

@@ -52,6 +52,7 @@ public sealed class SqlServerSchemaGenerator
         foreach (var entity in entities)
         {
             WriteProtectionTriggers(sql, entity);
+            WriteReferenceFreezeTriggers(sql, entity);
         }
         WriteDescriptions(sql, entities, documentation);
 
@@ -115,6 +116,15 @@ public sealed class SqlServerSchemaGenerator
                 throw new InvalidOperationException($"实体 {entity.Name} 不能同时声明只追加和固定列触发器。");
             if (immutable is not null)
                 ValidateProperties(entity, properties, immutable.Columns, nameof(DbImmutableColumnsAttribute));
+
+            foreach (var freeze in entity.GetCustomAttributes<DbFreezeColumnOnReferenceAttribute>())
+            {
+                ValidateProperties(entity, properties, [freeze.Column], nameof(DbFreezeColumnOnReferenceAttribute));
+                ValidateReference(freeze.ReferencingEntity, GetMappedProperties(freeze.ReferencingEntity),
+                    freeze.ReferencingColumn, entity, nameof(BaseEntity.Uid), entitySet);
+                if (!entitySet.Contains(freeze.ReferencingEntity))
+                    throw new InvalidOperationException($"冻结规则的引用实体 {freeze.ReferencingEntity.Name} 不是持久化实体。");
+            }
 
             foreach (var reference in entity.GetCustomAttributes<LogicalReferenceAttribute>())
             {
@@ -277,6 +287,33 @@ public sealed class SqlServerSchemaGenerator
         var triggerSql = $"CREATE TRIGGER [{schema}].[{trigger}] ON [{schema}].[{table}] AFTER UPDATE AS BEGIN SET NOCOUNT ON; IF EXISTS (SELECT 1 FROM inserted i INNER JOIN deleted d ON d.[Uid]=i.[Uid] WHERE EXISTS (SELECT {inserted} EXCEPT SELECT {deleted})) THROW 53101, N'{table} 的成立身份不可修改。', 1; END;";
         sql.Append("EXEC(N'").Append(triggerSql.Replace("'", "''", StringComparison.Ordinal)).AppendLine("');");
         sql.AppendLine();
+    }
+
+    /// <summary>按实体声明生成引用后冻结触发器；逐行比较新旧值，未引用产品仍可纠正，已有历史不随余额归零解冻。</summary>
+    private static void WriteReferenceFreezeTriggers(StringBuilder sql, Type entity)
+    {
+        var properties = GetMappedProperties(entity);
+        var groups = entity.GetCustomAttributes<DbFreezeColumnOnReferenceAttribute>()
+            .GroupBy(rule => rule.Column).OrderBy(group => group.Key, StringComparer.Ordinal);
+        foreach (var group in groups)
+        {
+            var column = Escape(GetColumn(properties.Single(property => property.Name == group.Key)));
+            var predicates = group.OrderBy(rule => rule.ReferencingEntity.FullName, StringComparer.Ordinal)
+                .ThenBy(rule => rule.ReferencingColumn, StringComparer.Ordinal)
+                .Select(rule =>
+                {
+                    var referenceColumn = GetColumn(GetMappedProperties(rule.ReferencingEntity)
+                        .Single(property => property.Name == rule.ReferencingColumn));
+                    // 范围锁使引用检查与单位更新处于同一数据库事务，避免检查后插入引用的窗口。
+                    return $"EXISTS (SELECT 1 FROM [{Escape(GetSchema(rule.ReferencingEntity))}].[{Escape(GetTable(rule.ReferencingEntity))}] r WITH (UPDLOCK,HOLDLOCK) WHERE r.[{Escape(referenceColumn)}]=i.[Uid])";
+                });
+            var schema = Escape(GetSchema(entity));
+            var table = Escape(GetTable(entity));
+            var trigger = Escape($"TR_{GetTable(entity)}_{group.Key}_FrozenOnReference");
+            var body = $"CREATE TRIGGER [{schema}].[{trigger}] ON [{schema}].[{table}] AFTER UPDATE AS BEGIN SET NOCOUNT ON; IF EXISTS (SELECT 1 FROM inserted i INNER JOIN deleted d ON d.[Uid]=i.[Uid] WHERE EXISTS (SELECT i.[{column}] EXCEPT SELECT d.[{column}]) AND ({string.Join(" OR ", predicates)})) THROW 53102, N'{table} 的 {column} 已被事实引用，禁止修改。', 1; END;";
+            sql.Append("EXEC(N'").Append(body.Replace("'", "''", StringComparison.Ordinal)).AppendLine("');");
+            sql.AppendLine();
+        }
     }
 
     /// <summary>为所有持久化表和列写入 SQL Server MS_Description 扩展属性。</summary>

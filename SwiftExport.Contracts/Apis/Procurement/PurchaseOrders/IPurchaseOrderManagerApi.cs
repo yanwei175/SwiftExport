@@ -8,7 +8,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.Apis.Procurement
 {
-    /// <summary>采购管理页的新链专用查询协议；不承载详情编辑、跟进历史或采购命令。</summary>
+    /// <summary>采购管理页的列表与明细查询协议；不承载详情编辑、跟进历史或采购命令。</summary>
     public interface IPurchaseOrderManagerApi
     {
         /// <summary>按管理专用条件分页查询采购头摘要。</summary>

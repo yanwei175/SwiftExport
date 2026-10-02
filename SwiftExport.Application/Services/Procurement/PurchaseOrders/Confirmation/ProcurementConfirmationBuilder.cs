@@ -19,7 +19,7 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
             var links = facts.Links.Where(x => x.TargetType == "PO" && x.TargetHeadId == head.Uid && x.TargetLineId == line.Uid
                 && !x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active).ToList();
             if (head.OriginKind != 1 && !line.SourceUid.HasValue && links.Count == 0) continue;
-            // 空值代表旧链未明确未关联数量，不能与活动 Link 损坏混为同一种错误。
+            // 未关联数量为空表示创建数据缺少数量依据，应与活动 Link 缺失或贡献不一致分别报错。
             if (!line.UnlinkedQty.HasValue)
                 throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）缺少未关联数量依据，请核查创建数据；不能确认。");
             if (links.Count == 0 || links.Any(x => x.ReleasedQty < 0 || x.AllocatedQty <= x.ReleasedQty)

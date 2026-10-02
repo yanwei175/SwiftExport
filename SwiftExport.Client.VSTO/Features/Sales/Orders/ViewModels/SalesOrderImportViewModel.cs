@@ -14,9 +14,7 @@ using SwiftExport.Client.VSTO.Services.Caching;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Models;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.Customers;
-using SwiftExport.Client.VSTO.Excel.Reading;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Services;
-using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
 using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services;
 
@@ -40,20 +38,15 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         /// <summary>注入共享缓存与当前会话；构造期间不发送网络请求。</summary>
         public SalesOrderImportViewModel(IReferenceDataCacheService referenceData, SessionService session,
             IUiDispatcher dispatcher, ISalesOrderDetailApi api, ApiCallRunner errors, ISalesOrderImportPrompt prompt,
-            IExcelRangeReader rangeReader = null, SalesOrderExcelParser excelParser = null, IExcelFieldMappingApi legacyMappingApi = null, ExcelReadProfileService profileService = null,
+            ExcelReadProfileService profileService = null,
             IExcelAddressReader addressReader = null, ExcelImportRegistry imports = null, SwiftExport.Contracts.Apis.ForExcel.IForExcelSalesOrderApi checkApi = null)
         {
             ReferenceData = referenceData; this.session = session; this.dispatcher = dispatcher;
             this.api = api; this.errors = errors; this.prompt = prompt;
-            this.rangeReader = rangeReader; this.excelParser = excelParser;
-            this.legacyMappingApi = legacyMappingApi;
             pageVersion = session.Capture().Version;
             header = new SalesOrderImportHeader(); header.PropertyChanged += HeaderChanged;
             Title = "销售订单导入";
             InitializeCommand = new AsyncRelayCommand(InitializeAsync, () => !IsDisposed && !initializing && !parsing && !SubmissionLocked && session.Capture().User != null);
-            ParseHeaderCommand = new AsyncRelayCommand(() => ParseExcelAsync(false), CanParse);
-            ParseLinesCommand = new AsyncRelayCommand(() => ParseExcelAsync(true), CanParse);
-            RegisterCommand(ParseHeaderCommand); RegisterCommand(ParseLinesCommand);
             AddStandardLineCommand = new RelayCommand(() => AddLine(false), () => IsEditable && Header.CustomerId != Guid.Empty);
             AddNonStandardLineCommand = new RelayCommand(() => AddLine(true), () => IsEditable && Header.CustomerId != Guid.Empty);
             DeleteSelectedLineCommand = new RelayCommand(DeleteLines, () => IsEditable && selectedLines.Any(Lines.Contains));

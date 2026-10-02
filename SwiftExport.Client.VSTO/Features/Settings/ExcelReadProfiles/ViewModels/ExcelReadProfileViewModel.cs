@@ -19,12 +19,13 @@ using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
 {
-    /// <summary>维护销售地址配置的完整快照，数据预览与单据业务校验不进入配置保存。</summary>
+    /// <summary>维护销售或采购地址配置，分组从模型目录选择，业务资格不进入配置保存。</summary>
     public sealed class ExcelReadProfileViewModel : ViewModelBaseEx
     {
         private readonly ExcelReadProfileService service;
         private readonly IExcelAddressReader reader;
-        private readonly ExcelImportDefinition definition;
+        private ExcelImportDefinition definition;
+        private readonly ExcelImportRegistry registry;
         private readonly SessionService session;
         private readonly IUiDispatcher dispatcher;
         private readonly ApiCallRunner errors;
@@ -40,7 +41,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         public ExcelReadProfileViewModel(ExcelReadProfileService service, IExcelAddressReader reader, ExcelImportRegistry registry,
             SessionService session, IUiDispatcher dispatcher, ApiCallRunner errors, ISalesOrderImportPrompt prompt)
         {
-            this.service = service; this.reader = reader; definition = registry.Find("SalesOrder"); this.session = session;
+            this.service = service; this.reader = reader; this.registry = registry; definition = registry.Find("SalesOrder"); this.session = session;
             this.dispatcher = dispatcher; this.errors = errors; this.prompt = prompt; sessionVersion = session.Capture().Version;
             Title = "销售订单读取配置";
             ReloadCommand = new AsyncRelayCommand(ReloadAsync, () => CanEdit && !IsBusy);
@@ -56,6 +57,28 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             session.Changed += SessionChanged;
         }
         public ObservableCollection<ExcelReadProfileListItemDto> Profiles { get; } = new ObservableCollection<ExcelReadProfileListItemDto>();
+        /// <summary>业务目录来自显式注册模型，不扫描程序集或手写第二套字段表。</summary>
+        public IReadOnlyList<ExcelImportDefinition> Groups => registry.Groups;
+        /// <summary>当前业务组，只能经受控切换修改。</summary>
+        public string CurrentGroupCode => definition.GroupCode;
+        /// <summary>切换业务组前确认未保存内容；进行中禁止切换。</summary>
+        public async Task<bool> SelectGroupAsync(string groupCode, Guid? profileUid = null)
+        {
+            var next = registry.Find(groupCode);
+            if (next == null || !CanEdit || IsBusy) return false;
+            if (next == definition)
+            {
+                if (!initialized) { initialUid = profileUid; return true; }
+                return !profileUid.HasValue || await SelectAsync(profileUid.Value);
+            }
+            if (!Discard("切换业务分组将丢弃当前未保存配置，是否继续？") || !CanEdit) return false;
+            applying = true;
+            try { definition = next; uid = null; initialUid = profileUid; initialized = false; ClearRows(); Profiles.Clear();
+                ConfigName = WorksheetName = Remark = LastRowColumn = SummaryCellAddress = ""; EndMode = 0; dirty = false;
+                Title = next.DisplayName + "读取配置"; OnPropertyChanged(nameof(CurrentGroupCode)); OnPropertyChanged(nameof(CurrentUid)); OnPropertyChanged(nameof(HasChanges)); }
+            finally { applying = false; }
+            await ReloadAsync(); return initialized;
+        }
         public ObservableCollection<ExcelReadFieldModel> HeaderFields { get; } = new ObservableCollection<ExcelReadFieldModel>();
         public ObservableCollection<ExcelReadFieldModel> LineFields { get; } = new ObservableCollection<ExcelReadFieldModel>();
         /// <summary>当前已接纳的配置身份，切换失败保留原配置。</summary>
@@ -113,7 +136,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             if (!Discard("重新加载将丢弃未保存修改。是否继续？")) return;
             await RunAsync(async token =>
             {
-                var result = await service.ListAsync(token); Ensure(result.Success, result.Message);
+                var result = await service.ListAsync(CurrentGroupCode, token); Ensure(result.Success, result.Message);
                 Guid? chosen = null;
                 await UiAsync(() =>
                 {
@@ -133,9 +156,9 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             if (!Discard("新建空配置将丢弃当前未保存修改。是否继续？")) return;
             await RunAsync(async token =>
             {
-                var result = await service.CreateAsync(newName, token); Ensure(result.Success, result.Message);
+                var result = await service.CreateAsync(CurrentGroupCode, newName, token); Ensure(result.Success, result.Message);
                 await UiAsync(() => Apply(result.Data)); if (!Accept()) return;
-                var list = await service.ListAsync(token); Ensure(list.Success, list.Message);
+                var list = await service.ListAsync(CurrentGroupCode, token); Ensure(list.Success, list.Message);
                 await UiAsync(() => { Profiles.Clear(); foreach (var item in list.Data) Profiles.Add(item); OnPropertyChanged(nameof(CurrentUid)); });
             });
         }
@@ -183,6 +206,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         private void Apply(ExcelReadProfileDto profile)
         {
             if (!Accept()) return;
+            if (profile == null || profile.GroupCode != CurrentGroupCode) throw new InvalidOperationException("配置不属于当前业务分组。");
             applying = true;
             try
             {

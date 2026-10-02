@@ -4,8 +4,6 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.SystemDtos.ExcelFieldMappings;
 
 namespace SwiftExport.Client.VSTO.Services.ExcelImport
 {
@@ -37,35 +35,6 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
         /// <summary>赋值单个已映射值，使用调用方明确指定的日期文化；错误不写目标属性。</summary>
         public bool TryAssign(object model, string fieldKey, object value, CultureInfo dateCulture, out string error)
             => TryAssignValues(model, new[] { new KeyValuePair<string, object>(fieldKey, value) }, dateCulture, out error);
-
-        /// <summary>使用缓存配置将已解析表头值映射到模型；复制启用配置后校验别名与目标，配置错误不修改模型。</summary>
-        public bool TryAssignMappedValues(object model, IEnumerable<ExcelFieldMappingDto> mappings,
-            IEnumerable<KeyValuePair<string, object>> sourceValues, CultureInfo dateCulture, out string error)
-        {
-            error = "";
-            if (mappings == null || sourceValues == null) { error = "字段映射和已解析源值不能为空。"; return false; }
-            var byHeader = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var mapping in mappings)
-            {
-                if (mapping == null) { error = "字段映射包含空记录。"; return false; }
-                if (!mapping.IsEnabled) continue;
-                // 只复制当前调用所需的键，不修改缓存 DTO，不持有后续刷新会改变的列表。
-                var header = ExcelHeaderNormalizer.Normalize(mapping.ExcelHeader);
-                var target = mapping.TargetFieldKey;
-                if (!string.Equals(mapping.GroupCode, GroupCode, StringComparison.Ordinal) || header.Length == 0 || !ContainsField(target))
-                { error = "启用的映射不属于本组模型或目标不受支持：" + target; return false; }
-                if (byHeader.ContainsKey(header)) { error = "存在重复的规范化 Excel 表头：" + header; return false; }
-                byHeader.Add(header, target);
-            }
-            var assignments = new List<KeyValuePair<string, object>>();
-            foreach (var source in sourceValues)
-            {
-                if (byHeader.TryGetValue(ExcelHeaderNormalizer.Normalize(source.Key), out var target))
-                    assignments.Add(new KeyValuePair<string, object>(target, source.Value));
-                // 模板可能含图片、统计、银行资料等未配置内容；这些内容由读取流程保留原文，不任意赋值。
-            }
-            return TryAssignValues(model, assignments, dateCulture, out error);
-        }
 
         /// <summary>先检查全部键和存储类型再赋值；同次读取多个源列命中同一目标时拒绝覆盖。</summary>
         public bool TryAssignValues(object model, IEnumerable<KeyValuePair<string, object>> values, CultureInfo dateCulture, out string error)
