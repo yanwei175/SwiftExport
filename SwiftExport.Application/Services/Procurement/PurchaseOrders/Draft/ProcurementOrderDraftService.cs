@@ -13,6 +13,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.ForExcel;
 using SwiftExport.Core.Interfaces.Procurement;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft;
@@ -22,7 +23,8 @@ public sealed class ProcurementOrderDraftService(
     IProcurementOrderDocumentRepository repository, IProcurementReferenceReadRepository references,
     ProcurementConfirmationBuilder confirmation,
     IDocumentNoService numbers, ICurrentUser user, TypeAdapterConfig mappings,
-    BusinessCommandExecutor executor, CommandPipeline pipeline, ProcurementOrderCommandSupport support)
+    BusinessCommandExecutor executor, CommandPipeline pipeline, ProcurementOrderCommandSupport support,
+    IForExcelPurchaseOrderRepository importReferences)
     : IProcurementOrderDraftService
 {
     /// <inheritdoc/>
@@ -35,7 +37,7 @@ public sealed class ProcurementOrderDraftService(
     private Task<ServiceResult<CommandExecutionResult<ProcurementOrderCommandResult>>> ExecuteCreateCommandAsync(
         CreateIndependentPurchaseOrderCommand command, CancellationToken ct) => support.RunAsync(
             () => executor.ExecuteAsync(command.CommandId, "Procurement.Order.Create", null,
-                new { command.CustomerId, command.SupplierId, command.OrderDate, command.Remark, command.PackagingRequirements, command.Lines },
+                IndependentPurchaseOrderInputPolicy.FingerprintInput(command),
                 token => CreateInTransactionAsync(command, token), ct, IsolationLevel.Serializable), ct);
 
     /// <summary>在首次执行的事务中核对采购事实、生成单号、写入草稿和业务审计。</summary>
@@ -46,55 +48,70 @@ public sealed class ProcurementOrderDraftService(
         await confirmation.ValidatePartiesAsync(command.CustomerId, command.SupplierId, ct);
         var customer = (await references.GetCustomerAsync(command.CustomerId, ct))!;
         var supplier = await confirmation.RequireSupplierAsync(command.SupplierId, ct);
-        var head = new PurchaseOrderHead
-        {
-            Uid = GuidSequentialGenerator.NewGuid(), OriginKind = 2,
-            CustomerId = customer.Uid, CustomerCode = customer.CustomerCode, CustomerNameSnapshot = customer.CustomerName,
-            SupplierId = supplier.Uid, SupplierCode = supplier.SupplierCode, SupplierName = supplier.SupplierName,
-            OrderDate = command.OrderDate, Currency = "CNY", ExecutionRequestId = command.CommandId,
-            DemandSourceType = null, DemandSourceUid = null, DemandSourceNo = null,
-            Remark = ProcurementOrderPolicy.Text(command.Remark, 2000, "采购备注"),
-            PackagingRequirements = ProcurementOrderPolicy.Text(command.PackagingRequirements, 2000, "包装要求")
-        };
+        IndependentPurchaseOrderInputPolicy.ValidateHeader(command);
+        // 只映射商务快照；系统身份、来源与审计不由输入控制。
+        var head = command.Adapt<PurchaseOrderHead>(mappings);
+        head.Uid = GuidSequentialGenerator.NewGuid(); head.OriginKind = 2;
+        head.CustomerId = customer.Uid; head.CustomerCode = customer.CustomerCode; head.CustomerNameSnapshot = customer.CustomerName;
+        head.SupplierId = supplier.Uid; head.SupplierCode = supplier.SupplierCode; head.SupplierName = supplier.SupplierName;
+        head.Currency = "CNY"; head.ExecutionRequestId = command.CommandId;
+        head.DemandSourceType = null; head.DemandSourceUid = null; head.DemandSourceNo = null;
+        var customerSkus = command.Lines.Where(x => !x.IsNonStandard && !string.IsNullOrWhiteSpace(x.CustomerSku))
+            .Select(x => IndependentPurchaseOrderInputPolicy.Normalize(x.CustomerSku)).Distinct().ToArray();
+        // 正式创建重新读取完整候选，并在既有可串行化事务内锁定关系；检查结果不是保存凭证。
+        var matchedProducts = await importReferences.MatchProductsAsync(customer.Uid,customerSkus,ct);
         var lines = new List<PurchaseOrderLine>();
         foreach (var item in command.Lines)
         {
-            ProcurementOrderPolicy.Number(item.Quantity, 4, "采购数量", true);
-            if (!item.UnitPrice.HasValue)
-                throw ProcurementOperationException.Validation("未税单价不能为空；无报价时请明确输入0。", "Lines[].UnitPrice");
-            var product = await references.GetProductAsync(item.ProductId, ct);
-            ProcurementOrderPolicy.RequireProduct(product);
-            var productSnapshot = await references.GetProductCandidateAsync(item.ProductId, command.CustomerId, command.SupplierId, ct)
-                ?? throw new InvalidOperationException("产品采购快照读取失败。");
-            var unit = await references.GetUnitAsync(product!.Unit?.Trim() ?? "", ct);
-            if (string.IsNullOrWhiteSpace(unit)) throw new InvalidOperationException("产品缺少唯一有效基础单位。");
-            // 映射仅带商务输入，下面显式建立权威身份和历史快照。
+            IndependentPurchaseOrderInputPolicy.ValidateLine(item);
             var line = item.Adapt<PurchaseOrderLine>(mappings);
             line.Uid = GuidSequentialGenerator.NewGuid(); line.PurchaseOrderId = head.Uid; line.LineNumber = lines.Count + 1;
-            line.ProductId = product.Uid; line.Sku = product.Sku; line.UnitSnapshot = unit;
-            line.CustomerSku = productSnapshot.CustomerSku; line.LinkSku = productSnapshot.LinkSku;
-            line.SupplierSku = productSnapshot.SupplierSku; line.DescriptionZh = productSnapshot.DescriptionZh;
-            line.FinishZh = productSnapshot.FinishZh; line.FeaturesZh = productSnapshot.FeaturesZh;
             line.Quantity = item.Quantity; line.UnlinkedQty = item.Quantity;
-            line.MaterialType = product.MaterialType; line.SupplyType = product.SupplyType;
-            if (product.MaterialType == MaterialTypesEnum.客供件)
+            if (item.IsNonStandard)
             {
-                if (!item.DeliverySupplierId.HasValue || item.DeliverySupplierId == Guid.Empty)
-                    throw new InvalidOperationException("客供件必须选择送达供应商。");
-                var deliverySupplier = await confirmation.RequireSupplierAsync(item.DeliverySupplierId.Value, ct);
-                line.DeliveryTargetSupplierId = deliverySupplier.Uid;
-                line.DeliverySupplierCodeSnapshot = deliverySupplier.SupplierCode;
-                line.DeliverySupplierNameSnapshot = deliverySupplier.SupplierName;
+                // 非标身份来自明确输入，编号由服务生成；不伪造产品或供货属性。
+                line.ProductId = null; line.Sku = NonStandardSkuGenerator.Create(line.Uid);
+                line.UnitSnapshot = await references.GetUnitAsync(item.Unit.Trim(),ct)
+                    ?? throw ProcurementOperationException.Validation("非标单位未启用或有歧义。","Lines[].Unit");
+                line.MaterialType = null; line.SupplyType = null;
             }
             else
             {
-                line.DeliveryTargetSupplierId = null;
-                line.DeliverySupplierCodeSnapshot = null;
-                line.DeliverySupplierNameSnapshot = null;
+                if (item.ProductId == Guid.Empty)
+                    throw ProcurementOperationException.Validation("标准行必须选择真实产品。","Lines[].ProductId");
+                var product = await references.GetProductAsync(item.ProductId,ct);
+                ProcurementOrderPolicy.RequireProduct(product);
+                var productSnapshot = await references.GetProductCandidateAsync(item.ProductId,command.CustomerId,command.SupplierId,ct)
+                    ?? throw new InvalidOperationException("产品采购快照读取失败。");
+                line.ProductId = product!.Uid; line.Sku = product.Sku;
+                line.UnitSnapshot = await references.GetUnitAsync(product.Unit?.Trim() ?? "",ct)
+                    ?? throw new InvalidOperationException("产品缺少唯一有效基础单位。");
+                line.CustomerSku = productSnapshot.CustomerSku; line.LinkSku = productSnapshot.LinkSku;
+                line.SupplierSku = productSnapshot.SupplierSku; line.DescriptionZh = productSnapshot.DescriptionZh;
+                line.FinishZh = productSnapshot.FinishZh; line.FeaturesZh = productSnapshot.FeaturesZh;
+                line.MaterialType = product.MaterialType; line.SupplyType = product.SupplyType;
+                if (item.CustomerSku is not null || item.SelectedCustomerProductId.HasValue)
+                {
+                    var matched = IndependentPurchaseOrderInputPolicy.Resolve(item.CustomerSku,item.SelectedCustomerProductId,matchedProducts);
+                    if (matched.ProductId != item.ProductId)
+                        throw ProcurementOperationException.Validation("产品身份与当前客户型号匹配结果不一致。","Lines[].ProductId");
+                    line.CustomerSku = matched.CustomerSku; line.LinkSku = matched.LinkSku;
+                }
+                if (!string.IsNullOrWhiteSpace(item.LinkSku)
+                    && IndependentPurchaseOrderInputPolicy.Normalize(item.LinkSku) != IndependentPurchaseOrderInputPolicy.Normalize(line.LinkSku)
+                    && !item.AcceptLinkSkuMismatch)
+                    throw ProcurementOperationException.Validation("本司型号与系统中性型号不同，必须先确认。","Lines[].LinkSku");
+                if (product.MaterialType == MaterialTypesEnum.客供件)
+                {
+                    if (!item.DeliverySupplierId.HasValue || item.DeliverySupplierId == Guid.Empty)
+                        throw new InvalidOperationException("客供件必须选择送达供应商。");
+                    var deliverySupplier = await confirmation.RequireSupplierAsync(item.DeliverySupplierId.Value,ct);
+                    line.DeliveryTargetSupplierId = deliverySupplier.Uid;
+                    line.DeliverySupplierCodeSnapshot = deliverySupplier.SupplierCode;
+                    line.DeliverySupplierNameSnapshot = deliverySupplier.SupplierName;
+                }
             }
-            line.SupplierSku = ProcurementOrderPolicy.Text(item.SupplierSku ?? productSnapshot.SupplierSku, 200, "供应商型号");
-            line.DescriptionZh = ProcurementOrderPolicy.Text(item.DescriptionZh ?? productSnapshot.DescriptionZh, 300, "采购描述");
-            line.SubNote = ProcurementOrderPolicy.Text(item.SubNote, 2000, "行备注");
+            IndependentPurchaseOrderInputPolicy.ApplyCommercial(line,item);
             line.UnitAmount = ProcurementOrderPolicy.Amount(item.Quantity, item.UnitPrice);
             line.TaxAmount = ProcurementOrderPolicy.Amount(item.Quantity, item.TaxPrice);
             line.SourceType = null; line.SourceNo = null;

@@ -11,6 +11,10 @@ namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft;
 /// <summary>独立采购的精度、固定身份和商务白名单规则，不承担数据访问。</summary>
 public static class ProcurementOrderPolicy
 {
+    /// <summary>工厂型号按物理列 nvarchar(300) 限制，创建与商务保存共用。</summary>
+    public const int SupplierSkuMaximumLength = 300;
+    /// <summary>采购描述按物理列 nvarchar(2000) 限制，创建与商务保存共用。</summary>
+    public const int DescriptionZhMaximumLength = 2000;
     /// <summary>对类型化请求生成确定指纹；命令身份、操作和单据也必须纳入调用方输入。</summary>
     public static string Fingerprint<T>(T value) => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(value)));
     /// <summary>拒绝超过 SQL 数值范围或精度的输入，禁止依靠数据库静默舍入。</summary>
@@ -76,8 +80,8 @@ public static class ProcurementOrderPolicy
             line.UnitAmount = Amount(line.Quantity, item.UnitPrice);
             line.TaxAmount = Amount(line.Quantity, item.TaxPrice);
             line.UnitPrice = item.UnitPrice; line.TaxPrice = item.TaxPrice;
-            line.SupplierSku = Text(item.SupplierSku, 200, "供应商型号");
-            line.DescriptionZh = Text(item.DescriptionZh, 300, "采购描述");
+            line.SupplierSku = Text(item.SupplierSku, SupplierSkuMaximumLength, "供应商型号");
+            line.DescriptionZh = Text(item.DescriptionZh, DescriptionZhMaximumLength, "采购描述");
             line.SubNote = Text(item.SubNote, 2000, "行备注");
             line.PlannedDeliveryDate = item.PlannedDeliveryDate;
         }

@@ -63,7 +63,7 @@ public sealed class ProcurementOrderCommandOrchestrationTests
         };
         var original = new ProcurementOrderCommandResult { PurchaseOrderId = Guid.NewGuid(), OrderNo = "PO-TEST", Version = 1 };
         await f.Executor.ExecuteAsync(command.CommandId, "Procurement.Order.Create", null,
-            new { command.CustomerId, command.SupplierId, command.OrderDate, command.Remark, command.PackagingRequirements, command.Lines },
+            IndependentPurchaseOrderInputPolicy.FingerprintInput(command),
             _ => Task.FromResult(original), default, IsolationLevel.Serializable);
 
         var replay = await f.Drafts.CreateAsync(command);
@@ -229,7 +229,9 @@ public sealed class ProcurementOrderCommandOrchestrationTests
                 NullLogger<ProcurementOrderCommandSupport>.Instance);
             Builder = new ProcurementConfirmationBuilder(references);
             Drafts = new ProcurementOrderDraftService(repository, references, Builder, numbers,
-                user, new TypeAdapterConfig(), Executor, pipeline, support);
+                user, new TypeAdapterConfig(), Executor, pipeline, support,
+                Proxy<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository>.New((method, _) =>
+                    throw new AssertFailedException("重放或拒绝不应查询导入关联：" + method.Name)));
             Confirmations = new ProcurementOrderConfirmationService(repository, reversal, Builder, new ProcurementOrderReadSupport(new ServiceBaseContext(Session, NullLoggerFactory.Instance), permissions, user), user, Executor, pipeline, support);
         }
 

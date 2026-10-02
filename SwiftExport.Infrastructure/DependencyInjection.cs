@@ -193,6 +193,7 @@ public static class DependencyInjection
         services.AddScoped<IAfterSalesQueryRepository, AfterSalesQueryRepository>();
         services.AddScoped<IAfterSalesLookupRepository, AfterSalesLookupRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelSalesOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.ForExcelSalesOrderRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.ForExcelPurchaseOrderRepository>();
         // 主配置和字段共享当前请求的 DbSession，由应用层统一控制事务。
         services.AddScoped<SwiftExport.Core.Interfaces.Systems.ExcelReadProfiles.IExcelReadProfileRepository,
             SwiftExport.Infrastructure.Repositories.Systems.ExcelReadProfiles.ExcelReadProfileRepository>();

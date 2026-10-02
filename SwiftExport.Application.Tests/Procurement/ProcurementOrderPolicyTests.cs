@@ -74,6 +74,37 @@ public sealed class ProcurementOrderPolicyTests
         Assert.AreEqual("S-1", line.SupplierSku);
     }
 
+    /// <summary>创建和商务保存都接受物理列最大长度，并同时拒绝越界，不能悄悄截断。</summary>
+    [TestMethod]
+    public void CreationAndSaveShareCommercialTextLimits()
+    {
+        foreach(var (skuLength,descriptionLength) in new[]{(300,2000),(301,1),(1,2001)})
+        {
+            var input=new CreateIndependentPurchaseOrderLineCommand
+            {
+                Quantity=1,UnitPrice=1,SupplierSku=new string('型',skuLength),DescriptionZh=new string('述',descriptionLength)
+            };
+            var head=new PurchaseOrderHead();var line=new PurchaseOrderLine{Uid=Guid.NewGuid(),Quantity=1};
+            var command=new UpdatePurchaseOrderDraftCommand
+            {
+                ExpectedVersion=1,Lines=[new(){PurchaseOrderLineId=line.Uid,ExpectedVersion=1,UnitPrice=1,
+                    SupplierSku=input.SupplierSku,DescriptionZh=input.DescriptionZh}]
+            };
+            if(skuLength<=300 && descriptionLength<=2000)
+            {
+                IndependentPurchaseOrderInputPolicy.ValidateLine(input);
+                ProcurementOrderPolicy.ApplySave(head,[line],command);
+                Assert.AreEqual(input.SupplierSku,line.SupplierSku);
+                Assert.AreEqual(input.DescriptionZh,line.DescriptionZh);
+            }
+            else
+            {
+                Assert.ThrowsExactly<ProcurementOperationException>(()=>IndependentPurchaseOrderInputPolicy.ValidateLine(input));
+                Assert.ThrowsExactly<ProcurementOperationException>(()=>ProcurementOrderPolicy.ApplySave(head,[line],command));
+            }
+        }
+    }
+
     /// <summary>文本超长整次拒绝，不能将用户商务内容悄悄截断。</summary>
     [TestMethod]
     public void TextOverflowIsRejectedInsteadOfTruncated()

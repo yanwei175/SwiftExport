@@ -256,6 +256,7 @@ public static class DependencyInjection
         services.AddScoped<IAfterSalesLifecycleService, AfterSalesLifecycleService>();
         services.AddScoped<IAfterSalesConfirmationService, AfterSalesConfirmationService>();
         services.AddScoped<SwiftExport.Application.Interfaces.ForExcel.IForExcelSalesOrderService, SwiftExport.Application.Services.ForExcel.ForExcelSalesOrderService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.ForExcel.IForExcelPurchaseOrderService, SwiftExport.Application.Services.ForExcel.ForExcelPurchaseOrderService>();
         // 地址配置使用独立聚合服务，不改变旧表头别名映射的语义。
         services.AddScoped<SwiftExport.Application.Interfaces.Systems.ExcelReadProfiles.IExcelReadProfileService,
             SwiftExport.Application.Services.Systems.ExcelReadProfiles.ExcelReadProfileService>();

@@ -33,11 +33,14 @@ public sealed class ProcurementOrderDocumentRepository(RepositoryBaseContext con
             (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,OriginKind,
              CustomerId,CustomerCode,CustomerNameSnapshot,SupplierId,SupplierCode,SupplierName,OrderNo,Currency,DiscountRate,DiscountAmount,
              OrderDate,ExpectedDate,Remark,PackagingRequirements,ExecutionRequestId,DemandSourceType,DemandSourceUid,DemandSourceNo,
+             BoNo,CustomerPoNo,ReplyDate,SoPerson,PoPerson,InletrHoseType,AeratorType,PalletType,BoxType,LabelType,IMType,CartonType,LogoType,ZheKouBeiZhu,
              ConfirmationStatus,LifecycleStatus)
             VALUES
             (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@OriginKind,
              @CustomerId,@CustomerCode,@CustomerNameSnapshot,@SupplierId,@SupplierCode,@SupplierName,@OrderNo,@Currency,@DiscountRate,@DiscountAmount,
-             @OrderDate,@ExpectedDate,@Remark,@PackagingRequirements,@ExecutionRequestId,NULL,NULL,NULL,@ConfirmationStatus,@LifecycleStatus);
+             @OrderDate,@ExpectedDate,@Remark,@PackagingRequirements,@ExecutionRequestId,NULL,NULL,NULL,
+             @BoNo,@CustomerPoNo,@ReplyDate,@SoPerson,@PoPerson,@InletrHoseType,@AeratorType,@PalletType,@BoxType,@LabelType,@IMType,@CartonType,@LogoType,@ZheKouBeiZhu,
+             @ConfirmationStatus,@LifecycleStatus);
             """, head, ct));
         foreach (var line in lines)
         {
@@ -47,12 +50,12 @@ public sealed class ProcurementOrderDocumentRepository(RepositoryBaseContext con
                 (Uid,Version,IsDeleted,CreatedDate,CreatedBy,UpdatedDate,UpdatedBy,PurchaseOrderId,LineNumber,OrderNo,
                  ProductId,Sku,UnitSnapshot,QTY,UnlinkedQty,SupplyType,MaterialType,DeliveryTargetSupplierId,
                  DeliverySupplierCodeSnapshot,DeliverySupplierNameSnapshot,UnitPrice,TaxPrice,UnitAmount,TaxAmount,
-                 PlannedDeliveryDate,SupplierSku,DescriptionZh,SubNote,SourceType,SourceNo)
+                 PlannedDeliveryDate,SupplierSku,DescriptionZh,SubNote,CustomerSku,LinkSku,FinishZh,FeaturesZh,SourceType,SourceNo)
                 VALUES
                 (@Uid,@Version,@IsDeleted,@CreatedDate,@CreatedBy,@UpdatedDate,@UpdatedBy,@PurchaseOrderId,@LineNumber,@OrderNo,
                  @ProductId,@Sku,@UnitSnapshot,@Quantity,@UnlinkedQty,@SupplyType,@MaterialType,@DeliveryTargetSupplierId,
                  @DeliverySupplierCodeSnapshot,@DeliverySupplierNameSnapshot,@UnitPrice,@TaxPrice,@UnitAmount,@TaxAmount,
-                 @PlannedDeliveryDate,@SupplierSku,@DescriptionZh,@SubNote,NULL,NULL);
+                 @PlannedDeliveryDate,@SupplierSku,@DescriptionZh,@SubNote,@CustomerSku,@LinkSku,@FinishZh,@FeaturesZh,NULL,NULL);
                 """, line, ct));
         }
     }

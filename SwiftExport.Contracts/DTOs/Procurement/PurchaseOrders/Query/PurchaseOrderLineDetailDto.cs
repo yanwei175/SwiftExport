@@ -8,6 +8,8 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto
     {
         public int LineNumber { get; set; }
         public Guid ProductId { get; set; }
+        /// <summary>是否没有产品主档身份；非标行的旧 ProductId 投影为 Guid.Empty，不能据 SKU 前缀判断。</summary>
+        public bool IsNonStandard { get; set; }
         public string MainImage { get; set; }
         public string Sku { get; set; }
         public string CustomerSku { get; set; }
