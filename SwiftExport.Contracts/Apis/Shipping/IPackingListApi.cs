@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Refit;
@@ -10,6 +10,9 @@ namespace SwiftExport.Contracts.Apis.Shipping
     /// <summary>装箱单查询、草稿及执行追踪契约；基址 api/shipping/packing-lists。</summary>
     public interface IPackingListApi
     {
+        /// <summary>原子分配待关联行，保持总数量并保留未分配余量。</summary>
+        [Post("/drafts/{uid}/lines/{lineUid}/associate-sources")]
+        Task<ServiceResult<PackingListDraftCommandResult>> AssociateSourcesAsync(Guid uid, Guid lineUid, [Body] AssociatePackingListSourcesCommand request, CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>箱单post-preview用例；服务端校验权限、版本及预览事实。</summary>
         [Post("/{uid}/post-preview")]
         Task<ServiceResult<PackingListPostingPreviewDto>> PostPreviewAsync(Guid uid, [Body] PackingListPostPreviewRequest request, CancellationToken cancellationToken = default(CancellationToken));

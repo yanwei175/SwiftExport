@@ -1,3 +1,4 @@
+﻿using SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,9 +26,10 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
         public IReadOnlyList<ExcelImportDefinition> Groups { get; }
         /// <summary>定位已注册模型组，配置请求始终使用返回定义的规范分组编码。</summary>
         public ExcelImportDefinition Find(string groupCode) => groupCode != null && byGroup.TryGetValue(groupCode.Trim(), out var definition) ? definition : null;
-        /// <summary>注册销售与采购真实编辑模型，字段目录由通知模型特性生成。</summary>
+        /// <summary>注册销售、采购与装箱单真实编辑模型，字段目录由通知模型特性生成。</summary>
         public static ExcelImportRegistry CreateDefault() => new ExcelImportRegistry(
             new ExcelImportDefinition("SalesOrder", "销售订单", typeof(SalesOrderImportHeader), typeof(SalesOrderImportLine)),
-            new ExcelImportDefinition("PurchaseOrder", "采购订单", typeof(PurchaseOrderImportHeader), typeof(PurchaseOrderImportLine)));
+            new ExcelImportDefinition("PurchaseOrder", "采购订单", typeof(PurchaseOrderImportHeader), typeof(PurchaseOrderImportLine)),
+            new ExcelImportDefinition("PackingList", "装箱单", typeof(PackingListImportHeader), typeof(PackingListImportLine)));
     }
 }

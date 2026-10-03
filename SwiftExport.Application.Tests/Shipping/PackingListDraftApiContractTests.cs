@@ -101,7 +101,7 @@ public sealed class PackingListDraftApiContractTests
         var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListDraftService.cs");
         var queries = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListQueryService.cs");
         StringAssert.Contains(queries, "CustomerPoNo = enrichment?.CustomerPoNo");
-        StringAssert.Contains(service, "CustomerPoNo = Clean(enrichment?.CustomerPoNo, 200)");
+        StringAssert.Contains(service, "CustomerPoNo = Clean(input.CustomerPoNo ?? enrichment?.CustomerPoNo, 200)");
     }
 
     private static T Attribute<T>(System.Reflection.MethodInfo method) where T : Attribute =>

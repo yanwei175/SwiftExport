@@ -91,7 +91,7 @@ public sealed class PackingListUiTests
         api.Sources = _ => Task.FromResult(SwiftExport.Contracts.Wrappers.ServiceResult<
             SwiftExport.Contracts.Wrappers.PagedResponseBase<SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListSourceCandidateDto>>.Ok(new()
             { Items = Enumerable.Range(0, 2).Select(_ => new SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListSourceCandidateDto
-                { GrossDemandId = Guid.NewGuid(), CustomerId = customer, IsNonStandard = true, RemainingQty = 2 }).ToList() }));
+                { GrossDemandId = Guid.NewGuid(), CustomerId = customer, IsNonStandard = true, DemandVersion = 1, SourceVersion = 1, RemainingQty = 2 }).ToList() }));
         using var picker = new PackingListSourcePickerViewModel(api, runner);
         await picker.InitializeAsync(customer, new Dictionary<Guid, decimal>(), default);
         var pickerView = new PackingListSourcePickerView { DataContext = picker }; Layout(pickerView);
@@ -111,6 +111,23 @@ public sealed class PackingListUiTests
         Assert.IsTrue(picker.Items[1].IsChecked);
         Assert.IsFalse(picker.Items[0].IsChecked);
         pickerView.RaiseEvent(new RoutedEventArgs(FrameworkElement.UnloadedEvent));
+
+        // 分配模式使用真实单元格模板，数量输入须回写选中行并控制确认门禁。
+        using var allocator = new PackingListSourcePickerViewModel(api, runner);
+        allocator.ConfigureAllocation(null, true, null, 3);
+        await allocator.InitializeAsync(customer, new Dictionary<Guid, decimal>(), default);
+        var allocationView = new PackingListSourcePickerView { DataContext = allocator }; Layout(allocationView);
+        var allocationGrid = Descendants(allocationView).OfType<DataGrid>().Single();
+        allocationGrid.SelectedItem = allocator.Items[0]; Layout(allocationView);
+        var quantityEditor = Descendants(allocationGrid).OfType<TextBox>()
+            .Single(x => x.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path == "AllocationQtyText" && ReferenceEquals(x.DataContext, allocator.Items[0]));
+        Assert.IsTrue(quantityEditor.IsEnabled);
+        Assert.IsFalse(allocator.IsPrimaryButtonEnabled);
+        quantityEditor.Text = "1.5"; quantityEditor.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+        Assert.AreEqual(1.5m, allocator.Items[0].AllocationQty);
+        Assert.IsTrue(allocator.IsPrimaryButtonEnabled);
+        quantityEditor.Text = "bad"; quantityEditor.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+        Assert.IsFalse(allocator.IsPrimaryButtonEnabled);
 
         // 三张新增弹窗使用真实 XAML 和主题，检查实际绑定及只读网格而非仅检查源码字符串。
         var options = new PackingListPostingOptions { IsReverse = true, BusinessDate = new DateTime(2026, 9, 17), Reason = "原始原因" };

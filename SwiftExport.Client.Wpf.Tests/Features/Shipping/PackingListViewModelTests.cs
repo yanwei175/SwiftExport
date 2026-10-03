@@ -181,7 +181,7 @@ public sealed class PackingListViewModelTests
     {
         var api = new PackingListApiStub(); var ui = new PackingListUiStub(); var source = new PackingListSourceStub();
         using var vm = Detail(api, ui, source); await NewDraft(vm);
-        source.Selection = [new() { Source = new() { CustomerId = vm.Header.CustomerId, GrossDemandId = vm.Lines.Items[0].GrossDemandId,
+        source.Selection = [new() { Source = new() { CustomerId = vm.Header.CustomerId, GrossDemandId = vm.Lines.Items[0].GrossDemandId!.Value,
             ProductId = vm.Lines.Items[0].ProductId, ImagePath = "new.png", RemainingQty = 20, PcsPerPackage = 2 }, Qty = 3 }];
         await vm.SelectSourcesCommand.ExecuteAsync(null);
         Assert.AreEqual(2, vm.Lines.Items.Count);
@@ -335,6 +335,10 @@ public sealed class PackingListViewModelTests
 /// <summary>可控制完成顺序的契约替身，不执行网络。</summary>
 internal sealed class PackingListApiStub : IPackingListApi
 {
+    public List<AssociatePackingListSourcesCommand> Associations { get; } = [];
+    public Func<Guid, Guid, AssociatePackingListSourcesCommand, Task<ServiceResult<PackingListDraftCommandResult>>> Associate { get; set; } = (_, _, _) => throw new NotSupportedException();
+    /// <inheritdoc/>
+    public Task<ServiceResult<PackingListDraftCommandResult>> AssociateSourcesAsync(Guid uid, Guid lineUid, AssociatePackingListSourcesCommand request, CancellationToken cancellationToken = default) { Associations.Add(request); return Associate(uid, lineUid, request); }
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListPostingPreviewDto>> PostPreviewAsync(Guid uid, PackingListPostPreviewRequest request, CancellationToken cancellationToken = default) => Preview(uid, request);
     /// <inheritdoc/>
@@ -418,6 +422,8 @@ internal sealed class PackingListSourceStub : IPackingListSourcePickerService
     public IReadOnlyList<PackingListSourcePickerSelection>? Selection { get; set; }
     /// <inheritdoc/>
     public Task<IReadOnlyList<PackingListSourcePickerSelection>?> PickAsync(Guid customerId, IReadOnlyDictionary<Guid, decimal> draftQuantities, CancellationToken token) => Task.FromResult(Selection);
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<PackingListSourcePickerSelection>?> AllocateAsync(Guid customerId, IReadOnlyDictionary<Guid, decimal> draftQuantities, Guid? productId, bool isNonStandard, string? invoiceNumbers, decimal limit, IReadOnlyList<PackingListSourcePickerSelection>? previous, CancellationToken token) => Task.FromResult(Selection);
 }
 /// <summary>默认取消仓库选择的替身。</summary>
 internal sealed class PackingListWarehouseStub : IWarehousePickerService

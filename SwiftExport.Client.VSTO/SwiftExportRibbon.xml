@@ -13,6 +13,7 @@
   <group id="importGroup" label="数据导入">
    <button id="salesOrderImport" label="销售订单导入" onAction="OnSalesImport" getEnabled="GetSalesImportEnabled" screentip="本地编辑预览，暂不保存至服务器"/>
    <button id="purchaseOrderImportPreview" label="采购订单导入" onAction="OnPurchaseImportPreview" getEnabled="GetPurchaseImportPreviewEnabled" screentip="按地址读取、检验后创建无来源采购草稿"/>
+   <button id="packingListImport" label="PackingList 导入" onAction="OnPackingListImport" getEnabled="GetPackingListImportEnabled" screentip="保存未关联草稿，随后到系统分配来源数量"/>
   </group>
  </tab></tabs></ribbon>
 </customUI>

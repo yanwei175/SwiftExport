@@ -1,4 +1,4 @@
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
+﻿using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using System.Data;
 using System.Text.Json;
 using SwiftExport.Application.Commands;
@@ -128,7 +128,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
         // 重放只依赖持久化结果；跳过当前库存探测，但仍在命令锁内核对身份和请求指纹。
         var replayCandidate = await executions.FindCommandAsync(request.CommandId, token);
         var observed = replayCandidate == null ? await packingLists.GetDetailAsync(request.PackingListId, token) : null;
-        var sourceIds = observed?.Lines.Select(x => x.GrossDemandId).Distinct().Order().ToArray() ?? [];
+        var sourceIds = observed?.Lines.Select(x => x.GrossDemandId).OfType<Guid>().Distinct().Order().ToArray() ?? [];
         // 事务外探测原执行资源；事务内取得更新锁前不读取余额和原库存单据。
         var candidateFacts = replayCandidate == null ? await executions.ReadReverseFactsAsync(request.PackingListId, token) : null;
         try
@@ -151,7 +151,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
             var head = await packingLists.LockHeaderAsync(request.PackingListId, false, token);
             CheckVersion(head, request.ExpectedVersion);
             var physical = await packingLists.LockLinesAsync(request.PackingListId, token);
-            if (physical.Any(x => !sourceIds.Contains(x.GrossDemandId)))
+            if (physical.Any(x => (!x.GrossDemandId.HasValue || !sourceIds.Contains(x.GrossDemandId.Value))))
                 throw new PackingListPostingFailure("VERSION_CONFLICT", "箱单来源集合已变化，请刷新。");
             var facts = candidateFacts;
             var preview = new PackingListReversePreviewBuilder().Build(facts, request.BusinessDate, reason);

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
@@ -24,6 +24,10 @@ public sealed class PackingListController(
     ICurrentUser currentUser,
     IPermissionEvaluationService permissions) : ControllerBase
 {
+    /// <summary>按头行版本原子分配来源，幂等由 Application 持久化执行器保证。</summary>
+    [HttpPost("drafts/{uid:guid}/lines/{lineUid:guid}/associate-sources")]
+    public Task<ActionResult<ServiceResult<PackingListDraftCommandResult>>> AssociateSourcesAsync(Guid uid, Guid lineUid, [FromBody] AssociatePackingListSourcesCommand command, CancellationToken token) =>
+        AuthorizedAsync(() => drafts.AssociateSourcesAsync(uid, lineUid, command, token), token, "Shipping.PackingList.Edit");
     /// <summary>箱单post-preview业务边界；稳定命令由服务持久化去重，不使用短时冷却。</summary>
     [HttpPost("{uid:guid}/post-preview")]
     public Task<ActionResult<ServiceResult<PackingListPostingPreviewDto>>> PostPreviewAsync(Guid uid, [FromBody] PackingListPostPreviewRequest request, CancellationToken token) =>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -17,10 +17,18 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
        public int LineNumber { get; set; }
         /// <summary>同单据内一只拼箱的稳定标识；为空表示普通包装行，不关联独立组表。</summary>
         public Guid? PackingGroupId { get; set; }
-        /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
-        public Guid GrossDemandId { get; set; }
+        /// <summary>交付来源锚点；仅未关联草稿允许为空，不表示采购或物料分摊。</summary>
+        public Guid? GrossDemandId { get; set; }
         /// <summary>标准行产品标识；非标行为空。</summary>
         public Guid? ProductId { get; set; }
+        /// <summary>未关联行由用户明确声明非标；已关联行由来源复核。</summary>
+        public bool IsNonStandardSnapshot { get; set; }
+        /// <summary>未关联标准行显式选定的客户产品关系，非标及已关联行不使用。</summary>
+        public Guid? SelectedCustomerProductId { get; set; }
+        /// <summary>Excel 中性型号原文，用于检查差异，不替代系统产品身份。</summary>
+        public string OriginalLinkSku { get; set; }
+        /// <summary>用户明确确认原文与系统中性型号的差异。</summary>
+        public bool AcceptLinkSkuMismatch { get; set; }
         /// <summary>产品编码快照。</summary>
         public string SkuSnapshot { get; set; }
         /// <summary>关联型号快照。</summary>

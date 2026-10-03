@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using Dapper;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -21,7 +21,7 @@ public sealed class PackingListPostingFactsRepository(RepositoryBaseContext cont
         facts.Head = (await Read<PackingListHead>("Uid=@Id", new { Id = packingListId }, token)).SingleOrDefault();
         if (facts.Head is null) return facts;
         facts.Lines = await Read<PackingListLine>("PackingListHeadId=@Id AND IsDeleted=0", new { Id = packingListId }, token);
-        var ids = facts.Lines.Select(x => x.GrossDemandId).Distinct().Order().ToArray();
+        var ids = facts.Lines.Select(x => x.GrossDemandId).OfType<Guid>().Distinct().Order().ToArray();
         facts.Sources = await Read<GrossDemand>("Uid IN @Ids", new { Ids = ids }, token);
         facts.Demands = await Read<NetDemand>("GrossDemandId IN @Ids AND IsDeleted=0", new { Ids = ids }, token);
         facts.Links = await Read<DemandExecutionLink>("NetDemandId IN @Ids AND IsDeleted=0",

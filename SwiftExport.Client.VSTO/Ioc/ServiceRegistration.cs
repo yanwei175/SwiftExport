@@ -71,6 +71,10 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddScoped<SalesOrderImportView>();
             services.AddScoped<PurchaseOrderImportViewModel>();
             services.AddScoped<PurchaseOrderImportView>();
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.ForExcel.IForExcelPackingListApi>("api/for-excel/packing-lists"));
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.Shipping.IPackingListApi>("api/shipping/packing-lists"));
+            services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels.PackingListImportViewModel>();
+            services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Views.PackingListImportView>();
             services.AddScoped<ModelessWindowContext>();
             services.AddSingleton<WindowManager>();
             services.AddSingleton<ModelessElementHostWindowManager>();

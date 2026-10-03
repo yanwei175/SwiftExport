@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -43,6 +43,8 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
               AND OBJECT_ID(N'dbo.OutboundDocument',N'U') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListHead',N'CreateCommandId') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'GrossDemandId') IS NOT NULL
+              AND EXISTS(SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.PackingListLine')
+                         AND name=N'GrossDemandId' AND is_nullable=1)
               AND COL_LENGTH(N'dbo.PackingListLine',N'PackingGroupId') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListHead',N'ShippingLocationSnapshot') IS NOT NULL
               AND COL_LENGTH(N'dbo.PackingListLine',N'IsNonStandardSnapshot') IS NOT NULL
@@ -201,6 +203,9 @@ public sealed partial class PackingListRepository(RepositoryBaseContext context)
 
     private const string UpdateLineSql = """
         UPDATE dbo.PackingListLine SET PackingGroupId=@PackingGroupId,LineNumber=@LineNumber,Qty=@Qty,PcsPerPackage=@PcsPerPackage,
+          ProductId=@ProductId,IsNonStandardSnapshot=@IsNonStandardSnapshot,SkuSnapshot=@SkuSnapshot,LinkSkuSnapshot=@LinkSkuSnapshot,
+          CustomerSkuSnapshot=@CustomerSkuSnapshot,DescriptionEnSnapshot=@DescriptionEnSnapshot,ColorNameEnSnapshot=@ColorNameEnSnapshot,
+          UnitSnapshot=@UnitSnapshot,CustomerPoNo=@CustomerPoNo,
           PackageCount=@PackageCount,NwPerPackage=@NwPerPackage,GwPerPackage=@GwPerPackage,CbmPerPackage=@CbmPerPackage,
           SubTotalNw=@SubTotalNw,SubTotalGw=@SubTotalGw,SubTotalCbm=@SubTotalCbm,InvoiceNo=@InvoiceNo,
           Marks=@Marks,Note=@Note,Version=Version+1,UpdatedDate=@UpdatedDate,UpdatedBy=@UpdatedBy

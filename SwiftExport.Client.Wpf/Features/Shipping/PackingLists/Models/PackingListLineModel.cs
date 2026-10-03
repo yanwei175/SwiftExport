@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExportClient.Mvvm;
@@ -31,7 +31,12 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
 
     /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
     [ObservableProperty]
-    public partial Guid GrossDemandId { get; set; }
+    [NotifyPropertyChangedFor(nameof(AssociationStatus))]
+    public partial Guid? GrossDemandId { get; set; }
+    /// <summary>来源关系状态，空身份只表示草稿待关联。</summary>
+    public string AssociationStatus => GrossDemandId.HasValue ? "已关联" : "待关联";
+    /// <summary>当前来源单头编号，仅查询展示，不写入草稿参考文本。</summary>
+    [ObservableProperty] public partial string? SourceInvoiceNo { get; set; }
 
     /// <summary>标准行产品标识；非标行为空。</summary>
     [ObservableProperty]
@@ -177,7 +182,7 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
     /// <summary>本地同步校验不替代后端来源、库存和权限校验。</summary>
     public override string? ValidateRow()
     {
-        if (GrossDemandId == Guid.Empty) return "来源身份不能为空。";
+        if (GrossDemandId == Guid.Empty) return "来源身份不能是空 Guid。";
         if (IsNonStandardSnapshot && ProductId.HasValue)
             return "非标行不能关联标准产品。";
         if (!IsNonStandardSnapshot && (!ProductId.HasValue || ProductId == Guid.Empty))
@@ -215,7 +220,7 @@ public sealed partial class PackingListLineModel : BaseLineModel<PackingListLine
         base.IsTrackingIgnoredProperty(propertyName)
         || propertyName is nameof(DisplayGroup) or nameof(IsMixedPacking)
         || propertyName is nameof(PackageCount) or nameof(CanSplitTail) or nameof(SubTotalNw)
-            or nameof(SubTotalGw) or nameof(SubTotalCbm) or nameof(ImagePath);
+            or nameof(SubTotalGw) or nameof(SubTotalCbm) or nameof(ImagePath) or nameof(AssociationStatus) or nameof(SourceInvoiceNo);
 
     // 小计采用约定精度；极端输入溢出保持未知，校验时报告。
     private decimal? CalculateSubtotal(decimal? perPackage)

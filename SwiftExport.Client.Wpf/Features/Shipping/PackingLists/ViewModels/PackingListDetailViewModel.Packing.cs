@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExportClient.Features.Shipping.PackingLists.Models;
 
@@ -45,7 +45,7 @@ public sealed partial class PackingListDetailViewModel
     /// <summary>明确确认后在本地原子调整组归属，取消不修改现有产品行。</summary>
     private async Task ChangePackingAsync(bool remove)
     {
-        if (!IsEditable || SelectedLine is not { } row || CommitEdits?.Invoke() == false) return;
+        if (!IsEditable || SelectedLine is not { } row || !row.GrossDemandId.HasValue || CommitEdits?.Invoke() == false) return;
         var target = remove ? null : SelectedPackingGroup;
         if ((!remove && target is null) || row.PackingGroupId == target?.Id) return;
         _dialogOpen = true; NotifyState();

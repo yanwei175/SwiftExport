@@ -171,7 +171,7 @@ public sealed class PackingListReversePreviewBuilderTests
             Facts.Evidence = [Evidence(1, "Receipt", incoming, il.SourceLineId), Evidence(2, "Shipment", outgoing, null)];
             PackingListPostingExecutionLine Evidence(int number, string kind, InventoryLedgerEntry ledger, Guid? purchase) => new()
             {
-                ExecutionId = execution.Uid, LineNumber = number, PackingListLineId = packingLine.Uid, GrossDemandId = packingLine.GrossDemandId,
+                ExecutionId = execution.Uid, LineNumber = number, PackingListLineId = packingLine.Uid, GrossDemandId = packingLine.GrossDemandId!.Value,
                 ProductId = product, Unit = "PCS", WarehouseSiteId = warehouse.Uid, ActionKind = kind, Qty = 10, PurchaseLineId = purchase,
                 DocumentId = ledger.SourceDocumentId, DocumentLineId = ledger.SourceLineId, LedgerId = ledger.Uid, DocumentVersion = 2
             };

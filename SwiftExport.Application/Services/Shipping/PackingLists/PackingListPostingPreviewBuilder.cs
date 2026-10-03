@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -53,6 +53,8 @@ public sealed class PackingListPostingPreviewBuilder
             || decimal.Round(x.Qty, 4) != x.Qty || x.LineNumber <= 0)
             || active.Select(x => x.Uid).Distinct().Count() != active.Length)
             blockers.Add(new("INVALID_LINES", null, "箱单行归属、身份或数量无效。"));
+        if (active.Any(x => !x.GrossDemandId.HasValue))
+            blockers.Add(new("SOURCE_NOT_ASSOCIATED", null, "箱单尚有待关联来源行，请先分配全部数量。"));
         if (sources.GroupBy(x => x.Id).Any(x => x.Count() != 1))
             blockers.Add(new("AMBIGUOUS_SOURCE", null, "来源事实存在重复身份。"));
         if (blockers.Count != 0) return new(null, [], blockers);
@@ -64,7 +66,7 @@ public sealed class PackingListPostingPreviewBuilder
         {
             token.ThrowIfCancellationRequested();
             var qty = group.Sum(x => x.Qty);
-            if (!sourceMap.TryGetValue(group.Key, out var source) || !source.IsActive)
+            if (!sourceMap.TryGetValue(group.Key!.Value, out var source) || !source.IsActive)
             {
                 blockers.Add(new("SOURCE_INVALID", group.Key, "来源不存在或已失效。"));
                 continue;

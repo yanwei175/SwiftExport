@@ -17,8 +17,9 @@ namespace SwiftExport.Client.VSTO.Tests
         public void SalesDirectoryComesFromModelAttributes()
         {
             var registry = ExcelImportRegistry.CreateDefault(); var definition = registry.Find(" salesorder ");
-            Assert.AreEqual("SalesOrder", definition.GroupCode); Assert.AreEqual(2, registry.Groups.Count);
-            Assert.AreEqual("PurchaseOrder", registry.Find("PurchaseOrder").GroupCode); Assert.IsNull(registry.Find("PackingList"));
+            Assert.AreEqual("SalesOrder", definition.GroupCode); Assert.AreEqual(3, registry.Groups.Count);
+            Assert.AreEqual("PurchaseOrder", registry.Find("PurchaseOrder").GroupCode);
+            Assert.AreEqual("PackingList", registry.Find("PackingList").GroupCode); Assert.IsNull(registry.Find("Unknown"));
             var existingKeys = new[] { "Header.InvoiceNo", "Header.CustomerPoNo", "Header.ShippedBy", "Header.Currency", "Header.ExchangeRate",
                 "Header.ShipToName", "Header.ShipToAddress", "Header.ShipToPhone", "Header.Incoterm", "Header.IncotermLocation", "Header.Remark",
                 "Header.OrderDate", "Header.DeliveryDate", "Header.Etd", "Header.Eta", "Line.CustomerSku", "Line.DescriptionEn", "Line.ColorNameEn",

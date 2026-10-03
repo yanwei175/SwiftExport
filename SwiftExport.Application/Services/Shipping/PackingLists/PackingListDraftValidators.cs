@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 
 namespace SwiftExport.Application.Services.Shipping.PackingLists;
@@ -25,4 +25,11 @@ public sealed class DeletePackingListDraftCommandValidator : AbstractValidator<D
     /// <summary>拒绝缺少稳定命令标识的删除请求。</summary>
     public DeletePackingListDraftCommandValidator() =>
         RuleFor(x => x.CommandId).NotEmpty().WithMessage("CommandId 不能为空。");
+}
+
+/// <summary>来源分配命令基础身份验证，数量与版本由事务内复核。</summary>
+public sealed class AssociatePackingListSourcesCommandValidator : AbstractValidator<AssociatePackingListSourcesCommand>
+{
+    /// <summary>每个关联意图必须携带稳定命令标识。</summary>
+    public AssociatePackingListSourcesCommandValidator() => RuleFor(x => x.CommandId).NotEmpty().WithMessage("CommandId 不能为空。");
 }

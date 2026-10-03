@@ -110,7 +110,7 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                         for (var i = 0; i < result.Rows.Count; i++)
                         {
                             if (i % 1000 == 0) token.ThrowIfCancellationRequested();
-                            result.Rows[i].Add(hasMerged ? ReadCell(sheet, field.TargetFieldKey, start + i, column, true)
+                            result.Rows[i].Add(hasMerged ? ReadCell(sheet, field.TargetFieldKey, start + i, column, true, ExcelAddressRules.AllowMergedDetailSkip(profile.GroupCode, field.TargetFieldKey))
                                 : Cell(field.TargetFieldKey, start + i, column, values == null ? value : values[i + values.GetLowerBound(0), values.GetLowerBound(1)]));
                         }
                     }
@@ -145,8 +145,8 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
             }
             return start - 1;
         }
-        // 单头合并区域读取左上角；明细只允许横向合并，跨行合并不能自动解释成多条记录。
-        private static ExcelAddressValue ReadCell(ExcelInterop.Worksheet sheet, string key, int row, int column, bool detail)
+        // 单头合并区域读取左上角；明细跨行合并不解释成多条记录，仅指定的装箱可选字段可留空提示。
+        private static ExcelAddressValue ReadCell(ExcelInterop.Worksheet sheet, string key, int row, int column, bool detail, bool allowMergedSkip = false)
         {
             ExcelInterop.Range cell = null, area = null, rows = null, first = null;
             try
@@ -155,6 +155,8 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                 if (cell.MergeCells is bool merged && merged)
                 {
                     area = cell.MergeArea; rows = area.Rows;
+                    if (detail && rows.Count > 1 && allowMergedSkip)
+                        return new ExcelAddressValue { FieldKey = key, Row = row, Column = column, Issue = "跨行合并包装字段留空，请保存草稿后整理包装。" };
                     if (detail && rows.Count > 1) throw new InvalidOperationException("明细存在跨行合并单元格，请拆分后再读取。");
                     first = sheet.get_Range(ExcelAddressRules.ColumnName(area.Column) + area.Row);
                     return Cell(key, area.Row, area.Column, first.Value2);

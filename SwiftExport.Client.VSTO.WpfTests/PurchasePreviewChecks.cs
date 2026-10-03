@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -77,7 +77,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 try
                 {
                     Pump(); var selector=(ComboBox)view.FindName("GroupSelector");
-                    check(selector.Items.Count==2 && (string)selector.SelectedValue=="PurchaseOrder","配置实际下拉显示销售采购组并定位采购");
+                    check(selector.Items.Count==3 && (string)selector.SelectedValue=="PurchaseOrder","配置实际下拉显示三个单据组并定位采购");
                     check(model.HeaderFields.Any(f=>f.FieldKey=="Header.BoNo") && !model.HeaderFields.Any(f=>f.FieldKey=="Header.InvoiceNo"),"采购配置目录没有混入销售字段");
                     model.ConfigName="未保存采购配置"; fixture.Base.Confirm=false; selector.SelectedValue="SalesOrder"; Pump();
                     check(model.CurrentGroupCode=="PurchaseOrder" && (string)selector.SelectedValue=="PurchaseOrder" && model.ConfigName=="未保存采购配置","取消业务组切换同时恢复下拉与编辑");

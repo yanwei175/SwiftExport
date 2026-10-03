@@ -12,12 +12,13 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Shipping;
 [TestClass]
 public sealed class PackingListApiContractTests
 {
-    /// <summary>批准的十一条路由、请求体与返回契约保持完整一致。</summary>
+    /// <summary>批准的查询、草稿、关联及执行路由与返回契约保持完整一致。</summary>
     [TestMethod]
     public void RoutesAndSignaturesMatchHandoff()
     {
         var specs = new (string Method, string Path, Type Attribute, Type? Body, Type Data)[]
         {
+            ("AssociateSourcesAsync", "/drafts/{uid}/lines/{lineUid}/associate-sources", typeof(PostAttribute), typeof(AssociatePackingListSourcesCommand), typeof(PackingListDraftCommandResult)),
             ("PostPreviewAsync", "/{uid}/post-preview", typeof(PostAttribute), typeof(PackingListPostPreviewRequest), typeof(PackingListPostingPreviewDto)),
             ("PostAsync", "/{uid}/post", typeof(PostAttribute), typeof(PostPackingListCommand), typeof(PackingListPostingCommandResult)),
             ("ReversePreviewAsync", "/{uid}/reverse-preview", typeof(PostAttribute), typeof(PackingListReversePreviewRequest), typeof(PackingListPostingPreviewDto)),

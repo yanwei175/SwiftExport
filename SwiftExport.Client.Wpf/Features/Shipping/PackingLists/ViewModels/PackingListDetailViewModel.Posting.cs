@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -16,10 +16,20 @@ public sealed partial class PackingListDetailViewModel
     private ReversePackingListCommand? _pendingReverse;
     private bool HasPendingPosting => _pendingPost != null || _pendingReverse != null;
     /// <summary>权限快照改变时刷新操作按钮，不改变当前编辑内容。</summary>
-    private void OnPostingUserChanged(object? sender, EventArgs args) => NotifyState();
+    private void OnPostingUserChanged(object? sender, EventArgs args)
+    {
+        _associationSessionEpoch++;
+        if (_pendingAssociation != null)
+        {
+            _pendingAssociation = null; _lastAllocation = null;
+            _associationNeedsReload = true;
+            ReportAttention("身份变化，来源关联结果需重新加载核实，不能以新账号重试旧命令。");
+        }
+        NotifyState();
+    }
 
     private bool CanPost() => PostingAvailable(PermissionKeys.PackingListPost) && _pendingReverse == null
-        && Header.PostingStatus == PackingListPostingStatusEnum.Unposted && !ReverseCommand.IsRunning;
+        && Header.PostingStatus == PackingListPostingStatusEnum.Unposted && Lines.Items.All(x => x.GrossDemandId.HasValue) && _pendingAssociation == null && !_associationNeedsReload && !ReverseCommand.IsRunning;
     private bool CanReverse() => PostingAvailable(PermissionKeys.PackingListReverse) && _pendingPost == null && !_isNew
         && Header.PostingStatus == PackingListPostingStatusEnum.Posted && !PostCommand.IsRunning;
     private bool PostingAvailable(string permission) => !_disposed && _loaded && !IsBusy && !_dialogOpen

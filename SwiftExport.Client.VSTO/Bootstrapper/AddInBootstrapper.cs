@@ -158,6 +158,20 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }
+        /// <summary>创建装箱单导入窗口，同 Scope 释放页面，后续来源关联留在 .NET 10。</summary>
+        public void OpenPackingListImport(Office.IRibbonControl control)
+        {
+            if (!IsReady || !IsAuthenticated || IsRestoring || IsLoginOpen || user?.HasPermission("Shipping.PackingList.Create") != true) return;
+            try
+            {
+                provider.GetRequiredService<ModelessElementHostWindowManager>().Show<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Views.PackingListImportView>(
+                    "packing-list-import", "PackingList 导入", context.GetOwner(control), new Size(1280, 820), view => view.CanClose(),
+                    view => view.SetConfigurationOpener(uid => OpenExcelReadProfile(null, uid, "PackingList")));
+            }
+            catch (Exception ex) { log.Write("OpenPackingListImportFailure", ex); Status = "无法打开装箱单导入，请查看日志"; Changed?.Invoke(this, EventArgs.Empty); }
+        }
+        /// <summary>Ribbon 只读内存中的装箱单创建权限。</summary>
+        public bool CanImportPackingList => user?.HasPermission("Shipping.PackingList.Create") == true;
         /// <summary>Ribbon 切换配置侧栏，导入页按业务组受控定位配置。</summary>
         public void OpenExcelReadProfile(Office.IRibbonControl control, Guid? initialProfile = null, string groupCode = "SalesOrder")
         {

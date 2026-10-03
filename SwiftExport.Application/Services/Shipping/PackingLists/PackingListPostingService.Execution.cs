@@ -1,4 +1,4 @@
-using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
+﻿using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Application.Commands;
 using Mapster;
@@ -61,7 +61,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
         // 已持久化结果不依赖当前需求或库存；这里只决定是否跳过探测，事务内仍锁命令并重新核验。
         var replayCandidate = await executions.FindCommandAsync(request.CommandId, token);
         var observed = replayCandidate == null ? await packingLists.GetDetailAsync(request.PackingListId, token) : null;
-        var sourceIds = observed?.Lines.Select(x => x.GrossDemandId).Distinct().Order().ToArray() ?? [];
+        var sourceIds = observed?.Lines.Select(x => x.GrossDemandId).OfType<Guid>().Distinct().Order().ToArray() ?? [];
         // 事务外只探测候选集合，不占用库存；避免 Serializable 下先持有余额共享锁再升级。
         var candidate = replayCandidate == null
             ? await ResolveAsync(await factsRepository.ReadAsync(request.PackingListId, token), request.BusinessDate, token)
@@ -87,7 +87,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
             var head = await packingLists.LockHeaderAsync(request.PackingListId, false, token);
             CheckVersion(head, request.ExpectedVersion);
             var physical = await packingLists.LockLinesAsync(request.PackingListId, token);
-            if (physical.Any(x => !sourceIds.Contains(x.GrossDemandId)))
+            if (physical.Any(x => !x.GrossDemandId.HasValue || !sourceIds.Contains(x.GrossDemandId.Value)))
                 throw new PackingListPostingFailure("VERSION_CONFLICT", "箱单来源集合已变化，请刷新。");
             CheckPreview(candidate.Preview, request.PreviewToken);
             var builder = new PackingListAutomaticCommandBuilder();

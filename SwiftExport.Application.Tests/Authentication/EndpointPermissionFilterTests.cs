@@ -39,7 +39,7 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 旧表头映射的四个写端点已退役，保留其余端点的逐项权限检查。
-        Assert.AreEqual(223, routes.Count);
+        Assert.AreEqual(225, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.DeleteAsync"]);
@@ -58,6 +58,27 @@ public sealed class EndpointPermissionFilterTests
             Assert.IsNull(allowed.ErrorCode, action);
             CollectionAssert.AreEqual(new[] { key }, allowed.RequestedKeys, action);
         }
+    }
+
+    /// <summary>装箱导入检查和来源关联各自使用创建、编辑权限；错误权限及未认证均不能进入业务 Action。</summary>
+    [TestMethod]
+    [DataRow("ForExcelPackingListController.CheckAsync", "Shipping.PackingList.Create", "Shipping.PackingList.Edit")]
+    [DataRow("PackingListController.AssociateSourcesAsync", "Shipping.PackingList.Edit", "Shipping.PackingList.Create")]
+    public async Task PackingImportActions_RequireExactPermission(string action, string permission, string otherPermission)
+    {
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action), "必须验证真实 MVC Action。");
+        foreach (var allowed in new[] { Array.Empty<string>(), new[] { otherPermission } })
+        {
+            var denied = await ExecuteAsync(action, allowed);
+            Assert.IsFalse(denied.Continued);
+            Assert.AreEqual(ServiceErrorCodes.Forbidden, denied.ErrorCode);
+        }
+        var unauthenticated = await ExecuteAsync(action, [permission], authenticated: false);
+        Assert.IsFalse(unauthenticated.Continued);
+        Assert.AreEqual(ServiceErrorCodes.Unauthenticated, unauthenticated.ErrorCode);
+        var authorized = await ExecuteAsync(action, [permission]);
+        Assert.IsTrue(authorized.Continued, action);
+        CollectionAssert.AreEqual(new[] { permission }, authorized.RequestedKeys);
     }
 
     /// <summary>每个批量 Action 对实际出现的创建、编辑、删除独立检查，空操作一律拒绝。</summary>

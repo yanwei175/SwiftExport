@@ -211,6 +211,7 @@
             <!--汇总-->
             <Grid Grid.Row="0" ColumnDefinitions="*,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80,8,Auto,8,80">
                 <StackPanel Orientation="Horizontal">
+                    <ui:Button Content="关联来源 / 重试" Command="{Binding AssociateSourcesCommand}" Margin="0,0,8,0"/>
                     <ui:Button MinWidth="88" Margin="0,0,8,0" Content="获取" Command="{Binding SelectSourcesCommand}"  VerticalAlignment="Stretch" Appearance="Primary"/>
                     <ui:Button MinWidth="88" Margin="0,0,8,0" Content="删除行" Command="{Binding DeleteLineCommand}"  VerticalAlignment="Stretch"/>
                 </StackPanel>
@@ -348,6 +349,8 @@
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         Binding="{Binding SourceTypeSnapshot}" IsReadOnly="True"/>
 
+                    <DataGridTextColumn Header="关联状态" Binding="{Binding AssociationStatus}" IsReadOnly="True" Width="85"/>
+                    <DataGridTextColumn Header="来源 InvoiceNo" Binding="{Binding SourceInvoiceNo}" IsReadOnly="True" Width="120"/>
                     <DataGridTextColumn Width="100" Header="来源单号" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                         Binding="{Binding SourceDocumentNoSnapshot}" IsReadOnly="True"/>
 
@@ -467,6 +470,7 @@
             <StackPanel>
                 <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource UserBusinessTextWarningBrush}"/>
                 <TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding AssociationSummary}" TextWrapping="Wrap"/>
             </StackPanel>
         </Grid>
     </Grid>

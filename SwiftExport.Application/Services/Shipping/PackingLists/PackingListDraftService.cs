@@ -1,4 +1,4 @@
-using SwiftExport.Application.Interfaces.Systems.Numbering;
+﻿using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Core.Interfaces.Customers.Management;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
@@ -37,7 +37,7 @@ using System.Text.Json;
 namespace SwiftExport.Application.Services.Shipping.PackingLists;
 
 /// <summary>编排装箱单草稿命令；草稿不预占交付额度，也不产生库存事实。</summary>
-public sealed class PackingListDraftService(
+public sealed partial class PackingListDraftService(
     ServiceBaseContext context,
     IPackingListDocumentRepository repository,
     IPackingListQueryRepository queries,
@@ -49,7 +49,7 @@ public sealed class PackingListDraftService(
     ICurrentUser currentUser,
     IPermissionEvaluationService permissions,
     CommandPipeline pipeline,
-    BusinessCommandExecutor executor) : IPackingListDraftService
+    BusinessCommandExecutor executor, PackingListImportChecker importChecker) : IPackingListDraftService
 {
     private const string Module = "PackingList";
     private const decimal MaxDecimal = 99999999999999.9999m;
@@ -106,7 +106,7 @@ public sealed class PackingListDraftService(
                 var lines = await BuildLinesAsync(header, command.Lines, Array.Empty<PackingListLine>(), cancellationToken);
                 await repository.SaveAsync(header, lines, Array.Empty<PackingListLine>(), 0, cancellationToken);
                 return await ResultAsync(header.Uid, false, cancellationToken);
-            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId), command.Lines.Select(x => x.PackingGroupId).OfType<Guid>());
+            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId).OfType<Guid>(), command.Lines.Select(x => x.PackingGroupId).OfType<Guid>());
         }, cancellationToken);
 
     /// <inheritdoc/>
@@ -146,7 +146,7 @@ public sealed class PackingListDraftService(
                 var deleted = command.DeletedLines.Select(input => existing.Single(row => row.Uid == input.Uid)).ToArray();
                 await repository.SaveAsync(header, lines, deleted, command.ExpectedVersion, cancellationToken);
                 return await ResultAsync(uid, false, cancellationToken);
-            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId), command.Lines.Select(x => x.PackingGroupId).OfType<Guid>());
+            }, cancellationToken, command.Lines.Select(x => x.GrossDemandId).OfType<Guid>(), command.Lines.Select(x => x.PackingGroupId).OfType<Guid>());
         }, cancellationToken);
 
     /// <inheritdoc/>
@@ -179,7 +179,9 @@ public sealed class PackingListDraftService(
         IReadOnlyList<PackingListLine> existing, CancellationToken token)
     {
         var existingById = existing.ToDictionary(row => row.Uid);
-        var totals = inputs.GroupBy(row => row.GrossDemandId).ToDictionary(group => group.Key, group => group.Sum(row => row.Qty));
+        var totals = inputs.Where(row => row.GrossDemandId.HasValue).GroupBy(row => row.GrossDemandId!.Value).ToDictionary(group => group.Key, group => group.Sum(row => row.Qty));
+        var unbound = inputs.Where(row => !row.GrossDemandId.HasValue).ToArray();
+        var checks = (await importChecker.CheckAsync(header.CustomerId, unbound, token)).ToDictionary(row => row.ClientLineId);
         IReadOnlyDictionary<Guid, SourceDemandDeliveryItemDto> sources;
         try
         {
@@ -211,8 +213,29 @@ public sealed class PackingListDraftService(
         var result = new List<PackingListLine>(inputs.Count);
         foreach (var input in inputs)
         {
-            var source = sources[input.GrossDemandId];
-            var enrichment = enrichments.GetValueOrDefault(input.GrossDemandId);
+            if (!input.GrossDemandId.HasValue)
+            {
+                if (existingById.TryGetValue(input.Uid, out var previous) && previous.GrossDemandId.HasValue)
+                    Fail(PackingListErrorCodes.SourceChanged, "已有来源不能通过普通更新解除。", $"Lines[{input.Uid}].GrossDemandId");
+                var check = checks[input.Uid];
+                var issue = check.Issues.FirstOrDefault(x => !x.RequiresConfirmation || !x.Acknowledged);
+                if (issue != null) Fail(PackingListErrorCodes.InvalidDraft, issue.Message, $"Lines[{input.Uid}].{issue.Field}");
+                if (!input.IsNonStandardSnapshot && (check.Product == null || check.Product.ProductId != input.ProductId
+                    || !SameUnit(check.Product.Unit, input.UnitSnapshot)))
+                    Fail(PackingListErrorCodes.SourceChanged, "产品或单位已变化，请重新检查。", $"Lines[{input.Uid}].ProductId");
+                var pending = previous ?? new PackingListLine { Uid = input.Uid, Version = 0, PackingListHeadId = header.Uid };
+                pending.ProductId = input.ProductId; pending.IsNonStandardSnapshot = input.IsNonStandardSnapshot;
+                pending.SkuSnapshot = check.Product?.Sku ?? "";
+                pending.LinkSkuSnapshot = check.Product?.LinkSku ?? Clean(input.LinkSkuSnapshot, 200);
+                pending.CustomerSkuSnapshot = Clean(input.CustomerSkuSnapshot, 200);
+                pending.UnitSnapshot = check.Product?.Unit ?? Clean(input.UnitSnapshot, 100);
+                pending.DescriptionEnSnapshot = Clean(input.DescriptionEnSnapshot, 2000);
+                pending.ColorNameEnSnapshot = Clean(input.ColorNameEnSnapshot, 100);
+                pending.CustomerPoNo = Clean(input.CustomerPoNo, 200);
+                ApplyLineValues(pending, input); result.Add(pending); continue;
+            }
+            var source = sources[input.GrossDemandId.Value];
+            var enrichment = enrichments.GetValueOrDefault(input.GrossDemandId.Value);
             PackingListLine line;
             if (existingById.TryGetValue(input.Uid, out var old))
             {
@@ -220,7 +243,7 @@ public sealed class PackingListDraftService(
                     || old.ProductId != source.ProductId || old.IsNonStandardSnapshot != source.IsNonStandard
                     || !string.Equals(old.SourceTypeSnapshot, source.SourceType, StringComparison.Ordinal)
                     || !string.Equals(old.SourceDocumentNoSnapshot, source.SourceNo, StringComparison.Ordinal)
-                    || old.SourceLineNumberSnapshot != source.SourceLineNumber)
+                    || old.SourceLineNumberSnapshot != source.SourceLineNumber || !SameUnit(old.UnitSnapshot, source.Unit) || !SameUnit(input.UnitSnapshot, old.UnitSnapshot))
                     Fail(PackingListErrorCodes.SourceChanged, "已有行的来源或产品身份已变化。", $"Lines[{input.Uid}].GrossDemandId");
                 line = old;
             }
@@ -249,36 +272,43 @@ public sealed class PackingListDraftService(
                     UnitSnapshot = source.IsNonStandard
                         ? Clean(source.Unit, 100)
                         : RequiredSnapshot(source.Unit, "来源计量单位不完整。", input.Uid, "UnitSnapshot"),
-                    CustomerPoNo = Clean(enrichment?.CustomerPoNo, 200)
+                    CustomerPoNo = Clean(input.CustomerPoNo ?? enrichment?.CustomerPoNo, 200)
                 };
             }
-            line.LineNumber = input.LineNumber;
-            line.PackingGroupId = input.PackingGroupId;
-            line.Qty = input.Qty;
-            // 包装是本单可编辑事实；尾箱空值不能被主数据默认包装覆盖。
-            line.PcsPerPackage = input.PackingGroupId.HasValue ? input.Qty : input.PcsPerPackage;
-            line.NwPerPackage = input.NwPerPackage;
-            line.GwPerPackage = input.GwPerPackage;
-            line.CbmPerPackage = input.CbmPerPackage;
-            line.PackageCount = input.PackingGroupId.HasValue ? 1 : CalculatePackageCount(input.Qty, input.PcsPerPackage);
-            line.SubTotalNw = Multiply(line.PackageCount, line.NwPerPackage);
-            line.SubTotalGw = Multiply(line.PackageCount, line.GwPerPackage);
-            line.SubTotalCbm = Multiply(line.PackageCount, line.CbmPerPackage);
-            line.InvoiceNo = Clean(input.InvoiceNo, 200);
-            line.Marks = Clean(input.Marks, 2000);
-            line.Note = Clean(input.Note, 2000);
+            ApplyLineValues(line, input);
             result.Add(line);
         }
         return result;
     }
 
+    // 只复制可编辑业务值；来源和产品身份由各自检查分支负责，不信任界面快照。
+    private static void ApplyLineValues(PackingListLine line, PackingListDraftLineInput input)
+    {
+        line.LineNumber = input.LineNumber;
+        line.PackingGroupId = input.PackingGroupId;
+        line.Qty = input.Qty;
+        // 包装是本单可编辑事实；尾箱空值不能被主数据默认包装覆盖。
+        line.PcsPerPackage = input.PackingGroupId.HasValue ? input.Qty : input.PcsPerPackage;
+        line.NwPerPackage = input.NwPerPackage;
+        line.GwPerPackage = input.GwPerPackage;
+        line.CbmPerPackage = input.CbmPerPackage;
+        line.PackageCount = input.PackingGroupId.HasValue ? 1 : CalculatePackageCount(input.Qty, input.PcsPerPackage);
+        line.SubTotalNw = Multiply(line.PackageCount, line.NwPerPackage);
+        line.SubTotalGw = Multiply(line.PackageCount, line.GwPerPackage);
+        line.SubTotalCbm = Multiply(line.PackageCount, line.CbmPerPackage);
+        line.InvoiceNo = Clean(input.InvoiceNo, 200);
+        line.Marks = Clean(input.Marks, 2000);
+        line.Note = Clean(input.Note, 2000);
+    }
+    private static bool SameUnit(string? left, string? right) => string.Equals(left?.Trim(), right?.Trim(), StringComparison.OrdinalIgnoreCase);
+
     /// <summary>事务外只探测来源锁集合；公共执行器在可串行化事务内持有命令锁、回执与提交权。</summary>
     private async Task<CommandExecutionResult<PackingListDraftCommandResult>> ExecuteWriteAsync(Guid commandId, string operation,
         Guid aggregateUid, string fingerprint, Func<Task<PackingListDraftCommandResult>> action, CancellationToken token,
-        IEnumerable<Guid>? incomingSourceIds = null, IEnumerable<Guid>? incomingGroupIds = null)
+        IEnumerable<Guid>? incomingSourceIds = null, IEnumerable<Guid>? incomingGroupIds = null, object? auditDetails = null)
     {
         var observed = await repository.GetDetailAsync(aggregateUid, token);
-        var sourceIds = (observed?.Lines.Select(x => x.GrossDemandId) ?? Enumerable.Empty<Guid>())
+        var sourceIds = (observed?.Lines.Select(x => x.GrossDemandId).OfType<Guid>() ?? Enumerable.Empty<Guid>())
             .Concat(incomingSourceIds ?? Enumerable.Empty<Guid>()).Distinct().Order().ToArray();
         var executed = await executor.ExecuteAsync(commandId, $"Shipping.PackingList.Draft.{operation}", aggregateUid,
             new { Fingerprint = fingerprint }, async ct =>
@@ -294,9 +324,9 @@ public sealed class PackingListDraftService(
                     Uid = GuidSequentialGenerator.NewGuid(), CommandId = commandId, CorrelationId = commandId.ToString("N"),
                     Module = Module, AggregateType = "PackingListHead", AggregateUid = aggregateUid,
                     AggregateNoSnapshot = result.Detail?.Header?.PackingListNo, OperationType = operation,
-                    OperationName = operation switch { "Create" => "创建装箱单草稿", "Update" => "更新装箱单草稿", _ => "删除装箱单草稿" },
+                    OperationName = operation switch { "Create" => "创建装箱单草稿", "Update" => "更新装箱单草稿", "Associate" => "分配装箱来源并拆行", _ => "删除装箱单草稿" },
                     Summary = "装箱单头、行与命令回执在同一事务提交；未产生库存事实。",
-                    ChangedFieldsJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint }),
+                    ChangedFieldsJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint, Details = auditDetails }),
                     RelatedObjectsJson = JsonSerializer.Serialize(result), UserUid = currentUser.UserId,
                     UserNameSnapshot = currentUser.UserName, OccurredDate = DateTime.Now
                 }) != 1) Fail(PackingListErrorCodes.StateBlocked, "业务日志写入失败，草稿已回滚。");
@@ -384,6 +414,8 @@ public sealed class PackingListDraftService(
             if (row.GrossDemandId == Guid.Empty || row.ProductId == Guid.Empty)
                 Fail(PackingListErrorCodes.InvalidDraft, "来源身份不能为空，标准行的产品身份也不能为空。", field);
             ValidateDecimal(row.Qty, false, field + ".Qty");
+            if (!row.GrossDemandId.HasValue && row.PackingGroupId.HasValue)
+                Fail(PackingListErrorCodes.InvalidDraft, "待关联来源行不能先加入拼箱。", field + ".PackingGroupId");
             if (row.PackingGroupId == Guid.Empty)
                 Fail(PackingListErrorCodes.InvalidDraft, "拼箱标识不能是空 Guid。", field + ".PackingGroupId");
             if (row.PackingGroupId.HasValue) row.PcsPerPackage = row.Qty;
@@ -459,7 +491,7 @@ public sealed class PackingListDraftService(
             },
             Lines = lines.OrderBy(row => row.Uid).Select(row => new
             {
-                row.Uid, row.ExpectedVersion, row.LineNumber, row.PackingGroupId, row.GrossDemandId, row.ProductId, row.Qty,
+                row.Uid, row.ExpectedVersion, row.LineNumber, row.PackingGroupId, row.GrossDemandId, row.ProductId, row.Qty, row.IsNonStandardSnapshot, row.SelectedCustomerProductId, row.OriginalLinkSku, row.AcceptLinkSkuMismatch, row.SkuSnapshot, row.LinkSkuSnapshot, row.CustomerSkuSnapshot, row.DescriptionEnSnapshot, row.ColorNameEnSnapshot, row.UnitSnapshot, row.CustomerPoNo,
                 row.PcsPerPackage, row.NwPerPackage, row.GwPerPackage, row.CbmPerPackage,
                 InvoiceNo = Normalize(row.InvoiceNo), Marks = Normalize(row.Marks), Note = Normalize(row.Note)
             }).ToArray(),
@@ -501,6 +533,7 @@ public sealed class PackingListDraftService(
         try { return ServiceResult<T>.Ok(await action()); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch (PackingListException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
+        catch (SourceDeliveryException ex) { return ServiceResult<T>.Fail(ex.Code == "DELIVERY_QUERY_UNAVAILABLE" ? PackingListErrorCodes.DeliveryUnavailable : PackingListErrorCodes.SourceChanged, ex.Message); }
         catch (BusinessCommandException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
         catch (DBConcurrencyException ex) { return ServiceResult<T>.Fail(PackingListErrorCodes.VersionConflict, ex.Message); }
         catch (Exception ex)

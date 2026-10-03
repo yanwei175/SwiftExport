@@ -135,6 +135,8 @@ public static class DependencyInjection
         MapsterConfig.RegisterMappings(services);
 
         services.AddLogging();
+        services.AddScoped<SwiftExport.Application.Services.Shipping.PackingLists.PackingListImportChecker>();
+        services.AddScoped<SwiftExport.Application.Interfaces.ForExcel.IForExcelPackingListService, SwiftExport.Application.Services.ForExcel.ForExcelPackingListService>();
 
         services.AddScoped<ServiceBaseContext>();
         services.AddScoped<BusinessCommandExecutor>();

@@ -19,6 +19,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
         {
             try
             {
+                if (args.Length == 1 && args[0] == "--packing-import-only")
+                {
+                    using (var packingHost = new WpfRuntimeHost()) { packingHost.Initialize(); PackingListImportChecks.Run(Check); }
+                    Console.WriteLine("PASS PackingList import: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--purchase-preview-only")
                 {
                     using (var previewHost = new WpfRuntimeHost())

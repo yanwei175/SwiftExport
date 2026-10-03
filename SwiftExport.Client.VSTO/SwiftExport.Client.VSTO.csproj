@@ -410,6 +410,10 @@
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Addresses.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Submission.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Features\Shipping\PackingLists\**\*.cs" />
+    <Page Include="Features\Shipping\PackingLists\Views\PackingListImportView.xaml"><Generator>MSBuild:Compile</Generator></Page>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->
   <Import Project="$(VSToolsPath)\OfficeTools\Microsoft.VisualStudio.Tools.Office.targets" Condition="'$(VSToolsPath)' != ''" />

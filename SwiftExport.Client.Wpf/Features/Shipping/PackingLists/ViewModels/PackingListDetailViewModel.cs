@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Mapster;
 using SwiftExport.Contracts.Apis.Shipping;
@@ -62,9 +62,9 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     [ObservableProperty] public partial PackingListLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; private set; } = "草稿保存以服务端来源额度复核结果为准。";
     /// <summary>仅成功加载的有效未过账草稿可编辑，弹窗或写入期间冻结。</summary>
-    public bool IsEditable => !_disposed && _loaded && !IsReadOnly && !IsBusy && !_dialogOpen && !HasPendingPosting;
+    public bool IsEditable => !_disposed && _loaded && !IsReadOnly && !IsBusy && !_dialogOpen && !HasPendingPosting && _pendingAssociation == null && !_associationNeedsReload;
     /// <summary>只读单据仍可浏览、选行和复制；写入或弹窗期间暂停交互。</summary>
-    public bool CanInteractWithLines => !_disposed && _loaded && !IsBusy && !_dialogOpen;
+    public bool CanInteractWithLines => !_disposed && _loaded && !IsBusy && !_dialogOpen && _pendingAssociation == null;
     /// <summary>有物理行后不允许换客户，避免来源跨客户。</summary>
     public bool CanEditFacts => IsEditable && Lines.AllLines.Count == 0;
     /// <inheritdoc/>
@@ -96,7 +96,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     }
     /// <summary>加载失败不把现有单据误当成新建；重试只读初始化。</summary>
     [RelayCommand]
-    private Task ReloadAsync() => _disposed || IsBusy || _dialogOpen || HasPendingPosting || HasUnsavedChanges || _isNew ? Task.CompletedTask :
+    private Task ReloadAsync() => _disposed || IsBusy || _dialogOpen || HasPendingPosting || _pendingAssociation != null || HasUnsavedChanges || _isNew ? Task.CompletedTask :
         RunBusyAsync(() => LoadAsync(_lifetime.Token), "重新加载…");
     private async Task LoadAsync(CancellationToken token)
     {
@@ -115,7 +115,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         {
             Header.Load(detail.Header); Lines.LoadFromDtos(detail.Lines.Where(x => !x.IsDeleted).OrderBy(x => x.LineNumber));
             SelectedCustomer = Customers.FirstOrDefault(x => x.Uid == Header.CustomerId);
-            SelectedLine = null; SelectedPackingGroup = null; _loaded = true;
+            SelectedLine = null; SelectedPackingGroup = null; _loaded = true; _associationNeedsReload = false;
             IsReadOnly = detail.Header.IsDeleted || Header.LifecycleStatus != PackingListLifecycleStatusEnum.Active
                 || Header.PostingStatus != PackingListPostingStatusEnum.Unposted;
             ValidationSummary = null;
@@ -196,7 +196,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         _dialogOpen = true; NotifyState();
         try
         {
-            var draft = Lines.Items.GroupBy(x => x.GrossDemandId).ToDictionary(x => x.Key, x => x.Sum(y => y.Qty));
+            var draft = Lines.Items.Where(x => x.GrossDemandId.HasValue).GroupBy(x => x.GrossDemandId!.Value).ToDictionary(x => x.Key, x => x.Sum(y => y.Qty));
             var selected = await _sources.PickAsync(Header.CustomerId, draft, _lifetime.Token);
             if (_disposed || selected is null) return;
             if (selected.Any(x => x.Source.CustomerId != Header.CustomerId || x.Qty <= 0
@@ -349,7 +349,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     /// <inheritdoc/>
     public async Task<bool> CanCloseAsync(CancellationToken token)
     {
-        if (IsBusy || _dialogOpen || HasPendingPosting) return false;
+        if (IsBusy || _dialogOpen || HasPendingPosting || _pendingAssociation != null) return false;
         // 提交编辑器可能刚刚产生脏状态，必须先提交再决定是否需要关闭确认。
         var editorsValid = CommitEdits?.Invoke() != false;
         if (!HasUnsavedChanges && editorsValid) return true;
@@ -363,6 +363,8 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
     private void NotifyState()
     {
         IsDirty = HasUnsavedChanges;
+        OnPropertyChanged(nameof(AssociationSummary));
+        AssociateSourcesCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(DocumentTitle));
         OnPropertyChanged(nameof(IsEditable));

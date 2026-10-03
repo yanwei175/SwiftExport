@@ -1,4 +1,4 @@
-namespace SwiftExport.Core.Interfaces.Shipping;
+﻿namespace SwiftExport.Core.Interfaces.Shipping;
 
 /// <summary>装箱单来源候选的唯一默认包装与客户参考号补充信息。</summary>
 public sealed class PackingListSourceEnrichment
@@ -15,4 +15,6 @@ public sealed class PackingListSourceEnrichment
     public decimal? CbmPerPackage { get; set; }
     /// <summary>经客户与头行归属核验的销售或售后参考号。</summary>
     public string? CustomerPoNo { get; set; }
+        /// <summary>销售发票号或系统售后单号，仅用于来源查询和展示。</summary>
+        public string? InvoiceNo { get; set; }
 }

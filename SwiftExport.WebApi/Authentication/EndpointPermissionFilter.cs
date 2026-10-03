@@ -193,6 +193,9 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["PackingListController.GetAsync"] = PermissionKeys.ShippingPackingListView,
         ["PackingListController.SearchSourcesAsync"] = PermissionKeys.ShippingPackingListView,
         ["PackingListController.CreateAsync"] = PermissionKeys.ShippingPackingListCreate,
+        // 导入检查沿用创建权限，独立来源关联沿用编辑权限；服务内授权不能代替全局端点登记。
+        ["ForExcelPackingListController.CheckAsync"] = PermissionKeys.ShippingPackingListCreate,
+        ["PackingListController.AssociateSourcesAsync"] = PermissionKeys.ShippingPackingListEdit,
         ["PackingListController.UpdateAsync"] = PermissionKeys.ShippingPackingListEdit,
         ["PackingListController.DeleteAsync"] = PermissionKeys.ShippingPackingListDelete,
         ["SupplierController.GetPagedList"] = PermissionKeys.SuppliersSupplierView,

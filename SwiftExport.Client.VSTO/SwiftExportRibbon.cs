@@ -51,12 +51,16 @@ namespace SwiftExport.Client.VSTO
         public bool GetReadProfileSettingsEnabled(Office.IRibbonControl control) { return GetAccountEnabled(control) && GetReadProfileSettingsVisible(control); }
         /// <summary>复用配置维护权限门禁，直接从 Ribbon 切换读取配置侧栏。</summary>
         public void OnExcelReadProfile(Office.IRibbonControl control) { host?.OpenExcelReadProfile(control); }
+        /// <summary>装箱单入口使用已验证身份与创建权限。</summary>
+        public bool GetPackingListImportEnabled(Office.IRibbonControl control) => GetAccountEnabled(control) && host.CanImportPackingList;
+        /// <summary>打开非模态装箱单导入窗口。</summary>
+        public void OnPackingListImport(Office.IRibbonControl control) => host?.OpenPackingListImport(control);
         private void Host_Changed(object sender, EventArgs args) { Refresh(); }
         // Office 缓存动态属性，状态变化后必须主动失效。
         private void Refresh()
         {
             if (ribbon == null) return;
-            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelReadProfile" }) ribbon.InvalidateControl(id); }
+            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelReadProfile", "packingListImport" }) ribbon.InvalidateControl(id); }
             catch (COMException) { ribbon = null; }
         }
         /// <summary>断开宿主事件与 Ribbon 引用。</summary>

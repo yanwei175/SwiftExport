@@ -1,4 +1,4 @@
-using SwiftExport.Core.Common;
+﻿using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Shipping;
@@ -13,8 +13,8 @@ public sealed partial class PackingListLine : BaseEntity
    public int LineNumber { get; set; }
     /// <summary>同单据内一只拼箱的稳定标识；为空表示普通包装行，不关联独立组表。</summary>
     public Guid? PackingGroupId { get; set; }
-    /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
-    public Guid GrossDemandId { get; set; }
+    /// <summary>交付来源锚点；仅未关联草稿允许为空，不表示采购或物料分摊。</summary>
+    public Guid? GrossDemandId { get; set; }
     /// <summary>标准行产品标识；非标行为空。</summary>
     public Guid? ProductId { get; set; }
     /// <summary>是否为不产生库存事实的非标来源快照。</summary>

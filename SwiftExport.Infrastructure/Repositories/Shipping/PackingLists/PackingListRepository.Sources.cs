@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums;
@@ -10,14 +10,14 @@ namespace SwiftExport.Infrastructure.Repositories.Shipping;
 
 public sealed partial class PackingListRepository
 {
-    /// <summary>共用正式交付投影；售后补发免物料和 Target 准入，普通来源仍需执行关系，在计数和分页之前过滤。</summary>
+    /// <summary>共用正式交付投影；仅按来源活动、客户与剩余量准入，在计数和分页之前过滤。</summary>
     public async Task<PagedResponseBase<SourceDemandDeliveryItemDto>> SearchSourcesAsync(
         PackingListSourceSearchRequest request, CancellationToken cancellationToken = default)
     {
         var parameters = new DynamicParameters(new
         {
             request.CustomerId, Posted = PackingListPostingStatusEnum.Posted,
-            Active = GrossDemandLifecycleStatusEnum.Active, MaterialActive = NetDemandLifecycleStatusEnum.Active,
+            Active = GrossDemandLifecycleStatusEnum.Active,
             Skip = (request.PageIndex - 1) * request.PageSize, Take = request.PageSize
         });
         var sql = BuildSourceSearchSql(request, parameters);
@@ -30,7 +30,6 @@ public sealed partial class PackingListRepository
     /// <summary>用户内容全部参数化；关键词之间 OR，单行关键词与批量集合亦合并为同一组。</summary>
     internal static string BuildSourceSearchSql(PackingListSourceSearchRequest request, DynamicParameters parameters)
     {
-        parameters.Add("AfterSalesSourceType", DocumentTypeStaticsEnum.ComplaintReplenishment);
         var words = (request.Keywords ?? []).Append(request.Keyword).Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         if (words.Length > 201 || words.Any(x => x.Length > 200))
@@ -44,17 +43,18 @@ public sealed partial class PackingListRepository
         }
         var keywordFilter = matches.Count == 0 ? "" : " AND (" + string.Join(" OR ", matches) + ")";
         const string columns = "s.GrossDemandId,s.DemandVersion,s.SourceType,s.SourceUid,s.SourceNo,s.SourceLineId,s.SourceLineNumber,s.SourceVersion,s.CustomerId,s.CustomerCode,s.CustomerName,s.ProductId,s.IsNonStandard,s.Sku,s.LinkSku,s.CustomerSku,s.Description,s.Color,s.Specification,s.ImagePath,s.Unit,s.DemandQty,s.DeliveredQty,s.RemainingQty,s.LifecycleStatus,s.IsActive,s.RequiredDate";
-        // 售后均为供应商直发补发，仅豁免执行关系；客户、活动状态和剩余量仍是共同条件。
-        // 普通来源保持原未释放数量口径，不额外过滤 LinkStatus、TargetType 或采购确认状态。
+        parameters.Add("ProductId", request.ProductId);
+        parameters.Add("IsNonStandard", request.IsNonStandard);
+        parameters.Add("InvoiceNumbers", (request.InvoiceNumbers ?? []).Select(x => x.Trim().ToUpperInvariant()).ToArray());
+        var invoiceFilter = request.InvoiceNumbers == null || request.InvoiceNumbers.Count == 0 ? "" : " AND UPPER(LTRIM(RTRIM(CASE WHEN s.SourceType=N'SO' THEN soh.InvoiceNo WHEN s.SourceType=N'CR' THEN ash.AfterSalesNo END))) IN @InvoiceNumbers";
+        // 单头补充只作查找线索，准入始终由统一来源交付投影决定；不以采购执行关系过滤草稿候选。
         return SourceDeliveryQueryRepository.Projection(false) + $"""
             SELECT {columns} INTO #PackingListSources FROM SourceDelivery s
+            LEFT JOIN dbo.SalesOrderHeader soh ON s.SourceType=N'SO' AND soh.Uid=s.SourceUid AND soh.CustomerId=s.CustomerId AND soh.IsDeleted=0
+            LEFT JOIN dbo.AfterSalesHeader ash ON s.SourceType=N'CR' AND ash.Uid=s.SourceUid AND ash.CustomerId=s.CustomerId AND ash.IsDeleted=0
             WHERE s.IsActive=1 AND s.CustomerId=@CustomerId AND s.RemainingQty>0
-              AND (s.SourceType=@AfterSalesSourceType OR EXISTS (
-                SELECT 1 FROM dbo.NetDemand n
-                INNER JOIN dbo.DemandExecutionLink target ON target.NetDemandId=n.Uid
-                WHERE n.GrossDemandId=s.GrossDemandId AND n.IsDeleted=0 AND n.LifecycleStatus=@MaterialActive
-                  AND target.IsDeleted=0 AND target.AllocatedQty>target.ReleasedQty
-              )){keywordFilter};
+              AND (@ProductId IS NULL OR s.ProductId=@ProductId)
+              AND (@IsNonStandard IS NULL OR s.IsNonStandard=@IsNonStandard){invoiceFilter}{keywordFilter};
             SELECT COUNT(1) FROM #PackingListSources;
             SELECT {columns} FROM #PackingListSources s
             ORDER BY s.SourceNo,s.SourceType,ISNULL(s.SourceLineNumber,2147483647),s.GrossDemandId

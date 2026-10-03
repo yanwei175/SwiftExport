@@ -712,7 +712,7 @@ CREATE TABLE [dbo].[PackingListLine]
     [PackingListHeadId] uniqueidentifier NOT NULL,
     [LineNumber] int NOT NULL,
     [PackingGroupId] uniqueidentifier NULL,
-    [GrossDemandId] uniqueidentifier NOT NULL,
+    [GrossDemandId] uniqueidentifier NULL,
     [ProductId] uniqueidentifier NULL,
     [IsNonStandardSnapshot] bit NOT NULL,
     [SourceTypeSnapshot] nvarchar(300) NOT NULL,
@@ -4237,7 +4237,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'PackingListLine',
     @level2type=N'COLUMN', @level2name=N'PackingGroupId';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'唯一交付来源锚点，不表示采购或物料分摊。',
+    @name=N'MS_Description', @value=N'交付来源锚点；仅未关联草稿允许为空，不表示采购或物料分摊。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'PackingListLine',
     @level2type=N'COLUMN', @level2name=N'GrossDemandId';

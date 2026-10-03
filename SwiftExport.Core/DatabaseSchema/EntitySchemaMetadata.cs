@@ -1,4 +1,4 @@
-using SwiftExport.Core.DatabaseSchema;
+﻿using SwiftExport.Core.DatabaseSchema;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.SalesOrders;
@@ -314,7 +314,7 @@ namespace SwiftExport.Core.Entities.Shipping
     [DbIndex("IX_PackingListLine_GrossDemand", nameof(PackingListLine.GrossDemandId), nameof(PackingListLine.PackingListHeadId), Filter = "[IsDeleted] = 0")]
     [DbIndex("IX_PackingListLine_PackingGroup", nameof(PackingListLine.PackingListHeadId), nameof(PackingListLine.PackingGroupId), IncludeColumns = new[] { nameof(PackingListLine.LineNumber) })]
     [LogicalReference(nameof(PackingListLine.PackingListHeadId), typeof(PackingListHead), IsRequired = true)]
-    [LogicalReference(nameof(PackingListLine.GrossDemandId), typeof(DemandPlanning.GrossDemand), IsRequired = true)]
+    [LogicalReference(nameof(PackingListLine.GrossDemandId), typeof(DemandPlanning.GrossDemand))]
     [LogicalReference(nameof(PackingListLine.ProductId), typeof(Product))]
     public sealed partial class PackingListLine { }
 }

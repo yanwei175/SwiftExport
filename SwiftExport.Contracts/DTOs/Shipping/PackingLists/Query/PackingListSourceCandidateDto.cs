@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -59,5 +59,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string CustomerPoNo { get; set; }
         /// <summary>查询展示图片，不持久化。</summary>
         public string ImagePath { get; set; }
-    }
+            /// <summary>销售发票号或系统售后单号，仅用于来源查询和展示。</summary>
+        public string InvoiceNo { get; set; }
+}
 }

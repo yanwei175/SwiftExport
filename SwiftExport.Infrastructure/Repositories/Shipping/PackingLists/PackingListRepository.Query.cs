@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -66,9 +66,11 @@ public sealed partial class PackingListRepository
                    l.PackingGroupId,l.UnitSnapshot,l.Qty,l.PcsPerPackage,l.PackageCount,l.NwPerPackage,l.GwPerPackage,
                    l.CbmPerPackage,l.SubTotalNw,l.SubTotalGw,l.SubTotalCbm,l.CustomerPoNo,l.InvoiceNo,
                    l.Marks,l.Note,
-                   g.ImagePathSnapshot AS ImagePath
+                   g.ImagePathSnapshot AS ImagePath, CASE WHEN g.SourceType=N'SO' THEN soh.InvoiceNo WHEN g.SourceType=N'CR' THEN ash.AfterSalesNo END AS SourceInvoiceNo
             FROM dbo.PackingListLine l
             LEFT JOIN dbo.GrossDemand g ON g.Uid=l.GrossDemandId AND g.IsDeleted=0
+            LEFT JOIN dbo.SalesOrderHeader soh ON g.SourceType=N'SO' AND soh.Uid=g.SourceUid AND soh.CustomerId=g.CustomerId AND soh.IsDeleted=0
+            LEFT JOIN dbo.AfterSalesHeader ash ON g.SourceType=N'CR' AND ash.Uid=g.SourceUid AND ash.CustomerId=g.CustomerId AND ash.IsDeleted=0
             WHERE l.PackingListHeadId=@Uid AND l.IsDeleted=0
             ORDER BY l.LineNumber,l.Uid;
             """;
@@ -92,7 +94,9 @@ public sealed partial class PackingListRepository
                    CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL
                         THEN soh.CustomerPoNo
                         WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL
-                        THEN ash.CustomerComplaintNo END AS CustomerPoNo
+                        THEN ash.CustomerComplaintNo END AS CustomerPoNo,
+                   CASE WHEN g.SourceType=N'SO' AND soh.Uid IS NOT NULL AND sol.Uid IS NOT NULL THEN soh.InvoiceNo
+                        WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL THEN ash.AfterSalesNo END AS InvoiceNo
             FROM dbo.GrossDemand g
             LEFT JOIN dbo.SalesOrderHeader soh ON g.SourceType=N'SO' AND soh.Uid=g.SourceUid
                 AND soh.CustomerId=g.CustomerId AND soh.IsDeleted=0

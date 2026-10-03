@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Application.Interfaces.Auth;
@@ -76,6 +76,9 @@ public sealed class PackingListQueryService(ServiceBaseContext context, IPacking
             if (keywords.Count > 200 || keywords.Any(x => x.Length > 200) || request.Keyword?.Trim().Length > 200)
                 Fail(PackingListErrorCodes.InvalidDraft, "批量搜索最多 200 个关键词，每个最多 200 字符。", nameof(request.Keywords));
             request.Keywords = keywords;
+            request.InvoiceNumbers = (request.InvoiceNumbers ?? []).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (request.ProductId == Guid.Empty || request.InvoiceNumbers.Count > 200 || request.InvoiceNumbers.Any(x => x.Length > 200))
+                Fail(PackingListErrorCodes.InvalidDraft, "来源型号或单号条件无效。");
             var delivery = await repository.SearchSourcesAsync(request, cancellationToken);
             var enrichments = (await repository.GetSourceEnrichmentsAsync(
                 delivery.Items.Select(item => item.GrossDemandId).ToArray(),
@@ -159,6 +162,7 @@ public sealed class PackingListQueryService(ServiceBaseContext context, IPacking
             GwPerPackage = source.IsNonStandard ? null : enrichment?.GwPerPackage,
             CbmPerPackage = source.IsNonStandard ? null : enrichment?.CbmPerPackage,
             CustomerPoNo = enrichment?.CustomerPoNo,
+            InvoiceNo = enrichment?.InvoiceNo,
             ImagePath = source.ImagePath
         };
     }

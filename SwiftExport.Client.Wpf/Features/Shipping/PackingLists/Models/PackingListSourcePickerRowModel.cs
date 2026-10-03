@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SwiftExportClient.Features.Shipping.PackingLists.Models;
 
@@ -53,6 +53,13 @@ public sealed partial class PackingListSourcePickerRowModel : ObservableObject
     public decimal? CbmPerPackage { get; init; }
     /// <summary>客户采购编号文本快照，不作为关系主键。</summary>
     public string? CustomerPoNo { get; init; }
+    /// <summary>来源销售发票号或系统售后单号。</summary>
+    public string? InvoiceNo { get; init; }
+    /// <summary>用户显式输入的本次分配数量，非法文本不转换成零。</summary>
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(AllocationQty))] public partial string? AllocationQtyText { get; set; }
+    /// <summary>当前输入的解析值，最多四位小数的限制在确认时校验。</summary>
+    public decimal? AllocationQty => decimal.TryParse(AllocationQtyText, System.Globalization.NumberStyles.Number,
+        System.Globalization.CultureInfo.CurrentCulture, out var qty) ? qty : null;
     /// <summary>查询展示图片，不持久化。</summary>
     public string? ImagePath { get; init; }
     /// <summary>是否选择此来源；不表示占用交付额度。</summary>

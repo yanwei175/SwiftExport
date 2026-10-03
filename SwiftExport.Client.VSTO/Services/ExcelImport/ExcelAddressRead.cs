@@ -44,6 +44,9 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
     /// <summary>客户端结构校验，不校验订单业务；不依赖后端 CanRead 代替本地字段边界。</summary>
     public static class ExcelAddressRules
     {
+        /// <summary>仅装箱单的可选包装字段允许跳过跨行合并；数量、型号和销售采购保持严格读取。</summary>
+        public static bool AllowMergedDetailSkip(string groupCode, string fieldKey) => groupCode == "PackingList"
+            && new[] { "Line.Marks", "Line.PcsPerPackage", "Line.NwPerPackage", "Line.GwPerPackage", "Line.CbmPerPackage" }.Contains(fieldKey);
         /// <summary>解析合法的单格 A1 地址，接受绝对标记，拒绝范围和外部引用。</summary>
         public static bool TryCell(string address, out int row, out int column)
         {

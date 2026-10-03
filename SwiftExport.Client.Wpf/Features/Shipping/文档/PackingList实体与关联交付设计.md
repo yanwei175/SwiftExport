@@ -4,6 +4,18 @@
 
 > 头部 ShippingMark 已移除，箱唛仅使用行 Marks。实体、头读写契约、UI 和仓储 SQL 已同步；数据库列由用户手动删除，本次不执行数据库操作。
 
+## 2026-10-03 导入草稿与来源拆行
+
+GrossDemandId 改为 Guid?，仅待关联草稿允许为空，空 Guid 仍非法；正式执行证据保持真实来源必填。不增加来源分摊表或 GrossDemand.InvoiceNo。
+
+VSTO 检查客户产品关系后创建未关联草稿；.NET 10 保存编辑后选中待关联普通行，打开来源数量分配。默认按明细 Invoice 原文精确查询销售 InvoiceNo／系统 AfterSalesNo，可清空单号手动查询。标准行限制同 ProductId，非标仅非标，PO 不参与查找。
+
+独立命令复核头行、来源版本、客户、产品／非标、单位及整单同来源累计量，同事务软删原行、插入独立来源行和余量，审计与幂等回执一起提交。拆行清空包装数值，保留手工文本，数量守恒。未知结果冻结原命令重试，取消和明确失败保留编辑。
+
+待关联行可保存但不允许过账；已过账仍只读。草稿不占交付或库存，正式过账的采购／库存条件沿用原规则。普通草稿更新不能直接替换已有来源。
+
+部署、文件清单和验证结果见 [实施说明](../../../../docs/PackingList导入与来源关联实施说明.md)；旧库迁移由用户安排，启用前后端和两端客户端均须更新。
+
 ## 2026-09-17 最新字段处置
 
 PackingListHead 新增 ShippingLocationSnapshot（可空，200字符），头读写 DTO 同步。PackingListLine 删除 ShippingLocationSnapshot、WarehouseSiteId、WarehouseCodeSnapshot、WarehouseNameSnapshot；无库存仓库职责。
@@ -57,7 +69,7 @@ PackageCount 改为 Qty/PcsPerPackage 的四位小数结果快照，取消向上
 |---|---|---|
 | PackingListHeadId | Guid | 所属装箱单头 Uid，逻辑关联。 |
 | LineNumber | int | 单据内行号，同来源允许多行。 |
-| GrossDemandId | Guid | 唯一交付来源锚点，不表示采购或物料分摊。 |
+| GrossDemandId | Guid? | 草稿待关联时为空；关联后是交付来源锚点，不表示采购或物料分摊。 |
 | ProductId | Guid | 本次交付的产品标识。 |
 | SkuSnapshot | string | 产品编码快照。 |
 | LinkSkuSnapshot | string? | 关联型号快照。 |

@@ -33,4 +33,6 @@
  <Compile Include="../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Services/*.cs;../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/Models/*.cs;../SwiftExport.Client.VSTO/Features/Settings/ExcelReadProfiles/ViewModels/*.cs" LinkBase="Production/ReadProfiles"/>
  </ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Models/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Services/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/*.cs" LinkBase="Production/PurchaseImport"/></ItemGroup>
+<ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Models/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Services/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/ViewModels/*.cs" LinkBase="Production/PackingListImport"/></ItemGroup>
+<ItemGroup><None Update="TestData/PackingListAttachmentRows.json" CopyToOutputDirectory="PreserveNewest"/></ItemGroup>
 </Project>

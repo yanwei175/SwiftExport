@@ -1,4 +1,4 @@
-using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+﻿using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -27,6 +27,8 @@ public sealed class PackingListPostingFactsResolver
         var products = facts.Products.ToDictionary(x => x.Uid);
         var purchases = facts.PurchaseLines.ToDictionary(x => x.Uid);
         var purchaseHeads = facts.PurchaseHeads.ToDictionary(x => x.Uid);
+        if (facts.Lines.Any(x => !x.IsDeleted && !x.GrossDemandId.HasValue))
+            return Failed(new("SOURCE_NOT_ASSOCIATED", null, "箱单尚有待关联来源行，请先分配全部数量。"));
         var normalized = new List<Source>();
         var allPurchaseIds = new HashSet<Guid>();
         var stockProducts = new HashSet<Guid>();

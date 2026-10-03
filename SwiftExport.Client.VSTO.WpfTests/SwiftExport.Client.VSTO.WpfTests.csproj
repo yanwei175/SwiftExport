@@ -75,4 +75,10 @@
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Models/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Services/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Addresses.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Submission.cs" LinkBase="Production/PurchaseImport"/></ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO.Tests/PurchaseImportTestFixture.cs" Link="PurchaseImportTestFixture.cs"/></ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Api/ApiClientRegistration.cs;../SwiftExport.Client.VSTO/Api/AuthTokenHandler.cs;../SwiftExport.Client.VSTO/Authentication/IAuthGateway.cs" LinkBase="Production/PurchaseHttp"/></ItemGroup>
+ <ItemGroup>
+  <Compile Include="../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Models/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Services/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/ViewModels/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Views/*.cs" LinkBase="Production/PackingListImport"/>
+  <Page Include="../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Views/PackingListImportView.xaml" Link="Features/Shipping/PackingLists/Views/PackingListImportView.xaml"/>
+  <Compile Include="../SwiftExport.Client.VSTO.Tests/PackingListImportTests.cs" Link="PackingListImportTests.cs"/>
+  <PackageReference Include="MSTest.TestFramework" Version="4.3.0" ExcludeAssets="analyzers"/>
+ </ItemGroup>
 </Project>

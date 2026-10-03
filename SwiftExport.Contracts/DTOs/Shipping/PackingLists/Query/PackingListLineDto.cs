@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -15,8 +15,8 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
        public int LineNumber { get; set; }
         /// <summary>同单据内一只拼箱的稳定标识；为空表示普通包装行，不关联独立组表。</summary>
         public Guid? PackingGroupId { get; set; }
-        /// <summary>唯一交付来源锚点，不表示采购或物料分摊。</summary>
-        public Guid GrossDemandId { get; set; }
+        /// <summary>交付来源锚点；仅未关联草稿允许为空，不表示采购或物料分摊。</summary>
+        public Guid? GrossDemandId { get; set; }
         /// <summary>标准行产品标识；非标行为空。</summary>
         public Guid? ProductId { get; set; }
         /// <summary>是否为不产生库存事实的非标来源快照。</summary>
@@ -68,5 +68,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
 
         /// <summary>查询展示图片，不持久化。</summary>
         public string ImagePath { get; set; }
+        /// <summary>当前来源销售发票号或系统售后单号，仅查询展示。</summary>
+        public string SourceInvoiceNo { get; set; }
     }
 }
