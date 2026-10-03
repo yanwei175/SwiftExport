@@ -1,7 +1,7 @@
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
-using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
@@ -26,7 +26,7 @@ public sealed class MaterialDemandQueryService(ServiceBaseContext context, IMate
                 : ServiceResult<MaterialDemandTraceDetailDto>.Ok(detail);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (SqlException ex) when (ex.Number == 51001)
+        catch (Exception ex) when (context.Session.Errors.Classify(ex) == DatabaseFailureKind.UnverifiedReceiptHistory)
         {
             _logger.LogWarning(ex, "物料需求追踪的正式入库反向历史尚未核实，物料需求 {NetDemandId}", uid);
             return ServiceResult<MaterialDemandTraceDetailDto>.Fail("正式入库反向历史需核实，收货量未知。");

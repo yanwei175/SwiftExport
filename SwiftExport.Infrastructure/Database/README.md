@@ -7,10 +7,12 @@
 1. 修改 Entity 的列映射、`DbIndex`、`DbCheck`、逻辑关系、序列或不可变规则。
 2. 运行 `dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj` 重新生成基线。
 3. 运行 `dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj -- --verify` 检查提交文件是否漂移。
-4. 在随机命名的空 LocalDB 中执行基线，并核对表、列、`MS_Description`、索引、检查约束和序列；`sys.foreign_keys` 必须为零。
+4. 先确认明确隔离的实例与库名，再执行数据库写入验证，并核对表、列、`MS_Description`、索引、检查约束和序列；`sys.foreign_keys` 必须为零。随机库名或已有备份不能替代目标确认。
 5. Entity 元数据与生成文件一并提交。
 
 生成器只面向已经创建且没有用户表的 SQL Server 数据库；不会创建或删除数据库。固定、自引用和多态关系只生成可追溯注释与必要索引，严禁生成 `FOREIGN KEY`。业务种子继续由 `_tools/DbSeed` 显式执行。
+
+建表器与通用仓储现共用 `EntityMetadataCache`，分别保留属性名、物理列名、schema/表名及参数名。当前 `PurchaseOrderLine.Quantity` 仍映射物理 `QTY`；本次解耦不重命名对象，生成结构基线未改变。实体描述代码预期，实际数据库必须另行只读核验，不能把生成文件视为部署完成证明。PostgreSQL 建表、类型、命名与数据迁移尚未实施，核验状态见[架构审查](../../docs/后端整体架构与文件夹职责建议.md)。
 
 ## 重建库时复制主数据
 

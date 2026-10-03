@@ -1,5 +1,5 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Interfaces.Auth;
@@ -15,7 +15,7 @@ namespace SwiftExport.Application.Services.Inventory.Inbounds;
 
 /// <summary>集中入库用例共用的操作授权、错误映射及分页上界。</summary>
 public sealed class InboundServiceSupport(ICurrentUser user, IPermissionEvaluationService permissions,
-    ILogger<InboundServiceSupport> logger)
+    ILogger<InboundServiceSupport> logger, IDatabaseExceptionClassifier errors)
 {
     /// <summary>统一读取访问权限及错误包装；写命令在管线中按操作键授权。</summary>
     public async Task<ServiceResult<T>> RunAsync<T>(Func<Task<T>> action, CancellationToken token, bool checkPermission = true)
@@ -34,12 +34,12 @@ public sealed class InboundServiceSupport(ICurrentUser user, IPermissionEvaluati
             logger.LogWarning(ex, "入库草稿版本冲突，事务已回滚。");
             return ServiceResult<T>.Fail(ServiceErrorCodes.VersionConflict, "入库单或明细已变化，请刷新后重试。", "ExpectedVersion");
         }
-        catch (SqlException ex) when (ex.Number is 207 or 208)
+        catch (Exception ex) when (errors.Classify(ex) == DatabaseFailureKind.SchemaMismatch)
         {
             logger.LogError(ex, "入库数据库结构尚未对齐。");
             return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "入库数据库结构与当前实体不一致，请先完成数据库结构核对；本次操作未完成。");
         }
-        catch (SqlException ex) when (ex.Number == 51001)
+        catch (Exception ex) when (errors.Classify(ex) == DatabaseFailureKind.UnverifiedReceiptHistory)
         {
             logger.LogWarning(ex, "存在来源或反向关系未核实的正式入库事实。");
             return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "存在未完成来源或反向完整性核对的历史入库，无法可靠计算净收货量，请先核实历史事实。");

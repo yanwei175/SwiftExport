@@ -1,5 +1,5 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Systems.ExcelReadProfiles;
@@ -138,7 +138,7 @@ public sealed class ExcelReadProfileService(IExcelReadProfileRepository reposito
             Rollback(transaction);
             throw new OperationCanceledException(cancellationToken);
         }
-        catch (SqlException exception) when (exception.Number is 2601 or 2627)
+        catch (Exception exception) when (context.Session.Errors.Classify(exception) == DatabaseFailureKind.UniqueConflict)
         {
             Rollback(transaction);
             return Fail<T>("EXCEL_READ_DUPLICATE_NAME", "同一单据分组的配置名称已存在。", "ConfigName");

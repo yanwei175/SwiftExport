@@ -7,7 +7,7 @@ using SwiftExport.Application.Interfaces.Products.Catalog.DefaultSupplier;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Products.Catalog.DefaultSupplier;
 
@@ -18,7 +18,7 @@ public sealed class ProductDefaultSupplierService(
     IProductRepository productRepository,
     ServiceBaseContext context) : IProductDefaultSupplierService
 {
-    private readonly DbSession _session = context.Session;
+    private readonly IDbSession _session = context.Session;
     private readonly ILogger<ProductDefaultSupplierService> _logger = context.LoggerFactory.CreateLogger<ProductDefaultSupplierService>();
 
     /// <inheritdoc />

@@ -10,14 +10,14 @@ using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Core.Interfaces.Inventory.Posting;
 using SwiftExport.Core.Interfaces.Inventory.Warehouses;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Inventory.Posting;
 
 /// <summary>在调用方事务内维护不可变库存流水及其余额投影。</summary>
 public sealed class InventoryPostingService(ServiceBaseContext context, IInventoryPostingRepository inventory, IWarehouseManagementRepository warehouseSites) : IInventoryPostingService
 {
-    private readonly DbSession _session = context.Session;
+    private readonly IDbSession _session = context.Session;
 
     /// <summary>追加普通库存事实；同一 CommandId 可分批追加不同 CommandItemId。</summary>
     public Task<IReadOnlyList<InventoryPostingResultDto>> PostAsync(Guid commandId, IReadOnlyList<InventoryPostingItem> items, CancellationToken cancellationToken = default) =>

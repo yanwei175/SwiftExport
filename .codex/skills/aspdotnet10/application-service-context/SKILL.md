@@ -24,7 +24,7 @@ description: SwiftExport Application 服务上下文技能。用于新增或修�
 
 ## 核心规则
 
-- `ServiceBaseContext` 是 Application 服务层基础依赖聚合，当前包含 `DbSession` 和 `ILoggerFactory`。
+- `ServiceBaseContext` 是 Application 服务层基础依赖聚合，当前包含 Core `IDbSession` 和 `ILoggerFactory`；Application 不引用 Infrastructure 或 SqlClient。
 - Application Service 通过 `ServiceBaseContext` 获取 `_session` 和 `LoggerFactory`，不要自己创建连接或日志工厂。
 - `DbSession` 应在 WebAPI request scope 内共享，Service 与 Repository 使用同一个 session。
 - 业务事务边界属于 Application Service；Repository 不开启业务流程事务。

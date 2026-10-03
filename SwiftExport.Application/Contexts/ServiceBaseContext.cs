@@ -1,13 +1,14 @@
-﻿using Microsoft.Extensions.Logging;
-using SwiftExport.Infrastructure.Data;
+using Microsoft.Extensions.Logging;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Contexts;
 
 /// <summary>
-/// 业务服务层基础依赖聚合
+/// 聚合业务层所需会话契约及日志工厂，不依赖数据库提供者实现。
 /// </summary>
-public class ServiceBaseContext(DbSession session, ILoggerFactory loggerFactory)
+public class ServiceBaseContext(IDbSession session, ILoggerFactory loggerFactory)
 {
-    public DbSession Session { get; } = session;
+    /// <summary>与所有仓储共享的请求级会话，最外层业务用例负责事务。</summary>
+    public IDbSession Session { get; } = session;
     public ILoggerFactory LoggerFactory { get; } = loggerFactory;
 }

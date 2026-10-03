@@ -1,5 +1,5 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth;
@@ -36,7 +36,7 @@ public sealed class OutboundServiceSupport(ServiceBaseContext context, ICurrentU
             _logger.LogWarning(ex, "出库版本冲突，事务已回滚。");
             return ServiceResult<T>.Fail(ServiceErrorCodes.VersionConflict, "出库单或明细已变化，请刷新后重试。", "ExpectedVersion");
         }
-        catch (SqlException ex) when (ex.Number is 207 or 208)
+        catch (Exception ex) when (context.Session.Errors.Classify(ex) == DatabaseFailureKind.SchemaMismatch)
         {
             _logger.LogError(ex, "出库数据库结构尚未对齐。");
             return ServiceResult<T>.Fail(ServiceErrorCodes.BusinessBlocked, "出库数据库结构与当前实体不一致，请先完成数据库结构核对；本次操作未完成。");

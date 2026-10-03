@@ -1,7 +1,7 @@
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Query;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
-using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
@@ -80,7 +80,7 @@ public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDe
             return detail is null ? ServiceResult<GrossDemandTraceDetailDto>.Fail("未找到来源需求。") : ServiceResult<GrossDemandTraceDetailDto>.Ok(detail);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (SqlException ex) when (ex.Number == 51001)
+        catch (Exception ex) when (context.Session.Errors.Classify(ex) == DatabaseFailureKind.UnverifiedReceiptHistory)
         {
             _logger.LogWarning(ex, "来源需求追踪的正式入库反向历史尚未核实，来源需求 {Uid}", uid);
             return ServiceResult<GrossDemandTraceDetailDto>.Fail("正式入库反向历史需核实，收货量未知。");

@@ -15,13 +15,13 @@ using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.DemandPlanning;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
 
 /// <summary>在销售或售后外层事务内接收来源需求，维护版本与安全退出规则并记录业务审计。</summary>
 public sealed class SourceDemandReceptionService(
-    DbSession session,
+    IDbSession session,
     IGrossDemandDocumentRepository grossDemandRepository,
     IMaterialDemandSourceExitService materialDemandSourceExit,
     ISourceDeliveryService sourceDeliveryService,

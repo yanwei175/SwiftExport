@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.DatabaseSchema;
+using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.DatabaseSchema;
 
@@ -462,27 +463,17 @@ public sealed class SqlServerSchemaGenerator
     }
 
     private static IReadOnlyList<PropertyInfo> GetMappedProperties(Type entity)
-    {
-        var hierarchy = new Stack<Type>();
-        for (var current = entity; current is not null && current != typeof(object); current = current.BaseType)
-            hierarchy.Push(current);
-        return hierarchy.SelectMany(type => type.GetProperties(
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
-            .Where(property => property.CanRead && property.CanWrite
-                && property.GetCustomAttribute<NotMappedAttribute>() is null)
-            .OrderBy(property => property.MetadataToken))
-            .ToArray();
-    }
+        => EntityMetadataCache.GetMetadata(entity).Columns.Select(column => column.Property).ToArray();
 
     private static string GetSchema(Type entity)
-        => entity.GetCustomAttribute<TableAttribute>()?.Schema ?? "dbo";
+        => EntityMetadataCache.GetMetadata(entity).SchemaName;
 
     private static string GetTable(Type entity)
         => entity.GetCustomAttribute<TableAttribute>()?.Name
            ?? throw new InvalidOperationException($"类型 {entity.FullName} 缺少 TableAttribute。");
 
     private static string GetColumn(PropertyInfo property)
-        => property.GetCustomAttribute<ColumnAttribute>()?.Name ?? property.Name;
+        => EntityMetadataCache.GetColumnName(property);
 
     private static string Escape(string identifier) => identifier.Replace("]", "]]", StringComparison.Ordinal);
 

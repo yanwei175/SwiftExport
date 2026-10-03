@@ -8,7 +8,7 @@ using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using System.Data;
-using System.ComponentModel.DataAnnotations.Schema;
+
 
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
@@ -31,7 +31,15 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
 
     protected static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata<T>();
 
+    /// <summary>未限定表名供既有专用仓储使用；通用 CRUD 使用显式 schema 和转义标识符。</summary>
     protected static readonly string TableName = Metadata.TableName;
+    private static readonly string QualifiedTableName = $"{Quote(Metadata.SchemaName)}.{Quote(Metadata.TableName)}";
+    private static readonly string SelectColumns = string.Join(", ", Metadata.Columns.Select(column =>
+        $"{Quote(column.ColumnName)} AS {Quote(column.PropertyName)}"));
+
+    /// <summary>仅在 SQL Server 实现中引用标识符，参数始终使用 CLR 属性名。</summary>
+    private static string Quote(string name) => $"[{name.Replace("]", "]]", StringComparison.Ordinal)}]";
+    private static string Column(string propertyName) => Quote(Metadata.GetProperty(propertyName).ColumnName);
 
 
     protected virtual IReadOnlyList<string> WriteableProperties => WriteablePropertyCache.Value;
@@ -44,7 +52,7 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
 
     private static List<string> GetWriteableProperties()
     {
-        // 这里的排除列表你可以根据自己的 BaseEntity 随意调整
+        // 保留既有写入排除规则；列映射和忽略字段由共享元数据负责。
         var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "CreateTime",
@@ -53,59 +61,63 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
             "UpdatedTime"
         };
 
-        return [.. typeof(T).GetProperties()
-            .Where(p => p.CanWrite
-                        && !excluded.Contains(p.Name)
-                        && p.GetCustomAttributes(typeof(NotMappedAttribute), true).Length == 0)
-            .Select(p => p.Name)];
+        return [.. Metadata.Columns
+            .Where(column => !excluded.Contains(column.PropertyName))
+            .Select(column => column.PropertyName)];
     }
-
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<bool> ExistsIdAsync(Guid uid)
     {
-        var sql = $"SELECT COUNT(1) FROM [{TableName}] WITH(NOLOCK) WHERE [Uid] = @Uid";
+        var sql = $"SELECT COUNT(1) FROM {QualifiedTableName} WITH(NOLOCK) WHERE {Column(nameof(BaseEntity.Uid))} = @Uid";
         return await Connection.ExecuteScalarAsync<int>(sql, new { Uid = uid }, transaction: Transaction) > 0;
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<IReadOnlyList<Guid>> GetExistingIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false)
     {
         if (uidList == null || !uidList.Any()) return [];
 
         var lockHint = GetLockHint(withUpdLock);
-        var sql = $"SELECT [Uid] FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids";
+        var sql = $"SELECT {Column(nameof(BaseEntity.Uid))} FROM {QualifiedTableName} {lockHint} WHERE {Column(nameof(BaseEntity.Uid))} IN @Uids";
         var result = await Connection.QueryAsync<Guid>(sql, new { Uids = uidList }, transaction: Transaction);
         return [.. result];
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<T?> GetByIdAsync(Guid uid, bool withUpdLock = false)
     {
         var lockHint = GetLockHint(withUpdLock);
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] = @Uid AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var sql = $"SELECT {SelectColumns} FROM {QualifiedTableName} {lockHint} WHERE {Column(nameof(BaseEntity.Uid))} = @Uid AND ({Column(nameof(BaseEntity.IsDeleted))} = 0 OR {Column(nameof(BaseEntity.IsDeleted))} IS NULL)";
         return await Connection.QuerySingleOrDefaultAsync<T>(sql, new { Uid = uid }, transaction: Transaction);
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<IReadOnlyList<T>> GetByIdListAsync(IEnumerable<Guid> uidList, bool withUpdLock = false)
     {
         if (uidList == null || !uidList.Any()) return [];
 
         var lockHint = GetLockHint(withUpdLock);
-        var sql = $"SELECT * FROM [{TableName}] {lockHint} WHERE [Uid] IN @Uids AND (IsDeleted = 0 OR IsDeleted IS NULL)";
+        var sql = $"SELECT {SelectColumns} FROM {QualifiedTableName} {lockHint} WHERE {Column(nameof(BaseEntity.Uid))} IN @Uids AND ({Column(nameof(BaseEntity.IsDeleted))} = 0 OR {Column(nameof(BaseEntity.IsDeleted))} IS NULL)";
         var result = await Connection.QueryAsync<T>(sql, new { Uids = uidList }, transaction: Transaction);
         return [.. result];
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<T?> GetSingleEntityAsync()
     {
-        var sql = $"SELECT TOP 1 * FROM [{TableName}] WITH(NOLOCK)";
+        var sql = $"SELECT TOP 1 {SelectColumns} FROM {QualifiedTableName} WITH(NOLOCK)";
         return await Connection.QueryFirstOrDefaultAsync<T>(sql, transaction: Transaction);
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<IReadOnlyList<T>> GetAllAsync()
     {
-        var sql = $"SELECT * FROM [{TableName}] WITH(NOLOCK) WHERE IsDeleted = 0 OR IsDeleted IS NULL ORDER BY ISNULL(UpdatedDate, CreatedDate) DESC";
+        var sql = $"SELECT {SelectColumns} FROM {QualifiedTableName} WITH(NOLOCK) WHERE {Column(nameof(BaseEntity.IsDeleted))} = 0 OR {Column(nameof(BaseEntity.IsDeleted))} IS NULL ORDER BY ISNULL({Column(nameof(BaseEntity.UpdatedDate))}, {Column(nameof(BaseEntity.CreatedDate))}) DESC";
         var result = await Connection.QueryAsync<T>(sql, transaction: Transaction);
         return [.. result];
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<RepositoryWriteResult> AddAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -116,10 +128,10 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
         entity.Uid = GuidSequentialGenerator.NewGuid(); // 预先生成 Uid，避免后续查询时无法获取到主键值
         if (entity.Version <= 0) entity.Version = 1;
         // 使用静态缓存的属性列表，不用每次都反射
-        var columns = string.Join(", ", InsertProperties.Select(p => $"[{p}]"));
-        var paramsName = string.Join(", ", InsertProperties.Select(p => $"@{p}"));
+        var columns = string.Join(", ", InsertProperties.Select(Column));
+        var paramsName = string.Join(", ", InsertProperties.Select(p => $"@{Metadata.GetProperty(p).ParameterName}"));
 
-        var sql = $@"INSERT INTO [{TableName}] ({columns}) VALUES ({paramsName});";
+        var sql = $@"INSERT INTO {QualifiedTableName} ({columns}) VALUES ({paramsName});";
 
         var rows = await Connection.ExecuteAsync(sql, entity, transaction: Transaction);
         if (rows != 1)
@@ -137,6 +149,7 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
             "新增成功。");
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<RepositoryWriteResult> UpdateAsync(T entity)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -151,16 +164,16 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
         var setClause = string.Join(", ",
             UpdateProperties
                 .Where(p => p != "Version" && p != "Uid")
-                .Select(p => $"[{p}] = @{p}"))
-            + ", [Version] = [Version] + 1";
+                .Select(p => $"{Column(p)} = @{Metadata.GetProperty(p).ParameterName}"))
+            + $", {Column(nameof(BaseEntity.Version))} = {Column(nameof(BaseEntity.Version))} + 1";
 
 
         var sql = $@"
-                    UPDATE [{TableName}] 
+                    UPDATE {QualifiedTableName}
                     SET {setClause}
-                    OUTPUT INSERTED.Version
-                    WHERE [Uid] = @Uid AND [Version] = @OriginalVersion
-                    AND IsDeleted=0";
+                    OUTPUT INSERTED.{Column(nameof(BaseEntity.Version))}
+                    WHERE {Column(nameof(BaseEntity.Uid))} = @Uid AND {Column(nameof(BaseEntity.Version))} = @OriginalVersion
+                    AND {Column(nameof(BaseEntity.IsDeleted))}=0";
 
         var parameters = new DynamicParameters(entity);
         parameters.Add("OriginalVersion", originalVersion);
@@ -183,18 +196,19 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
             "更新成功。");
     }
 
+    /// <summary>在当前会话及事务中执行单实体操作，使用共享物理列映射并保留原有并发和软删除语义。</summary>
     public virtual async Task<RepositoryWriteResult> DeleteAsync(Guid uid, int version, bool softDelete = true)
     {
         if (softDelete)
         {
-            var sql = $@"UPDATE [{TableName}] 
-                        SET {nameof(BaseEntity.UpdatedDate)} = @UpdatedDate, 
-                            {nameof(BaseEntity.UpdatedBy)} = @UpdatedBy,
-                            {nameof(BaseEntity.IsDeleted)} = 1 
-                        OUTPUT INSERTED.Version
-                        WHERE [Uid] = @Uid
-                             AND {nameof(BaseEntity.Version)} = @Version
-                             AND {nameof(BaseEntity.IsDeleted)} = 0
+            var sql = $@"UPDATE {QualifiedTableName}
+                        SET {Column(nameof(BaseEntity.UpdatedDate))} = @UpdatedDate,
+                            {Column(nameof(BaseEntity.UpdatedBy))} = @UpdatedBy,
+                            {Column(nameof(BaseEntity.IsDeleted))} = 1
+                        OUTPUT INSERTED.{Column(nameof(BaseEntity.Version))}
+                        WHERE {Column(nameof(BaseEntity.Uid))} = @Uid
+                             AND {Column(nameof(BaseEntity.Version))} = @Version
+                             AND {Column(nameof(BaseEntity.IsDeleted))} = 0
                              ";
             var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(sql, new
             {
@@ -220,7 +234,7 @@ public class DapperRepository<T>(RepositoryBaseContext context) : IRepository<T>
                 "删除成功。");
         }
 
-        var sql2 = $"DELETE FROM [{TableName}] WHERE [Uid] = @Uid AND Version = @Version";
+        var sql2 = $"DELETE FROM {QualifiedTableName} WHERE {Column(nameof(BaseEntity.Uid))} = @Uid AND {Column(nameof(BaseEntity.Version))} = @Version";
         var rows2 = await Connection.ExecuteAsync(sql2, new
         {
             Uid = uid,

@@ -1,7 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Data.SqlClient;
+using SwiftExport.Core.Interfaces.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth.Permissions;
@@ -278,7 +278,7 @@ public sealed class RbacManagementService(
             else transaction.Rollback();
             return result;
         }
-        catch (SqlException exception) when (exception.Number is 2601 or 2627)
+        catch (Exception exception) when (context.Session.Errors.Classify(exception) == DatabaseFailureKind.UniqueConflict)
         {
             RollbackSafely(transaction);
             return Validation<T>("稳定编码已存在或授权关系重复。", "Code");

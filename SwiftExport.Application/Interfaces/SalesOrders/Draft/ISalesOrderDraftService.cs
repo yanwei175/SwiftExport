@@ -18,7 +18,6 @@ using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
-using SwiftExport.Infrastructure.Data;
 using System.Text.Json;
 
 using SwiftExport.Contracts.DTOs.SalesOrders.Manager;

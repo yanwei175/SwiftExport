@@ -2,7 +2,7 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Systems.Internal;
 
@@ -70,7 +70,7 @@ internal static class SystemBatchSaveSupport
     }
 
     /// <summary>在调用方失败时尝试回滚既有事务，避免清理错误覆盖原始异常。</summary>
-    public static void TryRollback(DbSession session, ILogger logger, string operation)
+    public static void TryRollback(IDbSession session, ILogger logger, string operation)
     {
         try
         {

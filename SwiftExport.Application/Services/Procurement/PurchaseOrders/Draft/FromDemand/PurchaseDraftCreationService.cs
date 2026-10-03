@@ -23,7 +23,7 @@ using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Procurement;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand;
 
@@ -39,7 +39,7 @@ public sealed class PurchaseDraftCreationService(
     PurchaseDraftPreviewBuilder previewBuilder,
     PurchaseDraftWriteModelBuilder writeModelBuilder) : IPurchaseDraftCreationService
 {
-    private readonly DbSession _session = context.Session;
+    private readonly IDbSession _session = context.Session;
     private readonly ILogger<PurchaseDraftCreationService> _logger =
         context.LoggerFactory.CreateLogger<PurchaseDraftCreationService>();
 

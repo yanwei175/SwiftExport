@@ -17,7 +17,7 @@ using SwiftExport.Core.Interfaces.Products.Colors;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 using System.Text;
 
 namespace SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
@@ -32,7 +32,7 @@ public sealed partial class ProductMasterMaintenanceService(
     IProductRepository productRepository,
     ServiceBaseContext context) : IProductMasterMaintenanceService, IProductNeutralMaintenanceService
 {
-    private readonly DbSession _session = context.Session;
+    private readonly IDbSession _session = context.Session;
     private readonly ILogger<ProductMasterMaintenanceService> _logger = context.LoggerFactory.CreateLogger<ProductMasterMaintenanceService>();
 
     /// <summary>锁定所选产品及其有效主型号，在同一事务内拉取指定资料组；无可用主型号的产品跳过。</summary>

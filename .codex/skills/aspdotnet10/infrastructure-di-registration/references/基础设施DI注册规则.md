@@ -17,7 +17,9 @@ public static IServiceCollection AddInfrastructureServices(this IServiceCollecti
 当前基础注册：
 
 - `services.AddLogging()`
-- `services.AddScoped<DbSession>()`
+- `IDbConnectionFactory` 从配置创建 SQL Server 连接，`DbSession` 使用显式工厂注册
+- `IDbSession` 用 `GetRequiredService<DbSession>()` 注册别名，保证共享实例与事务
+- `IDatabaseExceptionClassifier` 使用 SQL Server 无状态分类器
 - `services.AddScoped<RepositoryBaseContext>()`
 - `services.AddScoped<IAuditStampService, AuditStampService>()`
 - `services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>))`

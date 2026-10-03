@@ -7,7 +7,7 @@ using SwiftExport.Contracts.DTOs.Base;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Base;
 
@@ -15,7 +15,7 @@ namespace SwiftExport.Application.Services.Base;
 public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, ServiceBaseContext context) : IBaseService<TEntity, TDto> where TEntity : BaseEntity where TDto : BaseDto
 {
     protected readonly IRepository<TEntity> _repository = repository;
-    protected readonly DbSession _session = context.Session;
+    protected readonly IDbSession _session = context.Session;
     private ILogger? _loggerInstance;
     protected ILogger Logger => _loggerInstance ??= context.LoggerFactory.CreateLogger(GetType());
     protected string EntityName => typeof(TEntity).Name;

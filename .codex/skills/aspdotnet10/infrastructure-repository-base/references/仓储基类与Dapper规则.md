@@ -27,7 +27,7 @@
 - 使用 `RepositoryBaseContext`。
 - 从 `DbSession` 取得 `Connection` 和 `Transaction`。
 - 使用 `IAuditStampService` 打审计字段。
-- 使用 `EntityMetadataCache` 获取表名。
+- 使用 `EntityMetadataCache` 与建表器共享 schema、表、属性、物理列及参数映射；例如 Quantity 写 QTY、参数仍为 Quantity。
 - 新增时生成顺序 Guid。
 - 更新时使用 `Version` 做乐观并发。
 - 删除默认软删除。
@@ -35,7 +35,7 @@
 ## SQL 规则
 
 - 查询参数化，禁止拼接用户输入。
-- 列表查询尽量不使用 `SELECT *`；泛型基础查询除外，业务查询必须显式字段。
+- 通用实体查询使用显式列及 CLR 属性别名；业务查询继续显式投影。禁止为兼容 Column 添加影响全部 DTO 的 Dapper 全局映射。
 - 分页查询必须有稳定排序。
 - 联表 DTO 查询必须显式字段别名，匹配 DTO 属性名。
 - SQL 执行必须传 `transaction: Transaction`。

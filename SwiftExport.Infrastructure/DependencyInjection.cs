@@ -105,8 +105,14 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.AddLogging();
+        services.AddSingleton<SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier>(SqlServerExceptionClassifier.Instance);
 
-        services.AddScoped<DbSession>();
+        // 两个入口必须解析到同一个 scoped 实例，避免应用与仓储各持一条连接。
+        services.AddScoped<SwiftExport.Infrastructure.Data.IDbConnectionFactory>(sp =>
+            new SqlConnectionFactory(Microsoft.Extensions.Configuration.ConfigurationExtensions.GetConnectionString(
+                sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(), "Default")!));
+        services.AddScoped<DbSession>(sp => new DbSession(sp.GetRequiredService<IDbConnectionFactory>()));
+        services.AddScoped<SwiftExport.Core.Interfaces.Data.IDbSession>(sp => sp.GetRequiredService<DbSession>());
         services.AddScoped<RepositoryBaseContext>();
 
         // ══════════════════════════════════════════════════════

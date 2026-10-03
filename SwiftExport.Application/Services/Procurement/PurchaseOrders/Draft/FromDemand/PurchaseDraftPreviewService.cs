@@ -25,7 +25,6 @@ using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using SwiftExport.Core.Interfaces.Procurement;
-using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand;
 

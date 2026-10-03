@@ -12,7 +12,7 @@ using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Products.ProductNeutrals.Maintenance;
 
@@ -23,7 +23,7 @@ public sealed class ProductNeutralBatchMaintenanceService(
     IProductColorRepository colorRepository,
     ServiceBaseContext context) : IProductNeutralBatchMaintenanceService
 {
-    private readonly DbSession _session = context.Session;
+    private readonly IDbSession _session = context.Session;
     private readonly ILogger<ProductNeutralBatchMaintenanceService> _logger = context.LoggerFactory.CreateLogger<ProductNeutralBatchMaintenanceService>();
 
     /// <summary>验证完整批次后原子写入；任何失败均回滚，不返回部分成功。</summary>
