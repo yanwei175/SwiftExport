@@ -2,6 +2,7 @@ using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
+using System.Data;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
@@ -58,14 +59,14 @@ public sealed class MaterialDemandEstablishmentService(
             command, command?.CommandId, CommandType, AuthorizeAsync,
             token => ExecuteEstablishCommandAsync(command!, token), cancellationToken));
 
-    /// <summary>在读取可变来源事实前取得命令回执；排序后的完整集合参与公共指纹。</summary>
+    /// <summary>通过公共执行器在 Serializable 事务中核对共享组成与来源事实，排序后的完整集合参与公共指纹。</summary>
     private async Task<ServiceResult<CommandExecutionResult<EstablishMaterialDemandsResult>>> ExecuteEstablishCommandAsync(
         EstablishMaterialDemandsCommand command, CancellationToken token)
     {
         var input = command.Items.OrderBy(item => item.GrossDemandId)
             .Select(item => new { item.GrossDemandId, item.SourceDemandVersion, item.SourceVersion }).ToArray();
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, null, new { Items = input },
-            ct => EstablishInTransactionAsync(command, ct), token);
+            ct => EstablishInTransactionAsync(command, ct), token, isolationLevel: IsolationLevel.Serializable);
         return ServiceResult<CommandExecutionResult<EstablishMaterialDemandsResult>>.Ok(result);
     }
 
@@ -171,7 +172,7 @@ public sealed class MaterialDemandEstablishmentService(
         }
     }
 
-    /// <summary>在既有事务中锁定根产品和 BOM 子产品，交给纯规划器生成待写入物料行。</summary>
+    /// <summary>在既有事务中锁定真实根及直接子产品，按根的有效编号读取共享组成，交给纯规划器生成待写入物料行。</summary>
     private async Task<PlanContext> BuildPlanAsync(GrossDemand demand, int revision)
     {
         Product? root = null;
@@ -186,7 +187,7 @@ public sealed class MaterialDemandEstablishmentService(
             if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(root))
                 throw new MaterialDemandException("CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED", "客供件不能作为标准来源需求根产品。");
             if (root.BomVersion > 0 && !string.IsNullOrWhiteSpace(root.BomNo))
-                boms = await bomRepository.GetByBomNoAndVersionAsync(root.BomNo, root.BomVersion);
+                boms = (await bomRepository.GetBomByBomNoAsync(root.BomNo)).ToArray();
             var childIds = boms.Where(line => line.ComponentProductId.HasValue).Select(line => line.ComponentProductId!.Value).Distinct().ToArray();
             children = (await productRepository.GetByIdListAsync(childIds, withUpdLock: true)).ToDictionary(product => product.Uid);
             foreach (var child in children.Values.Where(CustomerSuppliedMaterialPolicy.IsCustomerSupplied))

@@ -2,7 +2,8 @@ using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
+using SwiftExport.Contracts.DTOs.Errors;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.Base;
@@ -41,9 +42,9 @@ public sealed class ProductBomSaveBoundaryTests
         var number = newEmptyNumber ? "NEW-EMPTY" : "SHARED";
         if (!newEmptyNumber)
         {
-            var source = fixture.Product("SOURCE", number);
+            var source = fixture.Product("SOURCE", number, 5);
             fixture.Product("OTHER-POSITIVE", number, 8);
-            fixture.Line(source, fixture.Product("LEAF"));
+            fixture.Line(source, fixture.Product("LEAF")).BomVersion = 6;
         }
         var dto = Dto(target);
         dto.Sku = entry == "add" ? "CREATED" : target.Sku;
@@ -71,6 +72,7 @@ public sealed class ProductBomSaveBoundaryTests
     [DataRow("customer-parent", "客供件")]
     [DataRow("orphan", "孤立历史")]
     [DataRow("abnormal", "异常组成有效标记")]
+    [DataRow("nonpositive", "异常组成有效标记")]
     [DataRow("existing-empty", "没有有效组成")]
     public async Task OrdinaryBinding_DangerousSharedGraphIsRejected(string scenario, string expectedMessage)
     {
@@ -88,7 +90,8 @@ public sealed class ProductBomSaveBoundaryTests
         if (scenario != "existing-empty")
         {
             var line = fixture.Line(source, child);
-            if (scenario == "abnormal") line.BomVersion = 2;
+            if (scenario == "abnormal") line.BomVersion = 0;
+            if (scenario == "nonpositive") line.BomVersion = -2;
         }
         if (scenario == "orphan") source.IsDeleted = true;
         var dto = Dto(target);
@@ -120,19 +123,23 @@ public sealed class ProductBomSaveBoundaryTests
         fixture.AssertBlocked(result.Success, before);
     }
 
-    /// <summary>非空共享组最后一名标准父引用者不能改为非标准正标记，避免临时普通查询读不到刚保存结构。</summary>
+    /// <summary>非空共享组全部引用父均可使用不同正标记，修改不复制组成、不改变快照或旧行标记。</summary>
     [TestMethod]
-    public async Task LastStandardParentMarkerChange_IsRejected()
+    public async Task ParentPositiveMarkerChange_IsSavedWithoutChangingSharedLines()
     {
         var fixture = new Fixture();
         var parent = fixture.Product("P", "SHARED");
         fixture.Product("OTHER", "SHARED", 7);
-        fixture.Line(parent, fixture.Product("LEAF"));
+        fixture.Line(parent, fixture.Product("LEAF")).BomVersion = 8;
         var dto = Dto(parent);
         dto.BomVersion = 3;
-        var before = fixture.State();
+        var beforeBom = fixture.BomState();
         var result = await fixture.Entry.UpdateAsync(new() { Uid = parent.Uid, Version = parent.Version, Data = dto });
-        fixture.AssertBlocked(result.Success, before);
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.AreEqual(3, fixture.Products[parent.Uid].BomVersion);
+        Assert.AreEqual(beforeBom, fixture.BomState());
+        Assert.HasCount(1, fixture.Writes);
+        fixture.AssertTransaction(1, 0);
     }
 
     /// <summary>旧基础服务类型调用也必须进入批量事务，保持客户端定位、服务端身份及保存版本回执。</summary>
@@ -478,6 +485,112 @@ public sealed class ProductBomSaveBoundaryTests
         Unit = product.Unit!, Note = product.Note!, DescriptionZh = product.DescriptionZh!, IsDeleted = product.IsDeleted
     };
 
+    /// <summary>明确序列化终止跨读取、写入和提交阶段返回服务不可用，不自动重复任何产品写入。</summary>
+    [TestMethod]
+    [DataRow("read", 0, 0, false)]
+    [DataRow("write", 2, 0, false)]
+    [DataRow("commit", 2, 1, false)]
+    [DataRow("read", 0, 0, true)]
+    [DataRow("write", 2, 0, true)]
+    [DataRow("commit", 2, 1, true)]
+    public async Task SerializationFailure_ReturnsUnavailableAndRestoresBatch(string stage, int writes, int commits, bool cleanupFaults)
+    {
+        var fixture = new Fixture { SerializationStage = stage, FailLogging = cleanupFaults };
+        fixture.Session.ConnectionStub.SerializationOnCommit = stage == "commit";
+        fixture.Session.ConnectionStub.FailRollback = cleanupFaults;
+        fixture.Session.ConnectionStub.FailTransactionDispose = cleanupFaults;
+        fixture.Session.ConnectionStub.FailDispose = cleanupFaults;
+        var target = fixture.Product("OLD");
+        var dto = Dto(target);
+        dto.Note = "批次修改";
+        var create = new ProductDto { Sku = "NEW", SupplyType = SupplyTypeEnums.采购, MaterialType = MaterialTypesEnum.零件 };
+        if (stage == "read") { create.BomNo = "NEW-EMPTY"; create.BomVersion = 3; }
+        var before = fixture.State();
+        var result = await fixture.Service.BatchSaveAsync(new()
+        {
+            CreateItems = [new() { Data = create }],
+            UpdateItems = [new() { Uid = target.Uid, Version = target.Version, Data = dto }]
+        });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.ServiceUnavailable, result.Error.Code);
+        StringAssert.Contains(result.Message, "本次未提交");
+        Assert.IsNull(result.Data);
+        Assert.AreEqual(writes, fixture.Writes.Count);
+        if (!cleanupFaults) Assert.AreEqual(before, fixture.State());
+        Assert.IsFalse(fixture.Session.ConnectionStub.Last!.IsCommitted);
+        Assert.AreEqual(cleanupFaults ? 1 : 0, fixture.Session.ConnectionStub.Disposals);
+        fixture.AssertTransaction(commits, 1);
+    }
+
+    /// <summary>未知提交异常区分提交前失败和确认丢失，回滚不得伪造撤销已提交事实，也不能重复写入。</summary>
+    [TestMethod]
+    [DataRow(false, false)]
+    [DataRow(true, false)]
+    [DataRow(false, true)]
+    [DataRow(true, true)]
+    public async Task CommitUnknownOutcome_PreservesActualFacts(bool committed, bool cleanupFaults)
+    {
+        var fixture = new Fixture { FailLogging = cleanupFaults };
+        fixture.Session.ConnectionStub.FailCommitBefore = !committed;
+        fixture.Session.ConnectionStub.FailCommitAfter = committed;
+        fixture.Session.ConnectionStub.FailRollback = cleanupFaults;
+        fixture.Session.ConnectionStub.FailTransactionDispose = cleanupFaults;
+        fixture.Session.ConnectionStub.FailDispose = cleanupFaults;
+        var target = fixture.Product("OLD");
+        var dto = Dto(target);
+        dto.Note = "新事实";
+        var before = fixture.State();
+        var result = await fixture.Entry.UpdateAsync(new() { Uid = target.Uid, Version = target.Version, Data = dto });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.OutcomeUnknown, result.Error.Code);
+        Assert.IsNull(result.Data);
+        Assert.HasCount(1, fixture.Writes);
+        Assert.AreEqual(committed, fixture.Session.ConnectionStub.Last!.IsCommitted);
+        if (committed) Assert.AreEqual(dto.Note, fixture.Products[target.Uid].Note);
+        else if (!cleanupFaults) Assert.AreEqual(before, fixture.State());
+        Assert.AreEqual(cleanupFaults ? 1 : 0, fixture.Session.ConnectionStub.Disposals);
+        fixture.AssertTransaction(1, 1);
+    }
+
+    /// <summary>创建事务失败且诊断日志失效时，不能释放未取得的事务或连接，也不能开始产品写入。</summary>
+    [TestMethod]
+    public async Task BeginFailure_DoesNotCleanUnownedResources()
+    {
+        var fixture = new Fixture { FailLogging = true };
+        fixture.Session.ConnectionStub.FailBegin = true;
+        var result = await fixture.Entry.AddAsync(new() { Data = new() { Sku = "NEW" } });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.Unexpected, result.Error.Code);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(1, fixture.Session.ConnectionStub.Begins);
+        Assert.AreEqual(0, fixture.Session.ConnectionStub.Disposals);
+        Assert.IsNull(fixture.Session.ConnectionStub.Last);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
+    /// <summary>成功提交或写入失败遇到释放、回滚及日志故障时保留原始结果并清空会话。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task CleanupAndLoggingFaults_DoNotOverrideResult(bool writeFails)
+    {
+        var fixture = new Fixture { FailWriteNumber = writeFails ? 1 : 0, FailLogging = true };
+        fixture.Session.ConnectionStub.FailRollback = writeFails;
+        fixture.Session.ConnectionStub.FailTransactionDispose = true;
+        fixture.Session.ConnectionStub.FailDispose = true;
+        var target = fixture.Product("OLD");
+        var dto = Dto(target);
+        dto.Note = "本次保存";
+        var result = await fixture.Entry.UpdateAsync(new() { Uid = target.Uid, Version = target.Version, Data = dto });
+        Assert.AreEqual(!writeFails, result.Success);
+        if (writeFails) Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        else Assert.AreEqual(dto.Note, fixture.Products[target.Uid].Note);
+        Assert.HasCount(1, fixture.Writes);
+        Assert.AreEqual(1, fixture.Session.ConnectionStub.Disposals);
+        Assert.IsTrue(fixture.LoggerCalls > 0);
+        fixture.AssertTransaction(writeFails ? 0 : 1, writeFails ? 1 : 0);
+    }
+
     /// <summary>完整克隆持久对象，使查询对象与已保存状态分离，捕捉失败时的内存污染。</summary>
     private static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;
 
@@ -496,12 +609,16 @@ public sealed class ProductBomSaveBoundaryTests
         public int BomBypassCalls;
         public int FailWriteNumber;
         public int SuccessfulWrites;
+        public string SerializationStage { get; init; } = string.Empty;
+        private readonly FaultLogger _logger = new();
+        public bool FailLogging { init => _logger.Fail = value; }
+        public int LoggerCalls => _logger.Calls;
 
         /// <summary>所有仓储共享同一会话；没有引用资料时任何额外颜色、供应商、仓库查询均视为越界。</summary>
         public Fixture()
         {
             Session = new(Products, Boms);
-            Service = new(Proxy<IProductRepository>(ProductCall), new ServiceBaseContext(Session, NullLoggerFactory.Instance),
+            Service = new(Proxy<IProductRepository>(ProductCall), new ServiceBaseContext(Session, new FaultLoggerFactory(_logger)),
                 Proxy<IProductColorRepository>(Unexpected), Proxy<ISupplierRepository>(Unexpected),
                 Proxy<IWarehouseQueryRepository>(Unexpected), Proxy<IBomRepository>(BomCall),
                 Proxy<ISysDictDataRepository>((name, _) =>
@@ -552,6 +669,7 @@ public sealed class ProductBomSaveBoundaryTests
         {
             Assert.AreEqual(1, Session.ConnectionStub.Begins);
             Assert.AreEqual(commits, Session.ConnectionStub.Last!.Commits);
+            Assert.AreEqual(IsolationLevel.Serializable, Session.ConnectionStub.Last.IsolationLevel);
             Assert.AreEqual(rollbacks, Session.ConnectionStub.Last.Rollbacks);
             Assert.AreEqual(1, Session.ConnectionStub.Last.Disposals);
             Assert.IsNull(Session.Transaction);
@@ -598,6 +716,7 @@ public sealed class ProductBomSaveBoundaryTests
             var row = deletion ? Clone(Products[(Guid)args[0]!]) : Clone((Product)args[0]!);
             var version = deletion ? (int)args[1]! : row.Version;
             Writes.Add((name, Clone(row)));
+            if (SerializationStage == "write" && Writes.Count == 2) throw new SerializationFailureStub();
             if (Writes.Count == FailWriteNumber)
                 return Task.FromResult(RepositoryWriteResult.Fail(row.Uid, version, "WRITE_FAILED", "受控后序写入失败"));
             if (name != nameof(IProductRepository.AddAsync)
@@ -643,6 +762,7 @@ public sealed class ProductBomSaveBoundaryTests
                         .Select(Clone).ToArray());
                 case nameof(IBomRepository.GetSharedSaveFactsAsync):
                     ReferenceReads++;
+                    if (SerializationStage == "read") throw new SerializationFailureStub();
                     Assert.IsFalse((bool)args[1]!, "普通产品边界只读共享图，不能全图申请更新锁。");
                     return Task.FromResult(SharedBomTestFacts.Build(Products.Values, Boms.Values,
                         (IReadOnlyList<string>)args[0]!, line => DatabaseMatchedCurrentLineIds.Contains(line.Uid)
@@ -651,7 +771,7 @@ public sealed class ProductBomSaveBoundaryTests
                 case nameof(IBomRepository.GetByBomNoAndVersionAsync):
                     var bomNo = (string)args[0]!;
                     var bomVersion = (int)args[1]!;
-                    return Task.FromResult<IReadOnlyList<Bom>>(Boms.Values.Where(x => !x.IsDeleted && x.BomVersion == bomVersion
+                    return Task.FromResult<IReadOnlyList<Bom>>(Boms.Values.Where(x => !x.IsDeleted && bomVersion > 0 && x.BomVersion > 0
                         && string.Equals(x.BomNo?.TrimEnd(' '), bomNo.TrimEnd(' '), StringComparison.OrdinalIgnoreCase))
                         .Select(Clone).ToArray());
                 case nameof(IBomRepository.HasActiveBomForProductAsync):
@@ -696,8 +816,9 @@ public sealed class ProductBomSaveBoundaryTests
         public IDbConnection Connection => ConnectionStub;
         public IDbTransaction? Transaction { get; set; }
         public IDatabaseExceptionClassifier Errors => this;
-        /// <summary>本组不注入提供者异常，不推定错误可重试。</summary>
-        public DatabaseFailureKind Classify(Exception exception) => DatabaseFailureKind.Unknown;
+        /// <summary>只识别受控序列化终止，不按消息或其他异常猜测可重试性。</summary>
+        public DatabaseFailureKind Classify(Exception exception) => exception is SerializationFailureStub
+            ? DatabaseFailureKind.SerializationFailure : DatabaseFailureKind.Unknown;
     }
 
     /// <summary>只提供记录型事务，禁止执行 SQL；每次开始捕获全部持久事实。</summary>
@@ -705,23 +826,46 @@ public sealed class ProductBomSaveBoundaryTests
     {
         public int Begins;
         public TransactionStub? Last;
+        public bool FailBegin;
+        public bool SerializationOnCommit;
+        public bool FailCommitBefore;
+        public bool FailCommitAfter;
+        public bool FailRollback;
+        public bool FailTransactionDispose;
+        public bool FailDispose;
+        public int Disposals;
         /// <summary>建立产品保存拥有的唯一事务。</summary>
-        public IDbTransaction BeginTransaction() { Begins++; return Last = new(products, boms, this); }
+        public IDbTransaction BeginTransaction()
+        {
+            Begins++;
+            if (FailBegin) throw new InvalidOperationException("受控事务创建失败");
+            return Last = new(products, boms, this);
+        }
         /// <summary>显式隔离重载仍只记录生命周期，不声称验证数据库隔离。</summary>
-        public IDbTransaction BeginTransaction(IsolationLevel isolationLevel) => BeginTransaction();
+        public IDbTransaction BeginTransaction(IsolationLevel isolationLevel)
+        {
+            var transaction = BeginTransaction();
+            Last!.RequestedIsolation = isolationLevel;
+            return transaction;
+        }
         [AllowNull] public string ConnectionString { get; set; } = "";
         public int ConnectionTimeout => 0;
         public string Database => "offline-product-bom";
         public ConnectionState State => ConnectionState.Open;
         public void Open() { }
         public void Close() { }
-        public void Dispose() { }
+        /// <summary>记录故障清理时的连接关闭，不让夹具执行真实数据库行为。</summary>
+        public void Dispose()
+        {
+            Disposals++;
+            if (FailDispose) throw new InvalidOperationException("受控连接释放失败");
+        }
         public void ChangeDatabase(string databaseName) => throw new NotSupportedException();
         public IDbCommand CreateCommand() => throw new NotSupportedException();
     }
 
     /// <summary>提交只记录计数，回滚恢复全部字段；不模拟 SQL 锁或实库并发。</summary>
-    private sealed class TransactionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms, IDbConnection connection) : IDbTransaction
+    private sealed class TransactionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms, ConnectionStub connection) : IDbTransaction
     {
         private readonly Dictionary<Guid, Product> _products = products.ToDictionary(x => x.Key, x => Clone(x.Value));
         private readonly Dictionary<Guid, Bom> _boms = boms.ToDictionary(x => x.Key, x => Clone(x.Value));
@@ -729,19 +873,65 @@ public sealed class ProductBomSaveBoundaryTests
         public int Rollbacks;
         public int Disposals;
         public IDbConnection Connection => connection;
-        public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
-        /// <summary>记录成功提交，持久集合已经由局部仓储更新。</summary>
-        public void Commit() => Commits++;
+        public IsolationLevel RequestedIsolation { get; set; } = IsolationLevel.ReadCommitted;
+        public IsolationLevel IsolationLevel => RequestedIsolation;
+        public bool IsCommitted { get; private set; }
+        /// <summary>明确序列化失败发生在提交前，未知故障可发生于提交前或确认丢失时。</summary>
+        public void Commit()
+        {
+            Commits++;
+            if (connection.SerializationOnCommit) throw new SerializationFailureStub();
+            if (connection.FailCommitBefore) throw new InvalidOperationException("受控提交前失败");
+            IsCommitted = true;
+            if (connection.FailCommitAfter) throw new InvalidOperationException("受控提交确认丢失");
+        }
         /// <summary>完整恢复事务前产品及历史组成，捕捉后序写入失败。</summary>
         public void Rollback()
         {
             Rollbacks++;
+            if (connection.FailRollback) throw new InvalidOperationException("受控回滚失败");
+            if (IsCommitted) return;
             products.Clear();
             boms.Clear();
             foreach (var pair in _products) products.Add(pair.Key, Clone(pair.Value));
             foreach (var pair in _boms) boms.Add(pair.Key, Clone(pair.Value));
         }
         /// <summary>记录释放，用于核对保存入口未接管外层事务。</summary>
-        public void Dispose() => Disposals++;
+        public void Dispose()
+        {
+            Disposals++;
+            if (connection.FailTransactionDispose) throw new InvalidOperationException("受控事务释放失败");
+        }
+    }
+
+    /// <summary>只模拟已确认的序列化终止信号，不模拟实库并发算法。</summary>
+    private sealed class SerializationFailureStub : Exception { }
+
+    /// <summary>将局部故障日志对象提供给真实服务，不修改全局日志配置。</summary>
+    private sealed class FaultLoggerFactory(FaultLogger logger) : ILoggerFactory
+    {
+        /// <summary>返回本场景日志对象。</summary>
+        public ILogger CreateLogger(string categoryName) => logger;
+        /// <summary>夹具不安装外部日志提供者。</summary>
+        public void AddProvider(ILoggerProvider provider) { }
+        /// <summary>夹具没有外部日志资源。</summary>
+        public void Dispose() { }
+    }
+
+    /// <summary>记录真实诊断调用并按场景注入故障，避免测试跳过日志路径。</summary>
+    private sealed class FaultLogger : ILogger
+    {
+        public bool Fail;
+        public int Calls;
+        /// <summary>允许诊断到达本夹具。</summary>
+        public bool IsEnabled(LogLevel logLevel) => true;
+        /// <summary>局部夹具无需日志范围。</summary>
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        /// <summary>记录调用并抛出配置的日志异常。</summary>
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Calls++;
+            if (Fail) throw new InvalidOperationException("受控日志失败");
+        }
     }
 }

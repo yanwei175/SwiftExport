@@ -25,6 +25,9 @@ public sealed class MaterialDemandEstablishmentContractTests
             Assert.IsFalse(source.Contains("BeginTransaction", StringComparison.Ordinal));
         }
         StringAssert.Contains(establishment, "PermissionKeys.DemandPlanningMaterialEstablish");
+        StringAssert.Contains(establishment, "isolationLevel: IsolationLevel.Serializable");
+        StringAssert.Contains(establishment, "GetBomByBomNoAsync(root.BomNo)");
+        Assert.IsFalse(establishment.Contains("GetByBomNoAndVersionAsync", StringComparison.Ordinal));
         StringAssert.Contains(reversal, "PermissionKeys.DemandPlanningMaterialRollback");
         var userId = Guid.NewGuid();
         var evaluator = new PermissionEvaluationService(new MaterialPermissionFacts(new UserPermissionFacts

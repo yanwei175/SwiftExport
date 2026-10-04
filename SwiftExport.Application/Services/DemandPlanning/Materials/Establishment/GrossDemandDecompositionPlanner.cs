@@ -10,7 +10,7 @@ namespace SwiftExport.Application.Services.DemandPlanning.Materials.Establishmen
 /// <summary>无数据库副作用的毛需求拆解计算器。</summary>
 public sealed class GrossDemandDecompositionPlanner
 {
-    /// <summary>依据来源快照、根产品和当前 BOM 生成建立计划，不写数据库。</summary>
+    /// <summary>依据来源快照、真实根产品及其共享编号组成生成计划；仅展开直接客供件，不改写物理来源或历史事实。</summary>
     public GrossDemandDecompositionPlan BuildPlan(
         GrossDemand grossDemand,
         Product? rootProduct,
@@ -34,16 +34,22 @@ public sealed class GrossDemandDecompositionPlanner
         if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(rootProduct))
             return GrossDemandDecompositionPlan.Fail("CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED", "客供件不能作为标准毛需求根产品。");
         if ((rootProduct.BomVersion > 0) != !string.IsNullOrWhiteSpace(rootProduct.BomNo))
-            return GrossDemandDecompositionPlan.Fail("INVALID_PRODUCT_BOM", $"产品 {rootProduct.Sku} 的 BOM 编号和版本不一致。");
+            return GrossDemandDecompositionPlan.Fail("INVALID_PRODUCT_BOM", $"产品 {rootProduct.Sku} 的 BOM 编号和有效标记不一致。");
         if (rootProduct.BomVersion > 0 && bomLines.Count == 0)
-            return GrossDemandDecompositionPlan.Fail("BOM_NOT_FOUND", $"产品 {rootProduct.Sku} 指定的 BOM 版本没有有效明细。");
+            return GrossDemandDecompositionPlan.Fail("BOM_NOT_FOUND", $"产品 {rootProduct.Sku} 指定的共享 BOM 编号没有有效明细。");
 
         var orderedLines = bomLines.OrderBy(x => x.LineNumber).ThenBy(x => x.Uid).ToArray();
         foreach (var line in orderedLines)
         {
             if (!line.ComponentProductId.HasValue || !products.TryGetValue(line.ComponentProductId.Value, out var child))
                 return GrossDemandDecompositionPlan.Fail("BOM_CHILD_NOT_FOUND", $"BOM 第 {line.LineNumber} 行未关联有效子产品。");
-            var error = CustomerSuppliedMaterialPolicy.ValidateBomLine(line, child);
+            // 来源父只负责追溯；共享组成的实际父是本次建立需求的根，不向物理行回写根身份。
+            var edge = new Bom
+            {
+                ParentProductId = rootProduct.Uid, ComponentProductId = line.ComponentProductId,
+                LineNumber = line.LineNumber, Numerator = line.Numerator, Denominator = line.Denominator
+            };
+            var error = CustomerSuppliedMaterialPolicy.ValidateBomLine(edge, child);
             if (error is not null)
                 return GrossDemandDecompositionPlan.Fail("INVALID_BOM_LINE", error);
         }

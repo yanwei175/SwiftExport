@@ -362,17 +362,23 @@ public sealed class MaterialDemandPublicCommandTests
         public string Database => "memory";
         public ConnectionState State => ConnectionState.Open;
         public IDbTransaction BeginTransaction() { Begins++; return new TransactionStub(this); }
-        public IDbTransaction BeginTransaction(IsolationLevel isolationLevel) => throw new AssertFailedException("不得更改原事务隔离入口。");
+        /// <summary>需求建立使用已批准的 Serializable；其他公共命令仍可沿用默认事务。</summary>
+        public IDbTransaction BeginTransaction(IsolationLevel isolationLevel)
+        {
+            Assert.AreEqual(IsolationLevel.Serializable, isolationLevel);
+            Begins++;
+            return new TransactionStub(this, isolationLevel);
+        }
         public void ChangeDatabase(string databaseName) => throw new NotSupportedException();
         public void Close() { }
         public IDbCommand CreateCommand() => throw new NotSupportedException();
         public void Open() { }
         public void Dispose() { }
 
-        private sealed class TransactionStub(ConnectionStub owner) : IDbTransaction
+        private sealed class TransactionStub(ConnectionStub owner, IsolationLevel level = IsolationLevel.ReadCommitted) : IDbTransaction
         {
             public IDbConnection Connection => owner;
-            public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
+            public IsolationLevel IsolationLevel => level;
             public void Commit()
             {
                 if (owner.FailCommit) throw new IOException("模拟提交结果不明");

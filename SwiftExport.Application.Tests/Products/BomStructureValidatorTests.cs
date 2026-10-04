@@ -25,6 +25,36 @@ public sealed class BomStructureValidatorTests
         Assert.IsNull(error);
     }
 
+    /// <summary>父产品和组成行的不同正标记共享一套组成，不要求存在标记一的父。</summary>
+    [TestMethod]
+    public void DifferentPositiveMarkers_AreEquivalent()
+    {
+        var parent = Product("A", "SHARED");
+        parent.BomVersion = 3;
+        var alias = Product("B", "SHARED");
+        alias.BomVersion = 7;
+        var child = Product("LEAF");
+        var line = Line(parent, child, 1);
+        line.BomVersion = 8;
+        Assert.IsNull(Validate([line], [parent.Uid, alias.Uid], Products(parent, alias, child)));
+        Assert.AreEqual(8, line.BomVersion);
+        Assert.AreEqual(parent.Uid, line.ParentProductId);
+    }
+
+    /// <summary>触及未删非正组成时明确拒绝，不将旧无效行静默解释为当前有效边。</summary>
+    [TestMethod]
+    [DataRow(0)]
+    [DataRow(-1)]
+    public void NonpositiveLineMarker_IsRejected(int marker)
+    {
+        var parent = Product("A", "SHARED");
+        var child = Product("LEAF");
+        var line = Line(parent, child, 1);
+        line.BomVersion = marker;
+        StringAssert.Contains(Validate([line], [parent.Uid], Products(parent, child)), "异常组成有效标记");
+        Assert.AreEqual(marker, line.BomVersion);
+    }
+
     /// <summary>同组重复组件仍被拒绝。</summary>
     [TestMethod]
     public void DuplicateComponent_IsRejected()

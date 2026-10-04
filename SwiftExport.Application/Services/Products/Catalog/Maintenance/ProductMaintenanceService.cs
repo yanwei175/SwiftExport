@@ -19,6 +19,9 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using System.Text;
+using System.Data;
+using SwiftExport.Core.Interfaces.Data;
+using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 
 /// <summary>
@@ -165,7 +168,7 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
     }
 
 
-    /// <summary>在自有事务中统一产品单项与批量写入，先校验资料和受影响 BOM 引用，任一失败回滚全部操作。</summary>
+    /// <summary>在自有 Serializable 事务中统一产品单项与批量写入，校验资料和共享引用；序列化终止不自动重试，其他提交异常保持结果未知。</summary>
     public async Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest batchReq)
     {
         if (batchReq is null)
@@ -187,15 +190,18 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             return ServiceResult<ProductBatchSaveResponse>.Fail("当前请求已存在未完成事务，不能重复开始产品批量保存。");
 
         var response = new ProductBatchSaveResponse { TotalCount = batchReq.TotalCount };
+        IDbTransaction? transaction = null;
         try
         {
-            _session.Transaction = _session.Connection.BeginTransaction();
+            transaction = _session.Connection.BeginTransaction(IsolationLevel.Serializable);
+            _session.Transaction = transaction;
 
             var validationError = await ValidateBatchSaveAsync(batchReq);
             if (!string.IsNullOrWhiteSpace(validationError))
             {
-                _session.Transaction.Rollback();
-                return ServiceResult<ProductBatchSaveResponse>.Fail(validationError);
+                var rolledBack = TryRollbackTransaction(transaction);
+                return ServiceResult<ProductBatchSaveResponse>.Fail(rolledBack
+                    ? validationError : validationError + "事务回滚未能确认，请先核实结果。");
             }
 
             foreach (var item in batchReq.CreateItems)
@@ -222,29 +228,58 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
                 EnsureWriteSucceeded(writeResult, "删除产品失败。");
             }
 
-            _session.Transaction.Commit();
+            // 明确序列化失败表示事务未提交；其他提交异常不能据回滚尝试推断结果，更不能自动重写。
+            try { transaction.Commit(); }
+            catch (Exception commitException)
+            {
+                TryRollbackTransaction(transaction);
+                TryLogSaveFailure(LogLevel.Error, commitException, "产品保存提交失败，已尝试回滚清理。");
+                if (_session.Errors.Classify(commitException) == DatabaseFailureKind.SerializationFailure)
+                    return ServiceResult<ProductBatchSaveResponse>.Fail(ServiceErrorCodes.ServiceUnavailable,
+                        "并发结构变化导致产品保存事务终止，本次未提交，请刷新后重新保存。");
+                return ServiceResult<ProductBatchSaveResponse>.Fail(ServiceErrorCodes.OutcomeUnknown,
+                    "产品保存提交结果无法确认，请先刷新并核实结果，再决定后续操作。");
+            }
             return ServiceResult<ProductBatchSaveResponse>.Ok(
                 response,
                 $"批量保存完成，成功 {response.SuccessCount} 条。");
         }
         catch (ProductBatchWriteException exception)
         {
-            TryRollbackTransaction();
-            _logger.LogWarning(exception, "产品批量保存因写入冲突失败，已回滚全部操作。");
-            return ServiceResult<ProductBatchSaveResponse>.Fail(
-                $"产品批量保存失败，所有操作已回滚。原因：{exception.Message}");
+            var rolledBack = TryRollbackTransaction(transaction);
+            TryLogSaveFailure(LogLevel.Warning, exception, "产品批量保存因行写入失败终止，已尝试回滚清理。");
+            return ServiceResult<ProductBatchSaveResponse>.Fail(rolledBack
+                ? $"产品批量保存失败，所有操作已回滚。原因：{exception.Message}"
+                : $"产品批量保存失败，事务回滚未能确认，请先核实结果。原因：{exception.Message}");
         }
         catch (Exception exception)
         {
-            TryRollbackTransaction();
-            _logger.LogError(exception, "产品批量保存发生未预期异常，已回滚全部操作。");
-            return ServiceResult<ProductBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected,
-                "产品批量保存失败，所有操作已回滚，请刷新后重试。");
+            var rolledBack = TryRollbackTransaction(transaction);
+            TryLogSaveFailure(LogLevel.Error, exception, "产品批量保存发生异常，已尝试回滚清理。");
+            if (_session.Errors.Classify(exception) == DatabaseFailureKind.SerializationFailure)
+                return ServiceResult<ProductBatchSaveResponse>.Fail(ServiceErrorCodes.ServiceUnavailable,
+                    "并发结构变化导致产品保存事务终止，本次未提交，请刷新后重新保存。");
+            return ServiceResult<ProductBatchSaveResponse>.Fail(ServiceErrorCodes.Unexpected, rolledBack
+                ? "产品批量保存失败，所有操作已回滚，请刷新后重试。"
+                : "产品批量保存失败，事务未开始或回滚未能确认，请先核实结果。");
         }
         finally
         {
-            _session.Transaction?.Dispose();
-            _session.Transaction = null;
+            // 只释放本层创建的事务；清理与日志故障不能覆盖已确认结果或遗留会话事务。
+            if (transaction is not null)
+            {
+                try { transaction.Dispose(); }
+                catch (Exception disposeException)
+                {
+                    TryLogSaveFailure(LogLevel.Error, disposeException, "产品保存事务释放失败，关闭连接。");
+                    try { _session.Connection.Dispose(); }
+                    catch (Exception connectionException)
+                    {
+                        TryLogSaveFailure(LogLevel.Error, connectionException, "产品保存连接释放失败。");
+                    }
+                }
+                finally { _session.Transaction = null; }
+            }
         }
     }
 
@@ -425,16 +460,27 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             throw new ProductBatchWriteException(writeResult.Message ?? fallbackMessage);
     }
 
-    private void TryRollbackTransaction()
+    /// <summary>尽力回滚本层事务并记录是否确认完成；清理和日志故障不覆盖原业务结果。</summary>
+    private bool TryRollbackTransaction(IDbTransaction? transaction)
     {
         try
         {
-            _session.Transaction?.Rollback();
+            if (transaction is null) return false;
+            transaction.Rollback();
+            return true;
         }
         catch (Exception rollbackException)
         {
-            _logger.LogError(rollbackException, "产品批量保存事务回滚失败。");
+            TryLogSaveFailure(LogLevel.Error, rollbackException, "产品批量保存事务回滚失败。");
+            return false;
         }
+    }
+
+    /// <summary>仅尽力记录保存与清理故障，失效日志提供者不能中断后续释放或替换结果。</summary>
+    private void TryLogSaveFailure(LogLevel level, Exception exception, string message)
+    {
+        try { _logger.Log(level, exception, "{Message}", message); }
+        catch { /* 不通过同一失效日志管道再次记录，保留原始结果并继续清理。 */ }
     }
 
     private sealed class ProductBatchWriteException(string message) : Exception(message);

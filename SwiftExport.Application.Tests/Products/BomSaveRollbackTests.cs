@@ -47,9 +47,13 @@ public sealed class BomSaveRollbackTests
 
     /// <summary>整个混合批次成功时只提交一次，并保留新增、修改及两次软删除的结果。</summary>
     [TestMethod]
-    public async Task BatchSave_Success_CommitsOnceAndKeepsAllWrites()
+    [DataRow(1)]
+    [DataRow(7)]
+    public async Task BatchSave_Success_CommitsOnceAndKeepsAllWrites(int marker)
     {
         var fixture = new Fixture();
+        fixture.Parent.BomVersion = 3;
+        foreach (var line in fixture.Rows) line.BomVersion = marker;
         var updatedId = fixture.Rows[0].Uid;
         var deletedIds = fixture.Rows.Skip(1).Select(x => x.Uid).ToArray();
 
@@ -63,6 +67,7 @@ public sealed class BomSaveRollbackTests
         var updated = fixture.Rows.Single(x => x.Uid == updatedId);
         Assert.AreEqual(2, updated.Version);
         Assert.AreEqual(7, updated.Numerator);
+        Assert.AreEqual(marker, updated.BomVersion, "修改必须保留旧正数有效标记，不能强制改写为一。");
         Assert.IsTrue(deletedIds.All(id => fixture.Rows.Single(x => x.Uid == id).IsDeleted));
         Assert.IsTrue(deletedIds.All(id => fixture.Rows.Single(x => x.Uid == id).Version == 1),
             "通用仓储软删除保留原版本，夹具应匹配该语义。");
@@ -100,7 +105,6 @@ public sealed class BomSaveRollbackTests
 
         Assert.IsFalse(result.Success);
         StringAssert.Contains(result.Message, "至少需要保留一条");
-        Assert.AreEqual(0, fixture.DirectDeletes, "服务不得调用绕过图校验的按号仓储删除。");
         Assert.AreEqual(1, fixture.GraphReads);
         Assert.AreEqual(0, fixture.Writes.Count);
         Assert.AreEqual(before, fixture.Snapshot());
@@ -202,6 +206,35 @@ public sealed class BomSaveRollbackTests
         fixture.AssertTransaction(commits: 1, rollbacks: 1, connectionDisposals: cleanupFaults ? 1 : 0);
     }
 
+    /// <summary>读取、后序写入及提交阶段明确序列化失败均未提交，不自动重写；清理故障不覆盖可识别分类。</summary>
+    [TestMethod]
+    [DataRow("read", 0, 0, false)]
+    [DataRow("write", 2, 0, false)]
+    [DataRow("commit", 4, 1, false)]
+    [DataRow("read", 0, 0, true)]
+    [DataRow("write", 2, 0, true)]
+    [DataRow("commit", 4, 1, true)]
+    public async Task SerializationFailure_ReturnsUnavailableWithoutRetry(string stage, int writes, int commits, bool cleanupFaults)
+    {
+        var fixture = new Fixture
+        {
+            SerializationStage = stage, SerializationOnCommit = stage == "commit",
+            FailRollback = cleanupFaults, FailTransactionDispose = cleanupFaults,
+            FailConnectionDispose = cleanupFaults, FailLogging = cleanupFaults
+        };
+        var before = fixture.Snapshot();
+        var result = await fixture.Service.BatchSaveAsync(fixture.MixedRequest());
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.ServiceUnavailable, result.Error.Code);
+        StringAssert.Contains(result.Message, "本次未提交");
+        Assert.IsNull(result.Data);
+        Assert.AreEqual(writes, fixture.Writes.Count);
+        Assert.IsFalse(fixture.IsCommitted);
+        Assert.AreEqual(before, fixture.CommittedSnapshot);
+        if (!cleanupFaults) Assert.AreEqual(before, fixture.Snapshot());
+        fixture.AssertTransaction(commits, 1, cleanupFaults ? 1 : 0);
+    }
+
     /// <summary>非并发仓储业务失败仍保留业务阻断，不能全部提升为版本冲突。</summary>
     [TestMethod]
     public async Task BatchSave_OtherRepositoryFailure_RemainsBusinessBlocked()
@@ -273,7 +306,8 @@ public sealed class BomSaveRollbackTests
         public bool ThrowException { get; init; }
         public string FailureCode { get; init; } = "CONCURRENCY_CONFLICT";
         public int SuccessfulWrites { get; private set; }
-        public int DirectDeletes { get; private set; }
+        public string SerializationStage { get; init; } = string.Empty;
+        public bool SerializationOnCommit { init => _session.MemoryConnection.Transaction.FailSerializationCommit = value; }
         public int GraphReads { get; private set; }
         public BomService Service { get; }
         public bool FailBegin { init => _session.MemoryConnection.FailBegin = value; }
@@ -335,6 +369,7 @@ public sealed class BomSaveRollbackTests
             var connection = _session.MemoryConnection;
             Assert.AreEqual(1, connection.Begins);
             Assert.AreEqual(commits, connection.Transaction.Commits);
+            Assert.AreEqual(IsolationLevel.Serializable, connection.Transaction.IsolationLevel);
             Assert.AreEqual(rollbacks, connection.Transaction.Rollbacks);
             Assert.AreEqual(1, connection.Transaction.Disposals);
             Assert.AreEqual(connectionDisposals, connection.Disposals, "正常事务结束不得额外关闭共享连接。");
@@ -369,31 +404,23 @@ public sealed class BomSaveRollbackTests
         /// <summary>持久写入必须共享服务事务；受控失败发生前的变更真实落入集合，随后由回滚恢复。</summary>
         private object BomCall(string method, object?[] args)
         {
-            if (method == "DeleteBomByBomNoAsync")
-            {
-                DirectDeletes++;
-                return Task.FromResult(0);
-            }
             if (method == "GetBomByBomNoAsync")
                 return Task.FromResult<IEnumerable<Bom>>(Rows.Where(x => !x.IsDeleted && x.BomNo == (string)args[0]!).Select(Clone).ToArray());
             if (method == "GetByBomNoAndVersionAsync")
-                return Task.FromResult<IReadOnlyList<Bom>>(Rows.Where(x => !x.IsDeleted && x.BomNo == (string)args[0]! && x.BomVersion == (int)args[1]!).Select(Clone).ToArray());
+                return Task.FromResult<IReadOnlyList<Bom>>(Rows.Where(x => !x.IsDeleted && x.BomNo == (string)args[0]! && (int)args[1]! > 0 && x.BomVersion > 0).Select(Clone).ToArray());
             Assert.IsNotNull(_session.Transaction, "保存读取和写入必须共享已开启的事务。");
             if (method == "GetByIdListAsync")
                 return Task.FromResult<IReadOnlyList<Bom>>(Rows.Where(x => !x.IsDeleted && ((IEnumerable<Guid>)args[0]!).Contains(x.Uid)).Select(Clone).ToArray());
-            if (method == "GetCurrentVersionBomGraphAsync")
-            {
-                GraphReads++;
-                return Task.FromResult<IReadOnlyList<Bom>>(Rows.Where(x => !x.IsDeleted).Select(Clone).ToArray());
-            }
             if (method == nameof(IBomRepository.GetSharedSaveFactsAsync))
             {
                 GraphReads++;
+                if (SerializationStage == "read") throw new SerializationFailureStub();
                 Assert.IsTrue((bool)args[1]!, "组成保存必须在事务中以更新锁读取共享事实。");
                 return Task.FromResult(SharedBomTestFacts.Build(_products, Rows, (IReadOnlyList<string>)args[0]!));
             }
             Assert.IsTrue(method is "AddAsync" or "UpdateAsync" or "DeleteAsync", $"未授权 BOM 调用：{method}");
             Writes.Add(method);
+            if (SerializationStage == "write" && Writes.Count == 2) throw new SerializationFailureStub();
             if (Writes.Count == FailureNumber)
             {
                 if (ThrowException) throw new InvalidOperationException("受控仓储异常");
@@ -441,15 +468,19 @@ public sealed class BomSaveRollbackTests
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => Call(targetMethod!.Name, args ?? []);
     }
 
-    /// <summary>仅提供共享事务上下文与未知异常分类，不引用真实数据库会话实现。</summary>
+    /// <summary>仅表达已确认的序列化终止，用于服务分类测试，不模拟 PostgreSQL 并发判定。</summary>
+    private sealed class SerializationFailureStub : Exception { }
+
+    /// <summary>提供共享事务上下文及显式受控异常分类，不引用真实数据库会话实现。</summary>
     private sealed class SessionStub : IDbSession, IDatabaseExceptionClassifier
     {
         public ConnectionStub MemoryConnection { get; } = new();
         public IDbConnection Connection => MemoryConnection;
         public IDbTransaction? Transaction { get; set; }
         public IDatabaseExceptionClassifier Errors => this;
-        /// <summary>测试中提供者错误统一视为未知，不模拟数据库错误分类。</summary>
-        public DatabaseFailureKind Classify(Exception exception) => DatabaseFailureKind.Unknown;
+        /// <summary>只识别本夹具注入的序列化失败，其他异常保持未知。</summary>
+        public DatabaseFailureKind Classify(Exception exception) => exception is SerializationFailureStub
+            ? DatabaseFailureKind.SerializationFailure : DatabaseFailureKind.Unknown;
     }
 
     /// <summary>提供记录型内存事务，禁止执行数据库命令。</summary>
@@ -468,8 +499,12 @@ public sealed class BomSaveRollbackTests
             Transaction.OnBegin();
             return Transaction;
         }
-        /// <summary>沿用相同内存快照行为，不模拟隔离级别。</summary>
-        public IDbTransaction BeginTransaction(IsolationLevel il) => BeginTransaction();
+        /// <summary>记录服务要求的隔离级别并沿用内存快照，不声称模拟真实数据库隔离。</summary>
+        public IDbTransaction BeginTransaction(IsolationLevel il)
+        {
+            Transaction.RequestedIsolation = il;
+            return BeginTransaction();
+        }
         /// <summary>内存连接始终可用，关闭不产生数据库副作用。</summary>
         public void Close() { }
         /// <summary>内存连接无需建立网络连接。</summary>
@@ -501,15 +536,18 @@ public sealed class BomSaveRollbackTests
         public int Disposals { get; private set; }
         public bool FailRollback { get; set; }
         public bool FailCommitBefore { get; set; }
+        public bool FailSerializationCommit { get; set; }
         public bool FailCommitAfter { get; set; }
         public bool IsCommitted { get; private set; }
         public bool FailDispose { get; set; }
         public IDbConnection? Connection => null;
-        public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
+        public IsolationLevel RequestedIsolation { get; set; } = IsolationLevel.ReadCommitted;
+        public IsolationLevel IsolationLevel => RequestedIsolation;
         /// <summary>区分尚未提交就失败与提交事实成立后确认丢失，记录尝试次数及真实提交快照。</summary>
         public void Commit()
         {
             Commits++;
+            if (FailSerializationCommit) throw new SerializationFailureStub();
             if (FailCommitBefore) throw new InvalidOperationException("受控提交前失败");
             IsCommitted = true;
             OnCommit();

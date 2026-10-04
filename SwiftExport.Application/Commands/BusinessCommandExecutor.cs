@@ -8,6 +8,7 @@ using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Commands;
 
@@ -96,20 +97,25 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
             try { transaction.Commit(); }
             catch (Exception ex)
             {
+                // 服务端明确终止的序列化事务不是提交结果未知；交外层统一回滚与分类。
+                if (context.Session.Errors.Classify(ex) == DatabaseFailureKind.SerializationFailure) throw;
                 TryLogFailure(LogLevel.Error, ex, commandType, commandId, "提交结果无法确认");
                 throw new BusinessCommandException(ServiceErrorCodes.OutcomeUnknown,
                     "命令提交结果无法确认，请使用原 CommandId 查询或重试。");
             }
             return new CommandExecutionResult<T>(result, false);
         }
-        catch
+        catch (Exception failure)
         {
-            // SQL Server 可能已终止事务，清理失败不能遮蔽原异常。
+            // 数据库可能已终止事务，清理失败不能遮蔽原异常。
             try { if (transaction.Connection is not null) transaction.Rollback(); }
             catch (Exception ex)
             {
                 TryLogFailure(LogLevel.Warning, ex, commandType, commandId, "回滚清理失败");
             }
+            if (context.Session.Errors.Classify(failure) == DatabaseFailureKind.SerializationFailure)
+                throw new BusinessCommandException(ServiceErrorCodes.ServiceUnavailable,
+                    "并发数据已变化，本次事务未提交，请刷新后重新提交。");
             throw;
         }
         finally

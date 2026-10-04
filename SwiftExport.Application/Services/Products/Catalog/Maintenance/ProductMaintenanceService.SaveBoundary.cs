@@ -85,7 +85,7 @@ public partial class ProductMaintenanceService
                     return "无法确认产品的共享 BOM 归属，请刷新后重试。";
                 if (!willBind || oldGroup.GroupKey != targetGroup.GroupKey)
                     return $"产品 {oldProduct.Sku} 已有有效 BOM，普通保存不能更换共享编号或停用 BOM 标记。";
-                // 非空组标记数值变化仍须检查标准引用父，避免最后一个标记 1 被改走后组成不可见。
+                // 标记修改触及共享组时仍检查非法非正旧行；不同正数不代表不同组成版本。
                 if (oldProduct.BomVersion != candidate.BomVersion && oldGroup.Lines.Count > 0)
                     affectedKeys.Add(oldGroup.GroupKey);
             }
@@ -152,14 +152,14 @@ public partial class ProductMaintenanceService
         return new SharedBomStructureValidator().Validate(finalGroups, affectedKeys, candidates);
     }
 
-    /// <summary>既有组成只能绑定当前被有效产品使用的标准共享组；新空编号可准备父产品，孤立旧行不得借此激活。</summary>
+    /// <summary>既有组成只能绑定当前被有效产品使用的正标记共享组；新空编号可准备父产品，孤立或非正旧行不得借此激活。</summary>
     private static string? ValidateNewBinding(Product product, SharedBomGroup? group, HashSet<long> affectedKeys)
     {
         if (string.IsNullOrWhiteSpace(product.BomNo) || group is null)
             return $"产品 {product.Sku} 的有效 BOM 标记必须有可确认的编号。";
         var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(product);
         if (parentError is not null) return parentError;
-        if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion != 1))
+        if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion <= 0))
             return $"BOM {group.BomNo} 存在异常组成有效标记，普通绑定不能启用旧数据。";
         if (group.Lines.Count == 0)
             return group.Products.Count == 0 ? null : $"BOM {group.BomNo} 当前没有有效组成，不能作为已有共享 BOM 绑定。";

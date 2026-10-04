@@ -93,6 +93,10 @@ public sealed partial class PostgreSqlRepositoryTests
         }
         var sql = BomQuerySql(fixture.Connection.Text).Replace("[", "").Replace("]", "");
         StringAssert.Contains(sql, "exists(select1from");
+        StringAssert.Contains(sql, postgres ? "parent.bom_version>0" : "parent.bomversion>0");
+        StringAssert.Contains(sql, postgres ? "b.bom_version>0" : "b.bomversion>0");
+        Assert.IsFalse(sql.Contains(postgres ? "b.bom_version=parent.bom_version" : "b.bomversion=parent.bomversion", StringComparison.Ordinal));
+        Assert.IsFalse(sql.Contains(postgres ? "is_active" : "isactive", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains(postgres ? "b.parent_product_id=parent.uid" : "b.parentproductid=parent.uid", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("forupdate", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("updlock", StringComparison.Ordinal));

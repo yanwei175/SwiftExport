@@ -14,6 +14,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Models.Products;
+using SwiftExport.Core.Interfaces.Data;
 using System.Data;
 namespace SwiftExport.Application.Services.Products;
 
@@ -203,7 +204,7 @@ public partial class BomService(
         return await SaveBatchAsync(batchReq);
     }
 
-    /// <summary>拥有批量事务并复用最终图校验；明确版本冲突独立返回，提交异常保持结果未知，不自动重试。</summary>
+    /// <summary>拥有 Serializable 事务并校验共享图；明确序列化终止与版本冲突独立返回，其他提交异常保持结果未知，不自动重试。</summary>
     private async Task<ServiceResult<BomBatchSaveResponse>> SaveBatchAsync(BomBatchSaveRequest batchReq, string? deleteBomNo = null)
     {
         if (_session.Transaction is not null)
@@ -212,7 +213,7 @@ public partial class BomService(
         IDbTransaction? transaction = null;
         try
         {
-            transaction = _session.Connection.BeginTransaction();
+            transaction = _session.Connection.BeginTransaction(IsolationLevel.Serializable);
             _session.Transaction = transaction;
             if (deleteBomNo is not null)
             {
@@ -260,12 +261,15 @@ public partial class BomService(
                 EnsureWriteSucceeded(writeResult, "删除 BOM 行失败。");
             }
 
-            // 提交调用抛出时不能据后续回滚判断是否已经提交，也不能自动重复新增。
+            // 仅已分类的序列化终止可确认未提交；其他提交异常不能据后续回滚推断结果或自动重复新增。
             try { transaction.Commit(); }
             catch (Exception commitException)
             {
                 TryRollbackTransaction(transaction);
-                TryLogSaveFailure(LogLevel.Error, commitException, "BOM 批量保存提交结果无法确认，已尝试回滚清理。");
+                TryLogSaveFailure(LogLevel.Error, commitException, "BOM 批量保存提交失败，已尝试回滚清理。");
+                if (_session.Errors.Classify(commitException) == DatabaseFailureKind.SerializationFailure)
+                    return ServiceResult<BomBatchSaveResponse>.Fail(ServiceErrorCodes.ServiceUnavailable,
+                        "并发结构变化导致 BOM 保存事务终止，本次未提交，请刷新后重新保存。");
                 return ServiceResult<BomBatchSaveResponse>.Fail(ServiceErrorCodes.OutcomeUnknown,
                     "BOM 保存提交结果无法确认，请先刷新并核实结果，再决定后续操作。");
             }
@@ -289,6 +293,9 @@ public partial class BomService(
             TryLogSaveFailure(LogLevel.Error, ex, rolledBack
                 ? "BOM 批量保存发生未预期异常，已回滚全部操作。"
                 : "BOM 批量保存发生未预期异常，事务未开始或回滚未能确认。");
+            if (_session.Errors.Classify(ex) == DatabaseFailureKind.SerializationFailure)
+                return ServiceResult<BomBatchSaveResponse>.Fail(ServiceErrorCodes.ServiceUnavailable,
+                    "并发结构变化导致 BOM 保存事务终止，本次未提交，请刷新后重新保存。");
             return ServiceResult<BomBatchSaveResponse>.Fail(ServiceErrorCodes.Unexpected, rolledBack
                 ? "BOM 批量保存失败，所有操作已回滚，请刷新后重试。"
                 : "BOM 批量保存失败，事务未开始或回滚未能确认，请先核实结果。");
@@ -372,10 +379,7 @@ public partial class BomService(
         {
             if (group.Products.Count == 0)
                 return BomBatchPreparation.Fail($"BOM {group.BomNo} 没有启用该编号的有效父产品，不能修改组成。");
-            // 普通读取暂保留标准标记匹配；不能写出没有标准引用父、保存后仍不可见的组成。
-            if (!group.Products.Any(product => product.BomVersion == 1))
-                return BomBatchPreparation.Fail($"BOM {group.BomNo} 的引用父有效标记尚未标准化，不能保存普通读取不可见的组成。");
-            if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion != 1))
+            if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion <= 0))
                 return BomBatchPreparation.Fail($"BOM {group.BomNo} 存在异常组成有效标记，请先核实旧数据，不能自动启用或改写。");
         }
         var componentIds = request.CreateItems.Select(item => item.Data.SubSkuId)
@@ -490,7 +494,7 @@ public partial class BomService(
         return null;
     }
 
-    /// <summary>新增共享组成固定写入标准有效标记，稳定父身份仅作为兼容来源，不代表唯一归属。</summary>
+    /// <summary>新增共享组成写入正有效标记 1，父身份仅作为兼容来源，不代表唯一归属或组成版本。</summary>
     private static Bom BuildBomEntity(BomDto dto, Product parent, Product child, int lineNumber, string sharedBomNo) => new()
     {
         BomNo = sharedBomNo,

@@ -7,10 +7,72 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
+/// <summary>验证真实根产品下的直接客供件展开、用量计算及不可回写的来源快照。</summary>
 [TestClass]
 public sealed class GrossDemandDecompositionPlannerTests
 {
     private readonly GrossDemandDecompositionPlanner _planner = new();
+
+    /// <summary>不同正标记引用同一组成，来源父的失效和旧快照不能改变真实根关系或改写物理行。</summary>
+    [TestMethod]
+    [DataRow(1)]
+    [DataRow(3)]
+    public void SharedNumber_UsesActualRootAndKeepsPhysicalSource(int marker)
+    {
+        var source = CreateProduct("SOURCE", SupplyTypeEnums.采购, MaterialTypesEnum.成品, 1, "SHARED");
+        source.IsDeleted = true;
+        var root = CreateProduct("ROOT", SupplyTypeEnums.采购, MaterialTypesEnum.成品, marker, "SHARED");
+        var child = CreateProduct("CUSTOMER", SupplyTypeEnums.采购, MaterialTypesEnum.客供件);
+        var line = CreateBom(source, child, 4, 2, 3);
+        line.ParentSkuSnapshot = "历史来源父";
+        line.ComponentSkuSnapshot = "历史子编码";
+        line.Note = "历史备注";
+        var before = System.Text.Json.JsonSerializer.Serialize(line);
+        var plan = _planner.BuildPlan(CreateGross(false, root.Uid, 9), root, [line],
+            new Dictionary<Guid, Product> { [child.Uid] = child }, 7);
+        Assert.IsTrue(plan.IsValid, plan.ErrorMessage);
+        Assert.HasCount(2, plan.NetDemands);
+        Assert.AreEqual(root.Uid, plan.NetDemands[0].ProductId);
+        Assert.AreEqual(9m, plan.NetDemands[0].NetQty);
+        Assert.AreEqual(6m, plan.NetDemands[1].NetQty);
+        Assert.AreEqual(line.Uid, plan.NetDemands[1].BomLineId);
+        Assert.AreEqual("ROOT", plan.NetDemands[1].ParentSkuSnapshot);
+        Assert.AreEqual("ROOT/CUSTOMER", plan.NetDemands[1].BomPath);
+        Assert.AreEqual("历史备注", plan.NetDemands[1].Remark);
+        Assert.AreEqual(7, plan.NetDemands[1].DecompositionRevision);
+        Assert.AreEqual(before, System.Text.Json.JsonSerializer.Serialize(line));
+    }
+
+    /// <summary>非来源共享父作为真实根时仍须拒绝自环，不能借来源父与子身份不同绕过校验。</summary>
+    [TestMethod]
+    public void SharedNumber_NonSourceRootSelfReferenceIsRejected()
+    {
+        var source = CreateProduct("SOURCE", SupplyTypeEnums.采购, MaterialTypesEnum.成品, 1, "SHARED");
+        var root = CreateProduct("ROOT", SupplyTypeEnums.采购, MaterialTypesEnum.成品, 3, "SHARED");
+        var line = CreateBom(source, root, 1, 1, 1);
+        var before = System.Text.Json.JsonSerializer.Serialize(line);
+        var plan = _planner.BuildPlan(CreateGross(false, root.Uid, 3), root, [line],
+            new Dictionary<Guid, Product> { [root.Uid] = root }, 1);
+        Assert.IsFalse(plan.IsValid);
+        Assert.AreEqual("INVALID_BOM_LINE", plan.ErrorCode);
+        StringAssert.Contains(plan.ErrorMessage!, "不能相同");
+        Assert.AreEqual(before, System.Text.Json.JsonSerializer.Serialize(line));
+    }
+
+    /// <summary>物理来源父恰为子产品时不构成真实根自环，来源字段不再被当作本次有效边。</summary>
+    [TestMethod]
+    public void PhysicalSourceIdentity_DoesNotReplaceActualRoot()
+    {
+        var root = CreateProduct("ROOT", SupplyTypeEnums.采购, MaterialTypesEnum.成品, 1, "SHARED");
+        var child = CreateProduct("CHILD", SupplyTypeEnums.采购, MaterialTypesEnum.客供件);
+        var line = CreateBom(root, child, 1, 1, 2);
+        line.ParentProductId = child.Uid;
+        var plan = _planner.BuildPlan(CreateGross(false, root.Uid, 8), root, [line],
+            new Dictionary<Guid, Product> { [child.Uid] = child }, 1);
+        Assert.IsTrue(plan.IsValid, plan.ErrorMessage);
+        Assert.AreEqual(4m, plan.NetDemands[1].NetQty);
+        Assert.AreEqual(child.Uid, line.ParentProductId);
+    }
 
     [TestMethod]
     public void NonStandard_CreatesSinglePurchasedRoot()
@@ -247,12 +309,13 @@ public sealed class GrossDemandDecompositionPlannerTests
             DescriptionEn = sku + " desc"
         };
 
+    /// <summary>建立标准组成标记的物理行，父正标记仅表示有效共享引用，不作为组成版本。</summary>
     private static Bom CreateBom(Product parent, Product child, int line, int numerator, int denominator)
         => new()
         {
             Uid = Guid.NewGuid(),
             BomNo = parent.BomNo!,
-            BomVersion = parent.BomVersion,
+            BomVersion = 1,
             ParentProductId = parent.Uid,
             ParentSkuSnapshot = parent.Sku,
             LineNumber = line,

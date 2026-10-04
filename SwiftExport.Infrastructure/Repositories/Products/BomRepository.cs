@@ -81,14 +81,17 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         return [.. rows];
     }
 
+    /// <summary>判断真实产品当前绑定或候选编号是否已有有效共享组成，来源父不参与归属，孤立组成不能被候选编号激活。</summary>
     public Task<bool> HasActiveBomForProductAsync(Guid productId, string? bomNo = null)
     {
         const string sql = @"SELECT CASE WHEN EXISTS (
                 SELECT 1
-                FROM [Bom]
-                WHERE [IsDeleted] = 0
-                  AND ((@ProductId <> '00000000-0000-0000-0000-000000000000' AND [ParentProductId] = @ProductId)
-                       OR (@BomNo IS NOT NULL AND [BomNo] = @BomNo))
+                FROM [Bom] b
+                WHERE b.[IsDeleted] = 0 AND b.[BomVersion] > 0
+                  AND EXISTS (SELECT 1 FROM [Product] parent WHERE parent.[IsDeleted]=0 AND parent.[BomVersion]>0
+                    AND b.[BomNo]=parent.[BomNo]
+                    AND ((@ProductId <> '00000000-0000-0000-0000-000000000000' AND parent.[Uid] = @ProductId)
+                        OR (@BomNo IS NOT NULL AND b.[BomNo] = @BomNo)))
             ) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END;";
         return Connection.ExecuteScalarAsync<bool>(
             sql,
@@ -96,7 +99,7 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
             transaction: Transaction);
     }
 
-    /// <summary>按本次产品身份读取当前父子引用，由数据库排序规则判定编号等值；完整映射实体且不增加锁。</summary>
+    /// <summary>读取指定共享父或组件的有效组成，数据库判断编号归属和正标记资格；完整映射且不增加锁或复制物理行。</summary>
     public async Task<IReadOnlyList<Bom>> GetCurrentReferencesForProductsAsync(IEnumerable<Guid> productIds)
     {
         var ids = productIds?.Where(uid => uid != Guid.Empty).Distinct().ToArray() ?? [];
@@ -106,25 +109,12 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
                 b.[BomNo], b.[BomVersion], b.[ParentProductId], b.[ParentSkuSnapshot], b.[LineNumber],
                 b.[ComponentProductId], b.[ComponentSkuSnapshot], b.[Numerator], b.[Denominator], b.[Note]
             FROM [{BomTable}] b
-            INNER JOIN [{ProductTable}] parent ON b.[ParentProductId]=parent.[Uid]
-                AND b.[BomNo]=parent.[BomNo] AND b.[BomVersion]=parent.[BomVersion] AND parent.[IsDeleted]=0
-            WHERE b.[IsDeleted]=0 AND (b.[ParentProductId] IN @ProductIds OR b.[ComponentProductId] IN @ProductIds)
+            WHERE b.[IsDeleted]=0 AND b.[BomVersion]>0
+                AND EXISTS (SELECT 1 FROM [{ProductTable}] parent WHERE parent.[IsDeleted]=0 AND parent.[BomVersion]>0
+                    AND b.[BomNo]=parent.[BomNo]
+                    AND (parent.[Uid] IN @ProductIds OR b.[ComponentProductId] IN @ProductIds))
             ORDER BY b.[Uid]
             """, new { ProductIds = ids }, transaction: Transaction);
-        return [.. rows];
-    }
-
-    public async Task<IReadOnlyList<Bom>> GetCurrentVersionBomGraphAsync()
-    {
-        var sql = $@"SELECT b.*
-                    FROM [{BomTable}] b WITH(UPDLOCK,HOLDLOCK)
-                    INNER JOIN [{ProductTable}] parent
-                        ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
-                       AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
-                       AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
-                       AND parent.{nameof(Product.IsDeleted)} = 0
-                    WHERE b.{nameof(Bom.IsDeleted)} = 0;";
-        var rows = await Connection.QueryAsync<Bom>(sql, transaction: Transaction);
         return [.. rows];
     }
 
@@ -211,11 +201,11 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         };
     }
 
-    /// <summary>仅供三个普通读取入口判定共享资格，保留分页原锁提示；数值相等只是临时兼容校验，不代表业务选版。</summary>
+    /// <summary>普通读取按共享编号和父行正标记判断资格，保留分页原锁提示，不按数值相等选择组成。</summary>
     private static string OrdinaryCurrentQualification(bool withNoLock) => $@"EXISTS (
         SELECT 1 FROM [{ProductTable}] parent {(withNoLock ? "WITH(NOLOCK)" : "")}
         WHERE b.[BomNo] = parent.[BomNo] AND parent.[IsDeleted] = 0 AND parent.[BomVersion] > 0
-          AND b.[BomVersion] = parent.[BomVersion])";
+        ) AND b.[BomVersion] > 0";
 
     /// <summary>在调用方事务中单语句读取共享保存事实，由数据库分组编号；保留全部未删组成和正标记产品，不预先掩盖异常标记。</summary>
     public Task<IReadOnlyList<SharedBomGroup>> GetSharedSaveFactsAsync(IReadOnlyList<string> requestedBomNos, bool withUpdLock = true)
@@ -285,12 +275,6 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         return allBoms.GroupBy(b => b.BomNo)
                       .ToDictionary(g => g.Key, g => g.AsEnumerable());
 
-    }
-    public async Task<int> DeleteBomByBomNoAsync(string bomNo)
-    {
-        var sql = $"DELETE FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} = @BomNo";
-        // 使用基类已有的字段
-        return await Connection.ExecuteAsync(sql, new { BomNo = bomNo }, transaction: Transaction);
     }
     public async Task<bool> IsBomItemExistAsync(string bomNo, string productSku)
     {

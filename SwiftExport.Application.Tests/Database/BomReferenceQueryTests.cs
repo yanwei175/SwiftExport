@@ -63,7 +63,12 @@ public sealed partial class PostgreSqlRepositoryTests
         StringAssert.Contains(sql, postgres ? "parent_product_id" : "parentproductid");
         StringAssert.Contains(sql, postgres ? "component_product_id" : "componentproductid");
         StringAssert.Contains(sql, " or ");
-        StringAssert.Contains(sql, "inner join");
+        StringAssert.Contains(sql, "exists");
+        var normalized = BomQuerySql(sql).Replace("[", "").Replace("]", "");
+        StringAssert.Contains(normalized, postgres ? "parent.bom_version>0" : "parent.bomversion>0");
+        StringAssert.Contains(normalized, postgres ? "b.bom_version>0" : "b.bomversion>0");
+        Assert.IsFalse(normalized.Contains(postgres ? "b.parent_product_id=parent.uid" : "b.parentproductid=parent.uid", StringComparison.Ordinal));
+        Assert.IsFalse(normalized.Contains(postgres ? "b.bom_version=parent.bom_version" : "b.bomversion=parent.bomversion", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("for update", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("updlock", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("holdlock", StringComparison.Ordinal));

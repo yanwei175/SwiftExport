@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -87,6 +88,8 @@ public sealed class BomSaveEntryTests
         var current = fixture.Product("CURRENT", "SHARED");
         var child = fixture.Product("CHILD");
         var line = fixture.Line(source, child, 1);
+        line.BomVersion = 7;
+        current.BomVersion = 3;
         if (scenario == "inactive") source.IsActive = false;
         if (scenario == "deleted") source.IsDeleted = true;
         if (scenario == "unbound") { source.BomVersion = 0; source.BomNo = null; }
@@ -100,6 +103,7 @@ public sealed class BomSaveEntryTests
         Assert.AreEqual(source.Uid, saved.ParentProductId);
         Assert.AreEqual("OLD-SOURCE", saved.ParentSkuSnapshot);
         Assert.AreEqual("SHARED", saved.BomNo);
+        Assert.AreEqual(7, saved.BomVersion);
         Assert.AreEqual(3, saved.Numerator);
         fixture.AssertOwnedTransaction(1, 0);
     }
@@ -107,8 +111,7 @@ public sealed class BomSaveEntryTests
     /// <summary>触及异常未删物理行时显式拒绝，不按父正标记过滤旧行，也不顺手修正旧标记。</summary>
     [TestMethod]
     [DataRow(0)]
-    [DataRow(2)]
-    [DataRow(7)]
+    [DataRow(-2)]
     public async Task Add_AbnormalSharedLineMarkerIsRejected(int marker)
     {
         var fixture = new Fixture();
@@ -142,21 +145,41 @@ public sealed class BomSaveEntryTests
         fixture.AssertOwnedTransaction(0, 1);
     }
 
-    /// <summary>临时普通读取仍要求标准父标记，只有非标准正标记的共享组必须拒绝写组成，避免写后普通读取消失。</summary>
+    /// <summary>任意正父标记均可维护共享组成，新增行写一但不改写引用父标记。</summary>
     [TestMethod]
-    public async Task Add_OnlyNonstandardPositiveParentIsRejected()
+    public async Task Add_OnlyPositiveParentIsAccepted()
     {
         var fixture = new Fixture();
         var parent = fixture.Product("P", "SHARED");
         parent.BomVersion = 3;
         var child = fixture.Product("CHILD");
-        var before = fixture.PersistedState();
         var result = await fixture.Entry.AddAsync(new() { Data = Dto(parent, child) });
-        Assert.IsFalse(result.Success);
-        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
-        Assert.HasCount(0, fixture.Writes);
-        Assert.AreEqual(before, fixture.PersistedState());
-        fixture.AssertOwnedTransaction(0, 1);
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.HasCount(1, fixture.Writes);
+        Assert.AreEqual(1, fixture.Writes.Single().Row.BomVersion);
+        Assert.AreEqual(3, parent.BomVersion);
+        fixture.AssertOwnedTransaction(1, 0);
+    }
+
+    /// <summary>已有正数组成与父标记无需数值相同，追加时原物理行全部字段保持原值。</summary>
+    [TestMethod]
+    [DataRow(2)]
+    [DataRow(7)]
+    public async Task Add_PositiveLineMarkersAreEquivalentAndPreserved(int marker)
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("P", "SHARED");
+        parent.BomVersion = 3;
+        var existing = fixture.Line(parent, fixture.Product("OLD"), 4);
+        existing.BomVersion = marker;
+        var before = JsonSerializer.Serialize(existing);
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(parent, fixture.Product("NEW")) });
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.HasCount(1, fixture.Writes);
+        Assert.AreEqual(5, fixture.Writes.Single().Row.LineNumber);
+        Assert.AreEqual(1, fixture.Writes.Single().Row.BomVersion);
+        Assert.AreEqual(before, JsonSerializer.Serialize(fixture.Rows[existing.Uid]));
+        fixture.AssertOwnedTransaction(1, 0);
     }
 
     /// <summary>基础服务引用也必须执行最终图校验；重复、自环、非法比例及跨层成环均回滚且不写行。</summary>
@@ -422,7 +445,6 @@ public sealed class BomSaveEntryTests
         Assert.IsFalse(result.Success);
         StringAssert.Contains(result.Message, "至少需要保留一条");
         Assert.HasCount(0, fixture.Writes);
-        Assert.AreEqual(0, fixture.LegacyDeleteCalls);
         Assert.AreEqual(before, fixture.PersistedState());
         Assert.IsFalse(fixture.Rows[history.Uid].IsDeleted);
         Assert.AreEqual(2, parent.BomVersion);
@@ -496,7 +518,6 @@ public sealed class BomSaveEntryTests
         public BaseService<Bom, BomDto> Entry => Service;
         public int GraphReads;
         public int RepositoryCalls;
-        public int LegacyDeleteCalls;
 
         /// <summary>将两个仓储接到同一个记录会话，实际业务逻辑仍由真实 BomService 执行。</summary>
         public Fixture()
@@ -535,6 +556,7 @@ public sealed class BomSaveEntryTests
         {
             Assert.AreEqual(1, Session.ConnectionStub.Begins);
             Assert.AreEqual(commits, Session.ConnectionStub.Last!.Commits);
+            Assert.AreEqual(IsolationLevel.Serializable, Session.ConnectionStub.Last.IsolationLevel);
             Assert.AreEqual(rollbacks, Session.ConnectionStub.Last.Rollbacks);
             Assert.AreEqual(1, Session.ConnectionStub.Last.Disposals);
             Assert.IsNull(Session.Transaction);
@@ -569,7 +591,7 @@ public sealed class BomSaveEntryTests
             }
         }
 
-        /// <summary>仿真版本写入与软硬删除，读取一律克隆；旧按号直接删除明确记为旁路并失败。</summary>
+        /// <summary>仿真版本写入与软硬删除，读取一律克隆；未声明的仓储调用立即失败。</summary>
         private object BomCall(string name, object?[] args)
         {
             Record();
@@ -579,10 +601,6 @@ public sealed class BomSaveEntryTests
                     Assert.IsTrue((bool)args[1]!);
                     var ids = ((IEnumerable<Guid>)args[0]!).ToHashSet();
                     return Task.FromResult<IReadOnlyList<Bom>>(Rows.Values.Where(row => ids.Contains(row.Uid) && !row.IsDeleted).Select(Clone).ToArray());
-                case nameof(IBomRepository.GetCurrentVersionBomGraphAsync):
-                    GraphReads++;
-                    return Task.FromResult<IReadOnlyList<Bom>>(Rows.Values.Where(row => !row.IsDeleted && row.ParentProductId.HasValue
-                        && Products.TryGetValue(row.ParentProductId.Value, out var parent) && !parent.IsDeleted && row.BomVersion == parent.BomVersion).Select(Clone).ToArray());
                 case nameof(IBomRepository.GetSharedSaveFactsAsync):
                     GraphReads++;
                     Assert.IsTrue((bool)args[1]!, "组成保存须以更新锁读取共享事实。");
@@ -592,7 +610,7 @@ public sealed class BomSaveEntryTests
                     return Task.FromResult(facts);
                 case nameof(IBomRepository.GetByBomNoAndVersionAsync):
                     return Task.FromResult<IReadOnlyList<Bom>>(Rows.Values.Where(row => !row.IsDeleted && row.BomNo == (string)args[0]!
-                        && row.BomVersion == (int)args[1]!).Select(Clone).ToArray());
+                        && (int)args[1]! > 0 && row.BomVersion > 0).Select(Clone).ToArray());
                 case nameof(IBomRepository.GetBomByBomNoAsync):
                     // 按编号及有效引用者选物理行，来源父和父正标记不决定组成归属。
                     return Task.FromResult<IEnumerable<Bom>>(Rows.Values.Where(row => !row.IsDeleted && row.BomNo == (string)args[0]!
@@ -619,9 +637,6 @@ public sealed class BomSaveEntryTests
                     if (soft) { Rows[deleted.Uid] = Clone(deleted); Rows[deleted.Uid].IsDeleted = true; }
                     else Rows.Remove(deleted.Uid);
                     return Task.FromResult(RepositoryWriteResult.Ok(deleted.Uid, deleted.Version, soft ? deleted.Version : null));
-                case nameof(IBomRepository.DeleteBomByBomNoAsync):
-                    LegacyDeleteCalls++;
-                    throw new InvalidOperationException("禁止旧按号直接删除旁路。");
                 default: throw new InvalidOperationException("未授权 BOM 仓储调用：" + name);
             }
         }
@@ -656,7 +671,12 @@ public sealed class BomSaveEntryTests
         /// <summary>建立场景事务并记录唯一归属。</summary>
         public IDbTransaction BeginTransaction() { Begins++; return Last = new(rows, this, FailCommitBefore, FailCommitAfter); }
         /// <summary>隔离级别重载沿用同一记录机制。</summary>
-        public IDbTransaction BeginTransaction(IsolationLevel isolationLevel) => BeginTransaction();
+        public IDbTransaction BeginTransaction(IsolationLevel isolationLevel)
+        {
+            var transaction = BeginTransaction();
+            Last!.RequestedIsolation = isolationLevel;
+            return transaction;
+        }
         [AllowNull] public string ConnectionString { get; set; } = "";
         public int ConnectionTimeout => 0;
         public string Database => "offline-bom";
@@ -678,7 +698,8 @@ public sealed class BomSaveEntryTests
         public int Disposals;
         public bool IsCommitted { get; private set; }
         public IDbConnection Connection => connection;
-        public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
+        public IsolationLevel RequestedIsolation { get; set; } = IsolationLevel.ReadCommitted;
+        public IsolationLevel IsolationLevel => RequestedIsolation;
         /// <summary>记录提交尝试，明确区分未提交失败与已提交但确认丢失。</summary>
         public void Commit()
         {

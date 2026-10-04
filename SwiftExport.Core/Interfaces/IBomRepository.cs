@@ -23,15 +23,6 @@ namespace SwiftExport.Core.Interfaces
         Task<Dictionary<string, IEnumerable<Bom>>> GetBomsCollectionByBomNoListAsync(IEnumerable<String> bomNos);
 
         /// <summary>
-        /// 根据BOM号删除一张BOM
-        /// </summary>
-        /// <param name="bomNo">
-        /// BOM号
-        /// </param>
-        /// <returns>受影响的行数</returns>
-        Task<int> DeleteBomByBomNoAsync(string bomNo);
-
-        /// <summary>
         /// 根据BOM号获取一张BOM
         /// </summary>
         /// <param name="bomNo">
@@ -41,8 +32,7 @@ namespace SwiftExport.Core.Interfaces
         Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo);
 
         /// <summary>
-        /// 按 BOM 编号和版本读取当前有效明细。需求拆解必须使用此方法，
-        /// 避免把其他版本或已删除明细混入同一次拆解。
+        /// 按旧存储标记精确读取未删组成，仅保留历史核验用途；当前需求按共享编号读取，不以标记数值选版。
         /// </summary>
         Task<IReadOnlyList<Bom>> GetByBomNoAndVersionAsync(string bomNo, int version);
 
@@ -53,9 +43,6 @@ namespace SwiftExport.Core.Interfaces
 
         /// <summary>读取父或子身份命中指定产品的当前未删组成；按数据库编号等值规则联接有效父产品当前版本，空输入不查询，复用事务且不增加锁。</summary>
         Task<IReadOnlyList<Bom>> GetCurrentReferencesForProductsAsync(IEnumerable<Guid> productIds);
-
-        /// <summary>获取所有父产品当前版本下的有效 BOM 行。</summary>
-        Task<IReadOnlyList<Bom>> GetCurrentVersionBomGraphAsync();
 
         /// <summary>分页查询父产品当前版本下的有效 BOM 组成行。</summary>
         Task<PagedResponseBase<BomDto>> GetPagedAsync(BomSearchRequest request);

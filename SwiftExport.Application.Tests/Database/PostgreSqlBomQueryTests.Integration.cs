@@ -18,7 +18,7 @@ namespace SwiftExport.Application.Tests.Database;
 [TestClass]
 public sealed class PostgreSqlBomQueryIntegrationTests
 {
-    /// <summary>当前父版本展示保留停用父子及快照，子删除或缺失不丢行；颜色软删只隐藏饰面，历史及软删行不混入。</summary>
+    /// <summary>共享有效组成保留不同正标记、停用父子及快照；缺失组件不丢行，非正标记和软删行不展示。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlBomQueryIntegration")]
     public Task CurrentQueries_MapSnapshotsAndSoftDeletedReferenceBoundaries() => InRollback(async context =>
@@ -50,14 +50,16 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         var hiddenFinish = Line(parent, badColorChild.Uid, "deleted-color-snapshot", 2, 4);
         var nullComponent = Line(parent, Guid.Empty, "null-child-identity-snapshot", 2, 6);
         nullComponent.ComponentProductId = null;
-        var history = Line(parent, child.Uid, "history", 1, 1);
+        var otherPositive = Line(parent, child.Uid, "other-positive", 1, 7);
+        var zero = Line(parent, child.Uid, "zero", 0, 8);
+        var negative = Line(parent, child.Uid, "negative", -1, 9);
         var deleted = Line(parent, child.Uid, "deleted-line", 2, 5);
         deleted.IsDeleted = true;
-        foreach (var row in new[] { first, deletedReference, missingReference, hiddenFinish, nullComponent, history, deleted }) await Insert(context, row);
+        foreach (var row in new[] { first, deletedReference, missingReference, hiddenFinish, nullComponent, otherPositive, zero, negative, deleted }) await Insert(context, row);
         var repository = new PostgreSqlBomRepository(context);
         var dto = (await repository.GetBomDtoByBomNoAsync(" " + prefix.ToUpperInvariant() + "BOM ")).ToArray();
-        Assert.HasCount(5, dto);
-        CollectionAssert.AreEqual(new[] { deletedReference.Uid, first.Uid, missingReference.Uid, hiddenFinish.Uid, nullComponent.Uid }, dto.Select(row => row.Uid).ToArray());
+        Assert.HasCount(6, dto);
+        CollectionAssert.AreEqual(new[] { deletedReference.Uid, first.Uid, missingReference.Uid, hiddenFinish.Uid, nullComponent.Uid, otherPositive.Uid }, dto.Select(row => row.Uid).ToArray());
         Assert.AreEqual(Guid.Empty, dto.Single(row => row.Uid == nullComponent.Uid).SubSkuId);
         Assert.AreEqual("null-child-identity-snapshot", dto.Single(row => row.Uid == nullComponent.Uid).SubSku);
         var mapped = dto.Single(row => row.Uid == first.Uid);
@@ -84,17 +86,18 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         }
         Assert.IsNull(dto.Single(row => row.Uid == hiddenFinish.Uid).Finish);
         var entities = (await repository.GetBomByBomNoAsync(prefix.ToLowerInvariant() + "bom")).ToArray();
-        Assert.HasCount(5, entities);
+        Assert.HasCount(6, entities);
         Assert.IsNull(entities.Single(row => row.Uid == nullComponent.Uid).ComponentProductId);
-        Assert.IsTrue(entities.All(row => row.BomVersion == 2 && row.ParentProductId == parent.Uid));
+        Assert.IsTrue(entities.All(row => row.BomVersion > 0 && row.ParentProductId == parent.Uid));
+        Assert.AreEqual(1, entities.Single(row => row.Uid == otherPositive.Uid).BomVersion);
         Assert.AreEqual(first.ParentSkuSnapshot, entities.Single(row => row.Uid == first.Uid).ParentSkuSnapshot);
         var page = await repository.GetPagedAsync(new() { Keyword = prefix });
-        Assert.AreEqual(5, page.TotalCount);
-        Assert.HasCount(5, page.Items);
+        Assert.AreEqual(6, page.TotalCount);
+        Assert.HasCount(6, page.Items);
         Assert.AreEqual("missing-child-snapshot", page.Items.Single(row => row.Uid == missingReference.Uid).SubSku);
     });
 
-    /// <summary>指定版本独立于父当前版本或父存在性；活动存在只排除软删，旧逐项存在连软删历史也保留。</summary>
+    /// <summary>指定标记兼容读取独立于父存在性；有效存在要求真实共享父，不能激活孤立旧组。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlBomQueryIntegration")]
     public Task VersionAndExists_KeepHistoricalAndParentIndependentScopes() => InRollback(async context =>
@@ -120,18 +123,20 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         foreach (var row in new[] { history, deleted, deletedParentLine, orphan, nullParent, mismatch }) await Insert(context, row);
         var repository = new PostgreSqlBomRepository(context);
         Assert.AreEqual(history.Uid, (await repository.GetByBomNoAndVersionAsync(" " + prefix.ToLowerInvariant() + "bom ", 1)).Single().Uid);
-        Assert.HasCount(0, (await repository.GetBomByBomNoAsync(parent.BomNo!)).ToArray());
+        Assert.AreEqual(history.Uid, (await repository.GetBomByBomNoAsync(parent.BomNo!)).Single().Uid);
         Assert.HasCount(0, (await repository.GetBomDtoByBomNoAsync(deletedParent.BomNo!)).ToArray());
         Assert.AreEqual(deletedParentLine.Uid, (await repository.GetByBomNoAndVersionAsync(deletedParent.BomNo!, 3)).Single().Uid);
         Assert.AreEqual(orphan.Uid, (await repository.GetByBomNoAndVersionAsync(orphan.BomNo, 7)).Single().Uid);
         Assert.IsNull((await repository.GetByBomNoAndVersionAsync(nullParent.BomNo, 8)).Single().ParentProductId);
-        Assert.IsTrue(await repository.HasActiveBomForProductAsync(Guid.Empty, nullParent.BomNo));
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(Guid.Empty, nullParent.BomNo));
         Assert.HasCount(0, (await repository.GetBomByBomNoAsync(mismatch.BomNo)).ToArray());
         Assert.IsTrue(await repository.HasActiveBomForProductAsync(parent.Uid));
         Assert.IsTrue(await repository.HasActiveBomForProductAsync(Guid.Empty, " " + parent.BomNo!.ToLowerInvariant() + " "));
         Assert.IsTrue(await repository.HasActiveBomForProductAsync(Guid.NewGuid(), parent.BomNo));
-        Assert.IsTrue(await repository.HasActiveBomForProductAsync(deletedParent.Uid));
-        Assert.IsTrue(await repository.HasActiveBomForProductAsync(orphan.ParentProductId!.Value));
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(deletedParent.Uid));
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(Guid.Empty, deletedParent.BomNo));
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(orphan.ParentProductId!.Value));
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(Guid.Empty, orphan.BomNo));
         Assert.IsFalse(await repository.HasActiveBomForProductAsync(Guid.Empty, " "));
         Assert.IsFalse(await repository.HasActiveBomForProductAsync(Guid.NewGuid()));
         Assert.IsTrue(await repository.IsBomItemExistAsync(parent.BomNo!.ToLowerInvariant(), (prefix + "historycomponent").ToLowerInvariant()));
@@ -140,7 +145,7 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         Assert.IsFalse(await repository.IsBomItemExistAsync(parent.BomNo!, " " + history.ComponentSkuSnapshot));
         Assert.HasCount(0, await repository.GetByBomNoAndVersionAsync(parent.BomNo!, 0));
         Assert.HasCount(0, await repository.GetByBomNoAndVersionAsync(" ", 1));
-        Assert.AreEqual(0, (await repository.GetPagedAsync(new() { Keyword = prefix })).TotalCount);
+        Assert.AreEqual(1, (await repository.GetPagedAsync(new() { Keyword = prefix })).TotalCount);
     });
 
     /// <summary>存在查询有且仅有软删历史时给出不同答案，不因同库既有活跃数据造成假阳性。</summary>
@@ -224,7 +229,7 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         }
     });
 
-    /// <summary>按指定父或组件读取当前引用；历史、悬空父和软删行不混入，编号全半角等值由数据库决定。</summary>
+    /// <summary>按共享父或组件读取有效引用；不同正标记和悬空来源保留，软删排除，数据库负责编号等值。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlBomQueryIntegration")]
     public Task RelatedReferences_AreCurrentAndUseDatabaseEquality() => InRollback(async context =>
@@ -247,11 +252,11 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         foreach (var line in new[] { current, history, componentReference, unrelated, deleted, orphan }) await Insert(context, line);
         var repository = new PostgreSqlBomRepository(context);
         var rows = await repository.GetCurrentReferencesForProductsAsync([parent.Uid, child.Uid, parent.Uid, Guid.Empty]);
-        CollectionAssert.AreEquivalent(new[] { current.Uid, componentReference.Uid }, rows.Select(row => row.Uid).ToArray());
+        CollectionAssert.AreEquivalent(new[] { current.Uid, history.Uid, componentReference.Uid, orphan.Uid }, rows.Select(row => row.Uid).ToArray());
         Assert.AreEqual(2, rows.Single(row => row.Uid == current.Uid).BomVersion);
         Assert.AreEqual("current-snapshot", rows.Single(row => row.Uid == current.Uid).ComponentSkuSnapshot);
         Assert.HasCount(0, await repository.GetCurrentReferencesForProductsAsync([Guid.NewGuid()]));
-        // 指定版本查询仍保留历史，为产品保存阻断隐式激活提供独立事实。
+        // 显式标记兼容入口仍按指定数值筛选，不作为当前组成资格。
         Assert.AreEqual(history.Uid, (await repository.GetByBomNoAndVersionAsync(parent.BomNo, 1)).Single().Uid);
     });
 
@@ -292,8 +297,8 @@ public sealed class PostgreSqlBomQueryIntegrationTests
     {
         var code = Prefix();
         var source = ProductRow(Prefix(), code, 1);
-        var first = ProductRow(Prefix(), code.ToLowerInvariant() + " ", 1);
-        var second = ProductRow(Prefix(), code.Replace('P', 'Ｐ'), 1);
+        var first = ProductRow(Prefix(), code.ToLowerInvariant() + " ", 2);
+        var second = ProductRow(Prefix(), code.Replace('P', 'Ｐ'), 7);
         second.IsActive = false; // 停用不抹掉仍存在的共享组成。
         var child = ProductRow(Prefix());
         var line = Line(source, child.Uid, "shared-snapshot", 1, 1);
@@ -310,6 +315,11 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         var page = await repository.GetPagedAsync(new() { BatchKeywords = [code] });
         Assert.AreEqual(1, page.TotalCount);
         Assert.AreEqual(line.Uid, page.Items.Single().Uid);
+        Assert.IsTrue(await repository.HasActiveBomForProductAsync(first.Uid));
+        Assert.IsTrue(await repository.HasActiveBomForProductAsync(second.Uid));
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(source.Uid));
+        var references = await repository.GetCurrentReferencesForProductsAsync([first.Uid, second.Uid, child.Uid]);
+        Assert.AreEqual(line.Uid, references.Single().Uid, "多个共享父或组件命中仍只返回一个物理 UID。");
         // 仅修改本场景插入的两个引用者；退出最后一个引用后普通当前读取应为空，物理行仍保留。
         Assert.AreEqual(2, await context.Session.Connection.ExecuteAsync(
             "UPDATE public.product SET is_deleted=TRUE WHERE uid=ANY(@Ids)",
@@ -317,6 +327,8 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         Assert.HasCount(0, (await repository.GetBomByBomNoAsync(code)).ToArray());
         Assert.HasCount(0, (await repository.GetBomDtoByBomNoAsync(code)).ToArray());
         Assert.AreEqual(0, (await repository.GetPagedAsync(new() { BatchKeywords = [code] })).TotalCount);
+        Assert.IsFalse(await repository.HasActiveBomForProductAsync(Guid.Empty, code));
+        Assert.HasCount(0, await repository.GetCurrentReferencesForProductsAsync([first.Uid, second.Uid, child.Uid]));
         Assert.AreEqual(line.Uid, (await repository.GetByBomNoAndVersionAsync(code, 1)).Single().Uid);
     });
 

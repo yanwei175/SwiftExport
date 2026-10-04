@@ -8,11 +8,12 @@ using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
 using System.Text;
 using SwiftExport.Core.Models.Products;
+using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
-/// <summary>适配 BOM 普通读取与产品范围引用查询，继承既有 PostgreSQL 基础仓储；尚不实现完整 BOM 接口或注册运行链。</summary>
-public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : PostgreSqlDapperRepository<Bom>(context)
+/// <summary>实现 PostgreSQL BOM 仓储，按编号共享组成，正标记仅表示有效性；事务和业务编排由调用方控制。</summary>
+public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : PostgreSqlDapperRepository<Bom>(context), IBomRepository
 {
     private static readonly string EntityColumns = string.Join(",", Metadata.Columns.Select(column =>
         $"b.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
@@ -24,14 +25,10 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         child.description_zh AS "Description",color.color_name_zh AS "Finish",
         child.features_zh AS "Features",child.main_image AS "MainImage"
         """;
-    private static readonly string CurrentParentJoin = $"""
-        INNER JOIN public.product parent ON b.parent_product_id=parent.uid
-            AND {Equal("b.bom_no", "parent.bom_no")} AND b.bom_version=parent.bom_version AND parent.is_deleted=FALSE
-        """;
-    // 仅供普通三查询判定共享资格；数值相等是临时兼容校验，不是业务选版，异常正数差异不能合并启用。
+    // 标记只表示正数有效；编号由数据库归组，不按来源父或正标记数值选择组成。
     private static readonly string OrdinaryCurrentQualification = $"""
         EXISTS (SELECT 1 FROM public.product parent WHERE {Equal("b.bom_no", "parent.bom_no")}
-            AND parent.is_deleted=FALSE AND parent.bom_version>0 AND b.bom_version=parent.bom_version)
+            AND parent.is_deleted=FALSE AND parent.bom_version>0) AND b.bom_version>0
         """;
     private const string DisplayJoins = """
         LEFT JOIN public.product child ON b.component_product_id=child.uid AND child.is_deleted=FALSE
@@ -63,15 +60,17 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
             """, new { BomNo = bomNo.Trim(), BomVersion = version }, transaction: Transaction)];
     }
 
-    /// <summary>判断任意版本的有效组成是否匹配父身份或编号；空 Guid 不参与身份条件，空白编号转 NULL，不校验父资格。</summary>
+    /// <summary>判断真实产品当前绑定或候选编号是否已有有效共享组成，来源父不参与归属，孤立组成不能被候选编号激活。</summary>
     public Task<bool> HasActiveBomForProductAsync(Guid productId, string? bomNo = null) => Connection.ExecuteScalarAsync<bool>($"""
-        SELECT EXISTS (SELECT 1 FROM public.bom b WHERE b.is_deleted=FALSE
-            AND ((@ProductId<>@EmptyGuid AND b.parent_product_id=@ProductId)
-                OR (CAST(@BomNo AS text) IS NOT NULL AND {Equal("b.bom_no", "CAST(@BomNo AS text)")})))
+        SELECT EXISTS (SELECT 1 FROM public.bom b WHERE b.is_deleted=FALSE AND b.bom_version>0
+            AND EXISTS (SELECT 1 FROM public.product parent WHERE parent.is_deleted=FALSE AND parent.bom_version>0
+                AND {Equal("b.bom_no", "parent.bom_no")}
+                AND ((@ProductId<>@EmptyGuid AND parent.uid=@ProductId)
+                    OR (CAST(@BomNo AS text) IS NOT NULL AND {Equal("b.bom_no", "CAST(@BomNo AS text)")}))))
         """, new { ProductId = productId, EmptyGuid = Guid.Empty, BomNo = string.IsNullOrWhiteSpace(bomNo) ? null : bomNo.Trim() },
         transaction: Transaction);
 
-    /// <summary>读取指定产品作为父或子的当前未删组成，使用数据库编号等值规则联接有效父；复用事务且不增加锁，空输入不查询。</summary>
+    /// <summary>读取指定共享父或组件的有效组成，父和行只要求正标记；数据库存在判断避免多个共享父放大物理行。</summary>
     public async Task<IReadOnlyList<Bom>> GetCurrentReferencesForProductsAsync(IEnumerable<Guid> productIds)
     {
         var ids = productIds?.Where(uid => uid != Guid.Empty).Distinct().ToArray() ?? [];
@@ -79,8 +78,11 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         var parameters = new PostgreSqlParameters();
         parameters.AddIds("ProductIds", ids);
         return [.. await Connection.QueryAsync<Bom>($"""
-            SELECT {EntityColumns} FROM public.bom b {CurrentParentJoin}
-            WHERE b.is_deleted=FALSE AND (b.parent_product_id=ANY(@ProductIds) OR b.component_product_id=ANY(@ProductIds))
+            SELECT {EntityColumns} FROM public.bom b
+            WHERE b.is_deleted=FALSE AND b.bom_version>0
+                AND EXISTS (SELECT 1 FROM public.product parent WHERE parent.is_deleted=FALSE AND parent.bom_version>0
+                    AND {Equal("b.bom_no", "parent.bom_no")}
+                    AND (parent.uid=ANY(@ProductIds) OR b.component_product_id=ANY(@ProductIds)))
             ORDER BY b.uid
             """, parameters, transaction: Transaction)];
     }
@@ -152,7 +154,7 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
     public Task<IReadOnlyList<SharedBomGroup>> GetSharedSaveFactsAsync(IReadOnlyList<string> requestedBomNos, bool withUpdLock = true)
     {
         ArgumentNullException.ThrowIfNull(requestedBomNos);
-        // 暂不将 SQL Server 范围保护标记机械转换为 PG 行锁；本实现尚未接入共享写入运行链。
+        // 共享写入的隔离级别由最外层用例控制；保留接口参数，不把旧范围提示转换为全图行锁。
         var transaction = Transaction ?? throw new InvalidOperationException("共享 BOM 保存事实必须在调用方事务内读取。");
         var numbers = requestedBomNos.ToArray();
         var parameters = new PostgreSqlParameters();

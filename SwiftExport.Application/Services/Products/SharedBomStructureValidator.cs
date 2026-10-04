@@ -40,7 +40,7 @@ public sealed class SharedBomStructureValidator
                 return $"BOM {(products.TryGetValue(productId, out var product) ? product.Sku : productId.ToString())} 存在循环依赖。";
             if (byParent.TryGetValue(productId, out var group))
             {
-                if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion != 1))
+                if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion <= 0))
                     return $"BOM {group.BomNo} 存在异常组成有效标记，不能将其作为当前结构使用。";
                 foreach (var childId in group.Lines.Where(line => !line.IsDeleted && line.ComponentProductId.HasValue)
                     .Select(line => line.ComponentProductId!.Value).Distinct())
@@ -59,12 +59,9 @@ public sealed class SharedBomStructureValidator
     private static string? ValidateGroup(SharedBomGroup group, IReadOnlyDictionary<Guid, Product> products)
     {
         var lines = group.Lines.Where(line => !line.IsDeleted).ToArray();
-        if (lines.Any(line => line.BomVersion != 1))
+        if (lines.Any(line => line.BomVersion <= 0))
             return $"BOM {group.BomNo} 存在异常组成有效标记，请先核实旧数据，不能自动启用或改写。";
         var parents = group.Products.Where(product => !product.IsDeleted && product.BomVersion > 0).ToArray();
-        // 普通读取尚保留标准标记匹配；这是临时可见性保护，不把不同正数解释为组成版本。
-        if (lines.Length > 0 && !parents.Any(product => product.BomVersion == 1))
-            return $"BOM {group.BomNo} 的引用父有效标记尚未标准化，不能使非空组成在普通读取中不可见。";
         if (parents.Length > 0 && lines.Length == 0)
             return $"BOM {group.BomNo} 至少需要保留一条组成行。";
         if (lines.GroupBy(line => line.LineNumber).Any(rows => rows.Count() > 1))

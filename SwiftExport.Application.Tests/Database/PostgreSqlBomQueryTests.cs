@@ -88,7 +88,7 @@ public sealed partial class PostgreSqlRepositoryTests
         foreach (var command in fixture.Connection.Commands) Assert.AreSame(fixture.Session.Transaction, command.Transaction);
     }
 
-    /// <summary>两个存在查询具有不同软删边界；活动查询按身份 OR 编号，旧逐项存在查询保留原始输入并包含历史软删。</summary>
+    /// <summary>有效存在按真实共享产品或候选编号确认有效组成；旧逐项存在保留原始输入及软删事实。</summary>
     [TestMethod]
     public async Task BomQuery_ExistsKeepsDistinctScopesAndNormalization()
     {
@@ -102,6 +102,12 @@ public sealed partial class PostgreSqlRepositoryTests
         var active = BomQuerySql(fixture.Connection.Text);
         StringAssert.Contains(active, "is_deleted=false");
         StringAssert.Contains(active, "or");
+        StringAssert.Contains(active, "exists(select1frompublic.productparent");
+        StringAssert.Contains(active, "parent.uid=@productid");
+        StringAssert.Contains(active, "parent.bom_version>0");
+        StringAssert.Contains(active, "b.bom_version>0");
+        Assert.IsFalse(active.Contains("parent_product_id", StringComparison.Ordinal));
+        Assert.IsFalse(active.Contains("b.bom_version=parent.bom_version", StringComparison.Ordinal));
         Assert.IsFalse(active.Contains("join", StringComparison.Ordinal));
         await repository.HasActiveBomForProductAsync(Guid.Empty, " ");
         Assert.AreEqual(DBNull.Value, fixture.Connection.Values["BomNo"]);

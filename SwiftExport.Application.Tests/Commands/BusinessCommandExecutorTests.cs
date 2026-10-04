@@ -19,6 +19,43 @@ namespace SwiftExport.Application.Tests.Commands;
 [TestClass]
 public sealed class BusinessCommandExecutorTests
 {
+    /// <summary>服务端明确的序列化失败区别于结果未知；查询/提交/重放阶段均不自动重试，清理故障不覆盖分类。</summary>
+    [TestMethod]
+    [DataRow("action", false)]
+    [DataRow("commit", false)]
+    [DataRow("replay", false)]
+    [DataRow("action", true)]
+    [DataRow("commit", true)]
+    [DataRow("replay", true)]
+    public async Task SerializationFailure_IsKnownAbortWithoutAutomaticRetry(string stage, bool cleanupFails)
+    {
+        var fixture = new Fixture();
+        typeof(DbSession).GetField("_errors", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(fixture.Session, PostgreSqlExceptionClassifier.Instance);
+        var id = Guid.NewGuid();
+        var calls = 0;
+        var error = new Npgsql.PostgresException("serialization failure", "ERROR", "ERROR", "40001");
+        Task<Result> Action(CancellationToken _)
+        {
+            calls++;
+            if (stage == "action") throw error;
+            return Task.FromResult(new Result(Guid.NewGuid(), 1));
+        }
+        if (stage == "replay")
+            await fixture.Executor.ExecuteAsync(id, "Test.Serializable", null, new { Value = 1 }, Action, default);
+        if (stage != "action") fixture.Connection.CommitFailure = error;
+        fixture.Connection.FailRollback = cleanupFails;
+        fixture.Connection.FailTransactionDispose = cleanupFails;
+        var failure = await Assert.ThrowsAsync<BusinessCommandException>(() => fixture.Executor.ExecuteAsync(
+            id, "Test.Serializable", null, new { Value = 1 }, Action, default, IsolationLevel.Serializable));
+        Assert.AreEqual(ServiceErrorCodes.ServiceUnavailable, failure.Code);
+        Assert.AreEqual(1, calls);
+        Assert.AreEqual(1, fixture.Connection.Rollbacks);
+        Assert.AreEqual(IsolationLevel.Serializable, fixture.Connection.LastRequestedIsolation);
+        Assert.IsNull(fixture.Session.Transaction);
+        Assert.AreEqual(fixture.Connection.StartedTransactions, fixture.Connection.DisposedTransactions);
+    }
+
     /// <summary>同一身份和输入返回首次结果，不再次调用业务写入委托。</summary>
     [TestMethod]
     public async Task SuccessAndReplay_ReturnOriginalResult()
