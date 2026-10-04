@@ -35,9 +35,12 @@ public sealed class PostgreSqlSchemaGenerator
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductCategory)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductColor)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)
-                || t == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)))
+                || t == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)
+                || t == typeof(SwiftExport.Core.Entities.Auth.SysUser)
+                || t == typeof(SwiftExport.Core.Entities.Inventory.WarehouseSite)
+                || t == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)))
         {
-            // 已批准字典及客户/供应商/分类/颜色/型号/中性编码使用此规则；不将全部主数据列隐式改为 ICU。
+            // 字典及已迁移编码唯一键复用源库不区分大小写、忽略尾空格的边界；不改变普通列比较。
             sql.AppendLine("CREATE COLLATION public.erp_dictionary_ci (provider = icu, locale = 'und-u-ks-level2', deterministic = false);");
             // 将源库只读核验的常见比较样例放入目标初始化事务，ICU版本不满足时拒绝继续建表。
             sql.AppendLine("""
@@ -85,7 +88,10 @@ END $$;
                 var include = index.IncludeColumns.Length == 0 ? "" : $" INCLUDE ({string.Join(", ", index.IncludeColumns.Select(c => Column(entity, c)))})";
                 var filter = string.IsNullOrWhiteSpace(index.Filter) ? "" : " WHERE " + PostgreSqlSchemaExpressions.Convert(entity, index.Filter);
                 var keys = index.Columns.Select(c => IndexColumn(entity, index, c));
-                sql.AppendLine($"CREATE {(index.IsUnique ? "UNIQUE " : "")}INDEX {Q(Register(index.Name))} ON {Table(entity)} ({string.Join(", ", keys)}){include}{filter};");
+                // 客户 PO 两个可空编码沿用 SQL Server 唯一键的 NULL 相等规则，不放宽重复默认配置。
+                var nulls = entity == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
+                    && index.Name == "UX_CustomerPoConfig_Codes" ? " NULLS NOT DISTINCT" : "";
+                sql.AppendLine($"CREATE {(index.IsUnique ? "UNIQUE " : "")}INDEX {Q(Register(index.Name))} ON {Table(entity)} ({string.Join(", ", keys)}){include}{nulls}{filter};");
             }
             WriteProtection(sql, entity, Register);
         }
@@ -113,7 +119,13 @@ END $$;
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)
                 && index.Name == "UX_ProductMaster_MasterSku" && property == "MasterSku"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)
-                && index.Name == "UX_ProductNeutral_ProductCode" && property == "ProductCode";
+                && index.Name == "UX_ProductNeutral_ProductCode" && property == "ProductCode"
+            || entity == typeof(SwiftExport.Core.Entities.Auth.SysUser)
+                && index.Name == "UX_SysUser_UserName" && property == "UserName"
+            || entity == typeof(SwiftExport.Core.Entities.Inventory.WarehouseSite)
+                && index.Name == "UX_WarehouseSite_Code" && property == "Code"
+            || entity == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
+                && index.Name == "UX_CustomerPoConfig_Codes" && property is "CustomerCode" or "SupplierCode";
         return approvedCode ? $"(rtrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)" : Column(entity, property);
     }
 

@@ -1,5 +1,9 @@
 # 实体驱动数据库基线
 
+后续迁移任务、验证状态和分工统一见 [主迁移清单](../../docs/postgresql-migration/主迁移清单.md)。本文件保留数据库基线与脚本职责说明；下方历批结果不替代当前代码验收。2026-10-04 盘点时备份及故障库只读核验受 DBX 范围限制，尚不能确认当前备份可用，未启动写库测试。
+
+2026-10-05：访问范围已开放，最新历史副本已只读复验。本批账号/仓库/客户 PO 编码索引变更已在专用库演练与验证后同步 dv_next；两库仅三个索引改变，数据及其他结构不变。生成器及 PG 基线同步更新，旧备份保留。具体命令、失败分类和回退见 [P01—P03 结果](../../docs/postgresql-migration/任务结果/P01-P03-基础设施与编码约束.md)；对应变更/回退脚本非幂等，不自动执行，不盲目重跑。
+
 最终数据库目标是 PostgreSQL + Dapper；SQL Server 仅作为迁移期间待淘汰的实现，不再建设长期双库兼容能力。按[当前迁移路线](../../docs/后端整体架构与文件夹职责建议.md)依次完成共享语义收敛、跨连接并发和真实需求一致性、PG 运行接线，再移除旧实现。以下旧批次验收保留历史范围，不表示 SQL Server 将继续作为正式运行选项。
 
 数据库代码预期以 `SwiftExport.Core` 中带 `[Table]` 的持久化 Entity 及其 `DatabaseSchema` 元数据为源，实际部署必须另行核验。当前运行用的SQL Server结构基线是 `Generated/SwiftExport.Schema.sql`；PostgreSQL评审基线是 `Generated/SwiftExport.PostgreSql.Schema.preview.sql`，后者尚未达到部署门槛。两者禁止手工修改，不承担旧库迁移、数据回填或种子数据职责。表和字段中文说明同源于Core XML `<summary>`，分别生成MS_Description和COMMENT。人工维护的数据搬运脚本必须与结构基线分离，并明确限定数据范围。

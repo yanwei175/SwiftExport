@@ -1365,7 +1365,7 @@ CREATE UNIQUE INDEX "ux_command_receipt_command_id" ON "public"."command_receipt
 CREATE FUNCTION public."fn_command_receipt_append_only"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION USING ERRCODE = 'P3100', MESSAGE = '只追加事实禁止更新或删除'; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_command_receipt_append_only" BEFORE UPDATE OR DELETE ON "public"."command_receipt" FOR EACH ROW EXECUTE FUNCTION public."fn_command_receipt_append_only"();
 CREATE UNIQUE INDEX "ux_customer_customer_code" ON "public"."customer" ((rtrim("customer_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_customer_po_config_codes" ON "public"."customer_po_config" ("customer_code", "supplier_code") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_customer_po_config_codes" ON "public"."customer_po_config" ((rtrim("customer_code", ' ') COLLATE public.erp_dictionary_ci), (rtrim("supplier_code", ' ') COLLATE public.erp_dictionary_ci)) NULLS NOT DISTINCT WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_customer_product_sku_id" ON "public"."customer_product" ("sku_id") WHERE "is_deleted" = FALSE AND "sku_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_customer_product_customer_customer_sku" ON "public"."customer_product" ("customer_id", "customer_sku") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_demand_execution_link_net_demand_remaining" ON "public"."demand_execution_link" ("net_demand_id", "released_qty", "allocated_qty");
@@ -1461,11 +1461,11 @@ CREATE UNIQUE INDEX "ux_sys_permission_definitions_key" ON "public"."sys_permiss
 CREATE UNIQUE INDEX "ux_sys_roles_role_code" ON "public"."sys_role" ("role_code");
 CREATE INDEX "ix_sys_role_permissions_permission" ON "public"."sys_role_permission" ("permission_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_sys_role_permissions_role_permission" ON "public"."sys_role_permission" ("role_id", "permission_id") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_sys_user_user_name" ON "public"."sys_user" ("user_name") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_sys_user_user_name" ON "public"."sys_user" ((rtrim("user_name", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_sys_user_roles_role" ON "public"."sys_user_role" ("role_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_sys_user_roles_user_role" ON "public"."sys_user_role" ("user_id", "role_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_warehouse_site_active_supplier" ON "public"."warehouse_site" ("supplier_id", "site_type") WHERE "is_deleted" = FALSE AND "supplier_id" IS NOT NULL AND "is_active" = TRUE;
-CREATE UNIQUE INDEX "ux_warehouse_site_code" ON "public"."warehouse_site" ("code") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_warehouse_site_code" ON "public"."warehouse_site" ((rtrim("code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 COMMENT ON TABLE "public"."after_sales_header" IS '保存售后单头和实物确认事实，不持有下游进度。';
 COMMENT ON COLUMN "public"."after_sales_header"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."after_sales_header"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
