@@ -104,6 +104,19 @@ public sealed class PostgreSqlFoundationTests
         Assert.IsTrue(EntityColumnSchema.IsNullable(typeof(SupplierProduct).GetProperty(nameof(SupplierProduct.SkuId))!));
     }
 
+    /// <summary>客户供应商仅活动编码索引采用已批准的 ICU 表达式，不扩大列级比较或停用过滤。</summary>
+    [TestMethod]
+    [DataRow("customer", "customer_code")]
+    [DataRow("supplier", "supplier_code")]
+    public void PartyCodeIndex_UsesApprovedExpressionWithoutChangingColumns(string tableName, string codeName)
+    {
+        var script = Generate();
+        StringAssert.Contains(script, $"CREATE UNIQUE INDEX \"ux_{tableName}_{codeName}\" ON \"public\".\"{tableName}\" ((rtrim(\"{codeName}\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_deleted\" = FALSE;");
+        var table = Regex.Match(script, $"CREATE TABLE \"public\".\"{tableName}\" \\((.*?)\\n\\);", RegexOptions.Singleline).Value;
+        Assert.IsFalse(string.IsNullOrEmpty(table));
+        Assert.IsFalse(table.Contains("COLLATE", StringComparison.Ordinal));
+    }
+
     /// <summary>仅转换已知行内谓词，保持字面量完整；未知SQL不能静默穿透。</summary>
     [TestMethod]
     public void Expressions_KeepLiteralsAndRejectUnknownSql()

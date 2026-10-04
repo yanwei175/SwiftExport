@@ -1364,7 +1364,7 @@ CREATE TRIGGER "tr_business_operation_log_append_only" BEFORE UPDATE OR DELETE O
 CREATE UNIQUE INDEX "ux_command_receipt_command_id" ON "public"."command_receipt" ("command_id");
 CREATE FUNCTION public."fn_command_receipt_append_only"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION USING ERRCODE = 'P3100', MESSAGE = '只追加事实禁止更新或删除'; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_command_receipt_append_only" BEFORE UPDATE OR DELETE ON "public"."command_receipt" FOR EACH ROW EXECUTE FUNCTION public."fn_command_receipt_append_only"();
-CREATE UNIQUE INDEX "ux_customer_customer_code" ON "public"."customer" ("customer_code") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_customer_customer_code" ON "public"."customer" ((rtrim("customer_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_customer_po_config_codes" ON "public"."customer_po_config" ("customer_code", "supplier_code") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_customer_product_sku_id" ON "public"."customer_product" ("sku_id") WHERE "is_deleted" = FALSE AND "sku_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_customer_product_customer_customer_sku" ON "public"."customer_product" ("customer_id", "customer_sku") WHERE "is_deleted" = FALSE;
@@ -1448,7 +1448,7 @@ CREATE UNIQUE INDEX "ux_purchase_order_line_head_line" ON "public"."purchase_ord
 CREATE INDEX "ix_sales_order_header_customer_date" ON "public"."sales_order_header" ("customer_id", "order_date") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_sales_order_header_order_no" ON "public"."sales_order_header" ("order_no") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_sales_order_line_head_line" ON "public"."sales_order_line" ("sales_order_id", "line_number") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_supplier_supplier_code" ON "public"."supplier" ("supplier_code") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_supplier_supplier_code" ON "public"."supplier" ((rtrim("supplier_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_supplier_product_product" ON "public"."supplier_product" ("sku_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_supplier_product_supplier_product" ON "public"."supplier_product" ("supplier_id", "sku_id") WHERE "is_deleted" = FALSE AND "sku_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_supplier_progress_command" ON "public"."supplier_progress_report" ("command_id");
