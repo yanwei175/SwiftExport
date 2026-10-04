@@ -2,12 +2,15 @@
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Models.Products;
 
 namespace SwiftExport.Core.Interfaces
 {
     /// <summary>提供 BOM 组成持久化、当前结构及产品引用读取契约；业务资格和事务边界由应用服务控制。</summary>
     public interface IBomRepository : IRepository<Bom>
     {
+        /// <summary>在调用方事务中读取全图共享保存事实并关联请求下标；空请求仍读图。withUpdLock 保留 SQL Server 组成保存的既有范围保护，普通产品校验应显式关闭；不承诺 PostgreSQL 并发保护。</summary>
+        Task<IReadOnlyList<SharedBomGroup>> GetSharedSaveFactsAsync(IReadOnlyList<string> requestedBomNos, bool withUpdLock = true);
 
         Task<bool> IsBomItemExistAsync(string bomNo, string productSku);
         /// <summary>

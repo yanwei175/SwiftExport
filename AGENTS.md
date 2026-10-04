@@ -137,7 +137,7 @@
 
 路径：`SwiftExport.Infrastructure`
 
-职责：Dapper Repository 实现、`RepositoryBaseContext`、`DbSession`、SQL Server 访问、审计字段打戳。
+职责：Dapper Repository 实现、`RepositoryBaseContext`、`DbSession`、数据库访问、审计字段打戳。数据库最终目标为 PostgreSQL；SQL Server 仅在迁移完成前暂时保留。
 
 禁止：依赖 Application、调用 Controller、处理 UI 状态、硬编码连接字符串。
 
@@ -150,6 +150,14 @@
 规则：Controller 路由与 Refit 接口保持一致；前后端传输模型优先放 DTO；API/前端可见只读联表模型优先放 Contracts DTO。
 
 ## 写入边界
+
+### 数据库迁移方向（2026-10-04 用户最新确认）
+
+- 最终淘汰 SQL Server，后续只使用 PostgreSQL + Dapper，不建设长期双库支持或提供者切换框架。
+- 当前 SQL Server 运行接线是迁移中的事实，不是必须永久兼容的目标；PG 对应链路验收前不得仅换连接工厂混用仓储。
+- 后续顺序：收敛临时兼容逻辑，验证跨连接并发与真实需求读取一致性，完成 PG 仓储/运行接线，再移除 SQL Server 实现、依赖及失效文档。实施与验收范围见后端架构审查的当前路线。
+- 优先复用现有会话、事务、异常分类及元数据；不为迁移新增无真实用例的实体表、通用数据库框架或全局业务锁。BOM 编号可共享，BomVersion 仅表示有效性，不引入业务多版本。
+- 新目标不等于任意数据库写入授权：原有隔离测试、备份保护、破坏性操作确认及不得自动部署/推送规则继续有效。
 
 D:\DevCaches是NuGet包的文档地址,你拥有权限,避免每次隔离构建都因目录缺少NuGet资产文件而退出.
 

@@ -255,6 +255,115 @@ public sealed class PostgreSqlBomQueryIntegrationTests
         Assert.AreEqual(history.Uid, (await repository.GetByBomNoAndVersionAsync(parent.BomNo, 1)).Single().Uid);
     });
 
+    /// <summary>集合查询保留历史及软删事实、存储编号精确分组；等价或重复输入不放大行，前导空格不被裁去。</summary>
+    [TestMethod]
+    [TestCategory("PostgreSqlBomQueryIntegration")]
+    public Task CollectionQuery_PreservesHistoryAndRawGroups() => InRollback(async context =>
+    {
+        var code = Prefix();
+        var parent = ProductRow(Prefix(), code, 2);
+        // 集合查询没有父有效性联接；有意不插父产品以验证悬空历史也保留。
+        var history = Line(parent, Guid.NewGuid(), "history", 1, 1);
+        var deleted = Line(parent, Guid.NewGuid(), "deleted", 2, 2);
+        deleted.IsDeleted = true;
+        var equivalent = Line(parent, Guid.NewGuid(), "equivalent", 2, 3);
+        equivalent.BomNo = code.Replace('P', 'Ｐ') + " ";
+        var leading = Line(parent, Guid.NewGuid(), "leading", 2, 4);
+        leading.BomNo = " " + code;
+        foreach (var row in new[] { history, deleted, equivalent, leading }) await Insert(context, row);
+        var repository = new PostgreSqlBomRepository(context);
+        var groups = await repository.GetBomsCollectionByBomNoListAsync([code, code.ToLowerInvariant(), equivalent.BomNo, code]);
+        Assert.HasCount(2, groups);
+        CollectionAssert.AreEquivalent(new[] { history.Uid, deleted.Uid, equivalent.Uid }, groups.Values.SelectMany(rows => rows).Select(row => row.Uid).ToArray());
+        Assert.IsTrue(groups[code].Single(row => row.Uid == deleted.Uid).IsDeleted);
+        Assert.AreEqual(1, groups[code].Single(row => row.Uid == history.Uid).BomVersion);
+        Assert.AreEqual(equivalent.Uid, groups[equivalent.BomNo].Single().Uid);
+        var leadingOnly = await repository.GetBomsCollectionByBomNoListAsync([leading.BomNo]);
+        Assert.AreEqual(leading.Uid, leadingOnly.Values.Single().Single().Uid);
+    });
+
+    /// <summary>共享产品不放大物理组成；兼容来源产品失效、换号或缺失时，只要仍有引用者就可读取。</summary>
+    [TestMethod]
+    [DataRow("deleted")]
+    [DataRow("changed")]
+    [DataRow("missing")]
+    [TestCategory("PostgreSqlBomQueryIntegration")]
+    public Task SharedCurrentQueries_DoNotDependOnSourceParent(string sourceState) => InRollback(async context =>
+    {
+        var code = Prefix();
+        var source = ProductRow(Prefix(), code, 1);
+        var first = ProductRow(Prefix(), code.ToLowerInvariant() + " ", 1);
+        var second = ProductRow(Prefix(), code.Replace('P', 'Ｐ'), 1);
+        second.IsActive = false; // 停用不抹掉仍存在的共享组成。
+        var child = ProductRow(Prefix());
+        var line = Line(source, child.Uid, "shared-snapshot", 1, 1);
+        if (sourceState == "deleted") source.IsDeleted = true;
+        if (sourceState == "changed") source.BomNo = Prefix();
+        foreach (var product in new[] { first, second, child }) await Insert(context, product);
+        if (sourceState != "missing") await Insert(context, source);
+        await Insert(context, line);
+        var repository = new PostgreSqlBomRepository(context);
+        var entity = (await repository.GetBomByBomNoAsync(code)).Single();
+        Assert.AreEqual(line.Uid, entity.Uid);
+        Assert.AreEqual(source.Uid, entity.ParentProductId, "普通读取不得重写兼容来源身份。");
+        Assert.AreEqual(line.Uid, (await repository.GetBomDtoByBomNoAsync(code)).Single().Uid);
+        var page = await repository.GetPagedAsync(new() { BatchKeywords = [code] });
+        Assert.AreEqual(1, page.TotalCount);
+        Assert.AreEqual(line.Uid, page.Items.Single().Uid);
+        // 仅修改本场景插入的两个引用者；退出最后一个引用后普通当前读取应为空，物理行仍保留。
+        Assert.AreEqual(2, await context.Session.Connection.ExecuteAsync(
+            "UPDATE public.product SET is_deleted=TRUE WHERE uid=ANY(@Ids)",
+            new { Ids = new[] { first.Uid, second.Uid } }, context.Session.Transaction));
+        Assert.HasCount(0, (await repository.GetBomByBomNoAsync(code)).ToArray());
+        Assert.HasCount(0, (await repository.GetBomDtoByBomNoAsync(code)).ToArray());
+        Assert.AreEqual(0, (await repository.GetPagedAsync(new() { BatchKeywords = [code] })).TotalCount);
+        Assert.AreEqual(line.Uid, (await repository.GetByBomNoAndVersionAsync(code, 1)).Single().Uid);
+    });
+
+    /// <summary>共享保存事实按数据库等值归组，物理行不随引用者倍增；异常标记、空组成和失效来源均显式保留。</summary>
+    [TestMethod]
+    [TestCategory("PostgreSqlBomQueryIntegration")]
+    public Task SharedSaveFacts_GroupDatabaseEquivalentNumbersWithoutDuplicatingLines() => InRollback(async context =>
+    {
+        var code = Prefix();
+        var source = ProductRow(Prefix(), code, 1);
+        var first = ProductRow(Prefix(), code.ToLowerInvariant() + " ", 1);
+        var second = ProductRow(Prefix(), code.Replace('P', 'Ｐ'), 3);
+        second.IsActive = false;
+        var excluded = ProductRow(Prefix(), code, 0);
+        var deleted = ProductRow(Prefix(), code, 1);
+        deleted.IsDeleted = true;
+        var empty = ProductRow(Prefix(), Prefix(), 1);
+        var child = ProductRow(Prefix());
+        foreach (var row in new[] { first, second, excluded, deleted, empty, child }) await Insert(context, row);
+        var line = Line(source, child.Uid, "shared-fact", 1, 1);
+        var anomaly = Line(source, child.Uid, "anomaly", 2, 2);
+        var removed = Line(source, child.Uid, "removed", 1, 3);
+        removed.IsDeleted = true;
+        foreach (var row in new[] { line, anomaly, removed }) await Insert(context, row);
+        var repository = new PostgreSqlBomRepository(context);
+        var facts = await repository.GetSharedSaveFactsAsync([code, second.BomNo!, code.ToLowerInvariant(), " " + code, empty.BomNo!]);
+        var group = facts.Single(item => item.InputIndexes.Contains(0));
+        CollectionAssert.AreEquivalent(new[] { 0, 1, 2 }, group.InputIndexes.ToArray());
+        CollectionAssert.AreEquivalent(new[] { first.Uid, second.Uid }, group.Products.Select(item => item.Uid).ToArray());
+        CollectionAssert.AreEquivalent(new[] { line.Uid, anomaly.Uid }, group.Lines.Select(item => item.Uid).ToArray());
+        Assert.AreEqual(source.Uid, group.Lines.Single(item => item.Uid == line.Uid).ParentProductId);
+        Assert.AreEqual("anomaly", group.Lines.Single(item => item.Uid == anomaly.Uid).ComponentSkuSnapshot);
+        Assert.AreEqual(2, group.Lines.Single(item => item.Uid == anomaly.Uid).BomVersion);
+        Assert.IsFalse(group.Products.Single(item => item.Uid == second.Uid).IsActive);
+        Assert.AreEqual(3, group.Products.Single(item => item.Uid == second.Uid).BomVersion);
+        var leading = facts.Single(item => item.InputIndexes.Contains(3));
+        Assert.AreNotEqual(group.GroupKey, leading.GroupKey);
+        Assert.HasCount(0, leading.Lines);
+        Assert.HasCount(0, leading.Products);
+        var emptyGroup = facts.Single(item => item.InputIndexes.Contains(4));
+        Assert.HasCount(0, emptyGroup.Lines);
+        Assert.AreEqual(empty.Uid, emptyGroup.Products.Single().Uid);
+        var withoutRequests = await repository.GetSharedSaveFactsAsync([]);
+        Assert.IsTrue(withoutRequests.Any(item => item.Lines.Any(row => row.Uid == line.Uid)));
+        Assert.IsTrue(withoutRequests.All(item => item.InputIndexes.Count == 0));
+    });
+
     /// <summary>每个场景只写随机实体并在调用方事务回滚；没有提交、DDL 或现存资料写操作。</summary>
     private static async Task InRollback(Func<RepositoryBaseContext, Task> scenario)
     {

@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Models.Products;
 
 namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 
@@ -29,79 +30,142 @@ public partial class ProductMaintenanceService
             ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
             : new ServiceResult<SaveItemResult> { Success = false, Message = result.Message, Error = result.Error };
 
-    /// <summary>由数据库判定本次产品的当前引用与候选历史组成，角色变化使用全部候选产品校验直接受影响关系。</summary>
+    /// <summary>按数据库共享组判断绑定、删除和角色边界；绑定既有组成须校验候选有效图，新空编号保留建父后录组成的流程。</summary>
     private async Task<string?> ValidateBomSaveBoundaryAsync(ProductBatchSaveRequest request)
     {
         var changedIds = request.UpdateItems.Select(item => item.Uid)
             .Concat(request.DeleteItems.Select(item => item.Uid)).Distinct().ToArray();
-        if (changedIds.Length == 0) return null;
-
-        var references = await bomRepository.GetCurrentReferencesForProductsAsync(changedIds);
-        var relatedIds = changedIds.Concat(references.SelectMany(line =>
-                new[] { line.ParentProductId, line.ComponentProductId })
-            .Where(uid => uid.HasValue && uid.Value != Guid.Empty).Select(uid => uid!.Value))
-            .Distinct().ToArray();
-        var existing = (await productRepository.GetByIdListAsync(relatedIds))
+        var existing = (await productRepository.GetByIdListAsync(changedIds))
             .Where(product => !product.IsDeleted).ToDictionary(product => product.Uid);
-        // 编号等值沿用实际数据库排序规则，不能用 C# 字符串比较重新过滤数据库确认的当前引用。
-        var currentLines = references.ToArray();
-
+        // 这里只判断完全相同的资料可跳过图查询；不以 C# 等值关系确认共享归属。
+        var needsGraph = request.DeleteItems.Count > 0
+            || request.CreateItems.Any(item => item.Data.BomVersion > 0)
+            || request.UpdateItems.Any(item => !existing.TryGetValue(item.Uid, out var old)
+                || item.Data.IsDeleted || old.BomVersion != item.Data.BomVersion
+                || !string.Equals(old.BomNo, item.Data.BomNo, StringComparison.Ordinal)
+                || !string.Equals(old.MaterialType, item.Data.MaterialType, StringComparison.Ordinal)
+                || !string.Equals(old.SupplyType, item.Data.SupplyType, StringComparison.Ordinal));
+        if (!needsGraph) return null;
+        var requestedNos = request.CreateItems.Select(item => item.Data.BomNo ?? string.Empty)
+            .Concat(request.UpdateItems.Select(item => item.Data.BomNo ?? string.Empty)).ToArray();
+        var facts = await bomRepository.GetSharedSaveFactsAsync(requestedNos, withUpdLock: false);
+        var byInput = facts.SelectMany(group => group.InputIndexes.Select(index => (index, group)))
+            .ToDictionary(item => item.index, item => item.group);
+        var byParent = facts.SelectMany(group => group.Products.Select(product => (product.Uid, Group: group)))
+            .ToDictionary(item => item.Uid, item => item.Group);
         var deletingIds = request.DeleteItems.Select(item => item.Uid)
             .Concat(request.UpdateItems.Where(item => item.Data.IsDeleted).Select(item => item.Uid)).ToHashSet();
-        // 以修改前当前组成阻断删除，不能在同批通过清父编号或 DTO 软删绕过引用保护。
-        foreach (var line in currentLines)
+        foreach (var group in facts.Where(group => group.Products.Count > 0 && group.Lines.Count > 0))
         {
-            if ((line.ParentProductId.HasValue && deletingIds.Contains(line.ParentProductId.Value))
-                || (line.ComponentProductId.HasValue && deletingIds.Contains(line.ComponentProductId.Value)))
+            // 按全部共享父及有效子身份阻断，不能依赖来源父，也不能用 DTO 软删或同批换组绕过。
+            if (group.Products.Any(product => deletingIds.Contains(product.Uid))
+                || group.Lines.Any(line => line.ComponentProductId.HasValue && deletingIds.Contains(line.ComponentProductId.Value)))
                 return "删除失败：产品仍被当前有效 BOM 引用，请先调整 BOM 组成。";
         }
-
-        var candidates = new Dictionary<Guid, Product>(existing);
+        var candidates = facts.SelectMany(group => group.Products).Concat(existing.Values)
+            .GroupBy(product => product.Uid).ToDictionary(group => group.Key, group => group.Last());
+        var candidateGroupById = byParent.ToDictionary(item => item.Key, item => item.Value.GroupKey);
+        var affectedKeys = new HashSet<long>();
         var roleChangedIds = new HashSet<Guid>();
-        foreach (var item in request.UpdateItems)
+        for (var index = 0; index < request.UpdateItems.Count; index++)
         {
+            var item = request.UpdateItems[index];
             if (!existing.TryGetValue(item.Uid, out var oldProduct))
                 return "修改失败：产品不存在或已删除，请刷新后重试。";
             var candidate = item.Data.Adapt<Product>();
             candidate.Uid = item.Uid;
             candidate.Version = item.Version;
             candidates[item.Uid] = candidate;
-            var identityChanged = oldProduct.BomVersion != candidate.BomVersion
-                || !SameBomNo(oldProduct.BomNo, candidate.BomNo);
-            if (identityChanged)
+            byInput.TryGetValue(request.CreateItems.Count + index, out var targetGroup);
+            var wasBound = oldProduct.BomVersion > 0 && !string.IsNullOrWhiteSpace(oldProduct.BomNo);
+            var willBind = candidate.BomVersion > 0 && !string.IsNullOrWhiteSpace(candidate.BomNo);
+            if (wasBound)
             {
-                if (currentLines.Any(line => line.ParentProductId == item.Uid))
-                    return $"产品 {oldProduct.Sku} 已有有效 BOM，普通保存不能更改 BOM 编号或版本。";
-                if (!candidate.IsDeleted && !string.IsNullOrWhiteSpace(candidate.BomNo) && candidate.BomVersion > 0)
-                {
-                    var history = await bomRepository.GetByBomNoAndVersionAsync(candidate.BomNo, candidate.BomVersion);
-                    if (history.Any(line => line.ParentProductId == item.Uid))
-                        return $"产品 {oldProduct.Sku} 的目标 BOM 编号或版本存在历史组成，普通保存不能重新激活。";
-                }
+                if (!byParent.TryGetValue(item.Uid, out var oldGroup) || targetGroup is null)
+                    return "无法确认产品的共享 BOM 归属，请刷新后重试。";
+                if (!willBind || oldGroup.GroupKey != targetGroup.GroupKey)
+                    return $"产品 {oldProduct.Sku} 已有有效 BOM，普通保存不能更换共享编号或停用 BOM 标记。";
+                // 非空组标记数值变化仍须检查标准引用父，避免最后一个标记 1 被改走后组成不可见。
+                if (oldProduct.BomVersion != candidate.BomVersion && oldGroup.Lines.Count > 0)
+                    affectedKeys.Add(oldGroup.GroupKey);
             }
+            else if (!candidate.IsDeleted && candidate.BomVersion > 0)
+            {
+                var bindingError = ValidateNewBinding(candidate, targetGroup, affectedKeys);
+                if (bindingError is not null) return bindingError;
+            }
+            if (willBind && !candidate.IsDeleted && targetGroup is not null)
+                candidateGroupById[item.Uid] = targetGroup.GroupKey;
+            else candidateGroupById.Remove(item.Uid);
             if (!string.Equals(oldProduct.MaterialType, candidate.MaterialType, StringComparison.Ordinal)
                 || !string.Equals(oldProduct.SupplyType, candidate.SupplyType, StringComparison.Ordinal))
                 roleChangedIds.Add(item.Uid);
         }
-
-        // 角色变化不会新增边；仅复用已有父件和组成策略，不用局部数据冒充完整图做环检测。
-        foreach (var line in currentLines.Where(line =>
-            (line.ParentProductId.HasValue && roleChangedIds.Contains(line.ParentProductId.Value))
-            || (line.ComponentProductId.HasValue && roleChangedIds.Contains(line.ComponentProductId.Value))))
+        for (var index = 0; index < request.CreateItems.Count; index++)
         {
-            var parent = candidates[line.ParentProductId!.Value];
-            var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(parent);
-            if (parentError is not null) return parentError;
-            if (!line.ComponentProductId.HasValue
-                || !candidates.TryGetValue(line.ComponentProductId.Value, out var child) || child.IsDeleted)
-                return $"BOM 第 {line.LineNumber} 行的子产品不存在或已删除。";
-            var lineError = CustomerSuppliedMaterialPolicy.ValidateBomLine(line, child);
-            if (lineError is not null) return lineError;
+            var candidate = request.CreateItems[index].Data.Adapt<Product>();
+            // 仓储会重新生成正式身份；临时新身份只用于资格和候选图检查，不能使用客户端传入身份。
+            candidate.Uid = Guid.NewGuid();
+            candidate.IsDeleted = false;
+            candidates[candidate.Uid] = candidate;
+            if (candidate.BomVersion <= 0) continue;
+            byInput.TryGetValue(index, out var targetGroup);
+            var bindingError = ValidateNewBinding(candidate, targetGroup, affectedKeys);
+            if (bindingError is not null) return bindingError;
+            candidateGroupById[candidate.Uid] = targetGroup!.GroupKey;
         }
-        return null;
+
+        foreach (var id in deletingIds)
+        {
+            candidateGroupById.Remove(id);
+            candidates.Remove(id);
+        }
+        foreach (var id in roleChangedIds)
+        {
+            if (candidateGroupById.TryGetValue(id, out var key))
+            {
+                var group = facts.Single(group => group.GroupKey == key);
+                if (group.Lines.Count > 0) affectedKeys.Add(key);
+                else
+                {
+                    var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(candidates[id]);
+                    if (parentError is not null) return parentError;
+                }
+            }
+            foreach (var group in facts.Where(group => group.Products.Count > 0
+                && group.Lines.Any(line => line.ComponentProductId == id)))
+                affectedKeys.Add(group.GroupKey);
+        }
+        if (affectedKeys.Count == 0) return null;
+        var finalGroups = facts.Select(group => new SharedBomGroup
+        {
+            GroupKey = group.GroupKey, BomNo = group.BomNo, InputIndexes = group.InputIndexes, Lines = group.Lines,
+            Products = candidateGroupById.Where(item => item.Value == group.GroupKey)
+                .Select(item => candidates[item.Key]).ToArray()
+        }).ToArray();
+        var componentIds = finalGroups.Where(group => affectedKeys.Contains(group.GroupKey))
+            .SelectMany(group => group.Lines).Where(line => line.ComponentProductId.HasValue)
+            .Select(line => line.ComponentProductId!.Value).Where(id => !candidates.ContainsKey(id))
+            .Distinct().ToArray();
+        foreach (var product in await productRepository.GetByIdListAsync(componentIds))
+            if (!product.IsDeleted) candidates[product.Uid] = product;
+        return new SharedBomStructureValidator().Validate(finalGroups, affectedKeys, candidates);
     }
 
-    /// <summary>识别请求是否改变编号；数据库负责组成归属，存储值前导空格不能被请求规范化掩盖。</summary>
-    private static bool SameBomNo(string? left, string? right)
-        => string.Equals(left?.TrimEnd(' '), right?.TrimEnd(' '), StringComparison.OrdinalIgnoreCase);
+    /// <summary>既有组成只能绑定当前被有效产品使用的标准共享组；新空编号可准备父产品，孤立旧行不得借此激活。</summary>
+    private static string? ValidateNewBinding(Product product, SharedBomGroup? group, HashSet<long> affectedKeys)
+    {
+        if (string.IsNullOrWhiteSpace(product.BomNo) || group is null)
+            return $"产品 {product.Sku} 的有效 BOM 标记必须有可确认的编号。";
+        var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(product);
+        if (parentError is not null) return parentError;
+        if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion != 1))
+            return $"BOM {group.BomNo} 存在异常组成有效标记，普通绑定不能启用旧数据。";
+        if (group.Lines.Count == 0)
+            return group.Products.Count == 0 ? null : $"BOM {group.BomNo} 当前没有有效组成，不能作为已有共享 BOM 绑定。";
+        if (group.Products.Count == 0)
+            return $"BOM {group.BomNo} 仅有孤立历史组成，普通绑定不能重新激活。";
+        affectedKeys.Add(group.GroupKey);
+        return null;
+    }
 }

@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Application.Services.Products.Catalog.Maintenance;
+using SwiftExport.Application.Tests.Products;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
@@ -27,6 +28,113 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductBomSaveBoundaryTests
 {
+    /// <summary>无 BOM 产品可绑定合法共享组成，或准备全新空编号；只保存产品，不复制或改写组成。</summary>
+    [TestMethod]
+    [DataRow("add", false)]
+    [DataRow("update", false)]
+    [DataRow("add", true)]
+    [DataRow("update", true)]
+    public async Task OrdinaryBinding_ValidSharedOrNewEmptyNumberIsSaved(string entry, bool newEmptyNumber)
+    {
+        var fixture = new Fixture();
+        var target = fixture.Product("TARGET");
+        var number = newEmptyNumber ? "NEW-EMPTY" : "SHARED";
+        if (!newEmptyNumber)
+        {
+            var source = fixture.Product("SOURCE", number);
+            fixture.Product("OTHER-POSITIVE", number, 8);
+            fixture.Line(source, fixture.Product("LEAF"));
+        }
+        var dto = Dto(target);
+        dto.Sku = entry == "add" ? "CREATED" : target.Sku;
+        dto.BomNo = number;
+        dto.BomVersion = 3;
+        var bomBefore = fixture.BomState();
+        var result = entry == "add"
+            ? await fixture.Entry.AddAsync(new() { Data = dto })
+            : await fixture.Entry.UpdateAsync(new() { Uid = target.Uid, Version = target.Version, Data = dto });
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.HasCount(1, fixture.Writes);
+        var saved = fixture.Products[result.Data.Uid!.Value];
+        Assert.AreEqual(number, saved.BomNo);
+        Assert.AreEqual(3, saved.BomVersion);
+        Assert.AreEqual(bomBefore, fixture.BomState());
+        Assert.IsTrue(fixture.ReferenceReads > 0);
+        fixture.AssertTransaction(1, 0);
+        fixture.AssertNoBomBypass();
+    }
+
+    /// <summary>普通绑定须检查新增共享父展开后的自环、跨组循环、父资格及孤立历史，危险绑定在写入前拒绝。</summary>
+    [TestMethod]
+    [DataRow("self", "不能相同")]
+    [DataRow("cycle", "循环依赖")]
+    [DataRow("customer-parent", "客供件")]
+    [DataRow("orphan", "孤立历史")]
+    [DataRow("abnormal", "异常组成有效标记")]
+    [DataRow("existing-empty", "没有有效组成")]
+    public async Task OrdinaryBinding_DangerousSharedGraphIsRejected(string scenario, string expectedMessage)
+    {
+        var fixture = new Fixture();
+        var target = fixture.Product("TARGET");
+        var source = fixture.Product("SOURCE", "SHARED");
+        var child = fixture.Product("LEAF");
+        if (scenario == "self") child = target;
+        if (scenario == "cycle")
+        {
+            child.BomNo = "DOWNSTREAM";
+            child.BomVersion = 1;
+            fixture.Line(child, target);
+        }
+        if (scenario != "existing-empty")
+        {
+            var line = fixture.Line(source, child);
+            if (scenario == "abnormal") line.BomVersion = 2;
+        }
+        if (scenario == "orphan") source.IsDeleted = true;
+        var dto = Dto(target);
+        dto.BomNo = "SHARED";
+        dto.BomVersion = 1;
+        if (scenario == "customer-parent") dto.MaterialType = MaterialTypesEnum.客供件;
+        var before = fixture.State();
+        var result = await fixture.Entry.UpdateAsync(new() { Uid = target.Uid, Version = target.Version, Data = dto });
+        StringAssert.Contains(result.Message, expectedMessage);
+        fixture.AssertBlocked(result.Success, before);
+    }
+
+    /// <summary>编号共享不依赖物理行来源父，非来源父删除或客供角色变更同样受到结构保护。</summary>
+    [TestMethod]
+    [DataRow("delete")]
+    [DataRow("customer-role")]
+    public async Task NonSourceSharedParent_IsProtected(string entry)
+    {
+        var fixture = new Fixture();
+        var source = fixture.Product("SOURCE", "SHARED");
+        var other = fixture.Product("OTHER", "SHARED", 7);
+        fixture.Line(source, fixture.Product("LEAF"));
+        var dto = Dto(other);
+        dto.MaterialType = MaterialTypesEnum.客供件;
+        var before = fixture.State();
+        var result = entry == "delete"
+            ? await fixture.Entry.DeleteAsync(new() { Uid = other.Uid, Version = other.Version })
+            : await fixture.Entry.UpdateAsync(new() { Uid = other.Uid, Version = other.Version, Data = dto });
+        fixture.AssertBlocked(result.Success, before);
+    }
+
+    /// <summary>非空共享组最后一名标准父引用者不能改为非标准正标记，避免临时普通查询读不到刚保存结构。</summary>
+    [TestMethod]
+    public async Task LastStandardParentMarkerChange_IsRejected()
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("P", "SHARED");
+        fixture.Product("OTHER", "SHARED", 7);
+        fixture.Line(parent, fixture.Product("LEAF"));
+        var dto = Dto(parent);
+        dto.BomVersion = 3;
+        var before = fixture.State();
+        var result = await fixture.Entry.UpdateAsync(new() { Uid = parent.Uid, Version = parent.Version, Data = dto });
+        fixture.AssertBlocked(result.Success, before);
+    }
+
     /// <summary>旧基础服务类型调用也必须进入批量事务，保持客户端定位、服务端身份及保存版本回执。</summary>
     [TestMethod]
     [DataRow("add")]
@@ -123,7 +231,7 @@ public sealed class ProductBomSaveBoundaryTests
         fixture.AssertNoBomBypass();
     }
 
-    /// <summary>普通产品编辑不能移走当前组成，或用编号及版本改动激活原历史组成。</summary>
+    /// <summary>普通产品编辑不能移走当前共享编号或关闭有效标记，也不能借编号改动激活历史组成。</summary>
     [TestMethod]
     [DataRow("current-no")]
     [DataRow("current-version")]
@@ -137,7 +245,7 @@ public sealed class ProductBomSaveBoundaryTests
         var line = fixture.Line(parent, child);
         var dto = Dto(parent);
         if (scenario == "current-no") dto.BomNo = "OTHER";
-        if (scenario == "current-version") dto.BomVersion = 3;
+        if (scenario == "current-version") dto.BomVersion = 0;
         if (scenario == "leading-space-trim")
         {
             // 存储编号的前导空格有意义，普通 DTO 的 Trim 不能静默移走原当前组成。
@@ -261,7 +369,8 @@ public sealed class ProductBomSaveBoundaryTests
         var child = fixture.Product("C");
         if (hasCurrentLine) fixture.Line(parent, child);
         var history = fixture.Line(parent, child);
-        history.BomVersion = 1;
+        history.BomNo = "ARCHIVE";
+        history.BomVersion = 2;
         history.ParentSkuSnapshot = "历史父编码";
         history.ComponentSkuSnapshot = "历史子编码";
         var target = role == "parent" ? parent : child;
@@ -276,6 +385,7 @@ public sealed class ProductBomSaveBoundaryTests
         Assert.AreEqual(dto.DescriptionZh, fixture.Products[target.Uid].DescriptionZh);
         Assert.AreEqual(dto.Note, fixture.Products[target.Uid].Note);
         Assert.AreEqual(beforeBom, fixture.BomState());
+        Assert.AreEqual(0, fixture.ReferenceReads, "SKU、描述与备注不变更结构字段时应跳过共享事实查询。");
         fixture.AssertTransaction(1, 0);
         fixture.AssertNoBomBypass();
     }
@@ -291,7 +401,7 @@ public sealed class ProductBomSaveBoundaryTests
         var parent = fixture.Product("P", "BOM-P", 2);
         var child = fixture.Product("C");
         var line = fixture.Line(parent, child);
-        if (scenario == "history") line.BomVersion = 1;
+        if (scenario == "history") { line.BomNo = "ARCHIVE"; line.BomVersion = 2; }
         if (scenario == "deleted-line") line.IsDeleted = true;
         if (scenario == "deleted-parent") parent.IsDeleted = true;
         var beforeBom = fixture.BomState();
@@ -415,7 +525,7 @@ public sealed class ProductBomSaveBoundaryTests
         public Bom Line(Product parent, Product child)
         {
             var line = new Bom { Uid = Guid.NewGuid(), Version = 3, ParentProductId = parent.Uid,
-                ComponentProductId = child.Uid, BomNo = parent.BomNo!, BomVersion = parent.BomVersion,
+                ComponentProductId = child.Uid, BomNo = parent.BomNo!, BomVersion = 1,
                 ParentSkuSnapshot = parent.Sku, ComponentSkuSnapshot = child.Sku, Numerator = 1, Denominator = 1,
                 LineNumber = Boms.Count + 1, Note = "保留的组成快照" };
             Boms.Add(line.Uid, line);
@@ -514,7 +624,7 @@ public sealed class ProductBomSaveBoundaryTests
             return Task.FromResult(RepositoryWriteResult.Ok(row.Uid, version, row.Version));
         }
 
-        /// <summary>窄查询给出数据库确认的当前引用，指定版本查询保留历史激活检测；禁止全图查询和所有组成写入。</summary>
+        /// <summary>共享查询保留全图和显式数据库匹配事实，兼容旧只读接口；所有组成写入均视为越界。</summary>
         private object BomCall(string name, object?[] args)
         {
             Record();
@@ -531,6 +641,13 @@ public sealed class ProductBomSaveBoundaryTests
                         && (DatabaseMatchedCurrentLineIds.Contains(x.Uid)
                             || string.Equals(x.BomNo?.TrimEnd(' '), parent.BomNo?.TrimEnd(' '), StringComparison.OrdinalIgnoreCase)))
                         .Select(Clone).ToArray());
+                case nameof(IBomRepository.GetSharedSaveFactsAsync):
+                    ReferenceReads++;
+                    Assert.IsFalse((bool)args[1]!, "普通产品边界只读共享图，不能全图申请更新锁。");
+                    return Task.FromResult(SharedBomTestFacts.Build(Products.Values, Boms.Values,
+                        (IReadOnlyList<string>)args[0]!, line => DatabaseMatchedCurrentLineIds.Contains(line.Uid)
+                            && line.ParentProductId.HasValue && Products.TryGetValue(line.ParentProductId.Value, out var matched)
+                                ? matched.BomNo! : line.BomNo));
                 case nameof(IBomRepository.GetByBomNoAndVersionAsync):
                     var bomNo = (string)args[0]!;
                     var bomVersion = (int)args[1]!;
@@ -544,7 +661,7 @@ public sealed class ProductBomSaveBoundaryTests
                         && (uid != Guid.Empty && x.ParentProductId == uid || !string.IsNullOrWhiteSpace(no) && x.BomNo == no)));
                 default:
                     BomBypassCalls++;
-                    throw new InvalidOperationException("产品保存不得全图查询或写入 BOM：" + name);
+                    throw new InvalidOperationException("产品保存不得调用未配置 BOM 接口或写入组成：" + name);
             }
         }
 

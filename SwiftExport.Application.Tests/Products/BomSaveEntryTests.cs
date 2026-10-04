@@ -7,6 +7,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.Base;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
@@ -19,6 +20,145 @@ namespace SwiftExport.Application.Tests.Products;
 [TestClass]
 public sealed class BomSaveEntryTests
 {
+    /// <summary>共享组成必须对全部有效父项展开，自环和跨共享组循环不能只检查来源父。</summary>
+    [TestMethod]
+    [DataRow("shared-self", "不能相同")]
+    [DataRow("shared-cycle", "循环依赖")]
+    [DataRow("shared-parent-role", "客供件")]
+    public async Task Add_SharedParentsCannotBypassFinalGraph(string scenario, string expectedMessage)
+    {
+        var fixture = new Fixture();
+        var source = fixture.Product("SOURCE", "SHARED");
+        var other = fixture.Product("OTHER", "SHARED");
+        other.BomVersion = 7;
+        var child = fixture.Product("LEAF");
+        if (scenario == "shared-self") child = other;
+        if (scenario == "shared-cycle")
+        {
+            child.BomNo = "DOWNSTREAM";
+            child.BomVersion = 1;
+            fixture.Line(child, other, 1);
+        }
+        if (scenario == "shared-parent-role") other.MaterialType = "客供件";
+        var before = fixture.PersistedState();
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(source, child) });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        StringAssert.Contains(result.Message, expectedMessage);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(0, 1);
+    }
+
+    /// <summary>不同正标记的父项按编号共享，一次新增仅持久化一条组成，不复制已有物理行。</summary>
+    [TestMethod]
+    public async Task Add_SharedNumberWritesOnePhysicalLine()
+    {
+        var fixture = new Fixture();
+        var source = fixture.Product("SOURCE", "SHARED");
+        var other = fixture.Product("OTHER", "shared ");
+        other.BomVersion = 9;
+        var existing = fixture.Line(source, fixture.Product("FIRST"), 4);
+        var oldSnapshot = Clone(existing);
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(source, fixture.Product("SECOND")) });
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.HasCount(1, fixture.Writes);
+        Assert.HasCount(2, fixture.Rows);
+        Assert.AreEqual(1, fixture.Writes.Single().Row.BomVersion);
+        Assert.AreEqual(5, fixture.Writes.Single().Row.LineNumber);
+        Assert.AreEqual(System.Text.Json.JsonSerializer.Serialize(oldSnapshot),
+            System.Text.Json.JsonSerializer.Serialize(fixture.Rows[existing.Uid]));
+        var facts = SharedBomTestFacts.Build(fixture.Products.Values, fixture.Rows.Values, []);
+        Assert.HasCount(2, facts.Single().Products);
+        Assert.HasCount(2, facts.Single().Lines);
+        fixture.AssertOwnedTransaction(1, 0);
+    }
+
+    /// <summary>来源父失效不改变编号共享归属，修改仍保留来源身份和快照，不重写为当前引用者。</summary>
+    [TestMethod]
+    [DataRow("inactive")]
+    [DataRow("deleted")]
+    [DataRow("unbound")]
+    [DataRow("other-number")]
+    public async Task Update_ObsoleteSourceParentDoesNotBlockSharedGroup(string scenario)
+    {
+        var fixture = new Fixture();
+        var source = fixture.Product("OLD-SOURCE", "SHARED");
+        var current = fixture.Product("CURRENT", "SHARED");
+        var child = fixture.Product("CHILD");
+        var line = fixture.Line(source, child, 1);
+        if (scenario == "inactive") source.IsActive = false;
+        if (scenario == "deleted") source.IsDeleted = true;
+        if (scenario == "unbound") { source.BomVersion = 0; source.BomNo = null; }
+        if (scenario == "other-number") source.BomNo = "OTHER";
+        var dto = Dto(current, child);
+        dto.Numerator = 3;
+        var result = await fixture.Entry.UpdateAsync(new() { Uid = line.Uid, Version = line.Version, Data = dto });
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.HasCount(1, fixture.Writes);
+        var saved = fixture.Rows[line.Uid];
+        Assert.AreEqual(source.Uid, saved.ParentProductId);
+        Assert.AreEqual("OLD-SOURCE", saved.ParentSkuSnapshot);
+        Assert.AreEqual("SHARED", saved.BomNo);
+        Assert.AreEqual(3, saved.Numerator);
+        fixture.AssertOwnedTransaction(1, 0);
+    }
+
+    /// <summary>触及异常未删物理行时显式拒绝，不按父正标记过滤旧行，也不顺手修正旧标记。</summary>
+    [TestMethod]
+    [DataRow(0)]
+    [DataRow(2)]
+    [DataRow(7)]
+    public async Task Add_AbnormalSharedLineMarkerIsRejected(int marker)
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("P", "SHARED");
+        fixture.Line(parent, fixture.Product("OLD"), 1).BomVersion = marker;
+        var child = fixture.Product("NEW");
+        var before = fixture.PersistedState();
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(parent, child) });
+        Assert.IsFalse(result.Success);
+        StringAssert.Contains(result.Message, "异常组成有效标记");
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(0, 1);
+    }
+
+    /// <summary>共享事实读取后锁定父记录发现版本变化时返回明确冲突，不依据过期父角色继续写组成。</summary>
+    [TestMethod]
+    public async Task Add_ParentVersionChangedAfterFactsReturnsConflict()
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("P", "SHARED");
+        fixture.ChangeParentVersionAfterFacts = parent.Uid;
+        var child = fixture.Product("CHILD");
+        var before = fixture.PersistedState();
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(parent, child) });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(0, 1);
+    }
+
+    /// <summary>临时普通读取仍要求标准父标记，只有非标准正标记的共享组必须拒绝写组成，避免写后普通读取消失。</summary>
+    [TestMethod]
+    public async Task Add_OnlyNonstandardPositiveParentIsRejected()
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("P", "SHARED");
+        parent.BomVersion = 3;
+        var child = fixture.Product("CHILD");
+        var before = fixture.PersistedState();
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(parent, child) });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(0, 1);
+    }
+
     /// <summary>基础服务引用也必须执行最终图校验；重复、自环、非法比例及跨层成环均回滚且不写行。</summary>
     [TestMethod]
     [DataRow("duplicate", "重复")]
@@ -47,6 +187,7 @@ public sealed class BomSaveEntryTests
         var before = fixture.PersistedState();
         var result = await fixture.Entry.AddAsync(new() { Data = dto, ClientKey = "single-create", RowIndex = 7 });
         Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
         StringAssert.Contains(result.Message, expectedMessage);
         Assert.HasCount(0, fixture.Writes);
         Assert.AreEqual(before, fixture.PersistedState());
@@ -54,13 +195,14 @@ public sealed class BomSaveEntryTests
         if (scenario is "duplicate" or "self" or "cycle") Assert.IsTrue(fixture.GraphReads > 0);
     }
 
-    /// <summary>合法单条新增由完整图分配当前父版本与行号，组件快照取服务端身份，回执保留客户端定位。</summary>
+    /// <summary>合法单条新增按共享组分配行号与标准有效标记，父正标记不作为组成版本，回执保留客户端定位。</summary>
     [TestMethod]
     public async Task Add_UsesCurrentGraphAndCommitsOneTransaction()
     {
         var fixture = new Fixture();
         var parent = fixture.Product("A", "BOM-A");
         parent.BomVersion = 3;
+        fixture.Product("STANDARD-REFERENCE", "BOM-A");
         fixture.Line(parent, fixture.Product("B"), 5);
         var child = fixture.Product("C");
         var result = await fixture.Entry.AddAsync(new()
@@ -74,9 +216,9 @@ public sealed class BomSaveEntryTests
         Assert.AreEqual(9, result.Data.RowIndex);
         var written = fixture.Writes.Single().Row;
         Assert.AreEqual("AddAsync", fixture.Writes.Single().Operation);
-        Assert.AreEqual(parent.Uid, written.ParentProductId);
-        Assert.AreEqual(parent.Sku, written.ParentSkuSnapshot);
-        Assert.AreEqual(3, written.BomVersion);
+        Assert.IsTrue(fixture.Products.Values.Any(product => product.Uid == written.ParentProductId
+            && product.Sku == written.ParentSkuSnapshot && product.BomNo == "BOM-A"));
+        Assert.AreEqual(1, written.BomVersion);
         Assert.AreEqual(6, written.LineNumber);
         Assert.AreEqual(child.Uid, written.ComponentProductId);
         Assert.AreEqual(child.Sku, written.ComponentSkuSnapshot);
@@ -123,11 +265,67 @@ public sealed class BomSaveEntryTests
         }
         else
         {
+            Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+            Assert.IsNull(result.Data);
             StringAssert.Contains(result.Message, "已被其他人修改");
             Assert.HasCount(0, fixture.Writes);
             Assert.AreEqual(before, fixture.PersistedState());
         }
         fixture.AssertOwnedTransaction(expectedSuccess ? 1 : 0, expectedSuccess ? 0 : 1);
+    }
+
+    /// <summary>软硬删除的明确版本预检失败均返回版本冲突，在持久写入前拒绝且不携带行回执。</summary>
+    [TestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task Delete_StaleWrapperVersionIsConflictBeforeWrites(bool soft)
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("A", "BOM-A");
+        var line = fixture.Line(parent, fixture.Product("B"), 1);
+        fixture.Line(parent, fixture.Product("C"), 2);
+        line.Version = 5;
+        var before = fixture.PersistedState();
+        var result = await fixture.Entry.DeleteAsync(new() { Uid = line.Uid, Version = 4, IsSoftDelete = soft });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.IsNull(result.Data);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(0, 1);
+    }
+
+    /// <summary>基础服务单项入口保留提交结果未知；提交后确认丢失不能被回滚假造撤销，也不能自动重写。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task Update_CommitFailurePreservesUnknownOutcomeAndActualFacts(bool committed)
+    {
+        var fixture = new Fixture();
+        fixture.Session.ConnectionStub.FailCommitBefore = !committed;
+        fixture.Session.ConnectionStub.FailCommitAfter = committed;
+        var parent = fixture.Product("A", "BOM-A");
+        var child = fixture.Product("B");
+        var line = fixture.Line(parent, child, 1);
+        var dto = Dto(parent, child);
+        dto.Numerator = 2;
+        var before = fixture.PersistedState();
+        var result = await fixture.Entry.UpdateAsync(new() { Uid = line.Uid, Version = line.Version, Data = dto });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.OutcomeUnknown, result.Error.Code);
+        Assert.IsNull(result.Data);
+        Assert.IsFalse(result.Message.Contains("已回滚", StringComparison.Ordinal));
+        Assert.IsFalse(result.Message.Contains("CommandId", StringComparison.OrdinalIgnoreCase));
+        Assert.AreEqual(1, fixture.Writes.Count);
+        Assert.AreEqual(committed, fixture.Session.ConnectionStub.Last!.IsCommitted);
+        if (committed)
+        {
+            Assert.AreNotEqual(before, fixture.PersistedState());
+            Assert.AreEqual(2, fixture.Rows[line.Uid].Numerator);
+            Assert.AreEqual(line.Version + 1, fixture.Rows[line.Uid].Version);
+        }
+        else Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(1, 1);
     }
 
     /// <summary>修改请求若形成重复组件，最终图拒绝且持久实体不被准备阶段的原地修改污染。</summary>
@@ -181,11 +379,13 @@ public sealed class BomSaveEntryTests
         var fixture = new Fixture();
         var parent = fixture.Product("A", "BOM-A");
         parent.BomVersion = 2;
+        fixture.Product("STANDARD-REFERENCE", "BOM-A");
         var child = fixture.Product("B");
         var target = fixture.Line(parent, child, 1);
         var retained = fixture.Line(parent, fixture.Product("C"), 2);
         var history = fixture.Line(parent, child, 1);
-        history.BomVersion = 1;
+        history.BomNo = "ARCHIVE";
+        history.BomVersion = 2;
         var result = await fixture.Entry.DeleteAsync(new()
         { Uid = target.Uid, Version = target.Version, IsSoftDelete = soft, ClientKey = "delete-key" });
         Assert.IsTrue(result.Success, result.Message);
@@ -197,7 +397,8 @@ public sealed class BomSaveEntryTests
         if (soft) Assert.IsTrue(fixture.Rows[target.Uid].IsDeleted);
         Assert.IsFalse(fixture.Rows[retained.Uid].IsDeleted);
         Assert.IsFalse(fixture.Rows[history.Uid].IsDeleted);
-        Assert.AreEqual(1, fixture.Rows[history.Uid].BomVersion);
+        Assert.AreEqual(2, fixture.Rows[history.Uid].BomVersion);
+        Assert.AreEqual("ARCHIVE", fixture.Rows[history.Uid].BomNo);
         Assert.AreEqual("BOM-A", parent.BomNo);
         Assert.IsTrue(fixture.GraphReads > 0);
         fixture.AssertOwnedTransaction(1, 0);
@@ -210,10 +411,12 @@ public sealed class BomSaveEntryTests
         var fixture = new Fixture();
         var parent = fixture.Product("A", "BOM-A");
         parent.BomVersion = 2;
+        fixture.Product("STANDARD-REFERENCE", "BOM-A");
         var child = fixture.Product("B");
         fixture.Line(parent, child, 1);
         var history = fixture.Line(parent, child, 1);
-        history.BomVersion = 1;
+        history.BomNo = "ARCHIVE";
+        history.BomVersion = 2;
         var before = fixture.PersistedState();
         var result = await fixture.Service.DeleteBomByBomNoAsync("BOM-A");
         Assert.IsFalse(result.Success);
@@ -283,6 +486,8 @@ public sealed class BomSaveEntryTests
     /// <summary>场景局部仓储通过代理仅实现保存内核实际调用，任何未声明调用失败；持久数据与查询对象分离。</summary>
     private sealed class Fixture
     {
+        /// <summary>指定事实读取后发生版本变化的父项，仅用于验证后续定点锁检测，不模拟数据库并发。</summary>
+        public Guid? ChangeParentVersionAfterFacts;
         public readonly Dictionary<Guid, Product> Products = [];
         public readonly Dictionary<Guid, Bom> Rows = [];
         public readonly List<(string Operation, Bom Row, bool Soft)> Writes = [];
@@ -304,7 +509,7 @@ public sealed class BomSaveEntryTests
             Service = new(bom, product, new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 
-        /// <summary>新增场景产品，BOM 数值仅表示当前兼容版本，不建立版本发布流程。</summary>
+        /// <summary>新增场景产品，BOM 正数仅表示有效引用，不建立版本分组或发布流程。</summary>
         public Product Product(string sku, string? bomNo = null)
         {
             var row = new Product { Uid = Guid.NewGuid(), Sku = sku, BomNo = bomNo, BomVersion = bomNo is null ? 0 : 1, SupplyType = "采购" };
@@ -312,10 +517,10 @@ public sealed class BomSaveEntryTests
             return row;
         }
 
-        /// <summary>建立持久组成夹具，调用方可显式设历史版本；不提前执行被测结构校验。</summary>
+        /// <summary>建立标准标记为一的物理组成，调用方可显式设置异常旧事实，不提前执行结构校验。</summary>
         public Bom Line(Product parent, Product child, int number)
         {
-            var row = new Bom { Uid = Guid.NewGuid(), BomNo = parent.BomNo!, BomVersion = parent.BomVersion,
+            var row = new Bom { Uid = Guid.NewGuid(), BomNo = parent.BomNo!, BomVersion = 1,
                 ParentProductId = parent.Uid, ParentSkuSnapshot = parent.Sku, ComponentProductId = child.Uid,
                 ComponentSkuSnapshot = child.Sku, LineNumber = number, Numerator = 1, Denominator = 1 };
             Rows.Add(row.Uid, row);
@@ -378,14 +583,21 @@ public sealed class BomSaveEntryTests
                     GraphReads++;
                     return Task.FromResult<IReadOnlyList<Bom>>(Rows.Values.Where(row => !row.IsDeleted && row.ParentProductId.HasValue
                         && Products.TryGetValue(row.ParentProductId.Value, out var parent) && !parent.IsDeleted && row.BomVersion == parent.BomVersion).Select(Clone).ToArray());
+                case nameof(IBomRepository.GetSharedSaveFactsAsync):
+                    GraphReads++;
+                    Assert.IsTrue((bool)args[1]!, "组成保存须以更新锁读取共享事实。");
+                    var facts = SharedBomTestFacts.Build(Products.Values, Rows.Values, (IReadOnlyList<string>)args[0]!);
+                    // 注入事实读取之后、父项定点锁之前的并发变更；不模拟数据库锁实现。
+                    if (ChangeParentVersionAfterFacts.HasValue) Products[ChangeParentVersionAfterFacts.Value].Version++;
+                    return Task.FromResult(facts);
                 case nameof(IBomRepository.GetByBomNoAndVersionAsync):
                     return Task.FromResult<IReadOnlyList<Bom>>(Rows.Values.Where(row => !row.IsDeleted && row.BomNo == (string)args[0]!
                         && row.BomVersion == (int)args[1]!).Select(Clone).ToArray());
                 case nameof(IBomRepository.GetBomByBomNoAsync):
-                    // 与真实仓储一致，仅返回父产品当前有效版本，历史行不能成为按号删除的候选。
+                    // 按编号及有效引用者选物理行，来源父和父正标记不决定组成归属。
                     return Task.FromResult<IEnumerable<Bom>>(Rows.Values.Where(row => !row.IsDeleted && row.BomNo == (string)args[0]!
-                        && row.ParentProductId.HasValue && Products.TryGetValue(row.ParentProductId.Value, out var parent)
-                        && !parent.IsDeleted && row.BomNo == parent.BomNo && row.BomVersion == parent.BomVersion).Select(Clone).ToArray());
+                        && Products.Values.Any(parent => !parent.IsDeleted && parent.BomVersion > 0
+                            && row.BomNo == parent.BomNo)).Select(Clone).ToArray());
                 case nameof(IBomRepository.AddAsync):
                     var added = Clone((Bom)args[0]!);
                     Writes.Add((name, Clone(added), false));
@@ -439,8 +651,10 @@ public sealed class BomSaveEntryTests
     {
         public int Begins;
         public TransactionStub? Last;
+        public bool FailCommitBefore;
+        public bool FailCommitAfter;
         /// <summary>建立场景事务并记录唯一归属。</summary>
-        public IDbTransaction BeginTransaction() { Begins++; return Last = new(rows, this); }
+        public IDbTransaction BeginTransaction() { Begins++; return Last = new(rows, this, FailCommitBefore, FailCommitAfter); }
         /// <summary>隔离级别重载沿用同一记录机制。</summary>
         public IDbTransaction BeginTransaction(IsolationLevel isolationLevel) => BeginTransaction();
         [AllowNull] public string ConnectionString { get; set; } = "";
@@ -455,20 +669,29 @@ public sealed class BomSaveEntryTests
     }
 
     /// <summary>只仿真持久集合回滚与提交释放计数，不声称实现数据库隔离或并发锁。</summary>
-    private sealed class TransactionStub(Dictionary<Guid, Bom> rows, IDbConnection connection) : IDbTransaction
+    private sealed class TransactionStub(Dictionary<Guid, Bom> rows, IDbConnection connection,
+        bool failCommitBefore, bool failCommitAfter) : IDbTransaction
     {
         private readonly Dictionary<Guid, Bom> _snapshot = rows.ToDictionary(pair => pair.Key, pair => Clone(pair.Value));
         public int Commits;
         public int Rollbacks;
         public int Disposals;
+        public bool IsCommitted { get; private set; }
         public IDbConnection Connection => connection;
         public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
-        /// <summary>记录成功提交；数据写入已由局部仓储执行。</summary>
-        public void Commit() => Commits++;
+        /// <summary>记录提交尝试，明确区分未提交失败与已提交但确认丢失。</summary>
+        public void Commit()
+        {
+            Commits++;
+            if (failCommitBefore) throw new InvalidOperationException("受控提交前失败");
+            IsCommitted = true;
+            if (failCommitAfter) throw new InvalidOperationException("受控提交后确认丢失");
+        }
         /// <summary>恢复完整事务快照，保留历史行和全部字段。</summary>
         public void Rollback()
         {
             Rollbacks++;
+            if (IsCommitted) return;
             rows.Clear();
             foreach (var pair in _snapshot) rows.Add(pair.Key, Clone(pair.Value));
         }

@@ -7,6 +7,8 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
 using System.Text;
+using System.Data;
+using SwiftExport.Core.Models.Products;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
@@ -17,6 +19,7 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
     private static readonly string BomTable = EntityMetadataCache.GetTableName<Bom>();
     private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
 
+    /// <summary>按编号读取共享组成及当前展示资料，每个物理行只返回一次，资格不依赖存储父身份。</summary>
     public async Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo)
     {
         var sql = $@"SELECT
@@ -28,11 +31,6 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
                         child.{nameof(Product.FeaturesZh)} AS {nameof(BomDto.Features)},
                         child.{nameof(Product.MainImage)} AS {nameof(BomDto.MainImage)}
                     FROM [{BomTable}] b
-                    INNER JOIN [{ProductTable}] parent
-                        ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
-                       AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
-                       AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
-                       AND parent.{nameof(Product.IsDeleted)} = 0
                     LEFT JOIN [{ProductTable}] child
                         ON b.{nameof(Bom.ComponentProductId)} = child.{nameof(Product.Uid)}
                        AND child.{nameof(Product.IsDeleted)} = 0
@@ -41,21 +39,22 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
                        AND color.{nameof(ProductColor.IsDeleted)} = 0
                     WHERE b.{nameof(Bom.BomNo)} = @BomNo
                       AND b.{nameof(Bom.IsDeleted)} = 0
+                      AND {OrdinaryCurrentQualification(false)}
                     ORDER BY b.{nameof(Bom.LineNumber)}, b.{nameof(Bom.Uid)}";
 
         return await Connection.QueryAsync<BomDto>(sql, new { BomNo = bomNo.Trim() }, transaction: Transaction);
     }
+    /// <summary>按编号完整读取共享组成，任意有效未删引用产品提供资格，不复制或改写存储父身份。</summary>
     public async Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo)
     {
-        var sql = $@"SELECT b.*
+        var sql = $@"SELECT
+                        b.[Uid], b.[Version], b.[IsDeleted], b.[CreatedDate], b.[CreatedBy], b.[UpdatedDate], b.[UpdatedBy],
+                        b.[BomNo], b.[BomVersion], b.[ParentProductId], b.[ParentSkuSnapshot], b.[LineNumber],
+                        b.[ComponentProductId], b.[ComponentSkuSnapshot], b.[Numerator], b.[Denominator], b.[Note]
                     FROM [{BomTable}] b
-                    INNER JOIN [{ProductTable}] parent
-                        ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
-                       AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
-                       AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
-                       AND parent.{nameof(Product.IsDeleted)} = 0
                     WHERE b.{nameof(Bom.BomNo)} = @BomNo
                       AND b.{nameof(Bom.IsDeleted)} = 0
+                      AND {OrdinaryCurrentQualification(false)}
                     ORDER BY b.{nameof(Bom.LineNumber)}, b.{nameof(Bom.Uid)}";
         return await Connection.QueryAsync<Bom>(sql, new { BomNo = bomNo.Trim() }, transaction: Transaction);
     }
@@ -129,6 +128,7 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         return [.. rows];
     }
 
+    /// <summary>分页展示共享组成，以存在性判定资格，计数和结果均不因多个引用产品放大，保留既有搜索与锁提示。</summary>
     public async Task<PagedResponseBase<BomDto>> GetPagedAsync(BomSearchRequest request)
     {
         request ??= new BomSearchRequest();
@@ -140,7 +140,7 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         parameters.Add("PageSize", pageSize);
 
         var where = new StringBuilder($@"WHERE b.{nameof(Bom.IsDeleted)} = 0
-                                          AND parent.{nameof(Product.IsDeleted)} = 0");
+                                          AND {OrdinaryCurrentQualification(true)}");
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             where.AppendLine($@"AND (
@@ -175,10 +175,6 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         }
 
         var from = $@"FROM [{BomTable}] b WITH(NOLOCK)
-                      INNER JOIN [{ProductTable}] parent WITH(NOLOCK)
-                          ON b.{nameof(Bom.ParentProductId)} = parent.{nameof(Product.Uid)}
-                         AND b.{nameof(Bom.BomNo)} = parent.{nameof(Product.BomNo)}
-                         AND b.{nameof(Bom.BomVersion)} = parent.{nameof(Product.BomVersion)}
                       LEFT JOIN [{ProductTable}] child WITH(NOLOCK)
                           ON b.{nameof(Bom.ComponentProductId)} = child.{nameof(Product.Uid)}
                          AND child.{nameof(Product.IsDeleted)} = 0
@@ -215,19 +211,77 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
         };
     }
 
+    /// <summary>仅供三个普通读取入口判定共享资格，保留分页原锁提示；数值相等只是临时兼容校验，不代表业务选版。</summary>
+    private static string OrdinaryCurrentQualification(bool withNoLock) => $@"EXISTS (
+        SELECT 1 FROM [{ProductTable}] parent {(withNoLock ? "WITH(NOLOCK)" : "")}
+        WHERE b.[BomNo] = parent.[BomNo] AND parent.[IsDeleted] = 0 AND parent.[BomVersion] > 0
+          AND b.[BomVersion] = parent.[BomVersion])";
+
+    /// <summary>在调用方事务中单语句读取共享保存事实，由数据库分组编号；保留全部未删组成和正标记产品，不预先掩盖异常标记。</summary>
+    public Task<IReadOnlyList<SharedBomGroup>> GetSharedSaveFactsAsync(IReadOnlyList<string> requestedBomNos, bool withUpdLock = true)
+    {
+        ArgumentNullException.ThrowIfNull(requestedBomNos);
+        var transaction = Transaction ?? throw new InvalidOperationException("共享 BOM 保存事实必须在调用方事务内读取。");
+        var numbers = requestedBomNos.ToArray();
+        var parameters = new DynamicParameters();
+        var inputRows = new List<string>();
+        for (var index = 0; index < numbers.Length; index++)
+        {
+            parameters.Add("RequestedBomNo" + index, numbers[index], DbType.String, size: -1);
+            inputRows.Add($"({index},CAST(@RequestedBomNo{index} AS nvarchar(max)))");
+        }
+        var inputs = inputRows.Count == 0
+            ? "SELECT CAST(NULL AS int) AS InputIndex, CAST(NULL AS nvarchar(max)) AS BomNo WHERE 1=0"
+            : $"SELECT input.InputIndex,input.BomNo FROM (VALUES {string.Join(",", inputRows)}) input(InputIndex,BomNo)";
+        // Uid 必须是每个实体投影的首列，Dapper 才能识别 LEFT JOIN 的空实体。
+        var bomColumns = SharedFactColumns(Metadata, "b");
+        var productColumns = SharedFactColumns(EntityMetadataCache.GetMetadata<Product>(), "p");
+        // 产品资料边界只读取事实，不能借复用查询扩大成全图更新锁；组成保存沿用已有保护。
+        var compositionHint = withUpdLock ? "WITH(UPDLOCK,HOLDLOCK)" : string.Empty;
+        var sql = $"""
+            WITH inputs AS ({inputs}), source AS (
+                SELECT 0 AS Kind,b0.[Uid] AS EntityUid,CAST(NULL AS int) AS InputIndex,b0.[BomNo] AS BomNo
+                FROM [{BomTable}] b0 {compositionHint} WHERE b0.[IsDeleted]=0
+                UNION ALL
+                SELECT 1,p0.[Uid],CAST(NULL AS int),p0.[BomNo]
+                FROM [{ProductTable}] p0 WHERE p0.[IsDeleted]=0 AND p0.[BomVersion]>0
+                    AND p0.[BomNo] IS NOT NULL AND LTRIM(RTRIM(p0.[BomNo]))<>N''
+                UNION ALL
+                SELECT 2,CAST(NULL AS uniqueidentifier),InputIndex,BomNo FROM inputs
+            ), ranked AS (
+                SELECT Kind,EntityUid,InputIndex,BomNo,DENSE_RANK() OVER(ORDER BY RTRIM(BomNo)) AS GroupKey FROM source
+            )
+            SELECT r.GroupKey,r.BomNo,r.Kind,r.InputIndex,{bomColumns},{productColumns}
+            FROM ranked r
+            LEFT JOIN [{BomTable}] b {compositionHint} ON r.Kind=0 AND r.EntityUid=b.[Uid]
+            LEFT JOIN [{ProductTable}] p ON r.Kind=1 AND r.EntityUid=p.[Uid]
+            ORDER BY r.GroupKey,r.Kind,r.EntityUid,r.InputIndex
+            """;
+        return BomSharedSaveFactsReader.ReadAsync(Connection, transaction, sql, parameters);
+    }
+
+    /// <summary>完整投影提供者元数据字段，Uid 显式排首且别名保留 CLR 名称供三类型映射。</summary>
+    private static string SharedFactColumns(EntityMetadata metadata, string alias) => string.Join(",", metadata.Columns
+        .OrderBy(column => column.PropertyName == "Uid" ? 0 : 1)
+        .Select(column => $"{alias}.[{column.ColumnName.Replace("]", "]]", StringComparison.Ordinal)}] AS [{column.PropertyName}]"));
+
+    /// <summary>按原始编号集合读取全部历史及软删组成，复用调用方事务；数据库筛选编号，结果按存储编号精确分组。</summary>
     public async Task<Dictionary<string, IEnumerable<Bom>>> GetBomsCollectionByBomNoListAsync(IEnumerable<string> bomNos)
     {
-        if (bomNos == null || !bomNos.Any()) return [];
+        var numbers = bomNos?.ToArray() ?? [];
+        if (numbers.Length == 0) return [];
 
-        // 【核心优化】使用 WHERE IN 进行单次查询
-        var sql = $@"SELECT * FROM [{BomTable}] WHERE {nameof(Bom.BomNo)} IN @BomNos";
+        // 输入只枚举一次且不修剪；不把普通集合读取收紧为当前结构或有效父产品查询。
+        var sql = $@"SELECT
+                        [Uid], [Version], [IsDeleted], [CreatedDate], [CreatedBy], [UpdatedDate], [UpdatedBy],
+                        [BomNo], [BomVersion], [ParentProductId], [ParentSkuSnapshot], [LineNumber],
+                        [ComponentProductId], [ComponentSkuSnapshot], [Numerator], [Denominator], [Note]
+                    FROM [{BomTable}]
+                    WHERE [BomNo] IN @BomNos
+                    ORDER BY [Uid]";
 
-        // Dapper 会自动将 IEnumerable<string> BomNos 转换为 SQL 参数列表
-
-        var allBoms = await Connection.QueryAsync<Bom>(
-                                 sql,
-                                 new { BomNos = bomNos });
-        // 使用 LINQ 将结果分组并转换为字典
+        var allBoms = await Connection.QueryAsync<Bom>(sql, new { BomNos = numbers }, transaction: Transaction);
+        // 数据库等值编号可能具有不同存储文本，不能在返回字典时合并这些原始键。
         return allBoms.GroupBy(b => b.BomNo)
                       .ToDictionary(g => g.Key, g => g.AsEnumerable());
 

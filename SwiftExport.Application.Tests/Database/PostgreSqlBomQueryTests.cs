@@ -48,7 +48,8 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.IsNull(dto.MainImage);
         Assert.AreEqual("BOM-A", fixture.Connection.Values["BomNo"]);
         var sql = BomQuerySql(fixture.Connection.Text);
-        StringAssert.Contains(sql, "innerjoinpublic.productparent");
+        StringAssert.Contains(sql, "exists(select1frompublic.productparent");
+        Assert.IsFalse(sql.Contains("b.parent_product_id=parent.uid", StringComparison.Ordinal));
         StringAssert.Contains(sql, "leftjoinpublic.productchild");
         StringAssert.Contains(sql, "leftjoinpublic.product_colorcolor");
         StringAssert.Contains(sql, "component_sku_snapshotassubsku");
@@ -71,7 +72,7 @@ public sealed partial class PostgreSqlRepositoryTests
         var repository = new PostgreSqlBomRepository(DictionaryContext(fixture));
         var current = (await repository.GetBomByBomNoAsync(" BOM-A ")).Single();
         Assert.AreEqual(4, current.BomVersion);
-        StringAssert.Contains(BomQuerySql(fixture.Connection.Text), "innerjoinpublic.productparent");
+        StringAssert.Contains(BomQuerySql(fixture.Connection.Text), "exists(select1frompublic.productparent");
         Assert.AreEqual("BOM-A", fixture.Connection.Values["BomNo"]);
         var history = (await repository.GetByBomNoAndVersionAsync(" BOM-A ", 4)).Single();
         Assert.AreEqual("snapshot", history.ComponentSkuSnapshot);

@@ -35,7 +35,7 @@ public sealed class BomSaveRollbackTests
         var result = await fixture.Service.BatchSaveAsync(fixture.MixedRequest());
 
         Assert.IsFalse(result.Success, "已回滚的批次不能返回成功回执。");
-        Assert.AreEqual(throwException ? ServiceErrorCodes.Unexpected : ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        Assert.AreEqual(throwException ? ServiceErrorCodes.Unexpected : ServiceErrorCodes.VersionConflict, result.Error.Code);
         Assert.IsNull(result.Data, "失败不能携带已撤销写入的成功回执。");
         Assert.AreEqual(failureNumber - 1, fixture.SuccessfulWrites);
         CollectionAssert.AreEqual(
@@ -152,14 +152,69 @@ public sealed class BomSaveRollbackTests
         var result = await fixture.Service.BatchSaveAsync(fixture.MixedRequest());
 
         Assert.IsFalse(result.Success);
-        Assert.AreEqual(throwException ? ServiceErrorCodes.Unexpected : ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        Assert.AreEqual(throwException ? ServiceErrorCodes.Unexpected : ServiceErrorCodes.VersionConflict, result.Error.Code);
         if (!throwException) StringAssert.Contains(result.Message, "受控乐观并发失败");
         Assert.IsNull(result.Data);
         CollectionAssert.AreEqual(new[] { "AddAsync", "UpdateAsync" }, fixture.Writes.ToArray());
         Assert.AreEqual(1, fixture.SuccessfulWrites);
         if (!failRollback) Assert.AreEqual(before, fixture.Snapshot());
+        else Assert.IsFalse(result.Message.Contains("已回滚", StringComparison.Ordinal), "回滚失败不能承诺操作已撤销。");
         Assert.IsTrue(fixture.LogCalls > 0);
         fixture.AssertTransaction(commits: 0, rollbacks: 1, connectionDisposals: failDispose ? 1 : 0);
+    }
+
+    /// <summary>提交前异常和提交后确认丢失都返回结果未知；清理多故障不能覆盖结果或再次写入，回滚不能撤销已提交事实。</summary>
+    [TestMethod]
+    [DataRow(false, false)]
+    [DataRow(true, false)]
+    [DataRow(false, true)]
+    [DataRow(true, true)]
+    public async Task BatchSave_CommitFailure_PreservesUnknownOutcomeAndActualFacts(bool committed, bool cleanupFaults)
+    {
+        var fixture = new Fixture
+        {
+            FailCommitBefore = !committed, FailCommitAfter = committed,
+            FailRollback = cleanupFaults, FailTransactionDispose = cleanupFaults,
+            FailConnectionDispose = cleanupFaults, FailLogging = cleanupFaults
+        };
+        var before = fixture.Snapshot();
+        var result = await fixture.Service.BatchSaveAsync(fixture.MixedRequest());
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.OutcomeUnknown, result.Error.Code);
+        Assert.IsNull(result.Data);
+        Assert.IsFalse(result.Message.Contains("已回滚", StringComparison.Ordinal));
+        Assert.IsFalse(result.Message.Contains("CommandId", StringComparison.OrdinalIgnoreCase));
+        CollectionAssert.AreEqual(new[] { "AddAsync", "UpdateAsync", "DeleteAsync", "DeleteAsync" }, fixture.Writes.ToArray());
+        Assert.AreEqual(4, fixture.SuccessfulWrites, "提交确认失败不能触发自动再次写入。");
+        Assert.AreEqual(committed, fixture.IsCommitted);
+        if (committed)
+        {
+            Assert.AreNotEqual(before, fixture.CommittedSnapshot);
+            Assert.AreEqual(fixture.CommittedSnapshot, fixture.Snapshot(), "回滚尝试不能伪造撤销已提交事实。");
+            Assert.AreEqual(2, fixture.Rows.Count(x => !x.IsDeleted));
+        }
+        else
+        {
+            Assert.AreEqual(before, fixture.CommittedSnapshot, "Commit 抛错前没有发生提交。");
+            if (!cleanupFaults) Assert.AreEqual(before, fixture.Snapshot());
+        }
+        Assert.IsTrue(fixture.LogCalls > 0);
+        fixture.AssertTransaction(commits: 1, rollbacks: 1, connectionDisposals: cleanupFaults ? 1 : 0);
+    }
+
+    /// <summary>非并发仓储业务失败仍保留业务阻断，不能全部提升为版本冲突。</summary>
+    [TestMethod]
+    public async Task BatchSave_OtherRepositoryFailure_RemainsBusinessBlocked()
+    {
+        var fixture = new Fixture { FailureNumber = 2, FailureCode = "WRITE_FAILED" };
+        var before = fixture.Snapshot();
+        var result = await fixture.Service.BatchSaveAsync(fixture.MixedRequest());
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code);
+        Assert.IsNull(result.Data);
+        Assert.AreEqual(before, fixture.Snapshot());
+        CollectionAssert.AreEqual(new[] { "AddAsync", "UpdateAsync" }, fixture.Writes.ToArray());
+        fixture.AssertTransaction(0, 1);
     }
 
     /// <summary>预校验拒绝后回滚或日志故障仍保留业务拒绝，不误报成技术错误，也不写入。</summary>
@@ -216,12 +271,17 @@ public sealed class BomSaveRollbackTests
         public List<string> Writes { get; } = [];
         public int FailureNumber { get; init; }
         public bool ThrowException { get; init; }
+        public string FailureCode { get; init; } = "CONCURRENCY_CONFLICT";
         public int SuccessfulWrites { get; private set; }
         public int DirectDeletes { get; private set; }
         public int GraphReads { get; private set; }
         public BomService Service { get; }
         public bool FailBegin { init => _session.MemoryConnection.FailBegin = value; }
         public bool FailRollback { init => _session.MemoryConnection.Transaction.FailRollback = value; }
+        public bool FailCommitBefore { init => _session.MemoryConnection.Transaction.FailCommitBefore = value; }
+        public bool FailCommitAfter { init => _session.MemoryConnection.Transaction.FailCommitAfter = value; }
+        public bool IsCommitted => _session.MemoryConnection.Transaction.IsCommitted;
+        public string CommittedSnapshot { get; private set; } = "";
         public bool FailTransactionDispose { init => _session.MemoryConnection.Transaction.FailDispose = value; }
         public bool FailConnectionDispose { init => _session.MemoryConnection.FailDispose = value; }
         public bool FailLogging { init => _logger.Fail = value; }
@@ -242,7 +302,12 @@ public sealed class BomSaveRollbackTests
                 ComponentSkuSnapshot = child.Sku, LineNumber = index + 1, Numerator = 1, Denominator = 1
             }).ToList();
             _session = new SessionStub();
-            _session.MemoryConnection.Transaction.OnBegin = () => _original = Rows.Select(Clone).ToList();
+            _session.MemoryConnection.Transaction.OnBegin = () =>
+            {
+                _original = Rows.Select(Clone).ToList();
+                CommittedSnapshot = Snapshot();
+            };
+            _session.MemoryConnection.Transaction.OnCommit = () => CommittedSnapshot = Snapshot();
             _session.MemoryConnection.Transaction.OnRollback = () => Rows = _original.Select(Clone).ToList();
             Service = new BomService(Proxy<IBomRepository>(BomCall), Proxy<IProductRepository>(ProductCall),
                 new ServiceBaseContext(_session, new FaultLoggerFactory(_logger)));
@@ -321,12 +386,18 @@ public sealed class BomSaveRollbackTests
                 GraphReads++;
                 return Task.FromResult<IReadOnlyList<Bom>>(Rows.Where(x => !x.IsDeleted).Select(Clone).ToArray());
             }
+            if (method == nameof(IBomRepository.GetSharedSaveFactsAsync))
+            {
+                GraphReads++;
+                Assert.IsTrue((bool)args[1]!, "组成保存必须在事务中以更新锁读取共享事实。");
+                return Task.FromResult(SharedBomTestFacts.Build(_products, Rows, (IReadOnlyList<string>)args[0]!));
+            }
             Assert.IsTrue(method is "AddAsync" or "UpdateAsync" or "DeleteAsync", $"未授权 BOM 调用：{method}");
             Writes.Add(method);
             if (Writes.Count == FailureNumber)
             {
                 if (ThrowException) throw new InvalidOperationException("受控仓储异常");
-                return Task.FromResult(RepositoryWriteResult.Fail(Guid.Empty, 1, "CONCURRENCY_CONFLICT", "受控乐观并发失败"));
+                return Task.FromResult(RepositoryWriteResult.Fail(Guid.Empty, 1, FailureCode, "受控乐观并发失败"));
             }
             SuccessfulWrites++;
             if (method == "DeleteAsync")
@@ -424,21 +495,32 @@ public sealed class BomSaveRollbackTests
     {
         public Action OnBegin { get; set; } = () => { };
         public Action OnRollback { get; set; } = () => { };
+        public Action OnCommit { get; set; } = () => { };
         public int Commits { get; private set; }
         public int Rollbacks { get; private set; }
         public int Disposals { get; private set; }
         public bool FailRollback { get; set; }
+        public bool FailCommitBefore { get; set; }
+        public bool FailCommitAfter { get; set; }
+        public bool IsCommitted { get; private set; }
         public bool FailDispose { get; set; }
         public IDbConnection? Connection => null;
         public IsolationLevel IsolationLevel => IsolationLevel.ReadCommitted;
-        /// <summary>保留集合变更并记录一次提交。</summary>
-        public void Commit() => Commits++;
+        /// <summary>区分尚未提交就失败与提交事实成立后确认丢失，记录尝试次数及真实提交快照。</summary>
+        public void Commit()
+        {
+            Commits++;
+            if (FailCommitBefore) throw new InvalidOperationException("受控提交前失败");
+            IsCommitted = true;
+            OnCommit();
+            if (FailCommitAfter) throw new InvalidOperationException("受控提交后确认丢失");
+        }
         /// <summary>记录回滚尝试；故障时不伪造已恢复，成功时恢复持久字段快照。</summary>
         public void Rollback()
         {
             Rollbacks++;
             if (FailRollback) throw new InvalidOperationException("受控事务回滚失败");
-            OnRollback();
+            if (!IsCommitted) OnRollback();
         }
         /// <summary>记录事务资源释放尝试，并允许注入 finally 清理故障。</summary>
         public void Dispose()

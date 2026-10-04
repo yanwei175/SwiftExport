@@ -147,10 +147,11 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             : null;
     }
 
-    private async Task<string?> ValidateCustomerSuppliedAsync(ProductDto dto, Guid uid)
+    /// <summary>校验候选客供件为采购型无 BOM 物料；来源父字段不再代表归属，已有共享引用由保存边界统一保护。</summary>
+    private Task<string?> ValidateCustomerSuppliedAsync(ProductDto dto, Guid uid)
     {
         if (!string.Equals(dto.MaterialType, SwiftExport.Contracts.SysEnums.StaticEnums.MaterialTypesEnum.客供件, StringComparison.Ordinal))
-            return null;
+            return Task.FromResult<string?>(null);
         var product = new Product
         {
             Uid = uid,
@@ -160,8 +161,7 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             BomVersion = dto.BomVersion,
             BomNo = dto.BomNo
         };
-        var hasBom = await bomRepository.HasActiveBomForProductAsync(uid, dto.BomNo);
-        return CustomerSuppliedMaterialPolicy.ValidateProduct(product, hasBom);
+        return Task.FromResult(CustomerSuppliedMaterialPolicy.ValidateProduct(product, false));
     }
 
 
