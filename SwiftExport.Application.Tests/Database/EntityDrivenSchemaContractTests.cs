@@ -55,7 +55,9 @@ public sealed class EntityDrivenSchemaContractTests
         var files = Directory.EnumerateFiles(generatedDirectory, "*.sql", SearchOption.AllDirectories)
             .Select(file => Path.GetRelativePath(generatedDirectory, file))
             .ToArray();
-        CollectionAssert.AreEqual(new[] { "SwiftExport.Schema.sql" }, files);
+        CollectionAssert.AreEquivalent(new[] { "SwiftExport.Schema.sql", "SwiftExport.PostgreSql.Schema.preview.sql" }, files);
+        Assert.AreEqual(Normalize(new PostgreSqlSchemaGenerator().Generate(typeof(BaseEntity).Assembly)),
+            Normalize(File.ReadAllText(Path.Combine(generatedDirectory, "SwiftExport.PostgreSql.Schema.preview.sql"))));
         var copyPath = Path.Combine(root, "SwiftExport.Infrastructure", "Database", "主数据跨库复制.sql");
         Assert.IsTrue(File.Exists(copyPath));
         Assert.IsFalse(Path.GetFullPath(copyPath).StartsWith(Path.GetFullPath(generatedDirectory) + Path.DirectorySeparatorChar,

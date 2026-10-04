@@ -13,8 +13,9 @@ public class DbSession : IDbSession, IDisposable
     public IDbConnection Connection { get; }
     /// <summary>最外层业务用例拥有的当前事务。</summary>
     public IDbTransaction? Transaction { get; set; }
-    /// <summary>当前 SQL Server 实现的异常分类器。</summary>
-    public IDatabaseExceptionClassifier Errors => SqlServerExceptionClassifier.Instance;
+    private readonly IDatabaseExceptionClassifier? _errors;
+    /// <summary>连接工厂提供的分类器；兼容既有无构造测试替身的SQL Server默认值。</summary>
+    public IDatabaseExceptionClassifier Errors => _errors ?? SqlServerExceptionClassifier.Instance;
 
     /// <summary>保留现有工具和测试的配置构造入口，连接创建统一委托工厂。</summary>
     public DbSession(IConfiguration configuration)
@@ -25,6 +26,7 @@ public class DbSession : IDbSession, IDisposable
     /// <summary>打开工厂连接；打开失败时释放已创建资源并保留原始异常。</summary>
     public DbSession(IDbConnectionFactory factory)
     {
+        _errors = factory.Errors;
         Connection = factory.CreateConnection();
         try { Connection.Open(); }
         catch

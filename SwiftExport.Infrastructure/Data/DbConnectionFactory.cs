@@ -6,6 +6,9 @@ namespace SwiftExport.Infrastructure.Data;
 /// <summary>创建尚未打开的连接；会话负责打开和释放，提供者选择留在基础设施层。</summary>
 public interface IDbConnectionFactory
 {
+    /// <summary>与连接配套的异常分类器；既有SQL Server工厂和测试替身保持默认行为。</summary>
+    SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => SqlServerExceptionClassifier.Instance;
+
     /// <summary>创建独立连接，所有权移交给调用会话。</summary>
     IDbConnection CreateConnection();
 }

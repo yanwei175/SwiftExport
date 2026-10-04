@@ -19,8 +19,6 @@ public sealed class SqlServerSchemaGenerator
         @"\bFOREIGN\s+KEY\b|\bREFERENCES\b",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    private readonly NullabilityInfoContext _nullability = new();
-
     /// <summary>验证并生成给定实体程序集的完整空库结构脚本。</summary>
     public string Generate(Assembly entityAssembly)
     {
@@ -403,64 +401,9 @@ public sealed class SqlServerSchemaGenerator
             ? null
             : Regex.Replace(value.Trim(), @"\s+", " ", RegexOptions.CultureInvariant);
 
-    private string ResolveStoreType(PropertyInfo property)
-    {
-        var explicitType = property.GetCustomAttribute<DbColumnAttribute>(true)?.StoreType
-            ?? property.GetCustomAttribute<ColumnAttribute>()?.TypeName;
-        if (!string.IsNullOrWhiteSpace(explicitType)) return explicitType;
+    private static string ResolveStoreType(PropertyInfo property) => EntityColumnSchema.ResolveStoreType(property);
 
-        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-        if (type.IsEnum) return "int";
-        if (type == typeof(Guid)) return "uniqueidentifier";
-        if (type == typeof(int)) return "int";
-        if (type == typeof(long)) return "bigint";
-        if (type == typeof(short)) return "smallint";
-        if (type == typeof(byte)) return "tinyint";
-        if (type == typeof(bool)) return "bit";
-        if (type == typeof(DateTime)) return "datetime2(7)";
-        if (type == typeof(DateTimeOffset)) return "datetimeoffset(7)";
-        if (type == typeof(decimal)) return ResolveDecimalType(property.Name);
-        if (type == typeof(double)) return "float";
-        if (type == typeof(byte[])) return "varbinary(max)";
-        if (type == typeof(string)) return $"nvarchar({ResolveStringLength(property.Name)})";
-        throw new InvalidOperationException($"属性 {property.DeclaringType?.Name}.{property.Name} 缺少可用的数据库列类型。");
-    }
-
-    private static string ResolveDecimalType(string propertyName)
-        => propertyName.Contains("Rate", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Cbm", StringComparison.OrdinalIgnoreCase)
-            ? "decimal(18,6)"
-            : "decimal(18,4)";
-
-    private static string ResolveStringLength(string propertyName)
-    {
-        if (propertyName.Contains("Json", StringComparison.OrdinalIgnoreCase)) return "max";
-        if (propertyName.Contains("Remark", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Reason", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Note", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Address", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Conclusion", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Requirements", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Description", StringComparison.OrdinalIgnoreCase)) return "2000";
-        if (propertyName.Contains("Path", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Folder", StringComparison.OrdinalIgnoreCase)) return "1000";
-        if (propertyName.Contains("Fingerprint", StringComparison.OrdinalIgnoreCase)) return "128";
-        if (propertyName.Contains("Name", StringComparison.OrdinalIgnoreCase)) return "500";
-        if (propertyName.Contains("Code", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("No", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Sku", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Type", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Unit", StringComparison.OrdinalIgnoreCase)
-            || propertyName.Contains("Status", StringComparison.OrdinalIgnoreCase)) return "300";
-        return "500";
-    }
-
-    private bool IsNullable(PropertyInfo property)
-    {
-        if (Nullable.GetUnderlyingType(property.PropertyType) is not null) return true;
-        if (property.PropertyType.IsValueType) return false;
-        return _nullability.Create(property).WriteState != NullabilityState.NotNull;
-    }
+    private static bool IsNullable(PropertyInfo property) => EntityColumnSchema.IsNullable(property);
 
     private static IReadOnlyList<PropertyInfo> GetMappedProperties(Type entity)
         => EntityMetadataCache.GetMetadata(entity).Columns.Select(column => column.Property).ToArray();

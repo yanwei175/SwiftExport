@@ -3,8 +3,22 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.DatabaseSchema;
 
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
-var outputPath = Path.Combine(repositoryRoot, "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
-var generated = new SqlServerSchemaGenerator().Generate(typeof(BaseEntity).Assembly);
+// 提供者选择仅用于生成本地文件；工具从不连接数据库，默认仍生成SQL Server基线。
+var provider = "sqlserver";
+for (var index = 0; index < args.Length; index++)
+{
+    if (args[index] == "--verify") continue;
+    if (args[index] != "--provider" || index + 1 >= args.Length)
+        throw new ArgumentException("仅支持 --verify 和 --provider sqlserver|postgresql。");
+    provider = args[++index].ToLowerInvariant();
+    if (provider is not "sqlserver" and not "postgresql")
+        throw new ArgumentException("未知数据库提供者。");
+}
+var outputPath = Path.Combine(repositoryRoot, "SwiftExport.Infrastructure", "Database", "Generated",
+    provider == "postgresql" ? "SwiftExport.PostgreSql.Schema.preview.sql" : "SwiftExport.Schema.sql");
+var generated = provider == "postgresql"
+    ? new PostgreSqlSchemaGenerator().Generate(typeof(BaseEntity).Assembly)
+    : new SqlServerSchemaGenerator().Generate(typeof(BaseEntity).Assembly);
 var verify = args.Any(argument => string.Equals(argument, "--verify", StringComparison.OrdinalIgnoreCase));
 
 if (verify)

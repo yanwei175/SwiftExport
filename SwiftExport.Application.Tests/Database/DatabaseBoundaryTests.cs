@@ -128,9 +128,22 @@ public sealed class DatabaseBoundaryTests
             null, [typeof(SqlErrorCollection), typeof(string)], null)!.Invoke(null, [errors, "test"])!;
     }
 
-    /// <summary>替身连接工厂，不读取环境配置。</summary>
-    private sealed class Factory(ConnectionStub connection) : IDbConnectionFactory
+    /// <summary>提供者分类器随工厂进入原会话，不引入第二条连接或事务。</summary>
+    [TestMethod]
+    public void PostgreSqlClassifier_FollowsFactoryIntoSharedSession()
     {
+        var connection = new ConnectionStub();
+        using var session = new DbSession(new Factory(connection, PostgreSqlExceptionClassifier.Instance));
+        Assert.AreSame(PostgreSqlExceptionClassifier.Instance, session.Errors);
+        session.Transaction = connection.BeginTransaction();
+        Assert.AreSame(connection, session.Transaction.Connection);
+        Assert.AreEqual(1, connection.Opens);
+    }
+
+    /// <summary>替身连接工厂，不读取环境配置。</summary>
+    private sealed class Factory(ConnectionStub connection, IDatabaseExceptionClassifier? errors = null) : IDbConnectionFactory
+    {
+        public IDatabaseExceptionClassifier Errors => errors ?? SqlServerExceptionClassifier.Instance;
         public IDbConnection CreateConnection() => connection;
     }
 
