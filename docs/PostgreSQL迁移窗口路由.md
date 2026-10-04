@@ -102,6 +102,24 @@ PostgreSqlIntegrationEnvironment固定校验192.168.3.12:5432/dv_next，不允�
 
 三窗均交付停止，主控读取实际代码后接管。新增两个仓储、四个测试文件，6+1方法保持原接口；构建0错误/7既有警告，相关回归65通过/5旧SQL Server实库测试未启用，新增PG仓库实库13项全通过。主控仅修正候选测试夹具的软删构造，生产SQL Server/Add语义不变。保留库前后50表/17,595行全字段摘要完全一致，结构及序列状态与备份一致，连接已释放；用户已撤销删除安排，继续保留。仓库管理写入、其他主数据和DI未切换。详细搜索比较与后续76方法盘点见现行架构报告。
 
+## 第六批：客户与供应商并行适配（2026-10-04，查询及回滚测试通过）
+
+用户明确允许按依赖并行开发、必要时新建窗口。主控确认前批已提交，codex/postgresql-main基线ed224755、启动工作区干净。当前复用三个窗口，不增加共享文件写入者：
+
+| 窗口 | 本批角色与独占写入范围 |
+|---|---|
+| [PostgreSQL迁移：账号与权限](codex://threads/01a104fe-0c00-7103-895e-c328ae8ca72a) | 客户：新增Customers/Management/PostgreSqlCustomerRepository及必要SalesOrderDetail partial、PostgreSqlCustomerMigrationTests.cs/.Integration.cs |
+| [PostgreSQL迁移：币种与汇率](codex://threads/01a104fe-288c-7603-9010-8516f9a8fdeb) | 供应商：新增Suppliers/Management/PostgreSqlSupplierRepository、PostgreSqlSupplierMigrationTests.cs/.Integration.cs |
+| [PostgreSQL迁移：Excel读取配置](codex://threads/01a104fe-46c2-7522-9178-151e38333dd5) | 只读复核编码比较/唯一索引及下一批分类颜色引用锁，无写入范围 |
+
+主控独占公共比较设计、生成器/索引方案、连接入口、文档与串行验收。两个实现依赖已有接口和PG基类，保留普通更新不写IsActive及每方法软删/Trim/投影差异；不改Application、Contracts、SQL Server仓储或DI。执行窗不构建、连库、执行DDL、提交或推送。新增实库测试统一PostgreSqlPartyIntegration，保留库仅构造本事务随机客户/供应商数据后回滚。
+
+现已只读核验两端：SQL Server两个活动编码唯一索引使用Chinese_PRC_CI_AS；PG同名索引仍直接按原列比较。客户/供应商代码可并行实现，但编码等值查询与唯一索引的兼容验收是共同前置条件；不得仅查询COLLATE通过就注册写入仓储。rtrim+既有ICU表达式是待评审方案，任何已部署索引变更由主控给出具体影响和回退后取得确认，执行窗不自行实施。分类/颜色及后续产品引用链暂不并行写入，先解决缺失行和新增引用竞争。
+
+三个窗口均已交付并明确停止写入，主控接管后构建0错误/7条既有警告，相关离线回归72项全部通过（本批新增13项）；客户11项、供应商4项PG实库测试全部通过。保留专用库前后50表/17,595行全字段摘要一致，无新增残留。供应商报告再次被自动审批拒绝，主控已主动读取完整最终交付，无需重复发送。未改共享接口、Application、SQL Server仓储、DI或数据库结构，两个新仓储尚未接入运行。
+
+主控对dv_next按拟议rtrim+ICU规则只读预检，两表活动编码冲突组均为0；这不代表唯一索引已调整。ICU与源排序规则已知存在U+200B等Unicode比较差异，扩大到唯一约束前须明确接受边界；具体专用库候选变更范围及回退见现行架构报告，尚未执行。下一批分类/颜色不能使用DISTINCT加FOR UPDATE，也不能以行锁声称覆盖未来新增引用；相关写入口共享锁协议仍待审查。
+
 ## 后续依赖队列
 
 - 主数据：仓库Query/Candidate只读已验收，管理写入待适配。下一批客户/供应商先确认编码比较与唯一约束兼容，再推进分类/颜色、型号/中性、目录、双方产品关系和BOM；客户PO配置可在双方及币种就绪后独立推进。引用冻结、缺失行竞争和锁语义不以FOR UPDATE机械替换。
