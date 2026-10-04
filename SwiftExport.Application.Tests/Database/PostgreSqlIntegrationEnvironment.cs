@@ -6,6 +6,48 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>限制集成测试只连接用户确认的测试库；不提供默认凭据，不初始化或清理数据库。</summary>
 internal static class PostgreSqlIntegrationEnvironment
 {
+    /// <summary>读取用户保留的第四批专用测试库；后续切片按各自授权使用，不允许降级到原库或备份。</summary>
+    internal static string GetFailureConnectionString()
+    {
+        var connection = Environment.GetEnvironmentVariable("SWIFTEXPORT_PG_FAILURE_TEST_CONNECTION");
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_FAILURE_TESTS") != "1"
+            || string.IsNullOrWhiteSpace(connection))
+            Assert.Inconclusive("未配置已保留的专用测试库；本项未运行。");
+        NpgsqlConnectionStringBuilder settings;
+        try { settings = new NpgsqlConnectionStringBuilder(connection); }
+        catch (ArgumentException)
+        {
+            Assert.Fail("专用故障测试连接格式无效。");
+            throw;
+        }
+        Assert.AreEqual("192.168.3.12", settings.Host);
+        Assert.AreEqual(5432, settings.Port);
+        Assert.AreEqual("dv_next_pg_failure_tests_20261004", settings.Database);
+        Assert.IsTrue(string.IsNullOrEmpty(settings.SearchPath) || settings.SearchPath == "public");
+        return connection!;
+    }
+
+    /// <summary>提交回执的实库场景只允许用户批准的专用库；与原 dv_next 测试入口严格分离。</summary>
+    internal static string GetCommandConnectionString()
+    {
+        var connection = Environment.GetEnvironmentVariable("SWIFTEXPORT_PG_COMMAND_TEST_CONNECTION");
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_COMMAND_TESTS") != "1"
+            || string.IsNullOrWhiteSpace(connection))
+            Assert.Inconclusive("未显式配置本批专用命令测试库；本项未运行。");
+        NpgsqlConnectionStringBuilder settings;
+        try { settings = new NpgsqlConnectionStringBuilder(connection); }
+        catch (ArgumentException)
+        {
+            Assert.Fail("专用命令测试连接格式无效。");
+            throw;
+        }
+        Assert.AreEqual("192.168.3.12", settings.Host, "专用测试实例不匹配。");
+        Assert.AreEqual(5432, settings.Port, "专用测试端口不匹配。");
+        Assert.AreEqual("dv_next_pg_command_tests_20261004", settings.Database, "提交回执测试必须使用本批获批专用库。");
+        Assert.IsTrue(string.IsNullOrEmpty(settings.SearchPath) || settings.SearchPath == "public", "专用测试不能替换 schema。");
+        return connection!;
+    }
+
     /// <summary>读取显式启用的测试连接并校验目标；未配置时标记未运行，目标不符时失败且不输出连接内容。</summary>
     internal static string GetConnectionString()
     {

@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Core.Entities.Commands;
 using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Infrastructure.Contexts;
@@ -9,14 +10,19 @@ using SwiftExport.Infrastructure.Repositories.Base;
 namespace SwiftExport.Infrastructure.Repositories.Commands;
 
 /// <summary>在共享 PostgreSQL 事务内锁定命令身份并追加不可变回执；不接管调用方事务。</summary>
-public sealed class PostgreSqlCommandReceiptRepository(RepositoryBaseContext context) : ICommandReceiptRepository
+public sealed class PostgreSqlCommandReceiptRepository(RepositoryBaseContext context) : ICommandReceiptRepository, ICommandTransactionPreparation
 {
     private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(CommandReceipt));
     private static readonly string Table = $"{PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}";
     private static readonly string Projection = string.Join(", ", Metadata.Columns.Select(column =>
         $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
 
-    /// <summary>委托共享事务命令锁；仅支持 ReadCommitted 及等效 ReadUncommitted，更高隔离级别因旧快照风险明确拒绝。</summary>
+    /// <summary>事务开始前获取同连接命令租约，竞争耗尽返回空；调用方必须在事务释放后释放租约。</summary>
+    public Task<IAsyncDisposable?> AcquireBeforeTransactionAsync(Guid commandId, CancellationToken token) =>
+        PostgreSqlCommandLock.AcquireBeforeTransactionAsync(context.Session, commandId,
+            context.LoggerFactory.CreateLogger<PostgreSqlCommandReceiptRepository>(), token);
+
+    /// <summary>验证同身份事务前租约；没有租约时仅支持 ReadCommitted 及等效 ReadUncommitted。</summary>
     public Task<int> LockAsync(Guid commandId, CancellationToken token) =>
         PostgreSqlCommandLock.AcquireAsync(context.Session, commandId, token);
 

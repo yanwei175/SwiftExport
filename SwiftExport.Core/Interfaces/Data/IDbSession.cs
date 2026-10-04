@@ -38,5 +38,9 @@ public enum DatabaseFailureKind
     /// <summary>现有入库来源或反向历史未核实，无法计算可靠收货量。</summary>
     UnverifiedReceiptHistory,
     /// <summary>操作已取消，仍需结合调用方令牌处理。</summary>
-    Canceled
+    Canceled,
+    /// <summary>数据库因序列化冲突终止事务，不等同 ExpectedVersion 冲突，不表示允许自动重试。</summary>
+    SerializationFailure,
+    /// <summary>服务端取消了语句；仅凭此类别无法区分调用方取消、服务端超时或管理员取消。</summary>
+    ServerQueryCanceled
 }

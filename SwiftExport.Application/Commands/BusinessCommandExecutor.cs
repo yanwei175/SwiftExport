@@ -36,8 +36,19 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
         var fingerprint = Convert.ToHexString(SHA256.HashData(CanonicalBytes(
             new { FingerprintVersion, ActorUid = actorUid, CommandType = commandType,
                 RequestTargetUid = targetUid, BusinessInput = businessInput })));
+        // 需要快照前互斥的实现先取得租约；SQL Server 没有此可选能力，仍在原事务内取得命令锁。
+        IAsyncDisposable? lease = null;
+        if (receipts is ICommandTransactionPreparation preparation)
+        {
+            lease = await preparation.AcquireBeforeTransactionAsync(commandId, token);
+            if (lease is null)
+                throw new BusinessCommandException(ServiceErrorCodes.CommandBusy, "命令正在执行，请使用原 CommandId 重试。", "CommandId");
+        }
+        // 声明顺序保证业务事务先释放，再释放准备租约；BeginTransaction 失败也不会遗留租约。
+        await using var preparedCommand = lease;
+        token.ThrowIfCancellationRequested();
         // 单据可声明原有隔离级别；未指定时保留现有命令的连接默认隔离行为。
-        using var transaction = isolationLevel.HasValue
+        var transaction = isolationLevel.HasValue
             ? context.Session.Connection.BeginTransaction(isolationLevel.Value)
             : context.Session.Connection.BeginTransaction();
         context.Session.Transaction = transaction;
@@ -85,8 +96,7 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
             try { transaction.Commit(); }
             catch (Exception ex)
             {
-                context.LoggerFactory.CreateLogger<BusinessCommandExecutor>().LogError(ex,
-                    "命令 {CommandType}/{CommandId} 提交结果无法确认。", commandType, commandId);
+                TryLogFailure(LogLevel.Error, ex, commandType, commandId, "提交结果无法确认");
                 throw new BusinessCommandException(ServiceErrorCodes.OutcomeUnknown,
                     "命令提交结果无法确认，请使用原 CommandId 查询或重试。");
             }
@@ -98,12 +108,36 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
             try { if (transaction.Connection is not null) transaction.Rollback(); }
             catch (Exception ex)
             {
-                context.LoggerFactory.CreateLogger<BusinessCommandExecutor>().LogWarning(ex,
-                    "命令 {CommandType}/{CommandId} 回滚清理失败。", commandType, commandId);
+                TryLogFailure(LogLevel.Warning, ex, commandType, commandId, "回滚清理失败");
             }
             throw;
         }
-        finally { context.Session.Transaction = null; }
+        finally
+        {
+            // Dispose 只是清理，不能覆盖原异常或已确认的提交结果；失败时关闭连接，避免未结束事务继续使用。
+            try { transaction.Dispose(); }
+            catch (Exception ex)
+            {
+                TryLogFailure(LogLevel.Error, ex, commandType, commandId, "事务释放失败，关闭连接");
+                try { context.Session.Connection.Dispose(); }
+                catch (Exception closeError)
+                {
+                    TryLogFailure(LogLevel.Error, closeError, commandType, commandId, "连接释放失败");
+                }
+            }
+            finally { context.Session.Transaction = null; }
+        }
+    }
+
+    /// <summary>错误诊断尽力记录；日志提供者失效不得改变命令结果或阻止数据库清理。</summary>
+    private void TryLogFailure(LogLevel level, Exception exception, string commandType, Guid commandId, string phase)
+    {
+        try
+        {
+            context.LoggerFactory.CreateLogger<BusinessCommandExecutor>().Log(level, exception,
+                "命令 {CommandType}/{CommandId} {Phase}。", commandType, commandId, phase);
+        }
+        catch { /* 不通过同一失效日志管道再次记录，保留命令原始结果。 */ }
     }
 
     /// <summary>按属性名固定对象顺序，并消除等值 decimal 的尾随零；数组顺序保持业务原义。</summary>
