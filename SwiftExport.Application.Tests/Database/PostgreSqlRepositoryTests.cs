@@ -177,6 +177,8 @@ public sealed partial class PostgreSqlRepositoryTests
         public int TransactionDisposals;
         public Func<int>? ExecuteWrite;
         public DataTable Rows = new();
+        /// <summary>仅多结果集测试显式设置；其余测试继续使用原单表数据，不改变已有夹具行为。</summary>
+        public DataTable[]? ResultSets;
         [AllowNull] public override string ConnectionString { get; set; } = "";
         public override string Database => "in-memory-test";
         public override string DataSource => "none";
@@ -217,7 +219,7 @@ public sealed partial class PostgreSqlRepositoryTests
             public override int ExecuteNonQuery() { Capture(); return connection.ExecuteWrite?.Invoke() ?? 1; }
             public override object ExecuteScalar() { Capture(); return 1; }
             protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
-            { Capture(); return connection.Rows.CreateDataReader(); }
+            { Capture(); return connection.ResultSets is null ? connection.Rows.CreateDataReader() : new DataTableReader(connection.ResultSets); }
             private void Capture()
             {
                 connection.Text = CommandText;

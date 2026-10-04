@@ -15,6 +15,7 @@ using SwiftExport.Core.Interfaces;
 using System.Text;
 namespace SwiftExport.Application.Services.Products.Colors;
 
+/// <summary>维护颜色资料，删除时保护有效产品和中性产品引用。</summary>
 public partial class ProductColorService(IProductColorRepository repository, ServiceBaseContext context)
     : BaseService<ProductColor, ProductColorDto>(repository, context), IProductColorService
 {
@@ -175,7 +176,7 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         var deleteIds = request.DeleteItems.Select(item => item.Uid).Distinct().ToArray();
         var referencedIds = await repository.GetReferencedColorIdsAsync(deleteIds);
         if (referencedIds.Count > 0)
-            errors.AppendLine("删除失败：以下产品颜色仍被产品引用：" + string.Join(", ", referencedIds));
+            errors.AppendLine("删除失败：以下产品颜色仍被产品或中性产品引用：" + string.Join(", ", referencedIds));
 
         return errors.Length == 0 ? null : errors.ToString().Trim();
     }

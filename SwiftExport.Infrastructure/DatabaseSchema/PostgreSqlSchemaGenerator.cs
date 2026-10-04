@@ -31,9 +31,13 @@ public sealed class PostgreSqlSchemaGenerator
         sql.AppendLine("DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','v','m','S','f')) THEN RAISE EXCEPTION '目标数据库不是空库，拒绝生成基线'; END IF; END $$;");
         var sequences = entities.SelectMany(t => Map(t).Columns).Select(c => c.Property.GetCustomAttribute<DbSequenceAttribute>()).OfType<DbSequenceAttribute>().GroupBy(s => s.Name).OrderBy(g => g.Key, StringComparer.Ordinal);
         if (entities.Any(t => IsDictionary(t) || t == typeof(SwiftExport.Core.Entities.MasterData.Customer)
-                || t == typeof(SwiftExport.Core.Entities.MasterData.Supplier)))
+                || t == typeof(SwiftExport.Core.Entities.MasterData.Supplier)
+                || t == typeof(SwiftExport.Core.Entities.MasterData.ProductCategory)
+                || t == typeof(SwiftExport.Core.Entities.MasterData.ProductColor)
+                || t == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)
+                || t == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)))
         {
-            // 已批准字典及客户/供应商编码使用此规则；不将全部主数据列隐式改为 ICU。
+            // 已批准字典及客户/供应商/分类/颜色/型号/中性编码使用此规则；不将全部主数据列隐式改为 ICU。
             sql.AppendLine("CREATE COLLATION public.erp_dictionary_ci (provider = icu, locale = 'und-u-ks-level2', deterministic = false);");
             // 将源库只读核验的常见比较样例放入目标初始化事务，ICU版本不满足时拒绝继续建表。
             sql.AppendLine("""
@@ -90,7 +94,7 @@ END $$;
         return sql.ToString().Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
-    /// <summary>列级比较规则仅用于两个字典实体；客户、供应商只调整指定编码索引。</summary>
+    /// <summary>列级比较规则仅用于两个字典实体；其他已批准实体只调整指定编码索引。</summary>
     private static bool IsDictionary(Type entity) => entity == typeof(SwiftExport.Core.Entities.Systems.Dictionaries.Types.SysDictType)
         || entity == typeof(SwiftExport.Core.Entities.Systems.Dictionaries.Data.SysDictData);
 
@@ -98,11 +102,19 @@ END $$;
     private static string IndexColumn(Type entity, DbIndexAttribute index, string property)
     {
         if (IsDictionary(entity) && property == "DictCode") return $"rtrim({Column(entity, property)}, ' ')";
-        var partyCode = entity == typeof(SwiftExport.Core.Entities.MasterData.Customer)
+        var approvedCode = entity == typeof(SwiftExport.Core.Entities.MasterData.Customer)
                 && index.Name == "UX_Customer_CustomerCode" && property == "CustomerCode"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.Supplier)
-                && index.Name == "UX_Supplier_SupplierCode" && property == "SupplierCode";
-        return partyCode ? $"(rtrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)" : Column(entity, property);
+                && index.Name == "UX_Supplier_SupplierCode" && property == "SupplierCode"
+            || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductCategory)
+                && index.Name == "UX_ProductCategory_CategoryCode" && property == "CategoryCode"
+            || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductColor)
+                && index.Name == "UX_ProductColor_ColorCodeUnique" && property == "ColorCodeUnique"
+            || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)
+                && index.Name == "UX_ProductMaster_MasterSku" && property == "MasterSku"
+            || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)
+                && index.Name == "UX_ProductNeutral_ProductCode" && property == "ProductCode";
+        return approvedCode ? $"(rtrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)" : Column(entity, property);
     }
 
     /// <summary>显式适配当前类型注解，未知存储类型不回退成text；UTC与业务本地时间分开。</summary>

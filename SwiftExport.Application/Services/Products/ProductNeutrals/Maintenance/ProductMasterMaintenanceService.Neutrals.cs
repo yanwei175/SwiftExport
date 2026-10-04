@@ -17,6 +17,7 @@ public sealed partial class ProductMasterMaintenanceService
             NormalizeNeutralChanges(request);
             if (!request.HasChanges)
                 throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "没有需要保存的中性产品变更。");
+            await LockNeutralColorsAsync(request, cancellationToken);
             var existing = await LoadDetailAsync(productMasterId, true, cancellationToken)
                 ?? throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "主型号不存在或已删除。");
             await ValidateNeutralChangesAsync(request, existing, cancellationToken);

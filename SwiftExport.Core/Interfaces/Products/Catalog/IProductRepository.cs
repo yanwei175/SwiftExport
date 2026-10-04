@@ -28,6 +28,7 @@ public interface IProductRepository : IRepository<Product>
         IReadOnlyCollection<Guid> productIds,
         ProductMasterSyncFields fields,
         CancellationToken cancellationToken = default);
+    /// <summary>返回未删除客户产品关系所关联的当前客户代码，关联产品和客户须未删除；保留停用记录并去重。</summary>
     Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync();
     Task<Product?> GetBySkuAsync(string sku);
     /// <summary>按产品身份读取含当前制造商与建议仓库名称的详情投影。</summary>

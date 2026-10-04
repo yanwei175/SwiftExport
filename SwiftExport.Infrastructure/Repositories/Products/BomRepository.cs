@@ -10,6 +10,7 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Products;
 
+/// <summary>实现 SQL Server BOM 组成查询与持久化，复用仓储上下文连接及调用方事务。</summary>
 public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom>(context), IBomRepository
 {
     private static readonly string ProductTable = EntityMetadataCache.GetTableName<Product>();
@@ -94,6 +95,24 @@ public class BomRepository(RepositoryBaseContext context) : DapperRepository<Bom
             sql,
             new { ProductId = productId, BomNo = string.IsNullOrWhiteSpace(bomNo) ? null : bomNo.Trim() },
             transaction: Transaction);
+    }
+
+    /// <summary>按本次产品身份读取当前父子引用，由数据库排序规则判定编号等值；完整映射实体且不增加锁。</summary>
+    public async Task<IReadOnlyList<Bom>> GetCurrentReferencesForProductsAsync(IEnumerable<Guid> productIds)
+    {
+        var ids = productIds?.Where(uid => uid != Guid.Empty).Distinct().ToArray() ?? [];
+        if (ids.Length == 0) return [];
+        var rows = await Connection.QueryAsync<Bom>($"""
+            SELECT b.[Uid], b.[Version], b.[IsDeleted], b.[CreatedDate], b.[CreatedBy], b.[UpdatedDate], b.[UpdatedBy],
+                b.[BomNo], b.[BomVersion], b.[ParentProductId], b.[ParentSkuSnapshot], b.[LineNumber],
+                b.[ComponentProductId], b.[ComponentSkuSnapshot], b.[Numerator], b.[Denominator], b.[Note]
+            FROM [{BomTable}] b
+            INNER JOIN [{ProductTable}] parent ON b.[ParentProductId]=parent.[Uid]
+                AND b.[BomNo]=parent.[BomNo] AND b.[BomVersion]=parent.[BomVersion] AND parent.[IsDeleted]=0
+            WHERE b.[IsDeleted]=0 AND (b.[ParentProductId] IN @ProductIds OR b.[ComponentProductId] IN @ProductIds)
+            ORDER BY b.[Uid]
+            """, new { ProductIds = ids }, transaction: Transaction);
+        return [.. rows];
     }
 
     public async Task<IReadOnlyList<Bom>> GetCurrentVersionBomGraphAsync()

@@ -83,12 +83,12 @@ DTO 按用例和实际消费者决定复用，至少两个真实消费者且语�
 | ID | 源码证据与事实 | 最小治理方向 |
 |---|---|---|
 | BOM-001 | SwiftExport.Application/Services/Products/BomService.cs 的 BatchSaveAsync 按当前父 BomVersion 修改行，旧行版本不符则拒绝；现有接口无修改记录查询 | 保留当前保存即生效，不误报需要版本发布；增加前后差异记录及查询，不将现有字段扩成多版本系统 |
-| BOM-002 | 同服务既有 BaseService CRUD、DeleteBomByBomNoAsync、bool ValidateBomAsync 与批量整图验证多个入口 | 核查所有写入口并统一当前结构保存内核，避免旁路；bool 校验与整图准入同口径，保留现有批量事务 |
+| BOM-002 | 2026-10-04 已批准并实现单条 Add/Update/Delete 和按号删除复用批量完整图保存内核；按号删除仅解析当前行，空结构拒绝且历史行保留。bool ValidateBomAsync 仍是独立校验入口 | 保存旁路已收口，保留现有批量事务与API/DTO；bool 校验与整图准入口径仍待统一，不将本批视为并发闭环 |
 | BOM-003 | 同服务 BuildBomTreeAsync 按 BomNo/SKU 递归，遇重复路径返回部分结果，未知组件以“未知Sku”显示；旧 by-no/tree 接口仍以编码为参数 | 结构读取与显示分离；执行快照读取须完整一致且失败明确，Uid 关系权威；更名影响联合 MD-001/003 |
 | BOM-004 | 2026-09-06 Core 已有 PurchaseConfirmationLine/Node 与采购头 ActiveConfirmationId；旧“缺确认实体”判断过期，全部消费链及事务尚需验证 | 复用现有确认依据，核对需求/独立采购与 PL 消耗接线，不创建第二套快照；行为验证后才能关闭 |
-| BOM-005 | BomService 的批量写有事务、父/行版本检查和最终图校验；SwiftExport.Application/Services/Products/BomStructureValidator.cs 已检查重复、自引用、比例和循环 | 这些能力保留；补跨父并发修改造成环、一致多层快照读取的行为证据，不能仅凭单次内存图测试认定并发闭环 |
+| BOM-005 | BomService 的批量写有事务、父/行版本检查和最终图校验；BomStructureValidator 已检查重复、自引用、比例和循环。产品单项/批量保存已统一事务并补当前BOM引用、身份及候选角色保护，当前组成归属由数据库判断 | 产品保存边界是并发实现的前置条件；跨父并发成环、产品变化与BOM保存竞争、真实需求读取一致性仍未验收，不能凭单次内存图或普通查询测试认定并发闭环 |
 
-已有 SwiftExport.Application.Tests/Products/BomStructureValidatorTests.cs 和 SwiftExport.Client.Wpf.Tests/Features/Products/BomApiContractTests.cs、BomProductLookupTests.cs、ProductAndBomListModelTests.cs 为回归起点。未运行本轮业务测试，未修复以上偏差；已有验证不可为新门禁而删除/削弱。
+已有 SwiftExport.Application.Tests/Products/BomStructureValidatorTests.cs 和 SwiftExport.Client.Wpf.Tests/Features/Products/BomApiContractTests.cs、BomProductLookupTests.cs、ProductAndBomListModelTests.cs 为回归起点。2026-10-04 新增 BomSaveEntryTests/BomSaveRollbackTests，25个保存与回滚场景连同既有19项后端BOM测试全部通过；后端构建通过。本轮未运行WPF或BOM实库并发，BOM-001/003/005及BOM-002剩余口径问题未关闭；已有验证不可为新门禁而删除/削弱。
 
 ## 7. 后续切片与验收
 

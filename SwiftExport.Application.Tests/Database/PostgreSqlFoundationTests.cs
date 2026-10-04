@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Text.RegularExpressions;
+using SwiftExport.Core.Entities.MasterData;
 using Dapper;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Npgsql;
@@ -115,6 +116,39 @@ public sealed class PostgreSqlFoundationTests
         var table = Regex.Match(script, $"CREATE TABLE \"public\".\"{tableName}\" \\((.*?)\\n\\);", RegexOptions.Singleline).Value;
         Assert.IsFalse(string.IsNullOrEmpty(table));
         Assert.IsFalse(table.Contains("COLLATE", StringComparison.Ordinal));
+    }
+
+    /// <summary>分类可空编码及颜色唯一编码仅更改索引比较，保留NULL过滤且不扩大到普通颜色码或列定义。</summary>
+    [TestMethod]
+    [DataRow("product_category", "category_code", true)]
+    [DataRow("product_color", "color_code_unique", false)]
+    public void ClassificationCodeIndex_PreservesNullAndColumnBoundaries(string tableName, string codeName, bool nullable)
+    {
+        var script = Generate();
+        var nullFilter = nullable ? $" AND \"{codeName}\" IS NOT NULL" : "";
+        StringAssert.Contains(script, $"CREATE UNIQUE INDEX \"ux_{tableName}_{codeName}\" ON \"public\".\"{tableName}\" ((rtrim(\"{codeName}\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_deleted\" = FALSE{nullFilter};");
+        var table = Regex.Match(script, $"CREATE TABLE \"public\".\"{tableName}\" \\((.*?)\\n\\);", RegexOptions.Singleline).Value;
+        Assert.IsFalse(string.IsNullOrEmpty(table));
+        Assert.IsFalse(table.Contains("COLLATE", StringComparison.Ordinal));
+        Assert.IsFalse(script.Contains("rtrim(\"color_code\"", StringComparison.Ordinal));
+        var property = nullable ? typeof(ProductCategory).GetProperty(nameof(ProductCategory.CategoryCode))!
+            : typeof(ProductColor).GetProperty(nameof(ProductColor.ColorCodeUnique))!;
+        Assert.AreEqual(nullable, EntityColumnSchema.IsNullable(property));
+    }
+
+    /// <summary>型号和中性编码仅改变指定唯一键，不改变非空列、父颜色组合唯一或列级比较。</summary>
+    [TestMethod]
+    [DataRow("product_master", "master_sku")]
+    [DataRow("product_neutral", "product_code")]
+    public void ProductCodeIndex_PreservesColumnAndCompositeRules(string tableName, string codeName)
+    {
+        var script = Generate();
+        StringAssert.Contains(script, $"CREATE UNIQUE INDEX \"ux_{tableName}_{codeName}\" ON \"public\".\"{tableName}\" ((rtrim(\"{codeName}\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_deleted\" = FALSE;");
+        var table = Regex.Match(script, $"CREATE TABLE \"public\".\"{tableName}\" \\((.*?)\\n\\);", RegexOptions.Singleline).Value;
+        StringAssert.Contains(table, $"\"{codeName}\" varchar(300) NOT NULL");
+        Assert.IsFalse(table.Contains("COLLATE", StringComparison.Ordinal));
+        StringAssert.Contains(script, "CREATE UNIQUE INDEX \"ux_product_neutral_master_color\" ON \"public\".\"product_neutral\" (\"product_master_id\", \"color_id\") WHERE \"is_deleted\" = FALSE;");
+        Assert.IsFalse(script.Contains("rtrim(\"master_sku\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_active\"", StringComparison.Ordinal));
     }
 
     /// <summary>仅转换已知行内谓词，保持字面量完整；未知SQL不能静默穿透。</summary>

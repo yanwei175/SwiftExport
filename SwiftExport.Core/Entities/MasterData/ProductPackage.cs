@@ -39,8 +39,7 @@ public partial class ProductPackage : BaseEntity
     public decimal? Gw_KG { get; set; }
 
     /// <summary>
-    /// 体积CBM (数据库计算列)
-    /// 特别注意：在EF Core中需标记为由数据库生成
+    /// 包装体积（CBM）；当前两种数据库均为普通可空数值列，由调用方提供，不自动按尺寸计算。
     /// </summary>
     public decimal? Cbm { get; set; }
 

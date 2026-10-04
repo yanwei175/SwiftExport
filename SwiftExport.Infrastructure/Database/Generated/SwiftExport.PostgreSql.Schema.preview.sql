@@ -1420,17 +1420,17 @@ CREATE UNIQUE INDEX "ux_product_sku" ON "public"."product" ("sku") WHERE "is_del
 -- 评审限制：引用冻结只检查当前可见事实；并发新增引用的锁协议尚待仓储适配，不能用于正式部署。
 CREATE FUNCTION public."fn_product_unit_frozen_on_reference"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW."unit" IS DISTINCT FROM OLD."unit" AND (EXISTS (SELECT 1 FROM "public"."inventory_ledger_entry" r WHERE r."product_id" = OLD."uid") OR EXISTS (SELECT 1 FROM "public"."purchase_order_line" r WHERE r."product_id" = OLD."uid")) THEN RAISE EXCEPTION USING ERRCODE = 'P3102', MESSAGE = '已被事实引用的字段禁止修改'; END IF; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_product_unit_frozen_on_reference" BEFORE UPDATE ON "public"."product" FOR EACH ROW EXECUTE FUNCTION public."fn_product_unit_frozen_on_reference"();
-CREATE UNIQUE INDEX "ux_product_category_category_code" ON "public"."product_category" ("category_code") WHERE "is_deleted" = FALSE AND "category_code" IS NOT NULL;
-CREATE UNIQUE INDEX "ux_product_color_color_code_unique" ON "public"."product_color" ("color_code_unique") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_product_category_category_code" ON "public"."product_category" ((rtrim("category_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE AND "category_code" IS NOT NULL;
+CREATE UNIQUE INDEX "ux_product_color_color_code_unique" ON "public"."product_color" ((rtrim("color_code_unique", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_details_product_id" ON "public"."product_detail" ("product_id") WHERE "is_deleted" = FALSE AND "product_id" IS NOT NULL;
 CREATE INDEX "ix_product_details_product_sku" ON "public"."product_detail" ("product_sku") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_master_category" ON "public"."product_master" ("category_id") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_master_default_supplier" ON "public"."product_master" ("default_supplier_id") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_product_master_master_sku" ON "public"."product_master" ("master_sku") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_product_master_master_sku" ON "public"."product_master" ((rtrim("master_sku", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_neutral_color" ON "public"."product_neutral" ("color_id") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_neutral_product_master" ON "public"."product_neutral" ("product_master_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_neutral_master_color" ON "public"."product_neutral" ("product_master_id", "color_id") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_product_neutral_product_code" ON "public"."product_neutral" ("product_code") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_product_neutral_product_code" ON "public"."product_neutral" ((rtrim("product_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_package_product_type" ON "public"."product_package" ("product_id", "package_type") WHERE "is_deleted" = FALSE AND "product_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_purchase_confirmation_line_command_line" ON "public"."purchase_confirmation_line" ("command_id", "purchase_order_line_id");
 CREATE FUNCTION public."fn_purchase_confirmation_line_append_only"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION USING ERRCODE = 'P3100', MESSAGE = '只追加事实禁止更新或删除'; RETURN NEW; END; $body$;
@@ -2180,7 +2180,7 @@ COMMENT ON COLUMN "public"."product_package"."width_cm" IS '该实体保存的�
 COMMENT ON COLUMN "public"."product_package"."height_cm" IS '该实体保存的包装高度（厘米）。';
 COMMENT ON COLUMN "public"."product_package"."nw_kg" IS '该级总净重(KG)';
 COMMENT ON COLUMN "public"."product_package"."gw_kg" IS '该级总毛重(KG)';
-COMMENT ON COLUMN "public"."product_package"."cbm" IS '体积CBM (数据库计算列) 特别注意：在EF Core中需标记为由数据库生成';
+COMMENT ON COLUMN "public"."product_package"."cbm" IS '包装体积（CBM）；当前两种数据库均为普通可空数值列，由调用方提供，不自动按尺寸计算。';
 COMMENT ON COLUMN "public"."product_package"."is_default" IS '是否为出货默认计算规格';
 COMMENT ON COLUMN "public"."product_package"."packaging_material_sku" IS '对应的包材物料号 (关联BOM)';
 COMMENT ON COLUMN "public"."product_package"."note" IS '该实体保存的业务备注。';

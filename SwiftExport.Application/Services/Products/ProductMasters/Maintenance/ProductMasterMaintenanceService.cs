@@ -253,6 +253,11 @@ public sealed partial class ProductMasterMaintenanceService(
         return await ExecuteTransactionAsync(async () =>
         {
             NormalizeDetailRequest(request);
+            // 与分类删除及颜色删除保持父资料先于主型号/明细，锁后仍重验目标版本。
+            var masterError = ValidateMaster(request.Master);
+            if (masterError is not null) throw new ProductMasterWriteException(ServiceErrorCodes.Validation, masterError);
+            await ValidateMasterReferencesAsync([request.Master], cancellationToken);
+            await LockNeutralColorsAsync(NeutralChanges(request), cancellationToken);
             var existingDetail = request.ProductMasterId == Guid.Empty
                 ? null
                 : await LoadDetailAsync(request.ProductMasterId, true, cancellationToken);
@@ -372,19 +377,18 @@ public sealed partial class ProductMasterMaintenanceService(
         if (errors.Length > 0) throw new ProductMasterWriteException(ServiceErrorCodes.Validation, errors.ToString().Trim());
     }
 
+    /// <summary>父资料已先锁定后校验编码和明细状态，避免持有主从锁后反向锁父资料。</summary>
     private async Task ValidateDetailAsync(SaveProductMasterDetailRequest request, ProductMasterDetailDto? existingDetail, CancellationToken cancellationToken)
     {
         var masterError = ValidateMaster(request.Master);
         if (masterError is not null) throw new ProductMasterWriteException(ServiceErrorCodes.Validation, masterError);
-        await ValidateMasterReferencesAsync([request.Master], cancellationToken);
-
         var masterOwners = await masterRepository.GetByMasterSkusAsync([request.Master.MasterSku], true, cancellationToken);
         if (masterOwners.Any(owner => owner.Uid != request.ProductMasterId))
             throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "主型号编码已被其他记录使用。");
         await ValidateNeutralChangesAsync(NeutralChanges(request), existingDetail, cancellationToken);
     }
 
-    /// <summary>统一校验聚合保存与独立保存的明细归属、版本、引用及最终主图状态。</summary>
+    /// <summary>在颜色引用已验证后，统一校验聚合与独立保存的明细归属、版本、编码及最终主图状态。</summary>
     private async Task ValidateNeutralChangesAsync(BatchSaveRequestBase<ProductNeutralWriteDto> request, ProductMasterDetailDto? existingDetail, CancellationToken cancellationToken)
     {
         var neutralWrites = request.CreateItems.Select(item => (Guid?)null).Zip(request.CreateItems.Select(item => item.Data), (id, data) => (Id: id, Data: data))
@@ -418,18 +422,32 @@ public sealed partial class ProductMasterMaintenanceService(
         if (neutralWrites.Any(write => neutralOwners.Any(owner => string.Equals(owner.ProductCode, write.Data.ProductCode, StringComparison.OrdinalIgnoreCase) && owner.Uid != write.Id)))
             throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "中性产品编码已被其他记录使用。");
 
-        var colorIds = neutralWrites.Select(item => item.Data.ColorId).Distinct().ToArray();
+    }
+
+    /// <summary>只锁本次新增/更新引用的颜色，必须先于主型号和中性行；删除行不新增引用，无需锁其旧颜色。</summary>
+    private async Task LockNeutralColorsAsync(BatchSaveRequestBase<ProductNeutralWriteDto> request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var writes = request.CreateItems.Select(item => item.Data).Concat(request.UpdateItems.Select(item => item.Data)).ToArray();
+        foreach (var write in writes)
+        {
+            var error = ValidateNeutral(write);
+            if (error is not null) throw new ProductMasterWriteException(ServiceErrorCodes.Validation, error);
+        }
+        var colorIds = writes.Select(item => item.ColorId).Distinct().OrderBy(id => id).ToArray();
+        if (colorIds.Length == 0) return;
         var colors = await colorRepository.GetByIdListAsync(colorIds, true);
         if (colors.Count != colorIds.Length)
             throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "颜色不存在或已删除。");
     }
 
+    /// <summary>先锁本次写入引用的有效分类及供应商；可选空标识不增加锁。</summary>
     private async Task ValidateMasterReferencesAsync(IEnumerable<ProductMasterWriteDto> masters, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var values = masters.ToArray();
         // 空 Guid 表示当前未设置可选关系；只有用户实际选择后才校验引用有效性。
-        var categoryIds = values.Select(item => item.CategoryId).Where(id => id != Guid.Empty).Distinct().ToArray();
+        var categoryIds = values.Select(item => item.CategoryId).Where(id => id != Guid.Empty).Distinct().OrderBy(id => id).ToArray();
         var supplierIds = values.Select(item => item.DefaultSupplierId).Where(id => id != Guid.Empty).Distinct().ToArray();
         if (categoryIds.Length > 0)
         {
@@ -495,11 +513,17 @@ public sealed partial class ProductMasterMaintenanceService(
         catch (Exception exception) { _logger.LogError(exception, "回滚主产品事务失败。"); }
     }
 
+    /// <summary>保留原写入失败边界，仅将仓储明确识别的编码占用映射为输入校验；组合占用仍按业务阻断处理。</summary>
     private static void EnsureWrite(RepositoryWriteResult result, string message)
     {
         if (result.Success) return;
-        var code = string.Equals(result.ErrorCode, "CONCURRENCY_CONFLICT", StringComparison.OrdinalIgnoreCase)
-            ? ServiceErrorCodes.VersionConflict : ServiceErrorCodes.BusinessBlocked;
+        var code = result.ErrorCode?.ToUpperInvariant() switch
+        {
+            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
+            "PRODUCT_MASTER_SKU_OCCUPIED" or "PRODUCT_NEUTRAL_CODE_OCCUPIED" => ServiceErrorCodes.Validation,
+            "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED" => ServiceErrorCodes.BusinessBlocked,
+            _ => ServiceErrorCodes.BusinessBlocked
+        };
         throw new ProductMasterWriteException(code, string.IsNullOrWhiteSpace(result.Message) ? message : result.Message);
     }
 

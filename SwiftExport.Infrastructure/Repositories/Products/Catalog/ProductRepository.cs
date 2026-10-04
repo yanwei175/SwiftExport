@@ -59,9 +59,19 @@ WHERE [Uid]=@ProductId AND [Version]=@ExpectedVersion AND [IsDeleted]=0;";
             : RepositoryWriteResult.Fail(productId, expectedVersion, "CONCURRENCY_CONFLICT", "产品已被其他用户修改，请刷新后重试。");
     }
 
+    /// <summary>按客户产品关系取得未删除客户的当前非空代码；产品和关系须未删除，停用记录仍保留并去重。</summary>
     public async Task<IReadOnlyList<string>> GetAllCustomerCodeListAsync()
     {
-        var sql = $"SELECT CustomerCode FROM [{TableName}] WHERE CustomerCode <> '' AND IsDeleted = 0 GROUP BY CustomerCode";
+        const string sql = """
+            SELECT DISTINCT c.CustomerCode
+            FROM dbo.Customer c
+            WHERE c.IsDeleted=0 AND c.CustomerCode<>''
+              AND EXISTS (
+                SELECT 1 FROM dbo.CustomerProduct cp
+                INNER JOIN dbo.Product p ON p.Uid=cp.SkuId AND p.IsDeleted=0
+                WHERE cp.CustomerId=c.Uid AND cp.IsDeleted=0)
+            ORDER BY c.CustomerCode
+            """;
         var rst = await Connection.QueryAsync<string>(sql, transaction: Transaction);
         return [.. rst];
     }

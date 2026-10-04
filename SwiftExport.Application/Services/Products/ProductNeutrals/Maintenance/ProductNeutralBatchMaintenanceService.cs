@@ -101,9 +101,26 @@ public sealed class ProductNeutralBatchMaintenanceService(
             throw new ProductNeutralBatchWriteException(ServiceErrorCodes.Validation, "本次提交存在重复中性产品编码。");
 
         var targetIds = updates.Concat(deletes).Distinct().ToArray();
+        // 先观察归属，不持子行锁等待父记录；锁定旧/新父集合后必须重读，禁止按过期归属写入。
+        var observed = (await repository.GetByIdListAsync(targetIds)).ToDictionary(item => item.Uid);
+        if (observed.Count != targetIds.Length)
+            throw new ProductNeutralBatchWriteException(ServiceErrorCodes.BusinessBlocked, "修改或删除的中性产品不存在或已删除。");
+        cancellationToken.ThrowIfCancellationRequested();
+        var colorIds = writes.Select(item => item.Data.ColorId).Distinct().OrderBy(id => id).ToArray();
+        var colors = await colorRepository.GetByIdListAsync(colorIds, true);
+        if (colors.Count != colorIds.Length)
+            throw new ProductNeutralBatchWriteException(ServiceErrorCodes.Validation, "颜色不存在或已删除。");
+        var requestedMasterIds = writes.Select(item => item.Data.ProductMasterId).Distinct().ToArray();
+        var masterIds = requestedMasterIds.Concat(observed.Values.Select(item => item.ProductMasterId))
+            .Where(id => id != Guid.Empty).Distinct().OrderBy(id => id).ToArray();
+        var masters = await masterRepository.GetByIdListAsync(masterIds, true);
+        if (requestedMasterIds.Except(masters.Select(item => item.Uid)).Any())
+            throw new ProductNeutralBatchWriteException(ServiceErrorCodes.Validation, "所属主型号不存在或已删除。");
         var existing = (await repository.GetByIdListAsync(targetIds, true)).ToDictionary(item => item.Uid);
         if (existing.Count != targetIds.Length)
             throw new ProductNeutralBatchWriteException(ServiceErrorCodes.BusinessBlocked, "修改或删除的中性产品不存在或已删除。");
+        if (existing.Values.Any(item => item.ProductMasterId != observed[item.Uid].ProductMasterId))
+            throw new ProductNeutralBatchWriteException(ServiceErrorCodes.BusinessBlocked, "中性产品所属主型号已变化，请刷新后重试。");
         foreach (var item in request.UpdateItems)
             if (existing[item.Uid].Version != item.Version)
                 throw new ProductNeutralBatchWriteException(ServiceErrorCodes.VersionConflict, "中性产品版本已变化，请刷新后重试。");
@@ -112,16 +129,6 @@ public sealed class ProductNeutralBatchMaintenanceService(
                 throw new ProductNeutralBatchWriteException(ServiceErrorCodes.VersionConflict, "中性产品版本已变化，请刷新后重试。");
 
         cancellationToken.ThrowIfCancellationRequested();
-        var masterIds = writes.Select(item => item.Data.ProductMasterId).Distinct().OrderBy(id => id).ToArray();
-        var masters = await masterRepository.GetByIdListAsync(masterIds, true);
-        if (masters.Count != masterIds.Length)
-            throw new ProductNeutralBatchWriteException(ServiceErrorCodes.Validation, "所属主型号不存在或已删除。");
-
-        var colorIds = writes.Select(item => item.Data.ColorId).Distinct().OrderBy(id => id).ToArray();
-        var colors = await colorRepository.GetByIdListAsync(colorIds, true);
-        if (colors.Count != colorIds.Length)
-            throw new ProductNeutralBatchWriteException(ServiceErrorCodes.Validation, "颜色不存在或已删除。");
-
         var owners = await repository.GetByProductCodesAsync(normalizedCodes, true, cancellationToken);
         foreach (var write in writes)
             if (owners.Any(owner => string.Equals(owner.ProductCode, write.Data.ProductCode, StringComparison.OrdinalIgnoreCase)
@@ -207,11 +214,17 @@ public sealed class ProductNeutralBatchMaintenanceService(
         catch (Exception exception) { _logger.LogError(exception, "回滚中性产品管理事务失败。"); }
     }
 
+    /// <summary>保留版本冲突和原失败默认分类，仅把精确编码占用视为校验失败，父颜色组合占用仍阻断业务。</summary>
     private static void EnsureWrite(RepositoryWriteResult result, string fallbackMessage)
     {
         if (result.Success) return;
-        var code = string.Equals(result.ErrorCode, "CONCURRENCY_CONFLICT", StringComparison.OrdinalIgnoreCase)
-            ? ServiceErrorCodes.VersionConflict : ServiceErrorCodes.BusinessBlocked;
+        var code = result.ErrorCode?.ToUpperInvariant() switch
+        {
+            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
+            "PRODUCT_MASTER_SKU_OCCUPIED" or "PRODUCT_NEUTRAL_CODE_OCCUPIED" => ServiceErrorCodes.Validation,
+            "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED" => ServiceErrorCodes.BusinessBlocked,
+            _ => ServiceErrorCodes.BusinessBlocked
+        };
         throw new ProductNeutralBatchWriteException(code,
             string.IsNullOrWhiteSpace(result.Message) ? fallbackMessage : result.Message);
     }

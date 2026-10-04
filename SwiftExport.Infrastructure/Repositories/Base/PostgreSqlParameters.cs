@@ -14,6 +14,15 @@ internal sealed class PostgreSqlParameters : SqlMapper.IDynamicParameters
     /// <summary>绑定标量参数；时间参数应经实体映射指定类型。</summary>
     public void Add(string name, object? value) => _parameters.Add(new NpgsqlParameter { ParameterName = name, Value = value ?? DBNull.Value });
 
+    /// <summary>按现有无时区列绑定本地墙上时间，包括空值；不进行时区换算。</summary>
+    public void AddTimestamp(string name, DateTime? value) => _parameters.Add(
+        new NpgsqlParameter(name, NpgsqlDbType.Timestamp)
+        { Value = value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Unspecified) : DBNull.Value });
+
+    /// <summary>显式绑定命名 UUID 数组，供多个身份筛选同时使用而不展开参数。</summary>
+    public void AddIds(string name, IEnumerable<Guid> values) => _parameters.Add(
+        new NpgsqlParameter(name, NpgsqlDbType.Array | NpgsqlDbType.Uuid) { Value = values.ToArray() });
+
     /// <summary>绑定文本数组，供专用仓储的编码集合查询使用。</summary>
     public void AddTexts(string name, IEnumerable<string> values) => _parameters.Add(
         new NpgsqlParameter(name, NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = values.ToArray() });

@@ -12,8 +12,10 @@ using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
+using System.Data;
 namespace SwiftExport.Application.Services.Products;
 
+/// <summary>维护当前 BOM；所有保存入口共用完整图校验和批量事务，查询继续保留现有兼容契约。</summary>
 public partial class BomService(
     IBomRepository bomRepo,
     IProductRepository pdRepo,
@@ -24,58 +26,7 @@ public partial class BomService(
     private readonly ILogger<BomService> _logger = context.LoggerFactory.CreateLogger<BomService>();
     private readonly BomStructureValidator _structureValidator = new();
 
-    protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<BomDto>> createItems)
-        => await ValidateWriteAsync(createItems.Select(x => (Guid.Empty, x.Data)));
-
-    protected override async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<BomDto>> updateItems)
-        => await ValidateWriteAsync(updateItems.Select(x => (x.Uid, x.Data)));
-
-    private async Task<string?> ValidateWriteAsync(IEnumerable<(Guid Uid, BomDto Data)> items)
-    {
-        foreach (var (_, dto) in items)
-        {
-            var parent = await pdRepo.GetByBomNoAsync(dto.BomNo);
-            if (parent is null) return $"BOM {dto.BomNo} 没有对应的父产品。";
-            var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(parent);
-            if (parentError is not null) return parentError;
-            if (dto.SubSkuId == Guid.Empty) return "BOM 子产品不能为空。";
-            var child = await pdRepo.GetByIdAsync(dto.SubSkuId);
-            if (child is null) return "BOM 子产品不存在或已删除。";
-            var line = new Bom
-            {
-                BomNo = dto.BomNo,
-                ParentProductId = parent.Uid,
-                ParentSkuSnapshot = parent.Sku,
-                ComponentProductId = child.Uid,
-                ComponentSkuSnapshot = child.Sku,
-                Numerator = dto.Numerator,
-                Denominator = dto.Denominator
-            };
-            var lineError = CustomerSuppliedMaterialPolicy.ValidateBomLine(line, child);
-            if (lineError is not null) return lineError;
-            if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(child))
-            {
-                var childError = CustomerSuppliedMaterialPolicy.ValidateProduct(
-                    child, await bomRepo.HasActiveBomForProductAsync(child.Uid, child.BomNo));
-                if (childError is not null) return childError;
-            }
-        }
-        return null;
-    }
-
     #region BOM管理CRUD操作
-
-    public async Task<ServiceResult<int>> DeleteBomByBomNoAsync(string bomNo)
-    {
-
-        var rst = await bomRepo.DeleteBomByBomNoAsync(bomNo);
-
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation("[{EntityName}] 根据BomNo删除Bom成功！BomNo: {BomNo}, 受影响行数: {AffectedRows}", nameof(Bom), bomNo, rst);
-        }
-        return ServiceResult<int>.Ok(rst);
-    }
 
     public async Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNoAsync(string bomNo)
     {
@@ -232,6 +183,7 @@ public partial class BomService(
     }
 
 
+    /// <summary>校验批量请求后进入统一保存内核，所有行变更在同一事务完成完整图校验和写入。</summary>
     public async Task<ServiceResult<BomBatchSaveResponse>> BatchSaveAsync(BomBatchSaveRequest batchReq)
     {
         if (batchReq is null)
@@ -246,17 +198,38 @@ public partial class BomService(
             return ServiceResult<BomBatchSaveResponse>.Fail("批量保存明细不能包含空项。");
         if (!batchReq.HasChanges)
             return ServiceResult<BomBatchSaveResponse>.Fail("没有需要保存的数据。");
+        return await SaveBatchAsync(batchReq);
+    }
+
+    /// <summary>拥有既有批量事务；按号删除先在此事务解析当前行，再复用同一准备与最终图校验，不删除历史版本。</summary>
+    private async Task<ServiceResult<BomBatchSaveResponse>> SaveBatchAsync(BomBatchSaveRequest batchReq, string? deleteBomNo = null)
+    {
         if (_session.Transaction is not null)
             return ServiceResult<BomBatchSaveResponse>.Fail("当前请求已存在未完成事务，不能重复开始 BOM 批量保存。");
 
-        var response = new BomBatchSaveResponse { TotalCount = batchReq.TotalCount };
+        IDbTransaction? transaction = null;
         try
         {
-            _session.Transaction = _session.Connection.BeginTransaction();
+            transaction = _session.Connection.BeginTransaction();
+            _session.Transaction = transaction;
+            if (deleteBomNo is not null)
+            {
+                var currentRows = (await bomRepo.GetBomByBomNoAsync(deleteBomNo)).ToArray();
+                if (currentRows.Length == 0)
+                {
+                    TryRollbackTransaction(transaction);
+                    return ServiceResult<BomBatchSaveResponse>.Fail("未找到当前有效 BOM 行，不能按号删除。");
+                }
+                batchReq.DeleteItems = currentRows.Select(row => new DeleteItemRequest
+                {
+                    Uid = row.Uid, Version = row.Version, IsSoftDelete = false
+                }).ToList();
+            }
+            var response = new BomBatchSaveResponse { TotalCount = batchReq.TotalCount };
             var preparation = await PrepareBatchSaveAsync(batchReq);
             if (preparation.Error is not null)
             {
-                _session.Transaction.Rollback();
+                TryRollbackTransaction(transaction);
                 return ServiceResult<BomBatchSaveResponse>.Fail(preparation.Error);
             }
 
@@ -288,22 +261,35 @@ public partial class BomService(
         }
         catch (BomBatchWriteException ex)
         {
-            TryRollbackTransaction();
-            _logger.LogWarning(ex, "BOM 批量保存因写入冲突失败，已回滚全部操作。");
+            TryRollbackTransaction(transaction);
+            TryLogSaveFailure(LogLevel.Warning, ex, "BOM 批量保存因写入冲突失败，已回滚全部操作。");
             return ServiceResult<BomBatchSaveResponse>.Fail(
                 $"BOM 批量保存失败，所有操作已回滚。原因：{ex.Message}");
         }
         catch (Exception ex)
         {
-            TryRollbackTransaction();
-            _logger.LogError(ex, "BOM 批量保存发生未预期异常，已回滚全部操作。");
+            TryRollbackTransaction(transaction);
+            TryLogSaveFailure(LogLevel.Error, ex, "BOM 批量保存发生未预期异常，已回滚全部操作。");
             return ServiceResult<BomBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected,
                 "BOM 批量保存失败，所有操作已回滚，请刷新后重试。");
         }
         finally
         {
-            _session.Transaction?.Dispose();
-            _session.Transaction = null;
+            // 只清理本层成功创建的事务；释放故障不能覆盖已确定的业务结果。
+            if (transaction is not null)
+            {
+                try { transaction.Dispose(); }
+                catch (Exception disposeException)
+                {
+                    TryLogSaveFailure(LogLevel.Error, disposeException, "BOM 批量保存事务释放失败，关闭连接。");
+                    try { _session.Connection.Dispose(); }
+                    catch (Exception connectionException)
+                    {
+                        TryLogSaveFailure(LogLevel.Error, connectionException, "BOM 批量保存连接释放失败。");
+                    }
+                }
+                finally { _session.Transaction = null; }
+            }
         }
     }
 
@@ -524,23 +510,33 @@ public partial class BomService(
         .FirstOrDefault(x => x.Count() > 1)
         ?.Key;
 
+    /// <summary>任一行写入失败使整批回滚，沿用批量保存现有的业务阻断错误协议。</summary>
     private static void EnsureWriteSucceeded(RepositoryWriteResult result, string fallbackMessage)
     {
         if (!result.Success) throw new BomBatchWriteException(result.Message ?? fallbackMessage);
     }
 
-    private void TryRollbackTransaction()
+    /// <summary>尽力回滚本层创建的事务；回滚或诊断日志故障均不得替换原始保存结果。</summary>
+    private void TryRollbackTransaction(IDbTransaction? transaction)
     {
         try
         {
-            _session.Transaction?.Rollback();
+            transaction?.Rollback();
         }
         catch (Exception rollbackException)
         {
-            _logger.LogError(rollbackException, "BOM 批量保存事务回滚失败。");
+            TryLogSaveFailure(LogLevel.Error, rollbackException, "BOM 批量保存事务回滚失败。");
         }
     }
 
+    /// <summary>保存失败及资源清理只尽力记录诊断，日志提供者异常不得中断回滚、释放或覆盖业务结果。</summary>
+    private void TryLogSaveFailure(LogLevel level, Exception exception, string message)
+    {
+        try { _logger.Log(level, exception, "{Message}", message); }
+        catch { /* 不通过同一失效日志管道再次记录，保留原始结果并继续清理。 */ }
+    }
+
+    /// <summary>将行写入失败提升为批量回滚，不改变既有批量错误分类。</summary>
     private sealed class BomBatchWriteException(string message) : Exception(message);
 
     private sealed class BomBatchPreparation

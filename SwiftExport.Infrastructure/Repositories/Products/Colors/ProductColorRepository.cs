@@ -10,10 +10,12 @@ using System.Text;
 
 namespace SwiftExport.Infrastructure.Repositories.Products.Colors;
 
+/// <summary>颜色SQL Server仓储，复用会话并查询产品及有效中性产品的颜色引用。</summary>
 public class ProductColorRepository(RepositoryBaseContext context) : DapperRepository<ProductColor>(context), IProductColorRepository
 {
     private static readonly string ProductColorTable = EntityMetadataCache.GetTableName<ProductColor>();
     private static readonly string ProductTable = EntityMetadataCache.GetTableName<Product>();
+    private static readonly string NeutralTable = EntityMetadataCache.GetTableName<ProductNeutral>();
 
     public async Task<bool> ExistByColorCode(string productColor)
     {
@@ -63,6 +65,7 @@ WHERE [{nameof(ProductColor.ColorCodeUnique)}] IN @Codes
         return [.. items];
     }
 
+    /// <summary>在调用方事务内查有效产品/中性引用；颜色父行由删除入口先锁定，禁止借空引用认为父行已受保护。</summary>
     public async Task<IReadOnlyList<Guid>> GetReferencedColorIdsAsync(IEnumerable<Guid> colorIds)
     {
         var normalized = colorIds?
@@ -75,7 +78,12 @@ WHERE [{nameof(ProductColor.ColorCodeUnique)}] IN @Codes
 SELECT DISTINCT [{nameof(Product.ColorId)}]
 FROM [{ProductTable}] WITH (UPDLOCK, ROWLOCK)
 WHERE [{nameof(Product.ColorId)}] IN @ColorIds
-  AND [{nameof(Product.IsDeleted)}] = 0;";
+  AND [{nameof(Product.IsDeleted)}] = 0
+UNION
+SELECT [{nameof(ProductNeutral.ColorId)}]
+FROM [{NeutralTable}]
+WHERE [{nameof(ProductNeutral.ColorId)}] IN @ColorIds
+  AND [{nameof(ProductNeutral.IsDeleted)}] = 0;";
         var ids = await Connection.QueryAsync<Guid>(
             sql,
             new { ColorIds = normalized },

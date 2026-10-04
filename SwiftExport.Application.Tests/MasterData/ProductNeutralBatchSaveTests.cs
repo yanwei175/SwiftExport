@@ -36,6 +36,8 @@ public sealed class ProductNeutralBatchSaveTests
         Assert.AreEqual(1, fixture.Connection.Transaction.Commits);
         Assert.AreEqual(0, fixture.Connection.Transaction.Rollbacks);
         Assert.IsTrue(fixture.ParentLocked);
+        CollectionAssert.AreEqual(new[] { "color", "master", "neutral" }, fixture.LockOrder.Take(3).ToArray(),
+            "保存必须先锁颜色父记录，再锁主型号和中性行，避免与颜色删除形成反向等待。");
         Assert.AreEqual(3, result.Data.Version);
         Assert.AreEqual("MASTER", result.Data.Master.MasterSku);
         Assert.AreEqual(2, result.Data.Neutrals.Count);
@@ -45,14 +47,20 @@ public sealed class ProductNeutralBatchSaveTests
         Assert.IsNull(fixture.Session.Transaction);
     }
 
-    /// <summary>任何中途写入失败均回滚，先前成功的新增不会部分提交。</summary>
+    /// <summary>精确占用、原并发和其他写入失败均回滚前序新增，保留各自业务分类且不执行后续删除。</summary>
     [TestMethod]
-    public async Task WriteFailure_ShouldRollbackWholeBatch()
+    [DataRow("CONCURRENCY_CONFLICT", ServiceErrorCodes.VersionConflict)]
+    [DataRow("PRODUCT_NEUTRAL_CODE_OCCUPIED", ServiceErrorCodes.Validation)]
+    [DataRow("PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", ServiceErrorCodes.BusinessBlocked)]
+    [DataRow("WRITE_FAILED", ServiceErrorCodes.BusinessBlocked)]
+    public async Task WriteFailure_ShouldRollbackWholeBatch(string writeCode, string expectedCode)
     {
-        using var fixture = new Fixture { FailWriteNumber = 2 };
+        using var fixture = new Fixture { FailWriteNumber = 2, WriteErrorCode = writeCode };
         var result = await fixture.Service.SaveNeutralsAsync(fixture.MasterId, fixture.MixedRequest());
         Assert.IsFalse(result.Success);
-        Assert.AreEqual(ServiceErrorCodes.VersionConflict, result.Error.Code);
+        Assert.AreEqual(expectedCode, result.Error.Code);
+        Assert.AreEqual(2, fixture.Writes, "失败后的删除不得继续执行。");
+        Assert.AreEqual(1, fixture.SuccessfulWrites);
         Assert.AreEqual(0, fixture.Connection.Transaction.Commits);
         Assert.AreEqual(1, fixture.Connection.Transaction.Rollbacks);
         CollectionAssert.AreEqual(new[] { "OLD", "DELETE" }, fixture.Rows.Select(row => row.Data.ProductCode).ToArray());
@@ -103,8 +111,11 @@ public sealed class ProductNeutralBatchSaveTests
         public bool ColorExists { get; set; } = true;
         public bool CodeOccupied { get; set; }
         public bool ParentLocked { get; private set; }
+        public List<string> LockOrder { get; } = [];
         public int FailWriteNumber { get; set; }
+        public string WriteErrorCode { get; set; } = "CONCURRENCY_CONFLICT";
         public int Writes { get; private set; }
+        public int SuccessfulWrites { get; private set; }
         public List<ProductNeutralDto> Rows { get; private set; }
         public ConnectionStub Connection { get; }
         public DbSession Session { get; }
@@ -122,9 +133,12 @@ public sealed class ProductNeutralBatchSaveTests
                 Proxy<IProductMasterRepository>(MasterCall), Proxy<IProductNeutralRepository>(NeutralCall),
                 Proxy<IProductCategoryRepository>((_, _) => throw new AssertFailedException("独立明细不能校验头部分类。")),
                 Proxy<ISupplierRepository>((_, _) => throw new AssertFailedException("独立明细不能校验头部供应商。")),
-                Proxy<IProductColorRepository>((method, _) => method == "GetByIdListAsync"
-                    ? Task.FromResult<IReadOnlyList<ProductColor>>(ColorExists ? [new ProductColor { Uid = ColorId }] : [])
-                    : throw new AssertFailedException(method)),
+                Proxy<IProductColorRepository>((method, _) =>
+                {
+                    Assert.AreEqual("GetByIdListAsync", method);
+                    LockOrder.Add("color");
+                    return Task.FromResult<IReadOnlyList<ProductColor>>(ColorExists ? [new ProductColor { Uid = ColorId }] : []);
+                }),
                 Proxy<IProductRepository>((_, _) => throw new AssertFailedException("独立明细不能同步物料。")),
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
@@ -150,22 +164,29 @@ public sealed class ProductNeutralBatchSaveTests
             Assert.AreEqual("GetDetailHeaderAsync", method, "独立明细接口不允许写父记录。");
             Assert.IsNotNull(Session.Transaction);
             ParentLocked |= (bool)args[1]!;
+            if ((bool)args[1]!) LockOrder.Add("master");
             return Task.FromResult<ProductMasterDetailDto?>(ParentExists
                 ? new ProductMasterDetailDto { Uid = MasterId, Version = 3, Master = new() { MasterSku = "MASTER" } }
                 : null);
         }
 
+        /// <summary>在共享事务中读取或暂存明细，允许指定某次写入的精确错误并记录后续操作是否停止。</summary>
         private object NeutralCall(string method, object?[] args)
         {
             Assert.IsNotNull(Session.Transaction);
-            if (method == "GetByProductMasterIdAsync") return Task.FromResult<IReadOnlyList<ProductNeutralDto>>(Rows.ToArray());
+            if (method == "GetByProductMasterIdAsync")
+            {
+                if ((bool)args[1]!) LockOrder.Add("neutral");
+                return Task.FromResult<IReadOnlyList<ProductNeutralDto>>(Rows.ToArray());
+            }
             if (method == "GetByProductCodesAsync")
                 return Task.FromResult<IReadOnlyList<ProductNeutral>>(CodeOccupied
                     ? [new ProductNeutral { Uid = Guid.NewGuid(), ProductCode = "NEW" }] : []);
             Assert.IsTrue(ParentLocked, "写入前必须锁定父记录。");
             Writes++;
             if (Writes == FailWriteNumber)
-                return Task.FromResult(RepositoryWriteResult.Fail(Guid.Empty, 1, "CONCURRENCY_CONFLICT", "版本冲突"));
+                return Task.FromResult(RepositoryWriteResult.Fail(Guid.Empty, 1, WriteErrorCode, "受控写入失败"));
+            SuccessfulWrites++;
             if (method == "DeleteAsync")
             {
                 Assert.IsTrue((bool)args[2]!, "明细删除必须是软删除。");

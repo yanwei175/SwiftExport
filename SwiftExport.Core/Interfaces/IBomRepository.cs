@@ -5,6 +5,7 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Core.Interfaces
 {
+    /// <summary>提供 BOM 组成持久化、当前结构及产品引用读取契约；业务资格和事务边界由应用服务控制。</summary>
     public interface IBomRepository : IRepository<Bom>
     {
 
@@ -46,6 +47,9 @@ namespace SwiftExport.Core.Interfaces
         /// 判断产品是否仍有有效 BOM。用于客供件终端物料约束。
         /// </summary>
         Task<bool> HasActiveBomForProductAsync(Guid productId, string? bomNo = null);
+
+        /// <summary>读取父或子身份命中指定产品的当前未删组成；按数据库编号等值规则联接有效父产品当前版本，空输入不查询，复用事务且不增加锁。</summary>
+        Task<IReadOnlyList<Bom>> GetCurrentReferencesForProductsAsync(IEnumerable<Guid> productIds);
 
         /// <summary>获取所有父产品当前版本下的有效 BOM 行。</summary>
         Task<IReadOnlyList<Bom>> GetCurrentVersionBomGraphAsync();

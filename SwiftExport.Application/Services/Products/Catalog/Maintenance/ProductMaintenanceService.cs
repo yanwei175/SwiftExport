@@ -165,6 +165,7 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
     }
 
 
+    /// <summary>在自有事务中统一产品单项与批量写入，先校验资料和受影响 BOM 引用，任一失败回滚全部操作。</summary>
     public async Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest batchReq)
     {
         if (batchReq is null)
@@ -177,6 +178,9 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             || batchReq.UpdateItems.Any(item => item is null)
             || batchReq.DeleteItems.Any(item => item is null))
             return ServiceResult<ProductBatchSaveResponse>.Fail("批量保存明细不能包含空项。");
+        if (batchReq.CreateItems.Any(item => item.Data is null)
+            || batchReq.UpdateItems.Any(item => item.Data is null))
+            return ServiceResult<ProductBatchSaveResponse>.Fail("产品保存数据不能为空。");
         if (!batchReq.HasChanges)
             return ServiceResult<ProductBatchSaveResponse>.Fail("没有需要保存的数据。");
         if (_session.Transaction is not null)
@@ -244,6 +248,7 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
         }
     }
 
+    /// <summary>先校验既有资料规则，再以本次全部候选产品校验 BOM 边界，避免按行校验遗漏同时修改的角色。</summary>
     private async Task<string?> ValidateBatchSaveAsync(ProductBatchSaveRequest request)
     {
         var errors = new StringBuilder();
@@ -279,7 +284,9 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             ? await ValidateBeforeDeleteAsync(request.DeleteItems)
             : null);
 
-        return errors.Length == 0 ? null : errors.ToString().Trim();
+        return errors.Length == 0
+            ? await ValidateBomSaveBoundaryAsync(request)
+            : errors.ToString().Trim();
     }
 
     /// <summary>批量确认制造商和参考仓库仍存在；只对新选或改选的目标要求启用。</summary>

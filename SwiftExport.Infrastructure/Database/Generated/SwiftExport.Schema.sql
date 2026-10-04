@@ -5243,7 +5243,7 @@ EXEC sys.sp_addextendedproperty
     @level1type=N'TABLE', @level1name=N'ProductPackage',
     @level2type=N'COLUMN', @level2name=N'Gw_KG';
 EXEC sys.sp_addextendedproperty
-    @name=N'MS_Description', @value=N'体积CBM (数据库计算列) 特别注意：在EF Core中需标记为由数据库生成',
+    @name=N'MS_Description', @value=N'包装体积（CBM）；当前两种数据库均为普通可空数值列，由调用方提供，不自动按尺寸计算。',
     @level0type=N'SCHEMA', @level0name=N'dbo',
     @level1type=N'TABLE', @level1name=N'ProductPackage',
     @level2type=N'COLUMN', @level2name=N'Cbm';
