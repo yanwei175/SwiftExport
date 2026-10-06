@@ -1,6 +1,12 @@
 using Dapper;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Mapster;
+using SwiftExport.Application.Contexts;
+using SwiftExport.Application.Services.Systems.Currencies;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Core.Entities.Systems.Currencies;
+using SwiftExport.Infrastructure.Repositories.Systems.Currencies;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Core.Entities.Systems.ExchangeRates;
 using SwiftExport.Core.Interfaces.Auth;
@@ -11,11 +17,72 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>使用已授权独立 PostgreSQL 测试库验证汇率仓储；测试记录仅在本事务内存在，不修改币种主数据。</summary>
+/// <summary>验证真实PG汇率查询和本位币切换；切换仅使用获批单库，其他场景仍由父事务回滚。</summary>
 [TestClass]
+[DoNotParallelize]
 [TestCategory("PostgreSqlIntegration")]
 public sealed class PostgreSqlCurrencyMigrationIntegrationTests
 {
+    /// <summary>将切换场景关联到单库的完整事实和结构导出。</summary>
+    public TestContext TestContext { get; set; } = default!;
+
+    /// <summary>真实服务切换后全部汇率为1:1且提示重设；旧版本拒绝时完整回滚并允许同会话继续切换。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task BaseCurrencySwitch_ResetsRatesAndRemindsUser(bool rejectStaleVersionFirst)
+    {
+        await using var database = await PostgreSqlLegacyTestDatabase.AcquireAsync(TestContext);
+        using var session = new DbSession(new PostgreSqlConnectionFactory(database.ConnectionString));
+        var user = new CurrencyIntegrationUser("base-switch-test");
+        var context = new RepositoryBaseContext(session, NullLoggerFactory.Instance, new AuditStampService(user), user);
+        var repository = new PostgreSqlSysDicCurrencyRepository(context);
+        var service = new SysDicCurrencyService(repository, new ServiceBaseContext(session, NullLoggerFactory.Instance),
+            new PostgreSqlSysDicCurrencyExchangeRepository(context));
+        var currencies = new[]
+        {
+            new SysDicCurrency { CurrencyCode = "CNY", IsBase = true, RateToBase = 1m },
+            new SysDicCurrency { CurrencyCode = "USD", IsEnabled = false, RateToBase = 7.2m },
+            new SysDicCurrency { CurrencyCode = "EUR", IsEnabled = false, RateToBase = 0.88m },
+            new SysDicCurrency { CurrencyCode = "GBP", IsDeleted = true, RateToBase = 5.6m }
+        };
+        foreach (var currency in currencies) Assert.IsTrue((await repository.AddAsync(currency)).Success);
+        // 通用新增会归一化IsDeleted=false，显式准备本测试自有软删行，避免把有效行误当软删覆盖。
+        await session.Connection.ExecuteAsync("UPDATE public.sys_dic_currency SET is_deleted=TRUE WHERE uid=@Uid;",
+            new { currencies[3].Uid });
+        var request = currencies[1].Adapt<SysDicCurrencyDto>();
+        if (rejectStaleVersionFirst)
+        {
+            var before = await session.Connection.QuerySingleAsync<string>(
+                "SELECT jsonb_agg(to_jsonb(c) ORDER BY uid)::text FROM public.sys_dic_currency c;");
+            request.Version++;
+            var rejected = await service.SetNewBaseCurrencyAsync(request);
+            Assert.IsFalse(rejected.Success);
+            Assert.IsNull(session.Transaction);
+            // Reset已经写过全部汇率；目标版本冲突必须将标识、汇率和审计事实一起恢复。
+            Assert.AreEqual(before, await session.Connection.QuerySingleAsync<string>(
+                "SELECT jsonb_agg(to_jsonb(c) ORDER BY uid)::text FROM public.sys_dic_currency c;"));
+            request.Version = currencies[1].Version;
+        }
+        var result = await service.SetNewBaseCurrencyAsync(request);
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.AreEqual(1, result.Data);
+        StringAssert.Contains(result.Message, "1:1");
+        StringAssert.Contains(result.Message, "请重新设置汇率");
+        Assert.IsNull(session.Transaction);
+        var rows = (await session.Connection.QueryAsync<SysDicCurrency>("""
+            SELECT uid AS "Uid",rate_to_base AS "RateToBase",is_base AS "IsBase",is_enabled AS "IsEnabled",is_deleted AS "IsDeleted",version AS "Version"
+            FROM public.sys_dic_currency;
+            """)).ToArray();
+        Assert.HasCount(4, rows);
+        Assert.IsTrue(rows.All(row => row.RateToBase == 1m), "启用、停用及软删币种均按全量重置规则处理。");
+        Assert.AreEqual(currencies[1].Uid, rows.Single(row => row.IsBase).Uid);
+        Assert.IsTrue(rows.Single(row => row.IsBase).IsEnabled);
+        Assert.IsFalse(rows.Single(row => row.Uid == currencies[2].Uid).IsEnabled);
+        Assert.IsTrue(rows.Single(row => row.Uid == currencies[3].Uid).IsDeleted);
+        Assert.AreEqual(currencies[1].Version + 1, rows.Single(row => row.IsBase).Version);
+    }
+
     /// <summary>验证真实可空参数、分页投影和引用锁读取，停用关系也参与阻断；最终回滚并核对测试 Uid 无残留。</summary>
     [TestMethod]
     public async Task ExchangeQueries_UseRealNullableParametersAndRollbackTestRows()

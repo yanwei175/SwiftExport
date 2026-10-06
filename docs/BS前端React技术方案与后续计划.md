@@ -142,7 +142,7 @@ erDiagram
   }
 ```
 
-说明：这里的 ER 图是前端交互数据模型，不是数据库物理模型。正式后端仍以现有 Entity、DTO、Repository 和 SQL Server 表结构为准。
+说明：这里的 ER 图是前端交互数据模型，不是数据库物理模型。当前后端使用 PostgreSQL，业务与持久化事实以现有 Entity、DTO、Repository 及实体元数据生成的 PG 结构为准；React 方案不改变当前 WPF 主线。
 
 ## 6. 推荐目录结构
 

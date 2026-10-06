@@ -34,6 +34,7 @@ namespace SwiftExport.Application.Services.Systems.Currencies
         // ============================================================
         // 业务查询扩展
         // ============================================================
+        /// <summary>在同一事务中切换本位币并重置全部汇率为1:1；成功提示用户重新设置，失败完整回滚。</summary>
         public async Task<ServiceResult<int>> SetNewBaseCurrencyAsync(SysDicCurrencyDto newSysDicCurrencyDto)
         {
             if (newSysDicCurrencyDto is null || newSysDicCurrencyDto.Uid == Guid.Empty || newSysDicCurrencyDto.Version <= 0)
@@ -66,7 +67,7 @@ namespace SwiftExport.Application.Services.Systems.Currencies
                     return ServiceResult<int>.Fail(rst.Message ?? "重置本位币失败。");
                 }
                 _session.Transaction.Commit();
-                return ServiceResult<int>.Ok(1, "成功重置本位币");
+                return ServiceResult<int>.Ok(1, "成功切换本位币；所有币种汇率已重置为1:1，请重新设置汇率。");
             }
             catch (Exception ex)
             {

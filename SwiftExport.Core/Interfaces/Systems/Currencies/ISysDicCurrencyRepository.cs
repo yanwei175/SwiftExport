@@ -12,6 +12,7 @@ namespace SwiftExport.Core.Interfaces.Systems.Currencies
     public interface ISysDicCurrencyRepository : IRepository<SysDicCurrency>
     {
 
+        /// <summary>取消所有币种的本位币标识，并在调用方事务中将全部汇率重置为1:1。</summary>
         Task<bool> ResetAllBaseCurrencyAsync();
         /// <summary>
         /// 查询当前数据库中已设为本位币的记录 ID 列表

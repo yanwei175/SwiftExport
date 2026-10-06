@@ -137,7 +137,7 @@
 
 路径：`SwiftExport.Infrastructure`
 
-职责：Dapper Repository 实现、`RepositoryBaseContext`、`DbSession`、数据库访问、审计字段打戳。数据库最终目标为 PostgreSQL；SQL Server 仅在迁移完成前暂时保留。
+职责：Dapper Repository 实现、`RepositoryBaseContext`、`DbSession`、数据库访问、审计字段打戳。当前数据库运行接线为 PostgreSQL + Dapper；SQL Server 旧实现已退出，历史迁移证据另行保留。
 
 禁止：依赖 Application、调用 Controller、处理 UI 状态、硬编码连接字符串。
 
@@ -154,14 +154,14 @@
 ### 数据库迁移方向（2026-10-04 用户最新确认）
 
 - 最终淘汰 SQL Server，后续只使用 PostgreSQL + Dapper，不建设长期双库支持或提供者切换框架。
-- 当前 SQL Server 运行接线是迁移中的事实，不是必须永久兼容的目标；PG 对应链路验收前不得仅换连接工厂混用仓储。
-- 后续顺序：收敛临时兼容逻辑，验证跨连接并发与真实需求读取一致性，完成 PG 仓储/运行接线，再移除 SQL Server 实现、依赖及失效文档。实施与验收范围见后端架构审查的当前路线。
+- 当前 Infrastructure DI 已使用 PostgreSQL 连接、会话及对应仓储；不得据旧迁移阶段说明恢复 SQL Server 接线或混用仓储。
+- 实现事实见 Infrastructure/DependencyInjection.cs 和真实调用链，历史迁移及验证范围见 docs/postgresql-migration；旧阶段顺序不是当前自动开发待办。源码接线存在不代表所有业务组合或运行库写入已验收。
 - 优先复用现有会话、事务、异常分类及元数据；不为迁移新增无真实用例的实体表、通用数据库框架或全局业务锁。BOM 编号可共享，BomVersion 仅表示有效性，不引入业务多版本。
 - 新目标不等于任意数据库写入授权：原有隔离测试、备份保护、破坏性操作确认及不得自动部署/推送规则继续有效。
 
 D:\DevCaches是NuGet包的文档地址,你拥有权限,避免每次隔离构建都因目录缺少NuGet资产文件而退出.
 
-数据库检查默认只读；写入测试须明确实例、库名及初始化/清理范围，备份或“测试库”说明不等于任意清库授权。当前仍运行 SQL Server + Dapper，已加入PostgreSQL连接工厂、独立名称映射及结构评审生成器；业务仓储尚未全部适配，不得仅改连接就切库。用户已允许目标实体和表字段命名调整，选择只迁有效基础数据，不迁单据历史；PostgreSQL评审脚本不等于已部署或并发验收通过。当前事实与待核验项见 [后端架构审查](docs/后端整体架构与文件夹职责建议.md)。
+数据库检查默认只读；写入测试须明确实例、库名及初始化/清理范围，备份或“测试库”说明不等于任意清库授权。当前使用 PostgreSQL + Dapper；结构由实体元数据及PG名称/类型映射生成，生成脚本不等于已部署或并发验收通过。用户此前选择只迁有效基础数据、不迁单据历史；实际迁移及验收证据保留在 docs/postgresql-migration。当前代码职责见 [后端说明](docs/后端整体架构与文件夹职责建议.md)，模块事实见 [业务文档索引](docs/业务文档索引.md)。
 
 当前 .NET 10 前端任务默认写入范围：
 

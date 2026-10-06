@@ -25,10 +25,10 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
     private static readonly string Active = $"({Column(nameof(SysDicCurrency.IsDeleted))}=FALSE OR {Column(nameof(SysDicCurrency.IsDeleted))} IS NULL)";
     private static readonly string CodeOrder = $"rtrim({Column(nameof(SysDicCurrency.CurrencyCode))}, ' ') COLLATE {Ci} NULLS FIRST, {UuidOrder(Column(nameof(SysDicCurrency.Uid)))}";
 
-    /// <summary>重置所有币种的本位币标识和汇率；保留源 NULL 更新及其非空约束异常，不更新版本或审计字段。</summary>
+    /// <summary>按切换规则取消所有本位币标识并将汇率重置为1:1；共享外层事务，不更新版本或审计字段。</summary>
     public async Task<bool> ResetAllBaseCurrencyAsync()
     {
-        await Connection.ExecuteAsync($"UPDATE {Table} SET {Column(nameof(SysDicCurrency.RateToBase))}=NULL, {Column(nameof(SysDicCurrency.IsBase))}=FALSE",
+        await Connection.ExecuteAsync($"UPDATE {Table} SET {Column(nameof(SysDicCurrency.RateToBase))}=1, {Column(nameof(SysDicCurrency.IsBase))}=FALSE",
             transaction: Transaction);
         return true;
     }

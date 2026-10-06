@@ -1,0 +1,250 @@
+{
+  "task": "P11-B03",
+  "date": "2026-10-06",
+  "user_decision": "切换本位币时全部RateToBase重置为1:1，成功提示用户重新设置汇率",
+  "status": "验证通过；既有PG运行接线已具备，运行库切换写入未执行",
+  "implementation": "仓储NULL改1；服务成功Message提醒；接口只补XML职责说明。保留原事务、目标Version及审计行为，不改API/DTO/正式结构。",
+  "commands": [
+    "dotnet build SwiftExport-WebAPI.slnx --no-restore -v minimal",
+    "& ./docs/postgresql-migration/任务结果/P11-本位币切换-实际命令.ps1",
+    "dotnet test SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-build --no-restore --filter 'FullyQualifiedName~Currency_RequiresExactlyOneEnabledBaseWithRateOne|FullyQualifiedName~CurrencyAndExchange_RejectInvalidRatesAndPairs' --results-directory TestResults/postgresql-migration --logger 'trx;LogFileName=p11-base-currency-offline.trx' -v normal",
+    "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "& ./docs/postgresql-migration/任务结果/P09-公共夹具-实际命令.ps1 -TestFilter 'FullyQualifiedName~BaseCurrencySwitch_ResetsRatesAndRemindsUser' -RunName p11-base-currency-reset-soft-delete-real-pg",
+    "git -c core.safecrlf=false diff --check"
+  ],
+  "builds": [
+    {
+      "scope": "backend_solution",
+      "errors": 0,
+      "warnings": 8,
+      "elapsed_seconds": 14.19
+    },
+    {
+      "scope": "affected_test_project",
+      "errors": 0,
+      "warnings": 8,
+      "elapsed_seconds": 4.65
+    }
+  ],
+  "validation": "3个不同实库场景通过，2个离线场景通过。首验3/3，复核通用Add会归一化软删标记后只补夹具自有软删行并重跑相关2/2；历史首验不冒充软删覆盖，四份导出全部保留。",
+  "audit": {
+    "production_changed": [
+      "SwiftExport.Core\\Interfaces\\Systems\\Currencies\\ISysDicCurrencyRepository.cs",
+      "SwiftExport.Infrastructure\\Repositories\\Systems\\Currencies\\PostgreSqlSysDicCurrencyRepository.cs",
+      "SwiftExport.Application\\Services\\Systems\\Currencies\\SysDicCurrencyService.cs",
+      "SwiftExport.Application\\Interfaces\\Systems\\Currencies\\ISysDicCurrencyService.cs"
+    ],
+    "source_hashes": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/Currencies/PostgreSqlSysDicCurrencyRepository.cs",
+        "sha256": "24E4A7F21B7979F177D7A559F8B85217EC5A0FA493E2635B8746C8BD3B043F32"
+      },
+      {
+        "path": "SwiftExport.Application/Services/Systems/Currencies/SysDicCurrencyService.cs",
+        "sha256": "6CCD3CA75A5A384D84E1858CBD2470075F7B3F80573D7BB6990B8CE30222FA27"
+      },
+      {
+        "path": "SwiftExport.Application/Interfaces/Systems/Currencies/ISysDicCurrencyService.cs",
+        "sha256": "0C61F878D92DAFD220A2A8AF71F0A48ED587D0A1DE433549B7D63445DCEC19B1"
+      },
+      {
+        "path": "SwiftExport.Core/Interfaces/Systems/Currencies/ISysDicCurrencyRepository.cs",
+        "sha256": "3C213B6AE3DC5F16E6D759F2C88A15E4F6E785ADA67275343439BB2D4248761E"
+      },
+      {
+        "path": "SwiftExport.Application.Tests/Database/PostgreSqlCurrencyMigrationTests.Integration.cs",
+        "sha256": "D0757D2649FEE3D81DD37E00C18C5CD08D714C6ECCECF5D9E357F20A11A5A53F"
+      },
+      {
+        "path": "SwiftExport.Application.Tests/Database/PostgreSqlInventoryExecutionReadIntegrationTests.cs",
+        "sha256": "AF51074AF5E3EC807BE3DAA9035A4FEAA86B6B4D382D78DC61D84F8A61C22474"
+      }
+    ],
+    "exports": [
+      {
+        "name": "202610061426140863662-472f6b988fff4dd09e280184e69dd6b7.json",
+        "sha256": "715563241900EB9312857336D23B6391DE5D13BE5B63A3B81350EB0C733C184B",
+        "sidecar_match": true,
+        "tables": 50,
+        "currency_rows": 4,
+        "all_rates_one": true,
+        "deleted_rows": 0,
+        "baseline_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7"
+      },
+      {
+        "name": "202610061426151069230-9f3b9dd2c60c4039b02eeeb99c178740.json",
+        "sha256": "3CE5E8BC7947C96DF4A2A19EF68976535D985424AE45D04043EF1DF3A2014DB8",
+        "sidecar_match": true,
+        "tables": 50,
+        "currency_rows": 4,
+        "all_rates_one": true,
+        "deleted_rows": 0,
+        "baseline_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7"
+      },
+      {
+        "name": "202610061428127248547-3211bb13502a4269a9b075b6c5c967cc.json",
+        "sha256": "26DA146C3B8B349970A4A753585D1653C79FF00D0F6178A48EB39F351867CDD2",
+        "sidecar_match": true,
+        "tables": 50,
+        "currency_rows": 4,
+        "all_rates_one": true,
+        "deleted_rows": 1,
+        "baseline_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7"
+      },
+      {
+        "name": "202610061428136102924-f6f77b7d5c6a4eefb9f6095c7fc2ed74.json",
+        "sha256": "5878CB20C3E298D996C25FF2F6CF606CB84721FEC6CBF19906DD5477CFB0367B",
+        "sidecar_match": true,
+        "tables": 50,
+        "currency_rows": 4,
+        "all_rates_one": true,
+        "deleted_rows": 1,
+        "baseline_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7"
+      }
+    ],
+    "trx": [
+      {
+        "path": "TestResults/postgresql-migration/p11-base-currency-reset-real-pg.trx",
+        "sha256": "B47930CCDE7BF8A8699DFD2C754633B1AC676595B472155DCBD06216595EA2C7",
+        "counters": "<Counters total=\"3\" executed=\"3\" passed=\"3\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />",
+        "results": [
+          {
+            "name": "RealPg_ResumedCurrencyQueriesAndDeferredReset",
+            "outcome": "Passed",
+            "duration": "00:00:00.1814716"
+          },
+          {
+            "name": "BaseCurrencySwitch_ResetsRatesAndRemindsUser (True)",
+            "outcome": "Passed",
+            "duration": "00:00:00.8442952"
+          },
+          {
+            "name": "BaseCurrencySwitch_ResetsRatesAndRemindsUser (False)",
+            "outcome": "Passed",
+            "duration": "00:00:01.3487300"
+          }
+        ]
+      },
+      {
+        "path": "TestResults/postgresql-migration/p11-base-currency-reset-soft-delete-real-pg.trx",
+        "sha256": "7FD7B8BCCC0E2BA7EA389AB1A09D1B30A90B80AA32E109E1E6517D1DD9B22B9F",
+        "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />",
+        "results": [
+          {
+            "name": "BaseCurrencySwitch_ResetsRatesAndRemindsUser (True)",
+            "outcome": "Passed",
+            "duration": "00:00:00.8788088"
+          },
+          {
+            "name": "BaseCurrencySwitch_ResetsRatesAndRemindsUser (False)",
+            "outcome": "Passed",
+            "duration": "00:00:01.1135498"
+          }
+        ]
+      },
+      {
+        "path": "TestResults/postgresql-migration/p11-base-currency-offline.trx",
+        "sha256": "CDB26B11875DF5BA18A6AF18001BD938D3ACF2F2167385ACB069D8086C1C6CCA",
+        "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />",
+        "results": [
+          {
+            "name": "CurrencyAndExchange_RejectInvalidRatesAndPairs",
+            "outcome": "Passed",
+            "duration": "00:00:00.0009207"
+          },
+          {
+            "name": "Currency_RequiresExactlyOneEnabledBaseWithRateOne",
+            "outcome": "Passed",
+            "duration": "00:00:00.0048966"
+          }
+        ]
+      }
+    ],
+    "system_dictionary_file_unchanged": true,
+    "baseline_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7"
+  },
+  "protection": {
+    "instances": "192.168.3.12:5432",
+    "runtime_writes": false,
+    "old_failure_scope": "仅既有币种九方法场景父事务内暂时写入及回滚；无DDL、无提交、无库重置",
+    "fixed_database": "dv_next_pg_legacy_tests_20261006",
+    "fixed_scope": "仅该原获批隔离库public；沿用原逐例导出及限定重置，无备份库写入",
+    "proofs": [
+      {
+        "database": "dv_next",
+        "unchanged": true
+      },
+      {
+        "database": "dv_next_pg_failure_tests_20261004",
+        "unchanged": true
+      }
+    ],
+    "before": [
+      {
+        "status": "fulfilled",
+        "value": {
+          "content": [
+            {
+              "type": "text",
+              "text": "| table_name | rows | digest |\n|---|---|---|\n| __inventory_sequence__ | 1 | e3c86b5794d9f63206a68f43f7580b87 |\n| after_sales_header | 0 | empty |\n| after_sales_line | 0 | empty |\n| bom | 17 | 4cc31206e8ea4aefcf355f4fb56a1f23 |\n| business_operation_log | 0 | empty |\n| command_receipt | 0 | empty |\n| customer | 14 | eed5b45b6dab513f9c53e30aac1004b0 |\n| customer_po_config | 73 | e599d410125cba5b9312ba0846ec2689 |\n| customer_product | 17005 | 2bad0f979a795eca01b4fde475f9ba1c |\n| demand_execution_link | 0 | empty |\n| document_sequence | 0 | empty |\n| excel_read_field | 12 | ee1d72359eddc2851bbfa981de277752 |\n| excel_read_profile | 3 | eda52275fee9b3b6537bd9a47229d194 |\n| gross_demand | 0 | empty |\n| inbound_document | 0 | empty |\n| inbound_document_line | 0 | empty |\n| inventory_balance | 0 | empty |\n| inventory_ledger_entry | 0 | empty |\n| net_demand | 0 | empty |\n| outbound_document | 0 | empty |\n| outbound_document_line | 0 | empty |\n| packing_list_head | 0 | empty |\n| packing_list_line | 0 | empty |\n| packing_list_posting_execution | 0 | empty |\n| packing_list_posting_execution_line | 0 | empty |\n| product | 17309 | d0d6cc6edab43085bd6047f0412a0d4f |\n| product_category | 34 | 22517c83a3e959c5fc8280552d37cd4e |\n| product_color | 35 | 9996f04ae75ac5fabe4d0e966ead772c |\n| product_detail | 17281 | 740f4efef2b7ff9d783f6736d2ce24c3 |\n| product_master | 4 | 1af93be634e25231fb8b3e176ea3653b |\n| product_neutral | 7 | 0e0f9a134364c8beee448db0ac8845a0 |\n| product_package | 0 | empty |\n| purchase_confirmation_line | 0 | empty |\n| purchase_confirmation_node | 0 | empty |\n| purchase_order_head | 0 | empty |\n| purchase_order_line | 0 | empty |\n| sales_order_header | 0 | empty |\n| sales_order_line | 0 | empty |\n| supplier | 15 | aab29277cf21955cb9a74137b401d948 |\n| supplier_product | 0 | empty |\n| supplier_progress_report | 0 | empty |\n| sys_dic_currency | 2 | 78bdd3288d35947eaeaa72aa2ca4f375 |\n| sys_dic_currency_exchange | 0 | empty |\n| sys_dict_data | 27 | e0c3c247f751e336991167e980a778c0 |\n| sys_dict_type | 10 | dbfeba677880dddc8f9273fcb17d93d2 |\n| sys_permission | 111 | f5b08804bd65e3eb87529396ae289ea1 |\n| sys_role | 2 | b07e106c9c9b5661df635ac53f6d3c99 |\n| sys_role_permission | 12 | 33ca6d1780f81108b70a113c37fe5f8c |\n| sys_user | 2 | fc88efa9162bcbd670d71d01b12e147c |\n| sys_user_role | 2 | 7fcd5d28ea5523e2ca58b477e6132e16 |\n| warehouse_site | 15 | 5134e6e2c8cf42f9fcb2a3953b30b28b |\n(51 rows, 389ms)"
+            }
+          ],
+          "isError": false
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "content": [
+            {
+              "type": "text",
+              "text": "| table_name | rows | digest |\n|---|---|---|\n| __inventory_sequence__ | 96 | 608d8fd8eeb4ec8b2e677b108f278b12 |\n| after_sales_header | 2 | c838e30bb3dae31cc21c18368810b510 |\n| after_sales_line | 2 | fcfcec2f748a6d26243e67bd4bca8045 |\n| bom | 19 | de05020c020b00b540b225d31b0169ea |\n| business_operation_log | 201 | a1ad44cfd1dfde830cc77cfd0a4938df |\n| command_receipt | 149 | 12804d7590013d31bad636ac12868e0a |\n| customer | 40 | 44b7faf1870c90d93236e9e0ea14a037 |\n| customer_po_config | 73 | e599d410125cba5b9312ba0846ec2689 |\n| customer_product | 17005 | 2bad0f979a795eca01b4fde475f9ba1c |\n| demand_execution_link | 29 | bb3226e6a16f98310117d6b65c0204a4 |\n| document_sequence | 53 | 828fcae98af9341a25952d9bbf7e6157 |\n| excel_read_field | 15 | c9b2a742ff30842b8fbba5075e3a8a57 |\n| excel_read_profile | 6 | 1e1d06c6a721b0e710940133b5940865 |\n| gross_demand | 38 | 163c0cf9f8d892165d8617f1020d6dbb |\n| inbound_document | 31 | 45029a2e43138461e7c0ece6252728b1 |\n| inbound_document_line | 31 | 999ceab7f28a62cb4858d71623615658 |\n| inventory_balance | 22 | d2f1376ac33d5921ad70c195bd96eaf5 |\n| inventory_ledger_entry | 85 | c2a7712f5a15946a7b4220dbc2cc595f |\n| net_demand | 43 | 9b01d78882809f96bd72785c6305073e |\n| outbound_document | 23 | c63159b3d242d6fc4cda8bb8e7e38571 |\n| outbound_document_line | 23 | 001910e8b0776d6ddeec3ad6727d7983 |\n| packing_list_head | 30 | 0a7cc589e8ef272446c7fd95a4a6829d |\n| packing_list_line | 34 | 77c246b4c3309ba5ca53a96ecf7d7cab |\n| packing_list_posting_execution | 27 | 0d4ef6b908b25f49405994816a6e89b4 |\n| packing_list_posting_execution_line | 64 | f089ad4c9ccd7be801ee921513c655ee |\n| product | 17355 | 1c41be394239615285e7075e7bf03cef |\n| product_category | 34 | 22517c83a3e959c5fc8280552d37cd4e |\n| product_color | 35 | 9996f04ae75ac5fabe4d0e966ead772c |\n| product_detail | 17281 | 740f4efef2b7ff9d783f6736d2ce24c3 |\n| product_master | 4 | 1af93be634e25231fb8b3e176ea3653b |\n| product_neutral | 7 | 0e0f9a134364c8beee448db0ac8845a0 |\n| product_package | 0 | empty |\n| purchase_confirmation_line | 0 | empty |\n| purchase_confirmation_node | 0 | empty |\n| purchase_order_head | 54 | f2a0cc8799495f77ed6899994e92d3bb |\n| purchase_order_line | 62 | d75ad14acab1c5b6e15929a4bd7d01a1 |\n| sales_order_header | 19 | e19f5869968fd34b468ebd2238be74d3 |\n| sales_order_line | 20 | d28fa8426590bc4d5b461185b2255b8b |\n| supplier | 40 | 69d727e54a095a40dda1e0206e404c04 |\n| supplier_product | 0 | empty |\n| supplier_progress_report | 4 | 0f0357c1c22849d518cf0a208340beb7 |\n| sys_dic_currency | 4 | a9fa99bddeeffb37f0333990dcf69cff |\n| sys_dic_currency_exchange | 0 | empty |\n| sys_dict_data | 31 | 479aa80868a59cfbc13335bbd57425a3 |\n| sys_dict_type | 12 | 54200bdd21ab606860dddb82e92e82f9 |\n| sys_permission | 112 | 85ec832766df7f41b94577d46268b7e2 |\n| sys_role | 2 | b07e106c9c9b5661df635ac53f6d3c99 |\n| sys_role_permission | 12 | 33ca6d1780f81108b70a113c37fe5f8c |\n| sys_user | 10 | e12582eb6da273b1fef4f779b1f4ca41 |\n| sys_user_role | 10 | be9cceeb2c2c65a59469d18a443d2e73 |\n| warehouse_site | 43 | a0f66e8736bdcc7734cb0b736f77c4ca |\n(51 rows, 380ms)"
+            }
+          ],
+          "isError": false
+        }
+      }
+    ],
+    "after": [
+      {
+        "status": "fulfilled",
+        "value": {
+          "content": [
+            {
+              "type": "text",
+              "text": "| table_name | rows | digest |\n|---|---|---|\n| __inventory_sequence__ | 1 | e3c86b5794d9f63206a68f43f7580b87 |\n| after_sales_header | 0 | empty |\n| after_sales_line | 0 | empty |\n| bom | 17 | 4cc31206e8ea4aefcf355f4fb56a1f23 |\n| business_operation_log | 0 | empty |\n| command_receipt | 0 | empty |\n| customer | 14 | eed5b45b6dab513f9c53e30aac1004b0 |\n| customer_po_config | 73 | e599d410125cba5b9312ba0846ec2689 |\n| customer_product | 17005 | 2bad0f979a795eca01b4fde475f9ba1c |\n| demand_execution_link | 0 | empty |\n| document_sequence | 0 | empty |\n| excel_read_field | 12 | ee1d72359eddc2851bbfa981de277752 |\n| excel_read_profile | 3 | eda52275fee9b3b6537bd9a47229d194 |\n| gross_demand | 0 | empty |\n| inbound_document | 0 | empty |\n| inbound_document_line | 0 | empty |\n| inventory_balance | 0 | empty |\n| inventory_ledger_entry | 0 | empty |\n| net_demand | 0 | empty |\n| outbound_document | 0 | empty |\n| outbound_document_line | 0 | empty |\n| packing_list_head | 0 | empty |\n| packing_list_line | 0 | empty |\n| packing_list_posting_execution | 0 | empty |\n| packing_list_posting_execution_line | 0 | empty |\n| product | 17309 | d0d6cc6edab43085bd6047f0412a0d4f |\n| product_category | 34 | 22517c83a3e959c5fc8280552d37cd4e |\n| product_color | 35 | 9996f04ae75ac5fabe4d0e966ead772c |\n| product_detail | 17281 | 740f4efef2b7ff9d783f6736d2ce24c3 |\n| product_master | 4 | 1af93be634e25231fb8b3e176ea3653b |\n| product_neutral | 7 | 0e0f9a134364c8beee448db0ac8845a0 |\n| product_package | 0 | empty |\n| purchase_confirmation_line | 0 | empty |\n| purchase_confirmation_node | 0 | empty |\n| purchase_order_head | 0 | empty |\n| purchase_order_line | 0 | empty |\n| sales_order_header | 0 | empty |\n| sales_order_line | 0 | empty |\n| supplier | 15 | aab29277cf21955cb9a74137b401d948 |\n| supplier_product | 0 | empty |\n| supplier_progress_report | 0 | empty |\n| sys_dic_currency | 2 | 78bdd3288d35947eaeaa72aa2ca4f375 |\n| sys_dic_currency_exchange | 0 | empty |\n| sys_dict_data | 27 | e0c3c247f751e336991167e980a778c0 |\n| sys_dict_type | 10 | dbfeba677880dddc8f9273fcb17d93d2 |\n| sys_permission | 111 | f5b08804bd65e3eb87529396ae289ea1 |\n| sys_role | 2 | b07e106c9c9b5661df635ac53f6d3c99 |\n| sys_role_permission | 12 | 33ca6d1780f81108b70a113c37fe5f8c |\n| sys_user | 2 | fc88efa9162bcbd670d71d01b12e147c |\n| sys_user_role | 2 | 7fcd5d28ea5523e2ca58b477e6132e16 |\n| warehouse_site | 15 | 5134e6e2c8cf42f9fcb2a3953b30b28b |\n(51 rows, 436ms)"
+            }
+          ],
+          "isError": false
+        }
+      },
+      {
+        "status": "fulfilled",
+        "value": {
+          "content": [
+            {
+              "type": "text",
+              "text": "| table_name | rows | digest |\n|---|---|---|\n| __inventory_sequence__ | 96 | 608d8fd8eeb4ec8b2e677b108f278b12 |\n| after_sales_header | 2 | c838e30bb3dae31cc21c18368810b510 |\n| after_sales_line | 2 | fcfcec2f748a6d26243e67bd4bca8045 |\n| bom | 19 | de05020c020b00b540b225d31b0169ea |\n| business_operation_log | 201 | a1ad44cfd1dfde830cc77cfd0a4938df |\n| command_receipt | 149 | 12804d7590013d31bad636ac12868e0a |\n| customer | 40 | 44b7faf1870c90d93236e9e0ea14a037 |\n| customer_po_config | 73 | e599d410125cba5b9312ba0846ec2689 |\n| customer_product | 17005 | 2bad0f979a795eca01b4fde475f9ba1c |\n| demand_execution_link | 29 | bb3226e6a16f98310117d6b65c0204a4 |\n| document_sequence | 53 | 828fcae98af9341a25952d9bbf7e6157 |\n| excel_read_field | 15 | c9b2a742ff30842b8fbba5075e3a8a57 |\n| excel_read_profile | 6 | 1e1d06c6a721b0e710940133b5940865 |\n| gross_demand | 38 | 163c0cf9f8d892165d8617f1020d6dbb |\n| inbound_document | 31 | 45029a2e43138461e7c0ece6252728b1 |\n| inbound_document_line | 31 | 999ceab7f28a62cb4858d71623615658 |\n| inventory_balance | 22 | d2f1376ac33d5921ad70c195bd96eaf5 |\n| inventory_ledger_entry | 85 | c2a7712f5a15946a7b4220dbc2cc595f |\n| net_demand | 43 | 9b01d78882809f96bd72785c6305073e |\n| outbound_document | 23 | c63159b3d242d6fc4cda8bb8e7e38571 |\n| outbound_document_line | 23 | 001910e8b0776d6ddeec3ad6727d7983 |\n| packing_list_head | 30 | 0a7cc589e8ef272446c7fd95a4a6829d |\n| packing_list_line | 34 | 77c246b4c3309ba5ca53a96ecf7d7cab |\n| packing_list_posting_execution | 27 | 0d4ef6b908b25f49405994816a6e89b4 |\n| packing_list_posting_execution_line | 64 | f089ad4c9ccd7be801ee921513c655ee |\n| product | 17355 | 1c41be394239615285e7075e7bf03cef |\n| product_category | 34 | 22517c83a3e959c5fc8280552d37cd4e |\n| product_color | 35 | 9996f04ae75ac5fabe4d0e966ead772c |\n| product_detail | 17281 | 740f4efef2b7ff9d783f6736d2ce24c3 |\n| product_master | 4 | 1af93be634e25231fb8b3e176ea3653b |\n| product_neutral | 7 | 0e0f9a134364c8beee448db0ac8845a0 |\n| product_package | 0 | empty |\n| purchase_confirmation_line | 0 | empty |\n| purchase_confirmation_node | 0 | empty |\n| purchase_order_head | 54 | f2a0cc8799495f77ed6899994e92d3bb |\n| purchase_order_line | 62 | d75ad14acab1c5b6e15929a4bd7d01a1 |\n| sales_order_header | 19 | e19f5869968fd34b468ebd2238be74d3 |\n| sales_order_line | 20 | d28fa8426590bc4d5b461185b2255b8b |\n| supplier | 40 | 69d727e54a095a40dda1e0206e404c04 |\n| supplier_product | 0 | empty |\n| supplier_progress_report | 4 | 0f0357c1c22849d518cf0a208340beb7 |\n| sys_dic_currency | 4 | a9fa99bddeeffb37f0333990dcf69cff |\n| sys_dic_currency_exchange | 0 | empty |\n| sys_dict_data | 31 | 479aa80868a59cfbc13335bbd57425a3 |\n| sys_dict_type | 12 | 54200bdd21ab606860dddb82e92e82f9 |\n| sys_permission | 112 | 85ec832766df7f41b94577d46268b7e2 |\n| sys_role | 2 | b07e106c9c9b5661df635ac53f6d3c99 |\n| sys_role_permission | 12 | 33ca6d1780f81108b70a113c37fe5f8c |\n| sys_user | 10 | e12582eb6da273b1fef4f779b1f4ca41 |\n| sys_user_role | 10 | be9cceeb2c2c65a59469d18a443d2e73 |\n| warehouse_site | 43 | a0f66e8736bdcc7734cb0b736f77c4ca |\n(51 rows, 402ms)"
+            }
+          ],
+          "isError": false
+        }
+      }
+    ],
+    "final_guard": {
+      "content": [
+        {
+          "type": "text",
+          "text": "| oid | owner_token | clients |\n|---|---|---|\n| 23103 | SwiftExport-P09-20261006-430011d699e546968398dd47ab41d015 | 0 |\n(1 rows, 1ms)"
+        }
+      ],
+      "isError": false
+    }
+  },
+  "not_verified": [
+    "运行库实际本位币切换写入",
+    "客户端界面展示",
+    "完整全量回归"
+  ],
+  "remaining": "系统字典列表失败按用户要求保留；B03解除。全部成果仍未提交、合并、推送或部署。"
+}

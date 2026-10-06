@@ -298,7 +298,7 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         Assert.AreSame(f.Transaction, f.Session.Transaction);
     });
 
-    /// <summary>集中调用币种九方法，验证实际数组/分页/引用 CTE 及保留的 NOT NULL 失败，不改变本位币切换规则。</summary>
+    /// <summary>集中调用币种九方法，验证数组/分页/引用及1:1重置；所有修改仍由父事务回滚。</summary>
     [TestMethod]
     public async Task RealPg_ResumedCurrencyQueriesAndDeferredReset() => await Rollback(async f =>
     {
@@ -314,9 +314,11 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         Assert.IsFalse((await repository.GetBaseCurrenciesAsync()).Any(x => x.Uid == currency.Uid));
         Assert.IsFalse((await repository.GetBaseIsBaseCurrencyIdsAsync([currency.Uid])).Contains(currency.Uid));
         CollectionAssert.Contains((await repository.GetBusinessReferencedCurrencyCodesAsync(codes)).ToArray(), currency.CurrencyCode!);
-        // 用户已选择暂留原 NULL/NOT NULL 冲突；明确验证数据库拒绝，不删除约束或把失败改成成功。
-        var failure = await Assert.ThrowsExactlyAsync<PostgresException>(async () => await repository.ResetAllBaseCurrencyAsync());
-        Assert.AreEqual("23502", failure.SqlState);
+        // 用户已确认切换时全部重置为1:1；仍使用调用方事务，结束后不得保留这些临时修改。
+        Assert.IsTrue(await repository.ResetAllBaseCurrencyAsync());
+        var reset = await repository.GetAllForUpdateAsync();
+        Assert.IsTrue(reset.All(row => row.RateToBase == 1m && !row.IsBase));
+        Assert.AreSame(f.Transaction, f.Session.Transaction);
     });
 
     /// <summary>验证余额/仓库与完整反向关联；包含软删行及不直接指向单头的命令明细关联，不调用过账或序列。</summary>
