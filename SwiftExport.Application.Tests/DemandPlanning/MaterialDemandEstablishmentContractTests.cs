@@ -1,4 +1,9 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Reflection;
+using Refit;
+using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Core.Interfaces.Auth.Permissions;
@@ -74,7 +79,7 @@ public sealed class MaterialDemandEstablishmentContractTests
         StringAssert.Contains(documentRepository, "InGrossScope");
     }
 
-    /// <summary>保持来源与物料职责隔离；API 的既有 Trace 静态冲突另行记录，不为迁移删除断言。</summary>
+    /// <summary>来源 API 只暴露只读追踪，继续禁止物料命令及来源维护直接读取物料仓储。</summary>
     [TestMethod]
     public void SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository()
     {
@@ -84,7 +89,14 @@ public sealed class MaterialDemandEstablishmentContractTests
 
         Assert.IsFalse(api.Contains("DecomposeAsync", StringComparison.Ordinal));
         Assert.IsFalse(api.Contains("RollbackAsync", StringComparison.Ordinal));
-        Assert.IsFalse(api.Contains("GetTraceAsync", StringComparison.Ordinal));
+        var trace = typeof(IGrossDemandWorkspaceApi).GetMethod(nameof(IGrossDemandWorkspaceApi.GetTraceAsync))!;
+        Assert.AreEqual("/{uid}/trace", trace.GetCustomAttribute<GetAttribute>()!.Path);
+        Assert.IsNull(trace.GetCustomAttribute<PostAttribute>());
+        Assert.IsNull(trace.GetCustomAttribute<PutAttribute>());
+        Assert.IsNull(trace.GetCustomAttribute<DeleteAttribute>());
+        Assert.AreEqual(typeof(Task<ServiceResult<GrossDemandTraceDetailDto>>), trace.ReturnType);
+        CollectionAssert.AreEqual(new[] { typeof(Guid), typeof(CancellationToken) },
+            trace.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
         Assert.IsFalse(service.Contains("INetDemandRepository", StringComparison.Ordinal));
         Assert.IsFalse(service.Contains("INetDemandAllocationRepository", StringComparison.Ordinal));
         Assert.IsFalse(repository.Contains("HasSourceCancellationBlockerAsync", StringComparison.Ordinal));

@@ -1,0 +1,1989 @@
+{
+  "recorded_at": "2026-10-06T11:51:49.5298197+08:00",
+  "stage": "P09-S02E原采购整单跟踪四方法接PG",
+  "status": "验证通过：获准四独立PG库原四方法；两阶段原失败留证，P09整体仍未完成",
+  "files": [
+    {
+      "before_sha256": "EEDCFCF054072C546A73BE76A44EA8DF4ABA671E8AE90204F447247FF8BE4746",
+      "before_text": "using Microsoft.Extensions.DependencyInjection;\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\nusing SwiftExport.Application.Interfaces.Procurement;\nusing SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;\nusing SwiftExport.Contracts.SysEnums;\n\nnamespace SwiftExport.Application.Tests.Procurement;\n\n/// <summary>在随机隔离 LocalDB 中核对采购整单状态、先筛后分页及独立采购追溯。</summary>\n[TestClass, DoNotParallelize]\npublic sealed class PurchaseOrderTrackingSqlTests\n{\n    /// <summary>待关联资格先于分页；包含部分关联及已确认采购，排除零剩余、未知、软删行和作废单。</summary>\n    [TestMethod]\n    public async Task UnlinkedOrderFilterRunsBeforeCountAndPaging()\n    {\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行随机隔离 LocalDB 测试。\");\n        await using var db = new IndependentProcurementSqlFixture();\n        await db.InitializeAsync();\n        var ids = new List<Guid>();\n        for (var i = 0; i < 6; i++) ids.Add((await db.CreateAsync()).Data!.PurchaseOrderId);\n        await db.ExecuteAsync(\"\"\"\n            UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=1 WHERE Uid=@partial;\n            UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=4 WHERE PurchaseOrderId=@partial;\n            UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=0 WHERE PurchaseOrderId=@zero;\n            UPDATE dbo.PurchaseOrderLine SET UnlinkedQty=NULL WHERE PurchaseOrderId=@unknown;\n            UPDATE dbo.PurchaseOrderLine SET IsDeleted=1 WHERE PurchaseOrderId=@removed;\n            UPDATE dbo.PurchaseOrderHead SET LifecycleStatus=@voidedStatus WHERE Uid=@voided;\n            \"\"\", new { partial = ids[1], zero = ids[2], unknown = ids[3], removed = ids[4], voided = ids[5], voidedStatus = (int)PurchaseOrderLifecycleStatusEnum.Voided });\n        var selected = new List<Guid>();\n        for (var page = 1; page <= 2; page++)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new() { OnlyWithUnlinkedQuantity = true, PageIndex = page, PageSize = 1 }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(2, result.Data!.TotalCount);\n            selected.Add(result.Data.Items.Single().PurchaseOrderId);\n        }\n        CollectionAssert.AreEquivalent(ids.Take(2).ToList(), selected);\n        var normal = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>().SearchAsync(new()));\n        Assert.IsTrue(normal.Success, normal.Message);\n        Assert.AreEqual(6, normal.Data!.TotalCount);\n    }\n\n    /// <summary>未反馈、明确零与部分货好分开筛选；空明细不会被误判为全部完成。</summary>\n    [TestMethod]\n    public async Task ReadyAndReceiptStatesFilterBeforePaging()\n    {\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行随机隔离 LocalDB 测试。\");\n        await using var db = new IndependentProcurementSqlFixture();\n        await db.InitializeAsync();\n        var first = (await db.CreateAsync()).Data!;\n        var second = (await db.CreateAsync()).Data!;\n        var third = (await db.CreateAsync()).Data!;\n        var empty = (await db.CreateAsync()).Data!;\n        var secondLine = await db.ScalarAsync<Guid>(\"SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@id\", new { id = second.PurchaseOrderId });\n        var thirdLine = await db.ScalarAsync<Guid>(\"SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@id\", new { id = third.PurchaseOrderId });\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,SupplierReportedDate,CommandId,IsCorrection)\n            VALUES(NEWID(),@secondLine,1,0,0,SYSUTCDATETIME(),NEWID(),0),\n                  (NEWID(),@thirdLine,1,0,4,SYSUTCDATETIME(),NEWID(),0);\n            UPDATE dbo.PurchaseOrderLine SET IsDeleted=1 WHERE PurchaseOrderId=@emptyId;\n            \"\"\", new { secondLine, thirdLine, emptyId = empty.PurchaseOrderId });\n\n        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseReadyStatusEnum status)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new PurchaseOrderManagerSearchRequest { ReadyStatuses = [status], PageIndex = 1, PageSize = 1 }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        Assert.AreEqual(first.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NotReported)).PurchaseOrderId);\n        Assert.AreEqual(second.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NotReady)).PurchaseOrderId);\n        Assert.AreEqual(third.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.PartiallyReady)).PurchaseOrderId);\n        Assert.AreEqual(empty.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NoLines)).PurchaseOrderId);\n\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,\n                WarehouseSiteId,ReceiptDate)\n            VALUES(@inboundId,N'TEST-RECEIPT-TRACK',10,0,0,1,@site,SYSUTCDATETIME());\n            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)\n            VALUES(NEWID(),@inboundId,1,@product,N'TEST-FG',N'PCS',3,@thirdLine);\n            \"\"\", new { inboundId = Guid.NewGuid(), site = db.ReceiptSiteId, product = db.ProductId, thirdLine });\n\n        var receipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { ReceiptStatuses = [PurchaseReceiptStatusEnum.NotReceived], PageSize = 2 }));\n        Assert.IsTrue(receipt.Success, receipt.Message);\n        Assert.AreEqual(2, receipt.Data!.TotalCount);\n        Assert.AreEqual(2, receipt.Data.Items.Count);\n        var partialReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { ReceiptStatuses = [PurchaseReceiptStatusEnum.PartiallyReceived] }));\n        Assert.IsTrue(partialReceipt.Success, partialReceipt.Message);\n        Assert.AreEqual(third.PurchaseOrderId, partialReceipt.Data!.Items.Single().PurchaseOrderId);\n    }\n\n    /// <summary>独立采购无需求 Link 时仍返回采购行；混合单位不显示跨行数量合计。</summary>\n    [TestMethod]\n    public async Task IndependentTraceAndMixedUnitsRemainExplicit()\n    {\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行随机隔离 LocalDB 测试。\");\n        await using var db = new IndependentProcurementSqlFixture();\n        await db.InitializeAsync();\n        var command = db.CreateCommand();\n        command.Lines.Add(new() { ProductId = db.ComponentId, Quantity = 5m, UnitPrice = 2m, TaxPrice = 2.5m,\n            DeliverySupplierId = db.SupplierId });\n        var created = await db.CreateAsync(command);\n        Assert.IsTrue(created.Success, created.Message);\n        var uid = created.Data!.PurchaseOrderId;\n        await db.ExecuteAsync(\"UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'BOX' WHERE PurchaseOrderId=@uid AND LineNumber=2\", new { uid });\n        var list = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { Keyword = created.Data.OrderNo }));\n        Assert.IsTrue(list.Success, list.Message);\n        var row = list.Data!.Items.Single();\n        Assert.AreEqual(2, row.LineCount);\n        Assert.IsNull(row.TotalQty);\n        Assert.IsNull(row.ReceiptProgress);\n        var trace = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsTrue(trace.Success, trace.Message);\n        Assert.AreEqual(2, trace.Data!.OriginKind);\n        Assert.AreEqual(2, trace.Data.Lines.Count);\n        Assert.IsTrue(trace.Data.Lines.All(line => line.Links.Count == 0));\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)\n            VALUES(NEWID(),N'IR-TRACE-UNVERIFIED',10,0,0,8,@site,SYSUTCDATETIME());\n            \"\"\", new { site = db.ReceiptSiteId });\n        var unrelatedReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsTrue(unrelatedReceipt.Success, unrelatedReceipt.Message);\n        var purchaseLineId = await db.ScalarAsync<Guid>(\n            \"SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid ORDER BY LineNumber\", new { uid });\n        await db.ExecuteAsync(\"\"\"\n            DECLARE @receipt uniqueidentifier=NEWID();\n            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)\n            VALUES(@receipt,N'IR-TRACE-RELATED',10,0,0,8,@site,SYSUTCDATETIME());\n            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)\n            VALUES(NEWID(),@receipt,1,@productId,N'TEST-FG',N'PCS',1,@purchaseLineId);\n            \"\"\", new { site = db.ReceiptSiteId, productId = db.ProductId, purchaseLineId });\n        var unknownReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsFalse(unknownReceipt.Success);\n        StringAssert.Contains(unknownReceipt.Message, \"收货量未知\");\n    }\n\n    /// <summary>北京时间边界以采购行计划交期判定；未知货好量作为风险命中，已货好行退出提醒。</summary>\n    [TestMethod]\n    public async Task DueViewsUseBeijingDateAndUnconfirmedReadyRisk()\n    {\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行随机隔离 LocalDB 测试。\");\n        await using var db = new IndependentProcurementSqlFixture();\n        await db.InitializeAsync();\n        var late = (await db.CreateAsync()).Data!;\n        var soon = (await db.CreateAsync()).Data!;\n        var later = (await db.CreateAsync()).Data!;\n        var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow, \"China Standard Time\").Date;\n        await db.ExecuteAsync(\"\"\"\n            UPDATE dbo.PurchaseOrderHead SET ConfirmationStatus=1 WHERE Uid IN @ids;\n            UPDATE dbo.PurchaseOrderLine SET PlannedDeliveryDate=@lateDate WHERE PurchaseOrderId=@lateId;\n            UPDATE dbo.PurchaseOrderLine SET PlannedDeliveryDate=@soonDate WHERE PurchaseOrderId=@soonId;\n            UPDATE dbo.PurchaseOrderLine SET PlannedDeliveryDate=@laterDate WHERE PurchaseOrderId=@laterId;\n            \"\"\", new { ids = new[] { late.PurchaseOrderId, soon.PurchaseOrderId, later.PurchaseOrderId },\n                lateId = late.PurchaseOrderId, soonId = soon.PurchaseOrderId, laterId = later.PurchaseOrderId,\n                lateDate = today.AddDays(-1), soonDate = today.AddDays(7), laterDate = today.AddDays(8) });\n\n        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseDueViewEnum view)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new PurchaseOrderManagerSearchRequest { DueView = view }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        var overdue = await Find(PurchaseDueViewEnum.OverdueNotReady);\n        Assert.AreEqual(late.PurchaseOrderId, overdue.PurchaseOrderId);\n        Assert.IsTrue(overdue.HasUnconfirmedReadyRisk);\n        Assert.AreEqual(soon.PurchaseOrderId, (await Find(PurchaseDueViewEnum.DueSoonNotReady)).PurchaseOrderId);\n\n        var soonLine = await db.ScalarAsync<Guid>(\"SELECT TOP (1) Uid FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@id\", new { id = soon.PurchaseOrderId });\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,SupplierReportedDate,CommandId,IsCorrection)\n            VALUES(NEWID(),@soonLine,1,0,10,SYSUTCDATETIME(),NEWID(),0);\n            \"\"\", new { soonLine });\n        var noSoon = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { DueView = PurchaseDueViewEnum.DueSoonNotReady }));\n        Assert.IsTrue(noSoon.Success, noSoon.Message);\n        Assert.AreEqual(0, noSoon.Data!.TotalCount);\n    }\n}\n",
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseOrderTrackingSqlTests.cs",
+      "prior_diff": [],
+      "after_sha256": "80DEFB8E8C9C5991092927398FD30F887E1F924FF8D4D8BA2B1918C4C32BBFAC"
+    }
+  ],
+  "scope": "只原四跟踪方法与同文件实库夹具和保护，保留未关联/货好实收/混合单位追溯/北京时间交期全部断言。当前宿主DI/真实创建与读取权限，dv只读资格及现PCS单位只读，独立随机年月新号段，预计93新行留存。无生产/PG/业务锁/公共夹具/接口/配置/DDL/旧行/账号权限或运行备份变化，不全量/新矩阵。",
+  "baseline": "failure原50表53066行/库存序列96；当前74类型82源文件、53已登记测试，F01/F02/S04精准范围保持，LocalDB夹具11消费文件含自身。",
+  "first_execution": {
+    "passed": 0,
+    "build_exit": 0,
+    "current_rows": 53153,
+    "all_50_old_tables_unchanged": true,
+    "errors": 0,
+    "sequence_after": 96,
+    "source_sha256": "80DEFB8E8C9C5991092927398FD30F887E1F924FF8D4D8BA2B1918C4C32BBFAC",
+    "total": 4,
+    "tests": [
+      {
+        "outcome": "Failed",
+        "message": "Assertion failed. 预期条件为 true。\r\n采购操作失败；写命令若未收到响应，请保留同一命令标识重试。\r\n\r\nactual: false\r\n\r\nAssert.IsTrue(result.Success)",
+        "name": "DueViewsUseBeijingDateAndUnconfirmedReadyRisk"
+      },
+      {
+        "outcome": "Failed",
+        "message": "Assertion failed. 预期条件为 true。\r\n采购操作失败；写命令若未收到响应，请保留同一命令标识重试。\r\n\r\nactual: false\r\n\r\nAssert.IsTrue(result.Success)",
+        "name": "ReadyAndReceiptStatesFilterBeforePaging"
+      },
+      {
+        "outcome": "Failed",
+        "message": "Assertion failed. 预期条件为 true。\r\n采购操作失败；写命令若未收到响应，请保留同一命令标识重试。\r\n\r\nactual: false\r\n\r\nAssert.IsTrue(result.Success)",
+        "name": "UnlinkedOrderFilterRunsBeforeCountAndPaging"
+      },
+      {
+        "outcome": "Failed",
+        "message": "Assertion failed. 预期条件为 true。\r\n采购操作失败；写命令若未收到响应，请保留同一命令标识重试。\r\n\r\nactual: false\r\n\r\nAssert.IsTrue(list.Success)",
+        "name": "IndependentTraceAndMixedUnitsRemainExplicit"
+      }
+    ],
+    "seconds": 3.11,
+    "added_rows": 87,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02E-原采购整单跟踪-实际命令.ps1'",
+    "sequence_before": 96,
+    "existing_warnings": 7,
+    "old_rows": 53066,
+    "failed": 4,
+    "test_exit": 1,
+    "failure_kind": "环境隔离不足：管理查询保持全库坏反向历史门禁；既有故障测试事实已含此类行，客户筛选不改变门禁范围。不改或绕过原语义。",
+    "artifacts": [
+      {
+        "sha256": "4C153BDCA374F0B67AB220BF01D86BA0DE85A7DC0EC54DAD1F695D22DEC7FE13",
+        "path": "TestResults/postgresql-migration/p09-s02e-purchase-tracking-pg-first.trx"
+      },
+      {
+        "sha256": "879D9DF535AC5BD832E23FBA7746931706315CAA17F7D472463A43D2D5E0B301",
+        "path": "TestResults/postgresql-migration/p09-s02e-purchase-tracking-data-protection-first.json"
+      }
+    ],
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal"
+  },
+  "isolation_revision": {
+    "baseline": "SwiftExport.Infrastructure/Database/Generated/SwiftExport.PostgreSql.Schema.preview.sql",
+    "gate": "SWIFTEXPORT_RUN_PG_TRACKING_ISOLATED_TESTS=1，另原failure门禁仍必需；默认不建库",
+    "reason": "原LocalDB每方法独立库，PG全库guard不可仅客户隔离；不清理已有故障事实，不缩窄生产guard。",
+    "baseline_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7",
+    "scope": "四方法各一个新PG测试库，仅 dv_next_pg_tracking_tests_20261006_ 加随机12十六进制尾标，不存在才能新建；现PG结构基线SHA固定初始化空新库，复制failure账号dv/管理员关系与字典币种/权限基线至新库，来源只读。保留新库和全部事实，不删除/重建任何既有库。全部源50表保护；各新库复制基线保护和新增身份留证。",
+    "semantics": "保留35条原业务断言、原查询全库门禁和DI/真实服务；仅修正测试隔离，不改业务/PG/公共夹具/接口/已有账号或权限。",
+    "exact_proposed_databases": [
+      "dv_next_pg_tracking_tests_20261006_a2f4bf37b4ca",
+      "dv_next_pg_tracking_tests_20261006_e1d7f55c9da9",
+      "dv_next_pg_tracking_tests_20261006_4bf8ba322373",
+      "dv_next_pg_tracking_tests_20261006_75921daa825c"
+    ],
+    "approval": {
+      "scope_for_confirmation": "192.168.3.12:5432四个列明新测试库，各50表现PG基线；只读failure账号dv/管理员关系和字典币种权限，仅写新库；现有/运行/备份库不写，不删库/表，不覆盖任何既有数据；成功事实和新库保留。",
+      "patch_applied": false,
+      "reason": "扩展为创建新数据库/整套DDL及dv角色权限字典复制，超出当前仅随机测试事实写入且禁止DDL/新库重建/权限数据复制的审批范围",
+      "source_sha_unchanged": true,
+      "new_database_created": true,
+      "rejected_action": "向一个既有测试文件加入每方法独立新库初始化和授权/字典基线复制",
+      "status": "用户已批准且实际完成；此前拒绝未绕过，原拒绝补丁未应用，获准实施另留证",
+      "user_reply": "授权给你。",
+      "user_reply_scope": "四个列明新库、现50表结构初始化和九表限定基线复制；成功事实保留，不写现有库/运行/备份",
+      "authorized_at": "2026-10-06T12:23:31.9709818+08:00",
+      "approved_isolation_patch_applied": true
+    }
+  },
+  "closure": {
+    "other_clients_after": 1,
+    "localdb_fixture_consumers_including_definition": 10,
+    "business_or_pg_source_change": false,
+    "command": "& './docs/postgresql-migration/任务结果/P09-S02E-原采购整单跟踪-收口实际命令.ps1'",
+    "test_processes_after": 0,
+    "database_gates": 12,
+    "failed": 4,
+    "shared_fixture_change": false,
+    "full_test_run": false,
+    "repeated_failed_run": false,
+    "source_files_exited": 82,
+    "advisory_locks_after": 0,
+    "source_proof": "P09-S02E-源码保护证据.json",
+    "old_rows": 53066,
+    "inventory_sequence": 96,
+    "added_tables": [
+      {
+        "count": 14,
+        "table": "business_operation_log",
+        "uids": [
+          "030b8e31-fe19-4a5f-8f1f-4a3600d7b009",
+          "064bca50-3b41-45a4-853e-4a3600d7aea8",
+          "0bd246ca-3037-4198-a9f8-4a3600d7af6e",
+          "27492fee-2b8f-43a5-9af6-4a3600d7aeca",
+          "3bff2b11-0cd5-45f0-a831-4a3600d7af15",
+          "524f5a4f-714b-4a40-aea2-4a3600d7afb9",
+          "66162e89-e1a3-4292-911f-4a3600d7aee6",
+          "6a1b2b87-fb26-4506-8087-4a3600d7af84",
+          "729dc309-56c9-4171-96c6-4a3600d7b03a",
+          "7bf77b11-0f78-4d18-8fca-4a3600d7ae6a",
+          "7ec4f8b0-7a77-49f4-8730-4a3600d7af00",
+          "8b3dad0e-eba4-49ca-b232-4a3600d7b071",
+          "939f1d90-7afa-4423-a475-4a3600d7afa2",
+          "d4ff65fb-0a93-4428-bb87-4a3600d7b052"
+        ]
+      },
+      {
+        "count": 14,
+        "table": "command_receipt",
+        "uids": [
+          "2e8c07db-396d-4575-80b4-4a3600d7aecc",
+          "3961da17-5b29-45ec-a3ef-4a3600d7af16",
+          "73d446d3-e923-466a-beaf-4a3600d7afa4",
+          "743db2e4-bcdc-46dc-b15f-4a3600d7ae7d",
+          "7a61f98a-f5e2-4c96-a53b-4a3600d7b03c",
+          "89ffe760-af4a-4ef8-afb6-4a3600d7aee7",
+          "c9cc454f-a5c1-48b6-8cee-4a3600d7af01",
+          "d020f4a3-41d4-44fa-8179-4a3600d7aeaa",
+          "e4c94b79-9fc3-4558-821f-4a3600d7b00a",
+          "f2c9fb6b-0d20-4d24-b055-4a3600d7af70",
+          "f783e069-97f4-40e8-98d4-4a3600d7b054",
+          "f877ff18-911f-4b22-ab46-4a3600d7afba",
+          "fdde4c24-ddee-4f7c-b266-4a3600d7af85",
+          "ffb20c6a-a6e8-4bec-aeff-4a3600d7b072"
+        ]
+      },
+      {
+        "count": 4,
+        "table": "customer",
+        "uids": [
+          "35501939-84b5-48c7-b004-2b5c7d283b84",
+          "3f82e146-7f41-4f62-9373-1b9ac0732317",
+          "45cf2693-5f04-40b7-aaa8-81806a02ec08",
+          "4b1569d0-3098-422e-9815-6b6d7a81d9fa"
+        ]
+      },
+      {
+        "count": 4,
+        "table": "document_sequence",
+        "uids": [
+          "148dba09-35e4-46ab-92dc-4a3600d7b002",
+          "4680658d-a481-45eb-84a2-4a3600d7ae5b",
+          "b93840c2-1048-4509-8cc2-4a3600d7af6a",
+          "cc0066b1-7c09-4eff-9fc3-4a3600d7b036"
+        ]
+      },
+      {
+        "count": 8,
+        "table": "product",
+        "uids": [
+          "43c853de-3f63-4978-b4c3-e1605e5f5ecb",
+          "569d81af-6958-4974-ae8f-1a17eb19b46b",
+          "9733a013-b24d-4f6b-9ce3-0d2edd820ec2",
+          "9e70adb0-7091-47a7-add0-940f601cf55a",
+          "aa082d76-50bc-4076-9cc6-6c0ea991e617",
+          "ab047f74-2a12-456b-8a9e-f3873d848ecc",
+          "b45ed0ba-9a08-4a91-be26-c9298bdac05f",
+          "ea942529-a7f5-4cb6-96eb-d71de0f549ab"
+        ]
+      },
+      {
+        "count": 14,
+        "table": "purchase_order_head",
+        "uids": [
+          "1ce570d6-02f2-4c9e-a751-4a3600d7aedb",
+          "4cf0c2d9-d134-4411-8c0a-4a3600d7b048",
+          "5fbc209a-3f69-44f4-b338-4a3600d7af64",
+          "61139666-00dd-4f46-8af5-4a3600d7aebe",
+          "65ff40fc-921e-41db-a4fb-4a3600d7ae9c",
+          "713fe738-efc0-4329-97ad-4a3600d7aef1",
+          "71569a72-c1da-49a7-9086-4a3600d7b02f",
+          "73321113-b323-4229-8e50-4a3600d7af0a",
+          "78aee23b-94d9-4082-bf77-4a3600d7af98",
+          "a53802ae-c848-4e1a-a88d-4a3600d7ae4b",
+          "bfcb026d-7dca-4ff0-98a2-4a3600d7afae",
+          "c23d3175-1303-43ea-b7ac-4a3600d7af79",
+          "cb263131-c9c3-421c-9586-4a3600d7aff3",
+          "d692561f-7687-48a1-8764-4a3600d7b066"
+        ]
+      },
+      {
+        "count": 15,
+        "table": "purchase_order_line",
+        "uids": [
+          "02c929b3-b243-4017-a43f-4a3600d7ae4d",
+          "08c2b608-6c4e-47fb-ac83-4a3600d7b048",
+          "675e473f-fa24-4210-851b-4a3600d7aebe",
+          "83861047-ed9d-4cf4-a012-4a3600d7afae",
+          "83f49985-da4a-4be9-b612-4a3600d7af0a",
+          "9b9052e0-3747-4b31-a7ea-4a3600d7af98",
+          "9c7d9019-00e1-4c8e-b5ac-4a3600d7b030",
+          "b3e8aae5-52e5-4fdd-98f9-4a3600d7af65",
+          "c0160065-820c-47a4-86e0-4a3600d7af79",
+          "c1c438e7-f44e-4de3-9112-4a3600d7aedb",
+          "c31c7641-6ef1-403c-8988-4a3600d7aff3",
+          "ca8be9b5-babc-4b8d-8152-4a3600d7ae9c",
+          "cd6abfc0-9015-4a72-8ec7-4a3600d7b066",
+          "d8e9e9ff-5dea-4082-9ead-4a3600d7affa",
+          "fc8a8464-bfe1-4192-b8f4-4a3600d7aef1"
+        ]
+      },
+      {
+        "count": 8,
+        "table": "supplier",
+        "uids": [
+          "4caae7aa-371e-4275-88bd-50be25883442",
+          "60580354-1c49-483c-955d-ec77d3c91821",
+          "64dde182-2160-4940-82ae-d88281ce50cb",
+          "7d20ad06-cea0-4a1a-adcb-513e84eb60e2",
+          "94205070-d2ab-4fe6-be00-8d68cab07e13",
+          "9bb9ec26-796a-4c69-8a08-12c224bca74d",
+          "e2add04c-4e2a-4d06-9f0a-cb0bf98f84d4",
+          "f443deb3-f71d-4285-8bb6-5d56ad8c207b"
+        ]
+      },
+      {
+        "count": 2,
+        "table": "supplier_progress_report",
+        "uids": [
+          "0ab4f918-85de-4a4a-a135-15601fa9ed7f",
+          "d194609a-db88-44aa-bbce-942aa237e4a1"
+        ]
+      },
+      {
+        "count": 4,
+        "table": "warehouse_site",
+        "uids": [
+          "16cd081b-b77e-4fef-bcb9-06701b6722fe",
+          "221664e8-0c50-4b5b-a271-1953c5d17039",
+          "eb98f0d6-be7f-4f46-8e27-d96e7b148da3",
+          "f59dd82a-54c8-4469-928c-d82e73e00b3d"
+        ]
+      }
+    ],
+    "proposed_database_count": 4,
+    "retained_business_assertions": 35,
+    "new_databases_created": 0,
+    "original_sources": 2390,
+    "old_rows_unchanged": true,
+    "current_rows": 53153,
+    "code_compiled": true,
+    "extra_production_changes": 0,
+    "other_active_transactions_after": 0,
+    "extra_missing": 0,
+    "old_or_runtime_backup_ddl": false,
+    "pg_integration_category_files": 44,
+    "changed_existing_tests": 54,
+    "commit_merge_push": false,
+    "must_not_mark_passed": true,
+    "new_sources": 0,
+    "real_pg_methods_attempted": 4,
+    "runtime_or_backup_write": false,
+    "validated_original_methods": 0,
+    "added_rows": 87,
+    "account_or_permission_change": false,
+    "rejected_patch_applied": false,
+    "source_types_exited": 74,
+    "passed": 0,
+    "old_tables": 50
+  },
+  "remaining_consumers": {
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\Orders\\SalesOrderManagerQuerySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs"
+    ],
+    "sql_baseline": [
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs"
+    ]
+  },
+  "pre_isolation_pg_source": "using Microsoft.Extensions.DependencyInjection;\nusing Dapper;\nusing Microsoft.AspNetCore.Builder;\nusing Microsoft.Extensions.Configuration;\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\nusing SwiftExport.Application.Interfaces.Procurement;\nusing SwiftExport.Application.Tests.Database;\nusing SwiftExport.Contracts.DTOs.Procurement.OrderManagement;\nusing SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;\nusing SwiftExport.Contracts.SysEnums;\nusing SwiftExport.Core.Interfaces.Auth;\nusing SwiftExport.Infrastructure.Data;\nusing SwiftExport.Infrastructure.DatabaseSchema;\nusing SwiftExport.Infrastructure.Repositories.Base;\nusing SwiftExport.WebApi.Configuration;\nusing System.Text.Json;\n\nnamespace SwiftExport.Application.Tests.Procurement;\n\n/// <summary>原采购跟踪四场景接真实PG创建和查询服务；保护旧行及号段，仅随机新事实留存，不初始化或清理库。</summary>\n[TestClass, DoNotParallelize, TestCategory(\"PostgreSqlIntegration\")]\npublic sealed class PurchaseOrderTrackingPostgreSqlTests\n{\n    /// <summary>待关联资格先于分页；包含部分关联及已确认采购，排除零剩余、未知、软删行和作废单。</summary>\n    [TestMethod]\n    public async Task UnlinkedOrderFilterRunsBeforeCountAndPaging()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var ids = new List<Guid>();\n        for (var i = 0; i < 6; i++) ids.Add((await db.CreateAsync()).Data!.PurchaseOrderId);\n        await db.ExecuteAsync(\"\"\"\n            UPDATE public.purchase_order_head SET confirmation_status=1 WHERE uid=@partial;\n            UPDATE public.purchase_order_line SET unlinked_qty=4 WHERE purchase_order_id=@partial;\n            UPDATE public.purchase_order_line SET unlinked_qty=0 WHERE purchase_order_id=@zero;\n            UPDATE public.purchase_order_line SET unlinked_qty=NULL WHERE purchase_order_id=@unknown;\n            UPDATE public.purchase_order_line SET is_deleted=TRUE WHERE purchase_order_id=@removed;\n            UPDATE public.purchase_order_head SET lifecycle_status=@voidedStatus WHERE uid=@voided;\n            \"\"\", new { partial = ids[1], zero = ids[2], unknown = ids[3], removed = ids[4], voided = ids[5], voidedStatus = (int)PurchaseOrderLifecycleStatusEnum.Voided });\n        var selected = new List<Guid>();\n        for (var page = 1; page <= 2; page++)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new() { CustomerCode = db.CustomerCode, OnlyWithUnlinkedQuantity = true, PageIndex = page, PageSize = 1 }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(2, result.Data!.TotalCount);\n            selected.Add(result.Data.Items.Single().PurchaseOrderId);\n        }\n        CollectionAssert.AreEquivalent(ids.Take(2).ToList(), selected);\n        var normal = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>().SearchAsync(new() { CustomerCode = db.CustomerCode }));\n        Assert.IsTrue(normal.Success, normal.Message);\n        Assert.AreEqual(6, normal.Data!.TotalCount);\n    }\n\n    /// <summary>未反馈、明确零与部分货好分开筛选；空明细不会被误判为全部完成。</summary>\n    [TestMethod]\n    public async Task ReadyAndReceiptStatesFilterBeforePaging()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var first = (await db.CreateAsync()).Data!;\n        var second = (await db.CreateAsync()).Data!;\n        var third = (await db.CreateAsync()).Data!;\n        var empty = (await db.CreateAsync()).Data!;\n        var secondLine = await db.ScalarAsync<Guid>(\"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@id LIMIT 1\", new { id = second.PurchaseOrderId });\n        var thirdLine = await db.ScalarAsync<Guid>(\"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@id LIMIT 1\", new { id = third.PurchaseOrderId });\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.supplier_progress_report(uid,purchase_order_line_id,sequence,arrangement_status,ready_qty,supplier_reported_date,command_id,is_correction)\n            VALUES(gen_random_uuid(),@secondLine,1,0,0,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE),\n                  (gen_random_uuid(),@thirdLine,1,0,4,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE);\n            UPDATE public.purchase_order_line SET is_deleted=TRUE WHERE purchase_order_id=@emptyId;\n            \"\"\", new { secondLine, thirdLine, emptyId = empty.PurchaseOrderId });\n\n        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseReadyStatusEnum status)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReadyStatuses = [status], PageIndex = 1, PageSize = 1 }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        Assert.AreEqual(first.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NotReported)).PurchaseOrderId);\n        Assert.AreEqual(second.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NotReady)).PurchaseOrderId);\n        Assert.AreEqual(third.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.PartiallyReady)).PurchaseOrderId);\n        Assert.AreEqual(empty.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NoLines)).PurchaseOrderId);\n\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.inbound_document(uid,document_no,document_type,creation_mode,lifecycle_status,posting_status,\n                warehouse_site_id,receipt_date)\n            VALUES(@inboundId,@DocumentNo,10,0,0,1,@site,timezone('UTC',clock_timestamp()));\n            INSERT INTO public.inbound_document_line(uid,inbound_document_id,line_number,product_id,sku_snapshot,unit_snapshot,quantity,source_line_id)\n            VALUES(gen_random_uuid(),@inboundId,1,@product,'TEST-FG','PCS',3,@thirdLine);\n            \"\"\", new { inboundId = Guid.NewGuid(), site = db.ReceiptSiteId, product = db.ProductId, thirdLine, DocumentNo = db.Batch + \"_TEST-RECEIPT-TRACK\" });\n\n        var receipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReceiptStatuses = [PurchaseReceiptStatusEnum.NotReceived], PageSize = 2 }));\n        Assert.IsTrue(receipt.Success, receipt.Message);\n        Assert.AreEqual(2, receipt.Data!.TotalCount);\n        Assert.AreEqual(2, receipt.Data.Items.Count);\n        var partialReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReceiptStatuses = [PurchaseReceiptStatusEnum.PartiallyReceived] }));\n        Assert.IsTrue(partialReceipt.Success, partialReceipt.Message);\n        Assert.AreEqual(third.PurchaseOrderId, partialReceipt.Data!.Items.Single().PurchaseOrderId);\n    }\n\n    /// <summary>独立采购无需求 Link 时仍返回采购行；混合单位不显示跨行数量合计。</summary>\n    [TestMethod]\n    public async Task IndependentTraceAndMixedUnitsRemainExplicit()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var command = db.CreateCommand();\n        command.Lines.Add(new() { ProductId = db.ComponentId, Quantity = 5m, UnitPrice = 2m, TaxPrice = 2.5m,\n            DeliverySupplierId = db.SupplierId });\n        var created = await db.CreateAsync(command);\n        Assert.IsTrue(created.Success, created.Message);\n        var uid = created.Data!.PurchaseOrderId;\n        await db.ExecuteAsync(\"UPDATE public.purchase_order_line SET unit_snapshot='BOX' WHERE purchase_order_id=@uid AND line_number=2\", new { uid });\n        var list = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { Keyword = created.Data.OrderNo }));\n        Assert.IsTrue(list.Success, list.Message);\n        var row = list.Data!.Items.Single();\n        Assert.AreEqual(2, row.LineCount);\n        Assert.IsNull(row.TotalQty);\n        Assert.IsNull(row.ReceiptProgress);\n        var trace = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsTrue(trace.Success, trace.Message);\n        Assert.AreEqual(2, trace.Data!.OriginKind);\n        Assert.AreEqual(2, trace.Data.Lines.Count);\n        Assert.IsTrue(trace.Data.Lines.All(line => line.Links.Count == 0));\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.inbound_document(uid,document_no,document_type,creation_mode,lifecycle_status,posting_status,warehouse_site_id,receipt_date)\n            VALUES(gen_random_uuid(),@DocumentNo,10,0,0,8,@site,timezone('UTC',clock_timestamp()));\n            \"\"\", new { site = db.ReceiptSiteId, DocumentNo = db.Batch + \"_IR-TRACE-UNVERIFIED\" });\n        var unrelatedReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsTrue(unrelatedReceipt.Success, unrelatedReceipt.Message);\n        var purchaseLineId = await db.ScalarAsync<Guid>(\n            \"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@uid ORDER BY line_number LIMIT 1\", new { uid });\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.inbound_document(uid,document_no,document_type,creation_mode,lifecycle_status,posting_status,warehouse_site_id,receipt_date)\n            VALUES(@receipt,@DocumentNo,10,0,0,8,@site,timezone('UTC',clock_timestamp()));\n            INSERT INTO public.inbound_document_line(uid,inbound_document_id,line_number,product_id,sku_snapshot,unit_snapshot,quantity,source_line_id)\n            VALUES(gen_random_uuid(),@receipt,1,@productId,'TEST-FG','PCS',1,@purchaseLineId);\n            \"\"\", new { receipt = Guid.NewGuid(), site = db.ReceiptSiteId, productId = db.ProductId, purchaseLineId, DocumentNo = db.Batch + \"_IR-TRACE-RELATED\" });\n        var unknownReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsFalse(unknownReceipt.Success);\n        StringAssert.Contains(unknownReceipt.Message, \"收货量未知\");\n    }\n\n    /// <summary>北京时间边界以采购行计划交期判定；未知货好量作为风险命中，已货好行退出提醒。</summary>\n    [TestMethod]\n    public async Task DueViewsUseBeijingDateAndUnconfirmedReadyRisk()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var late = (await db.CreateAsync()).Data!;\n        var soon = (await db.CreateAsync()).Data!;\n        var later = (await db.CreateAsync()).Data!;\n        var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow, \"China Standard Time\").Date;\n        await db.ExecuteAsync(\"\"\"\n            UPDATE public.purchase_order_head SET confirmation_status=1 WHERE uid=ANY(@ids);\n            UPDATE public.purchase_order_line SET planned_delivery_date=@lateDate WHERE purchase_order_id=@lateId;\n            UPDATE public.purchase_order_line SET planned_delivery_date=@soonDate WHERE purchase_order_id=@soonId;\n            UPDATE public.purchase_order_line SET planned_delivery_date=@laterDate WHERE purchase_order_id=@laterId;\n            \"\"\", new { ids = new[] { late.PurchaseOrderId, soon.PurchaseOrderId, later.PurchaseOrderId },\n                lateId = late.PurchaseOrderId, soonId = soon.PurchaseOrderId, laterId = later.PurchaseOrderId,\n                lateDate = today.AddDays(-1), soonDate = today.AddDays(7), laterDate = today.AddDays(8) });\n\n        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseDueViewEnum view)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, DueView = view }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        var overdue = await Find(PurchaseDueViewEnum.OverdueNotReady);\n        Assert.AreEqual(late.PurchaseOrderId, overdue.PurchaseOrderId);\n        Assert.IsTrue(overdue.HasUnconfirmedReadyRisk);\n        Assert.AreEqual(soon.PurchaseOrderId, (await Find(PurchaseDueViewEnum.DueSoonNotReady)).PurchaseOrderId);\n\n        var soonLine = await db.ScalarAsync<Guid>(\"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@id LIMIT 1\", new { id = soon.PurchaseOrderId });\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.supplier_progress_report(uid,purchase_order_line_id,sequence,arrangement_status,ready_qty,supplier_reported_date,command_id,is_correction)\n            VALUES(gen_random_uuid(),@soonLine,1,0,10,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE);\n            \"\"\", new { soonLine });\n        var noSoon = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, DueView = PurchaseDueViewEnum.DueSoonNotReady }));\n        Assert.IsTrue(noSoon.Success, noSoon.Message);\n        Assert.AreEqual(0, noSoon.Data!.TotalCount);\n    }\n\n    private static readonly Dictionary<string, (Guid[] Ids, string Snapshot)> OriginalRows = [];\r\n    private static long OriginalSequence;\r\n\r\n    /// <summary>冻结原50表身份及完整摘要；其他活动事务存在时停止，不初始化或复位。</summary>\r\n    [ClassInitialize]\r\n    public static async Task CaptureOriginalRowsAsync(TestContext context)\r\n    {\r\n        using var session = new DbSession(new PostgreSqlConnectionFactory(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()));\r\n        Assert.AreEqual(0, await session.Connection.ExecuteScalarAsync<int>(\"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND backend_type='client backend' AND (state<>'idle' OR xact_start IS NOT NULL)\"), \"隔离写入必须串行。\");\r\n        var tables = (await session.Connection.QueryAsync<string>(\"SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name\")).ToArray();\r\n        Assert.AreEqual(50, tables.Length, \"使用既有完整结构，不初始化。\");\r\n        foreach (var table in tables)\r\n        {\r\n            var ids = (await session.Connection.QueryAsync<Guid>($\"SELECT uid FROM public.{PostgreSqlNames.Quote(table)}\")).ToArray();\r\n            OriginalRows.Add(table, (ids, await SnapshotAsync(session, table, ids)));\r\n        }\r\n        OriginalSequence = await session.Connection.ExecuteScalarAsync<long>(\"SELECT last_value FROM public.inventory_ledger_sequence\");\r\n    }\r\n\r\n    /// <summary>保存每表旧行与新增身份，成功事实留存；旧行或库存序列改变则失败。</summary>\r\n    [ClassCleanup]\r\n    public static async Task VerifyOriginalRowsAsync()\r\n    {\r\n        if (OriginalRows.Count == 0) return;\r\n        using var session = new DbSession(new PostgreSqlConnectionFactory(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()));\r\n        var evidence = new List<object>(); var unchanged = true;\r\n        foreach (var (table, original) in OriginalRows)\r\n        {\r\n            var after = await SnapshotAsync(session, table, original.Ids);\r\n            var parameters = new PostgreSqlParameters(); parameters.AddIds(\"OldIds\", original.Ids);\r\n            var added = (await session.Connection.QueryAsync<Guid>($\"SELECT uid FROM public.{PostgreSqlNames.Quote(table)} WHERE NOT(uid=ANY(@OldIds)) ORDER BY uid\", parameters)).ToArray();\r\n            evidence.Add(new { Table = table, OldCount = original.Ids.Length, Before = original.Snapshot, After = after, AddedIds = added });\r\n            unchanged &= original.Snapshot == after;\r\n        }\r\n        var sequence = await session.Connection.ExecuteScalarAsync<long>(\"SELECT last_value FROM public.inventory_ledger_sequence\");\r\n        Directory.CreateDirectory(\"TestResults/postgresql-migration\");\r\n        await File.WriteAllTextAsync(\"TestResults/postgresql-migration/p09-s02e-purchase-tracking-data-protection.json\", JsonSerializer.Serialize(new\r\n        {\r\n            RecordedAt = DateTimeOffset.Now, Database = \"dv_next_pg_failure_tests_20261004\",\r\n            SequenceBefore = OriginalSequence, SequenceAfter = sequence, Tables = evidence\r\n        }, new JsonSerializerOptions { WriteIndented = true }));\r\n        Assert.IsTrue(unchanged, \"原记录被修改或删除；逐表证据已保存。\");\r\n        Assert.AreEqual(OriginalSequence, sequence, \"采购查询跟踪不能产生库存事实。\");\r\n    }\r\n\r\n    /// <summary>按原身份数组计算完整行摘要；表名来自本库目录并进行引用。</summary>\r\n    private static async Task<string> SnapshotAsync(DbSession session, string table, Guid[] ids)\r\n    {\r\n        var parameters = new PostgreSqlParameters(); parameters.AddIds(\"OldIds\", ids);\r\n        return await session.Connection.ExecuteScalarAsync<string>($\"\"\"\r\n            SELECT count(*)::text||':'||md5(COALESCE(string_agg(md5(to_jsonb(t)::text),'' ORDER BY uid),''))\r\n            FROM public.{PostgreSqlNames.Quote(table)} t WHERE uid=ANY(@OldIds)\r\n            \"\"\", parameters) ?? throw new AssertFailedException(\"原记录保护摘要为空。\");\r\n    }\r\n\r\n    /// <summary>只供原四跟踪方法使用的PG夹具，正常创建采购、保留独立request事务，不创建或清理数据库。</summary>\n    private sealed class TrackingFixture : IAsyncDisposable\n    {\n        private readonly string connection = PostgreSqlIntegrationEnvironment.GetFailureConnectionString();\n        private readonly int orderYear = 4000 + Math.Abs(Guid.NewGuid().GetHashCode() % 5000);\n        private WebApplication? app;\n        public string Batch { get; } = \"PGS02E_\" + Guid.NewGuid().ToString(\"N\");\n        public string CustomerCode => Batch + \"_C\";\n        public Guid CustomerId { get; } = Guid.NewGuid();\n        public Guid SupplierId { get; } = Guid.NewGuid();\n        public Guid ReceiptSupplierId { get; } = Guid.NewGuid();\n        public Guid ProductId { get; } = Guid.NewGuid();\n        public Guid ComponentId { get; } = Guid.NewGuid();\n        public Guid ReceiptSiteId { get; } = Guid.NewGuid();\n\n        /// <summary>读取dv现有管理员和PCS单位，准备随机新主数据与未使用年月，避免推进任何既有号段或供应商虚拟仓。</summary>\n        public async Task InitializeAsync()\n        {\n            using var session = new DbSession(new PostgreSqlConnectionFactory(connection));\n            var actor = await session.Connection.QuerySingleAsync<TrackingActor>(\"\"\"\n                SELECT u.uid AS \"UserId\",u.user_name AS \"UserName\" FROM public.sys_user u\n                WHERE u.user_name='dv' AND u.is_active AND NOT u.is_deleted AND EXISTS(\n                    SELECT 1 FROM public.sys_user_role ur JOIN public.sys_role r ON r.uid=ur.role_id\n                    WHERE ur.user_id=u.uid AND NOT ur.is_deleted AND r.is_active AND NOT r.is_deleted AND r.role_code='SYSTEM_ADMIN');\n                \"\"\");\n            Assert.AreEqual(1, await session.Connection.ExecuteScalarAsync<int>(\"SELECT count(*) FROM public.sys_dict_data WHERE dict_code='Unit' AND data_name_en='PCS' AND is_enabled AND NOT is_deleted\"), \"只读取现有PCS，不增改字典。\");\n            Assert.AreEqual(0, await session.Connection.ExecuteScalarAsync<int>(\"SELECT count(*) FROM public.document_sequence WHERE doc_type='PO' AND year_month=@Month\", new { Month = $\"{orderYear:D4}08\" }), \"本批年月必须原不存在，不重置已有号段。\");\n            await session.Connection.ExecuteAsync(\"\"\"\n                INSERT INTO public.customer(uid,customer_code,customer_name,doc_relate_no,deposit_rate,lead_time_days,is_active)\n                VALUES(@CustomerId,@CustomerCode,'原采购跟踪客户',@CustomerCode,0,0,TRUE);\n                INSERT INTO public.supplier(uid,supplier_code,supplier_name,doc_relate_no,is_active)\n                VALUES(@SupplierId,@ActualCode,'实际供应商',@ActualCode,TRUE),\n                      (@ReceiptSupplierId,@ReceiptCode,'收货供应商',@ReceiptCode,TRUE);\n                INSERT INTO public.product(uid,sku,description_zh,unit,material_type,supply_type,bom_version,color_id,is_active)\n                VALUES(@ProductId,@RootSku,'采购成品','PCS','成品','采购',0,@EmptyId,TRUE),\n                      (@ComponentId,@ComponentSku,'客供件','PCS','客供件','采购',0,@EmptyId,TRUE);\n                INSERT INTO public.warehouse_site(uid,code,name,site_type,supplier_id,is_active)\n                VALUES(@ReceiptSiteId,@SiteCode,'独立新收货仓',0,@ReceiptSupplierId,TRUE);\n                \"\"\", new { CustomerId, CustomerCode, SupplierId, ReceiptSupplierId, ProductId, ComponentId, ReceiptSiteId,\n                    ActualCode = Batch + \"_ACTUAL\", ReceiptCode = Batch + \"_RECEIPT\", RootSku = Batch + \"_FG\",\n                    ComponentSku = Batch + \"_B\", SiteCode = Batch + \"_R\", EmptyId = Guid.Empty });\n            var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = Path.Combine(Root(), \"SwiftExport.WebApi\"), EnvironmentName = \"Development\" });\n            builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { [\"ConnectionStrings:Default\"] = connection });\n            builder.AddWebApiServices(); builder.Services.AddSingleton<ICurrentUser>(actor);\n            app = builder.Build();\n        }\n\n        /// <summary>保留原创建数量、价格、包装及日期月底，只将年月移入原不存在的独立号段。</summary>\n        public CreateIndependentPurchaseOrderCommand CreateCommand() => new()\n        {\n            CommandId = Guid.NewGuid(), CustomerId = CustomerId, SupplierId = SupplierId,\n            OrderDate = new DateTime(orderYear, 8, 31), PackagingRequirements = \"客户包装要求\",\n            Lines = [new() { ProductId = ProductId, Quantity = 10m, UnitPrice = 2m, TaxPrice = 2.5m }]\n        };\n\n        /// <summary>使用原真实采购创建服务及权限，成功事实/审计/回执留存，不伪造创建结果。</summary>\n        public Task<SwiftExport.Contracts.Wrappers.ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand? command = null)\n            => InScopeAsync(p => p.GetRequiredService<IProcurementOrderDraftService>().CreateAsync(command ?? CreateCommand()));\n\n        /// <summary>执行本文件明确的PG夹具SQL，调用方只传本批新UID，不在运行时翻译SQL。</summary>\n        public async Task<int> ExecuteAsync(string sql, object? args = null)\n        {\n            using var session = new DbSession(new PostgreSqlConnectionFactory(connection));\n            return await session.Connection.ExecuteAsync(sql, args);\n        }\n\n        /// <summary>通过真实独立连接读取本批夹具身份，不修改数据库。</summary>\n        public async Task<T> ScalarAsync<T>(string sql, object? args = null)\n        {\n            using var session = new DbSession(new PostgreSqlConnectionFactory(connection));\n            return (await session.Connection.ExecuteScalarAsync<T>(sql, args))!;\n        }\n\n        /// <summary>原服务各自拥有独立request scope及事务，读取/命令结束后检查清理，不借测试事务。</summary>\n        public async Task<T> InScopeAsync<T>(Func<IServiceProvider, Task<T>> action)\n        {\n            using var scope = app!.Services.CreateScope();\n            var result = await action(scope.ServiceProvider);\n            var session = scope.ServiceProvider.GetRequiredService<DbSession>();\n            Assert.IsNull(session.Transaction); Assert.IsNull(session.CommandLease); Assert.IsNull(session.SourceDemandLease);\n            return result;\n        }\n\n        /// <summary>只释放本夹具服务和连接，保留新事实，不执行旧LocalDB删除或数据清理。</summary>\n        public async ValueTask DisposeAsync() { if (app is not null) await app.DisposeAsync(); }\n    }\n\n    /// <summary>读取实际dv资格后使用原权限服务，不创建或改变账号，也不声称本批验证HTTP/JWT登录。</summary>\n    private sealed class TrackingActor : ICurrentUser\n    {\n        public Guid? UserId { get; set; }\n        public string UserName { get; set; } = \"\";\n        /// <summary>资格来自本库已核实有效管理员，服务仍执行其原业务权限。</summary>\n        public bool IsAuthenticated => true;\n    }\n\n    /// <summary>定位宿主配置，只在内存覆盖授权测试连接，不改配置或启动HTTP服务器。</summary>\n    private static string Root()\n    {\n        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)\n            if (File.Exists(Path.Combine(directory.FullName, \"SwiftExport.WebApi\", \"appsettings.json\"))) return directory.FullName;\n        throw new DirectoryNotFoundException(\"无法定位 WebApi 配置。\");\n    }\n}\n",
+  "isolation_first_execution": {
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "errors": 0,
+    "existing_warnings": 7,
+    "build_seconds": 7.83,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02E-四个新测试库-实际命令.ps1'",
+    "test_exit": 1,
+    "passed": 0,
+    "failed": 4,
+    "source_sha256": "ECD5BB16364A589AFEE1FD6B2EF613F038960B98A46312DC60CEDD921FDAB42A",
+    "source": "using Microsoft.Extensions.DependencyInjection;\nusing Dapper;\nusing Microsoft.AspNetCore.Builder;\nusing Microsoft.Extensions.Configuration;\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\nusing SwiftExport.Application.Interfaces.Procurement;\nusing SwiftExport.Application.Tests.Database;\nusing SwiftExport.Contracts.DTOs.Procurement.OrderManagement;\nusing SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;\nusing SwiftExport.Contracts.SysEnums;\nusing SwiftExport.Core.Interfaces.Auth;\nusing SwiftExport.Infrastructure.Data;\nusing SwiftExport.Infrastructure.DatabaseSchema;\nusing SwiftExport.Infrastructure.Repositories.Base;\nusing SwiftExport.WebApi.Configuration;\nusing System.Text.Json;\nusing Npgsql;\nusing System.Runtime.CompilerServices;\nusing System.Security.Cryptography;\n\nnamespace SwiftExport.Application.Tests.Procurement;\n\n/// <summary>原采购跟踪四场景各接已授权独立PG新库及真实服务；来源旧行只读保护，新库基线与事实留存，不清理任何库。</summary>\n[TestClass, DoNotParallelize, TestCategory(\"PostgreSqlIntegration\")]\npublic sealed class PurchaseOrderTrackingPostgreSqlTests\n{\n    /// <summary>待关联资格先于分页；包含部分关联及已确认采购，排除零剩余、未知、软删行和作废单。</summary>\n    [TestMethod]\n    public async Task UnlinkedOrderFilterRunsBeforeCountAndPaging()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var ids = new List<Guid>();\n        for (var i = 0; i < 6; i++) ids.Add((await db.CreateAsync()).Data!.PurchaseOrderId);\n        await db.ExecuteAsync(\"\"\"\n            UPDATE public.purchase_order_head SET confirmation_status=1 WHERE uid=@partial;\n            UPDATE public.purchase_order_line SET unlinked_qty=4 WHERE purchase_order_id=@partial;\n            UPDATE public.purchase_order_line SET unlinked_qty=0 WHERE purchase_order_id=@zero;\n            UPDATE public.purchase_order_line SET unlinked_qty=NULL WHERE purchase_order_id=@unknown;\n            UPDATE public.purchase_order_line SET is_deleted=TRUE WHERE purchase_order_id=@removed;\n            UPDATE public.purchase_order_head SET lifecycle_status=@voidedStatus WHERE uid=@voided;\n            \"\"\", new { partial = ids[1], zero = ids[2], unknown = ids[3], removed = ids[4], voided = ids[5], voidedStatus = (int)PurchaseOrderLifecycleStatusEnum.Voided });\n        var selected = new List<Guid>();\n        for (var page = 1; page <= 2; page++)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new() { CustomerCode = db.CustomerCode, OnlyWithUnlinkedQuantity = true, PageIndex = page, PageSize = 1 }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(2, result.Data!.TotalCount);\n            selected.Add(result.Data.Items.Single().PurchaseOrderId);\n        }\n        CollectionAssert.AreEquivalent(ids.Take(2).ToList(), selected);\n        var normal = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>().SearchAsync(new() { CustomerCode = db.CustomerCode }));\n        Assert.IsTrue(normal.Success, normal.Message);\n        Assert.AreEqual(6, normal.Data!.TotalCount);\n    }\n\n    /// <summary>未反馈、明确零与部分货好分开筛选；空明细不会被误判为全部完成。</summary>\n    [TestMethod]\n    public async Task ReadyAndReceiptStatesFilterBeforePaging()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var first = (await db.CreateAsync()).Data!;\n        var second = (await db.CreateAsync()).Data!;\n        var third = (await db.CreateAsync()).Data!;\n        var empty = (await db.CreateAsync()).Data!;\n        var secondLine = await db.ScalarAsync<Guid>(\"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@id LIMIT 1\", new { id = second.PurchaseOrderId });\n        var thirdLine = await db.ScalarAsync<Guid>(\"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@id LIMIT 1\", new { id = third.PurchaseOrderId });\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.supplier_progress_report(uid,purchase_order_line_id,sequence,arrangement_status,ready_qty,supplier_reported_date,command_id,is_correction)\n            VALUES(gen_random_uuid(),@secondLine,1,0,0,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE),\n                  (gen_random_uuid(),@thirdLine,1,0,4,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE);\n            UPDATE public.purchase_order_line SET is_deleted=TRUE WHERE purchase_order_id=@emptyId;\n            \"\"\", new { secondLine, thirdLine, emptyId = empty.PurchaseOrderId });\n\n        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseReadyStatusEnum status)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReadyStatuses = [status], PageIndex = 1, PageSize = 1 }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        Assert.AreEqual(first.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NotReported)).PurchaseOrderId);\n        Assert.AreEqual(second.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NotReady)).PurchaseOrderId);\n        Assert.AreEqual(third.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.PartiallyReady)).PurchaseOrderId);\n        Assert.AreEqual(empty.PurchaseOrderId, (await Find(PurchaseReadyStatusEnum.NoLines)).PurchaseOrderId);\n\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.inbound_document(uid,document_no,document_type,creation_mode,lifecycle_status,posting_status,\n                warehouse_site_id,receipt_date)\n            VALUES(@inboundId,@DocumentNo,10,0,0,1,@site,timezone('UTC',clock_timestamp()));\n            INSERT INTO public.inbound_document_line(uid,inbound_document_id,line_number,product_id,sku_snapshot,unit_snapshot,quantity,source_line_id)\n            VALUES(gen_random_uuid(),@inboundId,1,@product,'TEST-FG','PCS',3,@thirdLine);\n            \"\"\", new { inboundId = Guid.NewGuid(), site = db.ReceiptSiteId, product = db.ProductId, thirdLine, DocumentNo = db.Batch + \"_TEST-RECEIPT-TRACK\" });\n\n        var receipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReceiptStatuses = [PurchaseReceiptStatusEnum.NotReceived], PageSize = 2 }));\n        Assert.IsTrue(receipt.Success, receipt.Message);\n        Assert.AreEqual(2, receipt.Data!.TotalCount);\n        Assert.AreEqual(2, receipt.Data.Items.Count);\n        var partialReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, ReceiptStatuses = [PurchaseReceiptStatusEnum.PartiallyReceived] }));\n        Assert.IsTrue(partialReceipt.Success, partialReceipt.Message);\n        Assert.AreEqual(third.PurchaseOrderId, partialReceipt.Data!.Items.Single().PurchaseOrderId);\n    }\n\n    /// <summary>独立采购无需求 Link 时仍返回采购行；混合单位不显示跨行数量合计。</summary>\n    [TestMethod]\n    public async Task IndependentTraceAndMixedUnitsRemainExplicit()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var command = db.CreateCommand();\n        command.Lines.Add(new() { ProductId = db.ComponentId, Quantity = 5m, UnitPrice = 2m, TaxPrice = 2.5m,\n            DeliverySupplierId = db.SupplierId });\n        var created = await db.CreateAsync(command);\n        Assert.IsTrue(created.Success, created.Message);\n        var uid = created.Data!.PurchaseOrderId;\n        await db.ExecuteAsync(\"UPDATE public.purchase_order_line SET unit_snapshot='BOX' WHERE purchase_order_id=@uid AND line_number=2\", new { uid });\n        var list = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { Keyword = created.Data.OrderNo }));\n        Assert.IsTrue(list.Success, list.Message);\n        var row = list.Data!.Items.Single();\n        Assert.AreEqual(2, row.LineCount);\n        Assert.IsNull(row.TotalQty);\n        Assert.IsNull(row.ReceiptProgress);\n        var trace = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsTrue(trace.Success, trace.Message);\n        Assert.AreEqual(2, trace.Data!.OriginKind);\n        Assert.AreEqual(2, trace.Data.Lines.Count);\n        Assert.IsTrue(trace.Data.Lines.All(line => line.Links.Count == 0));\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.inbound_document(uid,document_no,document_type,creation_mode,lifecycle_status,posting_status,warehouse_site_id,receipt_date)\n            VALUES(gen_random_uuid(),@DocumentNo,10,0,0,8,@site,timezone('UTC',clock_timestamp()));\n            \"\"\", new { site = db.ReceiptSiteId, DocumentNo = db.Batch + \"_IR-TRACE-UNVERIFIED\" });\n        var unrelatedReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsTrue(unrelatedReceipt.Success, unrelatedReceipt.Message);\n        var purchaseLineId = await db.ScalarAsync<Guid>(\n            \"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@uid ORDER BY line_number LIMIT 1\", new { uid });\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.inbound_document(uid,document_no,document_type,creation_mode,lifecycle_status,posting_status,warehouse_site_id,receipt_date)\n            VALUES(@receipt,@DocumentNo,10,0,0,8,@site,timezone('UTC',clock_timestamp()));\n            INSERT INTO public.inbound_document_line(uid,inbound_document_id,line_number,product_id,sku_snapshot,unit_snapshot,quantity,source_line_id)\n            VALUES(gen_random_uuid(),@receipt,1,@productId,'TEST-FG','PCS',1,@purchaseLineId);\n            \"\"\", new { receipt = Guid.NewGuid(), site = db.ReceiptSiteId, productId = db.ProductId, purchaseLineId, DocumentNo = db.Batch + \"_IR-TRACE-RELATED\" });\n        var unknownReceipt = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));\n        Assert.IsFalse(unknownReceipt.Success);\n        StringAssert.Contains(unknownReceipt.Message, \"收货量未知\");\n    }\n\n    /// <summary>北京时间边界以采购行计划交期判定；未知货好量作为风险命中，已货好行退出提醒。</summary>\n    [TestMethod]\n    public async Task DueViewsUseBeijingDateAndUnconfirmedReadyRisk()\n    {\n        await using var db = new TrackingFixture();\n        await db.InitializeAsync();\n        var late = (await db.CreateAsync()).Data!;\n        var soon = (await db.CreateAsync()).Data!;\n        var later = (await db.CreateAsync()).Data!;\n        var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow, \"China Standard Time\").Date;\n        await db.ExecuteAsync(\"\"\"\n            UPDATE public.purchase_order_head SET confirmation_status=1 WHERE uid=ANY(@ids);\n            UPDATE public.purchase_order_line SET planned_delivery_date=@lateDate WHERE purchase_order_id=@lateId;\n            UPDATE public.purchase_order_line SET planned_delivery_date=@soonDate WHERE purchase_order_id=@soonId;\n            UPDATE public.purchase_order_line SET planned_delivery_date=@laterDate WHERE purchase_order_id=@laterId;\n            \"\"\", new { ids = new[] { late.PurchaseOrderId, soon.PurchaseOrderId, later.PurchaseOrderId },\n                lateId = late.PurchaseOrderId, soonId = soon.PurchaseOrderId, laterId = later.PurchaseOrderId,\n                lateDate = today.AddDays(-1), soonDate = today.AddDays(7), laterDate = today.AddDays(8) });\n\n        async Task<PurchaseOrderManagerListItemDto> Find(PurchaseDueViewEnum view)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n                .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, DueView = view }));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        var overdue = await Find(PurchaseDueViewEnum.OverdueNotReady);\n        Assert.AreEqual(late.PurchaseOrderId, overdue.PurchaseOrderId);\n        Assert.IsTrue(overdue.HasUnconfirmedReadyRisk);\n        Assert.AreEqual(soon.PurchaseOrderId, (await Find(PurchaseDueViewEnum.DueSoonNotReady)).PurchaseOrderId);\n\n        var soonLine = await db.ScalarAsync<Guid>(\"SELECT uid FROM public.purchase_order_line WHERE purchase_order_id=@id LIMIT 1\", new { id = soon.PurchaseOrderId });\n        await db.ExecuteAsync(\"\"\"\n            INSERT INTO public.supplier_progress_report(uid,purchase_order_line_id,sequence,arrangement_status,ready_qty,supplier_reported_date,command_id,is_correction)\n            VALUES(gen_random_uuid(),@soonLine,1,0,10,timezone('UTC',clock_timestamp()),gen_random_uuid(),FALSE);\n            \"\"\", new { soonLine });\n        var noSoon = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderManagerQueryService>()\n            .SearchAsync(new PurchaseOrderManagerSearchRequest { CustomerCode = db.CustomerCode, DueView = PurchaseDueViewEnum.DueSoonNotReady }));\n        Assert.IsTrue(noSoon.Success, noSoon.Message);\n        Assert.AreEqual(0, noSoon.Data!.TotalCount);\n    }\n\n    private static readonly Dictionary<string, (Guid[] Ids, string Snapshot)> OriginalRows = [];\n    private static long OriginalSequence;\n    private static string OriginalStructure = \"\";\n    private static readonly List<object> OwnedDatabases = [];\n\n    /// <summary>冻结原50表身份及完整摘要；其他活动事务存在时停止，不初始化或复位。</summary>\n    [ClassInitialize]\n    public static async Task CaptureOriginalRowsAsync(TestContext context)\n    {\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_PG_TRACKING_ISOLATED_TESTS\") != \"1\")\n            Assert.Inconclusive(\"本批四个独立测试库须显式启用；不自动建库。\");\n        using var session = new DbSession(new PostgreSqlConnectionFactory(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()));\n        Assert.AreEqual(0, await session.Connection.ExecuteScalarAsync<int>(\"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND backend_type='client backend' AND (state<>'idle' OR xact_start IS NOT NULL)\"), \"隔离写入必须串行。\");\n        var tables = (await session.Connection.QueryAsync<string>(\"SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name\")).ToArray();\n        Assert.AreEqual(50, tables.Length, \"使用既有完整结构，不初始化。\");\n        foreach (var table in tables)\n        {\n            var ids = (await session.Connection.QueryAsync<Guid>($\"SELECT uid FROM public.{PostgreSqlNames.Quote(table)}\")).ToArray();\n            OriginalRows.Add(table, (ids, await SnapshotAsync(session, table, ids)));\n        }\n        OriginalSequence = await session.Connection.ExecuteScalarAsync<long>(\"SELECT last_value FROM public.inventory_ledger_sequence\");\n        OriginalStructure = await StructureSnapshotAsync(session);\n    }\n\n    /// <summary>保存每表旧行与新增身份，成功事实留存；旧行或库存序列改变则失败。</summary>\n    [ClassCleanup]\n    public static async Task VerifyOriginalRowsAsync()\n    {\n        if (OriginalRows.Count == 0) return;\n        using var session = new DbSession(new PostgreSqlConnectionFactory(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()));\n        var evidence = new List<object>(); var unchanged = true;\n        foreach (var (table, original) in OriginalRows)\n        {\n            var after = await SnapshotAsync(session, table, original.Ids);\n            var parameters = new PostgreSqlParameters(); parameters.AddIds(\"OldIds\", original.Ids);\n            var added = (await session.Connection.QueryAsync<Guid>($\"SELECT uid FROM public.{PostgreSqlNames.Quote(table)} WHERE NOT(uid=ANY(@OldIds)) ORDER BY uid\", parameters)).ToArray();\n            evidence.Add(new { Table = table, OldCount = original.Ids.Length, Before = original.Snapshot, After = after, AddedIds = added });\n            unchanged &= original.Snapshot == after;\n        }\n        var sequence = await session.Connection.ExecuteScalarAsync<long>(\"SELECT last_value FROM public.inventory_ledger_sequence\");\n        var structure = await StructureSnapshotAsync(session);\n        Directory.CreateDirectory(\"TestResults/postgresql-migration\");\n        await File.WriteAllTextAsync(\"TestResults/postgresql-migration/p09-s02e-purchase-tracking-isolated-data-protection.json\", JsonSerializer.Serialize(new\n        {\n            RecordedAt = DateTimeOffset.Now, Database = \"dv_next_pg_failure_tests_20261004\",\n            SequenceBefore = OriginalSequence, SequenceAfter = sequence, Tables = evidence,\n            StructureBefore = OriginalStructure, StructureAfter = structure, OwnedDatabases\n        }, new JsonSerializerOptions { WriteIndented = true }));\n        Assert.IsTrue(unchanged, \"原记录被修改或删除；逐表证据已保存。\");\n        Assert.AreEqual(OriginalSequence, sequence, \"采购查询跟踪不能产生库存事实。\");\n        Assert.AreEqual(OriginalStructure, structure, \"源failure库结构不能改变。\");\n        Assert.AreEqual(4, OwnedDatabases.Count, \"四个原方法各自留存独立库事实。\");\n    }\n\n    /// <summary>按原身份数组计算完整行摘要；表名来自本库目录并进行引用。</summary>\n    private static async Task<string> SnapshotAsync(DbSession session, string table, Guid[] ids)\n    {\n        var parameters = new PostgreSqlParameters(); parameters.AddIds(\"OldIds\", ids);\n        return await session.Connection.ExecuteScalarAsync<string>($\"\"\"\n            SELECT count(*)::text||':'||md5(COALESCE(string_agg(md5(to_jsonb(t)::text),'' ORDER BY uid),''))\n            FROM public.{PostgreSqlNames.Quote(table)} t WHERE uid=ANY(@OldIds)\n            \"\"\", parameters) ?? throw new AssertFailedException(\"原记录保护摘要为空。\");\n    }\n\n\n    /// <summary>比较结构语义，排除实例OID、所有者及序列当前值；只读现有定义，供四库基线与来源保护使用。</summary>\n    private static async Task<string> StructureSnapshotAsync(DbSession session)\n        => await session.Connection.ExecuteScalarAsync<string>(\"\"\"\n            SELECT md5(COALESCE(string_agg(payload,'' ORDER BY payload),'')) FROM (\n                SELECT jsonb_build_array('column',table_name,column_name,ordinal_position,data_type,udt_name,is_nullable,\n                    column_default,character_maximum_length,numeric_precision,numeric_scale,datetime_precision)::text AS payload\n                FROM information_schema.columns WHERE table_schema='public'\n                UNION ALL\n                SELECT jsonb_build_array('constraint',r.relname,c.conname,pg_get_constraintdef(c.oid,true))::text\n                FROM pg_constraint c JOIN pg_class r ON r.oid=c.conrelid JOIN pg_namespace n ON n.oid=r.relnamespace\n                WHERE n.nspname='public'\n                UNION ALL\n                SELECT jsonb_build_array('index',tablename,indexname,indexdef)::text FROM pg_indexes WHERE schemaname='public'\n                UNION ALL\n                SELECT jsonb_build_array('function',p.proname,pg_get_functiondef(p.oid))::text\n                FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind='f'\n                UNION ALL\n                SELECT jsonb_build_array('trigger',r.relname,t.tgname,pg_get_triggerdef(t.oid,true))::text\n                FROM pg_trigger t JOIN pg_class r ON r.oid=t.tgrelid JOIN pg_namespace n ON n.oid=r.relnamespace\n                WHERE n.nspname='public' AND NOT t.tgisinternal\n                UNION ALL\n                SELECT jsonb_build_array('collation',to_jsonb(c)-'oid'-'collowner'-'collnamespace'-'collversion')::text\n                FROM pg_collation c JOIN pg_namespace n ON n.oid=c.collnamespace WHERE n.nspname='public'\n                UNION ALL\n                SELECT jsonb_build_array('sequence',sequencename,data_type,start_value,min_value,max_value,increment_by,cycle,cache_size)::text\n                FROM pg_sequences WHERE schemaname='public'\n                UNION ALL\n                SELECT jsonb_build_array('table_comment',r.relname,obj_description(r.oid,'pg_class'))::text\n                FROM pg_class r JOIN pg_namespace n ON n.oid=r.relnamespace WHERE n.nspname='public' AND r.relkind='r'\n                UNION ALL\n                SELECT jsonb_build_array('column_comment',r.relname,a.attname,col_description(r.oid,a.attnum))::text\n                FROM pg_attribute a JOIN pg_class r ON r.oid=a.attrelid JOIN pg_namespace n ON n.oid=r.relnamespace\n                WHERE n.nspname='public' AND r.relkind='r' AND a.attnum>0 AND NOT a.attisdropped\n            ) definitions\n            \"\"\") ?? throw new AssertFailedException(\"结构摘要为空。\");\n\n    /// <summary>只供原四跟踪方法，每方法一个已授权新PG库；正常创建采购并保留全部事实，不清理任何库。</summary>\n    private sealed class TrackingFixture : IAsyncDisposable\n    {\n        private readonly string sourceConnection = PostgreSqlIntegrationEnvironment.GetFailureConnectionString();\n        private readonly string connection;\n        private readonly string databaseName;\n        private readonly Dictionary<string, (Guid[] Ids, string Snapshot)> copiedRows = [];\n        private bool databaseCreated;\n        private readonly int orderYear = 4000 + Math.Abs(Guid.NewGuid().GetHashCode() % 5000);\n        private WebApplication? app;\n        public string Batch { get; } = \"PGS02E_\" + Guid.NewGuid().ToString(\"N\");\n        public string CustomerCode => Batch + \"_C\";\n        public Guid CustomerId { get; } = Guid.NewGuid();\n        public Guid SupplierId { get; } = Guid.NewGuid();\n        public Guid ReceiptSupplierId { get; } = Guid.NewGuid();\n        public Guid ProductId { get; } = Guid.NewGuid();\n        public Guid ComponentId { get; } = Guid.NewGuid();\n        public Guid ReceiptSiteId { get; } = Guid.NewGuid();\n\n\n        /// <summary>调用成员只能是获准的四个原方法；库名固定，不接受外部库名或已有库复位。</summary>\n        public TrackingFixture([CallerMemberName] string method = \"\")\n        {\n            databaseName = method switch\n            {\n                nameof(UnlinkedOrderFilterRunsBeforeCountAndPaging) => \"dv_next_pg_tracking_tests_20261006_a2f4bf37b4ca\",\n                nameof(ReadyAndReceiptStatesFilterBeforePaging) => \"dv_next_pg_tracking_tests_20261006_e1d7f55c9da9\",\n                nameof(IndependentTraceAndMixedUnitsRemainExplicit) => \"dv_next_pg_tracking_tests_20261006_4bf8ba322373\",\n                nameof(DueViewsUseBeijingDateAndUnconfirmedReadyRisk) => \"dv_next_pg_tracking_tests_20261006_75921daa825c\",\n                _ => throw new InvalidOperationException(\"拒绝未获准方法创建测试库。\")\n            };\n            connection = new NpgsqlConnectionStringBuilder(sourceConnection)\n            {\n                Database = databaseName, Pooling = false, ApplicationName = \"PG-S02E-ISOLATED\"\n            }.ConnectionString;\n        }\n\n        /// <summary>只创建列明且不存在的空新库，执行固定PG基线；来源九表只读复制，既有库和账号授权不改。</summary>\n        private async Task PrepareOwnedDatabaseAsync()\n        {\n            var baseline = await File.ReadAllBytesAsync(Path.Combine(Root(), \"SwiftExport.Infrastructure/Database/Generated/SwiftExport.PostgreSql.Schema.preview.sql\"));\n            Assert.AreEqual(\"FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7\",\n                Convert.ToHexString(SHA256.HashData(baseline)), \"固定已批准结构不能变化。\");\n            using var source = new DbSession(new PostgreSqlConnectionFactory(sourceConnection));\n            Assert.IsTrue(await source.Connection.ExecuteScalarAsync<bool>(\n                \"SELECT rolcreatedb OR rolsuper FROM pg_roles WHERE rolname=current_user\"), \"实际连接角色必须具有建库权限。\");\n            Assert.AreEqual(0, await source.Connection.ExecuteScalarAsync<int>(\n                \"SELECT count(*) FROM pg_database WHERE datname=@databaseName\", new { databaseName }), \"已有库不能重建或重跑覆盖。\");\n            await source.Connection.ExecuteAsync($\"CREATE DATABASE {PostgreSqlNames.Quote(databaseName)}\");\n            databaseCreated = true;\n            using var target = new DbSession(new PostgreSqlConnectionFactory(connection));\n            await target.Connection.ExecuteAsync(System.Text.Encoding.UTF8.GetString(baseline), commandTimeout: 120);\n            Assert.AreEqual(OriginalStructure, await StructureSnapshotAsync(target), \"新库结构必须对应现有PG基线。\");\n\n            var actorId = await source.Connection.QuerySingleAsync<Guid>(\n                \"SELECT uid FROM public.sys_user WHERE user_name='dv' AND is_active AND NOT is_deleted\");\n            var roleId = await source.Connection.QuerySingleAsync<Guid>(\n                \"SELECT uid FROM public.sys_role WHERE role_code='SYSTEM_ADMIN' AND is_active AND NOT is_deleted\");\n            foreach (var (table, where) in new (string Table, string Where)[]\n            {\n                (\"sys_dict_type\", \"\"), (\"sys_dict_data\", \"\"), (\"sys_dic_currency\", \"\"),\n                (\"sys_dic_currency_exchange\", \"\"), (\"sys_permission\", \"\"),\n                (\"sys_role\", \"WHERE uid=@roleId\"), (\"sys_user\", \"WHERE uid=@actorId\"),\n                (\"sys_role_permission\", \"WHERE role_id=@roleId\"),\n                (\"sys_user_role\", \"WHERE user_id=@actorId AND role_id=@roleId\")\n            })\n            {\n                // 认证字段仅作为内存JSON参数复制到获准新库，不输出行、密码或哈希。\n                var rows = await source.Connection.ExecuteScalarAsync<string>(\n                    $\"SELECT COALESCE(jsonb_agg(to_jsonb(t)),'[]'::jsonb)::text FROM public.{PostgreSqlNames.Quote(table)} t {where}\",\n                    new { actorId, roleId });\n                await target.Connection.ExecuteAsync(\n                    $\"INSERT INTO public.{PostgreSqlNames.Quote(table)} SELECT * FROM jsonb_populate_recordset(NULL::public.{PostgreSqlNames.Quote(table)},CAST(@rows AS jsonb))\",\n                    new { rows });\n            }\n            var tables = (await target.Connection.QueryAsync<string>(\n                \"SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name\")).ToArray();\n            Assert.AreEqual(50, tables.Length, \"只使用获准的现50表结构。\");\n            foreach (var table in tables)\n            {\n                var ids = (await target.Connection.QueryAsync<Guid>($\"SELECT uid FROM public.{PostgreSqlNames.Quote(table)}\")).ToArray();\n                copiedRows.Add(table, (ids, await SnapshotAsync(target, table, ids)));\n            }\n        }\n\n        /// <summary>准备独立新库后读取复制基线的dv和PCS，沿用原随机主数据及未使用年月，保留正常创建服务。</summary>\n        public async Task InitializeAsync()\n        {\n            await PrepareOwnedDatabaseAsync();\n            using var session = new DbSession(new PostgreSqlConnectionFactory(connection));\n            var actor = await session.Connection.QuerySingleAsync<TrackingActor>(\"\"\"\n                SELECT u.uid AS \"UserId\",u.user_name AS \"UserName\" FROM public.sys_user u\n                WHERE u.user_name='dv' AND u.is_active AND NOT u.is_deleted AND EXISTS(\n                    SELECT 1 FROM public.sys_user_role ur JOIN public.sys_role r ON r.uid=ur.role_id\n                    WHERE ur.user_id=u.uid AND NOT ur.is_deleted AND r.is_active AND NOT r.is_deleted AND r.role_code='SYSTEM_ADMIN');\n                \"\"\");\n            Assert.AreEqual(1, await session.Connection.ExecuteScalarAsync<int>(\"SELECT count(*) FROM public.sys_dict_data WHERE dict_code='Unit' AND data_name_en='PCS' AND is_enabled AND NOT is_deleted\"), \"只读取现有PCS，不增改字典。\");\n            Assert.AreEqual(0, await session.Connection.ExecuteScalarAsync<int>(\"SELECT count(*) FROM public.document_sequence WHERE doc_type='PO' AND year_month=@Month\", new { Month = $\"{orderYear:D4}08\" }), \"本批年月必须原不存在，不重置已有号段。\");\n            await session.Connection.ExecuteAsync(\"\"\"\n                INSERT INTO public.customer(uid,customer_code,customer_name,doc_relate_no,deposit_rate,lead_time_days,is_active)\n                VALUES(@CustomerId,@CustomerCode,'原采购跟踪客户',@CustomerCode,0,0,TRUE);\n                INSERT INTO public.supplier(uid,supplier_code,supplier_name,doc_relate_no,is_active)\n                VALUES(@SupplierId,@ActualCode,'实际供应商',@ActualCode,TRUE),\n                      (@ReceiptSupplierId,@ReceiptCode,'收货供应商',@ReceiptCode,TRUE);\n                INSERT INTO public.product(uid,sku,description_zh,unit,material_type,supply_type,bom_version,color_id,is_active)\n                VALUES(@ProductId,@RootSku,'采购成品','PCS','成品','采购',0,@EmptyId,TRUE),\n                      (@ComponentId,@ComponentSku,'客供件','PCS','客供件','采购',0,@EmptyId,TRUE);\n                INSERT INTO public.warehouse_site(uid,code,name,site_type,supplier_id,is_active)\n                VALUES(@ReceiptSiteId,@SiteCode,'独立新收货仓',0,@ReceiptSupplierId,TRUE);\n                \"\"\", new { CustomerId, CustomerCode, SupplierId, ReceiptSupplierId, ProductId, ComponentId, ReceiptSiteId,\n                    ActualCode = Batch + \"_ACTUAL\", ReceiptCode = Batch + \"_RECEIPT\", RootSku = Batch + \"_FG\",\n                    ComponentSku = Batch + \"_B\", SiteCode = Batch + \"_R\", EmptyId = Guid.Empty });\n            var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = Path.Combine(Root(), \"SwiftExport.WebApi\"), EnvironmentName = \"Development\" });\n            builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { [\"ConnectionStrings:Default\"] = connection });\n            builder.AddWebApiServices(); builder.Services.AddSingleton<ICurrentUser>(actor);\n            app = builder.Build();\n        }\n\n        /// <summary>保留原创建数量、价格、包装及日期月底，只将年月移入原不存在的独立号段。</summary>\n        public CreateIndependentPurchaseOrderCommand CreateCommand() => new()\n        {\n            CommandId = Guid.NewGuid(), CustomerId = CustomerId, SupplierId = SupplierId,\n            OrderDate = new DateTime(orderYear, 8, 31), PackagingRequirements = \"客户包装要求\",\n            Lines = [new() { ProductId = ProductId, Quantity = 10m, UnitPrice = 2m, TaxPrice = 2.5m }]\n        };\n\n        /// <summary>使用原真实采购创建服务及权限，成功事实/审计/回执留存，不伪造创建结果。</summary>\n        public Task<SwiftExport.Contracts.Wrappers.ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand? command = null)\n            => InScopeAsync(p => p.GetRequiredService<IProcurementOrderDraftService>().CreateAsync(command ?? CreateCommand()));\n\n        /// <summary>执行本文件明确的PG夹具SQL，调用方只传本批新UID，不在运行时翻译SQL。</summary>\n        public async Task<int> ExecuteAsync(string sql, object? args = null)\n        {\n            using var session = new DbSession(new PostgreSqlConnectionFactory(connection));\n            return await session.Connection.ExecuteAsync(sql, args);\n        }\n\n        /// <summary>通过真实独立连接读取本批夹具身份，不修改数据库。</summary>\n        public async Task<T> ScalarAsync<T>(string sql, object? args = null)\n        {\n            using var session = new DbSession(new PostgreSqlConnectionFactory(connection));\n            return (await session.Connection.ExecuteScalarAsync<T>(sql, args))!;\n        }\n\n        /// <summary>原服务各自拥有独立request scope及事务，读取/命令结束后检查清理，不借测试事务。</summary>\n        public async Task<T> InScopeAsync<T>(Func<IServiceProvider, Task<T>> action)\n        {\n            using var scope = app!.Services.CreateScope();\n            var result = await action(scope.ServiceProvider);\n            var session = scope.ServiceProvider.GetRequiredService<DbSession>();\n            Assert.IsNull(session.Transaction); Assert.IsNull(session.CommandLease); Assert.IsNull(session.SourceDemandLease);\n            return result;\n        }\n\n\n        /// <summary>只关闭服务，核对复制基线和结构；保留新库及所有事实，不删除或清理。</summary>\n        public async ValueTask DisposeAsync()\n        {\n            if (app is not null) await app.DisposeAsync();\n            if (!databaseCreated) return;\n            using var target = new DbSession(new PostgreSqlConnectionFactory(connection));\n            var tables = new List<object>(); var unchanged = true;\n            foreach (var (table, original) in copiedRows)\n            {\n                var after = await SnapshotAsync(target, table, original.Ids);\n                var parameters = new PostgreSqlParameters(); parameters.AddIds(\"OldIds\", original.Ids);\n                var added = (await target.Connection.QueryAsync<Guid>(\n                    $\"SELECT uid FROM public.{PostgreSqlNames.Quote(table)} WHERE NOT(uid=ANY(@OldIds)) ORDER BY uid\", parameters)).ToArray();\n                tables.Add(new { Table = table, OldCount = original.Ids.Length, Before = original.Snapshot, After = after, AddedIds = added });\n                unchanged &= original.Snapshot == after;\n            }\n            var structure = await StructureSnapshotAsync(target);\n            var sequence = await target.Connection.QuerySingleAsync<string>(\n                \"SELECT last_value::text||':'||is_called::text FROM public.inventory_ledger_sequence\");\n            OwnedDatabases.Add(new { Database = databaseName, Tables = tables, StructureBefore = OriginalStructure,\n                StructureAfter = structure, InventorySequence = sequence, BaselineCopyComplete = copiedRows.Count == 50 });\n            Assert.AreEqual(50, copiedRows.Count, \"新库基线复制和保护必须完成。\");\n            Assert.IsTrue(unchanged, \"新库复制的基线行不得修改。\");\n            Assert.AreEqual(OriginalStructure, structure, \"新库结构不得随场景变化。\");\n            Assert.AreEqual(\"1:false\", sequence, \"采购跟踪不推进库存序列。\");\n        }\n\n    }\n\n    /// <summary>读取实际dv资格后使用原权限服务，不创建或改变账号，也不声称本批验证HTTP/JWT登录。</summary>\n    private sealed class TrackingActor : ICurrentUser\n    {\n        public Guid? UserId { get; set; }\n        public string UserName { get; set; } = \"\";\n        /// <summary>资格来自本库已核实有效管理员，服务仍执行其原业务权限。</summary>\n        public bool IsAuthenticated => true;\n    }\n\n    /// <summary>定位宿主配置，只在内存覆盖授权测试连接，不改配置或启动HTTP服务器。</summary>\n    private static string Root()\n    {\n        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)\n            if (File.Exists(Path.Combine(directory.FullName, \"SwiftExport.WebApi\", \"appsettings.json\"))) return directory.FullName;\n        throw new DirectoryNotFoundException(\"无法定位 WebApi 配置。\");\n    }\n}\n",
+    "new_databases_created": 4,
+    "initialized_tables_each": 50,
+    "copied_rows_each": 0,
+    "business_rows_each": 0,
+    "source_old_rows": 53196,
+    "source_added_rows": 0,
+    "source_old_rows_unchanged": true,
+    "source_full_structure_unchanged": true,
+    "source_full_structure": "4b24da4de760970f30a1dcd3f76888fe",
+    "new_full_structure": "a7046a4bf79db6d8d9151333c8230681",
+    "failure": "列注释摘要差异触发跨库全摘要断言；Cleanup第二断言覆盖原异常。其余八类结构定义相同。未复制基线或业务写入。",
+    "trx": "TestResults/postgresql-migration/p09-s02e-purchase-tracking-isolated-first-pg.trx",
+    "trx_sha256": "194972E888D40D650ED50C1AB390021FEBEA1F0C27F4439375ACD229B84C6A15",
+    "data": "TestResults/postgresql-migration/p09-s02e-purchase-tracking-isolated-first-data-protection.json",
+    "data_sha256": "7D282567568F9F113E6ECD7E6DEDE45572C06E51D4A6E09C46545337AC99D632"
+  },
+  "isolation_final_execution": {
+    "passed": 4,
+    "original_business_assertions": 35,
+    "failed": 0,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "column_comment_difference_recorded": true,
+    "copied_rows_total": 648,
+    "methods": [
+      {
+        "duration": "00:00:02.5681600",
+        "name": "ReadyAndReceiptStatesFilterBeforePaging",
+        "outcome": "Passed"
+      },
+      {
+        "duration": "00:00:02.1021109",
+        "name": "UnlinkedOrderFilterRunsBeforeCountAndPaging",
+        "outcome": "Passed"
+      },
+      {
+        "duration": "00:00:01.9348390",
+        "name": "DueViewsUseBeijingDateAndUnconfirmedReadyRisk",
+        "outcome": "Passed"
+      },
+      {
+        "duration": "00:00:01.9243859",
+        "name": "IndependentTraceAndMixedUnitsRemainExplicit",
+        "outcome": "Passed"
+      }
+    ],
+    "data_sha256": "83F0CF805742303EC7EFDCC874F1EC1AF72EA6166F3DF075DF6E919B55EF8663",
+    "source_full_structure_after": "4b24da4de760970f30a1dcd3f76888fe",
+    "trx": "TestResults/postgresql-migration/p09-s02e-purchase-tracking-isolated-pg.trx",
+    "source_full_structure_before": "4b24da4de760970f30a1dcd3f76888fe",
+    "copied_rows_each": 162,
+    "existing_warnings": 7,
+    "test_exit": 0,
+    "source_sha256": "794F56D380BE3B23D776219DD6A8B3D14A0EDAF95F5A66D53F694A5081C9579E",
+    "data": "TestResults/postgresql-migration/p09-s02e-purchase-tracking-isolated-data-protection.json",
+    "source_old_rows": 53196,
+    "source_all_50_tables_unchanged": true,
+    "new_total_rows": 741,
+    "skipped": 0,
+    "source_and_new_full_comments_separately_protected": true,
+    "errors": 0,
+    "new_databases": [
+      {
+        "database": "dv_next_pg_tracking_tests_20261006_a2f4bf37b4ca",
+        "full_structure_before": "a7046a4bf79db6d8d9151333c8230681",
+        "inventory_sequence": "1:false",
+        "added_rows": 31.0,
+        "copied_rows": 162,
+        "tables": [
+          {
+            "Table": "after_sales_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "after_sales_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "bom",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "business_operation_log",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "02c15a0b-dd10-48ac-8cd6-4a3600f931ae",
+              "175d218d-2875-44d7-9e5f-4a3600f93221",
+              "23d11f4e-08bc-4542-ab09-4a3600f93381",
+              "28f3fb75-7981-4e35-9056-4a3600f932cd",
+              "a35f7d2b-f3ce-43ad-b15b-4a3600f9327b",
+              "a3c55acb-0857-4241-88d4-4a3600f9332b"
+            ]
+          },
+          {
+            "Table": "command_receipt",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "134a6523-18da-4f72-8acd-4a3600f93382",
+              "3b699f0a-6913-44c6-aeb5-4a3600f93223",
+              "3fba3437-019d-463c-981e-4a3600f932ce",
+              "97250de5-3cff-44b1-8d80-4a3600f931bc",
+              "9aa8b8ac-b909-4b6c-85b8-4a3600f9327d",
+              "bcc5c5de-a0a2-481f-910a-4a3600f9332e"
+            ]
+          },
+          {
+            "Table": "customer",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "5e3eaa40-263f-4366-82fd-c85508a3cdc3"
+            ]
+          },
+          {
+            "Table": "customer_po_config",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "customer_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "demand_execution_link",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "document_sequence",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "28e8e10b-3313-4870-aab5-4a3600f93196"
+            ]
+          },
+          {
+            "Table": "excel_read_field",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "excel_read_profile",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "gross_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inventory_balance",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inventory_ledger_entry",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "net_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "23925fe8-323e-42c2-acae-4ac1a90726ad",
+              "95cbbcfb-639d-4d89-bcab-1438047d6ebb"
+            ]
+          },
+          {
+            "Table": "product_category",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_color",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_detail",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_master",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_neutral",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_package",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_node",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_order_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "035c299e-8a96-4292-abe7-4a3600f93307",
+              "04b345cd-88e1-4489-9e2c-4a3600f93173",
+              "0d20ef18-be04-4298-be6d-4a3600f93366",
+              "5f0c2fba-661d-47e8-8b03-4a3600f932b3",
+              "6bc08375-c555-4be1-a412-4a3600f93262",
+              "a5fcd9c7-3587-46ae-8947-4a3600f93203"
+            ]
+          },
+          {
+            "Table": "purchase_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "625bdd23-5649-4049-a50f-4a3600f93175",
+              "784935c8-cc02-4d4f-89cc-4a3600f93366",
+              "88aa1ee2-c0b5-4bde-9995-4a3600f93262",
+              "8b04f4c9-8d8c-45f9-ab3f-4a3600f932b3",
+              "9d9cc9ba-8f47-43cc-89b5-4a3600f93203",
+              "f8f27a01-8d86-4550-a06b-4a3600f93307"
+            ]
+          },
+          {
+            "Table": "sales_order_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sales_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "33929064-b941-4890-acc8-85786dc955e3",
+              "39de8f92-4ad5-42e3-a64b-49d9bc257086"
+            ]
+          },
+          {
+            "Table": "supplier_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier_progress_report",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dic_currency",
+            "OldCount": 4,
+            "Before": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "After": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dic_currency_exchange",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_data",
+            "OldCount": 31,
+            "Before": "31:479aa80868a59cfbc13335bbd57425a3",
+            "After": "31:479aa80868a59cfbc13335bbd57425a3",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_type",
+            "OldCount": 12,
+            "Before": "12:54200bdd21ab606860dddb82e92e82f9",
+            "After": "12:54200bdd21ab606860dddb82e92e82f9",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_permission",
+            "OldCount": 112,
+            "Before": "112:85ec832766df7f41b94577d46268b7e2",
+            "After": "112:85ec832766df7f41b94577d46268b7e2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role",
+            "OldCount": 1,
+            "Before": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "After": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role_permission",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user",
+            "OldCount": 1,
+            "Before": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "After": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user_role",
+            "OldCount": 1,
+            "Before": "1:a5ba5f6cca5d874f7176314b43856171",
+            "After": "1:a5ba5f6cca5d874f7176314b43856171",
+            "AddedIds": []
+          },
+          {
+            "Table": "warehouse_site",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "37fe0acc-a405-4051-a84f-a2fdd144c514"
+            ]
+          }
+        ],
+        "full_structure_after": "a7046a4bf79db6d8d9151333c8230681"
+      },
+      {
+        "database": "dv_next_pg_tracking_tests_20261006_e1d7f55c9da9",
+        "full_structure_before": "a7046a4bf79db6d8d9151333c8230681",
+        "inventory_sequence": "1:false",
+        "added_rows": 27.0,
+        "copied_rows": 162,
+        "tables": [
+          {
+            "Table": "after_sales_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "after_sales_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "bom",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "business_operation_log",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "6222d7cc-ac09-443f-bea1-4a3600f939ce",
+              "a7bf6504-34f1-4c16-9147-4a3600f9391c",
+              "eb23c199-be51-40eb-85d4-4a3600f93a1f",
+              "edbbfd4d-172c-4adc-af6c-4a3600f9396c"
+            ]
+          },
+          {
+            "Table": "command_receipt",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "5b21ec80-5c43-4da6-b73c-4a3600f93920",
+              "67eb44e7-b5fe-4bfd-9b0f-4a3600f93a21",
+              "7b1bd4f7-ed39-4c7c-8894-4a3600f939cf",
+              "d062634f-a752-4c4a-9cd3-4a3600f9396e"
+            ]
+          },
+          {
+            "Table": "customer",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "feceeac5-2ed9-4277-bda1-c0b46e70f0a6"
+            ]
+          },
+          {
+            "Table": "customer_po_config",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "customer_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "demand_execution_link",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "document_sequence",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "b2f9749e-94dd-40dd-a771-4a3600f93912"
+            ]
+          },
+          {
+            "Table": "excel_read_field",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "excel_read_profile",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "gross_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "02a81a38-99ab-4584-beb2-cc232e12d415"
+            ]
+          },
+          {
+            "Table": "inbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "f56e9695-47d1-49d4-9595-7fc2f31fcb53"
+            ]
+          },
+          {
+            "Table": "inventory_balance",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inventory_ledger_entry",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "net_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "03542980-0e1e-4e2b-b060-fc8cc02aac5e",
+              "f199a986-7f1b-4b7e-b8c4-6dd5d9278163"
+            ]
+          },
+          {
+            "Table": "product_category",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_color",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_detail",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_master",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_neutral",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_package",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_node",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_order_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "16b54d78-351f-44a7-9274-4a3600f93a05",
+              "29ce6355-edff-469f-b640-4a3600f938f9",
+              "714e1cd5-1a13-4973-9630-4a3600f93953",
+              "864b2433-876b-4892-82e2-4a3600f939b3"
+            ]
+          },
+          {
+            "Table": "purchase_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "0759023c-ac26-427a-bcea-4a3600f939b3",
+              "62b8f292-d0a6-48bd-b450-4a3600f938fa",
+              "b8bf3655-c00f-4790-b89d-4a3600f93a05",
+              "d7037489-4951-4b14-8a7f-4a3600f93953"
+            ]
+          },
+          {
+            "Table": "sales_order_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sales_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "038e5953-64f3-4777-a6f9-798a51af129d",
+              "4de64133-f53d-44e5-9529-60169860692b"
+            ]
+          },
+          {
+            "Table": "supplier_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier_progress_report",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "2afb20e4-daa2-481c-96fe-b89a8c822333",
+              "c5f400e4-026f-4e13-bc27-e08f9c67dda3"
+            ]
+          },
+          {
+            "Table": "sys_dic_currency",
+            "OldCount": 4,
+            "Before": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "After": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dic_currency_exchange",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_data",
+            "OldCount": 31,
+            "Before": "31:479aa80868a59cfbc13335bbd57425a3",
+            "After": "31:479aa80868a59cfbc13335bbd57425a3",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_type",
+            "OldCount": 12,
+            "Before": "12:54200bdd21ab606860dddb82e92e82f9",
+            "After": "12:54200bdd21ab606860dddb82e92e82f9",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_permission",
+            "OldCount": 112,
+            "Before": "112:85ec832766df7f41b94577d46268b7e2",
+            "After": "112:85ec832766df7f41b94577d46268b7e2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role",
+            "OldCount": 1,
+            "Before": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "After": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role_permission",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user",
+            "OldCount": 1,
+            "Before": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "After": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user_role",
+            "OldCount": 1,
+            "Before": "1:a5ba5f6cca5d874f7176314b43856171",
+            "After": "1:a5ba5f6cca5d874f7176314b43856171",
+            "AddedIds": []
+          },
+          {
+            "Table": "warehouse_site",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "eae44ec4-daf4-4eb8-9a83-969ea72f3558"
+            ]
+          }
+        ],
+        "full_structure_after": "a7046a4bf79db6d8d9151333c8230681"
+      },
+      {
+        "database": "dv_next_pg_tracking_tests_20261006_4bf8ba322373",
+        "full_structure_before": "a7046a4bf79db6d8d9151333c8230681",
+        "inventory_sequence": "1:false",
+        "added_rows": 15.0,
+        "copied_rows": 162,
+        "tables": [
+          {
+            "Table": "after_sales_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "after_sales_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "bom",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "business_operation_log",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "0b885f64-1936-4230-8cf0-4a3600f94403"
+            ]
+          },
+          {
+            "Table": "command_receipt",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "0182c61a-e0fb-4fda-9197-4a3600f94406"
+            ]
+          },
+          {
+            "Table": "customer",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "6660d8e3-afa7-4ada-8a96-49daf4ef7c03"
+            ]
+          },
+          {
+            "Table": "customer_po_config",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "customer_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "demand_execution_link",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "document_sequence",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "ae894371-a880-43f3-89ad-4a3600f943f9"
+            ]
+          },
+          {
+            "Table": "excel_read_field",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "excel_read_profile",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "gross_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "5e4a718a-987d-4c73-b0d6-4acda8c1f7fe",
+              "88fe703a-f98e-481e-8b98-d03cd1a6d642"
+            ]
+          },
+          {
+            "Table": "inbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "ce442238-500e-44af-bdb2-adae40280a98"
+            ]
+          },
+          {
+            "Table": "inventory_balance",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inventory_ledger_entry",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "net_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "bf2ab422-bbed-4602-9284-e3604ac4f609",
+              "cabd17ae-ded2-471b-8b12-b6235a46b703"
+            ]
+          },
+          {
+            "Table": "product_category",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_color",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_detail",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_master",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_neutral",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_package",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_node",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_order_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "72f5cd04-7ebc-41aa-9781-4a3600f943da"
+            ]
+          },
+          {
+            "Table": "purchase_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "36fb3d4c-76f5-4059-83ec-4a3600f943db",
+              "b36479ee-bc8a-4bf0-ae84-4a3600f943f4"
+            ]
+          },
+          {
+            "Table": "sales_order_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sales_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "8ee12398-6294-4853-a791-7e45f653845c",
+              "9b5cc109-b608-4193-8347-1d87722e518c"
+            ]
+          },
+          {
+            "Table": "supplier_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier_progress_report",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dic_currency",
+            "OldCount": 4,
+            "Before": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "After": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dic_currency_exchange",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_data",
+            "OldCount": 31,
+            "Before": "31:479aa80868a59cfbc13335bbd57425a3",
+            "After": "31:479aa80868a59cfbc13335bbd57425a3",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_type",
+            "OldCount": 12,
+            "Before": "12:54200bdd21ab606860dddb82e92e82f9",
+            "After": "12:54200bdd21ab606860dddb82e92e82f9",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_permission",
+            "OldCount": 112,
+            "Before": "112:85ec832766df7f41b94577d46268b7e2",
+            "After": "112:85ec832766df7f41b94577d46268b7e2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role",
+            "OldCount": 1,
+            "Before": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "After": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role_permission",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user",
+            "OldCount": 1,
+            "Before": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "After": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user_role",
+            "OldCount": 1,
+            "Before": "1:a5ba5f6cca5d874f7176314b43856171",
+            "After": "1:a5ba5f6cca5d874f7176314b43856171",
+            "AddedIds": []
+          },
+          {
+            "Table": "warehouse_site",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "fb95ab58-bca2-49d6-a8bb-145e95d5bedc"
+            ]
+          }
+        ],
+        "full_structure_after": "a7046a4bf79db6d8d9151333c8230681"
+      },
+      {
+        "database": "dv_next_pg_tracking_tests_20261006_75921daa825c",
+        "full_structure_before": "a7046a4bf79db6d8d9151333c8230681",
+        "inventory_sequence": "1:false",
+        "added_rows": 20.0,
+        "copied_rows": 162,
+        "tables": [
+          {
+            "Table": "after_sales_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "after_sales_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "bom",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "business_operation_log",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "3ae8b5ce-6063-4dc2-841a-4a3600f94b57",
+              "89486d1c-01d6-4bd2-a4d3-4a3600f94c6d",
+              "a8e39cb4-eded-4d30-801e-4a3600f94ba3"
+            ]
+          },
+          {
+            "Table": "command_receipt",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "013abf0c-b919-4b7a-9862-4a3600f94c6e",
+              "c3c28068-3bd0-4783-8249-4a3600f94b5a",
+              "e0e53607-8cd6-4e4e-bc16-4a3600f94ba4"
+            ]
+          },
+          {
+            "Table": "customer",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "aa2e2baa-2997-498c-9cd7-9dbdc43f131c"
+            ]
+          },
+          {
+            "Table": "customer_po_config",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "customer_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "demand_execution_link",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "document_sequence",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "f3eb9b03-9e7b-4716-a6ae-4a3600f94b4d"
+            ]
+          },
+          {
+            "Table": "excel_read_field",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "excel_read_profile",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "gross_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inventory_balance",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "inventory_ledger_entry",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "net_demand",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "outbound_document_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "packing_list_posting_execution_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "37ee10f8-b09a-460b-bd72-ac1c8a341b8a",
+              "6a635035-dc22-41f3-8283-dad2e03ecec5"
+            ]
+          },
+          {
+            "Table": "product_category",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_color",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_detail",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_master",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_neutral",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "product_package",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_confirmation_node",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "purchase_order_head",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "3cfdaa52-628b-4ffc-b25d-4a3600f94b3a",
+              "424127cf-193d-4a79-ab36-4a3600f94c52",
+              "f9c3818b-61a9-4e70-b2d9-4a3600f94b8b"
+            ]
+          },
+          {
+            "Table": "purchase_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "7c50b85d-75bf-49f8-9f09-4a3600f94b3a",
+              "95a082d6-3ff6-49be-9c1c-4a3600f94b8b",
+              "c2503c05-bac9-422f-90f8-4a3600f94c52"
+            ]
+          },
+          {
+            "Table": "sales_order_header",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sales_order_line",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "2101239f-9d7d-48f4-9069-8fce52bb3b49",
+              "336b9ed5-205d-48cf-ad1c-42640eed46e4"
+            ]
+          },
+          {
+            "Table": "supplier_product",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "supplier_progress_report",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "650f1bf7-38e2-4618-b28b-36ce0a3c087f"
+            ]
+          },
+          {
+            "Table": "sys_dic_currency",
+            "OldCount": 4,
+            "Before": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "After": "4:a9fa99bddeeffb37f0333990dcf69cff",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dic_currency_exchange",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_data",
+            "OldCount": 31,
+            "Before": "31:479aa80868a59cfbc13335bbd57425a3",
+            "After": "31:479aa80868a59cfbc13335bbd57425a3",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_dict_type",
+            "OldCount": 12,
+            "Before": "12:54200bdd21ab606860dddb82e92e82f9",
+            "After": "12:54200bdd21ab606860dddb82e92e82f9",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_permission",
+            "OldCount": 112,
+            "Before": "112:85ec832766df7f41b94577d46268b7e2",
+            "After": "112:85ec832766df7f41b94577d46268b7e2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role",
+            "OldCount": 1,
+            "Before": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "After": "1:33381bd5d12b8c98d459b2837ba715d2",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_role_permission",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user",
+            "OldCount": 1,
+            "Before": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "After": "1:69d27419b6828bc1f5edb10d5ab540ca",
+            "AddedIds": []
+          },
+          {
+            "Table": "sys_user_role",
+            "OldCount": 1,
+            "Before": "1:a5ba5f6cca5d874f7176314b43856171",
+            "After": "1:a5ba5f6cca5d874f7176314b43856171",
+            "AddedIds": []
+          },
+          {
+            "Table": "warehouse_site",
+            "OldCount": 0,
+            "Before": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "After": "0:d41d8cd98f00b204e9800998ecf8427e",
+            "AddedIds": [
+              "2f199dd5-269c-4e15-90a0-1bcfde13c2d9"
+            ]
+          }
+        ],
+        "full_structure_after": "a7046a4bf79db6d8d9151333c8230681"
+      }
+    ],
+    "trx_sha256": "DBCD8444723D6A68247E83D25D1E18E7A5D1C63D9720B1F5222189AE5EDC87B1",
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02E-四个新测试库-实际命令.ps1'",
+    "original_methods_body_unchanged": true,
+    "business_rows_total": 93,
+    "source_added_rows": 0,
+    "source_inventory_sequence": 96,
+    "semantic_structure": "45e0a84b684c9e72d588afd8ca7f84d7",
+    "build_seconds": 4.48,
+    "new_database_count": 4,
+    "build_exit": 0
+  },
+  "isolation_closure": {
+    "original_sources": 2390,
+    "changed_existing_tests": 55,
+    "source_proof": "P09-S02E-四库收口-源码保护证据.json",
+    "test_processes_after": 0,
+    "other_active_transactions_after": 0,
+    "new_db_reset_or_drop": false,
+    "runtime_or_backup_write": false,
+    "existing_failure_ddl_or_data_write": false,
+    "commit_merge_push": false,
+    "other_clients_after": 0,
+    "extra_production_changes": 0,
+    "new_sources": 0,
+    "extra_missing": 0,
+    "production_pg_behavior_change": false,
+    "known_pending_authorizations": 0,
+    "command": "& './docs/postgresql-migration/任务结果/P09-S02E-四库与旧源收口-实际命令.ps1'",
+    "advisory_locks_after": 0,
+    "remaining_localdb_consumers_including_definition": 9,
+    "full_test_run": false,
+    "source_types_exited": 75,
+    "database_gates": 13,
+    "source_files_exited": 83
+  }
+}

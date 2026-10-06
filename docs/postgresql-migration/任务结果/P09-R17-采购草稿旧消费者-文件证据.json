@@ -1,0 +1,150 @@
+{
+  "recorded_at": "2026-10-06T10:15:47.860756+08:00",
+  "stage": "P09-R17原采购草稿追加消费者迁PG",
+  "status": "本批完成：原采购追加2真PG/3客户快照离线通过，旧采购草稿源退出；整体P09未完成",
+  "tests": [
+    {
+      "prior_uncommitted_diff": [],
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseDraftAppendSqlTests.cs",
+      "before_sha256": "3884116A5D9BC09251EC1D9B0257F3D0FB91A8FFCEA2C89B8DE094687DCE2E69",
+      "after_sha256": "4AE1EE668A19891CED3B2B2DBDA0AB61B2F4487C8ACB5A989A3C0B16941FEED2"
+    },
+    {
+      "prior_uncommitted_diff": [],
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseDraftCustomerSnapshotContractTests.cs",
+      "before_sha256": "1FDB762CF25FD63585E64CA3E0EDA6426305E7F350381A5F30611E7FCC5F1BA6",
+      "after_sha256": "6D7EAA2CAB1F09F25905283D1989A1A63640D0AC4421ADF0882A8ED8E6F20FAF"
+    }
+  ],
+  "legacy": {
+    "prior_uncommitted_diff": [],
+    "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PurchaseOrderDraftRepository.cs",
+    "before_sha256": "62DAB28842997F050A583E0E295FDCF80A38101E65470A9CCDE30ED9D4239D22"
+  },
+  "scope": "两个原追加行为方法/三个客户快照契约，保留原语义；failure库随机新采购头/行/入库行/流水，50表全旧行保护，成功事实留存，无DDL/清理/运行备份写入。只两个原测试文件、对应旧源及主控文档；公共PG/服务/接口/API/DI/配置不改，不新矩阵或并行窗口。",
+  "preflight": {
+    "all_runs_new_rows": 14,
+    "current_reference_files": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PurchaseOrderDraftRepository.cs"
+    ],
+    "final_run_new_rows": 8,
+    "identity_semantics_evidence": "SwiftExport.Schema.sql:1703原SQL Server禁止变更OriginKind/ExecutionRequestId，与现PG P3101一致；原测试只提取四表未装载触发器。",
+    "at": "2026-10-06T10:22:49.6225028+08:00",
+    "sequence_before": 95,
+    "final_run_old_rows": 52976,
+    "tracked_head_unmodified": true,
+    "original_50_tables_unchanged": true,
+    "sequence_after": 96,
+    "pg_file": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PostgreSqlPurchaseOrderDraftRepository.cs"
+  },
+  "completed_at": "2026-10-06T10:24:06.5066311+08:00",
+  "execution": {
+    "test_processes_after": 0,
+    "test_commands": [
+      "& './docs/postgresql-migration/任务结果/P09-R17-采购客户快照-实际命令.ps1'",
+      "& './docs/postgresql-migration/任务结果/P09-R17-采购草稿追加-实际命令.ps1'",
+      "& './docs/postgresql-migration/任务结果/P09-R17-采购成立身份夹具修正-实际命令.ps1'"
+    ],
+    "current_rows": 52984,
+    "runs": [
+      {
+        "skipped": 0,
+        "total": 3,
+        "passed": 3,
+        "duration": "28ms",
+        "database": false,
+        "failed": 0
+      },
+      {
+        "skipped": 0,
+        "total": 2,
+        "cause": "夹具更新ExecutionRequestId，现PG P3101拒绝；SQL Server生成基线同样禁止，旧夹具仅提取四表未装触发器",
+        "passed": 1,
+        "duration": "含50表保护约2秒",
+        "database": true,
+        "failed": 1
+      },
+      {
+        "skipped": 0,
+        "total": 2,
+        "scope": "仅INSERT预设来源/执行身份，共用初始化已变，必要重跑两个原方法；所有业务断言保留",
+        "passed": 2,
+        "methods_seconds": 0.1309498,
+        "database": true,
+        "failed": 0
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "TestResults/postgresql-migration/p09-r17-draft-customer-snapshot-offline.trx",
+        "sha256": "6A0B6E106967F38BF7E1C43D218BDC20277D776D4A0A252F8D0368439C2D7B89"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r17-draft-append-before-identity-seed-failed.trx",
+        "sha256": "6ECD45AC621EA811067A9EBFC3773D8D91AA3B634F10D2E2845B05FE31C8C385"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r17-draft-data-before-identity-seed.json",
+        "sha256": "31EC872E377EDE77C8C404928CD7B552EB2B260E055C0F89358C9DF8186A7A9E"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r17-draft-append-after-identity-seed-pg.trx",
+        "sha256": "436AF1641DE692DBF8E9C5556F90B95E6A17E4D323F438AD41869DDEFA7E65B8"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r17-draft-data-protection.json",
+        "sha256": "E2EFF96F0CAB504C7D3452C18A8F8152B901D2F77EF1DE13E9404BAF096CB2C2"
+      }
+    ],
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "retained_added_rows": 14,
+    "database_runs": [
+      {
+        "added_rows": 6,
+        "sequence_before": 95,
+        "old_rows": 52970,
+        "protected_tables": 50,
+        "old_rows_unchanged": true,
+        "sequence_after": 95
+      },
+      {
+        "added_rows": 8,
+        "sequence_before": 95,
+        "old_rows": 52976,
+        "protected_tables": 50,
+        "old_rows_unchanged": true,
+        "sequence_after": 96
+      }
+    ],
+    "runtime_or_backup_write": false,
+    "ddl": false,
+    "commit_merge_push": false,
+    "other_database_clients_after": 0,
+    "local_command_issues": "两处只读路径猜测/rg字面通配路径导致读取失败，没有数据库或文件变更；随后先发现实际文件再读取，源码事实以实际路径为准。",
+    "advisory_locks_after": 0,
+    "builds": [
+      {
+        "errors": 0,
+        "seconds": 2.73,
+        "existing_warnings": 7,
+        "exit": 0,
+        "stage": "首次受影响项目编译"
+      },
+      {
+        "errors": 0,
+        "seconds": 2.73,
+        "existing_warnings": 7,
+        "exit": 0,
+        "stage": "INSERT成立身份夹具修正编译"
+      },
+      {
+        "errors": 0,
+        "seconds": 3.41,
+        "existing_warnings": 7,
+        "exit": 0,
+        "stage": "旧源退出后必要编译，已通过测试和PG源SHA未变，不重跑数据库"
+      }
+    ],
+    "full_test_run": false
+  }
+}

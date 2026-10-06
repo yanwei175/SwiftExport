@@ -3,25 +3,27 @@ using SwiftExport.Contracts.DTOs.Inventory;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
-/// <summary>通过真实 InventoryRepository 和隔离 SQL Server 验证库存查询及 LIKE 字面量转义。</summary>
+/// <summary>通过真实 InventoryRepository 和隔离 PostgreSQL 验证库存查询及 LIKE 字面量转义。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class InventoryRepositorySqlTests
 {
+    /// <summary>关联本例完整事实导出。</summary>
+    public TestContext TestContext { get; set; } = default!;
     private InventoryRepositorySqlFixture? fixture;
     private InventoryRepositorySqlFixture Db => fixture!;
 
-    /// <summary>只有显式开启时才创建随机 LocalDB，普通回归不会连接任何数据库。</summary>
+    /// <summary>获批固定PG测试库中串行执行；每例完整导出后仅重置该库public结构。</summary>
     [TestInitialize]
     public async Task InitializeAsync()
     {
-        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_INVENTORY_QUERY_SQL_TESTS") != "1")
-            Assert.Inconclusive("设置 SWIFTEXPORT_RUN_INVENTORY_QUERY_SQL_TESTS=1 后运行库存查询隔离 SQL 测试。");
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_LEGACY_TESTS") != "1")
+            Assert.Inconclusive("设置 SWIFTEXPORT_RUN_PG_LEGACY_TESTS=1 后运行库存查询隔离 SQL 测试。");
         fixture = new InventoryRepositorySqlFixture();
-        await fixture.InitializeAsync();
+        await fixture.InitializeAsync(TestContext);
     }
 
-    /// <summary>每个测试清理自己创建的随机数据库。</summary>
+    /// <summary>获批固定PG测试库中串行执行；每例完整导出后仅重置该库public结构。</summary>
     [TestCleanup]
     public async Task CleanupAsync()
     {

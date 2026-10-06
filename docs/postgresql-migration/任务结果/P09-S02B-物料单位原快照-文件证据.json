@@ -1,0 +1,148 @@
+{
+  "recorded_at": "2026-10-06T11:16:30.6597728+08:00",
+  "stage": "P09-S02B原单位快照场景接续PG",
+  "status": "本批验证通过：原四单位持久/当前产品变化/列表追踪候选及未知复核接续PG；公共LocalDB及S整体未退出",
+  "files": [
+    {
+      "path": "SwiftExport.Application.Tests/DemandPlanning/DemandUnitSqlTests.cs",
+      "before_sha256": "C7A015FD3DD5F61BDDA50795C165A410674D765657BF6F2596D88AC52A79F37B",
+      "prior_diff": [],
+      "after_sha256": "DE86F1D2ADC0E7C38AF7055BCB3F3126437DBDB6652725118E96CC42815495AB"
+    }
+  ],
+  "scope": "只原单位快照一个方法及同文件保护/上下文辅助，直接现有三个PG仓储，原Add持久/四单位/产品变更后列表追踪候选及未知复核断言保持；failure新客户2产品1Gross4Net随机身份，无账号/权限/旧行/号段/库存序列/结构变化。不改生产/共享夹具/配置，不新矩阵或窗口。",
+  "preflight": {
+    "advisory_locks": 0,
+    "tables": 50,
+    "sequence": 96,
+    "other_clients": 0,
+    "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004"
+  },
+  "existing_overlap": "现有M14追踪、M15来源及M16查询PG验证与单位投影可定位；本批保持原同场景贯穿四行写入/当前产品变化/三个读取入口的全部断言，不用历史模块绿色替代。",
+  "baseline": "累计73类型81源文件；精准允许F01审计XML/F02公共工厂，当前采购LocalDB共享夹具含自身14消费者。",
+  "completed_at": "2026-10-06T11:20:20.1054501+08:00",
+  "execution": {
+    "full_test_run": false,
+    "build_session": 61578,
+    "method_milliseconds": 315.8568,
+    "account_or_permission_change": false,
+    "database_gates": 12,
+    "business_or_pg_source_change": false,
+    "repeated_green_run": false,
+    "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004",
+    "protected_tables": 50,
+    "total": 1,
+    "existing_warnings": 7,
+    "current_rows": 53020,
+    "old_rows_unchanged": true,
+    "test_processes_after": 0,
+    "test_exit": 0,
+    "local_command_issues": "数次只读路径/输出范围定位已修正，无副作用。构建工具首返live session61578，随后同一handle核对完成exit0；测试实际加载新类，新程序集11:18:29.3598258早于测试11:18:49.2595689，原场景首次1通过，不把空选择/旧程序集或未知构建终态标通过、不重启或重跑。",
+    "advisory_locks_after": 0,
+    "commit_merge_push": false,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02B-物料单位原快照-实际命令.ps1'",
+    "skipped": 0,
+    "sequence_after": 96,
+    "integration_categories": 36,
+    "old_source_types_exited": 73,
+    "passed": 1,
+    "old_rows": 53012,
+    "build_session_terminal": true,
+    "ddl": false,
+    "other_clients_after": 0,
+    "errors": 0,
+    "failed": 0,
+    "changed_tests": 51,
+    "seconds": 13.56,
+    "build_exit": 0,
+    "shared_fixture_change": false,
+    "old_source_files_exited": 81,
+    "added_tables": [
+      {
+        "table": "customer",
+        "count": 1,
+        "uids": [
+          "62c09921-547c-485c-89d7-73f5c3d644b5"
+        ]
+      },
+      {
+        "table": "gross_demand",
+        "count": 1,
+        "uids": [
+          "ed199789-5d4d-44cc-b524-8e39372f3cfc"
+        ]
+      },
+      {
+        "table": "net_demand",
+        "count": 4,
+        "uids": [
+          "10e2efe5-5334-4ec9-a3b7-2be1c165e5e8",
+          "5b1ae8bc-5a5c-4bba-bd4b-ff7fefe94998",
+          "9771e2eb-55ba-4cdd-9bb8-c41d795e242e",
+          "9c1bfd9f-3225-4870-8b00-1f25c09f7e99"
+        ]
+      },
+      {
+        "table": "product",
+        "count": 2,
+        "uids": [
+          "150a7f6a-5535-48d4-bbcb-6f49a961c4fc",
+          "a5221036-5563-4c18-84d6-2eb87494c5c8"
+        ]
+      }
+    ],
+    "new_test_matrix": false,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "host_seconds": "约2秒含50旧表保护",
+    "unexpected_production_changes": 0,
+    "unexpected_missing": 0,
+    "compiled_assembly": {
+      "last_write": "2026-10-06T11:18:29.3598258+08:00",
+      "test_start": "2026-10-06T11:18:49.2595689+08:00",
+      "sha256": "53A2DE488A045D5CE541CF8F4A6D88AF84D331179D3EF8DDCB18218FB24D8077",
+      "fresh_before_test": true,
+      "path": "SwiftExport.Application.Tests/bin/Debug/net10.0/SwiftExport.Application.Tests.dll"
+    },
+    "sequence_before": 96,
+    "new_sources": 0,
+    "added_rows": 8,
+    "artifacts": [
+      {
+        "path": "TestResults/postgresql-migration/p09-s02b-demand-unit-pg.trx",
+        "sha256": "FA746F0ED24D5243542654BEA10043168BD7F71CF72E2F980C2455834F44F9BA"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-s02b-demand-unit-data-protection.json",
+        "sha256": "422ED9287F826089A0F0F4E8DE1949EAF97FA99A521106304386FB5560BF77B8"
+      }
+    ],
+    "runtime_or_backup_write": false,
+    "source_protection": "P09-S02B-源码保护证据.json"
+  },
+  "remaining_consumers": {
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs",
+      "SwiftExport.Application.Tests\\Orders\\SalesOrderManagerQuerySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\PurchaseOrderTrackingSqlTests.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\GrossDemandTraceSqlTests.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\MaterialDemandTraceSqlTests.cs"
+    ],
+    "sql_baseline": [
+      "_tools\\SchemaGenerator\\Program.cs",
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs"
+    ],
+    "sql_generator": [
+      "_tools\\SchemaGenerator\\Program.cs",
+      "SwiftExport.Infrastructure\\DatabaseSchema\\SqlServerSchemaGenerator.cs"
+    ]
+  }
+}

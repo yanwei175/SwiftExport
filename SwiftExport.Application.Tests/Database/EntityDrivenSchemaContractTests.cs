@@ -22,93 +22,45 @@ public sealed class EntityDrivenSchemaContractTests
         Assert.IsEmpty(entities.GroupBy(type => type.GetCustomAttribute<TableAttribute>()!.Name, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1).ToArray());
     }
 
+    /// <summary>PG 结构生成必须确定、无数据库外键，并完整保存实体及字段中文说明。</summary>
     [TestMethod]
     public void SchemaGenerator_MustBeDeterministicAndContainNoForeignKeys()
     {
         var first = Generate();
         Assert.AreEqual(first, Generate());
         Assert.IsFalse(Regex.IsMatch(first, @"\bFOREIGN\s+KEY\b|\bREFERENCES\b", RegexOptions.IgnoreCase));
-        StringAssert.Contains(first, "CREATE SEQUENCE [dbo].[InventoryLedgerSequence]");
-        StringAssert.Contains(first, "CREATE TABLE [dbo].[DemandExecutionLink]");
-        Assert.IsFalse(first.Contains("[ExcelFieldMapping]", StringComparison.Ordinal));
-        StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelReadProfile]");
-        StringAssert.Contains(first, "CREATE TABLE [dbo].[ExcelReadField]");
-        StringAssert.Contains(first, "@name=N'MS_Description'");
-        StringAssert.Contains(first, "@level1type=N'TABLE', @level1name=N'Customer';");
-        StringAssert.Contains(first, "@level2type=N'COLUMN', @level2name=N'CustomerCode';");
-        StringAssert.Contains(first, "@value=N'客户主数据实体，保存客户身份、联系方式及资料目录配置。'");
+        StringAssert.Contains(first, "CREATE SEQUENCE public.\"inventory_ledger_sequence\"");
+        StringAssert.Contains(first, "CREATE TABLE \"public\".\"demand_execution_link\"");
+        Assert.IsFalse(first.Contains("\"excel_field_mapping\"", StringComparison.Ordinal));
+        StringAssert.Contains(first, "CREATE TABLE \"public\".\"excel_read_profile\"");
+        StringAssert.Contains(first, "CREATE TABLE \"public\".\"excel_read_field\"");
+        StringAssert.Contains(first, "COMMENT ON ");
+        StringAssert.Contains(first, "COMMENT ON TABLE \"public\".\"customer\" IS");
+        StringAssert.Contains(first, "COMMENT ON COLUMN \"public\".\"customer\".\"customer_code\" IS");
+        StringAssert.Contains(first, "IS '客户主数据实体，保存客户身份、联系方式及资料目录配置。'");
 
         var expectedDescriptions = PersistentEntities()
             .Sum(entity => 1 + MappedProperties(entity).Count);
         Assert.AreEqual(expectedDescriptions,
-            Regex.Matches(first, "@name=N'MS_Description'", RegexOptions.CultureInvariant).Count);
+            Regex.Matches(first, "^COMMENT ON (?:TABLE|COLUMN) ", RegexOptions.CultureInvariant | RegexOptions.Multiline).Count);
     }
 
+    /// <summary>当前PG基线与元数据完全一致；源夹具已退出，生成目录仅保留PG基线。</summary>
     [TestMethod]
-    public void CommittedBaseline_MustMatchEntityMetadataAndKeepDataCopySeparate()
+    public void CommittedBaseline_MustMatchEntityMetadata()
     {
         var root = Root();
-        var path = Path.Combine(root, "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
+        var path = Path.Combine(root, "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.PostgreSql.Schema.preview.sql");
         Assert.AreEqual(Normalize(Generate()), Normalize(File.ReadAllText(path)));
 
         var generatedDirectory = Path.GetDirectoryName(path)!;
         var files = Directory.EnumerateFiles(generatedDirectory, "*.sql", SearchOption.AllDirectories)
             .Select(file => Path.GetRelativePath(generatedDirectory, file))
             .ToArray();
-        CollectionAssert.AreEquivalent(new[] { "SwiftExport.Schema.sql", "SwiftExport.PostgreSql.Schema.preview.sql" }, files);
+        CollectionAssert.AreEquivalent(new[] { "SwiftExport.PostgreSql.Schema.preview.sql" }, files);
         Assert.AreEqual(Normalize(new PostgreSqlSchemaGenerator().Generate(typeof(BaseEntity).Assembly)),
             Normalize(File.ReadAllText(Path.Combine(generatedDirectory, "SwiftExport.PostgreSql.Schema.preview.sql"))));
-        var copyPath = Path.Combine(root, "SwiftExport.Infrastructure", "Database", "主数据跨库复制.sql");
-        Assert.IsTrue(File.Exists(copyPath));
-        Assert.IsFalse(Path.GetFullPath(copyPath).StartsWith(Path.GetFullPath(generatedDirectory) + Path.DirectorySeparatorChar,
-            StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(File.ReadAllText(path).Contains("SysUser_ModulePermissions", StringComparison.Ordinal));
-    }
-
-    /// <summary>主数据复制脚本只包含批准的主数据、账号和权限关系，并保留空目标及事务保护。</summary>
-    [TestMethod]
-    public void MasterDataCopyScript_MustFreezeApprovedTablesAndSafetyGuards()
-    {
-        var path = Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "主数据跨库复制.sql");
-        var sql = File.ReadAllText(path);
-        var tables = Regex.Matches(sql, @"\(\d+,\s+N'([^']+)'\)")
-            .Select(match => match.Groups[1].Value)
-            .ToArray();
-        CollectionAssert.AreEqual(new[]
-        {
-            "ProductCategory", "ProductColor", "Supplier", "Customer", "SysDicCurrency",
-            "SysDicCurrencyExchange", "SysDictType", "SysDictData", "SysRoles", "SysUser",
-            "ProductMaster", "Product", "ProductNeutral", "ProductDetails",
-            "ProductPackage", "Bom", "CustomerPoConfig", "CustomerProduct", "SupplierProduct",
-            "WarehouseSite", "SysPermissionDefinitions", "SysRole_Permissions", "SysUser_Roles"
-        }, tables);
-        StringAssert.Contains(sql, "目标表 dbo.");
-        StringAssert.Contains(sql, "BEGIN TRANSACTION");
-        StringAssert.Contains(sql, "ROLLBACK TRANSACTION");
-        StringAssert.Contains(sql, "@MissingColumns");
-        StringAssert.Contains(sql, "#IntegrityIssues");
-        StringAssert.Contains(sql, "SysPermissionDefinitions.PermissionKey->Uid");
-        Assert.IsFalse(sql.Contains("Product.CategoryId", StringComparison.Ordinal));
-        Assert.IsFalse(sql.Contains("WITHIN GROUP", StringComparison.OrdinalIgnoreCase));
-        StringAssert.Contains(sql, "MigrationStage");
-        StringAssert.Contains(sql, "SqlErrorMessage");
-        StringAssert.Contains(sql, "THROW 52212, @ErrorMessage, 1");
-        StringAssert.Contains(sql, "动态SQL=");
-        StringAssert.Contains(sql, "@IntegritySummary nvarchar(max)");
-        StringAssert.Contains(sql, "RelationName + N'=' + CONVERT(nvarchar(30), InvalidRows)");
-        Assert.IsFalse(sql.Contains("THROW 52211", StringComparison.Ordinal));
-        StringAssert.Contains(sql, "主数据跨库复制成功，但存在无效逻辑引用");
-        StringAssert.Contains(sql, "IntegrityWarnings");
-        Assert.IsTrue(sql.IndexOf("SELECT RelationName,InvalidRows", StringComparison.Ordinal)
-            > sql.IndexOf("COMMIT TRANSACTION;", StringComparison.Ordinal));
-        StringAssert.Contains(sql, ".dbo.[Customer] p ON p.Uid=x.CustomerId");
-        Assert.IsFalse(Regex.IsMatch(sql, @"\.dbo\.(Customer|Product|Supplier)\b", RegexOptions.CultureInvariant));
-        StringAssert.Contains(sql, "DECLARE @SourceQuoted nvarchar(max)");
-        StringAssert.Contains(sql, "DECLARE @TargetQuoted nvarchar(max)");
-        Assert.IsFalse(sql.Contains("@SourceQuoted nvarchar(258)", StringComparison.Ordinal));
-        Assert.IsFalse(sql.Contains("@TargetQuoted nvarchar(258)", StringComparison.Ordinal));
-        Assert.AreEqual(3, Regex.Matches(sql, @"DROP TABLE IF EXISTS #MigrationCounts;", RegexOptions.CultureInvariant).Count);
-        Assert.AreEqual(3, Regex.Matches(sql, @"DROP TABLE IF EXISTS #IntegrityIssues;", RegexOptions.CultureInvariant).Count);
     }
 
     [TestMethod]
@@ -149,7 +101,8 @@ public sealed class EntityDrivenSchemaContractTests
             .ToArray();
     }
 
-    private static string Generate() => new SqlServerSchemaGenerator().Generate(typeof(BaseEntity).Assembly);
+    /// <summary>只生成当前 PostgreSQL 结构评审文本，不连接或部署数据库。</summary>
+    private static string Generate() => new PostgreSqlSchemaGenerator().Generate(typeof(BaseEntity).Assembly);
 
     private static string Normalize(string value) => value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
 

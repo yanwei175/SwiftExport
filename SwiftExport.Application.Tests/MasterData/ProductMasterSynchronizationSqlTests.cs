@@ -4,11 +4,7 @@ using SwiftExport.Core.Interfaces.Products.Colors;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Reflection;
-using System.Text.RegularExpressions;
 using Dapper;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,23 +15,24 @@ using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Products.Requests;
-using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure;
 using SwiftExport.Infrastructure.Data;
+using SwiftExport.Application.Tests.Database;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
-/// <summary>在唯一 LocalDB 测试库执行真实服务及仓储，验证资料同步、版本和事务回滚，不读取业务连接配置。</summary>
+/// <summary>在获批单PG测试库执行真实服务及仓储，验证资料同步、版本和事务回滚，不读取业务连接配置。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class ProductMasterSynchronizationSqlTests
 {
-    private string _database = string.Empty;
-    private bool _created;
+    private PostgreSqlLegacyTestDatabase? _database;
+    /// <summary>关联本例完整事实导出。</summary>
+    public TestContext TestContext { get; set; } = default!;
     private ServiceProvider _provider = null!;
     private IServiceScope _scope = null!;
     private DbSession _session = null!;
@@ -45,23 +42,17 @@ public sealed class ProductMasterSynchronizationSqlTests
     private Guid _supplierId;
     private Guid _colorId;
 
-    /// <summary>显式开关启用真实 SQL 验证；只创建本测试拥有的随机库与最小实体表。</summary>
+    /// <summary>显式开关启用真实 SQL 验证；复用固定实体基线。</summary>
     [TestInitialize]
     public async Task InitializeAsync()
     {
-        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_SQL_TESTS") != "1")
-            Assert.Inconclusive("设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行隔离 LocalDB 同步测试。");
-        _database = "SwiftExport_MasterSyncTests_" + Guid.NewGuid().ToString("N");
-        await using (var connection = new SqlConnection(ConnectionString("master")))
-        {
-            await connection.OpenAsync();
-            await connection.ExecuteAsync($"CREATE DATABASE [{_database}];");
-            _created = true;
-        }
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_LEGACY_TESTS") != "1")
+            Assert.Inconclusive("设置 SWIFTEXPORT_RUN_PG_LEGACY_TESTS=1 后运行获批单PG同步测试。");
+        _database = await PostgreSqlLegacyTestDatabase.AcquireAsync(TestContext);
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:Default"] = ConnectionString(_database)
+            ["ConnectionStrings:Default"] = _database.ConnectionString
         }).Build());
         services.AddSingleton<ICurrentUser>(new TestUser());
         services.AddInfrastructureServices();
@@ -69,9 +60,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         _scope = _provider.CreateScope();
         var provider = _scope.ServiceProvider;
         _session = provider.GetRequiredService<DbSession>();
-        // 测试 schema 仅承载真实仓储及产品详情投影需要的表，不是生产 DDL 或迁移；不会修改 FreshInstall。
-        foreach (var type in new[] { typeof(Product), typeof(ProductMaster), typeof(ProductNeutral), typeof(ProductCategory), typeof(ProductColor), typeof(Supplier), typeof(WarehouseSite), typeof(ProductPackage) })
-            await _session.Connection.ExecuteAsync(CreateTable(type));
+        // 本例复用固定PG实体基线，不再生成旧提供者的宽松临时表。
         _products = provider.GetRequiredService<IProductRepository>();
         _service = new ProductMasterMaintenanceService(provider.GetRequiredService<IProductMasterRepository>(),
             provider.GetRequiredService<IProductNeutralRepository>(), provider.GetRequiredService<IProductCategoryRepository>(),
@@ -82,20 +71,18 @@ public sealed class ProductMasterSynchronizationSqlTests
         {
             Uid = _supplierId, SupplierCode = "SERVER-SUP", SupplierName = "服务端供应商", DocRelateNo = "TEST"
         })).Uid;
-        _colorId = (await provider.GetRequiredService<IProductColorRepository>().AddAsync(new ProductColor())).Uid;
+        // 完整实体基线要求颜色编码；补齐夹具身份列，原同步场景仍只引用颜色Uid。
+        _colorId = (await provider.GetRequiredService<IProductColorRepository>().AddAsync(new ProductColor
+        { ColorCodeUnique = "MASTER-SYNC-TEST", ColorCode = "TEST" })).Uid;
     }
 
-    /// <summary>仅清理当前测试新建且名称验证通过的随机库，绝不针对配置中的既有数据库。</summary>
+    /// <summary>释放本例连接并完整导出事实，仅重置获批新库public结构。</summary>
     [TestCleanup]
     public async Task CleanupAsync()
     {
         _scope?.Dispose();
         if (_provider is not null) await _provider.DisposeAsync();
-        if (!_created) return;
-        Assert.IsTrue(Regex.IsMatch(_database, "^SwiftExport_MasterSyncTests_[0-9a-f]{32}$"));
-        await using var connection = new SqlConnection(ConnectionString("master"));
-        await connection.OpenAsync();
-        await connection.ExecuteAsync($"ALTER DATABASE [{_database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{_database}];");
+        if (_database is not null) await _database.DisposeAsync();
     }
 
     /// <summary>两入口四种选项按 UID 更新且不串组；停用物料参与，删除和未关联物料保持不变。</summary>
@@ -132,7 +119,8 @@ public sealed class ProductMasterSynchronizationSqlTests
         Assert.IsFalse((await _products.GetByIdAsync(inactive.Uid))!.IsActive);
         foreach (var id in new[] { deleted.Uid, unlinked.Uid, other.Uid })
         {
-            var saved = await _session.Connection.QuerySingleAsync<Product>("SELECT * FROM dbo.Product WHERE Uid=@id", new { id });
+            // PG物理列使用下划线；为原快照断言显式投影CLR名称，避免把未映射值误判为同步改写。
+            var saved = await _session.Connection.QuerySingleAsync<Product>("SELECT uid AS \"Uid\",master_sku AS \"MasterSku\",version AS \"Version\" FROM public.product WHERE uid=@id", new { id });
             Assert.AreEqual("OLD", saved.MasterSku);
             Assert.AreEqual(1, saved.Version);
         }
@@ -171,11 +159,11 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task SyncFailure_RollsBackAggregate(bool detail)
     {
         var product = await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("ALTER TABLE dbo.Product ADD CONSTRAINT CK_TestSyncFailure CHECK (MasterSku <> N'NEW');");
+        await _session.Connection.ExecuteAsync("ALTER TABLE public.product ADD CONSTRAINT ck_test_sync_failure CHECK (master_sku <> 'NEW');");
         Assert.IsFalse(await SaveAsync(detail, true, true, addNeutral: detail));
         Assert.AreEqual("OLD", (await _products.GetByIdAsync(product.Uid))!.MasterSku);
-        Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT Version FROM dbo.ProductMaster WHERE Uid=@id", new { id = _masterId }));
-        Assert.AreEqual(0, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProductNeutral"));
+        Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT version FROM public.product_master WHERE uid=@id", new { id = _masterId }));
+        Assert.AreEqual(0, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM public.product_neutral"));
         Assert.IsNull(_session.Transaction);
     }
 
@@ -185,9 +173,9 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task InactiveSupplier_RejectsOnlySelectedSynchronization(bool detail)
     {
         await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("UPDATE dbo.Supplier SET IsActive=0 WHERE Uid=@id", new { id = _supplierId });
+        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=FALSE WHERE uid=@id", new { id = _supplierId });
         Assert.IsFalse(await SaveAsync(detail, false, true));
-        Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT Version FROM dbo.ProductMaster WHERE Uid=@id", new { id = _masterId }));
+        Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT version FROM public.product_master WHERE uid=@id", new { id = _masterId }));
         Assert.IsTrue(await SaveAsync(detail, false, false));
     }
 
@@ -239,7 +227,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         var ids = new[] { _masterId, other }.OrderBy(id => id).ToArray();
         var first = await AddProductAsync(ids[0]);
         var last = await AddProductAsync(ids[1]);
-        await _session.Connection.ExecuteAsync("ALTER TABLE dbo.Product ADD CONSTRAINT CK_TestLaterFailure CHECK (DescriptionEn <> N'FAIL');");
+        await _session.Connection.ExecuteAsync("ALTER TABLE public.product ADD CONSTRAINT ck_test_later_failure CHECK (description_en <> 'FAIL');");
         var result = await _service.BatchSaveAsync(new()
         {
             UpdateProductDescriptions = true,
@@ -254,8 +242,8 @@ public sealed class ProductMasterSynchronizationSqlTests
         Assert.AreEqual(1, (await _products.GetByIdAsync(first.Uid))!.Version);
         Assert.AreEqual("原描述", (await _products.GetByIdAsync(first.Uid))!.DescriptionEn);
         Assert.AreEqual(1, (await _products.GetByIdAsync(last.Uid))!.Version);
-        Assert.AreEqual(2, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProductMaster"));
-        Assert.AreEqual(0, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.ProductMaster WHERE Version<>1"));
+        Assert.AreEqual(2, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM public.product_master"));
+        Assert.AreEqual(0, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM public.product_master WHERE version<>1"));
     }
 
     /// <summary>五种独立下发从数据库读取现值，只更新所选字段组及关联产品；重复下发不改变版本。</summary>
@@ -268,9 +256,9 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task IndependentSync_UpdatesSelectedGroupsOnly(string group)
     {
         await _session.Connection.ExecuteAsync("""
-            UPDATE dbo.ProductMaster SET DefaultDescriptionEn=N'新英文', DefaultDescriptionZh=N'新中文',
-                DefaultFeaturesEn=N'新配置', DefaultFeaturesZh=NULL, DefaultSupplierId=@supplierId,
-                DefaultGrossWeight=12.5, DefaultCbm=0.75 WHERE Uid=@masterId
+            UPDATE public.product_master SET default_description_en='新英文', default_description_zh='新中文',
+                default_features_en='新配置', default_features_zh=NULL, default_supplier_id=@supplierId,
+                default_gross_weight=12.5, default_cbm=0.75 WHERE uid=@masterId
             """, new { supplierId = _supplierId, masterId = _masterId });
         var active = await AddProductAsync(_masterId);
         var inactive = await AddProductAsync(_masterId, active: false);
@@ -303,7 +291,7 @@ public sealed class ProductMasterSynchronizationSqlTests
             Assert.AreEqual(2, saved.Version);
         }
         foreach (var id in new[] { deleted.Uid, unlinked.Uid })
-            Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT Version FROM dbo.Product WHERE Uid=@id", new { id }));
+            Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT version FROM public.product WHERE uid=@id", new { id }));
         var repeated = await _service.SyncProductsAsync(request, fields);
         Assert.IsTrue(repeated.Success, repeated.Message);
         Assert.AreEqual(0, repeated.Data.UpdatedProductCount);
@@ -339,14 +327,14 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task IndependentSync_InvalidSupplierAndSqlFailure_RollBack()
     {
         var product = await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("UPDATE dbo.ProductMaster SET DefaultSupplierId=@id, DefaultGrossWeight=55 WHERE Uid=@masterId",
+        await _session.Connection.ExecuteAsync("UPDATE public.product_master SET default_supplier_id=@id, default_gross_weight=55 WHERE uid=@masterId",
             new { id = _supplierId, masterId = _masterId });
-        await _session.Connection.ExecuteAsync("UPDATE dbo.Supplier SET IsActive=0 WHERE Uid=@id", new { id = _supplierId });
+        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=FALSE WHERE uid=@id", new { id = _supplierId });
         var request = new SyncProductMasterDataRequest { ProductMasterIds = [_masterId] };
         Assert.IsFalse((await _service.SyncProductsAsync(request, ProductMasterSyncFields.All)).Success);
         Assert.AreEqual(1, (await _products.GetByIdAsync(product.Uid))!.Version);
-        await _session.Connection.ExecuteAsync("UPDATE dbo.Supplier SET IsActive=1 WHERE Uid=@id", new { id = _supplierId });
-        await _session.Connection.ExecuteAsync("ALTER TABLE dbo.Product ADD CONSTRAINT CK_TestIndependentSyncFailure CHECK (UnitWeight <> 55)");
+        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=TRUE WHERE uid=@id", new { id = _supplierId });
+        await _session.Connection.ExecuteAsync("ALTER TABLE public.product ADD CONSTRAINT ck_test_independent_sync_failure CHECK (unit_weight <> 55)");
         Assert.IsFalse((await _service.SyncProductsAsync(request, ProductMasterSyncFields.All)).Success);
         var saved = (await _products.GetByIdAsync(product.Uid))!;
         Assert.AreEqual("原描述", saved.DescriptionEn);
@@ -364,9 +352,9 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task PullSelectedProducts_UpdatesOnlyChosenProductAndFields(string group)
     {
         await _session.Connection.ExecuteAsync("""
-            UPDATE dbo.ProductMaster SET DefaultDescriptionEn=N'新英文', DefaultDescriptionZh=NULL,
-                DefaultFeaturesEn=N'新配置', DefaultFeaturesZh=NULL, DefaultSupplierId=@supplierId,
-                DefaultGrossWeight=12.5, DefaultCbm=0.75 WHERE Uid=@masterId
+            UPDATE public.product_master SET default_description_en='新英文', default_description_zh=NULL,
+                default_features_en='新配置', default_features_zh=NULL, default_supplier_id=@supplierId,
+                default_gross_weight=12.5, default_cbm=0.75 WHERE uid=@masterId
             """, new { supplierId = _supplierId, masterId = _masterId });
         var selected = await AddProductAsync(_masterId, active: false);
         var untouched = await AddProductAsync(_masterId);
@@ -411,7 +399,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         var deletedMasterId = (await _scope.ServiceProvider.GetRequiredService<IProductMasterRepository>()
             .AddAsync(new ProductMaster { MasterSku = "DELETED" })).Uid;
         var deletedMasterProduct = await AddProductAsync(deletedMasterId);
-        await _session.Connection.ExecuteAsync("UPDATE dbo.ProductMaster SET IsDeleted=1 WHERE Uid=@id", new { id = deletedMasterId });
+        await _session.Connection.ExecuteAsync("UPDATE public.product_master SET is_deleted=TRUE WHERE uid=@id", new { id = deletedMasterId });
         var request = new PullProductMasterDataRequest { ProductIds = [valid.Uid, unlinked.Uid, missingMaster.Uid, deletedMasterProduct.Uid] };
         var result = await _service.PullProductsAsync(request, ProductMasterSyncFields.Descriptions);
         Assert.IsTrue(result.Success, result.Message);
@@ -430,9 +418,9 @@ public sealed class ProductMasterSynchronizationSqlTests
     {
         var first = await AddProductAsync(_masterId);
         var second = await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("UPDATE dbo.ProductMaster SET DefaultSupplierId=@supplierId WHERE Uid=@masterId",
+        await _session.Connection.ExecuteAsync("UPDATE public.product_master SET default_supplier_id=@supplierId WHERE uid=@masterId",
             new { supplierId = _supplierId, masterId = _masterId });
-        await _session.Connection.ExecuteAsync("UPDATE dbo.Supplier SET IsActive=0 WHERE Uid=@id", new { id = _supplierId });
+        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=FALSE WHERE uid=@id", new { id = _supplierId });
         var result = await _service.PullProductsAsync(new() { ProductIds = [first.Uid, second.Uid] }, ProductMasterSyncFields.All);
         Assert.IsFalse(result.Success);
         Assert.AreEqual(1, (await _products.GetByIdAsync(first.Uid))!.Version);
@@ -453,7 +441,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         var result = await _products.AddAsync(product);
         Assert.IsTrue(result.Success, result.Message);
         if (deleted)
-            await _session.Connection.ExecuteAsync("UPDATE dbo.Product SET IsDeleted=1 WHERE Uid=@Uid", new { product.Uid });
+            await _session.Connection.ExecuteAsync("UPDATE public.product SET is_deleted=TRUE WHERE uid=@Uid", new { product.Uid });
         return product;
     }
 
@@ -478,28 +466,6 @@ public sealed class ProductMasterSynchronizationSqlTests
         if (addNeutral) request.CreateNeutrals.Add(new() { Data = new() { ProductCode = "N", ColorId = _colorId } });
         return detail ? (await _service.SaveDetailAsync(request)).Success : (await _service.BatchSaveAsync(BatchRequest(request))).Success;
     }
-
-    /// <summary>只从编译期指定的 Entity 建隔离测试表，确保仓储写入和详情投影可执行。</summary>
-    private static string CreateTable(Type type)
-    {
-        var table = type.GetCustomAttribute<TableAttribute>()!.Name;
-        var columns = type.GetProperties().Where(property => property.CanWrite && property.GetCustomAttribute<NotMappedAttribute>() is null)
-            .Select(property =>
-            {
-                var valueType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
-                var sqlType = valueType == typeof(string) ? "nvarchar(max)" : valueType == typeof(Guid) ? "uniqueidentifier"
-                    : valueType == typeof(int) ? "int" : valueType == typeof(bool) ? "bit"
-                    : valueType == typeof(decimal) ? "decimal(18,6)" : valueType == typeof(DateTime) ? "datetime2"
-                    : valueType.IsEnum ? "int" : throw new NotSupportedException(valueType.Name);
-                return $"[{property.Name}] {sqlType} {(property.Name == nameof(BaseEntity.Uid) ? "NOT NULL PRIMARY KEY" : "NULL")}";
-            });
-        return $"CREATE TABLE dbo.[{table}] ({string.Join(",", columns)});";
-    }
-
-    private static string ConnectionString(string database) => new SqlConnectionStringBuilder
-    {
-        DataSource = @"(LocalDB)\MSSQLLocalDB", InitialCatalog = database, IntegratedSecurity = true, TrustServerCertificate = true
-    }.ConnectionString;
 
     /// <summary>固定审计身份，测试无需认证服务器。</summary>
     private sealed class TestUser : ICurrentUser

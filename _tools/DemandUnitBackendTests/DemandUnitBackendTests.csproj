@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- 单位链后端专项入口，复用真实测试及随机 LocalDB 夹具，与其他任务的未完成测试分开编译。 -->
+  <!-- 单位链后端专项入口，复用现有PG真实测试；具体写入仍受各测试授权门禁约束。 -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <!-- 沿用原测试程序集身份，以消费 Application 已明确授权的内部规则。 -->
@@ -27,6 +27,6 @@
     <Compile Include="../../SwiftExport.Application.Tests/DemandPlanning/GrossDemandTraceSqlTests.cs" Link="DemandPlanning/GrossDemandTraceSqlTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderTests.cs" Link="ForExcel/ForExcelSalesOrderTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderContractTests.cs" Link="ForExcel/ForExcelSalesOrderContractTests.cs" />
-    <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlFixture.cs" Link="Procurement/IndependentProcurementSqlFixture.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Database/PostgreSqlIntegrationEnvironment.cs" Link="Database/PostgreSqlIntegrationEnvironment.cs" />
   </ItemGroup>
 </Project>

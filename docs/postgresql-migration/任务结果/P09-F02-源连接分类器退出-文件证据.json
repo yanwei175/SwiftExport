@@ -1,0 +1,56 @@
+{
+  "recorded_at": "2026-10-06T11:04:44.0919681+08:00",
+  "stage": "P09-F02源连接工厂类/分类器退出，公共接口保留",
+  "status": "本批验证通过：两无消费者源类型已退出，原公共接口/PG默认表达式/签名及原BOM保持；S消费者/最后包/资产/宿主仍待",
+  "files": [
+    {
+      "tracked_head_unmodified": true,
+      "path": "SwiftExport.Infrastructure/Data/DbConnectionFactory.cs",
+      "before_sha256": "6C231375AD594E76213587467BD73B692F475A1D1273DD3BC7460AE23DF5D948",
+      "before_text": "using Microsoft.Data.SqlClient;\nusing System.Data;\n\nnamespace SwiftExport.Infrastructure.Data;\n\n/// <summary>创建尚未打开的连接；会话负责打开和释放，提供者选择留在基础设施层。</summary>\npublic interface IDbConnectionFactory\n{\n    /// <summary>默认使用目标PG异常分类器；迁移期间显式源工厂负责提供自己的分类器。</summary>\n    SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => PostgreSqlExceptionClassifier.Instance;\n\n    /// <summary>创建独立连接，所有权移交给调用会话。</summary>\n    IDbConnection CreateConnection();\n}\n\n/// <summary>按宿主提供的配置创建 SQL Server 连接，不改变现有数据库运行行为。</summary>\npublic class SqlConnectionFactory(string connectionString) : IDbConnectionFactory\n{\n    private readonly string _connectionString = connectionString;\n\n    /// <summary>仅为迁移期间显式SQL Server对照保留原错误分类，不借用目标PG默认值。</summary>\n    public SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => SqlServerExceptionClassifier.Instance;\n\n    /// <summary>返回未打开的 SqlClient 连接，不记录连接字符串。</summary>\n    public IDbConnection CreateConnection()\n    {\n        return new SqlConnection(_connectionString);\n    }\n}\n"
+    },
+    {
+      "tracked_head_unmodified": true,
+      "path": "SwiftExport.Infrastructure/Data/SqlServerExceptionClassifier.cs",
+      "before_sha256": "198951663973A69EECC7D28C03CCDFD9E57FD9336ACED23549C4230296964A55",
+      "before_text": "using Microsoft.Data.SqlClient;\nusing SwiftExport.Core.Interfaces.Data;\n\nnamespace SwiftExport.Infrastructure.Data;\n\n/// <summary>集中识别 SQL Server 失败原因；不按消息文本猜测、不自动重试，也不统一不同业务错误。</summary>\npublic sealed class SqlServerExceptionClassifier : IDatabaseExceptionClassifier\n{\n    /// <summary>无状态分类器，供当前 SQL Server 会话共享。</summary>\n    public static SqlServerExceptionClassifier Instance { get; } = new();\n\n    /// <summary>取消只按异常类型识别；请求令牌已取消时由用例先处理，不把超时当取消。</summary>\n    public DatabaseFailureKind Classify(Exception exception)\n    {\n        if (exception is OperationCanceledException) return DatabaseFailureKind.Canceled;\n        if (exception is not SqlException sql) return DatabaseFailureKind.Unknown;\n        return sql.Number switch\n        {\n            2601 or 2627 => DatabaseFailureKind.UniqueConflict,\n            -2 or 1222 => DatabaseFailureKind.Timeout,\n            1205 => DatabaseFailureKind.Deadlock,\n            2 or 20 or 53 or 64 or 233 or 10053 or 10054 or 10060 => DatabaseFailureKind.ConnectionFailure,\n            207 or 208 => DatabaseFailureKind.SchemaMismatch,\n            // 这是现有入库历史完整性 SQL 门禁的业务信号，不能合并到普通结构错误。\n            51001 => DatabaseFailureKind.UnverifiedReceiptHistory,\n            _ => DatabaseFailureKind.Unknown\n        };\n    }\n}\n"
+    }
+  ],
+  "references": [
+    "SwiftExport.Infrastructure/Data/SqlServerExceptionClassifier.cs",
+    "SwiftExport.Infrastructure/Data/DbConnectionFactory.cs"
+  ],
+  "scope": "固定SHA/HEAD无修改、零外部消费者两旧类型：只移除混合工厂文件SqlClient using/SqlConnectionFactory类，保留IDbConnectionFactory及Errors默认PG表达式/CreateConnection签名，仅同步两行职责XML说明；删除源专用分类器。PG工厂/分类器/会话/事务/业务/接口行为/配置/包不改；必要Infra编译，不连接库或测试。",
+  "preconditions": "P08迁移范围/真实宿主/G6已验，R12测试消费者及当前R/S消费者已切当前PG；原两个文件当前HEAD clean及原事实SHA相同，不依历史描述猜测未提交状态。",
+  "factory_after_sha256": "02C2165A6702FA77B6F764E34C71A4CFDBA3B75F7829AD1D94DDFDD9777F7C03",
+  "completed_at": "2026-10-06T11:07:55.7973391+08:00",
+  "execution": {
+    "old_type_references": 0,
+    "unexpected_production_changes": 0,
+    "source_protection": "P09-F02-源码保护证据.json",
+    "package_change": false,
+    "factory_utf8_bom_preserved": true,
+    "warnings": 0,
+    "local_command_issues": "apply_patch首行匹配原UTF8 BOM失败，SHA确认无部分改动；随后限定原SHA/HEAD且保留原BOM的原生精确替换成功。diff发现仅本批文件末空行已清除；没有业务或数据库副作用，不是测试失败。",
+    "unexpected_missing": 0,
+    "exited_files": 81,
+    "exited_types": 73,
+    "errors": 0,
+    "remaining_candidate_types": 3,
+    "test_processes_after": 0,
+    "public_interface_executable_content_preserved": true,
+    "future_protection": "混合Factory文件仍存在，不能纳入已删除文件。后续保护脚本须按当前73类型/81源文件及F01审计/F02Factory的精准afterSHA或文本重建允许范围核对；历史脚本保留当时范围，不直接重放。",
+    "build_exit": 0,
+    "new_sources": 0,
+    "changed_tests": 50,
+    "seconds": 0.84,
+    "reason": "无外部消费者两源类型退出，原共享接口可执行内容完全保留；必要Infra编译/全源零引用/固定文本重建即可，不重跑已绿或全量。",
+    "database_connection": false,
+    "build_command": "dotnet build SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj --no-restore -v minimal",
+    "original_sources": 2390,
+    "commit_merge_push": false,
+    "business_or_pg_or_session_change": false,
+    "tests_run": false,
+    "build_source_scope": "编译后只移除本批造成的文件末空行，接口可执行内容/原BOM及换行规则未改；没有因此重复必要编译。"
+  }
+}

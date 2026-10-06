@@ -1,0 +1,124 @@
+{
+  "recorded_at": "2026-10-06T09:44:40.0612044+08:00",
+  "stage": "P09-R14入库库存审计有效静态消费者转PG",
+  "status": "本批完成：4旧源退出，9定向离线及最终编译通过；非PG实库/结构或整体完成",
+  "scope": "仅三个现有静态测试的源引用/方言断言及中文职责注释，保持业务断言；四旧文件退出需引用/HEAD/SHA/构建验收。PG生产/业务/API/DI/结构/数据库不改，执行资格审批文件保留，无全量或新增矩阵",
+  "files": [
+    {
+      "name": "BusinessOperationLogRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Auditing/BusinessOperationLogRepository.cs",
+      "sha256": "4D11720D8C2D486753350CA6FB214A055657F1018216ADF96246169BA7814403",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Auditing/PostgreSqlBusinessOperationLogRepository.cs"
+      ],
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Auditing/BusinessOperationLogRepository.cs"
+      ]
+    },
+    {
+      "name": "InboundDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundDocumentRepository.cs",
+      "sha256": "79572B3AE21ED294C4455088A6F98A03778905B708E9F5C66CEB025D0E51D42A",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundDocumentRepository.cs"
+      ],
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundDocumentRepository.cs"
+      ]
+    },
+    {
+      "name": "InboundExecutionReadRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundExecutionReadRepository.cs",
+      "sha256": "AD3305959CD89F58BAF7A41838AD74A77A162598C6EA71B83A489B83D8B5BAFB",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundExecutionReadRepository.cs"
+      ],
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundExecutionReadRepository.cs"
+      ]
+    },
+    {
+      "name": "InventoryPostingRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Posting/InventoryPostingRepository.cs",
+      "sha256": "4DF6F28D72E9F0F6848DE74FBCCCBE0599C74E24152C004747F558EE0EAC4167",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Posting/PostgreSqlInventoryPostingRepository.cs"
+      ],
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Posting/InventoryPostingRepository.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs",
+      "before_sha256": "5C4033D296201242714CE6D7C582B0174E5D7B12205351C08DDFF47B1BE5C44F",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "DE612FE1576A8E8057CE9B64BD35B4AC2FF0EDBDBDE1A7CF623D8996BE157FA5"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Inventory/ProductUnitSnapshotContractTests.cs",
+      "before_sha256": "5D9233641EE820618CBE10AF356B6739E3EBC557192D2DFFE492338B8BEC29E8",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "3A8CC9285361AB072A38C69475AC5869B6A10470BBF962EADDCBF910ED63E244"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Orders/SalesSourceDemandAndFulfillmentContractTests.cs",
+      "before_sha256": "2439B3C2748282CB12C714B77F28A144873CEEE06BDCE20981D9C30B6B03CB86",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "F7A2821B64433FEEE16A7A7E19B55EF67F21DA60697871382F9FD5DAE15FC3BE"
+    }
+  ],
+  "database_run": false,
+  "preflight_at": "2026-10-06T09:45:47.7351501+08:00",
+  "completed_at": "2026-10-06T09:46:57.3874761+08:00",
+  "execution": {
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_seconds": [
+      2.82,
+      3.32
+    ],
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R14-入库库存审计契约-实际命令.ps1'",
+    "test_exit": 0,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 31,
+    "trx": "TestResults/postgresql-migration/p09-r14-inbound-inventory-audit-contracts-offline.trx",
+    "trx_sha256": "3364AD2ED3AAC355A110EBB68DF3C3CFFB9CE925752781B070E816E6A75F9E25",
+    "database_gates": 13,
+    "excluded_integration_categories": 37,
+    "deletion": "4原生绝对LiteralPath文件删除exit0，SHA/HEAD/跟踪/消费者先复核，退出后引用零",
+    "legacy_schema_case": "SalesSourceDemandContractTests.GeneratedSchemaUsesFullSourceIdentityWithoutHistoricalMigration仍检查SQL Server旧生成基线，待S；不当PG结构验收",
+    "database_run": false,
+    "source_types_exited": 64,
+    "source_files_exited": 70,
+    "remaining": 12,
+    "R": 8,
+    "S": 1,
+    "F": 3
+  },
+  "final_checks": {
+    "recorded_at": "2026-10-06T09:48:31.9120580+08:00",
+    "scoped_git_diff_check_exit": 0,
+    "test_source_sha_matches": true,
+    "execution_eligibility_original_sha_unchanged": true,
+    "testhost_vstest_processes": 0,
+    "source_snapshot": 2390,
+    "expected_missing": 70,
+    "changed_tests": 40,
+    "prior_tool_projects": 2,
+    "unexpected_sources": 0,
+    "goal_status": "active",
+    "main_batch_status": "STOPPED",
+    "no_commit_merge_push": true,
+    "no_full_or_database_tests": true
+  }
+}

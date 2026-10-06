@@ -1,0 +1,121 @@
+{
+  "recorded_at": "2026-10-06T11:33:07.2389877+08:00",
+  "stage": "P09-S04旧结构生成分支退出",
+  "status": "验证通过：旧生成器/工具源分支退出，当前PG生成verify和源码/基线保护通过；其他S及最终包仍待",
+  "files": [
+    {
+      "path": "_tools/SchemaGenerator/Program.cs",
+      "before_sha256": "969E1272846E411E7AA345FA4E5A65E3C5CCF759A3CDF0AD373099B3E32FAB52",
+      "prior_diff": [],
+      "exists_after": true,
+      "after_sha256": "2415611DCA9204F4C488A11D3603F53080000984FD5F4A72458E549D535EC8B3"
+    },
+    {
+      "path": "SwiftExport.Infrastructure/DatabaseSchema/SqlServerSchemaGenerator.cs",
+      "before_sha256": "64B7B1EF424E9DAA1A276BA74049088D962254B21BB177618CBA5E447798D363",
+      "prior_diff": [],
+      "exists_after": false
+    },
+    {
+      "path": "SwiftExport.Infrastructure/Database/README.md",
+      "before_sha256": "34E88141E31E75757AAE16230DB6A0ADDC91EE1F7B77C8822D1BF0DE1C5A90C3",
+      "prior_diff": [],
+      "exists_after": true,
+      "after_sha256": "4F40ECB7CBEEBB8909CD58C6993BAF0E0BF28C45030F826AA32205D9CA09F202"
+    }
+  ],
+  "source_consumers": [
+    "_tools\\SchemaGenerator\\Program.cs",
+    "SwiftExport.Infrastructure\\DatabaseSchema\\SqlServerSchemaGenerator.cs"
+  ],
+  "scope": "只工具入口移除旧SQL分支/参数；旧生成器HEAD干净且固定SHA删除，PG生成算法/接口/实体不改。旧SQL生成文件仍由LocalDB夹具消费而保留；两基线SHA保护。工具只本地生成/verify，不连接/部署或修改数据库。不新测试矩阵或窗口。",
+  "baselines": [
+    {
+      "path": "SwiftExport.Infrastructure/Database/Generated/SwiftExport.Schema.sql",
+      "before_sha256": "C33B00E1C1C85F5EB0B56755495191F9E37AED2E7323D52CB3774EAB57A43015",
+      "after_sha256": "C33B00E1C1C85F5EB0B56755495191F9E37AED2E7323D52CB3774EAB57A43015"
+    },
+    {
+      "path": "SwiftExport.Infrastructure/Database/Generated/SwiftExport.PostgreSql.Schema.preview.sql",
+      "before_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7",
+      "after_sha256": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7"
+    }
+  ],
+  "validation": "必要工具项目编译；当前PG实际verify和无参生成后两基线SHA保持；不全量/不重跑S01绿色；旧源消费者为空及2390源码保护。",
+  "remaining": "旧结构脚本/LocalDB有效消费者、最后SqlClient包/资产图/阶段回归/宿主仍待；执行资格删除审批保留。",
+  "execution": {
+    "verify_command": "dotnet run --project _tools/SchemaGenerator/SchemaGenerator.csproj --no-build --no-restore -- --verify",
+    "build_errors": 0,
+    "build_seconds": 1.51,
+    "build_command": "dotnet build _tools/SchemaGenerator/SchemaGenerator.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "database_read_or_write": false,
+    "commit_merge_push": false,
+    "repeated_green_test": false,
+    "started_at": "2026-10-06T11:35:28.9051878+08:00",
+    "package_or_configuration_change": false,
+    "full_test_run": false,
+    "verify_exit": 0,
+    "new_test_matrix": false,
+    "finished_at": "2026-10-06T11:35:30.0861952+08:00",
+    "generate_exit": 0,
+    "existing_nuget_environment_warnings": 1,
+    "pg_generator_change": false,
+    "command_issues": "多文件apply_patch返回失败，但检查发现首文件Program已有全部预期改动、README尚未改；未重放首文件，随后仅完成README，删除尚未发生前重新核对旧源SHA/HEAD/消费者再获准删除。只读路径/输出限制已收敛。 收口PS1初次-or后命令未加括号，解析失败前未运行任何检查；补括号后同脚本exit0，实际验证及源保护成立。",
+    "ddl": false,
+    "generate_command": "dotnet run --project _tools/SchemaGenerator/SchemaGenerator.csproj --no-build --no-restore",
+    "closure": {
+      "command": "& './docs/postgresql-migration/任务结果/P09-S04-旧结构生成分支-收口实际命令.ps1'",
+      "test_processes": 0,
+      "localdb_fixture_consumers_including_definition": 12,
+      "original_sources": 2390,
+      "changed_existing_tests": 52,
+      "compiled_assembly": {
+        "sha256": "F4F7E24EFABB8EC26B544ECE3767187FCAC71321B7ABD346B60CAD3B6FA48CFA",
+        "fresh_before_run": true,
+        "last_write": "2026-10-06T11:34:57.8098146+08:00",
+        "path": "_tools/SchemaGenerator/bin/Debug/net10.0/SchemaGenerator.dll"
+      },
+      "source_proof": "P09-S04-源码保护证据.json",
+      "unexpected_missing": 0,
+      "exited_source_files": 82,
+      "unexpected_production_changes": 0,
+      "new_sources": 0,
+      "remaining_candidate_types": 2,
+      "old_generator_source_references": 0,
+      "exited_types": 74
+    }
+  },
+  "source_retirement": {
+    "prior_uncommitted_source_modified": false,
+    "approved_native_remove": true,
+    "before_sha256": "64B7B1EF424E9DAA1A276BA74049088D962254B21BB177618CBA5E447798D363",
+    "tracked": true,
+    "head": "e653ea5f75d3b33e3a014f2ac875f8a4d8f60ac9",
+    "path": "SwiftExport.Infrastructure/DatabaseSchema/SqlServerSchemaGenerator.cs",
+    "sql_baseline_retained": true,
+    "prior_diff_empty": true,
+    "business_or_pg_source_change": false
+  },
+  "completed_at": "2026-10-06T11:36:56.2778407+08:00",
+  "remaining_consumers": {
+    "sql_baseline": [
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs"
+    ],
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\GrossDemandTraceSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs",
+      "SwiftExport.Application.Tests\\Orders\\SalesOrderManagerQuerySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\PurchaseOrderTrackingSqlTests.cs"
+    ]
+  }
+}

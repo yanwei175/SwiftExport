@@ -20,22 +20,22 @@ public sealed class ProductMasterSchemaContractTests
         Assert.IsNull(typeof(ProductNeutral).GetProperty("MasterProductUid"));
     }
 
-    /// <summary>验证实体生成基线包含唯一、查询及数值完整性约束。</summary>
+    /// <summary>验证 PG 实体生成基线包含唯一、查询及数值完整性约束，不引入物理外键。</summary>
     [TestMethod]
     public void GeneratedSchema_ShouldCreateProductMasterAggregateConstraints()
     {
-        var sql = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql"));
-        StringAssert.Contains(sql, "CREATE TABLE [dbo].[ProductNeutral]");
-        StringAssert.Contains(sql, "UX_ProductMaster_MasterSku");
-        StringAssert.Contains(sql, "UX_ProductNeutral_ProductCode");
-        StringAssert.Contains(sql, "IX_ProductMaster_Category");
-        StringAssert.Contains(sql, "IX_ProductMaster_DefaultSupplier");
-        StringAssert.Contains(sql, "IX_ProductNeutral_ProductMaster");
-        StringAssert.Contains(sql, "IX_ProductNeutral_Color");
-        StringAssert.Contains(sql, "CK_ProductMaster_Pcs");
-        StringAssert.Contains(sql, "CK_ProductNeutral_ExchangeRate");
-        var start = sql.IndexOf("CREATE TABLE [dbo].[ProductMaster]", StringComparison.Ordinal);
-        var end = sql.IndexOf("CREATE TABLE [dbo].[ProductPackage]", start, StringComparison.Ordinal);
+        var sql = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.PostgreSql.Schema.preview.sql"));
+        StringAssert.Contains(sql, "CREATE TABLE \"public\".\"product_neutral\"");
+        StringAssert.Contains(sql, "ux_product_master_master_sku");
+        StringAssert.Contains(sql, "ux_product_neutral_product_code");
+        StringAssert.Contains(sql, "ix_product_master_category");
+        StringAssert.Contains(sql, "ix_product_master_default_supplier");
+        StringAssert.Contains(sql, "ix_product_neutral_product_master");
+        StringAssert.Contains(sql, "ix_product_neutral_color");
+        StringAssert.Contains(sql, "ck_product_master_pcs");
+        StringAssert.Contains(sql, "ck_product_neutral_exchange_rate");
+        var start = sql.IndexOf("CREATE TABLE \"public\".\"product_master\"", StringComparison.Ordinal);
+        var end = sql.IndexOf("CREATE TABLE \"public\".\"product_package\"", start, StringComparison.Ordinal);
         var productMasterAggregate = sql.Substring(start, end - start);
         Assert.IsFalse(productMasterAggregate.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase), "主产品关系按当前约定使用逻辑外键。");
     }

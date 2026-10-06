@@ -9,27 +9,27 @@ using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
 using SwiftExport.Core.Interfaces.Procurement;
 namespace SwiftExport.Application.Tests.ForExcel;
 
-/// <summary>在唯一隔离 LocalDB 中验证采购导入检验、真实落库、重放、重验和回滚，不连接业务库。</summary>
+/// <summary>在获批单PG隔离库中验证原采购导入、落库、重放、重验和回滚，不连接业务库。</summary>
 [TestClass,DoNotParallelize]
 public sealed class ForExcelPurchaseOrderSqlTests
 {
-    private IndependentProcurementSqlFixture db = default!;
+    private IndependentProcurementPostgreSqlFixture db = default!;
+    /// <summary>记录原测试名称与结果，供例间事实导出追溯。</summary>
+    public TestContext TestContext { get; set; } = default!;
     private Guid customerProductId;
 
     /// <summary>仅显式开启时建立本测试专属库和客户型号关联。</summary>
     [TestInitialize]
     public async Task InitializeAsync()
     {
-        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_SQL_TESTS") != "1")
-            Assert.Inconclusive("设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行隔离 LocalDB 测试。");
-        db=new();await db.InitializeAsync();customerProductId=Guid.NewGuid();
+        db=new();await db.InitializeAsync(TestContext);customerProductId=Guid.NewGuid();
         await db.ExecuteAsync("""
-            INSERT dbo.CustomerProduct(Uid,CustomerId,CustomerCode,SkuId,CustomerSku,LinkSku,IsActive)
-            VALUES(@Uid,@CustomerId,N'TEST-C',@ProductId,N'AQ1710BGM',N'AT421100BGM',1);
+            INSERT INTO public.customer_product(uid,customer_id,customer_code,sku_id,customer_sku,link_sku,is_active)
+            VALUES(@Uid,@CustomerId,'TEST-C',@ProductId,'AQ1710BGM','AT421100BGM',TRUE);
             """,new{Uid=customerProductId,db.CustomerId,db.ProductId});
     }
 
-    /// <summary>无论成功或失败，只清理本实例建立的测试数据库。</summary>
+    /// <summary>无论成功或失败，先导出本例事实，仅重置获批新库public。</summary>
     [TestCleanup]
     public async Task CleanupAsync()
     {
@@ -71,11 +71,11 @@ public sealed class ForExcelPurchaseOrderSqlTests
         Assert.AreEqual("Excel颜色",line.FinishZh);Assert.AreEqual("Excel配置",line.FeaturesZh);
         Assert.AreEqual(116m,line.UnitPrice);Assert.AreEqual(4176m,line.UnitAmount);
         Assert.AreEqual(4176m,detail.CnyTotalAmount);Assert.AreEqual(line.Quantity,
-            await db.ScalarAsync<decimal>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE Uid=@Uid",new{line.Uid}));
+            await db.ScalarAsync<decimal>("SELECT unlinked_qty FROM public.purchase_order_line WHERE uid=@Uid",new{line.Uid}));
         Assert.IsFalse(line.IsNonStandard);Assert.AreEqual(0,(int)detail.ConfirmationStatus);
         Assert.IsNull(detail.DemandSourceUid);
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink"));
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead"));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.demand_execution_link"));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_head"));
         command.BoNo="改动原单号";
         Assert.AreEqual(ServiceErrorCodes.CommandConflict,(await db.CreateAsync(command)).Error.Code);
     }
@@ -97,13 +97,13 @@ public sealed class ForExcelPurchaseOrderSqlTests
         command.Lines[0].ProductId=db.ProductId;command.Lines[0].LinkSku="Excel旧型号";
         Assert.IsFalse((await db.CreateAsync(command)).Success);
         command.Lines[0].AcceptLinkSkuMismatch=true;
-        await db.ExecuteAsync("UPDATE dbo.CustomerProduct SET IsActive=0 WHERE Uid=@Uid",new{Uid=customerProductId});
+        await db.ExecuteAsync("UPDATE public.customer_product SET is_active=FALSE WHERE uid=@Uid",new{Uid=customerProductId});
         Assert.IsFalse((await db.CreateAsync(command)).Success);
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead"));
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
-        await db.ExecuteAsync("UPDATE dbo.CustomerProduct SET IsActive=1 WHERE Uid=@Uid",new{Uid=customerProductId});
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_head"));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.command_receipt"));
+        await db.ExecuteAsync("UPDATE public.customer_product SET is_active=TRUE WHERE uid=@Uid",new{Uid=customerProductId});
         var created=await db.CreateAsync(command);Assert.IsTrue(created.Success,created.Message);
-        Assert.AreEqual("Excel旧型号",await db.ScalarAsync<string>("SELECT LinkSku FROM dbo.PurchaseOrderLine"));
+        Assert.AreEqual("Excel旧型号",await db.ScalarAsync<string>("SELECT link_sku FROM public.purchase_order_line"));
     }
 
     /// <summary>明确非标无需产品主档但必须有效单位；导入草稿可确认，仍拒绝损坏身份与未知单位。</summary>
@@ -117,7 +117,7 @@ public sealed class ForExcelPurchaseOrderSqlTests
         var line=detail!.Lines.Single();Assert.IsTrue(line.IsNonStandard);
         Assert.AreEqual(Guid.Empty,line.ProductId);Assert.AreEqual(NonStandardSkuGenerator.Create(line.Uid),line.Sku);
         Assert.AreEqual("PCS",line.UnitSnapshot);Assert.AreEqual("非标组件",line.DescriptionZh);
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine WHERE ProductId IS NULL AND SourceUid IS NULL"));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_line WHERE product_id IS NULL AND source_uid IS NULL"));
         var context=await db.ContextAsync(created.Data.PurchaseOrderId);Assert.IsTrue(context.Success,context.Message);
         var confirmed=await db.ConfirmAsync(created.Data.PurchaseOrderId,new()
         {CommandId=Guid.NewGuid(),ExpectedVersion=context.Data!.Version,ContextFingerprint=context.Data.Fingerprint});
@@ -127,7 +127,7 @@ public sealed class ForExcelPurchaseOrderSqlTests
         Assert.IsFalse((await db.CreateAsync(invalid)).Success);
         invalid.Lines[0].ProductId=Guid.Empty;invalid.Lines[0].DescriptionZh="非标";invalid.Lines[0].Unit="未知单位";
         Assert.IsFalse((await db.CreateAsync(invalid)).Success);
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead"));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_head"));
     }
 
     /// <summary>业务日志失败时头行和回执全部回滚，同一命令可在故障移除后重试。</summary>
@@ -136,10 +136,10 @@ public sealed class ForExcelPurchaseOrderSqlTests
     {
         var command=db.CreateCommand();command.BoNo="Excel原单号";
         await db.RejectLogsAsync();Assert.IsFalse((await db.CreateAsync(command)).Success);
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderHead"));
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine"));
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt"));
-        await db.ExecuteAsync("DROP TRIGGER dbo.TR_Test_RejectLog");
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_head"));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_line"));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.command_receipt"));
+        await db.ExecuteAsync("DROP TRIGGER tr_test_reject_log ON public.business_operation_log; DROP FUNCTION public.p09_test_reject_log();");
         var created=await db.CreateAsync(command);Assert.IsTrue(created.Success,created.Message);
     }
 

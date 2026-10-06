@@ -4,6 +4,7 @@ using SwiftExport.Application.Interfaces.Inventory.Posting;
 using SwiftExport.Contracts.Apis.Shipping;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Infrastructure.Repositories.Shipping;
 
 namespace SwiftExport.Application.Tests.Shipping;
 
@@ -34,39 +35,41 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(controller, "PermissionKeys.PackingListReverse");
     }
 
+    /// <summary>PG 草稿读取只依赖原毛需求和正式交付，唯一默认包装规则及禁止采购前置保持。</summary>
     [TestMethod]
     public void Repository_UsesGrossDemandWithoutPlanningOrProcurementPrerequisites()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.Query.cs");
-        var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
-        Assert.IsFalse(delivery.Contains("SourceType IN", StringComparison.Ordinal));
-        StringAssert.Contains(delivery, "g.IsNonStandard=1 AND g.ProductId IS NULL");
-        StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
-        StringAssert.Contains(delivery, "g.DemandQty-COALESCE(d.DeliveredQty,0)");
-        StringAssert.Contains(delivery, "WITH (UPDLOCK,HOLDLOCK)");
-        StringAssert.Contains(repository, "pkg.PackageCount=1");
-        foreach (var forbidden in new[] { "NetDemand", "Allocation", "PurchaseOrderHead", "PurchaseOrderLine", "PackingListDocument", "PackingListContributionLine" })
-            Assert.IsFalse(repository.Contains("dbo." + forbidden, StringComparison.Ordinal), forbidden);
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PostgreSqlPackingListRepository.cs");
+        var delivery = PostgreSqlSourceDeliveryQueryRepository.Projection(true);
+        Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(delivery, "(?:\"source_type\"|\"SourceType\")\\s+IN\\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        StringAssert.Contains(delivery, "g.\"is_non_standard\"=TRUE AND g.\"product_id\" IS NULL");
+        StringAssert.Contains(delivery, "h.\"posting_status\"=@Posted");
+        StringAssert.Contains(delivery, "g.\"demand_qty\"-COALESCE(d.\"DeliveredQty\",0)");
+        StringAssert.Contains(delivery, "FOR UPDATE OF l,h");
+        StringAssert.Contains(repository, "pkg.package_count=1");
+        foreach (var forbidden in new[] { "net_demand", "allocation", "purchase_order_head", "purchase_order_line", "packing_list_document", "packing_list_contribution_line" })
+            Assert.IsFalse(repository.Contains("public." + forbidden, StringComparison.Ordinal), forbidden);
     }
 
+    /// <summary>PG 基线保持原数量和创建幂等约束，仓库生命周期只能依赖余额和流水。</summary>
     [TestMethod]
     public void DraftPersistence_RequiresPositiveQuantityAndUniqueCreateCommand()
     {
         Assert.AreEqual("PL", DocumentTypeStaticsEnum.PackingList);
         Assert.AreEqual("COMMAND_CONFLICT", PackingListErrorCodes.CommandConflict);
-        var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
-        StringAssert.Contains(baseline, "CK_PackingListLine_Qty");
-        StringAssert.Contains(baseline, "UX_PackingListHead_CreateCommand");
-        StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListHead]");
-        StringAssert.Contains(baseline, "CREATE TABLE [dbo].[PackingListLine]");
-        Assert.IsFalse(baseline.Contains("PackingListDocument", StringComparison.Ordinal));
-        var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseManagementRepository.cs");
+        var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.PostgreSql.Schema.preview.sql");
+        StringAssert.Contains(baseline, "ck_packing_list_line_qty");
+        StringAssert.Contains(baseline, "ux_packing_list_head_create_command");
+        StringAssert.Contains(baseline, "CREATE TABLE \"public\".\"packing_list_head\"");
+        StringAssert.Contains(baseline, "CREATE TABLE \"public\".\"packing_list_line\"");
+        Assert.IsFalse(baseline.Contains("packing_list_document", StringComparison.Ordinal));
+        var warehouse = Read("SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "PostgreSqlWarehouseManagementRepository.cs");
         // 箱单行已按确认方案移除仓库关联，实际库存仓库由流水保护，不能恢复旧行列依赖。
         foreach (var removed in new[] { "WarehouseSiteId", "WarehouseCodeSnapshot", "WarehouseNameSnapshot" })
             Assert.IsNull(typeof(SwiftExport.Core.Entities.Shipping.PackingListLine).GetProperty(removed));
-        StringAssert.Contains(warehouse, "dbo.InventoryLedgerEntry WHERE WarehouseSiteId=@WarehouseSiteId");
-        Assert.IsFalse(warehouse.Contains("dbo.PackingListLine", StringComparison.Ordinal));
-        Assert.IsFalse(warehouse.Contains("dbo.PackingListContributionLine", StringComparison.Ordinal));
+        StringAssert.Contains(warehouse, "public.inventory_ledger_entry WHERE warehouse_site_id=@WarehouseSiteId");
+        Assert.IsFalse(warehouse.Contains("public.packing_list_line", StringComparison.Ordinal));
+        Assert.IsFalse(warehouse.Contains("public.packing_list_contribution_line", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -90,14 +93,14 @@ public sealed class PackingListDraftApiContractTests
     [TestMethod]
     public void AfterSalesComplaintNumberEnrichesCustomerPo()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.Query.cs");
-        StringAssert.Contains(repository, "THEN soh.CustomerPoNo");
-        StringAssert.Contains(repository, "WHEN g.SourceType=N'CR' AND ash.Uid IS NOT NULL AND asl.Uid IS NOT NULL");
-        StringAssert.Contains(repository, "THEN ash.CustomerComplaintNo END AS CustomerPoNo");
-        StringAssert.Contains(repository, "ash.Uid=g.SourceUid");
-        StringAssert.Contains(repository, "ash.CustomerId=g.CustomerId AND ash.IsDeleted=0");
-        StringAssert.Contains(repository, "asl.Uid=g.SourceLineId");
-        StringAssert.Contains(repository, "asl.HeaderId=ash.Uid AND asl.IsDeleted=0");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PostgreSqlPackingListRepository.cs");
+        StringAssert.Contains(repository, "THEN soh.customer_po_no");
+        StringAssert.Contains(repository, "WHEN rtrim(g.source_type,' ') COLLATE public.erp_dictionary_ci='CR' AND ash.uid IS NOT NULL AND asl.uid IS NOT NULL");
+        StringAssert.Contains(repository, "THEN ash.customer_complaint_no END AS \"CustomerPoNo\"");
+        StringAssert.Contains(repository, "ash.uid=g.source_uid");
+        StringAssert.Contains(repository, "ash.customer_id=g.customer_id AND ash.is_deleted=FALSE");
+        StringAssert.Contains(repository, "asl.uid=g.source_line_id");
+        StringAssert.Contains(repository, "asl.header_id=ash.uid AND asl.is_deleted=FALSE");
         var service = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListDraftService.cs");
         var queries = Read("SwiftExport.Application", "Services", "Shipping", "PackingLists", "PackingListQueryService.cs");
         StringAssert.Contains(queries, "CustomerPoNo = enrichment?.CustomerPoNo");

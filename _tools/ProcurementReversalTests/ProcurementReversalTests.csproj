@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- 与复用的原测试一致，使用既有内部规则访问授权，不修改生产成员可见性。 -->
+    <AssemblyName>SwiftExport.Application.Tests</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsTestProject>true</IsTestProject>
@@ -14,7 +16,10 @@
     <PackageReference Include="MSTest.TestAdapter" Version="4.3.0" />
     <PackageReference Include="MSTest.TestFramework" Version="4.3.0" />
     <ProjectReference Include="../../SwiftExport.WebApi/SwiftExport.WebApi.csproj" />
-    <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementSqlFixture.cs" Link="IndependentProcurementSqlFixture.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/IndependentProcurementPostgreSqlFixture.cs" Link="IndependentProcurementPostgreSqlFixture.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Database/PostgreSqlLegacyTestDatabase.cs" Link="PostgreSqlLegacyTestDatabase.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Database/PostgreSqlIntegrationEnvironment.cs" Link="PostgreSqlIntegrationEnvironment.cs" />
+    <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementNamespaceImports.cs" Link="ProcurementNamespaceImports.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementReversalSqlTests.cs" Link="ProcurementReversalSqlTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/ProcurementReversalPolicyTests.cs" Link="ProcurementReversalPolicyTests.cs" />
     <Compile Include="../../SwiftExport.Application.Tests/Procurement/PurchaseOrderManagerFilterSqlTests.cs" Link="PurchaseOrderManagerFilterSqlTests.cs" />

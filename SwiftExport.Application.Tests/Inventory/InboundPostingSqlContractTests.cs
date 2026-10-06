@@ -27,16 +27,16 @@ public sealed class InboundPostingSqlContractTests
         var service = File.ReadAllText(Path.Combine(root, "SwiftExport.Application/Services/Inventory/Inbounds/InboundPostingService.cs"));
         Assert.IsTrue(service.IndexOf("LockPurchaseSourcesAsync", StringComparison.Ordinal) < service.IndexOf("LockHeaderAsync", StringComparison.Ordinal));
         StringAssert.Contains(service, "inventoryPosting.PostAsync");
-        var document = File.ReadAllText(Path.Combine(root, "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundDocumentRepository.cs"));
-        var executionRead = File.ReadAllText(Path.Combine(root, "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundExecutionReadRepository.cs"));
+        var document = File.ReadAllText(Path.Combine(root, "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundDocumentRepository.cs"));
+        var executionRead = File.ReadAllText(Path.Combine(root, "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundExecutionReadRepository.cs"));
         foreach (var table in new[] { "public.inventory_balance", "\"public\".\"inventory_balance\"" })
             Assert.IsFalse(source.Contains("UPDATE " + table, StringComparison.OrdinalIgnoreCase));
         foreach (var table in new[] { "public.inventory_ledger_entry", "\"public\".\"inventory_ledger_entry\"" })
             Assert.IsFalse(source.Contains("INSERT INTO " + table, StringComparison.OrdinalIgnoreCase));
         StringAssert.Contains(source, "SELECT uid FROM public.purchase_order_head WHERE uid=@Id FOR UPDATE");
         StringAssert.Contains(source, "SELECT purchase_order_id FROM public.purchase_order_line WHERE uid=@Id FOR UPDATE");
-        StringAssert.Contains(document, "WHERE Uid=@Uid AND Version=@Version AND PostingStatus=0");
-        StringAssert.Contains(executionRead, "FROM dbo.InventoryLedgerEntry e JOIN RelatedFacts r");
+        StringAssert.Contains(document, "WHERE uid=@Uid AND version=@Version AND posting_status=0 AND lifecycle_status=0");
+        StringAssert.Contains(executionRead, "FROM {Table<InventoryLedgerEntry>()} e JOIN related_facts r");
     }
 
     /// <summary>四类入库仓储均按请求注册，并复用同一请求级 RepositoryBaseContext 注入边界。</summary>

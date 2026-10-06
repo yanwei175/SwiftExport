@@ -16,7 +16,7 @@ public sealed class PostgreSqlTraceReadProtocolIntegrationTests
     [TestMethod]
     public async Task CoverageTieBreaker_PreservesSourceUuidBytePriority()
     {
-        using var session = Open(); var values = SqlServerSourceReadProtocolIntegrationTests.SortSamples();
+        using var session = Open(); var values = SortSamples();
         var parameters = new PostgreSqlParameters(); parameters.AddIds("Ids", values);
         var actual = (await session.Connection.QueryAsync<Guid>("""
             SELECT value FROM unnest(CAST(@Ids AS uuid[])) AS ids(value)
@@ -59,6 +59,18 @@ public sealed class PostgreSqlTraceReadProtocolIntegrationTests
         Assert.AreEqual(mode == "paired" ? 6m : (decimal?)null, row.First);
         Assert.AreEqual(mode == "paired" ? 1m : (decimal?)null, row.Second);
         Assert.IsNull(session.Transaction);
+    }
+
+    /// <summary>保留源实证使用的逐字节及随机UUID样本，不再依赖已退役的SqlClient探针类。</summary>
+    private static List<Guid> SortSamples()
+    {
+        var values = new List<Guid> { Guid.Empty, Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff") };
+        for (var i = 0; i < 16; i++)
+        {
+            var bytes = new byte[16]; bytes[i] = 1; values.Add(new Guid(bytes)); bytes[i] = 128; values.Add(new Guid(bytes));
+        }
+        for (var i = 0; i < 64; i++) values.Add(Guid.NewGuid());
+        return values;
     }
 
     /// <summary>只借用既有严格故障库门禁，不设置默认凭据、不操作源库/备份或创建数据结构。</summary>

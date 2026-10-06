@@ -3,11 +3,13 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Tests.Inventory;
 
-/// <summary>在显式开启的随机 LocalDB 中验证活动仓库选择器的生产 SQL、显示回退、特殊搜索和稳定分页。</summary>
+/// <summary>获批固定PG测试库中串行执行；每例完整导出后仅重置该库public结构。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class WarehousePickerSqlTests
 {
+    /// <summary>关联本例完整事实导出。</summary>
+    public TestContext TestContext { get; set; } = default!;
     private WarehouseCandidateSqlFixture? fixture;
     private WarehouseCandidateSqlFixture Db => fixture!;
 
@@ -15,13 +17,13 @@ public sealed class WarehousePickerSqlTests
     [TestInitialize]
     public async Task InitializeAsync()
     {
-        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_WAREHOUSE_PICKER_SQL_TESTS") != "1")
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_LEGACY_TESTS") != "1")
             Assert.Inconclusive("未启用仓库选择器隔离 SQL 测试。");
         fixture = new WarehouseCandidateSqlFixture();
-        await fixture.InitializeAsync();
+        await fixture.InitializeAsync(TestContext);
     }
 
-    /// <summary>每个场景删除自己创建的随机临时库。</summary>
+    /// <summary>获批固定PG测试库中串行执行；每例完整导出后仅重置该库public结构。</summary>
     [TestCleanup]
     public async Task CleanupAsync()
     {
@@ -36,13 +38,12 @@ public sealed class WarehousePickerSqlTests
         var deletedSupplier = Guid.NewGuid();
         var missingSupplier = Guid.NewGuid();
         await Db.ExecuteAsync("""
-            INSERT dbo.Supplier VALUES(@inactiveSupplier,N'S-INACTIVE',N'停用供应商',0,0),(@deletedSupplier,N'S-DELETED',N'删除供应商',1,1);
-            INSERT dbo.WarehouseSite VALUES
-              (NEWID(),1,N'WH-01',N'停用供应商仓',0,@inactiveSupplier,N'OLD-1',N'旧名称一',1,0),
-              (NEWID(),1,N'WH-02',N'删除供应商仓',0,@deletedSupplier,N'S-SNAPSHOT',N'快照供应商',1,0),
-              (NEWID(),1,N'WH-03',N'缺失供应商仓',0,@missingSupplier,N'S-MISSING',N'缺失快照',1,0),
-              (NEWID(),1,N'WH-STOP',N'停用仓',0,@inactiveSupplier,NULL,NULL,0,0),
-              (NEWID(),1,N'WH-DELETED',N'删除仓',0,@inactiveSupplier,NULL,NULL,1,1);
+            INSERT INTO public.supplier(uid,supplier_code,supplier_name,is_active,is_deleted,doc_relate_no) VALUES (@inactiveSupplier,'S-INACTIVE','停用供应商',FALSE,FALSE,'TEST'),(@deletedSupplier,'S-DELETED','删除供应商',TRUE,TRUE,'TEST');
+            INSERT INTO public.warehouse_site(uid,version,code,name,site_type,supplier_id,supplier_code_snapshot,supplier_name_snapshot,is_active,is_deleted) VALUES (gen_random_uuid(),1,'WH-01','停用供应商仓',0,@inactiveSupplier,'OLD-1','旧名称一',TRUE,FALSE),
+              (gen_random_uuid(),1,'WH-02','删除供应商仓',0,@deletedSupplier,'S-SNAPSHOT','快照供应商',TRUE,FALSE),
+              (gen_random_uuid(),1,'WH-03','缺失供应商仓',0,@missingSupplier,'S-MISSING','缺失快照',TRUE,FALSE),
+              (gen_random_uuid(),1,'WH-STOP','停用仓',0,@inactiveSupplier,NULL,NULL,FALSE,FALSE),
+              (gen_random_uuid(),1,'WH-DELETED','删除仓',0,@inactiveSupplier,NULL,NULL,TRUE,TRUE);
             """, new { inactiveSupplier, deletedSupplier, missingSupplier });
 
         var result = await Db.QueryInventoryAsync(service => service.GetWarehousePickerPagedAsync(new PagedRequestBase()));
@@ -54,19 +55,19 @@ public sealed class WarehousePickerSqlTests
         Assert.AreEqual("S-MISSING", result.Data.Items[2].SupplierCode);
     }
 
-    /// <summary>LIKE 特殊字符按字面值搜索，且相同代码按 Uid 提供可重复分页顺序。</summary>
+    /// <summary>使用唯一仓库编码及独立供应商验证字面搜索和可重复分页，不构造正式约束禁止的同码活动仓。</summary>
     [TestMethod]
     public async Task SpecialKeywordAndStablePagingAreLiteralAndDeterministic()
     {
         var supplier = Guid.NewGuid();
+        var otherSupplier = Guid.NewGuid();
         var first = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var second = Guid.Parse("00000000-0000-0000-0000-000000000002");
         await Db.ExecuteAsync("""
-            INSERT dbo.Supplier VALUES(@supplier,N'S-%_[~',N'特殊供应商',1,0);
-            INSERT dbo.WarehouseSite VALUES
-              (@second,1,N'WH-SAME',N'后项',0,@supplier,NULL,NULL,1,0),
-              (@first,1,N'WH-SAME',N'前项',0,@supplier,NULL,NULL,1,0);
-            """, new { supplier, first, second });
+            INSERT INTO public.supplier(uid,supplier_code,supplier_name,is_active,is_deleted,doc_relate_no) VALUES (@supplier,'S-%_[~-1','特殊供应商',TRUE,FALSE,'TEST'),(@otherSupplier,'S-%_[~-2','特殊供应商',TRUE,FALSE,'TEST');
+            INSERT INTO public.warehouse_site(uid,version,code,name,site_type,supplier_id,supplier_code_snapshot,supplier_name_snapshot,is_active,is_deleted) VALUES (@second,1,'WH-SAME-B','后项',0,@supplier,NULL,NULL,TRUE,FALSE),
+              (@first,1,'WH-SAME-A','前项',0,@otherSupplier,NULL,NULL,TRUE,FALSE);
+            """, new { supplier, otherSupplier, first, second });
 
         var special = await Db.QueryInventoryAsync(service => service.GetWarehousePickerPagedAsync(new PagedRequestBase
         {
@@ -84,5 +85,10 @@ public sealed class WarehousePickerSqlTests
         Assert.AreEqual(2, special.Data.TotalCount);
         Assert.AreEqual(first, pageOne.Data.Items.Single().Uid);
         Assert.AreEqual(second, pageTwo.Data.Items.Single().Uid);
+        var repeated = await Db.QueryInventoryAsync(service => service.GetWarehousePickerPagedAsync(new PagedRequestBase
+        {
+            Keyword = "WH-SAME", PageIndex = 1, PageSize = 1
+        }));
+        Assert.AreEqual(first, repeated.Data.Items.Single().Uid);
     }
 }

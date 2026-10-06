@@ -5,7 +5,7 @@ namespace SwiftExport.Infrastructure.Services.Auth;
 
 /// <summary>
 /// 审计字段自动打戳服务实现。
-/// 在 DapperRepository 的 Create/Update 前调用，业务代码无需手动赋值 CreatedBy/UpdatedBy。
+/// 在 PostgreSqlDapperRepository 的 Create/Update 前调用，业务代码无需手动赋值 CreatedBy/UpdatedBy。
 /// </summary>
 public class AuditStampService(ICurrentUser currentUser) : IAuditStampService
 {

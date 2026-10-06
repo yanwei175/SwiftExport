@@ -1,0 +1,201 @@
+{
+  "recorded_at": "2026-10-06T11:26:50.0621264+08:00",
+  "stage": "P09-S02C原物料共享收货追踪接续PG",
+  "status": "本批验证通过：原6+6/7共享覆盖/分页/反向异常及回退和缺指纹/单位复核接续PG；公共LocalDB及S整体未退出",
+  "files": [
+    {
+      "before_sha256": "4509CC85BA84A0EC4F7058A489E9A77AE8A06435E972D109AA0617A1933E6EAE",
+      "prior_diff": [],
+      "path": "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandTraceSqlTests.cs",
+      "after_sha256": "2C3CDCC6E0EE662EB48C6B0A9952C0AEF66529BFDCFCB1DBD9C9ACC12ED7BF33"
+    }
+  ],
+  "scope": "仅既有物料共享收货测试一个方法及同文件辅助与记录。原6+6/7、筛选先于分页、相关反向未知/无关不阻断、回退历史、缺指纹及单位复核保持。仅failure随机15新行，全部50旧表身份/摘要保护，不改生产/PG/公共夹具/账号权限/号段/DDL/运行或备份。",
+  "preflight": {
+    "tables": 50,
+    "advisory_locks": 0,
+    "sequence": 96,
+    "test_processes": 0,
+    "other_client_state": "idle，无事务",
+    "other_active_transactions": 0,
+    "other_clients": 1
+  },
+  "baseline": "73类型81源文件退出；原采购LocalDB夹具13文件含自身；当前53,020行。当前F01/F02精准范围保持。",
+  "existing_overlap": "现有M14共享覆盖/反向guard等PG测试已验。仍保留原服务层同方法生命周期贯穿所有断言，不重跑此前矩阵。",
+  "retained_original_business_assertions": 18,
+  "completed_at": "2026-10-06T11:30:18.5936638+08:00",
+  "execution": {
+    "protected_tables": 50,
+    "skipped": 0,
+    "test_processes_after": 0,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "pg_integration_attribute_occurrences": 54,
+    "method_milliseconds": 342.9889,
+    "artifacts": [
+      {
+        "path": "TestResults/postgresql-migration/p09-s02c-material-trace-pg.trx",
+        "sha256": "A356DBDFB9C8C2E2B2605E55466C168AADCD96E170862D7F79085A7CF88CD6B1"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-s02c-material-trace-data-protection.json",
+        "sha256": "F69965BA935757B602CB3003A8CCB9FF07E71A40CE20154800012088528DF88F"
+      }
+    ],
+    "failed": 0,
+    "new_sources": 0,
+    "commit_merge_push": false,
+    "shared_fixture_change": false,
+    "other_clients_after": 1,
+    "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004",
+    "local_command_issues": "数次只读定位与DBX输出上限已收敛。收口脚本字符串替换误将81改151导致检查失败，实际81原缺失不变；仅修正记录守卫，无源或数据库修改。源码断言守卫首包含旧LocalDB门禁Inconclusive导致记录检查报缺失；排除这一被新PG门禁替换的环境检查后18条原业务断言全部逐字保留，无源修改。构建已确认terminal exit0后才运行原方法；无编译/测试失败，不重跑绿色。",
+    "account_or_permission_change": false,
+    "unexpected_production_changes": 0,
+    "old_source_files_exited": 81,
+    "other_active_transactions_after": 0,
+    "old_rows_unchanged": true,
+    "other_client_state": "idle，无事务",
+    "old_source_types_exited": 73,
+    "build_exit": 0,
+    "ddl": false,
+    "host_seconds": "约2秒含50旧表保护",
+    "unexpected_missing": 0,
+    "existing_warnings": 7,
+    "old_rows": 53020,
+    "runtime_or_backup_write": false,
+    "current_rows": 53035,
+    "source_protection": "P09-S02C-源码保护证据.json",
+    "added_tables": [
+      {
+        "count": 1,
+        "uids": [
+          "74b993d2-0b61-4790-8c5b-72d47459970e"
+        ],
+        "table": "customer"
+      },
+      {
+        "count": 2,
+        "uids": [
+          "0bf18abe-db80-464a-ad64-1cc68d53ff2a",
+          "e7c33fa5-4887-4301-85e3-b6ded067783c"
+        ],
+        "table": "demand_execution_link"
+      },
+      {
+        "count": 1,
+        "uids": [
+          "7bdac045-9f9f-4f3b-8545-4cb97d2ee429"
+        ],
+        "table": "gross_demand"
+      },
+      {
+        "count": 2,
+        "uids": [
+          "00c08076-b2a1-448f-9525-f95b36d82487",
+          "a6b1f10a-4952-4239-aee5-e9bb8e25033a"
+        ],
+        "table": "inbound_document"
+      },
+      {
+        "count": 1,
+        "uids": [
+          "c6ecdf86-f90a-4ae6-b638-4525e0bd11e3"
+        ],
+        "table": "inbound_document_line"
+      },
+      {
+        "count": 2,
+        "uids": [
+          "1f8cc548-9dba-485e-a622-73410e476237",
+          "9c5c9891-72e4-4da3-a930-2429ac553f45"
+        ],
+        "table": "net_demand"
+      },
+      {
+        "count": 1,
+        "uids": [
+          "a8133c1f-44c0-4244-bda6-05d1f7d07a3c"
+        ],
+        "table": "product"
+      },
+      {
+        "count": 1,
+        "uids": [
+          "cb4b19a7-b622-44c4-856c-82d963915372"
+        ],
+        "table": "purchase_order_head"
+      },
+      {
+        "count": 1,
+        "uids": [
+          "a50eee91-e9ec-4e05-861d-25a901016916"
+        ],
+        "table": "purchase_order_line"
+      },
+      {
+        "count": 2,
+        "uids": [
+          "90198027-90b0-4cb4-a63c-6fbc9560ea7b",
+          "f34715e7-106a-4592-ae44-f5a06d87bebe"
+        ],
+        "table": "supplier"
+      },
+      {
+        "count": 1,
+        "uids": [
+          "9d3039c2-b61c-404d-a851-aeb4d4e53139"
+        ],
+        "table": "warehouse_site"
+      }
+    ],
+    "advisory_locks_after": 0,
+    "sequence_after": 96,
+    "test_exit": 0,
+    "seconds": 7.32,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02C-物料原共享收货-实际命令.ps1'",
+    "new_test_matrix": false,
+    "database_gates": 12,
+    "total": 1,
+    "build_session_terminal": true,
+    "pg_integration_category_files": 42,
+    "changed_tests": 52,
+    "business_or_pg_source_change": false,
+    "repeated_green_run": false,
+    "full_test_run": false,
+    "sequence_before": 96,
+    "compiled_assembly": {
+      "last_write": "2026-10-06T11:28:37.7905504+08:00",
+      "sha256": "B188510A1058F590589A6183CB63F8C51330A0AD757CC4538FF820E252C88A27",
+      "path": "SwiftExport.Application.Tests/bin/Debug/net10.0/SwiftExport.Application.Tests.dll",
+      "fresh_before_test": true,
+      "test_start": "2026-10-06T11:28:49.5868388+08:00"
+    },
+    "errors": 0,
+    "added_rows": 15,
+    "passed": 1
+  },
+  "remaining_consumers": {
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\Orders\\SalesOrderManagerQuerySqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\PurchaseOrderTrackingSqlTests.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\GrossDemandTraceSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs"
+    ],
+    "sql_generator": [
+      "_tools\\SchemaGenerator\\Program.cs",
+      "SwiftExport.Infrastructure\\DatabaseSchema\\SqlServerSchemaGenerator.cs"
+    ],
+    "sql_baseline": [
+      "_tools\\SchemaGenerator\\Program.cs",
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs"
+    ]
+  }
+}

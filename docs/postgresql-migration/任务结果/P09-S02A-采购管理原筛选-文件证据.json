@@ -1,0 +1,176 @@
+{
+  "recorded_at": "2026-10-06T10:54:51.1808045+08:00",
+  "stage": "P09-S02A采购管理原筛选场景迁PG",
+  "status": "本批代码完成/真实PG通过：原管理组合筛选消费者接续，旧共享夹具及S整体未退出",
+  "files": [
+    {
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseOrderManagerFilterSqlTests.cs",
+      "before_sha256": "3E3040AD953687C18D7F2680E3BFA762F4471689FF7CDFCB4C082FC37C7FDCFB",
+      "prior_diff": [],
+      "after_sha256": "9D74664FCDBC7E70996FE72DD4DB695FF339EB888CB09E149AC848DE8962E03D"
+    }
+  ],
+  "scope": "只原一个管理筛选测试文件及记录；真实现有宿主注册/服务创建两采购并查询；随机新客户供应商产品单位及独立未来年月，不改现有账号权限/旧行/号段/结构。保护50表原记录，成功事实留存；不改生产/通用夹具/配置，不新增测试矩阵，A/B未续派。",
+  "preflight": {
+    "tables": 50,
+    "other_clients": 0,
+    "advisory_locks": 0,
+    "active_administrators": 9,
+    "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004",
+    "inventory_sequence": 96
+  },
+  "existing_pg_overlap": "PostgreSqlPurchaseOrderManagerMigrationTests.RealPg_TimeBoundsAndLiteralSearch及FiltersBindTypedLiteralAndDateBounds已覆盖底层规则；原场景完整服务组合筛选/日期倒置拒绝未据此判已验。",
+  "baseline_expected": "70旧类型79文件；LocalDB夹具含自身15消费文件，转换后目标14，旧生成器/夹具仍保留。",
+  "completed_at": "2026-10-06T10:57:41.1040215+08:00",
+  "execution": {
+    "integration_categories": 36,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004",
+    "artifacts": [
+      {
+        "sha256": "5654E45FC0CB9045DC8B328D9DA7474C956AE3EFF3F05C4B4CED569905CF6849",
+        "path": "TestResults/postgresql-migration/p09-s02a-manager-filter-pg.trx"
+      },
+      {
+        "sha256": "01AE8CAACD95BF9EAC5D88DCB2B87BFC84C39342D5BBBE89CC589E8714BD0B8A",
+        "path": "TestResults/postgresql-migration/p09-s02a-manager-filter-data-protection.json"
+      }
+    ],
+    "other_clients_after": 0,
+    "method_milliseconds": 526.6199,
+    "database_gates": 12,
+    "local_command_issues": "一处只读PowerShell foreach输出管道语法失败，随后修正；数个只读路径猜测和一次通配符路径无匹配已改用rg定位，未写库或源码；结束无测试进程查询exit1不是测试失败。",
+    "test_total": 1,
+    "current_rows": 53012,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02A-采购管理原筛选-实际命令.ps1'",
+    "protected_tables": 50,
+    "test_processes_after": 0,
+    "old_rows_unchanged": true,
+    "changed_tests": 50,
+    "test_skipped": 0,
+    "full_test_run": false,
+    "build_seconds": 2.9,
+    "new_tables": [
+      {
+        "uids": [
+          "4b6058bb-f57d-458a-b997-4a3600a12f0e",
+          "c0527416-519a-4db1-a4aa-4a3600a12ee5"
+        ],
+        "count": 2,
+        "table": "business_operation_log"
+      },
+      {
+        "uids": [
+          "5a33969e-caed-4572-b769-4a3600a12ef1",
+          "6b948d83-6f43-4c5d-8eb2-4a3600a12f10"
+        ],
+        "count": 2,
+        "table": "command_receipt"
+      },
+      {
+        "uids": [
+          "c064465a-eadf-414f-bca6-4a3600a12e25"
+        ],
+        "count": 1,
+        "table": "customer"
+      },
+      {
+        "uids": [
+          "3a163585-ca23-47dd-8f53-4a3600a12ed8"
+        ],
+        "count": 1,
+        "table": "document_sequence"
+      },
+      {
+        "uids": [
+          "3be49cfa-3e94-482d-9dd6-4a3600a12e51"
+        ],
+        "count": 1,
+        "table": "product"
+      },
+      {
+        "uids": [
+          "7ee4c1ae-a692-477d-9682-4a3600a12f03",
+          "d209bfe7-f0b5-4384-8299-4a3600a12ebf"
+        ],
+        "count": 2,
+        "table": "purchase_order_head"
+      },
+      {
+        "uids": [
+          "b56261c8-c3a6-4522-9fea-4a3600a12f03",
+          "d94b74c0-5f37-4e04-aebe-4a3600a12ec1"
+        ],
+        "count": 2,
+        "table": "purchase_order_line"
+      },
+      {
+        "uids": [
+          "2b9e48bb-bf70-42d4-9ac2-4a3600a12e4b",
+          "5c5dcafc-3675-49db-a7ed-4a3600a12e43"
+        ],
+        "count": 2,
+        "table": "supplier"
+      },
+      {
+        "uids": [
+          "5b900613-d88d-4a2e-b535-4a3600a12e4e"
+        ],
+        "count": 1,
+        "table": "sys_dict_data"
+      }
+    ],
+    "advisory_locks_after": 0,
+    "host_seconds": "约2秒，含50表原数据保护",
+    "unexpected_missing": 0,
+    "test_exit": 0,
+    "old_rows": 52998,
+    "runtime_or_backup_write": false,
+    "build_errors": 0,
+    "commit_merge_push": false,
+    "sequence_before": 96,
+    "source_types_exited": 70,
+    "source_files_exited": 79,
+    "repeated_green_run": false,
+    "unexpected_production_changes": 0,
+    "existing_warnings": 7,
+    "test_failed": 0,
+    "new_sources": 0,
+    "account_or_permission_change": false,
+    "source_protection": "P09-S02A-源码保护证据.json",
+    "input_scope": "原九个筛选和一次倒置拒绝保持。原两正常创建/真实权限/回执/审计全链；原标准产品/正数数量及价格保持。随机编码限定同样两单，随机独立未来年月不占用旧号段；参数化原最后100ns输入由Npgsql按timestamp(6)存储，避免SQL七位字面量舍入次日。实际非匹配收货供应商也为本批有效新身份，不以不存在身份替换。",
+    "retained_new_rows": 14,
+    "ddl": false,
+    "sequence_after": 96,
+    "business_or_pg_source_change": false,
+    "build_exit": 0,
+    "test_passed": 1
+  },
+  "remaining_consumers": {
+    "sql_baseline": [
+      "_tools\\SchemaGenerator\\Program.cs",
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs"
+    ],
+    "sql_generator": [
+      "_tools\\SchemaGenerator\\Program.cs",
+      "SwiftExport.Infrastructure\\DatabaseSchema\\SqlServerSchemaGenerator.cs"
+    ],
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\Orders\\SalesOrderManagerQuerySqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\DemandUnitSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\PurchaseOrderTrackingSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\GrossDemandTraceSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\DemandPlanning\\MaterialDemandTraceSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs"
+    ]
+  }
+}

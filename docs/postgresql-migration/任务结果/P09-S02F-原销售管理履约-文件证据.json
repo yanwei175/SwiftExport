@@ -1,0 +1,215 @@
+{
+  "task": "P09-S02F",
+  "file": "SwiftExport.Application.Tests/Orders/SalesOrderManagerQuerySqlTests.cs",
+  "before_sha256": "21CDB7C68144F341554453A1FEF3FD8B2891BB838AA16E0A9D265155059FD136",
+  "before_source": "using Microsoft.Extensions.DependencyInjection;\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\nusing SwiftExport.Application.Interfaces.SalesOrders.Query;\nusing SwiftExport.Application.Services.DemandPlanning.Sources.Policies;\nusing SwiftExport.Application.Tests.Procurement;\nusing SwiftExport.Contracts.DTOs.SalesOrders.Manager;\nusing SwiftExport.Contracts.SysEnums;\nusing SwiftExport.Core.Interfaces.SalesOrders.Query;\nusing SwiftExport.Core.Entities.DemandPlanning;\n\nnamespace SwiftExport.Application.Tests.Orders;\n\n/// <summary>在随机隔离 LocalDB 中验证销售管理查询的真实 SQL、交付汇总及快捷视图。</summary>\n[TestClass, DoNotParallelize]\npublic sealed class SalesOrderManagerQuerySqlTests\n{\n    /// <summary>草稿零交付、已确认部分交付及反向变化共享同一行级计算口径。</summary>\n    [TestMethod]\n    public async Task DraftPostedAndReversedDelivery_KeepListDetailAndFiltersConsistent()\n    {\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行隔离 LocalDB 销售查询测试。\");\n        await using var db = new IndependentProcurementSqlFixture();\n        await db.InitializeAsync();\n        var draft = Guid.NewGuid(); var draftLine = Guid.NewGuid();\n        var confirmed = Guid.NewGuid(); var confirmedLine = Guid.NewGuid();\n        var demand = Guid.NewGuid(); var packing = Guid.NewGuid(); var packingLine = Guid.NewGuid();\n        var fingerprint = SourceDemandBasisFingerprintFactory.Create(new GrossDemand\n        {\n            CustomerId = db.CustomerId, IsNonStandard = true, SkuSnapshot = \"CONF-SKU\",\n            CustomerSkuSnapshot = \"CUSTOM-CONF\", UnitSnapshot = \"PCS\", DemandQty = 10,\n            RequiredDate = new DateTime(2026, 10, 2)\n        });\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.SalesOrderHeader(Uid,DocumentStatus,ConfirmationStatus,OrderNo,InvoiceNo,CustomerId,CustomerCode,LeadTimeDays,OrderDate,DeliveryDate)\n            VALUES(@draft,0,0,N'SO-DRAFT',N'INV-DRAFT',@customerId,N'TEST-C',7,'2026-09-01','2026-10-01'),\n                  (@confirmed,0,1,N'SO-CONFIRMED',N'INV-CONFIRMED',@customerId,N'TEST-C',7,'2026-09-02','2026-10-02');\n            INSERT dbo.SalesOrderLine(Uid,LineNumber,SalesOrderId,OrderNo,IsNonStandard,ProductId,Sku,CustomerSku,Qty,UnitSnapshot,ExpectedDeliveryDate)\n            VALUES(@draftLine,1,@draft,N'SO-DRAFT',1,NULL,N'DRAFT-SKU',N'CUSTOM-DRAFT',10,N'PCS','2026-10-01'),\n                  (@confirmedLine,1,@confirmed,N'SO-CONFIRMED',1,NULL,N'CONF-SKU',N'CUSTOM-CONF',10,N'PCS','2026-10-02');\n            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,SourceLineNumber,SourceVersion,DemandBasisFingerprint,\n                                    CustomerId,IsNonStandard,SkuSnapshot,CustomerSkuSnapshot,UnitSnapshot,DemandQty,RequiredDate)\n            VALUES(@demand,0,N'SO',@confirmed,N'SO-CONFIRMED',@confirmedLine,1,1,@fingerprint,@customerId,1,N'CONF-SKU',N'CUSTOM-CONF',N'PCS',10,'2026-10-02');\n            INSERT dbo.PackingListHead(Uid,PackingListNo,CustomerId,InvoiceDate,LifecycleStatus,PostingStatus,PostingDate,PostedDate,CreateCommandId)\n            VALUES(@packing,N'PL-TEST',@customerId,'2026-09-02',0,1,'2026-09-02','2026-09-02',NEWID());\n            INSERT dbo.PackingListLine(Uid,PackingListHeadId,LineNumber,GrossDemandId,IsNonStandardSnapshot,SourceTypeSnapshot,SourceDocumentNoSnapshot,\n                                         SourceLineNumberSnapshot,SkuSnapshot,UnitSnapshot,Qty)\n            VALUES(@packingLine,@packing,1,@demand,1,N'SO',N'SO-CONFIRMED',1,N'CONF-SKU',N'PCS',4);\n            \"\"\", new { draft, draftLine, confirmed, confirmedLine, demand, packing, packingLine, fingerprint, customerId = db.CustomerId });\n\n        async Task<SalesOrderManagerListItemDto> Single(SalesOrderManagerSearchRequest request)\n        {\n            var result = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().SearchAsync(request));\n            Assert.IsTrue(result.Success, result.Message);\n            Assert.AreEqual(1, result.Data!.TotalCount);\n            return result.Data.Items.Single();\n        }\n        var draftItem = await Single(new() { QuickView = SalesOrderManagerQuickView.PendingConfirmation });\n        Assert.AreEqual(0m, draftItem.TotalShippedQty);\n        Assert.AreEqual(10m, draftItem.TotalUnshippedQty);\n        var draftFulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(draft));\n        Assert.AreEqual(0m, draftFulfillment.Data!.Lines.Single().ShippedQty);\n        Assert.AreEqual(10m, draftFulfillment.Data.Lines.Single().UnshippedQty);\n        Assert.AreEqual(\"待确认\", draftFulfillment.Data.Lines.Single().SourceState);\n        Assert.AreEqual(\"未关联\", draftFulfillment.Data.Lines.Single().PurchaseState);\n        var item = await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped });\n        Assert.AreEqual(4m, item.TotalShippedQty);\n        Assert.AreEqual(6m, item.TotalUnshippedQty);\n        Assert.AreEqual(SalesOrderFulfillmentStatusEnum.PartiallyShipped, item.FulfillmentStatus);\n        Assert.AreEqual(\"INV-CONFIRMED\", item.InvoiceNo);\n        var detail = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().GetAsync(confirmed));\n        Assert.IsTrue(detail.Success, detail.Message);\n        Assert.AreEqual(4m, detail.Data!.Lines.Single().ShippedQty);\n        var fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.IsTrue(fulfillment.Success, fulfillment.Message);\n        Assert.AreEqual(4m, fulfillment.Data!.Lines.Single().ShippedQty);\n        Assert.AreEqual(6m, fulfillment.Data.Lines.Single().UnshippedQty);\n        Assert.AreEqual(demand, fulfillment.Data.Lines.Single().GrossDemandId);\n        Assert.AreEqual(1, fulfillment.Data.Lines.Single().Deliveries.Count);\n        var net = Guid.NewGuid(); var otherGross = Guid.NewGuid(); var otherNet = Guid.NewGuid();\n        var purchase = Guid.NewGuid(); var purchaseLine = Guid.NewGuid();\n        var independent = Guid.NewGuid(); var independentLine = Guid.NewGuid();\n        var ownLink = Guid.NewGuid(); var sharedLink = Guid.NewGuid();\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceVersionSnapshot,SourceDemandBasisFingerprintSnapshot,\n                DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)\n            VALUES(@net,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),1,@fingerprint,\n                1,1,0,@net,0,N'采购',N'CONF-SKU',10,10);\n            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,IsNonStandard,SkuSnapshot,DemandQty)\n            VALUES(@otherGross,0,N'Manual',NEWID(),N'OTHER',NEWID(),1,N'OTHER-SKU',2);\n            INSERT dbo.NetDemand(Uid,GrossDemandId,DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)\n            VALUES(@otherNet,@otherGross,1,1,0,@otherNet,0,N'采购',N'OTHER-SKU',2,2);\n            INSERT dbo.PurchaseOrderHead(Uid,OriginKind,ConfirmationStatus,LifecycleStatus,OrderNo,CustomerId,CustomerCode,Currency,SupplierId,SupplierCode,ExecutionRequestId,OrderDate)\n            VALUES(@purchase,1,0,0,N'PO-LINKED',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02'),\n                  (@independent,2,0,0,N'PO-INDEPENDENT',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02');\n            INSERT dbo.PurchaseOrderLine(Uid,PurchaseOrderId,LineNumber,OrderNo,Sku,UnitSnapshot,QTY)\n            VALUES(@purchaseLine,@purchase,1,N'PO-LINKED',N'CONF-SKU',N'PCS',10),\n                  (@independentLine,@independent,1,N'PO-INDEPENDENT',N'CONF-SKU',N'PCS',10);\n            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)\n            VALUES(@ownLink,@net,NEWID(),NEWID(),N'PO',@purchase,N'PO-LINKED',@purchaseLine,0,6,0),\n                  (@sharedLink,@otherNet,NEWID(),NEWID(),N'PO',@purchase,N'PO-LINKED',@purchaseLine,0,2,0);\n            INSERT dbo.SupplierProgressReport(Uid,PurchaseOrderLineId,Sequence,ArrangementStatus,ReadyQty,ExpectedReadyDate,SupplierReportedDate,IsCorrection,CommandId)\n            VALUES(NEWID(),@purchaseLine,1,2,8,'2026-10-01','2026-09-10',0,NEWID()),\n                  (NEWID(),@purchaseLine,2,2,5,'2026-10-03','2026-09-11',1,NEWID());\n            \"\"\", new { net, demand, fingerprint, otherGross, otherNet, purchase, purchaseLine,\n                independent, independentLine, ownLink, sharedLink, customerId = db.CustomerId, supplierId = db.SupplierId });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        var linked = fulfillment.Data!.Lines.Single().Purchases.Single();\n        Assert.AreEqual(6m, linked.LinkedQty);\n        Assert.AreEqual(5m, linked.PurchaseLineReadyQty);\n        Assert.IsTrue(linked.IsSharedPurchaseLine);\n        Assert.AreEqual(purchase, linked.PurchaseOrderId);\n        await db.ExecuteAsync(\"\"\"\n            UPDATE dbo.Product SET Unit=N'KG',Sku=N'CONF-SKU' WHERE Uid=@componentId;\n            UPDATE dbo.NetDemand SET ProductId=@componentId WHERE Uid=@net;\n            UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'KG' WHERE Uid=@purchaseLine;\n            \"\"\", new { componentId = db.ComponentId, net, purchaseLine });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.AreEqual(6m, fulfillment.Data!.Lines.Single().Purchases.Single().LinkedQty);\n        Assert.AreEqual(string.Empty, fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason);\n        var childNet = Guid.NewGuid(); var childLink = Guid.NewGuid();\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceVersionSnapshot,\n                SourceDemandBasisFingerprintSnapshot,DecompositionRevision,LineNumber,LifecycleStatus,\n                RootNetDemandId,ParentNetDemandId,ProductId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,GrossQty,NetQty)\n            VALUES(@childNet,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),1,@fingerprint,\n                1,2,0,@net,@net,@componentId,0,N'采购',N'CONF-SKU',2,2);\n            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,\n                TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)\n            VALUES(@childLink,@childNet,NEWID(),NEWID(),N'PO',@purchase,N'PO-LINKED',@purchaseLine,0,2,0);\n            \"\"\", new { childNet, childLink, demand, fingerprint, net, componentId = db.ComponentId, purchase, purchaseLine });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.HasCount(1, fulfillment.Data!.Lines.Single().Purchases);\n        Assert.AreEqual(8m, fulfillment.Data.Lines.Single().Purchases.Single().LinkedQty);\n        Assert.AreEqual(5m, fulfillment.Data.Lines.Single().Purchases.Single().PurchaseLineReadyQty);\n        await db.ExecuteAsync(\"UPDATE dbo.NetDemand SET ProductId=@productId WHERE Uid=@childNet\",\n            new { productId = db.ProductId, childNet });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.HasCount(1, fulfillment.Data!.Lines.Single().Purchases);\n        Assert.IsNull(fulfillment.Data.Lines.Single().Purchases.Single().LinkedQty);\n        StringAssert.Contains(fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason, \"单位\");\n        await db.ExecuteAsync(\"UPDATE dbo.DemandExecutionLink SET ReleasedQty=AllocatedQty,LinkStatus=8 WHERE Uid=@childLink\", new { childLink });\n        await db.ExecuteAsync(\"UPDATE dbo.NetDemand SET ProductId=NULL WHERE Uid=@net\", new { net });\n        await db.ExecuteAsync(\"UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=NULL WHERE Uid=@purchaseLine\", new { purchaseLine });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.IsNull(fulfillment.Data!.Lines.Single().Purchases.Single().LinkedQty);\n        StringAssert.Contains(fulfillment.Data.Lines.Single().Purchases.Single().ReviewReason, \"单位\");\n        await db.ExecuteAsync(\"UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'PCS' WHERE Uid=@purchaseLine\", new { purchaseLine });\n        await db.ExecuteAsync(\"UPDATE dbo.DemandExecutionLink SET ReleasedQty=AllocatedQty,LinkStatus=8 WHERE Uid=@ownLink\", new { ownLink });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.AreEqual(0, fulfillment.Data!.Lines.Single().Purchases.Count);\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)\n            VALUES(NEWID(),@net,NEWID(),NEWID(),N'PO',NEWID(),N'PO-MISSING',NEWID(),0,1,0)\n            \"\"\", new { net });\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.AreEqual(\"需核实\", fulfillment.Data!.Lines.Single().PurchaseState);\n        StringAssert.Contains(fulfillment.Data.Lines.Single().PurchaseReviewReason, \"证据异常\");\n        var secondPacking = Guid.NewGuid(); var secondLine = Guid.NewGuid();\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.PackingListHead(Uid,PackingListNo,CustomerId,InvoiceDate,LifecycleStatus,PostingStatus,PostingDate,PostedDate,CreateCommandId)\n            VALUES(@secondPacking,N'PL-TEST-2',@customerId,'2026-09-02',0,1,'2026-09-02','2026-09-02',NEWID());\n            INSERT dbo.PackingListLine(Uid,PackingListHeadId,LineNumber,GrossDemandId,IsNonStandardSnapshot,SourceTypeSnapshot,SourceDocumentNoSnapshot,\n                                         SourceLineNumberSnapshot,SkuSnapshot,UnitSnapshot,Qty)\n            VALUES(@secondLine,@secondPacking,1,@demand,1,N'SO',N'SO-CONFIRMED',1,N'CONF-SKU',N'PCS',3);\n            \"\"\", new { secondPacking, secondLine, demand, customerId = db.CustomerId });\n        Assert.AreEqual(7m, (await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped })).TotalShippedQty);\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.AreEqual(2, fulfillment.Data!.Lines.Single().Deliveries.Count);\n        Assert.AreEqual(7m, fulfillment.Data.Lines.Single().ShippedQty);\n        async Task<int> CountAt(SalesOrderManagerSearchRequest request, DateTime today)\n        {\n            var page = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()\n                .SearchManagerAsync(request, today));\n            return page.TotalCount;\n        }\n        Assert.AreEqual(1, await CountAt(new() { QuickView = SalesOrderManagerQuickView.DueSoon }, new DateTime(2026, 9, 25)));\n        Assert.AreEqual(0, await CountAt(new() { QuickView = SalesOrderManagerQuickView.DueSoon }, new DateTime(2026, 9, 24)));\n        Assert.AreEqual(1, await CountAt(new() { QuickView = SalesOrderManagerQuickView.Overdue }, new DateTime(2026, 10, 3)));\n        Assert.AreEqual(1, await CountAt(new() { EffectiveDeliveryDateFrom = new DateTime(2026, 10, 2),\n            EffectiveDeliveryDateTo = new DateTime(2026, 10, 2), CustomerSkus = [\"CUSTOM-CONF\"] }, new DateTime(2026, 9, 25)));\n        var firstPage = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()\n            .SearchManagerAsync(new() { PageIndex = 1, PageSize = 1 }, new DateTime(2026, 9, 25)));\n        var secondPage = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()\n            .SearchManagerAsync(new() { PageIndex = 2, PageSize = 1 }, new DateTime(2026, 9, 25)));\n        Assert.AreEqual(2, firstPage.TotalCount);\n        Assert.AreEqual(2, secondPage.TotalCount);\n        Assert.AreNotEqual(firstPage.Items.Single().Uid, secondPage.Items.Single().Uid);\n        await db.ExecuteAsync(\"UPDATE dbo.PackingListHead SET PostingStatus=8,ReversedDate='2026-09-03' WHERE Uid=@packing\", new { packing });\n        Assert.AreEqual(3m, (await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped })).TotalShippedQty);\n        await db.ExecuteAsync(\"UPDATE dbo.PackingListHead SET PostingStatus=8,ReversedDate='2026-09-03' WHERE Uid=@secondPacking\", new { secondPacking });\n        var reversed = await Single(new() { QuickView = SalesOrderManagerQuickView.NotShipped, InvoiceNo = \"INV-CONFIRMED\" });\n        Assert.AreEqual(0m, reversed.TotalShippedQty);\n        Assert.AreEqual(10m, reversed.TotalUnshippedQty);\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.AreEqual(0m, fulfillment.Data!.Lines.Single().ShippedQty);\n        Assert.IsTrue(fulfillment.Data.Lines.Single().Deliveries.All(row => !row.CountsTowardDelivery));\n        await db.ExecuteAsync(\"UPDATE dbo.PackingListHead SET PostingStatus=1,ReversedDate=NULL WHERE Uid=@packing; UPDATE dbo.PackingListLine SET Qty=12 WHERE Uid=@packingLine\", new { packing, packingLine });\n        var overage = await Single(new() { OrderNo = \"SO-CONFIRMED\" });\n        Assert.AreEqual(12m, overage.TotalShippedQty);\n        Assert.AreEqual(0m, overage.TotalUnshippedQty);\n        Assert.IsTrue(overage.NeedsReview);\n        Assert.IsNull(overage.FulfillmentStatus);\n        Assert.AreEqual(0, await CountAt(new() { QuickView = SalesOrderManagerQuickView.FullyShipped }, new DateTime(2026, 9, 25)));\n        Assert.AreEqual(confirmed, (await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview })).Uid);\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=NULL WHERE Uid=@demand\", new { demand });\n        var legacy = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview });\n        Assert.IsNull(legacy.TotalShippedQty);\n        var legacyDetail = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().GetAsync(confirmed));\n        Assert.IsTrue(legacyDetail.Success, legacyDetail.Message);\n        Assert.IsNull(legacyDetail.Data!.Lines.Single().ShippedQty);\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.IsNull(fulfillment.Data!.Lines.Single().ShippedQty);\n        Assert.IsNull(fulfillment.Data.Lines.Single().GrossDemandId);\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=@fingerprint WHERE Uid=@demand; UPDATE dbo.PackingListHead SET PostingStatus=8,ReversedDate='2026-09-03' WHERE Uid=@packing; UPDATE dbo.SalesOrderHeader SET DocumentStatus=9 WHERE Uid=@confirmed\", new { demand, packing, confirmed, fingerprint });\n        var closed = await Single(new() { QuickView = SalesOrderManagerQuickView.ClosedWithOutstanding });\n        Assert.AreEqual(10m, closed.TotalUnshippedQty);\n        fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));\n        Assert.AreEqual(10m, fulfillment.Data!.Lines.Single().UnshippedQty);\n        Assert.AreEqual(0m, fulfillment.Data.Lines.Single().AllowedFurtherDeliveryQty);\n        var empty = Guid.NewGuid();\n        await db.ExecuteAsync(\"INSERT dbo.SalesOrderHeader(Uid,DocumentStatus,ConfirmationStatus,OrderNo,CustomerId,CustomerCode,LeadTimeDays) VALUES(@empty,0,0,N'SO-EMPTY',@customerId,N'TEST-C',7)\", new { empty, customerId = db.CustomerId });\n        var emptyItem = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview });\n        Assert.AreEqual(empty, emptyItem.Uid);\n        Assert.IsFalse(emptyItem.HasUndatedOpenLine);\n        var mixed = Guid.NewGuid(); var mixedLineA = Guid.NewGuid(); var mixedLineB = Guid.NewGuid();\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.SalesOrderHeader(Uid,DocumentStatus,ConfirmationStatus,OrderNo,CustomerId,CustomerCode,LeadTimeDays)\n            VALUES(@mixed,0,0,N'SO-MIXED',@customerId,N'TEST-C',7);\n            INSERT dbo.SalesOrderLine(Uid,LineNumber,SalesOrderId,IsNonStandard,Sku,Qty,UnitSnapshot)\n            VALUES(@mixedLineA,1,@mixed,1,N'MIX-A',2,N'PCS'),(@mixedLineB,2,@mixed,1,N'MIX-B',3,N'BOX');\n            \"\"\", new { mixed, mixedLineA, mixedLineB, customerId = db.CustomerId });\n        var mixedItem = await Single(new() { OrderNo = \"SO-MIXED\" });\n        Assert.IsNull(mixedItem.TotalQty);\n        Assert.IsNull(mixedItem.TotalShippedQty);\n        Assert.IsFalse(mixedItem.NeedsReview);\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET UnitSnapshot=N'BOX' WHERE Uid=@demand; UPDATE dbo.SalesOrderHeader SET DocumentStatus=0 WHERE Uid=@confirmed\", new { demand, confirmed });\n        var mismatch = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = \"SO-CONFIRMED\" });\n        Assert.IsNull(mismatch.TotalShippedQty);\n        Assert.AreEqual(0, await CountAt(new() { QuickView = SalesOrderManagerQuickView.Overdue, OrderNo = \"SO-CONFIRMED\" }, new DateTime(2026, 10, 3)));\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET UnitSnapshot=N'PCS',SourceNo=N'SO-WRONG' WHERE Uid=@demand\", new { demand });\n        var wrongSource = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = \"SO-CONFIRMED\" });\n        StringAssert.Contains(wrongSource.ReviewReason, \"来源身份\");\n        await db.ExecuteAsync(\"\"\"\n            UPDATE dbo.GrossDemand SET SourceNo=N'SO-CONFIRMED' WHERE Uid=@demand;\n            UPDATE dbo.PackingListHead SET PostingStatus=1,ReversedDate=NULL WHERE Uid=@packing;\n            UPDATE dbo.PackingListLine SET SourceDocumentNoSnapshot=N'SO-WRONG' WHERE Uid=@packingLine;\n            \"\"\", new { demand, packing, packingLine });\n        var badHistory = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = \"SO-CONFIRMED\" });\n        Assert.IsNull(badHistory.TotalShippedQty);\n        StringAssert.Contains(badHistory.ReviewReason, \"装箱过账历史\");\n        await db.ExecuteAsync(\"\"\"\n            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,SourceLineNumber,SourceVersion,\n                                    DemandBasisFingerprint,CustomerId,IsNonStandard,SkuSnapshot,CustomerSkuSnapshot,UnitSnapshot,DemandQty,RequiredDate)\n            VALUES(NEWID(),9,N'SO',@draft,N'SO-DRAFT',@draftLine,1,1,REPLICATE(N'A',64),@customerId,1,N'DRAFT-SKU',N'CUSTOM-DRAFT',N'PCS',10,'2026-10-01');\n            \"\"\", new { draft, draftLine, customerId = db.CustomerId });\n        var pendingWithHistory = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = \"SO-DRAFT\" });\n        Assert.IsNull(pendingWithHistory.TotalShippedQty);\n        StringAssert.Contains(pendingWithHistory.ReviewReason, \"待确认仍有关联来源\");\n    }\n}\n",
+  "prior_diff": "",
+  "status": "验证通过：原一个方法真PG；首次夹具方言失败另留证，P09整体未完成",
+  "retained_original_assertions": 77,
+  "scope": "同文件原一个方法与PG夹具，客户筛选仅隔离原数量分页；真实当前DI/dv读取权限，failure仅随机新事实，50表旧行摘要和库存序列保护；无DDL/新库/账号授权复制或生产变化",
+  "source_types_exited": 74,
+  "source_files_exited": 82,
+  "first_execution": {
+    "added_rows": 11,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02F-原销售管理履约-实际命令.ps1'",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "data_sha256": "B594656674D778D3930085FB15ECDC39D179EA70C1FED40BF396D979D4113F46",
+    "data": "TestResults/postgresql-migration/p09-s02f-sales-manager-data-protection-first.json",
+    "errors": 0,
+    "trx_sha256": "F2F351A4A912C95E052158570D627144BFA9BDC4B51409A456872C7578BE5423",
+    "passed": 0,
+    "failure": "42703：原QTY物理列误译qty，当前PG实体实际为quantity；本批夹具方言错误，不改生产",
+    "test_exit": 1,
+    "build_exit": 0,
+    "existing_warnings": 7,
+    "inventory_sequence": 96,
+    "old_rows": 53153,
+    "source_sha256": "F3AB71F6F7986D01E19C98C41E9F575D563DC59F69ABBBE1AEC1A186EDD56562",
+    "failed": 1,
+    "build_seconds": 7.53,
+    "all_old_rows_unchanged": true,
+    "trx": "TestResults/postgresql-migration/p09-s02f-sales-manager-pg-first.trx"
+  },
+  "final_execution": {
+    "source_sha256": "D64BE46DB1C9DD924ED74DDE733AA2E25EA8C965EE61FF0CBB0E99C885434218",
+    "old_rows": 53164,
+    "failed": 0,
+    "added_rows": 32,
+    "only_failed_column_fixed": true,
+    "errors": 0,
+    "counterfactual_first_sha256": "F3AB71F6F7986D01E19C98C41E9F575D563DC59F69ABBBE1AEC1A186EDD56562",
+    "skipped": 0,
+    "data_sha256": "60402B9691AF57451426760B7E4BF13DC46D4E97611DDB8258F4198583D1D8C0",
+    "trx_sha256": "746417E0C9B00436604B27B40A667FFFCED486237524530EA190268D3CC0EA02",
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02F-原销售管理履约-实际命令.ps1'",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "current_rows": 53196,
+    "duration": "00:00:00.7085201",
+    "original_business_assertions": 77,
+    "build_seconds": 5.42,
+    "existing_warnings": 7,
+    "old_rows_unchanged": true,
+    "trx": "TestResults/postgresql-migration/p09-s02f-sales-manager-pg.trx",
+    "data": "TestResults/postgresql-migration/p09-s02f-sales-manager-data-protection.json",
+    "test_exit": 0,
+    "build_exit": 0,
+    "passed": 1,
+    "inventory_sequence": 96
+  },
+  "closure": {
+    "ddl_or_new_db": false,
+    "changed_existing_tests": 55,
+    "extra_missing": 0,
+    "existing_account_or_permission_change": false,
+    "source_proof": "P09-S02F-源码保护证据.json",
+    "full_test_run": false,
+    "s02e_still_pending_approval": true,
+    "pg_integration_category_files": 45,
+    "runtime_or_backup_write": false,
+    "shared_fixture_change": false,
+    "command": "& './docs/postgresql-migration/任务结果/P09-S02F-原销售管理履约-收口实际命令.ps1'",
+    "source_files_exited": 82,
+    "commit_merge_push": false,
+    "other_clients_after": 0,
+    "production_or_pg_change": false,
+    "other_active_transactions_after": 0,
+    "extra_production_changes": 0,
+    "database_gates": 12,
+    "test_processes_after": 0,
+    "original_sources": 2390,
+    "s02e_new_databases": 0,
+    "added_tables": [
+      {
+        "table": "customer",
+        "count": 1,
+        "uids": [
+          "20b38700-097d-476f-849f-cfd6eabfe417"
+        ]
+      },
+      {
+        "table": "demand_execution_link",
+        "count": 4,
+        "uids": [
+          "2233970c-8493-4e0b-8804-5f6ab1417cdd",
+          "74b63403-7617-4793-924e-176c93df921f",
+          "c94e27bc-d9f2-4750-8b6a-f26ddcc366e1",
+          "e96d172e-e3d1-4230-98ba-f703937704c0"
+        ]
+      },
+      {
+        "table": "gross_demand",
+        "count": 3,
+        "uids": [
+          "277435b9-f8ca-4f64-96ca-4885d5efa93e",
+          "80956fcf-612d-486b-a535-b7725983e25d",
+          "82a1f5b9-3750-4015-a8e2-a4513f325ece"
+        ]
+      },
+      {
+        "table": "net_demand",
+        "count": 3,
+        "uids": [
+          "aa1e0a5d-f26a-4e2b-8649-2c7e5fcc9f02",
+          "cdd08d0d-216e-4891-ad97-0036f4695fa1",
+          "fae1e0bd-5b39-462a-9b92-83c47de1005b"
+        ]
+      },
+      {
+        "table": "packing_list_head",
+        "count": 2,
+        "uids": [
+          "4df9ae5c-c323-4a0d-bf20-182efeaa2e30",
+          "8b95d0bd-4e60-4317-8eb2-9f9efc970187"
+        ]
+      },
+      {
+        "table": "packing_list_line",
+        "count": 2,
+        "uids": [
+          "40e7c7b2-5efe-410b-a9ce-43af78ce4537",
+          "bef8d423-7453-4593-80b6-89e997d1bb3e"
+        ]
+      },
+      {
+        "table": "product",
+        "count": 2,
+        "uids": [
+          "06214fde-2507-42e0-9162-fbf5cdf7ae16",
+          "7e229001-0347-47d2-84df-1010d1a11188"
+        ]
+      },
+      {
+        "table": "purchase_order_head",
+        "count": 2,
+        "uids": [
+          "08536e9f-3e09-4e92-b767-66815f107538",
+          "1b234bec-39fb-45b1-bf2b-710fc59ce3c5"
+        ]
+      },
+      {
+        "table": "purchase_order_line",
+        "count": 2,
+        "uids": [
+          "28110277-ec96-4f23-b8c7-bbd26446d2de",
+          "a98c139c-ab43-4f84-8b5f-4c6d96a63d45"
+        ]
+      },
+      {
+        "table": "sales_order_header",
+        "count": 4,
+        "uids": [
+          "3b13d0dc-9e31-4c68-a943-2a55c984a414",
+          "8d3f6701-26b4-4a07-a20f-4cc0e721d80d",
+          "aac7ab17-a2ee-4eab-ac33-c655ce712e3a",
+          "ac7145c4-5a23-4b3e-9b8c-4d5158a19a87"
+        ]
+      },
+      {
+        "table": "sales_order_line",
+        "count": 4,
+        "uids": [
+          "8ac9a496-7507-4da6-96b7-3fb9a1a7c016",
+          "9947ee8d-5369-4b84-9695-3049bdbbf253",
+          "9f451816-ef1c-4c47-996c-995d24d1644d",
+          "ee9ed862-4079-4ac6-ac71-0fbe748dd859"
+        ]
+      },
+      {
+        "table": "supplier",
+        "count": 1,
+        "uids": [
+          "7d54a152-7caf-4b85-b969-e7445de54f3a"
+        ]
+      },
+      {
+        "table": "supplier_progress_report",
+        "count": 2,
+        "uids": [
+          "71cc8ce7-1cc6-4d84-a213-ceb9fb18e681",
+          "8c55b636-caad-423f-962a-7c0287a552f3"
+        ]
+      }
+    ],
+    "new_sources": 0,
+    "source_types_exited": 74,
+    "advisory_locks_after": 0,
+    "localdb_fixture_consumers_including_definition": 9
+  },
+  "remaining_consumers": {
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs"
+    ],
+    "sql_baseline": [
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs"
+    ]
+  }
+}

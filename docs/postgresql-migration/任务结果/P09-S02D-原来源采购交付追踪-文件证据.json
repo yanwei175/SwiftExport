@@ -1,0 +1,319 @@
+{
+  "recorded_at": "2026-10-06T11:40:37.2128035+08:00",
+  "stage": "P09-S02D原毛需求追踪两个方法接PG",
+  "status": "验证通过：原两方法47断言保持，第二方法首次通过/第一方法夹具两整数修正后通过；其他S仍待",
+  "files": [
+    {
+      "prior_diff": [],
+      "before_sha256": "504EBF0AAD6E05A9FCF3F1C651649BDEFAC828436B2D92A7D57DAFAB61C9A3F0",
+      "before_text": "using Microsoft.Extensions.DependencyInjection;\r\nusing Microsoft.VisualStudio.TestTools.UnitTesting;\r\nusing SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;\r\nusing SwiftExport.Application.Interfaces.Procurement;\r\nusing SwiftExport.Application.Tests.Procurement;\r\nusing SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;\r\n\r\nnamespace SwiftExport.Application.Tests.DemandPlanning;\r\n\r\n/// <summary>在隔离 LocalDB 验证来源链路筛选、分页及装箱反向的真实 SQL。</summary>\r\n[TestClass, DoNotParallelize]\r\npublic sealed class GrossDemandTraceSqlTests\r\n{\r\n    /// <summary>验证可信拆解和活动 Link 的贡献，取消后仍保留历史；旧来源版本不推断当前采购量。</summary>\r\n    [TestMethod]\r\n    public async Task MaterialAndPurchaseTrace_RespectSourceVersionAndLinkRelease()\r\n    {\r\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\r\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行隔离 LocalDB 来源追踪测试。\");\r\n        await using var db = new IndependentProcurementSqlFixture();\r\n        await db.InitializeAsync();\r\n        var demand = Guid.NewGuid(); var root = Guid.NewGuid(); var material = Guid.NewGuid();\r\n        var order = Guid.NewGuid(); var line = Guid.NewGuid(); var link = Guid.NewGuid();\r\n        const string fingerprint = \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\";\r\n        await db.ExecuteAsync(\"UPDATE dbo.Product SET Unit=N'KG' WHERE Uid=@componentId\", new { componentId = db.ComponentId });\r\n        await db.ExecuteAsync(\"\"\"\r\n            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,\r\n                                    CustomerId,DemandBasisFingerprint,IsNonStandard,SkuSnapshot,UnitSnapshot,DemandQty)\r\n            VALUES(@demand,0,N'MD',@demand,N'MD-TRACE',@demand,@customerId,@fingerprint,1,N'SKU',N'PCS',10);\r\n            INSERT dbo.NetDemand(Uid,GrossDemandId,SourceDemandVersionSnapshot,SourceDemandBasisFingerprintSnapshot,\r\n                                 DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,ParentNetDemandId,\r\n                                 ProductId,DeliveryMode,SupplyTypeSnapshot,SkuSnapshot,UnitSnapshot,GrossQty,NetQty)\r\n            VALUES(@root,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),@fingerprint,\r\n                   1,1,0,@root,NULL,@productId,0,N'采购',N'SKU',N'PCS',10,10),\r\n                  (@material,@demand,(SELECT Version FROM dbo.GrossDemand WHERE Uid=@demand),@fingerprint,\r\n                   1,2,0,@root,@root,@componentId,0,N'采购',N'TEST-B',N'KG',10,10);\r\n            INSERT dbo.PurchaseOrderHead(Uid,OriginKind,ConfirmationStatus,LifecycleStatus,OrderNo,CustomerId,\r\n                                          CustomerCode,Currency,SupplierId,SupplierCode,ExecutionRequestId,OrderDate)\r\n            VALUES(@order,1,0,0,N'PO-TRACE',@customerId,N'TEST-C',N'CNY',@supplierId,N'SUP',NEWID(),'2026-09-02');\r\n            INSERT dbo.PurchaseOrderLine(Uid,PurchaseOrderId,LineNumber,OrderNo,Sku,UnitSnapshot,QTY)\r\n            VALUES(@line,@order,1,N'PO-TRACE',N'TEST-B',N'KG',10);\r\n            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,\r\n                                             TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)\r\n            VALUES(@link,@material,NEWID(),NEWID(),N'PO',@order,N'PO-TRACE',@line,0,6,0);\r\n            \"\"\", new { demand, root, material, order, line, link, customerId = db.CustomerId,\r\n                supplierId = db.SupplierId, productId = db.ProductId, componentId = db.ComponentId, fingerprint });\r\n        await db.ExecuteAsync(\"\"\"\r\n            DECLARE @posted uniqueidentifier=NEWID();\r\n            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)\r\n            VALUES(@posted,N'IR-TRACE',10,0,0,1,@warehouseId,'2026-09-03');\r\n            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)\r\n            VALUES(NEWID(),@posted,1,@productId,N'TEST-B',N'KG',3,@line);\r\n            \"\"\", new { line, warehouseId = db.ReceiptSiteId, productId = db.ComponentId });\r\n        var trace = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.IsTrue(trace.Success, trace.Message);\r\n        Assert.AreEqual(6m, trace.Data!.Materials.Single(row => row.NetDemandId == material).ActivePurchaseQty);\r\n        Assert.AreEqual(6m, trace.Data.Purchases.Single().LinkedQty);\r\n        Assert.AreEqual(3m, trace.Data.Purchases.Single().PurchaseLineReceivedQty);\r\n        var purchaseTrace = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(order));\r\n        Assert.IsTrue(purchaseTrace.Success, purchaseTrace.Message);\r\n        Assert.IsFalse(purchaseTrace.Data!.Lines.Single().Links.Single().NeedsReview);\r\n        await db.ExecuteAsync(\"UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'PCS' WHERE Uid=@line\", new { line });\r\n        trace = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.IsNull(trace.Data!.Materials.Single(row => row.NetDemandId == material).ActivePurchaseQty);\r\n        StringAssert.Contains(trace.Data.Purchases.Single().ReviewReason, \"单位\");\r\n        purchaseTrace = await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(order));\r\n        Assert.IsTrue(purchaseTrace.Success, purchaseTrace.Message);\r\n        Assert.IsTrue(purchaseTrace.Data!.Lines.Single().Links.Single().NeedsReview);\r\n        await db.ExecuteAsync(\"UPDATE dbo.PurchaseOrderLine SET UnitSnapshot=N'KG' WHERE Uid=@line\", new { line });\r\n        var hasPurchase = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>()\r\n            .SearchAsync(new GrossDemandSearchRequest { TraceView = \"HasPurchase\" }));\r\n        Assert.AreEqual(1, hasPurchase.Data!.TotalCount);\r\n        Assert.IsTrue(hasPurchase.Data.Items.Single().HasValidPurchase);\r\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=NULL WHERE Uid=@demand\", new { demand });\r\n        var unknownPurchase = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>()\r\n            .SearchAsync(new GrossDemandSearchRequest { TraceView = \"HasPurchase\" }));\r\n        Assert.AreEqual(0, unknownPurchase.Data!.TotalCount);\r\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=@fingerprint WHERE Uid=@demand\",\r\n            new { demand, fingerprint });\r\n\r\n        await db.ExecuteAsync(\"UPDATE dbo.DemandExecutionLink SET ReleasedQty=AllocatedQty,LinkStatus=8 WHERE Uid=@link\", new { link });\r\n        trace = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.AreEqual(0m, trace.Data!.Materials.Single(row => row.NetDemandId == material).ActivePurchaseQty);\r\n        Assert.AreEqual(0m, trace.Data.Purchases.Single().LinkedQty);\r\n        StringAssert.Contains(trace.Data.Purchases.Single().ReviewReason, \"历史\");\r\n        var noPurchase = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>()\r\n            .SearchAsync(new GrossDemandSearchRequest { TraceView = \"NoPurchase\" }));\r\n        Assert.AreEqual(1, noPurchase.Data!.TotalCount);\r\n\r\n        var orphan = Guid.NewGuid();\r\n        await db.ExecuteAsync(\"\"\"\r\n            INSERT dbo.DemandExecutionLink(Uid,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,\r\n                                             TargetHeadId,TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)\r\n            VALUES(@orphan,@material,NEWID(),NEWID(),N'PO',NEWID(),N'PO-MISSING',NEWID(),0,2,0)\r\n            \"\"\", new { orphan, material });\r\n        trace = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.IsNull(trace.Data!.Materials.Single(row => row.NetDemandId == material).ActivePurchaseQty);\r\n        StringAssert.Contains(trace.Data.Materials.Single(row => row.NetDemandId == material).ReviewReason, \"目标\");\r\n        Assert.IsFalse(trace.Data.Purchases.Single(row => row.LinkedQty == 2m).HasPurchaseTarget);\r\n        await db.ExecuteAsync(\"UPDATE dbo.DemandExecutionLink SET ReleasedQty=AllocatedQty,LinkStatus=8 WHERE Uid=@orphan\", new { orphan });\r\n\r\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=NULL WHERE Uid=@demand\", new { demand });\r\n        trace = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.IsNull(trace.Data!.Materials.Single(row => row.NetDemandId == material).ActivePurchaseQty);\r\n        StringAssert.Contains(trace.Data.Materials.Single(row => row.NetDemandId == material).ReviewReason, \"需核实\");\r\n\r\n        // 无关历史不阻断本来源；相关反向缺少流水证明时整行实收保持未知。\r\n        await db.ExecuteAsync(\"\"\"\r\n            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)\r\n            VALUES(NEWID(),N'IR-UNVERIFIED-REVERSE',10,0,0,8,@warehouseId,'2026-09-03');\r\n            \"\"\", new { warehouseId = db.ReceiptSiteId });\r\n        var unaffected = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.IsTrue(unaffected.Success, unaffected.Message);\r\n        await db.ExecuteAsync(\"\"\"\r\n            DECLARE @receipt uniqueidentifier=NEWID();\r\n            INSERT dbo.InboundDocument(Uid,DocumentNo,DocumentType,CreationMode,LifecycleStatus,PostingStatus,WarehouseSiteId,ReceiptDate)\r\n            VALUES(@receipt,N'IR-RELATED-REVERSE',10,0,0,8,@warehouseId,'2026-09-03');\r\n            INSERT dbo.InboundDocumentLine(Uid,InboundDocumentId,LineNumber,ProductId,SkuSnapshot,UnitSnapshot,Quantity,SourceLineId)\r\n            VALUES(NEWID(),@receipt,1,@productId,N'TEST-B',N'KG',2,@line);\r\n            \"\"\", new { warehouseId = db.ReceiptSiteId, productId = db.ComponentId, line });\r\n        var uncertain = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(demand));\r\n        Assert.IsFalse(uncertain.Success);\r\n        StringAssert.Contains(uncertain.Message, \"收货量未知\");\r\n    }\r\n\r\n    /// <summary>筛选先于分页；已过账数量可累计，反向行只保留为历史。</summary>\r\n    [TestMethod]\r\n    public async Task TraceAndFilters_UseCurrentLinksAndPostedDelivery()\r\n    {\r\n        if (Environment.GetEnvironmentVariable(\"SWIFTEXPORT_RUN_SQL_TESTS\") != \"1\")\r\n            Assert.Inconclusive(\"设置 SWIFTEXPORT_RUN_SQL_TESTS=1 后运行隔离 LocalDB 来源追踪测试。\");\r\n        await using var db = new IndependentProcurementSqlFixture();\r\n        await db.InitializeAsync();\r\n        var first = Guid.NewGuid(); var second = Guid.NewGuid();\r\n        var posted = Guid.NewGuid(); var reversed = Guid.NewGuid();\r\n        const string fingerprint = \"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\";\r\n        await db.ExecuteAsync(\"\"\"\r\n            INSERT dbo.GrossDemand(Uid,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,CustomerId,\r\n                                    DemandBasisFingerprint,IsNonStandard,SkuSnapshot,UnitSnapshot,DemandQty)\r\n            VALUES(@first,0,N'MD',@first,N'MD-1',@first,@customerId,@fingerprint,1,N'SKU-1',N'PCS',10),\r\n                  (@second,0,N'MD',@second,N'MD-2',@second,@customerId,@fingerprint,1,N'SKU-2',N'PCS',5);\r\n            INSERT dbo.PackingListHead(Uid,PackingListNo,CustomerId,InvoiceDate,LifecycleStatus,PostingStatus,PostedDate,ReversedDate,CreateCommandId)\r\n            VALUES(@posted,N'PL-POSTED',@customerId,'2026-09-01',0,1,'2026-09-02',NULL,NEWID()),\r\n                  (@reversed,N'PL-REVERSED',@customerId,'2026-09-01',0,8,'2026-09-02','2026-09-03',NEWID());\r\n            INSERT dbo.PackingListLine(Uid,PackingListHeadId,LineNumber,GrossDemandId,IsNonStandardSnapshot,\r\n                                        SourceTypeSnapshot,SourceDocumentNoSnapshot,SkuSnapshot,UnitSnapshot,Qty)\r\n            VALUES(NEWID(),@posted,1,@first,1,N'MD',N'MD-1',N'SKU-1',N'PCS',4),\r\n                  (NEWID(),@reversed,1,@first,1,N'MD',N'MD-1',N'SKU-1',N'PCS',3);\r\n            \"\"\", new { first, second, posted, reversed, customerId = db.CustomerId, fingerprint });\r\n        var trace = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(first));\r\n        Assert.IsTrue(trace.Success, trace.Message);\r\n        Assert.AreEqual(4m, trace.Data!.DeliveredQty);\r\n        Assert.HasCount(2, trace.Data.Deliveries);\r\n        Assert.AreEqual(1, trace.Data.Deliveries.Count(x => x.CountsTowardDelivery));\r\n        await db.ExecuteAsync(\"UPDATE dbo.PackingListLine SET SkuSnapshot=N'WRONG' WHERE PackingListHeadId=@posted\", new { posted });\r\n        var wrongSnapshot = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(first));\r\n        Assert.IsTrue(wrongSnapshot.Success, wrongSnapshot.Message);\r\n        Assert.IsNull(wrongSnapshot.Data!.DeliveredQty);\r\n        StringAssert.Contains(wrongSnapshot.Data.ReviewReason, \"装箱历史\");\r\n        await db.ExecuteAsync(\"UPDATE dbo.PackingListLine SET SkuSnapshot=N'SKU-1' WHERE PackingListHeadId=@posted\", new { posted });\r\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=NULL WHERE Uid=@first\", new { first });\r\n        var unverified = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(first));\r\n        Assert.IsTrue(unverified.Success, unverified.Message);\r\n        Assert.AreEqual(4m, unverified.Data!.DeliveredQty);\r\n        StringAssert.Contains(unverified.Data.ReviewReason, \"指纹\");\r\n        await db.ExecuteAsync(\"UPDATE dbo.GrossDemand SET DemandBasisFingerprint=@fingerprint WHERE Uid=@first\", new { first, fingerprint });\r\n\r\n        var hasDelivery = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>()\r\n            .SearchAsync(new GrossDemandSearchRequest { TraceView = \"HasDelivery\", PageIndex = 1, PageSize = 1 }));\r\n        Assert.IsTrue(hasDelivery.Success, hasDelivery.Message);\r\n        Assert.AreEqual(1, hasDelivery.Data!.TotalCount);\r\n        Assert.AreEqual(first, hasDelivery.Data.Items.Single().Uid);\r\n        Assert.IsTrue(hasDelivery.Data.Items.Single().HasPostedDelivery);\r\n        Assert.IsFalse(hasDelivery.Data.Items.Single().HasActiveMaterial);\r\n        var noDelivery = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>()\r\n            .SearchAsync(new GrossDemandSearchRequest { TraceView = \"NoDelivery\", PageIndex = 1, PageSize = 1 }));\r\n        Assert.AreEqual(1, noDelivery.Data!.TotalCount);\r\n        Assert.AreEqual(second, noDelivery.Data.Items.Single().Uid);\r\n        var customer = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>()\r\n            .SearchAsync(new GrossDemandSearchRequest { CustomerKeyword = \"TEST-C\", PageIndex = 1, PageSize = 1 }));\r\n        Assert.AreEqual(2, customer.Data!.TotalCount);\r\n        Assert.HasCount(1, customer.Data.Items);\r\n\r\n        await db.ExecuteAsync(\"\"\"\r\n            UPDATE dbo.GrossDemand SET SourceType=N'SO',SourceVersion=NULL WHERE Uid=@first;\r\n            UPDATE dbo.PackingListLine SET SourceTypeSnapshot=N'SO' WHERE GrossDemandId=@first;\r\n            \"\"\", new { first });\r\n        var legacySource = await db.InScopeAsync(p => p.GetRequiredService<IGrossDemandQueryService>().GetTraceAsync(first));\r\n        Assert.IsTrue(legacySource.Success, legacySource.Message);\r\n        Assert.AreEqual(4m, legacySource.Data!.DeliveredQty);\r\n        StringAssert.Contains(legacySource.Data.ReviewReason, \"版本\");\r\n    }\r\n}\r\n",
+      "path": "SwiftExport.Application.Tests/DemandPlanning/GrossDemandTraceSqlTests.cs",
+      "after_sha256": "6346E7C8565FA4B8947D7561D5540B77F359F0F0BE2C67401FE4D3CDEB0DBC1B"
+    }
+  ],
+  "scope": "仅原两个方法SQL/fixture迁PG，同文件原数据保护和两个真实消费者所需小夹具；现宿主DI/真实权限服务，既有管理员只读。不改业务/PG实现/锁/接口/配置/公共夹具。failure随机新增预计25行，原50表53035行保护，序列96保持，无DDL/旧行/账号权限/运行备份或全量。",
+  "preflight": {
+    "advisory_locks": 0,
+    "sequence": 96,
+    "other_active_transactions": 0,
+    "old_rows": 53035,
+    "tables": 50
+  },
+  "baseline": "当前累计74类型82源文件、52个测试已登记变化，F01/F02/S04精准范围保持；原LocalDB夹具12消费者含自身。",
+  "existing_overlap": "既有GrossDemandTrace和PurchaseOrderTrace PG矩阵已验，本批保留原同服务贯穿方法全部断言，不重复矩阵。",
+  "retained_original_business_assertions": 47,
+  "source_edit_issues": "默认沙箱WriteAllText ACL拒绝，无源写入；同SHA获准native后完成。离线diff发现两行移除DECLARE后尾空格、SQL需INSERT INTO以及较短表名替换先命中Line后缀，实库前明确改正这些PG语法/映射及空白，无生产或数据库副作用。",
+  "first_execution": {
+    "passed": 1,
+    "skipped": 0,
+    "sequence_after": 96,
+    "artifacts": [
+      {
+        "path": "TestResults/postgresql-migration/p09-s02d-gross-trace-pg-first.trx",
+        "sha256": "5A7E0004DAAFADC1E9D1E673C08516A818481C0073B797ABBF4365F34D1C640F"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-s02d-gross-trace-data-protection-first.json",
+        "sha256": "3160E35D41B124D6E3D423DC9B666A6D8B108CFBF36C3477559FB90573819C15"
+      }
+    ],
+    "build_exit": 0,
+    "added_rows": 13.0,
+    "failed": 1,
+    "failure_kind": "本批夹具翻译错误42804：两Net拆解修订1错误替为TRUE，非生产回归/业务语义差异",
+    "errors": 0,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-S02D-原来源采购交付追踪-实际命令.ps1'",
+    "test_exit": 1,
+    "seconds": 5.08,
+    "old_rows": 53035,
+    "sequence_before": 96,
+    "old_rows_unchanged": true,
+    "tests": [
+      {
+        "milliseconds": 146.0011,
+        "name": "TraceAndFilters_UseCurrentLinksAndPostedDelivery",
+        "outcome": "Passed"
+      },
+      {
+        "milliseconds": 148.9841,
+        "name": "MaterialAndPurchaseTrace_RespectSourceVersionAndLinkRelease",
+        "outcome": "Failed"
+      }
+    ],
+    "total": 2,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "existing_warnings": 7
+  },
+  "completed_at": "2026-10-06T11:47:55.1260716+08:00",
+  "execution": {
+    "new_test_matrix": false,
+    "ddl": false,
+    "new_sources": 0,
+    "retry_exit": 0,
+    "retry_failed": 0,
+    "localdb_fixture_consumers_including_definition": 11,
+    "first_source_sha256": "8043DDA225DAB6E19D6766E8A75EDF1853CF0942CB2B8563C81D6DD31DB2648E",
+    "pg_integration_category_files": 43,
+    "compiled_assembly": {
+      "last_write": "2026-10-06T11:45:50.3341990+08:00",
+      "path": "SwiftExport.Application.Tests/bin/Debug/net10.0/SwiftExport.Application.Tests.dll",
+      "retry_start": "2026-10-06T11:46:03.8978830+08:00",
+      "fresh_before_retry": true,
+      "sha256": "EDE9F8AE7E02A810936C12CAA7A1ACC8519B7D4F295502CCA1E1BE2975B88403"
+    },
+    "runtime_or_backup_write": false,
+    "commit_merge_push": false,
+    "full_test_run": false,
+    "seconds": [
+      5.08,
+      3.23
+    ],
+    "source_types_exited": 74,
+    "changed_existing_tests": 53,
+    "source_protection": "P09-S02D-源码保护证据.json",
+    "artifacts": [
+      {
+        "path": "TestResults/postgresql-migration/p09-s02d-gross-trace-pg-first.trx",
+        "sha256": "5A7E0004DAAFADC1E9D1E673C08516A818481C0073B797ABBF4365F34D1C640F"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-s02d-gross-trace-data-protection-first.json",
+        "sha256": "3160E35D41B124D6E3D423DC9B666A6D8B108CFBF36C3477559FB90573819C15"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-s02d-gross-trace-pg-retry.trx",
+        "sha256": "7FE6308B7E89D096B2B6C33B41CE62B0FFCD1F8172C8C9A00F58B1A481F96E6B"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-s02d-gross-trace-data-protection-retry.json",
+        "sha256": "DBA249CE6E9B08F3FBF89DEE7430F594BB88D71916D59A4A2B24AB44C551B733"
+      }
+    ],
+    "retry_milliseconds": 369.2879,
+    "existing_warnings": 7,
+    "old_rows": 53035,
+    "unexpected_production_changes": 0,
+    "only_first_method_two_integer_values_changed_since_first": true,
+    "business_or_pg_source_change": false,
+    "original_sources": 2390,
+    "database_gates": 12,
+    "inventory_sequence_before": 96,
+    "test_processes_after": 0,
+    "added_tables": [
+      {
+        "added": [
+          {
+            "uids": [
+              "0e239d1b-3a9e-455d-80f3-67a6057bd6ec",
+              "d02a38da-14a8-4a28-a4c6-8e1e29e1ab48"
+            ],
+            "table": "customer",
+            "count": 2
+          },
+          {
+            "uids": [
+              "97bae3c2-a1a5-4ca4-a149-eda668cd8cee",
+              "e2810f35-9fca-4ca9-b22a-98836acd4611"
+            ],
+            "table": "gross_demand",
+            "count": 2
+          },
+          {
+            "uids": [
+              "45b1aca3-4b1b-4a0d-85b7-d76e8593cbe3",
+              "c7d72561-0213-4dc8-a7c4-79484daff963"
+            ],
+            "table": "packing_list_head",
+            "count": 2
+          },
+          {
+            "uids": [
+              "05ed686c-e19b-499b-a7dd-75daa7b6b5f1",
+              "30058c76-185b-4c04-9851-50620812525f"
+            ],
+            "table": "packing_list_line",
+            "count": 2
+          },
+          {
+            "uids": [
+              "4bfff4b0-3d2f-4352-ba0b-f60880304ed7",
+              "f93d6bf7-bb12-499d-af56-8496124ab208"
+            ],
+            "table": "product",
+            "count": 2
+          },
+          {
+            "uids": [
+              "74de1c23-3e3b-4902-ae96-48a68d60bcf1",
+              "9fcadc17-7763-4258-8348-ddc37270f718"
+            ],
+            "table": "supplier",
+            "count": 2
+          },
+          {
+            "uids": [
+              "5ee358cf-74b8-4f0c-9f26-d367143d9fa6"
+            ],
+            "table": "warehouse_site",
+            "count": 1
+          }
+        ],
+        "prior_rows": 53035
+      },
+      {
+        "added": [
+          {
+            "uids": [
+              "fd0ce3a8-23a1-40e4-9e3a-f3f9ff5e39cc"
+            ],
+            "table": "customer",
+            "count": 1
+          },
+          {
+            "uids": [
+              "53a56304-90fb-4369-bed9-9cbe5e79dbe0",
+              "8476513e-8785-46b1-8f85-284177a92691"
+            ],
+            "table": "demand_execution_link",
+            "count": 2
+          },
+          {
+            "uids": [
+              "4a579333-b4e4-4b65-b4ba-80ff62ff88ed"
+            ],
+            "table": "gross_demand",
+            "count": 1
+          },
+          {
+            "uids": [
+              "17070d31-e581-49a1-b5f4-a7e57f7e7409",
+              "cc35d1aa-7df2-4e2d-b796-576aca3f36d7",
+              "dd8ecdb1-b71d-42c0-be98-bda1616ef1ec"
+            ],
+            "table": "inbound_document",
+            "count": 3
+          },
+          {
+            "uids": [
+              "9e0286fe-8724-4746-a292-bd3e7119357a",
+              "cdcc0b69-f57d-4789-8510-292eea1a528d"
+            ],
+            "table": "inbound_document_line",
+            "count": 2
+          },
+          {
+            "uids": [
+              "50f83de8-0255-4d9f-93af-d0b8b81a3855",
+              "fd897c6c-df9a-4239-a8b4-708f1ec500ca"
+            ],
+            "table": "net_demand",
+            "count": 2
+          },
+          {
+            "uids": [
+              "102837bc-2903-48e2-80c3-c3015c82da5d",
+              "8a75ce6b-f1f3-46b3-821b-bc4622343c07"
+            ],
+            "table": "product",
+            "count": 2
+          },
+          {
+            "uids": [
+              "c6a8ddd0-8fda-4589-8800-ccac79ce1b8f"
+            ],
+            "table": "purchase_order_head",
+            "count": 1
+          },
+          {
+            "uids": [
+              "ee5f5f1c-5e62-4a53-934b-f6578239187a"
+            ],
+            "table": "purchase_order_line",
+            "count": 1
+          },
+          {
+            "uids": [
+              "41f710d5-eafa-4ab1-95b9-f4de23ac5a0a",
+              "8c562113-95ee-4adf-9c91-3c7d55e574ad"
+            ],
+            "table": "supplier",
+            "count": 2
+          },
+          {
+            "uids": [
+              "95a6c5e3-eeb0-4358-b7ad-fd32641ec6f4"
+            ],
+            "table": "warehouse_site",
+            "count": 1
+          }
+        ],
+        "prior_rows": 53048
+      }
+    ],
+    "build_exits": [
+      0,
+      0
+    ],
+    "retry_command": "& './docs/postgresql-migration/任务结果/P09-S02D-原来源采购交付追踪-夹具修正实际命令.ps1'",
+    "account_or_permission_change": false,
+    "retry_passed": 1,
+    "retained_original_business_assertions": 47,
+    "errors": 0,
+    "other_clients_after": 0,
+    "added_rows_total": 31,
+    "tables": 50,
+    "advisory_locks_after": 0,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "unexpected_missing": 0,
+    "green_delivery_method_repeated": false,
+    "current_rows": 53066,
+    "old_rows_unchanged_both_stages": true,
+    "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004",
+    "shared_fixture_change": false,
+    "added_rows_retry": 18,
+    "other_active_transactions_after": 0,
+    "validated_original_methods": 2,
+    "added_rows_first": 13,
+    "source_files_exited": 82,
+    "inventory_sequence_after": 96
+  },
+  "remaining_consumers": {
+    "sql_baseline": [
+      "SwiftExport.Application.Tests\\Database\\EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs"
+    ],
+    "localdb_fixture": [
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesComplaintNumberSqlTests.cs",
+      "SwiftExport.Application.Tests\\QualityControl\\AfterSalesSqlTests.cs",
+      "SwiftExport.Application.Tests\\ForExcel\\ForExcelPurchaseOrderSqlTests.cs",
+      "SwiftExport.Application.Tests\\Orders\\SalesOrderManagerQuerySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\PurchaseOrderTrackingSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementReversalSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementDemandAssociationSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ProcurementConcurrencySqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlTests.cs",
+      "SwiftExport.Application.Tests\\Procurement\\IndependentProcurementSqlFixture.cs",
+      "SwiftExport.Application.Tests\\Procurement\\ConfirmationDecouplingSqlTests.cs"
+    ]
+  }
+}

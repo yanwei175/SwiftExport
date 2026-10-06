@@ -1,0 +1,93 @@
+{
+  "recorded_at": "2026-10-06T10:05:28.5882831+08:00",
+  "stage": "P09-R16 Excel既有LocalDB生命周期转PG，退出旧Excel仓储",
+  "status": "本批完成：原生命周期1真PG通过，旧Excel仓储退出；整体P09未完成",
+  "test": {
+    "before_sha256": "23288BBEEA639BF5A5A21FE81B2E8B7F37327018104433E7A2613EC58B906F8D",
+    "prior_uncommitted_diff": [],
+    "path": "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs",
+    "after_sha256": "DBAA73D3DEB45B7D86F3714CA64A9174E61D6DA63FB7AAB572782645E8132F04"
+  },
+  "legacy": {
+    "before_sha256": "5124B6AD846CAADF67557412BF3FD5B775FEF540BD6F09B03BFBADA7755D1EB2",
+    "prior_uncommitted_diff": [],
+    "path": "SwiftExport.Infrastructure/Repositories/Systems/ExcelReadProfiles/ExcelReadProfileRepository.cs"
+  },
+  "scope": "只原Excel测试文件、该无消费者旧仓储及主控文档；新随机测试分组/身份，failure库50旧表全摘要保护，成功事实保留，无DDL/清库/运行库或备份写入，原业务/PG实现/API/配置不改。数据库测试主控串行，A/B不续派。",
+  "preflight": {
+    "original_50_tables_unchanged": true,
+    "sequence_before": 95,
+    "sequence_after": 95,
+    "tracked_head_unmodified": true,
+    "at": "2026-10-06T10:10:28.3473823+08:00",
+    "new_data_rows": 5,
+    "cancellation_wait": "{\"holder\" : 4292, \"waiter\" : 7516, \"blockers\" : [4292]}",
+    "current_reference_files": [
+      "SwiftExport.Infrastructure/Repositories/Systems/ExcelReadProfiles/ExcelReadProfileRepository.cs"
+    ],
+    "pg_file": "SwiftExport.Infrastructure/Repositories/Systems/ExcelReadProfiles/PostgreSqlExcelReadProfileRepository.cs",
+    "before_data_rows": 52965
+  },
+  "completed_at": "2026-10-06T10:11:59.6770467+08:00",
+  "execution": {
+    "artifacts": [
+      {
+        "sha256": "CE14258E4DA875B5183238000C3FCA5D417FD9D4A29DD4D3A82A18B70F8A7010",
+        "path": "TestResults/postgresql-migration/p09-r16-excel-lifecycle-pg.trx"
+      },
+      {
+        "sha256": "94CAC73A30A303B7673185CFFBEE84F3BD75954C6EF059B92C906C0EF17D6511",
+        "path": "TestResults/postgresql-migration/p09-r16-excel-data-protection.json"
+      }
+    ],
+    "commit_merge_push": false,
+    "ddl": false,
+    "advisory_locks_after": 0,
+    "test_processes_after": 0,
+    "other_database_clients_after": 0,
+    "repeated_green_database_run": false,
+    "builds": [
+      {
+        "reason": "本批测试缺少PostgreSqlParameters命名空间，未运行测试或数据库写入",
+        "errors": 2,
+        "exit": 1,
+        "seconds": 4.95,
+        "warnings": 7
+      },
+      {
+        "reason": "新增可空性警告，随后本批修正",
+        "errors": 0,
+        "exit": 0,
+        "seconds": 5.38,
+        "warnings": 8
+      },
+      {
+        "reason": "实库前最终编译",
+        "errors": 0,
+        "exit": 0,
+        "seconds": 3.54,
+        "warnings": 7
+      },
+      {
+        "reason": "退出旧源后必要编译，测试与PG源未变，不重跑实库",
+        "errors": 0,
+        "exit": 0,
+        "seconds": 4.11,
+        "warnings": 7
+      }
+    ],
+    "full_test_run": false,
+    "local_command_issues": "首次本地缩进整理PowerShell -replace运算符组合错误及源码Set-Content写权限拒绝，源未改/无数据库动作；已通过apply_patch与授权PS7原生写入处理，不改ACL。首次摘要展示Where-Object快捷写法把After当文字，误显示ChangedOld=50；用真实属性比较复核为0，原测试及证据始终50表相同。",
+    "tests": {
+      "skipped": 0,
+      "total": 1,
+      "whole_test_host_seconds": "约2秒，含50表保护",
+      "method_seconds": 0.4235846,
+      "failed": 0,
+      "passed": 1
+    },
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R16-Excel原生命周期-实际命令.ps1'",
+    "runtime_or_backup_write": false
+  }
+}

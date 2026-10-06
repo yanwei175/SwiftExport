@@ -3,6 +3,8 @@ using Refit;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Infrastructure.Repositories.Shipping;
+using SwiftExport.Contracts.SysEnums.Inventory;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -31,12 +33,12 @@ public sealed class SourceDemandDeliveryContractTests
     public void UnifiedPackingListDeliveryProjectionIsRegistered()
     {
         var registration = Read("SwiftExport.Infrastructure", "DependencyInjection.cs");
-        var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
+        var delivery = PostgreSqlSourceDeliveryQueryRepository.Projection();
         var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "PostgreSqlGrossDemandDocumentRepository.cs");
         StringAssert.Contains(registration, "ISourceDeliveryQueryRepository");
-        StringAssert.Contains(delivery, "dbo.PackingListLine");
-        StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
-        Assert.IsFalse(delivery.Contains("SourceType IN", StringComparison.Ordinal));
+        StringAssert.Contains(delivery, "\"public\".\"packing_list_line\"");
+        StringAssert.Contains(delivery, "h.\"posting_status\"=@Posted");
+        Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(delivery, "(?:\"source_type\"|\"SourceType\")\\s+IN\\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
         Assert.IsFalse(sourceRepository.Contains("OutboundDocument", StringComparison.Ordinal));
         Assert.IsFalse(sourceRepository.Contains("outbound_document", StringComparison.Ordinal));
     }
@@ -63,7 +65,7 @@ public sealed class SourceDemandDeliveryContractTests
         var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
         var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "SourceExit", "MaterialDemandSourceExitService.cs");
         var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
-        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.SourceExit.cs");
+        var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PostgreSqlPackingListRepository.cs");
         StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
         StringAssert.Contains(sourceRepository, "InScope([sourceUid], []");
         StringAssert.Contains(sourceRepository, "FOR UPDATE;");
@@ -76,8 +78,9 @@ public sealed class SourceDemandDeliveryContractTests
         StringAssert.Contains(shipping, "ActiveDraftCount");
         StringAssert.Contains(shipping, "PostedPackingListCount");
         StringAssert.Contains(shipping, "PostedCustomerOutboundCount");
-        StringAssert.Contains(shipping, "o.TriggerPackingListId");
-        StringAssert.Contains(shipping, "o.DocumentType=@FinalCustomerShipment");
+        StringAssert.Contains(shipping, "o.trigger_packing_list_id");
+        // PG 使用原枚举固定存储值，仍要求正式客户出货；不能用自动出库的其他类型充当交付证据。
+        StringAssert.Contains(shipping, $"o.document_type={(int)OutboundDocumentTypeEnum.FinalCustomerShipment}");
         Assert.IsFalse(shipping.Contains("StockIssue", StringComparison.Ordinal));
     }
 

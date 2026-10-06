@@ -104,7 +104,7 @@
   {
     "name": "AutomaticDocumentRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -126,12 +126,12 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "BomExecutionRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-BATCH旧实现无生产消费者退出，专属SQL源码断言退役，两个原Reader业务测试通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -146,12 +146,18 @@
         "operation": "前置通过后删除源专用文件"
       }
     ],
-    "pg_candidate_name": "PostgreSqlBomExecutionRepository",
+    "pg_candidate_name": "无生产消费者，不新增PG对应类",
     "pg_definitions": [],
     "reference_files": [
       "SwiftExport.Application.Tests/Products/BomExecutionReaderTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证",
+    "batch_exit": {
+      "retired_provider_source_test": 1,
+      "production_dependencies": 0,
+      "reader_business_tests_preserved": 2,
+      "evidence": "P09-批次收口-20261006.json"
+    }
   },
   {
     "name": "BomRepository",
@@ -207,7 +213,7 @@
   {
     "name": "BusinessOperationLogRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R14源文件已退出，9既有静态契约/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -230,12 +236,12 @@
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
       "SwiftExport.Application.Tests/Orders/SalesSourceDemandAndFulfillmentContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R14三个现有静态契约转当前PG，保留版本/反向关联/单位快照/命令审计锁边界；9离线31ms（其中1旧结构基线未迁S），0错误7旧警告最终编译3.32秒；4旧源HEAD无改动/消费者零，2390保护及TRX见R14结果。无实库，不证明并发或最终结构/包/宿主。"
   },
   {
     "name": "CommandReceiptRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R18源链已退出，原箱单场景1真PG/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -258,7 +264,7 @@
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
       "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R18原箱单持久化/发票精确过滤与分页/审计失败回滚/命令重放1真PG362.6921ms通过；来源/客户/权限/日志端口沿用原夹具，头行/回执及搜索真实。SQL Server旧升级DDL属S退役，当前PG结构就绪及关联来源保存已验，不称PG升级幂等。50表52984旧行全摘要同，新14留存，序列96不变，连接锁进程0；三旧类型六文件固定SHA/HEAD/跟踪/外部消费者零复核后退出，最终构建0错误7旧警告5.91秒；最终源结构/包图/宿主待。"
   },
   {
     "name": "CustomerPoConfigRepository",
@@ -350,7 +356,7 @@
   {
     "name": "DapperRepository",
     "batch": "P09-F：源工厂/分类器/泛型基类，最后基础设施撤包",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-F01无消费者旧通用仓储已退出，当前Infra必要构建通过；最终包图宿主待",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -395,12 +401,12 @@
       "SwiftExport.Infrastructure/Repositories/Systems/Numbering/DocumentSequenceRepository.cs",
       "SwiftExport.Infrastructure/Services/Auth/AuditStampService.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。；F01固定SHA/跟踪/HEAD无修改及全源引用核验，仅定义与一行XML说明，无运行/测试消费者；旧源退出，审计说明指现有PG通用仓储，重建原文只替换一行XML完全一致，行为不改。当前Infra构建0错误0警告0.85秒通过；不重跑已绿通用/真实自动过账测试，不连接数据库、不撤包，其他S/F源消费者及最终宿主仍待。"
   },
   {
     "name": "DocumentSequenceRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -422,12 +428,12 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "ExcelReadProfileRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R16源文件已退出，原生命周期1真PG/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -449,12 +455,12 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R16原LocalDB生命周期转当前PG，原版本/分步保存/软删/同组唯一/跨组同名/事务归属/写后失败回滚/真实SQL等待取消断言保持；failure实库1通过423.5846ms，50表原52965行全部摘要同，新增3头2字段留存，库存序列95不变。旧SHA/HEAD/跟踪/消费者复核后退出，最终必要编译0错误7旧警告4.11秒；最终包图/宿主仍待。"
   },
   {
     "name": "ExecutionEligibilityRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "阻塞：P09-R11既有PG测试已验证；含既有未提交修改的源删除需针对性授权",
+    "status": "验证通过：P09-R11当前HEAD干净无消费者旧源退出，Infra必要编译0错误0警告",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -476,7 +482,13 @@
     "reference_files": [
       "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityPermissionSqlTests.cs"
     ],
-    "verification": "2026-10-06 P09-R11：旧测试完整四授权断言迁现有PG，一实际独立RBAC库场景通过249ms，四随机新记录finally回滚及四表全摘要一致；最终构建0错误7旧警告3.11秒。源固定SHA一致，HEAD仅既有四行空PrepareTarget方法；完整原字节保存，但自动审批拒绝删除，原文件仍在、不可计入已退出。见P09-R11-执行资格源退出-主控结果.md。"
+    "verification": "2026-10-06 P09-R11：旧测试完整四授权断言迁现有PG，一实际独立RBAC库场景通过249ms，四随机新记录finally回滚及四表全摘要一致；最终构建0错误7旧警告3.11秒。源固定SHA一致，HEAD仅既有四行空PrepareTarget方法；完整原字节保存，但自动审批拒绝删除，原文件仍在、不可计入已退出。见P09-R11-执行资格源退出-主控结果.md。",
+    "current_head_exit": {
+      "head": "e653ea5f75d3b33e3a014f2ac875f8a4d8f60ac9",
+      "original_byte_sha256": "0DDAE30D90FE9F268665AF4394C96BE24473030936AE39EDB4B6192B7DAF9378",
+      "evidence": "P09-R11-当前HEAD源退出-证据.json",
+      "reason": "旧拒绝基于未提交四行；当前已HEAD clean且完整原字节留存，历史拒绝保留，按原迁移退出范围处理"
+    }
   },
   {
     "name": "ForExcelPurchaseOrderRepository",
@@ -600,7 +612,7 @@
   {
     "name": "InboundDocumentRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R14源文件已退出，9既有静态契约/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -623,12 +635,12 @@
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
       "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R14三个现有静态契约转当前PG，保留版本/反向关联/单位快照/命令审计锁边界；9离线31ms（其中1旧结构基线未迁S），0错误7旧警告最终编译3.32秒；4旧源HEAD无改动/消费者零，2390保护及TRX见R14结果。无实库，不证明并发或最终结构/包/宿主。"
   },
   {
     "name": "InboundExecutionReadRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R14源文件已退出，9既有静态契约/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -651,7 +663,7 @@
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
       "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R14三个现有静态契约转当前PG，保留版本/反向关联/单位快照/命令审计锁边界；9离线31ms（其中1旧结构基线未迁S），0错误7旧警告最终编译3.32秒；4旧源HEAD无改动/消费者零，2390保护及TRX见R14结果。无实库，不证明并发或最终结构/包/宿主。"
   },
   {
     "name": "InboundQueryRepository",
@@ -683,7 +695,7 @@
   {
     "name": "InboundReceiptHistorySql",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -711,12 +723,12 @@
       "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PurchaseOrderManagerQueryRepository.cs",
       "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PurchaseOrderTraceRepository.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "InboundSourceRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -740,12 +752,12 @@
       "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs",
       "SwiftExport.Application.Tests/MasterData/ProductReferenceSqlContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "InventoryPostingRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R14源文件已退出，9既有静态契约/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -768,7 +780,7 @@
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
       "SwiftExport.Application.Tests/Inventory/ProductUnitSnapshotContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R14三个现有静态契约转当前PG，保留版本/反向关联/单位快照/命令审计锁边界；9离线31ms（其中1旧结构基线未迁S），0错误7旧警告最终编译3.32秒；4旧源HEAD无改动/消费者零，2390保护及TRX见R14结果。无实库，不证明并发或最终结构/包/宿主。"
   },
   {
     "name": "InventoryQueryRepository",
@@ -915,7 +927,7 @@
   {
     "name": "OutboundDocumentRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -937,12 +949,12 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "OutboundExecutionReadRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -964,7 +976,7 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "OutboundQueryRepository",
@@ -997,7 +1009,7 @@
   {
     "name": "PackingListExecutionRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1019,12 +1031,12 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "PackingListPostingFactsRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R13源文件已退出，六现有真实PG场景/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1046,12 +1058,12 @@
     "reference_files": [
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R13六既有自动过账PG行为6通过0失败0跳过，父/子租约夹具沿用现协议，原Serializable保留；入库来源沿用R09既有静态断言及本批实际端口；8源文件HEAD无改动/集合外引用零，退出后必要构建0错误7旧警告3.25秒；2390当前保护和实际TRX见R13结果，非最终全量/宿主/包验收。"
   },
   {
     "name": "PackingListRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R18源链已退出，原箱单场景1真PG/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1092,7 +1104,7 @@
       "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs",
       "SwiftExport.Application.Tests/Shipping/PackingListSourceQueryTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R15三既有箱单/交付静态消费者前置已迁PG，13离线63ms；PackingListSourceQuery保留原三方法改为实际Dapper无网络捕获。箱单旧LocalDB消费者及其SourceDelivery旧实现依赖仍在，后续先迁有效行为再退出，不标已完成。；R18原箱单持久化/发票精确过滤与分页/审计失败回滚/命令重放1真PG362.6921ms通过；来源/客户/权限/日志端口沿用原夹具，头行/回执及搜索真实。SQL Server旧升级DDL属S退役，当前PG结构就绪及关联来源保存已验，不称PG升级幂等。50表52984旧行全摘要同，新14留存，序列96不变，连接锁进程0；三旧类型六文件固定SHA/HEAD/跟踪/外部消费者零复核后退出，最终构建0错误7旧警告5.91秒；最终源结构/包图/宿主待。"
   },
   {
     "name": "PermissionCatalogSync",
@@ -1459,7 +1471,7 @@
   {
     "name": "PurchaseOrderDraftRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R17源文件已退出，原追加2真PG/3离线/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1483,7 +1495,7 @@
       "SwiftExport.Application.Tests/Procurement/PurchaseDraftCustomerSnapshotContractTests.cs",
       "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R17原两个追加行为/三个客户快照契约转当前PG，原未关联量/贡献守恒/历史收货/软删流水门禁及客户快照断言保持；3离线28ms，最终2真PG130.9498ms通过。首次1通过1夹具触发器失败留证；SQL Server同样保护成立身份，夹具仅INSERT预设身份，共用初始化已变故两个原方法必要复验。最终50表52976原行摘要全同/新8留存，前轮6留存，两轮总14，库存序列95→96；源固定SHA/HEAD/消费者复核退出，最终编译0错误7旧警告3.41秒，最终包图/宿主仍待。"
   },
   {
     "name": "PurchaseOrderManagerQueryRepository",
@@ -1711,7 +1723,7 @@
   {
     "name": "SourceDeliveryQueryRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R18源链已退出，原箱单场景1真PG/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1735,7 +1747,7 @@
       "SwiftExport.Application.Tests/Shipping/PackingListDraftApiContractTests.cs",
       "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Sources.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R15三既有箱单/交付静态消费者前置已迁PG，13离线63ms；PackingListSourceQuery保留原三方法改为实际Dapper无网络捕获。箱单旧LocalDB消费者及其SourceDelivery旧实现依赖仍在，后续先迁有效行为再退出，不标已完成。；R18原箱单持久化/发票精确过滤与分页/审计失败回滚/命令重放1真PG362.6921ms通过；来源/客户/权限/日志端口沿用原夹具，头行/回执及搜索真实。SQL Server旧升级DDL属S退役，当前PG结构就绪及关联来源保存已验，不称PG升级幂等。50表52984旧行全摘要同，新14留存，序列96不变，连接锁进程0；三旧类型六文件固定SHA/HEAD/跟踪/外部消费者零复核后退出，最终构建0错误7旧警告5.91秒；最终源结构/包图/宿主待。"
   },
   {
     "name": "SqlAdminPasswordRecoveryStore",
@@ -1763,7 +1775,7 @@
   {
     "name": "SqlConnectionFactory",
     "batch": "P09-F：源工厂/分类器/泛型基类，最后基础设施撤包",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-F02无消费者旧源类型退出，公共接口保留及当前Infra构建通过；最终包/宿主待",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1787,12 +1799,12 @@
       "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs",
       "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。；F02固定原SHA/跟踪/当前HEAD无修改，全源只有两源定义互相引用，无外部消费者。只退出源工厂类/SqlClient using、源分类器，混合DbConnectionFactory文件保留原IDbConnectionFactory、默认PG分类表达式和CreateConnection签名；两行XML同步，结构重建完全相同。当前Infra0错误0警告0.84秒；不改PG工厂/分类器/会话/DI/配置/业务或包、不测试或连接数据库，最终S消费者/撤包/资产/宿主待。"
   },
   {
     "name": "SqlServerExceptionClassifier",
     "batch": "P09-F：源工厂/分类器/泛型基类，最后基础设施撤包",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-F02无消费者旧源类型退出，公共接口保留及当前Infra构建通过；最终包/宿主待",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1814,12 +1826,12 @@
       "SwiftExport.Application.Tests/Inventory/InboundManagerServiceTests.cs",
       "SwiftExport.Infrastructure/Data/DbConnectionFactory.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。；F02固定原SHA/跟踪/当前HEAD无修改，全源只有两源定义互相引用，无外部消费者。只退出源工厂类/SqlClient using、源分类器，混合DbConnectionFactory文件保留原IDbConnectionFactory、默认PG分类表达式和CreateConnection签名；两行XML同步，结构重建完全相同。当前Infra0错误0警告0.84秒；不改PG工厂/分类器/会话/DI/配置/业务或包、不测试或连接数据库，最终S消费者/撤包/资产/宿主待。"
   },
   {
     "name": "SqlServerSchemaGenerator",
     "batch": "P09-S：源结构生成入口/断言/基线",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-S04旧生成器及工具双库分支退出；旧SQL文件/其他S消费者另列保留",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -1842,7 +1854,7 @@
       "SwiftExport.Application.Tests/MasterData/SupplierProductNullableAssociationTests.cs",
       "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；S01五份当前结构契约迁PG，确定性/中文表列注释总数/完整来源身份/主产品约束/库存不可变与反向唯一/箱单数量创建幂等保留；八离线108ms和必要编译0错误7旧警告5.31秒通过，无库或生产源变化。旧生成器仍由工具消费，旧基线由LocalDB夹具及目录断言消费；源生成器未退出。；S02A原管理组合筛选1真PG526.6199ms及必要编译0错误7旧警告2.90秒通过，原创建/权限/回执/审计/九筛选与倒置拒绝保持，50表52998旧行同14新留存，库存序列96不变。旧LocalDB共享夹具消费者15→14含自身，其余及源工具/脚本仍待；本批不改共享夹具或生产源。；S02B原四单位贯穿持久/产品变化/列表追踪候选及未知复核1真PG315.8568ms、相关测试项目0错7旧警告13.56秒通过；50表53012旧行同8新留存/序列96保持，生产/公共夹具不改，LocalDB夹具消费者14→13含自身，源工具/其他有效消费者仍待。；S02C原共享收货方法18条业务断言逐字保持，真实6+6/7、分页、反向未知、历史/缺指纹/单位复核1真PG342.9889ms、必要编译0错7旧警告7.32秒通过；50表53020旧行摘要同15新留存至53035/序列96保持，LocalDB夹具13→12消费含自身，生产/PG/公共夹具未变。其他源工具/脚本/消费者和最后包/最终资产仍待。；S04实际生产/测试无消费者，旧生成器HEAD干净固定SHA获准退出。工具只有PG/无provider参数，必要工具编译0错1既有NU1900环境警告1.51秒、实际verify/无参生成通过，两基线完整SHA不变；旧LocalDB仍用SQL静态基线，保留不覆盖。源生成器退出与旧基线/测试消费者退出不同，其他S/最后包最终资产仍待。；S02D原来源采购/交付两方法47业务断言接当前PG正常DI/dv读取权限，交付首次通过/采购两夹具整数修正后1真PG369.2879ms通过，首败保留，第二方法和共用夹具字节还原SHA证明未改。50表53035旧行同13新、53048旧行同18新至53066/序列96保持；公共LocalDB夹具12→11消费含自身，生产/PG不变。源生成器已S04退出，其他源静态脚本/消费者和最后包/最终资产仍待。"
   },
   {
     "name": "SupplierProductRepository",
@@ -2109,7 +2121,7 @@
   {
     "name": "WarehouseManagementRepository",
     "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
-    "status": "待处理，前置P08",
+    "status": "验证通过：P09-R15源文件已退出，13既有箱单交付离线/必要构建通过",
     "owner": "主控",
     "parallel": "不可并行，主控串行分配",
     "prerequisites": [
@@ -2132,7 +2144,7 @@
       "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
       "SwiftExport.Application.Tests/Shipping/PackingListDraftApiContractTests.cs"
     ],
-    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；R15旧仓库最后静态消费者转现有PG，13现有相关场景63ms通过，草稿API/投诉号/净交付/来源准入/实际Dapper参数和分页断言保持；原源SHA/HEAD/跟踪/消费者复核后退出，最终必要编译0错误7旧警告3.37秒。无实库或结构验证。"
   },
   {
     "name": "WarehouseQueryRepository",

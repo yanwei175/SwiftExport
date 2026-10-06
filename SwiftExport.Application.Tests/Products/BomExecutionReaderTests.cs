@@ -11,7 +11,7 @@ using System.Runtime.CompilerServices;
 
 namespace SwiftExport.Application.Tests.Products;
 
-/// <summary>验证严格读取端口的事务前置条件、完整可达读取和数据库锁约束。</summary>
+/// <summary>验证读取端口的事务前置条件与完整可达读取；数据库锁协议由当前PG集成测试验收。</summary>
 [TestClass]
 public sealed class BomExecutionReaderTests
 {
@@ -53,20 +53,6 @@ public sealed class BomExecutionReaderTests
         repository.Products.Remove(child.Uid);
         var error = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => Reader(repository, true).ReadAsync(root.Uid));
         StringAssert.Contains(error.Message, "不存在");
-    }
-
-    /// <summary>仓储必须锁产品、组成和单位范围，按父Uid读取全部行而非用当前版本过滤掩盖异常。</summary>
-    [TestMethod]
-    public void StrictSql_PortLocksAllFactsWithinTransaction()
-    {
-        var source = Read("SwiftExport.Infrastructure", "Repositories", "Products", "BomExecutionRepository.cs");
-        Assert.AreEqual(3, source.Split("WITH(UPDLOCK,HOLDLOCK)", StringSplitOptions.None).Length - 1);
-        StringAssert.Contains(source, "WHERE Uid=@ProductId");
-        StringAssert.Contains(source, "WHERE ParentProductId=@ParentProductId");
-        StringAssert.Contains(source, "WHERE DictCode=N'Unit'");
-        Assert.IsFalse(source.Contains("NOLOCK", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("BomVersion=@", StringComparison.Ordinal));
-        StringAssert.Contains(source, "context.Session.Transaction is null");
     }
 
     /// <summary>测试只模拟会话中的事务引用，不构造连接、不读取连接字符串或访问业务库。</summary>
@@ -126,11 +112,4 @@ public sealed class BomExecutionReaderTests
         public void Dispose() { }
     }
 
-    private static string Read(params string[] parts)
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-            if (File.Exists(Path.Combine(directory.FullName, "AGENTS.md")))
-                return File.ReadAllText(Path.Combine(new[] { directory.FullName }.Concat(parts).ToArray()));
-        throw new AssertFailedException("无法定位仓库根目录。");
-    }
 }

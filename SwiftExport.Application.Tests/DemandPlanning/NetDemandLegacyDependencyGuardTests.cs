@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
+/// <summary>检查需求专项不重新引用旧需求或旧执行实体，并区分已迁移的仓储命名空间。</summary>
 [TestClass]
 public sealed class NetDemandLegacyDependencyGuardTests
 {
@@ -62,6 +63,12 @@ public sealed class NetDemandLegacyDependencyGuardTests
         @"<!--.*?-->|/\*.*?\*/|//[^\r\n]*|\$*""{3,}.*?""{3,}|\$?@""(?:""""|[^""])*""|@\$""(?:""""|[^""])*""|\$?""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline);
 
+    // 仅排除已迁移仓储的普通 using；类型别名、实体引用和其他 using 仍参与旧实体检查。
+    private static readonly Regex CurrentInboundRepositoryImport = new(
+        @"\busing\s+SwiftExport\.Infrastructure\.Repositories\.Inventory\.Inbounds\s*;",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    /// <summary>遍历需求专项实际源码，报告所有旧需求链或执行实体依赖的位置。</summary>
     [TestMethod]
     public void NetDemandSpecialty_MustNotReferenceLegacyDemandChain()
     {
@@ -97,6 +104,21 @@ public sealed class NetDemandLegacyDependencyGuardTests
             + string.Join(Environment.NewLine, violations));
     }
 
+    /// <summary>验证新入库仓储命名空间不会误报，同时旧实体、别名与仓储违规仍能被发现。</summary>
+    [TestMethod]
+    [DataRow("using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;", false)]
+    [DataRow("using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds; Inventory item;", true)]
+    [DataRow("Inventory item;", true)]
+    [DataRow("SwiftExport.Core.Entities.Inventory item;", true)]
+    [DataRow("using OldInventory = SwiftExport.Core.Entities.Inventory;", true)]
+    [DataRow("IInventoryRepository repository;", true)]
+    [DataRow("IndependentDemand demand;", true)]
+    public void LegacyGuard_DistinguishesCurrentNamespaceFromForbiddenTypes(string source, bool expectedViolation)
+    {
+        var codeOnly = GetDependencyCode(source);
+        Assert.AreEqual(expectedViolation, ForbiddenDependencies.Any(rule => rule.Pattern.IsMatch(codeOnly)));
+    }
+
     private static bool ContainsBuildOutputDirectory(string path)
     {
         var segments = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -104,10 +126,11 @@ public sealed class NetDemandLegacyDependencyGuardTests
             || string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>屏蔽注释、字面量和限定的新入库仓储导入，按原行号检查剩余类型引用。</summary>
     private static void InspectFile(string repositoryRoot, string sourceFile, ICollection<string> violations)
     {
         var source = File.ReadAllText(sourceFile);
-        var codeOnly = IgnoredSourceText.Replace(source, match => MaskButKeepLineBreaks(match.Value));
+        var codeOnly = GetDependencyCode(source);
         var relativeFile = Path.GetRelativePath(repositoryRoot, sourceFile).Replace('\\', '/');
 
         foreach (var rule in ForbiddenDependencies)
@@ -118,6 +141,13 @@ public sealed class NetDemandLegacyDependencyGuardTests
                 violations.Add($"- {relativeFile}:{lineNumber} [{rule.Name}] {match.Value}");
             }
         }
+    }
+
+    /// <summary>保留行号并只移除非代码文本及已确认的普通仓储命名空间导入。</summary>
+    private static string GetDependencyCode(string source)
+    {
+        var codeOnly = IgnoredSourceText.Replace(source, match => MaskButKeepLineBreaks(match.Value));
+        return CurrentInboundRepositoryImport.Replace(codeOnly, match => MaskButKeepLineBreaks(match.Value));
     }
 
     private static string MaskButKeepLineBreaks(string sourceText)

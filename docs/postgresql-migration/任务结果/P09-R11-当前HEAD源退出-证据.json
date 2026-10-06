@@ -1,0 +1,27 @@
+{
+  "recorded_at": "2026-10-06T12:36:21.2476605+08:00",
+  "path": "SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs",
+  "current_sha256": "0DDAE30D90FE9F268665AF4394C96BE24473030936AE39EDB4B6192B7DAF9378",
+  "saved_original_bytes_sha256": "0DDAE30D90FE9F268665AF4394C96BE24473030936AE39EDB4B6192B7DAF9378",
+  "head": "e653ea5f75d3b33e3a014f2ac875f8a4d8f60ac9",
+  "head_blob": "f1d0dcb3ff2515f45ed0847af9b4870b5b423d97",
+  "working_blob": "f1d0dcb3ff2515f45ed0847af9b4870b5b423d97",
+  "tracked_head_clean": true,
+  "consumers": [
+    ".\\SwiftExport.Infrastructure\\Repositories\\MasterData\\ExecutionEligibilityRepository.cs"
+  ],
+  "old_rejection_condition_changed": true,
+  "previous_rejection_preserved": true,
+  "current_source_exit_authorization": "持续SQLServer源退出，当前无未提交成果需额外删除授权",
+  "removed": true,
+  "validation": {
+    "exit": 0,
+    "source_proof": "P09-S02E-四库收口-源码保护证据.json",
+    "warnings": 0,
+    "database_or_test_repeat": false,
+    "command": "dotnet build SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj --no-restore -v minimal",
+    "errors": 0,
+    "current_consumer_count": 0,
+    "seconds": 1.04
+  }
+}

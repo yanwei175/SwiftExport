@@ -49,32 +49,34 @@ public sealed class SalesSourceDemandContractTests
         Assert.IsFalse(method.Contains("RollbackAsync", StringComparison.Ordinal));
     }
 
+    /// <summary>PG 基线保存完整来源身份及可空历史字段，只建结构，不回填单据历史。</summary>
     [TestMethod]
     public void GeneratedSchemaUsesFullSourceIdentityWithoutHistoricalMigration()
     {
-        var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
-        StringAssert.Contains(baseline, "[SourceVersion] int NULL");
-        StringAssert.Contains(baseline, "[CustomerId] uniqueidentifier NULL");
-        StringAssert.Contains(baseline, "[SourceType] nvarchar");
-        StringAssert.Contains(baseline, "[SourceUid] uniqueidentifier");
-        StringAssert.Contains(baseline, "[SourceLineId] uniqueidentifier");
-        Assert.IsFalse(baseline.Contains("UPDATE dbo.", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(baseline.Contains("INSERT dbo.", StringComparison.OrdinalIgnoreCase));
+        var baseline = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.PostgreSql.Schema.preview.sql");
+        StringAssert.Contains(baseline, "\"source_version\" integer NULL");
+        StringAssert.Contains(baseline, "\"customer_id\" uuid NULL");
+        StringAssert.Contains(baseline, "\"source_type\" varchar");
+        StringAssert.Contains(baseline, "\"source_uid\" uuid");
+        StringAssert.Contains(baseline, "\"source_line_id\" uuid");
+        Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(baseline, @"\bUPDATE\s+(?:public|""public"")\.", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(baseline, @"\bINSERT\s+(?:INTO\s+)?(?:public|""public"")\.", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
     }
 
-    /// <summary>来源接收继续借用调用方事务，并使用 PG 既有范围准备和行锁；审计读取的原边界保留。</summary>
+    /// <summary>来源接收继续借用调用方事务，并使用 PG 既有范围准备和行锁；审计命令读取沿用现有 PG 互斥和行锁。</summary>
     [TestMethod]
     public void ReceptionLocksIdempotencyAndSourceRangesInsideCallerTransaction()
     {
         var reception = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
         var demandRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "PostgreSqlGrossDemandDocumentRepository.cs");
-        var logRepository = Read("SwiftExport.Infrastructure", "Repositories", "Auditing", "BusinessOperationLogRepository.cs");
+        var logRepository = Read("SwiftExport.Infrastructure", "Repositories", "Auditing", "PostgreSqlBusinessOperationLogRepository.cs");
 
         StringAssert.Contains(reception, "TRANSACTION_REQUIRED");
         StringAssert.Contains(demandRepository, "PostgreSqlSourceDemandLock.AcquireBeforeTransactionAsync");
         StringAssert.Contains(demandRepository, "InScope([sourceUid], []");
         StringAssert.Contains(demandRepository, "FOR UPDATE;");
-        StringAssert.Contains(logRepository, "WITH(UPDLOCK,HOLDLOCK)");
+        StringAssert.Contains(logRepository, "await LockCommandAsync(commandId);");
+        StringAssert.Contains(logRepository, "command_id=@CommandId AND is_deleted=FALSE FOR UPDATE");
     }
 
     private static string Read(params string[] parts) => File.ReadAllText(Path.Combine(new[] { Root() }.Concat(parts).ToArray()));

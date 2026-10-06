@@ -1,0 +1,136 @@
+{
+  "recorded_at": "2026-10-06T09:52:15.4595183+08:00",
+  "stage": "P09-R15箱单与交付静态消费者转PG，旧仓库管理退出",
+  "status": "本批完成：三既有消费者13离线通过，旧仓库管理退出；非结构/实库/整体完成",
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Shipping/PackingListDraftApiContractTests.cs",
+      "before_sha256": "3740B82498ADD7D42820789F9C4274D0D8FA082EEC672DC0263F6EF9E1938725",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "352EAF3FC78B65FFC00CA8AE12877F79E59458D8397DB3CC09CE1C321E58B12E"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Shipping/PackingListSourceQueryTests.cs",
+      "before_sha256": "6DFC76DF882C4FB5D37BA3F66657AC8A4FBC1E2361CE1E3F6A3E7C3EA3F9A747",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "6AADA729CC65C8B27EBDE35AC7076E82DB0A504D5F8BC213891C0F262E8758BE"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+      "before_sha256": "0FDA0D37C0D4DEEC71A61E7151CCEF204A2F828A5C34687468A27D7B90F7038D",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "AE467431BD38CA17AB275CADA3DB35E424599592E01002C3B4EBF1BC0FE7EC57"
+    }
+  ],
+  "files": [
+    {
+      "name": "WarehouseManagementRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseManagementRepository.cs",
+      "sha256": "EDF79B57749D529D79709F26A8B039534D7312170BEDD64066786A0C1A6B85C6",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/PostgreSqlWarehouseManagementRepository.cs"
+      ],
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseManagementRepository.cs"
+      ]
+    }
+  ],
+  "scope": "三个原测试文件，共13场景，原业务断言保留；PG无独立来源SQL构造函数，原文件内捕获真实Dapper命令/参数，不为测试拆生产仓储。仅旧仓库管理退出；箱单/交付旧实现仍有LocalDB/源间消费暂保留。PG生产/业务/接口/DI/结构/配置/数据库不改，执行资格审批源保留，无全量/新矩阵",
+  "database_run": false,
+  "preflight_at": "2026-10-06T09:57:30.8587955+08:00",
+  "completed_at": "2026-10-06T09:58:51.7879475+08:00",
+  "execution": {
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_seconds": [
+      2.85,
+      2.72,
+      2.68,
+      2.69,
+      3.37
+    ],
+    "first_build_warnings": 8,
+    "new_warning": "本批新恒真枚举断言产生MSTEST0032，改为枚举值直接拼入SQL匹配后消除；原七警告保持",
+    "final_build_existing_warnings": 7,
+    "test_commands": [
+      "& './docs/postgresql-migration/任务结果/P09-R15-箱单交付契约-首轮实际命令.ps1'",
+      "& './docs/postgresql-migration/任务结果/P09-R15-来源查询夹具修正-实际命令.ps1'",
+      "& './docs/postgresql-migration/任务结果/P09-R15-箱单交付契约-实际命令.ps1'"
+    ],
+    "runs": [
+      {
+        "path": "TestResults/postgresql-migration/p09-r15-shipping-delivery-before-capture-open-failed.trx",
+        "sha256": "D6D59D60755A01F3952EF6D2F47D96CD9A1874ED86BF5EC64768B402FC23AD10",
+        "exit": 1,
+        "passed": 10,
+        "failed": 3,
+        "skipped": 0,
+        "duration_ms": 69,
+        "reason": "13首轮10通过3失败，捕获连接Open拒绝DbSession构造，尚未执行查询"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r15-source-query-capture-offline.trx",
+        "sha256": "EED29C8D4EACBBEE462CE044569328CEDECF7D8C85C7E748820FE1A5C17CD8D4",
+        "exit": 0,
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 42,
+        "reason": "修正捕获连接Open空操作，只重跑受影响3来源查询"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r15-shipping-delivery-consumers-offline.trx",
+        "sha256": "DC01193C7719115CAEF8B3910B7D3F59F10628453C86407238FC31B70289781E",
+        "exit": 0,
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "duration_ms": 63,
+        "reason": "三个文件PG引用/物理标识符禁止依赖断言补齐后，相关13最终通过"
+      }
+    ],
+    "database_gates": 13,
+    "excluded_integration_categories": 37,
+    "capture": "原三测试方法保持，原文件内部记录连接/命令只借Npgsql参数容器；DbSession.Open为空操作，没有真实连接。仅专用SqlCapturedException终止实际Dapper reader，其他异常不得视为成功；原builder5参数改完整查询8固定+2去重词共10，逻辑不变",
+    "source_only_deleted": 1,
+    "source_exit_types": 65,
+    "source_exit_files": 71,
+    "remaining": 11,
+    "R": 7,
+    "S": 1,
+    "F": 3,
+    "legacy_schema_case": "PackingListDraftApiContractTests.DraftPersistence_RequiresPositiveQuantityAndUniqueCreateCommand仍原SQL Server基线约束/表存在检查，待S，不当PG结构验证",
+    "deferred": "箱单LocalDB行为/旧SourceDelivery依赖未迁，旧实现未删；执行资格审批文件原样",
+    "database_run": false,
+    "preliminary_read_errors": "两次猜测测试文件路径不存在/输出超预算截断，后改实际文件枚举和分段读取；无源码或数据库动作"
+  },
+  "final_checks": {
+    "recorded_at": "2026-10-06T10:00:41.1289044+08:00",
+    "scoped_git_diff_check_exit": 0,
+    "test_source_sha_matches": true,
+    "execution_eligibility_original_sha_unchanged": true,
+    "testhost_vstest_processes": 0,
+    "fixed_sources": 2390,
+    "expected_old_missing": 71,
+    "changed_tests": 42,
+    "prior_tool_projects": 2,
+    "unexpected_sources": 0,
+    "deferred_packing_delivery_current_references": [
+      ".\\SwiftExport.Application.Tests\\Shipping\\PackingListDraftLocalDbTests.cs:42:            var repository = new PackingListRepository(context);",
+      ".\\SwiftExport.Application.Tests\\Shipping\\PackingListDraftLocalDbTests.cs:80:    private static async Task VerifyInvoiceQueryAsync(DbSession session, PackingListRepository repository)",
+      ".\\SwiftExport.Application.Tests\\Shipping\\PackingListDraftLocalDbTests.cs:105:    private static async Task Save(PackingListRepository repository, DbSession session, SwiftExport.Core.Entities.Shipping.PackingListHead head, IReadOnlyList<SwiftExport.Core.Entities.Shipping.PackingListLine> lines)",
+      ".\\SwiftExport.Infrastructure\\Repositories\\Shipping\\SourceDeliveryQueryRepository.cs:12:public sealed class SourceDeliveryQueryRepository(RepositoryBaseContext context) : ISourceDeliveryQueryRepository",
+      ".\\SwiftExport.Infrastructure\\Repositories\\Shipping\\PackingLists\\PackingListRepository.Sources.cs:11:public sealed partial class PackingListRepository",
+      ".\\SwiftExport.Infrastructure\\Repositories\\Shipping\\PackingLists\\PackingListRepository.Sources.cs:51:        return SourceDeliveryQueryRepository.Projection(false) + $\"\"\"",
+      ".\\SwiftExport.Infrastructure\\Repositories\\Shipping\\PackingLists\\PackingListRepository.SourceExit.cs:15:public sealed partial class PackingListRepository",
+      ".\\SwiftExport.Infrastructure\\Repositories\\Shipping\\PackingLists\\PackingListRepository.Query.cs:15:public sealed partial class PackingListRepository",
+      ".\\SwiftExport.Infrastructure\\Repositories\\Shipping\\PackingLists\\PackingListRepository.cs:15:public sealed partial class PackingListRepository(RepositoryBaseContext context) :"
+    ],
+    "goal_status": "active",
+    "main_batch_status": "STOPPED",
+    "no_commit_merge_push": true,
+    "no_full_or_database_tests": true
+  }
+}

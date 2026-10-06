@@ -21,9 +21,9 @@ GroupCode 使用客户端注册的稳定导入分组，创建后不可修改。T
 
 活动配置的 `GroupCode + ConfigName` 唯一；活动字段的 `ProfileUid + TargetFieldKey` 唯一。名称允许软删除后复用。ProfileUid 为逻辑关系，不生成数据库 FOREIGN KEY。
 
-数据库结构以实体元数据为权威，由现有 SchemaGenerator 生成 `SwiftExport.Infrastructure/Database/Generated/SwiftExport.Schema.sql`。完整基线只能用于已创建的空库，不能在既有业务库执行。
+数据库结构以实体元数据为权威，由现有 SchemaGenerator 生成 `SwiftExport.Infrastructure/Database/Generated/SwiftExport.PostgreSql.Schema.preview.sql`。完整基线只能用于已创建的空库，不能在既有业务库执行；生成与部署是不同步骤。
 
-用户后续明确要求提供建表及必要初始化数据，因此另提供 `SwiftExport.Infrastructure/Database/Excel单据地址读取配置建表与初始化.sql`，仅为既有库创建这两个新表，插入 SalesOrder、PurchaseOrder 各一份默认空配置。其结构、索引、CHECK 和中文描述均提取自实体生成基线。该脚本不是通用旧库升级器：不修改其他表，已存在的目标表列结构不兼容时拒绝执行，不迁移旧表头配置。脚本不插入任何字段地址，不覆盖用户修改，也不恢复已软删除的默认配置；默认配置需由客户端补齐后才能读取。本次未连接业务库执行，使用时先在 SSMS 选择目标业务数据库。
+2026-10-06：旧SQL Server双表增量建表及默认空配置脚本、其专属LocalDB测试已退役，无生产或工具调用方。现有两配置十字段已由P05迁入PG，R16、M05及G6分别保留生命周期、快照/并发与实际API证据，见[主迁移清单](postgresql-migration/主迁移清单.md)。不重新初始化、覆盖用户修改或恢复软删除配置；未完整配置的记录继续不能读取。本次不新增PG自动种子功能，下面2026-10-01结果为原SQL Server历史。
 
 ## 读取规则
 
@@ -93,7 +93,7 @@ dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj --no-restor
 dotnet test .\SwiftExport.Application.Tests\SwiftExport.Application.Tests.csproj --no-restore --filter "FullyQualifiedName~ExcelReadProfile|FullyQualifiedName~EndpointPermissionFilterTests|FullyQualifiedName~EntityDrivenSchemaContractTests"
 ```
 
-真实数据库测试需设置 SWIFTEXPORT_RUN_LOCALDB_TESTS=1；测试自行创建带随机 Guid 的临时 LocalDB 空库，执行真实生成基线，完成后只清理该测试库。
+当前真实数据库测试使用PG隔离库，具体实例、库名、门禁及写入范围见主迁移清单对应结果命令。原LocalDB初始化专项已退役；不得将上述过滤命令或历史建库说明当作清空现有PG库的授权。
 
 ## 本次交付验证（2026-10-01）
 

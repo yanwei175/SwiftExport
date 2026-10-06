@@ -1,0 +1,53 @@
+{
+  "recorded_at": "2026-10-06T11:00:52.2596273+08:00",
+  "stage": "P09-F01无消费者旧通用仓储退出",
+  "status": "本批验证通过：旧无消费者DapperRepository源退出及一行审计XML说明同步；F整体撤包/资产/宿主未完成",
+  "source": {
+    "references": [
+      "SwiftExport.Infrastructure/Services/Auth/AuditStampService.cs",
+      "SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs"
+    ],
+    "path": "SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs",
+    "fixed_sha256": "4DC73D3E698C3ED6C62EF75186DA1D13C8FBBA13DD04503581410C09BB5F0435",
+    "tracked_head_unmodified": true
+  },
+  "audit_comment": {
+    "old_line": "/// 在 DapperRepository 的 Create/Update 前调用，业务代码无需手动赋值 CreatedBy/UpdatedBy。",
+    "path": "SwiftExport.Infrastructure/Services/Auth/AuditStampService.cs",
+    "before_sha256": "7E82ACA804F21F7E8308D0D2F4040BBEB47BE71B7294371A39128DCA75688525",
+    "new_line": "/// 在 PostgreSqlDapperRepository 的 Create/Update 前调用，业务代码无需手动赋值 CreatedBy/UpdatedBy。",
+    "before_text": "using SwiftExport.Core.Common;\r\nusing SwiftExport.Core.Interfaces.Auth;\r\n\r\nnamespace SwiftExport.Infrastructure.Services.Auth;\r\n\r\n/// <summary>\r\n/// 审计字段自动打戳服务实现。\r\n/// 在 DapperRepository 的 Create/Update 前调用，业务代码无需手动赋值 CreatedBy/UpdatedBy。\r\n/// </summary>\r\npublic class AuditStampService(ICurrentUser currentUser) : IAuditStampService\r\n{\r\n    private readonly ICurrentUser _currentUser = currentUser;\r\n\r\n    /// <summary>\r\n    /// 新增前打戳：填充 CreatedDate、CreatedBy，同时也填充 UpdatedDate、UpdatedBy。\r\n    /// </summary>\r\n    public void StampForInsert(BaseEntity entity)\r\n    {\r\n        var now = DateTime.Now;\r\n        var user = _currentUser.UserName;\r\n\r\n        // 只在未赋值时才覆盖，避免业务层显式指定时被覆盖\r\n        entity.CreatedDate ??= now;\r\n        entity.CreatedBy ??= user;\r\n        entity.UpdatedDate ??= now;\r\n        entity.UpdatedBy ??= user;\r\n    }\r\n\r\n    /// <summary>\r\n    /// 更新前打戳：强制刷新 UpdatedDate、UpdatedBy（始终覆盖，确保记录最新操作人）。\r\n    /// </summary>\r\n    public void StampForUpdate(BaseEntity entity)\r\n    {\r\n        entity.UpdatedDate = DateTime.Now;\r\n        entity.UpdatedBy = _currentUser.UserName;\r\n    }\r\n}\r\n",
+    "prior_diff": [],
+    "after_sha256": "B5E57ABE88D3C3971D5DF3CD2A5CC3C93DA8E4D6EF5EFB8E4769EC89F48C49A9",
+    "only_one_xml_line_changed": true
+  },
+  "scope": "主控串行，只退固定SHA/HEAD无修改的无消费者旧泛型仓储，并同步一行审计职责XML说明。PG泛型/审计行为/DI/接口/配置/其他生产源不改；必要Infrastructure编译，不增加或重跑测试，不连接数据库。",
+  "prerequisites": "P08迁移范围/G6已验；R12通用现有四测试58离线、R13六原真实自动过账、后续专用仓储消费者已接续，当前只定义和XML说明，无运行消费者。",
+  "completed_at": "2026-10-06T11:02:25.8950919+08:00",
+  "execution": {
+    "package_change": false,
+    "unexpected_missing": 0,
+    "exited_files": 80,
+    "changed_tests": 50,
+    "old_type_references": 0,
+    "build_command": "dotnet build SwiftExport.Infrastructure/SwiftExport.Infrastructure.csproj --no-restore -v minimal",
+    "business_or_audit_behavior_change": false,
+    "unexpected_production_changes": 0,
+    "database_connection": false,
+    "tests_run": false,
+    "source_protection": "P09-F01-源码保护证据.json",
+    "new_sources": 0,
+    "errors": 0,
+    "ddl": false,
+    "warnings": 0,
+    "new_pg_repository_or_interface": false,
+    "build_seconds": 0.85,
+    "exited_types": 71,
+    "commit_merge_push": false,
+    "remaining_types": 5,
+    "build_exit": 0,
+    "reason": "只退无消费者固定源和一行XML说明，PG/审计可执行代码未改；必要受影响项目编译及零引用/完整源码保护足够，本批不重复通用/实库绿色或全量。此前历史通过仍作为带SHA历史证据，不标本批已重跑。",
+    "future_protection": "后续源码核对须明确允许本批一行XML变更并校验该afterSHA或原文重建，不能把任意AuditStampService行为变更列入允许范围；历史脚本按当时边界保留。",
+    "test_processes_after": 0
+  }
+}

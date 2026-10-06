@@ -1,0 +1,156 @@
+{
+  "recorded_at": "2026-10-06T10:29:16.2294154+08:00",
+  "stage": "P09-R18箱单原持久化/来源发票/回执消费者迁PG及三旧类型退出",
+  "status": "本批完成：原箱单场景1真PG通过，三旧类型六文件退出；SQL Server旧升级DDL属S，整体P09未完成",
+  "test": {
+    "prior_uncommitted_diff": [],
+    "before_sha256": "3E2BE3444F02E86E1FA9FD2E6B79244366AFC2E31344BBA47B9211AC7A06D4C1",
+    "path": "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs",
+    "after_sha256": "23ADEF11D5AE46FC0CE96D56B0155C33143A7F40AC347D9412EEFDE3C233610E"
+  },
+  "files": [
+    {
+      "name": "CommandReceiptRepository",
+      "prior_uncommitted_diff": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Commands/PostgreSqlCommandReceiptRepository.cs"
+      ],
+      "fixed_sha256": "9B307A720C453AFCFB1702E739578531B1A2416AF4A5F0C2D78740EBDB43D8D4",
+      "before_sha256": "9B307A720C453AFCFB1702E739578531B1A2416AF4A5F0C2D78740EBDB43D8D4",
+      "path": "SwiftExport.Infrastructure/Repositories/Commands/CommandReceiptRepository.cs"
+    },
+    {
+      "name": "PackingListRepository",
+      "prior_uncommitted_diff": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListRepository.cs"
+      ],
+      "fixed_sha256": "F1C4ECF5403C09669309E0981BD7273231B6223BB05E49079C405CBF4A525C94",
+      "before_sha256": "F1C4ECF5403C09669309E0981BD7273231B6223BB05E49079C405CBF4A525C94",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.cs"
+    },
+    {
+      "name": "PackingListRepository",
+      "prior_uncommitted_diff": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListRepository.cs"
+      ],
+      "fixed_sha256": "6F7B1256934F38269A582B07A63A018DFAE978B91907AFD0B71E5883D35B5F5D",
+      "before_sha256": "6F7B1256934F38269A582B07A63A018DFAE978B91907AFD0B71E5883D35B5F5D",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Query.cs"
+    },
+    {
+      "name": "PackingListRepository",
+      "prior_uncommitted_diff": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListRepository.cs"
+      ],
+      "fixed_sha256": "E3D68670B39AE3770B011843E78D4950A33E1EE4E516381BE0807C461FA67DA1",
+      "before_sha256": "E3D68670B39AE3770B011843E78D4950A33E1EE4E516381BE0807C461FA67DA1",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.SourceExit.cs"
+    },
+    {
+      "name": "PackingListRepository",
+      "prior_uncommitted_diff": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListRepository.cs"
+      ],
+      "fixed_sha256": "438173E28F7CE5D3E638E5E0BB1FD518525B7786717AC9FEB2D571BF14B89163",
+      "before_sha256": "438173E28F7CE5D3E638E5E0BB1FD518525B7786717AC9FEB2D571BF14B89163",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Sources.cs"
+    },
+    {
+      "name": "SourceDeliveryQueryRepository",
+      "prior_uncommitted_diff": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PostgreSqlSourceDeliveryQueryRepository.cs"
+      ],
+      "fixed_sha256": "23F44295CF1B9931E00D98B09BF702071CB36FE9FF793CD09B66F2DE016E5063",
+      "before_sha256": "23F44295CF1B9931E00D98B09BF702071CB36FE9FF793CD09B66F2DE016E5063",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/SourceDeliveryQueryRepository.cs"
+    }
+  ],
+  "scope": "只原一个箱单实库方法及原两个辅助方法，业务断言保持；原来源/客户/权限/审计失败端口沿用夹具，只有PG头行/回执/发票搜索及结构就绪实际连接。failure随机新身份，保护50表全部旧行，成功事实留存，无DDL/清理/运行或备份写入，不新增矩阵或窗口。只原测试文件、复核零消费三旧类六文件及主控文档，不改PG/业务/接口/API/DI/配置。",
+  "schema_scope_decision": "SQL Server旧升级脚本的旧结构模拟/DDL幂等属于源专用部署，不为最终PG提供旧SQL结构兼容；列S源结构退役，不声称本批实测PG升级幂等。当前PG实库保留schema-ready/来源列可空、已关联来源不丢失及新增未关联保存断言。旧脚本仍保留待S，不在既有库施加旧结构或新增迁移框架。",
+  "preflight": {
+    "old_rows": 52984,
+    "protected_tables": 50,
+    "scope": "仅三旧类型/六源专用文件，其依赖消费整体退出，无共享接口文件删除。",
+    "original_rows_unchanged": true,
+    "sequence_before": 96,
+    "current_reference_files": [
+      "SwiftExport.Infrastructure/Repositories/Shipping/SourceDeliveryQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Sources.cs",
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.SourceExit.cs",
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Query.cs",
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Commands/CommandReceiptRepository.cs"
+    ],
+    "at": "2026-10-06T10:35:50.3422451+08:00",
+    "retained_new_rows": 14,
+    "sequence_after": 96,
+    "tracked_head_unmodified": true
+  },
+  "completed_at": "2026-10-06T10:37:59.4341662+08:00",
+  "execution": {
+    "sequence_after": 96,
+    "removed_source_gate": "SWIFTEXPORT_RUN_PACKING_LOCALDB_TESTS",
+    "local_command_issues": "一处只读猜测PackingListDraftService.Persistence.cs不存在，未改文件或数据库，随后rg --files发现真实实现并读取；一次进程查询无匹配返回exit1而非测试/编译失败。",
+    "pg_upgrade_idempotence_tested": false,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R18-箱单原持久化-实际命令.ps1'",
+    "current_rows": 52998,
+    "tests": {
+      "total": 1,
+      "host_seconds": "约2秒，含50表原数据保护",
+      "method_seconds": 0.3626921,
+      "failed": 0,
+      "skipped": 0,
+      "passed": 1
+    },
+    "other_database_clients_after": 0,
+    "ddl": false,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "original_rows_unchanged": true,
+    "sql_server_upgrade_artifacts": "保留待S源结构退役",
+    "protected_old_rows": 52984,
+    "removed_source_category": "SqlServerIntegration",
+    "integration_categories_current": 36,
+    "sequence_before": 96,
+    "runtime_or_backup_write": false,
+    "builds": [
+      {
+        "exit": 0,
+        "existing_warnings": 7,
+        "seconds": 6.89,
+        "stage": "原测试迁PG后必要编译",
+        "errors": 0
+      },
+      {
+        "exit": 0,
+        "existing_warnings": 7,
+        "seconds": 5.91,
+        "stage": "三旧类型六文件退出后必要编译；测试/PG源未变，不重跑已绿实库",
+        "errors": 0
+      }
+    ],
+    "retained_added_rows": 14,
+    "historical_scripts": "历史命令中的13门禁/37分类是当时实际范围，不改历史记录或照搬重放；后续命令必须按当前12/36重新核对。",
+    "commit_merge_push": false,
+    "full_test_run": false,
+    "protected_tables": 50,
+    "advisory_locks_after": 0,
+    "artifacts": [
+      {
+        "path": "TestResults/postgresql-migration/p09-r18-packing-persistence-pg.trx",
+        "sha256": "2678C50AE509F86E2138C84E5643C5527A137945F86ED5708B3E62A276DE222E"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r18-packing-data-protection.json",
+        "sha256": "44DE3ECD48486D42356A299E2F9AA1E79AE11C422E83368B5B9814B7B755A815"
+      }
+    ],
+    "gates_current": 12,
+    "test_processes_after": 0,
+    "repeated_green_database_run": false
+  }
+}

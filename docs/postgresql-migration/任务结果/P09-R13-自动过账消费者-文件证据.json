@@ -1,0 +1,253 @@
+{
+  "recorded_at": "2026-10-06T09:25:44.1570244+08:00",
+  "stage": "P09-R13六既有自动过账场景转PG",
+  "status": "本批完成：六既有真实PG通过，八无消费者旧文件退出；非整体完成",
+  "test": {
+    "path": "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+    "before_sha256": "AEA44A2E097838D5B8B37968692295A315FACB5632E24D4AD8EAF6EFAFCCA9CD",
+    "prior_uncommitted_diff": [],
+    "after_sha256": "96C2FD55E74BEA87708C87D2D26B685F42562FC85BFDFD53D518992BF0616AAE"
+  },
+  "scope": "只既有六测试夹具方言/仓储、原50表摘要保护和记录，不改生产/业务/接口/DI/结构，不清库/重置/导入，不写运行或备份；源删除待消费者/保护/HEAD复核后限定",
+  "database_scope": "仅192.168.3.12:5432/dv_next_pg_failure_tests_20261004/public主控串行。使用随机新身份、未占用未来月份，成功新事实/号段留存；原50表全部旧Uid全行摘要不变；原序列只随被测库存内核新增事实自然推进，记录前后，不重置",
+  "database_run": true,
+  "approval_pending": "执行资格原文件保持待针对性授权，不绕过",
+  "files": [
+    {
+      "name": "AutomaticDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/AutomaticDocuments/AutomaticDocumentRepository.cs",
+      "sha256": "8F1340900256C748E9F22DA65DC9C197A972B8CC568E6C2CD007B59885D95DBE",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/AutomaticDocuments/AutomaticDocumentRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/AutomaticDocuments/PostgreSqlAutomaticDocumentRepository.cs"
+      ]
+    },
+    {
+      "name": "DocumentSequenceRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Systems/Numbering/DocumentSequenceRepository.cs",
+      "sha256": "8C3200097E3FC06DEFA05CFDB5F6A0B9751072902CB00B8BB06B3B21FFCA7D0E",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Systems/Numbering/DocumentSequenceRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Systems/Numbering/PostgreSqlDocumentSequenceRepository.cs"
+      ]
+    },
+    {
+      "name": "InboundReceiptHistorySql",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundReceiptHistorySql.cs",
+      "sha256": "F21A76AFDE0BFD639D0EF44E2CAF4C93C83DE2062819191D523A85B48CECCC66",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundSourceRepository.cs",
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundReceiptHistorySql.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundReceiptHistoryGuard.cs"
+      ]
+    },
+    {
+      "name": "InboundSourceRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundSourceRepository.cs",
+      "sha256": "F08BB131A26FDAD304B70B4CE9F49730E968EBF97CF572DFBA07AA922F105B26",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundSourceRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundSourceRepository.cs"
+      ]
+    },
+    {
+      "name": "OutboundDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundDocumentRepository.cs",
+      "sha256": "5B0CEFC670BDC94629B28304F6B24A7F36774CD967B371344FA1F84E858531BA",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundDocumentRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/PostgreSqlOutboundDocumentRepository.cs"
+      ]
+    },
+    {
+      "name": "OutboundExecutionReadRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundExecutionReadRepository.cs",
+      "sha256": "F605E021D9D4753B04D4436F8D079DFF58E99675C4451A5BCC52E4F656EFA10E",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundExecutionReadRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/PostgreSqlOutboundExecutionReadRepository.cs"
+      ]
+    },
+    {
+      "name": "PackingListExecutionRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListExecutionRepository.cs",
+      "sha256": "4B536E5DF79F6518784CF72BD6242EA81AED8E53ADAACBF3AD3B9BFDB40ED3F7",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListExecutionRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListExecutionRepository.cs"
+      ]
+    },
+    {
+      "name": "PackingListPostingFactsRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListPostingFactsRepository.cs",
+      "sha256": "23CB99FE0E276ED4C8C94FE978EC13B4C0F2EB3396ECCCA22FF828D97408BC52",
+      "tracked_head_unmodified": true,
+      "current_reference_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListPostingFactsRepository.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListPostingFactsRepository.cs"
+      ]
+    }
+  ],
+  "deletion_preflight_at": "2026-10-06T09:38:42.6948449+08:00",
+  "execution": {
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_seconds": [
+      11.91,
+      4.98,
+      2.74,
+      2.71,
+      3.25
+    ],
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R13-自动过账消费者-实际命令.ps1'",
+    "runs": [
+      {
+        "trx": "TestResults/postgresql-migration/p09-r13-automatic-posting-first-environment-failed.trx",
+        "sha256": "13BB7DB006A88B48D6CB51B42A50D24A0F344802E800BACA88F4AF309670A35A",
+        "exit": 1,
+        "passed": 0,
+        "failed": 6,
+        "skipped": 0,
+        "reason": "ClassInitialize其他连接数量1，未捕获状态，主体未进入",
+        "start": "2026-10-06T09:29:02.9845205+08:00",
+        "finish": "2026-10-06T09:29:04.1181996+08:00"
+      },
+      {
+        "trx": "TestResults/postgresql-migration/p09-r13-automatic-posting-before-preparation-failed.trx",
+        "sha256": "AC002391C188285C41B88EFE723C41888AC16F8C9BFA95756E2E12108B52BD59",
+        "exit": 1,
+        "passed": 4,
+        "failed": 2,
+        "skipped": 0,
+        "reason": "两个Serializable手工夹具未取得事务前命令租约",
+        "start": "2026-10-06T09:31:03.1058522+08:00",
+        "finish": "2026-10-06T09:31:07.6565514+08:00"
+      },
+      {
+        "trx": "TestResults/postgresql-migration/p09-r13-automatic-posting-before-parent-preparation-failed.trx",
+        "sha256": "B8EBA3F235F7BF043F2623D524C135DE9BA97F03E895EFF6F8134C6EFE48CE74",
+        "exit": 1,
+        "passed": 4,
+        "failed": 2,
+        "skipped": 0,
+        "reason": "两个手工夹具只准备子租约但没有父租约",
+        "start": "2026-10-06T09:33:23.410717+08:00",
+        "finish": "2026-10-06T09:33:28.1237132+08:00"
+      },
+      {
+        "trx": "TestResults/postgresql-migration/p09-r13-automatic-posting-pg.trx",
+        "sha256": "AA8BEF54A8F278B44F29CDC309BA1557EF9FAD1A6F3EAA79555AEC1E9EC4183F",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "reason": "实际父、子、事务顺序补齐，所有原行为断言通过",
+        "start": "2026-10-06T09:36:57.1768835+08:00",
+        "finish": "2026-10-06T09:37:02.1977781+08:00"
+      }
+    ],
+    "data_protection_runs": [
+      {
+        "path": "TestResults/postgresql-migration/p09-r13-automatic-data-protection-before-preparation.json",
+        "sha256": "F8E005348CCEE89728F2495FD70B37D83C018C70FF37FDEF4C5C963F7D44A861",
+        "tables": 50,
+        "old_rows": 52609.0,
+        "new_rows": 117.0,
+        "differences": 0,
+        "sequence_before": 50,
+        "sequence_after": 64,
+        "business_date": "8266-04-01T00:00:00"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r13-automatic-data-protection-before-parent-preparation.json",
+        "sha256": "8F75BBF06BBF8F4A05E08FDDFDE06CAB91C8C3B6793C1E888E9CEFE44269BC15",
+        "tables": 50,
+        "old_rows": 52726.0,
+        "new_rows": 117.0,
+        "differences": 0,
+        "sequence_before": 64,
+        "sequence_after": 78,
+        "business_date": "8012-09-01T00:00:00"
+      },
+      {
+        "path": "TestResults/postgresql-migration/p09-r13-automatic-data-protection.json",
+        "sha256": "3582F8245F7F1209FE4B586100DC3D07C181067BABF3203C8670299DE6FA3411",
+        "tables": 50,
+        "old_rows": 52843.0,
+        "new_rows": 122.0,
+        "differences": 0,
+        "sequence_before": 78,
+        "sequence_after": 95,
+        "business_date": "8447-01-01T00:00:00"
+      }
+    ],
+    "database_gate_count": 13,
+    "deletion": "8个文件SHA/HEAD/引用复核后绝对路径原生LiteralPath删除exit0，删除后引用零；ExecutionEligibility审批文件未触碰",
+    "db_cleanup": {
+      "database": "dv_next_pg_failure_tests_20261004",
+      "other_clients": 0,
+      "advisory_locks": 0,
+      "query": "SELECT current_database(), pg_stat_activity其他客户端数量, pg_locks本库advisory数量；实际DBX只读核验0/0"
+    },
+    "preflight_failures": [
+      "rg展开全部源码路径超Windows命令行长度，无删除；改目录及glob筛选",
+      "rg参数放在--后被当路径，退出码2，保护守卫中止，无删除；改选项先于--",
+      "源码保护数量Properties.Count产生逐项1数组，修正@(...).Count为2390，无源码/数据库动作"
+    ],
+    "first_build_order": "首次编译yield后过早启动测试，之后消费34720完成exit0；其余编译均终态后再测试",
+    "no_final_database_replay": true
+  },
+  "completed_at": "2026-10-06T09:41:32.732436+08:00",
+  "source_exit_summary": {
+    "types": 60,
+    "files": 66,
+    "remaining": 16,
+    "R": 12,
+    "S": 1,
+    "F": 3,
+    "new_deletions": 8
+  },
+  "final_checks": {
+    "recorded_at": "2026-10-06T09:42:50.0616967+08:00",
+    "scoped_git_diff_check_exit": 0,
+    "original_snapshot_sources": 2390,
+    "expected_legacy_missing": 66,
+    "changed_tests": 39,
+    "prior_changed_tool_projects": 2,
+    "unexpected_sources": 0,
+    "execution_eligibility_original_sha_unchanged": true,
+    "testhost_vstest_processes": 0,
+    "test_source_sha_matches_final": true,
+    "database_other_clients": 0,
+    "database_advisory_locks": 0,
+    "goal_status": "active",
+    "main_batch_status": "STOPPED",
+    "no_commit_merge_push": true,
+    "no_full_tests": true
+  }
+}

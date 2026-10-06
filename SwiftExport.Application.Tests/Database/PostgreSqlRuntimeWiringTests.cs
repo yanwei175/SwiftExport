@@ -2342,24 +2342,19 @@ public sealed class PostgreSqlRuntimeWiringTests
     public Task RealPg_RuntimeFirstSourceReceptionAndExitBeforeEstablishment()
         => RunFirstSourceReceptionAndExitAsync("8530d46c-7b27-475a-80dc-0da6ca81d300", 6403, null);
 
-    /// <summary>只读对照原SQL/PG的NULL交期映射，再以显式合法交期验证首次来源及确定退出次序；原NULL失败事实保留。</summary>
+    /// <summary>保留PG的NULL交期映射断言，以显式合法交期验证首次来源及确定退出次序；原SQL对照及NULL失败事实留在历史证据。</summary>
     [TestMethod]
     public async Task RealPg_RuntimeExplicitDeliverySourceReceptionAndExitBeforeEstablishment()
     {
         const string batch = "94d5891b-327b-45d6-9c91-c395758bb400";
         Assert.AreEqual(batch, Environment.GetEnvironmentVariable("SWIFTEXPORT_PG_RUNTIME_SOURCE_EXIT_BATCH"));
-        var sourceConnection = Environment.GetEnvironmentVariable("SWIFTEXPORT_SQL_SOURCE_READ_CONNECTION"); Assert.IsNotNull(sourceConnection);
-        await using var original = new Microsoft.Data.SqlClient.SqlConnection(sourceConnection); await original.OpenAsync();
         using var pg = new DbSession(new PostgreSqlConnectionFactory(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()));
-        Assert.IsNull(await original.ExecuteScalarAsync<DateTime?>("SELECT CAST(NULL AS datetime2)"));
         Assert.IsNull(await pg.Connection.ExecuteScalarAsync<DateTime?>("SELECT NULL::timestamp"));
-        var originalHeader = await original.QuerySingleAsync<SwiftExport.Core.Entities.SalesOrders.SalesOrderHeader>("SELECT CAST(NULL AS datetime2) AS DeliveryDate");
         var pgHeader = await pg.Connection.QuerySingleAsync<SwiftExport.Core.Entities.SalesOrders.SalesOrderHeader>("SELECT NULL::timestamp AS \"DeliveryDate\"");
-        Assert.IsFalse(SqlMapper.Settings.ApplyNullValues); Assert.IsNotNull(originalHeader.DeliveryDate); Assert.IsNotNull(pgHeader.DeliveryDate);
-        Assert.IsTrue(Math.Abs((originalHeader.DeliveryDate.Value - DateTime.Now.AddDays(45)).TotalMinutes) < 1);
+        Assert.IsFalse(SqlMapper.Settings.ApplyNullValues); Assert.IsNotNull(pgHeader.DeliveryDate);
         Assert.IsTrue(Math.Abs((pgHeader.DeliveryDate.Value - DateTime.Now.AddDays(45)).TotalMinutes) < 1);
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { Probe = "原SQL与PG的NULL实体默认值", RawBothNull = true, ApplyNullValues = SqlMapper.Settings.ApplyNullValues,
-            SqlMappedDefault = originalHeader.DeliveryDate, PgMappedDefault = pgHeader.DeliveryDate, Scope = "常量SELECT无业务表写入；原NULL映射问题仅记录，不改业务" }));
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { Probe = "PG的NULL实体默认值", RawPgNull = true, ApplyNullValues = SqlMapper.Settings.ApplyNullValues,
+            PgMappedDefault = pgHeader.DeliveryDate, Scope = "常量SELECT无业务表写入；原SQL对照已留证，NULL映射问题仅记录，不改业务" }));
         await RunFirstSourceReceptionAndExitAsync(batch, 6404, new DateTime(6404, 11, 19));
     }
 

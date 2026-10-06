@@ -73,8 +73,9 @@ public sealed class PurchaseOrderManagerContractTests
     [TestMethod]
     public void ManagerContractsUseOnePublicTypePerFile()
     {
-        var directory = Path.Combine(Root(), "SwiftExport.Contracts", "DTOs", "Procurement", "PurchaseOrderManagerDto");
-        var files = Directory.GetFiles(directory, "*.cs");
+        var directory = Path.Combine(Root(), "SwiftExport.Contracts", "DTOs", "Procurement", "PurchaseOrders", "Query");
+        // Query 还承载其他采购查询契约；本门禁只核对三个 Manager 契约的独立文件。
+        var files = Directory.GetFiles(directory, "PurchaseOrderManager*.cs");
         CollectionAssert.AreEquivalent(new[]
         {
             "PurchaseOrderManagerSearchRequest.cs",
@@ -85,7 +86,11 @@ public sealed class PurchaseOrderManagerContractTests
         foreach (var file in files)
         {
             var typeName = Path.GetFileNameWithoutExtension(file);
-            StringAssert.Contains(File.ReadAllText(file), $"public sealed class {typeName}");
+            var source = File.ReadAllText(file);
+            StringAssert.Contains(source, $"public sealed class {typeName}");
+            Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(source,
+                @"\bpublic\s+(?:(?:sealed|abstract|partial)\s+)*(?:class|interface|struct|enum|record)\b").Count,
+                $"{Path.GetFileName(file)} 必须只声明一个公开契约类型。");
         }
     }
 

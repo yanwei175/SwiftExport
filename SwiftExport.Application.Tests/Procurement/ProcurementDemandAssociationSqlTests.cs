@@ -13,19 +13,21 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Procurement;
 
-/// <summary>唯一隔离 LocalDB 验证追加关联的守恒、收货解耦、幂等、并发和完整回滚；不连接业务数据库。</summary>
+/// <summary>获批单PG隔离库 验证追加关联的守恒、收货解耦、幂等、并发和完整回滚；不连接业务数据库。</summary>
 [TestClass, DoNotParallelize]
 public sealed class ProcurementDemandAssociationSqlTests
 {
+    /// <summary>将原测试身份附到单库例间完整事实导出。</summary>
+    public TestContext TestContext { get; set; } = default!;
     /// <summary>真实 SQL 必须显式启用，不能把跳过当作通过。</summary>
     [TestInitialize]
-    public void RequireSql() { if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_SQL_TESTS")!="1") Assert.Inconclusive("需启用隔离 SQL 测试。"); }
+    public void RequireSql() { if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_LEGACY_TESTS")!="1") Assert.Inconclusive("需启用已批准单库PG测试。"); }
 
     /// <summary>同一行同一物料两次分配，仅新增 Link；原创建和旧关联命令重放不复活已取消贡献。</summary>
     [TestMethod]
     public async Task RepeatedAssociationUsesRemainingQuantityAndReplaysOriginalResult()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var originalCreate=db.CreateCommand();
         var created=await db.CreateAsync(originalCreate); Assert.IsTrue(created.Success,created.Message);
         var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
@@ -33,8 +35,8 @@ public sealed class ProcurementDemandAssociationSqlTests
         var first=await Command(db,uid,line,demand,6m);
         var preview=await Preview(db,uid,first);
         Assert.AreEqual(4m,preview.Items.Single().LineUnlinkedAfter);
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink"));
-        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.demand_execution_link"));
+        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT unlinked_qty FROM public.purchase_order_line WHERE uid=@line",new {line}));
         first.PreviewToken=preview.Token;
         var applied=await Associate(db,uid,first); Assert.IsTrue(applied.Success,applied.Message);
         var partialTrace=await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));
@@ -47,17 +49,17 @@ public sealed class ProcurementDemandAssociationSqlTests
         var second=await Command(db,uid,line,demand,4m);
         second.PreviewToken=(await Preview(db,uid,second)).Token;
         Assert.IsTrue((await Associate(db,uid,second)).Success);
-        Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink"));
-        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}));
-        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
-        Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT OriginKind FROM dbo.PurchaseOrderHead WHERE Uid=@uid",new {uid}));
+        Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.demand_execution_link"));
+        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT unlinked_qty FROM public.purchase_order_line WHERE uid=@line",new {line}));
+        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
+        Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT origin_kind FROM public.purchase_order_head WHERE uid=@uid",new {uid}));
         var context=await db.ContextAsync(uid); Assert.IsTrue(context.Success,context.Message);
         var confirmed=await db.ConfirmAsync(uid,new() {CommandId=Guid.NewGuid(),ExpectedVersion=context.Data!.Version,ContextFingerprint=context.Data.Fingerprint});
         Assert.IsTrue(confirmed.Success,confirmed.Message);
         var voided=await db.InScopeAsync(p => p.GetRequiredService<IProcurementOrderReversalService>().VoidAsync(uid,
             new() {CommandId=Guid.NewGuid(),ExpectedVersion=confirmed.Data!.Version,Reason="验证旧命令不会复活引用"}));
         Assert.IsTrue(voided.Success,voided.Message);
-        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
         var history=await db.InScopeAsync(p => p.GetRequiredService<IPurchaseOrderTraceService>().GetAsync(uid));
         Assert.IsTrue(history.Success,history.Message);
         Assert.AreEqual(2,history.Data!.OriginKind);
@@ -66,11 +68,11 @@ public sealed class ProcurementDemandAssociationSqlTests
         Assert.IsTrue(string.IsNullOrEmpty(history.Data.Lines.Single().ReviewReason));
         var replay=await Associate(db,uid,first); Assert.IsTrue(replay.Success,replay.Message);
         Assert.AreEqual(applied.Data!.Version,replay.Data!.Version);
-        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
         var createReplay=await db.CreateAsync(originalCreate);
         Assert.IsTrue(createReplay.Success,createReplay.Message);
         Assert.AreEqual(created.Data.Version,createReplay.Data!.Version);
-        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
         var excessive=await Command(db,uid,line,demand,1m);
         Assert.IsFalse((await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().PreviewAsync(uid,
             new() {ExpectedVersion=excessive.ExpectedVersion,Items=excessive.Items}))).Success);
@@ -80,7 +82,7 @@ public sealed class ProcurementDemandAssociationSqlTests
     [TestMethod]
     public async Task ConfirmedReceiptAndShipmentHistoryDoNotBlockAssociation()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var created=await db.CreateAsync(); var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
         var basis=await db.ContextAsync(uid);
         var confirmed=await db.ConfirmAsync(uid,new() {CommandId=Guid.NewGuid(),ExpectedVersion=basis.Data!.Version,ContextFingerprint=basis.Data.Fingerprint});
@@ -100,31 +102,31 @@ public sealed class ProcurementDemandAssociationSqlTests
         var demand=await SeedDemand(db); var packing=Guid.NewGuid();
         // 模拟既有未关联的历史正式出货；补关联负责追溯关系，不补造原出货的执行证据或流水。
         await db.ExecuteAsync("""
-            INSERT dbo.PackingListHead(Uid,PackingListNo,CustomerId,InvoiceDate,LifecycleStatus,PostingStatus,CreateCommandId,PostCommandId)
-            VALUES(@packing,N'PL-HISTORY',@CustomerId,GETDATE(),0,1,NEWID(),NEWID());
-            INSERT dbo.PackingListLine(Uid,PackingListHeadId,LineNumber,GrossDemandId,ProductId,IsNonStandardSnapshot,SourceTypeSnapshot,
-                SourceDocumentNoSnapshot,SkuSnapshot,UnitSnapshot,Qty)
-            VALUES(NEWID(),@packing,1,@gross,@ProductId,0,N'MD',N'SOURCE',N'TEST-FG',N'PCS',7);
+            INSERT INTO public.packing_list_head(uid,packing_list_no,customer_id,invoice_date,lifecycle_status,posting_status,create_command_id,post_command_id)
+            VALUES(@packing,'PL-HISTORY',@CustomerId,LOCALTIMESTAMP,0,1,gen_random_uuid(),gen_random_uuid());
+            INSERT INTO public.packing_list_line(uid,packing_list_head_id,line_number,gross_demand_id,product_id,is_non_standard_snapshot,source_type_snapshot,
+                source_document_no_snapshot,sku_snapshot,unit_snapshot,qty)
+            VALUES(gen_random_uuid(),@packing,1,@gross,@ProductId,FALSE,'MD','SOURCE','TEST-FG','PCS',7);
             """,new {packing,db.CustomerId,db.ProductId,gross=demand.Gross});
-        var ledgers=await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.InventoryLedgerEntry");
+        var ledgers=await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.inventory_ledger_entry");
         var command=await Command(db,uid,line,demand,6m);
         command.PreviewToken=(await Preview(db,uid,command)).Token;
         var result=await Associate(db,uid,command); Assert.IsTrue(result.Success,result.Message);
         Assert.AreEqual(ConfirmationStatusEnum.已确认,result.Data!.ConfirmationStatus);
         Assert.AreEqual(confirmed.Data!.ConfirmationId,result.Data.ConfirmationId);
-        Assert.AreEqual(ledgers,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.InventoryLedgerEntry"));
-        Assert.AreEqual(4m,await db.ScalarAsync<decimal>("SELECT OnHandQty FROM dbo.InventoryBalance"));
-        Assert.AreEqual(7m,await db.ScalarAsync<decimal>("SELECT Qty FROM dbo.PackingListLine WHERE PackingListHeadId=@packing",new {packing}));
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT PostingStatus FROM dbo.PackingListHead WHERE Uid=@packing",new {packing}));
-        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT QTY FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}));
-        Assert.AreEqual(25m,await db.ScalarAsync<decimal>("SELECT TaxAmount FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}));
+        Assert.AreEqual(ledgers,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.inventory_ledger_entry"));
+        Assert.AreEqual(4m,await db.ScalarAsync<decimal>("SELECT on_hand_qty FROM public.inventory_balance"));
+        Assert.AreEqual(7m,await db.ScalarAsync<decimal>("SELECT qty FROM public.packing_list_line WHERE packing_list_head_id=@packing",new {packing}));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT posting_status FROM public.packing_list_head WHERE uid=@packing",new {packing}));
+        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT quantity FROM public.purchase_order_line WHERE uid=@line",new {line}));
+        Assert.AreEqual(25m,await db.ScalarAsync<decimal>("SELECT tax_amount FROM public.purchase_order_line WHERE uid=@line",new {line}));
         var draft=Guid.NewGuid();
         await db.ExecuteAsync("""
-            INSERT dbo.PackingListHead(Uid,PackingListNo,CustomerId,InvoiceDate,LifecycleStatus,PostingStatus,CreateCommandId)
-            VALUES(@draft,N'PL-PREVIEW',@CustomerId,GETDATE(),0,0,NEWID());
-            INSERT dbo.PackingListLine(Uid,PackingListHeadId,LineNumber,GrossDemandId,ProductId,IsNonStandardSnapshot,
-                SourceTypeSnapshot,SourceDocumentNoSnapshot,SkuSnapshot,UnitSnapshot,Qty)
-            VALUES(NEWID(),@draft,1,@gross,@ProductId,0,N'MD',N'SOURCE',N'TEST-FG',N'PCS',1);
+            INSERT INTO public.packing_list_head(uid,packing_list_no,customer_id,invoice_date,lifecycle_status,posting_status,create_command_id)
+            VALUES(@draft,'PL-PREVIEW',@CustomerId,LOCALTIMESTAMP,0,0,gen_random_uuid());
+            INSERT INTO public.packing_list_line(uid,packing_list_head_id,line_number,gross_demand_id,product_id,is_non_standard_snapshot,
+                source_type_snapshot,source_document_no_snapshot,sku_snapshot,unit_snapshot,qty)
+            VALUES(gen_random_uuid(),@draft,1,@gross,@ProductId,FALSE,'MD','SOURCE','TEST-FG','PCS',1);
             """,new {draft,db.CustomerId,db.ProductId,gross=demand.Gross});
         async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListPostingPreviewDto>> PackingPreview()
             => await db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Shipping.IPackingListPostingService>()
@@ -138,14 +140,14 @@ public sealed class ProcurementDemandAssociationSqlTests
         var stalePost=await db.InScopeAsync(p => p.GetRequiredService<SwiftExport.Application.Interfaces.Shipping.IPackingListPostingService>()
             .PostAsync(draft,new() {CommandId=Guid.NewGuid(),ExpectedVersion=1,BusinessDate=DateTime.Today,PreviewToken=oldPreview.Data.PreviewToken!},default));
         Assert.IsFalse(stalePost.Success); Assert.AreEqual("PREVIEW_STALE",stalePost.Error!.Code);
-        Assert.AreEqual(ledgers,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.InventoryLedgerEntry"));
+        Assert.AreEqual(ledgers,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.inventory_ledger_entry"));
     }
 
     /// <summary>非标独立采购无需 ProductId 可确认；人工关联需明确接受，取消后重新确认仍不生成 BOM 快照。</summary>
     [TestMethod]
     public async Task NonStandardConfirmationAndExplicitManualAssociation()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var create=db.CreateCommand(); create.Lines=[new() {IsNonStandard=true,DescriptionZh="非标总成",Unit="PCS",Quantity=10,UnitPrice=2,TaxPrice=2.5m}];
         var created=await db.CreateAsync(create); Assert.IsTrue(created.Success,created.Message);
         var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
@@ -167,14 +169,14 @@ public sealed class ProcurementDemandAssociationSqlTests
         var again=await db.ConfirmAsync(uid,new() {CommandId=Guid.NewGuid(),ExpectedVersion=basis.Data!.Version,ContextFingerprint=basis.Data.Fingerprint});
         Assert.IsTrue(again.Success,again.Message);
         Assert.AreNotEqual(confirmed.Data!.ConfirmationId,again.Data!.ConfirmationId);
-        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT ReleasedQty FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT released_qty FROM public.demand_execution_link"));
     }
 
     /// <summary>并发采购争用同一物料时最多一个命令承接，不能超量或留下失败回执。</summary>
     [TestMethod]
     public async Task ConcurrentOrdersCannotOverAllocateMaterial()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var one=await db.CreateAsync(); var two=await db.CreateAsync(); var demand=await SeedDemand(db);
         var a=await Command(db,one.Data!.PurchaseOrderId,one.Data.Lines.Single().PurchaseOrderLineId,demand,7m);
         var b=await Command(db,two.Data!.PurchaseOrderId,two.Data.Lines.Single().PurchaseOrderLineId,demand,7m);
@@ -183,21 +185,21 @@ public sealed class ProcurementDemandAssociationSqlTests
         var results=await Task.WhenAll(Associate(db,one.Data.PurchaseOrderId,a),Associate(db,two.Data.PurchaseOrderId,b));
         Assert.AreEqual(1,results.Count(x => x.Success));
         Assert.IsTrue(results.Single(x => !x.Success).Error!.Code is ServiceErrorCodes.BusinessBlocked or ServiceErrorCodes.VersionConflict);
-        Assert.AreEqual(7m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.BusinessOperationLog WHERE OperationType=N'AssociateDemands'"));
+        Assert.AreEqual(7m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.business_operation_log WHERE operation_type='AssociateDemands'"));
     }
 
     /// <summary>预览后引用版本变化、跨来源、单位未知及命令内容冲突均拒绝，失败不写引用。</summary>
     [TestMethod]
     public async Task SourceUnitVersionAndCommandIdentityRemainGuarded()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var created=await db.CreateAsync(); var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
         var demand=await SeedDemand(db); var command=await Command(db,uid,line,demand,6m);
         command.PreviewToken=(await Preview(db,uid,command)).Token;
-        await db.ExecuteAsync("UPDATE dbo.NetDemand SET UnitSnapshot=NULL WHERE Uid=@uid",new {uid=demand.Net});
+        await db.ExecuteAsync("UPDATE public.net_demand SET unit_snapshot=NULL WHERE uid=@uid",new {uid=demand.Net});
         Assert.IsFalse((await Associate(db,uid,command)).Success);
-        await db.ExecuteAsync("UPDATE dbo.NetDemand SET UnitSnapshot=N'PCS',Version=Version+1 WHERE Uid=@uid",new {uid=demand.Net});
+        await db.ExecuteAsync("UPDATE public.net_demand SET unit_snapshot='PCS',version=version+1 WHERE uid=@uid",new {uid=demand.Net});
         var stale=await Associate(db,uid,command); Assert.IsFalse(stale.Success); Assert.AreEqual(ServiceErrorCodes.VersionConflict,stale.Error!.Code);
         command=await Command(db,uid,line,demand,6m); command.PreviewToken=(await Preview(db,uid,command)).Token;
         var applied=await Associate(db,uid,command); Assert.IsTrue(applied.Success,applied.Message);
@@ -212,35 +214,35 @@ public sealed class ProcurementDemandAssociationSqlTests
         reused.PreviewToken=(await Preview(db,uid,reused)).Token;
         var reusedResult=await Associate(db,uid,reused);
         Assert.IsFalse(reusedResult.Success); Assert.AreEqual(ServiceErrorCodes.CommandConflict,reusedResult.Error!.Code);
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.demand_execution_link"));
         // 唯一命令身份永久占用，历史已取消引用不能借新关联复用；实体禁止删除 Link。
         var oldItem=Guid.NewGuid();
         await db.ExecuteAsync("""
-            INSERT dbo.DemandExecutionLink(Uid,IsDeleted,NetDemandId,ExecutionRequestId,CommandItemId,TargetType,TargetHeadId,
-                TargetNo,TargetLineId,LinkStatus,AllocatedQty,ReleasedQty)
-            VALUES(NEWID(),0,@net,NEWID(),@oldItem,N'PO',NEWID(),N'OLD-CANCELLED',NEWID(),8,1,1);
+            INSERT INTO public.demand_execution_link(uid,is_deleted,net_demand_id,execution_request_id,command_item_id,target_type,target_head_id,
+                target_no,target_line_id,link_status,allocated_qty,released_qty)
+            VALUES(gen_random_uuid(),FALSE,@net,gen_random_uuid(),@oldItem,'PO',gen_random_uuid(),'OLD-CANCELLED',gen_random_uuid(),8,1,1);
             """,new {net=demand.Net,oldItem});
         var cancelledIdentity=await Command(db,uid,line,demand,1); cancelledIdentity.Items[0].CommandItemId=oldItem;
         cancelledIdentity.PreviewToken=(await Preview(db,uid,cancelledIdentity)).Token;
         var cancelledResult=await Associate(db,uid,cancelledIdentity);
         Assert.IsFalse(cancelledResult.Success); Assert.AreEqual(ServiceErrorCodes.CommandConflict,cancelledResult.Error!.Code);
-        Assert.AreEqual(6m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(6m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
     }
 
     /// <summary>日志真实失败回滚新增引用、未关联量和头行版本，原命令随后可安全重试。</summary>
     [TestMethod]
     public async Task LogFailureRollsBackAllAssociationWrites()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var created=await db.CreateAsync(); var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
         var demand=await SeedDemand(db); var command=await Command(db,uid,line,demand,6m); command.PreviewToken=(await Preview(db,uid,command)).Token;
         await db.RejectLogsAsync();
         var failed=await Associate(db,uid,command); Assert.IsFalse(failed.Success);
-        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT UnlinkedQty FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}));
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid",new {uid}));
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink"));
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandReceipt WHERE CommandId=@id",new {id=command.CommandId}));
-        await db.ExecuteAsync("DROP TRIGGER dbo.TR_Test_RejectLog;");
+        Assert.AreEqual(10m,await db.ScalarAsync<decimal>("SELECT unlinked_qty FROM public.purchase_order_line WHERE uid=@line",new {line}));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT version FROM public.purchase_order_head WHERE uid=@uid",new {uid}));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.demand_execution_link"));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.command_receipt WHERE command_id=@id",new {id=command.CommandId}));
+        await db.ExecuteAsync("DROP TRIGGER tr_test_reject_log ON public.business_operation_log; DROP FUNCTION public.p09_test_reject_log();");
         Assert.IsTrue((await Associate(db,uid,command)).Success);
         Assert.IsTrue(await db.InScopeAsync(p => Task.FromResult(p.GetRequiredService<DbSession>().Transaction is null)));
     }
@@ -249,7 +251,7 @@ public sealed class ProcurementDemandAssociationSqlTests
     [TestMethod]
     public async Task LaterLineConflictRollsBackEarlierUpdates()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var create=db.CreateCommand(); create.Lines.Add(new() {ProductId=db.ProductId,Quantity=3,UnitPrice=2,TaxPrice=2.5m});
         var created=await db.CreateAsync(create); var uid=created.Data!.PurchaseOrderId;
         var failed=await db.InScopeAsync(p => p.GetRequiredService<ProcurementOrderCommandSupport>().RunAsync(async () =>
@@ -261,20 +263,20 @@ public sealed class ProcurementDemandAssociationSqlTests
                 var result=await p.GetRequiredService<IProcurementDemandAssociationRepository>().ApplyAsync(facts.Head!,ordered,ct);
                 Assert.IsFalse(result.Success);
                 Assert.AreEqual(2,await p.GetRequiredService<DbSession>().Connection.ExecuteScalarAsync<int>(
-                    "SELECT Version FROM dbo.PurchaseOrderLine WHERE Uid=@Uid",new {ordered[0].Uid},p.GetRequiredService<DbSession>().Transaction));
+                    "SELECT version FROM public.purchase_order_line WHERE uid=@Uid",new {ordered[0].Uid},p.GetRequiredService<DbSession>().Transaction));
                 ProcurementOrderCommandSupport.EnsureWriteSucceeded(result);
                 return true;
             },default,IsolationLevel.Serializable),default));
         Assert.IsFalse(failed.Success); Assert.AreEqual(ServiceErrorCodes.VersionConflict,failed.Error!.Code);
-        Assert.AreEqual(13m,await db.ScalarAsync<decimal>("SELECT SUM(UnlinkedQty) FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid",new {uid}));
-        Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.PurchaseOrderLine WHERE PurchaseOrderId=@uid AND Version=1",new {uid}));
+        Assert.AreEqual(13m,await db.ScalarAsync<decimal>("SELECT SUM(unlinked_qty) FROM public.purchase_order_line WHERE purchase_order_id=@uid",new {uid}));
+        Assert.AreEqual(2,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.purchase_order_line WHERE purchase_order_id=@uid AND version=1",new {uid}));
     }
 
     /// <summary>同单多来源行共同分配按整组守恒；查询显示实时剩余、完整贡献，并沿用需求回退阻断。</summary>
     [TestMethod]
     public async Task CandidateQueriesAndMultipleContributionsUseCurrentRemainingQuantity()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var created=await db.CreateAsync(); var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
         var source=Guid.NewGuid(); var one=await SeedDemand(db,source); var two=await SeedDemand(db,source);
         async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SwiftExport.Contracts.Wrappers.PagedResponseBase<ProcurementDemandCandidateDto>>> Search(int page=1,string? keyword=null)
@@ -295,7 +297,7 @@ public sealed class ProcurementDemandAssociationSqlTests
         var context=await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().GetContextAsync(uid));
         Assert.AreEqual(1m,context.Data!.Lines.Single().UnlinkedQty);
         Assert.AreEqual(9m,context.Data.Lines.Single().LinkedQty); Assert.AreEqual(2,context.Data.Lines.Single().Links.Count);
-        Assert.IsNull(await db.ScalarAsync<Guid?>("SELECT SourceLineId FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}));
+        Assert.IsNull(await db.ScalarAsync<Guid?>("SELECT source_line_id FROM public.purchase_order_line WHERE uid=@line",new {line}));
         var after=await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().SearchCandidatesAsync(uid,
             new() {PurchaseOrderLineId=line,SourceUid=source,PageSize=10}));
         Assert.AreEqual(4m,after.Data!.Items.Single(x => x.NetDemandId==one.Net).RemainingQty);
@@ -312,34 +314,34 @@ public sealed class ProcurementDemandAssociationSqlTests
     [TestMethod]
     public async Task AssociationRequiresEditPermissionBeforeReadingOrReplaying()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var created=await db.CreateAsync(); var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
         var demand=await SeedDemand(db); var command=await Command(db,uid,line,demand,6);
         command.PreviewToken=(await Preview(db,uid,command)).Token; Assert.IsTrue((await Associate(db,uid,command)).Success);
-        await db.ExecuteAsync("DELETE dbo.SysUser_Roles WHERE UserId=@uid",new {uid=db.OtherActorId});
+        await db.ExecuteAsync("DELETE FROM public.sys_user_role WHERE user_id=@uid",new {uid=db.OtherActorId});
         db.ActorId=db.OtherActorId;
         var context=await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().GetContextAsync(uid));
         Assert.IsFalse(context.Success); Assert.AreEqual(ServiceErrorCodes.Forbidden,context.Error!.Code);
         var replay=await Associate(db,uid,command);
         Assert.IsFalse(replay.Success); Assert.AreEqual(ServiceErrorCodes.Forbidden,replay.Error!.Code);
-        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(1,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.demand_execution_link"));
     }
 
     /// <summary>客供件人工关联沿父级实际采购供应商检查送达，允许不同供货供应商，不绑定收货或消耗仓。</summary>
     [TestMethod]
     public async Task CustomerSuppliedAssociationChecksActualParentDeliverySupplier()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var parent=await db.CreateAsync(); var demand=await SeedDemand(db);
         var parentCommand=await Command(db,parent.Data!.PurchaseOrderId,parent.Data.Lines.Single().PurchaseOrderLineId,demand,10);
         parentCommand.PreviewToken=(await Preview(db,parent.Data.PurchaseOrderId,parentCommand)).Token;
         Assert.IsTrue((await Associate(db,parent.Data.PurchaseOrderId,parentCommand)).Success);
         var child=Guid.NewGuid();
         await db.ExecuteAsync("""
-            INSERT dbo.NetDemand(Uid,Version,GrossDemandId,SourceDemandVersionSnapshot,SourceDemandBasisFingerprintSnapshot,
-                DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,ParentNetDemandId,DeliveryTargetNetDemandId,DeliveryMode,
-                ProductId,MaterialTypeSnapshot,SupplyTypeSnapshot,SkuSnapshot,DescriptionSnapshot,UnitSnapshot,GrossQty,NetQty)
-            VALUES(@child,1,@gross,1,N'BASIS',1,2,0,@root,@root,@root,@mode,@ComponentId,N'客供件',N'采购',N'TEST-B',N'客供件',N'PCS',10,10);
+            INSERT INTO public.net_demand(uid,version,gross_demand_id,source_demand_version_snapshot,source_demand_basis_fingerprint_snapshot,
+                decomposition_revision,line_number,lifecycle_status,root_net_demand_id,parent_net_demand_id,delivery_target_net_demand_id,delivery_mode,
+                product_id,material_type_snapshot,supply_type_snapshot,sku_snapshot,description_snapshot,unit_snapshot,gross_qty,net_qty)
+            VALUES(@child,1,@gross,1,'BASIS',1,2,0,@root,@root,@root,@mode,@ComponentId,'客供件','采购','TEST-B','客供件','PCS',10,10);
             """,new {child,gross=demand.Gross,root=demand.Net,db.ComponentId,mode=(int)DemandDeliveryModeEnum.ParentExecutionSupplier});
         async Task<(Guid Uid,AssociateProcurementDemandsCommand Command)> ChildCommand(Guid deliverySupplier)
         {
@@ -354,18 +356,18 @@ public sealed class ProcurementDemandAssociationSqlTests
         Assert.IsFalse(blocked.Success); StringAssert.Contains(blocked.Message,"送达供应商");
         var valid=await ChildCommand(db.SupplierId); valid.Command.PreviewToken=(await Preview(db,valid.Uid,valid.Command)).Token;
         Assert.IsTrue((await Associate(db,valid.Uid,valid.Command)).Success);
-        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM dbo.InventoryLedgerEntry"));
-        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(ReleasedQty) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(0,await db.ScalarAsync<int>("SELECT COUNT(*) FROM public.inventory_ledger_entry"));
+        Assert.AreEqual(0m,await db.ScalarAsync<decimal>("SELECT SUM(released_qty) FROM public.demand_execution_link"));
     }
 
     /// <summary>来源版本仅推进而实物依据不变时可沿用原拆解；预览后的当前来源版本变更仍阻断提交。</summary>
     [TestMethod]
     public async Task SourceMetadataVersionUsesBasisCompatibilityAndCurrentConcurrencyVersion()
     {
-        await using var db=new IndependentProcurementSqlFixture(); await db.InitializeAsync();
+        await using var db=new IndependentProcurementPostgreSqlFixture(); await db.InitializeAsync(TestContext);
         var created=await db.CreateAsync(); var uid=created.Data!.PurchaseOrderId; var line=created.Data.Lines.Single().PurchaseOrderLineId;
         var demand=await SeedDemand(db);
-        await db.ExecuteAsync("UPDATE dbo.GrossDemand SET Version=2,SourceVersion=8 WHERE Uid=@uid",new {uid=demand.Gross});
+        await db.ExecuteAsync("UPDATE public.gross_demand SET version=2,source_version=8 WHERE uid=@uid",new {uid=demand.Gross});
         var candidates=await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().SearchCandidatesAsync(uid,
             new() {PurchaseOrderLineId=line}));
         Assert.AreEqual(1,candidates.Data!.TotalCount);
@@ -373,50 +375,50 @@ public sealed class ProcurementDemandAssociationSqlTests
         var command=await Command(db,uid,line,demand,6); command.PreviewToken=(await Preview(db,uid,command)).Token;
         Assert.IsTrue((await Associate(db,uid,command)).Success);
         var stale=await Command(db,uid,line,demand,2); stale.PreviewToken=(await Preview(db,uid,stale)).Token;
-        await db.ExecuteAsync("UPDATE dbo.GrossDemand SET Version=3,SourceVersion=9 WHERE Uid=@uid",new {uid=demand.Gross});
+        await db.ExecuteAsync("UPDATE public.gross_demand SET version=3,source_version=9 WHERE uid=@uid",new {uid=demand.Gross});
         var rejected=await Associate(db,uid,stale);
         Assert.IsFalse(rejected.Success); Assert.AreEqual(ServiceErrorCodes.VersionConflict,rejected.Error!.Code);
         var changed=await Command(db,uid,line,demand,2);
-        await db.ExecuteAsync("UPDATE dbo.GrossDemand SET DemandBasisFingerprint=N'CHANGED' WHERE Uid=@uid",new {uid=demand.Gross});
+        await db.ExecuteAsync("UPDATE public.gross_demand SET demand_basis_fingerprint='CHANGED' WHERE uid=@uid",new {uid=demand.Gross});
         Assert.IsFalse((await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().PreviewAsync(uid,
             new() {ExpectedVersion=changed.ExpectedVersion,Items=changed.Items}))).Success);
-        Assert.AreEqual(6m,await db.ScalarAsync<decimal>("SELECT SUM(AllocatedQty-ReleasedQty) FROM dbo.DemandExecutionLink"));
+        Assert.AreEqual(6m,await db.ScalarAsync<decimal>("SELECT SUM(allocated_qty-released_qty) FROM public.demand_execution_link"));
     }
 
     /// <summary>生成同客户明确单位的活动拆解事实，来源单据可复用于同单多来源行。</summary>
-    private static async Task<(Guid Net,Guid Gross)> SeedDemand(IndependentProcurementSqlFixture db, Guid? sourceUid=null,bool nonStandard=false)
+    private static async Task<(Guid Net,Guid Gross)> SeedDemand(IndependentProcurementPostgreSqlFixture db, Guid? sourceUid=null,bool nonStandard=false)
     {
         var gross=Guid.NewGuid(); var net=Guid.NewGuid(); var source=sourceUid??Guid.NewGuid();
         await db.ExecuteAsync("""
-            INSERT dbo.GrossDemand(Uid,Version,LifecycleStatus,SourceType,SourceUid,SourceNo,SourceLineId,CustomerId,
-                ProductId,IsNonStandard,SkuSnapshot,DescriptionSnapshot,UnitSnapshot,DemandQty,DemandBasisFingerprint)
-            VALUES(@gross,1,0,N'MD',@source,N'SOURCE',@gross,@CustomerId,@ProductId,@nonStandard,N'TEST',N'明确物料',N'PCS',10,N'BASIS');
-            INSERT dbo.NetDemand(Uid,Version,GrossDemandId,SourceDemandVersionSnapshot,SourceDemandBasisFingerprintSnapshot,
-                DecompositionRevision,LineNumber,LifecycleStatus,RootNetDemandId,DeliveryMode,ProductId,MaterialTypeSnapshot,SupplyTypeSnapshot,
-                SkuSnapshot,DescriptionSnapshot,UnitSnapshot,GrossQty,NetQty)
-            VALUES(@net,1,@gross,1,N'BASIS',1,1,0,@net,0,@ProductId,@MaterialType,N'采购',N'TEST',N'明确物料',N'PCS',10,10);
+            INSERT INTO public.gross_demand(uid,version,lifecycle_status,source_type,source_uid,source_no,source_line_id,customer_id,
+                product_id,is_non_standard,sku_snapshot,description_snapshot,unit_snapshot,demand_qty,demand_basis_fingerprint)
+            VALUES(@gross,1,0,'MD',@source,'SOURCE',@gross,@CustomerId,@ProductId,@nonStandard,'TEST','明确物料','PCS',10,'BASIS');
+            INSERT INTO public.net_demand(uid,version,gross_demand_id,source_demand_version_snapshot,source_demand_basis_fingerprint_snapshot,
+                decomposition_revision,line_number,lifecycle_status,root_net_demand_id,delivery_mode,product_id,material_type_snapshot,supply_type_snapshot,
+                sku_snapshot,description_snapshot,unit_snapshot,gross_qty,net_qty)
+            VALUES(@net,1,@gross,1,'BASIS',1,1,0,@net,0,@ProductId,@MaterialType,'采购','TEST','明确物料','PCS',10,10);
             """,new {gross,net,source,db.CustomerId,ProductId=nonStandard?(Guid?)null:db.ProductId,nonStandard,MaterialType=nonStandard?null:"成品"});
         return (net,gross);
     }
 
     /// <summary>按实时上下文构建人工输入，测试不重算服务端预览指纹。</summary>
-    private static async Task<AssociateProcurementDemandsCommand> Command(IndependentProcurementSqlFixture db,Guid uid,Guid line,(Guid Net,Guid Gross) demand,decimal qty)
+    private static async Task<AssociateProcurementDemandsCommand> Command(IndependentProcurementPostgreSqlFixture db,Guid uid,Guid line,(Guid Net,Guid Gross) demand,decimal qty)
     {
         var context=await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().GetContextAsync(uid));
         // 作废后的失败用例直接使用数据库版本，关联上下文不应将作废采购变成可操作事实。
-        var version=context.Success?context.Data!.Version:await db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderHead WHERE Uid=@uid",new {uid});
+        var version=context.Success?context.Data!.Version:await db.ScalarAsync<int>("SELECT version FROM public.purchase_order_head WHERE uid=@uid",new {uid});
         return new() {CommandId=Guid.NewGuid(),ExpectedVersion=version,Reason="隔离测试人工关联",
             Items=[new() {CommandItemId=Guid.NewGuid(),PurchaseOrderLineId=line,
-                ExpectedLineVersion=await db.ScalarAsync<int>("SELECT Version FROM dbo.PurchaseOrderLine WHERE Uid=@line",new {line}),
-                NetDemandId=demand.Net,ExpectedDemandVersion=await db.ScalarAsync<int>("SELECT Version FROM dbo.NetDemand WHERE Uid=@uid",new {uid=demand.Net}),
-                ExpectedSourceDemandVersion=await db.ScalarAsync<int>("SELECT Version FROM dbo.GrossDemand WHERE Uid=@uid",new {uid=demand.Gross}),Quantity=qty}]};
+                ExpectedLineVersion=await db.ScalarAsync<int>("SELECT version FROM public.purchase_order_line WHERE uid=@line",new {line}),
+                NetDemandId=demand.Net,ExpectedDemandVersion=await db.ScalarAsync<int>("SELECT version FROM public.net_demand WHERE uid=@uid",new {uid=demand.Net}),
+                ExpectedSourceDemandVersion=await db.ScalarAsync<int>("SELECT version FROM public.gross_demand WHERE uid=@uid",new {uid=demand.Gross}),Quantity=qty}]};
     }
 
-    private static Task<SwiftExport.Contracts.Wrappers.ServiceResult<ProcurementOrderCommandResult>> Associate(IndependentProcurementSqlFixture db,Guid uid,AssociateProcurementDemandsCommand command)
+    private static Task<SwiftExport.Contracts.Wrappers.ServiceResult<ProcurementOrderCommandResult>> Associate(IndependentProcurementPostgreSqlFixture db,Guid uid,AssociateProcurementDemandsCommand command)
         => db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().AssociateAsync(uid,command));
 
     /// <summary>使用生产只读预览并保留失败消息，不能从请求自行造令牌。</summary>
-    private static async Task<ProcurementDemandAssociationPreviewDto> Preview(IndependentProcurementSqlFixture db,Guid uid,AssociateProcurementDemandsCommand command)
+    private static async Task<ProcurementDemandAssociationPreviewDto> Preview(IndependentProcurementPostgreSqlFixture db,Guid uid,AssociateProcurementDemandsCommand command)
     {
         var preview=await db.InScopeAsync(p => p.GetRequiredService<IProcurementDemandAssociationService>().PreviewAsync(uid,
             new() {ExpectedVersion=command.ExpectedVersion,Items=command.Items}));

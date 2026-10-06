@@ -3,25 +3,27 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
-/// <summary>使用真实 SQL Server 验证候选资格、字典唯一性、授权、分页与历史筛选；显式开关之外不连接数据库。</summary>
+/// <summary>使用真实 PostgreSQL 验证候选资格、字典唯一性、授权、分页与历史筛选；显式开关之外不连接数据库。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class ProcurementMasterDataSqlTests
 {
+    /// <summary>关联本例完整事实导出。</summary>
+    public TestContext TestContext { get; set; } = default!;
     private ProcurementMasterDataSqlFixture? fixture;
     private ProcurementMasterDataSqlFixture Db => fixture!;
 
-    /// <summary>只有显式授权的专用开关开启才建立随机临时库。</summary>
+    /// <summary>获批固定PG测试库中串行执行；每例完整导出后仅重置该库public结构。</summary>
     [TestInitialize]
     public async Task InitializeAsync()
     {
-        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_MASTERDATA_SQL_TESTS") != "1")
-            Assert.Inconclusive("未启用主数据候选 LocalDB 测试；未验证 SQL。");
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_LEGACY_TESTS") != "1")
+            Assert.Inconclusive("未启用主数据候选 PG 测试；未验证 SQL。");
         fixture = new ProcurementMasterDataSqlFixture();
-        await fixture.InitializeAsync();
+        await fixture.InitializeAsync(TestContext);
     }
 
-    /// <summary>每个场景结束后删除本场景临时库，即使断言失败也执行清理。</summary>
+    /// <summary>获批固定PG测试库中串行执行；每例完整导出后仅重置该库public结构。</summary>
     [TestCleanup]
     public async Task CleanupAsync()
     {
@@ -33,11 +35,11 @@ public sealed class ProcurementMasterDataSqlTests
     public async Task PartiesSeparateNewEligibilityFromHistoricalFiltering()
     {
         await Db.ExecuteAsync("""
-            INSERT dbo.Customer VALUES(NEWID(),N'C-active',N'活动客户',1,0),(NEWID(),N'C-stopped',N'停用客户',0,0),
-              (NEWID(),N'C-deleted',N'删除客户',1,1),(NEWID(),NCHAR(9)+NCHAR(12288),N'空白编码',1,0),
-              ('00000000-0000-0000-0000-000000000000',N'C-empty',N'空身份',1,0);
-            INSERT dbo.Supplier VALUES(NEWID(),N'S-active',N'活动供应商',1,0),(NEWID(),N'S-stopped',N'停用供应商',0,0),
-              (NEWID(),N'S-deleted',N'删除供应商',1,1),(NEWID(),N'S-blank',NCHAR(9)+NCHAR(12288),1,0);
+            INSERT INTO public.customer(uid,customer_code,customer_name,is_active,is_deleted,doc_relate_no,deposit_rate,lead_time_days) VALUES (gen_random_uuid(),'C-active','活动客户',TRUE,FALSE,'TEST',0,0),(gen_random_uuid(),'C-stopped','停用客户',FALSE,FALSE,'TEST',0,0),
+              (gen_random_uuid(),'C-deleted','删除客户',TRUE,TRUE,'TEST',0,0),(gen_random_uuid(),chr(9)||chr(12288),'空白编码',TRUE,FALSE,'TEST',0,0),
+              ('00000000-0000-0000-0000-000000000000','C-empty','空身份',TRUE,FALSE,'TEST',0,0);
+            INSERT INTO public.supplier(uid,supplier_code,supplier_name,is_active,is_deleted,doc_relate_no) VALUES (gen_random_uuid(),'S-active','活动供应商',TRUE,FALSE,'TEST'),(gen_random_uuid(),'S-stopped','停用供应商',FALSE,FALSE,'TEST'),
+              (gen_random_uuid(),'S-deleted','删除供应商',TRUE,TRUE,'TEST'),(gen_random_uuid(),'S-blank',chr(9)||chr(12288),TRUE,FALSE,'TEST');
             """);
         var customers = await Db.QueryAsync(s => s.SearchCustomersAsync(new()));
         var suppliers = await Db.QueryAsync(s => s.SearchSuppliersAsync(new()));
@@ -85,8 +87,8 @@ public sealed class ProcurementMasterDataSqlTests
         var customerId = Guid.NewGuid(); var supplierId = Guid.NewGuid();
         var related = await Db.AddProductAsync("P-related"); var unrelated = await Db.AddProductAsync("P-unrelated");
         await Db.ExecuteAsync("""
-            INSERT dbo.CustomerProduct VALUES(NEWID(),@customerId,@related,N'CUST-001',1,0);
-            INSERT dbo.SupplierProduct VALUES(NEWID(),@supplierId,@related,N'SUP-001',12.5,14.1,0);
+            INSERT INTO public.customer_product(uid,customer_id,sku_id,customer_sku,is_active,is_deleted,customer_code) VALUES (gen_random_uuid(),@customerId,@related,'CUST-001',TRUE,FALSE,'TEST');
+            INSERT INTO public.supplier_product(uid,supplier_id,sku_id,supplier_sku,unit_price,tax_price,is_deleted,supplier_code,product_sku) VALUES (gen_random_uuid(),@supplierId,@related,'SUP-001',12.5,14.1,FALSE,'TEST','TEST');
             """, new { customerId, supplierId, related });
 
         var result = await Db.QueryAsync(service => service.SearchProductsAsync(new()
@@ -100,7 +102,8 @@ public sealed class ProcurementMasterDataSqlTests
         Assert.AreEqual(12.5m, item.UnitPrice);
         var withoutSupplier = await Db.QueryAsync(service => service.SearchProductsAsync(new() { CustomerId = customerId }));
         Assert.IsNull(withoutSupplier.Items.Single(x => x.Uid == related).UnitPrice);
-        Assert.AreEqual("DEFAULT-SKU", withoutSupplier.Items.Single(x => x.Uid == related).SupplierSku);
+        // 原SQL Server与当前PG均在未指定供应商时返回空型号，不凭任意供货关系推断默认供应商。
+        Assert.AreEqual(string.Empty, withoutSupplier.Items.Single(x => x.Uid == related).SupplierSku);
     }
 
     /// <summary>单位字典缺失、停用或重复不影响候选；产品当前单位值原样返回供用户识别。</summary>
@@ -108,10 +111,9 @@ public sealed class ProcurementMasterDataSqlTests
     public async Task UnitDictionaryDoesNotFilterProductCandidates()
     {
         await Db.ExecuteAsync("""
-            INSERT dbo.SysDictData VALUES
-              (NEWID(),N'Unit',N'KG',1,0),(NEWID(),N'Unit',N' kg ',1,0),
-              (NEWID(),N'Unit',N'BOX',0,0),(NEWID(),N'Unit',N'EA',1,1),
-              (NEWID(),N'Unit',NCHAR(9),1,0);
+            INSERT INTO public.sys_dict_data(uid,dict_code,data_name_en,is_enabled,is_deleted,is_system) VALUES (gen_random_uuid(),'Unit','KG',TRUE,FALSE,FALSE),(gen_random_uuid(),'Unit',' kg ',TRUE,FALSE,FALSE),
+              (gen_random_uuid(),'Unit','BOX',FALSE,FALSE,FALSE),(gen_random_uuid(),'Unit','EA',TRUE,TRUE,FALSE),
+              (gen_random_uuid(),'Unit',chr(9),TRUE,FALSE,FALSE);
             """);
         await Db.AddProductAsync("P-ok");
         await Db.AddProductAsync("P-duplicate", unit: "KG");
@@ -126,7 +128,7 @@ public sealed class ProcurementMasterDataSqlTests
         Assert.AreEqual("\t", result.Items.Single(x => x.Sku == "P-whitespace").Unit);
     }
 
-    /// <summary>五个只读候选路由仅依赖当前登录身份，测试库无需用户、角色或成员关系表。</summary>
+    /// <summary>五个只读候选路由仅依赖当前登录身份；固定基线的用户、角色及成员表保持空。</summary>
     [TestMethod]
     public async Task AllQueriesWorkWithoutDatabaseRoleTables()
     {
@@ -137,14 +139,15 @@ public sealed class ProcurementMasterDataSqlTests
         await Db.QueryAsync(s => s.SearchSupplierHistoryFiltersAsync(new()));
     }
 
-    /// <summary>特殊字符按字面匹配，重复编码用 Uid 稳定排序；无结果和超末页均返回正确计数。</summary>
+    /// <summary>用不同合法编码验证字面匹配和稳定分页；无结果和超末页仍返回正确计数。</summary>
     [TestMethod]
     public async Task SearchIsLiteralAndPaginationStable()
     {
+        // 正式结构禁止未删除客户同码；保留共同搜索前缀，以合法身份验证两页及重复查询。
         await Db.ExecuteAsync("""
-            INSERT dbo.Customer VALUES(NEWID(),N'C-%_[~',N'特殊字符',1,0),
-              (NEWID(),N'C-other',N'普通客户',1,0),(NEWID(),N'C-other',N'同码客户',1,0);
-            INSERT dbo.Supplier VALUES(NEWID(),N'S-%_[~',N'特殊字符',1,0),(NEWID(),N'S-other',N'普通供应商',1,0);
+            INSERT INTO public.customer(uid,customer_code,customer_name,is_active,is_deleted,doc_relate_no,deposit_rate,lead_time_days) VALUES (gen_random_uuid(),'C-%_[~','特殊字符',TRUE,FALSE,'TEST',0,0),
+              (gen_random_uuid(),'C-other-A','普通客户',TRUE,FALSE,'TEST',0,0),(gen_random_uuid(),'C-other-B','另一客户',TRUE,FALSE,'TEST',0,0);
+            INSERT INTO public.supplier(uid,supplier_code,supplier_name,is_active,is_deleted,doc_relate_no) VALUES (gen_random_uuid(),'S-%_[~','特殊字符',TRUE,FALSE,'TEST'),(gen_random_uuid(),'S-other','普通供应商',TRUE,FALSE,'TEST');
             """);
         await Db.AddProductAsync("P-%_[~");
         await Db.AddProductAsync("P-other");
@@ -161,6 +164,8 @@ public sealed class ProcurementMasterDataSqlTests
         var repeated = await Db.QueryAsync(s => s.SearchCustomersAsync(new() { Keyword = "C-other", PageSize = 1 }));
         Assert.AreEqual(2, first.TotalCount);
         Assert.AreEqual(2, second.TotalCount);
+        Assert.AreEqual("C-other-A", first.Items.Single().CustomerCode);
+        Assert.AreEqual("C-other-B", second.Items.Single().CustomerCode);
         Assert.AreNotEqual(first.Items.Single().Uid, second.Items.Single().Uid);
         Assert.AreEqual(first.Items.Single().Uid, repeated.Items.Single().Uid);
         var afterLast = await Db.QueryAsync(s => s.SearchCustomersAsync(new() { PageIndex = 4, PageSize = 1 }));
@@ -175,9 +180,9 @@ public sealed class ProcurementMasterDataSqlTests
     [TestMethod]
     public async Task EligibilityIsRefreshedWithoutRemovingHistoricalIdentity()
     {
-        await Db.ExecuteAsync("INSERT dbo.Customer VALUES(NEWID(),N'C-change',N'状态变更客户',1,0);");
+        await Db.ExecuteAsync("INSERT INTO public.customer(uid,customer_code,customer_name,is_active,is_deleted,doc_relate_no,deposit_rate,lead_time_days) VALUES (gen_random_uuid(),'C-change','状态变更客户',TRUE,FALSE,'TEST',0,0);");
         var before = await Db.QueryAsync(s => s.SearchCustomersAsync(new()));
-        await Db.ExecuteAsync("UPDATE dbo.Customer SET IsActive=0;");
+        await Db.ExecuteAsync("UPDATE public.customer SET is_active=FALSE;");
         Assert.AreEqual(0, (await Db.QueryAsync(s => s.SearchCustomersAsync(new()))).TotalCount);
         var history = await Db.QueryAsync(s => s.SearchCustomerHistoryFiltersAsync(new()));
         Assert.AreEqual(before.Items.Single().Uid, history.Items.Single().Uid);
