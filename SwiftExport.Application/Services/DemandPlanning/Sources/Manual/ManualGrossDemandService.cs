@@ -49,19 +49,28 @@ public sealed class ManualGrossDemandService(
             request, request?.CommandId, CreateType, AuthorizeAsync,
             token => ExecuteCreateCommandAsync(request!, token), CancellationToken.None));
 
-    /// <summary>创建指纹仅包含实际生效输入；客户端 Sku 不参与事实生成。</summary>
+    /// <summary>创建指纹仅含原生效输入；PG先准备候选来源身份，首次业务复用，客户端Sku与候选不进入指纹。</summary>
     private async Task<ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>> ExecuteCreateCommandAsync(
         CreateManualGrossDemandRequest request, CancellationToken token)
     {
+        Guid? preparedUid = null;
+        var preparation = grossDemandRepository as ISourceDemandTransactionPreparation;
         var result = await executor.ExecuteAsync(request.CommandId, CreateType, null, ManualInput(request),
-            _ => CreateInTransactionAsync(request), token);
+            _ => CreateInTransactionAsync(request, preparedUid), token,
+            beforeTransaction: preparation is null ? null : ct =>
+            {
+                // 只分配随机身份并保护S/U；产品验证、数据库取号和指纹仍在原首次业务委托内。
+                var uid = GuidSequentialGenerator.NewGuid();
+                preparedUid = uid;
+                return preparation.AcquireBeforeTransactionAsync([uid], [uid], ct);
+            });
         return ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>.Ok(result);
     }
 
-    /// <summary>首次执行时生成来源身份和单号，并在同一事务内写入及读取完整结果。</summary>
-    private async Task<GrossDemandDetailDto> CreateInTransactionAsync(CreateManualGrossDemandRequest request)
+    /// <summary>首次执行复用PG准备身份，SQL旧路径仍此时生成；原产品校验后取号、写入及重读保持同一父事务。</summary>
+    private async Task<GrossDemandDetailDto> CreateInTransactionAsync(CreateManualGrossDemandRequest request, Guid? preparedUid)
     {
-        var uid = GuidSequentialGenerator.NewGuid();
+        var uid = preparedUid ?? GuidSequentialGenerator.NewGuid();
         var demand = new GrossDemand
         {
             Uid = uid, SourceType = DocumentTypeStaticsEnum.ManualDemand, SourceUid = uid, SourceLineId = uid,
@@ -87,7 +96,7 @@ public sealed class ManualGrossDemandService(
             request, request?.CommandId, UpdateType, AuthorizeAsync,
             token => ExecuteUpdateCommandAsync(uid, request!, token), CancellationToken.None));
 
-    /// <summary>路由身份先于回执校验，原版本及生效字段用于稳定指纹。</summary>
+    /// <summary>路由身份先于回执校验，原版本及生效字段用于指纹；PG来源绑定在父事务前发现并准备。</summary>
     private async Task<ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>> ExecuteUpdateCommandAsync(
         Guid uid, UpdateManualGrossDemandRequest request, CancellationToken token)
     {
@@ -95,7 +104,9 @@ public sealed class ManualGrossDemandService(
             return ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>.Fail(ServiceErrorCodes.Validation, "路由 Uid 与请求体 Uid 不一致。", "Uid");
         var result = await executor.ExecuteAsync(request.CommandId, UpdateType, uid,
             new { request.Uid, request.Version, Input = ManualInput(request) },
-            _ => UpdateInTransactionAsync(uid, request), token);
+            _ => UpdateInTransactionAsync(uid, request), token,
+            beforeTransaction: grossDemandRepository is ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([], [uid], ct) : null);
         return ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>.Ok(result);
     }
 
@@ -119,7 +130,7 @@ public sealed class ManualGrossDemandService(
             command, command?.CommandId, CloseType, AuthorizeAsync,
             token => ExecuteCloseCommandAsync(uid, command!, token), CancellationToken.None));
 
-    /// <summary>关闭原因按现有 Trim 语义参与指纹，回执读取早于活动状态检查。</summary>
+    /// <summary>关闭原因按原Trim参与指纹，PG来源绑定在父事务前准备，回执仍早于活动状态业务检查。</summary>
     private async Task<ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>> ExecuteCloseCommandAsync(
         Guid uid, CloseGrossDemandCommand command, CancellationToken token)
     {
@@ -127,7 +138,9 @@ public sealed class ManualGrossDemandService(
             return ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>.Fail(ServiceErrorCodes.Validation, "路由 Uid 与请求体 Uid 不一致。", "Uid");
         var result = await executor.ExecuteAsync(command.CommandId, CloseType, uid,
             new { command.Uid, command.Version, Reason = command.Reason?.Trim() },
-            _ => CloseInTransactionAsync(uid, command), token);
+            _ => CloseInTransactionAsync(uid, command), token,
+            beforeTransaction: grossDemandRepository is ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([], [uid], ct) : null);
         return ServiceResult<CommandExecutionResult<GrossDemandDetailDto>>.Ok(result);
     }
 

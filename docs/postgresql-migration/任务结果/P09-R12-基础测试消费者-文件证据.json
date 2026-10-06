@@ -1,0 +1,109 @@
+{
+  "recorded_at": "2026-10-06T09:13:15.2890244+08:00",
+  "stage": "P09-R12基础设施有效测试消费者转PG",
+  "status": "四既有有效测试消费者转PG完成；58定向离线/必要编译通过，生产源不删除",
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Database/GenericRepositoryMappingTests.cs",
+      "before_sha256": "E7EEEE7E2787DAFBEC1ABB8B7E2A94DED35B54E4252C9ACC3FB78F8460381DCD",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "BDC0F92A450545D56BE46E7DE662AB5B484EC15DD193D4779DA8F5EB12C7801F"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs",
+      "before_sha256": "755F672BDB9361ED69F1D189FD3BDAA7059842AD3C9B95710191CA7D71EE5613",
+      "prior_uncommitted_diff": [
+        "diff --git a/SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs b/SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs",
+        "index 888de759..70214410 100644",
+        "--- a/SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs",
+        "+++ b/SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs",
+        "@@ -72,7 +72,7 @@ public sealed class DatabaseBoundaryTests",
+        "     [DataRow(51001, DatabaseFailureKind.UnverifiedReceiptHistory)]",
+        "     [DataRow(53102, DatabaseFailureKind.Unknown)]",
+        "     public void ProviderErrors_RemainDistinct(int number, DatabaseFailureKind expected)",
+        "-        => Assert.AreEqual(expected, SqlServerExceptionClassifier.Instance.Classify(CreateException(number)));",
+        "+        => Assert.AreEqual(expected, ((IDbConnectionFactory)new SqlConnectionFactory(string.Empty)).Errors.Classify(CreateException(number)));",
+        " ",
+        "     /// <summary>取消与未知异常不通过消息或包装异常猜测。</summary>",
+        "     [TestMethod]",
+        "@@ -128,22 +128,21 @@ public sealed class DatabaseBoundaryTests",
+        "             null, [typeof(SqlErrorCollection), typeof(string)], null)!.Invoke(null, [errors, \"test\"])!;",
+        "     }",
+        " ",
+        "-    /// <summary>提供者分类器随工厂进入原会话，不引入第二条连接或事务。</summary>",
+        "+    /// <summary>接口默认PG分类器随工厂进入共享会话，不引入第二条连接或事务。</summary>",
+        "     [TestMethod]",
+        "     public void PostgreSqlClassifier_FollowsFactoryIntoSharedSession()",
+        "     {",
+        "         var connection = new ConnectionStub();",
+        "-        using var session = new DbSession(new Factory(connection, PostgreSqlExceptionClassifier.Instance));",
+        "+        using var session = new DbSession(new Factory(connection));",
+        "         Assert.AreSame(PostgreSqlExceptionClassifier.Instance, session.Errors);",
+        "         session.Transaction = connection.BeginTransaction();",
+        "         Assert.AreSame(connection, session.Transaction.Connection);",
+        "         Assert.AreEqual(1, connection.Opens);",
+        "     }",
+        " ",
+        "-    /// <summary>替身连接工厂，不读取环境配置。</summary>",
+        "-    private sealed class Factory(ConnectionStub connection, IDatabaseExceptionClassifier? errors = null) : IDbConnectionFactory",
+        "+    /// <summary>只替换连接的工厂，沿用真实接口默认分类器，不读取环境配置。</summary>",
+        "+    private sealed class Factory(ConnectionStub connection) : IDbConnectionFactory",
+        "     {",
+        "-        public IDatabaseExceptionClassifier Errors => errors ?? SqlServerExceptionClassifier.Instance;",
+        "         public IDbConnection CreateConnection() => connection;",
+        "     }",
+        " "
+      ],
+      "after_sha256": "AB619742474A00D411ACA049C02ECA5C96CB668F17E476AAB029DB488C9A4BAB"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlFoundationTests.cs",
+      "before_sha256": "5BAB09F4F6205743B8985DD1AD1D45DA298BDCCAE66E185D2CD8A92B830939A7",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "F8736E0210DF87663075AD97CE889F24E39E50ED00059EC74FF6A71BA1D8531A"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Inventory/InboundManagerServiceTests.cs",
+      "before_sha256": "629D8FA5EFC2075186ECE143765EA6BFA08ADF25EE55DF27466249551F895810",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "6677232242144CCE3A21BDF70C1492A35F97799BF08826AD46244D3C304DCE7A"
+    }
+  ],
+  "source_exit_count_before": 52,
+  "source_files_exited_before": 58,
+  "database_run": false,
+  "scope": "只四现有测试和迁移记录；保留CRUD映射/版本/事务/清理/错误服务HTTP含义，不改PG/业务/接口/DI/结构；执行资格旧源待原删除授权，不绕过",
+  "provider_transition": "撤除旧SqlClient参数容器/Number反射/源工厂断言；使用现有PG分类协议，55P03未知不冒称Timeout，历史专用信号不由RAISE文本猜测，不修改分类器",
+  "completed_at": "2026-10-06T09:16:16.6496181+08:00",
+  "execution": {
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_seconds": 2.9,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R12-基础测试消费者-实际命令.ps1'",
+    "test_exit": 0,
+    "passed": 58,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 364,
+    "class_cases": {
+      "GenericRepositoryMappingTests": 4,
+      "DatabaseBoundaryTests": 20,
+      "InboundManagerServiceTests": 33,
+      "Factories_CreateClosedConnections": 1
+    },
+    "trx": "TestResults/postgresql-migration/p09-r12-foundation-consumers-offline.trx",
+    "trx_sha256": "3B938590DCBE1CD67A5887F1D331D5A96C592E07C837C7091BC1DF3D4BF00FB5",
+    "database_gates": 14,
+    "excluded_integration_categories": 37,
+    "database_run": false,
+    "scope_note": "只四现有测试；没有执行完整Foundation结构生成测试/全量/真实PG、没有生产源退出"
+  },
+  "source_retirement_note": "旧SqlClient反射及参数容器/工厂提供者断言退役；两原唯一2601/2627合并为PG23505同一唯一分类场景，保留所有不同业务错误类别及五入库HTTP期望。原1222并非PG SQLSTATE，PG55P03既有Unknown协议保持，不声称等价超时或改分类器。",
+  "classifier_current_refs": [
+    "SwiftExport.Infrastructure\\Data\\SqlServerExceptionClassifier.cs:7:public sealed class SqlServerExceptionClassifier : IDatabaseExceptionClassifier",
+    "SwiftExport.Infrastructure\\Data\\SqlServerExceptionClassifier.cs:10:    public static SqlServerExceptionClassifier Instance { get; } = new();",
+    "SwiftExport.Infrastructure\\Data\\DbConnectionFactory.cs:22:    public SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => SqlServerExceptionClassifier.Instance;"
+  ]
+}

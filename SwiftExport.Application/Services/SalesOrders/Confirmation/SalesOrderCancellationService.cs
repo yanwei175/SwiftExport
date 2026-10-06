@@ -53,7 +53,7 @@ public sealed class SalesOrderCancellationService(ServiceBaseContext context, IS
             request, request?.CommandId, CommandType, AuthorizeAsync,
             token => ExecuteCancellationCommandAsync(uid, request!, token), CancellationToken.None));
 
-    /// <summary>路由身份先于回执检查，原版本及 Trim 后原因构成业务指纹。</summary>
+    /// <summary>路由身份先于回执检查，原版本及Trim后原因构成指纹；PG来源范围在父事务前准备。</summary>
     private async Task<ServiceResult<CommandExecutionResult<SalesOrderConfirmationResultDto>>> ExecuteCancellationCommandAsync(
         Guid uid, CancelSalesOrderConfirmationCommand request, CancellationToken token)
     {
@@ -62,7 +62,9 @@ public sealed class SalesOrderCancellationService(ServiceBaseContext context, IS
                 ServiceErrorCodes.Validation, "路由 Uid 与请求体 Uid 不一致。", "Uid");
         var result = await executor.ExecuteAsync(request.CommandId, CommandType, uid,
             new { request.Uid, request.Version, Reason = request.Reason?.Trim() },
-            ct => CancelInTransactionAsync(uid, request, ct), token);
+            ct => CancelInTransactionAsync(uid, request, ct), token,
+            beforeTransaction: sourceDemandReceptionService is SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document.ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([uid], [], ct) : null);
         return ServiceResult<CommandExecutionResult<SalesOrderConfirmationResultDto>>.Ok(result);
     }
 

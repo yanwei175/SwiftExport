@@ -1,0 +1,106 @@
+{
+  "recorded_at": "2026-10-06T07:39:09.1056059+08:00",
+  "instance": "192.168.3.12:5432",
+  "database": "dv_next",
+  "user_name": "dv",
+  "dev_user_enabled": false,
+  "database_default_read_only": false,
+  "requests": [
+    {
+      "path": "/api/auth/me",
+      "method": "GET",
+      "status": 401,
+      "identity": "anonymous"
+    },
+    {
+      "path": "/api/auth/login",
+      "method": "POST",
+      "status": 200,
+      "identity": "normal-dv-password"
+    },
+    {
+      "path": "/api/auth/me",
+      "method": "GET",
+      "status": 200,
+      "identity": "original-jwt"
+    },
+    {
+      "path": "/api/excel-read-profiles",
+      "method": "POST",
+      "status": 200,
+      "identity": "original-jwt"
+    },
+    {
+      "path": "/api/excel-read-profiles/22908143-4b9e-4f5d-8887-4a3505134a09",
+      "method": "PUT",
+      "status": 200,
+      "identity": "original-jwt"
+    },
+    {
+      "path": "/api/excel-read-profiles/22908143-4b9e-4f5d-8887-4a3505134a09",
+      "method": "GET",
+      "status": 200,
+      "identity": "original-jwt"
+    },
+    {
+      "path": "/api/excel-read-profiles/22908143-4b9e-4f5d-8887-4a3505134a09",
+      "method": "PUT",
+      "status": 409,
+      "identity": "original-jwt"
+    },
+    {
+      "path": "/api/excel-read-profiles/22908143-4b9e-4f5d-8887-4a3505134a09",
+      "method": "GET",
+      "status": 200,
+      "identity": "original-jwt"
+    }
+  ],
+  "port": 8228,
+  "success": true,
+  "stage": "completed",
+  "process_stopped": true,
+  "process_id": 48260,
+  "user_id": "825d7e51-f659-4c81-9ea9-4a2d03015360",
+  "permission_count": 112,
+  "role_codes": [
+    "SYSTEM_ADMIN"
+  ],
+  "group_code": "PGG6HTTP20261006",
+  "profile_uid": "22908143-4b9e-4f5d-8887-4a3505134a09",
+  "create_version": 1,
+  "saved_version": 2,
+  "stale_version_error": "VERSION_CONFLICT",
+  "full_snapshot_unchanged_after_rejection": true,
+  "persisted_profile": {
+    "groupCode": "PGG6HTTP20261006",
+    "configName": "PG迁移验收20261006-已保存",
+    "endMode": 1,
+    "lastRowColumn": "A",
+    "summaryCellAddress": null,
+    "remark": "G6 dv原JWT保存",
+    "fields": [
+      {
+        "targetFieldKey": "Quantity",
+        "worksheetName": null,
+        "cellAddress": "D8",
+        "isDownward": true
+      },
+      {
+        "targetFieldKey": "Sku",
+        "worksheetName": "Migration",
+        "cellAddress": "A8",
+        "isDownward": true
+      }
+    ],
+    "canRead": true,
+    "issues": [],
+    "uid": "22908143-4b9e-4f5d-8887-4a3505134a09",
+    "version": 2,
+    "isDeleted": false,
+    "createdDate": "2026-10-06T07:39:10.217828",
+    "createdBy": "dv",
+    "updatedDate": "2026-10-06T07:39:10.30531",
+    "updatedBy": "dv"
+  },
+  "finished_at": "2026-10-06T07:39:10.3893189+08:00"
+}

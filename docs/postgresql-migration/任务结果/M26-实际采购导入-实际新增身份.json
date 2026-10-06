@@ -1,0 +1,32 @@
+{
+  "Batch": "96079021-c968-4768-932f-28d01a0ec400",
+  "Database": "dv_next_pg_failure_tests_20261004",
+  "AddedRows": 6,
+  "Ids": {
+    "business_operation_log": [
+      "e37659f7-5369-4b1c-a2c5-4a350339e701"
+    ],
+    "command_receipt": [
+      "7d0a35bb-20d9-410a-b979-4a350339e70f"
+    ],
+    "document_sequence": [
+      "31cc5d27-e6ae-4946-9d96-4a350339e6e8"
+    ],
+    "purchase_order_head": [
+      "dd5d1603-1dad-423d-a0b4-4a350339e6bb"
+    ],
+    "purchase_order_line": [
+      "20ce9b91-5826-48be-86cf-4a350339e6d5",
+      "d30d2d1d-1818-4e01-a913-4a350339e6dd"
+    ]
+  },
+  "Tables": 50,
+  "BeforeRows": 52429,
+  "AfterRows": 52435,
+  "ProtectedRows": 52429,
+  "ProtectedDigestEqual": true,
+  "InventorySequence": 42,
+  "OldPO202610": 4,
+  "LivePids": 0,
+  "AdvisoryLocks": 0
+}

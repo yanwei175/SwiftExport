@@ -36,9 +36,9 @@ public sealed class SupplierProductNullableAssociationTests
     public void GeneratedSchema_UsesNullableProductIdAndFilteredUniqueness()
     {
         Assert.AreEqual(typeof(Guid?), typeof(SupplierProduct).GetProperty(nameof(SupplierProduct.SkuId))!.PropertyType);
-        var sql = new SqlServerSchemaGenerator().Generate(typeof(SupplierProduct).Assembly);
-        StringAssert.Contains(sql, "[SkuId] uniqueidentifier NULL");
-        StringAssert.Contains(sql, "[SupplierId], [SkuId]) WHERE [IsDeleted] = 0 AND [SkuId] IS NOT NULL");
+        var sql = new PostgreSqlSchemaGenerator().Generate(typeof(SupplierProduct).Assembly);
+        StringAssert.Contains(sql, "\"sku_id\" uuid NULL");
+        StringAssert.Contains(sql, "CREATE UNIQUE INDEX \"ux_supplier_product_supplier_product\" ON \"public\".\"supplier_product\" (\"supplier_id\", \"sku_id\") WHERE \"is_deleted\" = FALSE AND \"sku_id\" IS NOT NULL");
     }
 
     /// <summary>普通列表和详情共用可选 Product 连接，未关联行不被 WHERE 排除。</summary>
@@ -49,11 +49,11 @@ public sealed class SupplierProductNullableAssociationTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "AGENTS.md")))
             directory = directory.Parent;
         Assert.IsNotNull(directory);
-        var path = Path.Combine(directory.FullName, "SwiftExport.Infrastructure", "Repositories", "Suppliers", "SupplierProducts", "SupplierProductRepository.cs");
+        var path = Path.Combine(directory.FullName, "SwiftExport.Infrastructure", "Repositories", "Suppliers", "SupplierProducts", "PostgreSqlSupplierProductRepository.cs");
         var sql = File.ReadAllText(path);
-        StringAssert.Contains(sql, "LEFT JOIN dbo.Product p WITH (NOLOCK)");
-        StringAssert.Contains(sql, "ON p.Uid = sp.SkuId AND ISNULL(p.IsDeleted, 0) = 0");
-        StringAssert.Contains(sql, "sp.SupplierSku LIKE @Keyword");
-        Assert.IsFalse(sql.Contains("WHERE p.Uid IS NOT NULL", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(sql, "LEFT JOIN public.product p");
+        StringAssert.Contains(sql, "ON p.uid=sp.sku_id AND (p.is_deleted=FALSE OR p.is_deleted IS NULL)");
+        StringAssert.Contains(sql, "sp.supplier_sku COLLATE public.erp_dictionary_ci LIKE @Keyword");
+        Assert.IsFalse(sql.Contains("WHERE p.uid IS NOT NULL", StringComparison.OrdinalIgnoreCase));
     }
 }

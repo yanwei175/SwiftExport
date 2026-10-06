@@ -1,0 +1,67 @@
+{
+  "recorded_at": "2026-10-06T08:57:44.753806+08:00",
+  "stage": "P09-R10 BOM普通仓储源退出",
+  "status": "本批完成：一个旧文件退出，必要构建及9现有PG离线通过；非实库验收",
+  "names": [
+    "BomRepository"
+  ],
+  "files": [
+    {
+      "name": "BomRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Products/BomRepository.cs",
+      "sha256": "C7210FF31CCCB21976E408DCAFFDBD6C5EE02DB441A7CB4ED8CEE0C88CFD9B24",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Products/PostgreSqlBomRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Database/BomCollectionQueryTests.cs",
+        "SwiftExport.Application.Tests/Database/BomReferenceQueryTests.cs",
+        "SwiftExport.Application.Tests/Database/BomSharedQueryTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Database/BomCollectionQueryTests.cs",
+      "before_sha256": "7C8201587DAA3A24C070F37EFA3CD00FA9426F5B2BBFEE3C6ABB7D59798DD1A3",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "D1E939C2484178B2872987F3D91936071B7C2E0507C74FDD18A1438F3DE99A73"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/BomReferenceQueryTests.cs",
+      "before_sha256": "581FD58C490916C01A7AAAC9AA61AD1EA817B9A19003C6F74C08BD2AA516AE7C",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "E1D292BB9F86256B97295C2004081ADB83E339B53B5B28E80FF58E4BFEB107E4"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/BomSharedQueryTests.cs",
+      "before_sha256": "49B1168D63989A69491B8B64CBB5C62FC8A3D25AB8BD3D3DDA6B82E6C91FF787",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "8560EFBC0580E45AAADF7EA291828282ACDAC5479C74B8EE8605CCFA75A57FF9"
+    }
+  ],
+  "source_only_retirement": "旧提供者9场景随原实现退役；全部9个现有PG场景及输入/映射/事务/无额外锁断言保留，不新增测试",
+  "deferred": "BomExecutionRepository无DI/运行消费者，非PG同名实现；本批保留原文件和有效端口测试，不机械翻译范围锁",
+  "database_run": false,
+  "completed_at": "2026-10-06T08:59:54.4024932+08:00",
+  "execution": {
+    "deletion": "原生用户环境绝对路径/SHA/Git HEAD/消费者复核后仅删除BomRepository.cs，exit0；退出后当前引用零",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_seconds": 3.9,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R10-BOM普通契约-实际命令.ps1'",
+    "test_exit": 0,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 121,
+    "trx": "TestResults/postgresql-migration/p09-r10-bom-query-contracts-offline.trx",
+    "trx_sha256": "22E52F61A4395F369C84858DA794E0FA9AFA547EF4265D171C0FBC0A218F5A56",
+    "database_gates": 14,
+    "excluded_integration_categories": 37,
+    "database_run": false
+  }
+}

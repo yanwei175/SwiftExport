@@ -1,4 +1,4 @@
-﻿using SwiftExport.Core.Interfaces.Systems.Currencies;
+using SwiftExport.Core.Interfaces.Systems.Currencies;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Core.Interfaces.Systems.ExchangeRates;
@@ -105,11 +105,11 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.AddLogging();
-        services.AddSingleton<SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier>(SqlServerExceptionClassifier.Instance);
+        services.AddSingleton<SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier>(PostgreSqlExceptionClassifier.Instance);
 
         // 两个入口必须解析到同一个 scoped 实例，避免应用与仓储各持一条连接。
         services.AddScoped<SwiftExport.Infrastructure.Data.IDbConnectionFactory>(sp =>
-            new SqlConnectionFactory(Microsoft.Extensions.Configuration.ConfigurationExtensions.GetConnectionString(
+            new PostgreSqlConnectionFactory(Microsoft.Extensions.Configuration.ConfigurationExtensions.GetConnectionString(
                 sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(), "Default")!));
         services.AddScoped<DbSession>(sp => new DbSession(sp.GetRequiredService<IDbConnectionFactory>()));
         services.AddScoped<SwiftExport.Core.Interfaces.Data.IDbSession>(sp => sp.GetRequiredService<DbSession>());
@@ -121,86 +121,86 @@ public static class DependencyInjection
         // AuditStampService 依赖 ICurrentUser，ICurrentUser 在 WebApi 层注册（读 HttpContext）
         // Infrastructure 层只依赖接口，不依赖具体实现，保持分层干净
         services.AddScoped<IAuditStampService, AuditStampService>();
-        services.AddScoped<ISysUserRepository, SysUserRepository>();
-        services.AddScoped<IAuthRepository, AuthRepository>();
-        services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
-        services.AddScoped<IRbacManagementRepository, RbacManagementRepository>();
+        services.AddScoped<SwiftExport.Infrastructure.Repositories.Auth.Development.PostgreSqlDevUserQuery>();
+        // 已审计的旧SysUser查询无生产消费者，退出注册；保留源码及现行IAuthRepository认证链。
+        services.AddScoped<IAuthRepository, PostgreSqlAuthRepository>();
+        services.AddScoped<IUserPermissionRepository, PostgreSqlUserPermissionRepository>();
+        services.AddScoped<IRbacManagementRepository, PostgreSqlRbacManagementRepository>();
 
 
-        services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>));
-        services.AddScoped<IProductRepository, ProductRepository>();
-        services.AddScoped<IProductMasterRepository, ProductMasterRepository>();
-        services.AddScoped<IProductNeutralRepository, ProductNeutralRepository>();
-        services.AddScoped<IProductNeutralManagerRepository, ProductNeutralManagerRepository>();
-        services.AddScoped<IBomRepository, BomRepository>();
-        services.AddScoped<ICustomerRepository, CustomerRepository>();
-        services.AddScoped<ICustomerPoConfigRepository, CustomerPoConfigRepository>();
+        services.AddScoped(typeof(IRepository<>), typeof(PostgreSqlDapperRepository<>));
+        services.AddScoped<IProductRepository, PostgreSqlProductRepository>();
+        services.AddScoped<IProductMasterRepository, PostgreSqlProductMasterRepository>();
+        services.AddScoped<IProductNeutralRepository, PostgreSqlProductNeutralRepository>();
+        services.AddScoped<IProductNeutralManagerRepository, PostgreSqlProductNeutralManagerRepository>();
+        services.AddScoped<IBomRepository, PostgreSqlBomRepository>();
+        services.AddScoped<ICustomerRepository, PostgreSqlCustomerRepository>();
+        services.AddScoped<ICustomerPoConfigRepository, PostgreSqlCustomerPoConfigRepository>();
         // 注册客户产品仓储
-        services.AddScoped<ICustomerProductRepository, CustomerProductRepository>();
-        services.AddScoped<ISupplierRepository, SupplierRepository>();
-        services.AddScoped<ISupplierProductRepository, SupplierProductRepository>();
-        services.AddScoped<IProductColorRepository, ProductColorRepository>();
-        services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
-        services.AddScoped<ISysDicCurrencyRepository, SysDicCurrencyRepository>();
-        services.AddScoped<ISysDicCurrencyExchangeRepository, SysDicCurrencyExchangeRepository>();
-        services.AddScoped<IDocumentSequenceRepository, DocumentSequenceRepository>();
-        services.AddScoped<ISysDictDataRepository, SysDictDataRepository>();
-        services.AddScoped<ISysDictTypeRepository, SysDictTypeRepository>();
-        services.AddScoped<ISalesOrderLineRepository, SalesOrderLineRepository>();
-        services.AddScoped<INetDemandExecutionLinkRepository, NetDemandExecutionLinkRepository>();
-        services.AddScoped<IGrossDemandQueryRepository, GrossDemandQueryRepository>();
-        services.AddScoped<IGrossDemandDocumentRepository, GrossDemandDocumentRepository>();
-        services.AddScoped<IMaterialDemandQueryRepository, MaterialDemandQueryRepository>();
-        services.AddScoped<IMaterialDemandSourceRepository, MaterialDemandSourceRepository>();
-        services.AddScoped<IMaterialDemandDocumentRepository, MaterialDemandDocumentRepository>();
-        services.AddScoped<IPurchaseOrderDraftRepository, PurchaseOrderDraftRepository>();
-        // 新链的事务持久化、管理投影与严格 BOM 读取使用同一请求 DbSession。
-        services.AddScoped<IProcurementOrderDocumentRepository, ProcurementOrderDocumentRepository>();
-        services.AddScoped<IProcurementReferenceReadRepository, ProcurementReferenceReadRepository>();
-        services.AddScoped<IProcurementReversalRepository, ProcurementReversalRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.Procurement.IProcurementDemandAssociationRepository, SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Association.ProcurementDemandAssociationRepository>();
+        services.AddScoped<ICustomerProductRepository, PostgreSqlCustomerProductRepository>();
+        services.AddScoped<ISupplierRepository, PostgreSqlSupplierRepository>();
+        services.AddScoped<ISupplierProductRepository, PostgreSqlSupplierProductRepository>();
+        services.AddScoped<IProductColorRepository, PostgreSqlProductColorRepository>();
+        services.AddScoped<IProductCategoryRepository, PostgreSqlProductCategoryRepository>();
+        services.AddScoped<ISysDicCurrencyRepository, PostgreSqlSysDicCurrencyRepository>();
+        services.AddScoped<ISysDicCurrencyExchangeRepository, PostgreSqlSysDicCurrencyExchangeRepository>();
+        services.AddScoped<IDocumentSequenceRepository, PostgreSqlDocumentSequenceRepository>();
+        services.AddScoped<ISysDictDataRepository, PostgreSqlSysDictDataRepository>();
+        services.AddScoped<ISysDictTypeRepository, PostgreSqlSysDictTypeRepository>();
+        services.AddScoped<ISalesOrderLineRepository, PostgreSqlSalesOrderLineRepository>();
+        services.AddScoped<INetDemandExecutionLinkRepository, PostgreSqlNetDemandExecutionLinkRepository>();
+        services.AddScoped<IGrossDemandQueryRepository, PostgreSqlGrossDemandQueryRepository>();
+        services.AddScoped<IGrossDemandDocumentRepository, PostgreSqlGrossDemandDocumentRepository>();
+        services.AddScoped<IMaterialDemandQueryRepository, PostgreSqlMaterialDemandQueryRepository>();
+        services.AddScoped<IMaterialDemandSourceRepository, PostgreSqlMaterialDemandSourceRepository>();
+        services.AddScoped<IMaterialDemandDocumentRepository, PostgreSqlMaterialDemandDocumentRepository>();
+        services.AddScoped<IPurchaseOrderDraftRepository, PostgreSqlPurchaseOrderDraftRepository>();
+        // 采购事务持久化与管理投影使用同一请求DbSession，不接回无生产消费者的旧递归BOM链。
+        services.AddScoped<IProcurementOrderDocumentRepository, PostgreSqlProcurementOrderDocumentRepository>();
+        services.AddScoped<IProcurementReferenceReadRepository, PostgreSqlProcurementReferenceReadRepository>();
+        services.AddScoped<IProcurementReversalRepository, PostgreSqlProcurementReversalRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Procurement.IProcurementDemandAssociationRepository, SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Association.PostgreSqlProcurementDemandAssociationRepository>();
         services.AddScoped<IProcurementOrderFactLockRepository>(sp => sp.GetRequiredService<IProcurementReversalRepository>());
-        services.AddScoped<IProcurementOrderQueryRepository, ProcurementOrderQueryRepository>();
-        services.AddScoped<IPurchaseOrderManagerQueryRepository, PurchaseOrderManagerQueryRepository>();
-        services.AddScoped<IPurchaseOrderTraceRepository, SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Trace.PurchaseOrderTraceRepository>();
-        services.AddScoped<IPurchaseOrderProgressQueryRepository, PurchaseOrderProgressQueryRepository>();
-        services.AddScoped<IBomExecutionRepository, BomExecutionRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IExecutionEligibilityRepository, SwiftExport.Infrastructure.Repositories.MasterData.ExecutionEligibilityRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IProcurementMasterDataQueryRepository, SwiftExport.Infrastructure.Repositories.MasterData.ProcurementMasterDataQueryRepository>();
-        services.AddScoped<ISupplierProgressReportRepository, SupplierProgressReportRepository>();
-        services.AddScoped<IBusinessOperationLogRepository, BusinessOperationLogRepository>();
-        services.AddScoped<ICommandReceiptRepository, CommandReceiptRepository>();
-        services.AddScoped<ISalesOrderHeadRepository, SalesOrderHeadRepository>();
-        services.AddScoped<ISalesOrderQueryRepository, SalesOrderQueryRepository>();
-        services.AddScoped<IWarehouseQueryRepository, WarehouseQueryRepository>();
-        services.AddScoped<IWarehouseManagementRepository, WarehouseManagementRepository>();
-        services.AddScoped<IWarehouseCandidateRepository, WarehouseCandidateRepository>();
-        services.AddScoped<IInventoryQueryRepository, InventoryQueryRepository>();
-        services.AddScoped<IInventoryPostingRepository, InventoryPostingRepository>();
-        services.AddScoped<IInboundDocumentRepository, InboundDocumentRepository>();
-        services.AddScoped<IInboundExecutionReadRepository, InboundExecutionReadRepository>();
-        services.AddScoped<IInboundQueryRepository, InboundQueryRepository>();
-        services.AddScoped<IInboundSourceRepository, InboundSourceRepository>();
-        services.AddScoped<IAutomaticDocumentRepository, AutomaticDocumentRepository>();
-        services.AddScoped<IOutboundQueryRepository, OutboundQueryRepository>();
-        services.AddScoped<IOutboundDocumentRepository, OutboundDocumentRepository>();
-        services.AddScoped<IOutboundExecutionReadRepository, OutboundExecutionReadRepository>();
-        services.AddScoped<PackingListRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListQueryRepository>(sp => sp.GetRequiredService<PackingListRepository>());
-        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListDocumentRepository>(sp => sp.GetRequiredService<PackingListRepository>());
-        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListSourceExitRepository>(sp => sp.GetRequiredService<PackingListRepository>());
-        services.AddScoped<IPackingListPostingFactsRepository, PackingListPostingFactsRepository>();
-        services.AddScoped<IPackingListExecutionRepository, PackingListExecutionRepository>();
-        services.AddScoped<ISourceDeliveryQueryRepository, SourceDeliveryQueryRepository>();
+        services.AddScoped<IProcurementOrderQueryRepository, PostgreSqlProcurementOrderQueryRepository>();
+        services.AddScoped<IPurchaseOrderManagerQueryRepository, PostgreSqlPurchaseOrderManagerQueryRepository>();
+        services.AddScoped<IPurchaseOrderTraceRepository, SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Trace.PostgreSqlPurchaseOrderTraceRepository>();
+        services.AddScoped<IPurchaseOrderProgressQueryRepository, PostgreSqlPurchaseOrderProgressQueryRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IExecutionEligibilityRepository, SwiftExport.Infrastructure.Repositories.MasterData.PostgreSqlExecutionEligibilityRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.MasterData.IProcurementMasterDataQueryRepository, SwiftExport.Infrastructure.Repositories.MasterData.PostgreSqlProcurementMasterDataQueryRepository>();
+        services.AddScoped<ISupplierProgressReportRepository, PostgreSqlSupplierProgressReportRepository>();
+        services.AddScoped<IBusinessOperationLogRepository, PostgreSqlBusinessOperationLogRepository>();
+        services.AddScoped<ICommandReceiptRepository, PostgreSqlCommandReceiptRepository>();
+        services.AddScoped<ISalesOrderHeadRepository, PostgreSqlSalesOrderHeadRepository>();
+        services.AddScoped<ISalesOrderQueryRepository, PostgreSqlSalesOrderQueryRepository>();
+        services.AddScoped<IWarehouseQueryRepository, PostgreSqlWarehouseQueryRepository>();
+        services.AddScoped<IWarehouseManagementRepository, PostgreSqlWarehouseManagementRepository>();
+        services.AddScoped<IWarehouseCandidateRepository, PostgreSqlWarehouseCandidateRepository>();
+        services.AddScoped<IInventoryQueryRepository, PostgreSqlInventoryQueryRepository>();
+        services.AddScoped<IInventoryPostingRepository, PostgreSqlInventoryPostingRepository>();
+        services.AddScoped<IInboundDocumentRepository, PostgreSqlInboundDocumentRepository>();
+        services.AddScoped<IInboundExecutionReadRepository, PostgreSqlInboundExecutionReadRepository>();
+        services.AddScoped<IInboundQueryRepository, PostgreSqlInboundQueryRepository>();
+        services.AddScoped<IInboundSourceRepository, PostgreSqlInboundSourceRepository>();
+        services.AddScoped<IAutomaticDocumentRepository, PostgreSqlAutomaticDocumentRepository>();
+        services.AddScoped<IOutboundQueryRepository, PostgreSqlOutboundQueryRepository>();
+        services.AddScoped<IOutboundDocumentRepository, PostgreSqlOutboundDocumentRepository>();
+        services.AddScoped<IOutboundExecutionReadRepository, PostgreSqlOutboundExecutionReadRepository>();
+        services.AddScoped<PostgreSqlPackingListRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListQueryRepository>(sp => sp.GetRequiredService<PostgreSqlPackingListRepository>());
+        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListDocumentRepository>(sp => sp.GetRequiredService<PostgreSqlPackingListRepository>());
+        services.AddScoped<SwiftExport.Core.Interfaces.Shipping.PackingLists.IPackingListSourceExitRepository>(sp => sp.GetRequiredService<PostgreSqlPackingListRepository>());
+        services.AddScoped<IPackingListPostingFactsRepository, PostgreSqlPackingListPostingFactsRepository>();
+        services.AddScoped<IPackingListExecutionRepository, PostgreSqlPackingListExecutionRepository>();
+        services.AddScoped<ISourceDeliveryQueryRepository, PostgreSqlSourceDeliveryQueryRepository>();
 
-        services.AddScoped<IAfterSalesDocumentRepository, AfterSalesDocumentRepository>();
-        services.AddScoped<IAfterSalesQueryRepository, AfterSalesQueryRepository>();
-        services.AddScoped<IAfterSalesLookupRepository, AfterSalesLookupRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelSalesOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.ForExcelSalesOrderRepository>();
-        services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.ForExcelPurchaseOrderRepository>();
+        services.AddScoped<IAfterSalesDocumentRepository, PostgreSqlAfterSalesDocumentRepository>();
+        services.AddScoped<IAfterSalesQueryRepository, PostgreSqlAfterSalesQueryRepository>();
+        services.AddScoped<IAfterSalesLookupRepository, PostgreSqlAfterSalesLookupRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelSalesOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.PostgreSqlForExcelSalesOrderRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.PostgreSqlForExcelPurchaseOrderRepository>();
         // 主配置和字段共享当前请求的 DbSession，由应用层统一控制事务。
         services.AddScoped<SwiftExport.Core.Interfaces.Systems.ExcelReadProfiles.IExcelReadProfileRepository,
-            SwiftExport.Infrastructure.Repositories.Systems.ExcelReadProfiles.ExcelReadProfileRepository>();
+            SwiftExport.Infrastructure.Repositories.Systems.ExcelReadProfiles.PostgreSqlExcelReadProfileRepository>();
         return services;
     }
 }

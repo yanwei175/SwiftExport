@@ -130,6 +130,8 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
             await SaveResultAsync(request.CommandId, request.CorrelationId, request.PackingListId, request.PackingListNo, operation, fingerprint, result, null, token);
             return result;
         }
+        // PG明确终止的序列化事务须保留驱动异常，交既有外层分类；其他业务/写入错误仍沿用原映射。
+        catch (Exception ex) when (scope.IsSerializationFailure(ex)) { scope.Abort(); throw; }
         catch (Exception ex) { scope.Abort(); throw MapFailure(ex); }
     }
 

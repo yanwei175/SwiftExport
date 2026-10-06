@@ -11,7 +11,7 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>使用授权 PostgreSQL 实库验证汇率仓储；测试记录仅在本事务内存在，不修改币种主数据。</summary>
+/// <summary>使用已授权独立 PostgreSQL 测试库验证汇率仓储；测试记录仅在本事务内存在，不修改币种主数据。</summary>
 [TestClass]
 [TestCategory("PostgreSqlIntegration")]
 public sealed class PostgreSqlCurrencyMigrationIntegrationTests
@@ -20,7 +20,7 @@ public sealed class PostgreSqlCurrencyMigrationIntegrationTests
     [TestMethod]
     public async Task ExchangeQueries_UseRealNullableParametersAndRollbackTestRows()
     {
-        var connectionString = PostgreSqlIntegrationEnvironment.GetConnectionString();
+        var connectionString = PostgreSqlIntegrationEnvironment.GetFailureConnectionString();
         using var session = new DbSession(new PostgreSqlConnectionFactory(connectionString));
         var marker = "__pgtest_" + Guid.NewGuid().ToString("N");
         var user = new CurrencyIntegrationUser(marker);

@@ -38,7 +38,8 @@ public sealed class ExcelReadProfileLocalDbTests
             created = true;
             var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
                 { ["ConnectionStrings:Default"] = server + "Initial Catalog=" + database }).Build();
-            using var session = new DbSession(configuration);
+            // 此夹具验证原SQL Server行为，显式源工厂，不借默认PG配置构造入口。
+            using var session = new DbSession(new SqlConnectionFactory(configuration.GetConnectionString("Default")!));
             using var logs = LoggerFactory.Create(_ => { });
             // 使用真实实体生成器，数据库列、CHECK、索引和中文描述与交付基线保持相同。
             await session.Connection.ExecuteAsync(new SqlServerSchemaGenerator().Generate(typeof(BaseEntity).Assembly), commandTimeout: 120);
@@ -106,7 +107,7 @@ public sealed class ExcelReadProfileLocalDbTests
             await session.Connection.ExecuteAsync("DROP TRIGGER dbo.FailExcelReadField");
 
             // 两个请求使用同一个主版本时只允许一个成功，另一个不得覆盖字段。
-            using (var otherSession = new DbSession(configuration))
+            using (var otherSession = new DbSession(new SqlConnectionFactory(configuration.GetConnectionString("Default")!)))
             {
                 var otherRepo = new ExcelReadProfileRepository(new RepositoryBaseContext(otherSession, logs, new AuditStampService(user), user));
                 var otherService = new ExcelReadProfileService(otherRepo, new ServiceBaseContext(otherSession, logs));

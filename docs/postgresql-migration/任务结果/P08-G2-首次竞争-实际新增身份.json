@@ -1,0 +1,48 @@
+{
+  "net_demand": [
+    "803d4a23-71ca-40f0-b99f-4a3502baf200"
+  ],
+  "gross_demand": [
+    "3d145ab0-7cf6-485a-a429-4a3502baf138"
+  ],
+  "command_receipt": [
+    "2bbe9d84-606e-49c3-93ca-4a3502baf4e7",
+    "429a741c-53a8-43f4-82c5-4a3502baf207",
+    "767c3ca0-1c29-4a71-bb30-4a3502baf533",
+    "88c5fed2-9155-4d38-bf67-4a3502baf251",
+    "a4761938-a858-4500-a166-4a3502baf101",
+    "dc05e535-6b76-4f99-bdf9-4a3502baf14a",
+    "dc92ca6c-6bfe-4b0c-b687-4a3502baf5d4"
+  ],
+  "sales_order_line": [
+    "6dd97054-21ae-481a-93ab-28d4c9502201"
+  ],
+  "document_sequence": [
+    "2010b795-0976-44c2-b304-4a3502baf0ba",
+    "bf49386d-e3ad-4f9b-9e01-4a3502baf52a"
+  ],
+  "sales_order_header": [
+    "7e3e69c6-008b-44e6-8ecf-4a3502baf0d1"
+  ],
+  "purchase_order_head": [
+    "027a8ad0-a632-4e1e-be75-4a3502baf518",
+    "0395f4de-9f7b-4514-84e4-4a3502baf3f6"
+  ],
+  "purchase_order_line": [
+    "469940c7-93d6-453a-9e89-4a3502baf3f7",
+    "a243b8c9-8b81-4fc6-b262-4a3502baf51a"
+  ],
+  "demand_execution_link": [
+    "2f6093a4-5d2f-4cae-9134-4a3502baf3f8",
+    "de4ea085-e598-4fdb-8205-4a3502baf5c9"
+  ],
+  "business_operation_log": [
+    "1a9be6ac-b5f6-4b78-88b8-4a3502baf24f",
+    "1d86f965-84ca-4897-a691-4a3502baf148",
+    "2ee11ee1-86e3-414b-8bb3-4a3502baf532",
+    "49e34508-8a8a-4107-ab9f-4a3502baf4e0",
+    "4f254d69-f7a6-4d5b-a0d3-4a3502baf204",
+    "8a3c0b21-c924-44de-a6b1-4a3502baf5d1",
+    "952866f2-dea2-4eb0-82ce-4a3502baf141"
+  ]
+}

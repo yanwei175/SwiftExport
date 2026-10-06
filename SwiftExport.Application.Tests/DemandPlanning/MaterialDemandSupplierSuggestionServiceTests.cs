@@ -164,15 +164,126 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
         Assert.IsNull(fixture.Session.Transaction);
     }
 
+    /// <summary>可选准备先于回执和父事务，重放仍准备但保持首次结果，资源在事务结束后归还。</summary>
+    [TestMethod]
+    public async Task MaterialPreparation_PrecedesReceiptAndEndsAfterTransaction()
+    {
+        using var fixture = new Fixture(withPreparation: true);
+        var preparations = 0;
+        var releases = 0;
+        var command = new UpdateSuggestedPurchaseSupplierCommand
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version
+        };
+        fixture.NetDemandPort.Prepare = (sources, gross, nets, items, token) =>
+        {
+            Assert.IsNull(fixture.Session.Transaction);
+            Assert.AreEqual(preparations, fixture.Receipt.ReadCount);
+            Assert.HasCount(0, sources); Assert.HasCount(0, gross); Assert.HasCount(0, items);
+            CollectionAssert.AreEqual(new[] { command.NetDemandId }, nets.ToArray());
+            preparations++;
+            return Task.FromResult<IAsyncDisposable?>(new PreparationMarker(() =>
+            {
+                Assert.IsNull(fixture.Session.Transaction);
+                Assert.AreEqual(1, fixture.Connection.LastTransaction!.CommitCount);
+                releases++;
+            }));
+        };
+        Assert.IsTrue((await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command)).Success);
+        fixture.Row.Version++;
+        var replay = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command);
+        Assert.IsTrue(replay.Success);
+        Assert.AreEqual(command.Version, replay.Data!.Version);
+        Assert.AreEqual(2, preparations); Assert.AreEqual(2, releases);
+        Assert.AreEqual(1, fixture.Receipt.InsertCount); Assert.AreEqual(0, fixture.NetDemandPort.UpdateCount);
+    }
+
+    /// <summary>事实更新后回执失败仍按原父事务回滚，资源不能早于回滚归还。</summary>
+    [TestMethod]
+    public async Task ReceiptFailure_ReleasesPreparationAfterRollback()
+    {
+        using var fixture = new Fixture(withPreparation: true);
+        fixture.Row.SuggestedPurchaseSupplierId = Guid.NewGuid();
+        fixture.Receipt.FailInsert = true;
+        var releases = 0;
+        fixture.NetDemandPort.Prepare = (_, _, _, _, _) => Task.FromResult<IAsyncDisposable?>(
+            new PreparationMarker(() =>
+            {
+                Assert.IsNull(fixture.Session.Transaction);
+                Assert.AreEqual(1, fixture.Connection.LastTransaction!.RollbackCount);
+                Assert.AreEqual(0, fixture.Connection.LastTransaction.CommitCount);
+                releases++;
+            }));
+        var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version
+        });
+        Assert.IsFalse(result.Success); Assert.AreEqual(1, releases);
+        Assert.AreEqual(1, fixture.NetDemandPort.UpdateCount);
+    }
+
+    /// <summary>准备超时或取消时尚未开启事务、查询回执或更新事实，取消保持原样传播。</summary>
+    [TestMethod]
+    [DataRow(false)] [DataRow(true)]
+    public async Task PreparationFailure_DoesNotStartBusiness(bool cancelled)
+    {
+        using var fixture = new Fixture(withPreparation: true);
+        fixture.NetDemandPort.Prepare = (_, _, _, _, _) => cancelled
+            ? Task.FromException<IAsyncDisposable?>(new OperationCanceledException())
+            : Task.FromResult<IAsyncDisposable?>(null);
+        var command = new UpdateSuggestedPurchaseSupplierCommand
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = fixture.Row.Uid, Version = fixture.Row.Version
+        };
+        if (cancelled)
+            await Assert.ThrowsAsync<OperationCanceledException>(() => fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command));
+        else
+            Assert.AreEqual(ServiceErrorCodes.Unexpected,
+                (await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(command)).Error.Code);
+        Assert.AreEqual(1, fixture.NetDemandPort.PreparationCount);
+        Assert.IsNull(fixture.Connection.LastTransaction);
+        Assert.AreEqual(0, fixture.Receipt.ReadCount); Assert.AreEqual(0, fixture.Receipt.InsertCount);
+        Assert.AreEqual(0, fixture.NetDemandPort.UpdateCount);
+    }
+
+    /// <summary>原权限及纯输入拒绝保持在数据库准备之前，不增加无权或无效请求的数据库访问。</summary>
+    [TestMethod]
+    [DataRow("permission")] [DataRow("net")] [DataRow("supplier")]
+    public async Task DeniedInput_DoesNotPrepare(string mode)
+    {
+        using var fixture = new Fixture(withPreparation: true);
+        fixture.Permission.Allow = mode != "permission";
+        var result = await fixture.Service.UpdateSuggestedPurchaseSupplierAsync(new()
+        {
+            CommandId = Guid.NewGuid(), NetDemandId = mode == "net" ? Guid.Empty : fixture.Row.Uid,
+            Version = fixture.Row.Version, SuggestedPurchaseSupplierId = mode == "supplier" ? Guid.Empty : null
+        });
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(0, fixture.NetDemandPort.PreparationCount);
+        Assert.IsNull(fixture.Connection.LastTransaction); Assert.AreEqual(0, fixture.Receipt.ReadCount);
+    }
+
+    /// <summary>仅合并测试端口观察服务时序；内存标记不冒充PG物理租约或数据库验证。</summary>
+    public interface IPreparedMaterialTestPort : IMaterialDemandDocumentRepository, IMaterialDemandTransactionPreparation { }
+
+    /// <summary>观察执行器资源释放时机，不生成或伪造SourceDemandLease。</summary>
+    private sealed class PreparationMarker(Action released) : IAsyncDisposable
+    {
+        /// <summary>释放时执行事务结束断言。</summary>
+        public ValueTask DisposeAsync() { released(); return ValueTask.CompletedTask; }
+    }
+
     /// <summary>只构造内存仓储与连接标记，避免 DbSession 正式构造打开 SQL 连接。</summary>
     private sealed class Fixture : IDisposable
     {
-        public Fixture()
+        public Fixture(bool withPreparation = false)
         {
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
             typeof(DbSession).GetField("<Connection>k__BackingField", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .SetValue(Session, Connection);
-            var demands = DispatchProxy.Create<IMaterialDemandDocumentRepository, NetDemandPort>();
+            IMaterialDemandDocumentRepository demands = withPreparation
+                ? DispatchProxy.Create<IPreparedMaterialTestPort, NetDemandPort>()
+                : DispatchProxy.Create<IMaterialDemandDocumentRepository, NetDemandPort>();
             NetDemandPort = (NetDemandPort)(object)demands;
             NetDemandPort.Row = Row;
             var suppliers = DispatchProxy.Create<ISupplierRepository, SupplierPort>();
@@ -275,6 +386,9 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
         public NetDemand Row { get; set; } = null!;
         public int UpdateCount { get; private set; }
         public Guid? UpdatedSupplierId { get; private set; }
+        public int PreparationCount { get; private set; }
+        public Func<IReadOnlyCollection<Guid>, IReadOnlyCollection<Guid>, IReadOnlyCollection<Guid>, IReadOnlyCollection<Guid>, CancellationToken, Task<IAsyncDisposable?>> Prepare { get; set; }
+            = (_, _, _, _, _) => throw new InvalidOperationException("本例未定义可选准备。");
 
         /// <summary>记录读取和写入，任何新增依赖均要求测试显式处理。</summary>
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
@@ -282,8 +396,17 @@ public sealed class MaterialDemandSupplierSuggestionServiceTests
             nameof(IMaterialDemandDocumentRepository.GetActiveFamilyForUpdateAsync) =>
                 Task.FromResult<IReadOnlyList<NetDemand>>([Row]),
             nameof(IMaterialDemandDocumentRepository.UpdateSuggestedPurchaseSupplierAsync) => Update(args),
+            nameof(IMaterialDemandTransactionPreparation.AcquireMaterialBeforeTransactionAsync) => PrepareResources(args!),
             _ => throw new NotSupportedException(method?.Name)
         };
+
+        /// <summary>记录服务四集合参数并执行时序观察，不模拟PG锁。</summary>
+        private Task<IAsyncDisposable?> PrepareResources(object?[] args)
+        {
+            PreparationCount++;
+            return Prepare((IReadOnlyCollection<Guid>)args[0]!, (IReadOnlyCollection<Guid>)args[1]!,
+                (IReadOnlyCollection<Guid>)args[2]!, (IReadOnlyCollection<Guid>)args[3]!, (CancellationToken)args[4]!);
+        }
 
         private Task<int> Update(object?[]? args)
         {

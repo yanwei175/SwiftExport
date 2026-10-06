@@ -1,0 +1,21 @@
+{
+  "Batch": "25df913f-e4f9-4082-99ad-782a3d3eed44",
+  "SaveId": "25df913f-e4f9-4082-99ad-782a3d3eed44",
+  "LineId": "25df913f-e4f9-4082-99ad-782a3d3eed45",
+  "ConfirmId": "25df913f-e4f9-4082-99ad-782a3d3eed46",
+  "EstablishId": "25df913f-e4f9-4082-99ad-782a3d3eed47",
+  "CreateId": "25df913f-e4f9-4082-99ad-782a3d3eed48",
+  "CreateItemId": "25df913f-e4f9-4082-99ad-782a3d3eed49",
+  "AppendId": "25df913f-e4f9-4082-99ad-782a3d3eed4a",
+  "AppendItemId": "25df913f-e4f9-4082-99ad-782a3d3eed4b",
+  "SalesId": "fac8a163-27a8-470f-ae9d-4a35028ebd23",
+  "GrossId": "7309ef86-e59b-4d78-ae38-4a35028ebda0",
+  "NetId": "139c9d7b-de16-4fc9-b9b0-4a35028ebdf9",
+  "PurchaseId": "7d6ceca7-6d9e-4239-8a8b-4a35028ebec2",
+  "CustomerId": "cc533ab1-88ff-4fa4-ab28-53199670768f",
+  "SupplierId": "017b0b30-2744-4e4b-8bfb-1169e5be98eb",
+  "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+  "FirstBackend": 8452,
+  "ReplayBackend": 9036,
+  "Policy": "只在failure首次执行，成功事实和真实号段留存；不插来源/需求/Link绕过服务，不重置或改备份"
+}

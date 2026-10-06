@@ -1,0 +1,89 @@
+{
+  "Batch": "6a67084f-3c6f-4956-8d72-aa439228b500",
+  "FirstRun": false,
+  "FirstCapacityCompetition": true,
+  "PurchaseId": "1a5adefe-348e-4de5-b2c0-4a3502f11e25",
+  "PurchaseLineId": "4d2f758d-062f-43cf-b715-4a3502f11e27",
+  "Heads": [
+    "9f57bb6a-32a8-492b-a34d-4a3502f11f09",
+    "d24f78f2-01d0-4185-a86f-4a3502f11f6a"
+  ],
+  "Lines": [
+    "a82a409e-baa2-4620-a5d2-4a3502f11f17",
+    "3f3cd116-78e0-4695-8fb5-4a3502f11f70"
+  ],
+  "Winner": 1,
+  "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+  "SupplierId": "5748f17e-3652-44b9-aa16-4a3502ed5d41",
+  "WarehouseId": "be0da779-2a9e-4066-a41a-4a3502f11db4",
+  "BalanceId": "c54c4c00-0bd3-4973-b9d8-4a3502f645df",
+  "Evidence": [
+    {
+      "Stage": "采购取消先排队",
+      "HolderPid": 5372,
+      "ObserverPid": 3296,
+      "CandidatePids": [
+        3832
+      ],
+      "ServerBlockingGraph": "[{\"pid\": 3832, \"query\": \"SELECT \\\"uid\\\" AS \\\"Uid\\\", \\\"version\\\" AS \\\"Version\\\", \\\"is_deleted\\\" AS \\\"IsDeleted\\\", \\\"created_date\\\" AS \\\"CreatedDate\\\", \\\"created_by\\\" AS \\\"CreatedBy\\\", \\\"updated_date\\\" AS \\\"UpdatedDate\\\", \\\"updated_by\\\" AS \\\"UpdatedBy\\\", \\\"origin_kind\\\" AS \\\"OriginKind\\\", \\\"customer_id\\\" AS \\\"CustomerId\\\", \\\"customer_name_snapshot\\\" AS \\\"CustomerNameSnapshot\\\", \\\"active_confirmation_id\\\" AS \\\"ActiveConfirmationId\\\", \\\"packaging_requirements\\\" AS \\\"PackagingRequirements\\\", \\\"confirmation_status\\\" AS \\\"ConfirmationStatus\\\", \\\"lifecycle_status\\\" AS \\\"LifecycleStatus\\\", \\\"order_no\\\" AS \\\"OrderNo\\\", \\\"bo_no\\\" AS \\\"BoNo\\\", \\\"customer_po_no\\\" AS \\\"CustomerPoNo\\\", \\\"customer_code\\\" AS \\\"CustomerCode\\\", \\\"currency\\\" AS \\\"Currency\\\", \\\"discount_rate\\\" AS \\\"DiscountRate\\\", \\\"discount_amount\\\" AS \\\"DiscountAmount\\\", \\\"supplier_id\\\" AS \\\"SupplierId\\\", \\\"supplier_code\\\" AS \\\"SupplierCode\\\", \\\"supplier_name\\\" AS \\\"SupplierName\\\", \\\"demand_source_type\\\" AS \\\"DemandSourceType\\\", \\\"demand_source_uid\\\" AS \\\"DemandSourceUid\\\", \\\"demand_source_no\\\" AS \\\"DemandSourceNo\\\", \\\"execution_request_id\\\" AS \\\"ExecutionRequestId\\\", \\\"so_person\\\" AS \\\"SoPerson\\\",\", \"blocking\": [5372], \"xact_start\": \"2026-10-05T21:48:14.723259+08:00\"}]"
+    },
+    {
+      "Stage": "两次首次容量及采购取消等待",
+      "HolderPid": 5372,
+      "ObserverPid": 3296,
+      "CandidatePids": [
+        1140,
+        4224,
+        3832
+      ],
+      "ServerBlockingGraph": "[{\"pid\": 1140, \"query\": \"SELECT uid FROM public.purchase_order_head WHERE uid=$1 FOR UPDATE\", \"blocking\": [3832, 4224], \"xact_start\": \"2026-10-05T21:48:14.796704+08:00\"}, {\"pid\": 3832, \"query\": \"SELECT \\\"uid\\\" AS \\\"Uid\\\", \\\"version\\\" AS \\\"Version\\\", \\\"is_deleted\\\" AS \\\"IsDeleted\\\", \\\"created_date\\\" AS \\\"CreatedDate\\\", \\\"created_by\\\" AS \\\"CreatedBy\\\", \\\"updated_date\\\" AS \\\"UpdatedDate\\\", \\\"updated_by\\\" AS \\\"UpdatedBy\\\", \\\"origin_kind\\\" AS \\\"OriginKind\\\", \\\"customer_id\\\" AS \\\"CustomerId\\\", \\\"customer_name_snapshot\\\" AS \\\"CustomerNameSnapshot\\\", \\\"active_confirmation_id\\\" AS \\\"ActiveConfirmationId\\\", \\\"packaging_requirements\\\" AS \\\"PackagingRequirements\\\", \\\"confirmation_status\\\" AS \\\"ConfirmationStatus\\\", \\\"lifecycle_status\\\" AS \\\"LifecycleStatus\\\", \\\"order_no\\\" AS \\\"OrderNo\\\", \\\"bo_no\\\" AS \\\"BoNo\\\", \\\"customer_po_no\\\" AS \\\"CustomerPoNo\\\", \\\"customer_code\\\" AS \\\"CustomerCode\\\", \\\"currency\\\" AS \\\"Currency\\\", \\\"discount_rate\\\" AS \\\"DiscountRate\\\", \\\"discount_amount\\\" AS \\\"DiscountAmount\\\", \\\"supplier_id\\\" AS \\\"SupplierId\\\", \\\"supplier_code\\\" AS \\\"SupplierCode\\\", \\\"supplier_name\\\" AS \\\"SupplierName\\\", \\\"demand_source_type\\\" AS \\\"DemandSourceType\\\", \\\"demand_source_uid\\\" AS \\\"DemandSourceUid\\\", \\\"demand_source_no\\\" AS \\\"DemandSourceNo\\\", \\\"execution_request_id\\\" AS \\\"ExecutionRequestId\\\", \\\"so_person\\\" AS \\\"SoPerson\\\",\", \"blocking\": [5372], \"xact_start\": \"2026-10-05T21:48:14.723259+08:00\"}, {\"pid\": 4224, \"query\": \"SELECT uid FROM public.purchase_order_head WHERE uid=$1 FOR UPDATE\", \"blocking\": [3832], \"xact_start\": \"2026-10-05T21:48:14.796666+08:00\"}]"
+    },
+    {
+      "Stage": "首次竞争结果",
+      "CancelPid": 3832,
+      "PostPids": [
+        1140,
+        4224
+      ],
+      "Cancel": {
+        "Success": false,
+        "Message": "入库草稿 IR6500100001 仍引用采购行，请先处理草稿。\n入库草稿 IR6500100002 仍引用采购行，请先处理草稿。",
+        "Data": null,
+        "Error": {
+          "Code": "BUSINESS_BLOCKED",
+          "Message": "入库草稿 IR6500100001 仍引用采购行，请先处理草稿。\n入库草稿 IR6500100002 仍引用采购行，请先处理草稿。",
+          "Field": null
+        }
+      },
+      "Posts": [
+        {
+          "Success": false,
+          "Message": "采购剩余可收 1，本次 2，不能超量入库。",
+          "Data": null,
+          "Error": {
+            "Code": "BUSINESS_BLOCKED",
+            "Message": "采购剩余可收 1，本次 2，不能超量入库。",
+            "Field": "Lines[a82a409e-baa2-4620-a5d2-4a3502f11f17].Quantity"
+          }
+        },
+        {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "Uid": "d24f78f2-01d0-4185-a86f-4a3502f11f6a",
+            "Version": 2,
+            "DocumentNo": "IR6500100002",
+            "PostingStatus": 1
+          },
+          "Error": null
+        }
+      ],
+      "Terminal": [
+        "RanToCompletion",
+        "RanToCompletion",
+        "RanToCompletion"
+      ]
+    }
+  ],
+  "Policy": "原服务新增独立仓和余额V1到V2；全部旧余额/旧事实保护，原流水保留新增反向，本批输家草稿仅原软删；无清库/重置/DDL/运行库/备份写入"
+}

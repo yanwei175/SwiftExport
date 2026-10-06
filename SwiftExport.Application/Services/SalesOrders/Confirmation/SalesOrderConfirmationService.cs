@@ -47,7 +47,7 @@ public sealed class SalesOrderConfirmationService(
             request, request?.CommandId, CommandType, AuthorizeAsync,
             token => ExecuteConfirmCommandAsync(uid, request!, token), cancellationToken));
 
-    /// <summary>用路由目标及完整业务请求确定指纹，回执查找早于可变化的订单校验。</summary>
+    /// <summary>用路由目标及完整业务请求确定指纹；PG来源资源在父事务前准备，回执仍早于订单业务校验。</summary>
     private async Task<ServiceResult<CommandExecutionResult<SalesOrderConfirmationResultDto>>> ExecuteConfirmCommandAsync(
         Guid uid, ConfirmSalesOrderCommand request, CancellationToken token)
     {
@@ -56,7 +56,9 @@ public sealed class SalesOrderConfirmationService(
                 ServiceErrorCodes.Validation, "路由 Uid 与请求体 Uid 不一致。", "Uid");
         var result = await executor.ExecuteAsync(request.CommandId, CommandType, uid,
             new { request.Uid, request.Version },
-            ct => ConfirmInTransactionAsync(uid, request, ct), token);
+            ct => ConfirmInTransactionAsync(uid, request, ct), token,
+            beforeTransaction: reception is SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document.ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([uid], [], ct) : null);
         return ServiceResult<CommandExecutionResult<SalesOrderConfirmationResultDto>>.Ok(result);
     }
 

@@ -7,9 +7,6 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Authentication\AdminPasswordRecoveryTests.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.3.0">
       <PrivateAssets>all</PrivateAssets>
@@ -21,5 +18,7 @@
     <ProjectReference Include="..\DvFileStorage\DvFileStorage.csproj" />
     <ProjectReference Include="..\SwiftExport.Application\SwiftExport.Application.csproj" />
     <ProjectReference Include="..\SwiftExport.WebApi\SwiftExport.WebApi.csproj" />
+    <ProjectReference Include="..\_tools\AdminPasswordRecovery\AdminPasswordRecovery.csproj" />
+    <ProjectReference Include="..\_tools\DbSeed\DbSeed.csproj" />
   </ItemGroup>
 </Project>

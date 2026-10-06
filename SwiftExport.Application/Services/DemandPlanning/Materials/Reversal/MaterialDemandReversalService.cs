@@ -46,7 +46,7 @@ public sealed class MaterialDemandReversalService(
             command, command?.CommandId, CommandType, AuthorizeAsync,
             token => ExecuteRollbackCommandAsync(command!, token), cancellationToken));
 
-    /// <summary>以规范化原因和稳定排序的完整修订集合读取回执，先于可变状态校验。</summary>
+    /// <summary>以原原因和稳定修订集合读取回执；PG来源身份先于父事务发现及准备，不提前执行回退校验。</summary>
     private async Task<ServiceResult<CommandExecutionResult<RollbackMaterialDemandsResult>>> ExecuteRollbackCommandAsync(
         RollbackMaterialDemandsCommand command, CancellationToken token)
     {
@@ -54,7 +54,9 @@ public sealed class MaterialDemandReversalService(
             .Select(item => new { item.GrossDemandId, item.DecompositionRevision }).ToArray();
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, null,
             new { Items = input, Reason = command.Reason.Trim() },
-            ct => ReverseInTransactionAsync(command, ct), token);
+            ct => ReverseInTransactionAsync(command, ct), token,
+            beforeTransaction: grossDemandRepository is ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([], input.Select(x => x.GrossDemandId).ToArray(), ct) : null);
         return ServiceResult<CommandExecutionResult<RollbackMaterialDemandsResult>>.Ok(result);
     }
 

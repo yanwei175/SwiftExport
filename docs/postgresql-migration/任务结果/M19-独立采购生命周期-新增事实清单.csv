@@ -1,0 +1,9 @@
+table_name,uid,command_id
+command_receipt,df136294-b7de-444e-9a77-4a3501d1e286,402cff7a-925e-4d53-a2a9-e5ad4300c500
+command_receipt,0722ac16-9b92-4b52-bf4b-4a3501d1e2ff,402cff7a-925e-4d53-a2a9-e5ad4300c501
+command_receipt,cfc75741-e6a6-4b8c-90d0-4a3501d1e366,402cff7a-925e-4d53-a2a9-e5ad4300c502
+command_receipt,35b968a8-7c95-49db-8629-4a3501d1e3ad,402cff7a-925e-4d53-a2a9-e5ad4300c503
+business_operation_log,28d8e057-8435-4fff-b8e3-4a3501d1e27d,402cff7a-925e-4d53-a2a9-e5ad4300c500
+business_operation_log,727862e0-300c-4ab6-a46e-4a3501d1e2fe,402cff7a-925e-4d53-a2a9-e5ad4300c501
+business_operation_log,d588b75d-a966-4177-afb5-4a3501d1e361,402cff7a-925e-4d53-a2a9-e5ad4300c502
+business_operation_log,a3afbd8a-90e9-4aaf-9878-4a3501d1e3ab,402cff7a-925e-4d53-a2a9-e5ad4300c503

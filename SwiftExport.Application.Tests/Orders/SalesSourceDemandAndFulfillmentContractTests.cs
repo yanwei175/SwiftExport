@@ -62,15 +62,18 @@ public sealed class SalesSourceDemandContractTests
         Assert.IsFalse(baseline.Contains("INSERT dbo.", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>来源接收继续借用调用方事务，并使用 PG 既有范围准备和行锁；审计读取的原边界保留。</summary>
     [TestMethod]
     public void ReceptionLocksIdempotencyAndSourceRangesInsideCallerTransaction()
     {
         var reception = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
-        var demandRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
+        var demandRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "PostgreSqlGrossDemandDocumentRepository.cs");
         var logRepository = Read("SwiftExport.Infrastructure", "Repositories", "Auditing", "BusinessOperationLogRepository.cs");
 
         StringAssert.Contains(reception, "TRANSACTION_REQUIRED");
-        StringAssert.Contains(demandRepository, "WITH (UPDLOCK, HOLDLOCK)");
+        StringAssert.Contains(demandRepository, "PostgreSqlSourceDemandLock.AcquireBeforeTransactionAsync");
+        StringAssert.Contains(demandRepository, "InScope([sourceUid], []");
+        StringAssert.Contains(demandRepository, "FOR UPDATE;");
         StringAssert.Contains(logRepository, "WITH(UPDLOCK,HOLDLOCK)");
     }
 

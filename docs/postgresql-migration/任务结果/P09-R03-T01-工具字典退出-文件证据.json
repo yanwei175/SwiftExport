@@ -1,0 +1,86 @@
+{
+  "recorded_at": "2026-10-06T08:01:15.1093488+08:00",
+  "stage": "P09-R03-T01",
+  "status": "源文件退出验证通过；工具直接包引用已移除，最终资产图待F",
+  "files": [
+    {
+      "name": "PermissionCatalogSync",
+      "path": "_tools/DbSeed/PermissionCatalogSync.cs",
+      "sha256": "629DA95F0DE598FFDE33940BFF74CBCDE8C9BF32C7447AEFB60B5FA32B8941E1",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "_tools/DbSeed/PostgreSqlPermissionCatalogSync.cs"
+      ],
+      "reference_files": []
+    },
+    {
+      "name": "SqlAdminPasswordRecoveryStore",
+      "path": "_tools/AdminPasswordRecovery/SqlAdminPasswordRecoveryStore.cs",
+      "sha256": "8ECD3426C572509977BA068FD83C23FA2B3B03CC5E4AE7A2E8A8DA5BE87885C6",
+      "tracked_head_unmodified": true,
+      "pg_files": [],
+      "reference_files": []
+    },
+    {
+      "name": "SysDictDataRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Data/SysDictDataRepository.cs",
+      "sha256": "D72FF1430D34D84E81FEB456076E573E2A8EA003E053A95B18C39A00FF24AFC2",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Data/PostgreSqlSysDictDataRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Systems/SystemSettingsServiceValidationTests.cs"
+      ]
+    }
+  ],
+  "modified_inputs": [
+    {
+      "path": "_tools/DbSeed/DbSeed.csproj",
+      "before_sha256": "0FFCD3130186C07C65FF1E838D1A6743D57B805F637C9AFDDA3DED73AC77B52C",
+      "prior_uncommitted_diff": [
+        "1\t0\t_tools/DbSeed/DbSeed.csproj"
+      ],
+      "after_sha256": "537B16F2C08FD372C84CD3B525F3F46B43FF01AA8389426F89141B4E3C07980F"
+    },
+    {
+      "path": "_tools/AdminPasswordRecovery/AdminPasswordRecovery.csproj",
+      "before_sha256": "962FE9925DB73D0BDF9DF7F13452DDB14E5AD12828FF70131EDA415F2A32185B",
+      "prior_uncommitted_diff": [
+        "1\t0\t_tools/AdminPasswordRecovery/AdminPasswordRecovery.csproj"
+      ],
+      "after_sha256": "08526EFAE162C01C43009C5C97FDB15B07290D37728CEADBD5DDC8A9516F72AF"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Systems/SystemSettingsServiceValidationTests.cs",
+      "before_sha256": "A501E00B4C7EAF9C3C37075C8259EA1417B9275ABEFE41D3F9891E8CAD7D25E1",
+      "prior_uncommitted_diff": [
+        "1\t1\tSwiftExport.Application.Tests/Systems/SystemSettingsServiceValidationTests.cs"
+      ],
+      "after_sha256": "CF779C3177A5297AD04564945CA3D3FD9608DC5CCB9449BF6B4A16810AE9129D"
+    }
+  ],
+  "database_run": false,
+  "pg_recovery_store": "_tools/AdminPasswordRecovery/PostgreSqlAdminPasswordRecoveryStore.cs",
+  "verification": {
+    "completed_at": "2026-10-06T08:03:26.3202137+08:00",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_elapsed_seconds": 4.57,
+    "command": "& './docs/postgresql-migration/任务结果/P09-R03-T01-工具字典-实际命令.ps1'",
+    "trx_path": "TestResults/postgresql-migration/p09-r03-t01-tools-dict-offline.trx",
+    "trx_sha256": "539C989B925DF936255876BFD7E7735CF3F818B31FF8124A988FB22C3382E291",
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 31,
+    "source_identifier_references": 0,
+    "direct_sqlclient_projects": [
+      ".\\SwiftExport.Infrastructure\\SwiftExport.Infrastructure.csproj"
+    ],
+    "restore_and_package_graph": "未运行；Infrastructure仍保留源驱动，最终F统一restore/图/宿主验收",
+    "database_run": false,
+    "patch_reconciliation": "第一次多文件补丁报告失败时已写入DbSeed包行删除；检查三文件当前SHA确认边界后，仅接续其他两文件，未覆盖已有修改"
+  }
+}

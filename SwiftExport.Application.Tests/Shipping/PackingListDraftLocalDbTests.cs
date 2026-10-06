@@ -31,7 +31,8 @@ public sealed class PackingListDraftLocalDbTests
         {
             var builder = new SqlConnectionStringBuilder(masterConnection) { InitialCatalog = database, Pooling = false };
             var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Default"] = builder.ConnectionString }).Build();
-            using var session = new DbSession(configuration);
+            // 隔离LocalDB的原仓储/回执对照继续使用源工厂，默认配置入口已迁为PG。
+            using var session = new DbSession(new SqlConnectionFactory(configuration.GetConnectionString("Default")!));
             await session.Connection.ExecuteAsync(File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure/Database/Generated/SwiftExport.Schema.sql")), commandTimeout: 180);
             // 基线脚本的 NOCOUNT 仅供部署；测试复用连接时恢复仓储需要的受影响行数。
             await session.Connection.ExecuteAsync("SET NOCOUNT OFF;");

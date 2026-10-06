@@ -1,0 +1,27 @@
+{
+  "after_sales_header": [
+    "18bd9715-a372-4d43-9569-76f5cd25c528"
+  ],
+  "after_sales_line": [
+    "18bd9715-a372-4d43-9569-76f5cd25c529",
+    "18bd9715-a372-4d43-9569-76f5cd25c52a"
+  ],
+  "business_operation_log": [
+    "2759a098-ce48-47fb-ae64-4a35034e902b",
+    "28c60709-b90d-4497-bc85-4a35034e7d4d",
+    "378d0085-f49e-4954-8aa8-4a35034e571c",
+    "7424c9ba-abdb-4810-8fdb-4a35034e9022"
+  ],
+  "command_receipt": [
+    "c4cbe55a-57cb-4a7c-9355-4a35034e902e",
+    "e1ddc8be-7a8b-4ed6-bbc7-4a35034e7d4e",
+    "f200071e-1f4f-4504-a114-4a35034e572c"
+  ],
+  "document_sequence": [
+    "fc6a5a03-5328-40a4-9778-4a35034e5700"
+  ],
+  "gross_demand": [
+    "01f1d0aa-4733-4254-aeef-4a35034e901d",
+    "3b1dfded-b862-4a31-be60-4a35034e9015"
+  ]
+}

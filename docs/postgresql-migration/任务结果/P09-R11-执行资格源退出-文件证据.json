@@ -1,0 +1,91 @@
+{
+  "recorded_at": "2026-10-06T09:04:34.8907803+08:00",
+  "stage": "P09-R11执行资格源退出",
+  "status": "PG既有行为测试已验证；旧源文件删除被自动审批拒绝，原文件完整保持，等待针对性授权",
+  "names": [
+    "ExecutionEligibilityRepository"
+  ],
+  "files": [
+    {
+      "name": "ExecutionEligibilityRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs",
+      "sha256": "0DDAE30D90FE9F268665AF4394C96BE24473030936AE39EDB4B6192B7DAF9378",
+      "tracked_head_unmodified": false,
+      "prior_uncommitted_diff": [
+        "diff --git a/SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs b/SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs",
+        "index 443b09a4..f1d0dcb3 100644",
+        "--- a/SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs",
+        "+++ b/SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs",
+        "@@ -10,6 +10,10 @@ namespace SwiftExport.Infrastructure.Repositories.MasterData;",
+        " /// <summary>使用既有主数据表和有效角色权限管理执行资格；表名只来自固定枚举白名单。</summary>",
+        " public sealed class ExecutionEligibilityRepository(RepositoryBaseContext context) : IExecutionEligibilityRepository",
+        " {",
+        "+    /// <summary>源SQL Server继续使用原授权HOLDLOCK及目标UPDLOCK读取；准备阶段不增加SQL或改变源事务。</summary>",
+        "+    public Task PrepareTargetBeforeSnapshotAsync(ExecutionEligibilityKind kind, CancellationToken cancellationToken = default)",
+        "+        => Task.CompletedTask;",
+        "+",
+        "     /// <summary>在当前事务中锁定活动身份及角色权限，防止授权撤销与资格修改竞态。</summary>",
+        "     public async Task<bool> HasExecutionEligibilityPermissionAsync(Guid userId, CancellationToken cancellationToken = default)",
+        "     {"
+      ],
+      "prior_exact_bytes_base64": "dXNpbmcgRGFwcGVyOw0KdXNpbmcgU3dpZnRFeHBvcnQuQ29udHJhY3RzLkRUT3MuTWFzdGVyRGF0YS5FeGVjdXRpb25FbGlnaWJpbGl0eTsNCnVzaW5nIFN3aWZ0RXhwb3J0LkNvbnRyYWN0cy5TeXNFbnVtczsNCnVzaW5nIFN3aWZ0RXhwb3J0LkNvcmUuQ29tbW9uOw0KdXNpbmcgU3dpZnRFeHBvcnQuQ29yZS5JbnRlcmZhY2VzLk1hc3RlckRhdGE7DQp1c2luZyBTd2lmdEV4cG9ydC5JbmZyYXN0cnVjdHVyZS5Db250ZXh0czsNCg0KbmFtZXNwYWNlIFN3aWZ0RXhwb3J0LkluZnJhc3RydWN0dXJlLlJlcG9zaXRvcmllcy5NYXN0ZXJEYXRhOw0KDQovLy8gPHN1bW1hcnk+5L2/55So5pei5pyJ5Li75pWw5o2u6KGo5ZKM5pyJ5pWI6KeS6Imy5p2D6ZmQ566h55CG5omn6KGM6LWE5qC877yb6KGo5ZCN5Y+q5p2l6Ieq5Zu65a6a5p6a5Li+55m95ZCN5Y2V44CCPC9zdW1tYXJ5PgpwdWJsaWMgc2VhbGVkIGNsYXNzIEV4ZWN1dGlvbkVsaWdpYmlsaXR5UmVwb3NpdG9yeShSZXBvc2l0b3J5QmFzZUNvbnRleHQgY29udGV4dCkgOiBJRXhlY3V0aW9uRWxpZ2liaWxpdHlSZXBvc2l0b3J5DQp7DQogICAgLy8vIDxzdW1tYXJ5Pua6kFNRTCBTZXJ2ZXLnu6fnu63kvb/nlKjljp/mjojmnYNIT0xETE9DS+WPiuebruagh1VQRExPQ0vor7vlj5bvvJvlh4blpIfpmLbmrrXkuI3lop7liqBTUUzmiJbmlLnlj5jmupDkuovliqHjgII8L3N1bW1hcnk+DQogICAgcHVibGljIFRhc2sgUHJlcGFyZVRhcmdldEJlZm9yZVNuYXBzaG90QXN5bmMoRXhlY3V0aW9uRWxpZ2liaWxpdHlLaW5kIGtpbmQsIENhbmNlbGxhdGlvblRva2VuIGNhbmNlbGxhdGlvblRva2VuID0gZGVmYXVsdCkNCiAgICAgICAgPT4gVGFzay5Db21wbGV0ZWRUYXNrOw0KDQogICAgLy8vIDxzdW1tYXJ5PuWcqOW9k+WJjeS6i+WKoeS4remUgeWumua0u+WKqOi6q+S7veWPiuinkuiJsuadg+mZkO+8jOmYsuatouaOiOadg+aSpOmUgOS4jui1hOagvOS/ruaUueernuaAgeOAgjwvc3VtbWFyeT4KICAgIHB1YmxpYyBhc3luYyBUYXNrPGJvb2w+IEhhc0V4ZWN1dGlvbkVsaWdpYmlsaXR5UGVybWlzc2lvbkFzeW5jKEd1aWQgdXNlcklkLCBDYW5jZWxsYXRpb25Ub2tlbiBjYW5jZWxsYXRpb25Ub2tlbiA9IGRlZmF1bHQpCiAgICB7DQogICAgICAgIGNvbnN0IHN0cmluZyBzcWwgPSAiIiINCiAgICAgICAgICAgIFNFTEVDVCBDQVNUKENBU0UgV0hFTiBFWElTVFMgKA0KICAgICAgICAgICAgICAgIFNFTEVDVCAxIEZST00gZGJvLlN5c1VzZXIgdSBXSVRIKEhPTERMT0NLKQ0KICAgICAgICAgICAgICAgIElOTkVSIEpPSU4gZGJvLlN5c1VzZXJfUm9sZXMgdXIgV0lUSChIT0xETE9DSykgT04gdXIuVXNlcklkPXUuVWlkDQogICAgICAgICAgICAgICAgSU5ORVIgSk9JTiBkYm8uU3lzUm9sZXMgciBXSVRIKEhPTERMT0NLKSBPTiByLlVpZD11ci5Sb2xlSWQKICAgICAgICAgICAgICAgIFdIRVJFIHUuVWlkPUBVc2VySWQgQU5EIHUuSXNBY3RpdmU9MSBBTkQgSVNOVUxMKHUuSXNEZWxldGVkLDApPTAKICAgICAgICAgICAgICAgICAgQU5EIElTTlVMTCh1ci5Jc0RlbGV0ZWQsMCk9MCBBTkQgSVNOVUxMKHIuSXNEZWxldGVkLDApPTAKICAgICAgICAgICAgICAgICAgQU5EIHIuSXNBY3RpdmU9MSBBTkQgKAogICAgICAgICAgICAgICAgICAgICAgci5Sb2xlQ29kZT1OJ1NZU1RFTV9BRE1JTicgT1IgRVhJU1RTICgKICAgICAgICAgICAgICAgICAgICAgICAgICBTRUxFQ1QgMSBGUk9NIGRiby5TeXNSb2xlX1Blcm1pc3Npb25zIHJwIFdJVEgoSE9MRExPQ0spCiAgICAgICAgICAgICAgICAgICAgICAgICAgSk9JTiBkYm8uU3lzUGVybWlzc2lvbkRlZmluaXRpb25zIHAgV0lUSChIT0xETE9DSykgT04gcC5VaWQ9cnAuUGVybWlzc2lvbklkCiAgICAgICAgICAgICAgICAgICAgICAgICAgV0hFUkUgcnAuUm9sZUlkPXIuVWlkIEFORCBJU05VTEwocnAuSXNEZWxldGVkLDApPTAKICAgICAgICAgICAgICAgICAgICAgICAgICAgIEFORCBwLlBlcm1pc3Npb25LZXk9TidNYXN0ZXJEYXRhLkVsaWdpYmlsaXR5Lk1hbmFnZScKICAgICAgICAgICAgICAgICAgICAgICAgICAgIEFORCBwLklzQWN0aXZlPTEgQU5EIElTTlVMTChwLklzRGVsZXRlZCwwKT0wCiAgICAgICAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgICAgICkKICAgICAgICAgICAgKSBUSEVOIDEgRUxTRSAwIEVORCBBUyBiaXQpOw0KICAgICAgICAgICAgIiIiOw0KICAgICAgICByZXR1cm4gYXdhaXQgY29udGV4dC5TZXNzaW9uLkNvbm5lY3Rpb24uRXhlY3V0ZVNjYWxhckFzeW5jPGJvb2w+KG5ldyBDb21tYW5kRGVmaW5pdGlvbigNCiAgICAgICAgICAgIHNxbCwgbmV3IHsgVXNlcklkID0gdXNlcklkIH0sIGNvbnRleHQuU2Vzc2lvbi5UcmFuc2FjdGlvbiwgY2FuY2VsbGF0aW9uVG9rZW46IGNhbmNlbGxhdGlvblRva2VuKSk7DQogICAgfQ0KDQogICAgLy8vIDxzdW1tYXJ5PumUgeWumuaMh+WumuS4u+aVsOaNrueahOW9k+WJjei1hOagvOWSjOeJiOacrO+8jOS4jeWwhuaVtOS4quS4u+aVsOaNruaatOmcsuS4uuWRveS7pOS4iuS4i+aWh+OAgjwvc3VtbWFyeT4NCiAgICBwdWJsaWMgVGFzazxFeGVjdXRpb25FbGlnaWJpbGl0eVN0YXR1c1Jlc3VsdD8+IEdldEZvclVwZGF0ZUFzeW5jKA0KICAgICAgICBFeGVjdXRpb25FbGlnaWJpbGl0eUtpbmQga2luZCwgR3VpZCB1aWQsIENhbmNlbGxhdGlvblRva2VuIGNhbmNlbGxhdGlvblRva2VuID0gZGVmYXVsdCkNCiAgICB7DQogICAgICAgIHZhciB0YWJsZSA9IEdldFRhYmxlKGtpbmQpOw0KICAgICAgICByZXR1cm4gY29udGV4dC5TZXNzaW9uLkNvbm5lY3Rpb24uUXVlcnlTaW5nbGVPckRlZmF1bHRBc3luYzxFeGVjdXRpb25FbGlnaWJpbGl0eVN0YXR1c1Jlc3VsdD4obmV3IENvbW1hbmREZWZpbml0aW9uKA0KICAgICAgICAgICAgJCJTRUxFQ1QgQEtpbmQgQVMgS2luZCxVaWQsVmVyc2lvbixJc0FjdGl2ZSBGUk9NIGRiby5be3RhYmxlfV0gV0lUSChVUERMT0NLLEhPTERMT0NLKSBXSEVSRSBVaWQ9QFVpZCBBTkQgSVNOVUxMKElzRGVsZXRlZCwwKT0wOyIsDQogICAgICAgICAgICBuZXcgeyBLaW5kID0gKGludClraW5kLCBVaWQgPSB1aWQgfSwgY29udGV4dC5TZXNzaW9uLlRyYW5zYWN0aW9uLCBjYW5jZWxsYXRpb25Ub2tlbjogY2FuY2VsbGF0aW9uVG9rZW4pKTsNCiAgICB9DQoNCiAgICAvLy8gPHN1bW1hcnk+5Lul6aKE5pyf54mI5pys5pu05paw6LWE5qC85bm255Sx5a6h6K6h5pyN5Yqh55Sf5oiQ5pu05paw5pe26Ze05ZKM5pON5L2c5Lq644CCPC9zdW1tYXJ5Pg0KICAgIHB1YmxpYyBUYXNrPGludD4gU2V0U3RhdHVzQXN5bmMoU2V0RXhlY3V0aW9uRWxpZ2liaWxpdHlTdGF0dXNDb21tYW5kIGNvbW1hbmQsIENhbmNlbGxhdGlvblRva2VuIGNhbmNlbGxhdGlvblRva2VuID0gZGVmYXVsdCkNCiAgICB7DQogICAgICAgIHZhciB0YWJsZSA9IEdldFRhYmxlKGNvbW1hbmQuS2luZCk7DQogICAgICAgIC8vIOWuoeiuoei9veS9k+WPqueUqOS6jumAmueUqOWuoeiuoeWtl+aute+8jOS4jeaKiuWuouaIt+err+i1hOaWmeaYoOWwhOaIkOWPr+WGmeeahOS4u+aVsOaNruWunuS9k+OAgg0KICAgICAgICB2YXIgc3RhbXAgPSBuZXcgQXVkaXRGaWVsZHMoKTsNCiAgICAgICAgY29udGV4dC5BdWRpdFN0YW1wLlN0YW1wRm9yVXBkYXRlKHN0YW1wKTsNCiAgICAgICAgcmV0dXJuIGNvbnRleHQuU2Vzc2lvbi5Db25uZWN0aW9uLkV4ZWN1dGVBc3luYyhuZXcgQ29tbWFuZERlZmluaXRpb24oDQogICAgICAgICAgICAkIiIiDQogICAgICAgICAgICBVUERBVEUgZGJvLlt7dGFibGV9XSBTRVQgSXNBY3RpdmU9QElzQWN0aXZlLFZlcnNpb249VmVyc2lvbisxLFVwZGF0ZWREYXRlPUBVcGRhdGVkRGF0ZSxVcGRhdGVkQnk9QFVwZGF0ZWRCeQ0KICAgICAgICAgICAgV0hFUkUgVWlkPUBVaWQgQU5EIFZlcnNpb249QEV4cGVjdGVkVmVyc2lvbiBBTkQgSVNOVUxMKElzRGVsZXRlZCwwKT0wOw0KICAgICAgICAgICAgIiIiLCBuZXcgeyBjb21tYW5kLklzQWN0aXZlLCBjb21tYW5kLlVpZCwgY29tbWFuZC5FeHBlY3RlZFZlcnNpb24sIHN0YW1wLlVwZGF0ZWREYXRlLCBzdGFtcC5VcGRhdGVkQnkgfSwNCiAgICAgICAgICAgIGNvbnRleHQuU2Vzc2lvbi5UcmFuc2FjdGlvbiwgY2FuY2VsbGF0aW9uVG9rZW46IGNhbmNlbGxhdGlvblRva2VuKSk7DQogICAgfQ0KDQogICAgLy8vIDxzdW1tYXJ5PuaemuS4vuWAvOS7heWFgeiuuOS4ieS4quaYjuehruWvueixoe+8jOe7neS4jeaLvOaOpeivt+axguaPkOS+m+eahOihqOWQjeOAgjwvc3VtbWFyeT4NCiAgICBwcml2YXRlIHN0YXRpYyBzdHJpbmcgR2V0VGFibGUoRXhlY3V0aW9uRWxpZ2liaWxpdHlLaW5kIGtpbmQpID0+IGtpbmQgc3dpdGNoDQogICAgew0KICAgICAgICBFeGVjdXRpb25FbGlnaWJpbGl0eUtpbmQuUHJvZHVjdCA9PiAiUHJvZHVjdCIsDQogICAgICAgIEV4ZWN1dGlvbkVsaWdpYmlsaXR5S2luZC5DdXN0b21lciA9PiAiQ3VzdG9tZXIiLA0KICAgICAgICBFeGVjdXRpb25FbGlnaWJpbGl0eUtpbmQuU3VwcGxpZXIgPT4gIlN1cHBsaWVyIiwNCiAgICAgICAgXyA9PiB0aHJvdyBuZXcgQXJndW1lbnRPdXRPZlJhbmdlRXhjZXB0aW9uKG5hbWVvZihraW5kKSwgIuS4jeaUr+aMgeeahOS4u+aVsOaNrui1hOagvOWvueixoeOAgiIpDQogICAgfTsNCg0KICAgIC8vLyA8c3VtbWFyeT7lj6rmib/mjqXlrqHorqHmnI3liqHnlJ/miJDnmoTlrZfmrrXvvIzkuI3ku6PooajmiJbmjIHkuYXljJbkuLrpop3lpJbkuJrliqHlrp7kvZPjgII8L3N1bW1hcnk+DQogICAgcHJpdmF0ZSBzZWFsZWQgY2xhc3MgQXVkaXRGaWVsZHMgOiBCYXNlRW50aXR5Ow0KfQ0K",
+      "preservation": "固定清单SHA仍一致，完整原字节可由此证据恢复；仅四行无SQL/事务副作用空PrepareTarget方法为先前迁移成果，随旧实现退出，不回退PG/接口实现",
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/MasterData/PostgreSqlExecutionEligibilityRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityPermissionSqlTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityPermissionSqlTests.cs",
+      "before_sha256_from_fixed_snapshot": "97A49D96BFCC4BC3192BDE5EC7A1755A35536C8AD1BE3783D4B8301CADDB19F2",
+      "before_read": "本轮已完整读取旧方法后应用限定PG补丁；首次证据脚本在HEAD守卫失败前退出，未误报删除成功",
+      "prior_change": "旧测试在本轮前已显式SqlConnectionFactory，保留其原隔离意图，改PG使用显式工厂",
+      "after_sha256": "2ADFD66DFD4341926964637E61B04B5D030D4B057B4F5D5417E9EE790F229DCB"
+    }
+  ],
+  "database_scope": "仅192.168.3.12:5432/dv_next_pg_rbac_tests_20261005/public，本方法四随机新记录，权限定义/内置角色只读，Serializable事务finally整体回滚，四表完整摘要前后核对；不DDL/清库/重置或写运行/备份库",
+  "database_run": true,
+  "completed_at": "2026-10-06T09:06:59.0550459+08:00",
+  "execution": {
+    "deletion_attempt": "require_escalated限定Remove-Item请求在进程创建前被自动审批拒绝，没有执行删除；不绕过",
+    "approval_rejection": "目标文件含未提交修改；即使编码保存在证据，删除仍会丢失工作区成果，用户未明确授权删除该修改，需要针对性确认",
+    "old_file_preserved": true,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "first_build_errors": 0,
+    "first_build_warnings": 8,
+    "first_build_seconds": 3.2,
+    "new_warning": "CS8604：本次新增摘要返回可能null，补显式Assert.IsNotNull保护后必要重编译/仅重验本方法，未改有效断言",
+    "final_build_exit": 0,
+    "final_build_errors": 0,
+    "final_build_existing_warnings": 7,
+    "final_build_seconds": 3.11,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R11-执行资格授权-实际命令.ps1'",
+    "first_test_passed": 1,
+    "first_test_ms": 250,
+    "first_trx": "TestResults/postgresql-migration/p09-r11-eligibility-permission-pg-before-null-guard.trx",
+    "first_trx_sha256": "B3316E06BA927C59AF1CE0CAD4C190AE92E66DBE88509FA5EF254B5766374C39",
+    "final_test_exit": 0,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 249,
+    "trx": "TestResults/postgresql-migration/p09-r11-eligibility-permission-pg.trx",
+    "trx_sha256": "BBCC45915B516A94BFC5A28D584766741D123A78165211F2C510F21C470F8CE5",
+    "gate_environment_restored": true,
+    "database_protection": "本方法原四条授权/撤权/管理员/停用断言保持全部通过，finally回滚后四个固定授权表全行及数量摘要完全同；无需初始化/清理/重置，权限定义/内置角色只读",
+    "source_exited": false
+  },
+  "final_cleanup_read": {
+    "recorded_at": "2026-10-06T09:07:15.0443451+08:00",
+    "database": "dv_next_pg_rbac_tests_20261005",
+    "tool": "DBX只读execute_query，connection_id 4bba2982-bb06-4389-9005-decf007588b4",
+    "sql": "SELECT current_database() AS database_name,(SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND backend_type='client backend') AS other_client_connections,(SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND database=(SELECT oid FROM pg_database WHERE datname=current_database())) AS advisory_locks;",
+    "other_client_connections": 0,
+    "advisory_locks": 0,
+    "test_processes": 0
+  }
+}

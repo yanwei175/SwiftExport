@@ -19,7 +19,7 @@ namespace SwiftExport.Application.Tests.Commands;
 [TestClass]
 public sealed class BusinessCommandExecutorTests
 {
-    /// <summary>服务端明确的序列化失败区别于结果未知；查询/提交/重放阶段均不自动重试，清理故障不覆盖分类。</summary>
+    /// <summary>默认PG会话将明确序列化失败区别于结果未知；查询/提交/重放不自动重试，清理故障不覆盖分类。</summary>
     [TestMethod]
     [DataRow("action", false)]
     [DataRow("commit", false)]
@@ -30,8 +30,6 @@ public sealed class BusinessCommandExecutorTests
     public async Task SerializationFailure_IsKnownAbortWithoutAutomaticRetry(string stage, bool cleanupFails)
     {
         var fixture = new Fixture();
-        typeof(DbSession).GetField("_errors", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(fixture.Session, PostgreSqlExceptionClassifier.Instance);
         var id = Guid.NewGuid();
         var calls = 0;
         var error = new Npgsql.PostgresException("serialization failure", "ERROR", "ERROR", "40001");

@@ -11,6 +11,7 @@ using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Entities.DemandPlanning;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
+using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Execution;
 using SwiftExport.Core.Interfaces.Procurement;
 using SwiftExport.Core.Models.Procurement;
@@ -96,9 +97,13 @@ public sealed class ProcurementDemandAssociationService(
             var reason=ProcurementOrderPolicy.Text(command.Reason, 500, "Reason");
             if (command.CommandId==Guid.Empty || string.IsNullOrWhiteSpace(reason) || string.IsNullOrWhiteSpace(command.PreviewToken))
                 throw ProcurementOperationException.Validation("关联命令身份、原因和预览令牌必填。", "Reason");
+            // PG命令项及其需求来源必须先于父事务首次快照准备；复用现有能力，原隔离、资格与回执不变。
+            var preparation = links as IMaterialDemandTransactionPreparation;
             return await executor.ExecuteAsync(command.CommandId, "Procurement.Order.AssociateDemands", uid,
                 new { command.ExpectedVersion, command.PreviewToken, Reason=reason, Items=command.Items.OrderBy(x => x.CommandItemId).ToArray() },
-                token => ApplyInTransactionAsync(uid, command, reason, token), ct, IsolationLevel.Serializable);
+                token => ApplyInTransactionAsync(uid, command, reason, token), ct, IsolationLevel.Serializable,
+                preparation is null ? null : token => preparation.AcquireMaterialBeforeTransactionAsync([], [],
+                    command.Items.Select(x => x.NetDemandId).ToArray(), command.Items.Select(x => x.CommandItemId).ToArray(), token));
         }, ct);
 
     /// <summary>来源、物料、引用、采购头行锁定后重验；仅本事务可以写入全部贡献和审计。</summary>

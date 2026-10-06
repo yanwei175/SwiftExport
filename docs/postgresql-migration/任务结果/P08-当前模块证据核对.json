@@ -1,0 +1,2396 @@
+{
+  "recorded_at": "2026-10-06T04:52:07.8801849+08:00",
+  "prior_source_snapshot": "2026-10-06T02:39:42.1752316+08:00",
+  "prior_source_count": 2390,
+  "current_source_count": 2390,
+  "changes": [
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlAuthMigrationTests.Integration.cs",
+      "state": "changed",
+      "prior_sha256": "9B947EF4DE0CE9AEDA2D725632493AA97B6212CD1916671E5FD0F037FF2AC965",
+      "current_sha256": "C82B4C5F1FD5B2A357DAD75E9A7C6310EEAD59367E81FD8493DCEB7258E9A9F9"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlCurrencyMigrationTests.Integration.cs",
+      "state": "changed",
+      "prior_sha256": "50AFEEA2B6130954AD62857A40CD194CC3BB54B13E6CD7171F3BA8EA93CB5828",
+      "current_sha256": "E52EADE3C2380B17E8D6D38AD512CC3B5AB784D8C9012F7AE210A990F6E87500"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlRbacServiceTests.Integration.cs",
+      "state": "changed",
+      "prior_sha256": "4C5FA02815AEDC4DE5F1FA6D3B2F2007E84D31EB9B9C9C38F9712D52372A0C33",
+      "current_sha256": "0CCEDF0C1534F94829DC7B6227CED660E0CDD8F4A2375AFFF64DBE4E785F1848"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlRuntimeWiringTests.cs",
+      "state": "changed",
+      "prior_sha256": "8FA07FBB2AC21395D12E0D324A750D316C5919AD8489FD535C16274A66E147A7",
+      "current_sha256": "0FC3569708EF342C6DE039E813030EB6ED1F2720D03E7963D5725637A37DE394"
+    }
+  ],
+  "added": [],
+  "trx_count": 224,
+  "modules": [
+    {
+      "module": "M01",
+      "candidate_classes": [
+        "PostgreSqlProductCatalogMigrationIntegrationTests",
+        "PostgreSqlProductSynchronizationIntegrationTests",
+        "PostgreSqlProductAttachmentsIntegrationTests",
+        "PostgreSqlProductSalesLookupIntegrationTests"
+      ],
+      "candidate_runtime_methods": null,
+      "existing_trx_evidence": [
+        {
+          "trx": "TestResults/postgresql-migration/m01-m02-m04-existing-master-data-native.trx",
+          "sha256": "8BF9AA5C1C30BA6FD3F1AC7913FA683FEF6905B92EB797780C220F8A580811ED",
+          "created": "2026-10-06T04:19:31.1218945+08:00",
+          "results": [
+            {
+              "name": "CustomerFilters_UseCurrentCodesWithoutDuplicateProducts",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.7634806"
+            },
+            {
+              "name": "ExactTextDifference_ChangesVersionOnce (\"Name \",\"Name\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0093241"
+            },
+            {
+              "name": "Package_CompositeCollisionShouldRemainProviderExceptionAndRecoverAtSavepoint",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0177904"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,2)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0541330"
+            },
+            {
+              "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (False,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0278790"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,1)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0606690"
+            },
+            {
+              "name": "Detail_CrudPreservesMappingAndNullableAssociation (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0050505"
+            },
+            {
+              "name": "Crud_DoesNotGrantLifecycleWritePermission",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0498070"
+            },
+            {
+              "name": "Package_UniquenessShouldPreserveCaseNullAndSoftDeleteBoundaries",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0159737"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,15)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0403205"
+            },
+            {
+              "name": "ExactTextDifference_ChangesVersionOnce (\"Name​\",\"Name\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0109711"
+            },
+            {
+              "name": "CustomerCodes_UseCurrentRelationshipsAndKeepInactive",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0354577"
+            },
+            {
+              "name": "SetDefaultSupplier_PreservesSameValueEmptyGuidAndConcurrency",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0269160"
+            },
+            {
+              "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (True,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0242203"
+            },
+            {
+              "name": "Package_CrudPreservesWeightsAndNullableAssociation (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0158046"
+            },
+            {
+              "name": "SelectedNullsAndEmptySupplier_ClearExactly",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0120320"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,8)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0364601"
+            },
+            {
+              "name": "CustomerLookup_PreservesZeroNullAndRelationshipScope",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0329015"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,4)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0476455"
+            },
+            {
+              "name": "Lookup_PreservesRankWildcardsAndLiteralBackslash",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.8070347"
+            },
+            {
+              "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (True,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0200192"
+            },
+            {
+              "name": "PreCanceledSynchronization_LeavesRowAndCallerTransactionUnchanged",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0103535"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,8)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0361107"
+            },
+            {
+              "name": "PlainLookup_PreservesProjectionPatternAndPagination",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.4778849"
+            },
+            {
+              "name": "ExactTextDifference_ChangesVersionOnce (\"Name\",\"name\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0137720"
+            },
+            {
+              "name": "Detail_CrudPreservesMappingAndNullableAssociation (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0280701"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,1)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0402027"
+            },
+            {
+              "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (False,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0212984"
+            },
+            {
+              "name": "Lookup_CancellationPropagates",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0017707"
+            },
+            {
+              "name": "Package_CrudPreservesWeightsAndNullableAssociation (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0210318"
+            },
+            {
+              "name": "DetailAndPackage_ShouldShareRollbackTransaction",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0091443"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,4)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0451139"
+            },
+            {
+              "name": "DetailsAndPage_MapNullableReferencesAndPackaging",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:01.2137622"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,15)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0403564"
+            },
+            {
+              "name": "CodesAndBom_KeepInputAndLifecycleBoundaries",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0828980"
+            },
+            {
+              "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,2)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0489230"
+            }
+          ]
+        }
+      ],
+      "limitation": "仅已有TRX元数据定位；原生身份及目标需按源码/原执行登记核验，不将历史通过提升为本次重跑或完整模块通过"
+    },
+    {
+      "module": "M02",
+      "candidate_classes": [
+        "PostgreSqlProductMasterMigrationIntegrationTests",
+        "PostgreSqlProductNeutralMigrationIntegrationTests",
+        "PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+        "PostgreSqlProductCategoryMigrationIntegrationTests",
+        "PostgreSqlProductColorMigrationIntegrationTests",
+        "PostgreSqlProductUniquenessIntegrationTests"
+      ],
+      "candidate_runtime_methods": null,
+      "existing_trx_evidence": [
+        {
+          "trx": "TestResults/postgresql-migration/m01-m02-m04-existing-master-data-native.trx",
+          "sha256": "8BF9AA5C1C30BA6FD3F1AC7913FA683FEF6905B92EB797780C220F8A580811ED",
+          "created": "2026-10-06T04:19:31.1218945+08:00",
+          "results": [
+            {
+              "name": "MasterColorCombination_InsertAndReparentStillReject",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0082648"
+            },
+            {
+              "name": "NullCode_RemainsNotNullViolation (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0075754"
+            },
+            {
+              "name": "ColorReads_ObserveRealLockWaitWithoutChangingExistingRows (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0154860"
+            },
+            {
+              "name": "ReadLocks_OnlyProtectExistingMasterWhenRequested (2)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0053564"
+            },
+            {
+              "name": "ColorMethods_PreserveOriginalBoundaries",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0260521"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"master\",False,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0055721"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",True,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0056728"
+            },
+            {
+              "name": "NeutralManagerCrud_PreservesVersionAndOriginalCode",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0180576"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",False,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0045632"
+            },
+            {
+              "name": "Page_KeepsStableImageCategoryBranchesAndNullableProjection",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0489024"
+            },
+            {
+              "name": "ConcurrentCodeInsert_ServerWaitThenSuccessAfterRollback (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0155797"
+            },
+            {
+              "name": "Neutral_CrudAndCancellationPreserveTransaction",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0110253"
+            },
+            {
+              "name": "NeutralReference_BlocksColorUntilSoftDeleted",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0367365"
+            },
+            {
+              "name": "MaintenanceLocks_BlockExistingRowUntilRollback (\"category\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0130100"
+            },
+            {
+              "name": "Page_MapsNullsAndPreservesPatternsAndPaging",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0089818"
+            },
+            {
+              "name": "EquivalentCode_InsertRejectsExactIndex (False,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0101865"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",False,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0046160"
+            },
+            {
+              "name": "NullCode_RemainsNotNullViolation (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0061784"
+            },
+            {
+              "name": "EquivalentCode_InsertRejectsExactIndex (True,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0134827"
+            },
+            {
+              "name": "Tree_EnforcesSqlServerDefaultDepthBoundary (101)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0259992"
+            },
+            {
+              "name": "ConcurrentCodeInsert_ServerWaitThenSuccessAfterRollback (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0198955"
+            },
+            {
+              "name": "NeutralManagerPaging_PreservesParentFiltersAndNameFallbacks",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0553888"
+            },
+            {
+              "name": "NeutralManagerReads_ObserveExistingRowLockWait (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0087232"
+            },
+            {
+              "name": "Neutral_DetailsPreserveColorFallbackAndNullableValues",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0247549"
+            },
+            {
+              "name": "EquivalentCode_InsertRejectsExactIndex (True,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0082420"
+            },
+            {
+              "name": "Neutral_DetailLockObservesRealWaitingWithoutOldDataWrites (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0064720"
+            },
+            {
+              "name": "DistinctCodeAndSoftDelete_KeepOriginalBoundary (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0164838"
+            },
+            {
+              "name": "ColorCrud_PreservesVersionAndNulls",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0085810"
+            },
+            {
+              "name": "DetailAndCodes_PreserveNullJoinsAndNormalization",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0150126"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",False,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0054635"
+            },
+            {
+              "name": "Neutral_DetailLockObservesRealWaitingWithoutOldDataWrites (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0055029"
+            },
+            {
+              "name": "ColorReads_ObserveRealLockWaitWithoutChangingExistingRows (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0370923"
+            },
+            {
+              "name": "CrudAndAssignCategory_PreserveActualChangeAndVersion",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0240085"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",False,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0046876"
+            },
+            {
+              "name": "DistinctCodeAndSoftDelete_KeepOriginalBoundary (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0111938"
+            },
+            {
+              "name": "CancellationAndLockPrerequisites_LeaveCallerTransactionUsable",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0019364"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",True,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0052809"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",True,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0054738"
+            },
+            {
+              "name": "ColorPaging_PreservesBatchKeywordAndStableOrder",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0140475"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"master\",True,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0072611"
+            },
+            {
+              "name": "Tree_CycleFailsWithoutAbortingCallerTransaction (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0026626"
+            },
+            {
+              "name": "ReadLocks_OnlyProtectExistingMasterWhenRequested (1)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0086633"
+            },
+            {
+              "name": "CollidingUpdate_SavepointPreservesEveryStoredField (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0058570"
+            },
+            {
+              "name": "Tree_IncludesRootAndStopsAtDeletedParent",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0149697"
+            },
+            {
+              "name": "EmptyAndSpaces_UseSameActiveUniqueKey (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0100496"
+            },
+            {
+              "name": "Neutral_CascadePreservesVersionsAuditAndZeroRowSuccess",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0254135"
+            },
+            {
+              "name": "EquivalentCode_InsertRejectsExactIndex (False,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0086435"
+            },
+            {
+              "name": "EmptyAndSpaces_UseSameActiveUniqueKey (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0141559"
+            },
+            {
+              "name": "NeutralManagerReads_ObserveExistingRowLockWait (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0707530"
+            },
+            {
+              "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",True,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0052984"
+            },
+            {
+              "name": "OrdinaryReads_DoNotBlockExistingCategoryRowLock",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.1997995"
+            },
+            {
+              "name": "CrudAndReferences_KeepVersionAndMasterOnlyDeduplication",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0154135"
+            },
+            {
+              "name": "ReadLocks_OnlyProtectExistingMasterWhenRequested (0)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0110920"
+            },
+            {
+              "name": "Tree_CycleFailsWithoutAbortingCallerTransaction (False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0031179"
+            },
+            {
+              "name": "CollidingUpdate_SavepointPreservesEveryStoredField (True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0063455"
+            },
+            {
+              "name": "Tree_EnforcesSqlServerDefaultDepthBoundary (100)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0259323"
+            },
+            {
+              "name": "MaintenanceLocks_BlockExistingRowUntilRollback (\"master\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0076516"
+            }
+          ]
+        }
+      ],
+      "limitation": "仅已有TRX元数据定位；原生身份及目标需按源码/原执行登记核验，不将历史通过提升为本次重跑或完整模块通过"
+    },
+    {
+      "module": "M04",
+      "candidate_classes": [
+        "PostgreSqlCustomerMigrationIntegrationTests",
+        "PostgreSqlCustomerProductMigrationIntegrationTests",
+        "PostgreSqlSupplierMigrationIntegrationTests",
+        "PostgreSqlSupplierProductMigrationIntegrationTests"
+      ],
+      "candidate_runtime_methods": null,
+      "existing_trx_evidence": [
+        {
+          "trx": "TestResults/postgresql-migration/m01-m02-m04-existing-master-data-native.trx",
+          "sha256": "8BF9AA5C1C30BA6FD3F1AC7913FA683FEF6905B92EB797780C220F8A580811ED",
+          "created": "2026-10-06T04:19:31.1218945+08:00",
+          "results": [
+            {
+              "name": "SupplierPage_PreservesWildcardAndStablePaging",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0050382"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"?\",\"Z\",\"XX\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0134503"
+            },
+            {
+              "name": "CodeComparisonAndBatchExclusion_DoNotTrimLeadingSpace",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0157636"
+            },
+            {
+              "name": "Detail_PreservesNonstandardRelationsSnapshotsAndNullableValues",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.1148568"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"_\",\"_\",\"X\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0093339"
+            },
+            {
+              "name": "SupplierProduct_DisplayAndSnapshotPreserveOptionalJoins",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0458605"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"[\",\"[\",\"X\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0072876"
+            },
+            {
+              "name": "SupplierCrud_UpdatesVersionWithoutChangingLifecycle",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0044169"
+            },
+            {
+              "name": "SupplierProduct_PagePreservesScopePatternAndStableIdentity",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0326496"
+            },
+            {
+              "name": "Crud_KeepActivationFrozenAndVersionConflicts",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.2082006"
+            },
+            {
+              "name": "SupplierProduct_CrudAndCompositeConstraintKeepExistingSemantics",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0169133"
+            },
+            {
+              "name": "PagingContactSearchAndCancellation_UseCallerTransaction",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0181404"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"~\",\"~\",\"X\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0150627"
+            },
+            {
+              "name": "CodesAndExclusions_DocumentRawIndexAndQueryEquivalence",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0501588"
+            },
+            {
+              "name": "SupplierCodes_CompareAndDeduplicateWithoutChangingStoredText",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0069724"
+            },
+            {
+              "name": "PageAndCrud_PreserveLimitsSearchAndVersion",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:03.7429001"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\" \",\"ManyLetters\",\"\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0082615"
+            },
+            {
+              "name": "SupplierMethods_PreserveDeletedInactiveAndNullable",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0128852"
+            },
+            {
+              "name": "SupplierProduct_CodeScopesAndBatchExclusionPreserveOriginalText",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0212768"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"\\\",\"\\\",\"X\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0097670"
+            },
+            {
+              "name": "SoftDeletionAndMissingJoins_KeepEachQueryBoundary",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.4611821"
+            },
+            {
+              "name": "SupplierProduct_PurchaseChunkedPairsDoNotCrossMatch",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0198696"
+            },
+            {
+              "name": "DeletedInactiveAndNullableFields_PreserveQueryDifferences",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0497585"
+            },
+            {
+              "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"%\",\"%\",\"X\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0104361"
+            }
+          ]
+        }
+      ],
+      "limitation": "仅已有TRX元数据定位；原生身份及目标需按源码/原执行登记核验，不将历史通过提升为本次重跑或完整模块通过"
+    },
+    {
+      "module": "M05",
+      "candidate_classes": [
+        "PostgreSqlCurrencyMigrationIntegrationTests"
+      ],
+      "candidate_runtime_methods": [
+        "RealPg_RuntimeDictionaryBatchParentAndAtomicRollback",
+        "RealPg_RuntimeExcelProfileSnapshotAndVersionCompetition"
+      ],
+      "existing_trx_evidence": [
+        {
+          "trx": "TestResults/postgresql-migration/m05-dictionary-service-native.trx",
+          "sha256": "86D01E386578D9EFDE0C98CBCA1FC59D97798C0FC6ED0BD19F1C62C103F81440",
+          "created": "2026-10-06T04:32:14.2497428+08:00",
+          "results": [
+            {
+              "name": "RealPg_RuntimeDictionaryBatchParentAndAtomicRollback",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlRuntimeWiringTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.5955826"
+            }
+          ]
+        },
+        {
+          "trx": "TestResults/postgresql-migration/m05-excel-profile-snapshot-version-native.trx",
+          "sha256": "C762CD29C6FD59179F7BEB86D465480B5873732695AFFB9131CB039ED64AA4A6",
+          "created": "2026-10-06T04:40:57.0840739+08:00",
+          "results": [
+            {
+              "name": "RealPg_RuntimeExcelProfileSnapshotAndVersionCompetition",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlRuntimeWiringTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.5828509"
+            }
+          ]
+        },
+        {
+          "trx": "TestResults/postgresql-migration/m05-m06-existing-exchange-permissions-native.trx",
+          "sha256": "FC2A912CAE2E6902BA16A9280AACD4EB470D6378EB5952398CA9199E9133698A",
+          "created": "2026-10-06T04:25:02.2754692+08:00",
+          "results": [
+            {
+              "name": "ExchangeQueries_UseRealNullableParametersAndRollbackTestRows",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlCurrencyMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0347711"
+            }
+          ]
+        }
+      ],
+      "limitation": "仅已有TRX元数据定位；原生身份及目标需按源码/原执行登记核验，不将历史通过提升为本次重跑或完整模块通过"
+    },
+    {
+      "module": "M06",
+      "candidate_classes": [
+        "PostgreSqlAuthMigrationIntegrationTests"
+      ],
+      "candidate_runtime_methods": null,
+      "existing_trx_evidence": [
+        {
+          "trx": "TestResults/postgresql-migration/m05-m06-existing-exchange-permissions-native.trx",
+          "sha256": "FC2A912CAE2E6902BA16A9280AACD4EB470D6378EB5952398CA9199E9133698A",
+          "created": "2026-10-06T04:25:02.2754692+08:00",
+          "results": [
+            {
+              "name": "InvalidAuthorizationSource_IsExcluded (\"InactivePermission\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0063642"
+            },
+            {
+              "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedRole\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0082990"
+            },
+            {
+              "name": "SystemAdministrator_TemporaryRelationIsRecognizedAndRevoked",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0209874"
+            },
+            {
+              "name": "MultipleRoles_MapSortedDistinctPermissionUnion",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0545239"
+            },
+            {
+              "name": "InvalidAccount_HasNoFactsOrActiveSummary (False,False)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0059771"
+            },
+            {
+              "name": "Revocation_RequeryReturnsCurrentFactsWithoutCachedAuthorization",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0167718"
+            },
+            {
+              "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedRolePermission\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0092452"
+            },
+            {
+              "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (\"   \")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0066225"
+            },
+            {
+              "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (\"测试昵称 \")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0072286"
+            },
+            {
+              "name": "InvalidAccount_HasNoFactsOrActiveSummary (True,True)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0117307"
+            },
+            {
+              "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (null)",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.2114402"
+            },
+            {
+              "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedPermission\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0090137"
+            },
+            {
+              "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedUserRole\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0110641"
+            },
+            {
+              "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (\"\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0094853"
+            },
+            {
+              "name": "InvalidAuthorizationSource_IsExcluded (\"InactiveRole\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0090005"
+            }
+          ]
+        }
+      ],
+      "limitation": "仅已有TRX元数据定位；原生身份及目标需按源码/原执行登记核验，不将历史通过提升为本次重跑或完整模块通过"
+    },
+    {
+      "module": "M07",
+      "candidate_classes": [
+        "PostgreSqlWarehouseQueryMigrationIntegrationTests",
+        "PostgreSqlWarehouseCandidateMigrationIntegrationTests"
+      ],
+      "candidate_runtime_methods": null,
+      "existing_trx_evidence": [
+        {
+          "trx": "TestResults/postgresql-migration/m07-existing-query-candidate-native.trx",
+          "sha256": "656B779AA98CFED29B86ABEE98B372799630DFC94668D564F5631E9D04FD5C53",
+          "created": "2026-10-06T04:07:40.6971737+08:00",
+          "results": [
+            {
+              "name": "SupplierStateAndSnapshots_PreserveEachQueryBoundary",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0236308"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\"_\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0066289"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\" \")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0155855"
+            },
+            {
+              "name": "WarehouseStates_KeepInactiveOnlyForExistingReferences",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0232670"
+            },
+            {
+              "name": "WarehouseCandidate_LiteralSearchAndPagingPreserveOriginalSemantics",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseCandidateMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0180305"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\"[\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0060722"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\"?\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0168048"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\"~\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0067262"
+            },
+            {
+              "name": "NullableFiltersAndPaging_KeepCountsAndPageMembership",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0147330"
+            },
+            {
+              "name": "WarehouseCandidate_RequiresCurrentQualifiedSupplierAndVirtualWarehouse",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseCandidateMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.3783474"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\"\\\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0146342"
+            },
+            {
+              "name": "LiteralKeywords_DoNotExpandCandidates (\"%\")",
+              "class_name": "SwiftExport.Application.Tests.Database.PostgreSqlWarehouseQueryMigrationIntegrationTests",
+              "outcome": "Passed",
+              "duration": "00:00:00.0080347"
+            }
+          ]
+        }
+      ],
+      "limitation": "仅已有TRX元数据定位；原生身份及目标需按源码/原执行登记核验，不将历史通过提升为本次重跑或完整模块通过"
+    }
+  ],
+  "trx_manifest": [
+    {
+      "path": "TestResults/postgresql-migration/b22-different-packing-first.trx",
+      "sha256": "FA2B908911E4CC0D62D3421BBC124C0C942EC4144842FE820DDF4F30DBD144F3",
+      "created": "2026-10-05T17:18:29.2303946+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/b22-different-packing-scopes-fixed-replay.trx",
+      "sha256": "835E3C757AF20856634B983C8094525FA2FF39AAA8CA539E101E800416AA6FFB",
+      "created": "2026-10-05T17:19:45.5175037+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/foundation-schema-offline.trx",
+      "sha256": "9DDD154074FB3BA47F4276CFF50A54302580BDC105730355704F1028A6C9B648",
+      "created": "2026-10-04T23:53:34.9839802+08:00",
+      "counters": "<Counters total=\"36\" executed=\"36\" passed=\"36\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m01-m02-m04-existing-master-data-native.trx",
+      "sha256": "8BF9AA5C1C30BA6FD3F1AC7913FA683FEF6905B92EB797780C220F8A580811ED",
+      "created": "2026-10-06T04:19:31.1218945+08:00",
+      "counters": "<Counters total=\"117\" executed=\"117\" passed=\"117\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m03-bom-save-demand-interleave-native.trx",
+      "sha256": "7B7FB2ABF1979AAAA9FAD20B19206C7817424751EFDE020B7CBEE03CC6BF9713",
+      "created": "2026-10-06T03:12:31.0387309+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m03-bom-save-demand-interleave-sandbox-failure.trx",
+      "sha256": "45077561197BACF34CCF4CA162E09665671DA7F239BDE0090B72BFDD831AA267",
+      "created": "2026-10-06T03:12:05.1769679+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m03-shared-bom-demand-native.trx",
+      "sha256": "F4A5F5AC72A37DDD2F52F1349D3BD4845D75E38F902E5550C66F119E35BDEF47",
+      "created": "2026-10-06T02:55:43.7380462+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m05-dictionary-service-native.trx",
+      "sha256": "86D01E386578D9EFDE0C98CBCA1FC59D97798C0FC6ED0BD19F1C62C103F81440",
+      "created": "2026-10-06T04:32:14.2497428+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m05-excel-profile-snapshot-version-native.trx",
+      "sha256": "C762CD29C6FD59179F7BEB86D465480B5873732695AFFB9131CB039ED64AA4A6",
+      "created": "2026-10-06T04:40:57.0840739+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m05-m06-existing-exchange-permissions-native.trx",
+      "sha256": "FC2A912CAE2E6902BA16A9280AACD4EB470D6378EB5952398CA9199E9133698A",
+      "created": "2026-10-06T04:25:02.2754692+08:00",
+      "counters": "<Counters total=\"16\" executed=\"16\" passed=\"16\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m07-existing-query-candidate-native.trx",
+      "sha256": "656B779AA98CFED29B86ABEE98B372799630DFC94668D564F5631E9D04FD5C53",
+      "created": "2026-10-06T04:07:40.6971737+08:00",
+      "counters": "<Counters total=\"12\" executed=\"12\" passed=\"12\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m09-fix-offline.trx",
+      "sha256": "6A06D9106F17E6BDE1202C7A3F3253D8DF975E2E672F38562E2809834D9BC49A",
+      "created": "2026-10-05T00:47:33.5930802+08:00",
+      "counters": "<Counters total=\"23\" executed=\"23\" passed=\"23\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m09-m12-existing-baseline.trx",
+      "sha256": "ADC0CAF7505CC7DF57DF34EE92D41150D008869F8B031AC11029869F9FD26B4F",
+      "created": "2026-10-05T00:32:29.6612952+08:00",
+      "counters": "<Counters total=\"20\" executed=\"20\" passed=\"20\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m09-m12-merged-offline.trx",
+      "sha256": "C10F642B3E22BDE5C907F4559333F283C17C909CF840C50F4CB50FC13268856D",
+      "created": "2026-10-05T00:40:34.6727402+08:00",
+      "counters": "<Counters total=\"54\" executed=\"54\" passed=\"54\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m09-m12-real-pg-retest.trx",
+      "sha256": "A891441C9C74BAF0D748CFFCEA8311D1D7DC28525EC84A21A16259D7366123FF",
+      "created": "2026-10-05T00:47:40.1793946+08:00",
+      "counters": "<Counters total=\"30\" executed=\"30\" passed=\"30\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m09-m12-real-pg.trx",
+      "sha256": "B0FA29358E377DC0351F87824487A9A48423714DE8EC2621045628AE93F92643",
+      "created": "2026-10-05T00:41:16.7202397+08:00",
+      "counters": "<Counters total=\"30\" executed=\"29\" passed=\"23\" failed=\"6\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-first-real-pg.trx",
+      "sha256": "C15F2ED76778DC7D8DA1AA4837787C0050BDDE70FC966F1A9D0941B7E07F87B9",
+      "created": "2026-10-05T01:29:17.5106777+08:00",
+      "counters": "<Counters total=\"13\" executed=\"13\" passed=\"12\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-like-lock-merged-offline.trx",
+      "sha256": "E7F13591B56C0FB318F2D464A95669251165D97CC974A483FD68817D357330C8",
+      "created": "2026-10-05T01:52:29.7434225+08:00",
+      "counters": "<Counters total=\"89\" executed=\"89\" passed=\"89\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-like-lock-real-pg.trx",
+      "sha256": "AB0C1E34D549C396FCF36461B54107D35E39EBBECB8B9693DAB68E87F97D1B11",
+      "created": "2026-10-05T01:53:30.1899801+08:00",
+      "counters": "<Counters total=\"59\" executed=\"59\" passed=\"14\" failed=\"45\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-like-syntax-corrected-offline.trx",
+      "sha256": "0A5323497514E1CAD8264F842D0A9B296E121C7CF747B48869AFF844820B93AA",
+      "created": "2026-10-05T02:01:55.2783281+08:00",
+      "counters": "<Counters total=\"58\" executed=\"58\" passed=\"58\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-like-syntax-corrected-real-pg.trx",
+      "sha256": "B4C36890D26B4B355A02101705A99864E550D7D913117B143B8D4CA3005D503A",
+      "created": "2026-10-05T02:01:07.7942608+08:00",
+      "counters": "<Counters total=\"59\" executed=\"59\" passed=\"57\" failed=\"2\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-merged-offline.trx",
+      "sha256": "ED6AB77196AAC9D19522B12D20ED4088D4F520C29DF743459CEB2893476E0BEB",
+      "created": "2026-10-05T01:27:26.7610147+08:00",
+      "counters": "<Counters total=\"61\" executed=\"61\" passed=\"61\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-role-deletion-assignment-service-native.trx",
+      "sha256": "73D6A0F42B0B81EADFF652F98DEA20F744F6FB066ADB7B0DC1726ED42C6B432B",
+      "created": "2026-10-06T03:22:07.2814155+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-role-permissions-catalog-sync-native.trx",
+      "sha256": "FB8920606424F286EE66CCF840D663CFB953F9F4CC723A4D5F53741E0968E265",
+      "created": "2026-10-06T03:30:50.9337194+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-service-first-real-pg.trx",
+      "sha256": "D53390874164F60D5B1BD28EA82EAD5B5C4FFB9231EC597E36E5C5FC731BB6F1",
+      "created": "2026-10-05T01:37:31.2314019+08:00",
+      "counters": "<Counters total=\"8\" executed=\"8\" passed=\"6\" failed=\"2\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m10-service-lock-corrected-real-pg.trx",
+      "sha256": "79055425A1FC3904CBB6432BDEEB5864FCC6A97F041ABB8F38A6C0B94EC6B67A",
+      "created": "2026-10-05T01:52:56.0895176+08:00",
+      "counters": "<Counters total=\"8\" executed=\"8\" passed=\"8\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m11-m25-resumed-queries-real.trx",
+      "sha256": "958FFA4AF407837F7B9DCF916D893005B975E0DE7DA069A7AE981F0DC535DE07",
+      "created": "2026-10-05T12:32:51.7598302+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m11-ordinary-currency-service-native.trx",
+      "sha256": "576076378346E036C130AE468A5C58A1DEA592C9D06C157906520F4960D791FB",
+      "created": "2026-10-06T03:40:46.3279627+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-eligibility-correct-target-real-pg.trx",
+      "sha256": "15FC7F51EC750F38DC92D4625F0E96F9C1F43F57348FF62A81A6DD0F83B08542",
+      "created": "2026-10-05T02:36:09.2559997+08:00",
+      "counters": "<Counters total=\"16\" executed=\"16\" passed=\"11\" failed=\"5\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-eligibility-first-real-pg.trx",
+      "sha256": "DAA1345987D28F20FE2D7FDF2F33428A1664719E6949B94E3D370C081B579198",
+      "created": "2026-10-05T02:35:44.0743193+08:00",
+      "counters": "<Counters total=\"16\" executed=\"16\" passed=\"0\" failed=\"16\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-eligibility-fixture-corrected-real-pg.trx",
+      "sha256": "4393F93E3E6BE8CF6A3CC0D4DFF689FCB9CC47008A599F6D3537F5F59CA0AF39",
+      "created": "2026-10-05T02:37:30.4162454+08:00",
+      "counters": "<Counters total=\"16\" executed=\"16\" passed=\"15\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-query-corrected-real-pg.trx",
+      "sha256": "36446BCB79BD5874F56C98F89E8D65106053662680108EFBBABC6F2738842EDF",
+      "created": "2026-10-05T01:47:21.2039097+08:00",
+      "counters": "<Counters total=\"12\" executed=\"12\" passed=\"12\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-query-first-real-pg.trx",
+      "sha256": "976422653984D52231E6433546E208E8C72C2F46B070DBE05C7C4BBD1CCDF322",
+      "created": "2026-10-05T01:45:18.9428051+08:00",
+      "counters": "<Counters total=\"12\" executed=\"12\" passed=\"0\" failed=\"12\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-query-merged-offline.trx",
+      "sha256": "8382659F64ADFA6BFD658CE68D8D28CE2F539E191915C2569BFE1E0303E1FEEC",
+      "created": "2026-10-05T01:43:19.4200995+08:00",
+      "counters": "<Counters total=\"31\" executed=\"31\" passed=\"31\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-query-real-pg.trx",
+      "sha256": "7940856D6F58AA48E0C40B3C1CBD3A1903607107DA8221C0A2AB7466F0456ED2",
+      "created": "2026-10-05T01:45:50.1405080+08:00",
+      "counters": "<Counters total=\"12\" executed=\"12\" passed=\"11\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-target-preparation-first-real-pg.trx",
+      "sha256": "F6E2B19C9261117995EBD860231B5370D4D7B90A66F7AA7BAA2156BD1F37CEB9",
+      "created": "2026-10-05T03:18:18.4038842+08:00",
+      "counters": "<Counters total=\"31\" executed=\"31\" passed=\"20\" failed=\"11\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-target-preparation-fixture-corrected-real-pg.trx",
+      "sha256": "E97CB61BEF3EBCEBD4454E504A0D8DD2414DC505DE55AA9B02C2B274B8192BDA",
+      "created": "2026-10-05T03:22:15.1858200+08:00",
+      "counters": "<Counters total=\"31\" executed=\"31\" passed=\"31\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m13-target-preparation-merged-offline.trx",
+      "sha256": "2864F46520AD2E67BF36F789ED0DE0AFE0D81078897C14EC9412B2FD53F82F0D",
+      "created": "2026-10-05T03:17:45.0741720+08:00",
+      "counters": "<Counters total=\"57\" executed=\"57\" passed=\"57\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-gross-trace-guard-main-first-real-pg.trx",
+      "sha256": "2272BD402B77071F208C2CCC9F8EDB329305DCCAA5859C1D779AC1599BE2D056",
+      "created": "2026-10-05T04:21:34.2590436+08:00",
+      "counters": "<Counters total=\"63\" executed=\"63\" passed=\"63\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-history-guard-first-real-pg.trx",
+      "sha256": "DE85FC61B2851BA280130F757B9515B59B065892ACC14D27A6478C71BE081B0D",
+      "created": "2026-10-05T02:54:18.9771263+08:00",
+      "counters": "<Counters total=\"24\" executed=\"24\" passed=\"8\" failed=\"16\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-history-guard-fixture-corrected-real-pg.trx",
+      "sha256": "41B6DBF9080E8E3C82569BDBAC574CE479003AE164C5954AFA8341729AB08A24",
+      "created": "2026-10-05T02:55:45.6901646+08:00",
+      "counters": "<Counters total=\"24\" executed=\"24\" passed=\"24\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-history-guard-offline.trx",
+      "sha256": "29996FE6E99147F3447964DB6436F36EA98D1C865D2D47E45B739734E4224E0C",
+      "created": "2026-10-05T02:53:23.6895620+08:00",
+      "counters": "<Counters total=\"47\" executed=\"47\" passed=\"47\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-m19-m26-complete-repositories-real.trx",
+      "sha256": "4D519F83692271DACB36AB69BE658AE95128559B28E11FBEF2C6F3AFDA89D55E",
+      "created": "2026-10-05T13:51:24.8033420+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-material-trace-main-array-fixed-real-pg.trx",
+      "sha256": "B5849D116E06CA91B6021F652560C61CA75F1196AFD8DA21B7F508BA0644F40B",
+      "created": "2026-10-05T04:18:35.0843363+08:00",
+      "counters": "<Counters total=\"46\" executed=\"46\" passed=\"46\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-material-trace-main-first-real-pg.trx",
+      "sha256": "8F5168CDEFD2F1DAF6127BA6F15B1C0D2117ECB2417F802B56D3FAFB8B34807D",
+      "created": "2026-10-05T04:17:32.6248311+08:00",
+      "counters": "<Counters total=\"46\" executed=\"46\" passed=\"6\" failed=\"40\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-material-trace-main-offline.trx",
+      "sha256": "0B7746E90CFD324BC6EBE7EDCA4FB512AE03159C25E684D3DB63AD30C7D974D8",
+      "created": "2026-10-05T04:17:02.9750255+08:00",
+      "counters": "<Counters total=\"20\" executed=\"20\" passed=\"20\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-source-first-real-pg.trx",
+      "sha256": "0ACB1BA7743B21ABC62D4CD17E85A9EDB5E7ABB324169046F77A2EAE0D047165",
+      "created": "2026-10-05T02:59:06.8915677+08:00",
+      "counters": "<Counters total=\"34\" executed=\"34\" passed=\"34\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-source-groups-detail-main-offline.trx",
+      "sha256": "C2B18CF0C9C6A5EC68BD0B5B43F1D4282BF802F8392CD0269BC229DE0425ACAD",
+      "created": "2026-10-05T04:48:34.4094552+08:00",
+      "counters": "<Counters total=\"18\" executed=\"18\" passed=\"18\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-source-groups-detail-main-real-pg.trx",
+      "sha256": "8BC508EAF1619EE615028BCB116339E4B3BEC8576C8303138EC32AEE58E40A39",
+      "created": "2026-10-05T04:49:10.8046499+08:00",
+      "counters": "<Counters total=\"16\" executed=\"16\" passed=\"16\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-source-merged-offline.trx",
+      "sha256": "B35B28076E2C0F8F7FDAB0F2B83BC60677BD234FC77BF218B32C32A9739CB541",
+      "created": "2026-10-05T02:58:39.7771842+08:00",
+      "counters": "<Counters total=\"31\" executed=\"31\" passed=\"31\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-source-read-protocol-probes.trx",
+      "sha256": "D2F4B74FA4B737578D7A16A6ABEA9F604F8FE0690B78A1709FCA7F772B834B74",
+      "created": "2026-10-05T03:40:17.0577039+08:00",
+      "counters": "<Counters total=\"4\" executed=\"4\" passed=\"4\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-trace-array-uuid-protocol-real-pg.trx",
+      "sha256": "21C338961E7A60EAC00C70A5A4187502910CCBACBA71D8664896FA759D926F9F",
+      "created": "2026-10-05T03:43:39.9996601+08:00",
+      "counters": "<Counters total=\"4\" executed=\"4\" passed=\"4\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-traces-cross-connection-first-real-pg.trx",
+      "sha256": "45FDE610FB865E7A356C42B73DA9E8B7F5A8481EC7672BA93F6C40E4DC16F9DB",
+      "created": "2026-10-05T04:39:57.3242869+08:00",
+      "counters": "<Counters total=\"13\" executed=\"13\" passed=\"13\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-traces-guard-main-offline.trx",
+      "sha256": "AA41E9AEA24024FEFF8BCF12087B1C1A0EF325087C47C4BC2F8900E264DB9072",
+      "created": "2026-10-05T04:21:27.5704247+08:00",
+      "counters": "<Counters total=\"59\" executed=\"59\" passed=\"59\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-workspace-autocommit-cancellation-real-pg.trx",
+      "sha256": "18AA6BA4B7CB3A4E460D2B04EA121E26242DB194AF7E30EA2A819763F4D1D297",
+      "created": "2026-10-05T03:30:02.1762787+08:00",
+      "counters": "<Counters total=\"4\" executed=\"4\" passed=\"4\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-workspace-first-real-pg.trx",
+      "sha256": "74F8E5F2B8942898F6B761DF9409976E0C371F3311AF46185EBD2706D66F675F",
+      "created": "2026-10-05T03:26:30.7785811+08:00",
+      "counters": "<Counters total=\"46\" executed=\"46\" passed=\"46\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m14-workspace-merged-offline.trx",
+      "sha256": "246F75F9A0632EE348E6381C9CFA152D0BDA912E352A651AED475BE2DAF706CF",
+      "created": "2026-10-05T03:25:55.4570303+08:00",
+      "counters": "<Counters total=\"30\" executed=\"30\" passed=\"30\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-additional-preparation-m22-query-offline.trx",
+      "sha256": "F9A3E0E9C659188511B5FAD2FB24ECC42DE3177B8792D286251F32A4FC54D274",
+      "created": "2026-10-05T07:53:28.4613373+08:00",
+      "counters": "<Counters total=\"67\" executed=\"45\" passed=\"45\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-command-prefix-affected-real.trx",
+      "sha256": "BF52A88A55891D626193CE71737C6C50F786BFDE16B60DD3EB94263E49584397",
+      "created": "2026-10-05T09:13:29.8902062+08:00",
+      "counters": "<Counters total=\"5\" executed=\"5\" passed=\"5\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-gross-nine-main-first-real.trx",
+      "sha256": "EB452DCE1F481F7C23B07763FD3CA459CEC02B17E1364D589AA24C19FC3902CD",
+      "created": "2026-10-05T07:56:29.4183789+08:00",
+      "counters": "<Counters total=\"91\" executed=\"91\" passed=\"91\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-gross-preparation-consumers-first-offline.trx",
+      "sha256": "970D2D513D4031223CA7321006DD76DAE7263E740231D251475B53FE2FBBC7B5",
+      "created": "2026-10-05T07:26:13.7725283+08:00",
+      "counters": "<Counters total=\"57\" executed=\"57\" passed=\"57\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-item-appears-and-command-lifecycle.trx",
+      "sha256": "27F1E2090B7051E65C7EA8CF4F205A80579280C1945A1E06637AA4C4BD5587D8",
+      "created": "2026-10-05T09:15:37.9944626+08:00",
+      "counters": "<Counters total=\"13\" executed=\"13\" passed=\"13\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-link-four-first-offline.trx",
+      "sha256": "6B5A4513E6B9B48C54C0DF6ED3C3D4161712DA610DFA89133787010B657ECD94",
+      "created": "2026-10-05T09:57:38.0081361+08:00",
+      "counters": "<Counters total=\"16\" executed=\"16\" passed=\"16\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-link-four-first-real.trx",
+      "sha256": "0457315F904AA3234DCA8962C0BECC6FC15057AD5775FEAF910AD0B76A0F4F9F",
+      "created": "2026-10-05T09:58:16.9262355+08:00",
+      "counters": "<Counters total=\"17\" executed=\"17\" passed=\"17\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-manual-create-preparation-offline.trx",
+      "sha256": "F1D71164015855486012E321838E1DF2D9109BA3F8EC68CD9F0D1A69ED306F31",
+      "created": "2026-10-05T08:06:11.5206120+08:00",
+      "counters": "<Counters total=\"36\" executed=\"36\" passed=\"36\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-manual-service-first-real.trx",
+      "sha256": "89FE5719B33C32F60DB753B96D91CEB7D9205A71797A3F50F3025E6C010C087A",
+      "created": "2026-10-05T08:26:44.2997226+08:00",
+      "counters": "<Counters total=\"22\" executed=\"22\" passed=\"22\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-material-preparation-affected-offline.trx",
+      "sha256": "73B345EAA948F7CC2A692D5BFE36741FE16A76B6F378ACBDE103F38A1B042BA6",
+      "created": "2026-10-05T09:11:32.7325783+08:00",
+      "counters": "<Counters total=\"83\" executed=\"83\" passed=\"83\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-material-preparation-first-real.trx",
+      "sha256": "EA13DE60A1B9D1E75BC6BEC59B912BC5C9A847536AE6776153CCB71C1FA37301",
+      "created": "2026-10-05T09:12:28.1710140+08:00",
+      "counters": "<Counters total=\"15\" executed=\"15\" passed=\"15\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-net-seven-first-offline.trx",
+      "sha256": "7C6024B8FEE3C1CFC4BCD5607F501DABA50D920DF4373F52AB37532168540119",
+      "created": "2026-10-05T09:43:08.3950027+08:00",
+      "counters": "<Counters total=\"15\" executed=\"15\" passed=\"15\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-net-seven-first-real.trx",
+      "sha256": "BF90DA49CDE60ABC6FF2BF9BCD0D690EA992C0B2653261F8F94AC3004D5B17B7",
+      "created": "2026-10-05T09:51:32.7864418+08:00",
+      "counters": "<Counters total=\"54\" executed=\"54\" passed=\"54\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-session-m18-trace-m20-inventory-main-offline.trx",
+      "sha256": "7605BE15ABB7E27866516F684F342198772F3612EAF8F4B4DD4AA052E1C94EE5",
+      "created": "2026-10-05T06:57:56.8148179+08:00",
+      "counters": "<Counters total=\"122\" executed=\"122\" passed=\"122\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-source-deadline-first-real.trx",
+      "sha256": "393C03BA3BC8C9EBD1C87C9EB60142B972EF21319717B240FBF9DAA137F3AC00",
+      "created": "2026-10-05T08:33:28.0666472+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-source-preparation-command-main-authorized-real-pg.trx",
+      "sha256": "583589CF484BB53357E2D28422073295693587808E152A2BF7DD6D3D8F9A6815",
+      "created": "2026-10-05T06:56:23.1243499+08:00",
+      "counters": "<Counters total=\"13\" executed=\"13\" passed=\"13\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-source-preparation-command-main-first-real-pg.trx",
+      "sha256": "A97B135E2CA2AE6EAFC14BF0D6A9BBADBF22025B8F8FA3F180DF38968BF83D2C",
+      "created": "2026-10-05T06:56:07.3010062+08:00",
+      "counters": "<Counters total=\"13\" executed=\"13\" passed=\"0\" failed=\"13\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-source-preparation-consumers-final-offline.trx",
+      "sha256": "61647F95C166959F2498761C036C3FC5930FCB60A06013B2E9A5EE3725B3544F",
+      "created": "2026-10-05T07:37:02.9588867+08:00",
+      "counters": "<Counters total=\"75\" executed=\"75\" passed=\"75\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-source-reception-command-first-real.trx",
+      "sha256": "711812631309A6CCD0F19FE49A1BA2614EE4E6A97C5660DFE604A43E25838E55",
+      "created": "2026-10-05T07:42:10.7814410+08:00",
+      "counters": "<Counters total=\"18\" executed=\"18\" passed=\"18\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-supplier-full-service-first-real.trx",
+      "sha256": "154FA03995F9883F80EB1284745CD94D7A390F542D3A512D30E58D6557773DFD",
+      "created": "2026-10-05T10:36:14.2528470+08:00",
+      "counters": "<Counters total=\"24\" executed=\"24\" passed=\"24\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m15-supplier-preparation-offline.trx",
+      "sha256": "AF75004797B12FA071F5C75BE246BAE492A6856DB704EF1D5EBEDC936AAB8A5C",
+      "created": "2026-10-05T10:09:59.2928764+08:00",
+      "counters": "<Counters total=\"46\" executed=\"46\" passed=\"46\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-detail-facts-first-real-pg.trx",
+      "sha256": "53079476D2FA1907ADD97669E2429B1B0E7924AE7FECC33C35A6B687CC019FC5",
+      "created": "2026-10-05T04:09:36.0404936+08:00",
+      "counters": "<Counters total=\"40\" executed=\"40\" passed=\"1\" failed=\"39\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-detail-facts-fixed-real-pg.trx",
+      "sha256": "AFB89225F32053C5B04D7F6F10DED17598ACE7A7337B3F45752D7966931555AD",
+      "created": "2026-10-05T04:10:07.9386745+08:00",
+      "counters": "<Counters total=\"40\" executed=\"40\" passed=\"40\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-detail-facts-protocol-real-pg.trx",
+      "sha256": "C445EA622E2963298F9C931264AC3678CD911022CF367E3696A8CBA45E23574E",
+      "created": "2026-10-05T04:14:30.4036436+08:00",
+      "counters": "<Counters total=\"47\" executed=\"47\" passed=\"47\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-fulfillment-main-correct-filter-real-pg.trx",
+      "sha256": "A7E9D824F725B7DFA63C35F3AA16A0572ACA4279B12E5361C27B5BE9116547D7",
+      "created": "2026-10-05T05:12:51.8072004+08:00",
+      "counters": "<Counters total=\"40\" executed=\"40\" passed=\"40\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-fulfillment-main-first-real-pg.trx",
+      "sha256": "3B061568270DBB559B8D6D7EC411B026265954CE9FAD8308CA8F1EA16E123A42",
+      "created": "2026-10-05T05:12:21.4234895+08:00",
+      "counters": "<Counters total=\"0\" executed=\"0\" passed=\"0\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-fulfillment-main-offline.trx",
+      "sha256": "A3BD444AA04B366D4B2977A9F6726AD15D43D0CCEE0A1ED2F38D42412DFD0120",
+      "created": "2026-10-05T05:11:42.2874948+08:00",
+      "counters": "<Counters total=\"26\" executed=\"26\" passed=\"26\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-fulfillment-main-production-protocol-final-real-pg.trx",
+      "sha256": "023F6ECC7DE3697D3096ED4FAB334097B0E281590AF700F12EB01C701AD04B11",
+      "created": "2026-10-05T05:29:11.1417194+08:00",
+      "counters": "<Counters total=\"7\" executed=\"7\" passed=\"7\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-fulfillment-main-production-protocol-fixed-real-pg.trx",
+      "sha256": "AE4100B8CDF81EA9257C07613ADAE1C1EBFFB5F677168C6726B2A37991C5F30B",
+      "created": "2026-10-05T05:27:18.7613563+08:00",
+      "counters": "<Counters total=\"7\" executed=\"7\" passed=\"7\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-fulfillment-main-production-protocol-real-pg.trx",
+      "sha256": "DBEB04B6C65B75FA473F08F68BF2B2A90D0D015639378A96CC053128B1EF7646",
+      "created": "2026-10-05T05:25:12.9045822+08:00",
+      "counters": "<Counters total=\"7\" executed=\"7\" passed=\"3\" failed=\"4\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-manager-main-first-real-pg.trx",
+      "sha256": "635713AE787079DE36F1E65B6339837ECA80B62FEE2AA2CF4E5461E1D6CDB8E4",
+      "created": "2026-10-05T04:52:17.7565838+08:00",
+      "counters": "<Counters total=\"53\" executed=\"53\" passed=\"52\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-manager-main-legal-fixture-real-pg.trx",
+      "sha256": "1CA061CCD8C0A851A2741700A160F9236803EAE1AD455C2EDC36410BE06BE2B8",
+      "created": "2026-10-05T04:54:07.2261623+08:00",
+      "counters": "<Counters total=\"54\" executed=\"54\" passed=\"54\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m16-manager-main-offline.trx",
+      "sha256": "1427B7C910EE8D920F0B62DDAF533D13C44887C005FB0381AAD67DE87E7D4A2C",
+      "created": "2026-10-05T04:51:38.9946646+08:00",
+      "counters": "<Counters total=\"19\" executed=\"19\" passed=\"19\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-purchase-source-preparation-offline.trx",
+      "sha256": "B282CE09CA707865C9041924177A01111E2F25F4D68AEAE9401747EABEEAA259",
+      "created": "2026-10-05T11:08:07.8980483+08:00",
+      "counters": "<Counters total=\"48\" executed=\"48\" passed=\"48\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-head-main-baseline-fixed-real-pg.trx",
+      "sha256": "1038E365ED6BE21681B66D2314D48F935BB745AAAC480385FF1CBB4A38290C49",
+      "created": "2026-10-05T05:09:30.2651870+08:00",
+      "counters": "<Counters total=\"21\" executed=\"21\" passed=\"21\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-head-main-first-real-pg.trx",
+      "sha256": "E930E5869CE16D67AE8AB54EAF5884FACBE2B0E2C5E90C2F9A3E3EB51361568C",
+      "created": "2026-10-05T05:07:23.2538608+08:00",
+      "counters": "<Counters total=\"21\" executed=\"21\" passed=\"9\" failed=\"12\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-head-main-null-transaction-real-pg.trx",
+      "sha256": "A0BCB326DC2CF35960DD9B46345EB9A6373B10078159188D5FF8FB5AB5CB4F86",
+      "created": "2026-10-05T05:15:03.0627555+08:00",
+      "counters": "<Counters total=\"23\" executed=\"23\" passed=\"23\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-http-stage-rollback-first-parser-failure.trx",
+      "sha256": "0D51A49F1BD8F038BE15CC90D41DF3901A0B38FF18DC6C38ED0F1917DDAD99E6",
+      "created": "2026-10-06T03:53:56.8266103+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-http-stage-rollback-native.trx",
+      "sha256": "FAC4DA4B007B460E2F6A80947EA1461B67A7E3F06F50A6925EF34B92AF999842",
+      "created": "2026-10-06T03:56:29.9563302+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-http-stage-rollback-second-status-failure.trx",
+      "sha256": "1B48B7ED18C40C2B05448C2764908A797128A779F5973FBDCE86E6347A5EC117",
+      "created": "2026-10-06T03:55:22.6691701+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-line-main-first-real-pg.trx",
+      "sha256": "3981CC9142ABEE9B5BF17F4060C0F306BF392F0210AEB8C004466495D29735EF",
+      "created": "2026-10-05T05:45:54.5262516+08:00",
+      "counters": "<Counters total=\"22\" executed=\"22\" passed=\"19\" failed=\"3\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-line-main-offline.trx",
+      "sha256": "358D6A302C35AEE528A25986B046076B169BF6AAEC12028A1D3FCDEFAD989BDE",
+      "created": "2026-10-05T05:45:10.7833541+08:00",
+      "counters": "<Counters total=\"37\" executed=\"37\" passed=\"37\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-line-main-stored-audit-baseline-real-pg.trx",
+      "sha256": "CA16AAFBD25F952604204A20B5BADAF9DC8652ED1594B29B1EF0C0267432D58D",
+      "created": "2026-10-05T05:47:49.5560829+08:00",
+      "counters": "<Counters total=\"22\" executed=\"22\" passed=\"22\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m17-sales-line-main-three-connection-protocol.trx",
+      "sha256": "BCEC14CF960BB6589BCDFCFDF1E00ED818F9D89459FAF24BF853F7AA3A8CBCFE",
+      "created": "2026-10-05T06:16:02.8538603+08:00",
+      "counters": "<Counters total=\"3\" executed=\"3\" passed=\"3\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-base-query-main-first-real-pg.trx",
+      "sha256": "A92CFC40681774137CA3C6791B7D6B96A0E6CF739B133A2F32335F675D3427A4",
+      "created": "2026-10-05T05:32:03.9906816+08:00",
+      "counters": "<Counters total=\"40\" executed=\"40\" passed=\"39\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-base-query-main-legal-keyword-fixture-real-pg.trx",
+      "sha256": "4EF5BC5BC73456A7A1A3CCACBE6D08AE38B52DF0F8B382A838CED7270D51E919",
+      "created": "2026-10-05T05:33:02.9173281+08:00",
+      "counters": "<Counters total=\"40\" executed=\"40\" passed=\"40\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-base-query-main-offline.trx",
+      "sha256": "356B9108C543DA7F57BE41733CE4E35FD23CB72CE585EACB21E3A3E3353C3A28",
+      "created": "2026-10-05T05:31:40.1892990+08:00",
+      "counters": "<Counters total=\"23\" executed=\"23\" passed=\"23\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-detail-manager-main-first-real-pg.trx",
+      "sha256": "EC27F09CCB63263BBA12D06AF17205426809C9BEB3FD7BE1DDF0AA52B064E4B7",
+      "created": "2026-10-05T06:32:51.3229638+08:00",
+      "counters": "<Counters total=\"70\" executed=\"70\" passed=\"69\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-detail-manager-main-offline.trx",
+      "sha256": "A4A0DA53734030DC005919BB52729EBFAAEC814312FE0B2AEC9BB1F821EA31C6",
+      "created": "2026-10-05T06:31:15.5651126+08:00",
+      "counters": "<Counters total=\"47\" executed=\"47\" passed=\"47\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-manager-main-legal-product-fixture-real-pg.trx",
+      "sha256": "77F6356C8B1901C10E710E40E5FC2136443350738E89D07A936B9E805960D46D",
+      "created": "2026-10-05T06:34:02.7521335+08:00",
+      "counters": "<Counters total=\"40\" executed=\"40\" passed=\"40\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-progress-search-main-first-real-pg.trx",
+      "sha256": "FC5E183E705C8A3BF1FA786906F6E0A21FCF6FA8F5A8A7698445F6C5909B1F6D",
+      "created": "2026-10-05T06:08:55.0848841+08:00",
+      "counters": "<Counters total=\"46\" executed=\"46\" passed=\"46\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-progress-search-main-offline.trx",
+      "sha256": "FFB54C59A6CF5E2034B27D353100F36921BA583FC10E871D3213724C2971FEF7",
+      "created": "2026-10-05T06:08:16.8839890+08:00",
+      "counters": "<Counters total=\"22\" executed=\"22\" passed=\"22\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m18-trace-m20-inventory-main-first-real-pg.trx",
+      "sha256": "A08E7033E519FA4906C3FA6B2F224F5917BBA8D2DDAD18B17F631575240E7201",
+      "created": "2026-10-05T06:58:33.1957339+08:00",
+      "counters": "<Counters total=\"103\" executed=\"103\" passed=\"68\" failed=\"35\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-independent-create-retained-replay-real-corrected.trx",
+      "sha256": "7ABBC643CC6D73598CDF1354019D3407704841834321FDC917E574E5AEF1AB90",
+      "created": "2026-10-05T14:36:02.3326705+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-independent-create-retained-replay-real.trx",
+      "sha256": "3288132F968A11AD5D4389D9F2B39481E7FE7143D5165B8541863818E2C353E7",
+      "created": "2026-10-05T14:35:07.5495818+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-independent-create-runtime-real.trx",
+      "sha256": "0C6E411975E3BC18814120A197237B59B3B9969087B6245CEC5772B4D8D201C7",
+      "created": "2026-10-05T14:29:43.9690534+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-independent-lifecycle-first.trx",
+      "sha256": "C75A79B5C139089CD86049359F9E4831AED87A9AE6336F9BE5F45261ADC54005",
+      "created": "2026-10-05T16:28:52.6964908+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-independent-lifecycle-replay.trx",
+      "sha256": "9CFE6ED680D1502919E842D3172F50E092D826AD881E06C0C2F9D624D61BD55E",
+      "created": "2026-10-05T16:30:14.2288428+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-m20-m21-persistence-real.trx",
+      "sha256": "03AE67C1DC61FFFF24482B679D0EA68E168CE5EAE7DAFDBA91CA7074DCE231B3",
+      "created": "2026-10-05T13:18:42.8876119+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"1\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-m20-persistence-real-corrected.trx",
+      "sha256": "F42DF0CE85FFC57F5E30AEADB1961F8ADE7265F84C121615F3D3716C5CEAD14C",
+      "created": "2026-10-05T13:20:17.6601600+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m19-procurement-doc-reference-real.trx",
+      "sha256": "FB86C659AF872BCF5BB2A6E0247AFF8771E1CF56957893F05DC12C7FD638CCC9",
+      "created": "2026-10-05T12:38:08.6177291+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m20-inventory-main-legal-product-fixture-real-pg.trx",
+      "sha256": "E8A105EA1A8C16FB295DDE99D2CD4B73C338E863F9EFCDC8489580193576311C",
+      "created": "2026-10-05T06:59:42.2797780+08:00",
+      "counters": "<Counters total=\"39\" executed=\"39\" passed=\"39\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m21-inbound-capacity-runtime-real-corrected.trx",
+      "sha256": "DFD9C81EC146C0579296917482A9E5091EA9A8408D1270B6E008C4D64192DF31",
+      "created": "2026-10-05T15:03:42.9253197+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m21-inbound-capacity-runtime-real.trx",
+      "sha256": "D8D487D4668386A77F143AE9007D9E2561CACF4EDE70DA27C4C8A5A7BBFFB8E9",
+      "created": "2026-10-05T15:01:42.5146772+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m21-inbound-retained-current-real.trx",
+      "sha256": "2D12C5208C5F826D600FB624042285EDE4897EFAC50EEBAD35EA7D41C549DE0A",
+      "created": "2026-10-05T15:05:54.8463384+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m21-inbound-reverse-atomic-runtime-real.trx",
+      "sha256": "A08BF1645899F09969CFB2A44BD6D5C5F7FBA1ABB6834427A712A00D88A5D803",
+      "created": "2026-10-05T15:15:36.9616417+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m21-inbound-runtime-real-corrected.trx",
+      "sha256": "9C47F72CD5F16A53F19F8723515D35F4359912A387EC382B997208ADB2844229",
+      "created": "2026-10-05T14:56:23.6756071+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m21-inbound-runtime-real.trx",
+      "sha256": "22876247F012144813B64BCC2C76A3E71A717972F9381E2F7200591A1E43943E",
+      "created": "2026-10-05T14:53:31.8540806+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m22-inbound-two-main-first-real.trx",
+      "sha256": "EA17E571F5390F7EAE8B452B763DE71A895AF08E55D9296138019C5B85C17093",
+      "created": "2026-10-05T07:54:28.4995679+08:00",
+      "counters": "<Counters total=\"22\" executed=\"22\" passed=\"22\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m22-m23-automatic-documents-real.trx",
+      "sha256": "4D5A2FA8A486AE794B0620FDE05EE146E1591CEDB645BEC79FCCEFA41658459A",
+      "created": "2026-10-05T13:07:34.6285771+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m22-m23-documents-real-corrected.trx",
+      "sha256": "74DB3ADE6CE32357EB75A9251FF248C9FBB99174A11285A66970DCB1493837E5",
+      "created": "2026-10-05T12:57:30.7451826+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m22-m23-execution-reads-real.trx",
+      "sha256": "23378E79B91D98B2801A788D65B4D3761C272DA938408D9F7747540F491C1706",
+      "created": "2026-10-05T12:21:14.4508899+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m22-m23-m25-documents-real.trx",
+      "sha256": "345C9D0DA9F0BE15B782D04B8DC874B9B3D8E8D611DE2E173D3C8F78608A52C5",
+      "created": "2026-10-05T12:56:25.4868521+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"1\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m22-m24-complete-repositories-real.trx",
+      "sha256": "BC51A29E83F7E7F43F16FC4F8AB29B9CE6C0C455288F143703D4B69DD23A39C6",
+      "created": "2026-10-05T13:38:59.1875451+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m23-outbound-five-query-offline.trx",
+      "sha256": "77221DEDB2106D4DC258A71CCDA81DFFE0970C9BDEA57D51CA13E095BBC811D5",
+      "created": "2026-10-05T08:35:58.6505857+08:00",
+      "counters": "<Counters total=\"71\" executed=\"71\" passed=\"71\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m23-outbound-four-main-first-real.trx",
+      "sha256": "F1C7745D188CAFF11C3BDD5A2E8635D94A2ABCD2F603FF876FB68F016C4FB4D6",
+      "created": "2026-10-05T07:44:29.6644172+08:00",
+      "counters": "<Counters total=\"49\" executed=\"49\" passed=\"49\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m23-outbound-four-main-offline.trx",
+      "sha256": "51E34E46F3FFB80EEE30292C6B49B6B07C50739ECCCC7AA2253B6B8C04101DA4",
+      "created": "2026-10-05T07:43:49.4086783+08:00",
+      "counters": "<Counters total=\"38\" executed=\"38\" passed=\"38\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m23-outbound-items-first-real.trx",
+      "sha256": "E1E6FE543DFD9FBB6F91ED94B8F1509CB8E35932BDE6D880D77D2A809AE89AB4",
+      "created": "2026-10-05T08:37:09.8087802+08:00",
+      "counters": "<Counters total=\"53\" executed=\"53\" passed=\"53\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m23-source-exclusion-actual-readonly.trx",
+      "sha256": "DE90EF7E4CC5CC91E7DF4C71557E7260F95FC5B97F545CCC8A40F3782B476849",
+      "created": "2026-10-05T08:15:34.0692276+08:00",
+      "counters": "<Counters total=\"5\" executed=\"5\" passed=\"5\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m23-source-exclusion-first-readonly.trx",
+      "sha256": "24E584F0BDA9F5047E8F98A8E9D9EB9A867157A2580DBC6F1F613C650031451A",
+      "created": "2026-10-05T08:09:44.5878384+08:00",
+      "counters": "<Counters total=\"5\" executed=\"0\" passed=\"0\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-all-actions-diagnostics-fixed.trx",
+      "sha256": "9EE6031B993F209E20497710E01981F368C2BFCAE9AA7FD1B94D4B958CCAD1AA",
+      "created": "2026-10-05T17:02:58.1493371+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-all-actions-first.trx",
+      "sha256": "B80523D013C155E50AC3736DB3D6AC5F11EB925E53F35B8CDD9D6CE01ABA3E3F",
+      "created": "2026-10-05T17:00:12.7901333+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-all-actions-fixed-fixture.trx",
+      "sha256": "790F2B5901469C7EF3AE857B8924DF7563710E3EDCCFBDBC7A1AF52D13507E0D",
+      "created": "2026-10-05T17:01:42.1203880+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-all-actions-replay.trx",
+      "sha256": "C5A4F8F2DC1419E846F48CCB335DB7B73AD236F535739EEF3AB0FEBE5C90AD8C",
+      "created": "2026-10-05T17:04:05.2554904+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-automatic-serialization-affected.trx",
+      "sha256": "F43BEF0979778EC9991BF3DF42AC3A09FD8671238CD301D80A7F8CBAF92CFC35",
+      "created": "2026-10-05T15:56:44.8509544+08:00",
+      "counters": "<Counters total=\"67\" executed=\"67\" passed=\"67\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-automatic-serialization-fixed.trx",
+      "sha256": "1851E1EB4B11DB118FC0C5AF269A3E8C149BC01261EEC48C1F2C8EA10BC2F937",
+      "created": "2026-10-05T15:56:36.7149890+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-automatic-serialization-red.trx",
+      "sha256": "F245A04D153BA310A81713AFC085CEF69EAC139FE381BB63343156AFF3C27647",
+      "created": "2026-10-05T15:55:26.0773410+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-receipt-shipment-first.trx",
+      "sha256": "4A9B6589F3D3FB640306161A7CEDFBF4C89F7DF533F18E910DF6EB158C8C8F04",
+      "created": "2026-10-05T16:43:13.8105752+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-receipt-shipment-fixed-fixture.trx",
+      "sha256": "79DC91BB944115211B5174CB183F8BA703163C694388D76DF72BA5AB71B44D3C",
+      "created": "2026-10-05T16:44:31.6898550+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-receipt-shipment-replay.trx",
+      "sha256": "BC088010B64AAADB8E2013646C3602536D53179A79679412A59DE95EBD8B6012",
+      "created": "2026-10-05T16:45:53.3209212+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-related-command-affected.trx",
+      "sha256": "F48BA6B269E754F56DD2EAED520D280422EDAA8643DC2E4FBA79E9165BDDD059",
+      "created": "2026-10-05T15:42:26.6560392+08:00",
+      "counters": "<Counters total=\"72\" executed=\"72\" passed=\"72\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-source-and-admin-entry-offline.trx",
+      "sha256": "18C9BDE94880567F280ADDB3830E4B5F2299D7F6E6C05B8894C61E74CAA9A948",
+      "created": "2026-10-05T09:06:28.1721805+08:00",
+      "counters": "<Counters total=\"50\" executed=\"50\" passed=\"50\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-source-delivery-complete-offline.trx",
+      "sha256": "F3B8841BCF26190B67A3ABDDF48592AE64FCDCBEBC40B7D305518EFE2B49D03C",
+      "created": "2026-10-05T13:11:36.9422284+08:00",
+      "counters": "<Counters total=\"47\" executed=\"47\" passed=\"47\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-source-delivery-lock-read-real.trx",
+      "sha256": "2F326AC146C77214D491FAFC9B6D1B0034A6C5BDFB41C04E77F8B421ED998F58",
+      "created": "2026-10-05T13:12:58.2662433+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-source-three-query-first-real.trx",
+      "sha256": "E8B4D351A4B02E7D29A72D324B040B90F56F574E984A46C118D44A3A43223FCA",
+      "created": "2026-10-05T09:13:40.9533428+08:00",
+      "counters": "<Counters total=\"77\" executed=\"77\" passed=\"77\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-stock-packing-runtime-corrected.trx",
+      "sha256": "5B8C949D37B72B6DB0C061BDD971C4E760B3B5E66B0258E28BD000A39F9E16C2",
+      "created": "2026-10-05T15:42:21.1051425+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-stock-packing-runtime-real.trx",
+      "sha256": "A2CB00E56DCC7C93B476ADEBFA283A81432A9475AD142C9D843E29284793EACE",
+      "created": "2026-10-05T15:30:09.0333429+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m24-stock-packing-runtime-related-prepared.trx",
+      "sha256": "B23F4DAF913F29ED3377D2E1176E595D8B74082790845D9925698F6750079C57",
+      "created": "2026-10-05T15:39:25.4652088+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m25-aftersales-confirmed-source-exit.trx",
+      "sha256": "3268C90C1DD4263B50ADD7B3F9CADED35D4AE1466644A16CA7B29E842B98ABC0",
+      "created": "2026-10-05T23:29:33.3263551+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m25-aftersales-save-confirm-cancel-fixed.trx",
+      "sha256": "C11D7529C08998F42395C4578CB7478F2B41DD474D69482A36A4C74F362E00C2",
+      "created": "2026-10-05T23:24:45.2474867+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m25-aftersales-save-confirm-cancel.trx",
+      "sha256": "D37A9C072A12481DD25DBA003CEEE082060799EB696E19CD60532D656A931BE9",
+      "created": "2026-10-05T23:20:41.1629370+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m25-reference-first-offline.trx",
+      "sha256": "961D1D676C000FC70BC7FC212DF59DFC4EEA4D2D79020A5706B70C7332AC2131",
+      "created": "2026-10-05T10:42:23.2316933+08:00",
+      "counters": "<Counters total=\"28\" executed=\"28\" passed=\"28\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m25-reference-first-real.trx",
+      "sha256": "09972BD966FB22CD8E700B5C3B559FB0A1E3AEE3B01F6F41B0803BE82F763E3E",
+      "created": "2026-10-05T10:43:07.8890662+08:00",
+      "counters": "<Counters total=\"39\" executed=\"39\" passed=\"39\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m26-excel-check-create.trx",
+      "sha256": "3F781E2B22A6457182236B6D41647C0F14D2DF6F36A1E2A2C7BB0A0A3491D3D2",
+      "created": "2026-10-05T23:02:11.2576986+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m26-sales-first-real-pg.trx",
+      "sha256": "C9E01AF03BE56A9655E54B5822353E60AC6A8E9EDF27F74E6981FA097998D4CF",
+      "created": "2026-10-05T02:07:18.3358767+08:00",
+      "counters": "<Counters total=\"13\" executed=\"13\" passed=\"13\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m26-sales-merged-offline.trx",
+      "sha256": "8568888D3C626A9A7D8416F73879B1F48D2DAAC520B79420E10D9289DAC79EF3",
+      "created": "2026-10-05T02:06:48.5578936+08:00",
+      "counters": "<Counters total=\"27\" executed=\"27\" passed=\"27\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m26-sales-packing-check-create.trx",
+      "sha256": "6CEC75A456A44A031D05FD30259C51397C110A9CEBE596E71EB03EA95C59911E",
+      "created": "2026-10-05T23:52:28.2558260+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/m27-registration-exit-affected-offline.trx",
+      "sha256": "6BEC2FA186B05C62CFE4F8A855EB9D85030540B63A412BE3A2EADF8935226D19",
+      "created": "2026-10-05T10:17:48.8529347+08:00",
+      "counters": "<Counters total=\"37\" executed=\"37\" passed=\"37\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/operational-index-and-warehouse-pg.trx",
+      "sha256": "269CE28B27696524EC0CC86BF271E8922B878C9F2C62E52854E0C4CD8059CF46",
+      "created": "2026-10-04T23:52:35.0597813+08:00",
+      "counters": "<Counters total=\"37\" executed=\"37\" passed=\"36\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/operational-index-comparison-retest.trx",
+      "sha256": "7243CF4B5965B40D0A38A077387DD58699663949FE697E12A60B9658764ED39B",
+      "created": "2026-10-04T23:53:33.0010596+08:00",
+      "counters": "<Counters total=\"18\" executed=\"18\" passed=\"18\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p02-configuration-pg-affected.trx",
+      "sha256": "68C88395068FD0D6ECE403C717F735242F4351D183405D2A85A80D514E6159C9",
+      "created": "2026-10-05T16:09:23.1496623+08:00",
+      "counters": "<Counters total=\"34\" executed=\"34\" passed=\"34\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p02-configuration-pg-fixed.trx",
+      "sha256": "D1F076EFD0BDC32D0BB9C8EDB2B35E37259AF59D3CCEAA07B25D9DB42DF29622",
+      "created": "2026-10-05T16:09:18.8265029+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p02-configuration-pg-red.trx",
+      "sha256": "37123FE96D76B096DFD87FC0ECAE1680AB1F40D1FB7980E76D463BBDE4EC3148",
+      "created": "2026-10-05T16:07:08.9521400+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p03-source-index-baseline.trx",
+      "sha256": "4E61BD52F3DA7136B9123FA4059A573AB60A2335818598341A229975F921A1FA",
+      "created": "2026-10-06T01:15:02.1267366+08:00",
+      "counters": "<Counters total=\"4\" executed=\"4\" passed=\"4\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p03-source-index-green.trx",
+      "sha256": "2CA5F812B120BB35CBDB81D3918ADA53C9DA59642DB98E810C93633231473F88",
+      "created": "2026-10-06T01:15:00.1198244+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p03-source-index-red.trx",
+      "sha256": "AF0A331A6B2CB37CDD8F3435CB29FCAE8E81454650AD1966BDB54C2265482A3C",
+      "created": "2026-10-06T01:13:19.3907203+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-audit-preparation-real-pg.trx",
+      "sha256": "771F6E5D2E287928073366C99373C614FA608E3E20C99CF5AB2E6366011D047A",
+      "created": "2026-10-05T01:12:02.7385124+08:00",
+      "counters": "<Counters total=\"5\" executed=\"5\" passed=\"5\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-eligibility-existing-boundary.trx",
+      "sha256": "17F1F74D7475EDB750E6234CE062879007367138731AE667F636DC2726389A90",
+      "created": "2026-10-05T02:11:10.4677398+08:00",
+      "counters": "<Counters total=\"5\" executed=\"5\" passed=\"5\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-eligibility-merged-offline.trx",
+      "sha256": "F632D639ACA149B69545B49837E0A8FD764D4611950606AEC6380A29ACC76527",
+      "created": "2026-10-05T02:23:56.3521684+08:00",
+      "counters": "<Counters total=\"44\" executed=\"44\" passed=\"44\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-eligibility-repository-offline.trx",
+      "sha256": "51A4AEA6C8D93D2A8FA22D86EF04FF56BAE96417B68F5028D1F9B489B466065A",
+      "created": "2026-10-05T02:33:47.7603436+08:00",
+      "counters": "<Counters total=\"44\" executed=\"44\" passed=\"44\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-existing-baseline.trx",
+      "sha256": "5BBD0CDD82A3B2F3D6054B461210C5C7C88E75A8A287AC331CC52667F24D5F11",
+      "created": "2026-10-05T01:08:51.3457374+08:00",
+      "counters": "<Counters total=\"21\" executed=\"21\" passed=\"21\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-merged-offline.trx",
+      "sha256": "95E49C860C83731F5C1FAA31A433E9D7A1B1722088FB42F8BE4A9A8C9A28E4D2",
+      "created": "2026-10-05T01:18:29.1278997+08:00",
+      "counters": "<Counters total=\"81\" executed=\"81\" passed=\"81\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p04-shared-offline.trx",
+      "sha256": "C884CC2A0169470A5D803D58C7F109FB292F705B6FA90F050EC9E718F7319100",
+      "created": "2026-10-05T01:13:06.8894444+08:00",
+      "counters": "<Counters total=\"58\" executed=\"58\" passed=\"58\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p05-base-data-application-first.trx",
+      "sha256": "0222A2346286E9A0A074CA8805A16A9EEF4530657A2FEBCC83756A66645AE332",
+      "created": "2026-10-05T19:08:56.3058569+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-dbseed-bootstrap-real-corrected.trx",
+      "sha256": "82B168F23243C81B6D42D0E745EE9E8F2A0BD24F3A0B2C6F1B6E1F54D2251EF0",
+      "created": "2026-10-05T14:18:51.6900900+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-dbseed-entry-and-sync-real.trx",
+      "sha256": "77EDE8CD181E2B869E4293943E7F2006F024996F042ED7A6FA7649BD56FF316C",
+      "created": "2026-10-05T14:16:03.9861070+08:00",
+      "counters": "<Counters total=\"8\" executed=\"6\" passed=\"5\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-dev-user-first-offline.trx",
+      "sha256": "7C8B8256AAB13CBCFFD9A98DA66E0E3A3CAA4AF6428BE77C22D79C5B8579A098",
+      "created": "2026-10-05T10:54:36.1827931+08:00",
+      "counters": "<Counters total=\"11\" executed=\"11\" passed=\"11\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-dev-user-first-real.trx",
+      "sha256": "2F80F393B89FC1508B8EC1C8708A8A5D3BD9BD301045BBA40358A13588FC1458",
+      "created": "2026-10-05T10:55:43.1066210+08:00",
+      "counters": "<Counters total=\"14\" executed=\"14\" passed=\"14\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-recovery-fixture-fixed-offline.trx",
+      "sha256": "170C697F231EE9F0D8AEDCD6C5CF9E685031AF38672BA293BF9090673CA1A4A6",
+      "created": "2026-10-05T09:53:15.0574286+08:00",
+      "counters": "<Counters total=\"14\" executed=\"14\" passed=\"14\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-recovery-store-first-offline.trx",
+      "sha256": "872C9EB128196DA6DBA4E06F3F2C8FA3EB56EAE33ABEC837C9EBBC6595937118",
+      "created": "2026-10-05T09:29:38.1524821+08:00",
+      "counters": "<Counters total=\"14\" executed=\"14\" passed=\"14\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-recovery-store-first-real.trx",
+      "sha256": "24640FE9F70DB4AB3BB8EB74141253323BF834BDC3FECA60604EB67ACF7AA9B2",
+      "created": "2026-10-05T09:54:55.6248721+08:00",
+      "counters": "<Counters total=\"18\" executed=\"18\" passed=\"18\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-role-preparation-corrected-offline.trx",
+      "sha256": "A4953434287365EB950EAB1C70E129C4E333EF78C2E7BFFCDD94B56572023F71",
+      "created": "2026-10-05T11:36:58.4751479+08:00",
+      "counters": "<Counters total=\"14\" executed=\"14\" passed=\"14\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-role-preparation-corrected-real.trx",
+      "sha256": "1F278FE0323BCEC64D6B3379C4C4A3AA3F2FD5E86A144A14FB074D4E1A9AF0AB",
+      "created": "2026-10-05T11:37:42.3053868+08:00",
+      "counters": "<Counters total=\"7\" executed=\"7\" passed=\"7\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-role-preparation-green-real.trx",
+      "sha256": "A7ECB37290B9697A9B8D0D4F7EAC19214D885365C6305D3A5DB1BE81E0A4CF65",
+      "created": "2026-10-05T11:34:42.1262649+08:00",
+      "counters": "<Counters total=\"20\" executed=\"20\" passed=\"17\" failed=\"3\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-role-preparation-offline.trx",
+      "sha256": "0040588C27EE9880AF96AC1FAB28AEBFE26CBE4BD42594C2B3EAB8A5EA261D6E",
+      "created": "2026-10-05T11:34:02.0759759+08:00",
+      "counters": "<Counters total=\"14\" executed=\"14\" passed=\"14\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p06-role-preparation-red-real.trx",
+      "sha256": "DBAC37D7674A7D59C0279961E84BD70271AEBD1D77A82CA84ADD310B5E96EF0C",
+      "created": "2026-10-05T11:31:17.1445367+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"0\" failed=\"2\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p07-current-readonly-http-first.trx",
+      "sha256": "98365257408DE01FFD7ADE797428FA6A9BA8BE499234B4245CE43C4DBF99AF42",
+      "created": "2026-10-05T19:20:16.2194180+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p07-dv-readonly-http.trx",
+      "sha256": "12B36617FCC8AC59B362796E6C2225B954D8DA05FED8BF7517D143973B0957F3",
+      "created": "2026-10-06T01:00:06.5452644+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-authenticated-http-discovery-diagnostic.trx",
+      "sha256": "B9BC06C3AFB499EEB920B8CE5475C45651D2CF8B5AF62648FCE18D29D3E4B1D0",
+      "created": "2026-10-05T17:47:51.3528144+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-authenticated-http-first.trx",
+      "sha256": "D64B2ABE300C38F957E384887F333B702E0BFA11B70B1E2EFFCBEA51591CD8F2",
+      "created": "2026-10-05T17:45:08.8923250+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-authenticated-http-scoped-fixture.trx",
+      "sha256": "72E91E2B25598A6DB8810836D534CD0EF1E0A3AC5D61232FB0C28BDBB6699FF4",
+      "created": "2026-10-05T17:45:51.6564503+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-authenticated-http-webapi-entry.trx",
+      "sha256": "AF19096A3A083F31ED1060D159F782CBB0FA858150EAA115A61B7764CCFC8279",
+      "created": "2026-10-05T17:49:07.1362363+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-backend-offline-stage-corrected.trx",
+      "sha256": "87D8736F1CA08792AF5394EE0FE4B31109D76B4C546BB70AA958CEE57DC84582",
+      "created": "2026-10-06T02:31:32.2990870+08:00",
+      "counters": "<Counters total=\"2168\" executed=\"2101\" passed=\"2095\" failed=\"6\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g1-joint-reversal-continuation.trx",
+      "sha256": "B10924B690AF6408C63A2C0F8DB80FB142BB76E4CD1BB5FA520F6F39631EE523",
+      "created": "2026-10-05T20:26:07.0628741+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g1-joint-reversal-first.trx",
+      "sha256": "11D187F3018C0639279413B9A7D7E8A95E1FAF37DBC22B1698DFED1DE6467FF8",
+      "created": "2026-10-05T20:22:21.7176337+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g1-source-purchase-first.trx",
+      "sha256": "904864C2D3F0CFE56DA543A847057BB62B30269E737504E49DA60979F47AACA8",
+      "created": "2026-10-05T19:55:09.6966777+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g2-cross-source-rollback-first-native.trx",
+      "sha256": "33F34371C6714183F30A41B0619FC9AE71E6A18A3021B0811ABF40530503F962",
+      "created": "2026-10-06T02:01:18.3602991+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g2-first-demand-link.trx",
+      "sha256": "0878C40B8E5688A8AC699982CE4D300C1C335693AD66AD957CEB6E6DDE1DCEFD",
+      "created": "2026-10-05T20:43:27.2159431+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g2-source-exit-first.trx",
+      "sha256": "956F37BBFB34DD9A628E0C7EED0827066908F3156FC4345ECC494AE7B3B63DEA",
+      "created": "2026-10-05T21:00:58.9838891+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g2-source-explicit-first.trx",
+      "sha256": "34C6BC4106D7FA27676F2B05A16DC82D5D9829CF465B971AF2A04E4FA5CBC95D",
+      "created": "2026-10-05T21:13:39.6992415+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g3-capacity-continued-input.trx",
+      "sha256": "FB96BD9352869C7B1A6D2DACDD42CAD9BA0B2322815FF1A4F364DED197D5E5B7",
+      "created": "2026-10-05T21:42:48.9317810+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g3-capacity-finish.trx",
+      "sha256": "BE92EEE48A4D55CD5CE911E146E2CA8409ACEE6EEF82ECE91BB2C6D71B93ACB3",
+      "created": "2026-10-05T21:53:00.1409583+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g3-capacity-prepared-inputs.trx",
+      "sha256": "09D9A8D24BD767D7C66EAEA282D431E9DEC890742954AD1B435DF0C5412C7796",
+      "created": "2026-10-05T21:48:14.3708042+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g3-first-capacity.trx",
+      "sha256": "87BF901C7FCF1115353637AA7012D7961110915A2749CA912CE1767E9FA3BDBD",
+      "created": "2026-10-05T21:38:30.4785895+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g4-cross-stock.trx",
+      "sha256": "497CA8D0D7C57BDE6551C90B208316C329A58A223F82BA93509025477B80CC4D",
+      "created": "2026-10-05T22:14:47.8346364+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g4-inventory-guards-corrected.trx",
+      "sha256": "B8DCDAB0507CC57EB41B2FCAE14F27EA80FFFA50A363B1769CE4DA0DE30FDA7B",
+      "created": "2026-10-06T01:50:50.3465804+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g4-inventory-guards-native.trx",
+      "sha256": "AF983B0EB0C3F08A428664BCBB52E5DDE5D32BB0E2F3A8BA1418A9D606782DD9",
+      "created": "2026-10-06T01:49:22.6387089+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g4-negative-dv-native.trx",
+      "sha256": "73F5DE30116A3BCB7483759EEAEAD59B137C4E8DE9F122ED2E0E055D47C9C6E3",
+      "created": "2026-10-06T01:28:31.9473179+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g4-negative-stock-first.trx",
+      "sha256": "042A415C8F71A95F8D79FBE512EE54EDB21D646D97155A8A662B2FFDEE94144A",
+      "created": "2026-10-06T00:21:43.0145339+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"0\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g4-same-outbound-native.trx",
+      "sha256": "8E1DED2A441068BFF811478E8AFF1E2C03EC6C5F475246A12DB5C3A66D270907",
+      "created": "2026-10-06T02:13:56.1835114+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-g5-late-failures.trx",
+      "sha256": "A756296E7419CA7FBC371F8BD12FCF2B7ABCAF1CD05983F931E888A0AD6AF5AA",
+      "created": "2026-10-05T22:37:31.0804388+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p08-offline-migration-assertions.trx",
+      "sha256": "C3AA196CDC6E1DB33CFC11C1E6BC0AB31A1B327340D597F5F73D6E700799AD0A",
+      "created": "2026-10-06T02:33:33.8319774+08:00",
+      "counters": "<Counters total=\"2\" executed=\"2\" passed=\"2\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/p09-default-pg-error-boundary.trx",
+      "sha256": "E2C924A87EEBF64C972D4A283CB16D74F6A8DC70376F4F4227780681B6E67FC3",
+      "created": "2026-10-06T00:04:20.7975153+08:00",
+      "counters": "<Counters total=\"39\" executed=\"39\" passed=\"39\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/pg-di-boundary-regression.trx",
+      "sha256": "7C21D3AF81ADCFC0D0CC585B6B8318052E22B74B31BA052EB4EDECF83AA7F5DA",
+      "created": "2026-10-05T13:56:42.7687481+08:00",
+      "counters": "<Counters total=\"41\" executed=\"41\" passed=\"40\" failed=\"1\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/pg-runtime-wiring-real.trx",
+      "sha256": "9325610A041B44E0070C4B7B7BBDE2C0FA5ED1B702E8F2F353A02BBFE0B49119",
+      "created": "2026-10-05T13:55:56.9268272+08:00",
+      "counters": "<Counters total=\"1\" executed=\"1\" passed=\"1\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/resumed-first-stage-offline.trx",
+      "sha256": "C2C2CCE62C59914C93B08E910DB649A46746E5EB2CD6CCFCE90D2FBD65B08176",
+      "created": "2026-10-05T12:35:01.9957932+08:00",
+      "counters": "<Counters total=\"63\" executed=\"63\" passed=\"63\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    },
+    {
+      "path": "TestResults/postgresql-migration/warehouse-management-pg.trx",
+      "sha256": "05F8F7BDCD8E6AF5416CAF9A2B610BB80E75A27D7D5F477DDA6602DB1FF07696",
+      "created": "2026-10-04T23:42:58.6513977+08:00",
+      "counters": "<Counters total=\"10\" executed=\"10\" passed=\"10\" failed=\"0\" error=\"0\" timeout=\"0\" aborted=\"0\" inconclusive=\"0\" passedButRunAborted=\"0\" notRunnable=\"0\" notExecuted=\"0\" disconnected=\"0\" warning=\"0\" completed=\"0\" inProgress=\"0\" pending=\"0\" xmlns=\"http://microsoft.com/schemas/VisualStudio/TeamTest/2010\" />"
+    }
+  ],
+  "scope": "源码/项目SHA与既有TRX元数据；只存文件清单及命中模块结果，不复制全套测试正文；不执行测试或数据库命令"
+}

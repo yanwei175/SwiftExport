@@ -1,0 +1,229 @@
+{
+  "Batch": "6dd97054-21ae-481a-93ab-28d4c9502200",
+  "FirstRun": true,
+  "SalesId": "7e3e69c6-008b-44e6-8ecf-4a3502baf0d1",
+  "SalesLineId": "6dd97054-21ae-481a-93ab-28d4c9502201",
+  "GrossId": "3d145ab0-7cf6-485a-a429-4a3502baf138",
+  "NetId": "803d4a23-71ca-40f0-b99f-4a3502baf200",
+  "PurchaseId": "0395f4de-9f7b-4514-84e4-4a3502baf3f6",
+  "IndependentId": "027a8ad0-a632-4e1e-be75-4a3502baf518",
+  "IndependentLineId": "a243b8c9-8b81-4fc6-b262-4a3502baf51a",
+  "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+  "CustomerId": "cc533ab1-88ff-4fa4-ab28-53199670768f",
+  "SupplierId": "017b0b30-2744-4e4b-8bfb-1169e5be98eb",
+  "Evidence": [
+    {
+      "Stage": "首次Net事务前等待",
+      "Backends": [
+        8360,
+        8772
+      ],
+      "Holder": 4748,
+      "Observer": 8816,
+      "OwnerKey": -2098124016078814205,
+      "NetCount": 0,
+      "LinkCount": 0,
+      "TransactionNull": true,
+      "ItemCovered": [
+        false,
+        false
+      ],
+      "ServerTryLockObserved": true
+    },
+    {
+      "Stage": "首次Net",
+      "Backends": [
+        8360,
+        8772
+      ],
+      "Results": [
+        {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "CreatedSourceCount": 1,
+            "CreatedMaterialDemandCount": 1,
+            "AlreadyEstablishedCount": 0
+          },
+          "Error": null
+        },
+        {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "CreatedSourceCount": 0,
+            "CreatedMaterialDemandCount": 0,
+            "AlreadyEstablishedCount": 1
+          },
+          "Error": null
+        }
+      ],
+      "Terminal": [
+        "RanToCompletion",
+        "RanToCompletion"
+      ]
+    },
+    {
+      "Stage": "部分准备取消事务前等待",
+      "Backends": [
+        8360
+      ],
+      "Holder": 8772,
+      "Observer": 8816,
+      "OwnerKey": -2098124016078814205,
+      "NetCount": 1,
+      "LinkCount": 0,
+      "TransactionNull": true,
+      "ItemCovered": [
+        true
+      ],
+      "ServerTryLockObserved": true
+    },
+    {
+      "Stage": "首次Link事务前等待",
+      "Backends": [
+        4748,
+        8360
+      ],
+      "Holder": 8772,
+      "Observer": 8816,
+      "OwnerKey": -2098124016078814205,
+      "NetCount": 1,
+      "LinkCount": 0,
+      "TransactionNull": true,
+      "ItemCovered": [
+        true,
+        true
+      ],
+      "ServerTryLockObserved": true
+    },
+    {
+      "Stage": "首次Link",
+      "Backends": [
+        4748,
+        8360
+      ],
+      "Results": [
+        {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "ExecutionRequestId": "6dd97054-21ae-481a-93ab-28d4c9502205",
+            "Sources": [
+              {
+                "SourceType": "SO",
+                "SourceUid": "7e3e69c6-008b-44e6-8ecf-4a3502baf0d1",
+                "Outcome": 0,
+                "ErrorCode": null,
+                "Message": "采购草稿创建成功。",
+                "PurchaseDrafts": [
+                  {
+                    "PurchaseOrderId": "0395f4de-9f7b-4514-84e4-4a3502baf3f6",
+                    "Version": 1,
+                    "OrderNo": "PO2026100002",
+                    "SupplierId": "017b0b30-2744-4e4b-8bfb-1169e5be98eb",
+                    "SupplierCode": "3086-JV",
+                    "SupplierName": "家华",
+                    "AppendedToExisting": false
+                  }
+                ]
+              }
+            ]
+          },
+          "Error": null
+        },
+        {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "ExecutionRequestId": "6dd97054-21ae-481a-93ab-28d4c9502206",
+            "Sources": [
+              {
+                "SourceType": "SO",
+                "SourceUid": "7e3e69c6-008b-44e6-8ecf-4a3502baf0d1",
+                "Outcome": 2,
+                "ErrorCode": "PREVIEW_EXPIRED",
+                "Message": "计划版本或剩余数量已变化，请重新预览。",
+                "PurchaseDrafts": []
+              }
+            ]
+          },
+          "Error": null
+        }
+      ],
+      "Terminal": [
+        "RanToCompletion",
+        "RanToCompletion"
+      ]
+    },
+    {
+      "Stage": "补关联与回退事务前等待",
+      "Backends": [
+        4748,
+        8772
+      ],
+      "Holder": 8360,
+      "Observer": 8816,
+      "OwnerKey": -2098124016078814205,
+      "NetCount": 1,
+      "LinkCount": 1,
+      "TransactionNull": true,
+      "ItemCovered": [
+        true,
+        false
+      ],
+      "ServerTryLockObserved": true
+    },
+    {
+      "Stage": "补关联与回退",
+      "Backends": [
+        4748,
+        8772
+      ],
+      "Results": [
+        {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "PurchaseOrderId": "027a8ad0-a632-4e1e-be75-4a3502baf518",
+            "OrderNo": "PO6402100001",
+            "Version": 2,
+            "ConfirmationStatus": 0,
+            "LifecycleStatus": 0,
+            "ConfirmationId": null,
+            "Lines": [
+              {
+                "PurchaseOrderLineId": "a243b8c9-8b81-4fc6-b262-4a3502baf51a",
+                "Version": 2
+              }
+            ]
+          },
+          "Error": null
+        },
+        {
+          "Success": false,
+          "Message": "物料需求已有活动执行单，不能回退。",
+          "Data": null,
+          "Error": {
+            "Code": "DOWNSTREAM_EXECUTION_EXISTS",
+            "Message": "物料需求已有活动执行单，不能回退。",
+            "Field": null
+          }
+        }
+      ],
+      "Terminal": [
+        "RanToCompletion",
+        "RanToCompletion"
+      ]
+    },
+    {
+      "Stage": "最终业务",
+      "Association": true,
+      "AssociationError": null,
+      "Rollback": false,
+      "RollbackError": "DOWNSTREAM_EXECUTION_EXISTS",
+      "PurchaseWinner": 0
+    }
+  ],
+  "Policy": "所有成功事实留存；原PO/202610号段仅正常推进一次，不复位；仅failure，无DDL/运行库/备份写入"
+}

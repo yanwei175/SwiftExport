@@ -1,7 +1,9 @@
 using Dapper;
+using Microsoft.Extensions.Logging;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrders;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Interfaces.Auditing;
+using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.DatabaseSchema;
@@ -9,14 +11,23 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Auditing;
 
-/// <summary>使用共享 PG 会话追加审计并兼容旧日志回执；命令查询和插入要求外层 RC 事务，暂不接入运行注册。</summary>
-public sealed class PostgreSqlBusinessOperationLogRepository(RepositoryBaseContext context) : IBusinessOperationLogRepository
+/// <summary>使用共享 PG 会话追加审计并兼容旧日志回执；高隔离事务需提前获取同命令租约，不接管外层事务。</summary>
+public sealed class PostgreSqlBusinessOperationLogRepository(RepositoryBaseContext context) : IBusinessOperationLogRepository, ICommandTransactionPreparation, ICommandRelatedTransactionPreparation
 {
     private DbSession Session => context.Session;
     private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(BusinessOperationLog));
     private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(c => $"{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
     private static readonly string InsertColumns = string.Join(", ", Metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
     private static readonly string InsertParameters = string.Join(", ", Metadata.Columns.Select(c => $"@{c.ParameterName}"));
+
+    /// <summary>事务建立快照前获取同连接命令租约；返回空表示超时，调用方须在事务释放后释放租约。</summary>
+    public Task<IAsyncDisposable?> AcquireBeforeTransactionAsync(Guid commandId, CancellationToken token) =>
+        PostgreSqlCommandLock.AcquireBeforeTransactionAsync(Session, commandId,
+            context.LoggerFactory.CreateLogger<PostgreSqlBusinessOperationLogRepository>(), token);
+
+    /// <summary>装箱自动库存子命令在首次事务快照前加入同一外层租约，不能在事务中临时追加身份或借用其他命令的锁。</summary>
+    public Task<IAsyncDisposable?> AcquireRelatedBeforeTransactionAsync(Guid commandId, IReadOnlyList<Guid> relatedCommandIds, CancellationToken token) =>
+        PostgreSqlCommandLock.AcquireRelatedBeforeTransactionAsync(Session, commandId, relatedCommandIds, token);
 
     /// <summary>先锁全库命令身份以保护缺失键，再读取模块内最早日志，保留跨操作旧回执冲突判断。</summary>
     public async Task<BusinessOperationLog?> GetByModuleCommandAsync(string module, Guid commandId)
@@ -36,7 +47,7 @@ public sealed class PostgreSqlBusinessOperationLogRepository(RepositoryBaseConte
             new { Module = module, OperationType = operationType, CommandId = commandId }, Session.Transaction);
     }
 
-    /// <summary>在调用方 RC 事务及命令锁内打审计戳并追加日志；保留 Uid、版本、发生时间和原始 JSON 文本。</summary>
+    /// <summary>在调用方事务及命令锁内打审计戳并追加日志；高隔离须匹配事务前租约，保留原始 JSON 文本。</summary>
     public async Task<int> InsertAsync(BusinessOperationLog log)
     {
         await LockCommandAsync(log.CommandId);

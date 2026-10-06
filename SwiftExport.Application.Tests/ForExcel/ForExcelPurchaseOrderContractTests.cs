@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -8,6 +9,9 @@ using SwiftExport.Contracts.Apis.ForExcel;
 using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
 using SwiftExport.WebApi.Controllers.ForExcel;
+using SwiftExport.Infrastructure.DatabaseSchema;
+using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Draft;
 namespace SwiftExport.Application.Tests.ForExcel;
 
 /// <summary>采购导入 HTTP、兼容指纹和 SQL 契约检查，不替代真实数据库测试。</summary>
@@ -55,20 +59,43 @@ public sealed class ForExcelPurchaseOrderContractTests
         Assert.AreNotEqual(original,ProcurementOrderPolicy.Fingerprint(IndependentPurchaseOrderInputPolicy.FingerprintInput(command)));
     }
 
-    /// <summary>批量查询保留歧义且参数化，不选择 TOP(1)；创建仓储明确持久化商业快照。</summary>
+    /// <summary>PG 批量查询保留全部歧义候选且参数化，共享锁定已有关系和产品；原创建 SQL 必须持久化商业快照。静态检查不证明缺失范围保护。</summary>
     [TestMethod]
     public void SqlScopeAndSnapshotContract()
     {
         var root=Root();
-        var query=File.ReadAllText(Path.Combine(root,"SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelPurchaseOrderRepository.cs"));
-        StringAssert.Contains(query,"cp.CustomerId=@CustomerId");StringAssert.Contains(query,"IN @Skus");
-        StringAssert.Contains(query,"LEFT JOIN dbo.Product");StringAssert.Contains(query,"WITH(HOLDLOCK)");
+        var query=File.ReadAllText(Path.Combine(root,"SwiftExport.Infrastructure/Repositories/ForExcel/PostgreSqlForExcelPurchaseOrderRepository.cs"));
+        StringAssert.Contains(query,"cp.customer_id=@CustomerId");StringAssert.Contains(query,"parameters.AddTexts(\"Skus\", skus)");
+        StringAssert.Contains(query,"=ANY(");StringAssert.Contains(query,"FROM unnest(@Skus)");
+        StringAssert.Contains(query,"LEFT JOIN LATERAL (");StringAssert.Contains(query,"FROM public.product source");
+        StringAssert.Contains(query,"source.is_deleted=FALSE FOR SHARE");StringAssert.Contains(query,"FOR SHARE OF cp");
         StringAssert.Contains(query,"context.Session.Transaction");StringAssert.Contains(query,"cancellationToken: token");
-        Assert.IsFalse(query.Contains("TOP(1)"));Assert.IsFalse(query.Contains("NOLOCK"));Assert.IsFalse(query.Contains("SELECT *"));
+        Assert.IsFalse(query.Contains("TOP(1)"));Assert.IsFalse(query.Contains("LIMIT 1",StringComparison.OrdinalIgnoreCase));
+        Assert.IsFalse(query.Contains("NOLOCK"));Assert.IsFalse(query.Contains("SELECT *"));
         Assert.IsFalse(query.Contains("INSERT "));Assert.IsFalse(query.Contains("UPDATE "));Assert.IsFalse(query.Contains("DELETE "));
-        var write=File.ReadAllText(Path.Combine(root,"SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/ProcurementOrderDocumentRepository.cs"));
-        foreach(var name in new[]{"BoNo","CustomerPoNo","ReplyDate","SoPerson","PoPerson","InletrHoseType","IMType","ZheKouBeiZhu","CustomerSku","LinkSku","FinishZh","FeaturesZh"})
-            StringAssert.Contains(write,"@"+name);
+        var write=File.ReadAllText(Path.Combine(root,"SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PostgreSqlProcurementOrderDocumentRepository.cs"));
+        StringAssert.Contains(write,"InsertSql(Head, HeadInsertFields, [\"DemandSourceType\", \"DemandSourceUid\", \"DemandSourceNo\"])");
+        StringAssert.Contains(write,"InsertSql(Line, LineInsertFields, [\"SourceType\", \"SourceNo\"])");
+        AssertInsertSnapshot("Head",["DemandSourceType","DemandSourceUid","DemandSourceNo"],
+            ["BoNo","CustomerPoNo","ReplyDate","SoPerson","PoPerson","InletrHoseType","IMType","ZheKouBeiZhu"]);
+        AssertInsertSnapshot("Line",["SourceType","SourceNo"],["CustomerSku","LinkSku","FinishZh","FeaturesZh"]);
+    }
+
+    /// <summary>运行仓储实际插入 SQL 生成方法，检查原白名单字段同时具有 PG 列和绑定参数；无需连接数据库。</summary>
+    private static void AssertInsertSnapshot(string part,string[] nullFields,string[] requiredFields)
+    {
+        var type=typeof(PostgreSqlProcurementOrderDocumentRepository);
+        const BindingFlags flags=BindingFlags.NonPublic|BindingFlags.Static;
+        var map=(EntityMetadata)type.GetField(part,flags)!.GetValue(null)!;
+        var fields=(string[])type.GetField(part+"InsertFields",flags)!.GetValue(null)!;
+        var sql=(string)type.GetMethod("InsertSql",flags)!.Invoke(null,[map,fields,nullFields])!;
+        StringAssert.Contains(sql,$"INSERT INTO \"{map.SchemaName}\".\"{map.TableName}\"");
+        foreach(var name in requiredFields)
+        {
+            CollectionAssert.Contains(fields,name);
+            StringAssert.Contains(sql,PostgreSqlNames.Quote(map.GetProperty(name).ColumnName));
+            StringAssert.Contains(sql,"@"+map.GetProperty(name).ParameterName);
+        }
     }
 
     /// <summary>只定位当前仓库根，不读取运行配置或连接字符串。</summary>

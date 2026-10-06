@@ -40,7 +40,7 @@ public sealed class MaterialDemandSupplierSuggestionService(
             command, command?.CommandId, CommandType, AuthorizeAsync,
             token => ExecuteUpdateCommandAsync(command!, token), cancellationToken));
 
-    /// <summary>单行独立指纹和回执在活动物料版本检查之前处理。</summary>
+    /// <summary>单行指纹及回执先于活动物料版本检查；PG需求绑定准备先于首次事务快照，不提前供应商业务校验。</summary>
     private async Task<ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>> ExecuteUpdateCommandAsync(
         UpdateSuggestedPurchaseSupplierCommand command, CancellationToken token)
     {
@@ -50,7 +50,9 @@ public sealed class MaterialDemandSupplierSuggestionService(
             return ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>.Fail("INVALID_SUPPLIER", "供应商 Uid 无效；清空建议请提交 null。");
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, command.NetDemandId,
             new { command.NetDemandId, command.Version, command.SuggestedPurchaseSupplierId },
-            ct => UpdateInTransactionAsync(command, ct), token);
+            ct => UpdateInTransactionAsync(command, ct), token,
+            beforeTransaction: netDemandRepository is IMaterialDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireMaterialBeforeTransactionAsync([], [], [command.NetDemandId], [], ct) : null);
         return ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>.Ok(result);
     }
 

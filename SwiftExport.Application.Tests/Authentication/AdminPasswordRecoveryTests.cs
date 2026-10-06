@@ -1,5 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using SwiftExport.Application.Interfaces.Auth;
+using SwiftExport.Application.Interfaces.Auth.Passwords;
 using SwiftExport.Tools.AdminPasswordRecovery;
 
 namespace SwiftExport.Application.Tests.Authentication;

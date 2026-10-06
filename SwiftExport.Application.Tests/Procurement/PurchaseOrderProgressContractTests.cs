@@ -3,6 +3,7 @@ using Refit;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderProgress;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Progress;
 
 namespace SwiftExport.Application.Tests.Procurement;
 
@@ -27,7 +28,7 @@ public sealed class PurchaseOrderProgressContractTests
     public void Report_command_does_not_accept_client_reported_date()
     {
         Assert.IsNull(typeof(ReportPurchaseOrderProgressCommand).GetProperty("SupplierReportedDate"));
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "SupplierProgressReportRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "PostgreSqlSupplierProgressReportRepository.cs");
         StringAssert.Contains(repository, "report.SupplierReportedDate = report.CreatedDate");
         StringAssert.Contains(repository, "context.AuditStamp.StampForInsert(report)");
     }
@@ -45,21 +46,30 @@ public sealed class PurchaseOrderProgressContractTests
                  })
             StringAssert.Contains(service, token);
 
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "SupplierProgressReportRepository.cs");
-        StringAssert.Contains(repository, "INSERT dbo.SupplierProgressReport");
-        Assert.IsFalse(repository.Contains("UPDATE dbo.SupplierProgressReport", StringComparison.OrdinalIgnoreCase));
-        Assert.IsFalse(repository.Contains("DELETE FROM dbo.SupplierProgressReport", StringComparison.OrdinalIgnoreCase));
-        StringAssert.Contains(repository, "WITH(UPDLOCK,HOLDLOCK)");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "PostgreSqlSupplierProgressReportRepository.cs");
+        var table = (string)typeof(PostgreSqlSupplierProgressReportRepository).GetMethod("Table", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, null)!;
+        Assert.AreEqual("\"public\".\"supplier_progress_report\"", table);
+        StringAssert.Contains(repository, "INSERT INTO {Table()}");
+        foreach (var target in new[] { "{Table()}", table, "public.supplier_progress_report" })
+        {
+            Assert.IsFalse(repository.Contains("UPDATE " + target, StringComparison.OrdinalIgnoreCase));
+            Assert.IsFalse(repository.Contains("DELETE FROM " + target, StringComparison.OrdinalIgnoreCase));
+        }
+        // PG 现有行锁借用外层事务；此离线检查不声称等价验证了 SQL Server 空范围锁。
+        StringAssert.Contains(repository, "LIMIT 1 FOR UPDATE");
+        StringAssert.Contains(repository, "context.Session.Transaction");
+        CollectionAssert.AreEquivalent(new[] { "GetLatestForUpdateAsync", "InsertAsync" },
+            typeof(PostgreSqlSupplierProgressReportRepository).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly).Select(method => method.Name).ToArray());
     }
 
     /// <summary>跟进详情以采购行标识汇总正式收货，不依赖需求 Link。</summary>
     [TestMethod]
     public void Detail_uses_purchase_line_identity_for_receipts()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "PurchaseOrderProgressQueryRepository.cs");
-        StringAssert.Contains(repository, "receipt.SourceLineId=l.Uid");
-        StringAssert.Contains(repository, "receiveHead.PostingStatus IN @FormalPostingStatuses");
-        Assert.IsFalse(repository.Contains("DemandExecutionLink", StringComparison.Ordinal));
+        var repository = (string)typeof(PostgreSqlPurchaseOrderProgressQueryRepository).GetMethod("DetailSql", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, null)!;
+        StringAssert.Contains(repository, "receipt.source_line_id=l.\"uid\"");
+        StringAssert.Contains(repository, "receiveHead.\"posting_status\"=ANY(@FormalPostingStatuses)");
+        Assert.IsFalse(repository.Contains("demand_execution_link", StringComparison.Ordinal));
     }
 
     /// <summary>供应商安排枚举数值已持久化，不得重排。</summary>

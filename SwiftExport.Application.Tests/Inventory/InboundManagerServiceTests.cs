@@ -438,7 +438,7 @@ public sealed partial class InboundManagerServiceTests
             var inventoryPosting = Proxy<SwiftExport.Application.Interfaces.Inventory.Posting.IInventoryPostingService>((method, args) =>
                 method == "PostAsync" ? PostInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryPostingItem>)args[1]!) : ReverseInventory((IReadOnlyList<SwiftExport.Application.Interfaces.Inventory.Posting.InventoryReverseItem>)args[1]!));
             var support = new InboundServiceSupport(user, permissions, NullLogger<InboundServiceSupport>.Instance,
-                SqlServerExceptionClassifier.Instance);
+                PostgreSqlExceptionClassifier.Instance);
             ReversalService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
             PostingService = new(repository, executionReads, queries, sources, logs, user, permissions, inventoryPosting, execution, correlation, pipeline, support);
             DraftService = new(repository, executionReads, sources, warehouses, logs, user, numbers, execution, correlation, pipeline, support);

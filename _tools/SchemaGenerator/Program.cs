@@ -3,8 +3,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure.DatabaseSchema;
 
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
-// 提供者选择仅用于生成本地文件；工具从不连接数据库，默认仍生成SQL Server基线。
-var provider = "sqlserver";
+// 默认生成当前PG目标的本地评审脚本；迁移完成前可显式核对旧SQL基线，工具从不连接或部署数据库。
+var provider = "postgresql";
 for (var index = 0; index < args.Length; index++)
 {
     if (args[index] == "--verify") continue;

@@ -1,5 +1,4 @@
-using Dapper;
-using SwiftExport.Infrastructure.Data;
+using SwiftExport.Infrastructure.Repositories.Auth.Development;
 using System.Security.Claims;
 
 namespace SwiftExport.WebApi.Development;
@@ -68,15 +67,11 @@ public class DevUserMiddleware(RequestDelegate next, IConfiguration config, IWeb
             if (_cachedDevUserId.HasValue)
                 return _cachedDevUserId;
 
-            // 从 DI 获取 DbSession（Scoped），不能从构造函数注入
-            var dbSession = context.RequestServices.GetService<DbSession>();
-            if (dbSession == null) return null;
+            // 从请求作用域获取 PG 查询，避免中间件构造阶段捕获 scoped 会话。
+            var query = context.RequestServices.GetService<PostgreSqlDevUserQuery>();
+            if (query == null) return null;
 
-            const string sql = """
-                SELECT TOP 1 Uid FROM [SysUser] WITH(NOLOCK)
-                WHERE UserName = @UserName AND IsActive = 1 AND (IsDeleted = 0 OR IsDeleted IS NULL)
-                """;
-            var uid = await dbSession.Connection.ExecuteScalarAsync<Guid?>(sql, new { UserName = devUserName });
+            var uid = await query.FindUidAsync(devUserName);
             _cachedDevUserId = uid;
             return uid;
         }

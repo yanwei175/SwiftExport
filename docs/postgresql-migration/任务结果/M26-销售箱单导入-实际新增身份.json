@@ -1,0 +1,23 @@
+{
+  "Batch": "269d6921-0c54-4e90-8582-1f00a458c600",
+  "BeforeRows": 52448,
+  "AfterRows": 52454,
+  "Added": {
+    "business_operation_log": [
+      "9657a0e3-3d37-4e09-ad74-4a350367efdd"
+    ],
+    "command_receipt": [
+      "bff67349-5ecb-4969-bcd2-4a350367efee"
+    ],
+    "document_sequence": [
+      "1f6ca9fc-66e8-4b66-9913-4a350367efb6"
+    ],
+    "packing_list_head": [
+      "269d6921-0c54-4e90-8582-1f00a458c628"
+    ],
+    "packing_list_line": [
+      "269d6921-0c54-4e90-8582-1f00a458c629",
+      "269d6921-0c54-4e90-8582-1f00a458c62a"
+    ]
+  }
+}

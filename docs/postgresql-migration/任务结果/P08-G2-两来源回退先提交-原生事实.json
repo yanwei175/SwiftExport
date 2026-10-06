@@ -1,0 +1,80 @@
+{
+  "outcome": "Passed",
+  "duration": "00:00:01.4475934",
+  "advisoryKeysSerializedAsExactInt64Strings": true,
+  "fact": {
+    "Batch": "eac1e32d-21b7-4f6e-84d1-a7a66ae10700",
+    "SalesIds": [
+      "96e513bb-d4ab-4495-8684-4a3503ddf34e",
+      "b3c5ab43-a7e8-41ba-8349-4a3503ddf3f6"
+    ],
+    "SalesLineIds": [
+      "eac1e32d-21b7-4f6e-84d1-a7a66ae10701",
+      "eac1e32d-21b7-4f6e-84d1-a7a66ae10704"
+    ],
+    "GrossIds": [
+      "28da2f18-75fd-4b09-8aea-4a3503ddf3bc",
+      "4eec3745-a238-4a03-935a-4a3503ddf419"
+    ],
+    "NetIds": [
+      "b63a1c87-b287-4862-8bf3-4a3503ddf453",
+      "898c72ad-3efd-4592-b17e-4a3503ddf45c"
+    ],
+    "PurchaseId": "7a792690-ca8f-42d0-8dd9-4a3503ddf49f",
+    "PurchaseLineId": "a79a142d-75d1-4c6b-82ae-4a3503ddf4a1",
+    "Evidence": [
+      {
+        "Stage": "两来源部分准备",
+        "Candidate": 7780,
+        "Owner": 8188,
+        "Source": "b3c5ab43-a7e8-41ba-8349-4a3503ddf3f6",
+        "Key": "2123468871003222753",
+        "TransactionNull": true,
+        "ServerTryLockObserved": true
+      },
+      {
+        "Stage": "关联在首快照前等待回退",
+        "Candidate": 5232,
+        "Owner": 7780,
+        "Source": "96e513bb-d4ab-4495-8684-4a3503ddf34e",
+        "Key": "-8274709773180168314",
+        "TransactionNull": true,
+        "ServerTryLockObserved": true
+      },
+      {
+        "Stage": "回退先提交终态",
+        "Reversal": {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "RolledBackSourceCount": 2,
+            "AlreadyRolledBackCount": 0
+          },
+          "Error": null
+        },
+        "Association": {
+          "Success": false,
+          "Message": "采购行、物料或来源版本已变化，请重新预览。",
+          "Data": null,
+          "Error": {
+            "Code": "VERSION_CONFLICT",
+            "Message": "采购行、物料或来源版本已变化，请重新预览。",
+            "Field": "ExpectedVersion"
+          }
+        },
+        "Pids": [
+          8188,
+          7780,
+          5232
+        ]
+      }
+    ],
+    "TasksTerminal": true,
+    "Pids": [
+      8188,
+      7780,
+      5232
+    ],
+    "Policy": "只failure；所有成功事实及新660110号段留存，不写运行/备份或重置"
+  }
+}

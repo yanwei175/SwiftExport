@@ -1,0 +1,47 @@
+{
+  "recorded_at": "2026-10-06T07:32:30.9264171+08:00",
+  "instance": "192.168.3.12:5432",
+  "database": "dv_next",
+  "user_name": "dv",
+  "dev_user_enabled": false,
+  "database_default_read_only": true,
+  "requests": [
+    {
+      "identity": "anonymous",
+      "status": 401,
+      "path": "/api/auth/me",
+      "method": "GET"
+    },
+    {
+      "identity": "normal-dv-password",
+      "status": 200,
+      "path": "/api/auth/login",
+      "method": "POST"
+    },
+    {
+      "identity": "original-jwt",
+      "status": 200,
+      "path": "/api/auth/me",
+      "method": "GET"
+    },
+    {
+      "identity": "original-jwt",
+      "status": 200,
+      "path": "/api/product/page",
+      "method": "POST"
+    }
+  ],
+  "port": 7413,
+  "success": true,
+  "stage": "completed",
+  "process_stopped": true,
+  "process_id": 41776,
+  "user_id": "825d7e51-f659-4c81-9ea9-4a2d03015360",
+  "permission_count": 112,
+  "role_codes": [
+    "SYSTEM_ADMIN"
+  ],
+  "product_total": 17309,
+  "product_items": 2,
+  "finished_at": "2026-10-06T07:32:32.2481713+08:00"
+}

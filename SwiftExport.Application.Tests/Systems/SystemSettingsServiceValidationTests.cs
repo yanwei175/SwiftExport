@@ -21,6 +21,7 @@ using SwiftExport.Infrastructure;
 
 namespace SwiftExport.Application.Tests.Systems;
 
+/// <summary>验证系统配置的原业务校验、API 及当前仓储入口，数据库行为另由真实 PG 用例验收。</summary>
 [TestClass]
 public sealed class SystemSettingsServiceValidationTests
 {
@@ -340,9 +341,10 @@ public sealed class SystemSettingsServiceValidationTests
         services.AddInfrastructureServices();
         Assert.IsTrue(services.Any(descriptor =>
             descriptor.ServiceType == typeof(ISysDictTypeRepository)
-            && descriptor.ImplementationType?.Name == "SysDictTypeRepository"));
+            && descriptor.ImplementationType?.Name == "PostgreSqlSysDictTypeRepository"));
     }
 
+    /// <summary>检查实际系统服务和当前 PG 字典明细仓储，保留未实现占位检测。</summary>
     [TestMethod]
     public void TargetSystemServicesAndRepositories_HaveNoNotImplementedPlaceholder()
     {
@@ -352,7 +354,7 @@ public sealed class SystemSettingsServiceValidationTests
             Path.Combine("SwiftExport.Application", "Services", "Systems", "ExchangeRates", "SysDicCurrencyExchangeService.cs"),
             Path.Combine("SwiftExport.Application", "Services", "Systems", "Dictionaries", "Types", "SysDictTypeService.cs"),
             Path.Combine("SwiftExport.Application", "Services", "Systems", "Dictionaries", "Data", "SysDictDataService.cs"),
-            Path.Combine("SwiftExport.Infrastructure", "Repositories", "Systems", "Dictionaries", "Data", "SysDictDataRepository.cs")
+            Path.Combine("SwiftExport.Infrastructure", "Repositories", "Systems", "Dictionaries", "Data", "PostgreSqlSysDictDataRepository.cs")
         };
 
         foreach (var file in files)

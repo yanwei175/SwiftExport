@@ -1376,8 +1376,8 @@ CREATE TRIGGER "tr_demand_execution_link_immutable_identity" BEFORE UPDATE ON "p
 CREATE UNIQUE INDEX "ux_document_sequence_type_period" ON "public"."document_sequence" ("doc_type", "year_month") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_excel_read_field_profile_key" ON "public"."excel_read_field" ("profile_uid", "target_field_key") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_excel_read_profile_group_name" ON "public"."excel_read_profile" ("group_code", "config_name") WHERE "is_deleted" = FALSE;
-CREATE INDEX "ix_gross_demand_source" ON "public"."gross_demand" ("source_type", "source_uid") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_gross_demand_source_line" ON "public"."gross_demand" ("source_type", "source_uid", "source_line_id") WHERE "is_deleted" = FALSE AND "lifecycle_status" = 0;
+CREATE INDEX "ix_gross_demand_source" ON "public"."gross_demand" ((rtrim("source_type", ' ') COLLATE public.erp_dictionary_ci), "source_uid") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_gross_demand_source_line" ON "public"."gross_demand" ((rtrim("source_type", ' ') COLLATE public.erp_dictionary_ci), "source_uid", "source_line_id") WHERE "is_deleted" = FALSE AND "lifecycle_status" = 0;
 CREATE UNIQUE INDEX "ux_inbound_document_command" ON "public"."inbound_document" ("command_id") WHERE "command_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_inbound_document_no" ON "public"."inbound_document" ("document_no") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_inbound_line_source" ON "public"."inbound_document_line" ("source_line_id") WHERE "is_deleted" = FALSE;

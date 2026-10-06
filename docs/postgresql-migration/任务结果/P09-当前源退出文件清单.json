@@ -1,0 +1,2164 @@
+[
+  {
+    "name": "AfterSalesDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Document/AfterSalesDocumentRepository.cs",
+        "sha256": "BB90CEBC40C932771D86DCA01233E091BA03F1053B69BF649F16A0CE5315E95D",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlAfterSalesDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Document/PostgreSqlAfterSalesDocumentRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "AfterSalesLookupRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R05源文件已退出，28定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Lookup/AfterSalesLookupRepository.cs",
+        "sha256": "4B00B99FC35013780039BDB206EE888D5699EE7ED7CB5C0A395A43AE6F7F0C6F",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlAfterSalesLookupRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Lookup/PostgreSqlAfterSalesLookupRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Database/PostgreSqlAfterSalesReferenceMigrationTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "AfterSalesQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Query/AfterSalesQueryRepository.cs",
+        "sha256": "B3268AC1D8EA53B5A016AAD23EA4FA6256FA9E028FDB7B0A11232DE8E0C5779F",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlAfterSalesQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Query/PostgreSqlAfterSalesQueryRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "AuthRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Auth/Accounts/AuthRepository.cs",
+        "sha256": "6942042D6E9BA1362462BCC2FF2A03E6E4752181622FC61181C329985C45F838",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlAuthRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Auth/Accounts/PostgreSqlAuthRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "AutomaticDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/AutomaticDocuments/AutomaticDocumentRepository.cs",
+        "sha256": "8F1340900256C748E9F22DA65DC9C197A972B8CC568E6C2CD007B59885D95DBE",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlAutomaticDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/AutomaticDocuments/PostgreSqlAutomaticDocumentRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "BomExecutionRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/BomExecutionRepository.cs",
+        "sha256": "1DE35E373A5097B27DB182CA772B0E08324E015275EFF4D4C0FA3EBF9D34248A",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlBomExecutionRepository",
+    "pg_definitions": [],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Products/BomExecutionReaderTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "BomRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R10源文件已退出/必要构建及9现有PG离线场景通过；非实库验收",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/BomRepository.cs",
+        "sha256": "C7210FF31CCCB21976E408DCAFFDBD6C5EE02DB441A7CB4ED8CEE0C88CFD9B24",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlBomRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/PostgreSqlBomRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Database/BomCollectionQueryTests.cs",
+      "SwiftExport.Application.Tests/Database/BomReferenceQueryTests.cs",
+      "SwiftExport.Application.Tests/Database/BomSharedQueryTests.cs"
+    ],
+    "verification": "2026-10-06 P09-R10：一个旧定义SHA/HEAD无改动、当前测试消费者转PG后限定删除。构建0错误7旧警告3.90秒；现有PG九场景通过121ms，全部原PG断言保留。无PG/业务/数据库变化；见P09-R10-BOM普通源退出-主控结果.md。最终包/宿主待F。"
+  },
+  {
+    "name": "BomSharedSaveFactsReader",
+    "batch": "保留共享实现",
+    "status": "保留",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": null,
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/BomSharedSaveFactsReader.cs",
+        "sha256": "1368E92FC6FB78248CCED0AF6884DBCF7CFE2C16867E92B2FEC92A5D02F7627E",
+        "operation": "保留"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlBomSharedSaveFactsReader",
+    "pg_definitions": [],
+    "reference_files": [
+      "SwiftExport.Infrastructure/Repositories/Products/BomRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/PostgreSqlBomRepository.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "BusinessOperationLogRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Auditing/BusinessOperationLogRepository.cs",
+        "sha256": "4D11720D8C2D486753350CA6FB214A055657F1018216ADF96246169BA7814403",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlBusinessOperationLogRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Auditing/PostgreSqlBusinessOperationLogRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Orders/SalesSourceDemandAndFulfillmentContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "CommandReceiptRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Commands/CommandReceiptRepository.cs",
+        "sha256": "9B307A720C453AFCFB1702E739578531B1A2416AF4A5F0C2D78740EBDB43D8D4",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlCommandReceiptRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Commands/PostgreSqlCommandReceiptRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "CustomerPoConfigRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R02源文件已退出，13定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Customers/PoConfigs/CustomerPoConfigRepository.cs",
+        "sha256": "64E7BDED9CFD9203E574FC17611472593C8545BD7799EEC454EAB92D0FE762BC",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlCustomerPoConfigRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Customers/PoConfigs/PostgreSqlCustomerPoConfigRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Customers/CustomerPoConfigDefaultsContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "CustomerProductRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Customers/CustomerProducts/CustomerProductRepository.cs",
+        "sha256": "402BA9021592E8A6F2763C7DBE71A72A05E81F0EFB393A286DF5C290A2BA1C20",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlCustomerProductRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Customers/CustomerProducts/PostgreSqlCustomerProductRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs",
+      "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "CustomerRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Customers/Management/CustomerRepository.cs",
+        "sha256": "A98574023CBF5135A80C28AC21E86A7FFCF2EE1C8A803D869C41A623909DF466",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Customers/Management/CustomerRepository.SalesOrderDetail.cs",
+        "sha256": "4299015C1CF6B97AA1CDEB8B6A0322BC1496141CE0627E1C5EFB086C9AADF59D",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlCustomerRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Customers/Management/PostgreSqlCustomerRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "DapperRepository",
+    "batch": "P09-F：源工厂/分类器/泛型基类，最后基础设施撤包",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs",
+        "sha256": "4DC73D3E698C3ED6C62EF75186DA1D13C8FBBA13DD04503581410C09BB5F0435",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlDapperRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Base/PostgreSqlDapperRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Database/GenericRepositoryMappingTests.cs",
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Infrastructure/Repositories/Customers/CustomerProducts/CustomerProductRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Customers/Management/CustomerRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Customers/PoConfigs/CustomerPoConfigRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/BomRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/ProductRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Categories/ProductCategoryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Colors/ProductColorRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/ProductMasters/ProductMasterRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralManagerRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderHeadRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderLineRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Suppliers/Management/SupplierRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Suppliers/SupplierProducts/SupplierProductRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Systems/Currencies/SysDicCurrencyRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Data/SysDictDataRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Types/SysDictTypeRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Systems/ExcelReadProfiles/ExcelReadProfileRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Systems/ExchangeRates/SysDicCurrencyExchangeRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Systems/Numbering/DocumentSequenceRepository.cs",
+      "SwiftExport.Infrastructure/Services/Auth/AuditStampService.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。"
+  },
+  {
+    "name": "DocumentSequenceRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/Numbering/DocumentSequenceRepository.cs",
+        "sha256": "8C3200097E3FC06DEFA05CFDB5F6A0B9751072902CB00B8BB06B3B21FFCA7D0E",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlDocumentSequenceRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Systems/Numbering/PostgreSqlDocumentSequenceRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ExcelReadProfileRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/ExcelReadProfiles/ExcelReadProfileRepository.cs",
+        "sha256": "5124B6AD846CAADF67557412BF3FD5B775FEF540BD6F09B03BFBADA7755D1EB2",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlExcelReadProfileRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Systems/ExcelReadProfiles/PostgreSqlExcelReadProfileRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ExecutionEligibilityRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "阻塞：P09-R11既有PG测试已验证；含既有未提交修改的源删除需针对性授权",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/MasterData/ExecutionEligibilityRepository.cs",
+        "sha256": "0DDAE30D90FE9F268665AF4394C96BE24473030936AE39EDB4B6192B7DAF9378",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlExecutionEligibilityRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/MasterData/PostgreSqlExecutionEligibilityRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityPermissionSqlTests.cs"
+    ],
+    "verification": "2026-10-06 P09-R11：旧测试完整四授权断言迁现有PG，一实际独立RBAC库场景通过249ms，四随机新记录finally回滚及四表全摘要一致；最终构建0错误7旧警告3.11秒。源固定SHA一致，HEAD仅既有四行空PrepareTarget方法；完整原字节保存，但自动审批拒绝删除，原文件仍在、不可计入已退出。见P09-R11-执行资格源退出-主控结果.md。"
+  },
+  {
+    "name": "ForExcelPurchaseOrderRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R02源文件已退出，13定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelPurchaseOrderRepository.cs",
+        "sha256": "9B1B107DF2DD4CB09B9AF7A291E2D045B5D1C0AC85018A6E0018084D3AAE1FBA",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlForExcelPurchaseOrderRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/ForExcel/PostgreSqlForExcelPurchaseOrderRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/ForExcel/ForExcelPurchaseOrderContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ForExcelSalesOrderRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R02源文件已退出，13定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelSalesOrderRepository.cs",
+        "sha256": "5F9B59061B250538869D7E1E53E0E54CFE45615996E2CF4EA45C9CA8803CD3B4",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlForExcelSalesOrderRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/ForExcel/PostgreSqlForExcelSalesOrderRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "GrossDemandDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R08源文件已退出/必要构建通过，16定向通过；Q01既有失败保留",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Document/GrossDemandDocumentRepository.cs",
+        "sha256": "6899897CC1094BF22B975DDB789CB5865576BB16E2DF93D7EE9E941950689A15",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlGrossDemandDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Document/PostgreSqlGrossDemandDocumentRepository.MaterialPreparation.cs",
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Document/PostgreSqlGrossDemandDocumentRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+      "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+      "SwiftExport.Application.Tests/Orders/SalesOrderCancellationSqlContractTests.cs",
+      "SwiftExport.Application.Tests/Orders/SalesSourceDemandAndFulfillmentContractTests.cs"
+    ],
+    "verification": "删除前SHA/HEAD/当前消费者核对；必要构建0错误7旧警告4.08秒，17离线中16通过/1既有Q01失败/0跳过72ms，exit1且TRX保留；不是全绿。SourceBoundary失败点之后四个断言未执行，不标通过。PG/业务源码未变；最终包/宿主依F。结果P09-R08-来源物料源退出-主控结果.md。"
+  },
+  {
+    "name": "GrossDemandQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/GrossDemandQueryRepository.cs",
+        "sha256": "91216558AEAA2448E898203DEBEA8664D29132D64BF9DDBB111E72A935CD2474",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/GrossDemandQueryRepository.Trace.cs",
+        "sha256": "0681BCF88D5E0C868B75B0F9DC364800E707F312C51CE41D7911936474B35B5C",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlGrossDemandQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.Workspace.cs",
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.Trace.cs",
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/GrossDemandSourceGroupingContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "InboundDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundDocumentRepository.cs",
+        "sha256": "79572B3AE21ED294C4455088A6F98A03778905B708E9F5C66CEB025D0E51D42A",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInboundDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundDocumentRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "InboundExecutionReadRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundExecutionReadRepository.cs",
+        "sha256": "AD3305959CD89F58BAF7A41838AD74A77A162598C6EA71B83A489B83D8B5BAFB",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInboundExecutionReadRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundExecutionReadRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "InboundQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R09源文件已退出，18定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundQueryRepository.cs",
+        "sha256": "275B53BF7C8B940E3F11BF6228C73A2CF0F05500347972867C7ECC0D50A15B9D",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInboundQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告3.97秒，四既有测试文件18定向离线148ms通过。Catalog单个旧提供者分支随源退出，全部PG输入/返回/关系/事务断言保留。PG/业务/结构未变；最终包/宿主依F。结果P09-R09-产品出入库查询源退出-主控结果.md。"
+  },
+  {
+    "name": "InboundReceiptHistorySql",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundReceiptHistorySql.cs",
+        "sha256": "F21A76AFDE0BFD639D0EF44E2CAF4C93C83DE2062819191D523A85B48CECCC66",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInboundReceiptHistoryGuard",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundReceiptHistoryGuard.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/MaterialDemandQueryRepository.Trace.cs",
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/GrossDemandQueryRepository.Trace.cs",
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundSourceRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PurchaseOrderProgressQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PurchaseOrderManagerQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PurchaseOrderTraceRepository.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "InboundSourceRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/InboundSourceRepository.cs",
+        "sha256": "F08BB131A26FDAD304B70B4CE9F49730E968EBF97CF572DFBA07AA922F105B26",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInboundSourceRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Inbounds/PostgreSqlInboundSourceRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Inventory/InboundPostingSqlContractTests.cs",
+      "SwiftExport.Application.Tests/MasterData/ProductReferenceSqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "InventoryPostingRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Posting/InventoryPostingRepository.cs",
+        "sha256": "4DF6F28D72E9F0F6848DE74FBCCCBE0599C74E24152C004747F558EE0EAC4167",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInventoryPostingRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Posting/PostgreSqlInventoryPostingRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Inventory/ProductUnitSnapshotContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "InventoryQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Query/InventoryQueryRepository.cs",
+        "sha256": "CEEECC0E869A39808528538605A2093B5F4CA93CE05F78F96EC808BB951FFA96",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlInventoryQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Query/PostgreSqlInventoryQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/InventoryQueryContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "MaterialDemandDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R08源文件已退出/必要构建通过，16定向通过；Q01既有失败保留",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Document/MaterialDemandDocumentRepository.cs",
+        "sha256": "881CA27DC396863CF9C3B83F9AAAC3037D0C71508B2D4356976684B2C9502810",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlMaterialDemandDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Document/PostgreSqlMaterialDemandDocumentRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+      "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+      "SwiftExport.Application.Tests/Orders/SalesOrderCancellationSqlContractTests.cs"
+    ],
+    "verification": "删除前SHA/HEAD/当前消费者核对；必要构建0错误7旧警告4.08秒，17离线中16通过/1既有Q01失败/0跳过72ms，exit1且TRX保留；不是全绿。SourceBoundary失败点之后四个断言未执行，不标通过。PG/业务源码未变；最终包/宿主依F。结果P09-R08-来源物料源退出-主控结果.md。"
+  },
+  {
+    "name": "MaterialDemandQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R08源文件已退出/必要构建通过，16定向通过；Q01既有失败保留",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/MaterialDemandQueryRepository.cs",
+        "sha256": "353A9C70DB92647A07B666F06D40A0FB6D052B0988AC18FD847DCA5680C4AA1D",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/MaterialDemandQueryRepository.Trace.cs",
+        "sha256": "58A817BA1F29C7ECFA912513FBB0FDD25496643202483E538C3006612E1BA8A9",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlMaterialDemandQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/PostgreSqlMaterialDemandQueryRepository.Trace.cs",
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/PostgreSqlMaterialDemandQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs"
+    ],
+    "verification": "删除前SHA/HEAD/当前消费者核对；必要构建0错误7旧警告4.08秒，17离线中16通过/1既有Q01失败/0跳过72ms，exit1且TRX保留；不是全绿。SourceBoundary失败点之后四个断言未执行，不标通过。PG/业务源码未变；最终包/宿主依F。结果P09-R08-来源物料源退出-主控结果.md。"
+  },
+  {
+    "name": "MaterialDemandSourceRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R08源文件已退出/必要构建通过，16定向通过；Q01既有失败保留",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Sources/MaterialDemandSourceRepository.cs",
+        "sha256": "1D26BE4F2D5C496868DA4EF97533207845E81A6F7E319AAD0842B1DF7A99B7B8",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlMaterialDemandSourceRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Sources/PostgreSqlMaterialDemandSourceRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+      "SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs"
+    ],
+    "verification": "删除前SHA/HEAD/当前消费者核对；必要构建0错误7旧警告4.08秒，17离线中16通过/1既有Q01失败/0跳过72ms，exit1且TRX保留；不是全绿。SourceBoundary失败点之后四个断言未执行，不标通过。PG/业务源码未变；最终包/宿主依F。结果P09-R08-来源物料源退出-主控结果.md。"
+  },
+  {
+    "name": "NetDemandExecutionLinkRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Execution/NetDemandExecutionLinkRepository.cs",
+        "sha256": "3EB6136D0732C79D0BBE90686F7A208548C492FB3A7F7AF6E280A0B2DF469318",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlNetDemandExecutionLinkRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Execution/PostgreSqlNetDemandExecutionLinkRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "OutboundDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundDocumentRepository.cs",
+        "sha256": "5B0CEFC670BDC94629B28304F6B24A7F36774CD967B371344FA1F84E858531BA",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlOutboundDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/PostgreSqlOutboundDocumentRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "OutboundExecutionReadRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundExecutionReadRepository.cs",
+        "sha256": "F605E021D9D4753B04D4436F8D079DFF58E99675C4451A5BCC52E4F656EFA10E",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlOutboundExecutionReadRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/PostgreSqlOutboundExecutionReadRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "OutboundQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R09源文件已退出，18定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/OutboundQueryRepository.cs",
+        "sha256": "B16714D74B3A6BBF28F8C775278B61007FE54416E81370619A98236A271BEBC6",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlOutboundQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/PostgreSqlOutboundQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Inventory/Outbounds/PostgreSqlOutboundQueryRepository.Items.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ProductReferenceSqlContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告3.97秒，四既有测试文件18定向离线148ms通过。Catalog单个旧提供者分支随源退出，全部PG输入/返回/关系/事务断言保留。PG/业务/结构未变；最终包/宿主依F。结果P09-R09-产品出入库查询源退出-主控结果.md。"
+  },
+  {
+    "name": "PackingListExecutionRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListExecutionRepository.cs",
+        "sha256": "4B536E5DF79F6518784CF72BD6242EA81AED8E53ADAACBF3AD3B9BFDB40ED3F7",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPackingListExecutionRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListExecutionRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "PackingListPostingFactsRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListPostingFactsRepository.cs",
+        "sha256": "23CB99FE0E276ED4C8C94FE978EC13B4C0F2EB3396ECCCA22FF828D97408BC52",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPackingListPostingFactsRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListPostingFactsRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "PackingListRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.cs",
+        "sha256": "F1C4ECF5403C09669309E0981BD7273231B6223BB05E49079C405CBF4A525C94",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Query.cs",
+        "sha256": "6F7B1256934F38269A582B07A63A018DFAE978B91907AFD0B71E5883D35B5F5D",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.SourceExit.cs",
+        "sha256": "E3D68670B39AE3770B011843E78D4950A33E1EE4E516381BE0807C461FA67DA1",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Sources.cs",
+        "sha256": "438173E28F7CE5D3E638E5E0BB1FD518525B7786717AC9FEB2D571BF14B89163",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPackingListRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PostgreSqlPackingListRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListDraftApiContractTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListSourceQueryTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "PermissionCatalogSync",
+    "batch": "P09-T：工具源实现及工具包",
+    "status": "验证通过：P09-R03/T01源文件已退出，5定向/必要构建；工具包图待F",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "_tools/DbSeed/PermissionCatalogSync.cs",
+        "sha256": "629DA95F0DE598FFDE33940BFF74CBCDE8C9BF32C7447AEFB60B5FA32B8941E1",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPermissionCatalogSync",
+    "pg_definitions": [
+      "_tools/DbSeed/PostgreSqlPermissionCatalogSync.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProcurementDemandAssociationRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Association/ProcurementDemandAssociationRepository.cs",
+        "sha256": "9B4DDED3F94371E1CF96F38735CE7C49A6ECFF6CBE8D5B942D1871ABD2B263AE",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProcurementDemandAssociationRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Association/PostgreSqlProcurementDemandAssociationRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProcurementMasterDataQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R09源文件已退出，18定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/MasterData/ProcurementMasterDataQueryRepository.cs",
+        "sha256": "F78C19E510E16F70E3547CC58718C85234720213C1AD0A2836F2EBA1BC3011D9",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProcurementMasterDataQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/MasterData/PostgreSqlProcurementMasterDataQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ProductReferenceSqlContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告3.97秒，四既有测试文件18定向离线148ms通过。Catalog单个旧提供者分支随源退出，全部PG输入/返回/关系/事务断言保留。PG/业务/结构未变；最终包/宿主依F。结果P09-R09-产品出入库查询源退出-主控结果.md。"
+  },
+  {
+    "name": "ProcurementOrderDocumentRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R07源文件已退出，13定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/ProcurementOrderDocumentRepository.cs",
+        "sha256": "52B500CC37FFAEFCAE3ACA1D24F83100C505A1757397970DA1B358EAA49B7E24",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProcurementOrderDocumentRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PostgreSqlProcurementOrderDocumentRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs",
+      "SwiftExport.Application.Tests/ForExcel/ForExcelPurchaseOrderContractTests.cs",
+      "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/当前消费者核对；必要构建0错误7旧警告7.57秒，原禁止回填断言误匹配审计列修正后再编译3.35秒，三既有类13离线76ms通过；首次12通过1失败91ms另存。结果P09-R07-权限采购源退出-主控结果.md；最终包/宿主依F。"
+  },
+  {
+    "name": "ProcurementOrderQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R07源文件已退出，13定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/ProcurementOrderQueryRepository.cs",
+        "sha256": "E8BB499BBE75FAC82712F7E6ED4CE5AE49B98F8B03C0A2E70DBA354EEE7319C8",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProcurementOrderQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PostgreSqlProcurementOrderQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Procurement/ProcurementCapabilityAndErrorContractTests.cs",
+      "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/当前消费者核对；必要构建0错误7旧警告7.57秒，原禁止回填断言误匹配审计列修正后再编译3.35秒，三既有类13离线76ms通过；首次12通过1失败91ms另存。结果P09-R07-权限采购源退出-主控结果.md；最终包/宿主依F。"
+  },
+  {
+    "name": "ProcurementReferenceReadRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/ReferenceRead/ProcurementReferenceReadRepository.cs",
+        "sha256": "B6A7CD8F184A7D328FB8CA9E29C09D9F91AD8F77732FF644181357BDDBC84588",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProcurementReferenceReadRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/ReferenceRead/PostgreSqlProcurementReferenceReadRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProcurementReversalRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Reversal/ProcurementReversalRepository.cs",
+        "sha256": "166D9CBBC41B161FA9A1AE4946ACE91FD6747BFAD239E322FE14825E43ABBB46",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProcurementReversalRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Reversal/PostgreSqlProcurementReversalRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProductCategoryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/Categories/ProductCategoryRepository.cs",
+        "sha256": "6CD231396563DEBE6D0F9C9DD1B0D4C5645F466602C1E7824FE43EB05559697C",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProductCategoryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/Categories/PostgreSqlProductCategoryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProductColorRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/Colors/ProductColorRepository.cs",
+        "sha256": "0BEC72B39F98A229C88B5E64C6E844A357C678A69A6FAAD9E792BFF306F9385A",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProductColorRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/Colors/PostgreSqlProductColorRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProductMasterRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/ProductMasters/ProductMasterRepository.cs",
+        "sha256": "84434369C58A48B066610D4A634B0C62760F7BD620F65F6C52902734D2CD4342",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProductMasterRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/ProductMasters/PostgreSqlProductMasterRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProductNeutralManagerRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralManagerRepository.cs",
+        "sha256": "E1C6276B8FA8151639276AF6A318D9790BC41A92023A830F1041D36BED4EA208",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProductNeutralManagerRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/PostgreSqlProductNeutralManagerRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProductNeutralRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralRepository.cs",
+        "sha256": "F9F29E39273F49D09D1E52B54883337E9C76B9BC2CB2FB4B0291A58AF57A9E8E",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProductNeutralRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/PostgreSqlProductNeutralRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "ProductRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R09源文件已退出，18定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/Catalog/ProductRepository.cs",
+        "sha256": "7D37228AA7C50D09168A366255D2741195B9F465D21491FF8CEA374927AAAEAA",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/Catalog/ProductRepository.MasterSynchronization.cs",
+        "sha256": "BD1132C7A793EF9FD51FF38EC6DA1DD62F149AEA60980D03189DD7B00765238D",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Products/Catalog/ProductRepository.SalesOrderDetail.cs",
+        "sha256": "411A2B4DC2CBA188DF1D9F34562C70C9BF894AEA0E09D58C8F26A1E7DA61692A",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlProductRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.Paging.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.Query.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.MasterSynchronization.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.Lookup.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.SalesOrderDetail.cs",
+      "SwiftExport.Infrastructure/Repositories/Products/Catalog/PostgreSqlProductRepository.Supplier.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Database/PostgreSqlProductCatalogMigrationTests.cs",
+      "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs",
+      "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs",
+      "SwiftExport.Application.Tests/MasterData/ProductReferenceSqlContractTests.cs",
+      "SwiftExport.Application.Tests/Products/ProductDefaultSupplierPolicyTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告3.97秒，四既有测试文件18定向离线148ms通过。Catalog单个旧提供者分支随源退出，全部PG输入/返回/关系/事务断言保留。PG/业务/结构未变；最终包/宿主依F。结果P09-R09-产品出入库查询源退出-主控结果.md。"
+  },
+  {
+    "name": "PurchaseOrderDraftRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PurchaseOrderDraftRepository.cs",
+        "sha256": "62DAB28842997F050A583E0E295FDCF80A38101E65470A9CCDE30ED9D4239D22",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPurchaseOrderDraftRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PostgreSqlPurchaseOrderDraftRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Procurement/PurchaseDraftAppendSqlTests.cs",
+      "SwiftExport.Application.Tests/Procurement/PurchaseDraftCustomerSnapshotContractTests.cs",
+      "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "PurchaseOrderManagerQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PurchaseOrderManagerQueryRepository.cs",
+        "sha256": "CBBC704FB15B85455B21DF5F911FEAA67B81FE321C9FBB461AC80A403AE272A7",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPurchaseOrderManagerQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PostgreSqlPurchaseOrderManagerQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Procurement/PurchaseOrderManagerQueryContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "PurchaseOrderProgressQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PurchaseOrderProgressQueryRepository.cs",
+        "sha256": "16255AA8EB37BBE18489044D19CDFBA514D7538E420BE74FDF3A625B93953442",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPurchaseOrderProgressQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PostgreSqlPurchaseOrderProgressQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PostgreSqlPurchaseOrderProgressQueryRepository.Detail.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Procurement/PurchaseOrderProgressContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "PurchaseOrderTraceRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PurchaseOrderTraceRepository.cs",
+        "sha256": "4ADFBF342C387073615BF1E86FBBBD863AB67AC81AFDC968F9D4118AA3E3AA80",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlPurchaseOrderTraceRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PostgreSqlPurchaseOrderTraceRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "RbacManagementRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R07源文件已退出，13定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Auth/Permissions/RbacManagementRepository.cs",
+        "sha256": "87A48879D68087118C0562C0F7071CBDDCCF450BBE0031AB78E2B152B580677F",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlRbacManagementRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Auth/Permissions/PostgreSqlRbacManagementRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/当前消费者核对；必要构建0错误7旧警告7.57秒，原禁止回填断言误匹配审计列修正后再编译3.35秒，三既有类13离线76ms通过；首次12通过1失败91ms另存。结果P09-R07-权限采购源退出-主控结果.md；最终包/宿主依F。"
+  },
+  {
+    "name": "SalesOrderFulfillmentQuerySql",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderFulfillmentQuerySql.cs",
+        "sha256": "23A7A598B0696BA14B23CD694223258AA9D54FBBAE1BB3100FB9D5480BDC083F",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSalesOrderQueryRepository（行事实/履约）",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.LineFacts.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Fulfillment.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Orders/SalesOrderHeadRepositorySqlContractTests.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.Fulfillment.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "SalesOrderHeadRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderHeadRepository.cs",
+        "sha256": "B8B56D790B301781DD84FE5F3DE718C3C2A6E540480DDA1924E58E4CAB68477A",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSalesOrderHeadRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/PostgreSqlSalesOrderHeadRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SalesOrderLineRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderLineRepository.cs",
+        "sha256": "6365E1E9487579274AF7B83D2C127C7079B2F2A248639294C22A7F8AD5A6E60D",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSalesOrderLineRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/PostgreSqlSalesOrderLineRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SalesOrderQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.cs",
+        "sha256": "4109BE4DC91899B909BDCBC2C96E64588ED3915C50C00E38C14F8290381B983F",
+        "operation": "前置通过后删除源专用文件"
+      },
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.Fulfillment.cs",
+        "sha256": "ABD0DE21F45B163D1135DDA722A7B6DF629D8C120A9C2299F5F3EEF99F1ED2C8",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSalesOrderQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Fulfillment.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Detail.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Manager.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.cs",
+      "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.LineFacts.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Orders/SalesOrderHeadRepositorySqlContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "SourceDeliveryQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Shipping/SourceDeliveryQueryRepository.cs",
+        "sha256": "23F44295CF1B9931E00D98B09BF702071CB36FE9FF793CD09B66F2DE016E5063",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSourceDeliveryQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Shipping/PostgreSqlSourceDeliveryQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListDraftApiContractTests.cs",
+      "SwiftExport.Infrastructure/Repositories/Shipping/PackingLists/PackingListRepository.Sources.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SqlAdminPasswordRecoveryStore",
+    "batch": "P09-T：工具源实现及工具包",
+    "status": "验证通过：P09-R03/T01源文件已退出，5定向/必要构建；工具包图待F",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "_tools/AdminPasswordRecovery/SqlAdminPasswordRecoveryStore.cs",
+        "sha256": "8ECD3426C572509977BA068FD83C23FA2B3B03CC5E4AE7A2E8A8DA5BE87885C6",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSqlAdminPasswordRecoveryStore",
+    "pg_definitions": [],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SqlConnectionFactory",
+    "batch": "P09-F：源工厂/分类器/泛型基类，最后基础设施撤包",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Data/DbConnectionFactory.cs",
+        "sha256": "6C231375AD594E76213587467BD73B692F475A1D1273DD3BC7460AE23DF5D948",
+        "operation": "只退出SqlConnectionFactory类及SqlClient using，保留IDbConnectionFactory，不删整个文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSqlConnectionFactory",
+    "pg_definitions": [],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs",
+      "SwiftExport.Application.Tests/Database/PostgreSqlFoundationTests.cs",
+      "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityPermissionSqlTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListDraftLocalDbTests.cs",
+      "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。"
+  },
+  {
+    "name": "SqlServerExceptionClassifier",
+    "batch": "P09-F：源工厂/分类器/泛型基类，最后基础设施撤包",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Data/SqlServerExceptionClassifier.cs",
+        "sha256": "198951663973A69EECC7D28C03CCDFD9E57FD9336ACED23549C4230296964A55",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSqlServerExceptionClassifier",
+    "pg_definitions": [],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Database/DatabaseBoundaryTests.cs",
+      "SwiftExport.Application.Tests/Inventory/InboundManagerServiceTests.cs",
+      "SwiftExport.Infrastructure/Data/DbConnectionFactory.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证；2026-10-06 P09-R12四现有测试消费者转PG，必要编译0错误7旧警告2.90秒/58离线364ms通过，具体范围见P09-R12-基础测试消费者-主控结果.md；通用仓储/源工厂仍有其他消费者，分类器仅旧工厂消费，生产源本批未退出。"
+  },
+  {
+    "name": "SqlServerSchemaGenerator",
+    "batch": "P09-S：源结构生成入口/断言/基线",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/DatabaseSchema/SqlServerSchemaGenerator.cs",
+        "sha256": "64B7B1EF424E9DAA1A276BA74049088D962254B21BB177618CBA5E447798D363",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSqlServerSchemaGenerator",
+    "pg_definitions": [],
+    "reference_files": [
+      "_tools/SchemaGenerator/Program.cs",
+      "SwiftExport.Application.Tests/Database/EntityDrivenSchemaContractTests.cs",
+      "SwiftExport.Application.Tests/MasterData/SupplierProductNullableAssociationTests.cs",
+      "SwiftExport.Application.Tests/Systems/ExcelReadProfileLocalDbTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SupplierProductRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Suppliers/SupplierProducts/SupplierProductRepository.cs",
+        "sha256": "4D7757DCE36BD0D81BFC471E1746FB1A733AA100CC9BDA990A713309F8C3B6BA",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSupplierProductRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Suppliers/SupplierProducts/PostgreSqlSupplierProductRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs",
+      "SwiftExport.Application.Tests/MasterData/SupplierProductNullableAssociationTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SupplierProgressReportRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/SupplierProgressReportRepository.cs",
+        "sha256": "673B365E508086BA9C77F1607984D403B818985DA139F7BEFD29F6316F138D0F",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSupplierProgressReportRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PostgreSqlSupplierProgressReportRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Procurement/PurchaseOrderProgressContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  },
+  {
+    "name": "SupplierRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R04源文件已退出，17定向/必要构建通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Suppliers/Management/SupplierRepository.cs",
+        "sha256": "F1F7691126499C19FC49D627CBDA89E0685EDF7AF97331BEBC7C546C4ED15DB2",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSupplierRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Suppliers/Management/PostgreSqlSupplierRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SysDicCurrencyExchangeRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/ExchangeRates/SysDicCurrencyExchangeRepository.cs",
+        "sha256": "04EE3B075E00417AC375219072DFE666938736CDA04797E396FBCF6470F84683",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSysDicCurrencyExchangeRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Systems/ExchangeRates/PostgreSqlSysDicCurrencyExchangeRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SysDicCurrencyRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R02源文件已退出，13定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/Currencies/SysDicCurrencyRepository.cs",
+        "sha256": "43C7D117D73D39E8E88270C11D2F0DFB54DEB737E29C26E04C433731C1E0991B",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSysDicCurrencyRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Systems/Currencies/PostgreSqlSysDicCurrencyRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Customers/CustomerPoConfigDefaultsContractTests.cs",
+      "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SysDictDataRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R03/T01源文件已退出，5定向/必要构建；工具包图待F",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Data/SysDictDataRepository.cs",
+        "sha256": "D72FF1430D34D84E81FEB456076E573E2A8EA003E053A95B18C39A00FF24AFC2",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSysDictDataRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Data/PostgreSqlSysDictDataRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Systems/SystemSettingsServiceValidationTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SysDictTypeRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Types/SysDictTypeRepository.cs",
+        "sha256": "CE4AADE1D3B8F9AA83A122F5A37CAE7DE2CFBEAFBECCA9D8EEF8B0F64F9D1139",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSysDictTypeRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Types/PostgreSqlSysDictTypeRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "SysUserRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Auth/Accounts/SysUserRepository.cs",
+        "sha256": "0FDACECEDD6C2DA04270A70DE446D032AE27DF8CFDBF6B70C5867DD745DE13F3",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlSysUserRepository",
+    "pg_definitions": [],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "UserPermissionRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R01源文件已退出，51定向/必要构建已通过",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Auth/Permissions/UserPermissionRepository.cs",
+        "sha256": "13FB89F567CC8C02506C83A9722277D438D5D429AD39A88383F557CFA87C0010",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlUserPermissionRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Auth/Permissions/PostgreSqlUserPermissionRepository.cs"
+    ],
+    "reference_files": [],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "WarehouseCandidateRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R07源文件已退出，13定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseCandidateRepository.cs",
+        "sha256": "2F7CD2F8D11204132904DC56583295D5DD3AFC66D4E00BF45CAC4E029B3EF8F3",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlWarehouseCandidateRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/PostgreSqlWarehouseCandidateRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs"
+    ],
+    "verification": "删除前原SHA/HEAD/当前消费者核对；必要构建0错误7旧警告7.57秒，原禁止回填断言误匹配审计列修正后再编译3.35秒，三既有类13离线76ms通过；首次12通过1失败91ms另存。结果P09-R07-权限采购源退出-主控结果.md；最终包/宿主依F。"
+  },
+  {
+    "name": "WarehouseManagementRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "待处理，前置P08",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseManagementRepository.cs",
+        "sha256": "EDF79B57749D529D79709F26A8B039534D7312170BEDD64066786A0C1A6B85C6",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlWarehouseManagementRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/PostgreSqlWarehouseManagementRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/AutomaticPostingSqlServerTests.cs",
+      "SwiftExport.Application.Tests/Shipping/PackingListDraftApiContractTests.cs"
+    ],
+    "verification": "必要项目编译/保留语义定向测试/最终宿主包图；本核对不证明退出态已验证"
+  },
+  {
+    "name": "WarehouseQueryRepository",
+    "batch": "P09-R：模块源仓储/源SQL辅助类与有效断言",
+    "status": "验证通过：P09-R06源文件已退出，22定向离线/必要构建通过；非实库并发验证",
+    "owner": "主控",
+    "parallel": "不可并行，主控串行分配",
+    "prerequisites": [
+      "P08最终验收",
+      "对应有效测试消费者迁移",
+      "删除前重新核对文件SHA及引用"
+    ],
+    "definitions": [
+      {
+        "path": "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseQueryRepository.cs",
+        "sha256": "3581CDA68980BE4E2A17A7302BA4B4DB534FE307AEFEF170103F92AE9BAF1B8F",
+        "operation": "前置通过后删除源专用文件"
+      }
+    ],
+    "pg_candidate_name": "PostgreSqlWarehouseQueryRepository",
+    "pg_definitions": [
+      "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/PostgreSqlWarehouseQueryRepository.cs"
+    ],
+    "reference_files": [
+      "SwiftExport.Application.Tests/Inventory/InventoryQueryContractTests.cs"
+    ],
+    "verification": "本批删除前原SHA/HEAD/消费者核对；必要构建0错误7旧警告10.07秒，现有五类22离线通过84ms；结果P09-R06-查询反馈源退出-主控结果.md。最终包/宿主依F；反馈空范围并发不由此离线测试证明。"
+  }
+]

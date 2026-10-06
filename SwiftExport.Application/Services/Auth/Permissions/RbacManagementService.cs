@@ -13,6 +13,7 @@ using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Auth.Permissions;
 using SwiftExport.Core.Entities.Auditing;
 using SwiftExport.Core.Interfaces.Auditing;
+using SwiftExport.Core.Interfaces.Commands;
 
 namespace SwiftExport.Application.Services.Auth.Permissions;
 
@@ -40,7 +41,7 @@ public sealed class RbacManagementService(
 
     /// <inheritdoc />
     public Task<ServiceResult<ManagedUserDto>> UpdateUserAsync(Guid userId, UpdateManagedUserRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (userId == Guid.Empty || request is null || request.ExpectedVersion < 1)
                 return Validation<ManagedUserDto>("用户和预期版本无效。", "ExpectedVersion");
@@ -53,13 +54,13 @@ public sealed class RbacManagementService(
                     request.Email?.Trim(), request.PhoneNumber?.Trim(), null, cancellationToken))
                 return Conflict<ManagedUserDto>();
             var updated = (await repository.GetUserAsync(userId, cancellationToken))!;
-            await AuditAsync("UpdateUser", "修改用户资料", userId, target, updated, cancellationToken);
+            await AuditAsync(commandId, "UpdateUser", "修改用户资料", userId, target, updated, cancellationToken);
             return ServiceResult<ManagedUserDto>.Ok(updated);
         }, cancellationToken);
 
     /// <inheritdoc />
     public Task<ServiceResult<ManagedUserDto>> SetUserStatusAsync(Guid userId, SetManagedStatusRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (userId == Guid.Empty || request is null || request.ExpectedVersion < 1)
                 return Validation<ManagedUserDto>("用户和预期版本无效。", "ExpectedVersion");
@@ -71,7 +72,7 @@ public sealed class RbacManagementService(
             if (!await repository.UpdateUserAsync(userId, request.ExpectedVersion, null, null, null, request.IsActive, cancellationToken))
                 return Conflict<ManagedUserDto>();
             var updated = (await repository.GetUserAsync(userId, cancellationToken))!;
-            await AuditAsync("SetUserStatus", "修改用户状态", userId, target, updated, cancellationToken);
+            await AuditAsync(commandId, "SetUserStatus", "修改用户状态", userId, target, updated, cancellationToken);
             return ServiceResult<ManagedUserDto>.Ok(updated);
         }, cancellationToken);
 
@@ -90,7 +91,7 @@ public sealed class RbacManagementService(
 
     /// <inheritdoc />
     public Task<ServiceResult<UserRolesDto>> ReplaceUserRolesAsync(Guid userId, ReplaceUserRolesRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (userId == Guid.Empty || request?.RoleIds is null || request.ExpectedVersion < 1)
                 return Validation<UserRolesDto>("用户、角色集合或预期版本无效。", "RoleIds");
@@ -105,7 +106,7 @@ public sealed class RbacManagementService(
                 return Blocked<UserRolesDto>("不能撤销最后一位有效管理员的角色。");
             var before = await repository.GetUserRoleIdsAsync(userId, cancellationToken);
             await repository.ReplaceUserRolesAsync(userId, request.ExpectedVersion, request.RoleIds, cancellationToken);
-            await AuditAsync("ReplaceUserRoles", "用户角色整组替换", userId, before, request.RoleIds, cancellationToken);
+            await AuditAsync(commandId, "ReplaceUserRoles", "用户角色整组替换", userId, before, request.RoleIds, cancellationToken);
             return ServiceResult<UserRolesDto>.Ok(new UserRolesDto
             {
                 UserId = userId, Version = request.ExpectedVersion + 1, RoleIds = request.RoleIds.ToList()
@@ -138,7 +139,7 @@ public sealed class RbacManagementService(
 
     /// <inheritdoc />
     public Task<ServiceResult<ManagedRoleDto>> CreateRoleAsync(CreateManagedRoleRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             var code = request?.RoleCode?.Trim();
             var name = request?.RoleName?.Trim();
@@ -148,13 +149,13 @@ public sealed class RbacManagementService(
             if (string.IsNullOrWhiteSpace(name)) return Validation<ManagedRoleDto>("角色名称不能为空。", "RoleName");
             var roleId = await repository.CreateRoleAsync(code, name, request?.Description?.Trim(), cancellationToken);
             var created = (await repository.GetRoleAsync(roleId, cancellationToken))!;
-            await AuditAsync("CreateRole", "创建普通角色", roleId, null, created, cancellationToken);
+            await AuditAsync(commandId, "CreateRole", "创建普通角色", roleId, null, created, cancellationToken);
             return ServiceResult<ManagedRoleDto>.Ok(created);
         }, cancellationToken);
 
     /// <inheritdoc />
     public Task<ServiceResult<ManagedRoleDto>> UpdateRoleAsync(Guid roleId, UpdateManagedRoleRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (roleId == Guid.Empty || request is null || request.ExpectedVersion < 1)
                 return Validation<ManagedRoleDto>("角色和预期版本无效。", "ExpectedVersion");
@@ -167,13 +168,13 @@ public sealed class RbacManagementService(
             if (!await repository.UpdateRoleAsync(roleId, request.ExpectedVersion, name, request.Description?.Trim(), null, false, cancellationToken))
                 return Conflict<ManagedRoleDto>();
             var updated = (await repository.GetRoleAsync(roleId, cancellationToken))!;
-            await AuditAsync("UpdateRole", "修改角色资料", roleId, role, updated, cancellationToken);
+            await AuditAsync(commandId, "UpdateRole", "修改角色资料", roleId, role, updated, cancellationToken);
             return ServiceResult<ManagedRoleDto>.Ok(updated);
         }, cancellationToken);
 
     /// <inheritdoc />
     public Task<ServiceResult<ManagedRoleDto>> SetRoleStatusAsync(Guid roleId, SetManagedStatusRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (roleId == Guid.Empty || request is null || request.ExpectedVersion < 1)
                 return Validation<ManagedRoleDto>("角色和预期版本无效。", "ExpectedVersion");
@@ -184,13 +185,13 @@ public sealed class RbacManagementService(
             if (!await repository.UpdateRoleAsync(roleId, request.ExpectedVersion, null, null, request.IsActive, false, cancellationToken))
                 return Conflict<ManagedRoleDto>();
             var updated = (await repository.GetRoleAsync(roleId, cancellationToken))!;
-            await AuditAsync("SetRoleStatus", "修改角色状态", roleId, role, updated, cancellationToken);
+            await AuditAsync(commandId, "SetRoleStatus", "修改角色状态", roleId, role, updated, cancellationToken);
             return ServiceResult<ManagedRoleDto>.Ok(updated);
         }, cancellationToken);
 
     /// <inheritdoc />
     public Task<ServiceResult<bool>> DeleteRoleAsync(Guid roleId, int expectedVersion, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (roleId == Guid.Empty || expectedVersion < 1) return Validation<bool>("角色和预期版本无效。", "ExpectedVersion");
             var role = await repository.GetRoleForUpdateAsync(roleId, cancellationToken);
@@ -201,7 +202,7 @@ public sealed class RbacManagementService(
                 return Blocked<bool>("角色仍关联用户，请先解除关系。");
             if (!await repository.UpdateRoleAsync(roleId, expectedVersion, null, null, null, true, cancellationToken))
                 return Conflict<bool>();
-            await AuditAsync("DeleteRole", "删除普通角色", roleId, role, new { IsDeleted = true }, cancellationToken);
+            await AuditAsync(commandId, "DeleteRole", "删除普通角色", roleId, role, new { IsDeleted = true }, cancellationToken);
             return ServiceResult<bool>.Ok(true);
         }, cancellationToken);
 
@@ -221,7 +222,7 @@ public sealed class RbacManagementService(
 
     /// <inheritdoc />
     public Task<ServiceResult<RolePermissionsDto>> ReplaceRolePermissionsAsync(Guid roleId, ReplaceRolePermissionsRequest request, CancellationToken cancellationToken) =>
-        WriteAsync(async () =>
+        WriteAsync(async commandId =>
         {
             if (roleId == Guid.Empty || request?.PermissionIds is null || request.ExpectedVersion < 1)
                 return Validation<RolePermissionsDto>("角色、权限集合或预期版本无效。", "PermissionIds");
@@ -235,7 +236,7 @@ public sealed class RbacManagementService(
                 return Validation<RolePermissionsDto>("权限不存在、已停用或不允许分配。", "PermissionIds");
             var before = await repository.GetRolePermissionIdsAsync(roleId, cancellationToken);
             await repository.ReplaceRolePermissionsAsync(roleId, request.ExpectedVersion, request.PermissionIds, cancellationToken);
-            await AuditAsync("ReplaceRolePermissions", "角色权限整组替换", roleId, before, request.PermissionIds, cancellationToken);
+            await AuditAsync(commandId, "ReplaceRolePermissions", "角色权限整组替换", roleId, before, request.PermissionIds, cancellationToken);
             return ServiceResult<RolePermissionsDto>.Ok(new RolePermissionsDto
             { RoleId = roleId, Version = request.ExpectedVersion + 1, PermissionIds = request.PermissionIds.ToList() });
         }, cancellationToken);
@@ -259,46 +260,82 @@ public sealed class RbacManagementService(
         return await action();
     }
 
-    /// <summary>管理写命令先锁内置角色并重验操作者，再执行目标聚合版本与业务校验。</summary>
-    private async Task<ServiceResult<T>> WriteAsync<T>(Func<Task<ServiceResult<T>>> action, CancellationToken cancellationToken)
+    /// <summary>管理写命令先准备同一审计命令租约，再在原 Serializable 事务锁验管理员并执行业务校验。</summary>
+    private async Task<ServiceResult<T>> WriteAsync<T>(Func<Guid, Task<ServiceResult<T>>> action, CancellationToken cancellationToken)
     {
         if (!TryGetActor(out var actorId)) return Unauthenticated<T>();
         if (context.Session.Transaction is not null) return Blocked<T>("当前请求已有事务，不能接管授权管理写入。");
-        using var transaction = context.Session.Connection.BeginTransaction(IsolationLevel.Serializable);
-        context.Session.Transaction = transaction;
+        var commandId = Guid.NewGuid();
+        IAsyncDisposable? lease = null;
+        IDbTransaction? transaction = null;
         try
         {
+            // PG 高隔离必须在快照建立前取得命令租约；SQL Server 日志没有此可选能力，仍走原事务路径。
+            if (auditLogs is ICommandTransactionPreparation preparation)
+            {
+                lease = await preparation.AcquireBeforeTransactionAsync(commandId, cancellationToken);
+                if (lease is null) throw new TimeoutException("权限管理审计命令准备超时。");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            transaction = context.Session.Connection.BeginTransaction(IsolationLevel.Serializable);
+            context.Session.Transaction = transaction;
             if (!await repository.LockAndCheckAdministratorAsync(actorId, cancellationToken))
             {
-                transaction.Rollback();
+                RollbackSafely(transaction);
                 return Forbidden<T>("当前账号已不具备内置管理员身份。");
             }
-            var result = await action();
+            var result = await action(commandId);
             if (result.Success) transaction.Commit();
-            else transaction.Rollback();
+            else RollbackSafely(transaction);
             return result;
         }
         catch (Exception exception) when (context.Session.Errors.Classify(exception) == DatabaseFailureKind.UniqueConflict)
         {
-            RollbackSafely(transaction);
+            if (transaction is not null) RollbackSafely(transaction);
             return Validation<T>("稳定编码已存在或授权关系重复。", "Code");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            RollbackSafely(transaction);
+            if (transaction is not null) RollbackSafely(transaction);
             throw;
         }
         catch (Exception exception)
         {
-            RollbackSafely(transaction);
+            if (transaction is not null) RollbackSafely(transaction);
             context.LoggerFactory.CreateLogger<RbacManagementService>()
                 .LogError(exception, "管理员 {ActorUserId} 的权限管理命令失败并已回滚。", actorId);
             return ServiceResult<T>.Fail(ServiceErrorCodes.Unexpected, "权限管理命令失败，未提交变更。");
         }
         finally
         {
-            context.Session.Transaction = null;
+            // 事务先彻底释放并清空本层引用，租约后释放；BeginTransaction 失败同样不能泄漏租约。
+            try
+            {
+                try { transaction?.Dispose(); }
+                catch (Exception exception)
+                {
+                    TryLogCleanup(exception, "权限管理事务释放失败，关闭连接。");
+                    try { context.Session.Connection.Dispose(); }
+                    catch (Exception closeException) { TryLogCleanup(closeException, "权限管理连接清理失败。"); }
+                }
+            }
+            finally
+            {
+                if (transaction is not null) context.Session.Transaction = null;
+                if (lease is not null)
+                {
+                    try { await lease.DisposeAsync(); }
+                    catch (Exception exception) { TryLogCleanup(exception, "权限管理审计租约释放失败。"); }
+                }
+            }
         }
+    }
+
+    /// <summary>清理诊断失败不能覆盖已提交结果、业务拒绝或原始取消。</summary>
+    private void TryLogCleanup(Exception exception, string message)
+    {
+        try { context.LoggerFactory.CreateLogger<RbacManagementService>().LogError(exception, "{CleanupMessage}", message); }
+        catch { /* 日志提供者异常时仍继续清理本层资源。 */ }
     }
 
     /// <summary>只接受实际登录身份，服务端不从请求体读取操作者。</summary>
@@ -309,14 +346,14 @@ public sealed class RbacManagementService(
     }
 
     /// <summary>在管理事务内追加授权关系前后集合，日志失败时回滚关系变更。</summary>
-    private async Task AuditAsync(string operation, string name, Guid targetId,
+    private async Task AuditAsync(Guid commandId, string operation, string name, Guid targetId,
         object? before, object? after, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var changed = JsonSerializer.Serialize(new { Before = before, After = after });
         if (await auditLogs.InsertAsync(new BusinessOperationLog
         {
-            CommandId = Guid.NewGuid(), CorrelationId = Guid.NewGuid().ToString("N"),
+            CommandId = commandId, CorrelationId = Guid.NewGuid().ToString("N"),
             Module = "SystemRbac", AggregateType = operation.Contains("User", StringComparison.Ordinal) ? "SysUser" : "SysRole",
             AggregateUid = targetId, OperationType = operation, OperationName = name,
             Summary = "管理员调整授权关系。", ChangedFieldsJson = changed,

@@ -7,27 +7,23 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>复用离线提供者夹具检查产品参数、投影及过滤边界，不连接数据库。</summary>
 public sealed partial class PostgreSqlRepositoryTests
 {
-    /// <summary>两种提供者共享获批关系语义和外层事务，读取不加启停过滤或数据库锁。</summary>
+    /// <summary>PG 保留获批客户关系、返回值和外层事务，读取不加启停过滤或数据库锁。</summary>
     [TestMethod]
-    [DataRow(false)]
-    [DataRow(true)]
-    public async Task CatalogCustomerCodes_UsesRelationshipAndCallerTransaction(bool postgresql)
+    public async Task CatalogCustomerCodes_UsesRelationshipAndCallerTransaction()
     {
         using var fixture = new Fixture();
-        SwiftExport.Core.Interfaces.Products.Catalog.IProductRepository repository = postgresql
-            ? new PostgreSqlProductRepository(DictionaryContext(fixture))
-            : new ProductRepository(DictionaryContext(fixture));
+        var repository = new PostgreSqlProductRepository(DictionaryContext(fixture));
         fixture.Connection.Rows.Columns.Add("code", typeof(string));
         fixture.Connection.Rows.Rows.Add("CURRENT");
         CollectionAssert.AreEqual(new[] { "CURRENT" }, (await repository.GetAllCustomerCodeListAsync()).ToArray());
         var sql = fixture.Connection.Text.ToLowerInvariant();
-        StringAssert.Contains(sql, postgresql ? "public.customer_product" : "dbo.customerproduct");
-        StringAssert.Contains(sql, postgresql ? "p.uid=cp.sku_id" : "p.uid=cp.skuid");
-        StringAssert.Contains(sql, postgresql ? "cp.customer_id=c.uid" : "cp.customerid=c.uid");
+        StringAssert.Contains(sql, "public.customer_product");
+        StringAssert.Contains(sql, "p.uid=cp.sku_id");
+        StringAssert.Contains(sql, "cp.customer_id=c.uid");
         StringAssert.Contains(sql, "exists (");
-        StringAssert.Contains(sql, postgresql ? "c.is_deleted=false" : "c.isdeleted=0");
-        StringAssert.Contains(sql, postgresql ? "p.is_deleted=false" : "p.isdeleted=0");
-        StringAssert.Contains(sql, postgresql ? "cp.is_deleted=false" : "cp.isdeleted=0");
+        StringAssert.Contains(sql, "c.is_deleted=false");
+        StringAssert.Contains(sql, "p.is_deleted=false");
+        StringAssert.Contains(sql, "cp.is_deleted=false");
         Assert.IsFalse(sql.Contains("is_active") || sql.Contains("isactive") || sql.Contains("for update"));
         Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
     }

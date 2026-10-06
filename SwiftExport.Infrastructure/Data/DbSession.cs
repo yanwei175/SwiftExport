@@ -17,17 +17,19 @@ public class DbSession : IDbSession, IDisposable
     internal long ConnectionEpoch { get; private set; }
     /// <summary>当前 scope 唯一的命令租约，包括尚在等待获取的租约。</summary>
     internal PostgreSqlCommandLock.Lease? CommandLease { get; set; }
+    /// <summary>事务前来源多资源租约的独立占位；与机器命令租约不能互相替代。</summary>
+    internal PostgreSqlSourceDemandLock.Lease? SourceDemandLease { get; set; }
     /// <summary>所有仓储和应用用例共享的连接。</summary>
     public IDbConnection Connection { get; }
     /// <summary>最外层业务用例拥有的当前事务。</summary>
     public IDbTransaction? Transaction { get; set; }
     private readonly IDatabaseExceptionClassifier? _errors;
-    /// <summary>连接工厂提供的分类器；兼容既有无构造测试替身的SQL Server默认值。</summary>
-    public IDatabaseExceptionClassifier Errors => _errors ?? SqlServerExceptionClassifier.Instance;
+    /// <summary>优先使用连接工厂分类器；无构造测试会话也采用目标PG默认值，显式源工厂保留源语义。</summary>
+    public IDatabaseExceptionClassifier Errors => _errors ?? PostgreSqlExceptionClassifier.Instance;
 
-    /// <summary>保留现有工具和测试的配置构造入口，连接创建统一委托工厂。</summary>
+    /// <summary>配置构造入口统一使用目标PG工厂；源SQL对照测试须显式传入原工厂，避免与默认PG配置混用。</summary>
     public DbSession(IConfiguration configuration)
-        : this(new SqlConnectionFactory(configuration.GetConnectionString("Default")!))
+        : this(new PostgreSqlConnectionFactory(configuration.GetConnectionString("Default")!))
     {
     }
 
@@ -54,6 +56,7 @@ public class DbSession : IDbSession, IDisposable
         if (_disposed) return;
         _disposed = true;
         // 遗漏显式租约释放时必须丢弃物理连接，不能依赖连接池延迟 reset 来释放会话锁。
+        SourceDemandLease?.Abandon();
         CommandLease?.Abandon();
         try { Transaction?.Dispose(); }
         finally

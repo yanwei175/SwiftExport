@@ -1,0 +1,118 @@
+{
+  "outcome": "Passed",
+  "duration": "00:00:01.2429653",
+  "fact": {
+    "Batch": "0a77ecca-8ebd-4da1-812f-a8f1c1f85f00",
+    "SupplierId": "88be94ed-8630-4293-9327-4a3503e98371",
+    "WarehouseId": "ab00be69-2f47-4cb5-881b-4a3503e983c3",
+    "PurchaseId": "fbd8b5ec-8f8f-4d43-ab8b-4a3503e983f7",
+    "PurchaseLineId": "482fecd0-d291-418f-9260-4a3503e983f9",
+    "InboundId": "b58dd7bf-095a-40d0-bb87-4a3503e9848e",
+    "OutboundId": "4df39694-521c-49fa-89ec-4a3503e98506",
+    "OutboundItemId": "55b10c45-1a10-4889-a080-4a3503e9850a",
+    "OriginalLedgerId": "14504ccb-460c-4546-8072-4a3503e9864e",
+    "BalanceId": "6854a861-3728-4cb2-b6db-4a3503e984e1",
+    "Evidence": [
+      {
+        "Stage": "同Item正向真实等待",
+        "Pids": [
+          3940
+        ],
+        "Graph": "[{\"pid\": 3940, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\",\\ncreated_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\",\\ncode AS \\\"Code\\\"\", \"blocking\": [4400], \"xact_start\": \"2026-10-06T02:13:56.995037+08:00\"}]"
+      },
+      {
+        "Stage": "同Item正向真实等待",
+        "Pids": [
+          3940,
+          6128
+        ],
+        "Graph": "[{\"pid\": 3940, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\",\\ncreated_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\",\\ncode AS \\\"Code\\\"\", \"blocking\": [4400], \"xact_start\": \"2026-10-06T02:13:56.995037+08:00\"}, {\"pid\": 6128, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\", created_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\", document_no AS\", \"blocking\": [3940], \"xact_start\": \"2026-10-06T02:13:57.078274+08:00\"}]"
+      },
+      {
+        "Stage": "同Item正向终态",
+        "First": {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "Uid": "4df39694-521c-49fa-89ec-4a3503e98506",
+            "Version": 2,
+            "DocumentNo": "OI6602100001",
+            "PostingStatus": 1
+          },
+          "Error": null
+        },
+        "Second": {
+          "Success": false,
+          "Message": "出库单已被其他人修改，请刷新后重试。",
+          "Data": null,
+          "Error": {
+            "Code": "VERSION_CONFLICT",
+            "Message": "出库单已被其他人修改，请刷新后重试。",
+            "Field": "ExpectedVersion"
+          }
+        },
+        "Barrier": "ab00be69-2f47-4cb5-881b-4a3503e983c3",
+        "Pids": [
+          3940,
+          6128
+        ],
+        "Holder": 4400
+      },
+      {
+        "Stage": "同原流水反向真实等待",
+        "Pids": [
+          4400
+        ],
+        "Graph": "[{\"pid\": 4400, \"query\": \"SELECT \\\"uid\\\" AS \\\"Uid\\\",\\\"version\\\" AS \\\"Version\\\",\\\"is_deleted\\\" AS \\\"IsDeleted\\\",\\\"created_date\\\" AS \\\"CreatedDate\\\",\\\"created_by\\\" AS \\\"CreatedBy\\\",\\\"updated_date\\\" AS \\\"UpdatedDate\\\",\\\"updated_by\\\" AS \\\"UpdatedBy\\\",\\\"sequen\", \"blocking\": [3940], \"xact_start\": \"2026-10-06T02:13:57.159476+08:00\"}]"
+      },
+      {
+        "Stage": "同原流水反向真实等待",
+        "Pids": [
+          4400,
+          6128
+        ],
+        "Graph": "[{\"pid\": 4400, \"query\": \"SELECT \\\"uid\\\" AS \\\"Uid\\\",\\\"version\\\" AS \\\"Version\\\",\\\"is_deleted\\\" AS \\\"IsDeleted\\\",\\\"created_date\\\" AS \\\"CreatedDate\\\",\\\"created_by\\\" AS \\\"CreatedBy\\\",\\\"updated_date\\\" AS \\\"UpdatedDate\\\",\\\"updated_by\\\" AS \\\"UpdatedBy\\\",\\\"sequen\", \"blocking\": [3940], \"xact_start\": \"2026-10-06T02:13:57.159476+08:00\"}, {\"pid\": 6128, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\", created_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\", document_no AS\", \"blocking\": [4400], \"xact_start\": \"2026-10-06T02:13:57.181472+08:00\"}]"
+      },
+      {
+        "Stage": "同原流水反向终态",
+        "First": {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "Uid": "4df39694-521c-49fa-89ec-4a3503e98506",
+            "Version": 3,
+            "DocumentNo": "OI6602100001",
+            "PostingStatus": 8,
+            "ReversedDate": "2026-10-06T02:13:55.973101+08:00",
+            "ReversedBy": "dv",
+            "ReverseReason": "PG同原流水不同父命令竞争"
+          },
+          "Error": null
+        },
+        "Second": {
+          "Success": false,
+          "Message": "出库版本已变化，请重新加载。",
+          "Data": null,
+          "Error": {
+            "Code": "VERSION_CONFLICT",
+            "Message": "出库版本已变化，请重新加载。",
+            "Field": "ExpectedVersion"
+          }
+        },
+        "Barrier": "14504ccb-460c-4546-8072-4a3503e9864e",
+        "Pids": [
+          4400,
+          6128
+        ],
+        "Holder": 3940
+      }
+    ],
+    "Pids": [
+      3940,
+      6128,
+      4400
+    ],
+    "TasksTerminal": true,
+    "Policy": "仅failure；独立新事实及660210号段留存，不改旧单据/业务/锁/隔离，不重置"
+  }
+}

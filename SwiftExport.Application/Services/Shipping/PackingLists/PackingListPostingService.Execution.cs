@@ -19,6 +19,7 @@ using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Inventory;
 using SwiftExport.Core.Interfaces.Shipping;
 using SwiftExport.Core.Interfaces.Shipping.PackingLists;
+using SwiftExport.Core.Interfaces.Commands;
 
 namespace SwiftExport.Application.Services.Shipping.PackingLists;
 
@@ -66,10 +67,18 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
         var candidate = replayCandidate == null
             ? await ResolveAsync(await factsRepository.ReadAsync(request.PackingListId, token), request.BusinessDate, token)
             : null;
+        // PG子命令的旧审计回执需要独立身份锁，必须早于Serializable快照；只声明当前方案确实会执行的入/出库批次。
+        var inventoryCommands = new List<Guid>();
+        if (candidate?.Preview.Actions.Any(x => x.Kind == "Receipt") == true)
+            inventoryCommands.Add(PackingListAutomaticCommandBuilder.DeriveId(request.CommandId, "inbound"));
+        if (candidate?.Preview.Actions.Any(x => x.Kind is "Shipment" or "Consumption") == true)
+            inventoryCommands.Add(PackingListAutomaticCommandBuilder.DeriveId(request.CommandId, "outbound"));
         try
         {
         var executed = await executor.ExecuteAsync(request.CommandId, "Shipping.PackingList.Post", request.PackingListId,
-            new { request.ExpectedVersion, Date = request.BusinessDate.Date, request.PreviewToken }, ct => PostInTransactionAsync(request, candidate, sourceIds, fingerprint, ct), token, IsolationLevel.Serializable);
+            new { request.ExpectedVersion, Date = request.BusinessDate.Date, request.PreviewToken }, ct => PostInTransactionAsync(request, candidate, sourceIds, fingerprint, ct), token, IsolationLevel.Serializable,
+            logs is ICommandRelatedTransactionPreparation preparation && inventoryCommands.Count > 0
+                ? ct => preparation.AcquireRelatedBeforeTransactionAsync(request.CommandId, inventoryCommands, ct) : null);
         executed.Value.AlreadyApplied = executed.IsReplay;
         return executed.Value;
         }

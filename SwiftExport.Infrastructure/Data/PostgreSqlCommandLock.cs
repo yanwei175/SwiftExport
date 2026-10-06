@@ -28,6 +28,8 @@ internal static class PostgreSqlCommandLock
                 throw new InvalidOperationException("命令租约必须在业务事务及环境事务之外获取。");
             if (session.CommandLease is not null)
                 throw new InvalidOperationException("同一数据库会话不能嵌套或并行获取命令租约。");
+            if (session.SourceDemandLease is not null)
+                throw new InvalidOperationException("命令租约必须先于需求资源准备，不能持来源或毛需求锁后追加命令锁。");
             var connection = session.Connection;
             if (connection.State != ConnectionState.Open)
                 throw new InvalidOperationException("命令租约要求已打开且不会更换的连接。");
@@ -86,7 +88,7 @@ internal static class PostgreSqlCommandLock
             ?? throw new InvalidOperationException("命令锁必须在业务事务内获取。");
         if (session.CommandLease is { } lease)
         {
-            if (lease.CommandId != commandId || !lease.IsCurrent || !lease.Held
+            if ((lease.CommandId != commandId && !lease.RelatedCommands.Contains(commandId)) || !lease.IsCurrent || !lease.Held
                 || !ReferenceEquals(transaction.Connection, lease.Connection))
                 throw new InvalidOperationException("事务命令锁不能借用其他身份或已失效的事务前租约。");
             // 租约已经在建立快照之前串行化同一命令，无须重复获取可重入的会话锁。
@@ -117,11 +119,55 @@ internal static class PostgreSqlCommandLock
         }
     }
 
+    /// <summary>只在已持外层租约、未开始事务时准备明确子命令；同连接锁在首次快照前取得，所有锁最终由原租约统一清理。</summary>
+    internal static async Task<IAsyncDisposable?> AcquireRelatedBeforeTransactionAsync(DbSession session, Guid commandId,
+        IReadOnlyList<Guid> relatedCommandIds, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var ids = relatedCommandIds.Distinct().Order().ToArray();
+        if (ids.Length == 0 || ids.Contains(Guid.Empty) || ids.Contains(commandId))
+            throw new ArgumentException("子命令身份必须明确、非空且不同于外层命令。", nameof(relatedCommandIds));
+        if (session.IsUnusable || session.Transaction is not null || System.Transactions.Transaction.Current is not null
+            || session.SourceDemandLease is not null || session.CommandLease is not { } lease
+            || lease.CommandId != commandId || !lease.IsCurrent || !lease.Held || lease.RelatedCommands.Count != 0)
+            throw new InvalidOperationException("子命令必须在同一外层租约及业务事务之前一次性准备。");
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(Budget);
+        try
+        {
+            foreach (var id in ids)
+            {
+                var key = GetKey(id);
+                while (true)
+                {
+                    deadline.Token.ThrowIfCancellationRequested();
+                    // 发送后的取消可能无法判断是否持锁，原租约会丢弃该连接，不能将未知带锁连接放回池。
+                    lease.PendingRelatedKey = key;
+                    var acquired = await lease.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                        "SELECT pg_try_advisory_lock(@Key);", new { Key = key }, commandTimeout: 10, cancellationToken: deadline.Token));
+                    lease.PendingRelatedKey = null;
+                    if (acquired)
+                    {
+                        lease.RelatedKeys.Add(key); lease.RelatedCommands.Add(id);
+                        deadline.Token.ThrowIfCancellationRequested();
+                        if (!lease.IsCurrent) throw new InvalidOperationException("准备子命令期间连接生命周期已变化。");
+                        break;
+                    }
+                    await Task.Delay(TimeSpan.FromMilliseconds(50), deadline.Token);
+                }
+            }
+            // 外层执行器已有幂等释放能力；复用原租约，事务结束后统一释放，重复Dispose不二次解锁。
+            return lease;
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested && deadline.IsCancellationRequested)
+        { return null; }
+    }
+
     /// <summary>保持会话锁与既有事务锁的命名及字节序完全一致。</summary>
     private static long GetKey(Guid commandId) => BinaryPrimitives.ReadInt64BigEndian(
         SHA256.HashData(Encoding.UTF8.GetBytes($"SwiftExport:Command:{commandId:N}")));
 
-    /// <summary>绑定唯一命令与连接周期的租约；异常清理使用独立预算，不能覆盖调用方业务结果。</summary>
+    /// <summary>绑定外层命令、明确子命令与连接周期的租约；异常清理使用独立预算，不能覆盖调用方业务结果。</summary>
     internal sealed class Lease : IAsyncDisposable
     {
         private readonly DbSession _session;
@@ -134,6 +180,12 @@ internal static class PostgreSqlCommandLock
         internal long Key { get; }
         internal bool Held { get; set; }
         internal bool AttemptPending { get; set; }
+        /// <summary>仅记录事务前已确认持有的自动子命令，事务内不扩展该集合。</summary>
+        internal HashSet<Guid> RelatedCommands { get; } = [];
+        /// <summary>子命令锁按获取顺序登记，释放时逆序处理。</summary>
+        internal List<long> RelatedKeys { get; } = [];
+        /// <summary>未收到确认的子命令获取请求；存在时必须隔离连接。</summary>
+        internal long? PendingRelatedKey { get; set; }
         internal bool IsCurrent => Volatile.Read(ref _disposed) == 0
             && ReferenceEquals(_session.CommandLease, this) && _epoch == _session.ConnectionEpoch
             && Connection.State == ConnectionState.Open
@@ -163,10 +215,14 @@ internal static class PostgreSqlCommandLock
                     || _processId is not null && Connection is NpgsqlConnection npgsql && npgsql.ProcessID != _processId)
                     throw new InvalidOperationException("租约释放时事务未清理或连接周期已变化。");
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-                var released = await Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
-                    "SELECT pg_advisory_unlock(@Key);", new { Key },
-                    commandTimeout: 2, cancellationToken: cleanup.Token));
-                if (!released) throw new InvalidOperationException("命令会话锁释放未得到成功确认。");
+                if (PendingRelatedKey.HasValue) throw new InvalidOperationException("子命令锁获取结果未知，不能复用连接。");
+                foreach (var key in RelatedKeys.AsEnumerable().Reverse().Append(Key))
+                {
+                    var released = await Connection.ExecuteScalarAsync<bool>(new CommandDefinition(
+                        "SELECT pg_advisory_unlock(@Key);", new { Key = key },
+                        commandTimeout: 2, cancellationToken: cleanup.Token));
+                    if (!released) throw new InvalidOperationException("命令会话锁释放未得到成功确认。");
+                }
             }
             catch (Exception ex)
             {

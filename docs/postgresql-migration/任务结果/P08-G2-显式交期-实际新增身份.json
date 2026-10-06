@@ -1,0 +1,24 @@
+{
+  "sales_order_header": [
+    "ea566334-67fe-46c3-9594-4a3502d69b57"
+  ],
+  "sales_order_line": [
+    "94d5891b-327b-45d6-9c91-c395758bb401"
+  ],
+  "command_receipt": [
+    "7bf3a333-183d-4f79-b9a4-4a3502d69b89",
+    "d4320dcc-a344-4d96-a3e1-4a3502d69c72",
+    "9ab7a1a4-1070-4cbf-a96f-4a3502d69cd0",
+    "11e04147-a6a5-4b86-a5a4-4a3502d69db7"
+  ],
+  "business_operation_log": [
+    "ee83cc33-6ab6-409a-b469-4a3502d69c67",
+    "cd084ec7-b450-4d7b-aac5-4a3502d69c6e",
+    "386370f1-0996-451e-8d50-4a3502d69ccd",
+    "e8b375fb-713d-4cef-8a25-4a3502d69cd0",
+    "3dca8e46-1f4d-4ebd-b853-4a3502d69db4"
+  ],
+  "document_sequence": [
+    "a9758a10-2f28-49e2-b384-4a3502d69b3f"
+  ]
+}

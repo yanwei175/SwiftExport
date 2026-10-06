@@ -26,17 +26,19 @@ public sealed class SourceDemandDeliveryContractTests
         Assert.IsFalse(controller.Contains("ReceiveAsync", StringComparison.Ordinal));
     }
 
+    /// <summary>注册仍使用统一箱单交付投影，PG 来源持久化不重复读取自动出库。</summary>
     [TestMethod]
     public void UnifiedPackingListDeliveryProjectionIsRegistered()
     {
         var registration = Read("SwiftExport.Infrastructure", "DependencyInjection.cs");
         var delivery = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "SourceDeliveryQueryRepository.cs");
-        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "PostgreSqlGrossDemandDocumentRepository.cs");
         StringAssert.Contains(registration, "ISourceDeliveryQueryRepository");
         StringAssert.Contains(delivery, "dbo.PackingListLine");
         StringAssert.Contains(delivery, "h.PostingStatus=@Posted");
         Assert.IsFalse(delivery.Contains("SourceType IN", StringComparison.Ordinal));
         Assert.IsFalse(sourceRepository.Contains("OutboundDocument", StringComparison.Ordinal));
+        Assert.IsFalse(sourceRepository.Contains("outbound_document", StringComparison.Ordinal));
     }
 
     /// <summary>共享契约支持非标来源，并且不再暴露库存池归属或库存动作判定。</summary>
@@ -52,20 +54,23 @@ public sealed class SourceDemandDeliveryContractTests
             Assert.IsNull(typeof(SourceDemandDeliveryItemDto).GetProperty(removed), removed);
     }
 
+    /// <summary>来源退出分别读取物料历史及交付证明，PG 继续使用既有来源范围与行锁协议。</summary>
     [TestMethod]
     public void SourceExitSeparatesMaterialHistoryFromShippingDeliveryProof()
     {
-        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "MaterialDemandDocumentRepository.cs");
+        var sourceRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "PostgreSqlGrossDemandDocumentRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "PostgreSqlMaterialDemandDocumentRepository.cs");
         var exitSql = repository.Split("AssessSourceExitForUpdateAsync")[1].Split("public async Task<IReadOnlyList<RepositoryWriteResult>>")[0];
         var material = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "SourceExit", "MaterialDemandSourceExitService.cs");
         var source = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Reception", "SourceDemandReceptionService.cs");
         var shipping = Read("SwiftExport.Infrastructure", "Repositories", "Shipping", "PackingLists", "PackingListRepository.SourceExit.cs");
         StringAssert.Contains(sourceRepository, "GetActiveBySourceForUpdateAsync");
-        StringAssert.Contains(sourceRepository, "WITH (UPDLOCK, HOLDLOCK, ROWLOCK)");
-        foreach (var forbidden in new[] { "DemandExecutionLink", "PurchaseOrder", "InboundDocument", "OutboundDocument", "PackingList" })
+        StringAssert.Contains(sourceRepository, "InScope([sourceUid], []");
+        StringAssert.Contains(sourceRepository, "FOR UPDATE;");
+        foreach (var forbidden in new[] { "DemandExecutionLink", "PurchaseOrder", "InboundDocument", "OutboundDocument", "PackingList",
+                     "demand_execution_link", "purchase_order", "inbound_document", "outbound_document", "packing_list" })
             Assert.IsFalse(exitSql.Contains(forbidden, StringComparison.Ordinal), forbidden);
-        StringAssert.Contains(exitSql, "LifecycleStatus] NOT IN (@RolledBack,@Voided)");
+        StringAssert.Contains(exitSql, "nd.{C(\"LifecycleStatus\")} NOT IN (8,9)");
         StringAssert.Contains(material, "AssessSourceExitAsync");
         StringAssert.Contains(source, "VerifySourceExitAsync");
         StringAssert.Contains(shipping, "ActiveDraftCount");

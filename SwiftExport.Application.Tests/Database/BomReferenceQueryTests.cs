@@ -4,20 +4,17 @@ using SwiftExport.Infrastructure.Repositories.Products;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>相关 BOM 读取复用记录连接，验证两提供者的输入范围、完整映射和调用方事务，不连接数据库。</summary>
+/// <summary>相关 BOM 读取复用记录连接，验证 PostgreSQL 输入范围、完整映射和调用方事务，不连接数据库。</summary>
 public sealed partial class PostgreSqlRepositoryTests
 {
     /// <summary>空身份集合不查询；当前组成由数据库联接确认，不额外锁定全图。</summary>
     [TestMethod]
-    [DataRow(false)]
-    [DataRow(true)]
-    public async Task BomReferences_EmptyInputDoesNotQuery(bool postgres)
+    public async Task BomReferences_EmptyInputDoesNotQuery()
     {
         using var fixture = new Fixture();
         var context = DictionaryContext(fixture);
-        Func<IEnumerable<Guid>, Task<IReadOnlyList<Bom>>> read = postgres
-            ? new PostgreSqlBomRepository(context).GetCurrentReferencesForProductsAsync
-            : new BomRepository(context).GetCurrentReferencesForProductsAsync;
+        Func<IEnumerable<Guid>, Task<IReadOnlyList<Bom>>> read =
+            new PostgreSqlBomRepository(context).GetCurrentReferencesForProductsAsync;
         Assert.HasCount(0, await read([]));
         Assert.HasCount(0, await read([Guid.Empty]));
         Assert.HasCount(0, await read(null!));
@@ -26,9 +23,7 @@ public sealed partial class PostgreSqlRepositoryTests
 
     /// <summary>父或组件命中都参与查询，去掉空身份及重复参数；完整返回组成快照而不接管事务。</summary>
     [TestMethod]
-    [DataRow(false)]
-    [DataRow(true)]
-    public async Task BomReferences_MapsColumnsAndSharesTransaction(bool postgres)
+    public async Task BomReferences_MapsColumnsAndSharesTransaction()
     {
         using var fixture = new Fixture();
         var parent = Guid.NewGuid();
@@ -41,9 +36,7 @@ public sealed partial class PostgreSqlRepositoryTests
         fixture.Connection.Rows.Columns.Add("ComponentSkuSnapshot", typeof(string));
         fixture.Connection.Rows.Rows.Add(uid, parent, DBNull.Value, 7, "旧快照");
         var context = DictionaryContext(fixture);
-        var rows = postgres
-            ? await new PostgreSqlBomRepository(context).GetCurrentReferencesForProductsAsync([parent, Guid.Empty, component, parent])
-            : await new BomRepository(context).GetCurrentReferencesForProductsAsync([parent, Guid.Empty, component, parent]);
+        var rows = await new PostgreSqlBomRepository(context).GetCurrentReferencesForProductsAsync([parent, Guid.Empty, component, parent]);
         var row = rows.Single();
         Assert.AreEqual(uid, row.Uid);
         Assert.AreEqual(parent, row.ParentProductId);
@@ -60,19 +53,18 @@ public sealed partial class PostgreSqlRepositoryTests
         }).ToArray();
         CollectionAssert.AreEquivalent(new[] { parent, component }, ids);
         var sql = fixture.Connection.Text.ToLowerInvariant();
-        StringAssert.Contains(sql, postgres ? "parent_product_id" : "parentproductid");
-        StringAssert.Contains(sql, postgres ? "component_product_id" : "componentproductid");
+        StringAssert.Contains(sql, "parent_product_id");
+        StringAssert.Contains(sql, "component_product_id");
         StringAssert.Contains(sql, " or ");
         StringAssert.Contains(sql, "exists");
         var normalized = BomQuerySql(sql).Replace("[", "").Replace("]", "");
-        StringAssert.Contains(normalized, postgres ? "parent.bom_version>0" : "parent.bomversion>0");
-        StringAssert.Contains(normalized, postgres ? "b.bom_version>0" : "b.bomversion>0");
-        Assert.IsFalse(normalized.Contains(postgres ? "b.parent_product_id=parent.uid" : "b.parentproductid=parent.uid", StringComparison.Ordinal));
-        Assert.IsFalse(normalized.Contains(postgres ? "b.bom_version=parent.bom_version" : "b.bomversion=parent.bomversion", StringComparison.Ordinal));
+        StringAssert.Contains(normalized, "parent.bom_version>0");
+        StringAssert.Contains(normalized, "b.bom_version>0");
+        Assert.IsFalse(normalized.Contains("b.parent_product_id=parent.uid", StringComparison.Ordinal));
+        Assert.IsFalse(normalized.Contains("b.bom_version=parent.bom_version", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("for update", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("updlock", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("holdlock", StringComparison.Ordinal));
-        if (postgres)
-            Assert.IsTrue(fixture.Connection.Types.Values.Contains(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid));
+        Assert.IsTrue(fixture.Connection.Types.Values.Contains(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid));
     }
 }

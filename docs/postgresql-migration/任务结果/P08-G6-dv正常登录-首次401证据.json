@@ -1,0 +1,29 @@
+{
+  "recorded_at": "2026-10-06T05:44:14.2105082+08:00",
+  "instance": "192.168.3.12:5432",
+  "database": "dv_next",
+  "user_name": "dv",
+  "dev_user_enabled": false,
+  "database_default_read_only": true,
+  "requests": [
+    {
+      "method": "GET",
+      "identity": "anonymous",
+      "path": "/api/auth/me",
+      "status": 401
+    },
+    {
+      "method": "POST",
+      "identity": "normal-dv-password",
+      "path": "/api/auth/login",
+      "status": 401
+    }
+  ],
+  "port": 2694,
+  "success": false,
+  "stage": "normal-login",
+  "process_stopped": true,
+  "process_id": 1568,
+  "failure": "当前阶段未通过，详情按阶段/HTTP状态核对，不自动重置或猜测密码",
+  "finished_at": "2026-10-06T05:44:15.2350539+08:00"
+}

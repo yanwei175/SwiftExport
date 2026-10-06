@@ -1,0 +1,1980 @@
+{
+  "time": "2026-10-06 01:18 +08:00",
+  "scope": "gross_demand两来源索引统一查询的rtrim+ICU规则，其他列/约束/业务/锁不变",
+  "hashes": {
+    "SwiftExport.Infrastructure/DatabaseSchema/PostgreSqlSchemaGenerator.cs": "78356DCF582E9CF7EED6C9DA461295206F9AF7E8F37D9FBC64D4E5CD77DF238C",
+    "SwiftExport.Infrastructure/Database/Generated/SwiftExport.PostgreSql.Schema.preview.sql": "FE5481C997822F653965406420B60B0A0857BD60570927976520DD1A778959F7",
+    "SwiftExport.Infrastructure/Database/PostgreSQL来源类型索引变更.sql": "8E3A601C638F4055650DE864D2B60CC91759CEEB1DAFBB0356EE5A63D25AEFB4",
+    "SwiftExport.Infrastructure/Database/PostgreSQL来源类型索引回退.sql": "BDE77DBD94921AE359D587BB27A9321D60B565CDA167CFF536B4346012A6EB34",
+    "SwiftExport.Application.Tests/Database/PostgreSqlOperationalCodeIndexTests.cs": "9D02898AA4A8EF6E688E989D901CBC08D2F139CC1908A7D08843AA430297BB2D"
+  },
+  "native": {
+    "red": {
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "methodDuration": "00:00:00.2535517",
+      "trx": "TestResults/postgresql-migration/p03-source-index-red.trx"
+    },
+    "green": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "methodDuration": "00:00:00.1908751",
+      "trx": "TestResults/postgresql-migration/p03-source-index-green.trx"
+    },
+    "baseline": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "TestResults/postgresql-migration/p03-source-index-baseline.trx"
+    }
+  },
+  "failure": {
+    "before": [
+      {
+        "table_name": "after_sales_header",
+        "row_count": 1,
+        "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+      },
+      {
+        "table_name": "after_sales_line",
+        "row_count": 2,
+        "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+      },
+      {
+        "table_name": "bom",
+        "row_count": 17,
+        "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+      },
+      {
+        "table_name": "business_operation_log",
+        "row_count": 106,
+        "data_md5": "d55a5d587ff407a09776d036be522562"
+      },
+      {
+        "table_name": "command_receipt",
+        "row_count": 82,
+        "data_md5": "9dd2810f8f36d911b6fed1a148de41f8"
+      },
+      {
+        "table_name": "customer",
+        "row_count": 15,
+        "data_md5": "df80c099978566d59d626c1506c3ed66"
+      },
+      {
+        "table_name": "customer_po_config",
+        "row_count": 73,
+        "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+      },
+      {
+        "table_name": "customer_product",
+        "row_count": 17005,
+        "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+      },
+      {
+        "table_name": "demand_execution_link",
+        "row_count": 9,
+        "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+      },
+      {
+        "table_name": "document_sequence",
+        "row_count": 31,
+        "data_md5": "22e73c925afd4bdf52ebd9935b9bd02a"
+      },
+      {
+        "table_name": "excel_read_field",
+        "row_count": 10,
+        "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+      },
+      {
+        "table_name": "excel_read_profile",
+        "row_count": 2,
+        "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+      },
+      {
+        "table_name": "gross_demand",
+        "row_count": 8,
+        "data_md5": "5cdb8e70cd6f26fac4894abb5648ed09"
+      },
+      {
+        "table_name": "inbound_document",
+        "row_count": 14,
+        "data_md5": "48f05777b0044451ce93403746c13a0f"
+      },
+      {
+        "table_name": "inbound_document_line",
+        "row_count": 15,
+        "data_md5": "1b1257353f917c3ec502b98bc36beb91"
+      },
+      {
+        "table_name": "inventory_balance",
+        "row_count": 7,
+        "data_md5": "b77720d1622468172ff68875537ed980"
+      },
+      {
+        "table_name": "inventory_ledger_entry",
+        "row_count": 39,
+        "data_md5": "96f1db5bd3902e6898d285802b406689"
+      },
+      {
+        "table_name": "net_demand",
+        "row_count": 7,
+        "data_md5": "c02c03391a4c063b235dce335a9dfb8b"
+      },
+      {
+        "table_name": "outbound_document",
+        "row_count": 8,
+        "data_md5": "8e1c2bab9a5661cd7f8994e2371733af"
+      },
+      {
+        "table_name": "outbound_document_line",
+        "row_count": 8,
+        "data_md5": "46423102e72c1fc7741904d6250fffb1"
+      },
+      {
+        "table_name": "packing_list_head",
+        "row_count": 8,
+        "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+      },
+      {
+        "table_name": "packing_list_line",
+        "row_count": 10,
+        "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+      },
+      {
+        "table_name": "packing_list_posting_execution",
+        "row_count": 12,
+        "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+      },
+      {
+        "table_name": "packing_list_posting_execution_line",
+        "row_count": 28,
+        "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+      },
+      {
+        "table_name": "product",
+        "row_count": 17312,
+        "data_md5": "a28459c63fa6877f490d50433adb21b5"
+      },
+      {
+        "table_name": "product_category",
+        "row_count": 34,
+        "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+      },
+      {
+        "table_name": "product_color",
+        "row_count": 35,
+        "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+      },
+      {
+        "table_name": "product_detail",
+        "row_count": 17281,
+        "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+      },
+      {
+        "table_name": "product_master",
+        "row_count": 4,
+        "data_md5": "aef9714165cac883fe18a8209eb32a16"
+      },
+      {
+        "table_name": "product_neutral",
+        "row_count": 7,
+        "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+      },
+      {
+        "table_name": "product_package",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_node",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_head",
+        "row_count": 12,
+        "data_md5": "cd8e822c38c3df7a9d4428817df9ae8d"
+      },
+      {
+        "table_name": "purchase_order_line",
+        "row_count": 15,
+        "data_md5": "5e215cd9ce7b81555b4680919f3c7b45"
+      },
+      {
+        "table_name": "sales_order_header",
+        "row_count": 6,
+        "data_md5": "34c2ca5ef7ae8e965392348911434b62"
+      },
+      {
+        "table_name": "sales_order_line",
+        "row_count": 6,
+        "data_md5": "6f067eb3a04d808391f00cea90f5c38e"
+      },
+      {
+        "table_name": "supplier",
+        "row_count": 19,
+        "data_md5": "09bccc6f76f62a79be754fea4f2f9493"
+      },
+      {
+        "table_name": "supplier_product",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier_progress_report",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dic_currency",
+        "row_count": 2,
+        "data_md5": "762248714860d82d5984ab6b28f33d5c"
+      },
+      {
+        "table_name": "sys_dic_currency_exchange",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dict_data",
+        "row_count": 29,
+        "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+      },
+      {
+        "table_name": "sys_dict_type",
+        "row_count": 10,
+        "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+      },
+      {
+        "table_name": "sys_permission",
+        "row_count": 112,
+        "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+      },
+      {
+        "table_name": "sys_role",
+        "row_count": 2,
+        "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+      },
+      {
+        "table_name": "sys_role_permission",
+        "row_count": 12,
+        "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+      },
+      {
+        "table_name": "sys_user",
+        "row_count": 10,
+        "data_md5": "a1ed982722fba67d0c27784b597179b5"
+      },
+      {
+        "table_name": "sys_user_role",
+        "row_count": 10,
+        "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+      },
+      {
+        "table_name": "warehouse_site",
+        "row_count": 19,
+        "data_md5": "c79651f40ee0726e13431fcf619e696e"
+      }
+    ],
+    "after": [
+      {
+        "table_name": "after_sales_header",
+        "row_count": 1,
+        "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+      },
+      {
+        "table_name": "after_sales_line",
+        "row_count": 2,
+        "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+      },
+      {
+        "table_name": "bom",
+        "row_count": 17,
+        "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+      },
+      {
+        "table_name": "business_operation_log",
+        "row_count": 106,
+        "data_md5": "d55a5d587ff407a09776d036be522562"
+      },
+      {
+        "table_name": "command_receipt",
+        "row_count": 82,
+        "data_md5": "9dd2810f8f36d911b6fed1a148de41f8"
+      },
+      {
+        "table_name": "customer",
+        "row_count": 15,
+        "data_md5": "df80c099978566d59d626c1506c3ed66"
+      },
+      {
+        "table_name": "customer_po_config",
+        "row_count": 73,
+        "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+      },
+      {
+        "table_name": "customer_product",
+        "row_count": 17005,
+        "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+      },
+      {
+        "table_name": "demand_execution_link",
+        "row_count": 9,
+        "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+      },
+      {
+        "table_name": "document_sequence",
+        "row_count": 31,
+        "data_md5": "22e73c925afd4bdf52ebd9935b9bd02a"
+      },
+      {
+        "table_name": "excel_read_field",
+        "row_count": 10,
+        "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+      },
+      {
+        "table_name": "excel_read_profile",
+        "row_count": 2,
+        "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+      },
+      {
+        "table_name": "gross_demand",
+        "row_count": 8,
+        "data_md5": "5cdb8e70cd6f26fac4894abb5648ed09"
+      },
+      {
+        "table_name": "inbound_document",
+        "row_count": 14,
+        "data_md5": "48f05777b0044451ce93403746c13a0f"
+      },
+      {
+        "table_name": "inbound_document_line",
+        "row_count": 15,
+        "data_md5": "1b1257353f917c3ec502b98bc36beb91"
+      },
+      {
+        "table_name": "inventory_balance",
+        "row_count": 7,
+        "data_md5": "b77720d1622468172ff68875537ed980"
+      },
+      {
+        "table_name": "inventory_ledger_entry",
+        "row_count": 39,
+        "data_md5": "96f1db5bd3902e6898d285802b406689"
+      },
+      {
+        "table_name": "net_demand",
+        "row_count": 7,
+        "data_md5": "c02c03391a4c063b235dce335a9dfb8b"
+      },
+      {
+        "table_name": "outbound_document",
+        "row_count": 8,
+        "data_md5": "8e1c2bab9a5661cd7f8994e2371733af"
+      },
+      {
+        "table_name": "outbound_document_line",
+        "row_count": 8,
+        "data_md5": "46423102e72c1fc7741904d6250fffb1"
+      },
+      {
+        "table_name": "packing_list_head",
+        "row_count": 8,
+        "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+      },
+      {
+        "table_name": "packing_list_line",
+        "row_count": 10,
+        "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+      },
+      {
+        "table_name": "packing_list_posting_execution",
+        "row_count": 12,
+        "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+      },
+      {
+        "table_name": "packing_list_posting_execution_line",
+        "row_count": 28,
+        "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+      },
+      {
+        "table_name": "product",
+        "row_count": 17312,
+        "data_md5": "a28459c63fa6877f490d50433adb21b5"
+      },
+      {
+        "table_name": "product_category",
+        "row_count": 34,
+        "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+      },
+      {
+        "table_name": "product_color",
+        "row_count": 35,
+        "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+      },
+      {
+        "table_name": "product_detail",
+        "row_count": 17281,
+        "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+      },
+      {
+        "table_name": "product_master",
+        "row_count": 4,
+        "data_md5": "aef9714165cac883fe18a8209eb32a16"
+      },
+      {
+        "table_name": "product_neutral",
+        "row_count": 7,
+        "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+      },
+      {
+        "table_name": "product_package",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_node",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_head",
+        "row_count": 12,
+        "data_md5": "cd8e822c38c3df7a9d4428817df9ae8d"
+      },
+      {
+        "table_name": "purchase_order_line",
+        "row_count": 15,
+        "data_md5": "5e215cd9ce7b81555b4680919f3c7b45"
+      },
+      {
+        "table_name": "sales_order_header",
+        "row_count": 6,
+        "data_md5": "34c2ca5ef7ae8e965392348911434b62"
+      },
+      {
+        "table_name": "sales_order_line",
+        "row_count": 6,
+        "data_md5": "6f067eb3a04d808391f00cea90f5c38e"
+      },
+      {
+        "table_name": "supplier",
+        "row_count": 19,
+        "data_md5": "09bccc6f76f62a79be754fea4f2f9493"
+      },
+      {
+        "table_name": "supplier_product",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier_progress_report",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dic_currency",
+        "row_count": 2,
+        "data_md5": "762248714860d82d5984ab6b28f33d5c"
+      },
+      {
+        "table_name": "sys_dic_currency_exchange",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dict_data",
+        "row_count": 29,
+        "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+      },
+      {
+        "table_name": "sys_dict_type",
+        "row_count": 10,
+        "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+      },
+      {
+        "table_name": "sys_permission",
+        "row_count": 112,
+        "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+      },
+      {
+        "table_name": "sys_role",
+        "row_count": 2,
+        "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+      },
+      {
+        "table_name": "sys_role_permission",
+        "row_count": 12,
+        "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+      },
+      {
+        "table_name": "sys_user",
+        "row_count": 10,
+        "data_md5": "a1ed982722fba67d0c27784b597179b5"
+      },
+      {
+        "table_name": "sys_user_role",
+        "row_count": 10,
+        "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+      },
+      {
+        "table_name": "warehouse_site",
+        "row_count": 19,
+        "data_md5": "c79651f40ee0726e13431fcf619e696e"
+      }
+    ],
+    "dataUnchanged": true,
+    "schema": [
+      {
+        "kind": "collations",
+        "object_count": 1,
+        "definition_md5": "4b100e3b566aefdcae816d426d81c24d"
+      },
+      {
+        "kind": "columns",
+        "object_count": 1076,
+        "definition_md5": "fe94b4cb39a74a25f5bcfdf55df06263"
+      },
+      {
+        "kind": "constraints",
+        "object_count": 583,
+        "definition_md5": "7b5cb60c03d565351a49859f11cd72de"
+      },
+      {
+        "kind": "extensions",
+        "object_count": 1,
+        "definition_md5": "05e2e9ea9bafccabd710756a8e28d9f9"
+      },
+      {
+        "kind": "functions",
+        "object_count": 10,
+        "definition_md5": "1d0a96c6f66d54e6cec37b13719629be"
+      },
+      {
+        "kind": "indexes",
+        "object_count": 143,
+        "definition_md5": "712ce501f4baddc4666173c3058840aa"
+      },
+      {
+        "kind": "relations",
+        "object_count": 50,
+        "definition_md5": "bddad193b47b77b8b1bbb9f036001f02"
+      },
+      {
+        "kind": "sequences",
+        "object_count": 1,
+        "definition_md5": "aa0904766dd1bfaeeeffb8f2e5520578"
+      },
+      {
+        "kind": "triggers",
+        "object_count": 10,
+        "definition_md5": "7533d210cb4ef2adb7cb11c297c6535a"
+      }
+    ],
+    "rollbackExecution": {
+      "content": [
+        {
+          "type": "text",
+          "text": "### Statement 1\n0 row(s) affected.\n### Statement 2\n0 row(s) affected.\n### Statement 3\n0 row(s) affected.\n### Statement 4\n0 row(s) affected.\n### Statement 5\n0 row(s) affected.\n### Statement 6\n0 row(s) affected.\n### Statement 7\n0 row(s) affected.\n### Statement 8\n0 row(s) affected.\n### Statement 9\n0 row(s) affected.\n### Statement 10\n0 row(s) affected.\n### Statement 11\n0 row(s) affected.\n### Statement 12\n0 row(s) affected.\n### Statement 13\n0 row(s) affected.\n### Statement 14\n0 row(s) affected.\n### Statement 15\n0 row(s) affected."
+        }
+      ],
+      "structuredContent": {
+        "results": [
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 0
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 1
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 2
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 3
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 4
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 13,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 5
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 6
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 11,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 7
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 3,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 8
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 9
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 10
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 11
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 12
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 13
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 3,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 14
+          }
+        ]
+      },
+      "isError": false
+    },
+    "forwardFinalExecution": {
+      "content": [
+        {
+          "type": "text",
+          "text": "### Statement 1\n0 row(s) affected.\n### Statement 2\n0 row(s) affected.\n### Statement 3\n0 row(s) affected.\n### Statement 4\n0 row(s) affected.\n### Statement 5\n0 row(s) affected.\n### Statement 6\n0 row(s) affected.\n### Statement 7\n0 row(s) affected.\n### Statement 8\n0 row(s) affected.\n### Statement 9\n0 row(s) affected.\n### Statement 10\n0 row(s) affected.\n### Statement 11\n0 row(s) affected.\n### Statement 12\n0 row(s) affected.\n### Statement 13\n0 row(s) affected.\n### Statement 14\n0 row(s) affected.\n### Statement 15\n0 row(s) affected."
+        }
+      ],
+      "structuredContent": {
+        "results": [
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 0
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 1
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 2
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 3
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 4
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 12,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 5
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 6
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 12,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 7
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 4,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 8
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 9
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 10
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 11
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 12
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 13
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 9,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 14
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  "runtime": {
+    "before": [
+      {
+        "table_name": "after_sales_header",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "after_sales_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "bom",
+        "row_count": 17,
+        "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+      },
+      {
+        "table_name": "business_operation_log",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "command_receipt",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "customer",
+        "row_count": 14,
+        "data_md5": "1c7075a0ead2e0fbf7ed7609df048bdb"
+      },
+      {
+        "table_name": "customer_po_config",
+        "row_count": 73,
+        "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+      },
+      {
+        "table_name": "customer_product",
+        "row_count": 17005,
+        "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+      },
+      {
+        "table_name": "demand_execution_link",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "document_sequence",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "excel_read_field",
+        "row_count": 10,
+        "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+      },
+      {
+        "table_name": "excel_read_profile",
+        "row_count": 2,
+        "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+      },
+      {
+        "table_name": "gross_demand",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inbound_document",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inbound_document_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inventory_balance",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inventory_ledger_entry",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "net_demand",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "outbound_document",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "outbound_document_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_head",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_posting_execution",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_posting_execution_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "product",
+        "row_count": 17309,
+        "data_md5": "f27728adeb9a1faa5417ff168decbd27"
+      },
+      {
+        "table_name": "product_category",
+        "row_count": 34,
+        "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+      },
+      {
+        "table_name": "product_color",
+        "row_count": 35,
+        "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+      },
+      {
+        "table_name": "product_detail",
+        "row_count": 17281,
+        "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+      },
+      {
+        "table_name": "product_master",
+        "row_count": 4,
+        "data_md5": "aef9714165cac883fe18a8209eb32a16"
+      },
+      {
+        "table_name": "product_neutral",
+        "row_count": 7,
+        "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+      },
+      {
+        "table_name": "product_package",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_node",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_head",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sales_order_header",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sales_order_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier",
+        "row_count": 15,
+        "data_md5": "4b3285eb0bb84c8f0895ca6041ce3c17"
+      },
+      {
+        "table_name": "supplier_product",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier_progress_report",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dic_currency",
+        "row_count": 2,
+        "data_md5": "762248714860d82d5984ab6b28f33d5c"
+      },
+      {
+        "table_name": "sys_dic_currency_exchange",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dict_data",
+        "row_count": 27,
+        "data_md5": "26636ab2ce518faa0f3de717a1b7dd50"
+      },
+      {
+        "table_name": "sys_dict_type",
+        "row_count": 10,
+        "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+      },
+      {
+        "table_name": "sys_permission",
+        "row_count": 111,
+        "data_md5": "4c5ce93f0208dfa989ee2c64eea0d69b"
+      },
+      {
+        "table_name": "sys_role",
+        "row_count": 2,
+        "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+      },
+      {
+        "table_name": "sys_role_permission",
+        "row_count": 12,
+        "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+      },
+      {
+        "table_name": "sys_user",
+        "row_count": 2,
+        "data_md5": "5c412ed128633511727eaf71885215cd"
+      },
+      {
+        "table_name": "sys_user_role",
+        "row_count": 2,
+        "data_md5": "b5fa2a1f1edd50f5d410ead0cbeff8d7"
+      },
+      {
+        "table_name": "warehouse_site",
+        "row_count": 15,
+        "data_md5": "57cdc16aacfd69a64d782e5a64d4ebd9"
+      }
+    ],
+    "after": [
+      {
+        "table_name": "after_sales_header",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "after_sales_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "bom",
+        "row_count": 17,
+        "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+      },
+      {
+        "table_name": "business_operation_log",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "command_receipt",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "customer",
+        "row_count": 14,
+        "data_md5": "1c7075a0ead2e0fbf7ed7609df048bdb"
+      },
+      {
+        "table_name": "customer_po_config",
+        "row_count": 73,
+        "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+      },
+      {
+        "table_name": "customer_product",
+        "row_count": 17005,
+        "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+      },
+      {
+        "table_name": "demand_execution_link",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "document_sequence",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "excel_read_field",
+        "row_count": 10,
+        "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+      },
+      {
+        "table_name": "excel_read_profile",
+        "row_count": 2,
+        "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+      },
+      {
+        "table_name": "gross_demand",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inbound_document",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inbound_document_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inventory_balance",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inventory_ledger_entry",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "net_demand",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "outbound_document",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "outbound_document_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_head",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_posting_execution",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_posting_execution_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "product",
+        "row_count": 17309,
+        "data_md5": "f27728adeb9a1faa5417ff168decbd27"
+      },
+      {
+        "table_name": "product_category",
+        "row_count": 34,
+        "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+      },
+      {
+        "table_name": "product_color",
+        "row_count": 35,
+        "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+      },
+      {
+        "table_name": "product_detail",
+        "row_count": 17281,
+        "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+      },
+      {
+        "table_name": "product_master",
+        "row_count": 4,
+        "data_md5": "aef9714165cac883fe18a8209eb32a16"
+      },
+      {
+        "table_name": "product_neutral",
+        "row_count": 7,
+        "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+      },
+      {
+        "table_name": "product_package",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_node",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_head",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sales_order_header",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sales_order_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier",
+        "row_count": 15,
+        "data_md5": "4b3285eb0bb84c8f0895ca6041ce3c17"
+      },
+      {
+        "table_name": "supplier_product",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier_progress_report",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dic_currency",
+        "row_count": 2,
+        "data_md5": "762248714860d82d5984ab6b28f33d5c"
+      },
+      {
+        "table_name": "sys_dic_currency_exchange",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dict_data",
+        "row_count": 27,
+        "data_md5": "26636ab2ce518faa0f3de717a1b7dd50"
+      },
+      {
+        "table_name": "sys_dict_type",
+        "row_count": 10,
+        "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+      },
+      {
+        "table_name": "sys_permission",
+        "row_count": 111,
+        "data_md5": "4c5ce93f0208dfa989ee2c64eea0d69b"
+      },
+      {
+        "table_name": "sys_role",
+        "row_count": 2,
+        "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+      },
+      {
+        "table_name": "sys_role_permission",
+        "row_count": 12,
+        "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+      },
+      {
+        "table_name": "sys_user",
+        "row_count": 2,
+        "data_md5": "5c412ed128633511727eaf71885215cd"
+      },
+      {
+        "table_name": "sys_user_role",
+        "row_count": 2,
+        "data_md5": "b5fa2a1f1edd50f5d410ead0cbeff8d7"
+      },
+      {
+        "table_name": "warehouse_site",
+        "row_count": 15,
+        "data_md5": "57cdc16aacfd69a64d782e5a64d4ebd9"
+      }
+    ],
+    "dataUnchanged": true,
+    "schema": [
+      {
+        "kind": "collations",
+        "object_count": 1,
+        "definition_md5": "4b100e3b566aefdcae816d426d81c24d"
+      },
+      {
+        "kind": "columns",
+        "object_count": 1076,
+        "definition_md5": "fe94b4cb39a74a25f5bcfdf55df06263"
+      },
+      {
+        "kind": "constraints",
+        "object_count": 583,
+        "definition_md5": "7b5cb60c03d565351a49859f11cd72de"
+      },
+      {
+        "kind": "extensions",
+        "object_count": 1,
+        "definition_md5": "05e2e9ea9bafccabd710756a8e28d9f9"
+      },
+      {
+        "kind": "functions",
+        "object_count": 10,
+        "definition_md5": "1d0a96c6f66d54e6cec37b13719629be"
+      },
+      {
+        "kind": "indexes",
+        "object_count": 143,
+        "definition_md5": "712ce501f4baddc4666173c3058840aa"
+      },
+      {
+        "kind": "relations",
+        "object_count": 50,
+        "definition_md5": "bddad193b47b77b8b1bbb9f036001f02"
+      },
+      {
+        "kind": "sequences",
+        "object_count": 1,
+        "definition_md5": "aa0904766dd1bfaeeeffb8f2e5520578"
+      },
+      {
+        "kind": "triggers",
+        "object_count": 10,
+        "definition_md5": "7533d210cb4ef2adb7cb11c297c6535a"
+      }
+    ],
+    "forwardExecution": {
+      "content": [
+        {
+          "type": "text",
+          "text": "### Statement 1\n0 row(s) affected.\n### Statement 2\n0 row(s) affected.\n### Statement 3\n0 row(s) affected.\n### Statement 4\n0 row(s) affected.\n### Statement 5\n0 row(s) affected.\n### Statement 6\n0 row(s) affected.\n### Statement 7\n0 row(s) affected.\n### Statement 8\n0 row(s) affected.\n### Statement 9\n0 row(s) affected.\n### Statement 10\n0 row(s) affected.\n### Statement 11\n0 row(s) affected.\n### Statement 12\n0 row(s) affected.\n### Statement 13\n0 row(s) affected.\n### Statement 14\n0 row(s) affected.\n### Statement 15\n0 row(s) affected."
+        }
+      ],
+      "structuredContent": {
+        "results": [
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 3,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 0
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 1
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 2
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 3
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 0,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 4
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 13,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 5
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 6
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 12,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 7
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 32,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 8
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 4,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 9
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 10
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 11
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 12
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 13
+          },
+          {
+            "columns": [],
+            "column_types": [],
+            "column_sortables": [],
+            "rows": [],
+            "affected_rows": 0,
+            "execution_time_ms": 9,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 14
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  "structureBothEqual": true,
+  "backup": {
+    "database": "dv_next_backup_20261004_181602",
+    "access": "本轮只读；未执行DDL或写入",
+    "after": [
+      {
+        "table_name": "after_sales_header",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "after_sales_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "bom",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "business_operation_log",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "command_receipt",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "customer",
+        "row_count": 14,
+        "data_md5": "1c7075a0ead2e0fbf7ed7609df048bdb"
+      },
+      {
+        "table_name": "customer_po_config",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "customer_product",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "demand_execution_link",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "document_sequence",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "excel_read_field",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "excel_read_profile",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "gross_demand",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inbound_document",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inbound_document_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inventory_balance",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "inventory_ledger_entry",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "net_demand",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "outbound_document",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "outbound_document_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_head",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_posting_execution",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "packing_list_posting_execution_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "product",
+        "row_count": 17309,
+        "data_md5": "f27728adeb9a1faa5417ff168decbd27"
+      },
+      {
+        "table_name": "product_category",
+        "row_count": 34,
+        "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+      },
+      {
+        "table_name": "product_color",
+        "row_count": 35,
+        "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+      },
+      {
+        "table_name": "product_detail",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "product_master",
+        "row_count": 4,
+        "data_md5": "aef9714165cac883fe18a8209eb32a16"
+      },
+      {
+        "table_name": "product_neutral",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "product_package",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_confirmation_node",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_head",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "purchase_order_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sales_order_header",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sales_order_line",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier",
+        "row_count": 15,
+        "data_md5": "4b3285eb0bb84c8f0895ca6041ce3c17"
+      },
+      {
+        "table_name": "supplier_product",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "supplier_progress_report",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dic_currency",
+        "row_count": 2,
+        "data_md5": "762248714860d82d5984ab6b28f33d5c"
+      },
+      {
+        "table_name": "sys_dic_currency_exchange",
+        "row_count": 0,
+        "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      {
+        "table_name": "sys_dict_data",
+        "row_count": 27,
+        "data_md5": "26636ab2ce518faa0f3de717a1b7dd50"
+      },
+      {
+        "table_name": "sys_dict_type",
+        "row_count": 10,
+        "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+      },
+      {
+        "table_name": "sys_permission",
+        "row_count": 111,
+        "data_md5": "4c5ce93f0208dfa989ee2c64eea0d69b"
+      },
+      {
+        "table_name": "sys_role",
+        "row_count": 2,
+        "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+      },
+      {
+        "table_name": "sys_role_permission",
+        "row_count": 12,
+        "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+      },
+      {
+        "table_name": "sys_user",
+        "row_count": 2,
+        "data_md5": "5c412ed128633511727eaf71885215cd"
+      },
+      {
+        "table_name": "sys_user_role",
+        "row_count": 2,
+        "data_md5": "b5fa2a1f1edd50f5d410ead0cbeff8d7"
+      },
+      {
+        "table_name": "warehouse_site",
+        "row_count": 15,
+        "data_md5": "57cdc16aacfd69a64d782e5a64d4ebd9"
+      }
+    ],
+    "restoreDrill": "未运行"
+  },
+  "dataDigestSql": "SELECT c.relname table_name,(xpath('/row/row_count/text()',x.doc))[1]::text row_count,(xpath('/row/data_md5/text()',x.doc))[1]::text data_md5 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL (SELECT query_to_xml(format('SELECT count(*) AS row_count, md5(coalesce(string_agg(to_jsonb(t)::text, chr(10) ORDER BY to_jsonb(t)::text), '''')) AS data_md5 FROM public.%I t',c.relname),false,true,'') doc) x WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname",
+  "schemaDigestSql": "-- 只读核对指定PG库public结构；不读取凭据、业务数据或序列当前值，不执行DDL或写入。\nWITH objects AS (\nSELECT 'columns' kind,c.relname||':'||a.attnum key,concat_ws('|',a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attidentity,a.attgenerated,CASE WHEN a.attcollation=0 THEN '' ELSE a.attcollation::regcollation::text END,pg_get_expr(d.adbin,d.adrelid)) definition\nFROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped LEFT JOIN pg_attrdef d ON d.adrelid=c.oid AND d.adnum=a.attnum WHERE n.nspname='public' AND c.relkind IN('r','p','v','m')\nUNION ALL SELECT 'constraints',c.relname||':'||k.conname,concat_ws('|',k.contype,k.condeferrable,k.condeferred,k.convalidated,pg_get_constraintdef(k.oid,true)) FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public'\nUNION ALL SELECT 'indexes',c.relname,pg_get_indexdef(c.oid) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='i'\nUNION ALL SELECT 'triggers',c.relname||':'||t.tgname,concat_ws('|',t.tgenabled,pg_get_triggerdef(t.oid,true)) FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND NOT t.tgisinternal\nUNION ALL SELECT 'functions',p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind IN('f','p')\nUNION ALL SELECT 'collations',c.collname,concat_ws('|',c.collprovider,c.collisdeterministic,c.collencoding,c.collcollate,c.collctype,c.colllocale,c.collversion) FROM pg_collation c JOIN pg_namespace n ON n.oid=c.collnamespace WHERE n.nspname='public'\nUNION ALL SELECT 'sequences',c.relname,concat_ws('|',format_type(s.seqtypid,NULL),s.seqstart,s.seqincrement,s.seqmax,s.seqmin,s.seqcache,s.seqcycle) FROM pg_sequence s JOIN pg_class c ON c.oid=s.seqrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public'\nUNION ALL SELECT 'views',c.relname,pg_get_viewdef(c.oid,true) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('v','m')\nUNION ALL SELECT 'extensions',extname,extversion FROM pg_extension\nUNION ALL SELECT 'relations',c.relname,concat_ws('|',c.relkind,c.relpersistence,c.relrowsecurity,c.relforcerowsecurity,array_to_string(c.reloptions,',')) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN('r','p','v','m')\n)\nSELECT kind,count(*) object_count,md5(string_agg(key||'='||definition,chr(10) ORDER BY key)) definition_md5 FROM objects GROUP BY kind ORDER BY kind"
+}

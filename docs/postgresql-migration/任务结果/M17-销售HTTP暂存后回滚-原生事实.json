@@ -1,0 +1,30 @@
+{
+  "test_name": "RealPg_RuntimeSalesHttpStageFailureRollsBackAndRecovers",
+  "outcome": "Passed",
+  "duration": "00:00:05.1523493",
+  "facts": {
+    "Batch": "a0c0d521-48fc-48c2-bebf-da738188f23a",
+    "SalesId": "78db0c78-2af7-4606-9713-4a3504451697",
+    "LineIds": [
+      "a0c0d521-48fc-48c2-bebf-da738188f23d",
+      "a0c0d521-48fc-48c2-bebf-da738188f23e"
+    ],
+    "Commands": [
+      "a0c0d521-48fc-48c2-bebf-da738188f23a",
+      "a0c0d521-48fc-48c2-bebf-da738188f23b"
+    ],
+    "Pids": [
+      7296
+    ],
+    "StagedRows": 2,
+    "StagedHeadVersion": 2,
+    "StagedNumbers": [
+      6,
+      7
+    ],
+    "SqlState": "22012",
+    "Policy": "仅failure库本批HTTP销售草稿；dv原开发身份；真实暂存后22012回滚及原命令恢复，成功事实保留，无生产/结构/审计规则修改"
+  },
+  "trx_sha256": "FAC4DA4B007B460E2F6A80947EA1461B67A7E3F06F50A6925EF34B92AF999842",
+  "source_sha256": "8E8A8FD5B34590F9F2317081194574DCD51890B16A4AA059A3A4F702B80F59E9"
+}

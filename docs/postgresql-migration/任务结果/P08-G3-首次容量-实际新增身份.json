@@ -1,0 +1,55 @@
+{
+  "supplier": [
+    "5748f17e-3652-44b9-aa16-4a3502ed5d41"
+  ],
+  "warehouse_site": [
+    "be0da779-2a9e-4066-a41a-4a3502f11db4"
+  ],
+  "purchase_order_head": [
+    "1a5adefe-348e-4de5-b2c0-4a3502f11e25"
+  ],
+  "purchase_order_line": [
+    "4d2f758d-062f-43cf-b715-4a3502f11e27"
+  ],
+  "inbound_document": [
+    "d24f78f2-01d0-4185-a86f-4a3502f11f6a",
+    "9f57bb6a-32a8-492b-a34d-4a3502f11f09"
+  ],
+  "inbound_document_line": [
+    "3f3cd116-78e0-4695-8fb5-4a3502f11f70",
+    "a82a409e-baa2-4620-a5d2-4a3502f11f17"
+  ],
+  "inventory_balance": [
+    "c54c4c00-0bd3-4973-b9d8-4a3502f645df"
+  ],
+  "inventory_ledger_entry": [
+    "cbcbe1e9-b55d-4bf7-b009-4a3502f645ef",
+    "c9a3f221-8047-4b55-aebe-4a3502faa1be"
+  ],
+  "document_sequence": [
+    "37a7156a-a4db-46ea-bbe6-4a3502f11e42",
+    "2e61ac5a-0e46-43a4-ac93-4a3502f11f09"
+  ],
+  "command_receipt": [
+    "97fd6fc2-1fd3-4620-888f-4a3502f11dcf",
+    "d12e724a-75cd-4967-b6bb-4a3502f11e66",
+    "6fbe13ac-6fda-4fd4-af79-4a3502f11ee6",
+    "0ab59225-758b-4131-a63e-4a3502f11f30",
+    "0109f162-895e-423e-a33a-4a3502f11f77",
+    "ea5913ee-fbf3-497f-94d2-4a3502f6460c",
+    "d0135229-b811-4796-8610-4a3502faa1d6",
+    "c3b2859f-b245-4f6a-ae71-4a3502faa1f5",
+    "4a50f832-46cf-40c7-be80-4a3502faa263"
+  ],
+  "business_operation_log": [
+    "0105407d-69d1-41ca-a626-4a3502f11dc6",
+    "ad3aca35-0f79-4ed0-a706-4a3502f11e5d",
+    "74b9cd76-89ab-4b3c-80ea-4a3502f11ee6",
+    "0eccd225-7e85-4c0a-8dbb-4a3502f11f2d",
+    "aa960a42-9c1a-4710-bc35-4a3502f11f76",
+    "87063042-53dd-43ed-9536-4a3502f645fe",
+    "4f9c8728-ec12-4437-9c95-4a3502faa1c9",
+    "9556b522-6b45-4dd7-a7a5-4a3502faa1f2",
+    "b6204dcf-eba4-4fb8-9215-4a3502faa258"
+  ]
+}

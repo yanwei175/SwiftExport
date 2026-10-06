@@ -1,7 +1,6 @@
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -10,6 +9,7 @@ using SwiftExport.Application.Services.Inventory.Inbounds;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.WebApi.ErrorHandling;
 using SwiftExport.Core.Interfaces.Data;
+using SwiftExport.Core.Common;
 using SwiftExport.Infrastructure;
 using SwiftExport.Infrastructure.Data;
 
@@ -60,47 +60,46 @@ public sealed class DatabaseBoundaryTests
 
     /// <summary>同一提供者错误仍按不同语义分类，不把唯一冲突、历史门禁和结构错误合并。</summary>
     [TestMethod]
-    [DataRow(2601, DatabaseFailureKind.UniqueConflict)]
-    [DataRow(2627, DatabaseFailureKind.UniqueConflict)]
-    [DataRow(-2, DatabaseFailureKind.Timeout)]
-    [DataRow(1222, DatabaseFailureKind.Timeout)]
-    [DataRow(1205, DatabaseFailureKind.Deadlock)]
-    [DataRow(53, DatabaseFailureKind.ConnectionFailure)]
-    [DataRow(10054, DatabaseFailureKind.ConnectionFailure)]
-    [DataRow(207, DatabaseFailureKind.SchemaMismatch)]
-    [DataRow(208, DatabaseFailureKind.SchemaMismatch)]
-    [DataRow(51001, DatabaseFailureKind.UnverifiedReceiptHistory)]
-    [DataRow(53102, DatabaseFailureKind.Unknown)]
-    public void ProviderErrors_RemainDistinct(int number, DatabaseFailureKind expected)
-        => Assert.AreEqual(expected, SqlServerExceptionClassifier.Instance.Classify(CreateException(number)));
+    [DataRow("23505", DatabaseFailureKind.UniqueConflict)]
+    [DataRow("CLIENT_TIMEOUT", DatabaseFailureKind.Timeout)]
+    [DataRow("55P03", DatabaseFailureKind.Unknown)]
+    [DataRow("40P01", DatabaseFailureKind.Deadlock)]
+    [DataRow("08001", DatabaseFailureKind.ConnectionFailure)]
+    [DataRow("08006", DatabaseFailureKind.ConnectionFailure)]
+    [DataRow("42703", DatabaseFailureKind.SchemaMismatch)]
+    [DataRow("42P01", DatabaseFailureKind.SchemaMismatch)]
+    [DataRow("UNVERIFIED_HISTORY", DatabaseFailureKind.UnverifiedReceiptHistory)]
+    [DataRow("P3102", DatabaseFailureKind.Unknown)]
+    public void ProviderErrors_RemainDistinct(string state, DatabaseFailureKind expected)
+        => Assert.AreEqual(expected, ((IDbConnectionFactory)new PostgreSqlConnectionFactory(string.Empty)).Errors.Classify(CreateException(state)));
 
     /// <summary>取消与未知异常不通过消息或包装异常猜测。</summary>
     [TestMethod]
     public void CancellationAndUnknown_AreNotRetriedOrReinterpreted()
     {
-        Assert.AreEqual(DatabaseFailureKind.Canceled, SqlServerExceptionClassifier.Instance.Classify(new OperationCanceledException()));
-        Assert.AreEqual(DatabaseFailureKind.Unknown, SqlServerExceptionClassifier.Instance.Classify(new Exception("duplicate 2627")));
-        Assert.AreEqual(DatabaseFailureKind.Unknown, SqlServerExceptionClassifier.Instance.Classify(new DBConcurrencyException()));
+        Assert.AreEqual(DatabaseFailureKind.Canceled, PostgreSqlExceptionClassifier.Instance.Classify(new OperationCanceledException()));
+        Assert.AreEqual(DatabaseFailureKind.Unknown, PostgreSqlExceptionClassifier.Instance.Classify(new Exception("duplicate 23505")));
+        Assert.AreEqual(DatabaseFailureKind.Unknown, PostgreSqlExceptionClassifier.Instance.Classify(new DBConcurrencyException()));
     }
 
     /// <summary>提供者分类替换后，入库仍区分版本冲突、结构/历史门禁和结果未知，不改变原 HTTP 协议。</summary>
     [TestMethod]
-    [DataRow(207, ServiceErrorCodes.BusinessBlocked, 422)]
-    [DataRow(51001, ServiceErrorCodes.BusinessBlocked, 422)]
-    [DataRow(2601, ServiceErrorCodes.OutcomeUnknown, 503)]
-    [DataRow(-2, ServiceErrorCodes.OutcomeUnknown, 503)]
-    [DataRow(1205, ServiceErrorCodes.OutcomeUnknown, 503)]
-    public async Task InboundErrorBoundary_PreservesBusinessAndHttpMeaning(int number, string code, int status)
+    [DataRow("42703", ServiceErrorCodes.BusinessBlocked, 422)]
+    [DataRow("UNVERIFIED_HISTORY", ServiceErrorCodes.BusinessBlocked, 422)]
+    [DataRow("23505", ServiceErrorCodes.OutcomeUnknown, 503)]
+    [DataRow("CLIENT_TIMEOUT", ServiceErrorCodes.OutcomeUnknown, 503)]
+    [DataRow("40P01", ServiceErrorCodes.OutcomeUnknown, 503)]
+    public async Task InboundErrorBoundary_PreservesBusinessAndHttpMeaning(string state, string code, int status)
     {
         // 本测试只验证错误转换，授权行为由已有用例测试覆盖。
         var support = new InboundServiceSupport(null!, null!, NullLogger<InboundServiceSupport>.Instance,
-            SqlServerExceptionClassifier.Instance);
-        var result = await support.RunAsync<int>(() => Task.FromException<int>(CreateException(number)),
+            PostgreSqlExceptionClassifier.Instance);
+        var result = await support.RunAsync<int>(() => Task.FromException<int>(CreateException(state)),
             CancellationToken.None, checkPermission: false);
         Assert.AreEqual(code, result.Error.Code);
         Assert.AreEqual(status, ServiceErrorHttpMapper.GetStatusCode(result.Error.Code));
-        if (number == 51001) StringAssert.Contains(result.Error.Message, "历史入库");
-        if (number == 207) StringAssert.Contains(result.Error.Message, "数据库结构");
+        if (state == "UNVERIFIED_HISTORY") StringAssert.Contains(result.Error.Message, "历史入库");
+        if (state == "42703") StringAssert.Contains(result.Error.Message, "数据库结构");
     }
 
     /// <summary>阻断 Application 再次引入 SqlClient、Dapper 或 Infrastructure 程序集依赖。</summary>
@@ -113,37 +112,29 @@ public sealed class DatabaseBoundaryTests
         CollectionAssert.DoesNotContain(references, "Dapper");
     }
 
-    /// <summary>仅在测试内构造 SqlClient 错误集合，验证真实 Number 读取而无需制造远程故障。</summary>
-    private static SqlException CreateException(int number)
+    /// <summary>构造驱动 SQLSTATE、明确超时原因或真实历史检查信号；不通过消息猜测业务含义或访问网络。</summary>
+    private static Exception CreateException(string state) => state switch
     {
-        var errors = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), true)!;
-        var constructor = typeof(SqlError).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .OrderBy(value => value.GetParameters().Length).First();
-        var values = constructor.GetParameters().Select((parameter, index) => index == 0 ? (object)number
-            : parameter.ParameterType == typeof(string) ? "test"
-            : parameter.ParameterType.IsValueType ? Activator.CreateInstance(parameter.ParameterType) : null).ToArray();
-        var error = (SqlError)constructor.Invoke(values);
-        typeof(SqlErrorCollection).GetMethod("Add", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(errors, [error]);
-        return (SqlException)typeof(SqlException).GetMethod("CreateException", BindingFlags.Static | BindingFlags.NonPublic,
-            null, [typeof(SqlErrorCollection), typeof(string)], null)!.Invoke(null, [errors, "test"])!;
-    }
+        "CLIENT_TIMEOUT" => new NpgsqlException("测试超时", new TimeoutException()),
+        "UNVERIFIED_HISTORY" => new UnverifiedReceiptHistoryException(),
+        _ => new PostgresException("测试错误", "ERROR", "ERROR", state)
+    };
 
-    /// <summary>提供者分类器随工厂进入原会话，不引入第二条连接或事务。</summary>
+    /// <summary>接口默认PG分类器随工厂进入共享会话，不引入第二条连接或事务。</summary>
     [TestMethod]
     public void PostgreSqlClassifier_FollowsFactoryIntoSharedSession()
     {
         var connection = new ConnectionStub();
-        using var session = new DbSession(new Factory(connection, PostgreSqlExceptionClassifier.Instance));
+        using var session = new DbSession(new Factory(connection));
         Assert.AreSame(PostgreSqlExceptionClassifier.Instance, session.Errors);
         session.Transaction = connection.BeginTransaction();
         Assert.AreSame(connection, session.Transaction.Connection);
         Assert.AreEqual(1, connection.Opens);
     }
 
-    /// <summary>替身连接工厂，不读取环境配置。</summary>
-    private sealed class Factory(ConnectionStub connection, IDatabaseExceptionClassifier? errors = null) : IDbConnectionFactory
+    /// <summary>只替换连接的工厂，沿用真实接口默认分类器，不读取环境配置。</summary>
+    private sealed class Factory(ConnectionStub connection) : IDbConnectionFactory
     {
-        public IDatabaseExceptionClassifier Errors => errors ?? SqlServerExceptionClassifier.Instance;
         public IDbConnection CreateConnection() => connection;
     }
 

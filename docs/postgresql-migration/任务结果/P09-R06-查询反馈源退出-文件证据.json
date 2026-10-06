@@ -1,0 +1,206 @@
+{
+  "recorded_at": "2026-10-06T08:19:18.1155869+08:00",
+  "stage": "P09-R06",
+  "status": "验证通过：源码退出及22离线契约；实库并发未在本批运行",
+  "names": [
+    "SalesOrderQueryRepository",
+    "SalesOrderFulfillmentQuerySql",
+    "InventoryQueryRepository",
+    "WarehouseQueryRepository",
+    "PurchaseOrderManagerQueryRepository",
+    "PurchaseOrderProgressQueryRepository",
+    "SupplierProgressReportRepository",
+    "GrossDemandQueryRepository"
+  ],
+  "files": [
+    {
+      "name": "GrossDemandQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/GrossDemandQueryRepository.cs",
+      "sha256": "91216558AEAA2448E898203DEBEA8664D29132D64BF9DDBB111E72A935CD2474",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.Workspace.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.Trace.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/GrossDemandSourceGroupingContractTests.cs"
+      ]
+    },
+    {
+      "name": "GrossDemandQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/GrossDemandQueryRepository.Trace.cs",
+      "sha256": "0681BCF88D5E0C868B75B0F9DC364800E707F312C51CE41D7911936474B35B5C",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.Workspace.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.Trace.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Query/PostgreSqlGrossDemandQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/GrossDemandSourceGroupingContractTests.cs"
+      ]
+    },
+    {
+      "name": "InventoryQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Query/InventoryQueryRepository.cs",
+      "sha256": "CEEECC0E869A39808528538605A2093B5F4CA93CE05F78F96EC808BB951FFA96",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Query/PostgreSqlInventoryQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Inventory/InventoryQueryContractTests.cs"
+      ]
+    },
+    {
+      "name": "PurchaseOrderManagerQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PurchaseOrderManagerQueryRepository.cs",
+      "sha256": "CBBC704FB15B85455B21DF5F911FEAA67B81FE321C9FBB461AC80A403AE272A7",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PostgreSqlPurchaseOrderManagerQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Procurement/PurchaseOrderManagerQueryContractTests.cs"
+      ]
+    },
+    {
+      "name": "PurchaseOrderProgressQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PurchaseOrderProgressQueryRepository.cs",
+      "sha256": "16255AA8EB37BBE18489044D19CDFBA514D7538E420BE74FDF3A625B93953442",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PostgreSqlPurchaseOrderProgressQueryRepository.cs",
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PostgreSqlPurchaseOrderProgressQueryRepository.Detail.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Procurement/PurchaseOrderProgressContractTests.cs"
+      ]
+    },
+    {
+      "name": "SalesOrderFulfillmentQuerySql",
+      "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderFulfillmentQuerySql.cs",
+      "sha256": "23A7A598B0696BA14B23CD694223258AA9D54FBBAE1BB3100FB9D5480BDC083F",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.LineFacts.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Fulfillment.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Orders/SalesOrderHeadRepositorySqlContractTests.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.Fulfillment.cs"
+      ]
+    },
+    {
+      "name": "SalesOrderQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.cs",
+      "sha256": "4109BE4DC91899B909BDCBC2C96E64588ED3915C50C00E38C14F8290381B983F",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Fulfillment.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Detail.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Manager.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.LineFacts.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Orders/SalesOrderHeadRepositorySqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "SalesOrderQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/SalesOrderQueryRepository.Fulfillment.cs",
+      "sha256": "ABD0DE21F45B163D1135DDA722A7B6DF629D8C120A9C2299F5F3EEF99F1ED2C8",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Fulfillment.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Detail.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.Manager.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.cs",
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Query/PostgreSqlSalesOrderQueryRepository.LineFacts.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Orders/SalesOrderHeadRepositorySqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "SupplierProgressReportRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/SupplierProgressReportRepository.cs",
+      "sha256": "673B365E508086BA9C77F1607984D403B818985DA139F7BEFD29F6316F138D0F",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Progress/PostgreSqlSupplierProgressReportRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Procurement/PurchaseOrderProgressContractTests.cs"
+      ]
+    },
+    {
+      "name": "WarehouseQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseQueryRepository.cs",
+      "sha256": "3581CDA68980BE4E2A17A7302BA4B4DB534FE307AEFEF170103F92AE9BAF1B8F",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/PostgreSqlWarehouseQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Inventory/InventoryQueryContractTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Orders/SalesOrderHeadRepositorySqlContractTests.cs",
+      "before_sha256": "09F6F01CA0DC3DB0775AF6E94DE10D9F6518731C724460036CFA118D9C872C9C",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "639B0E08499A7B058A660B0C09932C95B1C78C42FC2FE6E8C75FE4F4B716BC29"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Inventory/InventoryQueryContractTests.cs",
+      "before_sha256": "5997A58A424DF2D3CD86869FD65C02048E3BA350BC523C76D66DAC4DDE5CBEE4",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "4F521E53287EBB7480B061D1CD1D3A7DEC40447CE6D53F464B0122C375222E58"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseOrderManagerQueryContractTests.cs",
+      "before_sha256": "97F263A47AD06FBE8865A4660B385B17797EB78D35BD3AEB08A820C10C9CACE8",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "531AC8A60A2E0254F3B349409B8301D2D03A3A06A76E5A4A9EA3283DA6CE0B3D"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseOrderProgressContractTests.cs",
+      "before_sha256": "9A20C2E56EF5196776AA1F328F6840EC85903801507C68FDC17E36538749190C",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "BB5FCB347D2989E3FE3476541439AA84F29B879C1BFACBAF422021A5EF95E366"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/DemandPlanning/GrossDemandSourceGroupingContractTests.cs",
+      "before_sha256": "AB97D55C75F5F543263256D365FB34397C51239BEF7E9519241BE9626DCFA7CB",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "148261C9FA275179456F5F33CF066DD21B47E6B7416D053707555709C98F87A8"
+    }
+  ],
+  "database_run": false,
+  "completed_at": "2026-10-06T08:26:46.8963025+08:00",
+  "execution": {
+    "deletion": "原生用户环境：限定十文件、绝对路径/SHA/HEAD/消费者逐项复核，exit0",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_duration_seconds": 10.07,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R06-查询反馈契约-实际命令.ps1'",
+    "test_exit": 0,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 84,
+    "trx": "TestResults/postgresql-migration/p09-r06-query-progress-contracts-offline.trx",
+    "trx_sha256": "D66617B3F1CC92C958C9B98BF7FC4DD28239C0EA83AB0D4783F2930A4F39FAC4",
+    "database_gates": 14,
+    "excluded_integration_categories": 37,
+    "database_run": false
+  }
+}

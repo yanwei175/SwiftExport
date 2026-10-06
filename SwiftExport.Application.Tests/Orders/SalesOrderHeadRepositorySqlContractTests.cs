@@ -1,4 +1,8 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Reflection;
+using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
+using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Infrastructure.Repositories.SalesOrders.Query;
 
 namespace SwiftExport.Application.Tests.Orders;
 
@@ -14,16 +18,12 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
     [TestMethod]
     public void RepositorySql_MustUseSalesOrderLineDescriptionField()
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
-            "SwiftExport.Infrastructure",
-            "Repositories",
-            "SalesOrders", "Query", "SalesOrderQueryRepository.cs"));
-
-        StringAssert.Contains(source, "keywordLine.DescriptionEn LIKE @Keyword");
-        StringAssert.Contains(source, "l.Sku, l.LinkSku, l.CustomerSku, l.DescriptionEn");
-        Assert.IsFalse(source.Contains("keywordLine.DefaultDescriptionEn", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("l.DefaultDescriptionEn", StringComparison.Ordinal));
+        var where = Sql("CreateManagerWhere", new SalesOrderManagerSearchRequest { Keyword = "description" }, new PostgreSqlParameters());
+        var projection = Sql("DetailLineProjection");
+        StringAssert.Contains(where, "keyword_line.description_en COLLATE public.erp_dictionary_ci LIKE @Keyword");
+        foreach (var column in new[] { "sku", "link_sku", "customer_sku", "description_en" })
+            StringAssert.Contains(projection, "l.\"" + column + "\"");
+        Assert.IsFalse((where + projection).Contains("default_description_en", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -32,27 +32,27 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
     [TestMethod]
     public void RepositorySql_MustNotUseAllocationOutboundCompatibilityChain()
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
-            "SwiftExport.Infrastructure",
-            "Repositories",
-            "SalesOrders", "Query", "SalesOrderQueryRepository.cs"));
-
-        Assert.IsFalse(source.Contains("OutboundDocumentLine", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("OutboundDocument", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("NetDemandAllocation", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("NetDemand", StringComparison.Ordinal));
-        StringAssert.Contains(source, "SalesOrderFulfillmentQuerySql.CreateLineFacts");
-        StringAssert.Contains(source, "f.ShippedQty END AS TotalShippedQty");
-        StringAssert.Contains(source, "f.UnshippedQty END AS TotalUnshippedQty");
-        StringAssert.Contains(source, "facts.ShippedQty, facts.UnshippedQty");
-        var facts = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure",
-            "Repositories", "SalesOrders", "Query", "SalesOrderFulfillmentQuerySql.cs"));
-        StringAssert.Contains(facts, "FROM dbo.GrossDemand g");
-        StringAssert.Contains(facts, "FROM dbo.PackingListLine pl");
-        StringAssert.Contains(facts, "ph.PostingStatus=@Posted");
-        StringAssert.Contains(facts, "DemandBasisFingerprint");
+        var facts = Sql("CreateLineFactsSql");
+        var page = Sql("CreateManagerPageSql");
+        var shippingSql = facts + Sql("CreateManagerFactsSql") + page;
+        // 仅检查交付数量链；独立采购追溯读取需求关联不属于重复计数。
+        foreach (var table in new[] { "outbound_document_line", "outbound_document", "net_demand_allocation", "net_demand" })
+            Assert.IsFalse(shippingSql.Contains("\"" + table + "\"", StringComparison.Ordinal), table);
+        StringAssert.Contains(page, "f.shipped_qty END AS \"TotalShippedQty\"");
+        StringAssert.Contains(page, "f.unshipped_qty END AS \"TotalUnshippedQty\"");
+        var detail = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure",
+            "Repositories", "SalesOrders", "Query", "PostgreSqlSalesOrderQueryRepository.Detail.cs"));
+        StringAssert.Contains(detail, "FreezeLineFactsAsync");
+        StringAssert.Contains(detail, "facts.\"ShippedQty\",facts.\"UnshippedQty\"");
+        StringAssert.Contains(facts, "FROM \"public\".\"gross_demand\" g");
+        StringAssert.Contains(facts, "FROM \"public\".\"packing_list_line\" pl");
+        StringAssert.Contains(facts, "ph.posting_status=@Posted");
+        StringAssert.Contains(facts, "g.demand_basis_fingerprint");
     }
+
+    /// <summary>调用当前 PG 的实际 SQL 生成方法，不建立会话或连接数据库。</summary>
+    private static string Sql(string method, params object[] arguments)
+        => (string)typeof(PostgreSqlSalesOrderQueryRepository).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, arguments)!;
 
     /// <summary>
     /// 从测试运行目录向上定位仓库根目录，供源码契约检查使用。

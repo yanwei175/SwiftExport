@@ -106,6 +106,8 @@ public sealed partial class AutomaticPostingPorts
             await SaveResultAsync(request.CommandId, request.CorrelationId, request.PackingListId, null, operation, fingerprint, result, request.Reason, token);
             return result;
         }
+        // 与正向一致保留PG序列化失败身份；不重新执行反向业务或改变原冲突规则。
+        catch (Exception ex) when (scope.IsSerializationFailure(ex)) { scope.Abort(); throw; }
         catch (Exception ex) { scope.Abort(); throw MapFailure(ex); }
     }
 

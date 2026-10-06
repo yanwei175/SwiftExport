@@ -1,4 +1,4 @@
-using SwiftExport.Application.Services.Auth;
+using SwiftExport.Application.Services.Auth.Passwords;
 using SwiftExport.Tools.AdminPasswordRecovery;
 
 var connectionString = Environment.GetEnvironmentVariable("SWIFTEXPORT_ADMIN_RECOVERY_CONNECTION");
@@ -15,8 +15,9 @@ var password = ReadSecret();
 Console.Write("再次输入新密码: ");
 var confirmation = ReadSecret();
 
+// 恢复入口使用已通过真实PG验收的独立事务存储；保留原环境变量、交互、密码策略与结果契约。
 var executor = new AdminPasswordRecoveryExecutor(
-    new SqlAdminPasswordRecoveryStore(connectionString),
+    new PostgreSqlAdminPasswordRecoveryStore(connectionString),
     new BcryptPasswordHasher());
 var result = await executor.ExecuteAsync(userName, password, confirmation);
 password = null;

@@ -1,0 +1,103 @@
+{
+  "recorded_at": "2026-10-06T07:54:01.7188442+08:00",
+  "stage": "P09-R02",
+  "files": [
+    {
+      "name": "CustomerPoConfigRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Customers/PoConfigs/CustomerPoConfigRepository.cs",
+      "sha256": "64E7BDED9CFD9203E574FC17611472593C8545BD7799EEC454EAB92D0FE762BC",
+      "tracked_head_unmodified": true,
+      "reference_files": [
+        "SwiftExport.Application.Tests/Customers/CustomerPoConfigDefaultsContractTests.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Customers/PoConfigs/PostgreSqlCustomerPoConfigRepository.cs"
+      ]
+    },
+    {
+      "name": "ForExcelPurchaseOrderRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelPurchaseOrderRepository.cs",
+      "sha256": "9B1B107DF2DD4CB09B9AF7A291E2D045B5D1C0AC85018A6E0018084D3AAE1FBA",
+      "tracked_head_unmodified": true,
+      "reference_files": [
+        "SwiftExport.Application.Tests/ForExcel/ForExcelPurchaseOrderContractTests.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/ForExcel/PostgreSqlForExcelPurchaseOrderRepository.cs"
+      ]
+    },
+    {
+      "name": "ForExcelSalesOrderRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelSalesOrderRepository.cs",
+      "sha256": "5F9B59061B250538869D7E1E53E0E54CFE45615996E2CF4EA45C9CA8803CD3B4",
+      "tracked_head_unmodified": true,
+      "reference_files": [
+        "SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderContractTests.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/ForExcel/PostgreSqlForExcelSalesOrderRepository.cs"
+      ]
+    },
+    {
+      "name": "SysDicCurrencyRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Systems/Currencies/SysDicCurrencyRepository.cs",
+      "sha256": "43C7D117D73D39E8E88270C11D2F0DFB54DEB737E29C26E04C433731C1E0991B",
+      "tracked_head_unmodified": true,
+      "reference_files": [
+        "SwiftExport.Application.Tests/Customers/CustomerPoConfigDefaultsContractTests.cs",
+        "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs"
+      ],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Systems/Currencies/PostgreSqlSysDicCurrencyRepository.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/ForExcel/ForExcelPurchaseOrderContractTests.cs",
+      "before_sha256": "68937DBD97DB5CA215D359550EE948C6A28DE1C395B8711277052528308A8CEE",
+      "head_diff": [],
+      "after_sha256": "35C0A8031806288B626D0566E10A0CFBD10D8CA6BFB58ECE9A356AE23E2D88C1"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderContractTests.cs",
+      "before_sha256": "5DFB1F85460EE112E9D3403A0C9E80A25026499948FD1C256624EB8C9C364D3A",
+      "head_diff": [],
+      "after_sha256": "35FE22F866AAD8EC404E457B2395D2CD142D30F75A7EAB40F6B2DA9A62EC90E9"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Customers/CustomerPoConfigDefaultsContractTests.cs",
+      "before_sha256": "5AC875F1ED8BF27A90CA9CBB68AF5514333FF3C155AEC94E5545C142086568CB",
+      "head_diff": [],
+      "after_sha256": "A182B86C6EE6761FC9BCF52189538FB3A5842CA012BF91892AA49BD2F6B57B2A"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs",
+      "before_sha256": "667854D05C2F94AAEB6A1A45E611DC31240AB31D4DC3A2FB46EC522EC4105F16",
+      "head_diff": [],
+      "after_sha256": "7A930AD5DA1D0CE98E26A8E89D5E1EC543F9B69FDB128B9BD07546253FF7389C"
+    }
+  ],
+  "database_writes": false,
+  "status": "验证通过：四份源已退出，必要编译及13定向通过",
+  "verification": {
+    "command": "& './docs/postgresql-migration/任务结果/P09-R02-四仓储契约-实际命令.ps1'",
+    "trx_path": "TestResults/postgresql-migration/p09-r02-four-contracts-offline.trx",
+    "trx_sha256": "C54EDF00F0013C26230CB61C95EE0E3DE627434F9C0ECA33CE3A30EA1F1EC3B7",
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "test_duration_ms": 104,
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_elapsed_seconds": 7.5,
+    "prior_failures": [
+      "首次编译2错误CS0103/CS0246，两测试元数据命名空间缺失；修正后0错误，不改变断言",
+      "powershell.exe 5.1 UTF8脚本解析失败，未启动dotnet或DB；PowerShell 7.6.5直接执行通过"
+    ],
+    "source_identifier_references": 0,
+    "database_run": false,
+    "completed_at": "2026-10-06T07:57:33.7341254+08:00"
+  }
+}

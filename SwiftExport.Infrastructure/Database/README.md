@@ -1,12 +1,14 @@
 # 实体驱动数据库基线
 
+2026-10-06：来源两索引已按现查询的rtrim+ICU规则修正，测试库前向/回退及限定实库通过后同步dv_next；PG生成基线仅两行改变，原列/数据不变。[来源索引验收](../../docs/postgresql-migration/任务结果/P03-来源索引一致性-主控验收.md)记录实际命令和限制；对应来源类型索引变更/回退脚本非幂等，不由宿主自动执行。特殊字符精确源等价按用户决定不再作为前置，其他迁移门禁仍以主清单为准。
+
 后续迁移任务、验证状态和分工统一见 [主迁移清单](../../docs/postgresql-migration/主迁移清单.md)。本文件保留数据库基线与脚本职责说明；下方历批结果不替代当前代码验收。2026-10-04 盘点时备份及故障库只读核验受 DBX 范围限制，尚不能确认当前备份可用，未启动写库测试。
 
 2026-10-05：访问范围已开放，最新历史副本已只读复验。本批账号/仓库/客户 PO 编码索引变更已在专用库演练与验证后同步 dv_next；两库仅三个索引改变，数据及其他结构不变。生成器及 PG 基线同步更新，旧备份保留。具体命令、失败分类和回退见 [P01—P03 结果](../../docs/postgresql-migration/任务结果/P01-P03-基础设施与编码约束.md)；对应变更/回退脚本非幂等，不自动执行，不盲目重跑。
 
 最终数据库目标是 PostgreSQL + Dapper；SQL Server 仅作为迁移期间待淘汰的实现，不再建设长期双库兼容能力。按[当前迁移路线](../../docs/后端整体架构与文件夹职责建议.md)依次完成共享语义收敛、跨连接并发和真实需求一致性、PG 运行接线，再移除旧实现。以下旧批次验收保留历史范围，不表示 SQL Server 将继续作为正式运行选项。
 
-数据库代码预期以 `SwiftExport.Core` 中带 `[Table]` 的持久化 Entity 及其 `DatabaseSchema` 元数据为源，实际部署必须另行核验。当前运行用的SQL Server结构基线是 `Generated/SwiftExport.Schema.sql`；PostgreSQL评审基线是 `Generated/SwiftExport.PostgreSql.Schema.preview.sql`，后者尚未达到部署门槛。两者禁止手工修改，不承担旧库迁移、数据回填或种子数据职责。表和字段中文说明同源于Core XML `<summary>`，分别生成MS_Description和COMMENT。人工维护的数据搬运脚本必须与结构基线分离，并明确限定数据范围。
+数据库代码预期以 `SwiftExport.Core` 中带 `[Table]` 的持久化 Entity 及其 `DatabaseSchema` 元数据为源，实际部署必须另行核验。2026-10-05当前宿主DI及DbSession配置构造入口已统一PG，运行和并发验收状态以主迁移清单最新记录为准。PG实体评审基线是 `Generated/SwiftExport.PostgreSql.Schema.preview.sql`；`Generated/SwiftExport.Schema.sql`只保留源SQL对照，不代表当前运行接线。生成文件不等于已部署或全链验收；SchemaGenerator现默认生成及核验PG评审基线，迁移期间显式 `--provider sqlserver` 仅供旧基线对照，旧分支最终退出仍待P09。两者禁止手工修改，不承担旧库迁移、数据回填或种子数据职责。表和字段中文说明同源于Core XML `<summary>`，分别生成MS_Description和COMMENT。人工维护的数据搬运脚本必须与结构基线分离，并明确限定数据范围。
 
 ## 生成与验证
 
@@ -24,19 +26,21 @@
 1. 修改 Entity 的列映射、`DbIndex`、`DbCheck`、逻辑关系、序列或不可变规则。
 2. 运行 `dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj` 重新生成基线。
 3. 运行 `dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj -- --verify` 检查提交文件是否漂移。
-4. 先确认明确隔离的实例与库名，再执行数据库写入验证，并核对表、列、`MS_Description`、索引、检查约束和序列；`sys.foreign_keys` 必须为零。随机库名或已有备份不能替代目标确认。
+4. 先确认明确隔离的实例、库名及初始化范围，再执行获授权的数据库写入验证。PG核对表、列、COMMENT、索引、检查约束和序列，`pg_constraint` 的外键数量须为零；旧SQL对照核对 `MS_Description` 和 `sys.foreign_keys`。随机库名或已有备份不能替代目标确认，已有库不得擅自清空或重建。
 5. Entity 元数据与生成文件一并提交。
 
-生成器只面向已经创建且没有用户表的 SQL Server 数据库；不会创建或删除数据库。固定、自引用和多态关系只生成可追溯注释与必要索引，严禁生成 `FOREIGN KEY`。业务种子继续由 `_tools/DbSeed` 显式执行。
+生成工具只写本地文件，不连接、创建或删除数据库。生成脚本的初始化执行须另行确认相应提供者的空目标库及授权范围，不用于覆盖现有库。固定、自引用和多态关系只生成可追溯注释与必要索引，严禁生成 `FOREIGN KEY`。业务种子继续由 `_tools/DbSeed` 显式执行。
 
 SQL Server建表器与通用仓储共用 `EntityMetadataCache`，分别保留属性名、物理列名、schema/表名及参数名。当前 `PurchaseOrderLine.Quantity` 仍映射物理 `QTY`；现有对象和SQL Server基线未改变。PostgreSQL通过独立映射和生成器产出小写名称的结构评审脚本，目标测试库已建表并部分导入有效基础数据及账号权限；通用CRUD与部分业务仓储已验收，但运行宿主尚未切换。实体描述代码预期，生成文件不是部署完成证明，逐批核验状态以[架构审查](../../docs/后端整体架构与文件夹职责建议.md)为准。
 
-PostgreSQL本地生成与漂移检查（不连接数据库）：
+PostgreSQL默认本地生成与漂移检查（不连接数据库；显式 `--provider postgresql` 仍有效）：
 
 ```powershell
-dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj -- --provider postgresql
-dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj -- --provider postgresql --verify
+dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj
+dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj -- --verify
 ```
+
+迁移期间旧SQL基线对照：`dotnet run --project .\_tools\SchemaGenerator\SchemaGenerator.csproj -- --provider sqlserver --verify`。2026-10-05默认入口切换仅改变工具选择；实际默认生成及两基线核验均通过，脚本SHA前后相同，未部署DDL，见[本批验收](../../docs/postgresql-migration/任务结果/P06-结构生成默认PG-主控验收.md)。
 
 preview脚本已在测试库落地并完成结构对照和部分写入验收，不代表全业务可切库。产品引用冻结只检查可见事实，缺少并发新增引用协调；非字典编码唯一索引、完整Unicode比较及模块错误协议仍有未完成项。因此不能直接拿此脚本初始化正式环境。默认宿主仍注册SQL Server连接和仓储。
 

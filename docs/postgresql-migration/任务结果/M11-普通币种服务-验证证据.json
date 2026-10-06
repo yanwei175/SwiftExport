@@ -1,0 +1,1106 @@
+{
+  "recorded_at": "2026-10-06 03:47 +08:00",
+  "host": "192.168.3.12",
+  "port": 5432,
+  "database": "dv_next_pg_failure_tests_20261004",
+  "build": {
+    "command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "initial": {
+      "exit_code": 1,
+      "duration_seconds": 2.63,
+      "errors": 2,
+      "reason": "仅新测试ServiceResult访问误用，两个CS1061；未写数据库"
+    },
+    "final": {
+      "exit_code": 0,
+      "errors": 0,
+      "existing_warnings": 7,
+      "duration_seconds": 2.87
+    }
+  },
+  "native": {
+    "test_name": "RealPg_RuntimeCurrencyBatchCrudReferencesAndAtomicRollback",
+    "outcome": "Passed",
+    "duration": "00:00:00.4873386",
+    "facts": {
+      "Batch": "a61b0aa3-54d8-4926-ae04-2b4973eb5100",
+      "CurrencyIds": [
+        "633492fb-a403-4278-89ad-4a35043906a1",
+        "a828a20e-df65-4b4b-800e-4a35043906a9"
+      ],
+      "SupplierId": "fbe00cc1-d78e-45c8-b8fb-4a35043906e9",
+      "Codes": [
+        "P11A61B0A",
+        "P11B61B0A",
+        "P11C61B0A"
+      ],
+      "WritePid": 6512,
+      "ReadPid": 3272,
+      "Policy": "仅failure新非本位资料/普通原服务，2币种1供应商留存，中途写冲突整批回滚/引用拒绝/原软删，不调用全表NULL重置或写旧资料"
+    },
+    "trx_sha256": "576076378346E036C130AE468A5C58A1DEA592C9D06C157906520F4960D791FB"
+  },
+  "native_exit_code": 0,
+  "passed": 1,
+  "failed": 0,
+  "skipped": 0,
+  "source": {
+    "file": "SwiftExport.Application.Tests/Database/PostgreSqlRuntimeWiringTests.cs",
+    "sha256": "CD77483EE2B8D48C2B6ED164DAE774CB27DDA00ED1EC777E041C708663D2313B",
+    "prior_body_sha256": "4AB33DFB3F0ECFC14FD57728684BD5523125F53B8080935AAA6634357DD28C53",
+    "prior_body_byte_equal": true
+  },
+  "guard_sql": "SELECT count(*) AS active_rows,count(*) FILTER(WHERE is_base) AS bases,count(*) FILTER(WHERE is_base AND is_enabled AND rate_to_base=1) AS valid_bases,count(*) FILTER(WHERE NOT is_base AND rate_to_base<=0) AS invalid_nonbase,count(*)-count(DISTINCT lower(currency_code)) AS duplicate_codes FROM public.sys_dic_currency WHERE NOT is_deleted OR is_deleted IS NULL;\nSELECT count(*) AS fixture_rows FROM public.sys_dic_currency WHERE currency_code IN ('P11A61B0A','P11B61B0A','P11C61B0A');\nSELECT count(*) AS supplier_rows FROM public.supplier WHERE supplier_code='PGM11A61B0AA3';\nSELECT count(*) AS other_activity FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND state<>'idle' AND backend_type='client backend';",
+  "guard_result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| active_rows | bases | valid_bases | invalid_nonbase | duplicate_codes |\n|---|---|---|---|---|\n| 2 | 1 | 1 | 0 | 0 |\n(1 rows, 5ms)\n### Statement 2\n| fixture_rows |\n|---|\n| 0 |\n(1 rows, 1ms)\n### Statement 3\n| supplier_rows |\n|---|\n| 0 |\n(1 rows, 2ms)\n### Statement 4\n| other_activity |\n|---|\n| 0 |\n(1 rows, 4ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "active_rows",
+            "bases",
+            "valid_bases",
+            "invalid_nonbase",
+            "duplicate_codes"
+          ],
+          "column_types": [
+            "int8",
+            "int8",
+            "int8",
+            "int8",
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              2,
+              1,
+              1,
+              0,
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 5,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0
+        },
+        {
+          "columns": [
+            "fixture_rows"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 1,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1
+        },
+        {
+          "columns": [
+            "supplier_rows"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 2,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        },
+        {
+          "columns": [
+            "other_activity"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 3
+        }
+      ]
+    },
+    "isError": false
+  },
+  "before": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 115,
+      "data_md5": "d885f3b4f58aa6caf608b7cc4a7a00f5"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 41,
+      "data_md5": "22a6b9eb134119810ed3ece1f1392b33"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 10,
+      "data_md5": "fc122bb20fdc95c8e97cdf3799989872"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 12,
+      "data_md5": "abf052f63a2609f8380eebfbd33ac1b4"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 21,
+      "data_md5": "a5d0d383cb1d57768156d781c63e106b"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 2,
+      "data_md5": "762248714860d82d5984ab6b28f33d5c"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "after": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 115,
+      "data_md5": "d885f3b4f58aa6caf608b7cc4a7a00f5"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 41,
+      "data_md5": "22a6b9eb134119810ed3ece1f1392b33"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 10,
+      "data_md5": "fc122bb20fdc95c8e97cdf3799989872"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 12,
+      "data_md5": "abf052f63a2609f8380eebfbd33ac1b4"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 22,
+      "data_md5": "b6911cb52c897a433e4eb1d74eb743be"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 4,
+      "data_md5": "00962a71fa7a9da5868c1a560c2c160b"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "protected_sql": "SELECT c.relname table_name,(xpath('/row/row_count/text()',x.doc))[1]::text row_count,(xpath('/row/data_md5/text()',x.doc))[1]::text data_md5 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL (SELECT query_to_xml(format('SELECT count(*) AS row_count, md5(coalesce(string_agg(to_jsonb(t)::text, chr(10) ORDER BY to_jsonb(t)::text), '''')) AS data_md5 FROM public.%I t%s',c.relname,CASE c.relname WHEN 'sys_dic_currency' THEN ' WHERE NOT (uid IN (''633492fb-a403-4278-89ad-4a35043906a1'',''a828a20e-df65-4b4b-800e-4a35043906a9''))' WHEN 'supplier' THEN ' WHERE uid<>''fbe00cc1-d78e-45c8-b8fb-4a35043906e9''' ELSE '' END),false,true,'') doc) x WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname",
+  "protected": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 115,
+      "data_md5": "d885f3b4f58aa6caf608b7cc4a7a00f5"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 41,
+      "data_md5": "22a6b9eb134119810ed3ece1f1392b33"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 10,
+      "data_md5": "fc122bb20fdc95c8e97cdf3799989872"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 12,
+      "data_md5": "abf052f63a2609f8380eebfbd33ac1b4"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 21,
+      "data_md5": "a5d0d383cb1d57768156d781c63e106b"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 2,
+      "data_md5": "762248714860d82d5984ab6b28f33d5c"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "all_original_rows_equal": true,
+  "final_sql": "SELECT uid,currency_code,rate_to_base,version,is_base,is_system,is_enabled,is_deleted FROM public.sys_dic_currency WHERE uid IN ('633492fb-a403-4278-89ad-4a35043906a1','a828a20e-df65-4b4b-800e-4a35043906a9') ORDER BY currency_code;\nSELECT uid,supplier_code,currency,version,is_deleted FROM public.supplier WHERE uid='fbe00cc1-d78e-45c8-b8fb-4a35043906e9';\nSELECT count(*) AS rolled_back_currency FROM public.sys_dic_currency WHERE currency_code='P11C61B0A';\nSELECT last_value,is_called FROM public.inventory_ledger_sequence;\nSELECT count(*) AS own_live_backends FROM pg_stat_activity WHERE pid IN (6512,3272);\nSELECT count(*) AS own_advisory FROM pg_locks WHERE locktype='advisory' AND pid IN (6512,3272);",
+  "final_result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| uid | currency_code | rate_to_base | version | is_base | is_system | is_enabled | is_deleted |\n|---|---|---|---|---|---|---|---|\n| 633492fb-a403-4278-89ad-4a35043906a1 | P11A61B0A | 1.750000 | 2 | false | false | true | false |\n| a828a20e-df65-4b4b-800e-4a35043906a9 | P11B61B0A | 2.000000 | 1 | false | false | true | true |\n(2 rows, 4ms)\n### Statement 2\n| uid | supplier_code | currency | version | is_deleted |\n|---|---|---|---|---|\n| fbe00cc1-d78e-45c8-b8fb-4a35043906e9 | PGM11A61B0AA3 | P11A61B0A | 1 | false |\n(1 rows, 3ms)\n### Statement 3\n| rolled_back_currency |\n|---|\n| 0 |\n(1 rows, 1ms)\n### Statement 4\n| last_value | is_called |\n|---|---|\n| 50 | true |\n(1 rows, 1ms)\n### Statement 5\n| own_live_backends |\n|---|\n| 0 |\n(1 rows, 4ms)\n### Statement 6\n| own_advisory |\n|---|\n| 0 |\n(1 rows, 0ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "uid",
+            "currency_code",
+            "rate_to_base",
+            "version",
+            "is_base",
+            "is_system",
+            "is_enabled",
+            "is_deleted"
+          ],
+          "column_types": [
+            "uuid",
+            "varchar",
+            "numeric",
+            "int4",
+            "bool",
+            "bool",
+            "bool",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              "633492fb-a403-4278-89ad-4a35043906a1",
+              "P11A61B0A",
+              "1.750000",
+              2,
+              false,
+              false,
+              true,
+              false
+            ],
+            [
+              "a828a20e-df65-4b4b-800e-4a35043906a9",
+              "P11B61B0A",
+              "2.000000",
+              1,
+              false,
+              false,
+              true,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0,
+          "error_message": "633492fb-a403-4278-89ad-4a35043906a1"
+        },
+        {
+          "columns": [
+            "uid",
+            "supplier_code",
+            "currency",
+            "version",
+            "is_deleted"
+          ],
+          "column_types": [
+            "uuid",
+            "varchar",
+            "varchar",
+            "int4",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              "fbe00cc1-d78e-45c8-b8fb-4a35043906e9",
+              "PGM11A61B0AA3",
+              "P11A61B0A",
+              1,
+              false
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 3,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1,
+          "error_message": "fbe00cc1-d78e-45c8-b8fb-4a35043906e9"
+        },
+        {
+          "columns": [
+            "rolled_back_currency"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 1,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        },
+        {
+          "columns": [
+            "last_value",
+            "is_called"
+          ],
+          "column_types": [
+            "int8",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              50,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 1,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 3
+        },
+        {
+          "columns": [
+            "own_live_backends"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 4
+        },
+        {
+          "columns": [
+            "own_advisory"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 0,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 5
+        }
+      ]
+    },
+    "isError": false
+  },
+  "unverified": [
+    "B03本位币NULL切换按用户决定暂缓",
+    "本批仅实际供应商引用；历史采购引用和九专用方法证据另列，不当作当前全模块重验",
+    "其他业务引用组合/锁竞争及停用完整消费者未在本批运行",
+    "正常dv应用密码登录和运行库写业务、P08最终及P09源退出未完成"
+  ],
+  "scope": "只有现测试文件一个新方法/迁移记录；无生产业务/API/DI/配置/结构变更；不写运行库、RBAC库或备份，不清理本批成功事实，不提交推送"
+}

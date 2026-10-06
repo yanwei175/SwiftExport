@@ -7,7 +7,7 @@ using SwiftExport.Contracts.DTOs.ForExcel.SalesOrders;
 using SwiftExport.WebApi.Controllers.ForExcel;
 namespace SwiftExport.Application.Tests.ForExcel;
 
-/// <summary>验证 HTTP 契约和只读 SQL 结构，不冒充真实 SQL Server 集成测试。</summary>
+/// <summary>验证 HTTP 契约和 PG 只读 SQL 结构，不替代真实 PostgreSQL 集成测试。</summary>
 [TestClass]
 public sealed class ForExcelSalesOrderContractTests
 {
@@ -37,9 +37,10 @@ public sealed class ForExcelSalesOrderContractTests
         var directory=new DirectoryInfo(AppContext.BaseDirectory);
         while(directory is not null && !Directory.Exists(Path.Combine(directory.FullName,"SwiftExport.Infrastructure")))directory=directory.Parent;
         Assert.IsNotNull(directory);
-        var source=File.ReadAllText(Path.Combine(directory.FullName,"SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelSalesOrderRepository.cs"));
-        StringAssert.Contains(source,"cp.CustomerId=@CustomerId");StringAssert.Contains(source,"IN @Skus");
-        StringAssert.Contains(source,"LEFT JOIN dbo.Product");StringAssert.Contains(source,"p.Sku AS Sku");
+        var source=File.ReadAllText(Path.Combine(directory.FullName,"SwiftExport.Infrastructure/Repositories/ForExcel/PostgreSqlForExcelSalesOrderRepository.cs"));
+        StringAssert.Contains(source,"cp.customer_id=@CustomerId");StringAssert.Contains(source,"parameters.AddTexts(\"Skus\", customerSkus)");
+        StringAssert.Contains(source,"= ANY(");StringAssert.Contains(source,"FROM unnest(@Skus)");
+        StringAssert.Contains(source,"LEFT JOIN public.product");StringAssert.Contains(source,"p.sku AS \"Sku\"");
         StringAssert.Contains(source,"@InvoiceNo<>''");StringAssert.Contains(source,"@CustomerPoNo<>''");
         StringAssert.Contains(source,"context.Session.Transaction");StringAssert.Contains(source,"cancellationToken: token");
         Assert.IsFalse(source.Contains("NOLOCK"));Assert.IsFalse(source.Contains("SELECT *"));

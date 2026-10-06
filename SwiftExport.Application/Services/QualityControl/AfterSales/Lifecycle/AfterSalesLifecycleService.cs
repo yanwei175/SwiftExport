@@ -118,7 +118,8 @@ public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
         if (uid == Guid.Empty) return InvalidTarget();
         var result = await executor.ExecuteAsync(command.CommandId, VoidType, uid,
             new { command.Version, command.Reason }, ct => VoidInTransactionAsync(uid, command, ct),
-            token, IsolationLevel.Serializable);
+            token, IsolationLevel.Serializable, beforeTransaction: reception is SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document.ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([uid], [], ct) : null);
         result.Value.AlreadyApplied = result.IsReplay;
         return ServiceResult<CommandExecutionResult<AfterSalesCommandResult>>.Ok(result);
     }

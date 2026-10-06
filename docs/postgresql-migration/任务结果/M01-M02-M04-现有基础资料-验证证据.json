@@ -1,0 +1,1625 @@
+{
+  "recorded_at": "2026-10-06 04:22 +08:00",
+  "host": "192.168.3.12",
+  "port": 5432,
+  "database": "dv_next_pg_failure_tests_20261004",
+  "actual_command": "& docs/postgresql-migration/任务结果/M01-M02-M04-现有基础资料-实际命令.ps1",
+  "filter": "(FullyQualifiedName~PostgreSqlSupplierProductMigrationIntegrationTests|FullyQualifiedName~PostgreSqlSupplierMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductUniquenessIntegrationTests|FullyQualifiedName~PostgreSqlProductSynchronizationIntegrationTests|FullyQualifiedName~PostgreSqlProductSalesLookupIntegrationTests|FullyQualifiedName~PostgreSqlProductNeutralMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductNeutralManagerMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductMasterMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductColorMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductCategoryMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductCatalogMigrationIntegrationTests|FullyQualifiedName~PostgreSqlProductAttachmentsIntegrationTests|FullyQualifiedName~PostgreSqlCustomerProductMigrationIntegrationTests|FullyQualifiedName~PostgreSqlCustomerMigrationIntegrationTests)&FullyQualifiedName!~U200B",
+  "before": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 117,
+      "data_md5": "a119089895f308a6eb61d2691d4db23e"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 42,
+      "data_md5": "24ca8c2c3a47d4a0a8f9eeb9a1492eab"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 11,
+      "data_md5": "8132306b6362a3d3b0fe29f148c4bb32"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 14,
+      "data_md5": "dcac1646ff18d946630d0aff82ae1411"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 22,
+      "data_md5": "b6911cb52c897a433e4eb1d74eb743be"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 4,
+      "data_md5": "00962a71fa7a9da5868c1a560c2c160b"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "after": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 117,
+      "data_md5": "a119089895f308a6eb61d2691d4db23e"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 42,
+      "data_md5": "24ca8c2c3a47d4a0a8f9eeb9a1492eab"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 11,
+      "data_md5": "8132306b6362a3d3b0fe29f148c4bb32"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 14,
+      "data_md5": "dcac1646ff18d946630d0aff82ae1411"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 22,
+      "data_md5": "b6911cb52c897a433e4eb1d74eb743be"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 4,
+      "data_md5": "00962a71fa7a9da5868c1a560c2c160b"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "all_original_rows_unchanged": true,
+  "before_guard": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| last_value | is_called |\n|---|---|\n| 50 | true |\n(1 rows, 2ms)\n### Statement 2\n| other_active |\n|---|\n| 0 |\n(1 rows, 5ms)\n### Statement 3\n| advisory_locks |\n|---|\n| 0 |\n(1 rows, 2ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "last_value",
+            "is_called"
+          ],
+          "column_types": [
+            "int8",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              50,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 2,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0
+        },
+        {
+          "columns": [
+            "other_active"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 5,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1
+        },
+        {
+          "columns": [
+            "advisory_locks"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 2,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        }
+      ]
+    },
+    "isError": false
+  },
+  "final_guard": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| last_value | is_called |\n|---|---|\n| 50 | true |\n(1 rows, 4ms)\n### Statement 2\n| other_active |\n|---|\n| 0 |\n(1 rows, 6ms)\n### Statement 3\n| advisory_locks |\n|---|\n| 0 |\n(1 rows, 2ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "last_value",
+            "is_called"
+          ],
+          "column_types": [
+            "int8",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              50,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0
+        },
+        {
+          "columns": [
+            "other_active"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 6,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1
+        },
+        {
+          "columns": [
+            "advisory_locks"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 2,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        }
+      ]
+    },
+    "isError": false
+  },
+  "excluded_not_run": [
+    "U200B_LimitedComparisonAndUniqueCollision (True)",
+    "U200B_LimitedComparisonAndUniqueCollision (False)"
+  ],
+  "source_changed": false,
+  "schema_changed": false,
+  "build_run": false,
+  "build_reason": "复用上一批最新编译产物，本批源码未变化",
+  "git_commit_push_merge_deploy": false,
+  "native": {
+    "passed": 117,
+    "failed": 0,
+    "skipped": 0,
+    "exit_code": 0,
+    "summary_duration": "10 s",
+    "trx": "TestResults/postgresql-migration/m01-m02-m04-existing-master-data-native.trx",
+    "trx_sha256": "8BF9AA5C1C30BA6FD3F1AC7913FA683FEF6905B92EB797780C220F8A580811ED",
+    "classes": [
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "passed": 11
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+        "passed": 4
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "passed": 7
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "passed": 6
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "passed": 10
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "passed": 6
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "passed": 7
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+        "passed": 4
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+        "passed": 5
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+        "passed": 3
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "passed": 20
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "passed": 25
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+        "passed": 4
+      },
+      {
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+        "passed": 5
+      }
+    ],
+    "results": [
+      {
+        "name": "MasterColorCombination_InsertAndReparentStillReject",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0082648"
+      },
+      {
+        "name": "CustomerFilters_UseCurrentCodesWithoutDuplicateProducts",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.7634806"
+      },
+      {
+        "name": "NullCode_RemainsNotNullViolation (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0075754"
+      },
+      {
+        "name": "ExactTextDifference_ChangesVersionOnce (\"Name \",\"Name\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0093241"
+      },
+      {
+        "name": "SupplierPage_PreservesWildcardAndStablePaging",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0050382"
+      },
+      {
+        "name": "Package_CompositeCollisionShouldRemainProviderExceptionAndRecoverAtSavepoint",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0177904"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"?\",\"Z\",\"XX\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0134503"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,2)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0541330"
+      },
+      {
+        "name": "ColorReads_ObserveRealLockWaitWithoutChangingExistingRows (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0154860"
+      },
+      {
+        "name": "ReadLocks_OnlyProtectExistingMasterWhenRequested (2)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0053564"
+      },
+      {
+        "name": "CodeComparisonAndBatchExclusion_DoNotTrimLeadingSpace",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0157636"
+      },
+      {
+        "name": "Detail_PreservesNonstandardRelationsSnapshotsAndNullableValues",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.1148568"
+      },
+      {
+        "name": "ColorMethods_PreserveOriginalBoundaries",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0260521"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"_\",\"_\",\"X\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0093339"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"master\",False,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0055721"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",True,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0056728"
+      },
+      {
+        "name": "NeutralManagerCrud_PreservesVersionAndOriginalCode",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0180576"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",False,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0045632"
+      },
+      {
+        "name": "Page_KeepsStableImageCategoryBranchesAndNullableProjection",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0489024"
+      },
+      {
+        "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (False,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0278790"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,1)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0606690"
+      },
+      {
+        "name": "SupplierProduct_DisplayAndSnapshotPreserveOptionalJoins",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0458605"
+      },
+      {
+        "name": "ConcurrentCodeInsert_ServerWaitThenSuccessAfterRollback (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0155797"
+      },
+      {
+        "name": "Neutral_CrudAndCancellationPreserveTransaction",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0110253"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"[\",\"[\",\"X\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0072876"
+      },
+      {
+        "name": "Detail_CrudPreservesMappingAndNullableAssociation (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0050505"
+      },
+      {
+        "name": "SupplierCrud_UpdatesVersionWithoutChangingLifecycle",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0044169"
+      },
+      {
+        "name": "Crud_DoesNotGrantLifecycleWritePermission",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0498070"
+      },
+      {
+        "name": "Package_UniquenessShouldPreserveCaseNullAndSoftDeleteBoundaries",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0159737"
+      },
+      {
+        "name": "NeutralReference_BlocksColorUntilSoftDeleted",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0367365"
+      },
+      {
+        "name": "MaintenanceLocks_BlockExistingRowUntilRollback (\"category\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0130100"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,15)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0403205"
+      },
+      {
+        "name": "Page_MapsNullsAndPreservesPatternsAndPaging",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0089818"
+      },
+      {
+        "name": "EquivalentCode_InsertRejectsExactIndex (False,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0101865"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",False,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0046160"
+      },
+      {
+        "name": "ExactTextDifference_ChangesVersionOnce (\"Name​\",\"Name\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0109711"
+      },
+      {
+        "name": "NullCode_RemainsNotNullViolation (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0061784"
+      },
+      {
+        "name": "CustomerCodes_UseCurrentRelationshipsAndKeepInactive",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0354577"
+      },
+      {
+        "name": "EquivalentCode_InsertRejectsExactIndex (True,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0134827"
+      },
+      {
+        "name": "SupplierProduct_PagePreservesScopePatternAndStableIdentity",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0326496"
+      },
+      {
+        "name": "SetDefaultSupplier_PreservesSameValueEmptyGuidAndConcurrency",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0269160"
+      },
+      {
+        "name": "Tree_EnforcesSqlServerDefaultDepthBoundary (101)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0259992"
+      },
+      {
+        "name": "ConcurrentCodeInsert_ServerWaitThenSuccessAfterRollback (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0198955"
+      },
+      {
+        "name": "NeutralManagerPaging_PreservesParentFiltersAndNameFallbacks",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0553888"
+      },
+      {
+        "name": "NeutralManagerReads_ObserveExistingRowLockWait (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0087232"
+      },
+      {
+        "name": "Neutral_DetailsPreserveColorFallbackAndNullableValues",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0247549"
+      },
+      {
+        "name": "Crud_KeepActivationFrozenAndVersionConflicts",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.2082006"
+      },
+      {
+        "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (True,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0242203"
+      },
+      {
+        "name": "Package_CrudPreservesWeightsAndNullableAssociation (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0158046"
+      },
+      {
+        "name": "EquivalentCode_InsertRejectsExactIndex (True,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0082420"
+      },
+      {
+        "name": "SupplierProduct_CrudAndCompositeConstraintKeepExistingSemantics",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0169133"
+      },
+      {
+        "name": "Neutral_DetailLockObservesRealWaitingWithoutOldDataWrites (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0064720"
+      },
+      {
+        "name": "SelectedNullsAndEmptySupplier_ClearExactly",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0120320"
+      },
+      {
+        "name": "DistinctCodeAndSoftDelete_KeepOriginalBoundary (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0164838"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,8)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0364601"
+      },
+      {
+        "name": "ColorCrud_PreservesVersionAndNulls",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0085810"
+      },
+      {
+        "name": "DetailAndCodes_PreserveNullJoinsAndNormalization",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0150126"
+      },
+      {
+        "name": "CustomerLookup_PreservesZeroNullAndRelationshipScope",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0329015"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,4)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0476455"
+      },
+      {
+        "name": "Lookup_PreservesRankWildcardsAndLiteralBackslash",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.8070347"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",False,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0054635"
+      },
+      {
+        "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (True,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0200192"
+      },
+      {
+        "name": "PreCanceledSynchronization_LeavesRowAndCallerTransactionUnchanged",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0103535"
+      },
+      {
+        "name": "Neutral_DetailLockObservesRealWaitingWithoutOldDataWrites (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0055029"
+      },
+      {
+        "name": "PagingContactSearchAndCancellation_UseCallerTransaction",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0181404"
+      },
+      {
+        "name": "ColorReads_ObserveRealLockWaitWithoutChangingExistingRows (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0370923"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,8)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0361107"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"~\",\"~\",\"X\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0150627"
+      },
+      {
+        "name": "CodesAndExclusions_DocumentRawIndexAndQueryEquivalence",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0501588"
+      },
+      {
+        "name": "CrudAndAssignCategory_PreserveActualChangeAndVersion",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0240085"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",False,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0046876"
+      },
+      {
+        "name": "SupplierCodes_CompareAndDeduplicateWithoutChangingStoredText",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0069724"
+      },
+      {
+        "name": "DistinctCodeAndSoftDelete_KeepOriginalBoundary (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0111938"
+      },
+      {
+        "name": "PageAndCrud_PreserveLimitsSearchAndVersion",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:03.7429001"
+      },
+      {
+        "name": "CancellationAndLockPrerequisites_LeaveCallerTransactionUsable",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0019364"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",True,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0052809"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"neutral\",True,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0054738"
+      },
+      {
+        "name": "PlainLookup_PreservesProjectionPatternAndPagination",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.4778849"
+      },
+      {
+        "name": "ExactTextDifference_ChangesVersionOnce (\"Name\",\"name\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0137720"
+      },
+      {
+        "name": "ColorPaging_PreservesBatchKeywordAndStableOrder",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductColorMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0140475"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"master\",True,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0072611"
+      },
+      {
+        "name": "Detail_CrudPreservesMappingAndNullableAssociation (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0280701"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,1)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0402027"
+      },
+      {
+        "name": "Tree_CycleFailsWithoutAbortingCallerTransaction (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0026626"
+      },
+      {
+        "name": "ReadLocks_OnlyProtectExistingMasterWhenRequested (1)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0086633"
+      },
+      {
+        "name": "CollidingUpdate_SavepointPreservesEveryStoredField (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0058570"
+      },
+      {
+        "name": "SourceSynchronization_PreservesSourceAndOptionBoundaries (False,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0212984"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\" \",\"ManyLetters\",\"\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0082615"
+      },
+      {
+        "name": "Tree_IncludesRootAndStopsAtDeletedParent",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0149697"
+      },
+      {
+        "name": "SupplierMethods_PreserveDeletedInactiveAndNullable",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0128852"
+      },
+      {
+        "name": "EmptyAndSpaces_UseSameActiveUniqueKey (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0100496"
+      },
+      {
+        "name": "Lookup_CancellationPropagates",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSalesLookupIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0017707"
+      },
+      {
+        "name": "SupplierProduct_CodeScopesAndBatchExclusionPreserveOriginalText",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0212768"
+      },
+      {
+        "name": "Neutral_CascadePreservesVersionsAuditAndZeroRowSuccess",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0254135"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"\\\",\"\\\",\"X\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0097670"
+      },
+      {
+        "name": "EquivalentCode_InsertRejectsExactIndex (False,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0086435"
+      },
+      {
+        "name": "EmptyAndSpaces_UseSameActiveUniqueKey (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0141559"
+      },
+      {
+        "name": "SoftDeletionAndMissingJoins_KeepEachQueryBoundary",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.4611821"
+      },
+      {
+        "name": "NeutralManagerReads_ObserveExistingRowLockWait (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductNeutralManagerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0707530"
+      },
+      {
+        "name": "Package_CrudPreservesWeightsAndNullableAssociation (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0210318"
+      },
+      {
+        "name": "RepositoryWrite_KnownUniqueConflictReturnsBusinessCode (\"manager\",True,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0052984"
+      },
+      {
+        "name": "SupplierProduct_PurchaseChunkedPairsDoNotCrossMatch",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlSupplierProductMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0198696"
+      },
+      {
+        "name": "OrdinaryReads_DoNotBlockExistingCategoryRowLock",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.1997995"
+      },
+      {
+        "name": "DetailAndPackage_ShouldShareRollbackTransaction",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductAttachmentsIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0091443"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,4)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0451139"
+      },
+      {
+        "name": "CrudAndReferences_KeepVersionAndMasterOnlyDeduplication",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0154135"
+      },
+      {
+        "name": "ReadLocks_OnlyProtectExistingMasterWhenRequested (0)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductMasterMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0110920"
+      },
+      {
+        "name": "DetailsAndPage_MapNullableReferencesAndPackaging",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:01.2137622"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (False,15)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0403564"
+      },
+      {
+        "name": "CodesAndBom_KeepInputAndLifecycleBoundaries",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCatalogMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0828980"
+      },
+      {
+        "name": "DeletedInactiveAndNullableFields_PreserveQueryDifferences",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0497585"
+      },
+      {
+        "name": "Tree_CycleFailsWithoutAbortingCallerTransaction (False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0031179"
+      },
+      {
+        "name": "CollidingUpdate_SavepointPreservesEveryStoredField (True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductUniquenessIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0063455"
+      },
+      {
+        "name": "KeywordRules_KeepLiteralAndWildcardMeaning (\"%\",\"%\",\"X\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCustomerMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0104361"
+      },
+      {
+        "name": "Tree_EnforcesSqlServerDefaultDepthBoundary (100)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0259323"
+      },
+      {
+        "name": "SelectedSynchronization_OnlyChangesRequestedGroupsAndRows (True,2)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductSynchronizationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0489230"
+      },
+      {
+        "name": "MaintenanceLocks_BlockExistingRowUntilRollback (\"master\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlProductCategoryMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0076516"
+      }
+    ],
+    "parallel_workers": 1
+  },
+  "source_hashes": [
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlCustomerMigrationTests.cs",
+      "sha256": "3FF247BA96A7FB6CDD206EF86D1E354820A99036BD883C41C445EE388E3E435D"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlCustomerMigrationTests.Integration.cs",
+      "sha256": "D5835DDCBE955CEBCA3C047834FA5A2EE8A006E513D4B27E790A298ECFB18234"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlCustomerProductMigrationTests.cs",
+      "sha256": "C7FA9D334FF337F9174C4B54EBF54B2B9066C9917270B30DA2FF21A43F4254B2"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlCustomerProductMigrationTests.Integration.cs",
+      "sha256": "467DF6B5B4DB9E46958B0204018052B99D2E81B98275D07A4FD869B7FA3649BA"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductAttachmentsTests.Integration.cs",
+      "sha256": "6B081466929A33937425794049DB32740A5598A676D0CE656CB480D671B7E5B8"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductCatalogMigrationTests.cs",
+      "sha256": "AFAB9F9324314FE3F0304AED98D636E706EB49DA327160A4393C858E4E2D97E5"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductCatalogMigrationTests.Integration.cs",
+      "sha256": "A1AAA2917DC7DEFC636290068A8C0809F13BF4D4065A818750A5D95915FAE8DA"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductCategoryMigrationTests.cs",
+      "sha256": "A22E354F3A2D7AF4FC98769362DD321EB4E075B18EE3B2B1FBA7D3395CC90911"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductCategoryMigrationTests.Integration.cs",
+      "sha256": "B0365D2F5F491B06E53AB1A2DD118A0F5B37D2D3E8FEC6B028A86AD3C236C3E7"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductColorMigrationTests.cs",
+      "sha256": "1D2759A3FE7E943288C530DB229C5DB4E554C403FA623DA9E401AAE61F911E85"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductColorMigrationTests.Integration.cs",
+      "sha256": "7C0B5961AF64B16ADC2A7614FCA33CF5E5429C3438547DF02D89778600D29043"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductMasterMigrationTests.cs",
+      "sha256": "40377C99DFFFE06A67A64421B750A140B898C66495526DDEEF6B31B3773A54D8"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductMasterMigrationTests.Integration.cs",
+      "sha256": "F097963D6F19A943CFEE59FD04C2BA4B733BF8D0DE4A90E9180FF54BEC1443A2"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductNeutralManagerMigrationTests.cs",
+      "sha256": "21AEE0EB0FD93FF9625B3E2EEE542C3796A8BF82A1F2F3C397E04FF9EF2A627B"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductNeutralManagerMigrationTests.Integration.cs",
+      "sha256": "6BBCC462380B9E5A08BA8E5408A2EB0C69F93B8F036939D9E5D820F9E1335518"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductNeutralMigrationTests.cs",
+      "sha256": "A65473358ECCE5DE04D9656D9B12EF910FEF20A25A36A4F86EA206A2B749DCED"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductNeutralMigrationTests.Integration.cs",
+      "sha256": "2EBFDD25BA52CC8C414FB904736C282CFDDACFCDA0A6CF18720FAFDDB6353ECA"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductSalesLookupTests.Integration.cs",
+      "sha256": "FBDA59D5E682DBD828646691B57208C2D6C155D6B4B33952CC3BC0C15180A5BD"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductSynchronizationTests.cs",
+      "sha256": "B0E9AFB624E92813558F16B7491C6F80D3A02328FA98B74083A127A97AFB9576"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductSynchronizationTests.Integration.cs",
+      "sha256": "5C7B982893D25343CC6062C4FE6D8F62AFAF1B07379916B11B45341F24BDAE82"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductUniquenessTests.Concurrency.cs",
+      "sha256": "61016261E45FE8DFF5E098B4C4E085A7EE6C1AA82F389C02358D258BB383FF82"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductUniquenessTests.Helpers.cs",
+      "sha256": "5BBFCBA34013A74B5BE753942D0293F5FF9622236477338F93210C99F336C1C7"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlProductUniquenessTests.Integration.cs",
+      "sha256": "26C76BDAA2CE979FC28EC9D4F02D24463205E28B13C0BD900A102DBE0A45266D"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlSupplierMigrationTests.cs",
+      "sha256": "080BCE29DE9BC2A5629B997D5B7156246B4722A4D9F1D260A967A002B3FAF97D"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlSupplierMigrationTests.Integration.cs",
+      "sha256": "C0B5E0D52223CADB09ED273E3AD5A990CD3077EA5F744DC0A0C6D03DA98061B2"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlSupplierProductMigrationTests.cs",
+      "sha256": "AF6450419AEB2FAF4EC10EA5F577087573C866906B8DD653C02F6B7412083268"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlSupplierProductMigrationTests.Integration.cs",
+      "sha256": "08244FB0839435EFDDE93B60D23E18442742A7F75B2EB2593C826138784D8B8B"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Customers\\CustomerProducts\\PostgreSqlCustomerProductRepository.cs",
+      "sha256": "A387938B9D8B4469296475747FA97326155F9D6D95993FD2AA47C52C01E6BA64"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Customers\\Management\\PostgreSqlCustomerRepository.cs",
+      "sha256": "218CAFD8A481FE6BDFC42B0F536A77F24C29424E9711F3AC3DAEA13954A694C2"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.cs",
+      "sha256": "816BDA9AEF9C7E0496D125912BBE470DFB64FF846F3C83DCDBBF1BEF201DA352"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.Lookup.cs",
+      "sha256": "D4AC3C033DF39EAE64BD2A8D15830DF6FF3836DE929E18A2CC7108DFA9F8B0B6"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.MasterSynchronization.cs",
+      "sha256": "ABAF5A356713A16E8B3B7555FC69252996E265CC0CC42E019620B43489DDE5CB"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.Paging.cs",
+      "sha256": "48E8655ABA689A07ABF800C73FEF4746B3E41DDD00AA2919FA87BF8AECF22595"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.Query.cs",
+      "sha256": "2D9322004F101F2856E0AB92DBAD3A56D0DEE5A780E4730AC62972CE0E636DA1"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.SalesOrderDetail.cs",
+      "sha256": "C07B9CC77BA4C2071A33841E039CA4379ED3CCDA453346345260A8483E2CE81B"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Catalog\\PostgreSqlProductRepository.Supplier.cs",
+      "sha256": "DF80FE02370E8E787BBA3900C00AB3EB09D6379E57D7CA17C0677246DC275B3C"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Categories\\PostgreSqlProductCategoryRepository.cs",
+      "sha256": "664E7862F9D28698ED21F2E4471E1C26A8928041FACB10D8D9525B11727D8FC2"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\Colors\\PostgreSqlProductColorRepository.cs",
+      "sha256": "1C05F6A3FA97366285592CD83B755415E5CA3B84CEEBA928233269E0D14D7E3E"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\ProductMasters\\PostgreSqlProductMasterRepository.cs",
+      "sha256": "27E0B5CC05FE2045199C5EDA58FCB63E1B51EF57FA37BE20DFE4486BA7C8E454"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\ProductNeutrals\\PostgreSqlProductNeutralManagerRepository.cs",
+      "sha256": "861CCF7D6FDC6AB98E62F66D63A055436A4C77A272F953665E3AA7200B0682B2"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\ProductNeutrals\\PostgreSqlProductNeutralRepository.cs",
+      "sha256": "9B0146A94D2D6104717BAE5893E422B3CFA3FA8B003167C57959CDBF4F911521"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Products\\ProductNeutrals\\PostgreSqlProductNeutralWriteConflict.cs",
+      "sha256": "5D573F74AE8FDE6BA31F4E1BDDE9E5A796851B7987E36B41156BC40EEBDA2D22"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Suppliers\\Management\\PostgreSqlSupplierRepository.cs",
+      "sha256": "F302FA3224650513353E99135D4F4FC0CD734FFFD8163EED43DFD05507C130D8"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Suppliers\\SupplierProducts\\PostgreSqlSupplierProductRepository.cs",
+      "sha256": "561FC2F0E5A7C32921B16D747E6035A2505C046F7B5C1CD3C3148FD3273263E2"
+    }
+  ],
+  "testhost_count": 0
+}

@@ -14,6 +14,21 @@ namespace SwiftExport.Application.Tests.Database;
 [TestClass]
 public sealed class PostgreSqlCommandLockLifecycleTests
 {
+    /// <summary>子命令获取响应未知时外层释放必须隔离连接，不把可能带锁的连接归还池。</summary>
+    [TestMethod]
+    public async Task RelatedLease_UnknownAcquisitionDiscardsConnection()
+    {
+        using var fixture = new Fixture(); var id = Guid.NewGuid();
+        var lease = (await fixture.Acquire(id))!;
+        fixture.Connection.Scalar = (_, _) => Task.FromException<object?>(new IOException("测试子命令响应丢失"));
+        await Assert.ThrowsAsync<IOException>(() => PostgreSqlCommandLock.AcquireRelatedBeforeTransactionAsync(
+            fixture.Session, id, [Guid.NewGuid()], default));
+        await lease.DisposeAsync();
+        Assert.IsTrue(fixture.Session.IsUnusable);
+        Assert.AreEqual(ConnectionState.Closed, fixture.Connection.State);
+        Assert.IsNull(fixture.Session.CommandLease);
+    }
+
     /// <summary>日志提供者失效也不能阻止异常连接丢弃，或使清理异常覆盖业务结果。</summary>
     [TestMethod]
     [DataRow(false)]

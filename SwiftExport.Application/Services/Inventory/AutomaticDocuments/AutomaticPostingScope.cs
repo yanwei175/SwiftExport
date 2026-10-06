@@ -126,6 +126,10 @@ public sealed class AutomaticPostingScope(ServiceBaseContext context, IAutomatic
         if (!_ledgerIds.Contains(ledgerId)) Fail("UNDECLARED_RESOURCE", "原流水未提前锁定。", ledgerId);
     }
 
+    /// <summary>使用当前会话既有分类器识别数据库明确终止的序列化事务，供端口保留原异常交给外层；不猜测、不重试。</summary>
+    internal bool IsSerializationFailure(Exception error) =>
+        context.Session.Errors.Classify(error) == SwiftExport.Core.Interfaces.Data.DatabaseFailureKind.SerializationFailure;
+
     /// <summary>沿用库存内核失败语义，回滚并清除事务，禁止调用方误提交先前写入。</summary>
     internal void Abort()
     {

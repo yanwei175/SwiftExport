@@ -10,6 +10,10 @@ namespace SwiftExport.Infrastructure.Repositories.MasterData;
 /// <summary>使用既有主数据表和有效角色权限管理执行资格；表名只来自固定枚举白名单。</summary>
 public sealed class ExecutionEligibilityRepository(RepositoryBaseContext context) : IExecutionEligibilityRepository
 {
+    /// <summary>源SQL Server继续使用原授权HOLDLOCK及目标UPDLOCK读取；准备阶段不增加SQL或改变源事务。</summary>
+    public Task PrepareTargetBeforeSnapshotAsync(ExecutionEligibilityKind kind, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
     /// <summary>在当前事务中锁定活动身份及角色权限，防止授权撤销与资格修改竞态。</summary>
     public async Task<bool> HasExecutionEligibilityPermissionAsync(Guid userId, CancellationToken cancellationToken = default)
     {

@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-10-06T07:57:58.4840684+08:00",
+  "snapshot": "P09-当前源退出引用事实.json/02:39固定2390源码及项目",
+  "expected_deleted_count": 20,
+  "missing": [
+    "SwiftExport.Infrastructure/Repositories/Customers/PoConfigs/CustomerPoConfigRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Auth/Accounts/AuthRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Reversal/ProcurementReversalRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Association/ProcurementDemandAssociationRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Auth/Permissions/UserPermissionRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Products/Colors/ProductColorRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Execution/NetDemandExecutionLinkRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelSalesOrderRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderLineRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Systems/ExchangeRates/SysDicCurrencyExchangeRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Types/SysDictTypeRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/ForExcel/ForExcelPurchaseOrderRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Systems/Currencies/SysDicCurrencyRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/ReferenceRead/ProcurementReferenceReadRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderHeadRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Query/AfterSalesQueryRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PurchaseOrderTraceRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/Auth/Accounts/SysUserRepository.cs",
+    "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Document/AfterSalesDocumentRepository.cs"
+  ],
+  "changed": [
+    "SwiftExport.Application.Tests/Customers/CustomerPoConfigDefaultsContractTests.cs",
+    "SwiftExport.Application.Tests/Database/PostgreSqlRbacServiceTests.Integration.cs",
+    "SwiftExport.Application.Tests/Database/PostgreSqlAuthMigrationTests.Integration.cs",
+    "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs",
+    "SwiftExport.Application.Tests/Database/PostgreSqlCurrencyMigrationTests.Integration.cs",
+    "SwiftExport.Application.Tests/ForExcel/ForExcelPurchaseOrderContractTests.cs",
+    "SwiftExport.Application.Tests/Database/PostgreSqlRuntimeWiringTests.cs",
+    "SwiftExport.Application.Tests/ForExcel/ForExcelSalesOrderContractTests.cs"
+  ],
+  "unexpected_missing": [],
+  "production_changed": []
+}

@@ -12,6 +12,7 @@ using SwiftExport.WebApi.Controllers.Inventory.Warehouses;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using SwiftExport.Infrastructure.Repositories.Inventory.Warehouses;
+using SwiftExport.Infrastructure.Repositories.Inventory.Query;
 using SwiftExport.Application.Interfaces.Inventory.Query;
 using SwiftExport.Application.Interfaces.Inventory.Warehouses;
 using SwiftExport.Application.Services.Inventory.Query;
@@ -145,42 +146,51 @@ public sealed class InventoryQueryContractTests
     [TestMethod]
     public void InventoryRepository_ShouldUseSupplierBusinessColumns()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Query", "InventoryQueryRepository.cs"));
-
-        Assert.IsFalse(source.Contains("s.Code AS SupplierCode", StringComparison.Ordinal));
-        Assert.IsFalse(source.Contains("s.Name AS SupplierName", StringComparison.Ordinal));
-        Assert.AreEqual(2, Count(source, "s.SupplierCode,s.SupplierName"));
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Query", "PostgreSqlInventoryQueryRepository.cs"));
+        var projection = BalanceSelect();
+        Assert.IsFalse(projection.Contains("s.code AS", StringComparison.Ordinal));
+        Assert.IsFalse(projection.Contains("s.name AS", StringComparison.Ordinal));
+        StringAssert.Contains(projection, "s.supplier_code AS \"SupplierCode\"");
+        StringAssert.Contains(projection, "s.supplier_name AS \"SupplierName\"");
+        Assert.AreEqual(2, Count(source, "{BalanceSelect}"), "余额列表与详情必须都使用实际共享投影。");
     }
 
     /// <summary>余额列表与详情仅左连接当前有效产品图片，不得改变余额 count 查询。</summary>
     [TestMethod]
     public void InventoryRepository_ShouldReadLiveProductImageWithoutFilteringBalances()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Query", "InventoryQueryRepository.cs"));
-
-        Assert.AreEqual(2, Count(source, "LEFT JOIN dbo.Product p ON p.Uid=i.ProductId AND ISNULL(p.IsDeleted,0)=0"));
-        Assert.AreEqual(2, Count(source, "p.MainImage AS ImagePath"));
-        StringAssert.Contains(source, "SELECT COUNT(1) FROM dbo.InventoryBalance i JOIN dbo.WarehouseSite w");
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Query", "PostgreSqlInventoryQueryRepository.cs"));
+        var projection = BalanceSelect();
+        StringAssert.Contains(projection, "LEFT JOIN public.product p ON p.uid=i.product_id AND p.is_deleted=FALSE");
+        StringAssert.Contains(projection, "p.main_image AS \"ImagePath\"");
+        Assert.AreEqual(2, Count(source, "{BalanceSelect}"));
+        StringAssert.Contains(source, "SELECT COUNT(1)::integer FROM public.inventory_balance i JOIN public.warehouse_site w ON w.uid=i.warehouse_site_id {where};");
     }
 
     /// <summary>选择器 SQL 仅返回活动未删除仓库，保留非活动供应商显示，并对 LIKE 特殊字符逐一转义。</summary>
     [TestMethod]
     public void WarehousePickerRepository_ShouldKeepFilteringFallbackAndLiteralLikeRules()
     {
-        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "WarehouseQueryRepository.cs"));
+        var source = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Repositories", "Inventory", "Warehouses", "PostgreSqlWarehouseQueryRepository.cs"));
         var pickerStart = source.IndexOf("GetPickerPagedAsync", StringComparison.Ordinal);
         var pickerEnd = source.IndexOf("SearchSupplierLookupAsync", pickerStart, StringComparison.Ordinal);
         var pickerSource = source.Substring(pickerStart, pickerEnd - pickerStart);
-        StringAssert.Contains(pickerSource, "w.IsActive=1");
-        StringAssert.Contains(pickerSource, "ISNULL(w.IsDeleted,0)=0");
-        Assert.IsFalse(pickerSource.Contains("s.IsActive=1", StringComparison.Ordinal));
-        StringAssert.Contains(pickerSource, "COALESCE(s.SupplierCode,w.SupplierCodeSnapshot,N'')");
-        StringAssert.Contains(pickerSource, "COALESCE(s.SupplierName,w.SupplierNameSnapshot,N'')");
-        StringAssert.Contains(pickerSource, "ORDER BY w.Code,w.Uid");
+        StringAssert.Contains(pickerSource, "w.is_active=TRUE");
+        StringAssert.Contains(pickerSource, "COALESCE(w.is_deleted,FALSE)=FALSE");
+        var supplierJoin = (string)typeof(PostgreSqlWarehouseQueryRepository).GetField("SupplierJoin", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetRawConstantValue()!;
+        Assert.IsFalse((pickerSource + supplierJoin).Contains("s.is_active", StringComparison.Ordinal));
+        StringAssert.Contains(pickerSource, "{SupplierJoin}");
+        StringAssert.Contains(pickerSource, "COALESCE(s.supplier_code,w.supplier_code_snapshot,'')");
+        StringAssert.Contains(pickerSource, "COALESCE(s.supplier_name,w.supplier_name_snapshot,'')");
+        StringAssert.Contains(pickerSource, "ORDER BY w.code COLLATE public.erp_dictionary_ci,w.uid");
 
-        var escape = typeof(WarehouseQueryRepository).GetMethod("EscapeLike", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var escape = typeof(PostgreSqlWarehouseQueryRepository).GetMethod("EscapeLike", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
         Assert.AreEqual("~%~_~[~~", escape.Invoke(null, ["%_[~"]));
     }
+
+    /// <summary>读取当前列表和详情共用的 PG 投影，不连接数据库。</summary>
+    private static string BalanceSelect()
+        => (string)typeof(PostgreSqlInventoryQueryRepository).GetField("BalanceSelect", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetRawConstantValue()!;
 
     private static int Count(string source, string value)
     {

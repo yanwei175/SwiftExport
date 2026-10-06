@@ -1,4 +1,5 @@
 using Npgsql;
+using SwiftExport.Core.Common;
 using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Infrastructure.Data;
@@ -12,6 +13,8 @@ public sealed class PostgreSqlExceptionClassifier : IDatabaseExceptionClassifier
     /// <summary>保留取消、唯一、死锁、序列化、连接和结构的区别；服务端取消不推断发起来源。</summary>
     public DatabaseFailureKind Classify(Exception exception) => exception switch
     {
+        // 仅由真实历史检查抛出的专用信号；不凭任意RAISE/message推断业务含义。
+        UnverifiedReceiptHistoryException => DatabaseFailureKind.UnverifiedReceiptHistory,
         OperationCanceledException => DatabaseFailureKind.Canceled,
         PostgresException { SqlState: "23505" } => DatabaseFailureKind.UniqueConflict,
         PostgresException { SqlState: "40P01" } => DatabaseFailureKind.Deadlock,

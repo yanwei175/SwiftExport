@@ -1,0 +1,139 @@
+{
+  "recorded_at": "2026-10-06T08:37:46.2393337+08:00",
+  "stage": "P09-R08",
+  "status": "旧源码退出/构建及16相关契约通过；1既有Q01失败保留，非全绿",
+  "names": [
+    "GrossDemandDocumentRepository",
+    "MaterialDemandDocumentRepository",
+    "MaterialDemandQueryRepository",
+    "MaterialDemandSourceRepository"
+  ],
+  "files": [
+    {
+      "name": "GrossDemandDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Document/GrossDemandDocumentRepository.cs",
+      "sha256": "6899897CC1094BF22B975DDB789CB5865576BB16E2DF93D7EE9E941950689A15",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Document/PostgreSqlGrossDemandDocumentRepository.MaterialPreparation.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Sources/Document/PostgreSqlGrossDemandDocumentRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+        "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+        "SwiftExport.Application.Tests/Orders/SalesOrderCancellationSqlContractTests.cs",
+        "SwiftExport.Application.Tests/Orders/SalesSourceDemandAndFulfillmentContractTests.cs"
+      ]
+    },
+    {
+      "name": "MaterialDemandDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Document/MaterialDemandDocumentRepository.cs",
+      "sha256": "881CA27DC396863CF9C3B83F9AAAC3037D0C71508B2D4356976684B2C9502810",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Document/PostgreSqlMaterialDemandDocumentRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+        "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+        "SwiftExport.Application.Tests/Orders/SalesOrderCancellationSqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "MaterialDemandQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/MaterialDemandQueryRepository.cs",
+      "sha256": "353A9C70DB92647A07B666F06D40A0FB6D052B0988AC18FD847DCA5680C4AA1D",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/PostgreSqlMaterialDemandQueryRepository.Trace.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/PostgreSqlMaterialDemandQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "MaterialDemandQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/MaterialDemandQueryRepository.Trace.cs",
+      "sha256": "58A817BA1F29C7ECFA912513FBB0FDD25496643202483E538C3006612E1BA8A9",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/PostgreSqlMaterialDemandQueryRepository.Trace.cs",
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Query/PostgreSqlMaterialDemandQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "MaterialDemandSourceRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Sources/MaterialDemandSourceRepository.cs",
+      "sha256": "1D26BE4F2D5C496868DA4EF97533207845E81A6F7E319AAD0842B1DF7A99B7B8",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Sources/PostgreSqlMaterialDemandSourceRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+        "SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/DemandPlanning/MaterialDemandEstablishmentContractTests.cs",
+      "before_sha256": "E1E95B5EF6680B37B1AB8F6B18ECADD13A983FC6B0B83959A14F2E5262665988",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "2D586F21B482DEB1168452213B89CB69B0441E47D92058D067B3731723E02709"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/DemandPlanning/NetDemandManagerSqlContractTests.cs",
+      "before_sha256": "35EFA5402C5164E0BA9E3FEB34A68CB77A36746026C7049E70839F1896F5F6B0",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "DBFCF639DE67155636946FF0764D59402044935C538087C8A5CA727389AF4575"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/DemandPlanning/SourceDemandDeliveryContractTests.cs",
+      "before_sha256": "9367E690CE0D1519C21B5C116F138D255700932D92894DBD27CED7ED8222CE78",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "0FDA0D37C0D4DEEC71A61E7151CCEF204A2F828A5C34687468A27D7B90F7038D"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Orders/SalesOrderCancellationSqlContractTests.cs",
+      "before_sha256": "90FDBE5683CE7E023AA97CE1B6DB80FC6235C5A7BE6C543C88330EA1CECD4373",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "AAF50A66B0EA075C28D4AD2CA44B373FCE491762D11B7ED8EB53B5E3AD4E47D8"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Orders/SalesSourceDemandAndFulfillmentContractTests.cs",
+      "before_sha256": "05ED57134C56CE0E753FFCD1DB668F8BBA83CC7AA352814E56F8ED974E376C3E",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "2439B3C2748282CB12C714B77F28A144873CEEE06BDCE20981D9C30B6B03CB86"
+    }
+  ],
+  "known_failure": "MaterialDemandEstablishmentContractTests.SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository：原API已有GetTraceAsync，保留静态禁止断言；P08既有范围外失败，不修业务/删除断言",
+  "database_run": false,
+  "completed_at": "2026-10-06T08:43:05.2493486+08:00",
+  "execution": {
+    "deletion": "原生用户环境绝对路径/SHA/HEAD/当前消费者逐项复核后限定五文件Remove-Item，exit0",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_seconds": 4.08,
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R08-来源物料契约-实际命令.ps1'",
+    "test_exit": 1,
+    "passed": 16,
+    "failed": 1,
+    "skipped": 0,
+    "duration_ms": 72,
+    "failed_test": "SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository",
+    "failure_classification": "Q01既有范围外API/静态断言冲突，实际API和有效禁止断言保持，非本批回归",
+    "unexecuted": "SourceBoundary方法失败点之后的服务无INetDemandRepository/无INetDemandAllocationRepository及PG仓储无HasSourceCancellationBlockerAsync/无GetNetDemandHistoryCountsForUpdateAsync四断言未执行；不标本方法或后续断言通过",
+    "trx": "TestResults/postgresql-migration/p09-r08-demand-contracts-offline.trx",
+    "trx_sha256": "A8FC8BB7848BD375C302F766254524EB4E6D0371131DE239555581999F8AD46E",
+    "database_gates": 14,
+    "excluded_integration_categories": 37,
+    "database_run": false
+  }
+}

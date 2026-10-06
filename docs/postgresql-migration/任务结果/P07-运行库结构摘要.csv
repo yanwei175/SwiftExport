@@ -1,0 +1,10 @@
+kind,object_count,definition_md5
+collations,1,4b100e3b566aefdcae816d426d81c24d
+columns,1076,fe94b4cb39a74a25f5bcfdf55df06263
+constraints,583,7b5cb60c03d565351a49859f11cd72de
+extensions,1,05e2e9ea9bafccabd710756a8e28d9f9
+functions,10,1d0a96c6f66d54e6cec37b13719629be
+indexes,143,0e5bde04792f9d276e8c926acddee08f
+relations,50,bddad193b47b77b8b1bbb9f036001f02
+sequences,1,aa0904766dd1bfaeeeffb8f2e5520578
+triggers,10,7533d210cb4ef2adb7cb11c297c6535a

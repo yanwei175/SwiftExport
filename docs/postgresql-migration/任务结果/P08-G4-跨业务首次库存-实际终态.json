@@ -1,0 +1,112 @@
+[
+  {
+    "fact": "balance",
+    "value": {
+      "qty": 0,
+      "uid": "19170e60-79cd-4926-b3f8-4a35030e94f5",
+      "version": 7,
+      "last_sequence": 36
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "uid": "d66bb4f7-a208-4a8a-9a6f-4a35030e94f9",
+      "item": "17c7a8b5-515f-9a30-81c5-d9cb2d796853",
+      "type": 12,
+      "delta": 1,
+      "command": "cb959f87-c669-a1b5-3ddf-2e432204691e",
+      "reverses": null,
+      "sequence": 31
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "uid": "fbb62955-dce8-4e4a-9708-4a35030e951e",
+      "item": "85465043-1bcc-73a7-be24-22ef1fda5753",
+      "type": 20,
+      "delta": -1,
+      "command": "2c23f4cd-fd19-42b5-1999-83b705a18369",
+      "reverses": null,
+      "sequence": 32
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "uid": "bfea0253-77c7-4086-825c-4a35030e954a",
+      "item": "94947ec4-1ef6-4e58-bebc-4a35030e91c2",
+      "type": 10,
+      "delta": 2,
+      "command": "e4ef52de-638f-45fa-991c-8fd9c66bb70b",
+      "reverses": null,
+      "sequence": 33
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "uid": "4228aaa0-9ef2-432c-ae35-4a35030e9662",
+      "item": "7e8e693e-f47a-b249-b713-c3f85a4f51bf",
+      "type": 900,
+      "delta": 1,
+      "command": "0ed47379-74da-e358-05ab-36c001663468",
+      "reverses": "fbb62955-dce8-4e4a-9708-4a35030e951e",
+      "sequence": 34
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "uid": "ec2b2187-7a6b-4c61-9005-4a35030e9679",
+      "item": "bc336b35-3b77-966f-699f-c591bfdcb7ce",
+      "type": 900,
+      "delta": -1,
+      "command": "fb6b7695-0de8-a951-51da-dff12ddeba3a",
+      "reverses": "d66bb4f7-a208-4a8a-9a6f-4a35030e94f9",
+      "sequence": 35
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "uid": "a1853691-d519-4896-8b13-4a35030e96c4",
+      "item": "286cf24e-dba9-4f5c-9417-4a35030e96b9",
+      "type": 900,
+      "delta": -2,
+      "command": "e4ef52de-638f-45fa-991c-8fd9c66bb70d",
+      "reverses": "bfea0253-77c7-4086-825c-4a35030e954a",
+      "sequence": 36
+    }
+  },
+  {
+    "fact": "sequence",
+    "value": {
+      "is_called": true,
+      "last_value": 36
+    }
+  },
+  {
+    "fact": "cleanup",
+    "value": {
+      "activity": 0,
+      "advisory": 0
+    }
+  },
+  {
+    "fact": "shared_original_sequence",
+    "value": {
+      "uid": "81c56363-0544-4381-96b6-4a35028ebec0",
+      "version": 1,
+      "doc_type": "PO",
+      "created_by": null,
+      "current_no": 3,
+      "is_deleted": false,
+      "updated_by": null,
+      "year_month": "202610",
+      "created_date": "2026-10-05T11:55:09.944165",
+      "updated_date": "2026-10-05T14:14:46.990917"
+    }
+  }
+]

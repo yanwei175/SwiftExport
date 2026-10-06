@@ -14,10 +14,10 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     {
         Assert.IsNotNull(typeof(ProductMasterSearchRequest).GetProperty(nameof(ProductMasterSearchRequest.IncludeUncategorized)));
         AssertRepositoryFilter(
-            "ProductMasterRepository.cs",
-            "pm.CategoryId IN @CategoryIds",
-            "pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL",
-            "pm.CategoryId IN @CategoryIds OR pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL");
+            "PostgreSqlProductMasterRepository.cs",
+            "pm.category_id=ANY(@Uids)",
+            "pm.category_id=@EmptyGuid OR pm.category_id IS NULL",
+            "pm.category_id=ANY(@Uids) OR pm.category_id=@EmptyGuid OR pm.category_id IS NULL");
     }
 
     /// <summary>中性产品必须按所属主型号分类应用相同组合语义。</summary>
@@ -25,23 +25,34 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     public void ProductNeutral_ShouldUseOwningMasterCategoryFilter()
     {
         AssertRepositoryFilter(
-            "ProductNeutralManagerRepository.cs",
-            "pm.CategoryId IN @CategoryIds",
-            "pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL",
-            "pm.CategoryId IN @CategoryIds OR pm.CategoryId=@EmptyGuid OR pm.CategoryId IS NULL");
+            "PostgreSqlProductNeutralManagerRepository.cs",
+            "pm.category_id=ANY(@CategoryIds)",
+            "pm.category_id=@EmptyGuid OR pm.category_id IS NULL",
+            "pm.category_id=ANY(@CategoryIds) OR pm.category_id=@EmptyGuid OR pm.category_id IS NULL");
     }
 
     /// <summary>产品分页和 Lookup 必须经 ProductMasterId 读取及筛选分类，不得回读废弃列。</summary>
     [TestMethod]
     public void ProductQueries_ShouldUseOwningMasterCategory()
     {
-        var source = ReadRepository("Products/Catalog", "ProductRepository.cs");
-        StringAssert.Contains(source, "p.{nameof(Product.ProductMasterId)} = pm.{nameof(ProductMaster.Uid)}");
-        StringAssert.Contains(source, "pm.{nameof(ProductMaster.CategoryId)} = @CategoryId");
-        StringAssert.Contains(source, "pm.{nameof(ProductMaster.CategoryId)} IN @CategoryIds");
-        StringAssert.Contains(source, "N'未分类'");
-        StringAssert.Contains(source, "N'分类已失效'");
-        Assert.IsFalse(source.Contains("p.{nameof(Product.CategoryId)}", StringComparison.Ordinal));
+        var paging = ReadRepository("Products/Catalog", "PostgreSqlProductRepository.Paging.cs");
+        StringAssert.Contains(paging, "pm.category_id=@CategoryId");
+        StringAssert.Contains(paging, "pm.category_id=ANY(@CategoryIds)");
+        StringAssert.Contains(paging, "parameters.AddIds(\"CategoryIds\", categoryIds)");
+        StringAssert.Contains(paging, "{CatalogClassificationColumns}");
+        StringAssert.Contains(paging, "{CatalogQueryJoins}");
+        foreach (var source in new[]
+                 {
+                     ReadRepository("Products/Catalog", "PostgreSqlProductRepository.Query.cs"),
+                     ReadRepository("Products/Catalog", "PostgreSqlProductRepository.Lookup.cs")
+                 })
+        {
+            StringAssert.Contains(source, "LEFT JOIN public.product_master pm ON pm.uid=p.product_master_id");
+            StringAssert.Contains(source, "'未分类'");
+            StringAssert.Contains(source, "'分类已失效'");
+            Assert.IsFalse(source.Contains("p.category_id", StringComparison.Ordinal));
+        }
+        Assert.IsFalse(paging.Contains("p.category_id", StringComparison.Ordinal));
     }
 
     /// <summary>客户和供应商产品的分类展示必须通过所属主型号联表得到。</summary>
@@ -50,14 +61,14 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     {
         foreach (var source in new[]
                  {
-                     ReadRepository("Customers/CustomerProducts", "CustomerProductRepository.cs"),
-                     ReadRepository("Suppliers/SupplierProducts", "SupplierProductRepository.cs")
+                     ReadRepository("Customers/CustomerProducts", "PostgreSqlCustomerProductRepository.cs"),
+                     ReadRepository("Suppliers/SupplierProducts", "PostgreSqlSupplierProductRepository.cs")
                  })
         {
-            StringAssert.Contains(source, "ProductMaster");
-            StringAssert.Contains(source, "pm.CategoryId");
-            StringAssert.Contains(source, "N'未分类'");
-            StringAssert.Contains(source, "N'分类已失效'");
+            StringAssert.Contains(source, "LEFT JOIN public.product_master pm ON pm.uid=p.product_master_id");
+            StringAssert.Contains(source, "pm.category_id");
+            StringAssert.Contains(source, "'未分类'");
+            StringAssert.Contains(source, "'分类已失效'");
         }
     }
 
@@ -65,8 +76,9 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     [TestMethod]
     public void CategoryReferenceCheck_ShouldOnlyUseProductMaster()
     {
-        var source = ReadRepository("Products/Categories", "ProductCategoryRepository.cs");
-        StringAssert.Contains(source, "ProductMasterTable");
+        var source = ReadRepository("Products/Categories", "PostgreSqlProductCategoryRepository.cs");
+        StringAssert.Contains(source, "SELECT pm.category_id FROM public.product_master pm");
+        Assert.IsFalse(source.Contains("FROM public.product ", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("GetTableName<Product>()", StringComparison.Ordinal));
     }
 
@@ -81,12 +93,14 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
     /// <summary>检查仓储先清理空标识和重复值，再生成三个参数化分类条件。</summary>
     private static void AssertRepositoryFilter(string fileName, params string[] expectedFragments)
     {
-        var resource = fileName == "ProductMasterRepository.cs" ? "Products/ProductMasters" : "Products/ProductNeutrals";
+        var resource = fileName == "PostgreSqlProductMasterRepository.cs" ? "Products/ProductMasters" : "Products/ProductNeutrals";
         var source = ReadRepository(resource, fileName);
 
         StringAssert.Contains(source, "Where(id => id != Guid.Empty).Distinct().ToArray()");
+        StringAssert.Contains(source, fileName == "PostgreSqlProductMasterRepository.cs"
+            ? "PostgreSqlParameters.Ids(categoryIds)" : "parameters.Add(\"CategoryIds\", categoryIds)");
         foreach (var fragment in expectedFragments) StringAssert.Contains(source, fragment);
-        Assert.IsFalse(source.Contains("CategoryId IN (", StringComparison.OrdinalIgnoreCase), "分类值不得拼接进 SQL。");
+        Assert.IsFalse(source.Contains("category_id IN (", StringComparison.OrdinalIgnoreCase), "分类值不得拼接进 SQL。");
     }
 
     /// <summary>读取指定业务目录下的仓储源码，用于约束分类联表边界。</summary>

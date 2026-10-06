@@ -1,0 +1,37 @@
+{
+  "outcome": "Passed",
+  "duration": "00:00:01.0595062",
+  "facts": {
+    "Batch": "36b5e4cf-f981-4356-bc94-54f8a8a69100",
+    "Prefix": "PGM03-36b5e4cf",
+    "ProductIds": [
+      "a0d0986a-981b-498d-9127-4a35040fc82c",
+      "578d52ce-96be-4388-856a-4a35040fc840",
+      "b1932f3b-0291-4e4d-9622-4a35040fc843"
+    ],
+    "BomId": "a7f00705-cfa2-4f15-98df-4a35040fc8a0",
+    "SalesId": "1164f09b-24d4-437c-b49d-4a35040fc955",
+    "LineIds": [
+      "36b5e4cf-f981-4356-bc94-54f8a8a69103",
+      "36b5e4cf-f981-4356-bc94-54f8a8a69104"
+    ],
+    "GrossIds": [
+      "0cb8db04-32eb-454a-831a-4a35040fc9b5",
+      "86157fd4-900c-49b8-b9e5-4a35040fc9bd"
+    ],
+    "NetIds": [
+      "5a6090d1-5a7e-4d3a-8933-4a35040fca08",
+      "ad2107ae-ee8c-4718-8fdc-4a35040fca08",
+      "26fc80e7-def8-429e-bc15-4a35040fca14",
+      "2321e14a-b8e2-4109-b4d1-4a35040fca14"
+    ],
+    "CommandIds": [
+      "36b5e4cf-f981-4356-bc94-54f8a8a69100",
+      "36b5e4cf-f981-4356-bc94-54f8a8a69101",
+      "36b5e4cf-f981-4356-bc94-54f8a8a69102"
+    ],
+    "WritePid": 7948,
+    "ReadPid": 2160,
+    "Policy": "仅failure明确首次批次；三个局部产品夹具，真实BOM保存/销售来源/需求服务；成功事实留存，不写运行库或备份"
+  }
+}

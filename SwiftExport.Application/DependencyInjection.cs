@@ -222,7 +222,7 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseOrderTraceService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Trace.PurchaseOrderTraceService>();
         services.AddScoped<IPurchaseOrderProgressQueryService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.PurchaseOrderProgressQueryService>();
         services.AddScoped<IPurchaseOrderProgressReportService, SwiftExport.Application.Services.Procurement.PurchaseOrders.Progress.PurchaseOrderProgressReportService>();
-        services.AddScoped<IBomExecutionReader, SwiftExport.Application.Services.Products.Execution.BomExecutionReader>();
+        // 旧递归BOM读取器经消费者审计无业务调用，退出注册；当前单层物料建立链保持原依赖。
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IExecutionEligibilityService, SwiftExport.Application.Services.MasterData.ExecutionEligibilityService>();
         services.AddScoped<SwiftExport.Application.Interfaces.MasterData.IProcurementMasterDataQueryService, SwiftExport.Application.Services.MasterData.ProcurementMasterDataQueryService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();

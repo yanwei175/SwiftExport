@@ -1,0 +1,160 @@
+{
+  "recorded_at": "2026-10-06T08:08:57.9523149+08:00",
+  "stage": "P09-R04",
+  "status": "验证通过：七类型八源文件已退出，17定向/必要构建通过",
+  "names": [
+    "CustomerProductRepository",
+    "SupplierProductRepository",
+    "ProductMasterRepository",
+    "ProductNeutralManagerRepository",
+    "ProductCategoryRepository",
+    "CustomerRepository",
+    "SupplierRepository"
+  ],
+  "files": [
+    {
+      "name": "CustomerProductRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Customers/CustomerProducts/CustomerProductRepository.cs",
+      "sha256": "402BA9021592E8A6F2763C7DBE71A72A05E81F0EFB393A286DF5C290A2BA1C20",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Customers/CustomerProducts/PostgreSqlCustomerProductRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs",
+        "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "CustomerRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Customers/Management/CustomerRepository.cs",
+      "sha256": "A98574023CBF5135A80C28AC21E86A7FFCF2EE1C8A803D869C41A623909DF466",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Customers/Management/PostgreSqlCustomerRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs"
+      ]
+    },
+    {
+      "name": "CustomerRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Customers/Management/CustomerRepository.SalesOrderDetail.cs",
+      "sha256": "4299015C1CF6B97AA1CDEB8B6A0322BC1496141CE0627E1C5EFB086C9AADF59D",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Customers/Management/PostgreSqlCustomerRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs"
+      ]
+    },
+    {
+      "name": "ProductCategoryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Products/Categories/ProductCategoryRepository.cs",
+      "sha256": "6CD231396563DEBE6D0F9C9DD1B0D4C5645F466602C1E7824FE43EB05559697C",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Products/Categories/PostgreSqlProductCategoryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "ProductMasterRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Products/ProductMasters/ProductMasterRepository.cs",
+      "sha256": "84434369C58A48B066610D4A634B0C62760F7BD620F65F6C52902734D2CD4342",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Products/ProductMasters/PostgreSqlProductMasterRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "ProductNeutralManagerRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralManagerRepository.cs",
+      "sha256": "E1C6276B8FA8151639276AF6A318D9790BC41A92023A830F1041D36BED4EA208",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/PostgreSqlProductNeutralManagerRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "SupplierProductRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Suppliers/SupplierProducts/SupplierProductRepository.cs",
+      "sha256": "4D7757DCE36BD0D81BFC471E1746FB1A733AA100CC9BDA990A713309F8C3B6BA",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Suppliers/SupplierProducts/PostgreSqlSupplierProductRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs",
+        "SwiftExport.Application.Tests/MasterData/SupplierProductNullableAssociationTests.cs"
+      ]
+    },
+    {
+      "name": "SupplierRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Suppliers/Management/SupplierRepository.cs",
+      "sha256": "F1F7691126499C19FC49D627CBDA89E0685EDF7AF97331BEBC7C546C4ED15DB2",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Suppliers/Management/PostgreSqlSupplierRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/MasterData/ProductCategoryFilterRepositorySqlContractTests.cs",
+      "before_sha256": "C8B771CC09931FF297541DAA87933D034AC785F732D51B8878EA01A5E4EB8572",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "7E63B3FA7DCD1AEEAD8C0BD2080D02B0AF8B60A23272E2026B5B81DBB5574506"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs",
+      "before_sha256": "7A930AD5DA1D0CE98E26A8E89D5E1EC543F9B69FDB128B9BD07546253FF7389C",
+      "prior_uncommitted_diff": [
+        "5\t2\tSwiftExport.Application.Tests/Customers/CustomerProductCurrencyAuthorityContractTests.cs"
+      ],
+      "after_sha256": "52B7FDEFBE8EE1C5264BFA053BE5C9A44979BE17539A64B4062A0A2DA7F5A6F5"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/MasterData/SupplierProductNullableAssociationTests.cs",
+      "before_sha256": "99F3B4209DE66C2623EF624434A7015E2FCEC129AD299C3CD72661369D0ECFBF",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "BBF0B096C07F6D69EED037F78D58A37F0558BEBF42511E1D108E060D13D119CB"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/MasterData/ExecutionEligibilityBoundaryTests.cs",
+      "before_sha256": "C81C62A8DB3C5FD7664023146B3D48204254B3A276164D5F57984DC962E533ED",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "A35E4FF73EEE1231D38262B486B40899C9BA78E4FD77666EF874694133EC6733"
+    }
+  ],
+  "database_run": false,
+  "verification": {
+    "completed_at": "2026-10-06T08:10:56.8663467+08:00",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_elapsed_seconds": 4.03,
+    "command": "& './docs/postgresql-migration/任务结果/P09-R04-基础资料契约-实际命令.ps1'",
+    "trx_path": "TestResults/postgresql-migration/p09-r04-masterdata-contracts-offline.trx",
+    "trx_sha256": "B9DF236F98E486AF13149B44A1CC5D80C2850839B3F2AD8475172333D25D9FC5",
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 78,
+    "source_identifier_references": 0,
+    "database_run": false,
+    "post_test_change": "仅修正客户产品测试XML职责说明，不改变测试逻辑；不重复已绿测试"
+  }
+}

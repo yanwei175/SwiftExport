@@ -6,12 +6,69 @@ using SwiftExport.Infrastructure.DatabaseSchema;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>验证账号、仓库及客户 PO 唯一键保留源库比较和 NULL 边界；实库只使用专用测试库。</summary>
+/// <summary>验证编码及来源唯一键的常用比较、NULL和活动范围边界；实库只使用专用测试库。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class PostgreSqlOperationalCodeIndexTests
 {
-    /// <summary>生成器只改变三个指定唯一索引，不改变业务文本列或其他索引。</summary>
+
+    /// <summary>实际来源唯一键与查询共用大小写及尾普通空格规则，仍允许不同来源、行及非活动范围；全部新行回滚。</summary>
+    [TestMethod]
+    [TestCategory("PostgreSqlOperationalCodeIntegration")]
+    public void GrossSource_UniquenessMatchesQueryComparison()
+    {
+        using var connection = Open();
+        using var transaction = connection.BeginTransaction();
+        var source = Guid.NewGuid();
+        var line = Guid.NewGuid();
+        var ids = new List<Guid>();
+        Insert("SO");
+        foreach (var variant in new[] { "so", "SO " })
+        {
+            transaction.Save("source_key_probe");
+            try
+            {
+                var error = Assert.ThrowsExactly<PostgresException>(() => Insert(variant));
+                Assert.AreEqual(PostgresErrorCodes.UniqueViolation, error.SqlState);
+                Assert.AreEqual("ux_gross_demand_source_line", error.ConstraintName);
+            }
+            finally
+            {
+                // 失败和旧索引放过重复的复现都只回滚本保存点，最终事务仍完整回滚。
+                transaction.Rollback("source_key_probe");
+            }
+        }
+        Insert("MD");
+        Insert(" SO");
+        Insert("SO", otherSource: Guid.NewGuid());
+        Insert("SO", otherLine: Guid.NewGuid());
+        Insert("SO", deleted: true);
+        Insert("SO", lifecycle: 8);
+        Assert.AreEqual(1, connection.ExecuteScalar<int>("""
+            SELECT count(*) FROM public.gross_demand
+            WHERE NOT is_deleted AND lifecycle_status=0 AND source_uid=@Source AND source_line_id=@Line
+              AND rtrim(source_type,' ') COLLATE public.erp_dictionary_ci =
+                  rtrim('so ',' ') COLLATE public.erp_dictionary_ci
+            """, new { Source = source, Line = line }, transaction));
+        transaction.Rollback();
+        Assert.AreEqual(0, connection.ExecuteScalar<int>(
+            "SELECT count(*) FROM public.gross_demand WHERE uid=ANY(@Ids)", new { Ids = ids.ToArray() }));
+
+        // 约束探针只插合法非标来源的必要列，不借用或修改已有业务身份、数据和号段。
+        void Insert(string sourceType, bool deleted = false, int lifecycle = 0, Guid? otherSource = null, Guid? otherLine = null)
+        {
+            var uid = Guid.NewGuid();
+            ids.Add(uid);
+            connection.Execute("""
+                INSERT INTO public.gross_demand
+                    (uid,source_type,source_uid,source_no,source_line_id,is_non_standard,sku_snapshot,demand_qty,lifecycle_status,is_deleted)
+                VALUES(@Uid,@SourceType,@Source,'PG来源索引事务探针',@Line,TRUE,'PG来源索引事务探针',1,@Lifecycle,@Deleted)
+                """, new { Uid = uid, SourceType = sourceType, Source = otherSource ?? source,
+                    Line = otherLine ?? line, Lifecycle = lifecycle, Deleted = deleted }, transaction, commandTimeout: 10);
+        }
+    }
+
+    /// <summary>核对三个既有编码唯一索引，不改变业务文本列、NULL或仓库活动供应商规则。</summary>
     [TestMethod]
     [DataRow("sys_user", "ux_sys_user_user_name", "user_name", null)]
     [DataRow("warehouse_site", "ux_warehouse_site_code", "code", null)]

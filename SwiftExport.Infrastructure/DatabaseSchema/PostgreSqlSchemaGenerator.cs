@@ -38,7 +38,8 @@ public sealed class PostgreSqlSchemaGenerator
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)
                 || t == typeof(SwiftExport.Core.Entities.Auth.SysUser)
                 || t == typeof(SwiftExport.Core.Entities.Inventory.WarehouseSite)
-                || t == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)))
+                || t == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
+                || t == typeof(SwiftExport.Core.Entities.DemandPlanning.GrossDemand)))
         {
             // 字典及已迁移编码唯一键复用源库不区分大小写、忽略尾空格的边界；不改变普通列比较。
             sql.AppendLine("CREATE COLLATION public.erp_dictionary_ci (provider = icu, locale = 'und-u-ks-level2', deterministic = false);");
@@ -104,7 +105,7 @@ END $$;
     private static bool IsDictionary(Type entity) => entity == typeof(SwiftExport.Core.Entities.Systems.Dictionaries.Types.SysDictType)
         || entity == typeof(SwiftExport.Core.Entities.Systems.Dictionaries.Data.SysDictData);
 
-    /// <summary>仅对已批准的编码索引增加尾空格与 ICU 规则；保留其他索引、列定义及原存储文本。</summary>
+    /// <summary>编码及来源索引复用查询的尾普通空格与 ICU 规则；保留列定义、原文本及其他索引。</summary>
     private static string IndexColumn(Type entity, DbIndexAttribute index, string property)
     {
         if (IsDictionary(entity) && property == "DictCode") return $"rtrim({Column(entity, property)}, ' ')";
@@ -125,7 +126,9 @@ END $$;
             || entity == typeof(SwiftExport.Core.Entities.Inventory.WarehouseSite)
                 && index.Name == "UX_WarehouseSite_Code" && property == "Code"
             || entity == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
-                && index.Name == "UX_CustomerPoConfig_Codes" && property is "CustomerCode" or "SupplierCode";
+                && index.Name == "UX_CustomerPoConfig_Codes" && property is "CustomerCode" or "SupplierCode"
+            || entity == typeof(SwiftExport.Core.Entities.DemandPlanning.GrossDemand)
+                && index.Name is "IX_GrossDemand_Source" or "UX_GrossDemand_SourceLine" && property == "SourceType";
         return approvedCode ? $"(rtrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)" : Column(entity, property);
     }
 

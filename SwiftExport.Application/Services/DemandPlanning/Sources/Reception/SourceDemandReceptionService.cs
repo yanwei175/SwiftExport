@@ -27,8 +27,22 @@ public sealed class SourceDemandReceptionService(
     ISourceDeliveryService sourceDeliveryService,
     IBusinessOperationLogRepository operationLogs,
     ICorrelationContext correlationContext,
-    ICurrentUser currentUser) : ISourceDemandReceptionService
+    ICurrentUser currentUser) : ISourceDemandReceptionService, ISourceDemandTransactionPreparation
 {
+    /// <summary>只转交来源资源准备，不能提前业务验证或生成需求；过渡期原SQL仓储仍使用其事务内范围保护。</summary>
+    public Task<IAsyncDisposable?> AcquireBeforeTransactionAsync(IReadOnlyCollection<Guid> sourceUids,
+        IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default)
+        => grossDemandRepository is ISourceDemandTransactionPreparation preparation
+            ? preparation.AcquireBeforeTransactionAsync(sourceUids, grossDemandIds, cancellationToken)
+            : Task.FromResult<IAsyncDisposable?>(OriginalTransactionPreparation.Instance);
+
+    /// <summary>仅保留未切换SQL仓储原有事务行为；目标PG接线完成后删除这段过渡，不建立双库框架。</summary>
+    private sealed class OriginalTransactionPreparation : IAsyncDisposable
+    {
+        internal static readonly OriginalTransactionPreparation Instance = new();
+        /// <summary>原仓储没有事务外资源，无须提前释放或改变父事务。</summary>
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
     private const string Module = "SourceDemand";
     private const string ReceiveOperation = "Receive";
 

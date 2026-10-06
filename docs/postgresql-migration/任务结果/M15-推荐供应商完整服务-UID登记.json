@@ -1,0 +1,242 @@
+[
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "0e5dbf15-1110-4940-be05-89167a253987",
+    "Gross": "af44cb4c-63d3-469f-9aea-148b558e0aab",
+    "Net": "d3b5b638-4642-4eae-b969-14edab61d15c",
+    "Command": "4c9a9d0d-c8a7-49f4-91ec-e4e9404d5128",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "unauthenticated"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_rbac_tests_20261005",
+    "Actor": "0f9c6e77-c1bf-4a91-b915-d24b188edfb2",
+    "Gross": "e0ca18c0-62a9-450e-878f-650f045b6c16",
+    "Net": "bad4e8f2-3f92-4deb-9d78-ab3984237911",
+    "Command": "796fbb1c-ce0a-4688-af3d-eac041c8d6b3",
+    "Policy": "保留随机事实与不可变回执",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "514cdd8c-af52-4b37-a715-759871c7f5fd",
+    "Gross": "f125c653-222f-4027-af10-21dbd0859b0f",
+    "Net": "5df72e82-bce1-464b-87b3-b510db1f9bd3",
+    "Command": "f6ee580b-ea20-44d7-8393-81ccec0dea0f",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "123c9a94-9a9b-48f6-8725-592388529267",
+    "Gross": "34fa0f17-8efe-4dac-bd32-4c0014cdf28c",
+    "Net": "b3078e12-5076-4b5b-a6e5-cc743497ef7e",
+    "Command": "6ec42f2d-a4c3-4569-9053-0e01bf784035",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "net-deleted"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "eae952e8-a9cb-42c4-ae02-4fa2ffaf0ad8",
+    "Gross": "027ec247-1f2b-4b6d-808e-124fce97cda3",
+    "Net": "2ccaa14b-3827-454e-bca2-3d27d0453178",
+    "Command": "0fb8f389-1bc9-4de1-9b09-fb482c720bca",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "old-version"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_rbac_tests_20261005",
+    "Actor": "52719bc1-4b81-44e6-a118-d00b00368011",
+    "Gross": "621c43a2-9823-4ea8-9830-df70e1cb344c",
+    "Net": "5e9d08d5-3173-4fe8-89aa-e3eb634c7089",
+    "Command": "83f49a4d-0916-4ed4-9c2e-9f3feca1e16d",
+    "Policy": "保留随机事实与不可变回执",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_rbac_tests_20261005",
+    "Actor": "91f63a9e-d3de-4ab5-9249-0d1899551b80",
+    "Gross": "b5a6f183-ba19-4fea-a717-ecfbb67a3083",
+    "Net": "cf0caf4e-5ddf-4e1d-ba9f-516dfcc23439",
+    "Command": "cb5fd7e2-14f7-4a20-8e80-c0d1c6ba75be",
+    "Policy": "保留随机事实与不可变回执",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "f006654a-ff27-49ed-8e64-d3610484b6d7",
+    "Gross": "f3e91bd1-3d56-4b77-8d06-76b88d9d57e4",
+    "Net": "6a8d6e4f-c76f-4223-8e3d-928279d0c180",
+    "Command": "6b4cfda9-d25c-4eca-a2d0-0debe04b73b6",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "forbidden"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "bd48efe3-85a7-4f2f-9b0a-5b1028ae8463",
+    "Gross": "cf25fec8-3f09-4132-b46f-48ef824e678e",
+    "Net": "058a3bfc-55a7-4be1-be6a-b1707fa302d4",
+    "Command": "684d0d23-d0e8-48c9-8dc8-f0b4b1ec9e20",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "net-cancelled"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "25a61ea1-83be-411d-8753-0dbadbf3efec",
+    "Gross": "a9215cbf-c2a6-4cac-a19a-37b62da82cc9",
+    "Net": "a6461df7-2ee4-4f93-a063-722fd5129107",
+    "Command": "dea56c78-557f-4033-9382-d3a480e6110e",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "missing-net"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "7ead2321-da66-442e-ac93-c5821d34fb0d",
+    "Gross": "7faf0aab-4b55-40ac-afe9-bdacf0846ceb",
+    "Net": "8c1ceade-b525-4a5c-950a-3269c70b0c23",
+    "Command": "2ef3c864-3615-424f-8447-ddaf7a57100c",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "missing-supplier"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_rbac_tests_20261005",
+    "Actor": "62b359a3-e4b5-4353-a842-e68ffa4793cc",
+    "Gross": "4df58bc4-be79-4a0d-a168-876ac0182fdd",
+    "Net": "429adccb-ef07-4016-8137-05aa9453fbf0",
+    "Command": "0b4bd98d-e41d-44c6-b316-68457d418efd",
+    "Policy": "保留随机事实与不可变回执",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_rbac_tests_20261005",
+    "Actor": "a6dd428a-96a8-4741-8479-3b149c976ce8",
+    "Gross": "d32a80bc-1a64-4271-94fb-2b8ffb8f7f16",
+    "Net": "86a1289b-d193-453c-a8dc-c0a4d0c5ea18",
+    "Command": "ee88d1dd-a088-4bde-aea3-ec1c7bcafd5b",
+    "Policy": "保留随机事实与不可变回执",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "dadc119a-8bc7-4268-90e0-bc3c2c5f6f2e",
+    "Gross": "f9309dfb-29aa-400f-9c84-4a5a25f5f502",
+    "Net": "732202e6-1758-45ec-8634-e2b36d926e94",
+    "Command": "25d60227-cf0c-4f1c-bec1-ee4fea64f214",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "8270bf3f-459c-480f-8d04-ead7731b8e01",
+    "Gross": "e579da6c-555f-475d-8e10-3077ecaceea6",
+    "Net": "90351f13-ae76-4ef4-a625-8252f7c82fad",
+    "Command": "17c2d8ae-36cb-4c3e-89a2-777f6f8889e4",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_rbac_tests_20261005",
+    "Actor": "ab2128c6-e2ed-4729-97ad-2117fa2b13e2",
+    "Gross": "2d71260e-b8a7-4512-b83c-9ea2c6a5b726",
+    "Net": "1a39cd56-7c34-4daa-a7b7-b3468f9a8dd5",
+    "Command": "f07241cc-b116-402f-ba1e-e4ca951193a2",
+    "Policy": "保留随机事实与不可变回执",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "e16315ad-12a4-40dd-b9e7-5ca934a03039",
+    "Gross": "cccb4ebe-3366-429d-8290-90bc2f5209be",
+    "Net": "e75782e7-dc72-4379-9b50-720e761822dc",
+    "Command": "40ff39d2-9337-4430-bd0c-0412686eddbd",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "gross-deleted"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "26de3acf-5d90-4f7a-b1dc-888a5a8bb109",
+    "Gross": "842e6352-e9a8-4ba8-b60d-171ecf6c174f",
+    "Net": "c872a7e4-3954-4ce5-aceb-5319c1f132e6",
+    "Command": "9dec6a29-a733-4879-b93e-61c6a7be1e62",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "empty-supplier"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "99ed8ebe-f78d-489f-80f7-634c4aea4dad",
+    "Gross": "6d2fe509-d0af-4ca5-9e0c-3f81dfdd7c26",
+    "Net": "f3f77ddd-cfbf-4104-82b9-141eabd50dda",
+    "Command": "3372bd54-480c-4528-9fe9-6b4abe14401b",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "empty-command"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "fe8e6fb6-1f84-4b35-81fa-3bed6aa5bc48",
+    "Gross": "7f462bdc-1898-4c90-97ba-a2a052052274",
+    "Net": "d718036c-6ca2-42d8-a772-33f5e824b791",
+    "Command": "6bf797af-d9db-4e52-9641-282ac536957a",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "bad-version"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "296f06e5-5bdb-44fa-8116-df509eb931ad",
+    "Gross": "db4842d3-a178-4c30-b306-1f61ff5ed43e",
+    "Net": "f1ed61f8-62d2-4a9b-8eae-29f554d165ec",
+    "Command": "5b2e2d4e-d864-4c32-8c09-fb16376290b0",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "empty-net"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "cc37c378-01a5-4a2d-b74c-fd23cae500c2",
+    "Gross": "f98d793f-d083-4580-b5b5-d89f165de82b",
+    "Net": "49be0079-8e55-460f-b119-f015a2cb204c",
+    "Command": "f2364df8-b90e-4ddf-984a-fea54a6ca4c9",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "gross-closed"
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "4ef07b41-e2c2-4de8-896f-da599a195705",
+    "Gross": "8a244507-4e3d-43be-ab6e-8762ec9e0cf1",
+    "Net": "b63b6127-eed3-405d-ae1b-0e7c516c1f21",
+    "Command": "f7e5df6a-96c6-4bbc-b0ef-a85da1af2804",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": ""
+  },
+  {
+    "Phase": "初始化前预登记",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "Actor": "64d66440-fb68-4af2-afad-62eebdcc88bb",
+    "Gross": "c0623dd0-1460-4191-bfcb-c1410adeb61c",
+    "Net": "45cb397a-b321-471c-af30-5dca96d4715b",
+    "Command": "863983dd-91a9-45fa-8bdf-086adf5ee560",
+    "Policy": "仅零回执后精确清理本例Gross/Net",
+    "Shape": "null-command"
+  }
+]

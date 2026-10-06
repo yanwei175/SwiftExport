@@ -1,0 +1,884 @@
+{
+  "time": "2026-10-06 01:51 +08:00",
+  "database": "192.168.3.12:5432/dv_next_pg_failure_tests_20261004",
+  "method": "RealPg_ResumedInventoryPersistence",
+  "source": "SwiftExport.Application.Tests/Database/PostgreSqlInventoryExecutionReadIntegrationTests.cs",
+  "sourceSha256": "90C1DA26A2A94FEED726E56300269FC36EC98ED7B9B56DEA339540F5A793710C",
+  "first": {
+    "exitCode": 1,
+    "passed": 0,
+    "failed": 1,
+    "duration": "00:00:00.2550315",
+    "sourceSha256": "4524C35E0A33C035A11B686B6652AC14BD4705C86CA702D78020E125D58AC757",
+    "reason": "软删候选先触发ck_inventory_ledger_immutable / 23514，未到唯一索引；夹具前置错误，不是生产回归",
+    "trx": "TestResults/postgresql-migration/p08-g4-inventory-guards-native.trx"
+  },
+  "corrected": {
+    "exitCode": 0,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "duration": "00:00:00.2661155",
+    "trx": "TestResults/postgresql-migration/p08-g4-inventory-guards-corrected.trx",
+    "sqlStates": {
+      "ck_inventory_ledger_immutable": "23514",
+      "ux_inventory_ledger_command_item": "23505",
+      "ux_inventory_ledger_reversal_of": "23505",
+      "ux_inventory_ledger_replacement_of": "23505"
+    },
+    "rolledBackUids": {
+      "original": "5f8b0344-ee40-4b9b-beaf-4a3503d4614e",
+      "reverse": "35c56858-9f29-4bbf-96c6-4a3503d46160",
+      "replacement": "3cea3e35-ba32-4333-aaab-4a3503d4617c"
+    }
+  },
+  "builds": [
+    {
+      "exitCode": 0,
+      "errors": 0,
+      "existingWarnings": 7,
+      "seconds": 7.41
+    },
+    {
+      "exitCode": 0,
+      "errors": 0,
+      "existingWarnings": 7,
+      "seconds": 4.94
+    }
+  ],
+  "before": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 17,
+      "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 116,
+      "data_md5": "62c7ec5feadf0184f33bb2d04fe68dd0"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 92,
+      "data_md5": "f1e9a4b4e2a93962f839334320448418"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 34,
+      "data_md5": "67b89fd1ed9218585e3fd57a054c2972"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 8,
+      "data_md5": "5cdb8e70cd6f26fac4894abb5648ed09"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 15,
+      "data_md5": "8a98271fc6e86ba29feaec9b18feb204"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 16,
+      "data_md5": "9204f3611d3a93dfca8231a39000a3e4"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 8,
+      "data_md5": "af4c8c9cd698b23b2c77420034ba7ef3"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 43,
+      "data_md5": "b811489419e10c2745673fec8fc438c2"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 7,
+      "data_md5": "c02c03391a4c063b235dce335a9dfb8b"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 10,
+      "data_md5": "58a9b08e474bfae870194f322fc36f61"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 10,
+      "data_md5": "d1f90f59779cbf26adb417a8e596cb60"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17312,
+      "data_md5": "a28459c63fa6877f490d50433adb21b5"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 13,
+      "data_md5": "d9e59acb864598a2a6ac7cf3cb70c24c"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 16,
+      "data_md5": "43533ec0f5fb9979e6fc9093fc523b55"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 6,
+      "data_md5": "34c2ca5ef7ae8e965392348911434b62"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 6,
+      "data_md5": "6f067eb3a04d808391f00cea90f5c38e"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 20,
+      "data_md5": "7d384460a74cb099dc7324762d1d07ad"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 2,
+      "data_md5": "762248714860d82d5984ab6b28f33d5c"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 20,
+      "data_md5": "b5004764413c93d6f20af1a4ef6093bb"
+    }
+  ],
+  "firstAfter": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 17,
+      "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 116,
+      "data_md5": "62c7ec5feadf0184f33bb2d04fe68dd0"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 92,
+      "data_md5": "f1e9a4b4e2a93962f839334320448418"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 34,
+      "data_md5": "67b89fd1ed9218585e3fd57a054c2972"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 8,
+      "data_md5": "5cdb8e70cd6f26fac4894abb5648ed09"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 15,
+      "data_md5": "8a98271fc6e86ba29feaec9b18feb204"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 16,
+      "data_md5": "9204f3611d3a93dfca8231a39000a3e4"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 8,
+      "data_md5": "af4c8c9cd698b23b2c77420034ba7ef3"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 43,
+      "data_md5": "b811489419e10c2745673fec8fc438c2"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 7,
+      "data_md5": "c02c03391a4c063b235dce335a9dfb8b"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 10,
+      "data_md5": "58a9b08e474bfae870194f322fc36f61"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 10,
+      "data_md5": "d1f90f59779cbf26adb417a8e596cb60"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17312,
+      "data_md5": "a28459c63fa6877f490d50433adb21b5"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 13,
+      "data_md5": "d9e59acb864598a2a6ac7cf3cb70c24c"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 16,
+      "data_md5": "43533ec0f5fb9979e6fc9093fc523b55"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 6,
+      "data_md5": "34c2ca5ef7ae8e965392348911434b62"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 6,
+      "data_md5": "6f067eb3a04d808391f00cea90f5c38e"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 20,
+      "data_md5": "7d384460a74cb099dc7324762d1d07ad"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 2,
+      "data_md5": "762248714860d82d5984ab6b28f33d5c"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 20,
+      "data_md5": "b5004764413c93d6f20af1a4ef6093bb"
+    }
+  ],
+  "finalAfter": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 17,
+      "data_md5": "a6596fdff6a7cbe9a35921e20ad58841"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 116,
+      "data_md5": "62c7ec5feadf0184f33bb2d04fe68dd0"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 92,
+      "data_md5": "f1e9a4b4e2a93962f839334320448418"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 34,
+      "data_md5": "67b89fd1ed9218585e3fd57a054c2972"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 8,
+      "data_md5": "5cdb8e70cd6f26fac4894abb5648ed09"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 15,
+      "data_md5": "8a98271fc6e86ba29feaec9b18feb204"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 16,
+      "data_md5": "9204f3611d3a93dfca8231a39000a3e4"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 8,
+      "data_md5": "af4c8c9cd698b23b2c77420034ba7ef3"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 43,
+      "data_md5": "b811489419e10c2745673fec8fc438c2"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 7,
+      "data_md5": "c02c03391a4c063b235dce335a9dfb8b"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 10,
+      "data_md5": "58a9b08e474bfae870194f322fc36f61"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 10,
+      "data_md5": "d1f90f59779cbf26adb417a8e596cb60"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17312,
+      "data_md5": "a28459c63fa6877f490d50433adb21b5"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 13,
+      "data_md5": "d9e59acb864598a2a6ac7cf3cb70c24c"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 16,
+      "data_md5": "43533ec0f5fb9979e6fc9093fc523b55"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 6,
+      "data_md5": "34c2ca5ef7ae8e965392348911434b62"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 6,
+      "data_md5": "6f067eb3a04d808391f00cea90f5c38e"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 20,
+      "data_md5": "7d384460a74cb099dc7324762d1d07ad"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 2,
+      "data_md5": "762248714860d82d5984ab6b28f33d5c"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 20,
+      "data_md5": "b5004764413c93d6f20af1a4ef6093bb"
+    }
+  ],
+  "allDataDigestsIdentical": true,
+  "checks": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| last_value | is_called |\n|---|---|\n| 46 | true |\n(1 rows, 1ms)\n### Statement 2\n| other_active_connections |\n|---|\n| 0 |\n(1 rows, 4ms)\n### Statement 3\n| other_advisory_locks |\n|---|\n| 0 |\n(1 rows, 1ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "last_value",
+            "is_called"
+          ],
+          "column_types": [
+            "int8",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              46,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 1,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0
+        },
+        {
+          "columns": [
+            "other_active_connections"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1
+        },
+        {
+          "columns": [
+            "other_advisory_locks"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 1,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        }
+      ]
+    },
+    "isError": false
+  },
+  "digestSql": "SELECT c.relname table_name,(xpath('/row/row_count/text()',x.doc))[1]::text row_count,(xpath('/row/data_md5/text()',x.doc))[1]::text data_md5 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL (SELECT query_to_xml(format('SELECT count(*) AS row_count, md5(coalesce(string_agg(to_jsonb(t)::text, chr(10) ORDER BY to_jsonb(t)::text), '''')) AS data_md5 FROM public.%I t',c.relname),false,true,'') doc) x WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname",
+  "scope": "既有方法补必要真实PG约束断言；随机夹具全部Rollback，不调用nextval、不DDL、不写运行/备份库，无生产改动，不宣称完整跨连接/业务纠错通过"
+}

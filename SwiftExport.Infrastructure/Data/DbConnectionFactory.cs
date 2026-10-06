@@ -6,8 +6,8 @@ namespace SwiftExport.Infrastructure.Data;
 /// <summary>创建尚未打开的连接；会话负责打开和释放，提供者选择留在基础设施层。</summary>
 public interface IDbConnectionFactory
 {
-    /// <summary>与连接配套的异常分类器；既有SQL Server工厂和测试替身保持默认行为。</summary>
-    SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => SqlServerExceptionClassifier.Instance;
+    /// <summary>默认使用目标PG异常分类器；迁移期间显式源工厂负责提供自己的分类器。</summary>
+    SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => PostgreSqlExceptionClassifier.Instance;
 
     /// <summary>创建独立连接，所有权移交给调用会话。</summary>
     IDbConnection CreateConnection();
@@ -17,6 +17,9 @@ public interface IDbConnectionFactory
 public class SqlConnectionFactory(string connectionString) : IDbConnectionFactory
 {
     private readonly string _connectionString = connectionString;
+
+    /// <summary>仅为迁移期间显式SQL Server对照保留原错误分类，不借用目标PG默认值。</summary>
+    public SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier Errors => SqlServerExceptionClassifier.Instance;
 
     /// <summary>返回未打开的 SqlClient 连接，不记录连接字符串。</summary>
     public IDbConnection CreateConnection()

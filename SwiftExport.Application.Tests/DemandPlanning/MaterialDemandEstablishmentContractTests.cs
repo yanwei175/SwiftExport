@@ -3,6 +3,7 @@ using SwiftExport.Application.Services.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Core.Interfaces.Auth.Permissions;
 using SwiftExport.Core.Models.Auth;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Document;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
@@ -39,13 +40,14 @@ public sealed class MaterialDemandEstablishmentContractTests
         Assert.IsFalse(await evaluator.HasPermissionAsync(userId, PermissionKeys.DemandPlanningMaterialRollback));
     }
 
+    /// <summary>建立与回退仍由用例编排，PG 候选及持久化保留来源身份和依据快照。</summary>
     [TestMethod]
     public void MaterialUseCase_MustOwnCandidateEstablishRollbackAndBasisSnapshots()
     {
         var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Establishment", "MaterialDemandEstablishmentService.cs");
         var reversal = Read("SwiftExport.Application", "Services", "DemandPlanning", "Materials", "Reversal", "MaterialDemandReversalService.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Sources", "MaterialDemandSourceRepository.cs");
-        var documentRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "MaterialDemandDocumentRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Sources", "PostgreSqlMaterialDemandSourceRepository.cs");
+        var documentRepository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Materials", "Document", "PostgreSqlMaterialDemandDocumentRepository.cs");
 
         StringAssert.Contains(service, "GetByIdForUpdateAsync");
         StringAssert.Contains(service, "GetNextDecompositionRevisionForUpdateAsync");
@@ -58,22 +60,27 @@ public sealed class MaterialDemandEstablishmentContractTests
 
         StringAssert.Contains(repository, "GetSourceDemandCandidateGroupsAsync");
         StringAssert.Contains(repository, "GetSourceDemandCandidatesBySourceAsync");
-        StringAssert.Contains(repository, "GROUP BY d.[SourceType],d.[SourceUid]");
-        StringAssert.Contains(repository, "d.[SourceType]=@SourceType AND d.[SourceUid]=@SourceUid");
-        StringAssert.Contains(repository, "d.[LinkSkuSnapshot] AS [LinkSku]");
-        StringAssert.Contains(repository, "d.[ImagePathSnapshot] AS [ImagePath]");
+        StringAssert.Contains(repository, "GROUP BY rtrim(d.source_type, ' ') COLLATE public.erp_dictionary_ci, d.source_uid");
+        StringAssert.Contains(repository, "= rtrim(@SourceType, ' ') COLLATE public.erp_dictionary_ci AND d.source_uid = @SourceUid");
+        StringAssert.Contains(repository, "d.link_sku_snapshot AS \"LinkSku\"");
+        StringAssert.Contains(repository, "d.image_path_snapshot AS \"ImagePath\"");
         var establishmentCandidates = repository.Split("GetPurchaseCandidateSourceGroupsAsync", StringSplitOptions.None)[0];
         Assert.IsFalse(establishmentCandidates.Contains("OUTER APPLY", StringComparison.Ordinal));
-        StringAssert.Contains(documentRepository, "SourceDemandBasisFingerprintSnapshot");
-        StringAssert.Contains(documentRepository, "WITH (UPDLOCK,HOLDLOCK)");
+        Assert.IsFalse(establishmentCandidates.Contains("LEFT JOIN LATERAL", StringComparison.Ordinal));
+        var projection = (string)typeof(PostgreSqlMaterialDemandDocumentRepository).GetField("Projection", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetValue(null)!;
+        StringAssert.Contains(projection, "nd.\"source_demand_basis_fingerprint_snapshot\" AS \"SourceDemandBasisFingerprintSnapshot\"");
+        StringAssert.Contains(documentRepository, "PostgreSqlParameters.Entity(demand, Map)");
+        StringAssert.Contains(documentRepository, "FOR UPDATE");
+        StringAssert.Contains(documentRepository, "InGrossScope");
     }
 
+    /// <summary>保持来源与物料职责隔离；API 的既有 Trace 静态冲突另行记录，不为迁移删除断言。</summary>
     [TestMethod]
     public void SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository()
     {
         var api = Read("SwiftExport.Contracts", "Apis", "DemandPlanning", "Sources", "IGrossDemandWorkspaceApi.cs");
         var service = Read("SwiftExport.Application", "Services", "DemandPlanning", "Sources", "Manual", "ManualGrossDemandService.cs");
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "GrossDemandDocumentRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "DemandPlanning", "Sources", "Document", "PostgreSqlGrossDemandDocumentRepository.cs");
 
         Assert.IsFalse(api.Contains("DecomposeAsync", StringComparison.Ordinal));
         Assert.IsFalse(api.Contains("RollbackAsync", StringComparison.Ordinal));

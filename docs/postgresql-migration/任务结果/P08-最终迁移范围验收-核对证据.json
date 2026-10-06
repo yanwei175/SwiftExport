@@ -1,0 +1,71 @@
+{
+  "recorded_at": "2026-10-06T07:48:00+08:00",
+  "scope": "P08迁移前置验收，P09未完成；既有范围外失败与B03保留",
+  "production_and_project_changed_since_snapshot_before_P09_R01": 0,
+  "source_count_before_exit": 2390,
+  "frozen_snapshot": "P09-当前源退出引用事实.json@2026-10-06T02:39",
+  "runtime_schema": [
+    {
+      "table_name": "columns",
+      "row_count": 1076,
+      "data_md5": "0fc1483c95ba373864c2d2cce3fbad11"
+    },
+    {
+      "table_name": "constraints",
+      "row_count": 583,
+      "data_md5": "2df225b9ec6f6bfc0dd8772253e1b707"
+    },
+    {
+      "table_name": "functions",
+      "row_count": 10,
+      "data_md5": "6b910810edf4ebae3fd1c1b6927ebf30"
+    },
+    {
+      "table_name": "indexes",
+      "row_count": 143,
+      "data_md5": "c69a8b1026c215f06f29baf86eaf535d"
+    },
+    {
+      "table_name": "triggers",
+      "row_count": 10,
+      "data_md5": "787d50b781825682c7395911579b4c3f"
+    }
+  ],
+  "failure_schema": [
+    {
+      "table_name": "columns",
+      "row_count": 1076,
+      "data_md5": "0fc1483c95ba373864c2d2cce3fbad11"
+    },
+    {
+      "table_name": "constraints",
+      "row_count": 583,
+      "data_md5": "2df225b9ec6f6bfc0dd8772253e1b707"
+    },
+    {
+      "table_name": "functions",
+      "row_count": 10,
+      "data_md5": "6b910810edf4ebae3fd1c1b6927ebf30"
+    },
+    {
+      "table_name": "indexes",
+      "row_count": 143,
+      "data_md5": "c69a8b1026c215f06f29baf86eaf535d"
+    },
+    {
+      "table_name": "triggers",
+      "row_count": 10,
+      "data_md5": "787d50b781825682c7395911579b4c3f"
+    }
+  ],
+  "schema_comparison_equal": true,
+  "g6_write_evidence": "P08-G6-运行库限定写入-保护证据.json",
+  "retained_failures": [
+    "DictCodes_ExposeSupportedGenericSystemDictionaries",
+    "SourceBoundary_MustNotExposeMaterialCommandsOrReadMaterialRepository",
+    "NetDemandSpecialty_MustNotReferenceLegacyDemandChain",
+    "ManagerContractsUseOnePublicTypePerFile"
+  ],
+  "global_regression_claim": "阶段2095/6/67及纠正后定向2通过，保留四范围外失败；没有新全量绿色，不相加造数",
+  "P09_R01": "16未修改HEAD源仓储已退出；后端0错误7旧警告/51离线通过，剩余待执行"
+}

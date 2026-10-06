@@ -1,0 +1,103 @@
+{
+  "mode": "apply-runtime",
+  "targetDatabase": "dv_next",
+  "insertedRows": 34395,
+  "sourceReadDurationMs": 722,
+  "consistentSourceSnapshot": true,
+  "readIsolation": "\u77ED\u65F6Serializable\u6E90\u8BFB\u53D6\u5DF2\u63D0\u4EA4\uFF0CPG\u5199\u5165\u524D\u5DF2\u91CA\u653E\u6E90\u9501",
+  "timestampNormalization": "\u5B57\u6BB5\u6458\u8981\u4EC5\u5C06\u65E5\u671F\u622A\u65AD\u5230PG\u5FAE\u79D2\u7CBE\u5EA6\uFF0C\u6E90\u5B57\u6BB5\u4E0D\u6539\uFF1B\u7CBE\u5EA6\u635F\u5931\u6570\u91CF\u5355\u5217",
+  "tables": [
+    {
+      "sourceTable": "ProductDetails",
+      "targetTable": "product_detail",
+      "columns": 16,
+      "sourceRows": 17281,
+      "targetRows": 0,
+      "uidMd5": "d651acdd12c57dd012bb5362cef874c9",
+      "normalizedFieldSha256": "544693AE500C1C9D7D3490FE250C2A02A4D56CD32F4584FD345529FAA7A54ADE",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 0
+    },
+    {
+      "sourceTable": "CustomerProduct",
+      "targetTable": "customer_product",
+      "columns": 27,
+      "sourceRows": 17005,
+      "targetRows": 0,
+      "uidMd5": "fa4169c1d39e00376720d76f75202d8c",
+      "normalizedFieldSha256": "8DFA5C0DA9656CFAB30EE133B2D1E016223B600DD909F996B04D746EFBA0A40F",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 0
+    },
+    {
+      "sourceTable": "CustomerPoConfig",
+      "targetTable": "customer_po_config",
+      "columns": 25,
+      "sourceRows": 73,
+      "targetRows": 0,
+      "uidMd5": "c8ce047d2996e5255fece23ab9b72cd7",
+      "normalizedFieldSha256": "FF589E5BB1A80A0E7451193333491C9C62D024BAA01A6369DF36801C991E9570",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 0
+    },
+    {
+      "sourceTable": "Bom",
+      "targetTable": "bom",
+      "columns": 17,
+      "sourceRows": 17,
+      "targetRows": 0,
+      "uidMd5": "ca278ef234b5fb971f765159efdf178d",
+      "normalizedFieldSha256": "44244A62DC495446FEC91D1B2E82C70DCAE1EBBBECD19504C6B3528B491C47EE",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 26
+    },
+    {
+      "sourceTable": "ProductNeutral",
+      "targetTable": "product_neutral",
+      "columns": 16,
+      "sourceRows": 7,
+      "targetRows": 0,
+      "uidMd5": "f888b3fd14beadd3fdf4c0aae93bf16d",
+      "normalizedFieldSha256": "C4AE25115F8F49662CCE24A931EA568E57BBEBAEFB1583FD04187088AE6A942D",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 7
+    },
+    {
+      "sourceTable": "ExcelReadProfile",
+      "targetTable": "excel_read_profile",
+      "columns": 13,
+      "sourceRows": 2,
+      "targetRows": 0,
+      "uidMd5": "8092561847947287d637bbfb1ebc22e1",
+      "normalizedFieldSha256": "7A6849308F8A714438554E08117E9DC0A1B4644EB693865E9068A665722A6E7A",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 3
+    },
+    {
+      "sourceTable": "ExcelReadField",
+      "targetTable": "excel_read_field",
+      "columns": 12,
+      "sourceRows": 10,
+      "targetRows": 0,
+      "uidMd5": "3f282b1d094e818dc4a9dcdeb60a9ee8",
+      "normalizedFieldSha256": "2DD8D144B01DE3BE154726D174DEF74BAEB070266D59391FC3C67C7D3BEB480E",
+      "nullViolations": 0,
+      "lengthViolations": 0,
+      "emptyOrDuplicateUids": 0,
+      "subMicrosecondValues": 14
+    }
+  ],
+  "totalProblems": 0
+}

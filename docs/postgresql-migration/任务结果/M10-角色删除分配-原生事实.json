@@ -1,0 +1,46 @@
+[
+  {
+    "test_name": "RoleDeletionAndAssignment_RechecksAfterRealServiceWait (False)",
+    "outcome": "Passed",
+    "duration": "00:00:00.0994668",
+    "facts": {
+      "Batch": "M10-ROLE-ASSIGNMENT-20261006",
+      "DeleteFirst": false,
+      "UserIds": [
+        "a5f6ae78-885a-4897-9560-4a350427f381",
+        "ac396587-8753-4534-9500-4a350427f381",
+        "33c0077e-1f4f-4dc1-b588-4a350427f381"
+      ],
+      "RoleId": "d4583b14-9d73-4332-ba0f-4a350427f381",
+      "AuditIds": [
+        "a24654cb-5b85-48c8-9639-4a350427f39d"
+      ],
+      "FirstPid": 7984,
+      "SecondPid": 6020,
+      "Blocking": "{\"first\" : 7984, \"second\" : 6020, \"blockers\" : [7984], \"wait_type\" : \"Lock\", \"wait_event\" : \"relation\"}",
+      "Policy": "仅新独立RBAC库/真实服务；复用原随机不可登录管理员夹具，非dv密码登录；本人可变夹具按精确UID清理，新审计与旧事实留存"
+    }
+  },
+  {
+    "test_name": "RoleDeletionAndAssignment_RechecksAfterRealServiceWait (True)",
+    "outcome": "Passed",
+    "duration": "00:00:00.6911641",
+    "facts": {
+      "Batch": "M10-ROLE-ASSIGNMENT-20261006",
+      "DeleteFirst": true,
+      "UserIds": [
+        "48cdbf75-6135-4f9a-bad0-4a350427f14c",
+        "e46604c1-6ad7-4df1-922a-4a350427f14c",
+        "d95959e6-133b-46bf-9cdc-4a350427f14c"
+      ],
+      "RoleId": "73cb168a-b504-4579-83ae-4a350427f14c",
+      "AuditIds": [
+        "8dd537e9-e533-4041-972b-4a350427f27e"
+      ],
+      "FirstPid": 1032,
+      "SecondPid": 4332,
+      "Blocking": "{\"first\" : 1032, \"second\" : 4332, \"blockers\" : [1032], \"wait_type\" : \"Lock\", \"wait_event\" : \"relation\"}",
+      "Policy": "仅新独立RBAC库/真实服务；复用原随机不可登录管理员夹具，非dv密码登录；本人可变夹具按精确UID清理，新审计与旧事实留存"
+    }
+  }
+]

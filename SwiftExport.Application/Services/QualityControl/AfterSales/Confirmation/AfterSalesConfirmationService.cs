@@ -28,6 +28,7 @@ using SwiftExport.Core.Entities.QualityControl;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.QualityControl;
+using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
 
 namespace SwiftExport.Application.Services.QualityControl.AfterSales.Confirmation;
 
@@ -61,7 +62,8 @@ public sealed class AfterSalesConfirmationService(
                 ServiceErrorCodes.Validation, "单据身份不能为空。", "Uid");
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, uid,
             new { command.Version }, ct => ConfirmInTransactionAsync(uid, command, ct),
-            token, IsolationLevel.Serializable);
+            token, IsolationLevel.Serializable, beforeTransaction: reception is ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([uid], [], ct) : null);
         // 回执保存首次权威结果；重放标记只修饰本次响应，不改已持久化结果。
         result.Value.AlreadyApplied = result.IsReplay;
         return ServiceResult<CommandExecutionResult<AfterSalesCommandResult>>.Ok(result);

@@ -1,0 +1,24 @@
+{
+  "Batch": "6a67084f-3c6f-4956-8d72-aa439228b500",
+  "Phase": "仅反向终态接续",
+  "FirstRun": false,
+  "CompetitionRerun": false,
+  "PurchaseId": "1a5adefe-348e-4de5-b2c0-4a3502f11e25",
+  "WarehouseId": "be0da779-2a9e-4066-a41a-4a3502f11db4",
+  "Winner": "d24f78f2-01d0-4185-a86f-4a3502f11f6a",
+  "Loser": "9f57bb6a-32a8-492b-a34d-4a3502f11f09",
+  "BalanceId": "c54c4c00-0bd3-4973-b9d8-4a3502f645df",
+  "OriginalLedgerId": "cbcbe1e9-b55d-4bf7-b009-4a3502f645ef",
+  "OriginalLedgerBefore": "{\"uid\": \"cbcbe1e9-b55d-4bf7-b009-4a3502f645ef\", \"reason\": null, \"version\": 1, \"sequence\": 29, \"command_id\": \"6a67084f-3c6f-4956-8d72-aa439228b505\", \"created_by\": \"p06_ar_971332d12c2741099a09b1ec8eb39e91\", \"is_deleted\": false, \"product_id\": \"00008dec-d28a-4036-bc06-da0a2159e16b\", \"updated_by\": \"p06_ar_971332d12c2741099a09b1ec8eb39e91\", \"created_date\": \"2026-10-05T21:48:14.192286\", \"sku_snapshot\": \"AA200071BN-TM1\", \"updated_date\": \"2026-10-05T21:48:14.192286\", \"balance_after\": 2.0000, \"occurred_date\": \"6500-10-05T00:00:00\", \"unit_snapshot\": \"Pcs\", \"quantity_delta\": 2.0000, \"source_line_id\": \"3f3cd116-78e0-4695-8fb5-4a3502f11f70\", \"command_item_id\": \"3f3cd116-78e0-4695-8fb5-4a3502f11f70\", \"transaction_type\": 10, \"warehouse_site_id\": \"be0da779-2a9e-4066-a41a-4a3502f11db4\", \"source_document_id\": \"d24f78f2-01d0-4185-a86f-4a3502f11f6a\", \"correction_group_id\": null, \"request_fingerprint\": \"929D7D48AC9163575F4F93BF66B2E018E6F309FFC0526756A6FB3E4D5B955CD1\", \"source_document_type\": \"InboundDocument\", \"product_name_snapshot\": \"置物板(不打标,牛卡包装)\", \"reversal_of_ledger_id\": null, \"warehouse_code_snapshot\": \"PG-G3-6a67084f\", \"warehouse_name_snapshot\": \"PG首次容量竞争专用仓6a67084f\", \"replacement_of_ledger_id\": null, \"source_document_no_snapshot\": \"IR6500100002\"}",
+  "Backends": [
+    4896,
+    4896,
+    4896,
+    4896,
+    4896,
+    4896,
+    4896
+  ],
+  "Observer": 748,
+  "Policy": "仅本批自有头行/新余额按原命令更新，旧余额/原流水保留，三次失败TRX不覆盖，无清库/重置/DDL/运行库/备份写入"
+}

@@ -9,15 +9,12 @@ public sealed partial class PostgreSqlRepositoryTests
 {
     /// <summary>空输入不访问连接，空白文本保留给数据库匹配，不擅自规范化业务编号。</summary>
     [TestMethod]
-    [DataRow(false)]
-    [DataRow(true)]
-    public async Task BomCollection_EmptyInputDoesNotQuery(bool postgres)
+    public async Task BomCollection_EmptyInputDoesNotQuery()
     {
         using var fixture = new Fixture();
         var context = DictionaryContext(fixture);
-        Func<IEnumerable<string>, Task<Dictionary<string, IEnumerable<Bom>>>> read = postgres
-            ? new PostgreSqlBomRepository(context).GetBomsCollectionByBomNoListAsync
-            : new BomRepository(context).GetBomsCollectionByBomNoListAsync;
+        Func<IEnumerable<string>, Task<Dictionary<string, IEnumerable<Bom>>>> read =
+            new PostgreSqlBomRepository(context).GetBomsCollectionByBomNoListAsync;
         Assert.HasCount(0, await read(null!));
         Assert.HasCount(0, await read([]));
         Assert.HasCount(0, fixture.Connection.Commands);
@@ -25,9 +22,7 @@ public sealed partial class PostgreSqlRepositoryTests
 
     /// <summary>调用方事务必须传入Dapper；保留历史、软删及原始编号精确分组，输入迭代器只能消费一次。</summary>
     [TestMethod]
-    [DataRow(false)]
-    [DataRow(true)]
-    public async Task BomCollection_PreservesStoredGroupsAndUsesCallerTransaction(bool postgres)
+    public async Task BomCollection_PreservesStoredGroupsAndUsesCallerTransaction()
     {
         using var fixture = new Fixture();
         fixture.Connection.Rows.Columns.Add("Uid", typeof(Guid));
@@ -44,9 +39,7 @@ public sealed partial class PostgreSqlRepositoryTests
             yield return "abc ";
         }
         var context = DictionaryContext(fixture);
-        var result = postgres
-            ? await new PostgreSqlBomRepository(context).GetBomsCollectionByBomNoListAsync(Once())
-            : await new BomRepository(context).GetBomsCollectionByBomNoListAsync(Once());
+        var result = await new PostgreSqlBomRepository(context).GetBomsCollectionByBomNoListAsync(Once());
         Assert.AreEqual(1, enumerations);
         Assert.HasCount(2, result);
         Assert.IsTrue(result["ABC"].Single().IsDeleted);
@@ -61,10 +54,7 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.IsFalse(sql.Contains("join", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("for update", StringComparison.Ordinal));
         Assert.IsFalse(sql.Contains("updlock", StringComparison.Ordinal));
-        if (postgres)
-        {
-            StringAssert.Contains(sql, "exists");
-            Assert.IsTrue(fixture.Connection.Types.Values.Contains(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Text));
-        }
+        StringAssert.Contains(sql, "exists");
+        Assert.IsTrue(fixture.Connection.Types.Values.Contains(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Text));
     }
 }

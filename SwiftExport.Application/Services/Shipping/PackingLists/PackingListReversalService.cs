@@ -18,6 +18,7 @@ using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Auditing;
+using SwiftExport.Core.Interfaces.Commands;
 using SwiftExport.Core.Entities.Shipping;
 using SwiftExport.Core.Interfaces.Auditing;
 using SwiftExport.Core.Interfaces.Auth;
@@ -131,10 +132,18 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
         var sourceIds = observed?.Lines.Select(x => x.GrossDemandId).OfType<Guid>().Distinct().Order().ToArray() ?? [];
         // 事务外探测原执行资源；事务内取得更新锁前不读取余额和原库存单据。
         var candidateFacts = replayCandidate == null ? await executions.ReadReverseFactsAsync(request.PackingListId, token) : null;
+        // 自动反向批次保留自己的审计幂等身份；PG锁须在首次事务快照前声明，不能借用外层命令身份。
+        var inventoryCommands = new List<Guid>();
+        if (candidateFacts?.OutboundHeads.Count > 0)
+            inventoryCommands.Add(PackingListAutomaticCommandBuilder.DeriveId(request.CommandId, "reverse-outbound"));
+        if (candidateFacts?.InboundHeads.Count > 0)
+            inventoryCommands.Add(PackingListAutomaticCommandBuilder.DeriveId(request.CommandId, "reverse-inbound"));
         try
         {
         var executed = await executor.ExecuteAsync(request.CommandId, "Shipping.PackingList.Reverse", request.PackingListId,
-            new { request.ExpectedVersion, Date = request.BusinessDate.Date, Reason = reason, request.PreviewToken }, ct => ReverseInTransactionAsync(request, candidateFacts, sourceIds, reason, fingerprint, ct), token, IsolationLevel.Serializable);
+            new { request.ExpectedVersion, Date = request.BusinessDate.Date, Reason = reason, request.PreviewToken }, ct => ReverseInTransactionAsync(request, candidateFacts, sourceIds, reason, fingerprint, ct), token, IsolationLevel.Serializable,
+            logs is ICommandRelatedTransactionPreparation preparation && inventoryCommands.Count > 0
+                ? ct => preparation.AcquireRelatedBeforeTransactionAsync(request.CommandId, inventoryCommands, ct) : null);
         executed.Value.AlreadyApplied = executed.IsReplay;
         return executed.Value;
         }

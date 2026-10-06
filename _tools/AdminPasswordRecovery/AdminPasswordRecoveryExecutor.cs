@@ -1,5 +1,5 @@
-using SwiftExport.Application.Interfaces.Auth;
-using SwiftExport.Application.Services.Auth;
+using SwiftExport.Application.Interfaces.Auth.Passwords;
+using SwiftExport.Application.Services.Auth.Passwords;
 
 namespace SwiftExport.Tools.AdminPasswordRecovery;
 

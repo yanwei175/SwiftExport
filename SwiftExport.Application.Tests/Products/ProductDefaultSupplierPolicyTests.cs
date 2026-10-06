@@ -10,6 +10,7 @@ using SwiftExport.Infrastructure.Repositories.Products.Catalog;
 
 namespace SwiftExport.Application.Tests.Products;
 
+/// <summary>验证默认供应商归一化及 PG 写入只保留逻辑身份，不写展示编码或型号。</summary>
 [TestClass]
 public sealed class ProductDefaultSupplierPolicyTests
 {
@@ -71,10 +72,11 @@ public sealed class ProductDefaultSupplierPolicyTests
         Assert.AreEqual(supplierId, ids[0]);
     }
 
+    /// <summary>产品 PG 新增和更新白名单持久化供应商身份及单位，不写废弃展示字段。</summary>
     [TestMethod]
     public void ProductRepository_ShouldPersistSupplierIdentityWithoutLegacyCodes()
     {
-        var repository = (ProductRepository)RuntimeHelpers.GetUninitializedObject(typeof(ProductRepository));
+        var repository = (PostgreSqlProductRepository)RuntimeHelpers.GetUninitializedObject(typeof(PostgreSqlProductRepository));
         var insertProperties = ReadWriteProperties(repository, "InsertProperties");
         var updateProperties = ReadWriteProperties(repository, "UpdateProperties");
 
@@ -88,9 +90,10 @@ public sealed class ProductDefaultSupplierPolicyTests
         CollectionAssert.DoesNotContain(updateProperties, "DefaultSupplierSku");
     }
 
-    private static List<string> ReadWriteProperties(ProductRepository repository, string propertyName)
+    /// <summary>读取实际 PG 仓储写属性集合；不构造会话或数据库连接。</summary>
+    private static List<string> ReadWriteProperties(PostgreSqlProductRepository repository, string propertyName)
     {
-        var property = typeof(ProductRepository).GetProperty(
+        var property = typeof(PostgreSqlProductRepository).GetProperty(
             propertyName,
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.IsNotNull(property);

@@ -25,9 +25,9 @@ public sealed class ExecutionEligibilityBoundaryTests
     [TestMethod]
     public void OrdinaryRepositoryUpdatesCannotChangeEligibility()
     {
-        AssertUpdateBoundary(typeof(ProductRepository), "Sku");
-        AssertUpdateBoundary(typeof(CustomerRepository), "CustomerCode");
-        AssertUpdateBoundary(typeof(SupplierRepository), "SupplierCode");
+        AssertUpdateBoundary(typeof(PostgreSqlProductRepository), "Sku");
+        AssertUpdateBoundary(typeof(PostgreSqlCustomerRepository), "CustomerCode");
+        AssertUpdateBoundary(typeof(PostgreSqlSupplierRepository), "SupplierCode");
     }
 
     /// <summary>旧 DTO 不新增可绑定的资格状态，新增命令也不能接收用户或角色字段。</summary>

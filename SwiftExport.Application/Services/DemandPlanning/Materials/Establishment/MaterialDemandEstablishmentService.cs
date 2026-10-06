@@ -66,7 +66,9 @@ public sealed class MaterialDemandEstablishmentService(
         var input = command.Items.OrderBy(item => item.GrossDemandId)
             .Select(item => new { item.GrossDemandId, item.SourceDemandVersion, item.SourceVersion }).ToArray();
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, null, new { Items = input },
-            ct => EstablishInTransactionAsync(command, ct), token, isolationLevel: IsolationLevel.Serializable);
+            ct => EstablishInTransactionAsync(command, ct), token, isolationLevel: IsolationLevel.Serializable,
+            beforeTransaction: grossDemandRepository is ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([], input.Select(x => x.GrossDemandId).ToArray(), ct) : null);
         return ServiceResult<CommandExecutionResult<EstablishMaterialDemandsResult>>.Ok(result);
     }
 

@@ -1,0 +1,948 @@
+{
+  "recorded_at": "2026-10-06 04:27 +08:00",
+  "host": "192.168.3.12",
+  "port": 5432,
+  "database": "dv_next_pg_failure_tests_20261004",
+  "actual_command": "& docs/postgresql-migration/任务结果/M05-M06-现有汇率权限-实际命令.ps1",
+  "filter": "FullyQualifiedName~PostgreSqlCurrencyMigrationIntegrationTests|FullyQualifiedName~PostgreSqlAuthMigrationIntegrationTests",
+  "before": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 117,
+      "data_md5": "a119089895f308a6eb61d2691d4db23e"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 42,
+      "data_md5": "24ca8c2c3a47d4a0a8f9eeb9a1492eab"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 11,
+      "data_md5": "8132306b6362a3d3b0fe29f148c4bb32"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 14,
+      "data_md5": "dcac1646ff18d946630d0aff82ae1411"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 22,
+      "data_md5": "b6911cb52c897a433e4eb1d74eb743be"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 4,
+      "data_md5": "00962a71fa7a9da5868c1a560c2c160b"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "after": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 1,
+      "data_md5": "9cb74e0bc289780fea447c6d56d1427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 2,
+      "data_md5": "1a0cfb8b63aa1a213d9ff2442d7737fa"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 19,
+      "data_md5": "2879698404437cf90a480b18b8ba73d1"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 139,
+      "data_md5": "3aaf7d52d0370beb9fdf7848a8b7a251"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 117,
+      "data_md5": "a119089895f308a6eb61d2691d4db23e"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 15,
+      "data_md5": "df80c099978566d59d626c1506c3ed66"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 73,
+      "data_md5": "a48acc192e7a8b64f510c07bf2ea30ed"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 17005,
+      "data_md5": "fe7f22cb146ba9500c02cb10ca2f2859"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 9,
+      "data_md5": "b36a2fa78ae699acdc6a2a342cb99d09"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 42,
+      "data_md5": "24ca8c2c3a47d4a0a8f9eeb9a1492eab"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 10,
+      "data_md5": "8faf9ad70893d0a90f82c8500bf24cae"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 2,
+      "data_md5": "811f1b5ddd9f1f165a11b9d479284688"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 14,
+      "data_md5": "ebec9e77739acec67f2e470f936a0478"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 16,
+      "data_md5": "44bd7f8af578f3607bfe67a3399daaf4"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 17,
+      "data_md5": "4da422cce73b39279e05a272d2d59248"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 9,
+      "data_md5": "4026c78386fde7badaac9d5ec58c7d84"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 47,
+      "data_md5": "07ce2b5c7c7c59ef8e12441c3f481c55"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 17,
+      "data_md5": "bdacea560d72e405ad558b4dd7fed7d9"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 11,
+      "data_md5": "71deb7ecbd6e01754afc4fc28edf9486"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 11,
+      "data_md5": "169aa8a54a18d7a7521df037c954ca40"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 8,
+      "data_md5": "15fdd26f5506240ca459afe2557ffa6a"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 10,
+      "data_md5": "9dd5f3bbb377550975527bea465f4b21"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 12,
+      "data_md5": "ec104d23908d8d7e64942c1799b1805a"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 28,
+      "data_md5": "94ccfa623cd2b8826866e8517b693f02"
+    },
+    {
+      "table_name": "product",
+      "row_count": 17317,
+      "data_md5": "87e8890293031c473fb5728b262676d0"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 34,
+      "data_md5": "69a6d3ac8bce1aab059b46ee53db0ab7"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 35,
+      "data_md5": "7a0350f928cf0a1e33fd5fe9d6f4816d"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 17281,
+      "data_md5": "b4a02bbf6affe05c71e13c3026e0150e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 4,
+      "data_md5": "aef9714165cac883fe18a8209eb32a16"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 7,
+      "data_md5": "8f03d575d7e87f11e4aaa85f5dcbaa0d"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 15,
+      "data_md5": "6941e902d9b618f0e3cc292e33c6bc29"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 18,
+      "data_md5": "cbf87db552822f4bc95437455217610e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 11,
+      "data_md5": "8132306b6362a3d3b0fe29f148c4bb32"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 14,
+      "data_md5": "dcac1646ff18d946630d0aff82ae1411"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 22,
+      "data_md5": "b6911cb52c897a433e4eb1d74eb743be"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 4,
+      "data_md5": "00962a71fa7a9da5868c1a560c2c160b"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 29,
+      "data_md5": "3faa268dd42dabd8a6cb47b550c67e7e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 10,
+      "data_md5": "d9dacaf3dcd7b27ccbeff62f896d0e4b"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "c732bd9bcb2fe6bf593cbd7e12629023"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 2,
+      "data_md5": "3365c9d750e4ff6ab8ba7e7a3cd6f58c"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 12,
+      "data_md5": "42fe3e6ad67279bbdf47dce798b79375"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 10,
+      "data_md5": "a1ed982722fba67d0c27784b597179b5"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 10,
+      "data_md5": "dc29ea7f46c4d7f7bd4c2190cd2ba890"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 21,
+      "data_md5": "b68c5233e638b83c38151fca8845b0d6"
+    }
+  ],
+  "all_original_rows_unchanged": true,
+  "preflight": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| table_name | column_name | is_nullable | data_type |\n|---|---|---|---|\n| sys_dic_currency | currency_code | YES | character varying |\n| sys_dic_currency | rate_to_base | NO | numeric |\n| sys_dic_currency | is_enabled | NO | boolean |\n| sys_dic_currency_exchange | is_enabled | NO | boolean |\n| sys_dic_currency_exchange | from_currency_code | YES | character varying |\n| sys_dic_currency_exchange | to_currency_code | YES | character varying |\n| sys_dic_currency_exchange | rate | YES | numeric |\n(7 rows, 19ms)\n### Statement 2\n| currency_code |\n|---|\n| CNY |\n| P11A61B0A |\n(2 rows, 4ms)\n### Statement 3\n| admin_roles |\n|---|\n| 1 |\n(1 rows, 4ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "table_name",
+            "column_name",
+            "is_nullable",
+            "data_type"
+          ],
+          "column_types": [
+            "name",
+            "name",
+            "varchar",
+            "varchar"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              "sys_dic_currency",
+              "currency_code",
+              "YES",
+              "character varying"
+            ],
+            [
+              "sys_dic_currency",
+              "rate_to_base",
+              "NO",
+              "numeric"
+            ],
+            [
+              "sys_dic_currency",
+              "is_enabled",
+              "NO",
+              "boolean"
+            ],
+            [
+              "sys_dic_currency_exchange",
+              "is_enabled",
+              "NO",
+              "boolean"
+            ],
+            [
+              "sys_dic_currency_exchange",
+              "from_currency_code",
+              "YES",
+              "character varying"
+            ],
+            [
+              "sys_dic_currency_exchange",
+              "to_currency_code",
+              "YES",
+              "character varying"
+            ],
+            [
+              "sys_dic_currency_exchange",
+              "rate",
+              "YES",
+              "numeric"
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 19,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0,
+          "error_message": "sys_dic_currency"
+        },
+        {
+          "columns": [
+            "currency_code"
+          ],
+          "column_types": [
+            "varchar"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              "CNY"
+            ],
+            [
+              "P11A61B0A"
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1,
+          "error_message": "CNY"
+        },
+        {
+          "columns": [
+            "admin_roles"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              1
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        }
+      ]
+    },
+    "isError": false
+  },
+  "before_guard": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| last_value | is_called |\n|---|---|\n| 50 | true |\n(1 rows, 2ms)\n### Statement 2\n| other_active |\n|---|\n| 0 |\n(1 rows, 4ms)\n### Statement 3\n| advisory_locks |\n|---|\n| 0 |\n(1 rows, 1ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "last_value",
+            "is_called"
+          ],
+          "column_types": [
+            "int8",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              50,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 2,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0
+        },
+        {
+          "columns": [
+            "other_active"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 4,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1
+        },
+        {
+          "columns": [
+            "advisory_locks"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 1,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        }
+      ]
+    },
+    "isError": false
+  },
+  "final_guard": {
+    "content": [
+      {
+        "type": "text",
+        "text": "### Statement 1\n| last_value | is_called |\n|---|---|\n| 50 | true |\n(1 rows, 3ms)\n### Statement 2\n| other_active |\n|---|\n| 0 |\n(1 rows, 6ms)\n### Statement 3\n| advisory_locks |\n|---|\n| 0 |\n(1 rows, 3ms)"
+      }
+    ],
+    "structuredContent": {
+      "results": [
+        {
+          "columns": [
+            "last_value",
+            "is_called"
+          ],
+          "column_types": [
+            "int8",
+            "bool"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              50,
+              true
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 3,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 0
+        },
+        {
+          "columns": [
+            "other_active"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 6,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 1
+        },
+        {
+          "columns": [
+            "advisory_locks"
+          ],
+          "column_types": [
+            "int8"
+          ],
+          "column_sortables": [],
+          "rows": [
+            [
+              0
+            ]
+          ],
+          "affected_rows": 0,
+          "execution_time_ms": 3,
+          "truncated": false,
+          "session_id": null,
+          "has_more": false,
+          "statement_index": 2
+        }
+      ]
+    },
+    "isError": false
+  },
+  "build": {
+    "command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "exit_code": 0,
+    "errors": 0,
+    "existing_warnings": 7,
+    "duration_seconds": 7.61
+  },
+  "production_changed": false,
+  "schema_changed": false,
+  "git_commit_push_merge_deploy": false,
+  "unverified": [
+    "M05字典实际服务事务/主从归属/RR快照及版本竞争",
+    "运行库dv正常密码登录及G6/P08最终",
+    "B03本位币切换缺口按用户决定暂缓"
+  ],
+  "native": {
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "exit_code": 0,
+    "summary_duration_ms": 467,
+    "trx": "TestResults/postgresql-migration/m05-m06-existing-exchange-permissions-native.trx",
+    "trx_sha256": "FC2A912CAE2E6902BA16A9280AACD4EB470D6378EB5952398CA9199E9133698A",
+    "results": [
+      {
+        "name": "InvalidAuthorizationSource_IsExcluded (\"InactivePermission\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0063642"
+      },
+      {
+        "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedRole\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0082990"
+      },
+      {
+        "name": "SystemAdministrator_TemporaryRelationIsRecognizedAndRevoked",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0209874"
+      },
+      {
+        "name": "MultipleRoles_MapSortedDistinctPermissionUnion",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0545239"
+      },
+      {
+        "name": "ExchangeQueries_UseRealNullableParametersAndRollbackTestRows",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlCurrencyMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0347711"
+      },
+      {
+        "name": "InvalidAccount_HasNoFactsOrActiveSummary (False,False)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0059771"
+      },
+      {
+        "name": "Revocation_RequeryReturnsCurrentFactsWithoutCachedAuthorization",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0167718"
+      },
+      {
+        "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedRolePermission\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0092452"
+      },
+      {
+        "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (\"   \")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0066225"
+      },
+      {
+        "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (\"测试昵称 \")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0072286"
+      },
+      {
+        "name": "InvalidAccount_HasNoFactsOrActiveSummary (True,True)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0117307"
+      },
+      {
+        "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (null)",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.2114402"
+      },
+      {
+        "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedPermission\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0090137"
+      },
+      {
+        "name": "InvalidAuthorizationSource_IsExcluded (\"DeletedUserRole\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0110641"
+      },
+      {
+        "name": "MissingUserAndUnassignedAccount_KeepIdentityAndNicknameFallback (\"\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0094853"
+      },
+      {
+        "name": "InvalidAuthorizationSource_IsExcluded (\"InactiveRole\")",
+        "class": "SwiftExport.Application.Tests.Database.PostgreSqlAuthMigrationIntegrationTests",
+        "outcome": "Passed",
+        "duration": "00:00:00.0090005"
+      }
+    ],
+    "parallel_workers": 1
+  },
+  "source_hashes": [
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlCurrencyMigrationTests.Integration.cs",
+      "sha256": "E52EADE3C2380B17E8D6D38AD512CC3B5AB784D8C9012F7AE210A990F6E87500"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlAuthMigrationTests.Integration.cs",
+      "sha256": "C82B4C5F1FD5B2A357DAD75E9A7C6310EEAD59367E81FD8493DCEB7258E9A9F9"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Application.Tests\\Database\\PostgreSqlIntegrationEnvironment.cs",
+      "sha256": "33594E10D1F07C029848A6B720D23D82DAF42C9438119B905B89B85418DDD6DE"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Systems\\ExchangeRates\\PostgreSqlSysDicCurrencyExchangeRepository.cs",
+      "sha256": "223B8672CD8B7408A75B0633D4A89EA2227C6CAC3A6BC4660F916FC32F954960"
+    },
+    {
+      "path": "D:\\Documents\\source\\CSharp\\SwiftExport\\SwiftExport.Infrastructure\\Repositories\\Auth\\Permissions\\PostgreSqlUserPermissionRepository.cs",
+      "sha256": "EEF4704AF57523EDAD590651BB73BD1E9D0C7A2F0E9C087CFB0BB9B98CE6C7E0"
+    }
+  ],
+  "exact_change_recovery": [
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlCurrencyMigrationTests.Integration.cs",
+      "before_sha256": "50AFEEA2B6130954AD62857A40CD194CC3BB54B13E6CD7171F3BA8EA93CB5828",
+      "recovered_before_sha256": "50AFEEA2B6130954AD62857A40CD194CC3BB54B13E6CD7171F3BA8EA93CB5828",
+      "matches": true
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlAuthMigrationTests.Integration.cs",
+      "before_sha256": "9B947EF4DE0CE9AEDA2D725632493AA97B6212CD1916671E5FD0F037FF2AC965",
+      "recovered_before_sha256": "9B947EF4DE0CE9AEDA2D725632493AA97B6212CD1916671E5FD0F037FF2AC965",
+      "matches": true
+    }
+  ],
+  "testhost_count": 0
+}

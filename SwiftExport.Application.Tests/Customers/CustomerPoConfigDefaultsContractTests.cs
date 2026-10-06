@@ -3,6 +3,8 @@ using SwiftExport.Application.Services.Customers;
 using SwiftExport.Application.Services.Customers.PoConfigs;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Core.Entities.Relations;
+using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Infrastructure.Repositories.Customers.PoConfigs;
 
 namespace SwiftExport.Application.Tests.Customers;
 
@@ -37,13 +39,24 @@ public sealed class CustomerPoConfigDefaultsContractTests
     [TestMethod]
     public void SqlContracts_ShouldProjectFieldsAndProtectCurrencyReference()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Customers", "PoConfigs", "CustomerPoConfigRepository.cs");
-        Assert.IsTrue(Count(repository, "cpc.Currency, cpc.DefaultDiscountRate, cpc.DiscountRemark") >= 2);
-        StringAssert.Contains(repository, "@CustomerId IS NOT NULL AND Uid=@CustomerId");
-        StringAssert.Contains(repository, "@SupplierId IS NOT NULL AND Uid=@SupplierId");
-        StringAssert.Contains(repository, "entity.CustomerCode = ids.CustomerCode");
-        var currencyRepository = Read("SwiftExport.Infrastructure", "Repositories", "Systems", "Currencies", "SysDicCurrencyRepository.cs");
-        StringAssert.Contains(currencyRepository, "SELECT Currency FROM dbo.CustomerPoConfig");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Customers", "PoConfigs", "PostgreSqlCustomerPoConfigRepository.cs");
+        var columns = (string)typeof(PostgreSqlCustomerPoConfigRepository)
+            .GetField("Columns", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null)!;
+        foreach (var pair in new[] { ("currency", "Currency"), ("default_discount_rate", "DefaultDiscountRate"), ("discount_remark", "DiscountRemark") })
+            StringAssert.Contains(columns, $"cpc.\"{pair.Item1}\" AS \"{pair.Item2}\"");
+        Assert.IsTrue(Count(repository, "SELECT {Columns} FROM public.customer_po_config cpc") >= 2);
+        StringAssert.Contains(repository, "CAST(@CustomerId AS uuid) IS NOT NULL AND uid=CAST(@CustomerId AS uuid)");
+        StringAssert.Contains(repository, "CAST(@SupplierId AS uuid) IS NOT NULL AND uid=CAST(@SupplierId AS uuid)");
+        StringAssert.Contains(repository, "entity.CustomerCode = result.CustomerCode");
+        var currencyRepository = Read("SwiftExport.Infrastructure", "Repositories", "Systems", "Currencies", "PostgreSqlSysDicCurrencyRepository.cs");
+        StringAssert.Contains(currencyRepository, "typeof(CustomerPoConfig)");
+        StringAssert.Contains(currencyRepository, "PostgreSqlEntityMetadata.GetMetadata(type)");
+        StringAssert.Contains(currencyRepository, "metadata.GetProperty(\"Currency\").ColumnName");
+        StringAssert.Contains(currencyRepository, "AS code FROM {Qualified(metadata)}");
+        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(CustomerPoConfig));
+        Assert.AreEqual("public", metadata.SchemaName);
+        Assert.AreEqual("customer_po_config", metadata.TableName);
+        Assert.AreEqual("currency", metadata.GetProperty("Currency").ColumnName);
     }
 
     /// <summary>币种与折扣备注长度必须匹配数据库，备注与折扣率可分别配置。</summary>
@@ -56,17 +69,17 @@ public sealed class CustomerPoConfigDefaultsContractTests
         Assert.IsNull(CustomerPoConfigService.ValidateFieldLengths(ValidDto(0.95m, "CNY", null)));
     }
 
-    /// <summary>实体生成基线必须声明字段精度、检查约束和零数据库外键边界。</summary>
+    /// <summary>PG 实体生成基线必须保持字段可空、长度精度、非负检查及零数据库外键边界，不限制涨价倍率。</summary>
     [TestMethod]
     public void GeneratedSchema_ShouldDeclareExpectedNullableColumnsAndCheckConstraint()
     {
-        var sql = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.Schema.sql");
-        StringAssert.Contains(sql, "[Currency] nvarchar(10) NULL");
-        StringAssert.Contains(sql, "[DefaultDiscountRate] decimal(9,6) NULL");
-        StringAssert.Contains(sql, "[DiscountRemark] nvarchar(500) NULL");
-        StringAssert.Contains(sql, "CK_CustomerPoConfig_DefaultDiscountRate");
-        StringAssert.Contains(sql, "[DefaultDiscountRate] >= 0");
-        Assert.IsFalse(sql.Contains("DefaultDiscountRate <= 1", StringComparison.OrdinalIgnoreCase));
+        var sql = Read("SwiftExport.Infrastructure", "Database", "Generated", "SwiftExport.PostgreSql.Schema.preview.sql");
+        StringAssert.Contains(sql, "\"currency\" varchar(10) NULL");
+        StringAssert.Contains(sql, "\"default_discount_rate\" numeric(9,6) NULL");
+        StringAssert.Contains(sql, "\"discount_remark\" varchar(500) NULL");
+        StringAssert.Contains(sql, "ck_customer_po_config_default_discount_rate");
+        StringAssert.Contains(sql, "\"default_discount_rate\" >= 0");
+        Assert.IsFalse(sql.Contains("\"default_discount_rate\" <= 1", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(sql.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase));
     }
 

@@ -1,0 +1,132 @@
+{
+  "Batch": "9935668e-0c0c-4399-b6e2-46985bdbcc00",
+  "WarehouseId": "e1a896a1-f86a-4201-859e-4a3503bfd8a1",
+  "InboundId": "7e10a691-191e-4593-8a01-4a3503bfd9a7",
+  "OutboundA": "7eb59988-74c4-4178-a612-4a3503bfda4c",
+  "OutboundB": "180fbf17-b579-4d3e-8282-4a3503bfda66",
+  "BalanceId": "2bef84dd-3089-4827-aed0-4a3503bfda1d",
+  "PurchaseLineId": "92155d9f-80db-41c7-a139-4a3503bfd8e7",
+  "PurchaseId": "4fa2ab46-ad3a-488a-8dab-4a3503bfd8e4",
+  "SupplierId": "048b165c-d3c0-4ba0-93e9-4a3503bfd844",
+  "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+  "Pids": [
+    280,
+    8112,
+    7496
+  ],
+  "TasksTerminal": true,
+  "Evidence": [
+    {
+      "Stage": "原预览",
+      "Id": "7eb59988-74c4-4178-a612-4a3503bfda4c",
+      "Preview": {
+        "Uid": "7eb59988-74c4-4178-a612-4a3503bfda4c",
+        "Version": 1,
+        "DocumentNo": "OI6506100001",
+        "IssueReason": "PG本批负库存竞争",
+        "WarehouseSiteId": "e1a896a1-f86a-4201-859e-4a3503bfd8a1",
+        "WarehouseName": "PG负库存竞争专用仓9935668e",
+        "CanPost": true,
+        "StockImpacts": [
+          {
+            "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+            "Sku": "AA200071BN-TM1",
+            "CurrentQuantity": 2.0,
+            "QuantityDelta": -2.0,
+            "ExpectedQuantity": 0.0
+          }
+        ],
+        "Blockers": []
+      }
+    },
+    {
+      "Stage": "原预览",
+      "Id": "180fbf17-b579-4d3e-8282-4a3503bfda66",
+      "Preview": {
+        "Uid": "180fbf17-b579-4d3e-8282-4a3503bfda66",
+        "Version": 1,
+        "DocumentNo": "OI6506100002",
+        "IssueReason": "PG本批负库存竞争",
+        "WarehouseSiteId": "e1a896a1-f86a-4201-859e-4a3503bfd8a1",
+        "WarehouseName": "PG负库存竞争专用仓9935668e",
+        "CanPost": true,
+        "StockImpacts": [
+          {
+            "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+            "Sku": "AA200071BN-TM1",
+            "CurrentQuantity": 2.0,
+            "QuantityDelta": -2.0,
+            "ExpectedQuantity": 0.0
+          }
+        ],
+        "Blockers": []
+      }
+    },
+    {
+      "Stage": "真实库存等待",
+      "Candidates": [
+        8112
+      ],
+      "Graph": "[{\"pid\": 8112, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\",\\ncreated_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\",\\ncode AS \\\"Code\\\", name AS \\\"Name\\\", site_type AS \\\"SiteType\\\", supplier_id AS \\\"SupplierId\\\",\\nsupplier_code_snapshot AS \\\"SupplierCodeSnapshot\\\", supplier_name_snapshot AS \\\"SupplierNameSnapshot\\\", is_active AS \\\"IsActive\\\" FROM public.warehouse_site WHERE uid=$1 AND COALESCE(is_deleted,FALSE)=FALSE FOR UPDATE\", \"blocking\": [280], \"xact_start\": \"2026-10-06T01:28:26.192054+08:00\"}]"
+    },
+    {
+      "Stage": "真实库存等待",
+      "Candidates": [
+        8112,
+        7496
+      ],
+      "Graph": "[{\"pid\": 8112, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\",\\ncreated_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\",\\ncode AS \\\"Code\\\", name AS \\\"Name\\\", site_type AS \\\"SiteType\\\", supplier_id AS \\\"SupplierId\\\",\\nsupplier_code_snapshot AS \\\"SupplierCodeSnapshot\\\", supplier_name_snapshot AS \\\"SupplierNameSnapshot\\\", is_active AS \\\"IsActive\\\" FROM public.warehouse_site WHERE uid=$1 AND COALESCE(is_deleted,FALSE)=FALSE FOR UPDATE\", \"blocking\": [280], \"xact_start\": \"2026-10-06T01:28:26.192054+08:00\"}, {\"pid\": 7496, \"query\": \"SELECT uid AS \\\"Uid\\\", version AS \\\"Version\\\", is_deleted AS \\\"IsDeleted\\\",\\ncreated_date AS \\\"CreatedDate\\\", created_by AS \\\"CreatedBy\\\", updated_date AS \\\"UpdatedDate\\\", updated_by AS \\\"UpdatedBy\\\",\\ncode AS \\\"Code\\\", name AS \\\"Name\\\", site_type AS \\\"SiteType\\\", supplier_id AS \\\"SupplierId\\\",\\nsupplier_code_snapshot AS \\\"SupplierCodeSnapshot\\\", supplier_name_snapshot AS \\\"SupplierNameSnapshot\\\", is_active AS \\\"IsActive\\\" FROM public.warehouse_site WHERE uid=$1 AND COALESCE(is_deleted,FALSE)=FALSE FOR UPDATE\", \"blocking\": [8112], \"xact_start\": \"2026-10-06T01:28:26.264811+08:00\"}]"
+    },
+    {
+      "Stage": "真实竞争终态",
+      "First": {
+        "Success": true,
+        "Message": "成功",
+        "Data": {
+          "Uid": "7eb59988-74c4-4178-a612-4a3503bfda4c",
+          "Version": 2,
+          "DocumentNo": "OI6506100001",
+          "PostingStatus": 1
+        },
+        "Error": null
+      },
+      "Second": {
+        "Success": false,
+        "Message": "库存不足，过账后库存不能为负。",
+        "Data": null,
+        "Error": {
+          "Code": "BUSINESS_BLOCKED",
+          "Message": "库存不足，过账后库存不能为负。",
+          "Field": null
+        }
+      },
+      "Pids": [
+        280,
+        8112,
+        7496
+      ]
+    },
+    {
+      "Stage": "原入库反向不足库存拒绝",
+      "Result": {
+        "Success": false,
+        "Message": "产品 AA200071BN-TM1 当前库存 0，需要扣减 2，余额不足或超出范围。",
+        "Data": null,
+        "Error": {
+          "Code": "BUSINESS_BLOCKED",
+          "Message": "产品 AA200071BN-TM1 当前库存 0，需要扣减 2，余额不足或超出范围。",
+          "Field": null
+        }
+      },
+      "Snapshot": "37d8cf585ec4ec90d5ccd952d786ec1f"
+    },
+    {
+      "Stage": "原正反向终态",
+      "Snapshot": "2b66c9ce9283d526eb72262de55e67b5",
+      "LedgerCount": 4,
+      "BalanceVersion": 5,
+      "BalanceQuantity": 0
+    }
+  ],
+  "Policy": "只新仓/新入出库草稿和本批新余额流水原反向；52454旧行全部保护，只本批新独立采购，无重置/DDL/运行或备份库写入"
+}

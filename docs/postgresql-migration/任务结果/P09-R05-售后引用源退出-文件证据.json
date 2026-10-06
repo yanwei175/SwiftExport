@@ -1,0 +1,60 @@
+{
+  "recorded_at": "2026-10-06T08:11:52.209784+08:00",
+  "stage": "P09-R05",
+  "status": "验证通过：售后引用源仓储退出，原期望保留/28定向及构建通过",
+  "files": [
+    {
+      "name": "AfterSalesLookupRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Lookup/AfterSalesLookupRepository.cs",
+      "sha256": "4B00B99FC35013780039BDB206EE888D5699EE7ED7CB5C0A395A43AE6F7F0C6F",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Lookup/PostgreSqlAfterSalesLookupRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Database/PostgreSqlAfterSalesReferenceMigrationTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Database/PostgreSqlAfterSalesReferenceMigrationTests.cs",
+      "before_sha256": "B2765B345F38C8509FCCA9740FBD757AB85F8E6173472FB078906B1C81ECDE6F",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "D0187915B10D8C523297CB8B45BC6743D0AC5AC54CF279D5C5724D3FFFB2B11D"
+    }
+  ],
+  "frozen_source_expectations": {
+    "invalid_kind_exception": "ArgumentException",
+    "message": "不支持的售后候选类型。",
+    "parameter": "kind",
+    "dto_default_fields": [
+      "Name",
+      "CustomerSku",
+      "LinkSku",
+      "Unit",
+      "ColorName",
+      "Specification"
+    ],
+    "dto_default_string_value": "",
+    "color_id": null,
+    "null_apply_setting_unchanged": true
+  },
+  "database_run": false,
+  "verification": {
+    "completed_at": "2026-10-06T08:13:31.2730596+08:00",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_elapsed_seconds": 3.78,
+    "command": "& './docs/postgresql-migration/任务结果/P09-R05-售后引用契约-实际命令.ps1'",
+    "trx_path": "TestResults/postgresql-migration/p09-r05-aftersales-reference-offline.trx",
+    "trx_sha256": "C0F23181C1C154BE2F212F06ED6ECB852667A23CD15DB1FA5E0C791B7F008EBB",
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 121,
+    "source_identifier_references": 0,
+    "database_run": false
+  }
+}

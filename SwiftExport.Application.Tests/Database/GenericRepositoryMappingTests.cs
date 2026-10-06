@@ -1,7 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Core.Entities.Procurement;
@@ -13,11 +13,11 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>通过真实 Dapper 调用与无网络 ADO.NET 替身验证列、参数、结果及事务传递。</summary>
+/// <summary>通过真实 Dapper 调用与无网络 ADO.NET 替身验证 PG 列、参数、结果及事务传递。</summary>
 [TestClass]
 public sealed class GenericRepositoryMappingTests
 {
-    /// <summary>新增绑定实体 Quantity 参数，物理 INSERT 使用 QTY，且沿用调用方事务。</summary>
+    /// <summary>新增绑定实体 Quantity 参数，物理 INSERT 使用 quantity，且沿用调用方事务。</summary>
     [TestMethod]
     public async Task Insert_UsesMappedColumnAndPropertyParameter()
     {
@@ -25,9 +25,9 @@ public sealed class GenericRepositoryMappingTests
         var entity = new PurchaseOrderLine { Quantity = 12.5m };
         var result = await fixture.Repository.AddAsync(entity);
         Assert.IsTrue(result.Success);
-        StringAssert.Contains(fixture.Connection.Text, "INSERT INTO [dbo].[PurchaseOrderLine]");
-        StringAssert.Contains(fixture.Connection.Text, "[QTY]");
-        Assert.IsFalse(fixture.Connection.Text.Contains("[Quantity]", StringComparison.Ordinal));
+        StringAssert.Contains(fixture.Connection.Text, "INSERT INTO \"public\".\"purchase_order_line\"");
+        StringAssert.Contains(fixture.Connection.Text, "\"quantity\"");
+        Assert.IsFalse(fixture.Connection.Text.Contains("\"Quantity\"", StringComparison.Ordinal));
         Assert.AreEqual(12.5m, fixture.Connection.Values["Quantity"]);
         Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
     }
@@ -41,8 +41,8 @@ public sealed class GenericRepositoryMappingTests
         fixture.Connection.Rows.Rows.Add(7.25m);
         var entity = await fixture.Repository.GetByIdAsync(Guid.NewGuid(), true);
         Assert.AreEqual(7.25m, entity!.Quantity);
-        StringAssert.Contains(fixture.Connection.Text, "[QTY] AS [Quantity]");
-        StringAssert.Contains(fixture.Connection.Text, "WITH (UPDLOCK, ROWLOCK)");
+        StringAssert.Contains(fixture.Connection.Text, "\"quantity\" AS \"Quantity\"");
+        StringAssert.Contains(fixture.Connection.Text, " FOR UPDATE");
         Assert.IsFalse(fixture.Connection.Text.Contains("SELECT *", StringComparison.Ordinal));
         Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
     }
@@ -57,8 +57,8 @@ public sealed class GenericRepositoryMappingTests
         var result = await fixture.Repository.UpdateAsync(new PurchaseOrderLine { Quantity = 2m, Version = 3 });
         Assert.IsTrue(result.Success);
         Assert.AreEqual(3, fixture.Connection.Values["OriginalVersion"]);
-        StringAssert.Contains(fixture.Connection.Text, "[QTY] = @Quantity");
-        StringAssert.Contains(fixture.Connection.Text, "[Version] = [Version] + 1");
+        StringAssert.Contains(fixture.Connection.Text, "\"quantity\" = @Quantity");
+        StringAssert.Contains(fixture.Connection.Text, "\"version\" = \"version\" + 1");
         fixture.Connection.Rows.Rows.Clear();
         result = await fixture.Repository.UpdateAsync(new PurchaseOrderLine { Version = 3 });
         Assert.IsFalse(result.Success);
@@ -73,10 +73,10 @@ public sealed class GenericRepositoryMappingTests
         fixture.Connection.Rows.Columns.Add("Version", typeof(int));
         fixture.Connection.Rows.Rows.Add(3);
         Assert.IsTrue((await fixture.Repository.DeleteAsync(Guid.NewGuid(), 3)).Success);
-        StringAssert.Contains(fixture.Connection.Text, "[IsDeleted] = 1");
-        StringAssert.Contains(fixture.Connection.Text, "[Version] = @Version");
+        StringAssert.Contains(fixture.Connection.Text, "\"is_deleted\" = TRUE");
+        StringAssert.Contains(fixture.Connection.Text, "\"version\" = @Version");
         Assert.IsTrue((await fixture.Repository.DeleteAsync(Guid.NewGuid(), 3, false)).Success);
-        StringAssert.Contains(fixture.Connection.Text, "DELETE FROM [dbo].[PurchaseOrderLine]");
+        StringAssert.Contains(fixture.Connection.Text, "DELETE FROM \"public\".\"purchase_order_line\"");
         Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
     }
 
@@ -85,7 +85,9 @@ public sealed class GenericRepositoryMappingTests
     {
         public readonly RecordingConnection Connection = new();
         public readonly DbSession Session;
-        public readonly DapperRepository<PurchaseOrderLine> Repository;
+        /// <summary>使用现有 PG 通用仓储验证同一会话的实体映射与并发契约。</summary>
+        public readonly PostgreSqlDapperRepository<PurchaseOrderLine> Repository;
+        /// <summary>建立无网络会话及调用方事务，不打开提供者连接。</summary>
         public Fixture()
         {
             Session = new DbSession(new Factory(Connection));
@@ -140,7 +142,7 @@ public sealed class GenericRepositoryMappingTests
         /// <summary>使用提供者参数容器兼容 Dapper 参数绑定，但完全接管执行，禁止网络访问。</summary>
         private sealed class Command(RecordingConnection connection) : DbCommand
         {
-            private readonly SqlCommand parameters = new();
+            private readonly NpgsqlCommand parameters = new();
             [AllowNull] public override string CommandText { get; set; } = "";
             public override int CommandTimeout { get; set; }
             public override CommandType CommandType { get; set; }
@@ -149,18 +151,20 @@ public sealed class GenericRepositoryMappingTests
             protected override DbConnection? DbConnection { get; set; } = connection;
             protected override DbTransaction? DbTransaction { get; set; }
             protected override DbParameterCollection DbParameterCollection => parameters.Parameters;
-            protected override DbParameter CreateDbParameter() => new SqlParameter();
+            /// <summary>提供与 PG 仓储参数一致的驱动类型，执行仍由记录连接接管。</summary>
+            protected override DbParameter CreateDbParameter() => new NpgsqlParameter();
             public override void Cancel() { }
             public override void Prepare() { }
             public override int ExecuteNonQuery() { Capture(); return 1; }
             public override object ExecuteScalar() { Capture(); return 1; }
             protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
             { Capture(); return connection.Rows.CreateDataReader(); }
+            /// <summary>保存 Dapper 实际 SQL、参数和父事务，禁止委托 Npgsql 命令执行。</summary>
             private void Capture()
             {
                 connection.Text = CommandText;
                 connection.LastTransaction = DbTransaction;
-                connection.Values = parameters.Parameters.Cast<SqlParameter>()
+                connection.Values = parameters.Parameters.Cast<NpgsqlParameter>()
                     .ToDictionary(parameter => parameter.ParameterName, parameter => (object?)parameter.Value);
             }
             protected override void Dispose(bool disposing)

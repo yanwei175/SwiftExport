@@ -221,10 +221,10 @@ public sealed class PostgreSqlAuthMigrationIntegrationTests
             Assert.HasCount(0, withoutRole.PermissionKeys);
         });
 
-    /// <summary>仅通过主控环境校验取得连接；finally 回滚本场景所有写入，绝不提交或删除已有数据。</summary>
+    /// <summary>仅通过独立测试库环境守卫取得连接；finally 回滚本场景所有写入，绝不提交或删除已有数据。</summary>
     private static async Task InRollbackAsync(Func<RepositoryBaseContext, Task> scenario)
     {
-        var connectionString = PostgreSqlIntegrationEnvironment.GetConnectionString();
+        var connectionString = PostgreSqlIntegrationEnvironment.GetFailureConnectionString();
         using var session = new DbSession(new PostgreSqlConnectionFactory(connectionString));
         using var transaction = session.Connection.BeginTransaction();
         session.Transaction = transaction;

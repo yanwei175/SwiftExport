@@ -1,0 +1,144 @@
+[
+  {
+    "Probe": "原SQL与PG的NULL实体默认值",
+    "RawBothNull": true,
+    "ApplyNullValues": false,
+    "SqlMappedDefault": "2026-11-19T21:13:38.4481891+08:00",
+    "PgMappedDefault": "2026-11-19T21:13:38.4545203+08:00",
+    "Scope": "常量SELECT无业务表写入；原NULL映射问题仅记录，不改业务"
+  },
+  {
+    "Batch": "94d5891b-327b-45d6-9c91-c395758bb400",
+    "FirstRun": true,
+    "SalesId": "ea566334-67fe-46c3-9594-4a3502d69b57",
+    "SalesLineId": "94d5891b-327b-45d6-9c91-c395758bb401",
+    "GrossId": "09174f51-5386-45b3-8562-4a3502d69c5e",
+    "GrossBeforeExit": "{\"uid\": \"09174f51-5386-45b3-8562-4a3502d69c5e\", \"remark\": null, \"version\": 1, \"source_no\": \"SO6404100001\", \"created_by\": \"p06_ar_971332d12c2741099a09b1ec8eb39e91\", \"demand_qty\": 3.0000, \"is_deleted\": false, \"product_id\": \"00008dec-d28a-4036-bc06-da0a2159e16b\", \"source_uid\": \"ea566334-67fe-46c3-9594-4a3502d69b57\", \"updated_by\": \"p06_ar_971332d12c2741099a09b1ec8eb39e91\", \"customer_id\": \"cc533ab1-88ff-4fa4-ab28-53199670768f\", \"source_type\": \"SO\", \"created_date\": \"2026-10-05T21:13:39.169539\", \"sku_snapshot\": \"AA200071BN-TM1\", \"updated_date\": \"2026-10-05T21:13:39.169539\", \"required_date\": \"6404-11-19T00:00:00\", \"unit_snapshot\": \"Pcs\", \"color_snapshot\": null, \"source_line_id\": \"94d5891b-327b-45d6-9c91-c395758bb401\", \"source_version\": 2, \"is_non_standard\": false, \"lifecycle_status\": 0, \"link_sku_snapshot\": null, \"source_line_number\": 1, \"image_path_snapshot\": \"E:\\\\AQUAVIT\\\\0-基础数据\\\\0-产品图库\\\\AA200071BN.jpg\", \"description_snapshot\": null, \"lifecycle_changed_at\": null, \"lifecycle_changed_by\": null, \"customer_sku_snapshot\": null, \"specification_snapshot\": null, \"demand_basis_fingerprint\": \"45A593D22C7806035462AF57E92440886176A150FF21F3FE32E100C8363BEE7B\", \"lifecycle_changed_reason\": null}",
+    "ProductId": "00008dec-d28a-4036-bc06-da0a2159e16b",
+    "CustomerId": "cc533ab1-88ff-4fa4-ab28-53199670768f",
+    "Evidence": [
+      {
+        "Stage": "首次Gross",
+        "Candidate": 2412,
+        "Owner": 6356,
+        "Observer": 1184,
+        "Family": "Source",
+        "Identity": "ea566334-67fe-46c3-9594-4a3502d69b57",
+        "Key": 7530837203072716687,
+        "TransactionNull": true,
+        "SourceHeld": false,
+        "ServerTryLockObserved": true
+      },
+      {
+        "Stage": "首次Gross",
+        "Candidate": 6152,
+        "Owner": 6356,
+        "Observer": 1184,
+        "Family": "Source",
+        "Identity": "ea566334-67fe-46c3-9594-4a3502d69b57",
+        "Key": 7530837203072716687,
+        "TransactionNull": true,
+        "SourceHeld": false,
+        "ServerTryLockObserved": true
+      },
+      {
+        "Stage": "首次Gross结果",
+        "Backends": [
+          2412,
+          6152
+        ],
+        "Results": [
+          {
+            "Success": true,
+            "Message": "成功",
+            "Data": {
+              "Uid": "ea566334-67fe-46c3-9594-4a3502d69b57",
+              "Version": 2,
+              "ConfirmationStatus": 1,
+              "GrossDemandCount": 1,
+              "HardDeletedGrossDemandCount": 0,
+              "VoidedGrossDemandCount": 0
+            },
+            "Error": null
+          },
+          {
+            "Success": true,
+            "Message": "成功",
+            "Data": {
+              "Uid": "ea566334-67fe-46c3-9594-4a3502d69b57",
+              "Version": 2,
+              "ConfirmationStatus": 1,
+              "GrossDemandCount": 1,
+              "HardDeletedGrossDemandCount": 0,
+              "VoidedGrossDemandCount": 0
+            },
+            "Error": null
+          }
+        ],
+        "Terminal": [
+          "RanToCompletion",
+          "RanToCompletion"
+        ]
+      },
+      {
+        "Stage": "退出等待Gross",
+        "Candidate": 2412,
+        "Owner": 6152,
+        "Observer": 1184,
+        "Family": "Gross",
+        "Identity": "09174f51-5386-45b3-8562-4a3502d69c5e",
+        "Key": 4691197387401436489,
+        "TransactionNull": true,
+        "SourceHeld": true,
+        "ServerTryLockObserved": true
+      },
+      {
+        "Stage": "建立等待退出的Source",
+        "Candidate": 6356,
+        "Owner": 2412,
+        "Observer": 1184,
+        "Family": "Source",
+        "Identity": "ea566334-67fe-46c3-9594-4a3502d69b57",
+        "Key": 7530837203072716687,
+        "TransactionNull": true,
+        "SourceHeld": false,
+        "ServerTryLockObserved": true
+      },
+      {
+        "Stage": "退出先提交结果",
+        "Backends": [
+          2412,
+          6356
+        ],
+        "Cancel": {
+          "Success": true,
+          "Message": "成功",
+          "Data": {
+            "Uid": "ea566334-67fe-46c3-9594-4a3502d69b57",
+            "Version": 3,
+            "ConfirmationStatus": 0,
+            "GrossDemandCount": 0,
+            "HardDeletedGrossDemandCount": 1,
+            "VoidedGrossDemandCount": 0
+          },
+          "Error": null
+        },
+        "Establish": {
+          "Success": false,
+          "Message": "来源需求不存在或已删除。",
+          "Data": null,
+          "Error": {
+            "Code": "SOURCE_NOT_FOUND",
+            "Message": "来源需求不存在或已删除。",
+            "Field": null
+          }
+        },
+        "Terminal": [
+          "RanToCompletion",
+          "RanToCompletion"
+        ]
+      }
+    ],
+    "Policy": "仅本批未拆解新Gross按原销售取消规则删除；原数据全保护，其余成功事实/号段留存；不清库/重置/DDL/运行库/备份写入"
+  }
+]

@@ -1,10 +1,13 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Query;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
+/// <summary>验证来源分组和主列表的筛选、分页及独立链路提示契约。</summary>
 [TestClass]
 public sealed class GrossDemandSourceGroupingContractTests
 {
+    /// <summary>分组不受分解状态限制，指定来源的主列表保持不分页。</summary>
     [TestMethod]
     public void RepositoryQuery_MustKeepGroupingUnscopedAndSelectedSourceUnpaged()
     {
@@ -12,15 +15,15 @@ public sealed class GrossDemandSourceGroupingContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "Sources", "Query", "GrossDemandQueryRepository.cs");
+            "Sources", "Query", "PostgreSqlGrossDemandQueryRepository.Workspace.cs");
 
         StringAssert.Contains(source, "GrossDemandSourceGroupSearchRequest request");
         StringAssert.Contains(source, "SourceLifecycleStatuses");
         Assert.IsFalse(source.Contains("SourceDecompositionStatuses", StringComparison.Ordinal));
-        StringAssert.Contains(source, "GROUP BY d.[SourceUid]");
+        StringAssert.Contains(source, "GROUP BY d.source_uid");
         StringAssert.Contains(source, "var sourceMode = request.SourceUid.HasValue");
         StringAssert.Contains(source, "var pagingSql = sourceMode");
-        StringAssert.Contains(source, "OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;");
+        StringAssert.Contains(source, "LIMIT @PageSize OFFSET @Offset;");
         StringAssert.Contains(source, "PageSize = sourceMode ? Math.Max(1, total) : pageSize");
         Assert.IsFalse(source.Contains("10000", StringComparison.Ordinal));
     }
@@ -33,22 +36,27 @@ public sealed class GrossDemandSourceGroupingContractTests
             "SwiftExport.Infrastructure",
             "Repositories",
             "DemandPlanning",
-            "Sources", "Query", "GrossDemandQueryRepository.cs");
-        var start = source.IndexOf("var selectSql = $@\"", StringComparison.Ordinal);
+            "Sources", "Query", "PostgreSqlGrossDemandQueryRepository.Workspace.cs");
+        var start = source.IndexOf("var selectSql = $$\"\"\"", StringComparison.Ordinal);
         var end = source.IndexOf("var countSql =", start, StringComparison.Ordinal);
         Assert.IsTrue(start >= 0 && end > start, "无法定位来源需求主列表 SQL。");
         var query = source[start..end];
+        // 将实际插入主查询的三个常量一起检查，避免抽出 SQL 后漏检数量汇总。
+        foreach (var name in new[] { "WorkspaceActiveMaterialExists", "WorkspaceActivePurchaseExists", "WorkspacePostedDeliveryExists" })
+            query += (string)typeof(PostgreSqlGrossDemandQueryRepository).GetField(name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetRawConstantValue()!;
 
         Assert.IsFalse(query.Contains("ExecutionProgress", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("ActiveNetDemandCount", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("CustomerSuppliedNetDemandCount", StringComparison.Ordinal));
-        Assert.IsFalse(query.Contains("InboundDocument", StringComparison.Ordinal));
-        StringAssert.Contains(query, "[HasActiveMaterial]");
-        StringAssert.Contains(query, "[HasValidPurchase]");
-        StringAssert.Contains(query, "[HasPostedDelivery]");
-        StringAssert.Contains(query, "d.[SourceVersion], d.[CustomerId]");
-        StringAssert.Contains(query, "d.[UnitSnapshot] AS [Unit]");
-        StringAssert.Contains(query, "d.[DescriptionSnapshot] AS [Description]");
+        Assert.IsFalse(query.Contains("inbound_document", StringComparison.Ordinal));
+        Assert.IsFalse(query.Contains("SUM(", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(query, "\"HasActiveMaterial\"");
+        StringAssert.Contains(query, "\"HasValidPurchase\"");
+        StringAssert.Contains(query, "\"HasPostedDelivery\"");
+        StringAssert.Contains(query, "d.source_version AS \"SourceVersion\"");
+        StringAssert.Contains(query, "d.customer_id AS \"CustomerId\"");
+        StringAssert.Contains(query, "d.unit_snapshot AS \"Unit\"");
+        StringAssert.Contains(query, "d.description_snapshot AS \"Description\"");
     }
 
     [TestMethod]

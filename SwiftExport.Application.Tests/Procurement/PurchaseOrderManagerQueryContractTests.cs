@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 
 namespace SwiftExport.Application.Tests.Procurement;
 
@@ -27,43 +28,49 @@ public sealed class PurchaseOrderManagerQueryContractTests
     [TestMethod]
     public void RepositorySql_MustUseLatestProgressTraceableReceiptFactsAndMultiStatusFilters()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryRepository.cs");
-
+        var source = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PostgreSqlPurchaseOrderManagerQueryRepository.cs");
+        var repository = Sql("SearchSql") + Sql("LinesSql");
         Assert.IsFalse(repository.Contains("ExecutionModel", StringComparison.Ordinal));
-        StringAssert.Contains(repository, "h.ConfirmationStatus IN @ConfirmationStatuses");
-        StringAssert.Contains(repository, "h.LifecycleStatus IN @LifecycleStatuses");
-        StringAssert.Contains(repository, "h.CustomerCode AS CustomerCode");
-        StringAssert.Contains(repository, "OR h.CustomerCode LIKE @Keyword");
-        StringAssert.Contains(repository, "GROUP BY h.Uid,h.Version,h.LifecycleStatus,h.OrderNo,h.BoNo,h.CustomerCode");
-        StringAssert.Contains(repository, "SELECT TOP (1)");
-        StringAssert.Contains(repository, "FROM dbo.SupplierProgressReport");
-        StringAssert.Contains(repository, "receiveHead.DocumentType=@PurchaseReceipt");
-        StringAssert.Contains(repository, "receiveHead.PostingStatus IN @FormalPostingStatuses");
-        StringAssert.Contains(repository, "SUM(CASE WHEN receiveHead.PostingStatus=1 THEN receiveLine.Quantity ELSE 0 END) AS ReceivedQty");
-        StringAssert.Contains(repository, "GROUP BY receiveLine.SourceLineId");
-        StringAssert.Contains(repository, "LEFT JOIN ReceiptFacts receipt ON receipt.SourceLineId=l.Uid");
-        StringAssert.Contains(repository, "存在无法定位采购行的正式采购入库历史");
-        Assert.IsFalse(repository.Contains("receiveLine.SourceType", StringComparison.Ordinal));
-        Assert.IsFalse(repository.Contains("receiveLine.SourceUid", StringComparison.Ordinal));
-        StringAssert.Contains(repository, "product.MainImage");
-        StringAssert.Contains(repository, "MAX(f.ExpectedReadyDate) AS ExpectedCompletionDate");
-        StringAssert.Contains(repository, "l.MaterialType=@CustomerSuppliedMaterialType");
-        Assert.IsFalse(repository.Contains("CustomerNameSnapshot AS CustomerName", StringComparison.Ordinal));
+        StringAssert.Contains(repository, "h.confirmation_status=ANY(@ConfirmationStatuses)");
+        StringAssert.Contains(repository, "h.lifecycle_status=ANY(@LifecycleStatuses)");
+        StringAssert.Contains(repository, "p.customer_code AS \"CustomerCode\"");
+        StringAssert.Contains(repository, "OR h.customer_code COLLATE public.erp_dictionary_ci LIKE @Keyword");
+        StringAssert.Contains(repository, "GROUP BY h.uid,h.version,h.lifecycle_status,h.order_no,h.bo_no,h.customer_code");
+        StringAssert.Contains(repository, "LEFT JOIN LATERAL (SELECT");
+        StringAssert.Contains(repository, "LIMIT 1");
+        StringAssert.Contains(repository, "FROM public.supplier_progress_report");
+        StringAssert.Contains(repository, "rh.document_type=@PurchaseReceipt");
+        StringAssert.Contains(repository, "rh.posting_status IN(1,8)");
+        StringAssert.Contains(repository, "SUM(CASE WHEN rh.posting_status=1 THEN rl.quantity ELSE 0 END) AS received_qty");
+        StringAssert.Contains(repository, "GROUP BY rl.source_line_id");
+        StringAssert.Contains(repository, "LEFT JOIN receipt_facts receipt ON receipt.source_line_id=l.uid");
+        StringAssert.Contains(source, "EnsureFormalReceiptHistoryIsTraceableAsync(cancellationToken)");
+        StringAssert.Contains(source, "存在无法定位采购行的正式采购入库历史");
+        Assert.IsFalse(repository.Contains("rl.source_type", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("rl.source_uid", StringComparison.Ordinal));
+        StringAssert.Contains(repository, "product.main_image");
+        StringAssert.Contains(repository, "MAX(f.expected_ready_date) AS expected_completion_date");
+        StringAssert.Contains(repository, "rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci=@CustomerSuppliedMaterialType");
+        Assert.IsFalse(repository.Contains("customer_name_snapshot AS \"CustomerName\"", StringComparison.Ordinal));
     }
 
     /// <summary>确认管理查询不携带完整跟进历史、追溯或库存流水明细。</summary>
     [TestMethod]
     public void ManagerQuery_MustRemainNarrowAndIsolatedFromLegacyWorkspace()
     {
-        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryRepository.cs");
+        var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PostgreSqlPurchaseOrderManagerQueryRepository.cs");
         var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Query", "PurchaseOrderManagerQueryService.cs");
 
         Assert.IsFalse(repository.Contains("PurchaseOrderWorkspace", StringComparison.Ordinal));
-        Assert.IsFalse(repository.Contains("dbo.DemandExecutionTrace", StringComparison.Ordinal));
-        Assert.IsFalse(repository.Contains("dbo.InventoryLedger", StringComparison.Ordinal));
-        Assert.IsFalse(repository.Contains("dbo.BusinessOperationLog", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("public.demand_execution_trace", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("public.inventory_ledger_entry", StringComparison.Ordinal));
+        Assert.IsFalse(repository.Contains("public.business_operation_log", StringComparison.Ordinal));
         Assert.IsFalse(service.Contains("IPurchaseOrderWorkspace", StringComparison.Ordinal));
     }
+
+    /// <summary>读取当前 PG 实际执行的静态 SQL，不连接数据库。</summary>
+    private static string Sql(string name)
+        => (string)typeof(PostgreSqlPurchaseOrderManagerQueryRepository).GetField(name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetValue(null)!;
 
     /// <summary>从仓库根目录读取源码契约，避免测试依赖构建输出目录结构。</summary>
     private static string Read(params string[] parts)

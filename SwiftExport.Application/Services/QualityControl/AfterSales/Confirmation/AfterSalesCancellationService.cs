@@ -47,7 +47,9 @@ public sealed class AfterSalesCancellationService(ServiceBaseContext context,
                 ServiceErrorCodes.Validation, "单据身份不能为空。", "Uid");
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, uid,
             new { command.Version, command.Reason },
-            ct => CancelInTransactionAsync(uid, command, ct), token, IsolationLevel.Serializable);
+            ct => CancelInTransactionAsync(uid, command, ct), token, IsolationLevel.Serializable,
+            beforeTransaction: reception is SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document.ISourceDemandTransactionPreparation preparation
+                ? ct => preparation.AcquireBeforeTransactionAsync([uid], [], ct) : null);
         result.Value.AlreadyApplied = result.IsReplay;
         return ServiceResult<CommandExecutionResult<AfterSalesCommandResult>>.Ok(result);
     }

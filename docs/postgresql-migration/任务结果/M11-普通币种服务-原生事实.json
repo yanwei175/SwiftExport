@@ -1,0 +1,22 @@
+{
+  "test_name": "RealPg_RuntimeCurrencyBatchCrudReferencesAndAtomicRollback",
+  "outcome": "Passed",
+  "duration": "00:00:00.4873386",
+  "facts": {
+    "Batch": "a61b0aa3-54d8-4926-ae04-2b4973eb5100",
+    "CurrencyIds": [
+      "633492fb-a403-4278-89ad-4a35043906a1",
+      "a828a20e-df65-4b4b-800e-4a35043906a9"
+    ],
+    "SupplierId": "fbe00cc1-d78e-45c8-b8fb-4a35043906e9",
+    "Codes": [
+      "P11A61B0A",
+      "P11B61B0A",
+      "P11C61B0A"
+    ],
+    "WritePid": 6512,
+    "ReadPid": 3272,
+    "Policy": "仅failure新非本位资料/普通原服务，2币种1供应商留存，中途写冲突整批回滚/引用拒绝/原软删，不调用全表NULL重置或写旧资料"
+  },
+  "trx_sha256": "576076378346E036C130AE468A5C58A1DEA592C9D06C157906520F4960D791FB"
+}

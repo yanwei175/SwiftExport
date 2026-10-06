@@ -1,0 +1,113 @@
+{
+  "business_operation_log": [
+    "060367bd-8410-494d-96f8-4a35030e9528",
+    "08f83d5f-a0b9-4e90-82c5-4a35030e9667",
+    "2ef04d92-e01e-4f08-9893-4a35030e9198",
+    "3888178b-3b67-4169-899b-4a35030e8ffe",
+    "5def1023-8f71-409e-9916-4a35030e9544",
+    "631e4c1b-0f91-401c-9a65-4a35030e8fb8",
+    "669b236c-389d-4aa3-8aa7-4a35030e8f02",
+    "74a6066e-bb83-435d-8478-4a35030e9136",
+    "7f1dbb81-0ed1-40c0-b2d2-4a35030e968b",
+    "930615c0-0af7-4098-85d1-4a35030e967d",
+    "a29c8501-d58f-4b90-a8fb-4a35030e954f",
+    "ac5a0d3d-0092-4e62-80f6-4a35030e916b",
+    "d7de66e8-3d0f-4c5d-be14-4a35030e9500",
+    "dc60ace5-b318-450e-8f61-4a35030e96c8",
+    "e1f07114-68cf-40db-beb5-4a35030e8fbd",
+    "fd8d14f9-9000-4c60-a786-4a35030e91c9",
+    "ffbcb35d-0d82-4566-861c-4a35030e923f"
+  ],
+  "command_receipt": [
+    "185c1b9a-ad5d-4924-84bc-4a35030e919a",
+    "18b3489c-95b3-4ef3-9a1c-4a35030e91cc",
+    "227077bf-7602-49cf-9468-4a35030e96cb",
+    "249dbe60-45bf-40bb-b315-4a35030e9545",
+    "26d612a2-f942-47b2-b2ed-4a35030e913b",
+    "37fe949c-db56-42ca-aac9-4a35030e8fbf",
+    "5318c43b-f66e-4c05-abc0-4a35030e8f09",
+    "56db28a6-0956-410a-b002-4a35030e9556",
+    "5cfb3739-4846-4852-b59e-4a35030e9249",
+    "9414c9c6-fc3b-4c7d-9abe-4a35030e9001",
+    "b855d1e5-c955-49a4-9b4c-4a35030e968c",
+    "bf84f657-893c-4958-b538-4a35030e916c",
+    "eac3015e-96d5-4c48-b4c9-4a35030e8f7f"
+  ],
+  "demand_execution_link": [
+    "472130be-8506-498b-8353-4a35030e90b4"
+  ],
+  "document_sequence": [
+    "5a52e870-be6b-4d64-b5b4-4a35030e9508",
+    "68845989-e41f-4710-95c7-4a35030e9211",
+    "7beef9c1-4161-40f2-9779-4a35030e91b9",
+    "e5cf5ac0-5849-473a-a19a-4a35030e9165",
+    "fa2d2698-4adb-4d88-95d8-4a35030e8f3d"
+  ],
+  "gross_demand": [
+    "54d9a8d9-c941-4d96-b6f8-4a35030e8fa9"
+  ],
+  "inbound_document": [
+    "11fee752-30aa-4efa-8718-4a35030e91b9",
+    "5e02dd92-7634-5791-c35a-22c040b98701"
+  ],
+  "inbound_document_line": [
+    "17c7a8b5-515f-9a30-81c5-d9cb2d796853",
+    "94947ec4-1ef6-4e58-bebc-4a35030e91c2"
+  ],
+  "inventory_balance": [
+    "19170e60-79cd-4926-b3f8-4a35030e94f5"
+  ],
+  "inventory_ledger_entry": [
+    "4228aaa0-9ef2-432c-ae35-4a35030e9662",
+    "a1853691-d519-4896-8b13-4a35030e96c4",
+    "bfea0253-77c7-4086-825c-4a35030e954a",
+    "d66bb4f7-a208-4a8a-9a6f-4a35030e94f9",
+    "ec2b2187-7a6b-4c61-9005-4a35030e9679",
+    "fbb62955-dce8-4e4a-9708-4a35030e951e"
+  ],
+  "net_demand": [
+    "1935fd08-2664-46e4-8f6c-4a35030e8ff1"
+  ],
+  "outbound_document": [
+    "47676dc5-c2b4-f461-bb7c-4b6138705886"
+  ],
+  "outbound_document_line": [
+    "85465043-1bcc-73a7-be24-22ef1fda5753"
+  ],
+  "packing_list_head": [
+    "e4ef52de-638f-45fa-991c-8fd9c66bb72a"
+  ],
+  "packing_list_line": [
+    "e4ef52de-638f-45fa-991c-8fd9c66bb72b"
+  ],
+  "packing_list_posting_execution": [
+    "2b4c6cd3-459b-14ae-a860-506d655fa7f0",
+    "cfab219d-ece8-4acf-b89e-91280d5e06c3"
+  ],
+  "packing_list_posting_execution_line": [
+    "00ae8613-2752-4769-d2dd-6a10b7805693",
+    "3565ad70-e625-9270-5802-db8b59f81d0c",
+    "b9e7288c-3bd6-726f-2c65-72fd5f177070",
+    "fd0d3b8a-f4ba-8230-903d-8e675b159165"
+  ],
+  "purchase_order_head": [
+    "b5da01fe-4ae5-42de-9075-4a35030e90b2",
+    "eeebf1d4-9c7a-4744-86d3-4a35030e9156"
+  ],
+  "purchase_order_line": [
+    "71bdbc14-62a4-4070-a31e-4a35030e90b4",
+    "ce68d715-d1b3-43f8-b27d-4a35030e9158"
+  ],
+  "sales_order_header": [
+    "29b3d303-9f17-4c48-88dc-4a35030e8f55"
+  ],
+  "sales_order_line": [
+    "e4ef52de-638f-45fa-991c-8fd9c66bb728"
+  ],
+  "supplier": [
+    "40c4eb8d-f3c8-4ef2-a37e-4a35030e8ea3"
+  ],
+  "warehouse_site": [
+    "7ac538d0-6c30-4cff-b151-4a35030e8efc"
+  ]
+}

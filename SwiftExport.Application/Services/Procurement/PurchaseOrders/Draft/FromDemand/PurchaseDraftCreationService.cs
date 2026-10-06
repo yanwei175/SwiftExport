@@ -68,7 +68,7 @@ public sealed class PurchaseDraftCreationService(
         return ServiceResult<CreatePurchaseDraftsResult>.Ok(result);
     }
 
-    /// <summary>每来源独立开启事务，依固定锁序复核重放或写入全部供应商草稿；提交后才发布结果。</summary>
+    /// <summary>每来源先准备PG需要的命令项及来源资源，再独立开启原事务复核重放或写入供应商草稿；事务结束才归还资源，提交后发布结果。</summary>
     private async Task<CreatePurchaseDraftSourceResult> CreateSourceAsync(
         CreatePurchaseDraftsCommand command,
         CreatePurchaseDraftSourceCommand source,
@@ -85,6 +85,21 @@ public sealed class PurchaseDraftCreationService(
         {
             result.ErrorCode = "TRANSACTION_ALREADY_ACTIVE";
             result.Message = "当前请求存在未完成事务。";
+            return result;
+        }
+
+        // 仅PG能力在首次事务快照前发现并重验绑定；SQL原路径、逐来源部分成功和取号位置保持。
+        var preparation = netDemandRepository as IMaterialDemandTransactionPreparation;
+        await using var sourceLease = preparation is null ? null :
+            await preparation.AcquireMaterialBeforeTransactionAsync([source.SourceUid], [],
+                source.Items.Select(x => x.NetDemandId).ToArray(),
+                source.Items.Select(x => x.CommandItemId).ToArray(), cancellationToken);
+        if (preparation is not null && sourceLease is null)
+        {
+            // 准备超时未开启事务，沿原来源失败返回；不把整批改成原子命令或重执行业务。
+            _logger.LogWarning("来源 {SourceType}/{SourceUid} 创建采购草稿的资源准备超时。", source.SourceType, source.SourceUid);
+            result.ErrorCode = "UNEXPECTED_ERROR";
+            result.Message = "创建采购草稿失败。";
             return result;
         }
 

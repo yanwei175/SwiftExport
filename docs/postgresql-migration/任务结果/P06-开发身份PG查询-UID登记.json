@@ -1,0 +1,98 @@
+[
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "443c1c63-9898-4494-95e4-29c28e371612",
+    "Mode": "active",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "bf01d370-55c2-471f-96ad-f9443b76510d",
+    "Mode": "case",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "0329a80b-4cef-434b-bce1-d9f1474b6517",
+    "Mode": "stored-trailing",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "4e2dacad-94e3-4ea4-83e9-253113bb87c5",
+    "Mode": "input-trailing",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "空白用例初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "589926d1-0009-4510-8f3d-21601092481f",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "a93e921b-0509-49b4-9e25-e09611e4ade7",
+    "Mode": "injection",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "80f31de0-2ecf-4b6f-8144-2085fb4ffe0b",
+    "Mode": "deleted",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "e230ad57-e0a4-4ed3-a381-f076ffdf1b1f",
+    "Mode": "leading-preserved",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "9f638c30-2c9f-4863-8c1e-5a4588c5876f",
+    "Mode": "null",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "b1072ace-eaa2-4b7c-9b67-d598b98646c0",
+    "Mode": "leading-mismatch",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "2ec5efbb-a515-425f-ba11-14c9a2c09d00",
+    "Mode": "missing",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "空白用例初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "b65ef5a0-c40c-4578-ace7-2584c012509d",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "542de497-b411-4567-8835-6ab1a30ddb85",
+    "Mode": "tab-mismatch",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  },
+  {
+    "Phase": "初始化前",
+    "Database": "dv_next_pg_failure_tests_20261004",
+    "User": "c995d47b-8234-4437-b7f3-10372616bc3a",
+    "Mode": "inactive",
+    "Policy": "父RC回滚并精确UID确认零残留"
+  }
+]

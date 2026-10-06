@@ -1,0 +1,98 @@
+[
+  {
+    "fact": "balance",
+    "value": {
+      "uid": "eff8a741-db98-4716-9b4f-4a3503234fb0",
+      "version": 5,
+      "created_by": "p06_ar_971332d12c2741099a09b1ec8eb39e91",
+      "is_deleted": false,
+      "product_id": "00042191-0e61-4461-b509-df820f9f7c69",
+      "updated_by": "p06_ar_971332d12c2741099a09b1ec8eb39e91",
+      "on_hand_qty": 0,
+      "created_date": "2026-10-05T22:37:25.808369",
+      "sku_snapshot": "TF0800021BG",
+      "updated_date": "2026-10-05T22:37:30.992565",
+      "unit_snapshot": "PCS",
+      "warehouse_site_id": "7ac538d0-6c30-4cff-b151-4a35030e8efc",
+      "last_ledger_sequence": 42,
+      "product_name_snapshot": "落地浴缸龙头(3X)"
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "qty": 1,
+      "uid": "2548252e-ea57-4245-9466-4a3503234fb2",
+      "item": "52407e99-71e5-0327-ad15-dfeb9baa010d",
+      "type": 12,
+      "command": "afc68a32-a5a7-5dcf-dd49-6cf89647a958",
+      "sequence": 38,
+      "reversal_of": null
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "qty": -1,
+      "uid": "be447a9c-eafd-4642-8014-4a3503234fcc",
+      "item": "09b77472-c121-0036-4987-6924da0ee93c",
+      "type": 20,
+      "command": "21698140-4d6d-c9ed-31e9-2393d84ca136",
+      "sequence": 39,
+      "reversal_of": null
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "qty": 1,
+      "uid": "e1f549b3-4bc2-470e-8552-4a35032363e9",
+      "item": "dbb0f5c7-2696-92df-f7bd-048024f17285",
+      "type": 900,
+      "command": "2cd76cb7-35b1-3b10-b97f-f46cec1bb06d",
+      "sequence": 41,
+      "reversal_of": "be447a9c-eafd-4642-8014-4a3503234fcc"
+    }
+  },
+  {
+    "fact": "ledger",
+    "value": {
+      "qty": -1,
+      "uid": "ec21918f-88d9-46e1-9b22-4a35032363f0",
+      "item": "9832a6d9-0d2e-cc1e-0187-edb6e877dad4",
+      "type": 900,
+      "command": "ee06846a-9b5a-65ca-1265-a2fb743cd7af",
+      "sequence": 42,
+      "reversal_of": "2548252e-ea57-4245-9466-4a3503234fb2"
+    }
+  },
+  {
+    "fact": "sequence",
+    "value": {
+      "is_called": true,
+      "last_value": 42
+    }
+  },
+  {
+    "fact": "original_number",
+    "value": {
+      "uid": "81c56363-0544-4381-96b6-4a35028ebec0",
+      "version": 1,
+      "doc_type": "PO",
+      "created_by": null,
+      "current_no": 4,
+      "is_deleted": false,
+      "updated_by": null,
+      "year_month": "202610",
+      "created_date": "2026-10-05T11:55:09.944165",
+      "updated_date": "2026-10-05T14:37:20.787739"
+    }
+  },
+  {
+    "fact": "cleanup",
+    "value": {
+      "activity": 0,
+      "advisory": 0
+    }
+  }
+]

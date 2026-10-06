@@ -1,0 +1,1277 @@
+{
+  "recorded_at": "2026-10-06 03:35 +08:00",
+  "host": "192.168.3.12",
+  "port": 5432,
+  "database": "dv_next_pg_rbac_tests_20261005",
+  "build": {
+    "command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "exit_code": 0,
+    "errors": 0,
+    "existing_warnings": 7,
+    "duration_seconds": 5.41
+  },
+  "native": {
+    "test_name": "RolePermissionsAndCatalogSync_KeepBothServiceOrdersConsistent",
+    "outcome": "Passed",
+    "duration": "00:00:00.9108009",
+    "facts": {
+      "Batch": "M10-CATALOG-ROLE-20261006",
+      "UserIds": [
+        "40879719-c636-4fdb-814a-4a35042fef00",
+        "17eb7158-a2b8-4718-a183-4a35042fef00",
+        "62d8ff0e-4e84-40cb-af36-4a35042fef00"
+      ],
+      "RoleId": "f9c69b20-ad62-4e53-a2dc-4a35042fef00",
+      "SeedPermissionId": "1210e800-9037-47bc-bb77-4a35042fefc5",
+      "SecondPermissionId": "030d2934-3d2f-4463-b9fe-d88f984652fa",
+      "CodePermissionCount": 112,
+      "PermissionIds": [
+        "030d2934-3d2f-4463-b9fe-d88f984652fa",
+        "07ed2ded-9ae5-49e7-809b-b99d2e3f2631",
+        "0920c709-67bf-4968-9852-0fe949e39b48",
+        "0def9a5d-b93f-4f50-910b-0d923e22c3cb",
+        "0f7b4518-66ec-48cf-894e-fee5a3169afc",
+        "11f2f60a-e50e-4e16-bb9a-93269f7372cf",
+        "1210e800-9037-47bc-bb77-4a35042fefc5",
+        "15086209-d8b5-41ed-b392-1fa53945a23c",
+        "1538c9d3-0345-42c3-acd3-37e1bfe0d21a",
+        "15fb224e-7c4e-4f8c-8614-3c196b4d5a53",
+        "1edb08e2-35a6-4d60-bc16-13e0187b7328",
+        "212efcf9-8e45-4466-b0e9-165f4687e41b",
+        "23b74eba-e9f0-4554-b316-85ae432e44cf",
+        "24870581-8966-4862-8926-c8eae30ba482",
+        "268c6780-0467-4b15-ad07-c842894fb5f3",
+        "27448458-29f1-4c57-b327-0b99c3686329",
+        "28f0172e-5db6-4589-9f00-c9e251b99d9f",
+        "2956c5f5-e8a6-4320-a3c1-3d8e61da2762",
+        "2a7ff643-74ff-49d5-b48e-a27aa9abe8a7",
+        "2d5ad04f-ad88-4572-8748-a32f41330de3",
+        "2ef24d4b-a23a-49a7-a07f-f3cabf47df0a",
+        "312810ee-9af8-42d6-b8f9-e4eda121d657",
+        "34bb8eb2-9a33-4a12-b7c1-fb550bee90a9",
+        "36744e73-685e-4ed6-afad-98cc9c9c35a1",
+        "384bcb1c-b888-48cf-914a-f29d1fc59cf6",
+        "3872f8d4-856f-4c0f-a69b-bf5b73abdc71",
+        "38f8e20d-8a1b-4f8c-b1c0-3a0c89264a9e",
+        "39417791-c638-424a-b74f-101294dab44a",
+        "3fe1ddc2-2886-40ac-971c-b08f9922597b",
+        "403a90be-9669-4c7b-989f-12800991c3c9",
+        "4478603f-4d9a-424d-b7f2-6f8a8136a51c",
+        "4797db2a-da4c-46c8-aec7-b302f8e98898",
+        "4b5b20ae-6b1c-4e75-ada1-e4421af849c0",
+        "4d845c5e-e44a-4d15-8a33-070abedbd677",
+        "547fb860-85d6-4be4-a5a2-d3b0e30896bb",
+        "58dfccbd-d5c5-4326-a3c0-45da4a8d5724",
+        "5a752dac-0a51-4ca1-80d1-1346d6bffb19",
+        "5bbc5bef-6c02-4df5-ad26-d36bb59b7d97",
+        "5bf4e1b4-7b6c-4485-baa0-6e66774e50eb",
+        "5e421918-409a-4eb8-9753-a7bce9720cae",
+        "62e81e4b-3ad9-43d9-87ca-2c0f8ab2e18e",
+        "64a80f6d-a106-4820-b4a0-7acbd8c08986",
+        "65402366-0082-41af-986b-ec8d6870c3b3",
+        "65d205d7-8e26-4574-899a-2d8efbe6422f",
+        "662715ec-b130-4c06-99ef-08536f132225",
+        "678dd32f-a872-46a5-9590-77a01c4b477e",
+        "697cb068-39af-4fdb-9e93-dc71fa205fad",
+        "6a33a065-7380-4605-978b-723b3c0ea267",
+        "6bf6b01e-c9aa-49e1-b327-f14b1d0b63f3",
+        "6d02a2e6-bad3-4178-9925-3d67b47bc462",
+        "7a52a26d-8327-45c0-b2ca-194abb9f7fee",
+        "7accbafc-7595-41b6-a287-0d18bb3bde24",
+        "7b0da77e-358e-4df4-a9ca-a1be4375eabd",
+        "7b60d885-be61-422b-9365-6dce9a9379a6",
+        "7c8aca8f-6015-4dec-b114-6762cfaf163b",
+        "7df3c7e4-b32c-4bef-a394-cff2454ee45a",
+        "80496153-ae3d-4541-a418-848b0fa778e4",
+        "847e6826-3aaf-43d9-b4c3-7ed77688bf54",
+        "85672f80-ef21-432f-a2ce-04273657ac0c",
+        "8ca45f98-bb46-4251-92fb-7f9f7c334d9c",
+        "8d055b0e-7816-404b-a5fc-1c3bb83220e6",
+        "8d560ffa-6d41-4853-bf90-6be377093493",
+        "8e4d9aef-7e25-4267-b686-af34f6722f28",
+        "8f1a9e0f-c468-4055-8c87-bcd0ca0d54c2",
+        "9793e7f0-47bb-4a5e-b009-40cea9e7ac4c",
+        "999c22fb-6c64-46b5-b271-48bc0f34250c",
+        "9a9101f2-391d-4513-abb1-2f2acae4fca4",
+        "9ca2a35c-3238-4e1a-a1c1-668606b42810",
+        "9f208cd1-710b-483d-ab4a-983c78f04ca7",
+        "a00189f0-0475-43dc-8e30-ed5bd3a34900",
+        "a145d0c2-8559-4ea6-8452-24279ee22fa5",
+        "a1c88777-86fe-48ba-bcbf-175b4fb12476",
+        "a3a08aa8-4e81-4442-a969-5d088123869b",
+        "a7bdc4da-1266-4124-9e55-113b4cdcd5cd",
+        "ab972b4d-1f58-45df-a384-35510be0a24d",
+        "ae5df8aa-7117-4afa-969f-1d6386faa3d4",
+        "af47ac1f-079f-46b8-b56a-4a42b21e0298",
+        "c12a061a-0c4d-48e3-b730-7d34aa3d3666",
+        "c2ccffb1-64ab-4ca2-9839-a12fa152763b",
+        "c4f72fc8-1091-409b-b3fe-b1e5eb9b94e5",
+        "c6ede1e1-82ce-4b24-8a25-517453c4e4d6",
+        "cb0a9a17-cf0d-454c-b74d-341f87d560f2",
+        "cb953a5c-ca21-4e5d-8806-cae6c28d55f1",
+        "cccaefc1-6b11-4bc6-93e5-887d1655cd18",
+        "ce318291-eb1b-4260-b214-e9600b245737",
+        "d212a82b-666c-4a77-a82d-937a67757531",
+        "d49bbef2-2700-4b2e-b008-6a12142c4118",
+        "d5d19672-eabb-47b4-b7bd-dd2753dcbed1",
+        "d693b97f-e14d-437e-8da7-1aac620ac4f7",
+        "d8ca1635-987f-44c9-8f13-303b2b1fa300",
+        "d95adb2b-9be9-451c-9ec2-a0da6bc59bf5",
+        "deae51ec-3524-4587-b386-031ab891b23d",
+        "e0cf412b-7e43-4b6d-9256-fbdd0364baf9",
+        "e2c9c244-20e5-48d7-8f34-d45c126cc32d",
+        "e364c299-83d2-4810-931b-1df264cc8c09",
+        "e5626e6a-ba7c-4033-8dd8-8664335ad3c8",
+        "e74905af-d29f-4f83-979d-83e2947a94e3",
+        "e76a0790-b125-4ea3-9c40-0077d7f88cc8",
+        "e7f2a72b-92fc-48f8-860e-6dbec8f319e5",
+        "eba80ae8-04e8-47b8-91e1-ea037ff6afed",
+        "ecf8404b-3f3b-4af8-a025-c1891b342229",
+        "eda43491-5567-4d9f-b25e-7a926e7a89a6",
+        "ee414c8d-b2cc-4494-8593-37acfa318206",
+        "efd8893d-b0c6-428e-a94e-60e97075f947",
+        "f007aa0a-a46f-48e5-8932-59be31d2a429",
+        "f10c4529-ea07-4fbe-ba68-94eff55be15c",
+        "f1569ebb-4901-45a4-bf33-9f3dc6da28bd",
+        "f209116d-ea5a-46a0-84b9-143f1167c143",
+        "f3bd62d5-3b81-4eb8-ba0e-b67cb510a97a",
+        "fa70ad43-fcfb-4a88-8785-6675b62e6c9b",
+        "fbea36b1-6847-481a-9c2d-50a6d9b4feab",
+        "fe603c13-0928-4d74-800d-1fbf19e68412"
+      ],
+      "AuditIds": [
+        "41e769e0-a4bc-457e-890d-4a35042ff01f",
+        "f5629502-7ba5-483c-9f69-4a35042ff115"
+      ],
+      "FirstPid": 748,
+      "SecondPid": 4300,
+      "SyncPid": 8304,
+      "Waits": [
+        "{\"stage\" : \"grant-first\", \"waiting\" : 8304, \"blockers\" : [748], \"wait_type\" : \"Lock\", \"wait_event\" : \"relation\"}",
+        "{\"stage\" : \"sync-first\", \"owner\" : 748, \"sync\" : 8304, \"grant\" : 4300, \"sync_blockers\" : [748], \"grant_blockers\" : [8304]}"
+      ],
+      "Policy": "原独立RBAC空目录首次；完整新代码目录及审计留存，本人可变用户/普通角色/关系精确清理，原96行全保护；非dv密码/HTTP"
+    },
+    "trx_sha256": "FB8920606424F286EE66CCF840D663CFB953F9F4CC723A4D5F53741E0968E265",
+    "exit_code": 0,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "summary_ms": 929,
+    "source_sha256": "0CCEDF0C1534F94829DC7B6227CED660E0CDD8F4A2375AFFF64DBE4E785F1848"
+  },
+  "before": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 50,
+      "data_md5": "a3d120f25665cb365fee43425269081f"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 18,
+      "data_md5": "92061008472a8b19a78841a3d5216dcf"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 1,
+      "data_md5": "d227166522187d6645cd22133feaba26"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 16,
+      "data_md5": "551df403bdf33d6deec4dd75717d96a1"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 6,
+      "data_md5": "64364e5326da2a418596eb33bc05e6cd"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product",
+      "row_count": 2,
+      "data_md5": "bb0b7efa6feb76f88102419c22e9a330"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 2,
+      "data_md5": "ac9d4b52e34f601fccd04403e52ac219"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 1,
+      "data_md5": "1e4bdcf907d5bb1fefe5dede750f7a5f"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "after": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 52,
+      "data_md5": "dff96b42d6a2842963aeb72f267e82bb"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 18,
+      "data_md5": "92061008472a8b19a78841a3d5216dcf"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 1,
+      "data_md5": "d227166522187d6645cd22133feaba26"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 16,
+      "data_md5": "551df403bdf33d6deec4dd75717d96a1"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 6,
+      "data_md5": "64364e5326da2a418596eb33bc05e6cd"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product",
+      "row_count": 2,
+      "data_md5": "bb0b7efa6feb76f88102419c22e9a330"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 2,
+      "data_md5": "ac9d4b52e34f601fccd04403e52ac219"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 112,
+      "data_md5": "93b65d64dcac57ddf024dd6ddeb4ca1b"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 1,
+      "data_md5": "1e4bdcf907d5bb1fefe5dede750f7a5f"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "protected_after_excluding_new": [
+    {
+      "table_name": "after_sales_header",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "after_sales_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "bom",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "business_operation_log",
+      "row_count": 50,
+      "data_md5": "a3d120f25665cb365fee43425269081f"
+    },
+    {
+      "table_name": "command_receipt",
+      "row_count": 18,
+      "data_md5": "92061008472a8b19a78841a3d5216dcf"
+    },
+    {
+      "table_name": "customer",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "customer_po_config",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "customer_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "demand_execution_link",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "document_sequence",
+      "row_count": 1,
+      "data_md5": "d227166522187d6645cd22133feaba26"
+    },
+    {
+      "table_name": "excel_read_field",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "excel_read_profile",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "gross_demand",
+      "row_count": 16,
+      "data_md5": "551df403bdf33d6deec4dd75717d96a1"
+    },
+    {
+      "table_name": "inbound_document",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inbound_document_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inventory_balance",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "inventory_ledger_entry",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "net_demand",
+      "row_count": 6,
+      "data_md5": "64364e5326da2a418596eb33bc05e6cd"
+    },
+    {
+      "table_name": "outbound_document",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "outbound_document_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_head",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_posting_execution",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "packing_list_posting_execution_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product",
+      "row_count": 2,
+      "data_md5": "bb0b7efa6feb76f88102419c22e9a330"
+    },
+    {
+      "table_name": "product_category",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_color",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_detail",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_master",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_neutral",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "product_package",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_confirmation_node",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_head",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "purchase_order_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sales_order_header",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sales_order_line",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier",
+      "row_count": 2,
+      "data_md5": "ac9d4b52e34f601fccd04403e52ac219"
+    },
+    {
+      "table_name": "supplier_product",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "supplier_progress_report",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dic_currency_exchange",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_data",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_dict_type",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_permission",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_role",
+      "row_count": 1,
+      "data_md5": "1e4bdcf907d5bb1fefe5dede750f7a5f"
+    },
+    {
+      "table_name": "sys_role_permission",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_user",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "sys_user_role",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table_name": "warehouse_site",
+      "row_count": 0,
+      "data_md5": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  ],
+  "old_data_equal": true,
+  "exact_retained_ids": {
+    "sys_permission": [
+      "030d2934-3d2f-4463-b9fe-d88f984652fa",
+      "07ed2ded-9ae5-49e7-809b-b99d2e3f2631",
+      "0920c709-67bf-4968-9852-0fe949e39b48",
+      "0def9a5d-b93f-4f50-910b-0d923e22c3cb",
+      "0f7b4518-66ec-48cf-894e-fee5a3169afc",
+      "11f2f60a-e50e-4e16-bb9a-93269f7372cf",
+      "1210e800-9037-47bc-bb77-4a35042fefc5",
+      "15086209-d8b5-41ed-b392-1fa53945a23c",
+      "1538c9d3-0345-42c3-acd3-37e1bfe0d21a",
+      "15fb224e-7c4e-4f8c-8614-3c196b4d5a53",
+      "1edb08e2-35a6-4d60-bc16-13e0187b7328",
+      "212efcf9-8e45-4466-b0e9-165f4687e41b",
+      "23b74eba-e9f0-4554-b316-85ae432e44cf",
+      "24870581-8966-4862-8926-c8eae30ba482",
+      "268c6780-0467-4b15-ad07-c842894fb5f3",
+      "27448458-29f1-4c57-b327-0b99c3686329",
+      "28f0172e-5db6-4589-9f00-c9e251b99d9f",
+      "2956c5f5-e8a6-4320-a3c1-3d8e61da2762",
+      "2a7ff643-74ff-49d5-b48e-a27aa9abe8a7",
+      "2d5ad04f-ad88-4572-8748-a32f41330de3",
+      "2ef24d4b-a23a-49a7-a07f-f3cabf47df0a",
+      "312810ee-9af8-42d6-b8f9-e4eda121d657",
+      "34bb8eb2-9a33-4a12-b7c1-fb550bee90a9",
+      "36744e73-685e-4ed6-afad-98cc9c9c35a1",
+      "384bcb1c-b888-48cf-914a-f29d1fc59cf6",
+      "3872f8d4-856f-4c0f-a69b-bf5b73abdc71",
+      "38f8e20d-8a1b-4f8c-b1c0-3a0c89264a9e",
+      "39417791-c638-424a-b74f-101294dab44a",
+      "3fe1ddc2-2886-40ac-971c-b08f9922597b",
+      "403a90be-9669-4c7b-989f-12800991c3c9",
+      "4478603f-4d9a-424d-b7f2-6f8a8136a51c",
+      "4797db2a-da4c-46c8-aec7-b302f8e98898",
+      "4b5b20ae-6b1c-4e75-ada1-e4421af849c0",
+      "4d845c5e-e44a-4d15-8a33-070abedbd677",
+      "547fb860-85d6-4be4-a5a2-d3b0e30896bb",
+      "58dfccbd-d5c5-4326-a3c0-45da4a8d5724",
+      "5a752dac-0a51-4ca1-80d1-1346d6bffb19",
+      "5bbc5bef-6c02-4df5-ad26-d36bb59b7d97",
+      "5bf4e1b4-7b6c-4485-baa0-6e66774e50eb",
+      "5e421918-409a-4eb8-9753-a7bce9720cae",
+      "62e81e4b-3ad9-43d9-87ca-2c0f8ab2e18e",
+      "64a80f6d-a106-4820-b4a0-7acbd8c08986",
+      "65402366-0082-41af-986b-ec8d6870c3b3",
+      "65d205d7-8e26-4574-899a-2d8efbe6422f",
+      "662715ec-b130-4c06-99ef-08536f132225",
+      "678dd32f-a872-46a5-9590-77a01c4b477e",
+      "697cb068-39af-4fdb-9e93-dc71fa205fad",
+      "6a33a065-7380-4605-978b-723b3c0ea267",
+      "6bf6b01e-c9aa-49e1-b327-f14b1d0b63f3",
+      "6d02a2e6-bad3-4178-9925-3d67b47bc462",
+      "7a52a26d-8327-45c0-b2ca-194abb9f7fee",
+      "7accbafc-7595-41b6-a287-0d18bb3bde24",
+      "7b0da77e-358e-4df4-a9ca-a1be4375eabd",
+      "7b60d885-be61-422b-9365-6dce9a9379a6",
+      "7c8aca8f-6015-4dec-b114-6762cfaf163b",
+      "7df3c7e4-b32c-4bef-a394-cff2454ee45a",
+      "80496153-ae3d-4541-a418-848b0fa778e4",
+      "847e6826-3aaf-43d9-b4c3-7ed77688bf54",
+      "85672f80-ef21-432f-a2ce-04273657ac0c",
+      "8ca45f98-bb46-4251-92fb-7f9f7c334d9c",
+      "8d055b0e-7816-404b-a5fc-1c3bb83220e6",
+      "8d560ffa-6d41-4853-bf90-6be377093493",
+      "8e4d9aef-7e25-4267-b686-af34f6722f28",
+      "8f1a9e0f-c468-4055-8c87-bcd0ca0d54c2",
+      "9793e7f0-47bb-4a5e-b009-40cea9e7ac4c",
+      "999c22fb-6c64-46b5-b271-48bc0f34250c",
+      "9a9101f2-391d-4513-abb1-2f2acae4fca4",
+      "9ca2a35c-3238-4e1a-a1c1-668606b42810",
+      "9f208cd1-710b-483d-ab4a-983c78f04ca7",
+      "a00189f0-0475-43dc-8e30-ed5bd3a34900",
+      "a145d0c2-8559-4ea6-8452-24279ee22fa5",
+      "a1c88777-86fe-48ba-bcbf-175b4fb12476",
+      "a3a08aa8-4e81-4442-a969-5d088123869b",
+      "a7bdc4da-1266-4124-9e55-113b4cdcd5cd",
+      "ab972b4d-1f58-45df-a384-35510be0a24d",
+      "ae5df8aa-7117-4afa-969f-1d6386faa3d4",
+      "af47ac1f-079f-46b8-b56a-4a42b21e0298",
+      "c12a061a-0c4d-48e3-b730-7d34aa3d3666",
+      "c2ccffb1-64ab-4ca2-9839-a12fa152763b",
+      "c4f72fc8-1091-409b-b3fe-b1e5eb9b94e5",
+      "c6ede1e1-82ce-4b24-8a25-517453c4e4d6",
+      "cb0a9a17-cf0d-454c-b74d-341f87d560f2",
+      "cb953a5c-ca21-4e5d-8806-cae6c28d55f1",
+      "cccaefc1-6b11-4bc6-93e5-887d1655cd18",
+      "ce318291-eb1b-4260-b214-e9600b245737",
+      "d212a82b-666c-4a77-a82d-937a67757531",
+      "d49bbef2-2700-4b2e-b008-6a12142c4118",
+      "d5d19672-eabb-47b4-b7bd-dd2753dcbed1",
+      "d693b97f-e14d-437e-8da7-1aac620ac4f7",
+      "d8ca1635-987f-44c9-8f13-303b2b1fa300",
+      "d95adb2b-9be9-451c-9ec2-a0da6bc59bf5",
+      "deae51ec-3524-4587-b386-031ab891b23d",
+      "e0cf412b-7e43-4b6d-9256-fbdd0364baf9",
+      "e2c9c244-20e5-48d7-8f34-d45c126cc32d",
+      "e364c299-83d2-4810-931b-1df264cc8c09",
+      "e5626e6a-ba7c-4033-8dd8-8664335ad3c8",
+      "e74905af-d29f-4f83-979d-83e2947a94e3",
+      "e76a0790-b125-4ea3-9c40-0077d7f88cc8",
+      "e7f2a72b-92fc-48f8-860e-6dbec8f319e5",
+      "eba80ae8-04e8-47b8-91e1-ea037ff6afed",
+      "ecf8404b-3f3b-4af8-a025-c1891b342229",
+      "eda43491-5567-4d9f-b25e-7a926e7a89a6",
+      "ee414c8d-b2cc-4494-8593-37acfa318206",
+      "efd8893d-b0c6-428e-a94e-60e97075f947",
+      "f007aa0a-a46f-48e5-8932-59be31d2a429",
+      "f10c4529-ea07-4fbe-ba68-94eff55be15c",
+      "f1569ebb-4901-45a4-bf33-9f3dc6da28bd",
+      "f209116d-ea5a-46a0-84b9-143f1167c143",
+      "f3bd62d5-3b81-4eb8-ba0e-b67cb510a97a",
+      "fa70ad43-fcfb-4a88-8785-6675b62e6c9b",
+      "fbea36b1-6847-481a-9c2d-50a6d9b4feab",
+      "fe603c13-0928-4d74-800d-1fbf19e68412"
+    ],
+    "business_operation_log": [
+      "41e769e0-a4bc-457e-890d-4a35042ff01f",
+      "f5629502-7ba5-483c-9f69-4a35042ff115"
+    ]
+  },
+  "existing_test_body_byte_equal": true,
+  "existing_test_body_sha256": "5AAC28B8B39D806067CD30D731AF4C4BFF9D1D3F244E61BF8AA2E4D2097FDE5D",
+  "testhost_count_at_final_check": 0,
+  "sql": {
+    "digest": "SELECT c.relname table_name,(xpath('/row/row_count/text()',x.doc))[1]::text row_count,(xpath('/row/data_md5/text()',x.doc))[1]::text data_md5 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL (SELECT query_to_xml(format('SELECT count(*) AS row_count, md5(coalesce(string_agg(to_jsonb(t)::text, chr(10) ORDER BY to_jsonb(t)::text), '''')) AS data_md5 FROM public.%I t',c.relname),false,true,'') doc) x WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname",
+    "guard": "SELECT 'permissions' AS check_name,count(*) AS count FROM public.sys_permission UNION ALL SELECT 'users',count(*) FROM public.sys_user UNION ALL SELECT 'role_permissions',count(*) FROM public.sys_role_permission UNION ALL SELECT 'roles',count(*) FROM public.sys_role UNION ALL SELECT 'logs',count(*) FROM public.business_operation_log UNION ALL SELECT 'other_activity',count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND state<>'idle' AND backend_type='client backend';",
+    "guard_raw": {
+      "content": [
+        {
+          "type": "text",
+          "text": "| check_name | count |\n|---|---|\n| permissions | 0 |\n| users | 0 |\n| role_permissions | 0 |\n| roles | 1 |\n| logs | 50 |\n| other_activity | 0 |\n(6 rows, 3ms)"
+        }
+      ],
+      "isError": false
+    },
+    "protected": "SELECT c.relname table_name,(xpath('/row/row_count/text()',x.doc))[1]::text row_count,(xpath('/row/data_md5/text()',x.doc))[1]::text data_md5 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace CROSS JOIN LATERAL (SELECT query_to_xml(format('SELECT count(*) AS row_count, md5(coalesce(string_agg(to_jsonb(t)::text, chr(10) ORDER BY to_jsonb(t)::text), '''')) AS data_md5 FROM public.%I t%s',c.relname,CASE c.relname WHEN 'sys_permission' THEN ' WHERE NOT (uid IN (''030d2934-3d2f-4463-b9fe-d88f984652fa'',''07ed2ded-9ae5-49e7-809b-b99d2e3f2631'',''0920c709-67bf-4968-9852-0fe949e39b48'',''0def9a5d-b93f-4f50-910b-0d923e22c3cb'',''0f7b4518-66ec-48cf-894e-fee5a3169afc'',''11f2f60a-e50e-4e16-bb9a-93269f7372cf'',''1210e800-9037-47bc-bb77-4a35042fefc5'',''15086209-d8b5-41ed-b392-1fa53945a23c'',''1538c9d3-0345-42c3-acd3-37e1bfe0d21a'',''15fb224e-7c4e-4f8c-8614-3c196b4d5a53'',''1edb08e2-35a6-4d60-bc16-13e0187b7328'',''212efcf9-8e45-4466-b0e9-165f4687e41b'',''23b74eba-e9f0-4554-b316-85ae432e44cf'',''24870581-8966-4862-8926-c8eae30ba482'',''268c6780-0467-4b15-ad07-c842894fb5f3'',''27448458-29f1-4c57-b327-0b99c3686329'',''28f0172e-5db6-4589-9f00-c9e251b99d9f'',''2956c5f5-e8a6-4320-a3c1-3d8e61da2762'',''2a7ff643-74ff-49d5-b48e-a27aa9abe8a7'',''2d5ad04f-ad88-4572-8748-a32f41330de3'',''2ef24d4b-a23a-49a7-a07f-f3cabf47df0a'',''312810ee-9af8-42d6-b8f9-e4eda121d657'',''34bb8eb2-9a33-4a12-b7c1-fb550bee90a9'',''36744e73-685e-4ed6-afad-98cc9c9c35a1'',''384bcb1c-b888-48cf-914a-f29d1fc59cf6'',''3872f8d4-856f-4c0f-a69b-bf5b73abdc71'',''38f8e20d-8a1b-4f8c-b1c0-3a0c89264a9e'',''39417791-c638-424a-b74f-101294dab44a'',''3fe1ddc2-2886-40ac-971c-b08f9922597b'',''403a90be-9669-4c7b-989f-12800991c3c9'',''4478603f-4d9a-424d-b7f2-6f8a8136a51c'',''4797db2a-da4c-46c8-aec7-b302f8e98898'',''4b5b20ae-6b1c-4e75-ada1-e4421af849c0'',''4d845c5e-e44a-4d15-8a33-070abedbd677'',''547fb860-85d6-4be4-a5a2-d3b0e30896bb'',''58dfccbd-d5c5-4326-a3c0-45da4a8d5724'',''5a752dac-0a51-4ca1-80d1-1346d6bffb19'',''5bbc5bef-6c02-4df5-ad26-d36bb59b7d97'',''5bf4e1b4-7b6c-4485-baa0-6e66774e50eb'',''5e421918-409a-4eb8-9753-a7bce9720cae'',''62e81e4b-3ad9-43d9-87ca-2c0f8ab2e18e'',''64a80f6d-a106-4820-b4a0-7acbd8c08986'',''65402366-0082-41af-986b-ec8d6870c3b3'',''65d205d7-8e26-4574-899a-2d8efbe6422f'',''662715ec-b130-4c06-99ef-08536f132225'',''678dd32f-a872-46a5-9590-77a01c4b477e'',''697cb068-39af-4fdb-9e93-dc71fa205fad'',''6a33a065-7380-4605-978b-723b3c0ea267'',''6bf6b01e-c9aa-49e1-b327-f14b1d0b63f3'',''6d02a2e6-bad3-4178-9925-3d67b47bc462'',''7a52a26d-8327-45c0-b2ca-194abb9f7fee'',''7accbafc-7595-41b6-a287-0d18bb3bde24'',''7b0da77e-358e-4df4-a9ca-a1be4375eabd'',''7b60d885-be61-422b-9365-6dce9a9379a6'',''7c8aca8f-6015-4dec-b114-6762cfaf163b'',''7df3c7e4-b32c-4bef-a394-cff2454ee45a'',''80496153-ae3d-4541-a418-848b0fa778e4'',''847e6826-3aaf-43d9-b4c3-7ed77688bf54'',''85672f80-ef21-432f-a2ce-04273657ac0c'',''8ca45f98-bb46-4251-92fb-7f9f7c334d9c'',''8d055b0e-7816-404b-a5fc-1c3bb83220e6'',''8d560ffa-6d41-4853-bf90-6be377093493'',''8e4d9aef-7e25-4267-b686-af34f6722f28'',''8f1a9e0f-c468-4055-8c87-bcd0ca0d54c2'',''9793e7f0-47bb-4a5e-b009-40cea9e7ac4c'',''999c22fb-6c64-46b5-b271-48bc0f34250c'',''9a9101f2-391d-4513-abb1-2f2acae4fca4'',''9ca2a35c-3238-4e1a-a1c1-668606b42810'',''9f208cd1-710b-483d-ab4a-983c78f04ca7'',''a00189f0-0475-43dc-8e30-ed5bd3a34900'',''a145d0c2-8559-4ea6-8452-24279ee22fa5'',''a1c88777-86fe-48ba-bcbf-175b4fb12476'',''a3a08aa8-4e81-4442-a969-5d088123869b'',''a7bdc4da-1266-4124-9e55-113b4cdcd5cd'',''ab972b4d-1f58-45df-a384-35510be0a24d'',''ae5df8aa-7117-4afa-969f-1d6386faa3d4'',''af47ac1f-079f-46b8-b56a-4a42b21e0298'',''c12a061a-0c4d-48e3-b730-7d34aa3d3666'',''c2ccffb1-64ab-4ca2-9839-a12fa152763b'',''c4f72fc8-1091-409b-b3fe-b1e5eb9b94e5'',''c6ede1e1-82ce-4b24-8a25-517453c4e4d6'',''cb0a9a17-cf0d-454c-b74d-341f87d560f2'',''cb953a5c-ca21-4e5d-8806-cae6c28d55f1'',''cccaefc1-6b11-4bc6-93e5-887d1655cd18'',''ce318291-eb1b-4260-b214-e9600b245737'',''d212a82b-666c-4a77-a82d-937a67757531'',''d49bbef2-2700-4b2e-b008-6a12142c4118'',''d5d19672-eabb-47b4-b7bd-dd2753dcbed1'',''d693b97f-e14d-437e-8da7-1aac620ac4f7'',''d8ca1635-987f-44c9-8f13-303b2b1fa300'',''d95adb2b-9be9-451c-9ec2-a0da6bc59bf5'',''deae51ec-3524-4587-b386-031ab891b23d'',''e0cf412b-7e43-4b6d-9256-fbdd0364baf9'',''e2c9c244-20e5-48d7-8f34-d45c126cc32d'',''e364c299-83d2-4810-931b-1df264cc8c09'',''e5626e6a-ba7c-4033-8dd8-8664335ad3c8'',''e74905af-d29f-4f83-979d-83e2947a94e3'',''e76a0790-b125-4ea3-9c40-0077d7f88cc8'',''e7f2a72b-92fc-48f8-860e-6dbec8f319e5'',''eba80ae8-04e8-47b8-91e1-ea037ff6afed'',''ecf8404b-3f3b-4af8-a025-c1891b342229'',''eda43491-5567-4d9f-b25e-7a926e7a89a6'',''ee414c8d-b2cc-4494-8593-37acfa318206'',''efd8893d-b0c6-428e-a94e-60e97075f947'',''f007aa0a-a46f-48e5-8932-59be31d2a429'',''f10c4529-ea07-4fbe-ba68-94eff55be15c'',''f1569ebb-4901-45a4-bf33-9f3dc6da28bd'',''f209116d-ea5a-46a0-84b9-143f1167c143'',''f3bd62d5-3b81-4eb8-ba0e-b67cb510a97a'',''fa70ad43-fcfb-4a88-8785-6675b62e6c9b'',''fbea36b1-6847-481a-9c2d-50a6d9b4feab'',''fe603c13-0928-4d74-800d-1fbf19e68412''))' WHEN 'business_operation_log' THEN ' WHERE NOT (uid IN (''41e769e0-a4bc-457e-890d-4a35042ff01f'',''f5629502-7ba5-483c-9f69-4a35042ff115''))' ELSE '' END),false,true,'') doc) x WHERE n.nspname='public' AND c.relkind='r' ORDER BY c.relname",
+    "protected_raw": {
+      "content": [
+        {
+          "type": "text",
+          "text": "| table_name | row_count | data_md5 |\n|---|---|---|\n| after_sales_header | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| after_sales_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| bom | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| business_operation_log | 50 | a3d120f25665cb365fee43425269081f |\n| command_receipt | 18 | 92061008472a8b19a78841a3d5216dcf |\n| customer | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| customer_po_config | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| customer_product | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| demand_execution_link | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| document_sequence | 1 | d227166522187d6645cd22133feaba26 |\n| excel_read_field | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| excel_read_profile | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| gross_demand | 16 | 551df403bdf33d6deec4dd75717d96a1 |\n| inbound_document | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| inbound_document_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| inventory_balance | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| inventory_ledger_entry | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| net_demand | 6 | 64364e5326da2a418596eb33bc05e6cd |\n| outbound_document | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| outbound_document_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| packing_list_head | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| packing_list_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| packing_list_posting_execution | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| packing_list_posting_execution_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| product | 2 | bb0b7efa6feb76f88102419c22e9a330 |\n| product_category | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| product_color | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| product_detail | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| product_master | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| product_neutral | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| product_package | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| purchase_confirmation_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| purchase_confirmation_node | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| purchase_order_head | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| purchase_order_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sales_order_header | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sales_order_line | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| supplier | 2 | ac9d4b52e34f601fccd04403e52ac219 |\n| supplier_product | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| supplier_progress_report | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_dic_currency | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_dic_currency_exchange | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_dict_data | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_dict_type | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_permission | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_role | 1 | 1e4bdcf907d5bb1fefe5dede750f7a5f |\n| sys_role_permission | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_user | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| sys_user_role | 0 | d41d8cd98f00b204e9800998ecf8427e |\n| warehouse_site | 0 | d41d8cd98f00b204e9800998ecf8427e |\n(50 rows, 13ms)"
+        }
+      ],
+      "isError": false
+    },
+    "final": "SELECT 'users' AS check_name,count(*) AS count FROM public.sys_user UNION ALL SELECT 'roles',count(*) FROM public.sys_role UNION ALL SELECT 'role_permissions',count(*) FROM public.sys_role_permission UNION ALL SELECT 'permissions',count(*) FROM public.sys_permission UNION ALL SELECT 'logs',count(*) FROM public.business_operation_log;\nSELECT uid,permission_key,display_name,group_key,sort_order,version,is_active,is_deleted FROM public.sys_permission WHERE uid IN ('1210e800-9037-47bc-bb77-4a35042fefc5','030d2934-3d2f-4463-b9fe-d88f984652fa') ORDER BY permission_key;\nSELECT uid,operation_type,aggregate_uid,command_id FROM public.business_operation_log WHERE uid IN ('41e769e0-a4bc-457e-890d-4a35042ff01f','f5629502-7ba5-483c-9f69-4a35042ff115') ORDER BY uid;\nSELECT count(*) AS own_live_backends FROM pg_stat_activity WHERE pid IN (748,4300,8304);\nSELECT count(*) AS own_advisory FROM pg_locks WHERE locktype='advisory' AND pid IN (748,4300,8304);\nSELECT count(*) AS other_activity FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND state<>'idle' AND backend_type='client backend';",
+    "final_raw": {
+      "content": [
+        {
+          "type": "text",
+          "text": "### Statement 1\n| check_name | count |\n|---|---|\n| users | 0 |\n| roles | 1 |\n| role_permissions | 0 |\n| permissions | 112 |\n| logs | 52 |\n(5 rows, 10ms)\n### Statement 2\n| uid | permission_key | display_name | group_key | sort_order | version | is_active | is_deleted |\n|---|---|---|---|---|---|---|---|\n| 1210e800-9037-47bc-bb77-4a35042fefc5 | Customers.Customer.Create | 客户创建 | Customers | 1 | 1 | true | false |\n| 030d2934-3d2f-4463-b9fe-d88f984652fa | Customers.Customer.Delete | 客户删除 | Customers | 2 | 1 | true | false |\n(2 rows, 2ms)\n### Statement 3\n| uid | operation_type | aggregate_uid | command_id |\n|---|---|---|---|\n| 41e769e0-a4bc-457e-890d-4a35042ff01f | ReplaceRolePermissions | f9c69b20-ad62-4e53-a2dc-4a35042fef00 | b506e716-5ca5-4902-bd6a-f36279407c68 |\n| f5629502-7ba5-483c-9f69-4a35042ff115 | ReplaceRolePermissions | f9c69b20-ad62-4e53-a2dc-4a35042fef00 | 2f7ed0e7-693b-4567-b97f-edce802b3527 |\n(2 rows, 2ms)\n### Statement 4\n| own_live_backends |\n|---|\n| 0 |\n(1 rows, 4ms)\n### Statement 5\n| own_advisory |\n|---|\n| 0 |\n(1 rows, 1ms)\n### Statement 6\n| other_activity |\n|---|\n| 0 |\n(1 rows, 1ms)"
+        }
+      ],
+      "structuredContent": {
+        "results": [
+          {
+            "columns": [
+              "check_name",
+              "count"
+            ],
+            "column_types": [
+              "text",
+              "int8"
+            ],
+            "column_sortables": [],
+            "rows": [
+              [
+                "users",
+                0
+              ],
+              [
+                "roles",
+                1
+              ],
+              [
+                "role_permissions",
+                0
+              ],
+              [
+                "permissions",
+                112
+              ],
+              [
+                "logs",
+                52
+              ]
+            ],
+            "affected_rows": 0,
+            "execution_time_ms": 10,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 0,
+            "error_message": "users"
+          },
+          {
+            "columns": [
+              "uid",
+              "permission_key",
+              "display_name",
+              "group_key",
+              "sort_order",
+              "version",
+              "is_active",
+              "is_deleted"
+            ],
+            "column_types": [
+              "uuid",
+              "varchar",
+              "varchar",
+              "varchar",
+              "int4",
+              "int4",
+              "bool",
+              "bool"
+            ],
+            "column_sortables": [],
+            "rows": [
+              [
+                "1210e800-9037-47bc-bb77-4a35042fefc5",
+                "Customers.Customer.Create",
+                "客户创建",
+                "Customers",
+                1,
+                1,
+                true,
+                false
+              ],
+              [
+                "030d2934-3d2f-4463-b9fe-d88f984652fa",
+                "Customers.Customer.Delete",
+                "客户删除",
+                "Customers",
+                2,
+                1,
+                true,
+                false
+              ]
+            ],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 1,
+            "error_message": "1210e800-9037-47bc-bb77-4a35042fefc5"
+          },
+          {
+            "columns": [
+              "uid",
+              "operation_type",
+              "aggregate_uid",
+              "command_id"
+            ],
+            "column_types": [
+              "uuid",
+              "varchar",
+              "uuid",
+              "uuid"
+            ],
+            "column_sortables": [],
+            "rows": [
+              [
+                "41e769e0-a4bc-457e-890d-4a35042ff01f",
+                "ReplaceRolePermissions",
+                "f9c69b20-ad62-4e53-a2dc-4a35042fef00",
+                "b506e716-5ca5-4902-bd6a-f36279407c68"
+              ],
+              [
+                "f5629502-7ba5-483c-9f69-4a35042ff115",
+                "ReplaceRolePermissions",
+                "f9c69b20-ad62-4e53-a2dc-4a35042fef00",
+                "2f7ed0e7-693b-4567-b97f-edce802b3527"
+              ]
+            ],
+            "affected_rows": 0,
+            "execution_time_ms": 2,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 2,
+            "error_message": "41e769e0-a4bc-457e-890d-4a35042ff01f"
+          },
+          {
+            "columns": [
+              "own_live_backends"
+            ],
+            "column_types": [
+              "int8"
+            ],
+            "column_sortables": [],
+            "rows": [
+              [
+                0
+              ]
+            ],
+            "affected_rows": 0,
+            "execution_time_ms": 4,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 3
+          },
+          {
+            "columns": [
+              "own_advisory"
+            ],
+            "column_types": [
+              "int8"
+            ],
+            "column_sortables": [],
+            "rows": [
+              [
+                0
+              ]
+            ],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 4
+          },
+          {
+            "columns": [
+              "other_activity"
+            ],
+            "column_types": [
+              "int8"
+            ],
+            "column_sortables": [],
+            "rows": [
+              [
+                0
+              ]
+            ],
+            "affected_rows": 0,
+            "execution_time_ms": 1,
+            "truncated": false,
+            "session_id": null,
+            "has_more": false,
+            "statement_index": 5
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  "production_change": false,
+  "ddl": false,
+  "other_database_writes": false,
+  "commit": false,
+  "unverified": [
+    "完整HTTP/实际运行库dv正常密码登录",
+    "未声明的其他RBAC业务竞争或全部模块组合",
+    "P08最终/P09源删除态"
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "recorded_at": "2026-10-06T07:44:19.4190999+08:00",
+  "stage": "P09-R01",
+  "files": [
+    {
+      "name": "AfterSalesDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Document/AfterSalesDocumentRepository.cs",
+      "sha256": "BB90CEBC40C932771D86DCA01233E091BA03F1053B69BF649F16A0CE5315E95D",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Document/PostgreSqlAfterSalesDocumentRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "AfterSalesQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Query/AfterSalesQueryRepository.cs",
+      "sha256": "B3268AC1D8EA53B5A016AAD23EA4FA6256FA9E028FDB7B0A11232DE8E0C5779F",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/QualityControl/AfterSales/Query/PostgreSqlAfterSalesQueryRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "AuthRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Auth/Accounts/AuthRepository.cs",
+      "sha256": "6942042D6E9BA1362462BCC2FF2A03E6E4752181622FC61181C329985C45F838",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Auth/Accounts/PostgreSqlAuthRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "NetDemandExecutionLinkRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Execution/NetDemandExecutionLinkRepository.cs",
+      "sha256": "3EB6136D0732C79D0BBE90686F7A208548C492FB3A7F7AF6E280A0B2DF469318",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/DemandPlanning/Materials/Execution/PostgreSqlNetDemandExecutionLinkRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "ProcurementDemandAssociationRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Association/ProcurementDemandAssociationRepository.cs",
+      "sha256": "9B4DDED3F94371E1CF96F38735CE7C49A6ECFF6CBE8D5B942D1871ABD2B263AE",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Association/PostgreSqlProcurementDemandAssociationRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "ProcurementReferenceReadRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/ReferenceRead/ProcurementReferenceReadRepository.cs",
+      "sha256": "B6A7CD8F184A7D328FB8CA9E29C09D9F91AD8F77732FF644181357BDDBC84588",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/ReferenceRead/PostgreSqlProcurementReferenceReadRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "ProcurementReversalRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Reversal/ProcurementReversalRepository.cs",
+      "sha256": "166D9CBBC41B161FA9A1AE4946ACE91FD6747BFAD239E322FE14825E43ABBB46",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Reversal/PostgreSqlProcurementReversalRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "ProductColorRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Products/Colors/ProductColorRepository.cs",
+      "sha256": "0BEC72B39F98A229C88B5E64C6E844A357C678A69A6FAAD9E792BFF306F9385A",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Products/Colors/PostgreSqlProductColorRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "ProductNeutralRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/ProductNeutralRepository.cs",
+      "sha256": "F9F29E39273F49D09D1E52B54883337E9C76B9BC2CB2FB4B0291A58AF57A9E8E",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Products/ProductNeutrals/PostgreSqlProductNeutralRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "PurchaseOrderTraceRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PurchaseOrderTraceRepository.cs",
+      "sha256": "4ADFBF342C387073615BF1E86FBBBD863AB67AC81AFDC968F9D4118AA3E3AA80",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Trace/PostgreSqlPurchaseOrderTraceRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "SalesOrderHeadRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderHeadRepository.cs",
+      "sha256": "B8B56D790B301781DD84FE5F3DE718C3C2A6E540480DDA1924E58E4CAB68477A",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/PostgreSqlSalesOrderHeadRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "SalesOrderLineRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/SalesOrderLineRepository.cs",
+      "sha256": "6365E1E9487579274AF7B83D2C127C7079B2F2A248639294C22A7F8AD5A6E60D",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/SalesOrders/Document/PostgreSqlSalesOrderLineRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "SysDicCurrencyExchangeRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Systems/ExchangeRates/SysDicCurrencyExchangeRepository.cs",
+      "sha256": "04EE3B075E00417AC375219072DFE666938736CDA04797E396FBCF6470F84683",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Systems/ExchangeRates/PostgreSqlSysDicCurrencyExchangeRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "SysDictTypeRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Types/SysDictTypeRepository.cs",
+      "sha256": "CE4AADE1D3B8F9AA83A122F5A37CAE7DE2CFBEAFBECCA9D8EEF8B0F64F9D1139",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Systems/Dictionaries/Types/PostgreSqlSysDictTypeRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "SysUserRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Auth/Accounts/SysUserRepository.cs",
+      "sha256": "0FDACECEDD6C2DA04270A70DE446D032AE27DF8CFDBF6B70C5867DD745DE13F3",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    },
+    {
+      "name": "UserPermissionRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Auth/Permissions/UserPermissionRepository.cs",
+      "sha256": "13FB89F567CC8C02506C83A9722277D438D5D429AD39A88383F557CFA87C0010",
+      "tracked_head_unmodified": true,
+      "reference_files": [],
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Auth/Permissions/PostgreSqlUserPermissionRepository.cs"
+      ],
+      "operation": "删除源专用文件，Git HEAD可恢复；PG和有效测试保留"
+    }
+  ],
+  "status": "验证通过：16源专用文件退出、当前完整名称引用0、后端构建0错误7既有警告、51定向离线通过",
+  "scope": "16无消费者源仓储；无Git HEAD修改，保留其余源文件与包、所有PG、测试、接口/共享实现，不涉及数据库"
+}

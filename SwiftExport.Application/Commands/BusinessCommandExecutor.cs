@@ -21,9 +21,10 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
     /// <summary>当前支持的成功结果结构版本。</summary>
     public const int ResultVersion = 1;
 
-    /// <summary>先核对回执；首次执行时让业务委托在同一事务中写入事实与审计。</summary>
+    /// <summary>可选资源准备先于首次快照和回执读取；首次业务委托与完整审计/回执仍在原父事务执行。</summary>
     public async Task<CommandExecutionResult<T>> ExecuteAsync<T>(Guid commandId, string commandType, Guid? targetUid, object businessInput,
-        Func<CancellationToken, Task<T>> action, CancellationToken token, IsolationLevel? isolationLevel = null)
+        Func<CancellationToken, Task<T>> action, CancellationToken token, IsolationLevel? isolationLevel = null,
+        Func<CancellationToken, Task<IAsyncDisposable?>>? beforeTransaction = null)
     {
         token.ThrowIfCancellationRequested();
         if (!user.IsAuthenticated || user.UserId is not { } actorUid)
@@ -47,6 +48,10 @@ public sealed class BusinessCommandExecutor(ServiceBaseContext context, ICommand
         }
         // 声明顺序保证业务事务先释放，再释放准备租约；BeginTransaction 失败也不会遗留租约。
         await using var preparedCommand = lease;
+        token.ThrowIfCancellationRequested();
+        // PG来源空范围必须早于Find/审计的快照；SQL旧实现的可选准备不写数据、不改变隔离。
+        await using var preparedResources = beforeTransaction is null ? null
+            : await beforeTransaction(token) ?? throw new TimeoutException("来源事务前资源准备等待超时。");
         token.ThrowIfCancellationRequested();
         // 单据可声明原有隔离级别；未指定时保留现有命令的连接默认隔离行为。
         var transaction = isolationLevel.HasValue

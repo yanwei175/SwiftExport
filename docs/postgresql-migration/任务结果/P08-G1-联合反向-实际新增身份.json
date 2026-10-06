@@ -1,0 +1,61 @@
+{
+  "command_receipt": [
+    "120ebf0d-8428-40e7-8768-4a3502ab1334",
+    "16280f1e-7bce-4c3f-b17e-4a3502ab1676",
+    "17c70a6f-ecbc-44b3-9472-4a3502ab15dc",
+    "264d0113-4db7-4e1e-89f5-4a3502ab13e4",
+    "2b1f2787-8126-46d5-97e0-4a3502ab1644",
+    "3de92a54-b54f-472e-8a8a-4a3502ab1697",
+    "58c68959-dc16-44eb-8188-4a3502a7a5ea",
+    "5d80fa3b-2004-4c6a-9f57-4a3502ab141c",
+    "70a0e291-c7b2-48fe-95ca-4a3502ab1702",
+    "b0384d33-0efc-4b6f-8fd9-4a3502ab14f9",
+    "b4bc25a7-08e1-44f0-833e-4a3502ab1463",
+    "ba4ae5aa-afb2-40a7-b077-4a3502ab159b",
+    "d8677037-1d08-4311-8a4b-4a3502ab1616"
+  ],
+  "inbound_document": [
+    "dc02092c-1dc8-4e80-885e-4a3502ab1442"
+  ],
+  "document_sequence": [
+    "a0063490-529c-4ba6-b36b-4a3502ab1445",
+    "d8d8230c-3aab-47ec-8ebf-4a3502a7a5cc"
+  ],
+  "inventory_balance": [
+    "0189ec8d-af2f-4c4a-8a69-4a3502ab14e2"
+  ],
+  "purchase_order_head": [
+    "7758d200-0674-4f95-be25-4a3502a7a5a3"
+  ],
+  "purchase_order_line": [
+    "a34e474c-ba3c-4ffd-9376-4a3502a7a5a5"
+  ],
+  "demand_execution_link": [
+    "09419a4d-16a7-49d2-a4d0-4a3502ab1314"
+  ],
+  "inbound_document_line": [
+    "0db536c1-ba67-48c0-a74c-4a3502ab1456",
+    "be467e4d-7246-4f07-bc8f-4a3502ab1456"
+  ],
+  "business_operation_log": [
+    "0008a671-f5f5-4d28-9271-4a3502ab14f2",
+    "39eeefdd-242f-48c1-8350-4a3502a7a5de",
+    "721a3059-369e-4b15-84ed-4a3502ab1642",
+    "7791c8a1-436a-4ce7-8500-4a3502ab141b",
+    "84455f79-c420-47e5-88b6-4a3502ab1326",
+    "93135d15-68b4-4467-bed7-4a3502ab13e1",
+    "a01838dc-1802-48e5-87af-4a3502ab1598",
+    "a0b74ef9-9e79-47a9-8b04-4a3502ab1673",
+    "cfe31321-e3c6-4933-bddd-4a3502ab1613",
+    "d4ef24e0-1ae3-4ed4-8e92-4a3502ab1695",
+    "ebd05a2b-0952-4820-86fa-4a3502ab1460",
+    "f30273ed-b6ae-4062-9695-4a3502ab15d8",
+    "f8a0d9c5-c5dd-4b52-bdee-4a3502ab1700"
+  ],
+  "inventory_ledger_entry": [
+    "339dfb17-dde3-45aa-a3fa-4a3502ab14e8",
+    "bc2c3dbe-af3d-42f8-95c3-4a3502ab14eb",
+    "c96cdc23-839b-4aa1-b8e7-4a3502ab1591",
+    "eccf01b6-6d6c-4969-ac98-4a3502ab1594"
+  ]
+}

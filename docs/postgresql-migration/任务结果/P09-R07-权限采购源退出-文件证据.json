@@ -1,0 +1,133 @@
+{
+  "recorded_at": "2026-10-06T08:30:16.1831466+08:00",
+  "stage": "P09-R07",
+  "status": "验证通过：四旧文件退出及13离线契约；未运行实库",
+  "names": [
+    "RbacManagementRepository",
+    "WarehouseCandidateRepository",
+    "ProcurementOrderDocumentRepository",
+    "ProcurementOrderQueryRepository"
+  ],
+  "files": [
+    {
+      "name": "ProcurementOrderDocumentRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/ProcurementOrderDocumentRepository.cs",
+      "sha256": "52B500CC37FFAEFCAE3ACA1D24F83100C505A1757397970DA1B358EAA49B7E24",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Draft/PostgreSqlProcurementOrderDocumentRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs",
+        "SwiftExport.Application.Tests/ForExcel/ForExcelPurchaseOrderContractTests.cs",
+        "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs"
+      ]
+    },
+    {
+      "name": "ProcurementOrderQueryRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/ProcurementOrderQueryRepository.cs",
+      "sha256": "E8BB499BBE75FAC82712F7E6ED4CE5AE49B98F8B03C0A2E70DBA354EEE7319C8",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Procurement/PurchaseOrders/Query/PostgreSqlProcurementOrderQueryRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Procurement/ProcurementCapabilityAndErrorContractTests.cs",
+        "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs"
+      ]
+    },
+    {
+      "name": "RbacManagementRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Auth/Permissions/RbacManagementRepository.cs",
+      "sha256": "87A48879D68087118C0562C0F7071CBDDCCF450BBE0031AB78E2B152B580677F",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Auth/Permissions/PostgreSqlRbacManagementRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs"
+      ]
+    },
+    {
+      "name": "WarehouseCandidateRepository",
+      "path": "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/WarehouseCandidateRepository.cs",
+      "sha256": "2F7CD2F8D11204132904DC56583295D5DD3AFC66D4E00BF45CAC4E029B3EF8F3",
+      "tracked_head_unmodified": true,
+      "pg_files": [
+        "SwiftExport.Infrastructure/Repositories/Inventory/Warehouses/PostgreSqlWarehouseCandidateRepository.cs"
+      ],
+      "reference_files": [
+        "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "path": "SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs",
+      "before_sha256": "6E6437C9AE9AC29D119262B9DE754E7C0EFDC20A55573F5F9475BFBFD6F87F91",
+      "prior_uncommitted_diff": [
+        "diff --git a/SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs b/SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs",
+        "index 38e897f0..992fe021 100644",
+        "--- a/SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs",
+        "+++ b/SwiftExport.Application.Tests/Authentication/UserPermissionSqlContractTests.cs",
+        "@@ -39,7 +39,8 @@ public sealed class UserPermissionSqlContractTests",
+        "         StringAssert.Contains(source, \"SysUser_Roles\");",
+        "         StringAssert.Contains(source, \"IsDeleted=1\");",
+        "         StringAssert.Contains(service, \"ReplaceUserRolesAsync\");",
+        "-        StringAssert.Contains(service, \"AuditAsync(\\\"ReplaceUserRoles\\\"\");",
+        "+        // 迁移后的审计调用沿用本次命令身份，仍必须记录用户角色整组替换操作。",
+        "+        StringAssert.Contains(service, \"AuditAsync(commandId, \\\"ReplaceUserRoles\\\"\");",
+        "     }",
+        " ",
+        "     /// <summary>采购与仓库候选不再各自读取角色 SQL，统一消费权限投影服务。</summary>"
+      ],
+      "after_sha256": "BFC657B85567D0E62660915E54AE82ADD6A92360886301CA3A3C90F8497530CF"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Procurement/PurchaseOrderDiscountSnapshotContractTests.cs",
+      "before_sha256": "3F7E8E86CC9CEF20B94168D4DAD189FA94BD9D6583BA73B5D3F7EADD077D42C7",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "4B3E6714D63458B3434576A450E0A1E84FBCD8856C584984533F75F4E649D834"
+    },
+    {
+      "path": "SwiftExport.Application.Tests/Procurement/ProcurementCapabilityAndErrorContractTests.cs",
+      "before_sha256": "BA1E7C0C314D76A4C07F741A17D2B1D0A775F949B264F95A7BA042A2F86A8F43",
+      "prior_uncommitted_diff": [],
+      "after_sha256": "DB86A5277EE9081A1BEEEA4D1C48513D72EA74BEA4141A9D87879E715BC9D050"
+    }
+  ],
+  "database_run": false,
+  "completed_at": "2026-10-06T08:34:02.3153517+08:00",
+  "execution": {
+    "deletion": "原生用户环境绝对路径/SHA/HEAD/消费者逐项复核后限定四文件Remove-Item，exit0",
+    "build_command": "dotnet build SwiftExport.Application.Tests/SwiftExport.Application.Tests.csproj --no-restore -v minimal",
+    "build_exit": 0,
+    "build_errors": 0,
+    "build_existing_warnings": 7,
+    "build_seconds": [
+      7.57,
+      3.35
+    ],
+    "test_command": "& './docs/postgresql-migration/任务结果/P09-R07-权限采购契约-实际命令.ps1'",
+    "test_exit": 0,
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 76,
+    "trx": "TestResults/postgresql-migration/p09-r07-permission-procurement-contracts-offline.trx",
+    "trx_sha256": "FB51025D7FC15BF6C1534BF99665A749BFFE96AA94A24DC31F6CFC3483AA6389",
+    "first_failure": {
+      "passed": 12,
+      "failed": 1,
+      "skipped": 0,
+      "duration_ms": 91,
+      "exit": 1,
+      "cause": "迁移静态断言把UPDATE整个单词误匹配updated_date；恢复原禁止具体采购头回填语义，未修改PG/业务/生成结构",
+      "trx": "TestResults/postgresql-migration/p09-r07-permission-procurement-contracts-first-failed.trx",
+      "sha256": "CB2F785520C688D0E5F56BF0E0BD6CBB018E97853F84E8E0D1E02D700741CE39"
+    },
+    "database_gates": 14,
+    "excluded_integration_categories": 37,
+    "database_run": false
+  }
+}

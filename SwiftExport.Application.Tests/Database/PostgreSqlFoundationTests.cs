@@ -19,7 +19,7 @@ namespace SwiftExport.Application.Tests.Database;
 [TestClass]
 public sealed class PostgreSqlFoundationTests
 {
-    /// <summary>工厂只构造Npgsql连接，既有SQL Server工厂保持原提供者。</summary>
+    /// <summary>目标工厂只构造未打开的 Npgsql 连接，并提供现有 PG 异常分类器。</summary>
     [TestMethod]
     public void Factories_CreateClosedConnections()
     {
@@ -28,8 +28,6 @@ public sealed class PostgreSqlFoundationTests
         Assert.IsInstanceOfType<NpgsqlConnection>(connection);
         Assert.AreEqual(ConnectionState.Closed, connection.State);
         Assert.AreSame(PostgreSqlExceptionClassifier.Instance, factory.Errors);
-        using var legacy = new SqlConnectionFactory("Server=localhost;Database=unit_test;Integrated Security=true").CreateConnection();
-        Assert.IsInstanceOfType<Microsoft.Data.SqlClient.SqlConnection>(legacy);
     }
 
     /// <summary>未确定业务含义的SQLSTATE不能冒充乐观并发或可重试超时。</summary>
