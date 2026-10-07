@@ -17,7 +17,7 @@ instructions = """
 
 禁止：
 - Controller 写 SQL。
-- Application 直接创建 SqlConnection。
+- Application 直接创建 NpgsqlConnection 或其他数据库连接。
 - Infrastructure 引用 Application。
 - Core 放前端可见 DTO/枚举。
 - 为单个查询恢复大而全泛型模板。

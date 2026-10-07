@@ -6,8 +6,8 @@
 
 用途：
 
-- 生成 SQL Server 友好的顺序 Guid。
-- 当前 Infrastructure `DapperRepository.AddAsync` 使用类似顺序 Guid 生成策略。
+- 生成当前业务使用的 Uid；Infrastructure `PostgreSqlDapperRepository.AddAsync` 实际调用此工具。
+- 现有算法源于 SQL Server 尾部递增 GUID 设计，仍可生成 PostgreSQL uuid，但不能据此宣称 PG 索引顺序或局部性已优化。迁移完成不自动授权修改 Uid 算法或重写既有标识。
 
 注意：
 

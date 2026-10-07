@@ -21,6 +21,7 @@ skill_group = ".codex/skills/aspdotnet10/data-model-governance/SKILL.md"
 references = [
   ".agents/references/业务架构总纲.md",
   ".agents/references/工程架构总纲.md",
+  ".agents/references/PostgreSQL当前基线.md",
   ".agents/references/数据模型与状态规则.md",
 ]
 triggers = [
@@ -104,6 +105,7 @@ id = "backend"
 agent = "backend"
 workflow = ".agents/workflows/后端API工作流.md"
 skill_group = ".codex/skills/aspdotnet10/index/SKILL.md"
+references = [".agents/references/PostgreSQL当前基线.md"]
 triggers = [
   "后端",
   "后端接口",
@@ -171,6 +173,9 @@ triggers = [
   "DependencyInjection",
   "依赖注入",
   "数据库",
+  "PostgreSQL",
+  "PGSQL",
+  "Npgsql",
   "实体",
   "Entity",
   "Core",
@@ -349,6 +354,7 @@ triggers = ["前端", "WPF", ".NET 10", "CommunityToolkit", "ViewModel", "LineMo
 id = "review"
 agent = "reviewer"
 workflow = ".agents/workflows/代码审查工作流.md"
+references = [".agents/references/PostgreSQL当前基线.md"]
 triggers = ["review", "审查", "检查", "风险", "回归", "验收", "重构评估"]
 
 [policy]

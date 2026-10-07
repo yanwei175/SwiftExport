@@ -9,6 +9,8 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 
 公共启动沿用 `AGENTS.md`；本入口只按业务任务选择对应子 Skill，不反向重读 Agent 和后端工作流。已读依赖按根规则复用。
 
+数据库、仓储、SQL、结构及相关工具任务先读取 `.agents/references/PostgreSQL当前基线.md`。当前仅使用 PostgreSQL + Dapper；已有专项 Skill 继续负责技术细则，不另建 SQL Server/PG 双库分支。
+
 ## 子 Skill 路由
 
 - 分析或治理 Core Entity 字段、逻辑外键、历史快照、DTO 分类与字段来源、数据库模型或 Infrastructure 实现路线：读 `../data-model-governance/SKILL.md`。该 Skill 只负责分析、治理和规划；实现 Repository、SQL、DTO 或 Entity 时继续使用对应实现 Skill。

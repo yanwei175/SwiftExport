@@ -151,13 +151,15 @@
 
 ## 写入边界
 
-### 数据库迁移方向（2026-10-04 用户最新确认）
+### 数据库运行基线（2026-10-07）
 
-- 最终淘汰 SQL Server，后续只使用 PostgreSQL + Dapper，不建设长期双库支持或提供者切换框架。
+- SQL Server 已退出当前运行实现，后续只使用 PostgreSQL + Dapper，不建设长期双库支持或提供者切换框架。
+- 数据库相关任务读取 [PostgreSQL 当前基线](.agents/references/PostgreSQL当前基线.md)，再按工作流选择现有技术 Skill；不复制一套旧新双库工作流。
 - 当前 Infrastructure DI 已使用 PostgreSQL 连接、会话及对应仓储；不得据旧迁移阶段说明恢复 SQL Server 接线或混用仓储。
 - 实现事实见 Infrastructure/DependencyInjection.cs 和真实调用链，历史迁移及验证范围见 docs/postgresql-migration；旧阶段顺序不是当前自动开发待办。源码接线存在不代表所有业务组合或运行库写入已验收。
 - 优先复用现有会话、事务、异常分类及元数据；不为迁移新增无真实用例的实体表、通用数据库框架或全局业务锁。BOM 编号可共享，BomVersion 仅表示有效性，不引入业务多版本。
 - 新目标不等于任意数据库写入授权：原有隔离测试、备份保护、破坏性操作确认及不得自动部署/推送规则继续有效。
+- 旧聊天恢复执行时须重新核对当前入口和源码；历史聊天、迁移清单旧阶段及归档资料不作为当前技术栈或自动待办来源。
 
 D:\DevCaches是NuGet包的文档地址,你拥有权限,避免每次隔离构建都因目录缺少NuGet资产文件而退出.
 
@@ -186,7 +188,7 @@ D:\DevCaches是NuGet包的文档地址,你拥有权限,避免每次隔离构建�
 dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
 dotnet build .\SwiftExport-WebAPI.slnx
 msbuild .\SwiftExport.slnx /p:Configuration=Debug /p:Platform=AnyCPU
-dotnet run --project .\_tools\DbSeed\DbSeed.csproj
+& .\_tools\DbSeed\同步权限目录.ps1
 ```
 
 ## 最终回复格式

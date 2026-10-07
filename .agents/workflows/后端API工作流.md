@@ -31,7 +31,7 @@
    - Wrappers / ServiceResult / BatchSave / PagedResponse：`.codex/skills/aspdotnet10/contracts-wrappers/SKILL.md`
    - SysEnums / 共享枚举 / 状态枚举：`.codex/skills/aspdotnet10/contracts-shared-enums/SKILL.md`
    - Common / 静态工具 / SaveItemResultFactory：`.codex/skills/aspdotnet10/contracts-common-helpers/SKILL.md`
-3. 读取 `.agents/references/工程架构总纲.md`；涉及单据、库存、需求链路时读取业务架构和数据模型参考。
+3. 读取 `.agents/references/工程架构总纲.md`；涉及数据库、仓储、SQL、连接、结构或数据库工具时读取 `.agents/references/PostgreSQL当前基线.md`。涉及单据、库存、需求链路时读取业务架构和数据模型参考。
 4. 按 `.agents/references/业务模块能力与页面契约治理规则.md` 的模块地图索引读取命中地图；由 WPF 业务页面驱动的纵向切片同时读 `.agents/references/WPF ERP页面纵向切片开发教程.md`；跨采购—入库—库存交接须读三份地图，并检查当前事实与偏差 ID。
 5. 读取相关 Controller、Application Interface/Service、Contracts API/DTO、Entity、Repository，对比能力地图和偏差账本。
 6. 当前任务会修改、复制或扩大偏差时，先输出门禁偏差提醒，说明规则、事实、影响、最小重构和兼容方案，然后暂停等待用户决定。

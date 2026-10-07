@@ -64,7 +64,7 @@ Application Service 负责：
 
 Application Service 禁止：
 
-- 直接创建 `SqlConnection`。
+- 直接创建 `NpgsqlConnection` 或其他数据库连接；使用 Core `IDbSession` 共享会话。
 - 硬编码连接字符串。
 - 处理 WPF UI 状态。
 - 调用 Controller。
