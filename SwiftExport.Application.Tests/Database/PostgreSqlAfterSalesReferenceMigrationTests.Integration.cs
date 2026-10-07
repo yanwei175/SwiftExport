@@ -10,6 +10,7 @@ using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Relations;
+using SwiftExport.Core.Entities.QualityControl;
 using SwiftExport.Core.Entities.SalesOrders;
 using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Auth;
@@ -65,7 +66,7 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
     {
         Assert.IsNull(await f.Repository.ReferenceAsync(kind,Guid.NewGuid(),null,true));
         // 不依赖公共库绝无 Empty 行：先按实体身份确认缺失，否则未验证，不能删除已有行造前提。
-        var type=kind switch{"customers"=>typeof(Customer),"suppliers"=>typeof(Supplier),"owners"=>typeof(SysUser),"colors"=>typeof(ProductColor),"quality-categories"=>typeof(SysDictData),"sales-order-lines"=>typeof(SalesOrderLine),_=>typeof(Product)};
+        var type=kind switch{"customers"=>typeof(Customer),"suppliers"=>typeof(Supplier),"owners"=>typeof(SysUser),"colors"=>typeof(ProductColor),"quality-categories"=>typeof(AfterSalesQualityCategory),"sales-order-lines"=>typeof(SalesOrderLine),_=>typeof(Product)};
         var map=EntityMetadataCache.GetMetadata(type);
         var count=await f.Session.Connection.ExecuteScalarAsync<int>($"SELECT count(*) FROM {Table(map)} WHERE {PostgreSqlNames.Quote(map.KeyName)}=@Uid",new{Uid=Guid.Empty},f.Transaction);
         if(count!=0)Assert.Inconclusive("专用库已有 Empty 身份，不能改旧数据造缺失样本。");
@@ -83,17 +84,20 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
         Assert.AreEqual(empty?"":"中文",(await f.Repository.ReferenceAsync("colors",color.Uid,null,true))!.Name);
     });
 
-    /// <summary>只验证冻结 ASCII 大小写及尾空格字典常量，前导空格和其他字典不匹配，不声称全部 Unicode 等价。</summary>
+    /// <summary>旧字典保留但不再提供候选；新分类编码、别名、名称依次兜底。</summary>
     [TestMethod] [TestCategory("PostgreSqlAfterSalesReferenceIntegration")]
-    [DataRow("aftersalesqualitycategory   ",true)] [DataRow("AfterSalesQualityCategory",true)]
-    [DataRow(" AfterSalesQualityCategory",false)] [DataRow("OtherCategory",false)]
-    public Task DictionaryConstantComparison(string code,bool matches)=>InRollback(async f=>
+    [DataRow("CODE", "Alias", "CODE")] [DataRow(null, "Alias", "Alias")] [DataRow(" ", "", "品质")]
+    public Task CategoryFallbackAndDictionaryIsolation(string? code, string? alias, string expected) => InRollback(async f =>
     {
-        var d=new SysDictData{DictCode=code,DataNameEn=f.Prefix,DataNameZh=null,IsEnabled=true,IsSystem=false};await f.Seed(d);
-        var result=await f.Repository.ReferenceAsync("quality-categories",d.Uid,null,true);
-        if(matches){Assert.IsNotNull(result);Assert.AreEqual(f.Prefix,result.Code);Assert.AreEqual(f.Prefix,result.Name);}else Assert.IsNull(result);
+        var legacy = new SysDictData { DictCode="AfterSalesQualityCategory", DataNameEn=f.Prefix, IsEnabled=true };
+        await f.Seed(legacy);
+        Assert.IsNull(await f.Repository.ReferenceAsync("quality-categories", legacy.Uid, null, true));
+        var category = new AfterSalesQualityCategory { CategoryName="品质", CategoryCode=code is null?null:f.Prefix+code, FakeName=alias };
+        if(code==" ") category.CategoryCode=" ";
+        await f.Seed(category);
+        var result = await f.Repository.ReferenceAsync("quality-categories", category.Uid, null, true);
+        Assert.IsNotNull(result); Assert.AreEqual(code=="CODE"?f.Prefix+expected:expected, result.Code); Assert.AreEqual("品质", result.Name);
     });
-
     /// <summary>销售行只裁决头行删除及客户身份，已关闭/已确认头仍可引用；NULL/错误客户及删头不能返回。</summary>
     [TestMethod] [TestCategory("PostgreSqlAfterSalesReferenceIntegration")]
     public Task SalesHeaderAndCustomerBoundaries()=>InRollback(async f=>
@@ -162,7 +166,7 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
             case "suppliers":var s=new Supplier{SupplierCode=f.Prefix+"S",SupplierName="供应商",DocRelateNo=f.Prefix,IsActive=active,IsDeleted=deleted};await f.Seed(s);return(s.Uid,null,s.SupplierCode,s.SupplierName);
             case "owners":var u=new SysUser{UserName=f.Prefix+"U",NickName="",PasswordHash="__pgtest_unused_hash__",IsActive=active,IsDeleted=deleted};await f.Seed(u);return(u.Uid,null,u.UserName,"");
             case "colors":var color=new ProductColor{ColorCode=f.Prefix+"C",ColorCodeUnique=f.Prefix+"CU",ColorNameEn="",ColorNameZh="中文",IsDeleted=deleted};await f.Seed(color);return(color.Uid,null,color.ColorCode,"");
-            case "quality-categories":var d=new SysDictData{DictCode="AfterSalesQualityCategory",DataNameEn=f.Prefix+"D",DataNameZh="品质",IsEnabled=active,IsDeleted=deleted};await f.Seed(d);return(d.Uid,null,d.DataNameEn,d.DataNameZh);
+            case "quality-categories":var d=new AfterSalesQualityCategory{FakeName=f.Prefix+"D",CategoryName="品质",IsEnabled=active,IsDeleted=deleted};await f.Seed(d);return(d.Uid,null,d.FakeName,d.CategoryName);
             case "sales-order-lines":var customer=NewCustomer(f);await f.Seed(customer);var h=new SalesOrderHeader{OrderNo=f.Prefix+"SO",CustomerId=customer.Uid,DocumentStatus=(SalesOrderDocumentStatusEnum)8,ConfirmationStatus=ConfirmationStatusEnum.已确认};await f.Seed(h);var l=new SalesOrderLine{SalesOrderId=h.Uid,LineNumber=1,Sku=f.Prefix+"NS",IsNonStandard=true,Qty=1,UnitSnapshot="SET",IsDeleted=deleted};await f.Seed(l);return(l.Uid,customer.Uid,h.OrderNo+"/1",l.Sku);
             case "products":var pc=new ProductColor{ColorCode=f.Prefix+"C",ColorCodeUnique=f.Prefix+"CU",ColorNameEn="颜色"};await f.Seed(pc);var p=new Product{Sku=f.Prefix+"P",SupplyType="采购",Unit="SET",ColorId=pc.Uid,DescriptionZh="产品",IsActive=active,IsDeleted=deleted};await f.Seed(p);return(p.Uid,null,p.Sku,p.DescriptionZh);
             default:throw new ArgumentException("夹具只支持已冻结白名单。",nameof(kind));

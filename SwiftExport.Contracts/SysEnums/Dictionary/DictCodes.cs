@@ -15,7 +15,7 @@ namespace SwiftExport.Contracts.SysEnums
         /// <summary>运输方式字典编码；具体可选值由数据库字典维护。</summary>
         public const string ShippedBy = "ShippedBy";
         public const string Unit = "Unit";
-        /// <summary>售后品质分类，具体分类由通用字典维护。</summary>
+        /// <summary>旧售后品质字典的迁移识别码；当前分类由独立品质分类树维护。</summary>
         public const string AfterSalesQualityCategory = "AfterSalesQualityCategory";
 
         // 以下业务字段不属于通用字典值，只保留仍被运行时查询使用的稳定编码。
@@ -29,8 +29,7 @@ namespace SwiftExport.Contracts.SysEnums
             Incoterm,
             PaymentMethod,
             ShippedBy,
-            Unit,
-            AfterSalesQualityCategory
+            Unit
         };
     }
 }

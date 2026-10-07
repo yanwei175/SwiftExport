@@ -9,6 +9,7 @@
              xmlns:customerComponents="clr-namespace:SwiftExportClient.Features.Customers.Components" 
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components" 
              xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components" 
+             xmlns:qualityComponents="clr-namespace:SwiftExportClient.Features.QualityControl.Categories.Components"
              mc:Ignorable="d" d:DesignHeight="950" d:DesignWidth="1500"
              d:DataContext="{d:DesignInstance vm:AfterSalesDetailViewModel}">
 
@@ -223,6 +224,15 @@
 
 
                     </Grid>
+                    <TextBlock Text="品质分类" Margin="0,8,0,4"/>
+                    <qualityComponents:AfterSalesQualityCategoryLookupTextBox
+                        ItemsSource="{Binding QualityCategories}"
+                        SelectedCategoryId="{Binding Header.QualityCategoryId, Mode=TwoWay}"
+                        RefreshCommand="{Binding RefreshQualityCategoriesCommand}"
+                        IsRefreshing="{Binding IsQualityCategoryLoading}"
+                        IsEnabled="{Binding CanEditFacts}"
+                        HorizontalAlignment="Left" Width="320"
+                        Tag="Header.QualityCategoryId" AutomationProperties.Name="售后品质分类"/>
                 </StackPanel>
             </ScrollViewer>
         </Border>

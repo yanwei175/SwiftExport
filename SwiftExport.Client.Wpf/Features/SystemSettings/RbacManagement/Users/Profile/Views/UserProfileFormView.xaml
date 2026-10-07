@@ -18,7 +18,7 @@
         <StackPanel Margin="12" MinWidth="360">
             
             <TextBlock Text="用户名" />
-            <TextBox Text="{Binding UserName}" IsReadOnly="True" Margin="0,4,0,12" />
+            <TextBox Text="{Binding UserName,Mode=OneWay}" IsReadOnly="True" Margin="0,4,0,12" />
 
             <TextBlock Text="显示名称" />
             <TextBox Text="{Binding UserNickName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,12" />

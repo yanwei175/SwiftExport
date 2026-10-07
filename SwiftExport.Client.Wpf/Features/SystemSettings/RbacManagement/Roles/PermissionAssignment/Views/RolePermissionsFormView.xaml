@@ -19,15 +19,17 @@
                  Margin="0,0,0,8" AutomationProperties.Name="筛选角色权限" />
 
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                <ItemsControl x:Name="PermissionItems" ItemsSource="{Binding Choices}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                              IsEnabled="{Binding IsEnabled}" Margin="0,4"
-                              AutomationProperties.Name="{Binding DisplayName}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <WrapPanel>
+                    <ItemsControl x:Name="PermissionItems" ItemsSource="{Binding Choices}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          IsEnabled="{Binding IsEnabled}" Margin="0,4"
+                                          AutomationProperties.Name="{Binding DisplayName}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </WrapPanel>
             </ScrollViewer>
 
             <StackPanel Grid.Row="3">

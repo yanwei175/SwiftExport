@@ -27,6 +27,37 @@ namespace SwiftExport.Client.Wpf.Tests.Features.SystemSettings;
 [DoNotParallelize]
 public sealed class DictionaryManagerLifecycleTests
 {
+    /// <summary>品质分类接管后，旧类型不应从固定清单或附加类型重现；其他自定义字典仍可维护。</summary>
+    [TestMethod]
+    public async Task QualityCategoryTree_DoesNotReappearAsGenericDictionary()
+    {
+        var typeApi = CreateProxy<ISysDictTypeApi>((method, _) => method.Name switch
+        {
+            nameof(ISysDictTypeApi.GetAllAsync) => Task.FromResult(
+                ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok(
+                [
+                    new() { Uid = Guid.NewGuid(), DictCode = "aftersalesqualitycategory   ", DictName = "旧品质分类" },
+                    new() { Uid = Guid.NewGuid(), DictCode = "Unit", DictName = "单位" },
+                    new() { Uid = Guid.NewGuid(), DictCode = "CustomTest", DictName = "自定义字典" }
+                ])),
+            _ => throw new NotSupportedException(method.Name)
+        });
+        var dataApi = CreateProxy<ISysDictDataApi>((method, _) => method.Name switch
+        {
+            nameof(ISysDictDataApi.GetByCodeAsync) => Task.FromResult(
+                ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([])),
+            _ => throw new NotSupportedException(method.Name)
+        });
+        using var model = CreateViewModel(typeApi, dataApi, new FakeDialogService(true));
+
+        await model.InitializeAsync();
+
+        Assert.IsFalse(model.Dictionaries.Any(item => string.Equals(item.Code.TrimEnd(' '),
+            "AfterSalesQualityCategory", StringComparison.OrdinalIgnoreCase)));
+        Assert.IsTrue(model.Dictionaries.Any(item => item.Code == "Unit"));
+        Assert.IsTrue(model.Dictionaries.Any(item => item.Code == "CustomTest"));
+    }
+
     /// <summary>字典只读会话能打开页面但不能创建类型，赋予独立 Create 后按钮立即可用。</summary>
     [TestMethod]
     public void DictionaryWriteCommands_FollowExactPermissionSnapshot()

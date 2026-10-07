@@ -65,12 +65,12 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationTests
         Assert.AreEqual(1,f.Connection.Begins);Assert.AreEqual(0,f.Connection.Commits);Assert.AreEqual(0,f.Connection.Rollbacks);
         Assert.IsTrue(f.Connection.Reader!.IsClosed);Assert.IsFalse(c.Sql.Contains("FOR UPDATE"));Assert.IsFalse(c.Sql.Contains(';'));
         StringAssert.Contains(c.Sql,"WHERE q.\"Uid\"=@uid");
-        var tables=new Dictionary<string,string>{{"customers","customer"},{"suppliers","supplier"},{"owners","sys_user"},{"colors","product_color"},{"quality-categories","sys_dict_data"},{"sales-order-lines","sales_order_line"},{"products","product"}};
+        var tables=new Dictionary<string,string>{{"customers","customer"},{"suppliers","supplier"},{"owners","sys_user"},{"colors","product_color"},{"quality-categories","after_sales_quality_category"},{"sales-order-lines","sales_order_line"},{"products","product"}};
         StringAssert.Contains(c.Sql,"\"public\".\""+tables[kind]+"\"");
         Assert.IsFalse(c.Sql.Contains("IS NULL"),"原软删资格只接受 FALSE，不将 NULL 当未删。");
         if(kind=="colors") Assert.IsFalse(c.Sql.Contains("is_active"));
         else if(kind=="sales-order-lines") {Assert.IsFalse(c.Sql.Contains("document_status"));Assert.IsFalse(c.Sql.Contains("is_active"));StringAssert.Contains(c.Sql,"CONCAT(");StringAssert.Contains(c.Sql,"INNER JOIN");}
-        else if(kind=="quality-categories") {Assert.AreEqual(active,c.Sql.Contains("\"is_enabled\"=TRUE"));StringAssert.Contains(c.Sql,"rtrim(d.\"dict_code\",' ') COLLATE public.erp_dictionary_ci");Assert.IsFalse(c.Sql.Contains("is_system"));}
+        else if(kind=="quality-categories") {Assert.AreEqual(active,c.Sql.Contains("\"is_enabled\"=TRUE"));StringAssert.Contains(c.Sql,"d.\"category_name\" AS \"Name\"");StringAssert.Contains(c.Sql,"NULLIF(btrim(d.\"category_code\"),'')");Assert.IsFalse(c.Sql.Contains("dict_code"));Assert.IsFalse(c.Sql.Contains("is_system"));}
         else if(kind=="products")
         {
             Assert.AreEqual(active,c.Sql.Contains("p.\"is_active\"=TRUE"));StringAssert.Contains(c.Sql,"r.\"is_active\"=TRUE");

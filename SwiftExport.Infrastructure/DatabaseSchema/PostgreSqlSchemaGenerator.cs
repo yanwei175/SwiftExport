@@ -33,6 +33,7 @@ public sealed class PostgreSqlSchemaGenerator
         if (entities.Any(t => IsDictionary(t) || t == typeof(SwiftExport.Core.Entities.MasterData.Customer)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.Supplier)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductCategory)
+                || t == typeof(SwiftExport.Core.Entities.QualityControl.AfterSalesQualityCategory)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductColor)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)
                 || t == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)
@@ -115,6 +116,9 @@ END $$;
                 && index.Name == "UX_Supplier_SupplierCode" && property == "SupplierCode"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductCategory)
                 && index.Name == "UX_ProductCategory_CategoryCode" && property == "CategoryCode"
+            // 售后独立分类沿用产品分类的编码比较规则，不改变其他列或普通查询的比较。
+            || entity == typeof(SwiftExport.Core.Entities.QualityControl.AfterSalesQualityCategory)
+                && index.Name == "UX_AfterSalesQualityCategory_CategoryCode" && property == "CategoryCode"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductColor)
                 && index.Name == "UX_ProductColor_ColorCodeUnique" && property == "ColorCodeUnique"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)

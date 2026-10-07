@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Commands;
 using SwiftExport.Application.Commands.Validation;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Exceptions;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auditing;
@@ -86,13 +87,51 @@ public sealed class CommandPipelineTests
         var failed = new Fixture();
         await Assert.ThrowsAsync<InvalidOperationException>(() => failed.RunAsync(new Request(1),
             _ => Task.FromResult<ServiceResult<int>?>(null), _ => throw new InvalidOperationException("模拟技术故障")));
-        failed.AssertCompletion("Failed", ServiceErrorCodes.Unexpected);
+        failed.AssertCompletion("Failed", ServiceErrorCodes.Unexpected, LogLevel.Error);
         var cancelled = new Fixture();
         using var source = new CancellationTokenSource();
         source.Cancel();
         await Assert.ThrowsAsync<OperationCanceledException>(() => cancelled.RunAsync(new Request(1),
             _ => Task.FromResult<ServiceResult<int>?>(null), _ => throw new AssertFailedException("取消后不得执行。"), source.Token));
         cancelled.AssertCompletion("Cancelled", null);
+    }
+
+    /// <summary>售后已知业务拒绝记录真实错误码，且原错误、字段和消息继续交给售后响应边界。</summary>
+    [TestMethod]
+    [DataRow(ServiceErrorCodes.Validation)]
+    [DataRow(ServiceErrorCodes.NotFound)]
+    [DataRow(ServiceErrorCodes.VersionConflict)]
+    [DataRow(ServiceErrorCodes.BusinessBlocked)]
+    public async Task AfterSalesBusinessException_LogsRejectedAndPreservesException(string code)
+    {
+        var f = new Fixture();
+        var original = new AfterSalesException(code, "售后操作被拒绝。", "Header.CustomerId");
+        var actual = await Assert.ThrowsAsync<AfterSalesException>(() => f.RunAsync(new Request(1),
+            _ => Task.FromResult<ServiceResult<int>?>(null), _ => throw original));
+        Assert.AreSame(original, actual);
+        Assert.AreEqual(code, actual.Code);
+        Assert.AreEqual("售后操作被拒绝。", actual.Message);
+        Assert.AreEqual("Header.CustomerId", actual.Field);
+        f.AssertCompletion("Rejected", code, LogLevel.Information);
+    }
+
+    /// <summary>售后审计失败与未知代码必须保留技术故障级别，不能因模块异常类型被降为业务拒绝。</summary>
+    [TestMethod]
+    [DataRow("LOG_WRITE_FAILED")]
+    [DataRow("AFTERSALES_DELIVERY_QUERY_UNAVAILABLE")]
+    [DataRow("UNKNOWN_AFTERSALES_FAILURE")]
+    [DataRow(ServiceErrorCodes.Unexpected)]
+    public async Task AfterSalesTechnicalException_LogsFailedAndPreservesException(string code)
+    {
+        var f = new Fixture();
+        var original = new AfterSalesException(code, "售后技术故障。");
+        var actual = await Assert.ThrowsAsync<AfterSalesException>(() => f.RunAsync(new Request(1),
+            _ => Task.FromResult<ServiceResult<int>?>(null), _ => throw original));
+        Assert.AreSame(original, actual);
+        Assert.AreEqual(code, actual.Code);
+        Assert.AreEqual("售后技术故障。", actual.Message);
+        Assert.IsNull(actual.Field);
+        f.AssertCompletion("Failed", code, LogLevel.Error);
     }
 
     /// <summary>真实 Serilog 事件应保留完成字段，文件模板才能直接输出这些属性。</summary>
@@ -145,8 +184,8 @@ public sealed class CommandPipelineTests
             Func<CancellationToken, Task<ServiceResult<CommandExecutionResult<int>>>> execute, CancellationToken token = default) =>
             _pipeline.ExecuteAsync(request, Guid.NewGuid(), "Inventory.Test.Draft.Create", authorize, execute, token);
 
-        /// <summary>完成事件应恰好一条，且包含可查询关联字段与非负耗时。</summary>
-        public void AssertCompletion(string outcome, string? code)
+        /// <summary>完成事件应恰好一条，且包含关联字段、非负耗时及按需验证的日志级别。</summary>
+        public void AssertCompletion(string outcome, string? code, LogLevel? level = null)
         {
             Assert.HasCount(1, _logger.Events);
             var fields = _logger.Events[0];
@@ -156,6 +195,7 @@ public sealed class CommandPipelineTests
             Assert.AreEqual("pipeline-test-call", fields["CorrelationId"]);
             Assert.IsTrue((long)fields["ElapsedMs"]! >= 0);
             Assert.IsInstanceOfType<Guid>(fields["CommandId"]);
+            if (level.HasValue) Assert.AreEqual(level.Value, _logger.Levels[0]);
         }
     }
 
@@ -167,17 +207,22 @@ public sealed class CommandPipelineTests
         public bool IsAuthenticated => true;
     }
 
-    /// <summary>记录 ILogger 属性状态；不依赖格式化文本解析。</summary>
+    /// <summary>记录 ILogger 属性状态和日志级别；不依赖格式化文本解析。</summary>
     private sealed class CaptureLogger : ILogger<CommandPipeline>
     {
         public List<Dictionary<string, object?>> Events { get; } = [];
+        public List<LogLevel> Levels { get; } = [];
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoopScope.Instance;
         public bool IsEnabled(LogLevel logLevel) => true;
+        /// <summary>保存完成事件的结构化属性与级别，供拒绝和技术故障分类断言使用。</summary>
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
             if (state is IEnumerable<KeyValuePair<string, object?>> properties)
+            {
                 Events.Add(properties.ToDictionary(x => x.Key, x => x.Value));
+                Levels.Add(logLevel);
+            }
         }
         private sealed class NoopScope : IDisposable
         {

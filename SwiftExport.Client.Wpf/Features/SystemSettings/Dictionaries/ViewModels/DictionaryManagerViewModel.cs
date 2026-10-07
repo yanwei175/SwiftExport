@@ -548,6 +548,9 @@ public sealed partial class DictionaryManagerViewModel
 
         var additionalTypes = allTypes
             .Where(type => !DictCodes.DictCodeList.Contains(type.DictCode, StringComparer.OrdinalIgnoreCase))
+            // 旧品质分类数据保留供迁移追溯，维护入口已由独立分类树接管，不能从附加类型重新出现。
+            .Where(type => !string.Equals(type.DictCode?.TrimEnd(' '), DictCodes.AfterSalesQualityCategory,
+                StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(type => type.IsSystem)
             .ThenBy(type => type.DictName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(type => type.DictCode, StringComparer.OrdinalIgnoreCase);

@@ -169,6 +169,9 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["AfterSalesLifecycleController.VoidAsync"] = PermissionKeys.AfterSalesLifecycle,
         ["AfterSalesMaintenanceController.CreateAsync"] = PermissionKeys.AfterSalesMaintain,
         ["AfterSalesMaintenanceController.SaveAsync"] = PermissionKeys.AfterSalesMaintain,
+        // 独立分类树沿用售后查看/维护权限，批量保存不派生新的CRUD权限键。
+        ["AfterSalesQualityCategoryController.GetAllAsync"] = PermissionKeys.QualityControlAfterSalesView,
+        ["AfterSalesQualityCategoryController.BatchSaveAsync"] = PermissionKeys.AfterSalesMaintain,
         ["AfterSalesQueryController.SearchAsync"] = PermissionKeys.QualityControlAfterSalesView,
         ["AfterSalesQueryController.GetAsync"] = PermissionKeys.QualityControlAfterSalesView,
         ["AfterSalesQueryController.LookupAsync"] = PermissionKeys.QualityControlAfterSalesView,

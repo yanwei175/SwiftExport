@@ -250,6 +250,7 @@ public static class DependencyInjection
         services.AddScoped<ISysDicCurrencyService, SysDicCurrencyService>();
         services.AddScoped<ISysDicCurrencyExchangeService, SysDicCurrencyExchangeService>();
 
+        services.AddScoped<SwiftExport.Application.Interfaces.QualityControl.Categories.IAfterSalesQualityCategoryService, SwiftExport.Application.Services.QualityControl.Categories.AfterSalesQualityCategoryService>();
         services.AddScoped<IAfterSalesQueryService, AfterSalesQueryService>();
         services.AddScoped<IAfterSalesMaintenanceService, AfterSalesMaintenanceService>();
         services.AddScoped<IAfterSalesCancellationService, AfterSalesCancellationService>();

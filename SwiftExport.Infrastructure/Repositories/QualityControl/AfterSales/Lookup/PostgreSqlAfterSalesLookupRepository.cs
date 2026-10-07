@@ -8,7 +8,6 @@ using SwiftExport.Core.Entities.Auth;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Entities.SalesOrders;
-using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.QualityControl.AfterSales.Lookup;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.DatabaseSchema;
@@ -68,7 +67,7 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
             new ReferenceParameters(uid, customerId), context.Session.Transaction);
     }
 
-    /// <summary>只允许固定实体分支；活动条件仅按原类型规则拼接，不修剪 kind 或裁决额外业务资格。</summary>
+    /// <summary>只允许固定实体分支；品质分类从独立树表读取，父级和末级同等准入，停用仅阻断新引用。</summary>
     private static string ReferenceSql(string kind, bool active) => kind switch
     {
         "customers" => $"SELECT c.\"uid\" AS \"Uid\",c.\"customer_code\" AS \"Code\",c.\"customer_name\" AS \"Name\" FROM \"public\".\"customer\" c WHERE c.\"is_deleted\"=FALSE{Active("c", active)}",
@@ -77,8 +76,8 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
         "colors" => $"SELECT c.\"uid\" AS \"Uid\",c.\"color_code\" AS \"Code\",COALESCE(c.\"color_name_en\",c.\"color_name_zh\") AS \"Name\" FROM \"public\".\"product_color\" c WHERE c.\"is_deleted\"=FALSE",
         "quality-categories" => $"""
             SELECT d."uid" AS "Uid",
-            COALESCE(d."data_name_en",d."data_name_zh") AS "Code",
-            COALESCE(d."data_name_zh",d."data_name_en") AS "Name" FROM "public"."sys_dict_data" d WHERE d."is_deleted"=FALSE AND rtrim(d."dict_code",' ') COLLATE public.erp_dictionary_ci = 'AfterSalesQualityCategory' COLLATE public.erp_dictionary_ci{(active ? $" AND d.\"is_enabled\"=TRUE" : "")}
+            COALESCE(NULLIF(btrim(d."category_code"),''),NULLIF(btrim(d."fake_name"),''),d."category_name") AS "Code",
+            d."category_name" AS "Name" FROM "public"."after_sales_quality_category" d WHERE d."is_deleted"=FALSE{(active ? $" AND d.\"is_enabled\"=TRUE" : "")}
         """,
         "sales-order-lines" => """
             SELECT l."uid" AS "Uid",

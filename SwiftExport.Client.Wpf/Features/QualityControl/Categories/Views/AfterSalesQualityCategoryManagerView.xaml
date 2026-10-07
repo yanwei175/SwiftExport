@@ -1,0 +1,82 @@
+<UserControl x:Class="SwiftExportClient.Features.QualityControl.Categories.Views.AfterSalesQualityCategoryManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dd="urn:gong-wpf-dragdrop"
+             xmlns:models="clr-namespace:SwiftExportClient.Features.QualityControl.Categories.Models"
+             x:Name="Root" Loaded="OnLoaded" Unloaded="OnUnloaded">
+    <UserControl.Resources>
+        <HierarchicalDataTemplate DataType="{x:Type models:AfterSalesQualityCategoryNode}" ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal" Margin="0,4">
+                <TextBlock Text="{Binding CategoryName}" />
+                <TextBlock Text="{Binding FakeName}" Margin="8,0,0,0" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+                <TextBlock Text="{Binding EnabledText}" Margin="8,0,0,0" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </HierarchicalDataTemplate>
+        <Style x:Key="CategoryTreeItem" TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            <Setter Property="ContextMenu">
+                <Setter.Value>
+                    <ContextMenu DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
+                        <MenuItem Header="新增同级" Command="{Binding AddSiblingCommand}" />
+                        <MenuItem Header="新增子级" Command="{Binding AddChildCommand}" />
+                        <MenuItem Header="删除" Command="{Binding DeleteCommand}" />
+                    </ContextMenu>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <WrapPanel Margin="0,0,0,12">
+            <TextBlock Text="售后品质分类" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+            <Button Content="新增同级" Command="{Binding AddSiblingCommand}" Margin="0,0,8,0"/>
+            <Button Content="新增子级" Command="{Binding AddChildCommand}" Margin="0,0,8,0"/>
+            <Button Content="删除" Command="{Binding DeleteCommand}" Margin="0,0,8,0"/>
+            <Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"/>
+            <Button Content="刷新" Command="{Binding RefreshCommand}"/>
+        </WrapPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="240"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*" MinWidth="280"/></Grid.ColumnDefinitions>
+            <Border Style="{StaticResource SwiftCardStyle}" Padding="12">
+                <DockPanel>
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button Content="上移" Command="{Binding MoveUpCommand}" Margin="0,0,8,0"/>
+                        <Button Content="下移" Command="{Binding MoveDownCommand}" Margin="0,0,8,0"/>
+                        <Button Content="提升一级" Command="{Binding PromoteCommand}" Margin="0,0,8,0"/>
+                        <Button Content="降低一级" Command="{Binding DemoteCommand}"/>
+                    </WrapPanel>
+                    <TreeView x:Name="CategoryTree" ItemsSource="{Binding Tree.Roots}" ItemContainerStyle="{StaticResource CategoryTreeItem}"
+                              AutomationProperties.Name="售后品质分类结构" BorderThickness="0"
+                              dd:DragDrop.IsDragSource="{Binding CanEdit}" dd:DragDrop.IsDropTarget="{Binding CanEdit}"
+                              dd:DragDrop.DropHandler="{Binding ElementName=Root}"
+                              SelectedItemChanged="OnSelectedItemChanged" PreviewMouseRightButtonDown="OnRightClick"/>
+                </DockPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource SwiftCardStyle}" Padding="16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="分类属性" Style="{StaticResource SubtitleTextBlock}" Margin="0,0,0,8"/>
+                        <TextBlock Text="父级和末级均可用于售后服务单。" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                        <StackPanel x:Name="Editor" DataContext="{Binding CurrentCategory}" IsEnabled="{Binding DataContext.CanEdit, ElementName=Root}">
+                            <TextBlock Text="分类名称（必填）"/>
+                            <TextBox Text="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="分类名称" Margin="0,4,0,12"/>
+                            <TextBlock Text="别名"/>
+                            <TextBox Text="{Binding FakeName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="分类别名" Margin="0,4,0,12"/>
+                            <TextBlock Text="分类编码（可空）"/>
+                            <TextBox Text="{Binding CategoryCode, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="分类编码" Margin="0,4,0,12"/>
+                            <TextBlock Text="排序"/>
+                            <TextBox Text="{Binding SortNo, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" AutomationProperties.Name="分类排序" Margin="0,4,0,12"/>
+                            <CheckBox Content="启用" IsChecked="{Binding IsEnabled}" AutomationProperties.Name="启用品质分类"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        <StackPanel Grid.Row="2" Margin="0,12,0,0">
+            <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" AutomationProperties.Name="分类验证提示"/>
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" AutomationProperties.Name="分类操作结果"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

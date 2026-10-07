@@ -39,7 +39,7 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 旧表头映射的四个写端点已退役，保留其余端点的逐项权限检查。
-        Assert.AreEqual(225, routes.Count);
+        Assert.AreEqual(227, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.DeleteAsync"]);
@@ -72,6 +72,28 @@ public sealed class EndpointPermissionFilterTests
             var denied = await ExecuteAsync(action, allowed);
             Assert.IsFalse(denied.Continued);
             Assert.AreEqual(ServiceErrorCodes.Forbidden, denied.ErrorCode);
+        }
+        var unauthenticated = await ExecuteAsync(action, [permission], authenticated: false);
+        Assert.IsFalse(unauthenticated.Continued);
+        Assert.AreEqual(ServiceErrorCodes.Unauthenticated, unauthenticated.ErrorCode);
+        var authorized = await ExecuteAsync(action, [permission]);
+        Assert.IsTrue(authorized.Continued, action);
+        CollectionAssert.AreEqual(new[] { permission }, authorized.RequestedKeys);
+    }
+
+    /// <summary>分类树读取和保存分别要求查看、维护权限，不能互相替代或绕过身份校验。</summary>
+    [TestMethod]
+    [DataRow("AfterSalesQualityCategoryController.GetAllAsync", "QualityControl.AfterSales.View", "QualityControl.AfterSales.Maintain")]
+    [DataRow("AfterSalesQualityCategoryController.BatchSaveAsync", "QualityControl.AfterSales.Maintain", "QualityControl.AfterSales.View")]
+    public async Task AfterSalesCategoryActions_RequireExactPermission(string action, string permission, string otherPermission)
+    {
+        Assert.IsTrue(MvcActions.Value.ContainsKey(action), "必须验证真实分类树 MVC Action。");
+        foreach (var allowed in new[] { Array.Empty<string>(), new[] { otherPermission } })
+        {
+            var denied = await ExecuteAsync(action, allowed);
+            Assert.IsFalse(denied.Continued);
+            Assert.AreEqual(ServiceErrorCodes.Forbidden, denied.ErrorCode);
+            CollectionAssert.AreEqual(new[] { permission }, denied.RequestedKeys);
         }
         var unauthenticated = await ExecuteAsync(action, [permission], authenticated: false);
         Assert.IsFalse(unauthenticated.Continued);

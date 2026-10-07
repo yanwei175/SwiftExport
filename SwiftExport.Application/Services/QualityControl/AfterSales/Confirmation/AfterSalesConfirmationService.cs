@@ -86,6 +86,9 @@ public sealed class AfterSalesConfirmationService(
 
         var lines = (await repository.GetLinesAsync(uid, true)).Where(line => !line.IsDeleted).ToList();
         var positive = lines.Where(line => line.Quantity > 0).ToList();
+        // 分类属于既有投诉事实，确认仅验证存在，停用不抹除历史资格，也不限定叶子。
+        if (head.QualityCategoryId.HasValue)
+            await ReferenceAsync("quality-categories", head.QualityCategoryId.Value, null, false, "Header.QualityCategoryId");
         if (positive.Count > 0)
         {
             AfterSalesPolicy.ValidateHeader(head, true);

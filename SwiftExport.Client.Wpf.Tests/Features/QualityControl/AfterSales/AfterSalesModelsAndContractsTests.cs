@@ -5,6 +5,7 @@ using SwiftExport.Contracts.Apis.QualityControl;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
+using SwiftExport.Contracts.DTOs.QualityControl.Categories;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
@@ -19,6 +20,44 @@ namespace SwiftExport.Client.Wpf.Tests.Features.QualityControl.AfterSales;
 [TestClass]
 public sealed class AfterSalesModelsAndContractsTests
 {
+    /// <summary>分类刷新采用最新请求且不改写售后当前身份；停用资料保留供历史显示。</summary>
+    [TestMethod]
+    public async Task CategoryRefreshRejectsOlderResultAndPreservesHeaderIdentity()
+    {
+        var api = new CategoryLookupApi();
+        using var vm = NewDetail(api);
+        var selected = Guid.NewGuid(); vm.Header.QualityCategoryId = selected;
+        var first = vm.RefreshQualityCategoriesCommand.ExecuteAsync(null);
+        var second = vm.RefreshQualityCategoriesCommand.ExecuteAsync(null);
+        Assert.IsTrue(api.Tokens[0].IsCancellationRequested);
+        api.Results[1].SetResult(ServiceResult<List<AfterSalesQualityCategoryDto>>.Ok(
+            [new() { Uid = selected, CategoryName = "新结果", IsEnabled = false }]));
+        await second;
+        api.Results[0].SetResult(ServiceResult<List<AfterSalesQualityCategoryDto>>.Ok(
+            [new() { Uid = Guid.NewGuid(), CategoryName = "旧结果", IsEnabled = true }]));
+        await first;
+        Assert.AreEqual("新结果", vm.QualityCategories.Single().CategoryName);
+        Assert.IsFalse(vm.QualityCategories.Single().IsEnabled);
+        Assert.AreEqual(selected, vm.Header.QualityCategoryId);
+        Assert.IsFalse(vm.IsQualityCategoryLoading);
+    }
+
+    /// <summary>仅允许分类读取，响应由测试按指定次序完成。</summary>
+    private sealed class CategoryLookupApi : IAfterSalesQualityCategoryApi
+    {
+        public List<CancellationToken> Tokens { get; } = [];
+        public List<TaskCompletionSource<ServiceResult<List<AfterSalesQualityCategoryDto>>>> Results { get; } = [];
+        /// <inheritdoc/>
+        public Task<ServiceResult<List<AfterSalesQualityCategoryDto>>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            Tokens.Add(cancellationToken);
+            var completion = new TaskCompletionSource<ServiceResult<List<AfterSalesQualityCategoryDto>>>();
+            Results.Add(completion); return completion.Task;
+        }
+        /// <inheritdoc/>
+        public Task<ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>> BatchSaveAsync(AfterSalesQualityCategoryBatchSaveRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
+
     /// <summary>新非标补件无默认单位，明确单位进入保存 DTO，单位丢失时确认阻断。</summary>
     [TestMethod]
     public void ExplicitUnitsRoundTripAndUnknownBlocksConfirmation()
@@ -44,7 +83,7 @@ public sealed class AfterSalesModelsAndContractsTests
             Port<IAfterSalesReasonDialogService>(),Port<SwiftExportClient.Services.UI.IMessageService>(),
             Port<SwiftExportClient.Authentication.ICurrentUserService>(),
             Port<SwiftExportClient.Services.Caching.IReferenceDataCacheService>(),
-            Port<SwiftExport.Contracts.Apis.ProductApis.IProductApi>());
+            Port<SwiftExport.Contracts.Apis.ProductApis.IProductApi>(), Port<IAfterSalesQualityCategoryApi>());
         var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
         typeof(AfterSalesDetailViewModel).GetMethod("InitializeNew",flags)!.Invoke(vm,null);
         Assert.AreEqual(0,vm.Lines.Count);
@@ -75,13 +114,13 @@ public sealed class AfterSalesModelsAndContractsTests
     private static T Port<T>() where T:class => System.Reflection.DispatchProxy.Create<T,LocalPort>();
 
     // 售后模型测试只使用本地端口，不访问业务 API。
-    private static AfterSalesDetailViewModel NewDetail() => new(
+    private static AfterSalesDetailViewModel NewDetail(IAfterSalesQualityCategoryApi? categoryApi = null) => new(
         Port<IAfterSalesApi>(), Port<IAfterSalesFeatureService>(), new PassThroughApiCallRunner(),
         Port<INavigationService>(), Port<SwiftExportClient.Services.UI.IDialogService>(),
         Port<IAfterSalesReasonDialogService>(), Port<SwiftExportClient.Services.UI.IMessageService>(),
         Port<SwiftExportClient.Authentication.ICurrentUserService>(),
         Port<SwiftExportClient.Services.Caching.IReferenceDataCacheService>(),
-        Port<SwiftExport.Contracts.Apis.ProductApis.IProductApi>());
+        Port<SwiftExport.Contracts.Apis.ProductApis.IProductApi>(), categoryApi ?? Port<IAfterSalesQualityCategoryApi>());
 
     /// <summary>图片只用于显示；文件夹路径进入单头文本契约。</summary>
     [TestMethod]

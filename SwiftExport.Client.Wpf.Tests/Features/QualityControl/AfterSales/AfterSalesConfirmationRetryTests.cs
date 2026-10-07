@@ -200,7 +200,8 @@ public sealed class AfterSalesConfirmationRetryTests
                     ? Task.FromResult(true) : throw new AssertFailedException(method.Name)),
                 Proxy<IAfterSalesReasonDialogService>((method, args) => throw new AssertFailedException(method.Name)),
                 Proxy<IMessageService>((method, args) => null), user, cache,
-                Proxy<IProductApi>((method, args) => throw new AssertFailedException(method.Name)));
+                Proxy<IProductApi>((method, args) => throw new AssertFailedException(method.Name)),
+                Proxy<IAfterSalesQualityCategoryApi>((method, args) => throw new AssertFailedException(method.Name)));
         }
 
         /// <summary>模拟已捕获的不可变确认意图，专注验证两个网络阶段的恢复。</summary>

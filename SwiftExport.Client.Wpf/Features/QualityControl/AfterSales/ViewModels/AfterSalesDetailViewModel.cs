@@ -18,6 +18,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
 using SwiftExportClient.Features.QualityControl.AfterSales.Services;
+using SwiftExportClient.Features.QualityControl.Categories.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -40,6 +41,8 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     private readonly ICurrentUserService _currentUser;
     private readonly IReferenceDataCacheService _referenceDataCache;
     private readonly IProductApi _productApi;
+    private readonly IAfterSalesQualityCategoryApi _qualityCategoryApi;
+    private CancellationTokenSource? _categoryCancellation;
     private int _productSearchVersion;
     private int _detailVersion;
     private PendingWrite? _pendingWrite;
@@ -53,12 +56,14 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     /// <summary>创建售后详情文档并接入业务命令、对话框、导航、权限及基础资料缓存。</summary>
     public AfterSalesDetailViewModel(IAfterSalesApi api, IAfterSalesFeatureService feature, IApiCallRunner runner,
         INavigationService navigation, IDialogService dialogs, IAfterSalesReasonDialogService reasonDialog,
-        IMessageService messages, ICurrentUserService currentUser, IReferenceDataCacheService referenceDataCache, IProductApi productApi)
+        IMessageService messages, ICurrentUserService currentUser, IReferenceDataCacheService referenceDataCache, IProductApi productApi,
+        IAfterSalesQualityCategoryApi qualityCategoryApi)
     {
         _api = api; _feature = feature; _runner = runner; _navigation = navigation; _dialogs = dialogs;
         _reasonDialog = reasonDialog; _messages = messages; _currentUser = currentUser;
         _referenceDataCache = referenceDataCache;
         _productApi = productApi;
+        _qualityCategoryApi = qualityCategoryApi;
         Title = "售后服务单-新建";
         PropertyChanged += OnBusyPropertyChanged;
         Header.PropertyChanged += OnEditChanged;
@@ -68,6 +73,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         RegisterBusyAwareCommand(ReopenCommand); RegisterBusyAwareCommand(VoidCommand);
         RegisterBusyAwareCommand(AddLineCommand); RegisterBusyAwareCommand(DeleteLineCommand);
         RegisterBusyAwareCommand(ReloadCommand); RegisterBusyAwareCommand(RefreshLookupsCommand);
+        RegisterBusyAwareCommand(RefreshQualityCategoriesCommand);
     }
 
     public AfterSalesHeaderEditModel Header { get; } = new();
@@ -89,7 +95,10 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     public ObservableCollection<AfterSalesLookupDto> SalesOrderLines { get; } = [];
     /// <summary>获取供补件颜色选择控件使用的完整颜色缓存。</summary>
     public ReadOnlyObservableCollection<ProductColorDto> Colors => _referenceDataCache.ProductColors;
-    public ObservableCollection<AfterSalesLookupDto> QualityCategories { get; } = [];
+    /// <summary>完整分类树含停用节点，供历史显示；选择资格由树选择器及后端分别验证。</summary>
+    [ObservableProperty] public partial IReadOnlyList<AfterSalesQualityCategoryNode> QualityCategories { get; set; } = [];
+    /// <summary>分类候选独立加载状态，不覆盖单据写入 Busy。</summary>
+    [ObservableProperty] public partial bool IsQualityCategoryLoading { get; set; }
     public string DocumentTitle => string.IsNullOrWhiteSpace(Header.AfterSalesNo) ? "售后服务单-新建" : Header.AfterSalesNo;
     public bool HasUnsavedChanges => IsDirty || HasPendingIntent;
     /// <summary>表示页面仍持有原写入意图，直到取得确定结果并读到当前详情。</summary>
@@ -538,11 +547,57 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             var result = await _runner.RunAsync(() => _api.LookupAsync(kind, new AfterSalesLookupRequest
             { CustomerId = Header.CustomerId == Guid.Empty ? null : Header.CustomerId, PageIndex = 1, PageSize = 200 }, token), token, "加载售后候选失败");
             if (token.IsCancellationRequested || _disposed) return;
-            var target = kind switch { "owners" => Owners,
-                "sales-order-lines" => SalesOrderLines, _ => QualityCategories };
+            var target = kind == "owners" ? Owners : SalesOrderLines;
             if (!result.Success || result.Data is null) continue;
             target.Clear();
             foreach (var item in result.Data.Items) target.Add(item);
+        }
+        await LoadQualityCategoriesAsync(token);
+    }
+
+    /// <summary>显式刷新分类，不改写单据的原分类身份或其他未保存输入。</summary>
+    [RelayCommand(CanExecute = nameof(CanRefreshLookups), AllowConcurrentExecutions = true)]
+    private Task RefreshQualityCategoriesAsync() => CanRefreshLookups()
+        ? LoadQualityCategoriesAsync(CancellationToken.None) : Task.CompletedTask;
+
+    /// <summary>读取全树并取消旧请求；只有最新请求且页面仍存活时接纳候选。</summary>
+    private async Task LoadQualityCategoriesAsync(CancellationToken token)
+    {
+        if (_disposed || !HasAccess) return;
+        _categoryCancellation?.Cancel();
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        _categoryCancellation = cts;
+        IsQualityCategoryLoading = true;
+        try
+        {
+            var result = await _runner.RunAsync(() => _qualityCategoryApi.GetAllAsync(cts.Token), cts.Token, "加载品质分类失败");
+            if (_disposed || cts.IsCancellationRequested || !ReferenceEquals(_categoryCancellation, cts)) return;
+            if (!result.Success || result.Data is null)
+            {
+                ResultSummary = result.Error?.Message ?? result.Message;
+                return;
+            }
+            var tree = new AfterSalesQualityCategoryTree();
+            tree.Load(result.Data);
+            QualityCategories = tree.Roots.ToArray();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            // 新请求或页面释放导致的取消不覆盖当前选择和反馈。
+        }
+        catch (InvalidOperationException)
+        {
+            if (!_disposed && ReferenceEquals(_categoryCancellation, cts))
+                ResultSummary = "品质分类层级无效，原分类选择已保留，请联系管理员检查。";
+        }
+        finally
+        {
+            if (ReferenceEquals(_categoryCancellation, cts))
+            {
+                _categoryCancellation = null;
+                if (!_disposed) IsQualityCategoryLoading = false;
+            }
+            cts.Dispose();
         }
     }
 
@@ -683,6 +738,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         ReopenCommand.NotifyCanExecuteChanged(); VoidCommand.NotifyCanExecuteChanged();
         AddLineCommand.NotifyCanExecuteChanged(); DeleteLineCommand.NotifyCanExecuteChanged();
         ReloadCommand.NotifyCanExecuteChanged(); RefreshLookupsCommand.NotifyCanExecuteChanged();
+        RefreshQualityCategoriesCommand.NotifyCanExecuteChanged();
         RetryPendingWriteCommand.NotifyCanExecuteChanged(); RefreshCurrentFactCommand.NotifyCanExecuteChanged();
     }
 
@@ -691,6 +747,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     {
         if (_disposed) return; _disposed = true;
         PropertyChanged -= OnBusyPropertyChanged;
+        _categoryCancellation?.Cancel();
         _loadCancellation?.Cancel(); _loadCancellation?.Dispose(); _loadCancellation = null;
         Header.PropertyChanged -= OnEditChanged;
         LineList.ListStateChanged -= OnLineListChanged;

@@ -28,7 +28,11 @@
             <TextBlock Text="角色名称" />
             <TextBox Text="{Binding RoleName, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,12" />
             <TextBlock Text="说明" />
-            <TextBox Text="{Binding RoleDescription, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,12" />
+            <ui:TextBox Text="{Binding RoleDescription, UpdateSourceTrigger=PropertyChanged}"
+                        MinHeight="80"
+                        TextWrapping="Wrap"                        
+                        AcceptsReturn="True"
+                        Margin="0,4,0,12" />
         </StackPanel>
         <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,0,0,12" />
     </StackPanel>

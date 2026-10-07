@@ -1,4 +1,3 @@
-using System.Windows;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Authentication;
@@ -19,6 +18,7 @@ using SwiftExportClient.Features.SystemSettings.RbacManagement.Users.RoleAssignm
 using SwiftExportClient.Features.SystemSettings.UserRegistration.ViewModels;
 using SwiftExportClient.Features.SystemSettings.UserRegistration.Views;
 using SwiftExportClient.Services.UI;
+using System.Windows;
 
 namespace SwiftExportClient.Features.SystemSettings.Services;
 
@@ -105,8 +105,13 @@ public sealed class SettingsDialogService : ISettingsDialogService
         if (active is null) { model.Dispose(); return; }
         try
         {
-            model.SelectedUser = new UserSummaryDto { Uid = target.Uid, UserName = target.UserName,
-                NickName = target.NickName, IsAdmin = target.IsAdmin };
+            model.SelectedUser = new UserSummaryDto
+            {
+                Uid = target.Uid,
+                UserName = target.UserName,
+                NickName = target.NickName,
+                IsAdmin = target.IsAdmin
+            };
             if (!CanContinue(active)) return;
             var view = new ResetPasswordView(model);
             active.Cleanup = Once(() => { view.Dispose(); model.SelectedUser = null; model.Dispose(); });
@@ -223,11 +228,15 @@ public sealed class SettingsDialogService : ISettingsDialogService
     {
         if (!CanContinue(active)) return false;
         using var content = new SettingsFormContent(form, active.State);
+
         var options = new DialogOptions(title)
         {
-            PrimaryButtonText = primaryText, PrimaryButtonCommand = command,
-            CloseButtonText = "关闭", DefaultButton = DialogButton.Primary
+            PrimaryButtonText = primaryText,
+            PrimaryButtonCommand = command,
+            CloseButtonText = "关闭",
+            DefaultButton = DialogButton.Primary
         };
+
         var result = await _dialogs.ShowAsync(content, options, active.State);
         return result == DialogResult.Primary && CanContinue(active);
     }

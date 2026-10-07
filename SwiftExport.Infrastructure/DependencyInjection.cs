@@ -193,6 +193,7 @@ public static class DependencyInjection
         services.AddScoped<IPackingListExecutionRepository, PostgreSqlPackingListExecutionRepository>();
         services.AddScoped<ISourceDeliveryQueryRepository, PostgreSqlSourceDeliveryQueryRepository>();
 
+        services.AddScoped<SwiftExport.Core.Interfaces.QualityControl.Categories.IAfterSalesQualityCategoryRepository, SwiftExport.Infrastructure.Repositories.QualityControl.Categories.PostgreSqlAfterSalesQualityCategoryRepository>();
         services.AddScoped<IAfterSalesDocumentRepository, PostgreSqlAfterSalesDocumentRepository>();
         services.AddScoped<IAfterSalesQueryRepository, PostgreSqlAfterSalesQueryRepository>();
         services.AddScoped<IAfterSalesLookupRepository, PostgreSqlAfterSalesLookupRepository>();

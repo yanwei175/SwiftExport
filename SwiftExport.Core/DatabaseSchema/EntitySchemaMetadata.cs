@@ -330,6 +330,7 @@ namespace SwiftExport.Core.Entities.QualityControl
     [LogicalReference(nameof(AfterSalesHeader.OriginalSalesOrderLineId), typeof(SalesOrderLine))]
     [LogicalReference(nameof(AfterSalesHeader.ResponsibleSupplierId), typeof(Supplier))]
     [LogicalReference(nameof(AfterSalesHeader.IssueProductId), typeof(Product))]
+    [LogicalReference(nameof(AfterSalesHeader.QualityCategoryId), typeof(AfterSalesQualityCategory))]
     public sealed partial class AfterSalesHeader { }
 
     [DbCheck("CK_AfterSalesLine_Line", "\"line_number\" > 0")]

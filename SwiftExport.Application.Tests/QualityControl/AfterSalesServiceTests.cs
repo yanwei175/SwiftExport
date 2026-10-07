@@ -210,7 +210,7 @@ public sealed class AfterSalesServiceTests
         Assert.AreEqual("BUSINESS_BLOCKED",(await f.Service.SaveAsync(c.Uid,add,false)).Error.Code);
     }
 
-    /// <summary>单头必填、金额和补件负数量分别返回稳定字段错误；分类身份仅作可空存储。</summary>
+    /// <summary>单头必填、金额和补件负数量分别返回稳定字段错误；分类身份保持可空并通过候选端口核验。</summary>
     [TestMethod]
     public async Task HeaderValidationUsesStableFieldPaths()
     {
@@ -429,6 +429,38 @@ public sealed class AfterSalesServiceTests
             new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version})).Error.Code);
     }
 
+    /// <summary>新选或改选分类拒绝不存在/停用节点，保留原分类的历史草稿可以保存停用身份。</summary>
+    [TestMethod]
+    public async Task QualityCategoryNewSelectionAndHistoricalDraftQualification()
+    {
+        using var f=new Fixture();var create=f.Command();create.Header.QualityCategoryId=Guid.NewGuid();
+        f.CategoryMissing=true;
+        Assert.AreEqual("Header.QualityCategoryId",(await f.Service.SaveAsync(create.Uid,create,true)).Error.Field);
+        Assert.IsNull(f.Head);Assert.AreEqual(0,f.NumberCalls);
+        f.CategoryMissing=false;f.CategoryDisabled=true;
+        Assert.AreEqual("Header.QualityCategoryId",(await f.Service.SaveAsync(create.Uid,create,true)).Error.Field);
+        f.CategoryDisabled=false;
+        Assert.IsTrue((await f.Service.SaveAsync(create.Uid,create,true)).Success);
+        f.CategoryDisabled=true;f.CategoryActiveChecks.Clear();
+        var edit=f.Edit();var saved=await f.Service.SaveAsync(create.Uid,edit,false);
+        Assert.IsTrue(saved.Success,saved.Message);CollectionAssert.AreEqual(new[]{false},f.CategoryActiveChecks.ToArray());
+        var changed=f.Edit();changed.Header.QualityCategoryId=Guid.NewGuid();
+        Assert.AreEqual("Header.QualityCategoryId",(await f.Service.SaveAsync(create.Uid,changed,false)).Error.Field);
+        Assert.AreEqual(create.Header.QualityCategoryId,f.Head!.QualityCategoryId);
+    }
+
+    /// <summary>确认保留停用分类历史资格，但缺失分类拒绝且不调用来源接收。</summary>
+    [TestMethod] [DataRow(false)] [DataRow(true)]
+    public async Task QualityCategoryConfirmationKeepsHistoryAndRejectsMissing(bool missing)
+    {
+        using var f=new Fixture();var create=f.Command();create.Header.QualityCategoryId=Guid.NewGuid();
+        var saved=await f.Service.SaveAsync(create.Uid,create,true);Assert.IsTrue(saved.Success,saved.Message);
+        f.CategoryMissing=missing;f.CategoryDisabled=true;f.CategoryActiveChecks.Clear();
+        var result=await f.Confirm.ConfirmDemandAsync(create.Uid,new(){CommandId=Guid.NewGuid(),Version=saved.Data.Version});
+        Assert.AreEqual(!missing,result.Success,result.Message);CollectionAssert.AreEqual(new[]{false},f.CategoryActiveChecks.ToArray());
+        if(missing){Assert.AreEqual("Header.QualityCategoryId",result.Error.Field);Assert.AreEqual(0,f.ReceiveCalls);Assert.AreEqual(ConfirmationStatusEnum.待确认,f.Head!.ConfirmationStatus);}
+        else Assert.AreEqual(1,f.ReceiveCalls);
+    }
     // 快照回滚模拟事务，不执行真实数据库写入。
     private sealed class Fixture:IDisposable
     {
@@ -437,6 +469,8 @@ public sealed class AfterSalesServiceTests
         public List<BusinessOperationLog> Logs=new();
         public bool Allowed=true,FailReception,FailCancellation,FailAudit,FailReceipt,FailCommit;
         public int NumberCalls,ReceiveCalls;
+        public bool CategoryMissing,CategoryDisabled;
+        public List<bool> CategoryActiveChecks { get; } = [];
         public SourceDemandReceptionCommand? Received;
         public TestAfterSalesOperations Service {get;}
         public AfterSalesConfirmationService Confirm { get; }
@@ -458,7 +492,7 @@ public sealed class AfterSalesServiceTests
                 "WriteLineAsync"=>WriteLine((AfterSalesLine)a[0]!, (bool)a[1]!),
                 _=>throw new NotSupportedException(n)});
             var lookups=Port<IAfterSalesLookupRepository>((n,a)=>n switch {
-                "ReferenceAsync"=>Task.FromResult<AfterSalesLookupDto?>(new(){Uid=(Guid)a[1]!,Code="CODE",Name="名称",Unit="BOX"}),
+                "ReferenceAsync"=>LookupReference(a),
                 _=>throw new NotSupportedException(n)});
             var queries=Port<IAfterSalesQueryRepository>((n,a)=>throw new NotSupportedException(n));
             var reception=Port<ISourceDemandReceptionService>((n,a)=>{
@@ -492,6 +526,16 @@ public sealed class AfterSalesServiceTests
                 new AfterSalesLifecycleService(context,repo,logs,permission,user,reception,pipeline,executor));
             Confirm=new(context,repo,lookups,reception,logs,permission,user,
                 pipeline, executor);
+        }
+        /// <summary>分类替身保留不存在和停用两种资格，记录服务选择的 requireActive；其他引用保持原夹具行为。</summary>
+        private Task<AfterSalesLookupDto?> LookupReference(object?[] args)
+        {
+            if ((string)args[0]! == "quality-categories")
+            {
+                var active=(bool)args[3]!; CategoryActiveChecks.Add(active);
+                if (CategoryMissing || (CategoryDisabled && active)) return Task.FromResult<AfterSalesLookupDto?>(null);
+            }
+            return Task.FromResult<AfterSalesLookupDto?>(new(){Uid=(Guid)args[1]!,Code="CODE",Name="名称",Unit="BOX"});
         }
         public SaveAfterSalesCommand Command()=>new(){CommandId=Guid.NewGuid(),Uid=Guid.NewGuid(),Header=new(){CustomerId=customer,AcceptedDate=new(2026,9,8),IssueDescription="成品故障",IssueSkuSnapshot="成品001",ResponsibleSupplierId=Guid.NewGuid(),ServiceAmountCny=0,RequiredDate=new(2026,10,1)},AddedLines=[Line(2)]};
         public AfterSalesEditLineDto Line(decimal? q)=>new(){Uid=Guid.NewGuid(),Quantity=q,IsNonStandard=true,DescriptionSnapshot="补发螺丝",UnitSnapshot="SET"};

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands.Validation;
+using SwiftExport.Application.Services.QualityControl.AfterSales.Exceptions;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auditing;
@@ -57,6 +58,19 @@ public sealed class CommandPipeline(CommandRequestValidator validator, ICorrelat
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             outcome = "Cancelled";
+            throw;
+        }
+        catch (AfterSalesException ex)
+        {
+            exceptionType = ex.GetType().Name;
+            errorCode = ex.Code;
+            // 售后仅将现有明确业务拒绝降为 Information；审计失败及未知代码仍保留技术故障级别。
+            outcome = ex.Code switch
+            {
+                ServiceErrorCodes.Validation or ServiceErrorCodes.NotFound or
+                    ServiceErrorCodes.VersionConflict or ServiceErrorCodes.BusinessBlocked => "Rejected",
+                _ => "Failed"
+            };
             throw;
         }
         catch (Exception ex)

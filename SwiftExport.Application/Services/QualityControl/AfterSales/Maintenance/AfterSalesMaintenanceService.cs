@@ -243,9 +243,11 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
         AfterSalesPolicy.ValidateHeader(head,false);
     }
 
-    // 分类仅保留可空身份；本次不接入尚未建设的品质分类功能。
+    /// <summary>核验售后头引用；分类新选或改选要求启用，未改选的历史分类允许停用，父级和末级同等处理。</summary>
     private async Task ValidateHeaderReferencesAsync(AfterSalesHeader head,bool confirming,AfterSalesHeader? old=null)
     {
+        if(head.QualityCategoryId.HasValue)
+            await ReferenceAsync("quality-categories",head.QualityCategoryId.Value,null,old?.QualityCategoryId!=head.QualityCategoryId,"Header.QualityCategoryId");
         if(head.ResponsibleSupplierId.HasValue)
             await ReferenceAsync("suppliers",head.ResponsibleSupplierId.Value,null,confirming||old?.ResponsibleSupplierId!=head.ResponsibleSupplierId,"Header.ResponsibleSupplierId");
         if(head.IssueProductId.HasValue)

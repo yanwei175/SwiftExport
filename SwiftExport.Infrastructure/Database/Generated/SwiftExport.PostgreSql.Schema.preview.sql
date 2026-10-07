@@ -84,6 +84,24 @@ CREATE TABLE "public"."after_sales_line" (
     CONSTRAINT "ck_after_sales_line_quantity" CHECK ("quantity" IS NULL OR "quantity" >= 0),
     CONSTRAINT "ck_after_sales_line_version" CHECK ("version" >= 1)
 );
+CREATE TABLE "public"."after_sales_quality_category" (
+    "uid" uuid NOT NULL,
+    "version" integer NOT NULL DEFAULT 1,
+    "is_deleted" boolean NOT NULL DEFAULT FALSE,
+    "created_date" timestamp(6) without time zone NULL,
+    "created_by" varchar(500) NULL,
+    "updated_date" timestamp(6) without time zone NULL,
+    "updated_by" varchar(500) NULL,
+    "category_name" varchar(500) NOT NULL,
+    "parent_id" uuid NULL,
+    "fake_name" varchar(500) NULL,
+    "category_code" varchar(300) NULL,
+    "sort_no" integer NOT NULL,
+    "is_enabled" boolean NOT NULL DEFAULT TRUE,
+    CONSTRAINT "pk_after_sales_quality_category" PRIMARY KEY ("uid"),
+    CONSTRAINT "ck_after_sales_quality_category_sort_no" CHECK ("sort_no" >= 0),
+    CONSTRAINT "ck_after_sales_quality_category_version" CHECK ("version" >= 1)
+);
 CREATE TABLE "public"."bom" (
     "uid" uuid NOT NULL,
     "version" integer NOT NULL DEFAULT 1,
@@ -1355,6 +1373,8 @@ CREATE TABLE "public"."warehouse_site" (
 CREATE INDEX "ix_after_sales_header_supplier" ON "public"."after_sales_header" ("responsible_supplier_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_after_sales_header_no" ON "public"."after_sales_header" ("after_sales_no") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_after_sales_line_head_line" ON "public"."after_sales_line" ("header_id", "line_number") WHERE "is_deleted" = FALSE;
+CREATE INDEX "ix_after_sales_quality_category_parent_id" ON "public"."after_sales_quality_category" ("parent_id");
+CREATE UNIQUE INDEX "ux_after_sales_quality_category_category_code" ON "public"."after_sales_quality_category" ((rtrim("category_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE AND "category_code" IS NOT NULL;
 CREATE INDEX "ix_bom_parent_product" ON "public"."bom" ("parent_product_id", "bom_version") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_bom_number_version_line" ON "public"."bom" ("bom_no", "bom_version", "line_number") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_business_operation_log_aggregate" ON "public"."business_operation_log" ("aggregate_type", "aggregate_uid", "occurred_date");
@@ -1524,6 +1544,20 @@ COMMENT ON COLUMN "public"."after_sales_line"."specification_snapshot" IS '补�
 COMMENT ON COLUMN "public"."after_sales_line"."quantity" IS '补发数量，空或零不创建来源需求。';
 COMMENT ON COLUMN "public"."after_sales_line"."unit_snapshot" IS '补件单位快照；缺失保持未知，确认实物需求前必须明确。';
 COMMENT ON COLUMN "public"."after_sales_line"."remark" IS '行备注。';
+COMMENT ON TABLE "public"."after_sales_quality_category" IS '售后品质分类，独立保存层级、显示名称、别名和活动资格；父级与末级均可被售后单引用。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."created_date" IS '记录创建时间。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."created_by" IS '记录创建人标识。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."updated_date" IS '记录最后更新时间。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."updated_by" IS '记录最后更新人标识。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."category_name" IS '分类显示名称。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."parent_id" IS '上级分类身份；空值表示根节点。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."fake_name" IS '分类别名，迁移时保留原英文名称。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."category_code" IS '可空业务编码；旧字典英文名称不作为编码迁入。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."sort_no" IS '非负显示排序号。';
+COMMENT ON COLUMN "public"."after_sales_quality_category"."is_enabled" IS '是否允许新增引用；停用不抹除既有单据的历史显示。';
 COMMENT ON TABLE "public"."bom" IS '物料清单组成行实体，保存父产品在指定 BOM 版本下的组件及用量比例。';
 COMMENT ON COLUMN "public"."bom"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."bom"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
