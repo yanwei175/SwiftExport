@@ -52,7 +52,7 @@ public sealed class PostgreSqlWarehouseManagementRepository(RepositoryBaseContex
     public async Task<int> InsertAsync(WarehouseSite site)
     {
         context.AuditStamp.StampForInsert(site);
-        var parameters = PostgreSqlParameters.Entity(site, PostgreSqlEntityMetadata.GetMetadata(typeof(WarehouseSite)));
+        var parameters = PostgreSqlParameters.Entity(site, EntityMetadataCache.GetMetadata(typeof(WarehouseSite)));
         try
         {
             return await context.Session.Connection.ExecuteAsync("""

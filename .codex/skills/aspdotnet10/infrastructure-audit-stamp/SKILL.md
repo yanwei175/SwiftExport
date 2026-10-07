@@ -9,7 +9,7 @@ description: SwiftExport Infrastructure 审计打戳技能。用于 AuditStampSe
 
 - `SwiftExport.Infrastructure/Services/Auth/AuditStampService.cs`
 - `SwiftExport.Infrastructure/Contexts/RepositoryBaseContext.cs`
-- `SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs`
+- `SwiftExport.Infrastructure/Repositories/Base/PostgreSqlDapperRepository.cs`
 - 涉及当前用户时读 `../webapi-auth-current-user/SKILL.md`
 
 ## 什么时候使用
@@ -17,7 +17,7 @@ description: SwiftExport Infrastructure 审计打戳技能。用于 AuditStampSe
 - 修改审计字段打戳规则。
 - 修改 `IAuditStampService` 或 `AuditStampService`。
 - 排查 `CreatedBy`、`CreatedDate`、`UpdatedBy`、`UpdatedDate`。
-- 修改 `DapperRepository.AddAsync` 或 `UpdateAsync`。
+- 修改 `PostgreSqlDapperRepository.AddAsync` 或 `UpdateAsync`。
 - 改当前用户对审计字段的影响。
 
 ## 核心规则

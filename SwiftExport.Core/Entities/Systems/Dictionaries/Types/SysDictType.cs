@@ -1,10 +1,10 @@
-﻿using SwiftExport.Core.Common;
+using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Systems.Dictionaries.Types;
 
 /// <summary>系统字典类型实体，保存分类、层级、分组和排序，不配置客户端页面。</summary>
-[Table("SysDictType")]
+[Table("sys_dict_type")]
 public partial class SysDictType : BaseEntity
 {
     /// <summary>该实体保存的字典编码。</summary>

@@ -15,7 +15,23 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
 public sealed class PostgreSqlSysDictTypeRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<SysDictType>(context), ISysDictTypeRepository
 {
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(c => $"{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
+    private const string Columns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "dict_code" AS "DictCode",
+        "dict_name" AS "DictName",
+        "is_system" AS "IsSystem",
+        "remark" AS "Remark",
+        "parent_id" AS "ParentId",
+        "sort_order" AS "SortOrder",
+        "group_code" AS "GroupCode",
+        "group_name" AS "GroupName"
+    """;
 
     /// <summary>在共享会话内执行PostgreSQL字典查询，保持分页、软删除及调用方事务边界。</summary>
     public async Task<PagedResponseBase<SysDictTypeDto>> GetPagedAsync(SysDictTypeSearchRequest request)

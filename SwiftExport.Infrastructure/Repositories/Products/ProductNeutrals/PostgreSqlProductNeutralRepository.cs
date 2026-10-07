@@ -15,10 +15,26 @@ public sealed class PostgreSqlProductNeutralRepository(RepositoryBaseContext con
     : PostgreSqlDapperRepository<ProductNeutral>(context), IProductNeutralRepository
 {
     private static readonly string Table = $"{PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}";
-    private static readonly EntityMetadata ColorMetadata = PostgreSqlEntityMetadata.GetMetadata(typeof(ProductColor));
+    private static readonly EntityMetadata ColorMetadata = EntityMetadataCache.GetMetadata(typeof(ProductColor));
     private static readonly string ColorTable = $"{PostgreSqlNames.Quote(ColorMetadata.SchemaName)}.{PostgreSqlNames.Quote(ColorMetadata.TableName)}";
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(c =>
-        $"pn.{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
+    private const string Columns = """
+        pn."uid" AS "Uid",
+        pn."version" AS "Version",
+        pn."is_deleted" AS "IsDeleted",
+        pn."created_date" AS "CreatedDate",
+        pn."created_by" AS "CreatedBy",
+        pn."updated_date" AS "UpdatedDate",
+        pn."updated_by" AS "UpdatedBy",
+        pn."product_code" AS "ProductCode",
+        pn."product_master_id" AS "ProductMasterId",
+        pn."color_id" AS "ColorId",
+        pn."default_sales_price_usd" AS "DefaultSalesPriceUsd",
+        pn."default_exchange_rate" AS "DefaultExchangeRate",
+        pn."profit_margin" AS "ProfitMargin",
+        pn."default_purchase_price_cny" AS "DefaultPurchasePriceCny",
+        pn."image_path" AS "ImagePath",
+        pn."is_main_image" AS "IsMainImage"
+    """;
 
     /// <summary>新增委托通用仓储，只把两个指定中性唯一索引冲突转换成固定业务回执。</summary>
     public override async Task<RepositoryWriteResult> AddAsync(ProductNeutral entity)
@@ -98,13 +114,26 @@ public sealed class PostgreSqlProductNeutralRepository(RepositoryBaseContext con
     /// <summary>保留 DTO 的聚合身份、版本、审计及价格图片字段，不把显示颜色名写回实体。</summary>
     private static ProductNeutralDto ToDto(Projection row) => new()
     {
-        Uid = row.Uid, Version = row.Version, IsDeleted = row.IsDeleted, CreatedDate = row.CreatedDate,
-        CreatedBy = row.CreatedBy, UpdatedDate = row.UpdatedDate, UpdatedBy = row.UpdatedBy,
-        ProductMasterId = row.ProductMasterId, ColorName = row.ColorName,
-        Data = new ProductNeutralWriteDto { ProductCode = row.ProductCode, ColorId = row.ColorId,
-            DefaultSalesPriceUsd = row.DefaultSalesPriceUsd, DefaultExchangeRate = row.DefaultExchangeRate,
-            ProfitMargin = row.ProfitMargin, DefaultPurchasePriceCny = row.DefaultPurchasePriceCny,
-            ImagePath = row.ImagePath, IsMainImage = row.IsMainImage }
+        Uid = row.Uid,
+        Version = row.Version,
+        IsDeleted = row.IsDeleted,
+        CreatedDate = row.CreatedDate,
+        CreatedBy = row.CreatedBy,
+        UpdatedDate = row.UpdatedDate,
+        UpdatedBy = row.UpdatedBy,
+        ProductMasterId = row.ProductMasterId,
+        ColorName = row.ColorName,
+        Data = new ProductNeutralWriteDto
+        {
+            ProductCode = row.ProductCode,
+            ColorId = row.ColorId,
+            DefaultSalesPriceUsd = row.DefaultSalesPriceUsd,
+            DefaultExchangeRate = row.DefaultExchangeRate,
+            ProfitMargin = row.ProfitMargin,
+            DefaultPurchasePriceCny = row.DefaultPurchasePriceCny,
+            ImagePath = row.ImagePath,
+            IsMainImage = row.IsMainImage
+        }
     };
 
     /// <summary>内部投影附加实时颜色名称，不增加持久化实体字段。</summary>

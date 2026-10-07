@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 using SwiftExport.Core.Common;
 
 namespace SwiftExport.Core.Entities.Auth;
@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.Auth;
 /// 角色主表实体，对应数据库 [dbo].[SysRoles]。
 /// 使用稳定编码识别内置角色，不提供角色继承。
 /// </summary>
-[Table("SysRoles")]
+[Table("sys_role")]
 public partial class SysRole : BaseEntity
 {
     /// <summary>稳定角色编码；内置管理员使用 SYSTEM_ADMIN。</summary>

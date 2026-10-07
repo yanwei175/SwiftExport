@@ -489,7 +489,7 @@ public sealed class PostgreSqlRbacManagementMigrationIntegrationTests
     private static async Task InsertAsync<T>(RepositoryBaseContext context, T entity) where T : BaseEntity
     {
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(T));
         var table = $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
         var columns = string.Join(", ", metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
         var parameters = string.Join(", ", metadata.Columns.Select(c => "@" + c.ParameterName));

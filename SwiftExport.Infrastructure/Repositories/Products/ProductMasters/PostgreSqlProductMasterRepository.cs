@@ -15,8 +15,28 @@ namespace SwiftExport.Infrastructure.Repositories.Products.ProductMasters;
 public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<ProductMaster>(context), IProductMasterRepository
 {
-    private static readonly string EntityColumns = string.Join(",", Metadata.Columns.Select(column =>
-        $"pm.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string EntityColumns = """
+        pm."uid" AS "Uid",
+        pm."version" AS "Version",
+        pm."is_deleted" AS "IsDeleted",
+        pm."created_date" AS "CreatedDate",
+        pm."created_by" AS "CreatedBy",
+        pm."updated_date" AS "UpdatedDate",
+        pm."updated_by" AS "UpdatedBy",
+        pm."master_sku" AS "MasterSku",
+        pm."default_description_en" AS "DefaultDescriptionEn",
+        pm."default_description_zh" AS "DefaultDescriptionZh",
+        pm."default_features_en" AS "DefaultFeaturesEn",
+        pm."default_features_zh" AS "DefaultFeaturesZh",
+        pm."default_pcs_per_package" AS "DefaultPcsPerPackage",
+        pm."default_net_weight" AS "DefaultNetWeight",
+        pm."default_gross_weight" AS "DefaultGrossWeight",
+        pm."default_cbm" AS "DefaultCbm",
+        pm."product_type" AS "ProductType",
+        pm."product_tag" AS "ProductTag",
+        pm."category_id" AS "CategoryId",
+        pm."default_supplier_id" AS "DefaultSupplierId"
+    """;
     private const string Joins = """
         LEFT JOIN public.product_category pc ON pc.uid=pm.category_id AND pc.is_deleted=FALSE
         LEFT JOIN public.supplier s ON s.uid=pm.default_supplier_id AND s.is_deleted=FALSE
@@ -171,30 +191,52 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
     /// <summary>列表保持原头部审计、可写数据及主图价格投影，空文本不会自动补为空串。</summary>
     private static ProductMasterListItemDto ToListItem(ProductMasterProjection row) => new()
     {
-        Uid = row.Uid, Version = row.Version, IsDeleted = row.IsDeleted, CreatedDate = row.CreatedDate,
-        CreatedBy = row.CreatedBy, UpdatedDate = row.UpdatedDate, UpdatedBy = row.UpdatedBy,
-        CategoryName = row.CategoryName, DefaultSupplierName = row.DefaultSupplierName,
-        MainImagePath = row.MainImagePath, DefaultSalesPriceUsd = row.DefaultSalesPriceUsd,
-        DefaultPurchasePriceCny = row.DefaultPurchasePriceCny, Data = ToWriteDto(row)
+        Uid = row.Uid,
+        Version = row.Version,
+        IsDeleted = row.IsDeleted,
+        CreatedDate = row.CreatedDate,
+        CreatedBy = row.CreatedBy,
+        UpdatedDate = row.UpdatedDate,
+        UpdatedBy = row.UpdatedBy,
+        CategoryName = row.CategoryName,
+        DefaultSupplierName = row.DefaultSupplierName,
+        MainImagePath = row.MainImagePath,
+        DefaultSalesPriceUsd = row.DefaultSalesPriceUsd,
+        DefaultPurchasePriceCny = row.DefaultPurchasePriceCny,
+        Data = ToWriteDto(row)
     };
 
     /// <summary>详情保持原头部与主型号写字段，不把分页主图字段混入详情。</summary>
     private static ProductMasterDetailDto ToDetail(ProductMasterProjection row) => new()
     {
-        Uid = row.Uid, Version = row.Version, IsDeleted = row.IsDeleted, CreatedDate = row.CreatedDate,
-        CreatedBy = row.CreatedBy, UpdatedDate = row.UpdatedDate, UpdatedBy = row.UpdatedBy,
-        CategoryName = row.CategoryName, DefaultSupplierName = row.DefaultSupplierName, Master = ToWriteDto(row)
+        Uid = row.Uid,
+        Version = row.Version,
+        IsDeleted = row.IsDeleted,
+        CreatedDate = row.CreatedDate,
+        CreatedBy = row.CreatedBy,
+        UpdatedDate = row.UpdatedDate,
+        UpdatedBy = row.UpdatedBy,
+        CategoryName = row.CategoryName,
+        DefaultSupplierName = row.DefaultSupplierName,
+        Master = ToWriteDto(row)
     };
 
     /// <summary>逐项还原原可写 DTO，继承实体不泄露为对外聚合投影。</summary>
     private static ProductMasterWriteDto ToWriteDto(ProductMaster row) => new()
     {
-        MasterSku = row.MasterSku, DefaultDescriptionEn = row.DefaultDescriptionEn,
-        DefaultDescriptionZh = row.DefaultDescriptionZh, DefaultFeaturesEn = row.DefaultFeaturesEn,
-        DefaultFeaturesZh = row.DefaultFeaturesZh, DefaultPcsPerPackage = row.DefaultPcsPerPackage,
-        DefaultNetWeight = row.DefaultNetWeight, DefaultGrossWeight = row.DefaultGrossWeight,
-        DefaultCbm = row.DefaultCbm, ProductType = row.ProductType, ProductTag = row.ProductTag,
-        CategoryId = row.CategoryId, DefaultSupplierId = row.DefaultSupplierId
+        MasterSku = row.MasterSku,
+        DefaultDescriptionEn = row.DefaultDescriptionEn,
+        DefaultDescriptionZh = row.DefaultDescriptionZh,
+        DefaultFeaturesEn = row.DefaultFeaturesEn,
+        DefaultFeaturesZh = row.DefaultFeaturesZh,
+        DefaultPcsPerPackage = row.DefaultPcsPerPackage,
+        DefaultNetWeight = row.DefaultNetWeight,
+        DefaultGrossWeight = row.DefaultGrossWeight,
+        DefaultCbm = row.DefaultCbm,
+        ProductType = row.ProductType,
+        ProductTag = row.ProductTag,
+        CategoryId = row.CategoryId,
+        DefaultSupplierId = row.DefaultSupplierId
     };
 
     /// <summary>仓储内部承接实体别名及实时展示字段，不注册全局 Dapper 映射。</summary>

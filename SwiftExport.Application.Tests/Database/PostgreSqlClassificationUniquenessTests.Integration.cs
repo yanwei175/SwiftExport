@@ -259,7 +259,7 @@ public sealed class PostgreSqlClassificationUniquenessIntegrationTests
             ? new ProductCategory { Uid = Guid.NewGuid(), CategoryName = Prefix(), CategoryCode = code, IsDeleted = deleted, Version = 1 }
             : new ProductColor { Uid = Guid.NewGuid(), ColorCodeUnique = code!, ColorCode = ordinaryColorCode ?? Prefix(), IsDeleted = deleted, Version = 1 };
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var columns = string.Join(",", metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
         var values = string.Join(",", metadata.Columns.Select(c => "@" + c.ParameterName));
         Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(new CommandDefinition(

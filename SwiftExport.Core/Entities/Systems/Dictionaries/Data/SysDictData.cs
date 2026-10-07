@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 
 /// <summary>系统字典数据实体，用于保存某一字典类型下可选的业务值。</summary>
-[Table("SysDictData")]
+[Table("sys_dict_data")]
 public partial class SysDictData : BaseEntity
 {
 

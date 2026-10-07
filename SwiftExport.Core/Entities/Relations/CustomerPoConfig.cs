@@ -1,11 +1,11 @@
-﻿using SwiftExport.Core.Common;
+using SwiftExport.Core.Common;
 using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Relations;
 
 /// <summary>客户采购单默认配置实体，保存指定客户和供应商组合的币种、折扣、包装及经办人默认要求。</summary>
-[Table("CustomerPoConfig")]
+[Table("customer_po_config")]
 public partial class CustomerPoConfig : BaseEntity
 {
     /// <summary>关联的客户主数据 Uid；旧数据按客户编码回填。</summary>
@@ -17,13 +17,13 @@ public partial class CustomerPoConfig : BaseEntity
     /// <summary>该实体保存的供应商业务编码。</summary>
     public string? SupplierCode { get; set; }
     /// <summary>该客户与供应商组合默认使用的币种代码；空值表示未配置。</summary>
-    [DbColumn(StoreType = "nvarchar(10)")]
+    [DbColumn(StoreType = "varchar(10)")]
     public string? Currency { get; set; }
     /// <summary>默认价格倍率，允许大于 1 表示涨价；空值表示未配置。</summary>
-    [DbColumn(StoreType = "decimal(9,6)")]
+    [DbColumn(StoreType = "numeric(9,6)")]
     public decimal? DefaultDiscountRate { get; set; }
     /// <summary>独立的默认折扣说明，不与默认折扣率联动。</summary>
-    [DbColumn(StoreType = "nvarchar(500)")]
+    [DbColumn(StoreType = "varchar(500)")]
     public string? DiscountRemark { get; set; }
     /// <summary>该实体保存的进水管类型。</summary>
     public string? InletHoseType { get; set; }

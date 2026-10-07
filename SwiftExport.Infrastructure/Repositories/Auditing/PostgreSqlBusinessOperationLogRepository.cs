@@ -15,10 +15,79 @@ namespace SwiftExport.Infrastructure.Repositories.Auditing;
 public sealed class PostgreSqlBusinessOperationLogRepository(RepositoryBaseContext context) : IBusinessOperationLogRepository, ICommandTransactionPreparation, ICommandRelatedTransactionPreparation
 {
     private DbSession Session => context.Session;
-    private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(BusinessOperationLog));
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(c => $"{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
-    private static readonly string InsertColumns = string.Join(", ", Metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
-    private static readonly string InsertParameters = string.Join(", ", Metadata.Columns.Select(c => $"@{c.ParameterName}"));
+    private static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata(typeof(BusinessOperationLog));
+    private const string Columns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "correlation_id" AS "CorrelationId",
+        "command_id" AS "CommandId",
+        "module" AS "Module",
+        "aggregate_type" AS "AggregateType",
+        "aggregate_uid" AS "AggregateUid",
+        "aggregate_no_snapshot" AS "AggregateNoSnapshot",
+        "operation_type" AS "OperationType",
+        "operation_name" AS "OperationName",
+        "reason" AS "Reason",
+        "summary" AS "Summary",
+        "changed_fields_json" AS "ChangedFieldsJson",
+        "related_objects_json" AS "RelatedObjectsJson",
+        "user_uid" AS "UserUid",
+        "user_name_snapshot" AS "UserNameSnapshot",
+        "occurred_date" AS "OccurredDate"
+    """;
+    private const string InsertColumns = """
+        "uid",
+        "version",
+        "is_deleted",
+        "created_date",
+        "created_by",
+        "updated_date",
+        "updated_by",
+        "correlation_id",
+        "command_id",
+        "module",
+        "aggregate_type",
+        "aggregate_uid",
+        "aggregate_no_snapshot",
+        "operation_type",
+        "operation_name",
+        "reason",
+        "summary",
+        "changed_fields_json",
+        "related_objects_json",
+        "user_uid",
+        "user_name_snapshot",
+        "occurred_date"
+    """;
+    private const string InsertParameters = """
+        @Uid,
+        @Version,
+        @IsDeleted,
+        @CreatedDate,
+        @CreatedBy,
+        @UpdatedDate,
+        @UpdatedBy,
+        @CorrelationId,
+        @CommandId,
+        @Module,
+        @AggregateType,
+        @AggregateUid,
+        @AggregateNoSnapshot,
+        @OperationType,
+        @OperationName,
+        @Reason,
+        @Summary,
+        @ChangedFieldsJson,
+        @RelatedObjectsJson,
+        @UserUid,
+        @UserNameSnapshot,
+        @OccurredDate
+    """;
 
     /// <summary>事务建立快照前获取同连接命令租约；返回空表示超时，调用方须在事务释放后释放租约。</summary>
     public Task<IAsyncDisposable?> AcquireBeforeTransactionAsync(Guid commandId, CancellationToken token) =>

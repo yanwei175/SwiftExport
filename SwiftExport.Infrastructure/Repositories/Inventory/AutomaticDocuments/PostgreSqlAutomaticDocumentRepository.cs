@@ -21,7 +21,7 @@ public sealed class PostgreSqlAutomaticDocumentRepository(RepositoryBaseContext 
     {
         foreach (var type in new[] { typeof(InboundDocument), typeof(InboundDocumentLine), typeof(OutboundDocument), typeof(OutboundDocumentLine) })
         {
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(type);
+            var metadata = EntityMetadataCache.GetMetadata(type);
             var names = (await context.Session.Connection.QueryAsync<string>(Command("""
                 SELECT column_name FROM information_schema.columns WHERE table_schema=@Schema AND table_name=@Table
                 """, new { Schema = metadata.SchemaName, Table = metadata.TableName }, token))).ToHashSet(StringComparer.Ordinal);
@@ -84,7 +84,7 @@ public sealed class PostgreSqlAutomaticDocumentRepository(RepositoryBaseContext 
         if (context.Session.Transaction is null || entity.Uid == Guid.Empty) throw new InvalidOperationException("自动单据插入必须具有事务及稳定身份。");
         context.AuditStamp.StampForInsert(entity);
         entity.IsDeleted = false; entity.Version = Math.Max(1, entity.Version);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(T));
         var sql = $"INSERT INTO {Table(metadata)} ({string.Join(',', metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)))}) VALUES ({string.Join(',', metadata.Columns.Select(column => "@" + column.ParameterName))});";
         if (await context.Session.Connection.ExecuteAsync(Command(sql, PostgreSqlParameters.Entity(entity, metadata), token)) != 1)
             throw new DBConcurrencyException("自动单据写入失败。");
@@ -102,7 +102,7 @@ public sealed class PostgreSqlAutomaticDocumentRepository(RepositoryBaseContext 
     private async Task SetStateAsync(BaseEntity entity, string kind, bool reverse, CancellationToken token)
     {
         context.AuditStamp.StampForUpdate(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var state = reverse
             ? "posting_status=8,reversed_date=@ReversedDate,reversed_by=@ReversedBy,reverse_reason=@ReverseReason"
             : "posting_status=1,posted_date=@PostedDate,posted_by=@PostedBy";

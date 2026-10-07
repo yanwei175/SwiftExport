@@ -266,7 +266,7 @@ public sealed class PostgreSqlPurchaseOrderTraceMigrationIntegrationTests
         /// <summary>插入明确身份，使用现有参数类型与映射；不审计重置UID，不DDL或提交。</summary>
         public async Task InsertAsync<T>(T entity) where T:BaseEntity
         {
-            var uid=entity.Uid;var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var uid=entity.Uid;var map=EntityMetadataCache.GetMetadata(typeof(T));
             var columns=string.Join(',',map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',map.Columns.Select(x=>"@"+x.ParameterName));
             Assert.AreEqual(1,await Session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(entity,map),Session.Transaction)));Assert.AreEqual(uid,entity.Uid);
         }

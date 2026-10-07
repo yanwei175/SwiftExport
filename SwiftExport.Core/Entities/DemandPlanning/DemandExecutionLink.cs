@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.DemandPlanning;
 
 /// <summary>净需求到采购、生产或外协执行行的权威追溯关系。</summary>
-[Table("DemandExecutionLink")]
+[Table("demand_execution_link")]
 public sealed partial class DemandExecutionLink : BaseEntity
 {
     /// <summary>关联的净需求 Uid。</summary>

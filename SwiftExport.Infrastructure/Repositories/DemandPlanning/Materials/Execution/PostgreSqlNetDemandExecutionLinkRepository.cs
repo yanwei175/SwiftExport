@@ -19,11 +19,90 @@ namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Execu
 public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseContext context)
     : INetDemandExecutionLinkRepository, IMaterialDemandTransactionPreparation
 {
-    private static readonly EntityMetadata Map = PostgreSqlEntityMetadata.GetMetadata(typeof(DemandExecutionLink));
-    private static readonly EntityMetadata NetMap = PostgreSqlEntityMetadata.GetMetadata(typeof(NetDemand));
-    private static readonly string Table = Qualified(Map);
-    private static readonly string Projection = string.Join(",", Map.Columns.Select(x =>
-        "l." + PostgreSqlNames.Quote(x.ColumnName) + " AS " + PostgreSqlNames.Quote(x.PropertyName)));
+    /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
+    private const string ExecutionLinkInsertSql = """
+        INSERT INTO "public"."demand_execution_link" ("uid",
+        "version",
+        "is_deleted",
+        "created_date",
+        "created_by",
+        "updated_date",
+        "updated_by",
+        "net_demand_id",
+        "execution_request_id",
+        "command_item_id",
+        "target_type",
+        "target_head_id",
+        "target_no",
+        "target_line_id",
+        "link_status",
+        "allocated_qty",
+        "released_qty",
+        "demand_required_date",
+        "planned_delivery_date",
+        "cancelled_at",
+        "cancelled_by",
+        "cancelled_reason",
+        "reversed_at",
+        "reversed_by",
+        "reversed_reason",
+        "remark") VALUES (@Uid,
+        @Version,
+        @IsDeleted,
+        @CreatedDate,
+        @CreatedBy,
+        @UpdatedDate,
+        @UpdatedBy,
+        @NetDemandId,
+        @ExecutionRequestId,
+        @CommandItemId,
+        @TargetType,
+        @TargetHeadId,
+        @TargetNo,
+        @TargetLineId,
+        @LinkStatus,
+        @AllocatedQty,
+        @ReleasedQty,
+        @DemandRequiredDate,
+        @PlannedDeliveryDate,
+        @CancelledAt,
+        @CancelledBy,
+        @CancelledReason,
+        @ReversedAt,
+        @ReversedBy,
+        @ReversedReason,
+        @Remark);
+    """;
+
+    private static readonly EntityMetadata Map = EntityMetadataCache.GetMetadata(typeof(DemandExecutionLink));
+    private const string Projection = """
+        l."uid" AS "Uid",
+        l."version" AS "Version",
+        l."is_deleted" AS "IsDeleted",
+        l."created_date" AS "CreatedDate",
+        l."created_by" AS "CreatedBy",
+        l."updated_date" AS "UpdatedDate",
+        l."updated_by" AS "UpdatedBy",
+        l."net_demand_id" AS "NetDemandId",
+        l."execution_request_id" AS "ExecutionRequestId",
+        l."command_item_id" AS "CommandItemId",
+        l."target_type" AS "TargetType",
+        l."target_head_id" AS "TargetHeadId",
+        l."target_no" AS "TargetNo",
+        l."target_line_id" AS "TargetLineId",
+        l."link_status" AS "LinkStatus",
+        l."allocated_qty" AS "AllocatedQty",
+        l."released_qty" AS "ReleasedQty",
+        l."demand_required_date" AS "DemandRequiredDate",
+        l."planned_delivery_date" AS "PlannedDeliveryDate",
+        l."cancelled_at" AS "CancelledAt",
+        l."cancelled_by" AS "CancelledBy",
+        l."cancelled_reason" AS "CancelledReason",
+        l."reversed_at" AS "ReversedAt",
+        l."reversed_by" AS "ReversedBy",
+        l."reversed_reason" AS "ReversedReason",
+        l."remark" AS "Remark"
+    """;
 
     /// <summary>复用同context的四集合发现与整组租约，不复制锁框架、资格判断或创建业务事务。</summary>
     public Task<IAsyncDisposable?> AcquireMaterialBeforeTransactionAsync(IReadOnlyCollection<Guid> sourceUids,
@@ -92,7 +171,7 @@ public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseCon
         }
         return await InScope(materialized.Select(x => x.NetDemandId).Distinct().ToArray(),
             materialized.Select(x => x.CommandItemId).Distinct().ToArray(),
-            () => context.Session.Connection.ExecuteAsync(Command(InsertSql(),
+            () => context.Session.Connection.ExecuteAsync(Command(ExecutionLinkInsertSql,
                 materialized.Select(x => new LinkParameters(x)).ToArray(), cancellationToken)), cancellationToken);
     }
 
@@ -112,11 +191,11 @@ public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseCon
         var parameters = new PostgreSqlParameters();
         parameters.AddIds("Nets", nets); parameters.AddIds("Items", items);
         var gross = await context.Session.Connection.QueryAsync<Guid>(Command($"""
-            SELECT n.{Mapped(NetMap, "GrossDemandId")} FROM {Qualified(NetMap)} AS n
-            WHERE n.{Mapped(NetMap, "Uid")}=ANY(@Nets)
-               OR EXISTS(SELECT 1 FROM {Table} AS l
-                   WHERE l.{C("NetDemandId")}=n.{Mapped(NetMap, "Uid")}
-                     AND l.{C("CommandItemId")}=ANY(@Items));
+            SELECT n."gross_demand_id" FROM "public"."net_demand" AS n
+            WHERE n."uid"=ANY(@Nets)
+               OR EXISTS(SELECT 1 FROM "public"."demand_execution_link" AS l
+                   WHERE l."net_demand_id"=n."uid"
+                     AND l."command_item_id"=ANY(@Items));
             """, parameters, token));
         if (!lease.IsCurrent || gross.Any(x => !lease.Covers("Gross", x)))
             throw new InvalidOperationException("执行关联的毛需求身份未在首次快照前完整准备。");
@@ -125,53 +204,44 @@ public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseCon
 
     /// <summary>净贡献由SQL计算，日期NULL先与源SqlGuid尾键保持原序，只锁实际匹配关系行。</summary>
     private static string ActiveSql() => $"""
-        SELECT l.{C("Uid")} AS "Uid",l.{C("NetDemandId")} AS "NetDemandId",
-               l.{C("AllocatedQty")}-l.{C("ReleasedQty")} AS "AllocatedQty"
-        FROM {Table} AS l
-        WHERE l.{C("NetDemandId")}=ANY(@Uids)
-          AND {Dictionary("l." + C("TargetType"))}={Dictionary("@PurchaseTargetType")}
-          AND l.{C("AllocatedQty")}>l.{C("ReleasedQty")} AND l.{C("IsDeleted")}=FALSE
-        ORDER BY l.{C("CreatedDate")} NULLS FIRST,{UuidOrder("l." + C("Uid"))}
+        SELECT l."uid" AS "Uid",l."net_demand_id" AS "NetDemandId",
+               l."allocated_qty"-l."released_qty" AS "AllocatedQty"
+        FROM "public"."demand_execution_link" AS l
+        WHERE l."net_demand_id"=ANY(@Uids)
+          AND {Dictionary("l." + "\"target_type\"")}={Dictionary("@PurchaseTargetType")}
+          AND l."allocated_qty">l."released_qty" AND l."is_deleted"=FALSE
+        ORDER BY l."created_date" NULLS FIRST,{UuidOrder("l." + "\"uid\"")}
         FOR UPDATE OF l;
         """;
 
     /// <summary>保留SQL CONCAT对NULL的空串语义与原数据库字典/身份排序。</summary>
     private static string BlockersSql() => $"""
-        SELECT l.{C("NetDemandId")} AS "NetDemandId",l.{C("TargetType")} AS "TargetType",
-               l.{C("TargetNo")} AS "TargetNo",l.{C("TargetLineId")} AS "TargetLineId",
-               l.{C("LinkStatus")} AS "LinkStatus",
-               concat('净需求已关联 ',l.{C("TargetType")},' ',l.{C("TargetNo")},'，请先取消或完成反向处理。') AS "Message"
-        FROM {Table} AS l
-        WHERE l.{C("NetDemandId")}=ANY(@Uids) AND l.{C("AllocatedQty")}>l.{C("ReleasedQty")}
-          AND l.{C("IsDeleted")}=FALSE
-        ORDER BY {Dictionary("l." + C("TargetType"))} NULLS FIRST,
-                 {Dictionary("l." + C("TargetNo"))} NULLS FIRST,{UuidOrder("l." + C("TargetLineId"))}
+        SELECT l."net_demand_id" AS "NetDemandId",l."target_type" AS "TargetType",
+               l."target_no" AS "TargetNo",l."target_line_id" AS "TargetLineId",
+               l."link_status" AS "LinkStatus",
+               concat('净需求已关联 ',l."target_type",' ',l."target_no",'，请先取消或完成反向处理。') AS "Message"
+        FROM "public"."demand_execution_link" AS l
+        WHERE l."net_demand_id"=ANY(@Uids) AND l."allocated_qty">l."released_qty"
+          AND l."is_deleted"=FALSE
+        ORDER BY {Dictionary("l." + "\"target_type\"")} NULLS FIRST,
+                 {Dictionary("l." + "\"target_no\"")} NULLS FIRST,{UuidOrder("l." + "\"target_line_id\"")}
         FOR UPDATE OF l;
         """;
 
     /// <summary>全列投影按原两个SqlGuid键排序，不筛取消/反向或贡献数量。</summary>
     private static string ItemsSql() => $"""
-        SELECT {Projection} FROM {Table} AS l
-        WHERE l.{C("CommandItemId")}=ANY(@Uids) AND l.{C("IsDeleted")}=FALSE
-        ORDER BY {UuidOrder("l." + C("CommandItemId"))},{UuidOrder("l." + C("Uid"))}
+        SELECT {Projection} FROM "public"."demand_execution_link" AS l
+        WHERE l."command_item_id"=ANY(@Uids) AND l."is_deleted"=FALSE
+        ORDER BY {UuidOrder("l." + "\"command_item_id\"")},{UuidOrder("l." + "\"uid\"")}
         FOR UPDATE OF l;
         """;
-
-    /// <summary>全持久化列按共享实体元数据插入，不省略可空取消/反向或快照字段。</summary>
-    private static string InsertSql() => $"INSERT INTO {Table} ({string.Join(",", Map.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName)))}) VALUES ({string.Join(",", Map.Columns.Select(x => "@" + x.ParameterName))});";
     /// <summary>借用原父事务与token，不自行提交或选择隔离。</summary>
     private CommandDefinition Command(string sql, object parameters, CancellationToken token = default) =>
         new(sql, parameters, context.Session.Transaction, cancellationToken: token);
-    /// <summary>取得固定实体物理表。</summary>
-    private static string Qualified(EntityMetadata map) => PostgreSqlNames.Quote(map.SchemaName) + "." + PostgreSqlNames.Quote(map.TableName);
-    /// <summary>取得固定属性对应的引用列。</summary>
-    private static string Mapped(EntityMetadata map, string property) => PostgreSqlNames.Quote(map.Columns.Single(x => x.PropertyName == property).ColumnName);
-    /// <summary>执行关系列映射。</summary>
-    private static string C(string property) => Mapped(Map, property);
     /// <summary>只去掉ASCII尾空格，不改写存储文本或C#精确PO校验。</summary>
     private static string Dictionary(string value) => $"rtrim({value},' ') COLLATE public.erp_dictionary_ci";
     /// <summary>SQL Server uniqueidentifier按末字节组优先比较，与PG uuid默认序分别处理。</summary>
-    private static string UuidOrder(string value) => "ARRAY[" + string.Join(",", new[] {10,11,12,13,14,15,8,9,7,6,5,4,3,2,1,0}.Select(x => $"get_byte(uuid_send({value}),{x})")) + "]";
+    private static string UuidOrder(string value) => "ARRAY[" + string.Join(",", new[] { 10, 11, 12, 13, 14, 15, 8, 9, 7, 6, 5, 4, 3, 2, 1, 0 }.Select(x => $"get_byte(uuid_send({value}),{x})")) + "]";
 
     /// <summary>查询参数复用UUID数组，PO明确text，避免驱动猜测可空文本。</summary>
     private sealed class QueryParameters(Guid[] ids, bool purchase) : SqlMapper.IDynamicParameters

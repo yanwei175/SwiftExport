@@ -2,7 +2,7 @@ using System.Reflection;
 
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
-/// <summary>共享实体映射；名称本身不包含数据库方言的引号或参数前缀。</summary>
+/// <summary>缓存 PostgreSQL 实体的物理名称与持久化属性；名称不包含 SQL 引号或参数前缀。</summary>
 public sealed class EntityMetadata
 {
     public required Type EntityType { get; init; }
@@ -10,11 +10,6 @@ public sealed class EntityMetadata
     public required string TableName { get; init; }
     public required string KeyName { get; init; }
     public required IReadOnlyList<EntityColumnMetadata> Columns { get; init; }
-    public required string[] AllColumns { get; init; }
-    public required string[] InsertColumns { get; init; }
-    public required string[] UpdateColumns { get; init; }
-    public bool HasVersion { get; init; }
-    public bool HasSoftDelete { get; init; }
 
     /// <summary>按 CLR 属性定位物理映射；错误属性立即失败，不静默生成无效 SQL。</summary>
     public EntityColumnMetadata GetProperty(string propertyName)

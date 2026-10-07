@@ -254,7 +254,7 @@ public sealed class PostgreSqlProductMasterMigrationIntegrationTests
     private static async Task Insert(RepositoryBaseContext context, BaseEntity entity)
     {
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var columns = string.Join(",", metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
         var values = string.Join(",", metadata.Columns.Select(c => "@" + c.ParameterName));
         Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(

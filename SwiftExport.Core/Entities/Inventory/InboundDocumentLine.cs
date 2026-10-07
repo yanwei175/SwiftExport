@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>入库单明细，保存产品、数量和可追溯来源。</summary>
-[Table("InboundDocumentLine")]
+[Table("inbound_document_line")]
 public sealed partial class InboundDocumentLine : BaseEntity
 {
     /// <summary>关联的入库单头唯一标识。</summary>

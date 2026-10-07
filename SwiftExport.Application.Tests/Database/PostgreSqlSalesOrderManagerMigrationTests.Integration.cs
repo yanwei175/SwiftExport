@@ -315,7 +315,7 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         /// <summary>直接插入所有已映射属性，保持待核验历史原始UID/Version/软删值；不改变持久化实现。</summary>
         public async Task Add<T>(T entity) where T:BaseEntity
         {
-            var metadata=PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var metadata=EntityMetadataCache.GetMetadata(typeof(T));
             var table=PostgreSqlNames.Quote(metadata.SchemaName)+"."+PostgreSqlNames.Quote(metadata.TableName);
             var columns=string.Join(',',metadata.Columns.Select(column=>PostgreSqlNames.Quote(column.ColumnName)));
             var values=string.Join(',',metadata.Columns.Select(column=>"@"+column.ParameterName));

@@ -1,11 +1,11 @@
-﻿
+
 using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.SalesOrders;
 
 /// <summary>销售订单明细实体，保存客户订购产品、数量、价格及交易成立时的产品快照。</summary>
-[Table("SalesOrderLine")]
+[Table("sales_order_line")]
 public partial class SalesOrderLine : BaseEntity
 {
     /// <summary>该实体保存的单据行号。</summary>

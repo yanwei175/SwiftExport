@@ -13,13 +13,16 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     {
         var draftRepository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "PostgreSqlPurchaseOrderDraftRepository.cs");
 
-        // PG由固定字段数组展开物理列/参数及CLR别名，核对真实运行字段及展开位置，保持原完整客户快照合同。
-        const string customerFields = "CustomerPoNo,CustomerId,CustomerCode,CustomerNameSnapshot,Currency";
-        StringAssert.Contains(Fields("InsertHeadFields"), customerFields);
-        StringAssert.Contains(Fields("HeadFields"), customerFields);
-        StringAssert.Contains(draftRepository, "InsertHeadFields.Select(x => WriteColumn(Head, x))");
-        StringAssert.Contains(draftRepository, "InsertHeadFields.Select(x => \"@\" + x)");
-        StringAssert.Contains(draftRepository, "HeadFields.Select(x => C(Head, \"h\", x) + \" AS \" + PostgreSqlNames.Quote(x))");
+        // 核对生产实际使用的 PG SQL 常量，不保留已退出的字段数组展开器。
+        foreach (var field in new[] { ("CustomerPoNo", "customer_po_no"), ("CustomerId", "customer_id"),
+                     ("CustomerCode", "customer_code"), ("CustomerNameSnapshot", "customer_name_snapshot"), ("Currency", "currency") })
+        {
+            StringAssert.Contains(Sql("HeadInsertSql"), "\"" + field.Item2 + "\"");
+            StringAssert.Contains(Sql("HeadInsertSql"), "@" + field.Item1);
+            StringAssert.Contains(Sql("HeadProjection"), "h.\"" + field.Item2 + "\" AS \"" + field.Item1 + "\"");
+        }
+        StringAssert.Contains(draftRepository, "SELECT {HeadProjection}");
+        StringAssert.Contains(draftRepository, "HeadInsertSql,");
         StringAssert.Contains(draftRepository, "PostgreSqlParameters.Entity(head, Head)");
     }
 
@@ -29,7 +32,7 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
     {
         var service = Read("SwiftExport.Application", "Services", "Procurement", "PurchaseOrders", "Draft", "FromDemand", "PurchaseDraftCreationService.cs");
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "PostgreSqlPurchaseOrderDraftRepository.cs");
-        var appendSection = Slice(repository, "public Task<int> AdvanceDraftVersionAfterAppendAsync", "private static readonly string[] InsertHeadFields");
+        var appendSection = Slice(repository, "public Task<int> AdvanceDraftVersionAfterAppendAsync", "private static void ValidateHeadKey");
 
         StringAssert.Contains(service, "head.CustomerId != document.CustomerId");
         StringAssert.Contains(service, "writeModelBuilder.Build(");
@@ -63,9 +66,9 @@ public sealed class PurchaseDraftCustomerSnapshotContractTests
         Assert.IsFalse(builder.Contains("ActiveConfirmationId =", StringComparison.Ordinal));
     }
 
-    /// <summary>读取当前PG仓储实际用于SQL展开的固定字段，不能用重复的测试数组替代生产写入或投影事实。</summary>
-    private static string Fields(string name) => string.Join(',',
-        (string[])typeof(PostgreSqlPurchaseOrderDraftRepository).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null)!);
+    /// <summary>读取当前仓储实际执行的 SQL 常量，核对固定写列及投影事实。</summary>
+    private static string Sql(string name) =>
+        (string)typeof(PostgreSqlPurchaseOrderDraftRepository).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null)!;
 
     private static string Slice(string source, string startToken, string endToken)
     {

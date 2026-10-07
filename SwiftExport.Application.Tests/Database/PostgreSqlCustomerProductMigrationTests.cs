@@ -43,11 +43,11 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.IsNull(dto.USDPrice);
         Assert.IsFalse(dto.IsActive);
         StringAssert.Contains(fixture.Connection.Text, "c.customer_code AS \"CustomerCode\"");
-        StringAssert.Contains(fixture.Connection.Text, "cp.\"sku\" AS \"Sku\"");
+        StringAssert.Contains(fixture.Connection.Text, "cp.sku AS \"Sku\"");
         StringAssert.Contains(fixture.Connection.Text, "COALESCE(p.description_en,cp.description_en)");
         StringAssert.Contains(fixture.Connection.Text, "LEFT JOIN public.product p");
         StringAssert.Contains(fixture.Connection.Text, "OR c.is_deleted IS NULL");
-        StringAssert.Contains(fixture.Connection.Text, "cp.\"customer_pd_features\" AS \"CustomerPdFeatures\"");
+        StringAssert.Contains(fixture.Connection.Text, "cp.customer_pd_features AS \"CustomerPdFeatures\"");
         Assert.IsFalse(fixture.Connection.Text.Contains("is_active=", StringComparison.Ordinal));
         Assert.IsFalse(fixture.Connection.Text.Contains("FOR UPDATE", StringComparison.Ordinal));
         Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);

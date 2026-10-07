@@ -14,7 +14,7 @@ using SwiftExport.Infrastructure.DatabaseSchema;
 namespace SwiftExport.Infrastructure.Repositories.Base;
 
 /// <summary>
-/// PostgreSQL 单实体仓储；尚未注册到运行服务，沿用现有写入结果与版本契约。
+/// PostgreSQL 单实体仓储；共享请求会话，保持写入结果与版本契约。
 /// 只承载单实体 CRUD 和基础按 Uid 查询；复杂批量、动态查询、分页查询应下沉到具体业务仓储。
 /// </summary>
 public class PostgreSqlDapperRepository<T>(RepositoryBaseContext context) : IRepository<T> where T : BaseEntity
@@ -30,7 +30,7 @@ public class PostgreSqlDapperRepository<T>(RepositoryBaseContext context) : IRep
 
     protected readonly ICurrentUser CurrentUser = context.CurrentUser;
 
-    protected static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+    protected static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata(typeof(T));
 
     /// <summary>未限定表名供 PostgreSQL 专用仓储使用；通用 CRUD 使用显式 schema 和转义标识符。</summary>
     protected static readonly string TableName = Metadata.TableName;

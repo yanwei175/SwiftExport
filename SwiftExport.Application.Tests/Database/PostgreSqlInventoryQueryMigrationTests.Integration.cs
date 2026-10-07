@@ -201,7 +201,7 @@ public sealed partial class PostgreSqlInventoryQueryMigrationTests
         /// <summary>直接元数据INSERT原UID/Version/NULL，不打戳，不更改CHECK/索引/不可变触发器。</summary>
         public async Task Add<T>(T entity) where T:BaseEntity
         {
-            var m=PostgreSqlEntityMetadata.GetMetadata(typeof(T));var columns=string.Join(',',m.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',m.Columns.Select(x=>"@"+x.ParameterName));
+            var m=EntityMetadataCache.GetMetadata(typeof(T));var columns=string.Join(',',m.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',m.Columns.Select(x=>"@"+x.ParameterName));
             Assert.AreEqual(1,await Session.Connection.ExecuteAsync($"INSERT INTO public.{PostgreSqlNames.Quote(m.TableName)} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(entity,m),Transaction));
         }
         /// <summary>只更改本例主数据身份以检验当前/历史投影，不修改不可变流水。</summary>

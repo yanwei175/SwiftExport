@@ -30,7 +30,7 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         var insert = await repository.AddAsync(detail);
         Assert.IsTrue(insert.Success, insert.Message);
         Assert.AreEqual(1, insert.NewVersion);
-        Assert.AreEqual("product_detail", PostgreSqlEntityMetadata.GetMetadata(typeof(ProductDetail)).TableName);
+        Assert.AreEqual("product_detail", EntityMetadataCache.GetMetadata(typeof(ProductDetail)).TableName);
         Assert.AreEqual(detail.ProductSKU, await context.Session.Connection.ExecuteScalarAsync<string>(
             "SELECT product_sku FROM public.product_detail WHERE uid=@Uid", new { detail.Uid }, context.Session.Transaction));
 

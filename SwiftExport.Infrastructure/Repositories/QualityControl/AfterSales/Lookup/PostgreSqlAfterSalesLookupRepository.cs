@@ -48,8 +48,13 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
         using var reader = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
             sql, parameters, context.Session.Transaction, cancellationToken: cancellationToken));
         var count = await reader.ReadSingleAsync<int>();
-        return new() { PageIndex = page, PageSize = size, TotalCount = count,
-            Items = (await reader.ReadAsync<AfterSalesLookupDto>()).ToList() };
+        return new()
+        {
+            PageIndex = page,
+            PageSize = size,
+            TotalCount = count,
+            Items = (await reader.ReadAsync<AfterSalesLookupDto>()).ToList()
+        };
     }
 
     /// <summary>按原精确类型和身份读取引用；缺失返回 null，保留历史资格、父事务及单行异常，不创建事务或加锁。</summary>
@@ -66,46 +71,44 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
     /// <summary>只允许固定实体分支；活动条件仅按原类型规则拼接，不修剪 kind 或裁决额外业务资格。</summary>
     private static string ReferenceSql(string kind, bool active) => kind switch
     {
-        "customers" => $"SELECT {C<Customer>("c", "Uid")} AS \"Uid\",{C<Customer>("c", "CustomerCode")} AS \"Code\",{C<Customer>("c", "CustomerName")} AS \"Name\" FROM {Table<Customer>()} c WHERE {C<Customer>("c", "IsDeleted")}=FALSE{Active<Customer>("c", active)}",
-        "suppliers" => $"SELECT {C<Supplier>("s", "Uid")} AS \"Uid\",{C<Supplier>("s", "SupplierCode")} AS \"Code\",{C<Supplier>("s", "SupplierName")} AS \"Name\" FROM {Table<Supplier>()} s WHERE {C<Supplier>("s", "IsDeleted")}=FALSE{Active<Supplier>("s", active)}",
-        "owners" => $"SELECT {C<SysUser>("u", "Uid")} AS \"Uid\",{C<SysUser>("u", "UserName")} AS \"Code\",COALESCE({C<SysUser>("u", "NickName")},{C<SysUser>("u", "UserName")}) AS \"Name\" FROM {Table<SysUser>()} u WHERE {C<SysUser>("u", "IsDeleted")}=FALSE{Active<SysUser>("u", active)}",
-        "colors" => $"SELECT {C<ProductColor>("c", "Uid")} AS \"Uid\",{C<ProductColor>("c", "ColorCode")} AS \"Code\",COALESCE({C<ProductColor>("c", "ColorNameEn")},{C<ProductColor>("c", "ColorNameZh")}) AS \"Name\" FROM {Table<ProductColor>()} c WHERE {C<ProductColor>("c", "IsDeleted")}=FALSE",
-        "quality-categories" => $"SELECT {C<SysDictData>("d", "Uid")} AS \"Uid\",COALESCE({C<SysDictData>("d", "DataNameEn")},{C<SysDictData>("d", "DataNameZh")}) AS \"Code\",COALESCE({C<SysDictData>("d", "DataNameZh")},{C<SysDictData>("d", "DataNameEn")}) AS \"Name\" FROM {Table<SysDictData>()} d WHERE {C<SysDictData>("d", "IsDeleted")}=FALSE AND rtrim({C<SysDictData>("d", "DictCode")},' ') COLLATE public.erp_dictionary_ci = 'AfterSalesQualityCategory' COLLATE public.erp_dictionary_ci{(active ? $" AND {C<SysDictData>("d", "IsEnabled")}=TRUE" : "")}",
-        "sales-order-lines" => $"SELECT {C<SalesOrderLine>("l", "Uid")} AS \"Uid\",CONCAT({C<SalesOrderHeader>("h", "OrderNo")},'/',{C<SalesOrderLine>("l", "LineNumber")}) AS \"Code\",{C<SalesOrderLine>("l", "Sku")} AS \"Name\" FROM {Table<SalesOrderLine>()} l INNER JOIN {Table<SalesOrderHeader>()} h ON {C<SalesOrderHeader>("h", "Uid")}={C<SalesOrderLine>("l", "SalesOrderId")} WHERE {C<SalesOrderLine>("l", "IsDeleted")}=FALSE AND {C<SalesOrderHeader>("h", "IsDeleted")}=FALSE AND {C<SalesOrderHeader>("h", "CustomerId")}=@CustomerId",
+        "customers" => $"SELECT c.\"uid\" AS \"Uid\",c.\"customer_code\" AS \"Code\",c.\"customer_name\" AS \"Name\" FROM \"public\".\"customer\" c WHERE c.\"is_deleted\"=FALSE{Active("c", active)}",
+        "suppliers" => $"SELECT s.\"uid\" AS \"Uid\",s.\"supplier_code\" AS \"Code\",s.\"supplier_name\" AS \"Name\" FROM \"public\".\"supplier\" s WHERE s.\"is_deleted\"=FALSE{Active("s", active)}",
+        "owners" => $"SELECT u.\"uid\" AS \"Uid\",u.\"user_name\" AS \"Code\",COALESCE(u.\"nick_name\",u.\"user_name\") AS \"Name\" FROM \"public\".\"sys_user\" u WHERE u.\"is_deleted\"=FALSE{Active("u", active)}",
+        "colors" => $"SELECT c.\"uid\" AS \"Uid\",c.\"color_code\" AS \"Code\",COALESCE(c.\"color_name_en\",c.\"color_name_zh\") AS \"Name\" FROM \"public\".\"product_color\" c WHERE c.\"is_deleted\"=FALSE",
+        "quality-categories" => $"""
+            SELECT d."uid" AS "Uid",
+            COALESCE(d."data_name_en",d."data_name_zh") AS "Code",
+            COALESCE(d."data_name_zh",d."data_name_en") AS "Name" FROM "public"."sys_dict_data" d WHERE d."is_deleted"=FALSE AND rtrim(d."dict_code",' ') COLLATE public.erp_dictionary_ci = 'AfterSalesQualityCategory' COLLATE public.erp_dictionary_ci{(active ? $" AND d.\"is_enabled\"=TRUE" : "")}
+        """,
+        "sales-order-lines" => """
+            SELECT l."uid" AS "Uid",
+            CONCAT(h."order_no",'/',l."line_number") AS "Code",
+            l."sku" AS "Name" FROM "public"."sales_order_line" l INNER JOIN "public"."sales_order_header" h ON h."uid"=l."sales_order_id" WHERE l."is_deleted"=FALSE AND h."is_deleted"=FALSE AND h."customer_id"=@CustomerId
+        """,
         "products" => ProductSql(active),
         _ => throw new ArgumentException("不支持的售后候选类型。", nameof(kind))
     };
 
     /// <summary>颜色资格不影响历史显示；客户关系始终活动，LATERAL 保留缺关系及 SQL Server Guid 顺序的首条。</summary>
     private static string ProductSql(bool active) => $"""
-        SELECT {C<Product>("p", "Uid")} AS "Uid",{C<Product>("p", "Sku")} AS "Code",
-          COALESCE({C<Product>("p", "DescriptionZh")},{C<Product>("p", "DescriptionEn")},'') AS "Name",
-          {C<Product>("p", "LinkSku")} AS "LinkSku",{C<Product>("p", "Unit")} AS "Unit",
-          {C<Product>("p", "ColorId")} AS "ColorId",
-          COALESCE({C<ProductColor>("c", "ColorNameEn")},{C<ProductColor>("c", "ColorNameZh")}) AS "ColorName",
-          COALESCE({C<Product>("p", "FeaturesZh")},{C<Product>("p", "FeaturesEn")}) AS "Specification",cp."CustomerSku"
-        FROM {Table<Product>()} p LEFT JOIN {Table<ProductColor>()} c ON {C<ProductColor>("c", "Uid")}={C<Product>("p", "ColorId")}
+        SELECT p."uid" AS "Uid",p."sku" AS "Code",
+          COALESCE(p."description_zh",p."description_en",'') AS "Name",
+          p."link_sku" AS "LinkSku",p."unit" AS "Unit",
+          p."color_id" AS "ColorId",
+          COALESCE(c."color_name_en",c."color_name_zh") AS "ColorName",
+          COALESCE(p."features_zh",p."features_en") AS "Specification",cp."CustomerSku"
+        FROM "public"."product" p LEFT JOIN "public"."product_color" c ON c."uid"=p."color_id"
         LEFT JOIN LATERAL (
-          SELECT {C<CustomerProduct>("r", "CustomerSku")} AS "CustomerSku" FROM {Table<CustomerProduct>()} r
-          WHERE {C<CustomerProduct>("r", "SkuId")}={C<Product>("p", "Uid")} AND {C<CustomerProduct>("r", "CustomerId")}=@CustomerId
-            AND {C<CustomerProduct>("r", "IsDeleted")}=FALSE AND {C<CustomerProduct>("r", "IsActive")}=TRUE
-          ORDER BY {SqlGuidOrder(C<CustomerProduct>("r", "Uid"))} LIMIT 1
-        ) cp ON TRUE WHERE {C<Product>("p", "IsDeleted")}=FALSE{Active<Product>("p", active)}
+          SELECT r."customer_sku" AS "CustomerSku" FROM "public"."customer_product" r
+          WHERE r."sku_id"=p."uid" AND r."customer_id"=@CustomerId
+            AND r."is_deleted"=FALSE AND r."is_active"=TRUE
+          ORDER BY {SqlGuidOrder("r.\"uid\"")} LIMIT 1
+        ) cp ON TRUE WHERE p."is_deleted"=FALSE{Active("p", active)}
         """;
 
     /// <summary>活动条件只用于有 IsActive 的固定实体，不改变 NULL/软删除资格。</summary>
-    private static string Active<T>(string alias, bool active) => active ? $" AND {C<T>(alias, "IsActive")}=TRUE" : "";
+    private static string Active(string alias, bool active) => active ? $" AND {alias}.\"is_active\"=TRUE" : "";
 
-    /// <summary>固定 CLR 实体通过共享映射取得物理表名，不使用用户输入作为标识符。</summary>
-    private static string Table<T>()
-    {
-        var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
-        return PostgreSqlNames.Quote(map.SchemaName) + "." + PostgreSqlNames.Quote(map.TableName);
-    }
-
-    /// <summary>列标识只来自固定实体属性，查询别名继续使用 DTO 属性名。</summary>
-    private static string C<T>(string alias, string property) => alias + "." +
-        PostgreSqlNames.Quote(PostgreSqlEntityMetadata.GetMetadata(typeof(T)).GetProperty(property).ColumnName);
 
     /// <summary>uuid_send 为网络字节序，按已冻结 SqlGuid 比较字节顺序重排，避免原生 uuid 首条差异。</summary>
     private static string SqlGuidOrder(string column) => "ARRAY[" + string.Join(',',

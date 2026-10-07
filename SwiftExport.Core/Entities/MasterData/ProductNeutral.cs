@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>中性产品实体，保存主型号下按颜色区分的业务编码、价格和图片路径。</summary>
-[Table("ProductNeutral")]
+[Table("product_neutral")]
 public partial class ProductNeutral : BaseEntity
 {
     /// <summary>中性产品业务编码；未删除记录内唯一。</summary>

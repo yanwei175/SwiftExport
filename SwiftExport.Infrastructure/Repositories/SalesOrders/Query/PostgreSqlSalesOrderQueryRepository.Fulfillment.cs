@@ -10,13 +10,6 @@ namespace SwiftExport.Infrastructure.Repositories.SalesOrders.Query;
 /// <summary>销售履约切片保持来源、采购反馈和装箱历史各自的观察阶段与事实粒度。</summary>
 public sealed partial class PostgreSqlSalesOrderQueryRepository
 {
-    private static readonly string FulfillmentCustomers = Table(typeof(Customer));
-    private static readonly string FulfillmentProducts = Table(typeof(Product));
-    private static readonly string FulfillmentNets = Table(typeof(NetDemand));
-    private static readonly string FulfillmentLinks = Table(typeof(DemandExecutionLink));
-    private static readonly string FulfillmentPurchaseHeads = Table(typeof(PurchaseOrderHead));
-    private static readonly string FulfillmentPurchaseLines = Table(typeof(PurchaseOrderLine));
-    private static readonly string FulfillmentReports = Table(typeof(SupplierProgressReport));
 
     /// <summary>逐阶段读取销售履约、整采购行反馈及箱单历史；只借用会话与可空事务，不接管连接或事务。</summary>
     public async Task<SalesFulfillmentDetailDto?> GetFulfillmentAsync(Guid uid, CancellationToken cancellationToken = default)
@@ -37,10 +30,22 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         // 只传源临时关系的十六列，商业数量仍由SQL计算，DTO的采购/历史集合不进入关系。
         parameters.Add("FulfillmentLines", JsonSerializer.Serialize(lines.Select(line => new
         {
-            line.SalesOrderLineId, line.LineNumber, line.Sku, line.CustomerSku, line.OrderedQty, line.UnitSnapshot,
-            line.EffectiveDueDate, line.GrossDemandId, line.GrossDemandQty, line.GrossDemandUnitSnapshot,
-            line.GrossDemandVersion, line.SourceState, line.ShippedQty, line.UnshippedQty,
-            line.AllowedFurtherDeliveryQty, line.ReviewReason
+            line.SalesOrderLineId,
+            line.LineNumber,
+            line.Sku,
+            line.CustomerSku,
+            line.OrderedQty,
+            line.UnitSnapshot,
+            line.EffectiveDueDate,
+            line.GrossDemandId,
+            line.GrossDemandQty,
+            line.GrossDemandUnitSnapshot,
+            line.GrossDemandVersion,
+            line.SourceState,
+            line.ShippedQty,
+            line.UnshippedQty,
+            line.AllowedFurtherDeliveryQty,
+            line.ReviewReason
         })));
         foreach (var row in await ReadAsync<SalesFulfillmentPurchaseDto>(CreateFulfillmentPurchasesSql(), parameters, cancellationToken))
             if (lineById.TryGetValue(row.SalesOrderLineId, out var line)) line.Purchases.Add(row);
@@ -65,8 +70,8 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                COALESCE(c.customer_name,'') AS "CustomerName",COALESCE(h.invoice_no,'') AS "InvoiceNo",
                h.document_status AS "DocumentStatus",h.confirmation_status AS "ConfirmationStatus",
                h.order_date AS "OrderDate",h.delivery_date AS "DeliveryDate"
-        FROM candidate JOIN {Headers} h ON h.uid=candidate.uid
-        LEFT JOIN {FulfillmentCustomers} c ON c.uid=h.customer_id AND c.is_deleted=FALSE
+        FROM candidate JOIN "public"."sales_order_header" h ON h.uid=candidate.uid
+        LEFT JOIN "public"."customer" c ON c.uid=h.customer_id AND c.is_deleted=FALSE
         """;
 
     /// <summary>冻结事实联当前行及第二次Gross选择；超发继续暴露来源历史，未知量与关闭零保持区别。</summary>
@@ -85,11 +90,11 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                f."ShippedQty",f."UnshippedQty",
                CASE WHEN f."UnshippedQty" IS NULL THEN NULL WHEN h.document_status=@OrderClosed THEN 0::numeric(18,4)
                     ELSE f."UnshippedQty" END AS "AllowedFurtherDeliveryQty",COALESCE(f."ReviewReason",'') AS "ReviewReason"
-        FROM facts f JOIN {Lines} l ON l.uid=f."SalesOrderLineId"
+        FROM facts f JOIN "public"."sales_order_line" l ON l.uid=f."SalesOrderLineId"
         JOIN candidate h ON h.uid=f."SalesOrderId"
         LEFT JOIN LATERAL (
             SELECT demand.uid,demand.demand_qty,demand.unit_snapshot,demand.version
-            FROM {Gross} demand
+            FROM "public"."gross_demand" demand
             WHERE NOT ({Different("demand.source_type", "@SalesSourceType")}) AND demand.source_uid=h.uid
               AND demand.source_line_id=l.uid AND demand.is_deleted=FALSE
               AND demand.lifecycle_status IN (@DemandActive,@DemandVoided)
@@ -129,26 +134,26 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                     WHEN MAX(CASE WHEN {FulfillmentBadUnit} THEN 1 ELSE 0 END)>0 THEN '采购行与物料单位需核实'
                     ELSE '' END AS "ReviewReason",
                EXISTS (
-                   SELECT 1 FROM {FulfillmentLinks} other_link
-                   JOIN {FulfillmentNets} other_net ON other_net.uid=other_link.net_demand_id AND other_net.is_deleted=FALSE AND other_net.lifecycle_status=@NetActive
-                   JOIN {Gross} other_gross ON other_gross.uid=other_net.gross_demand_id AND other_gross.is_deleted=FALSE AND other_gross.lifecycle_status=@DemandActive
+                   SELECT 1 FROM "public"."demand_execution_link" other_link
+                   JOIN "public"."net_demand" other_net ON other_net.uid=other_link.net_demand_id AND other_net.is_deleted=FALSE AND other_net.lifecycle_status=@NetActive
+                   JOIN "public"."gross_demand" other_gross ON other_gross.uid=other_net.gross_demand_id AND other_gross.is_deleted=FALSE AND other_gross.lifecycle_status=@DemandActive
                    WHERE NOT ({Different("other_link.target_type", "'PO'")}) AND other_link.target_line_id=pol.uid
                      AND other_link.is_deleted=FALSE AND other_link.link_status=@LinkActive
                      AND other_link.allocated_qty>other_link.released_qty AND other_net.gross_demand_id<>fl.gross_demand_id
                ) AS "IsSharedPurchaseLine",latest.uid IS NOT NULL AS "HasProgress",
                latest.ready_qty AS "PurchaseLineReadyQty",latest.expected_ready_date AS "ExpectedReadyDate",latest.supplier_reported_date AS "SupplierReportedDate"
-        FROM fl JOIN {Gross} gross ON gross.uid=fl.gross_demand_id AND gross.lifecycle_status=@DemandActive
-        JOIN {FulfillmentNets} net ON net.gross_demand_id=gross.uid AND net.is_deleted=FALSE AND net.lifecycle_status=@NetActive
+        FROM fl JOIN "public"."gross_demand" gross ON gross.uid=fl.gross_demand_id AND gross.lifecycle_status=@DemandActive
+        JOIN "public"."net_demand" net ON net.gross_demand_id=gross.uid AND net.is_deleted=FALSE AND net.lifecycle_status=@NetActive
             AND net.source_demand_version_snapshot=gross.version AND net.source_version_snapshot=gross.source_version
             AND NOT ({Different("net.source_demand_basis_fingerprint_snapshot", "gross.demand_basis_fingerprint")})
-        LEFT JOIN {FulfillmentProducts} p ON p.uid=net.product_id AND p.is_deleted=FALSE
-        JOIN {FulfillmentLinks} link ON link.net_demand_id=net.uid AND link.is_deleted=FALSE AND link.link_status=@LinkActive
+        LEFT JOIN "public"."product" p ON p.uid=net.product_id AND p.is_deleted=FALSE
+        JOIN "public"."demand_execution_link" link ON link.net_demand_id=net.uid AND link.is_deleted=FALSE AND link.link_status=@LinkActive
             AND NOT ({Different("link.target_type", "'PO'")}) AND link.allocated_qty>link.released_qty
-        JOIN {FulfillmentPurchaseLines} pol ON pol.uid=link.target_line_id AND pol.is_deleted=FALSE AND pol.purchase_order_id=link.target_head_id
-        JOIN {FulfillmentPurchaseHeads} po ON po.uid=link.target_head_id AND po.is_deleted=FALSE AND po.lifecycle_status<>@PurchaseVoided
+        JOIN "public"."purchase_order_line" pol ON pol.uid=link.target_line_id AND pol.is_deleted=FALSE AND pol.purchase_order_id=link.target_head_id
+        JOIN "public"."purchase_order_head" po ON po.uid=link.target_head_id AND po.is_deleted=FALSE AND po.lifecycle_status<>@PurchaseVoided
         LEFT JOIN LATERAL (
             SELECT report.uid,report.ready_qty,report.expected_ready_date,report.supplier_reported_date
-            FROM {FulfillmentReports} report WHERE report.purchase_order_line_id=pol.uid AND report.is_deleted=FALSE
+            FROM "public"."supplier_progress_report" report WHERE report.purchase_order_line_id=pol.uid AND report.is_deleted=FALSE
             ORDER BY report.sequence DESC,{SourceUuidOrder("report.uid")} DESC LIMIT 1
         ) latest ON TRUE
         GROUP BY fl.sales_order_line_id,fl.gross_demand_id,gross.customer_id,gross.unit_snapshot,
@@ -164,8 +169,8 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                ph.packing_list_no AS "PackingListNo",pl.line_number AS "LineNumber",pl.qty AS "Qty",
                COALESCE(pl.unit_snapshot,'') AS "UnitSnapshot",ph.posting_status=@Posted AS "CountsTowardDelivery",
                ph.posted_date AS "PostedDate",ph.reversed_date AS "ReversedDate"
-        FROM fl JOIN {PackingLines} pl ON pl.gross_demand_id=fl.gross_demand_id AND pl.is_deleted=FALSE
-        JOIN {PackingHeads} ph ON ph.uid=pl.packing_list_head_id AND ph.is_deleted=FALSE
+        FROM fl JOIN "public"."packing_list_line" pl ON pl.gross_demand_id=fl.gross_demand_id AND pl.is_deleted=FALSE
+        JOIN "public"."packing_list_head" ph ON ph.uid=pl.packing_list_head_id AND ph.is_deleted=FALSE
         WHERE ph.posting_status IN (@Posted,@Reversed)
         ORDER BY ph.posted_date NULLS FIRST,{SourceUuidOrder("ph.uid")},pl.line_number,{SourceUuidOrder("pl.uid")}
         """;
@@ -174,13 +179,13 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
     private static string CreateFulfillmentInvalidLinksSql() => $"""
         WITH fl AS ({FulfillmentRelation})
         SELECT DISTINCT fl.sales_order_line_id AS "SalesOrderLineId"
-        FROM fl JOIN {Gross} gross ON gross.uid=fl.gross_demand_id AND gross.lifecycle_status=@DemandActive
-        JOIN {FulfillmentNets} net ON net.gross_demand_id=gross.uid AND net.is_deleted=FALSE
-        LEFT JOIN {FulfillmentProducts} p ON p.uid=net.product_id AND p.is_deleted=FALSE
-        JOIN {FulfillmentLinks} link ON link.net_demand_id=net.uid AND link.is_deleted=FALSE AND link.link_status=@LinkActive
+        FROM fl JOIN "public"."gross_demand" gross ON gross.uid=fl.gross_demand_id AND gross.lifecycle_status=@DemandActive
+        JOIN "public"."net_demand" net ON net.gross_demand_id=gross.uid AND net.is_deleted=FALSE
+        LEFT JOIN "public"."product" p ON p.uid=net.product_id AND p.is_deleted=FALSE
+        JOIN "public"."demand_execution_link" link ON link.net_demand_id=net.uid AND link.is_deleted=FALSE AND link.link_status=@LinkActive
             AND NOT ({Different("link.target_type", "'PO'")}) AND link.allocated_qty>link.released_qty
-        LEFT JOIN {FulfillmentPurchaseLines} pol ON pol.uid=link.target_line_id AND pol.is_deleted=FALSE AND pol.purchase_order_id=link.target_head_id
-        LEFT JOIN {FulfillmentPurchaseHeads} po ON po.uid=link.target_head_id AND po.is_deleted=FALSE
+        LEFT JOIN "public"."purchase_order_line" pol ON pol.uid=link.target_line_id AND pol.is_deleted=FALSE AND pol.purchase_order_id=link.target_head_id
+        LEFT JOIN "public"."purchase_order_head" po ON po.uid=link.target_head_id AND po.is_deleted=FALSE
         WHERE net.lifecycle_status<>@NetActive OR net.source_demand_version_snapshot IS NULL OR net.source_demand_version_snapshot<>gross.version
            OR net.source_version_snapshot IS NULL OR net.source_version_snapshot<>gross.source_version
            OR net.source_demand_basis_fingerprint_snapshot IS NULL OR {Different("net.source_demand_basis_fingerprint_snapshot", "gross.demand_basis_fingerprint")}

@@ -28,23 +28,18 @@ public sealed class PurchaseOrderDiscountSnapshotContractTests
     public void RepositorySql_ShouldPersistAndProjectDiscountSnapshots()
     {
         var commandType = typeof(PostgreSqlProcurementOrderDocumentRepository);
-        var fields = (string[])commandType.GetField("HeadInsertFields", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
-        var head = PostgreSqlEntityMetadata.GetMetadata(typeof(PurchaseOrderHead));
-        var insert = (string)commandType.GetMethod("InsertSql", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null,
-            [head, fields, new[] { "DemandSourceType", "DemandSourceUid", "DemandSourceNo" }])!;
-        var draftFields = (string[])typeof(PostgreSqlPurchaseOrderDraftRepository).GetField("InsertHeadFields", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+        var insert = (string)commandType.GetField("HeadInsertSql", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+        var draftInsert = (string)typeof(PostgreSqlPurchaseOrderDraftRepository).GetField("HeadInsertSql", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
         var draftSource = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Draft", "PostgreSqlPurchaseOrderDraftRepository.cs");
-        StringAssert.Contains(draftSource, "InsertHeadFields.Select(x => WriteColumn(Head, x))");
-        StringAssert.Contains(draftSource, "InsertHeadFields.Select(x => \"@\" + x)");
+        StringAssert.Contains(draftSource, "HeadInsertSql,");
         var querySource = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Query", "PostgreSqlProcurementOrderQueryRepository.cs");
         foreach (var field in new[] { ("Currency", "currency"), ("DiscountRate", "discount_rate"), ("DiscountAmount", "discount_amount") })
         {
             StringAssert.Contains(insert, "\"" + field.Item2 + "\"");
             StringAssert.Contains(insert, "@" + field.Item1);
-            CollectionAssert.Contains(draftFields, field.Item1);
-            Assert.AreEqual("\"" + field.Item2 + "\"", typeof(PostgreSqlPurchaseOrderDraftRepository).GetMethod("WriteColumn", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [head, field.Item1]));
-            StringAssert.Contains(querySource, "{H(nameof(PurchaseOrderHead." + field.Item1 + "))} AS \"" + field.Item1 + "\"");
-            Assert.AreEqual("h.\"" + field.Item2 + "\"", typeof(PostgreSqlProcurementOrderQueryRepository).GetMethod("H", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [field.Item1]));
+            StringAssert.Contains(draftInsert, "@" + field.Item1);
+            StringAssert.Contains(draftInsert, "\"" + field.Item2 + "\"");
+            StringAssert.Contains(querySource, "h.\"" + field.Item2 + "\" AS \"" + field.Item1 + "\"");
         }
     }
 

@@ -15,13 +15,13 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                CASE WHEN delivery.shipped_qty IS NULL THEN NULL::numeric
                     WHEN delivery.shipped_qty>=l.qty THEN 0::numeric(18,4)
                     ELSE l.qty-delivery.shipped_qty END AS "UnshippedQty",reason.review_reason AS "ReviewReason"
-        FROM candidate h JOIN {Lines} l ON l.sales_order_id=h.uid AND l.is_deleted=FALSE
+        FROM candidate h JOIN "public"."sales_order_line" l ON l.sales_order_id=h.uid AND l.is_deleted=FALSE
         LEFT JOIN LATERAL (
             SELECT ranked.*,CASE WHEN ranked.active_count>0 THEN ranked.active_count ELSE ranked.all_count END AS candidate_count
             FROM (
                 SELECT g.*,SUM(CASE WHEN g.lifecycle_status=@DemandActive THEN 1 ELSE 0 END) OVER () AS active_count,
                        COUNT(*) OVER () AS all_count
-                FROM {Gross} g WHERE NOT ({Different("g.source_type", "@SalesSourceType")})
+                FROM "public"."gross_demand" g WHERE NOT ({Different("g.source_type", "@SalesSourceType")})
                   AND g.source_uid=h.uid AND g.source_line_id=l.uid AND g.is_deleted=FALSE
                   AND g.lifecycle_status IN (@DemandActive,@DemandVoided)
             ) ranked
@@ -31,12 +31,12 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         LEFT JOIN LATERAL (
             SELECT COALESCE(SUM(CASE WHEN pl.is_deleted=FALSE AND ph.is_deleted=FALSE AND ph.posting_status=@Posted
                                      THEN pl.qty ELSE 0 END),0) AS delivered_qty
-            FROM {PackingLines} pl LEFT JOIN {PackingHeads} ph ON ph.uid=pl.packing_list_head_id
+            FROM "public"."packing_list_line" pl LEFT JOIN "public"."packing_list_head" ph ON ph.uid=pl.packing_list_head_id
             WHERE pl.gross_demand_id=g.uid
         ) packing ON TRUE
         LEFT JOIN LATERAL (
             SELECT COUNT(*) AS invalid_history_count
-            FROM {PackingLines} pl LEFT JOIN {PackingHeads} ph ON ph.uid=pl.packing_list_head_id
+            FROM "public"."packing_list_line" pl LEFT JOIN "public"."packing_list_head" ph ON ph.uid=pl.packing_list_head_id
             WHERE pl.gross_demand_id=g.uid AND (ph.uid IS NULL
                 OR (pl.is_deleted=TRUE AND ph.posting_status=@Posted)
                 OR (pl.is_deleted=FALSE AND (ph.is_deleted=TRUE

@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.Systems.Currencies;
 /// 货币主数据实体
 /// 对应数据库表 SysDicCurrency
 /// </summary>
-[Table("SysDicCurrency")]
+[Table("sys_dic_currency")]
 public partial class SysDicCurrency : BaseEntity
 {
     /// <summary>货币代码，如 USD / CNY / EUR</summary>

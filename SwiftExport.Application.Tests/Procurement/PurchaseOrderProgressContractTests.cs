@@ -47,10 +47,10 @@ public sealed class PurchaseOrderProgressContractTests
             StringAssert.Contains(service, token);
 
         var repository = Read("SwiftExport.Infrastructure", "Repositories", "Procurement", "PurchaseOrders", "Progress", "PostgreSqlSupplierProgressReportRepository.cs");
-        var table = (string)typeof(PostgreSqlSupplierProgressReportRepository).GetMethod("Table", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, null)!;
-        Assert.AreEqual("\"public\".\"supplier_progress_report\"", table);
-        StringAssert.Contains(repository, "INSERT INTO {Table()}");
-        foreach (var target in new[] { "{Table()}", table, "public.supplier_progress_report" })
+        // 直接检查生产 SQL 的实际 PG 表，追加式约束不再依赖已退出的名称包装。
+        const string table = "\"public\".\"supplier_progress_report\"";
+        StringAssert.Contains(repository, "INSERT INTO " + table);
+        foreach (var target in new[] { table, "public.supplier_progress_report" })
         {
             Assert.IsFalse(repository.Contains("UPDATE " + target, StringComparison.OrdinalIgnoreCase));
             Assert.IsFalse(repository.Contains("DELETE FROM " + target, StringComparison.OrdinalIgnoreCase));

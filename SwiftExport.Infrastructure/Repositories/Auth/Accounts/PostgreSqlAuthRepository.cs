@@ -10,24 +10,35 @@ namespace SwiftExport.Infrastructure.Repositories.Auth.Accounts;
 /// <summary>在当前 PostgreSQL 会话中维护认证账号；保留逐语句预判、最终授权和调用方事务边界。</summary>
 public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IAuthRepository
 {
-    private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(SysUser));
-    private static readonly string Users = Table(typeof(SysUser));
-    private static readonly string UserRoles = Table(typeof(SysUserRole));
-    private static readonly string Roles = Table(typeof(SysRole));
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(column =>
-        $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata(typeof(SysUser));
+    private const string Columns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "user_name" AS "UserName",
+        "nick_name" AS "NickName",
+        "password_hash" AS "PasswordHash",
+        "credential_version" AS "CredentialVersion",
+        "email" AS "Email",
+        "phone_number" AS "PhoneNumber",
+        "is_active" AS "IsActive"
+    """;
 
     /// <summary>按已确认的尾空格及 ICU 比较规则读取活动账号，保留完整凭据字段。</summary>
     public Task<SysUser?> GetActiveUserByNameAsync(string userName, CancellationToken cancellationToken = default) =>
         context.Session.Connection.QuerySingleOrDefaultAsync<SysUser>(Command($"""
-            SELECT {Columns} FROM {Users}
+            SELECT {Columns} FROM "public"."sys_user"
             WHERE {NameMatch} AND is_active = TRUE AND COALESCE(is_deleted, FALSE) = FALSE;
             """, new { UserName = userName }, cancellationToken));
 
     /// <summary>按标识读取活动且未删除的账号和凭据。</summary>
     public Task<SysUser?> GetActiveUserByIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
         context.Session.Connection.QuerySingleOrDefaultAsync<SysUser>(Command($"""
-            SELECT {Columns} FROM {Users}
+            SELECT {Columns} FROM "public"."sys_user"
             WHERE uid = @UserId AND is_active = TRUE AND COALESCE(is_deleted, FALSE) = FALSE;
             """, new { UserId = userId }, cancellationToken));
 
@@ -39,7 +50,7 @@ public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IA
     /// <summary>判断未删除用户名是否占用；停用账号仍保留用户名。</summary>
     public Task<bool> IsUserNameInUseAsync(string userName, CancellationToken cancellationToken = default) =>
         context.Session.Connection.ExecuteScalarAsync<bool>(Command($"""
-            SELECT EXISTS(SELECT 1 FROM {Users}
+            SELECT EXISTS(SELECT 1 FROM "public"."sys_user"
                 WHERE {NameMatch} AND COALESCE(is_deleted, FALSE) = FALSE);
             """, new { UserName = userName }, cancellationToken));
 
@@ -54,7 +65,7 @@ public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IA
         var parameters = PostgreSqlParameters.Entity(user, Metadata);
         parameters.Add("ActorUserId", actorUserId);
         var inserted = await context.Session.Connection.QuerySingleOrDefaultAsync<Guid?>(Command($"""
-            INSERT INTO {Users}
+            INSERT INTO "public"."sys_user"
                 (uid, version, is_deleted, created_date, created_by, updated_date, updated_by,
                  user_name, nick_name, password_hash, credential_version, email, phone_number, is_active)
             SELECT @Uid, @Version, FALSE, @CreatedDate, @CreatedBy, @UpdatedDate, @UpdatedBy,
@@ -77,7 +88,7 @@ public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IA
     {
         context.AuditStamp.StampForUpdate(user);
         var rows = await context.Session.Connection.ExecuteAsync(Command($"""
-            UPDATE {Users}
+            UPDATE "public"."sys_user"
             SET password_hash = @PasswordHash, credential_version = credential_version + 1,
                 version = version + 1, updated_date = @UpdatedDate, updated_by = @UpdatedBy
             WHERE uid = @Uid AND version = @Version AND credential_version = @CredentialVersion
@@ -101,7 +112,7 @@ public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IA
         var parameters = PostgreSqlParameters.Entity(targetUser, Metadata);
         parameters.Add("ActorUserId", actorUserId);
         var rows = await context.Session.Connection.ExecuteAsync(Command($"""
-            UPDATE {Users} AS target
+            UPDATE "public"."sys_user" AS target
             SET password_hash = @PasswordHash, credential_version = target.credential_version + 1,
                 version = target.version + 1, updated_date = @UpdatedDate, updated_by = @UpdatedBy
             WHERE target.uid = @Uid AND target.version = @Version
@@ -117,7 +128,7 @@ public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IA
     public Task<bool> IsCredentialVersionValidAsync(
         Guid userId, int credentialVersion, CancellationToken cancellationToken = default) =>
         context.Session.Connection.ExecuteScalarAsync<bool>(Command($"""
-            SELECT EXISTS(SELECT 1 FROM {Users}
+            SELECT EXISTS(SELECT 1 FROM "public"."sys_user"
                 WHERE uid = @UserId AND credential_version = @CredentialVersion
                   AND is_active = TRUE AND COALESCE(is_deleted, FALSE) = FALSE);
             """, new { UserId = userId, CredentialVersion = credentialVersion }, cancellationToken));
@@ -127,19 +138,13 @@ public sealed class PostgreSqlAuthRepository(RepositoryBaseContext context) : IA
 
     /// <summary>生成仅接受内部固定标识表达式的管理员查询，用户输入始终通过参数传递。</summary>
     private static string AdminQuery(string userIdExpression) => $"""
-        SELECT 1 FROM {Users} AS actor
-        JOIN {UserRoles} AS ur ON ur.user_id = actor.uid AND COALESCE(ur.is_deleted, FALSE) = FALSE
-        JOIN {Roles} AS r ON r.uid = ur.role_id AND COALESCE(r.is_deleted, FALSE) = FALSE AND r.is_active = TRUE
+        SELECT 1 FROM "public"."sys_user" AS actor
+        JOIN "public"."sys_user_role" AS ur ON ur.user_id = actor.uid AND COALESCE(ur.is_deleted, FALSE) = FALSE
+        JOIN "public"."sys_role" AS r ON r.uid = ur.role_id AND COALESCE(r.is_deleted, FALSE) = FALSE AND r.is_active = TRUE
         WHERE actor.uid = {userIdExpression} AND actor.is_active = TRUE
           AND COALESCE(actor.is_deleted, FALSE) = FALSE AND r.role_code = 'SYSTEM_ADMIN'
         """;
 
-    /// <summary>由公共元数据取得独立 PostgreSQL 表名，不修改 SQL Server 映射。</summary>
-    private static string Table(Type type)
-    {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(type);
-        return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
-    }
 
     /// <summary>每条命令借用当前事务并传递取消令牌，允许无外层事务执行原分阶段语义。</summary>
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>

@@ -19,8 +19,8 @@ namespace SwiftExport.Tools.DbSeed;
 public sealed class PostgreSqlPermissionCatalogSync(DbSession session)
 {
     private const string SchemaError = "目标库缺少当前权限定义或角色权限关系结构；目录同步不迁移结构。";
-    private static readonly EntityMetadata Definitions = PostgreSqlEntityMetadata.GetMetadata(typeof(SysPermission));
-    private static readonly EntityMetadata Relations = PostgreSqlEntityMetadata.GetMetadata(typeof(SysRolePermission));
+    private static readonly EntityMetadata Definitions = EntityMetadataCache.GetMetadata(typeof(SysPermission));
+    private static readonly EntityMetadata Relations = EntityMetadataCache.GetMetadata(typeof(SysRolePermission));
     /// <summary>承接原全量目录读取的五字段，不把状态或关系加入展示同步计划。</summary>
     private sealed record ExistingPermission(Guid Uid, string Key, string Name, string Group, int SortOrder);
     /// <summary>保持代码目录顺序与原新增/更新计划，既有身份用于精确三列更新。</summary>
@@ -39,7 +39,7 @@ public sealed class PostgreSqlPermissionCatalogSync(DbSession session)
         var failed = false;
         try
         {
-            await LockAsync(PostgreSqlEntityMetadata.GetMetadata(typeof(SysRole)), cancellationToken);
+            await LockAsync(EntityMetadataCache.GetMetadata(typeof(SysRole)), cancellationToken);
             await LockAsync(Definitions, cancellationToken);
             await VerifySchemaAsync(cancellationToken);
             var existing = await ReadExistingAsync(cancellationToken);

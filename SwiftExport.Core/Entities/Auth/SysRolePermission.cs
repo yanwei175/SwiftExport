@@ -4,7 +4,7 @@ using SwiftExport.Core.Common;
 namespace SwiftExport.Core.Entities.Auth;
 
 /// <summary>角色与权限定义的授权关系；删除关系后不再贡献有效权限。</summary>
-[Table("SysRole_Permissions")]
+[Table("sys_role_permission")]
 public partial class SysRolePermission : BaseEntity
 {
     /// <summary>角色标识，逻辑引用 SysRole。</summary>

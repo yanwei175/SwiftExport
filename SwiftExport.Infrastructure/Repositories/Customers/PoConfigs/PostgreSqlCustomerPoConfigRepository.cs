@@ -16,8 +16,33 @@ namespace SwiftExport.Infrastructure.Repositories.Customers.PoConfigs;
 public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<CustomerPoConfig>(context), ICustomerPoConfigRepository
 {
-    private static readonly string Columns = string.Join(",", Metadata.Columns.Select(column =>
-        $"cpc.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string Columns = """
+        cpc."uid" AS "Uid",
+        cpc."version" AS "Version",
+        cpc."is_deleted" AS "IsDeleted",
+        cpc."created_date" AS "CreatedDate",
+        cpc."created_by" AS "CreatedBy",
+        cpc."updated_date" AS "UpdatedDate",
+        cpc."updated_by" AS "UpdatedBy",
+        cpc."customer_id" AS "CustomerId",
+        cpc."customer_code" AS "CustomerCode",
+        cpc."supplier_id" AS "SupplierId",
+        cpc."supplier_code" AS "SupplierCode",
+        cpc."currency" AS "Currency",
+        cpc."default_discount_rate" AS "DefaultDiscountRate",
+        cpc."discount_remark" AS "DiscountRemark",
+        cpc."inlet_hose_type" AS "InletHoseType",
+        cpc."aerator_type" AS "AeratorType",
+        cpc."pallet_type" AS "PalletType",
+        cpc."box_type" AS "BoxType",
+        cpc."label_type" AS "LabelType",
+        cpc."im_type" AS "IMType",
+        cpc."carton_type" AS "CartonType",
+        cpc."logo_type" AS "LogoType",
+        cpc."sales_person" AS "SalesPerson",
+        cpc."purchaser" AS "Purchaser",
+        cpc."note" AS "Note"
+    """;
 
     /// <summary>读取双方身份的完整未删除配置；锁定模式须有低隔离事务，先锁单表再查询，事务所有权仍归调用方。</summary>
     public async Task<CustomerPoConfigDto?> GetByPartiesAsync(Guid customerId, Guid supplierId,
@@ -115,7 +140,7 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
             ORDER BY cpc.created_date DESC NULLS LAST,cpc.uid DESC LIMIT @PageSize OFFSET @Offset
             """, parameters, Transaction);
         return new PagedResponseBase<CustomerPoConfigDto>
-            { Items = rows.ToList(), TotalCount = total, PageIndex = index, PageSize = size };
+        { Items = rows.ToList(), TotalCount = total, PageIndex = index, PageSize = size };
     }
 
     /// <summary>按各提交项排除自身，输入 Trim 而数据库原文不 Trim；不改成整批身份排除或数据库完整配对。</summary>

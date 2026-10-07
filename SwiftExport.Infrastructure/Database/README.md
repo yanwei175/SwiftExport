@@ -6,7 +6,7 @@
 
 2026-10-05：访问范围已开放，最新历史副本已只读复验。本批账号/仓库/客户 PO 编码索引变更已在专用库演练与验证后同步 dv_next；两库仅三个索引改变，数据及其他结构不变。生成器及 PG 基线同步更新，旧备份保留。具体命令、失败分类和回退见 [P01—P03 结果](../../docs/postgresql-migration/任务结果/P01-P03-基础设施与编码约束.md)；对应变更/回退脚本非幂等，不自动执行，不盲目重跑。
 
-最终数据库目标是 PostgreSQL + Dapper；SQL Server 仅作为迁移期间待淘汰的实现，不再建设长期双库兼容能力。按[当前迁移路线](../../docs/后端整体架构与文件夹职责建议.md)依次完成共享语义收敛、跨连接并发和真实需求一致性、PG 运行接线，再移除旧实现。以下旧批次验收保留历史范围，不表示 SQL Server 将继续作为正式运行选项。
+当前只使用 PostgreSQL + Dapper，SQL Server 实现及依赖已退出。2026-10-07整理后，实体直接声明PG名称、类型、默认值、CHECK及部分索引谓词，EntityMetadataCache是仓储与结构生成的唯一映射；不再保留SQL Server类型或表达式翻译。以下旧批次验收是历史记录，运行接线及剩余验证以[主迁移清单](../../docs/postgresql-migration/主迁移清单.md)为准。
 
 数据库代码预期以 `SwiftExport.Core` 中带 `[Table]` 的持久化 Entity 及其 `DatabaseSchema` 元数据为源，实际部署必须另行核验。2026-10-05当前宿主DI及DbSession配置构造入口已统一PG，运行和并发验收状态以主迁移清单最新记录为准。PG实体评审基线是 `Generated/SwiftExport.PostgreSql.Schema.preview.sql`；旧SQL夹具消费者已全部转PG，旧SQL基线已退出。生成文件不等于已部署或全链验收；SchemaGenerator仅生成及核验PG评审基线，旧SQL生成器和提供者参数已退出。PG基线禁止手工修改，必须随实体元数据生成。工具不承担旧库迁移、数据回填或种子数据职责。PG表和字段COMMENT中文说明同源于Core XML `<summary>`。人工维护的数据搬运脚本必须与结构基线分离，并明确限定数据范围。
 

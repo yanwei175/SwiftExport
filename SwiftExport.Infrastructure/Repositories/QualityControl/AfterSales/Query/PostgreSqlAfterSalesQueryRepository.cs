@@ -14,7 +14,43 @@ namespace SwiftExport.Infrastructure.Repositories.QualityControl.AfterSales.Quer
 /// <summary>实现售后列表的 PostgreSQL 只读分页，保留原筛选、单头金额和快照投影，共享请求级连接及事务。</summary>
 public sealed class PostgreSqlAfterSalesQueryRepository(RepositoryBaseContext context) : IAfterSalesQueryRepository
 {
-    private static readonly string[] HeaderColumns = ["Uid","Version","IsDeleted","CreatedDate","CreatedBy","UpdatedDate","UpdatedBy","AfterSalesNo","CustomerId","CustomerCodeSnapshot","CustomerNameSnapshot","AcceptedDate","OwnerId","DocumentStatus","ConfirmationStatus","DemandConfirmedAt","DemandConfirmedBy","ExpectedCompletionDate","Conclusion","Remark","OriginalSalesOrderLineId","CustomerComplaintNo","LocalFileFolder","ResponsibleSupplierId","IssueProductId","IssueSkuSnapshot","IssueCustomerSkuSnapshot","IssueLinkSkuSnapshot","IssueDescription","QualityCategoryId","CauseAnalysis","RequiredDate","ServiceAmountCny","ReturnedReceivedDate","TreatmentDescription"];
+    private const string HeaderProjection = """
+        h."uid" AS "Uid",
+        h."version" AS "Version",
+        h."is_deleted" AS "IsDeleted",
+        h."created_date" AS "CreatedDate",
+        h."created_by" AS "CreatedBy",
+        h."updated_date" AS "UpdatedDate",
+        h."updated_by" AS "UpdatedBy",
+        h."after_sales_no" AS "AfterSalesNo",
+        h."customer_id" AS "CustomerId",
+        h."customer_code_snapshot" AS "CustomerCodeSnapshot",
+        h."customer_name_snapshot" AS "CustomerNameSnapshot",
+        h."accepted_date" AS "AcceptedDate",
+        h."owner_id" AS "OwnerId",
+        h."document_status" AS "DocumentStatus",
+        h."confirmation_status" AS "ConfirmationStatus",
+        h."demand_confirmed_at" AS "DemandConfirmedAt",
+        h."demand_confirmed_by" AS "DemandConfirmedBy",
+        h."expected_completion_date" AS "ExpectedCompletionDate",
+        h."conclusion" AS "Conclusion",
+        h."remark" AS "Remark",
+        h."original_sales_order_line_id" AS "OriginalSalesOrderLineId",
+        h."customer_complaint_no" AS "CustomerComplaintNo",
+        h."local_file_folder" AS "LocalFileFolder",
+        h."responsible_supplier_id" AS "ResponsibleSupplierId",
+        h."issue_product_id" AS "IssueProductId",
+        h."issue_sku_snapshot" AS "IssueSkuSnapshot",
+        h."issue_customer_sku_snapshot" AS "IssueCustomerSkuSnapshot",
+        h."issue_link_sku_snapshot" AS "IssueLinkSkuSnapshot",
+        h."issue_description" AS "IssueDescription",
+        h."quality_category_id" AS "QualityCategoryId",
+        h."cause_analysis" AS "CauseAnalysis",
+        h."required_date" AS "RequiredDate",
+        h."service_amount_cny" AS "ServiceAmountCny",
+        h."returned_received_date" AS "ReturnedReceivedDate",
+        h."treatment_description" AS "TreatmentDescription"
+        """;
 
     /// <summary>按原客户、状态、受理日期、责任方及头行型号筛选分页；行关键词仅判断存在，不放大单头或金额。</summary>
     public async Task<PagedResponseBase<AfterSalesListItemDto>> SearchAsync(
@@ -23,34 +59,34 @@ public sealed class PostgreSqlAfterSalesQueryRepository(RepositoryBaseContext co
         var page = Math.Max(1, request.PageIndex);
         var size = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 200);
         var where = $"""
-            WHERE {H("IsDeleted")}=FALSE
-              AND (CAST(@CustomerId AS uuid) IS NULL OR {H("CustomerId")}=CAST(@CustomerId AS uuid))
-              AND (CAST(@DocumentStatus AS integer) IS NULL OR {H("DocumentStatus")}=CAST(@DocumentStatus AS integer))
-              AND (CAST(@ConfirmationStatus AS integer) IS NULL OR {H("ConfirmationStatus")}=CAST(@ConfirmationStatus AS integer))
-              AND (@DateFrom IS NULL OR {H("AcceptedDate")}>=@DateFrom)
-              AND (@DateTo IS NULL OR {H("AcceptedDate")}<=@DateTo)
-              AND (CAST(@ResponsibleSupplierId AS uuid) IS NULL OR {H("ResponsibleSupplierId")}=CAST(@ResponsibleSupplierId AS uuid))
-              AND (CAST(@Keyword AS text) IS NULL OR {Like(H("AfterSalesNo"))} OR {Like(H("CustomerComplaintNo"))}
-                OR {Like(H("IssueSkuSnapshot"))} OR {Like(H("IssueCustomerSkuSnapshot"))} OR {Like(H("IssueLinkSkuSnapshot"))}
-                OR EXISTS(SELECT 1 FROM {Table<AfterSalesLine>()} l WHERE {C<AfterSalesLine>("l", "HeaderId")}={H("Uid")}
-                  AND {C<AfterSalesLine>("l", "IsDeleted")}=FALSE AND ({Like(C<AfterSalesLine>("l", "SkuSnapshot"))}
-                    OR {Like(C<AfterSalesLine>("l", "CustomerSkuSnapshot"))} OR {Like(C<AfterSalesLine>("l", "LinkSkuSnapshot"))})))
+            WHERE h."is_deleted"=FALSE
+              AND (CAST(@CustomerId AS uuid) IS NULL OR h."customer_id"=CAST(@CustomerId AS uuid))
+              AND (CAST(@DocumentStatus AS integer) IS NULL OR h."document_status"=CAST(@DocumentStatus AS integer))
+              AND (CAST(@ConfirmationStatus AS integer) IS NULL OR h."confirmation_status"=CAST(@ConfirmationStatus AS integer))
+              AND (@DateFrom IS NULL OR h."accepted_date">=@DateFrom)
+              AND (@DateTo IS NULL OR h."accepted_date"<=@DateTo)
+              AND (CAST(@ResponsibleSupplierId AS uuid) IS NULL OR h."responsible_supplier_id"=CAST(@ResponsibleSupplierId AS uuid))
+              AND (CAST(@Keyword AS text) IS NULL OR h."after_sales_no" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR h."customer_complaint_no" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE ''
+                OR h."issue_sku_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR h."issue_customer_sku_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR h."issue_link_sku_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE ''
+                OR EXISTS(SELECT 1 FROM "public"."after_sales_line" l WHERE l."header_id"=h."uid"
+                  AND l."is_deleted"=FALSE AND (l."sku_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE ''
+                    OR l."customer_sku_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR l."link_sku_snapshot" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '')))
             """;
         // SQL Server NULLIF 的空文本比较忽略尾部 ASCII 空格；非空型号仍返回原快照，不裁掉显示文本。
-        var issueCustomerSku = H("IssueCustomerSkuSnapshot");
+        var issueCustomerSku = "h.\"issue_customer_sku_snapshot\"";
         var sql = $"""
-            SELECT COUNT(*) FROM {Table<AfterSalesHeader>()} h {where};
-            SELECT {string.Join(',', HeaderColumns.Select(property => H(property) + " AS " + PostgreSqlNames.Quote(property)))},
-              COALESCE({C<SysUser>("u", "NickName")},{C<SysUser>("u", "UserName")},'') AS "OwnerName",
-              COALESCE({H("ServiceAmountCny")},0) AS "KnownAmountCny",
-              ({H("ServiceAmountCny")} IS NULL) AS "HasUndeterminedAmount",
+            SELECT COUNT(*) FROM "public"."after_sales_header" h {where};
+            SELECT {HeaderProjection},
+              COALESCE(u."nick_name",u."user_name",'') AS "OwnerName",
+              COALESCE(h."service_amount_cny",0) AS "KnownAmountCny",
+              (h."service_amount_cny" IS NULL) AS "HasUndeterminedAmount",
               COALESCE(CASE WHEN rtrim({issueCustomerSku},' ') COLLATE public.erp_dictionary_ci = '' COLLATE public.erp_dictionary_ci
-                THEN NULL ELSE {issueCustomerSku} END,{H("IssueSkuSnapshot")},'') AS "IssueModels",
-              COALESCE({C<Supplier>("s", "SupplierName")},'') AS "ResponsibleSuppliers"
-            FROM {Table<AfterSalesHeader>()} h
-            LEFT JOIN {Table<SysUser>()} u ON {C<SysUser>("u", "Uid")}={H("OwnerId")}
-            LEFT JOIN {Table<Supplier>()} s ON {C<Supplier>("s", "Uid")}={H("ResponsibleSupplierId")}
-            {where} ORDER BY {H("AcceptedDate")} DESC NULLS LAST,{SqlGuidOrder(H("Uid"))} ASC
+                THEN NULL ELSE {issueCustomerSku} END,h."issue_sku_snapshot",'') AS "IssueModels",
+              COALESCE(s."supplier_name",'') AS "ResponsibleSuppliers"
+            FROM "public"."after_sales_header" h
+            LEFT JOIN "public"."sys_user" u ON u."uid"=h."owner_id"
+            LEFT JOIN "public"."supplier" s ON s."uid"=h."responsible_supplier_id"
+            {where} ORDER BY h."accepted_date" DESC NULLS LAST,{SqlGuidOrder("h.\"uid\"")} ASC
             LIMIT @Take OFFSET @Skip;
             """;
         var parameters = new PostgreSqlParameters();
@@ -67,26 +103,18 @@ public sealed class PostgreSqlAfterSalesQueryRepository(RepositoryBaseContext co
         using var reader = await context.Session.Connection.QueryMultipleAsync(new CommandDefinition(
             sql, parameters, context.Session.Transaction, cancellationToken: cancellationToken));
         var count = await reader.ReadSingleAsync<int>();
-        return new() { PageIndex = page, PageSize = size, TotalCount = count,
-            Items = (await reader.ReadAsync<AfterSalesListItemDto>()).ToList() };
+        return new()
+        {
+            PageIndex = page,
+            PageSize = size,
+            TotalCount = count,
+            Items = (await reader.ReadAsync<AfterSalesListItemDto>()).ToList()
+        };
     }
 
     /// <summary>仅对固定列生成原始 LIKE 条件；保留通配符和反斜杠，使用已冻结的数据库文本比较。</summary>
     private static string Like(string column) => $"{column} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE ''";
 
-    /// <summary>单头属性通过共享物理映射引用，参数和 DTO 别名仍使用 CLR 名称。</summary>
-    private static string H(string property) => C<AfterSalesHeader>("h", property);
-
-    /// <summary>固定实体属性映射为引用列名，不接收外部 SQL 标识符。</summary>
-    private static string C<T>(string alias, string property) => alias + "." +
-        PostgreSqlNames.Quote(PostgreSqlEntityMetadata.GetMetadata(typeof(T)).GetProperty(property).ColumnName);
-
-    /// <summary>固定实体使用已有 public 名称映射，不新增提供者切换或数据库连接。</summary>
-    private static string Table<T>()
-    {
-        var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
-        return PostgreSqlNames.Quote(map.SchemaName) + "." + PostgreSqlNames.Quote(map.TableName);
-    }
 
     /// <summary>按 SQL Server SqlGuid 字节权重稳定排序相同受理日期的单头，不使用 PG 原生 UUID 顺序。</summary>
     private static string SqlGuidOrder(string column) => "ARRAY[" + string.Join(',',

@@ -181,7 +181,7 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
     /// <summary>另一物理连接直接按现有元数据提交随机Link；不经服务、序列、审计日志或公共写入协议。</summary>
     private static async Task InsertCommittedWriter<T>(Fixture fixture,NpgsqlConnection writer,T row,CancellationToken token) where T:BaseEntity
     {
-        fixture.Context.AuditStamp.StampForInsert(row); var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        fixture.Context.AuditStamp.StampForInsert(row); var map=EntityMetadataCache.GetMetadata(typeof(T));
         var table=PostgreSqlNames.Quote(map.SchemaName)+"."+PostgreSqlNames.Quote(map.TableName);
         var columns=string.Join(',',map.Columns.Select(column=>PostgreSqlNames.Quote(column.ColumnName)));
         var values=string.Join(',',map.Columns.Select(column=>"@"+column.ParameterName));
@@ -199,7 +199,7 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
 
         /// <summary>从可信CLR元数据登记单实体精确身份；不从输入字符串猜表或删除条件。</summary>
         public void Register<T>(T row) where T:BaseEntity
-        { var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T)); RegisterTable(PostgreSqlNames.Quote(map.SchemaName)+"."+PostgreSqlNames.Quote(map.TableName),row.Uid); }
+        { var map=EntityMetadataCache.GetMetadata(typeof(T)); RegisterTable(PostgreSqlNames.Quote(map.SchemaName)+"."+PostgreSqlNames.Quote(map.TableName),row.Uid); }
 
         /// <summary>供应商由既有Target创建函数返回头SupplierId登记，调用方仅传内部固定表和本例随机身份。</summary>
         public void RegisterTable(string table,Guid id)

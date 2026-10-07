@@ -1,11 +1,11 @@
-﻿using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.SalesOrders;
 
 /// <summary>销售订单头实体，保存客户订单的商务条件、交付要求和生命周期状态。</summary>
-[Table("SalesOrderHeader")]
+[Table("sales_order_header")]
 public partial class SalesOrderHeader : BaseEntity
 {
     /// <summary>单据生命周期状态，用于判断当前记录允许执行的业务操作。</summary>

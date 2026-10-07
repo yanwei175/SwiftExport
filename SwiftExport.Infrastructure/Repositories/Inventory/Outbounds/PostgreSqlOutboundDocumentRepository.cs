@@ -144,7 +144,7 @@ public sealed class PostgreSqlOutboundDocumentRepository(RepositoryBaseContext c
     /// <summary>只绑定当前 SQL 的实体参数；日期保留墙上时间，枚举按现有整数存储，不修改实体值。</summary>
     private static PostgreSqlParameters Parameters(BaseEntity entity, params string[] properties)
     {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var parameters = new PostgreSqlParameters();
         foreach (var property in properties)
         {

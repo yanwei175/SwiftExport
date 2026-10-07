@@ -1,11 +1,11 @@
-﻿
+
 using SwiftExport.Contracts.Common;
 using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Common;
 
 /// <summary>持久化实体公共基类，统一提供主键、乐观并发、软删除和审计字段。</summary>
-[DbCheck("CK_{Table}_Version", "[Version] >= 1")]
+[DbCheck("CK_{Table}_Version", "\"version\" >= 1")]
 public abstract class BaseEntity
 {
     /// <summary>
@@ -24,7 +24,7 @@ public abstract class BaseEntity
     [DbColumn(DefaultExpression = "1")]
     public int Version { get; set; } = 1;
     /// <summary>软删除标记；为真时业务查询默认不再返回该记录。</summary>
-    [DbColumn(DefaultExpression = "0")]
+    [DbColumn(DefaultExpression = "FALSE")]
     public bool IsDeleted { get; set; } = false;
 
     /// <summary>记录创建时间。</summary>

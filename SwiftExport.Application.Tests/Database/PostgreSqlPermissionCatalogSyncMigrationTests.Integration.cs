@@ -248,14 +248,14 @@ public sealed class PostgreSqlPermissionCatalogSyncMigrationIntegrationTests
     private static DbSession Open(string connection,string? application=null) => new(new PostgreSqlConnectionFactory(
         new NpgsqlConnectionStringBuilder(connection){Pooling=false,ApplicationName=application??"P06SYNC-observer"}.ConnectionString));
     /// <summary>固定元数据物理表，不沿旧SQL复数名称。</summary>
-    private static string Table<T>() { var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));return $"{PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)}"; }
+    private static string Table<T>() { var map=EntityMetadataCache.GetMetadata(typeof(T));return $"{PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)}"; }
     /// <summary>本例技术纯LOCK仅借用父事务。</summary>
     private static Task<int> Lock(DbSession session,string table,CancellationToken token)=>session.Connection.ExecuteAsync(new CommandDefinition(
         $"LOCK TABLE {table} IN SHARE ROW EXCLUSIVE MODE;",transaction:session.Transaction,cancellationToken:token));
     /// <summary>全字段定义快照用于主控精确授权和保护Version/审计/状态。</summary>
     private static async Task<List<SysPermission>> Catalog(DbSession session)
     {
-        var map=PostgreSqlEntityMetadata.GetMetadata(typeof(SysPermission));var columns=string.Join(",",map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)+" AS "+PostgreSqlNames.Quote(x.PropertyName)));
+        var map=EntityMetadataCache.GetMetadata(typeof(SysPermission));var columns=string.Join(",",map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)+" AS "+PostgreSqlNames.Quote(x.PropertyName)));
         return (await session.Connection.QueryAsync<SysPermission>(new CommandDefinition($"SELECT {columns} FROM {Table<SysPermission>()};",transaction:session.Transaction))).AsList();
     }
     /// <summary>变更场景必须已有完整且展示一致代码目录，防止工具成功时新增全目录被误算夹具。</summary>
@@ -270,7 +270,7 @@ public sealed class PostgreSqlPermissionCatalogSyncMigrationIntegrationTests
     }
     /// <summary>逐持久化字段保护，不输出账号或凭据值。</summary>
     private static void Compare(SysPermission before,SysPermission after)
-    {foreach(var column in PostgreSqlEntityMetadata.GetMetadata(typeof(SysPermission)).Columns)Assert.IsTrue(Equals(column.Property.GetValue(before),column.Property.GetValue(after)),$"定义字段{column.PropertyName}应原样。");}
+    {foreach(var column in EntityMetadataCache.GetMetadata(typeof(SysPermission)).Columns)Assert.IsTrue(Equals(column.Property.GetValue(before),column.Property.GetValue(after)),$"定义字段{column.PropertyName}应原样。");}
     /// <summary>服务器端有序JSON摘要而非读取实际凭据；50表数量及内容仅主控静默串行库可比较。</summary>
     private static async Task<Dictionary<string,Digest>> Snapshot(DbSession session)
     {

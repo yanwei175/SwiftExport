@@ -212,7 +212,7 @@ public sealed class PostgreSqlPartyUniquenessIntegrationTests
             ? new Customer { Uid = Guid.NewGuid(), CustomerCode = code, DocRelateNo = Prefix(), IsDeleted = deleted, IsActive = active, Version = 1 }
             : new Supplier { Uid = Guid.NewGuid(), SupplierCode = code, SupplierName = code, DocRelateNo = Prefix(), IsDeleted = deleted, IsActive = active, Version = 1 };
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var columns = string.Join(",", metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
         var values = string.Join(",", metadata.Columns.Select(c => "@" + c.ParameterName));
         Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(new CommandDefinition(

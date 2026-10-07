@@ -16,22 +16,46 @@ namespace SwiftExport.Infrastructure.Repositories.SalesOrders.Query;
 /// <summary>三个销售查询按源观察阶段借用PG请求会话；仓储接口已齐备，完整服务链与运行DI仍单独验收。</summary>
 public sealed partial class PostgreSqlSalesOrderQueryRepository(RepositoryBaseContext context) : ISalesOrderQueryRepository
 {
-    private static readonly EntityMetadata HeaderMetadata = PostgreSqlEntityMetadata.GetMetadata(typeof(SalesOrderHeader));
-    private static readonly EntityMetadata LineMetadata = PostgreSqlEntityMetadata.GetMetadata(typeof(SalesOrderLine));
-    private static readonly string Headers = Table(typeof(SalesOrderHeader));
-    private static readonly string Lines = Table(typeof(SalesOrderLine));
-    private static readonly string Gross = Table(typeof(GrossDemand));
-    private static readonly string PackingHeads = Table(typeof(PackingListHead));
-    private static readonly string PackingLines = Table(typeof(PackingListLine));
-    private static readonly string HeaderProjection = string.Join(',', HeaderMetadata.Columns
-        .Select(column => $"\"{column.ColumnName}\" AS \"{column.PropertyName}\""));
-
-    /// <summary>沿用现有PG实体表名映射，只接受内部实体类型，不接受调用方提供的标识符。</summary>
-    private static string Table(Type type)
-    {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(type);
-        return PostgreSqlNames.Quote(metadata.SchemaName) + "." + PostgreSqlNames.Quote(metadata.TableName);
-    }
+    private const string HeaderProjection = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "document_status" AS "DocumentStatus",
+        "confirmation_status" AS "ConfirmationStatus",
+        "order_no" AS "OrderNo",
+        "invoice_no" AS "InvoiceNo",
+        "customer_id" AS "CustomerId",
+        "customer_code" AS "CustomerCode",
+        "customer_po_no" AS "CustomerPoNo",
+        "shipped_by" AS "ShippedBy",
+        "currency" AS "Currency",
+        "exchange_rate" AS "ExchangeRate",
+        "total_amount_original_currency" AS "TotalAmountOriginalCurrency",
+        "total_amount_local_currency" AS "TotalAmountLocalCurrency",
+        "ship_to_name" AS "ShipToName",
+        "ship_to_address" AS "ShipToAddress",
+        "ship_to_phone" AS "ShipToPhone",
+        "incoterm" AS "Incoterm",
+        "incoterm_location" AS "IncotermLocation",
+        "incoterm_sort_remark" AS "IncotermSortRemark",
+        "deposit_rate" AS "DepositRate",
+        "lead_time_days" AS "LeadTimeDays",
+        "payment_method" AS "PaymentMethod",
+        "so_folder" AS "SoFolder",
+        "remark" AS "Remark",
+        "order_date" AS "OrderDate",
+        "delivery_date" AS "DeliveryDate",
+        "reply_date" AS "ReplyDate",
+        "eta" AS "ETA",
+        "etd" AS "ETD",
+        "close_reason" AS "CloseReason",
+        "closed_date" AS "ClosedDate",
+        "closed_by" AS "ClosedBy"
+    """;
 
     /// <summary>每个独立命令沿用可空事务与取消；不创建临时表、不重试、不接管事务或连接生命周期。</summary>
     private async Task<List<T>> ReadAsync<T>(string sql, PostgreSqlParameters parameters, CancellationToken token)
@@ -63,7 +87,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository(RepositoryBaseCo
             SELECT h.uid AS "Uid",h.version AS "Version",h.document_status AS "DocumentStatus",
                    h.confirmation_status AS "ConfirmationStatus",h.customer_id AS "CustomerId",
                    h.order_no AS "OrderNo",h.delivery_date AS "DeliveryDate"
-            FROM {Headers} h WHERE h.uid=@Uid AND h.is_deleted=FALSE
+            FROM "public"."sales_order_header" h WHERE h.uid=@Uid AND h.is_deleted=FALSE
             """, parameters, token);
         parameters.Add("Candidates", JsonSerializer.Serialize(candidates));
     }

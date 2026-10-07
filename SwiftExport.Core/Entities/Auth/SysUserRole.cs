@@ -6,7 +6,7 @@ namespace SwiftExport.Core.Entities.Auth;
 /// <summary>
 /// 用户与角色的授权关系；显示名称由有效角色查询投影提供。
 /// </summary>
-[Table("SysUser_Roles")]
+[Table("sys_user_role")]
 public partial class SysUserRole : BaseEntity
 {
     /// <summary>用户 ID（外键 → SysUser.Uid）</summary>

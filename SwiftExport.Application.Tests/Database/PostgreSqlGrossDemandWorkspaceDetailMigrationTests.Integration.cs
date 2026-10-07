@@ -173,7 +173,7 @@ public sealed partial class PostgreSqlGrossDemandWorkspaceDetailMigrationTests
         /// <summary>仅插入本例合法实体，不绕CHECK、唯一约束或触发器。</summary>
         public async Task Insert(GrossDemand row)
         {
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(GrossDemand));
+            var metadata = EntityMetadataCache.GetMetadata(typeof(GrossDemand));
             var columns = string.Join(",", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
             var values = string.Join(",", metadata.Columns.Select(column => "@" + column.ParameterName));
             Assert.AreEqual(1, await session.Connection.ExecuteAsync(new CommandDefinition(

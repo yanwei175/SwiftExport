@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.DemandPlanning;
 /// <summary>
 /// 毛需求一次拆解版本中的物料需求事实行。
 /// </summary>
-[Table("NetDemand")]
+[Table("net_demand")]
 public sealed partial class NetDemand : BaseEntity
 {
     /// <summary>所属毛需求 Uid。</summary>
@@ -62,7 +62,7 @@ public sealed partial class NetDemand : BaseEntity
     public string? SpecificationSnapshot { get; set; }
 
     /// <summary>建立时的计量单位快照；根行沿用来源单位，客供子件采用拆解时子产品单位，历史未知为空。</summary>
-    [SwiftExport.Core.DatabaseSchema.DbColumn(StoreType = "nvarchar(300)")]
+    [SwiftExport.Core.DatabaseSchema.DbColumn(StoreType = "varchar(300)")]
     public string? UnitSnapshot { get; set; }
 
     /// <summary>BOM 展开后得到的原始需求数量。</summary>

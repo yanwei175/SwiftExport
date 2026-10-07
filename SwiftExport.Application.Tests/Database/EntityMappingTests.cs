@@ -6,17 +6,18 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>验证物理名称与 CLR 名称分离，覆盖采购数量例外及继承字段。</summary>
+/// <summary>验证唯一 PG 映射的物理名称、CLR 参数、显式声明及继承字段。</summary>
 [TestClass]
 public sealed class EntityMappingTests
 {
-    /// <summary>采购数量必须使用现有 QTY 列，不能新增或改名物理字段。</summary>
+    /// <summary>采购数量使用既有 PG quantity 列，参数继续绑定 CLR Quantity 属性。</summary>
     [TestMethod]
     public void PurchaseQuantity_UsesPhysicalColumn()
     {
         var metadata = EntityMetadataCache.GetMetadata<PurchaseOrderLine>();
-        CollectionAssert.Contains(metadata.AllColumns, "QTY");
-        CollectionAssert.DoesNotContain(metadata.AllColumns, "Quantity");
+        var columns = metadata.Columns.Select(column => column.ColumnName).ToArray();
+        CollectionAssert.Contains(columns, "quantity");
+        CollectionAssert.DoesNotContain(columns, "QTY");
         Assert.AreEqual("Quantity", metadata.GetProperty("Quantity").ParameterName);
     }
 
@@ -25,15 +26,16 @@ public sealed class EntityMappingTests
     public void InheritanceAndIgnoredProperties_UseOneMapping()
     {
         var metadata = EntityMetadataCache.GetMetadata<MappingExample>();
-        Assert.AreEqual("MappingExample", metadata.TableName);
+        var columns = metadata.Columns.Select(column => column.ColumnName).ToArray();
+        Assert.AreEqual("mapping_example", metadata.TableName);
         Assert.AreEqual("custom", metadata.SchemaName);
-        CollectionAssert.Contains(metadata.AllColumns, "Uid");
-        CollectionAssert.Contains(metadata.AllColumns, "stored_value");
-        CollectionAssert.DoesNotContain(metadata.AllColumns, "Display");
+        CollectionAssert.Contains(columns, "uid");
+        CollectionAssert.Contains(columns, "stored_value");
+        CollectionAssert.DoesNotContain(columns, "display");
     }
 
     /// <summary>测试映射例外，不参与生产实体扫描。</summary>
-    [Table("MappingExample", Schema = "custom")]
+    [Table("mapping_example", Schema = "custom")]
     private sealed class MappingExample : BaseEntity
     {
         [Column("stored_value")]

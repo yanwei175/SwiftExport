@@ -391,7 +391,7 @@ public sealed class PostgreSqlBomQueryIntegrationTests
     private static async Task Insert(RepositoryBaseContext context, BaseEntity entity)
     {
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var columns = string.Join(",", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
         var values = string.Join(",", metadata.Columns.Select(column => "@" + column.ParameterName));
         Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(

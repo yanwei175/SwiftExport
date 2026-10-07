@@ -13,21 +13,66 @@ namespace SwiftExport.Infrastructure.Repositories.Products.Categories;
 public sealed class PostgreSqlProductCategoryRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<ProductCategory>(context), IProductCategoryRepository
 {
-    private static readonly string EntityColumns = string.Join(",", Metadata.Columns.Select(column =>
-        $"c.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
-    private static readonly string NarrowColumns = string.Join(",", new[]
-    {
-        nameof(ProductCategory.Uid), nameof(ProductCategory.Version), nameof(ProductCategory.IsDeleted),
-        nameof(ProductCategory.CreatedDate), nameof(ProductCategory.CreatedBy), nameof(ProductCategory.UpdatedDate),
-        nameof(ProductCategory.UpdatedBy), nameof(ProductCategory.CategoryName), nameof(ProductCategory.ParentId),
-        nameof(ProductCategory.FakeName), nameof(ProductCategory.CategoryCode), nameof(ProductCategory.SortNo)
-    }.Select(property => $"c.{PostgreSqlNames.Quote(Metadata.GetProperty(property).ColumnName)} AS {PostgreSqlNames.Quote(property)}"));
+    private const string EntityColumns = """
+        c."uid" AS "Uid",
+        c."version" AS "Version",
+        c."is_deleted" AS "IsDeleted",
+        c."created_date" AS "CreatedDate",
+        c."created_by" AS "CreatedBy",
+        c."updated_date" AS "UpdatedDate",
+        c."updated_by" AS "UpdatedBy",
+        c."category_name" AS "CategoryName",
+        c."parent_id" AS "ParentId",
+        c."fake_name" AS "FakeName",
+        c."category_code" AS "CategoryCode",
+        c."sort_no" AS "SortNo"
+    """;
+    private const string NarrowColumns = """
+        c."uid" AS "Uid",
+        c."version" AS "Version",
+        c."is_deleted" AS "IsDeleted",
+        c."created_date" AS "CreatedDate",
+        c."created_by" AS "CreatedBy",
+        c."updated_date" AS "UpdatedDate",
+        c."updated_by" AS "UpdatedBy",
+        c."category_name" AS "CategoryName",
+        c."parent_id" AS "ParentId",
+        c."fake_name" AS "FakeName",
+        c."category_code" AS "CategoryCode",
+        c."sort_no" AS "SortNo"
+    """;
 
     /// <summary>读取包含自身的有效子树；深度一百仍可返回，超界或循环固定失败，不返回截断树。</summary>
     public async Task<IReadOnlyList<ProductCategory>> GetSubById(Guid parentId)
     {
-        var physicalColumns = string.Join(",", Metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
-        var childColumns = string.Join(",", Metadata.Columns.Select(column => "c." + PostgreSqlNames.Quote(column.ColumnName)));
+        const string physicalColumns = """
+            "uid",
+            "version",
+            "is_deleted",
+            "created_date",
+            "created_by",
+            "updated_date",
+            "updated_by",
+            "category_name",
+            "parent_id",
+            "fake_name",
+            "category_code",
+            "sort_no"
+        """;
+        const string childColumns = """
+            c."uid",
+            c."version",
+            c."is_deleted",
+            c."created_date",
+            c."created_by",
+            c."updated_date",
+            c."updated_by",
+            c."category_name",
+            c."parent_id",
+            c."fake_name",
+            c."category_code",
+            c."sort_no"
+        """;
         // 多生成失败边界的一层才能识别超限；限定递归深度也使坏数据循环有限结束。
         var rows = (await Connection.QueryAsync<ProductCategory, int, (ProductCategory Entity, int Depth)>($"""
             WITH RECURSIVE category_tree ({physicalColumns},depth) AS (

@@ -168,14 +168,14 @@ public sealed class PostgreSqlSalesOrderLineMigrationIntegrationTests
         /// <summary>按现有元数据插入合法历史软删值，不绕约束或触发器。</summary>
         public async Task Insert<T>(T entity) where T:BaseEntity
         {
-            var metadata=PostgreSqlEntityMetadata.GetMetadata(typeof(T)); var table=PostgreSqlNames.Quote(metadata.SchemaName)+"."+PostgreSqlNames.Quote(metadata.TableName);
+            var metadata=EntityMetadataCache.GetMetadata(typeof(T)); var table=PostgreSqlNames.Quote(metadata.SchemaName)+"."+PostgreSqlNames.Quote(metadata.TableName);
             var columns=string.Join(',',metadata.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName))); var values=string.Join(',',metadata.Columns.Select(c=>"@"+c.ParameterName));
             Assert.AreEqual(1,await Session.Connection.ExecuteAsync($"INSERT INTO {table} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(entity,metadata),transaction:Transaction));
         }
         /// <summary>原始历史实体读取，包括软删状态；只限定本例UID。</summary>
         public Task<SalesOrderLine> Raw(Guid uid)
         {
-            var metadata=PostgreSqlEntityMetadata.GetMetadata(typeof(SalesOrderLine)); var projection=string.Join(',',metadata.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)+" AS "+PostgreSqlNames.Quote(c.PropertyName)));
+            var metadata=EntityMetadataCache.GetMetadata(typeof(SalesOrderLine)); var projection=string.Join(',',metadata.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)+" AS "+PostgreSqlNames.Quote(c.PropertyName)));
             return Session.Connection.QuerySingleAsync<SalesOrderLine>($"SELECT {projection} FROM public.sales_order_line WHERE uid=@Uid",new{Uid=uid},transaction:Transaction);
         }
         /// <summary>只执行本例固定语句及随机UID。</summary>

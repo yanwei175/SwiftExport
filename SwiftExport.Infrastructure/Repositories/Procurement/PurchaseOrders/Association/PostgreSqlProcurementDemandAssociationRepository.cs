@@ -14,8 +14,8 @@ namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Ass
 /// <summary>在既有 PostgreSQL 会话内查询采购补关联候选、执行目标并定向更新头行；不预占容量、不接管公共事务。</summary>
 public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryBaseContext context) : IProcurementDemandAssociationRepository
 {
-    private static readonly EntityMetadata HeadMap = PostgreSqlEntityMetadata.GetMetadata(typeof(PurchaseOrderHead));
-    private static readonly EntityMetadata LineMap = PostgreSqlEntityMetadata.GetMetadata(typeof(PurchaseOrderLine));
+    private static readonly EntityMetadata HeadMap = EntityMetadataCache.GetMetadata(typeof(PurchaseOrderHead));
+    private static readonly EntityMetadata LineMap = EntityMetadataCache.GetMetadata(typeof(PurchaseOrderLine));
 
     /// <summary>透传既有事务与取消令牌，不创建或关闭调用方资源。</summary>
     private CommandDefinition Command(string sql, object? args, CancellationToken ct)
@@ -27,7 +27,7 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
     {
         var keyword = request.Keyword?.Trim();
         if (!string.IsNullOrEmpty(keyword))
-            keyword = "%" + keyword.Replace("~","~~").Replace("%","~%").Replace("_","~_").Replace("[","~[") + "%";
+            keyword = "%" + keyword.Replace("~", "~~").Replace("%", "~%").Replace("_", "~_").Replace("[", "~[") + "%";
         var parameters = new DynamicParameters();
         parameters.Add("uid", uid, DbType.Guid);
         parameters.Add("LineId", request.PurchaseOrderLineId, DbType.Guid);
@@ -72,11 +72,11 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
         var version = head.Version;
         context.AuditStamp.StampForUpdate(head);
         if (await context.Session.Connection.ExecuteAsync(Command($"""
-            UPDATE {Table(HeadMap)} SET {C(HeadMap,"DemandSourceType")}=@DemandSourceType,{C(HeadMap,"DemandSourceUid")}=@DemandSourceUid,
-                {C(HeadMap,"DemandSourceNo")}=@DemandSourceNo,{C(HeadMap,"Version")}={C(HeadMap,"Version")}+1,
-                {C(HeadMap,"UpdatedDate")}=@UpdatedDate,{C(HeadMap,"UpdatedBy")}=@UpdatedBy
-            WHERE {C(HeadMap,"Uid")}=@Uid AND {C(HeadMap,"Version")}=@Version AND {C(HeadMap,"IsDeleted")}=FALSE
-                AND {C(HeadMap,"LifecycleStatus")}=0 AND {C(HeadMap,"ConfirmationStatus")} IN(0,1);
+            UPDATE "public"."purchase_order_head" SET "demand_source_type"=@DemandSourceType,"demand_source_uid"=@DemandSourceUid,
+                "demand_source_no"=@DemandSourceNo,"version"="version"+1,
+                "updated_date"=@UpdatedDate,"updated_by"=@UpdatedBy
+            WHERE "uid"=@Uid AND "version"=@Version AND "is_deleted"=FALSE
+                AND "lifecycle_status"=0 AND "confirmation_status" IN(0,1);
             """, PostgreSqlParameters.Entity(head, HeadMap), ct)) != 1)
             return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购版本或状态已变化，请重新预览。");
         head.Version++;
@@ -84,12 +84,12 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
         {
             context.AuditStamp.StampForUpdate(line);
             if (await context.Session.Connection.ExecuteAsync(Command($"""
-                UPDATE {Table(LineMap)} SET {C(LineMap,"UnlinkedQty")}=@UnlinkedQty,{C(LineMap,"SourceType")}=@SourceType,
-                    {C(LineMap,"SourceUid")}=@SourceUid,{C(LineMap,"SourceNo")}=@SourceNo,{C(LineMap,"SourceLineId")}=@SourceLineId,
-                    {C(LineMap,"SourceLineNumber")}=@SourceLineNumber,{C(LineMap,"Version")}={C(LineMap,"Version")}+1,
-                    {C(LineMap,"UpdatedDate")}=@UpdatedDate,{C(LineMap,"UpdatedBy")}=@UpdatedBy
-                WHERE {C(LineMap,"Uid")}=@Uid AND {C(LineMap,"PurchaseOrderId")}=@PurchaseOrderId
-                    AND {C(LineMap,"Version")}=@Version AND {C(LineMap,"IsDeleted")}=FALSE;
+                UPDATE "public"."purchase_order_line" SET "unlinked_qty"=@UnlinkedQty,"source_type"=@SourceType,
+                    "source_uid"=@SourceUid,"source_no"=@SourceNo,"source_line_id"=@SourceLineId,
+                    "source_line_number"=@SourceLineNumber,"version"="version"+1,
+                    "updated_date"=@UpdatedDate,"updated_by"=@UpdatedBy
+                WHERE "uid"=@Uid AND "purchase_order_id"=@PurchaseOrderId
+                    AND "version"=@Version AND "is_deleted"=FALSE;
                 """, PostgreSqlParameters.Entity(line, LineMap), ct)) != 1)
                 return RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "采购行版本已变化，请重新预览。");
             line.Version++;
@@ -147,15 +147,11 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
     private static string CandidateOrder(string alias)
         => $"rtrim({alias}.\"SourceNo\",' ') COLLATE public.erp_dictionary_ci ASC NULLS FIRST,rtrim({alias}.\"SourceType\",' ') COLLATE public.erp_dictionary_ci ASC NULLS FIRST,{SqlGuidOrder(alias + ".\"SourceUid\"")} ASC,{alias}.\"SourceLineNumber\" ASC NULLS FIRST,{SqlGuidOrder(alias + ".\"NetDemandId\"")} ASC";
 
-    /// <summary>固定属性名映射到共享PostgreSQL列，定向更新不接受外部列名。</summary>
-    private static string C(EntityMetadata map, string property) => PostgreSqlNames.Quote(map.GetProperty(property).ColumnName);
 
-    /// <summary>引用既有实体映射表名，不增加提供者切换或通用SQL框架。</summary>
-    private static string Table(EntityMetadata map) => PostgreSqlNames.Quote(map.SchemaName) + "." + PostgreSqlNames.Quote(map.TableName);
 
     /// <summary>保留SQL Server uniqueidentifier的字节比较顺序，不使用PG默认UUID顺序。</summary>
     private static string SqlGuidOrder(string column) => "ARRAY[" + string.Join(',',
-        new[] { 10,11,12,13,14,15,8,9,7,6,5,4,3,2,1,0 }.Select(i => $"get_byte(uuid_send({column}),{i})")) + "]";
+        new[] { 10, 11, 12, 13, 14, 15, 8, 9, 7, 6, 5, 4, 3, 2, 1, 0 }.Select(i => $"get_byte(uuid_send({column}),{i})")) + "]";
 
     /// <summary>接收一次物化的总数和空页标记，供Dapper按NetDemandId分割映射原DTO。</summary>
     private sealed class CandidateSummary

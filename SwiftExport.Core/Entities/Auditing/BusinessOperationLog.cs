@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Auditing;
 
 /// <summary>面向业务人员的持久化操作日志；只追加，不提供更新或删除。</summary>
-[Table("BusinessOperationLog")]
+[Table("business_operation_log")]
 public sealed partial class BusinessOperationLog : BaseEntity
 {
     /// <summary>产生本条业务审计的调用关联标识，用于关联技术日志，不用于业务幂等。</summary>

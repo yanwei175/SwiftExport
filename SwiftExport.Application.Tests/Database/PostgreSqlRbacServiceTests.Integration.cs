@@ -486,7 +486,7 @@ public sealed class PostgreSqlRbacServiceIntegrationTests
         private async Task Insert<T>(T entity) where T : BaseEntity
         {
             var context = Context(First); context.AuditStamp.StampForInsert(entity);
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var metadata = EntityMetadataCache.GetMetadata(typeof(T));
             var columns = string.Join(",", metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
             var parameters = string.Join(",", metadata.Columns.Select(c => "@" + c.ParameterName));
             await First.Connection.ExecuteAsync(new CommandDefinition(

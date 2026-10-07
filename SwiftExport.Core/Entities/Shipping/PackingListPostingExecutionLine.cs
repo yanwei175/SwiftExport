@@ -5,15 +5,15 @@ using SwiftExport.Core.DatabaseSchema;
 namespace SwiftExport.Core.Entities.Shipping;
 
 /// <summary>箱单物理行的实际执行动作及计算快照，关联生成单据和流水，不作为采购剩余库存账。</summary>
-[Table("PackingListPostingExecutionLine")]
+[Table("packing_list_posting_execution_line")]
 [DbAppendOnly]
 [DbIndex("UX_PackingListPostingExecutionLine_Number", nameof(ExecutionId), nameof(LineNumber), IsUnique = true)]
 [DbIndex("IX_PackingListPostingExecutionLine_Source", nameof(GrossDemandId))]
 [DbIndex("IX_PackingListPostingExecutionLine_Line", nameof(PackingListLineId))]
 [DbIndex("IX_PackingListPostingExecutionLine_Ledger", nameof(LedgerId))]
-[DbCheck("CK_PackingListPostingExecutionLine_Quantity", "[Qty]>0 AND [LineNumber]>0")]
-[DbCheck("CK_PackingListPostingExecutionLine_Action", "[ActionKind] IN (N'Delivery',N'Receipt',N'Shipment',N'Consumption')")]
-[DbCheck("CK_PackingListPostingExecutionLine_Inventory", "([ActionKind]=N'Delivery' AND [WarehouseSiteId] IS NULL AND [DocumentId] IS NULL AND [DocumentLineId] IS NULL AND [LedgerId] IS NULL) OR ([ActionKind]<>N'Delivery' AND [ProductId] IS NOT NULL AND [WarehouseSiteId] IS NOT NULL AND [DocumentId] IS NOT NULL AND [DocumentLineId] IS NOT NULL AND [LedgerId] IS NOT NULL)")]
+[DbCheck("CK_PackingListPostingExecutionLine_Quantity", "\"qty\" > 0 AND \"line_number\" > 0")]
+[DbCheck("CK_PackingListPostingExecutionLine_Action", "\"action_kind\" IN ( 'Delivery' , 'Receipt' , 'Shipment' , 'Consumption' )")]
+[DbCheck("CK_PackingListPostingExecutionLine_Inventory", "( \"action_kind\" = 'Delivery' AND \"warehouse_site_id\" IS NULL AND \"document_id\" IS NULL AND \"document_line_id\" IS NULL AND \"ledger_id\" IS NULL ) OR ( \"action_kind\" <> 'Delivery' AND \"product_id\" IS NOT NULL AND \"warehouse_site_id\" IS NOT NULL AND \"document_id\" IS NOT NULL AND \"document_line_id\" IS NOT NULL AND \"ledger_id\" IS NOT NULL )")]
 [LogicalReference(nameof(ExecutionId), typeof(PackingListPostingExecution), IsRequired = true)]
 [LogicalReference(nameof(PackingListLineId), typeof(PackingListLine), IsRequired = true)]
 public sealed class PackingListPostingExecutionLine : BaseEntity

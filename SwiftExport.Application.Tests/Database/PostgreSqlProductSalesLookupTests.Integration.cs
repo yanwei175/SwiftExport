@@ -118,7 +118,7 @@ public sealed class PostgreSqlProductSalesLookupIntegrationTests
     private static async Task Insert(RepositoryBaseContext context, BaseEntity entity)
     {
         context.AuditStamp.StampForInsert(entity);
-        var map = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var map = EntityMetadataCache.GetMetadata(entity.GetType());
         var columns = string.Join(",", map.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
         var parameters = string.Join(",", map.Columns.Select(c => "@" + c.ParameterName));
         await context.Session.Connection.ExecuteAsync($"INSERT INTO public.{PostgreSqlNames.Quote(map.TableName)} ({columns}) VALUES ({parameters})",

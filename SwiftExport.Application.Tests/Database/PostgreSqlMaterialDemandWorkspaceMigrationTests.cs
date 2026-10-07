@@ -181,7 +181,7 @@ public sealed class PostgreSqlMaterialDemandWorkspaceMigrationTests
         using var f = new Fixture(false); f.Page(0, "[]"); await f.Repository.SearchManagerAsync(new());
         var sql = f.Connection.Commands.Single().Sql;
         var maps = new[] { typeof(GrossDemand), typeof(NetDemand), typeof(DemandExecutionLink), typeof(PurchaseOrderHead), typeof(PurchaseOrderLine), typeof(Customer), typeof(Product), typeof(Supplier) }
-            .Select(PostgreSqlEntityMetadata.GetMetadata).ToDictionary(m => m.TableName);
+            .Select(EntityMetadataCache.GetMetadata).ToDictionary(m => m.TableName);
         var aliases = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (Match match in Regex.Matches(sql, "(?:FROM|JOIN) \\\"public\\\"\\.\\\"(?<table>[a-z_]+)\\\" (?<alias>[a-zA-Z]+)")) aliases[match.Groups["alias"].Value] = maps[match.Groups["table"].Value].Columns.Select(c => c.ColumnName).ToHashSet();
         foreach (Match match in Regex.Matches(sql, "(?<alias>[a-zA-Z]+)\\.(?<column>[a-z_]+)")) if (aliases.TryGetValue(match.Groups["alias"].Value, out var columns)) Assert.IsTrue(columns.Contains(match.Groups["column"].Value), match.Value);

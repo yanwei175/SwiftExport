@@ -11,13 +11,94 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.ExcelReadProfiles;
 public sealed class PostgreSqlExcelReadProfileRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<ExcelReadProfile>(context), IExcelReadProfileRepository
 {
-    private static readonly EntityMetadata FieldMetadata = PostgreSqlEntityMetadata.GetMetadata(typeof(ExcelReadField));
-    private static readonly string ProfileColumns = string.Join(", ", Metadata.Columns.Select(c => $"{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
-    private static readonly string FieldColumns = string.Join(", ", FieldMetadata.Columns.Select(c => $"{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
-    private static readonly string ProfileInsertColumns = string.Join(", ", Metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
-    private static readonly string ProfileInsertParameters = string.Join(", ", Metadata.Columns.Select(c => $"@{c.ParameterName}"));
-    private static readonly string FieldInsertColumns = string.Join(", ", FieldMetadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
-    private static readonly string FieldInsertParameters = string.Join(", ", FieldMetadata.Columns.Select(c => $"@{c.ParameterName}"));
+    private static readonly EntityMetadata FieldMetadata = EntityMetadataCache.GetMetadata(typeof(ExcelReadField));
+    private const string ProfileColumns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "group_code" AS "GroupCode",
+        "config_name" AS "ConfigName",
+        "end_mode" AS "EndMode",
+        "last_row_column" AS "LastRowColumn",
+        "summary_cell_address" AS "SummaryCellAddress",
+        "remark" AS "Remark"
+    """;
+    private const string FieldColumns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "profile_uid" AS "ProfileUid",
+        "target_field_key" AS "TargetFieldKey",
+        "worksheet_name" AS "WorksheetName",
+        "cell_address" AS "CellAddress",
+        "is_downward" AS "IsDownward"
+    """;
+    private const string ProfileInsertColumns = """
+        "uid",
+        "version",
+        "is_deleted",
+        "created_date",
+        "created_by",
+        "updated_date",
+        "updated_by",
+        "group_code",
+        "config_name",
+        "end_mode",
+        "last_row_column",
+        "summary_cell_address",
+        "remark"
+    """;
+    private const string ProfileInsertParameters = """
+        @Uid,
+        @Version,
+        @IsDeleted,
+        @CreatedDate,
+        @CreatedBy,
+        @UpdatedDate,
+        @UpdatedBy,
+        @GroupCode,
+        @ConfigName,
+        @EndMode,
+        @LastRowColumn,
+        @SummaryCellAddress,
+        @Remark
+    """;
+    private const string FieldInsertColumns = """
+        "uid",
+        "version",
+        "is_deleted",
+        "created_date",
+        "created_by",
+        "updated_date",
+        "updated_by",
+        "profile_uid",
+        "target_field_key",
+        "worksheet_name",
+        "cell_address",
+        "is_downward"
+    """;
+    private const string FieldInsertParameters = """
+        @Uid,
+        @Version,
+        @IsDeleted,
+        @CreatedDate,
+        @CreatedBy,
+        @UpdatedDate,
+        @UpdatedBy,
+        @ProfileUid,
+        @TargetFieldKey,
+        @WorksheetName,
+        @CellAddress,
+        @IsDownward
+    """;
 
     /// <summary>读取分组内未删除配置并按名称、Uid 排序；名称比较沿用目标列规则，等价性由实库验收确认。</summary>
     public async Task<IReadOnlyList<ExcelReadProfile>> ListAsync(string groupCode, CancellationToken cancellationToken)

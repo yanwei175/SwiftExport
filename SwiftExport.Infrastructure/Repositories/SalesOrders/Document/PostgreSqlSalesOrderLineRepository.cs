@@ -15,8 +15,44 @@ public sealed class PostgreSqlSalesOrderLineRepository(RepositoryBaseContext con
     : PostgreSqlDapperRepository<SalesOrderLine>(context), ISalesOrderLineRepository
 {
     private static readonly string LineTable = PostgreSqlNames.Quote(Metadata.SchemaName) + "." + PostgreSqlNames.Quote(Metadata.TableName);
-    private static readonly string LineProjection = string.Join(',', Metadata.Columns.Select(column =>
-        PostgreSqlNames.Quote(column.ColumnName) + " AS " + PostgreSqlNames.Quote(column.PropertyName)));
+    private const string LineProjection = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "line_number" AS "LineNumber",
+        "sales_order_id" AS "SalesOrderId",
+        "order_no" AS "OrderNo",
+        "is_non_standard" AS "IsNonStandard",
+        "product_id" AS "ProductId",
+        "customer_product_id" AS "CustomerProductId",
+        "sku" AS "Sku",
+        "link_sku" AS "LinkSku",
+        "customer_sku" AS "CustomerSku",
+        "description_en" AS "DescriptionEn",
+        "color_name_en" AS "ColorNameEn",
+        "features_en" AS "FeaturesEn",
+        "cny_price" AS "CnyPrice",
+        "usd_price" AS "UsdPrice",
+        "qty" AS "Qty",
+        "unit_snapshot" AS "UnitSnapshot",
+        "cny_amount" AS "CnyAmount",
+        "usd_amount" AS "UsdAmount",
+        "pcs_of_carton" AS "PcsOfCarton",
+        "nw_of_carton" AS "NwOfCarton",
+        "gw_of_carton" AS "GwOfCarton",
+        "cbm_of_carton" AS "CbmOfCarton",
+        "ctns" AS "Ctns",
+        "nw_sub_total" AS "NwSubTotal",
+        "gw_sub_total" AS "GwSubTotal",
+        "cbm_sub_total" AS "CbmSubTotal",
+        "sub_note" AS "SubNote",
+        "expected_delivery_date" AS "ExpectedDeliveryDate",
+        "main_image" AS "MainImage"
+    """;
     private static readonly string UidOrder = "ARRAY[" + string.Join(',', new[] { 10, 11, 12, 13, 14, 15, 8, 9, 7, 6, 5, 4, 3, 2, 1, 0 }
         .Select(offset => $"get_byte(uuid_send(uid),{offset})")) + "]";
 

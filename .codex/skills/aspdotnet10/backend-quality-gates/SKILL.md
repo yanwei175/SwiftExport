@@ -29,7 +29,7 @@ description: SwiftExport 后端测试与验收门禁技能。用于选择和验�
 - Contracts/API：静态或反射契约测试。
 - Policy/Builder：纯单元测试覆盖边界和状态矩阵。
 - Application：使用可观察事务/仓储替身验证编排、权限、幂等和回滚。
-- Repository/Schema：SQL 契约测试；锁、唯一约束或数据库特性有风险时增加真实 SQL Server 验证。
+- Repository/Schema：SQL 契约测试；锁、唯一约束或数据库特性有风险时增加真实 PostgreSQL 验证。
 - Build：运行 `dotnet build .\SwiftExport-WebAPI.slnx`，但它只是最低门槛。
 
 ## 详细参考

@@ -14,8 +14,8 @@ public sealed class PackingListEntityContractTests
     [TestMethod]
     public void EntitiesKeepIdentityAndTargetMappings()
     {
-        Assert.AreEqual("PackingListHead", typeof(PackingListHead).GetCustomAttributes(typeof(TableAttribute), false).Cast<TableAttribute>().Single().Name);
-        Assert.AreEqual("PackingListLine", typeof(PackingListLine).GetCustomAttributes(typeof(TableAttribute), false).Cast<TableAttribute>().Single().Name);
+        Assert.AreEqual("packing_list_head", typeof(PackingListHead).GetCustomAttributes(typeof(TableAttribute), false).Cast<TableAttribute>().Single().Name);
+        Assert.AreEqual("packing_list_line", typeof(PackingListLine).GetCustomAttributes(typeof(TableAttribute), false).Cast<TableAttribute>().Single().Name);
         Assert.IsTrue(typeof(BaseEntity).IsAssignableFrom(typeof(PackingListHead)));
         Assert.IsTrue(typeof(BaseEntity).IsAssignableFrom(typeof(PackingListLine)));
         var id = Guid.NewGuid();

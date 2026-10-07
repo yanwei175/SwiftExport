@@ -227,7 +227,7 @@ public sealed class PostgreSqlAdminPasswordRecoveryMigrationIntegrationTests
         private bool _disposed;
         private bool _roleMutationAttempted;
         private bool _roleRestored;
-        private static readonly EntityMetadata RoleMetadata = PostgreSqlEntityMetadata.GetMetadata(typeof(SysRole));
+        private static readonly EntityMetadata RoleMetadata = EntityMetadataCache.GetMetadata(typeof(SysRole));
         private static readonly string RoleColumns = string.Join(",", RoleMetadata.Columns.Select(x =>
             PostgreSqlNames.Quote(x.ColumnName) + " AS " + PostgreSqlNames.Quote(x.PropertyName)));
 
@@ -310,7 +310,7 @@ public sealed class PostgreSqlAdminPasswordRecoveryMigrationIntegrationTests
         {
             entity.CreatedDate = entity.UpdatedDate = new DateTime(2026, 10, 5, 9, 0, 0);
             entity.CreatedBy = entity.UpdatedBy = Prefix;
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+            var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
             var columns = string.Join(",", metadata.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName)));
             var values = string.Join(",", metadata.Columns.Select(x => "@" + x.ParameterName));
             return Connection.ExecuteAsync($"INSERT INTO public.{PostgreSqlNames.Quote(metadata.TableName)} ({columns}) VALUES ({values})",
@@ -492,7 +492,7 @@ public sealed class PostgreSqlAdminPasswordRecoveryMigrationIntegrationTests
     /// <summary>仅给真实登录和JWT版本服务提供真实PG读取；不替代未同步的生产认证仓储或授予写权限。</summary>
     private sealed class CredentialReadPort(NpgsqlConnection connection) : IAuthRepository
     {
-        private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(SysUser));
+        private static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata(typeof(SysUser));
         private static readonly string Columns = string.Join(",", Metadata.Columns.Select(x =>
             PostgreSqlNames.Quote(x.ColumnName) + " AS " + PostgreSqlNames.Quote(x.PropertyName)));
 

@@ -1,10 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 using SwiftExport.Core.Common;
 
 namespace SwiftExport.Core.Entities.Auth;
 
 /// <summary>系统用户实体，保存登录身份、账号状态和用户资料。</summary>
-[Table("SysUser")]
+[Table("sys_user")]
 public partial class SysUser : BaseEntity
 {
     /// <summary>登录用户名（唯一）</summary>

@@ -18,17 +18,33 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Currencies;
 public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<SysDicCurrency>(context), ISysDicCurrencyRepository
 {
-    private static readonly string Table = Qualified(Metadata);
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(column =>
-        $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string Columns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "currency_code" AS "CurrencyCode",
+        "currency_name_en" AS "CurrencyNameEn",
+        "currency_name_zh" AS "CurrencyNameZh",
+        "currency_symbol" AS "CurrencySymbol",
+        "precision" AS "Precision",
+        "rate_to_base" AS "RateToBase",
+        "is_base" AS "IsBase",
+        "is_system" AS "IsSystem",
+        "is_enabled" AS "IsEnabled",
+        "remark" AS "Remark"
+    """;
     private const string Ci = "public.erp_dictionary_ci";
-    private static readonly string Active = $"({Column(nameof(SysDicCurrency.IsDeleted))}=FALSE OR {Column(nameof(SysDicCurrency.IsDeleted))} IS NULL)";
-    private static readonly string CodeOrder = $"rtrim({Column(nameof(SysDicCurrency.CurrencyCode))}, ' ') COLLATE {Ci} NULLS FIRST, {UuidOrder(Column(nameof(SysDicCurrency.Uid)))}";
+    private static readonly string Active = $"(\"is_deleted\"=FALSE OR \"is_deleted\" IS NULL)";
+    private static readonly string CodeOrder = $"rtrim(\"currency_code\", ' ') COLLATE {Ci} NULLS FIRST, {UuidOrder("\"uid\"")}";
 
     /// <summary>按切换规则取消所有本位币标识并将汇率重置为1:1；共享外层事务，不更新版本或审计字段。</summary>
     public async Task<bool> ResetAllBaseCurrencyAsync()
     {
-        await Connection.ExecuteAsync($"UPDATE {Table} SET {Column(nameof(SysDicCurrency.RateToBase))}=1, {Column(nameof(SysDicCurrency.IsBase))}=FALSE",
+        await Connection.ExecuteAsync($"UPDATE \"public\".\"sys_dic_currency\" SET \"rate_to_base\"=1, \"is_base\"=FALSE",
             transaction: Transaction);
         return true;
     }
@@ -42,9 +58,9 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
         if (ids.Length > 0)
         {
             parameters.AddIds("ExcludeIds", ids);
-            excluded = $" AND NOT ({Column(nameof(SysDicCurrency.Uid))}=ANY(@ExcludeIds))";
+            excluded = $" AND NOT (\"uid\"=ANY(@ExcludeIds))";
         }
-        var rows = await Connection.QueryAsync<Guid>($"SELECT {Column(nameof(SysDicCurrency.Uid))} FROM {Table} WHERE {Column(nameof(SysDicCurrency.IsBase))}=TRUE AND {Column(nameof(SysDicCurrency.IsDeleted))}=FALSE{excluded}",
+        var rows = await Connection.QueryAsync<Guid>($"SELECT \"uid\" FROM \"public\".\"sys_dic_currency\" WHERE \"is_base\"=TRUE AND \"is_deleted\"=FALSE{excluded}",
             parameters, Transaction);
         return rows.AsList();
     }
@@ -54,7 +70,7 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
     {
         var parameters = new PostgreSqlParameters();
         parameters.AddTexts("Codes", currencyCodes);
-        var rows = await Connection.QueryAsync<string>($"SELECT {Column(nameof(SysDicCurrency.CurrencyCode))} FROM {Table} WHERE {MatchesCodes(Column(nameof(SysDicCurrency.CurrencyCode)), "Codes")} AND {Column(nameof(SysDicCurrency.IsDeleted))}=FALSE",
+        var rows = await Connection.QueryAsync<string>($"SELECT \"currency_code\" FROM \"public\".\"sys_dic_currency\" WHERE {MatchesCodes("\"currency_code\"", "Codes")} AND \"is_deleted\"=FALSE",
             parameters, Transaction);
         return rows.AsList();
     }
@@ -73,18 +89,22 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
         {
             // 源入口使用裸 LIKE；不能调用会转义百分号、转换问号和空格的 SqlLikePattern.Build。
             parameters.Add("Keyword", $"%{request.Keyword.Trim()}%");
-            filters.Add("(" + string.Join(" OR ", new[] { nameof(SysDicCurrency.CurrencyCode), nameof(SysDicCurrency.CurrencyNameEn), nameof(SysDicCurrency.CurrencyNameZh), nameof(SysDicCurrency.CurrencySymbol) }
-                .Select(property => $"{Column(property)} COLLATE {Ci} LIKE @Keyword ESCAPE ''")) + ")");
+            filters.Add($"""
+                ("currency_code" COLLATE {Ci} LIKE @Keyword ESCAPE ''
+                 OR "currency_name_en" COLLATE {Ci} LIKE @Keyword ESCAPE ''
+                 OR "currency_name_zh" COLLATE {Ci} LIKE @Keyword ESCAPE ''
+                 OR "currency_symbol" COLLATE {Ci} LIKE @Keyword ESCAPE '')
+                """);
         }
         var codes = NormalizeCodes(request.BatchKeywords ?? []);
         if (codes.Length > 0)
         {
             parameters.AddTexts("BatchKeywords", codes);
-            filters.Add(MatchesCodes(Column(nameof(SysDicCurrency.CurrencyCode)), "BatchKeywords"));
+            filters.Add(MatchesCodes("\"currency_code\"", "BatchKeywords"));
         }
         var where = string.Join(" AND ", filters);
-        var total = await Connection.ExecuteScalarAsync<int>($"SELECT COUNT(1) FROM {Table} WHERE {where}", parameters, Transaction);
-        var rows = await Connection.QueryAsync<SysDicCurrencyDto>($"SELECT {Columns} FROM {Table} WHERE {where} ORDER BY {Column(nameof(SysDicCurrency.IsBase))} DESC NULLS LAST, {CodeOrder} LIMIT @PageSize OFFSET @Offset",
+        var total = await Connection.ExecuteScalarAsync<int>($"SELECT COUNT(1) FROM \"public\".\"sys_dic_currency\" WHERE {where}", parameters, Transaction);
+        var rows = await Connection.QueryAsync<SysDicCurrencyDto>($"SELECT {Columns} FROM \"public\".\"sys_dic_currency\" WHERE {where} ORDER BY \"is_base\" DESC NULLS LAST, {CodeOrder} LIMIT @PageSize OFFSET @Offset",
             parameters, Transaction);
         return new PagedResponseBase<SysDicCurrencyDto> { Items = rows.AsList(), TotalCount = total, PageIndex = pageIndex, PageSize = pageSize };
     }
@@ -93,7 +113,7 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
     public async Task<IReadOnlyList<SysDicCurrency>> GetAllForUpdateAsync()
     {
         var lockHint = GetLockHint(true);
-        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM {Table} WHERE {Active}{lockHint}", transaction: Transaction);
+        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM \"public\".\"sys_dic_currency\" WHERE {Active}{lockHint}", transaction: Transaction);
         return rows.AsList();
     }
 
@@ -105,21 +125,21 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
         var lockHint = GetLockHint(withUpdLock);
         var parameters = new PostgreSqlParameters();
         parameters.AddTexts("Codes", codes);
-        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM {Table} WHERE {MatchesCodes(Column(nameof(SysDicCurrency.CurrencyCode)), "Codes")} AND {Active}{lockHint}", parameters, Transaction);
+        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM \"public\".\"sys_dic_currency\" WHERE {MatchesCodes("\"currency_code\"", "Codes")} AND {Active}{lockHint}", parameters, Transaction);
         return rows.AsList();
     }
 
     /// <summary>按代码和 Uid 返回有效本位币；普通读取使用 PostgreSQL 当前事务快照。</summary>
     public async Task<IReadOnlyList<SysDicCurrency>> GetBaseCurrenciesAsync()
     {
-        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM {Table} WHERE {Column(nameof(SysDicCurrency.IsBase))}=TRUE AND {Active} ORDER BY {CodeOrder}", transaction: Transaction);
+        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM \"public\".\"sys_dic_currency\" WHERE \"is_base\"=TRUE AND {Active} ORDER BY {CodeOrder}", transaction: Transaction);
         return rows.AsList();
     }
 
     /// <summary>返回有效且启用的币种，本位币优先，随后按代码和 Uid 排序。</summary>
     public async Task<IReadOnlyList<SysDicCurrency>> GetEnabledCurrenciesAsync()
     {
-        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM {Table} WHERE {Column(nameof(SysDicCurrency.IsEnabled))}=TRUE AND {Active} ORDER BY {Column(nameof(SysDicCurrency.IsBase))} DESC NULLS LAST, {CodeOrder}", transaction: Transaction);
+        var rows = await Connection.QueryAsync<SysDicCurrency>($"SELECT {Columns} FROM \"public\".\"sys_dic_currency\" WHERE \"is_enabled\"=TRUE AND {Active} ORDER BY \"is_base\" DESC NULLS LAST, {CodeOrder}", transaction: Transaction);
         return rows.AsList();
     }
 
@@ -131,25 +151,42 @@ public sealed class PostgreSqlSysDicCurrencyRepository(RepositoryBaseContext con
         var lockHint = GetLockHint(true);
         var parameters = new PostgreSqlParameters();
         parameters.AddTexts("Codes", codes);
-        var types = new[] { typeof(Customer), typeof(Supplier), typeof(CustomerPoConfig), typeof(SalesOrderHeader), typeof(PurchaseOrderHead) };
-        var sources = types.Select((type, index) =>
-        {
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(type);
-            var currency = PostgreSqlNames.Quote(metadata.GetProperty("Currency").ColumnName);
-            var deleted = PostgreSqlNames.Quote(metadata.GetProperty("IsDeleted").ColumnName);
-            return $"reference_{index} AS MATERIALIZED (SELECT {currency} AS code FROM {Qualified(metadata)} WHERE {MatchesCodes(currency, "Codes")} AND ({deleted}=FALSE OR {deleted} IS NULL){lockHint})";
-        });
-        // 锁放在每个源表查询中，避免在 UNION / DISTINCT 上使用 PostgreSQL 不支持的 FOR UPDATE。
-        var union = string.Join(" UNION ALL ", Enumerable.Range(0, types.Length).Select(index => $"SELECT code FROM reference_{index}"));
-        var sql = $"WITH {string.Join(", ", sources)} SELECT DISTINCT ON (rtrim(code, ' ') COLLATE {Ci}) code FROM ({union}) referenced WHERE code IS NOT NULL";
+        // 行锁保留在每个来源表内；UNION / DISTINCT 只汇总已锁定的引用代码。
+        var sql = $"""
+            WITH
+            reference_0 AS MATERIALIZED (
+                SELECT "currency" AS code FROM "public"."customer"
+                WHERE {MatchesCodes("\"currency\"", "Codes")}
+                  AND ("is_deleted"=FALSE OR "is_deleted" IS NULL){lockHint}
+            ),
+            reference_1 AS MATERIALIZED (
+                SELECT "currency" AS code FROM "public"."supplier"
+                WHERE {MatchesCodes("\"currency\"", "Codes")}
+                  AND ("is_deleted"=FALSE OR "is_deleted" IS NULL){lockHint}
+            ),
+            reference_2 AS MATERIALIZED (
+                SELECT "currency" AS code FROM "public"."customer_po_config"
+                WHERE {MatchesCodes("\"currency\"", "Codes")}
+                  AND ("is_deleted"=FALSE OR "is_deleted" IS NULL){lockHint}
+            ),
+            reference_3 AS MATERIALIZED (
+                SELECT "currency" AS code FROM "public"."sales_order_header"
+                WHERE {MatchesCodes("\"currency\"", "Codes")}
+                  AND ("is_deleted"=FALSE OR "is_deleted" IS NULL){lockHint}
+            ),
+            reference_4 AS MATERIALIZED (
+                SELECT "currency" AS code FROM "public"."purchase_order_head"
+                WHERE {MatchesCodes("\"currency\"", "Codes")}
+                  AND ("is_deleted"=FALSE OR "is_deleted" IS NULL){lockHint}
+            )
+            SELECT DISTINCT ON (rtrim(code, ' ') COLLATE {Ci}) code
+            FROM (SELECT code FROM reference_0 UNION ALL SELECT code FROM reference_1
+                  UNION ALL SELECT code FROM reference_2 UNION ALL SELECT code FROM reference_3
+                  UNION ALL SELECT code FROM reference_4) referenced WHERE code IS NOT NULL
+            """;
         var rows = await Connection.QueryAsync<string>(sql, parameters, Transaction);
         return rows.AsList();
     }
-
-    /// <summary>限定元数据表名，避免依赖 search_path 或修改共享名称映射。</summary>
-    private static string Qualified(EntityMetadata metadata) => $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
-
-    private static string Column(string property) => PostgreSqlNames.Quote(Metadata.GetProperty(property).ColumnName);
 
     /// <summary>同代码行保留源 uniqueidentifier 的字节权重，不用 PostgreSQL 原生 UUID 顺序。</summary>
     private static string UuidOrder(string column) => "ARRAY[" + string.Join(',', new[] { 10, 11, 12, 13, 14, 15, 8, 9, 7, 6, 5, 4, 3, 2, 1, 0 }.Select(index => $"get_byte(uuid_send({column}),{index})")) + "]";

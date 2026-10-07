@@ -24,7 +24,7 @@ description: SwiftExport Infrastructure 依赖注入注册技能。用于 Depend
 
 - Infrastructure 对外暴露 `AddInfrastructureServices(IServiceCollection services)`。
 - `DbSession`、`RepositoryBaseContext` 使用 scoped。
-- 泛型仓储注册为 `IRepository<> -> DapperRepository<>`。
+- 泛型仓储注册为 `IRepository<> -> PostgreSqlDapperRepository<>`。
 - 业务仓储接口注册为 scoped。
 - `IAuditStampService -> AuditStampService` 注册在 Infrastructure。
 - `ICurrentUser` 具体实现由 WebApi 注册，Infrastructure 只依赖接口。

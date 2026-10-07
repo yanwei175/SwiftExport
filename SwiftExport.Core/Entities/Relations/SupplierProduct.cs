@@ -1,10 +1,10 @@
-﻿using SwiftExport.Core.Common;
+using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.Relations;
 
 /// <summary>供应商产品资料，保存供应商自有编码、描述与价格；公司产品关联可以留空。</summary>
-[Table("SupplierProduct")]
+[Table("supplier_product")]
 public partial class SupplierProduct : BaseEntity
 {
     /// <summary>关联的供应商主数据唯一标识。</summary>

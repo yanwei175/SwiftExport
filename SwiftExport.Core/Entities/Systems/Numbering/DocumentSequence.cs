@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.Systems.Numbering;
 /// 单据流水号实体。
 /// 对应表：DocumentSequence。
 /// </summary>
-[Table("DocumentSequence")]
+[Table("document_sequence")]
 public partial class DocumentSequence : BaseEntity
 {
     /// <summary>

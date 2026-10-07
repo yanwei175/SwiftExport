@@ -194,7 +194,7 @@ public sealed class PostgreSqlOutboundItemsQueryMigrationIntegrationTests
         public OutboundItemSearchRequest Request(WarehouseSite w)=>new(){WarehouseSiteId=w.Uid,PageSize=20};
         /// <summary>元数据原始INSERT保留UID，所有写入必须处于本例父事务，禁止无事务偷偷提交夹具。</summary>
         public async Task Insert<T>(T row)where T:BaseEntity
-        {Assert.IsNotNull(Session.Transaction);var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));var columns=string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)));var values=string.Join(',',map.Columns.Select(c=>"@"+c.ParameterName));Assert.AreEqual(1,await Session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(row,map),Session.Transaction)));}
+        {Assert.IsNotNull(Session.Transaction);var map=EntityMetadataCache.GetMetadata(typeof(T));var columns=string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)));var values=string.Join(',',map.Columns.Select(c=>"@"+c.ParameterName));Assert.AreEqual(1,await Session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(row,map),Session.Transaction)));}
         /// <summary>只有夹具结束本人父事务，仓储错误不接管事务生命周期。</summary>
         public void Rollback(){if(Session.Transaction is {} tx){try{tx.Rollback();}finally{Session.Transaction=null;tx.Dispose();}}}
         /// <summary>同连接SELECT1验证无活动reader或已回滚错误事务。</summary>

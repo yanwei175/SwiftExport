@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Text.RegularExpressions;
+using System.Reflection;
+using SwiftExport.Core.DatabaseSchema;
 using SwiftExport.Core.Entities.MasterData;
 using Dapper;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -57,12 +59,12 @@ public sealed class PostgreSqlFoundationTests
         Assert.AreEqual(DatabaseFailureKind.Unknown, classifier.Classify(new DBConcurrencyException()));
     }
 
-    /// <summary>物理数量列映射不污染旧QTY，查询别名可由真实Dapper还原属性。</summary>
+    /// <summary>实体与仓储共用 PG 数量映射，查询别名可由真实 Dapper 还原属性。</summary>
     [TestMethod]
-    public void Mapping_PreservesLegacyAndDapperAliases()
+    public void Mapping_UsesOnePgMappingAndDapperAliases()
     {
-        var pg = PostgreSqlEntityMetadata.GetMetadata(typeof(PurchaseOrderLine));
-        Assert.AreEqual("QTY", EntityMetadataCache.GetMetadata<PurchaseOrderLine>().GetProperty("Quantity").ColumnName);
+        var pg = EntityMetadataCache.GetMetadata(typeof(PurchaseOrderLine));
+        Assert.AreSame(pg, EntityMetadataCache.GetMetadata<PurchaseOrderLine>());
         Assert.AreEqual("quantity", pg.GetProperty("Quantity").ColumnName);
         Assert.AreEqual("Quantity", pg.GetProperty("Quantity").ParameterName);
         Assert.AreEqual("purchase_order_line", pg.TableName);
@@ -73,10 +75,10 @@ public sealed class PostgreSqlFoundationTests
         var parser = reader.GetRowParser<PurchaseOrderLine>();
         Assert.IsTrue(reader.Read());
         Assert.AreEqual(12.5m, parser(reader).Quantity);
-        var inherited = PostgreSqlEntityMetadata.GetMetadata(typeof(NameExample));
+        var inherited = EntityMetadataCache.GetMetadata(typeof(NameExample));
         Assert.AreEqual("uid", inherited.KeyName);
         Assert.AreEqual(8, inherited.Columns.Count);
-        Assert.AreEqual("im_path", inherited.GetProperty("IMPath").ColumnName);
+        Assert.AreEqual("stored_path", inherited.GetProperty("IMPath").ColumnName);
     }
 
     /// <summary>缩写和长名称稳定处理；转换后的重名必须阻断生成。</summary>
@@ -89,7 +91,7 @@ public sealed class PostgreSqlFoundationTests
         Assert.AreEqual(63, PostgreSqlNames.FromClr(name).Length);
         Assert.AreEqual(PostgreSqlNames.FromClr(name), PostgreSqlNames.FromClr(name));
         Assert.AreNotEqual(PostgreSqlNames.FromClr(name), PostgreSqlNames.FromClr(name + "b"));
-        Assert.Throws<InvalidOperationException>(() => PostgreSqlEntityMetadata.GetMetadata(typeof(CollisionExample)));
+        Assert.Throws<InvalidOperationException>(() => EntityMetadataCache.GetMetadata(typeof(CollisionExample)));
     }
 
     /// <summary>独立供应商资料允许空SKU，部分唯一索引只限制已关联的活动关系。</summary>
@@ -149,17 +151,26 @@ public sealed class PostgreSqlFoundationTests
         Assert.IsFalse(script.Contains("rtrim(\"master_sku\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_active\"", StringComparison.Ordinal));
     }
 
-    /// <summary>仅转换已知行内谓词，保持字面量完整；未知SQL不能静默穿透。</summary>
+    /// <summary>持久化声明直接使用 PG 表达式及布尔默认值，不再依赖源方言翻译。</summary>
     [TestMethod]
-    public void Expressions_KeepLiteralsAndRejectUnknownSql()
+    public void Expressions_UseNativePgDeclarations()
     {
-        var result = PostgreSqlSchemaExpressions.Convert(typeof(PurchaseOrderLine), "[QTY] > 0 AND [IsDeleted] = 0");
-        StringAssert.Contains(result, "\"quantity\" > 0");
-        StringAssert.Contains(result, "\"is_deleted\" = FALSE");
-        StringAssert.Contains(PostgreSqlSchemaExpressions.Convert(typeof(NameExample), "[stored_path] = N'LEN([QTY])'"), "'LEN([QTY])'");
-        Assert.Throws<InvalidOperationException>(() => PostgreSqlSchemaExpressions.Convert(typeof(NameExample), "EXISTS (SELECT 1)"));
-        Assert.Throws<InvalidOperationException>(() => PostgreSqlSchemaExpressions.Convert(typeof(NameExample), "[stored_path] IS NULL; DROP TABLE x"));
+        var checks = typeof(BaseEntity).Assembly.GetTypes()
+            .SelectMany(type => type.GetCustomAttributes<DbCheckAttribute>(true));
+        Assert.IsTrue(checks.All(check => !check.Expression.Contains('[')));
+        Assert.AreEqual("FALSE", typeof(BaseEntity).GetProperty(nameof(BaseEntity.IsDeleted))!
+            .GetCustomAttribute<DbColumnAttribute>()!.DefaultExpression);
+        StringAssert.Contains(Generate(), "\"quantity\" > 0");
+        StringAssert.Contains(Generate(), "\"is_deleted\" = FALSE");
     }
+
+    /// <summary>未知类型和附带 SQL 的类型声明必须拒绝，不能被当作原生类型直接生成。</summary>
+    [TestMethod]
+    [DataRow(nameof(InvalidTypeExample.LegacyType))]
+    [DataRow(nameof(InvalidTypeExample.InjectedType))]
+    public void Types_RejectUnsupportedDeclarations(string property)
+        => Assert.Throws<InvalidOperationException>(() => EntityColumnSchema.ResolveStoreType(
+            typeof(InvalidTypeExample).GetProperty(property)!));
 
     /// <summary>全实体结构确定性生成，包含原保护规则；JSON不能放宽为标量。</summary>
     [TestMethod]
@@ -196,5 +207,12 @@ public sealed class PostgreSqlFoundationTests
     {
         public string? SKU { get; set; }
         public string? Sku { get; set; }
+    }
+
+    /// <summary>类型声明负例只用于离线验证，不进入生产实体或生成结构。</summary>
+    private sealed class InvalidTypeExample
+    {
+        [Column(TypeName = "nvarchar(100)")] public string LegacyType { get; set; } = "";
+        [Column(TypeName = "text; DROP TABLE x")] public string InjectedType { get; set; } = "";
     }
 }

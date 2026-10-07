@@ -102,21 +102,15 @@ public sealed class ProcurementCapabilityAndErrorContractTests
         foreach (var field in new[] { ("BoNo", "BoNo", "bo_no"), ("CustomerPoNo", "CustomerPoNo", "customer_po_no"),
                      ("SoPerson", "SalesPerson", "so_person"), ("InletrHoseType", "InletHoseType", "inletr_hose_type") })
         {
-            StringAssert.Contains(source, "{H(nameof(PurchaseOrderHead." + field.Item1 + "))} AS \"" + field.Item2 + "\"");
-            Assert.AreEqual("h.\"" + field.Item3 + "\"", Column("H", field.Item1));
+            StringAssert.Contains(source, "h.\"" + field.Item3 + "\" AS \"" + field.Item2 + "\"");
         }
         foreach (var field in new[] { ("CustomerSku", "customer_sku"), ("LinkSku", "link_sku"), ("FinishZh", "finish_zh"),
                      ("FeaturesZh", "features_zh"), ("MaterialType", "material_type"), ("SupplyType", "supply_type"),
                      ("SourceUid", "source_uid"), ("SourceLineId", "source_line_id") })
         {
-            StringAssert.Contains(source, "{L(nameof(PurchaseOrderLine." + field.Item1 + "))} AS \"" + field.Item1 + "\"");
-            Assert.AreEqual("l.\"" + field.Item2 + "\"", Column("L", field.Item1));
+            StringAssert.Contains(source, "l.\"" + field.Item2 + "\" AS \"" + field.Item1 + "\"");
         }
     }
-
-    /// <summary>核对实际头行列生成方法的物理映射，不连接数据库。</summary>
-    private static string Column(string method, string property)
-        => (string)typeof(PostgreSqlProcurementOrderQueryRepository).GetMethod(method, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, [property])!;
 
     private static string Root()
     {

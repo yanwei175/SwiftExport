@@ -25,10 +25,70 @@ public partial class PostgreSqlProductRepository
         return (await Connection.QueryAsync<string>(sql, transaction: Transaction)).AsList();
     }
 
-    private static readonly string CatalogEntityColumns = string.Join(",", Metadata.Columns.Select(column =>
-        $"p.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
-    private static readonly string CatalogDtoColumns = CatalogProjection("p",
-        "Uid Version IsDeleted CreatedDate CreatedBy UpdatedDate UpdatedBy MasterSku Sku DescriptionEn DescriptionZh FeaturesEn FeaturesZh MaterialType Unit SupplyType BomVersion BomNo Note LinkSku MainImage CNYPrice USDPrice ColorId DefaultSupplierId DefaultWarehouseSiteId ManufacturerId ManufacturerModel");
+    private const string CatalogEntityColumns = """
+        p."uid" AS "Uid",
+        p."version" AS "Version",
+        p."is_deleted" AS "IsDeleted",
+        p."created_date" AS "CreatedDate",
+        p."created_by" AS "CreatedBy",
+        p."updated_date" AS "UpdatedDate",
+        p."updated_by" AS "UpdatedBy",
+        p."is_active" AS "IsActive",
+        p."product_master_id" AS "ProductMasterId",
+        p."master_sku" AS "MasterSku",
+        p."sku" AS "Sku",
+        p."description_en" AS "DescriptionEn",
+        p."description_zh" AS "DescriptionZh",
+        p."color_id" AS "ColorId",
+        p."features_en" AS "FeaturesEn",
+        p."features_zh" AS "FeaturesZh",
+        p."material_type" AS "MaterialType",
+        p."unit" AS "Unit",
+        p."supply_type" AS "SupplyType",
+        p."bom_version" AS "BomVersion",
+        p."bom_no" AS "BomNo",
+        p."note" AS "Note",
+        p."link_sku" AS "LinkSku",
+        p."main_image" AS "MainImage",
+        p."cny_price" AS "CNYPrice",
+        p."usd_price" AS "USDPrice",
+        p."unit_cbm" AS "UnitCBM",
+        p."unit_weight" AS "UnitWeight",
+        p."default_supplier_id" AS "DefaultSupplierId",
+        p."default_warehouse_site_id" AS "DefaultWarehouseSiteId",
+        p."manufacturer_id" AS "ManufacturerId",
+        p."manufacturer_model" AS "ManufacturerModel"
+    """;
+    private const string CatalogDtoColumns = """
+        p."uid" AS "Uid",
+        p."version" AS "Version",
+        p."is_deleted" AS "IsDeleted",
+        p."created_date" AS "CreatedDate",
+        p."created_by" AS "CreatedBy",
+        p."updated_date" AS "UpdatedDate",
+        p."updated_by" AS "UpdatedBy",
+        p."master_sku" AS "MasterSku",
+        p."sku" AS "Sku",
+        p."description_en" AS "DescriptionEn",
+        p."description_zh" AS "DescriptionZh",
+        p."features_en" AS "FeaturesEn",
+        p."features_zh" AS "FeaturesZh",
+        p."material_type" AS "MaterialType",
+        p."unit" AS "Unit",
+        p."supply_type" AS "SupplyType",
+        p."bom_version" AS "BomVersion",
+        p."bom_no" AS "BomNo",
+        p."note" AS "Note",
+        p."link_sku" AS "LinkSku",
+        p."main_image" AS "MainImage",
+        p."cny_price" AS "CNYPrice",
+        p."usd_price" AS "USDPrice",
+        p."color_id" AS "ColorId",
+        p."default_supplier_id" AS "DefaultSupplierId",
+        p."default_warehouse_site_id" AS "DefaultWarehouseSiteId",
+        p."manufacturer_id" AS "ManufacturerId",
+        p."manufacturer_model" AS "ManufacturerModel"
+    """;
     private const string CatalogClassificationColumns = """
         COALESCE(pm.category_id,@EmptyGuid) AS "CategoryId",
         CASE WHEN pm.uid IS NULL OR pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'
@@ -102,10 +162,6 @@ public partial class PostgreSqlProductRepository
         return [.. await Connection.QueryAsync<string>(
             $"SELECT p.sku AS \"Sku\" FROM public.product p WHERE {CatalogTextSet("p.sku", "SkuList")}", parameters, Transaction)];
     }
-
-    /// <summary>仅将仓储内部固定属性清单转换为引用列和 CLR 别名，不接受用户输入标识符。</summary>
-    private static string CatalogProjection(string alias, string properties) => string.Join(",", properties.Split(' ').Select(property =>
-        $"{alias}.{PostgreSqlNames.Quote(Metadata.GetProperty(property).ColumnName)} AS {PostgreSqlNames.Quote(property)}"));
 
     /// <summary>等值比较只修剪尾部 ASCII 空格；显式 ICU 不修剪前导空格或更改输入。</summary>
     private static string CatalogEqual(string column, string value) =>

@@ -17,15 +17,6 @@ namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Sourc
 /// <summary>在当前 PostgreSQL 会话完整读取待建立来源和采购候选；保留原资格、快照及父项实际供应商事实，不接管事务。</summary>
 public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseContext context) : IMaterialDemandSourceRepository
 {
-    private static readonly string Gross = Table(typeof(GrossDemand));
-    private static readonly string Net = Table(typeof(NetDemand));
-    private static readonly string Links = Table(typeof(DemandExecutionLink));
-    private static readonly string Heads = Table(typeof(PurchaseOrderHead));
-    private static readonly string Lines = Table(typeof(PurchaseOrderLine));
-    private static readonly string Customers = Table(typeof(Customer));
-    private static readonly string Products = Table(typeof(Product));
-    private static readonly string Suppliers = Table(typeof(Supplier));
-    private static readonly string SupplierProducts = Table(typeof(SupplierProduct));
 
     /// <summary>按来源类型与 Uid 聚合全部待建立行；历史或软删物料不阻挡重新建立，不按来源编号合并。</summary>
     public async Task<IReadOnlyList<SourceDemandCandidateGroupDto>> GetSourceDemandCandidateGroupsAsync(
@@ -35,9 +26,9 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
             SELECT MIN(d.source_type COLLATE public.erp_dictionary_ci) AS "SourceType",
                    d.source_uid AS "SourceUid", MAX(d.source_no COLLATE public.erp_dictionary_ci) AS "SourceNo",
                    COUNT(*)::integer AS "CandidateCount"
-            FROM {Gross} d
+            FROM "public"."gross_demand" d
             WHERE d.lifecycle_status = 0 AND d.is_deleted = FALSE
-              AND NOT EXISTS (SELECT 1 FROM {Net} nd
+              AND NOT EXISTS (SELECT 1 FROM "public"."net_demand" nd
                   WHERE nd.gross_demand_id = d.uid AND nd.lifecycle_status = 0 AND nd.is_deleted = FALSE)
             GROUP BY rtrim(d.source_type, ' ') COLLATE public.erp_dictionary_ci, d.source_uid
             ORDER BY MAX(d.source_no COLLATE public.erp_dictionary_ci),
@@ -60,11 +51,11 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
                    d.sku_snapshot AS "Sku", d.link_sku_snapshot AS "LinkSku", d.customer_sku_snapshot AS "CustomerSku",
                    d.description_snapshot AS "Description", d.image_path_snapshot AS "ImagePath",
                    d.demand_qty AS "DemandQty", d.required_date AS "RequiredDate"
-            FROM {Gross} d
+            FROM "public"."gross_demand" d
             WHERE rtrim(d.source_type, ' ') COLLATE public.erp_dictionary_ci
                     = rtrim(@SourceType, ' ') COLLATE public.erp_dictionary_ci AND d.source_uid = @SourceUid
               AND d.lifecycle_status = 0 AND d.is_deleted = FALSE
-              AND NOT EXISTS (SELECT 1 FROM {Net} nd
+              AND NOT EXISTS (SELECT 1 FROM "public"."net_demand" nd
                   WHERE nd.gross_demand_id = d.uid AND nd.lifecycle_status = 0 AND nd.is_deleted = FALSE)
             ORDER BY d.required_date NULLS LAST, d.source_line_number NULLS FIRST, d.uid;
             """, parameters, cancellationToken));
@@ -79,7 +70,7 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
             SELECT MIN(gd.source_type COLLATE public.erp_dictionary_ci) AS "SourceType",
                    gd.source_uid AS "SourceUid", MAX(gd.source_no COLLATE public.erp_dictionary_ci) AS "SourceNo",
                    COUNT(*)::integer AS "CandidateCount"
-            FROM {Net} nd JOIN {Gross} gd ON gd.uid = nd.gross_demand_id
+            FROM "public"."net_demand" nd JOIN "public"."gross_demand" gd ON gd.uid = nd.gross_demand_id
             {PurchaseFactsSql}
             WHERE {EligibilitySql}
             GROUP BY rtrim(gd.source_type, ' ') COLLATE public.erp_dictionary_ci, gd.source_uid
@@ -136,29 +127,29 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
                    nd.required_date AS "DemandRequiredDate", COALESCE(purchaseFacts.associated_qty, 0) AS "AssociatedPurchaseQty",
                    purchaseNumbers.order_nos AS "PurchaseOrderNos",
                    COALESCE(parentSuppliers.facts, '[]'::jsonb)::text AS "ParentActualPurchaseSuppliersJson"
-            FROM {Net} nd JOIN {Gross} gd ON gd.uid = nd.gross_demand_id
-            LEFT JOIN {Customers} customer ON customer.uid = gd.customer_id AND COALESCE(customer.is_deleted, FALSE) = FALSE
-            LEFT JOIN {Net} root ON root.uid = nd.root_net_demand_id
-            LEFT JOIN {Products} p ON p.uid = nd.product_id AND COALESCE(p.is_deleted, FALSE) = FALSE
-            LEFT JOIN {Suppliers} suggestedSupplier ON suggestedSupplier.uid = nd.suggested_purchase_supplier_id
+            FROM "public"."net_demand" nd JOIN "public"."gross_demand" gd ON gd.uid = nd.gross_demand_id
+            LEFT JOIN "public"."customer" customer ON customer.uid = gd.customer_id AND COALESCE(customer.is_deleted, FALSE) = FALSE
+            LEFT JOIN "public"."net_demand" root ON root.uid = nd.root_net_demand_id
+            LEFT JOIN "public"."product" p ON p.uid = nd.product_id AND COALESCE(p.is_deleted, FALSE) = FALSE
+            LEFT JOIN "public"."supplier" suggestedSupplier ON suggestedSupplier.uid = nd.suggested_purchase_supplier_id
                 AND COALESCE(suggestedSupplier.is_deleted, FALSE) = FALSE
-            LEFT JOIN {SupplierProducts} supplierProduct ON supplierProduct.supplier_id = nd.suggested_purchase_supplier_id
+            LEFT JOIN "public"."supplier_product" supplierProduct ON supplierProduct.supplier_id = nd.suggested_purchase_supplier_id
                 AND supplierProduct.sku_id = nd.product_id AND COALESCE(supplierProduct.is_deleted, FALSE) = FALSE
-            LEFT JOIN {Net} deliveryTarget ON deliveryTarget.uid = nd.delivery_target_net_demand_id
+            LEFT JOIN "public"."net_demand" deliveryTarget ON deliveryTarget.uid = nd.delivery_target_net_demand_id
                 AND deliveryTarget.uid = nd.parent_net_demand_id AND deliveryTarget.gross_demand_id = nd.gross_demand_id
                 AND deliveryTarget.root_net_demand_id = nd.root_net_demand_id
                 AND deliveryTarget.decomposition_revision = nd.decomposition_revision
                 AND deliveryTarget.lifecycle_status = 0 AND deliveryTarget.is_deleted = FALSE
-            LEFT JOIN {Suppliers} deliverySupplier ON deliverySupplier.uid = deliveryTarget.suggested_purchase_supplier_id
+            LEFT JOIN "public"."supplier" deliverySupplier ON deliverySupplier.uid = deliveryTarget.suggested_purchase_supplier_id
                 AND COALESCE(deliverySupplier.is_deleted, FALSE) = FALSE
             {PurchaseFactsSql}
             LEFT JOIN LATERAL (
                 SELECT string_agg(numbers.order_no, ',') AS order_nos FROM (
                     SELECT DISTINCT ON (rtrim(purchaseHead.order_no, ' ') COLLATE public.erp_dictionary_ci) purchaseHead.order_no
-                    FROM {Links} link
-                    JOIN {Heads} purchaseHead ON purchaseHead.uid = link.target_head_id
+                    FROM "public"."demand_execution_link" link
+                    JOIN "public"."purchase_order_head" purchaseHead ON purchaseHead.uid = link.target_head_id
                         AND purchaseHead.lifecycle_status = 0 AND COALESCE(purchaseHead.is_deleted, FALSE) = FALSE
-                    JOIN {Lines} purchaseLine ON purchaseLine.uid = link.target_line_id
+                    JOIN "public"."purchase_order_line" purchaseLine ON purchaseLine.uid = link.target_line_id
                         AND purchaseLine.purchase_order_id = purchaseHead.uid AND COALESCE(purchaseLine.is_deleted, FALSE) = FALSE
                     WHERE link.net_demand_id = nd.uid AND {TargetMatch("link")}
                         AND link.link_status = 0 AND COALESCE(link.is_deleted, FALSE) = FALSE
@@ -180,15 +171,15 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
                             rtrim(purchaseHead.supplier_name, ' ') COLLATE public.erp_dictionary_ci,
                             rtrim(purchaseHead.order_no, ' ') COLLATE public.erp_dictionary_ci)
                             purchaseHead.supplier_id, purchaseHead.supplier_code, purchaseHead.supplier_name, purchaseHead.order_no
-                        FROM {Links} parentLink
-                        JOIN {Heads} purchaseHead ON purchaseHead.uid = parentLink.target_head_id
+                        FROM "public"."demand_execution_link" parentLink
+                        JOIN "public"."purchase_order_head" purchaseHead ON purchaseHead.uid = parentLink.target_head_id
                             AND purchaseHead.lifecycle_status = 0 AND COALESCE(purchaseHead.is_deleted, FALSE) = FALSE
-                        JOIN {Lines} purchaseLine ON purchaseLine.uid = parentLink.target_line_id
+                        JOIN "public"."purchase_order_line" purchaseLine ON purchaseLine.uid = parentLink.target_line_id
                             AND purchaseLine.purchase_order_id = purchaseHead.uid AND COALESCE(purchaseLine.is_deleted, FALSE) = FALSE
                         WHERE parentLink.net_demand_id = deliveryTarget.uid AND {TargetMatch("parentLink")}
                             AND parentLink.link_status = 0 AND COALESCE(parentLink.is_deleted, FALSE) = FALSE
                     ) facts
-                    LEFT JOIN {Suppliers} activeSupplier ON activeSupplier.uid = facts.supplier_id
+                    LEFT JOIN "public"."supplier" activeSupplier ON activeSupplier.uid = facts.supplier_id
                         AND activeSupplier.is_active = TRUE AND COALESCE(activeSupplier.is_deleted, FALSE) = FALSE
                     GROUP BY facts.supplier_id
                 ) grouped
@@ -208,10 +199,10 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
     /// <summary>只计算原候选认可的有效目标采购贡献；不增加正剩余限制、客户或单位资格。</summary>
     private static string PurchaseFactsSql => $"""
         LEFT JOIN LATERAL (
-            SELECT SUM(link.allocated_qty - link.released_qty) AS associated_qty FROM {Links} link
-            JOIN {Heads} purchaseHead ON purchaseHead.uid = link.target_head_id
+            SELECT SUM(link.allocated_qty - link.released_qty) AS associated_qty FROM "public"."demand_execution_link" link
+            JOIN "public"."purchase_order_head" purchaseHead ON purchaseHead.uid = link.target_head_id
                 AND purchaseHead.lifecycle_status = 0 AND COALESCE(purchaseHead.is_deleted, FALSE) = FALSE
-            JOIN {Lines} purchaseLine ON purchaseLine.uid = link.target_line_id
+            JOIN "public"."purchase_order_line" purchaseLine ON purchaseLine.uid = link.target_line_id
                 AND purchaseLine.purchase_order_id = purchaseHead.uid AND COALESCE(purchaseLine.is_deleted, FALSE) = FALSE
             WHERE link.net_demand_id = nd.uid AND {TargetMatch("link")}
                 AND link.link_status = 0 AND COALESCE(link.is_deleted, FALSE) = FALSE
@@ -242,12 +233,6 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>
         new(sql, parameters, context.Session.Transaction, cancellationToken: cancellationToken);
 
-    /// <summary>复用实体 PG 元数据确定物理表名，不借用 SQL Server Table 特性或新增提供者框架。</summary>
-    private static string Table(Type entity)
-    {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity);
-        return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
-    }
 
     /// <summary>接收私有 JSON 列；解析后公共契约仅暴露结构化供应商事实。</summary>
     private sealed class PurchaseDraftCandidateQueryRow : PurchaseDraftCandidateDto

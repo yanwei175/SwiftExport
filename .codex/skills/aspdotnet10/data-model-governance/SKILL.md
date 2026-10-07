@@ -1,6 +1,6 @@
 ---
 name: aspdotnet10-data-model-governance
-description: SwiftExport ERP 数据模型架构治理技能。用于分析 Core Entity 字段归属与冗余、实体职责、逻辑外键与历史快照、Contracts Entity/Query/Command DTO 分类、联表 DTO 字段来源、SQL Server 表结构与约束，以及 Dapper Repository 和 Infrastructure 实现路线。适用于数据模型治理、实体设计分析、DTO 设计规划和数据库模型规划；只做设计时不得修改业务代码。
+description: SwiftExport ERP 数据模型架构治理技能。用于分析 Core Entity 字段归属与冗余、实体职责、逻辑外键与历史快照、Contracts Entity/Query/Command DTO 分类、联表 DTO 字段来源、PostgreSQL 表结构与约束，以及 Dapper Repository 和 Infrastructure 实现路线。适用于数据模型治理、实体设计分析、DTO 设计规划和数据库模型规划；只做设计时不得修改业务代码。
 ---
 
 # SwiftExport 数据模型治理

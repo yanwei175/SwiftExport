@@ -14,7 +14,6 @@ namespace SwiftExport.Infrastructure.Repositories.Inventory.Outbounds;
 /// <summary>补齐出库正库存选品；同一次物化候选供计数与分页，原五方法接口完整但运行接线另行验收。</summary>
 public sealed partial class PostgreSqlOutboundQueryRepository : IOutboundQueryRepository
 {
-    private static readonly EntityMetadata ItemWarehouseMap = PostgreSqlEntityMetadata.GetMetadata(typeof(WarehouseSite));
 
     /// <summary>固定一次候选观察并只传输当前页；空页仍返回总数，资格及数量由SQL决定，不创建事务或预占库存。</summary>
     public async Task<PagedResponseBase<OutboundItemCandidateDto>> SearchItemsAsync(OutboundItemSearchRequest request, CancellationToken token)
@@ -31,9 +30,16 @@ public sealed partial class PostgreSqlOutboundQueryRepository : IOutboundQueryRe
             // LEFT JOIN占位只能由HasItem判断；真实行缺必需字段暴露映射错误，不能默默补Empty或零余额。
             result.Items.Add(new()
             {
-                Uid = row.Uid!.Value, WarehouseSiteId = row.WarehouseSiteId!.Value, ProductId = row.ProductId!.Value,
-                Sku = row.Sku, LinkSku = row.LinkSku, Description = row.Description, ImagePath = row.ImagePath,
-                Unit = row.Unit, OnHandQty = row.OnHandQty!.Value, DefaultWarehouseName = row.DefaultWarehouseName
+                Uid = row.Uid!.Value,
+                WarehouseSiteId = row.WarehouseSiteId!.Value,
+                ProductId = row.ProductId!.Value,
+                Sku = row.Sku,
+                LinkSku = row.LinkSku,
+                Description = row.Description,
+                ImagePath = row.ImagePath,
+                Unit = row.Unit,
+                OnHandQty = row.OnHandQty!.Value,
+                DefaultWarehouseName = row.DefaultWarehouseName
             });
         }
         return result;
@@ -42,19 +48,19 @@ public sealed partial class PostgreSqlOutboundQueryRepository : IOutboundQueryRe
     /// <summary>单语句物化原十字段，默认仓仅排软删；单位ASCII过滤不改变投影，局部负LIMIT保持原非法FETCH技术失败。</summary>
     private static string ItemsSql() => $"""
         WITH candidates AS MATERIALIZED (
-            SELECT {C(BalanceMap,"b","Uid")} AS "Uid",{C(BalanceMap,"b","WarehouseSiteId")} AS "WarehouseSiteId",
-                {C(BalanceMap,"b","ProductId")} AS "ProductId",{P("Sku")} AS "Sku",{P("LinkSku")} AS "LinkSku",
+            SELECT b."uid" AS "Uid",b."warehouse_site_id" AS "WarehouseSiteId",
+                b."product_id" AS "ProductId",{P("Sku")} AS "Sku",{P("LinkSku")} AS "LinkSku",
                 {P("DescriptionZh")} AS "Description",{P("MainImage")} AS "ImagePath",{P("Unit")} AS "Unit",
-                {C(BalanceMap,"b","OnHandQty")} AS "OnHandQty",{C(ItemWarehouseMap,"dw","Name")} AS "DefaultWarehouseName"
-            FROM {Table(BalanceMap)} b JOIN {Table(ProductMap)} p ON {P("Uid")}={C(BalanceMap,"b","ProductId")}
-            JOIN {Table(ItemWarehouseMap)} w ON {C(ItemWarehouseMap,"w","Uid")}={C(BalanceMap,"b","WarehouseSiteId")}
-            LEFT JOIN {Table(ItemWarehouseMap)} dw ON {C(ItemWarehouseMap,"dw","Uid")}={P("DefaultWarehouseSiteId")}
-                AND {C(ItemWarehouseMap,"dw","IsDeleted")}=FALSE
-            WHERE {C(BalanceMap,"b","WarehouseSiteId")}=@WarehouseSiteId AND {C(BalanceMap,"b","IsDeleted")}=FALSE
-                AND {C(BalanceMap,"b","OnHandQty")}>0 AND {P("IsDeleted")}=FALSE AND {P("IsActive")}=TRUE
-                AND {C(ItemWarehouseMap,"w","IsDeleted")}=FALSE AND {C(ItemWarehouseMap,"w","IsActive")}=TRUE
+                b."on_hand_qty" AS "OnHandQty",dw."name" AS "DefaultWarehouseName"
+            FROM "public"."inventory_balance" b JOIN "public"."product" p ON {P("Uid")}=b."product_id"
+            JOIN "public"."warehouse_site" w ON w."uid"=b."warehouse_site_id"
+            LEFT JOIN "public"."warehouse_site" dw ON dw."uid"={P("DefaultWarehouseSiteId")}
+                AND dw."is_deleted"=FALSE
+            WHERE b."warehouse_site_id"=@WarehouseSiteId AND b."is_deleted"=FALSE
+                AND b."on_hand_qty">0 AND {P("IsDeleted")}=FALSE AND {P("IsActive")}=TRUE
+                AND w."is_deleted"=FALSE AND w."is_active"=TRUE
                 AND NULLIF(btrim({P("Unit")},' '),'') IS NOT NULL
-                AND {C(BalanceMap,"b","ProductId")}<>ALL(@ExcludedProductIds)
+                AND b."product_id"<>ALL(@ExcludedProductIds)
                 AND (@Keyword IS NULL OR {P("Sku")} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR {P("LinkSku")} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR {P("DescriptionZh")} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')

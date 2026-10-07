@@ -195,7 +195,7 @@ public sealed class PostgreSqlInboundHistoryMigrationIntegrationTests
         public async Task Add<T>(T entity) where T : BaseEntity
         {
             context.AuditStamp.StampForInsert(entity);
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var metadata = EntityMetadataCache.GetMetadata(typeof(T));
             var columns = string.Join(",", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
             var parameters = string.Join(",", metadata.Columns.Select(column => "@" + column.ParameterName));
             Assert.AreEqual(1, await session.Connection.ExecuteAsync(new CommandDefinition(

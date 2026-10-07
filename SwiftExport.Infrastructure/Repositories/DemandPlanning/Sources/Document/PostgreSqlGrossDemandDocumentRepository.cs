@@ -20,11 +20,148 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
     : IGrossDemandDocumentRepository, ISourceDemandTransactionPreparation,
       SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document.IMaterialDemandTransactionPreparation
 {
-    private static readonly EntityMetadata Map = PostgreSqlEntityMetadata.GetMetadata(typeof(GrossDemand));
+    /// <summary>本仓储固定持久化列及参数，保留原写入范围。</summary>
+    private const string InsertSourceDemandSql = """
+        INSERT INTO "public"."gross_demand" ("uid",
+        "version",
+        "is_deleted",
+        "created_date",
+        "created_by",
+        "updated_date",
+        "updated_by",
+        "lifecycle_status",
+        "source_type",
+        "source_uid",
+        "source_no",
+        "source_line_id",
+        "source_line_number",
+        "source_version",
+        "demand_basis_fingerprint",
+        "customer_id",
+        "product_id",
+        "is_non_standard",
+        "sku_snapshot",
+        "link_sku_snapshot",
+        "customer_sku_snapshot",
+        "description_snapshot",
+        "color_snapshot",
+        "specification_snapshot",
+        "image_path_snapshot",
+        "unit_snapshot",
+        "demand_qty",
+        "required_date",
+        "remark",
+        "lifecycle_changed_at",
+        "lifecycle_changed_by",
+        "lifecycle_changed_reason") VALUES (@Uid,
+        @Version,
+        FALSE,
+        @CreatedDate,
+        @CreatedBy,
+        @UpdatedDate,
+        @UpdatedBy,
+        @LifecycleStatus,
+        @SourceType,
+        @SourceUid,
+        @SourceNo,
+        @SourceLineId,
+        @SourceLineNumber,
+        @SourceVersion,
+        @DemandBasisFingerprint,
+        @CustomerId,
+        @ProductId,
+        @IsNonStandard,
+        @SkuSnapshot,
+        @LinkSkuSnapshot,
+        @CustomerSkuSnapshot,
+        @DescriptionSnapshot,
+        @ColorSnapshot,
+        @SpecificationSnapshot,
+        @ImagePathSnapshot,
+        @UnitSnapshot,
+        @DemandQty,
+        @RequiredDate,
+        @Remark,
+        @LifecycleChangedAt,
+        @LifecycleChangedBy,
+        @LifecycleChangedReason);
+    """;
+
+    /// <summary>本仓储固定持久化列及参数，保留原写入范围。</summary>
+    private const string ManualAssignments = """
+        "product_id"=@ProductId,
+        "is_non_standard"=@IsNonStandard,
+        "sku_snapshot"=@SkuSnapshot,
+        "link_sku_snapshot"=@LinkSkuSnapshot,
+        "customer_sku_snapshot"=@CustomerSkuSnapshot,
+        "description_snapshot"=@DescriptionSnapshot,
+        "color_snapshot"=@ColorSnapshot,
+        "specification_snapshot"=@SpecificationSnapshot,
+        "image_path_snapshot"=@ImagePathSnapshot,
+        "demand_basis_fingerprint"=@DemandBasisFingerprint,
+        "demand_qty"=@DemandQty,
+        "required_date"=@RequiredDate,
+        "remark"=@Remark
+    """;
+
+    /// <summary>本仓储固定持久化列及参数，保留原写入范围。</summary>
+    private const string SourceAssignments = """
+        "source_no"=@SourceNo,
+        "source_line_number"=@SourceLineNumber,
+        "source_version"=@SourceVersion,
+        "demand_basis_fingerprint"=@DemandBasisFingerprint,
+        "customer_id"=@CustomerId,
+        "product_id"=@ProductId,
+        "is_non_standard"=@IsNonStandard,
+        "sku_snapshot"=@SkuSnapshot,
+        "link_sku_snapshot"=@LinkSkuSnapshot,
+        "customer_sku_snapshot"=@CustomerSkuSnapshot,
+        "description_snapshot"=@DescriptionSnapshot,
+        "color_snapshot"=@ColorSnapshot,
+        "specification_snapshot"=@SpecificationSnapshot,
+        "image_path_snapshot"=@ImagePathSnapshot,
+        "unit_snapshot"=@UnitSnapshot,
+        "demand_qty"=@DemandQty,
+        "required_date"=@RequiredDate,
+        "remark"=@Remark
+    """;
+
+    private static readonly EntityMetadata Map = EntityMetadataCache.GetMetadata(typeof(GrossDemand));
     private static readonly string Table = PostgreSqlNames.Quote(Map.SchemaName) + "." + PostgreSqlNames.Quote(Map.TableName);
-    private static readonly string Projection = string.Join(',', Map.Columns.Select(c => "d." + PostgreSqlNames.Quote(c.ColumnName) + " AS " + PostgreSqlNames.Quote(c.PropertyName)));
-    private static readonly string[] SourceFields = ["SourceNo", "SourceLineNumber", "SourceVersion", "DemandBasisFingerprint", "CustomerId", "ProductId", "IsNonStandard", "SkuSnapshot", "LinkSkuSnapshot", "CustomerSkuSnapshot", "DescriptionSnapshot", "ColorSnapshot", "SpecificationSnapshot", "ImagePathSnapshot", "UnitSnapshot", "DemandQty", "RequiredDate", "Remark"];
-    private static readonly string[] ManualFields = ["ProductId", "IsNonStandard", "SkuSnapshot", "LinkSkuSnapshot", "CustomerSkuSnapshot", "DescriptionSnapshot", "ColorSnapshot", "SpecificationSnapshot", "ImagePathSnapshot", "DemandBasisFingerprint", "DemandQty", "RequiredDate", "Remark"];
+    private const string Projection = """
+        d."uid" AS "Uid",
+        d."version" AS "Version",
+        d."is_deleted" AS "IsDeleted",
+        d."created_date" AS "CreatedDate",
+        d."created_by" AS "CreatedBy",
+        d."updated_date" AS "UpdatedDate",
+        d."updated_by" AS "UpdatedBy",
+        d."lifecycle_status" AS "LifecycleStatus",
+        d."source_type" AS "SourceType",
+        d."source_uid" AS "SourceUid",
+        d."source_no" AS "SourceNo",
+        d."source_line_id" AS "SourceLineId",
+        d."source_line_number" AS "SourceLineNumber",
+        d."source_version" AS "SourceVersion",
+        d."demand_basis_fingerprint" AS "DemandBasisFingerprint",
+        d."customer_id" AS "CustomerId",
+        d."product_id" AS "ProductId",
+        d."is_non_standard" AS "IsNonStandard",
+        d."sku_snapshot" AS "SkuSnapshot",
+        d."link_sku_snapshot" AS "LinkSkuSnapshot",
+        d."customer_sku_snapshot" AS "CustomerSkuSnapshot",
+        d."description_snapshot" AS "DescriptionSnapshot",
+        d."color_snapshot" AS "ColorSnapshot",
+        d."specification_snapshot" AS "SpecificationSnapshot",
+        d."image_path_snapshot" AS "ImagePathSnapshot",
+        d."unit_snapshot" AS "UnitSnapshot",
+        d."demand_qty" AS "DemandQty",
+        d."required_date" AS "RequiredDate",
+        d."remark" AS "Remark",
+        d."lifecycle_changed_at" AS "LifecycleChangedAt",
+        d."lifecycle_changed_by" AS "LifecycleChangedBy",
+        d."lifecycle_changed_reason" AS "LifecycleChangedReason"
+    """;
 
     /// <summary>事务外发现全部来源身份，先S后U并在获取后复核；改绑/新增集合只重新准备，不重复业务写入。</summary>
     public async Task<IAsyncDisposable?> AcquireBeforeTransactionAsync(IReadOnlyCollection<Guid> sourceUids,
@@ -69,7 +206,7 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
     /// <summary>锁未删身份，不按生命周期过滤；缺失UID仍要求事务前U保护。</summary>
     public Task<GrossDemand?> GetByIdForUpdateAsync(Guid uid) => InScope([], [uid], () =>
         context.Session.Connection.QuerySingleOrDefaultAsync<GrossDemand>(Command(
-            $"SELECT {Projection} FROM {Table} d WHERE d.{C("Uid")}=@Uid AND d.{C("IsDeleted")}=FALSE FOR UPDATE;", Id(uid))));
+            $"SELECT {Projection} FROM {Table} d WHERE d.\"uid\"=@Uid AND d.\"is_deleted\"=FALSE FOR UPDATE;", Id(uid))));
 
     /// <summary>完整来源谓词与活动/未删条件不标准化入参；按源NULL方向与SqlGuid顺序返回。</summary>
     public Task<IReadOnlyList<GrossDemand>> GetActiveBySourceForUpdateAsync(string sourceType, Guid sourceUid) => InScope([sourceUid], [], async () =>
@@ -77,8 +214,8 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
         var p = Source(sourceType, sourceUid);
         var rows = await context.Session.Connection.QueryAsync<GrossDemand>(Command($"""
             SELECT {Projection} FROM {Table} d
-            WHERE {SourceWhere} AND d.{C("LifecycleStatus")}=0 AND d.{C("IsDeleted")}=FALSE
-            ORDER BY d.{C("SourceLineNumber")} ASC NULLS FIRST,{UuidOrder("d." + C("Uid"))} ASC NULLS FIRST FOR UPDATE;
+            WHERE {SourceWhere} AND d."lifecycle_status"=0 AND d."is_deleted"=FALSE
+            ORDER BY d."source_line_number" ASC NULLS FIRST,{UuidOrder("d." + "\"uid\"")} ASC NULLS FIRST FOR UPDATE;
             """, p));
         return (IReadOnlyList<GrossDemand>)rows.ToList();
     });
@@ -93,7 +230,7 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
             if (demand.Uid == Guid.Empty) demand.Uid = GuidSequentialGenerator.NewGuid();
             if (demand.Version <= 0) demand.Version = 1;
             var rows = await InScope([demand.SourceUid], [demand.Uid], () => context.Session.Connection.ExecuteAsync(Command(
-                $"INSERT INTO {Table} ({string.Join(',', Map.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)))}) VALUES ({string.Join(',', Map.Columns.Select(c => c.PropertyName == "IsDeleted" ? "FALSE" : "@" + c.ParameterName))});",
+                InsertSourceDemandSql,
                 PostgreSqlParameters.Entity(demand, Map))), allowNewIdentity: true);
             results.Add(rows == 1 ? RepositoryWriteResult.Ok(demand.Uid, null, demand.Version, "新增成功。")
                 : RepositoryWriteResult.Fail(demand.Uid, null, "INSERT_FAILED", "新增毛需求失败。"));
@@ -103,20 +240,20 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
 
     /// <summary>更新原来源事实列，不改变来源身份/生命周期，不预推进输入实体Version。</summary>
     public Task<RepositoryWriteResult> UpdateSourceDemandAsync(GrossDemand demand, int expectedVersion) =>
-        VersionWrite(demand, expectedVersion, SourceFields, "", "来源需求已更新。", "来源需求状态或版本已变化。");
+        VersionWrite(demand, expectedVersion, SourceAssignments, "", "来源需求已更新。", "来源需求状态或版本已变化。");
 
     /// <summary>手工更新不改UnitSnapshot或客户/来源身份，MD/活动/未删/版本谓词和原消息保留。</summary>
     public Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion) =>
-        VersionWrite(demand, expectedVersion, ManualFields, $" AND {Dictionary(C("SourceType"))}='MD'", "手工毛需求更新成功。", "手工毛需求状态或版本已变化，请刷新后重试。");
+        VersionWrite(demand, expectedVersion, ManualAssignments, $" AND {Dictionary("\"source_type\"")}='MD'", "手工毛需求更新成功。", "手工毛需求状态或版本已变化，请刷新后重试。");
 
     /// <summary>仅指定版本活动手工需求关闭，生命周期和更新审计同一次墙上时间，不改实体状态。</summary>
     public Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason) => InScope([], [uid], async () =>
     {
         var p = Id(uid); p.Add("ExpectedVersion", expectedVersion); Stamp(p, reason); p.Add("Lifecycle", (int)GrossDemandLifecycleStatusEnum.Closed);
         var version = await context.Session.Connection.QuerySingleOrDefaultAsync<int?>(Command($"""
-            UPDATE {Table} SET {LifecycleSet},{C("Version")}={C("Version")}+1
-            WHERE {C("Uid")}=@Uid AND {C("Version")}=@ExpectedVersion AND {Dictionary(C("SourceType"))}='MD'
-              AND {C("LifecycleStatus")}=0 AND {C("IsDeleted")}=FALSE RETURNING {C("Version")};
+            UPDATE {Table} SET {LifecycleSet},"version"="version"+1
+            WHERE "uid"=@Uid AND "version"=@ExpectedVersion AND {Dictionary("\"source_type\"")}='MD'
+              AND "lifecycle_status"=0 AND "is_deleted"=FALSE RETURNING "version";
             """, p));
         return version.HasValue ? RepositoryWriteResult.Ok(uid, expectedVersion, version, "手工毛需求已关闭。")
             : RepositoryWriteResult.Fail(uid, expectedVersion, "CONCURRENCY_CONFLICT", "手工毛需求状态或版本已变化，请刷新后重试。");
@@ -127,33 +264,38 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
     {
         var ids = grossDemandIds.Distinct().ToArray(); if (ids.Length == 0) return Task.FromResult(0);
         return InScope([], ids, () => context.Session.Connection.ExecuteAsync(Command(
-            $"DELETE FROM {Table} WHERE {C("Uid")}=ANY(@Uids) AND {C("LifecycleStatus")}=0 AND {C("IsDeleted")}=FALSE;", PostgreSqlParameters.Ids(ids))));
+            $"DELETE FROM {Table} WHERE \"uid\"=ANY(@Uids) AND \"lifecycle_status\"=0 AND \"is_deleted\"=FALSE;", PostgreSqlParameters.Ids(ids))));
     }
 
     /// <summary>作废上层判定安全回退的活动未删集合，数量/Version/审计保持源规则，不新增历史过滤。</summary>
     public Task<int> VoidRolledBackForSourceCancellationAsync(IEnumerable<Guid> grossDemandIds, string reason)
     {
         var ids = grossDemandIds.Distinct().ToArray(); if (ids.Length == 0) return Task.FromResult(0);
-        return InScope([], ids, () => { var p = PostgreSqlParameters.Ids(ids); Stamp(p, reason); p.Add("Lifecycle", (int)GrossDemandLifecycleStatusEnum.Voided);
-            return context.Session.Connection.ExecuteAsync(Command($"UPDATE {Table} SET {LifecycleSet},{C("Version")}={C("Version")}+1 WHERE {C("Uid")}=ANY(@Uids) AND {C("LifecycleStatus")}=0 AND {C("IsDeleted")}=FALSE;", p)); });
+        return InScope([], ids, () =>
+        {
+            var p = PostgreSqlParameters.Ids(ids); Stamp(p, reason); p.Add("Lifecycle", (int)GrossDemandLifecycleStatusEnum.Voided);
+            return context.Session.Connection.ExecuteAsync(Command($"UPDATE {Table} SET {LifecycleSet},\"version\"=\"version\"+1 WHERE \"uid\"=ANY(@Uids) AND \"lifecycle_status\"=0 AND \"is_deleted\"=FALSE;", p));
+        });
     }
 
     /// <summary>按完整来源活动集合作废，不新增来源行提交范围/版本/历史检查。</summary>
     public Task<int> VoidPendingBySourceAsync(string sourceType, Guid sourceUid, string reason) => InScope([sourceUid], [], () =>
-    { var p = Source(sourceType, sourceUid); Stamp(p, reason); p.Add("Lifecycle", (int)GrossDemandLifecycleStatusEnum.Voided);
-        return context.Session.Connection.ExecuteAsync(Command($"UPDATE {Table} d SET {LifecycleSet},{C("Version")}=d.{C("Version")}+1 WHERE {SourceWhere} AND d.{C("LifecycleStatus")}=0 AND d.{C("IsDeleted")}=FALSE;", p)); });
+    {
+        var p = Source(sourceType, sourceUid); Stamp(p, reason); p.Add("Lifecycle", (int)GrossDemandLifecycleStatusEnum.Voided);
+        return context.Session.Connection.ExecuteAsync(Command($"UPDATE {Table} d SET {LifecycleSet},\"version\"=d.\"version\"+1 WHERE {SourceWhere} AND d.\"lifecycle_status\"=0 AND d.\"is_deleted\"=FALSE;", p));
+    });
 
     /// <summary>共同版本写入只修改原字段清单和更新审计；输出新版本，不回填输入对象。</summary>
-    private Task<RepositoryWriteResult> VersionWrite(GrossDemand demand, int expectedVersion, string[] fields,
+    private Task<RepositoryWriteResult> VersionWrite(GrossDemand demand, int expectedVersion, string assignments,
         string additionalWhere, string success, string conflict) => InScope([], [demand.Uid], async () =>
     {
         var p = PostgreSqlParameters.Entity(demand, Map); p.Add("ExpectedVersion", expectedVersion);
         p.AddTimestamp("Now", DateTime.Now); p.Add("UserName", context.CurrentUser.UserName);
         var version = await context.Session.Connection.QuerySingleOrDefaultAsync<int?>(Command($"""
-            UPDATE {Table} SET {string.Join(',', fields.Select(f => C(f) + "=@" + f))},
-                {C("UpdatedDate")}=@Now,{C("UpdatedBy")}=@UserName,{C("Version")}={C("Version")}+1
-            WHERE {C("Uid")}=@Uid AND {C("Version")}=@ExpectedVersion AND {C("LifecycleStatus")}=0
-              AND {C("IsDeleted")}=FALSE{additionalWhere} RETURNING {C("Version")};
+            UPDATE {Table} SET {assignments},
+                "updated_date"=@Now,"updated_by"=@UserName,"version"="version"+1
+            WHERE "uid"=@Uid AND "version"=@ExpectedVersion AND "lifecycle_status"=0
+              AND "is_deleted"=FALSE{additionalWhere} RETURNING "version";
             """, p));
         return version.HasValue ? RepositoryWriteResult.Ok(demand.Uid, expectedVersion, version, success)
             : RepositoryWriteResult.Fail(demand.Uid, expectedVersion, "CONCURRENCY_CONFLICT", conflict);
@@ -189,7 +331,7 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
     {
         if (ids.Length == 0) return [];
         var rows = await context.Session.Connection.QueryAsync<Binding>(new CommandDefinition(
-            $"SELECT {C("Uid")} AS \"Uid\",{C("SourceUid")} AS \"SourceUid\" FROM {Table} WHERE {C(bySource ? "SourceUid" : "Uid")}=ANY(@Uids);",
+            $"SELECT \"uid\" AS \"Uid\",\"source_uid\" AS \"SourceUid\" FROM {Table} WHERE {C(bySource ? "SourceUid" : "Uid")}=ANY(@Uids);",
             PostgreSqlParameters.Ids(ids), context.Session.Transaction, cancellationToken: token));
         return rows.ToList();
     }
@@ -202,8 +344,8 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
     private static string C(string property) => PostgreSqlNames.Quote(Map.Columns.Single(c => c.PropertyName == property).ColumnName);
     /// <summary>沿当前字典和源尾ASCII规则；B10/B19广域等值及来源唯一索引仍需主控完成。</summary>
     private static string Dictionary(string column) => $"rtrim({column},' ') COLLATE public.erp_dictionary_ci";
-    private static string SourceWhere => $"{Dictionary("d." + C("SourceType"))}=rtrim(@SourceType,' ') COLLATE public.erp_dictionary_ci AND d.{C("SourceUid")}=@SourceUid";
-    private static string LifecycleSet => $"{C("LifecycleStatus")}=@Lifecycle,{C("LifecycleChangedAt")}=@Now,{C("LifecycleChangedBy")}=@UserName,{C("LifecycleChangedReason")}=@Reason,{C("UpdatedDate")}=@Now,{C("UpdatedBy")}=@UserName";
+    private static string SourceWhere => $"{Dictionary("d." + "\"source_type\"")}=rtrim(@SourceType,' ') COLLATE public.erp_dictionary_ci AND d.\"source_uid\"=@SourceUid";
+    private static string LifecycleSet => $"\"lifecycle_status\"=@Lifecycle,\"lifecycle_changed_at\"=@Now,\"lifecycle_changed_by\"=@UserName,\"lifecycle_changed_reason\"=@Reason,\"updated_date\"=@Now,\"updated_by\"=@UserName";
     /// <summary>只借当前连接与事务；九方法原无token，取消能力由事务前准备透传。</summary>
     private CommandDefinition Command(string sql, object parameters) => new(sql, parameters, context.Session.Transaction);
     /// <summary>单身份参数沿既有类型映射。</summary>

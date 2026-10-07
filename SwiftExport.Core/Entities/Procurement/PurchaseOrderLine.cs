@@ -8,7 +8,7 @@ namespace SwiftExport.Core.Entities.Procurement;
 /// 已备好、已入库和已发货数量分别来自跟单、入库和出库事实，不在本实体缓存。
 /// 对应物理表 dbo.PurchaseOrderLine。
 /// </summary>
-[Table("PurchaseOrderLine")]
+[Table("purchase_order_line")]
 public sealed partial class PurchaseOrderLine : BaseEntity
 {
     /// <summary>不由需求贡献承担的数量；历史未知保持空值，独立采购等于采购数量。</summary>
@@ -50,7 +50,7 @@ public sealed partial class PurchaseOrderLine : BaseEntity
     public string? UnitSnapshot { get; set; }
 
     /// <summary>采购数量；物理列继续使用历史名称 QTY。</summary>
-    [Column("QTY")]
+    [Column("quantity")]
     public decimal Quantity { get; set; }
 
     /// <summary>未税单价；采购资料未完成时允许为空，明确零价有效。</summary>

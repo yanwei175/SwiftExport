@@ -2,7 +2,7 @@ using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Procurement;
 /// <summary>按完整路径保存确认 BOM 节点和客供件消耗目标，保留原始比例供审计与后续执行。</summary>
-[Table("PurchaseConfirmationNode")]
+[Table("purchase_confirmation_node")]
 public sealed partial class PurchaseConfirmationNode : BaseEntity
 {
     /// <summary>所属采购确认行依据标识。</summary>

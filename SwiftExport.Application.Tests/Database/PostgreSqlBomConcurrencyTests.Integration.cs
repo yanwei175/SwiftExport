@@ -250,7 +250,7 @@ public sealed class PostgreSqlBomConcurrencyIntegrationTests
         private async Task InsertAsync(BaseEntity entity)
         {
             Context(Observer).AuditStamp.StampForInsert(entity);
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+            var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
             var columns = string.Join(",", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
             var parameters = string.Join(",", metadata.Columns.Select(column => "@" + column.ParameterName));
             Assert.AreEqual(1, await Observer.Connection.ExecuteAsync(

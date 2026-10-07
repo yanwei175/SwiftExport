@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Shipping;
 
 /// <summary>装箱单头，保存客户文档快照及独立的过账事实，出货地点只属于单据文本。</summary>
-[Table("PackingListHead")]
+[Table("packing_list_head")]
 public sealed partial class PackingListHead : BaseEntity
 {
     /// <summary>装箱单业务编号。</summary>
@@ -24,7 +24,7 @@ public sealed partial class PackingListHead : BaseEntity
     /// <summary>集装箱号。</summary>
     public string? ContainerNo { get; set; }
     /// <summary>整单出货地点文本快照，不决定库存仓库。</summary>
-    [DbColumn(StoreType = "nvarchar(200)")]
+    [DbColumn(StoreType = "varchar(200)")]
     public string? ShippingLocationSnapshot { get; set; }
 
     /// <summary>封条号。</summary>

@@ -143,9 +143,9 @@ public sealed class PostgreSqlNetDemandExecutionLinkMigrationTests
         Assert.IsFalse(whereItems.Contains("target_type", StringComparison.Ordinal));
         foreach (var sql in new[] { active, blockers, items })
         { StringAssert.Contains(sql, "FOR UPDATE OF l"); Assert.IsFalse(sql.Contains("JOIN", StringComparison.Ordinal)); }
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(DemandExecutionLink));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(DemandExecutionLink));
         foreach (var column in metadata.Columns)
-        { StringAssert.Contains(items, "AS " + PostgreSqlNames.Quote(column.PropertyName)); StringAssert.Contains(Sql("InsertSql"), "@" + column.ParameterName); }
+        { StringAssert.Contains(items, "AS " + PostgreSqlNames.Quote(column.PropertyName)); StringAssert.Contains((string)typeof(PostgreSqlNetDemandExecutionLinkRepository).GetField("ExecutionLinkInsertSql", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!, "@" + column.ParameterName); }
     }
 
     /// <summary>未打开的真实Npgsql命令验证全列、可空text/日期及枚举参数，不执行SQL。</summary>
@@ -157,7 +157,7 @@ public sealed class PostgreSqlNetDemandExecutionLinkMigrationTests
         link.PlannedDeliveryDate = DateTime.SpecifyKind(new DateTime(2026, 10, 6), DateTimeKind.Utc);
         var parameters = (SqlMapper.IDynamicParameters)Activator.CreateInstance(type, link)!;
         using var command = new NpgsqlCommand(); parameters.AddParameters(command, null!);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(DemandExecutionLink));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(DemandExecutionLink));
         Assert.AreEqual(metadata.Columns.Count, command.Parameters.Count);
         foreach (var column in metadata.Columns)
         {

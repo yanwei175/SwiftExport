@@ -183,7 +183,7 @@ public sealed class PostgreSqlMaterialDemandSourceMigrationTests
         await f.Repository.GetPurchaseCandidatesAsync(new());
         foreach (var entity in new[] { typeof(GrossDemand), typeof(NetDemand), typeof(DemandExecutionLink), typeof(PurchaseOrderHead), typeof(PurchaseOrderLine), typeof(Customer), typeof(Product), typeof(Supplier), typeof(SupplierProduct) })
         {
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(entity);
+            var metadata = EntityMetadataCache.GetMetadata(entity);
             StringAssert.Contains(f.Connection.Commands.Single().Sql, $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}");
         }
     }
@@ -198,7 +198,7 @@ public sealed class PostgreSqlMaterialDemandSourceMigrationTests
         await InvokeAsync(f, method, default);
         var sql = f.Connection.Commands.Single().Sql;
         var mappings = new[] { typeof(GrossDemand), typeof(NetDemand), typeof(DemandExecutionLink), typeof(PurchaseOrderHead), typeof(PurchaseOrderLine), typeof(Customer), typeof(Product), typeof(Supplier), typeof(SupplierProduct) }
-            .Select(PostgreSqlEntityMetadata.GetMetadata).ToDictionary(m => m.TableName);
+            .Select(EntityMetadataCache.GetMetadata).ToDictionary(m => m.TableName);
         var aliases = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(sql, "(?:FROM|JOIN) \\\"public\\\"\\.\\\"(?<table>[a-z_]+)\\\" (?<alias>[a-zA-Z]+)"))
             aliases[match.Groups["alias"].Value] = mappings[match.Groups["table"].Value].Columns.Select(c => c.ColumnName).ToHashSet();

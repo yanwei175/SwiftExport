@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.QualityControl;
 
 /// <summary>保存实际补件明细事实，不持有下游进度。</summary>
-[Table("AfterSalesLine")]
+[Table("after_sales_line")]
 public sealed partial class AfterSalesLine : BaseEntity
 {
     /// <summary>所属售后单。</summary>

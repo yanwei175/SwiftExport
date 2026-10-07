@@ -14,11 +14,11 @@ namespace SwiftExport.Infrastructure.Repositories.Auth.Permissions;
 /// <summary>翻译扁平 RBAC 的十九项持久化操作；借用调用方 Serializable 事务，保留聚合版本、审计和锁顺序。</summary>
 public sealed class PostgreSqlRbacManagementRepository(RepositoryBaseContext context) : IRbacManagementRepository
 {
-    private static readonly string Users = Table<SysUser>();
-    private static readonly string Roles = Table<SysRole>();
-    private static readonly string UserRoles = Table<SysUserRole>();
-    private static readonly string Permissions = Table<SysPermission>();
-    private static readonly string RolePermissions = Table<SysRolePermission>();
+    private static readonly string Users = "\"public\".\"sys_user\"";
+    private static readonly string Roles = "\"public\".\"sys_role\"";
+    private static readonly string UserRoles = "\"public\".\"sys_user_role\"";
+    private static readonly string Permissions = "\"public\".\"sys_permission\"";
+    private static readonly string RolePermissions = "\"public\".\"sys_role_permission\"";
     private const string Ci = "public.erp_dictionary_ci";
     private const string RoleColumns = """
         r.uid AS "Uid", r.version AS "Version", r.role_code AS "RoleCode",
@@ -51,8 +51,13 @@ public sealed class PostgreSqlRbacManagementRepository(RepositoryBaseContext con
             SELECT {UserColumns} FROM {Users} u WHERE {filter}
             ORDER BY rtrim(u.user_name, ' ') COLLATE {Ci}, u.uid LIMIT @PageSize OFFSET @Offset;
             """, parameters, cancellationToken));
-        return new() { Items = rows.AsList(), TotalCount = total,
-            PageIndex = request.PageIndex, PageSize = request.PageSize };
+        return new()
+        {
+            Items = rows.AsList(),
+            TotalCount = total,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize
+        };
     }
 
     /// <summary>读取用户资料及管理员投影，不暴露密码或取得更新锁。</summary>
@@ -83,8 +88,13 @@ public sealed class PostgreSqlRbacManagementRepository(RepositoryBaseContext con
             SELECT {RoleColumns} FROM {Roles} r WHERE {filter}
             ORDER BY rtrim(r.role_code, ' ') COLLATE {Ci}, r.uid LIMIT @PageSize OFFSET @Offset;
             """, parameters, cancellationToken));
-        return new() { Items = rows.AsList(), TotalCount = total,
-            PageIndex = request.PageIndex, PageSize = request.PageSize };
+        return new()
+        {
+            Items = rows.AsList(),
+            TotalCount = total,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize
+        };
     }
 
     /// <summary>读取未删除角色资料，不锁定普通查询。</summary>
@@ -298,7 +308,7 @@ public sealed class PostgreSqlRbacManagementRepository(RepositoryBaseContext con
     private async Task InsertAsync<T>(T entity, CancellationToken token) where T : BaseEntity
     {
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(T));
         var columns = string.Join(", ", metadata.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
         var values = string.Join(", ", metadata.Columns.Select(c => "@" + c.ParameterName));
         await context.Session.Connection.ExecuteAsync(Command(
@@ -400,8 +410,15 @@ public sealed class PostgreSqlRbacManagementRepository(RepositoryBaseContext con
             index = close;
             segment = close + 1;
         }
-        return new { Keyword = keyword, request.IsActive, Offset = (request.PageIndex - 1) * request.PageSize,
-            request.PageSize, LikeGroups = JsonSerializer.Serialize(groups), LikeTail = pattern[segment..] };
+        return new
+        {
+            Keyword = keyword,
+            request.IsActive,
+            Offset = (request.PageIndex - 1) * request.PageSize,
+            request.PageSize,
+            LikeGroups = JsonSerializer.Serialize(groups),
+            LikeTail = pattern[segment..]
+        };
     }
 
     /// <summary>可分配性来自代码目录，未知键和管理员保留键不因数据库字段而获准分配。</summary>
@@ -419,7 +436,7 @@ public sealed class PostgreSqlRbacManagementRepository(RepositoryBaseContext con
     /// <summary>使用冻结的独立 PG 元数据定位物理表。</summary>
     private static string Table<T>()
     {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(T));
         return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
     }
 

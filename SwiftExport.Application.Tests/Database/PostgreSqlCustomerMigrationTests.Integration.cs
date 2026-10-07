@@ -199,7 +199,7 @@ public sealed class PostgreSqlCustomerMigrationIntegrationTests
     private static async Task Insert(RepositoryBaseContext context, Customer customer)
     {
         context.AuditStamp.StampForInsert(customer);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(Customer));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(Customer));
         var columns = string.Join(", ", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
         var values = string.Join(", ", metadata.Columns.Select(column => "@" + column.ParameterName));
         Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(new CommandDefinition(

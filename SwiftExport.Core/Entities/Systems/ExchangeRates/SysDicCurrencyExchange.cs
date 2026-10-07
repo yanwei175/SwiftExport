@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Systems.ExchangeRates;
 
 /// <summary>币种汇率实体，用于维护两个币种之间的换算规则。</summary>
-[Table("SysDicCurrencyExchange")]
+[Table("sys_dic_currency_exchange")]
 public partial class SysDicCurrencyExchange : BaseEntity
 {
 

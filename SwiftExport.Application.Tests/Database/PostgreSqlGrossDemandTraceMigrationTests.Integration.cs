@@ -320,7 +320,7 @@ public sealed partial class PostgreSqlGrossDemandTraceMigrationTests
         /// <summary>通过实体元数据绑定所有属性，审计打戳不重置UID/IsDeleted；不绕过CHECK或唯一约束。</summary>
         public async Task Insert<T>(T entity) where T : BaseEntity
         {
-            Context.AuditStamp.StampForInsert(entity); var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            Context.AuditStamp.StampForInsert(entity); var metadata = EntityMetadataCache.GetMetadata(typeof(T));
             var columns = string.Join(",", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
             var parameters = string.Join(",", metadata.Columns.Select(column => "@" + column.ParameterName));
             Assert.AreEqual(1, await Session.Connection.ExecuteAsync(new CommandDefinition(

@@ -13,17 +13,9 @@ using System.Text.Json;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Query;
 
-/// <summary>提供 PostgreSQL 物料工作台、来源导航和分阶段 Trace；借用调用者会话，不注册运行接线。</summary>
+/// <summary>提供 PostgreSQL 物料工作台、来源导航和分阶段 Trace；借用调用者会话，事务由应用用例持有。</summary>
 public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBaseContext context) : IMaterialDemandQueryRepository
 {
-    private static readonly string Gross = Table(typeof(GrossDemand));
-    private static readonly string Net = Table(typeof(NetDemand));
-    private static readonly string Links = Table(typeof(DemandExecutionLink));
-    private static readonly string Heads = Table(typeof(PurchaseOrderHead));
-    private static readonly string Lines = Table(typeof(PurchaseOrderLine));
-    private static readonly string Customers = Table(typeof(Customer));
-    private static readonly string Products = Table(typeof(Product));
-    private static readonly string Suppliers = Table(typeof(Supplier));
 
     /// <summary>以单 SQL 物化工作集并统一快捷过滤、计数与页面；空页仍返回总量，来源模式完整取数，事务与取消沿用调用方。</summary>
     public async Task<PagedResponseBase<MaterialDemandManagerItemDto>> SearchManagerAsync(
@@ -120,31 +112,31 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                     NULL::text AS "SuggestedSupplierSku",
                     NULL::numeric AS "SuggestedUnitPrice",
                     NULL::numeric AS "SuggestedTaxPrice"
-                FROM {Net} nd
-                INNER JOIN {Gross} gd ON gd.uid=nd.gross_demand_id
-                LEFT JOIN {Customers} customer ON customer.uid=gd.customer_id AND COALESCE(customer.is_deleted,FALSE)=FALSE
-                LEFT JOIN {Net} root ON root.uid=nd.root_net_demand_id
-                LEFT JOIN {Products} p ON p.uid=nd.product_id AND COALESCE(p.is_deleted,FALSE)=FALSE
-                LEFT JOIN {Suppliers} suggestedSupplier
+                FROM "public"."net_demand" nd
+                INNER JOIN "public"."gross_demand" gd ON gd.uid=nd.gross_demand_id
+                LEFT JOIN "public"."customer" customer ON customer.uid=gd.customer_id AND COALESCE(customer.is_deleted,FALSE)=FALSE
+                LEFT JOIN "public"."net_demand" root ON root.uid=nd.root_net_demand_id
+                LEFT JOIN "public"."product" p ON p.uid=nd.product_id AND COALESCE(p.is_deleted,FALSE)=FALSE
+                LEFT JOIN "public"."supplier" suggestedSupplier
                   ON suggestedSupplier.uid=nd.suggested_purchase_supplier_id AND COALESCE(suggestedSupplier.is_deleted,FALSE)=FALSE
-                LEFT JOIN {Net} deliveryTarget
+                LEFT JOIN "public"."net_demand" deliveryTarget
                   ON deliveryTarget.uid=nd.delivery_target_net_demand_id
                  AND deliveryTarget.uid=nd.parent_net_demand_id
                  AND deliveryTarget.gross_demand_id=nd.gross_demand_id
                  AND deliveryTarget.root_net_demand_id=nd.root_net_demand_id
                  AND deliveryTarget.decomposition_revision=nd.decomposition_revision
                  AND deliveryTarget.lifecycle_status=0 AND deliveryTarget.is_deleted=FALSE
-                LEFT JOIN {Suppliers} deliverySupplier
+                LEFT JOIN "public"."supplier" deliverySupplier
                   ON deliverySupplier.uid=deliveryTarget.suggested_purchase_supplier_id AND COALESCE(deliverySupplier.is_deleted,FALSE)=FALSE
                 LEFT JOIN LATERAL (SELECT NULLIF(btrim(nd.unit_snapshot, ' '),'') AS unit) unitFacts ON TRUE
                 -- 保留源工作台：先汇总关联量，再独立判断目标可信度，避免把失效目标漏成未承接。
                 LEFT JOIN LATERAL (
                     SELECT SUM(link.allocated_qty-link.released_qty) AS associated_purchase_qty
-                    FROM {Links} link
-                    LEFT JOIN {Heads} purchaseHead
+                    FROM "public"."demand_execution_link" link
+                    LEFT JOIN "public"."purchase_order_head" purchaseHead
                       ON purchaseHead.uid=link.target_head_id
                      AND purchaseHead.lifecycle_status=0 AND COALESCE(purchaseHead.is_deleted,FALSE)=FALSE
-                    LEFT JOIN {Lines} purchaseLine
+                    LEFT JOIN "public"."purchase_order_line" purchaseLine
                       ON purchaseLine.uid=link.target_line_id
                      AND purchaseLine.purchase_order_id=purchaseHead.uid AND COALESCE(purchaseLine.is_deleted,FALSE)=FALSE
                     WHERE link.net_demand_id=nd.uid
@@ -153,10 +145,10 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                 ) purchaseFacts ON TRUE
                 LEFT JOIN LATERAL (
                     SELECT COUNT(*) AS invalid_count
-                    FROM {Links} suspectLink
-                    LEFT JOIN {Heads} suspectHead ON suspectHead.uid=suspectLink.target_head_id
+                    FROM "public"."demand_execution_link" suspectLink
+                    LEFT JOIN "public"."purchase_order_head" suspectHead ON suspectHead.uid=suspectLink.target_head_id
                         AND suspectHead.lifecycle_status=0 AND suspectHead.is_deleted=FALSE
-                    LEFT JOIN {Lines} suspectLine ON suspectLine.uid=suspectLink.target_line_id
+                    LEFT JOIN "public"."purchase_order_line" suspectLine ON suspectLine.uid=suspectLink.target_line_id
                         AND suspectLine.purchase_order_id=suspectLink.target_head_id AND suspectLine.is_deleted=FALSE
                     WHERE suspectLink.net_demand_id=nd.uid AND rtrim(suspectLink.target_type, ' ') COLLATE public.erp_dictionary_ci='PO' COLLATE public.erp_dictionary_ci
                       AND suspectLink.link_status=0 AND suspectLink.is_deleted=FALSE
@@ -172,14 +164,14 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                     FROM
                     (
                         SELECT DISTINCT ON (rtrim(purchaseHead.order_no, ' ') COLLATE public.erp_dictionary_ci, rtrim(supplier.supplier_name, ' ') COLLATE public.erp_dictionary_ci) purchaseHead.order_no,supplier.supplier_name
-                        FROM {Links} link
-                        INNER JOIN {Heads} purchaseHead
+                        FROM "public"."demand_execution_link" link
+                        INNER JOIN "public"."purchase_order_head" purchaseHead
                           ON purchaseHead.uid=link.target_head_id
                          AND purchaseHead.lifecycle_status=0 AND COALESCE(purchaseHead.is_deleted,FALSE)=FALSE
-                        INNER JOIN {Lines} purchaseLine
+                        INNER JOIN "public"."purchase_order_line" purchaseLine
                           ON purchaseLine.uid=link.target_line_id
                          AND purchaseLine.purchase_order_id=purchaseHead.uid AND COALESCE(purchaseLine.is_deleted,FALSE)=FALSE
-                        LEFT JOIN {Suppliers} supplier ON supplier.uid=purchaseHead.supplier_id
+                        LEFT JOIN "public"."supplier" supplier ON supplier.uid=purchaseHead.supplier_id
                         WHERE link.net_demand_id=nd.uid
                           AND rtrim(link.target_type, ' ') COLLATE public.erp_dictionary_ci=rtrim(@PurchaseTargetType, ' ') COLLATE public.erp_dictionary_ci AND link.link_status=0 AND link.is_deleted=FALSE
                           AND link.allocated_qty>link.released_qty
@@ -216,8 +208,13 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
             """;
         var result = await context.Session.Connection.QuerySingleAsync<WorkspaceQueryRow>(Command(sql, parameters, cancellationToken));
         var items = JsonSerializer.Deserialize<List<MaterialDemandManagerItemDto>>(result.ItemsJson) ?? [];
-        return new() { Items = items, TotalCount = result.TotalCount, PageIndex = paged ? pageIndex : 1,
-            PageSize = paged ? pageSize : Math.Max(1, result.TotalCount) };
+        return new()
+        {
+            Items = items,
+            TotalCount = result.TotalCount,
+            PageIndex = paged ? pageIndex : 1,
+            PageSize = paged ? pageSize : Math.Max(1, result.TotalCount)
+        };
     }
 
     /// <summary>只按来源 Uid 分组，以 MAX 类型/编号导航；默认有效来源，历史物料模式保留关闭来源但仍排除删除来源。</summary>
@@ -231,7 +228,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
         var rows = await context.Session.Connection.QueryAsync<NetDemandSourceGroupDto>(Command($"""
             SELECT gd.source_uid AS "SourceUid", MAX(gd.source_type COLLATE public.erp_dictionary_ci) AS "SourceType",
                    MAX(gd.source_no COLLATE public.erp_dictionary_ci) AS "SourceNo", COUNT(*)::integer AS "DemandCount"
-            FROM {Net} nd JOIN {Gross} gd ON gd.uid = nd.gross_demand_id
+            FROM "public"."net_demand" nd JOIN "public"."gross_demand" gd ON gd.uid = nd.gross_demand_id
             WHERE {string.Join(" AND ", where)}
             GROUP BY gd.source_uid
             ORDER BY MAX(gd.source_type COLLATE public.erp_dictionary_ci), MAX(gd.source_no COLLATE public.erp_dictionary_ci), gd.source_uid;
@@ -245,7 +242,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
         var where = LifecycleWhere(request.LifecycleStatus, parameters);
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            where.Add($"({Like("gd.source_no", "Keyword")} OR {Like("nd.sku_snapshot", "Keyword")} OR {Like("nd.customer_sku_snapshot", "Keyword")} OR {Like("nd.description_snapshot", "Keyword")} OR {Like("p.link_sku", "Keyword")})");
+            where.Add($"(gd.source_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.customer_sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.description_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR p.link_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')");
             parameters.Add("Keyword", LiteralPattern(request.Keyword));
         }
         AddIds(request.NetDemandIds, "nd.uid", "NetDemandIds", where, parameters);
@@ -260,7 +257,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
         { where.Add("nd.suggested_purchase_supplier_id=@SuggestedPurchaseSupplierId"); parameters.Add("SuggestedPurchaseSupplierId", request.SuggestedPurchaseSupplierId.Value); }
         if (!string.IsNullOrWhiteSpace(request.SuggestedPurchaseSupplierKeyword))
         {
-            where.Add($"({Like("suggestedSupplier.supplier_code", "SuggestedSupplierKeyword")} OR {Like("suggestedSupplier.supplier_name", "SuggestedSupplierKeyword")})");
+            where.Add($"(suggestedSupplier.supplier_code COLLATE public.erp_dictionary_ci LIKE @SuggestedSupplierKeyword ESCAPE '~' OR suggestedSupplier.supplier_name COLLATE public.erp_dictionary_ci LIKE @SuggestedSupplierKeyword ESCAPE '~')");
             parameters.Add("SuggestedSupplierKeyword", LiteralPattern(request.SuggestedPurchaseSupplierKeyword));
         }
         if (request.ActualPurchaseSupplierId.HasValue || !string.IsNullOrWhiteSpace(request.ActualPurchaseSupplierKeyword) || !string.IsNullOrWhiteSpace(request.PurchaseOrderNo))
@@ -271,12 +268,14 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
             { actual.Add("filteredHead.supplier_id=@ActualPurchaseSupplierId"); parameters.Add("ActualPurchaseSupplierId", request.ActualPurchaseSupplierId.Value); }
             if (!string.IsNullOrWhiteSpace(request.ActualPurchaseSupplierKeyword))
             {
-                actual.Add($"({Like("filteredSupplier.supplier_code", "ActualSupplierKeyword")} OR {Like("filteredSupplier.supplier_name", "ActualSupplierKeyword")})");
+                actual.Add($"(filteredSupplier.supplier_code COLLATE public.erp_dictionary_ci LIKE @ActualSupplierKeyword ESCAPE '~' OR filteredSupplier.supplier_name COLLATE public.erp_dictionary_ci LIKE @ActualSupplierKeyword ESCAPE '~')");
                 parameters.Add("ActualSupplierKeyword", LiteralPattern(request.ActualPurchaseSupplierKeyword));
             }
             if (!string.IsNullOrWhiteSpace(request.PurchaseOrderNo))
             { actual.Add($"{Text("filteredHead.order_no")}={Text("@PurchaseOrderNo")}"); parameters.Add("PurchaseOrderNo", request.PurchaseOrderNo.Trim()); }
-            where.Add($"EXISTS (SELECT 1 FROM {Links} filteredLink JOIN {Heads} filteredHead ON filteredHead.uid=filteredLink.target_head_id LEFT JOIN {Suppliers} filteredSupplier ON filteredSupplier.uid=filteredHead.supplier_id WHERE {string.Join(" AND ", actual)})");
+            where.Add($"""
+                EXISTS (SELECT 1 FROM "public"."demand_execution_link" filteredLink JOIN "public"."purchase_order_head" filteredHead ON filteredHead.uid=filteredLink.target_head_id LEFT JOIN "public"."supplier" filteredSupplier ON filteredSupplier.uid=filteredHead.supplier_id WHERE {string.Join(" AND ", actual)})
+            """);
         }
         if (request.DemandRequiredDateFrom.HasValue)
         { where.Add("nd.required_date>=@DemandRequiredDateFrom"); parameters.AddTimestamp("DemandRequiredDateFrom", request.DemandRequiredDateFrom.Value); }
@@ -325,12 +324,6 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
     /// <summary>每条读取借用当前会话与外层事务，允许空事务并传递取消。</summary>
     private CommandDefinition Command(string sql, object parameters, CancellationToken cancellationToken) => new(sql, parameters, context.Session.Transaction, cancellationToken: cancellationToken);
 
-    /// <summary>使用现有实体 PG 名称映射，不根据 SQL Server Table 名称推断物理表。</summary>
-    private static string Table(Type entity)
-    {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity);
-        return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
-    }
 
     // 工作集列固定为现有 DTO 投影；三个推荐商品关系字段原查询未读取，明确 null 而不增加新连接。
     private const string WorkspaceColumns = """

@@ -54,7 +54,7 @@ internal sealed class PostgreSqlParameters : SqlMapper.IDynamicParameters
             }
             if (type == typeof(DateTime))
             {
-                var utc = PostgreSqlSchemaGenerator.ResolveType(column.Property).Contains("with time zone", StringComparison.Ordinal);
+                var utc = EntityColumnSchema.ResolveStoreType(column.Property).Contains("with time zone", StringComparison.Ordinal);
                 if (value is DateTime date)
                 {
                     if (utc && date.Kind != DateTimeKind.Utc)

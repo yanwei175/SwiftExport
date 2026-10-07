@@ -49,11 +49,11 @@ public sealed class CustomerPoConfigDefaultsContractTests
         StringAssert.Contains(repository, "CAST(@SupplierId AS uuid) IS NOT NULL AND uid=CAST(@SupplierId AS uuid)");
         StringAssert.Contains(repository, "entity.CustomerCode = result.CustomerCode");
         var currencyRepository = Read("SwiftExport.Infrastructure", "Repositories", "Systems", "Currencies", "PostgreSqlSysDicCurrencyRepository.cs");
-        StringAssert.Contains(currencyRepository, "typeof(CustomerPoConfig)");
-        StringAssert.Contains(currencyRepository, "PostgreSqlEntityMetadata.GetMetadata(type)");
-        StringAssert.Contains(currencyRepository, "metadata.GetProperty(\"Currency\").ColumnName");
-        StringAssert.Contains(currencyRepository, "AS code FROM {Qualified(metadata)}");
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(CustomerPoConfig));
+        StringAssert.Contains(currencyRepository, "SELECT \"currency\" AS code FROM \"public\".\"customer_po_config\"");
+        StringAssert.Contains(currencyRepository, "reference_2 AS MATERIALIZED");
+        StringAssert.Contains(currencyRepository, "SELECT code FROM reference_2");
+        StringAssert.Contains(currencyRepository, "AND (\"is_deleted\"=FALSE OR \"is_deleted\" IS NULL){lockHint}");
+        var metadata = EntityMetadataCache.GetMetadata(typeof(CustomerPoConfig));
         Assert.AreEqual("public", metadata.SchemaName);
         Assert.AreEqual("customer_po_config", metadata.TableName);
         Assert.AreEqual("currency", metadata.GetProperty("Currency").ColumnName);

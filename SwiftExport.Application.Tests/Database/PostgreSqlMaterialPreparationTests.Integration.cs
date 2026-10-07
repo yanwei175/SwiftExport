@@ -253,7 +253,7 @@ public sealed class PostgreSqlMaterialPreparationIntegrationTests
         public async Task Insert<T>(T row) where T : BaseEntity
         {
             if (!identities.TryGetValue(typeof(T), out var ids)) identities[typeof(T)] = ids = [];
-            Assert.AreNotEqual(Guid.Empty, row.Uid); ids.Add(row.Uid); var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            Assert.AreNotEqual(Guid.Empty, row.Uid); ids.Add(row.Uid); var map = EntityMetadataCache.GetMetadata(typeof(T));
             var table = PostgreSqlNames.Quote(map.SchemaName) + "." + PostgreSqlNames.Quote(map.TableName);
             Assert.AreEqual(1, await Session.Connection.ExecuteAsync(new CommandDefinition(
                 $"INSERT INTO {table} ({string.Join(',', map.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)))}) VALUES ({string.Join(',', map.Columns.Select(c => "@" + c.ParameterName))})",
@@ -273,7 +273,7 @@ public sealed class PostgreSqlMaterialPreparationIntegrationTests
                 using var cleanup = new DbSession(new PostgreSqlConnectionFactory(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()));
                 foreach (var type in new[] { typeof(DemandExecutionLink), typeof(NetDemand), typeof(GrossDemand) })
                 {
-                    if (!identities.TryGetValue(type, out var ids)) continue; var map = PostgreSqlEntityMetadata.GetMetadata(type);
+                    if (!identities.TryGetValue(type, out var ids)) continue; var map = EntityMetadataCache.GetMetadata(type);
                     var table = PostgreSqlNames.Quote(map.SchemaName) + "." + PostgreSqlNames.Quote(map.TableName);
                     await cleanup.Connection.ExecuteAsync(new CommandDefinition($"DELETE FROM {table} WHERE uid=ANY(@Uids)", PostgreSqlParameters.Ids(ids), commandTimeout: 10));
                     Assert.AreEqual(0L, await cleanup.Connection.ExecuteScalarAsync<long>(new CommandDefinition($"SELECT count(*) FROM {table} WHERE uid=ANY(@Uids)", PostgreSqlParameters.Ids(ids))));

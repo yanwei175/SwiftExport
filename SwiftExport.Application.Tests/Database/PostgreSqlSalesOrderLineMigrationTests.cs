@@ -27,7 +27,7 @@ public sealed class PostgreSqlSalesOrderLineMigrationTests
     {
         using var f=new Fixture(transactional); var line=Line(); f.Connection.Outcomes.Enqueue(Rows(line));
         var actual=(await f.Repository.GetLinesByOrderIdAsync(line.SalesOrderId,locking)).Single();
-        foreach(var column in PostgreSqlEntityMetadata.GetMetadata(typeof(SalesOrderLine)).Columns)
+        foreach(var column in EntityMetadataCache.GetMetadata(typeof(SalesOrderLine)).Columns)
         { Assert.AreEqual(column.Property.GetValue(line),column.Property.GetValue(actual),column.PropertyName); StringAssert.Contains(f.Connection.Sqls[0],"AS \""+column.PropertyName+"\""); }
         StringAssert.Contains(f.Connection.Sqls[0],"is_deleted=FALSE"); StringAssert.Contains(f.Connection.Sqls[0],"ORDER BY line_number,ARRAY[get_byte(uuid_send(uid),10)");
         Assert.AreEqual(locking,f.Connection.Sqls[0].Contains("FOR UPDATE",StringComparison.Ordinal)); Assert.AreEqual(line.SalesOrderId,f.Connection.Values[0]["OrderId"]);
@@ -145,7 +145,7 @@ public sealed class PostgreSqlSalesOrderLineMigrationTests
     /// <summary>按实际元数据生成完整实体CLR列，不解释业务SQL。</summary>
     private static DataTable Rows(params SalesOrderLine[] lines)
     {
-        var table=new DataTable(); var columns=PostgreSqlEntityMetadata.GetMetadata(typeof(SalesOrderLine)).Columns;
+        var table=new DataTable(); var columns=EntityMetadataCache.GetMetadata(typeof(SalesOrderLine)).Columns;
         foreach(var column in columns) { var type=Nullable.GetUnderlyingType(column.Property.PropertyType)??column.Property.PropertyType; table.Columns.Add(column.PropertyName,type.IsEnum?typeof(int):type); }
         foreach(var line in lines)table.Rows.Add(columns.Select(c=> { var value=c.Property.GetValue(line); return value is null?DBNull.Value:value.GetType().IsEnum?Convert.ToInt32(value):value; }).ToArray()); return table;
     }

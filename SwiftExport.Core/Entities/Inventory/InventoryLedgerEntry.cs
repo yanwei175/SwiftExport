@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>库存流水实体，保存每次库存增减及反向的不可变业务事实。</summary>
-[Table("InventoryLedgerEntry")]
+[Table("inventory_ledger_entry")]
 public sealed partial class InventoryLedgerEntry : BaseEntity
 {
     /// <summary>该实体保存的业务流水顺序号。</summary>
@@ -49,7 +49,7 @@ public sealed partial class InventoryLedgerEntry : BaseEntity
     /// <summary>单据或业务事实形成时冻结的仓库编码历史快照，不随主数据更新。</summary>
     public string? WarehouseCodeSnapshot { get; set; }
     /// <summary>库存事实发生时的仓库名称快照。</summary>
-    [DbColumn(StoreType = "nvarchar(300)")]
+    [DbColumn(StoreType = "varchar(300)")]
     public string? WarehouseNameSnapshot { get; set; }
     /// <summary>单据或业务事实形成时冻结的产品编码历史快照，不随主数据更新。</summary>
     public string? SkuSnapshot { get; set; }

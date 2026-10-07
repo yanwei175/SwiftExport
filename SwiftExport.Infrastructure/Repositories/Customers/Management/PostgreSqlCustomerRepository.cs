@@ -14,11 +14,68 @@ namespace SwiftExport.Infrastructure.Repositories.Customers.Management;
 /// <summary>客户 PostgreSQL 评审实现，继承单实体 CRUD 并保留各专用查询的软删除、停用和文本处理区别。</summary>
 public sealed class PostgreSqlCustomerRepository(RepositoryBaseContext context) : PostgreSqlDapperRepository<Customer>(context), ICustomerRepository
 {
-    private static readonly string EntityColumns = string.Join(", ", Metadata.Columns.Select(column =>
-        $"c.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string EntityColumns = """
+        c."uid" AS "Uid",
+        c."version" AS "Version",
+        c."is_deleted" AS "IsDeleted",
+        c."created_date" AS "CreatedDate",
+        c."created_by" AS "CreatedBy",
+        c."updated_date" AS "UpdatedDate",
+        c."updated_by" AS "UpdatedBy",
+        c."is_active" AS "IsActive",
+        c."customer_code" AS "CustomerCode",
+        c."customer_name" AS "CustomerName",
+        c."address" AS "Address",
+        c."phone_number" AS "PhoneNumber",
+        c."contact_person" AS "ContactPerson",
+        c."label_folder_path" AS "LabelFolderPath",
+        c."manual_folder_path" AS "ManualFolderPath",
+        c."drawing_folder_path" AS "DrawingFolderPath",
+        c."linedrawing_folder_path" AS "LinedrawingFolderPath",
+        c."barcode_folder_path" AS "BarcodeFolderPath",
+        c."spec_sheet_folder_path" AS "SpecSheetFolderPath",
+        c."doc_relate_no" AS "DocRelateNo",
+        c."incoterm_sort_remark" AS "IncotermSortRemark",
+        c."incoterm" AS "Incoterm",
+        c."incoterm_location" AS "IncotermLocation",
+        c."deposit_rate" AS "DepositRate",
+        c."lead_time_days" AS "LeadTimeDays",
+        c."payment_method" AS "PaymentMethod",
+        c."currency" AS "Currency",
+        c."etd_sort_remark" AS "EtdSortRemark",
+        c."shipped_by" AS "ShippedBy"
+    """;
     private static readonly HashSet<string> DtoProperties = typeof(CustomerDto).GetProperties().Select(property => property.Name).ToHashSet();
-    private static readonly string DtoColumns = string.Join(", ", Metadata.Columns.Where(column => DtoProperties.Contains(column.PropertyName))
-        .Select(column => $"c.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string DtoColumns = """
+        c."uid" AS "Uid",
+        c."version" AS "Version",
+        c."is_deleted" AS "IsDeleted",
+        c."created_date" AS "CreatedDate",
+        c."created_by" AS "CreatedBy",
+        c."updated_date" AS "UpdatedDate",
+        c."updated_by" AS "UpdatedBy",
+        c."customer_code" AS "CustomerCode",
+        c."customer_name" AS "CustomerName",
+        c."address" AS "Address",
+        c."phone_number" AS "PhoneNumber",
+        c."contact_person" AS "ContactPerson",
+        c."label_folder_path" AS "LabelFolderPath",
+        c."manual_folder_path" AS "ManualFolderPath",
+        c."drawing_folder_path" AS "DrawingFolderPath",
+        c."linedrawing_folder_path" AS "LinedrawingFolderPath",
+        c."barcode_folder_path" AS "BarcodeFolderPath",
+        c."spec_sheet_folder_path" AS "SpecSheetFolderPath",
+        c."doc_relate_no" AS "DocRelateNo",
+        c."incoterm_sort_remark" AS "IncotermSortRemark",
+        c."incoterm" AS "Incoterm",
+        c."incoterm_location" AS "IncotermLocation",
+        c."deposit_rate" AS "DepositRate",
+        c."lead_time_days" AS "LeadTimeDays",
+        c."payment_method" AS "PaymentMethod",
+        c."currency" AS "Currency",
+        c."etd_sort_remark" AS "EtdSortRemark",
+        c."shipped_by" AS "ShippedBy"
+    """;
     private const string CodeEquals = "rtrim(c.customer_code,' ') COLLATE public.erp_dictionary_ci = rtrim(CAST(@CustomerCode AS text),' ') COLLATE public.erp_dictionary_ci";
     private const string CodeInArray = """
         EXISTS (SELECT 1 FROM unnest(@Codes) AS input(code)

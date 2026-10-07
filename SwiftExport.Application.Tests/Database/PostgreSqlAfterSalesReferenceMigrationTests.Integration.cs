@@ -66,7 +66,7 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
         Assert.IsNull(await f.Repository.ReferenceAsync(kind,Guid.NewGuid(),null,true));
         // 不依赖公共库绝无 Empty 行：先按实体身份确认缺失，否则未验证，不能删除已有行造前提。
         var type=kind switch{"customers"=>typeof(Customer),"suppliers"=>typeof(Supplier),"owners"=>typeof(SysUser),"colors"=>typeof(ProductColor),"quality-categories"=>typeof(SysDictData),"sales-order-lines"=>typeof(SalesOrderLine),_=>typeof(Product)};
-        var map=PostgreSqlEntityMetadata.GetMetadata(type);
+        var map=EntityMetadataCache.GetMetadata(type);
         var count=await f.Session.Connection.ExecuteScalarAsync<int>($"SELECT count(*) FROM {Table(map)} WHERE {PostgreSqlNames.Quote(map.KeyName)}=@Uid",new{Uid=Guid.Empty},f.Transaction);
         if(count!=0)Assert.Inconclusive("专用库已有 Empty 身份，不能改旧数据造缺失样本。");
         Assert.IsNull(await f.Repository.ReferenceAsync(kind,Guid.Empty,null,false));
@@ -198,7 +198,7 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
         public async Task Seed<T>(T entity) where T:BaseEntity
         {
             entity.CreatedDate=entity.UpdatedDate=new DateTime(2026,10,5,0,0,0,DateTimeKind.Unspecified);entity.CreatedBy=entity.UpdatedBy="__m25_reference__";
-            var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var map=EntityMetadataCache.GetMetadata(typeof(T));
             using var cmd=new NpgsqlCommand($"INSERT INTO {Table(map)} ({string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)))}) VALUES ({string.Join(',',map.Columns.Select(c=>"@"+c.PropertyName))})",(NpgsqlConnection)Session.Connection,(NpgsqlTransaction)Transaction);
             foreach(var column in map.Columns)
             {

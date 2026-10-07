@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Inventory;
 
 /// <summary>仓库站点实体，当前用于维护供应商虚拟仓及其启用状态。</summary>
-[Table("WarehouseSite")]
+[Table("warehouse_site")]
 public sealed partial class WarehouseSite : BaseEntity
 {
     /// <summary>该实体保存的仓库编码。</summary>

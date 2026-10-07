@@ -11,14 +11,14 @@ namespace SwiftExport.Infrastructure.Repositories.Auth.Development;
 /// <summary>在既有 scoped PostgreSQL 连接中仅读取开发用户标识；缓存、claims 和启用条件由调用方负责。</summary>
 public sealed class PostgreSqlDevUserQuery(DbSession session)
 {
-    private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(SysUser));
+    private static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata(typeof(SysUser));
     private static readonly string Sql = $"""
-        SELECT {Column(nameof(BaseEntity.Uid))}
+        SELECT "uid"
         FROM {PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}
-        WHERE rtrim({Column(nameof(SysUser.UserName))}, ' ') COLLATE public.erp_dictionary_ci
+        WHERE rtrim("user_name", ' ') COLLATE public.erp_dictionary_ci
             = rtrim(@UserName, ' ') COLLATE public.erp_dictionary_ci
-          AND {Column(nameof(SysUser.IsActive))} = TRUE
-          AND COALESCE({Column(nameof(BaseEntity.IsDeleted))}, FALSE) = FALSE
+          AND "is_active" = TRUE
+          AND COALESCE("is_deleted", FALSE) = FALSE
         LIMIT 1;
         """;
 
@@ -31,7 +31,5 @@ public sealed class PostgreSqlDevUserQuery(DbSession session)
         return session.Connection.ExecuteScalarAsync<Guid?>(Sql, parameters);
     }
 
-    /// <summary>复用实体物理映射，仅引用固定属性，不把用户输入拼入标识符。</summary>
-    private static string Column(string property) => PostgreSqlNames.Quote(Metadata.GetProperty(property).ColumnName);
 }
 

@@ -32,7 +32,7 @@ public sealed partial class PostgreSqlSalesOrderFulfillmentMigrationIntegrationT
             {
                 await using var transaction=await writer.BeginTransactionAsync();
                 Assert.AreEqual(1,await writer.ExecuteAsync("UPDATE public.gross_demand SET is_deleted=TRUE WHERE uid=@Uid",new{original.Uid},transaction));
-                var metadata=PostgreSqlEntityMetadata.GetMetadata(typeof(GrossDemand));
+                var metadata=EntityMetadataCache.GetMetadata(typeof(GrossDemand));
                 var columns=string.Join(',',metadata.Columns.Select(column=>PostgreSqlNames.Quote(column.ColumnName)));
                 var values=string.Join(',',metadata.Columns.Select(column=>"@"+column.ParameterName));
                 Assert.AreEqual(1,await writer.ExecuteAsync($"INSERT INTO public.gross_demand ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(replacement,metadata),transaction));

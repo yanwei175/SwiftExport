@@ -28,7 +28,7 @@ namespace SwiftExport.Application.Tests.Database;
 public sealed class PostgreSqlGrossDemandDocumentMigrationIntegrationTests
 {
     private static readonly DateTime Wall = new(2026, 10, 5, 8, 9, 10, DateTimeKind.Unspecified);
-    private static readonly EntityMetadata Map = PostgreSqlEntityMetadata.GetMetadata(typeof(GrossDemand));
+    private static readonly EntityMetadata Map = EntityMetadataCache.GetMetadata(typeof(GrossDemand));
     private static readonly string[] SourceFields = ["SourceNo", "SourceLineNumber", "SourceVersion", "DemandBasisFingerprint", "CustomerId", "ProductId", "IsNonStandard", "SkuSnapshot", "LinkSkuSnapshot", "CustomerSkuSnapshot", "DescriptionSnapshot", "ColorSnapshot", "SpecificationSnapshot", "ImagePathSnapshot", "UnitSnapshot", "DemandQty", "RequiredDate", "Remark"];
     private static readonly string[] ManualFields = ["ProductId", "IsNonStandard", "SkuSnapshot", "LinkSkuSnapshot", "CustomerSkuSnapshot", "DescriptionSnapshot", "ColorSnapshot", "SpecificationSnapshot", "ImagePathSnapshot", "DemandBasisFingerprint", "DemandQty", "RequiredDate", "Remark"];
 

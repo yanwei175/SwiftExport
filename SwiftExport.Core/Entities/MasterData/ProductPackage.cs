@@ -1,10 +1,10 @@
-﻿using SwiftExport.Core.Common;
+using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>产品包装规格实体，保存产品装率、尺寸、重量、体积和包材要求。</summary>
-[Table("ProductPackage")]
+[Table("product_package")]
 public partial class ProductPackage : BaseEntity
 {/// <summary>
  /// 关联产品主键Id

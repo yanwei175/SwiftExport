@@ -1,4 +1,4 @@
-﻿using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.DatabaseSchema;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -6,7 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>产品主数据实体，保存稳定产品身份、物料属性及当前可选的采购、制造和仓库参考关系。</summary>
-[Table("Product")]
+[Table("product")]
 public partial class Product : BaseEntity
 {
     /// <summary>是否允许新业务引用；停用保留历史身份，不等同软删除。</summary>
@@ -75,6 +75,6 @@ public partial class Product : BaseEntity
     /// <summary>实际制造商标识，独立于默认采购供应商。</summary>
     public Guid? ManufacturerId { get; set; }
     /// <summary>制造商型号；允许不选择制造商时独立记录。</summary>
-    [DbColumn(StoreType = "nvarchar(200)")]
+    [DbColumn(StoreType = "varchar(200)")]
     public string? ManufacturerModel { get; set; }
 }

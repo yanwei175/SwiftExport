@@ -207,7 +207,7 @@ public sealed class PostgreSqlPurchaseOrderDraftReadMigrationIntegrationTests
         /// <summary>所有插入使用同一父事务及明确实体列；无事务夹具禁止写，不改约束、提交或清理旧行。</summary>
         public async Task InsertAsync<T>(T entity) where T:BaseEntity
         {
-            Assert.IsNotNull(Session.Transaction); var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            Assert.IsNotNull(Session.Transaction); var map=EntityMetadataCache.GetMetadata(typeof(T));
             if(!inserted.TryGetValue(typeof(T),out var ids)) inserted.Add(typeof(T),ids=[]);
             ids.Add(entity.Uid);
             var columns=string.Join(',',map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));
@@ -248,7 +248,7 @@ public sealed class PostgreSqlPurchaseOrderDraftReadMigrationIntegrationTests
             await using var observer=new NpgsqlConnection(connection); await observer.OpenAsync();
             foreach(var pair in inserted)
             {
-                var map=PostgreSqlEntityMetadata.GetMetadata(pair.Key);
+                var map=EntityMetadataCache.GetMetadata(pair.Key);
                 var remaining=await observer.ExecuteScalarAsync<long>(new CommandDefinition($"SELECT COUNT(*) FROM {Table(map)} WHERE {PostgreSqlNames.Quote(map.KeyName)}=ANY(@Uids)",PostgreSqlParameters.Ids(pair.Value)));
                 Assert.AreEqual(0L,remaining,pair.Key.Name+"父回滚后有残留");
             }

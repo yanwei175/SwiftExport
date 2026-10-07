@@ -14,14 +14,64 @@ namespace SwiftExport.Infrastructure.Repositories.Customers.CustomerProducts;
 public sealed class PostgreSqlCustomerProductRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<CustomerProduct>(context), ICustomerProductRepository
 {
-    private static readonly string EntityColumns = string.Join(",", Metadata.Columns.Select(column =>
-        $"cp.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
-    private static readonly string RelationColumns = string.Join(",", new[]
-    {
-        "Uid", "Version", "IsDeleted", "CreatedDate", "CreatedBy", "UpdatedDate", "UpdatedBy", "CustomerId", "SkuId", "Sku", "LinkSku",
-        "DescriptionEn", "FeaturesEn", "CustomerSku", "CustomerPdDescription", "CustomerPdSeries", "CustomerColorName", "CustomerPdFeatures",
-        "CustomerBarcode1", "CustomerBarcode2", "USDPrice", "CNYPrice", "LeadTimeDays", "MOQ", "IsActive", "Note"
-    }.Select(property => $"cp.{PostgreSqlNames.Quote(Metadata.GetProperty(property).ColumnName)} AS {PostgreSqlNames.Quote(property)}"));
+    private const string EntityColumns = """
+        cp."uid" AS "Uid",
+        cp."version" AS "Version",
+        cp."is_deleted" AS "IsDeleted",
+        cp."created_date" AS "CreatedDate",
+        cp."created_by" AS "CreatedBy",
+        cp."updated_date" AS "UpdatedDate",
+        cp."updated_by" AS "UpdatedBy",
+        cp."customer_id" AS "CustomerId",
+        cp."customer_code" AS "CustomerCode",
+        cp."sku_id" AS "SkuId",
+        cp."sku" AS "Sku",
+        cp."link_sku" AS "LinkSku",
+        cp."customer_sku" AS "CustomerSku",
+        cp."customer_pd_series" AS "CustomerPdSeries",
+        cp."customer_pd_description" AS "CustomerPdDescription",
+        cp."customer_color_name" AS "CustomerColorName",
+        cp."customer_pd_features" AS "CustomerPdFeatures",
+        cp."customer_barcode1" AS "CustomerBarcode1",
+        cp."customer_barcode2" AS "CustomerBarcode2",
+        cp."note" AS "Note",
+        cp."usd_price" AS "USDPrice",
+        cp."cny_price" AS "CNYPrice",
+        cp."lead_time_days" AS "LeadTimeDays",
+        cp."moq" AS "MOQ",
+        cp."is_active" AS "IsActive",
+        cp."description_en" AS "DescriptionEn",
+        cp."features_en" AS "FeaturesEn"
+    """;
+    // 固定 DTO 投影直接列出 PG 字段及返回别名，保留关系快照；当前客户码由下方展示投影提供。
+    private const string RelationColumns = """
+        cp.uid AS "Uid",
+        cp.version AS "Version",
+        cp.is_deleted AS "IsDeleted",
+        cp.created_date AS "CreatedDate",
+        cp.created_by AS "CreatedBy",
+        cp.updated_date AS "UpdatedDate",
+        cp.updated_by AS "UpdatedBy",
+        cp.customer_id AS "CustomerId",
+        cp.sku_id AS "SkuId",
+        cp.sku AS "Sku",
+        cp.link_sku AS "LinkSku",
+        cp.description_en AS "DescriptionEn",
+        cp.features_en AS "FeaturesEn",
+        cp.customer_sku AS "CustomerSku",
+        cp.customer_pd_description AS "CustomerPdDescription",
+        cp.customer_pd_series AS "CustomerPdSeries",
+        cp.customer_color_name AS "CustomerColorName",
+        cp.customer_pd_features AS "CustomerPdFeatures",
+        cp.customer_barcode1 AS "CustomerBarcode1",
+        cp.customer_barcode2 AS "CustomerBarcode2",
+        cp.usd_price AS "USDPrice",
+        cp.cny_price AS "CNYPrice",
+        cp.lead_time_days AS "LeadTimeDays",
+        cp.moq AS "MOQ",
+        cp.is_active AS "IsActive",
+        cp.note AS "Note"
+        """;
     private const string DisplayColumns = """
         c.customer_code AS "CustomerCode",COALESCE(p.description_en,cp.description_en) AS "Description",
         CASE WHEN pm.uid IS NULL OR pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'

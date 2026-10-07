@@ -76,7 +76,7 @@ public sealed class PostgreSqlUserPermissionRepository(RepositoryBaseContext con
     /// <summary>复用独立实体映射取得物理表名，保持 SQL Server 元数据不变。</summary>
     private static string QualifiedTable(Type entity)
     {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity);
+        var metadata = EntityMetadataCache.GetMetadata(entity);
         return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
     }
 

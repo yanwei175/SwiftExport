@@ -7,7 +7,7 @@ namespace SwiftExport.Core.Entities.DemandPlanning;
 /// <summary>
 /// 原始业务需求。
 /// </summary>
-[Table("GrossDemand")]
+[Table("gross_demand")]
 public sealed partial class GrossDemand : BaseEntity
 {
     /// <summary>毛需求生命周期；关闭后不能继续拆解。</summary>

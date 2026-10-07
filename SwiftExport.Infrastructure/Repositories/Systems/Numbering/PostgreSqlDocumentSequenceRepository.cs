@@ -13,8 +13,18 @@ public sealed class PostgreSqlDocumentSequenceRepository(RepositoryBaseContext c
     : PostgreSqlDapperRepository<DocumentSequence>(context), IDocumentSequenceRepository
 {
     private static readonly string QualifiedTable = $"{PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}";
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(column =>
-        $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string Columns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "doc_type" AS "DocType",
+        "year_month" AS "YearMonth",
+        "current_no" AS "CurrentNo"
+    """;
 
     /// <summary>分配指定类型及年月的下一个号码并返回持久化行；共享外层事务，无事务时单语句自动提交，不修改既有 Version。</summary>
     public async Task<DocumentSequence> GetNextAsync(string docType, string yearMonth, string? updatedBy)

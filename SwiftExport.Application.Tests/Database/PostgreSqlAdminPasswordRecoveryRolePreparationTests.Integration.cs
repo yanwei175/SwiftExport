@@ -216,14 +216,14 @@ public sealed class PostgreSqlAdminPasswordRecoveryRolePreparationTests
     /// <summary>仅固定实体元数据物理名，避免旧SQL复数表名污染PG。</summary>
     private static string Table<T>()
     {
-        var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var map = EntityMetadataCache.GetMetadata(typeof(T));
         return $"{PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)}";
     }
 
     /// <summary>完整typed实体夹具只写预登记随机User/UR，空文本显式text避免驱动推断。</summary>
     private static async Task Insert(DbSession session, BaseEntity entity, CancellationToken token)
     {
-        var map = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var map = EntityMetadataCache.GetMetadata(entity.GetType());
         var sql = $"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({string.Join(',',map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)))}) VALUES ({string.Join(',',map.Columns.Select(x=>'@'+x.ParameterName))})";
         Assert.AreEqual(1, await session.Connection.ExecuteAsync(new CommandDefinition(sql, new Parameters(entity, map), session.Transaction, cancellationToken: token)));
     }
@@ -231,7 +231,7 @@ public sealed class PostgreSqlAdminPasswordRecoveryRolePreparationTests
     /// <summary>按UID读取所有持久化字段，可借用owner父事务确认初始化值。</summary>
     private static Task<T> Read<T>(DbSession session, Guid uid) where T : BaseEntity
     {
-        var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var map = EntityMetadataCache.GetMetadata(typeof(T));
         var columns = string.Join(',', map.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName)+" AS "+PostgreSqlNames.Quote(x.PropertyName)));
         return session.Connection.QuerySingleAsync<T>(new CommandDefinition($"SELECT {columns} FROM {Table<T>()} WHERE uid=@Uid", new { Uid = uid }, session.Transaction));
     }
@@ -239,7 +239,7 @@ public sealed class PostgreSqlAdminPasswordRecoveryRolePreparationTests
     /// <summary>只排除原五写列，其余全列相等；凭据不得进入断言差异输出。</summary>
     private static void Compare<T>(T before, T after, string[] excluded) where T : BaseEntity
     {
-        foreach (var column in PostgreSqlEntityMetadata.GetMetadata(typeof(T)).Columns.Where(x => !excluded.Contains(x.PropertyName)))
+        foreach (var column in EntityMetadataCache.GetMetadata(typeof(T)).Columns.Where(x => !excluded.Contains(x.PropertyName)))
             Assert.IsTrue(Equals(column.Property.GetValue(before), column.Property.GetValue(after)), $"字段{column.PropertyName}不得变化；不输出字段值。");
     }
 

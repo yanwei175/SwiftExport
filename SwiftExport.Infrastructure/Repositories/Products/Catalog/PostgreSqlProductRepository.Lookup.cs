@@ -16,8 +16,12 @@ public partial class PostgreSqlProductRepository
         if (string.IsNullOrWhiteSpace(keyword)) return [];
         var parameters = new
         {
-            Limit = Math.Clamp(request.Limit <= 0 ? 20 : request.Limit, 1, 50), request.ExcludeProductId,
-            ExactKeyword = keyword, PrefixKeyword = $"{keyword}%", ContainsKeyword = $"%{keyword}%", EmptyGuid = Guid.Empty
+            Limit = Math.Clamp(request.Limit <= 0 ? 20 : request.Limit, 1, 50),
+            request.ExcludeProductId,
+            ExactKeyword = keyword,
+            PrefixKeyword = $"{keyword}%",
+            ContainsKeyword = $"%{keyword}%",
+            EmptyGuid = Guid.Empty
         };
         var category = """
             CASE WHEN pm.uid IS NULL OR pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'
@@ -27,7 +31,7 @@ public partial class PostgreSqlProductRepository
             .Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @ContainsKeyword ESCAPE ''"));
         // 不加 IsActive 条件：普通产品与客户关系的资格边界继续由原业务入口负责。
         var rows = await Connection.QueryAsync<ProductLookupDto>($"""
-            SELECT {CatalogProjection("p", "Uid Sku DescriptionEn DescriptionZh LinkSku MainImage FeaturesEn FeaturesZh MaterialType Unit USDPrice CNYPrice")},
+            SELECT p."uid" AS "Uid",p."sku" AS "Sku",p."description_en" AS "DescriptionEn",p."description_zh" AS "DescriptionZh",p."link_sku" AS "LinkSku",p."main_image" AS "MainImage",p."features_en" AS "FeaturesEn",p."features_zh" AS "FeaturesZh",p."material_type" AS "MaterialType",p."unit" AS "Unit",p."usd_price" AS "USDPrice",p."cny_price" AS "CNYPrice",
                 {category},pc.color_name_zh AS "Finish"
             FROM public.product p
             LEFT JOIN public.product_master pm ON pm.uid=p.product_master_id AND (pm.is_deleted=FALSE OR pm.is_deleted IS NULL)

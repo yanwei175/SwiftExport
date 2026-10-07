@@ -366,7 +366,7 @@ public sealed class PostgreSqlWarehouseManagementMigrationIntegrationTests
         public async Task Insert<T>(RepositoryBaseContext context, T entity) where T : BaseEntity
         {
             context.AuditStamp.StampForInsert(entity);
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var metadata = EntityMetadataCache.GetMetadata(typeof(T));
             var columns = string.Join(",", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
             var values = string.Join(",", metadata.Columns.Select(column => "@" + column.ParameterName));
             Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(new CommandDefinition(
@@ -377,7 +377,7 @@ public sealed class PostgreSqlWarehouseManagementMigrationIntegrationTests
         /// <summary>读取本例仓库全部字段，允许观察软删版本；不通过默认查询过滤掩盖写入结果。</summary>
         public Task<WarehouseSite> ReadSite(RepositoryBaseContext context, Guid uid)
         {
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(WarehouseSite));
+            var metadata = EntityMetadataCache.GetMetadata(typeof(WarehouseSite));
             var columns = string.Join(",", metadata.Columns.Select(column => $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
             return context.Session.Connection.QuerySingleAsync<WarehouseSite>(new CommandDefinition(
                 $"SELECT {columns} FROM public.warehouse_site WHERE uid=@Uid AND created_by=@Actor", new { Uid = uid, Actor },

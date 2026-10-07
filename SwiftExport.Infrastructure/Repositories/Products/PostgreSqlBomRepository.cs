@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
@@ -15,8 +16,81 @@ namespace SwiftExport.Infrastructure.Repositories.Products;
 /// <summary>实现 PostgreSQL BOM 仓储，按编号共享组成，正标记仅表示有效性；事务和业务编排由调用方控制。</summary>
 public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : PostgreSqlDapperRepository<Bom>(context), IBomRepository
 {
-    private static readonly string EntityColumns = string.Join(",", Metadata.Columns.Select(column =>
-        $"b.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
+    private const string BomFactColumns = """
+        b."uid" AS "Uid",
+        b."version" AS "Version",
+        b."is_deleted" AS "IsDeleted",
+        b."created_date" AS "CreatedDate",
+        b."created_by" AS "CreatedBy",
+        b."updated_date" AS "UpdatedDate",
+        b."updated_by" AS "UpdatedBy",
+        b."bom_no" AS "BomNo",
+        b."bom_version" AS "BomVersion",
+        b."parent_product_id" AS "ParentProductId",
+        b."parent_sku_snapshot" AS "ParentSkuSnapshot",
+        b."line_number" AS "LineNumber",
+        b."component_product_id" AS "ComponentProductId",
+        b."component_sku_snapshot" AS "ComponentSkuSnapshot",
+        b."numerator" AS "Numerator",
+        b."denominator" AS "Denominator",
+        b."note" AS "Note"
+    """;
+    /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
+    private const string ProductFactColumns = """
+        p."uid" AS "Uid",
+        p."version" AS "Version",
+        p."is_deleted" AS "IsDeleted",
+        p."created_date" AS "CreatedDate",
+        p."created_by" AS "CreatedBy",
+        p."updated_date" AS "UpdatedDate",
+        p."updated_by" AS "UpdatedBy",
+        p."is_active" AS "IsActive",
+        p."product_master_id" AS "ProductMasterId",
+        p."master_sku" AS "MasterSku",
+        p."sku" AS "Sku",
+        p."description_en" AS "DescriptionEn",
+        p."description_zh" AS "DescriptionZh",
+        p."color_id" AS "ColorId",
+        p."features_en" AS "FeaturesEn",
+        p."features_zh" AS "FeaturesZh",
+        p."material_type" AS "MaterialType",
+        p."unit" AS "Unit",
+        p."supply_type" AS "SupplyType",
+        p."bom_version" AS "BomVersion",
+        p."bom_no" AS "BomNo",
+        p."note" AS "Note",
+        p."link_sku" AS "LinkSku",
+        p."main_image" AS "MainImage",
+        p."cny_price" AS "CNYPrice",
+        p."usd_price" AS "USDPrice",
+        p."unit_cbm" AS "UnitCBM",
+        p."unit_weight" AS "UnitWeight",
+        p."default_supplier_id" AS "DefaultSupplierId",
+        p."default_warehouse_site_id" AS "DefaultWarehouseSiteId",
+        p."manufacturer_id" AS "ManufacturerId",
+        p."manufacturer_model" AS "ManufacturerModel"
+    """;
+
+    private const string EntityColumns = """
+        b."uid" AS "Uid",
+        b."version" AS "Version",
+        b."is_deleted" AS "IsDeleted",
+        b."created_date" AS "CreatedDate",
+        b."created_by" AS "CreatedBy",
+        b."updated_date" AS "UpdatedDate",
+        b."updated_by" AS "UpdatedBy",
+        b."bom_no" AS "BomNo",
+        b."bom_version" AS "BomVersion",
+        b."parent_product_id" AS "ParentProductId",
+        b."parent_sku_snapshot" AS "ParentSkuSnapshot",
+        b."line_number" AS "LineNumber",
+        b."component_product_id" AS "ComponentProductId",
+        b."component_sku_snapshot" AS "ComponentSkuSnapshot",
+        b."numerator" AS "Numerator",
+        b."denominator" AS "Denominator",
+        b."note" AS "Note"
+    """;
     private const string DtoColumns = """
         b.uid AS "Uid",b.version AS "Version",b.is_deleted AS "IsDeleted",
         b.created_date AS "CreatedDate",b.created_by AS "CreatedBy",b.updated_date AS "UpdatedDate",b.updated_by AS "UpdatedBy",
@@ -159,8 +233,8 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         var numbers = requestedBomNos.ToArray();
         var parameters = new PostgreSqlParameters();
         parameters.AddTexts("RequestedBomNos", numbers);
-        var bomColumns = SharedFactColumns(Metadata, "b");
-        var productColumns = SharedFactColumns(PostgreSqlEntityMetadata.GetMetadata(typeof(Product)), "p");
+        var bomColumns = BomFactColumns;
+        var productColumns = ProductFactColumns;
         // 输入序号来自原始数组；空数组仍读取已有产品与组成，空组不依赖 lineUid 存在。
         var sql = $"""
             WITH source AS (
@@ -185,15 +259,56 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
             LEFT JOIN public.product p ON r.kind=1 AND r.entity_uid=p.uid
             ORDER BY r.group_key,r.kind,r.entity_uid,r.input_index
             """;
-        return BomSharedSaveFactsReader.ReadAsync(Connection, transaction, sql, parameters);
+        return ReadSharedSaveFactsAsync(Connection, transaction, sql, parameters);
     }
-
-    /// <summary>完整投影 PostgreSQL 元数据别名，Uid 排首以正确识别三类型映射的空实体。</summary>
-    private static string SharedFactColumns(EntityMetadata metadata, string alias) => string.Join(",", metadata.Columns
-        .OrderBy(column => column.PropertyName == "Uid" ? 0 : 1)
-        .Select(column => $"{alias}.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
 
     /// <summary>只对仓储内部固定文本表达式生成 ICU 等值条件，兼容尾部 ASCII 空格且不改变前导空格或存储快照。</summary>
     private static string Equal(string column, string value) =>
         $"rtrim({column},' ') COLLATE public.erp_dictionary_ci = rtrim({value},' ') COLLATE public.erp_dictionary_ci";
+
+    /// <summary>按数据库本次组键汇总三类事实，输入空组和没有组成的共享产品仍保留；组键不可作为持久身份。</summary>
+    private static async Task<IReadOnlyList<SharedBomGroup>> ReadSharedSaveFactsAsync(IDbConnection connection, IDbTransaction transaction,
+        string sql, object parameters)
+    {
+        var groups = new Dictionary<long, GroupRows>();
+        await connection.QueryAsync<FactHeader, Bom, Product, int>(sql, (header, line, product) =>
+        {
+            if (!groups.TryGetValue(header.GroupKey, out var group))
+            {
+                group = new GroupRows(header.BomNo);
+                groups.Add(header.GroupKey, group);
+            }
+            // Kind 与首列 NULL 映射共同区分空实体；不按编号重新合并数据库等值组。
+            if (header.Kind == 0 && line is not null) group.Lines.Add(line);
+            if (header.Kind == 1 && product is not null) group.Products.Add(product);
+            if (header.Kind == 2 && header.InputIndex.HasValue) group.InputIndexes.Add(header.InputIndex.Value);
+            return 0;
+        }, parameters, transaction, splitOn: "Uid,Uid");
+        return groups.OrderBy(pair => pair.Key).Select(pair => new SharedBomGroup
+        {
+            GroupKey = pair.Key,
+            BomNo = pair.Value.BomNo,
+            InputIndexes = pair.Value.InputIndexes.OrderBy(index => index).ToArray(),
+            Lines = pair.Value.Lines.OrderBy(line => line.Uid).ToArray(),
+            Products = pair.Value.Products.OrderBy(product => product.Uid).ToArray()
+        }).ToArray();
+    }
+
+    /// <summary>数据库分组头，与两个实体的 Uid 分割列分离；编号仅作原始展示文本。</summary>
+    private sealed class FactHeader
+    {
+        public long GroupKey { get; set; }
+        public string BomNo { get; set; } = null!;
+        public int Kind { get; set; }
+        public int? InputIndex { get; set; }
+    }
+
+    /// <summary>单次读取的模块内临时容器，三种事实分别保存，不把物理行复制成产品边。</summary>
+    private sealed class GroupRows(string bomNo)
+    {
+        public string BomNo { get; } = bomNo;
+        public List<int> InputIndexes { get; } = [];
+        public List<Bom> Lines { get; } = [];
+        public List<Product> Products { get; } = [];
+    }
 }

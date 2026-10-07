@@ -58,7 +58,7 @@ public sealed class PostgreSqlNetDemandExecutionLinkMigrationIntegrationTests
         foreach (var expected in links)
         {
             var actual = rows.Single(x => x.Uid == expected.Uid);
-            foreach (var column in PostgreSqlEntityMetadata.GetMetadata(typeof(DemandExecutionLink)).Columns)
+            foreach (var column in EntityMetadataCache.GetMetadata(typeof(DemandExecutionLink)).Columns)
                 Assert.AreEqual(column.Property.GetValue(expected), column.Property.GetValue(actual), column.PropertyName);
         }
     }
@@ -386,7 +386,7 @@ public sealed class PostgreSqlNetDemandExecutionLinkMigrationIntegrationTests
         /// <summary>typed元数据夹具写入只借用显式父事务，不修改约束或调用未交付Net仓储。</summary>
         internal static Task<int> Insert(DbSession session, BaseEntity entity)
         {
-            var map = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+            var map = EntityMetadataCache.GetMetadata(entity.GetType());
             var sql = $"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({string.Join(',', map.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName)))}) VALUES ({string.Join(',', map.Columns.Select(x => '@' + x.ParameterName))})";
             return session.Connection.ExecuteAsync(new CommandDefinition(sql, new Parameters(entity, map), session.Transaction));
         }

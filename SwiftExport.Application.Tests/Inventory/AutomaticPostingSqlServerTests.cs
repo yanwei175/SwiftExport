@@ -473,7 +473,7 @@ public sealed class AutomaticPostingPostgreSqlTests
         private async Task Add<T>(T entity) where T : BaseEntity
         {
             _repository.AuditStamp.StampForInsert(entity);
-            var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            var metadata = EntityMetadataCache.GetMetadata(typeof(T));
             var columns = string.Join(',', metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
             var values = string.Join(',', metadata.Columns.Select(column => "@" + column.ParameterName));
             var sql = $"INSERT INTO {PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)} ({columns}) VALUES ({values});";

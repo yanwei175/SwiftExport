@@ -10,8 +10,8 @@ namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Documen
 /// <summary>复用Gross来源发现与唯一租约，增加真实净需求和全局命令项的身份发现；全部资源在父事务首次快照之前保护。</summary>
 public sealed partial class PostgreSqlGrossDemandDocumentRepository
 {
-    private static readonly EntityMetadata NetMap = PostgreSqlEntityMetadata.GetMetadata(typeof(NetDemand));
-    private static readonly EntityMetadata LinkMap = PostgreSqlEntityMetadata.GetMetadata(typeof(DemandExecutionLink));
+    private static readonly EntityMetadata NetMap = EntityMetadataCache.GetMetadata(typeof(NetDemand));
+    private static readonly EntityMetadata LinkMap = EntityMetadataCache.GetMetadata(typeof(DemandExecutionLink));
 
     /// <summary>先发现全部历史绑定，获取CommandItem→S→U后重验；身份或成员变化时整组释放重准备，共用30秒预算，不重试业务委托。</summary>
     public async Task<IAsyncDisposable?> AcquireMaterialBeforeTransactionAsync(IReadOnlyCollection<Guid> sourceUids,

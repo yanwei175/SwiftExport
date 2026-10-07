@@ -18,16 +18,16 @@
 
 不要把分页、动态查询、批量保存、复杂联表塞回泛型仓储。
 
-## DapperRepository<T>
+## PostgreSqlDapperRepository<T>
 
-`DapperRepository<T>` 位于 `SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs`。
+`PostgreSqlDapperRepository<T>` 位于 `SwiftExport.Infrastructure/Repositories/Base/PostgreSqlDapperRepository.cs`。
 
 当前职责：
 
 - 使用 `RepositoryBaseContext`。
 - 从 `DbSession` 取得 `Connection` 和 `Transaction`。
 - 使用 `IAuditStampService` 打审计字段。
-- 使用 `EntityMetadataCache` 与建表器共享 schema、表、属性、物理列及参数映射；例如 Quantity 写 QTY、参数仍为 Quantity。
+- 使用 `EntityMetadataCache` 与建表器共享 schema、表、属性、物理列及参数映射；例如 Quantity 写 quantity、参数仍为 Quantity。
 - 新增时生成顺序 Guid。
 - 更新时使用 `Version` 做乐观并发。
 - 删除默认软删除。
@@ -39,7 +39,7 @@
 - 分页查询必须有稳定排序。
 - 联表 DTO 查询必须显式字段别名，匹配 DTO 属性名。
 - SQL 执行必须传 `transaction: Transaction`。
-- `WITH(NOLOCK)`、`UPDLOCK`、`ROWLOCK` 按业务一致性选择，不要机械复制。
+- 锁定读取使用 PostgreSQL `FOR UPDATE` 等现有协议，由调用方确定事务、锁集合和稳定顺序；不写 SQL Server 锁提示。
 
 ## 写入规则
 

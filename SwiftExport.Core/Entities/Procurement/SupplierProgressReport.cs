@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Procurement;
 
 /// <summary>供应商对采购行的追加式进度反馈。</summary>
-[Table("SupplierProgressReport")]
+[Table("supplier_progress_report")]
 public sealed partial class SupplierProgressReport : BaseEntity
 {
     /// <summary>采购行权威 Uid。</summary>

@@ -23,7 +23,7 @@ description: SwiftExport Dapper Repository、SQL、DbSession、RepositoryBaseCon
 
 - Repository Interface：`SwiftExport.Core/Interfaces`
 - Repository 实现：`SwiftExport.Infrastructure/Repositories/<Module>`
-- Repository 基类：`SwiftExport.Infrastructure/Repositories/Base/DapperRepository.cs`
+- Repository 基类：`SwiftExport.Infrastructure/Repositories/Base/PostgreSqlDapperRepository.cs`
 - Repository 基础依赖：`SwiftExport.Infrastructure/Contexts/RepositoryBaseContext.cs`
 - Entity：`SwiftExport.Core/Entities/<Module>`
 - API/前端 DTO：`SwiftExport.Contracts/DTOs/<Module>`
@@ -34,14 +34,14 @@ description: SwiftExport Dapper Repository、SQL、DbSession、RepositoryBaseCon
 - 使用当前 `Connection`。
 - 使用当前 `Transaction`。
 - 使用 `Dapper` 执行参数化 SQL。
-- SQL Server 连接使用 `Microsoft.Data.SqlClient`。
+- PostgreSQL 连接使用 `Npgsql`。
 - 日志使用 `Microsoft.Extensions.Logging`。
 - 查询必须参数化。
 - 禁止拼接用户输入。
 - 列表查询不使用 `SELECT *`。
 - 分页查询必须有稳定排序。
 - DTO 查询必须显式字段别名。
-- SQL Server 表名建议带 `dbo.` 前缀。
+- 专用 SQL 使用 `public` 下的 PG 小写表列名；泛型 CRUD 复用唯一 `EntityMetadataCache`，参数及返回别名保留 CLR 名称。
 
 ## DTO / Entity 边界
 
@@ -62,7 +62,7 @@ description: SwiftExport Dapper Repository、SQL、DbSession、RepositoryBaseCon
 
 - `DbSession` 管理当前连接和当前事务。
 - `RepositoryBaseContext` 聚合 `DbSession`、`ILoggerFactory`、`IAuditStampService`、`ICurrentUser`。
-- `DapperRepository<T>` 负责轻量通用 CRUD、乐观并发、软删除、审计打戳。
+- `PostgreSqlDapperRepository<T>` 负责轻量通用 CRUD、乐观并发、软删除、审计打戳。
 - 复杂查询和批量写入放具体业务 Repository，不扩大泛型仓储。
 
 ## 禁止事项

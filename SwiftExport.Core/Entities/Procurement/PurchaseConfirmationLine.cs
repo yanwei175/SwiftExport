@@ -2,7 +2,7 @@ using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.Procurement;
 /// <summary>确认批次的行依据，记录明确无 BOM 与实际结构指纹；永不回填当前 BOM。</summary>
-[Table("PurchaseConfirmationLine")]
+[Table("purchase_confirmation_line")]
 public sealed partial class PurchaseConfirmationLine : BaseEntity
 {
     /// <summary>所属采购确认批次标识。</summary>

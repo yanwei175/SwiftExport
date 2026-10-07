@@ -17,12 +17,12 @@ public static IServiceCollection AddInfrastructureServices(this IServiceCollecti
 当前基础注册：
 
 - `services.AddLogging()`
-- `IDbConnectionFactory` 从配置创建 SQL Server 连接，`DbSession` 使用显式工厂注册
+- `IDbConnectionFactory` 由 `PostgreSqlConnectionFactory` 从配置创建 PostgreSQL 连接，`DbSession` 使用显式工厂注册
 - `IDbSession` 用 `GetRequiredService<DbSession>()` 注册别名，保证共享实例与事务
-- `IDatabaseExceptionClassifier` 使用 SQL Server 无状态分类器
+- `IDatabaseExceptionClassifier` 使用 `PostgreSqlExceptionClassifier` 无状态分类器
 - `services.AddScoped<RepositoryBaseContext>()`
 - `services.AddScoped<IAuditStampService, AuditStampService>()`
-- `services.AddScoped(typeof(IRepository<>), typeof(DapperRepository<>))`
+- `services.AddScoped(typeof(IRepository<>), typeof(PostgreSqlDapperRepository<>))`
 
 ## 业务 Repository 注册
 
@@ -35,7 +35,7 @@ public static IServiceCollection AddInfrastructureServices(this IServiceCollecti
 示例：
 
 ```csharp
-services.AddScoped<IProductRepository, ProductRepository>();
+services.AddScoped<IProductRepository, PostgreSqlProductRepository>();
 ```
 
 ## 依赖包
@@ -43,7 +43,7 @@ services.AddScoped<IProductRepository, ProductRepository>();
 `SwiftExport.Infrastructure.csproj` 当前关键依赖：
 
 - `Dapper`
-- `Microsoft.Data.SqlClient`
+- `Npgsql`
 - `Microsoft.Extensions.Logging`
 
 新增包前先确认是否已有项目模式可复用，不为单个 Repository 引入重量级依赖。

@@ -16,11 +16,51 @@ public sealed class PostgreSqlSupplierRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<Supplier>(context), ISupplierRepository
 {
     private static readonly string Table = $"{PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}";
-    private static readonly string EntityColumns = string.Join(", ", Metadata.Columns.Select(c =>
-        $"s.{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
-    private static readonly string DtoColumns = string.Join(", ", Metadata.Columns
-        .Where(c => c.PropertyName != nameof(Supplier.IsActive)).Select(c =>
-            $"s.{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
+    private const string EntityColumns = """
+        s."uid" AS "Uid",
+        s."version" AS "Version",
+        s."is_deleted" AS "IsDeleted",
+        s."created_date" AS "CreatedDate",
+        s."created_by" AS "CreatedBy",
+        s."updated_date" AS "UpdatedDate",
+        s."updated_by" AS "UpdatedBy",
+        s."is_active" AS "IsActive",
+        s."supplier_code" AS "SupplierCode",
+        s."supplier_name" AS "SupplierName",
+        s."zhe_kou" AS "ZheKou",
+        s."zhe_kou_bei_zhu" AS "ZheKouBeiZhu",
+        s."doc_relate_no" AS "DocRelateNo",
+        s."contact_person" AS "ContactPerson",
+        s."contact_email" AS "ContactEmail",
+        s."contact_phone" AS "ContactPhone",
+        s."address" AS "Address",
+        s."currency" AS "Currency",
+        s."tax_rate" AS "TaxRate",
+        s."payment_terms" AS "PaymentTerms",
+        s."default_lead_time" AS "DefaultLeadTime"
+    """;
+    private const string DtoColumns = """
+        s."uid" AS "Uid",
+        s."version" AS "Version",
+        s."is_deleted" AS "IsDeleted",
+        s."created_date" AS "CreatedDate",
+        s."created_by" AS "CreatedBy",
+        s."updated_date" AS "UpdatedDate",
+        s."updated_by" AS "UpdatedBy",
+        s."supplier_code" AS "SupplierCode",
+        s."supplier_name" AS "SupplierName",
+        s."zhe_kou" AS "ZheKou",
+        s."zhe_kou_bei_zhu" AS "ZheKouBeiZhu",
+        s."doc_relate_no" AS "DocRelateNo",
+        s."contact_person" AS "ContactPerson",
+        s."contact_email" AS "ContactEmail",
+        s."contact_phone" AS "ContactPhone",
+        s."address" AS "Address",
+        s."currency" AS "Currency",
+        s."tax_rate" AS "TaxRate",
+        s."payment_terms" AS "PaymentTerms",
+        s."default_lead_time" AS "DefaultLeadTime"
+    """;
     private const string CodeValue = "rtrim(s.supplier_code, ' ') COLLATE public.erp_dictionary_ci";
     private const string MatchesCodes = "EXISTS (SELECT 1 FROM unnest(@Codes) AS requested(code) WHERE rtrim(requested.code, ' ') COLLATE public.erp_dictionary_ci = " + CodeValue + ")";
 

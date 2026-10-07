@@ -275,7 +275,7 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
         /// <summary>只插入随机夹具实体，复用既有PG元数据与参数，不修改结构或历史行。</summary>
         public async Task InsertAsync<T>(T entity) where T : BaseEntity
         {
-            Context.AuditStamp.StampForInsert(entity); var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+            Context.AuditStamp.StampForInsert(entity); var map = EntityMetadataCache.GetMetadata(typeof(T));
             var columns = string.Join(", ", map.Columns.Select(c => PostgreSqlNames.Quote(c.ColumnName)));
             var parameters = string.Join(", ", map.Columns.Select(c => "@" + c.ParameterName));
             Assert.AreEqual(1, await Session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({columns}) VALUES ({parameters});", PostgreSqlParameters.Entity(entity, map), Session.Transaction)));

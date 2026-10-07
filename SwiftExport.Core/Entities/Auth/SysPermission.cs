@@ -4,7 +4,7 @@ using SwiftExport.Core.Common;
 namespace SwiftExport.Core.Entities.Auth;
 
 /// <summary>代码权限目录的数据库投影；权限含义由代码目录统一定义。</summary>
-[Table("SysPermissionDefinitions")]
+[Table("sys_permission")]
 public partial class SysPermission : BaseEntity
 {
     /// <summary>不可复用的稳定权限键。</summary>

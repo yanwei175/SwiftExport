@@ -225,7 +225,7 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         {
             // 流水Sequence有唯一索引，随机正值仅用于本例历史证明，不消耗数据库序列或复用0。
             if(entity is InventoryLedgerEntry ledger && ledger.Sequence==0)ledger.Sequence=BitConverter.ToInt64(Guid.NewGuid().ToByteArray()) & long.MaxValue;
-            var m=PostgreSqlEntityMetadata.GetMetadata(typeof(T));var columns=string.Join(',',m.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',m.Columns.Select(x=>"@"+x.ParameterName));
+            var m=EntityMetadataCache.GetMetadata(typeof(T));var columns=string.Join(',',m.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',m.Columns.Select(x=>"@"+x.ParameterName));
             Assert.AreEqual(1,await Session.Connection.ExecuteAsync($"INSERT INTO public.{PostgreSqlNames.Quote(m.TableName)} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(entity,m),Transaction));
         }
         /// <summary>只修改本例已登记UID，所有变化由父事务回滚。</summary>

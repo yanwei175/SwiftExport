@@ -51,8 +51,8 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 - Contracts 是 `netstandard2.0` 项目，不使用高版本 C# 语法。
 - Core 承担 Entity 和 Repository Interface。
 - Infrastructure 承担 Dapper Repository 实现。
-- Infrastructure 使用 `Microsoft.Data.SqlClient`、`Dapper`、`Microsoft.Extensions.Logging`。
-- Core `IDbSession` 是 Application 的连接事务契约，Infrastructure `DbSession` 是当前 SQL Server 实现；两者共享同一 scoped 实例，Repository 不自行创建连接。
+- Infrastructure 使用 `Npgsql`、`Dapper`、`Microsoft.Extensions.Logging`。
+- Core `IDbSession` 是 Application 的连接事务契约，Infrastructure `DbSession` 是当前 PostgreSQL 实现；两者共享同一 scoped 实例，Repository 不自行创建连接。
 - `RepositoryBaseContext` 是仓储层基础依赖聚合。
 - API/前端可见只读联表模型优先放 Contracts DTO。
 - Mapster 是服务层和前端都可使用的映射工具，复杂映射集中配置。

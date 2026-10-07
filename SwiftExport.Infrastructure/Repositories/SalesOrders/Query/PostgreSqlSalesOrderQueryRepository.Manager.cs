@@ -32,8 +32,8 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
             SELECT h.uid AS "Uid",h.version AS "Version",h.document_status AS "DocumentStatus",
                    h.confirmation_status AS "ConfirmationStatus",h.customer_id AS "CustomerId",
                    h.order_no AS "OrderNo",h.delivery_date AS "DeliveryDate"
-            FROM {Headers} h
-            LEFT JOIN {Table(typeof(Customer))} c ON c.uid=h.customer_id AND c.is_deleted=FALSE
+            FROM "public"."sales_order_header" h
+            LEFT JOIN "public"."customer" c ON c.uid=h.customer_id AND c.is_deleted=FALSE
             {where}
             """, parameters, cancellationToken);
         parameters.Add("Candidates", JsonSerializer.Serialize(candidates));
@@ -111,7 +111,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
             .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? [];
         if (skus.Length > 0)
         {
-            where.Append($" AND EXISTS (SELECT 1 FROM {Lines} sku_line WHERE sku_line.sales_order_id=h.uid"
+            where.Append($" AND EXISTS (SELECT 1 FROM \"public\".\"sales_order_line\" sku_line WHERE sku_line.sales_order_id=h.uid"
                 + " AND sku_line.is_deleted=FALSE AND rtrim(sku_line.customer_sku,' ') COLLATE public.erp_dictionary_ci=ANY(@CustomerSkus))");
             parameters.AddTexts("CustomerSkus", skus);
         }
@@ -120,13 +120,13 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
             var headColumns = new[] { "h.order_no", "h.customer_code", "h.customer_po_no", "h.invoice_no", "c.customer_name" };
             var lineColumns = new[] { "keyword_line.sku", "keyword_line.customer_sku", "keyword_line.link_sku", "keyword_line.description_en" };
             where.Append(" AND (" + string.Join(" OR ", headColumns.Select(x => ManagerLike(x, "Keyword")))
-                + $" OR EXISTS (SELECT 1 FROM {Lines} keyword_line WHERE keyword_line.sales_order_id=h.uid"
+                + $" OR EXISTS (SELECT 1 FROM \"public\".\"sales_order_line\" keyword_line WHERE keyword_line.sales_order_id=h.uid"
                 + " AND keyword_line.is_deleted=FALSE AND (" + string.Join(" OR ", lineColumns.Select(x => ManagerLike(x, "Keyword"))) + ")))");
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
         }
         if (request.EffectiveDeliveryDateFrom.HasValue || request.EffectiveDeliveryDateTo.HasValue)
         {
-            where.Append($" AND EXISTS (SELECT 1 FROM {Lines} due_line WHERE due_line.sales_order_id=h.uid AND due_line.is_deleted=FALSE"
+            where.Append($" AND EXISTS (SELECT 1 FROM \"public\".\"sales_order_line\" due_line WHERE due_line.sales_order_id=h.uid AND due_line.is_deleted=FALSE"
                 + " AND (@EffectiveDueFrom IS NULL OR COALESCE(due_line.expected_delivery_date,h.delivery_date)>=@EffectiveDueFrom)"
                 + " AND (@EffectiveDueTo IS NULL OR COALESCE(due_line.expected_delivery_date,h.delivery_date)<@EffectiveDueTo))");
         }
@@ -213,8 +213,8 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                COALESCE(h.total_amount_local_currency,0) AS "TotalAmountLocalCurrency",
                h.order_date AS "OrderDate",h.delivery_date AS "DeliveryDate",h.reply_date AS "ReplyDate",h.created_date AS "CreatedDate",
                COALESCE(h.created_by,'') AS "CreatedBy",h.updated_date AS "UpdatedDate",COALESCE(h.updated_by,'') AS "UpdatedBy"
-        FROM order_facts f JOIN {Headers} h ON h.uid=f.uid
-        LEFT JOIN {Table(typeof(Customer))} c ON c.uid=h.customer_id AND c.is_deleted=FALSE
+        FROM order_facts f JOIN "public"."sales_order_header" h ON h.uid=f.uid
+        LEFT JOIN "public"."customer" c ON c.uid=h.customer_id AND c.is_deleted=FALSE
         LEFT JOIN LATERAL (
             SELECT string_agg(distinct_reasons.reason,'、' ORDER BY distinct_reasons.reason COLLATE public.erp_dictionary_ci) AS review_reason
             FROM (SELECT DISTINCT lf."ReviewReason" COLLATE public.erp_dictionary_ci AS reason FROM line_facts lf

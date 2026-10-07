@@ -14,8 +14,21 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.ExchangeRates;
 public sealed class PostgreSqlSysDicCurrencyExchangeRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<SysDicCurrencyExchange>(context), ISysDicCurrencyExchangeRepository
 {
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(column =>
-        $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string Columns = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "is_enabled" AS "IsEnabled",
+        "from_currency_code" AS "FromCurrencyCode",
+        "to_currency_code" AS "ToCurrencyCode",
+        "precision" AS "Precision",
+        "rate" AS "Rate",
+        "remark" AS "Remark"
+    """;
 
     /// <summary>按源币种、目标币种及备注查询有效汇率，返回稳定分页及共享契约投影。</summary>
     public async Task<PagedResponseBase<SysDicCurrencyExchangeDto>> GetPagedAsync(SysDicCurrencyExchangeSearchRequest request)

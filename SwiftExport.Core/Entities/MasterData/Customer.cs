@@ -1,10 +1,10 @@
-﻿using SwiftExport.Core.Common;
+using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
 /// <summary>客户主数据实体，保存客户身份、联系方式及资料目录配置。</summary>
-[Table("Customer")]
+[Table("customer")]
 public partial class Customer : BaseEntity
 {
     /// <summary>是否允许新业务引用；停用不取消已有业务承诺。</summary>

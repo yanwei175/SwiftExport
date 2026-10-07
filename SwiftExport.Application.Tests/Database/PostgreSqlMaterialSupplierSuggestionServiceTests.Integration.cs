@@ -286,12 +286,12 @@ public sealed class PostgreSqlMaterialSupplierSuggestionServiceTests
     /// <summary>读取本例全列快照，映射字段不遗漏；可借用owner父事务作故障屏障取证。</summary>
     private static Task<T> Read<T>(DbSession session, Guid uid) where T : BaseEntity
     {
-        var map = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var map = EntityMetadataCache.GetMetadata(typeof(T));
         return session.Connection.QuerySingleAsync<T>(new CommandDefinition($"SELECT {string.Join(',', map.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName) + " AS " + PostgreSqlNames.Quote(x.PropertyName)))} FROM public.{PostgreSqlNames.Quote(map.TableName)} WHERE uid=@Uid", new { Uid = uid }, session.Transaction));
     }
     /// <summary>仅排除SQL实际写列，其余快照逐属性比较，避免未检查字段被覆盖。</summary>
     private static void Compare<T>(T before, T after, string[] allowed) where T : BaseEntity
-    { foreach (var column in PostgreSqlEntityMetadata.GetMetadata(typeof(T)).Columns.Where(x => !allowed.Contains(x.PropertyName))) Assert.AreEqual(column.Property.GetValue(before), column.Property.GetValue(after), column.PropertyName); }
+    { foreach (var column in EntityMetadataCache.GetMetadata(typeof(T)).Columns.Where(x => !allowed.Contains(x.PropertyName))) Assert.AreEqual(column.Property.GetValue(before), column.Property.GetValue(after), column.PropertyName); }
     /// <summary>成功必须有真实结果，不能以空DTO替代服务成功。</summary>
     private static UpdateSuggestedPurchaseSupplierResult Success(ServiceResult<UpdateSuggestedPurchaseSupplierResult> result)
     { Assert.IsTrue(result.Success, result.Message); Assert.IsNotNull(result.Data); return result.Data; }
@@ -405,7 +405,7 @@ public sealed class PostgreSqlMaterialSupplierSuggestionServiceTests
         /// <summary>初始化使用元数据typed完整参数，不调用服务取号或触碰账号/日志/目录。</summary>
         private static Task<int> Insert(DbSession session, BaseEntity entity)
         {
-            var map = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+            var map = EntityMetadataCache.GetMetadata(entity.GetType());
             return session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO public.{PostgreSqlNames.Quote(map.TableName)} ({string.Join(',', map.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName)))}) VALUES ({string.Join(',', map.Columns.Select(x => '@' + x.ParameterName))})", new Parameters(entity, map), session.Transaction));
         }
         /// <summary>失败库先确认本例没有回执，再精确清Net/Gross；未知提交或发现回执不能扩大删除。</summary>

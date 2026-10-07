@@ -298,7 +298,7 @@ public sealed class PostgreSqlMaterialDemandDocumentMigrationIntegrationTests
         /// <summary>租约释放不会接管父事务；本例先结束父事务。</summary>
         public async Task Release(){End(false);if(lease is {} value){lease=null;await value.DisposeAsync();}}
         /// <summary>直接夹具插入保留软删与历史状态，不修改约束。</summary>
-        public async Task Insert(object row){var map=PostgreSqlEntityMetadata.GetMetadata(row.GetType());Assert.AreEqual(1,await Session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)))}) VALUES ({string.Join(',',map.Columns.Select(c=>"@"+c.ParameterName))})",PostgreSqlParameters.Entity(row,map),Session.Transaction)));}
+        public async Task Insert(object row){var map=EntityMetadataCache.GetMetadata(row.GetType());Assert.AreEqual(1,await Session.Connection.ExecuteAsync(new CommandDefinition($"INSERT INTO {PostgreSqlNames.Quote(map.SchemaName)}.{PostgreSqlNames.Quote(map.TableName)} ({string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)))}) VALUES ({string.Join(',',map.Columns.Select(c=>"@"+c.ParameterName))})",PostgreSqlParameters.Entity(row,map),Session.Transaction)));}
         /// <summary>只登记本人本例随机Net，清理不使用Gross范围。</summary>
         public void Track(NetDemand row){Assert.AreNotEqual(Guid.Empty,row.Uid);nets.Add(row.Uid);}
         /// <summary>跨连接专用Gross自动提交种子先登记。</summary>
@@ -306,7 +306,7 @@ public sealed class PostgreSqlMaterialDemandDocumentMigrationIntegrationTests
         /// <summary>跨连接专用Net自动提交种子先登记。</summary>
         public async Task InsertCommitted(NetDemand row){Assert.IsNull(Session.Transaction);Track(row);await Insert(row);}
         /// <summary>不按资格过滤的完整读取，用于核对未受影响的行。</summary>
-        public Task<NetDemand?> Read(Guid uid){var map=PostgreSqlEntityMetadata.GetMetadata(typeof(NetDemand));return Session.Connection.QuerySingleOrDefaultAsync<NetDemand>(new CommandDefinition($"SELECT {string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)+" AS "+PostgreSqlNames.Quote(c.PropertyName)))} FROM public.net_demand WHERE uid=@Uid",new{Uid=uid},Session.Transaction));}
+        public Task<NetDemand?> Read(Guid uid){var map=EntityMetadataCache.GetMetadata(typeof(NetDemand));return Session.Connection.QuerySingleOrDefaultAsync<NetDemand>(new CommandDefinition($"SELECT {string.Join(',',map.Columns.Select(c=>PostgreSqlNames.Quote(c.ColumnName)+" AS "+PostgreSqlNames.Quote(c.PropertyName)))} FROM public.net_demand WHERE uid=@Uid",new{Uid=uid},Session.Transaction));}
         /// <summary>先释放全部父事务与租约，再精确删除本人登记Net/Gross；不碰旧数据、回执或任何目录。</summary>
         public async ValueTask DisposeAsync()
         {

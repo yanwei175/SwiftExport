@@ -12,10 +12,61 @@ namespace SwiftExport.Infrastructure.Repositories.Commands;
 /// <summary>在共享 PostgreSQL 事务内锁定命令身份并追加不可变回执；不接管调用方事务。</summary>
 public sealed class PostgreSqlCommandReceiptRepository(RepositoryBaseContext context) : ICommandReceiptRepository, ICommandTransactionPreparation
 {
-    private static readonly EntityMetadata Metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(CommandReceipt));
+    /// <summary>本仓储固定持久化列及参数，保留原写入范围。</summary>
+    private const string InsertReceiptSql = """
+        INSERT INTO "public"."command_receipt" ("uid",
+        "version",
+        "is_deleted",
+        "created_date",
+        "created_by",
+        "updated_date",
+        "updated_by",
+        "command_id",
+        "actor_uid",
+        "command_type",
+        "request_target_uid",
+        "fingerprint_version",
+        "request_fingerprint",
+        "result_version",
+        "result_json",
+        "recorded_at_utc") VALUES (@Uid,
+        @Version,
+        @IsDeleted,
+        @CreatedDate,
+        @CreatedBy,
+        @UpdatedDate,
+        @UpdatedBy,
+        @CommandId,
+        @ActorUid,
+        @CommandType,
+        @RequestTargetUid,
+        @FingerprintVersion,
+        @RequestFingerprint,
+        @ResultVersion,
+        @ResultJson,
+        @RecordedAtUtc);
+    """;
+
+    private static readonly EntityMetadata Metadata = EntityMetadataCache.GetMetadata(typeof(CommandReceipt));
     private static readonly string Table = $"{PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}";
-    private static readonly string Projection = string.Join(", ", Metadata.Columns.Select(column =>
-        $"{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string Projection = """
+        "uid" AS "Uid",
+        "version" AS "Version",
+        "is_deleted" AS "IsDeleted",
+        "created_date" AS "CreatedDate",
+        "created_by" AS "CreatedBy",
+        "updated_date" AS "UpdatedDate",
+        "updated_by" AS "UpdatedBy",
+        "command_id" AS "CommandId",
+        "actor_uid" AS "ActorUid",
+        "command_type" AS "CommandType",
+        "request_target_uid" AS "RequestTargetUid",
+        "fingerprint_version" AS "FingerprintVersion",
+        "request_fingerprint" AS "RequestFingerprint",
+        "result_version" AS "ResultVersion",
+        "result_json" AS "ResultJson",
+        "recorded_at_utc" AS "RecordedAtUtc"
+    """;
 
     /// <summary>事务开始前获取同连接命令租约，竞争耗尽返回空；调用方必须在事务释放后释放租约。</summary>
     public Task<IAsyncDisposable?> AcquireBeforeTransactionAsync(Guid commandId, CancellationToken token) =>
@@ -44,11 +95,9 @@ public sealed class PostgreSqlCommandReceiptRepository(RepositoryBaseContext con
         var transaction = context.Session.Transaction
             ?? throw new InvalidOperationException("回执必须与业务事实一起提交。");
         context.AuditStamp.StampForInsert(receipt);
-        var columns = string.Join(", ", Metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
-        var values = string.Join(", ", Metadata.Columns.Select(column => "@" + column.ParameterName));
         // 禁止 UPSERT 或覆盖旧回执；唯一约束、只追加触发器及数据库异常均保留给外层处理。
         var rows = await context.Session.Connection.ExecuteAsync(new CommandDefinition(
-            $"INSERT INTO {Table} ({columns}) VALUES ({values});", PostgreSqlParameters.Entity(receipt, Metadata),
+            InsertReceiptSql, PostgreSqlParameters.Entity(receipt, Metadata),
             transaction, cancellationToken: token));
         if (rows != 1)
             throw new InvalidOperationException("命令回执追加未写入一行，业务事务不能提交。");

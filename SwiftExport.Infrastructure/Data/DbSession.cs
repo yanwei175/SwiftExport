@@ -24,10 +24,10 @@ public class DbSession : IDbSession, IDisposable
     /// <summary>最外层业务用例拥有的当前事务。</summary>
     public IDbTransaction? Transaction { get; set; }
     private readonly IDatabaseExceptionClassifier? _errors;
-    /// <summary>优先使用连接工厂分类器；无构造测试会话也采用目标PG默认值，显式源工厂保留源语义。</summary>
+    /// <summary>使用连接工厂分类器；无构造测试会话也采用 PostgreSQL 默认分类器。</summary>
     public IDatabaseExceptionClassifier Errors => _errors ?? PostgreSqlExceptionClassifier.Instance;
 
-    /// <summary>配置构造入口统一使用目标PG工厂；源SQL对照测试须显式传入原工厂，避免与默认PG配置混用。</summary>
+    /// <summary>从 Default 配置创建 PostgreSQL 会话，连接由会话打开和释放。</summary>
     public DbSession(IConfiguration configuration)
         : this(new PostgreSqlConnectionFactory(configuration.GetConnectionString("Default")!))
     {

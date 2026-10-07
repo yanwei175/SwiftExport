@@ -188,7 +188,7 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         /// <summary>按现有只读元数据写合法随机实体，完整保留UID/Version/NULL，不关闭索引CHECK或触发器。</summary>
         public async Task Add<T>(T entity) where T:BaseEntity
         {
-            var map=PostgreSqlEntityMetadata.GetMetadata(typeof(T));var columns=string.Join(',',map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',map.Columns.Select(x=>"@"+x.ParameterName));
+            var map=EntityMetadataCache.GetMetadata(typeof(T));var columns=string.Join(',',map.Columns.Select(x=>PostgreSqlNames.Quote(x.ColumnName)));var values=string.Join(',',map.Columns.Select(x=>"@"+x.ParameterName));
             Assert.AreEqual(1,await Session.Connection.ExecuteAsync($"INSERT INTO public.{PostgreSqlNames.Quote(map.TableName)} ({columns}) VALUES ({values})",PostgreSqlParameters.Entity(entity,map),Transaction));
         }
     }

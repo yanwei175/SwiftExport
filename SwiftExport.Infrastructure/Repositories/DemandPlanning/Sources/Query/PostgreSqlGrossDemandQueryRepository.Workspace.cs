@@ -55,7 +55,9 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
             countSql, parameters, context.Session.Transaction, cancellationToken: cancellationToken));
         return new PagedResponseBase<GrossDemandListItemDto>
         {
-            Items = [.. items], TotalCount = total, PageIndex = pageIndex,
+            Items = [.. items],
+            TotalCount = total,
+            PageIndex = pageIndex,
             PageSize = sourceMode ? Math.Max(1, total) : pageSize
         };
     }
@@ -79,7 +81,9 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
                 AND NULLIF(btrim(pol.unit_snapshot,' ') COLLATE public.erp_dictionary_ci,'') IS NOT NULL)
         """;
     // 原交付提示只看未删除已过账装箱头行，不追加 Trace 的历史完整性校验。
-    private const string WorkspacePostedDeliveryExists = "EXISTS (SELECT 1 FROM public.packing_list_line pl JOIN public.packing_list_head ph ON ph.uid=pl.packing_list_head_id AND ph.is_deleted=FALSE AND ph.posting_status=1 WHERE pl.gross_demand_id=d.uid AND pl.is_deleted=FALSE)";
+    private const string WorkspacePostedDeliveryExists = """
+        EXISTS (SELECT 1 FROM public.packing_list_line pl JOIN public.packing_list_head ph ON ph.uid=pl.packing_list_head_id AND ph.is_deleted=FALSE AND ph.posting_status=1 WHERE pl.gross_demand_id=d.uid AND pl.is_deleted=FALSE)
+    """;
 
     /// <summary>保留每项原筛选输入规则和 TraceView 精确分支；集合去重不删空值，不因来源模式跳过其他筛选。</summary>
     private static (List<string> Where, WorkspaceParameters Parameters) BuildWorkspaceFilters(GrossDemandSearchRequest request)
@@ -93,7 +97,9 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
         }
         if (!string.IsNullOrWhiteSpace(request.CustomerKeyword))
         {
-            where.Add("EXISTS (SELECT 1 FROM public.customer c WHERE c.uid=d.customer_id AND c.is_deleted=FALSE AND (c.customer_code COLLATE public.erp_dictionary_ci LIKE @CustomerKeyword ESCAPE '~' OR c.customer_name COLLATE public.erp_dictionary_ci LIKE @CustomerKeyword ESCAPE '~'))");
+            where.Add("""
+                EXISTS (SELECT 1 FROM public.customer c WHERE c.uid=d.customer_id AND c.is_deleted=FALSE AND (c.customer_code COLLATE public.erp_dictionary_ci LIKE @CustomerKeyword ESCAPE '~' OR c.customer_name COLLATE public.erp_dictionary_ci LIKE @CustomerKeyword ESCAPE '~'))
+            """);
             parameters.Scalars.Add("CustomerKeyword", SqlLikePattern.Build(request.CustomerKeyword));
         }
         // 精确识别既有六个快捷条件，未知/null/All 均不加条件，不擅自 Trim 或改大小写。
@@ -148,7 +154,7 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
 
     /// <summary>同日期下使用 SQL Server uniqueidentifier 字节优先级，避免 PostgreSQL 默认 UUID 排序改变分页。</summary>
     private static string WorkspaceSqlGuidOrder(string column) => "ARRAY[" + string.Join(',',
-        new[] { 10,11,12,13,14,15,8,9,7,6,5,4,3,2,1,0 }.Select(i => $"get_byte(uuid_send({column}),{i})")) + "]";
+        new[] { 10, 11, 12, 13, 14, 15, 8, 9, 7, 6, 5, 4, 3, 2, 1, 0 }.Select(i => $"get_byte(uuid_send({column}),{i})")) + "]";
 
     /// <summary>仅组合本列表所需的共享标量/文本数组参数和明确 integer[] 状态，不修改共享参数类或旧分组参数。</summary>
     private sealed class WorkspaceParameters : SqlMapper.IDynamicParameters

@@ -16,12 +16,24 @@ namespace SwiftExport.Infrastructure.Repositories.Products.ProductNeutrals;
 public sealed class PostgreSqlProductNeutralManagerRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<ProductNeutral>(context), IProductNeutralManagerRepository
 {
-    private static readonly string Table = Qualified(typeof(ProductNeutral));
-    private static readonly string MasterTable = Qualified(typeof(ProductMaster));
-    private static readonly string CategoryTable = Qualified(typeof(ProductCategory));
-    private static readonly string ColorTable = Qualified(typeof(ProductColor));
-    private static readonly string Columns = string.Join(", ", Metadata.Columns.Select(c =>
-        $"pn.{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
+    private const string Columns = """
+        pn."uid" AS "Uid",
+        pn."version" AS "Version",
+        pn."is_deleted" AS "IsDeleted",
+        pn."created_date" AS "CreatedDate",
+        pn."created_by" AS "CreatedBy",
+        pn."updated_date" AS "UpdatedDate",
+        pn."updated_by" AS "UpdatedBy",
+        pn."product_code" AS "ProductCode",
+        pn."product_master_id" AS "ProductMasterId",
+        pn."color_id" AS "ColorId",
+        pn."default_sales_price_usd" AS "DefaultSalesPriceUsd",
+        pn."default_exchange_rate" AS "DefaultExchangeRate",
+        pn."profit_margin" AS "ProfitMargin",
+        pn."default_purchase_price_cny" AS "DefaultPurchasePriceCny",
+        pn."image_path" AS "ImagePath",
+        pn."is_main_image" AS "IsMainImage"
+    """;
 
     /// <summary>管理入口新增仍委托通用仓储，只转换指定中性编码及主型号颜色唯一冲突。</summary>
     public override async Task<RepositoryWriteResult> AddAsync(ProductNeutral entity)
@@ -79,7 +91,7 @@ public sealed class PostgreSqlProductNeutralManagerRepository(RepositoryBaseCont
             parameters.Add("ColorIds", colorIds);
             where.Append(" AND pn.color_id=ANY(@ColorIds)");
         }
-        var from = $"FROM {Table} pn INNER JOIN {MasterTable} pm ON pm.uid=pn.product_master_id";
+        var from = $"FROM \"public\".\"product_neutral\" pn INNER JOIN \"public\".\"product_master\" pm ON pm.uid=pn.product_master_id";
         var total = await Connection.ExecuteScalarAsync<int>(new CommandDefinition(
             $"SELECT COUNT(1) {from} {where}", parameters, Transaction, cancellationToken: cancellationToken));
         // SQL Server NULLIF(name,'') 也将仅尾部 ASCII 空格视为空；C 比较避免 ICU 忽略字符被当成空值。
@@ -89,8 +101,8 @@ public sealed class PostgreSqlProductNeutralManagerRepository(RepositoryBaseCont
                    COALESCE(CASE WHEN rtrim(color.color_name_zh, ' ') COLLATE "C" = '' THEN NULL ELSE color.color_name_zh END,
                             color.color_name_en, color.color_code) AS "ColorName"
             {from}
-            LEFT JOIN {CategoryTable} pc ON pc.uid=pm.category_id AND pc.is_deleted=FALSE
-            LEFT JOIN {ColorTable} color ON color.uid=pn.color_id AND color.is_deleted=FALSE
+            LEFT JOIN "public"."product_category" pc ON pc.uid=pm.category_id AND pc.is_deleted=FALSE
+            LEFT JOIN "public"."product_color" color ON color.uid=pn.color_id AND color.is_deleted=FALSE
             {where}
             ORDER BY pn.product_code COLLATE public.erp_dictionary_ci ASC NULLS FIRST, pn.uid
             LIMIT @Limit OFFSET @Offset
@@ -111,30 +123,39 @@ public sealed class PostgreSqlProductNeutralManagerRepository(RepositoryBaseCont
         var locking = GetLockHint(withUpdLock);
         var parameters = new PostgreSqlParameters();
         parameters.AddTexts("Values", values);
-        var sql = $"SELECT {Columns} FROM {Table} pn WHERE pn.is_deleted=FALSE AND EXISTS (SELECT 1 FROM unnest(@Values) AS requested(code) WHERE rtrim(pn.product_code, ' ') COLLATE public.erp_dictionary_ci = rtrim(requested.code, ' ') COLLATE public.erp_dictionary_ci) ORDER BY pn.uid{locking}";
+        var sql = $"""
+            SELECT {Columns} FROM "public"."product_neutral" pn WHERE pn.is_deleted=FALSE AND EXISTS (SELECT 1 FROM unnest(@Values) AS requested(code) WHERE rtrim(pn.product_code, ' ') COLLATE public.erp_dictionary_ci = rtrim(requested.code, ' ') COLLATE public.erp_dictionary_ci) ORDER BY pn.uid{locking}
+        """;
         return (await Connection.QueryAsync<ProductNeutral>(new CommandDefinition(
             sql, parameters, Transaction, cancellationToken: cancellationToken))).AsList();
     }
 
-    /// <summary>固定实体类型通过公共映射解析限定表名，不依赖其他具体业务仓储。</summary>
-    private static string Qualified(Type type)
-    {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(type);
-        return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
-    }
 
     /// <summary>还原管理页现有可写数据和审计投影；主图标记保持实体内部字段，不扩大传输契约。</summary>
     private static ProductNeutralManagerListItemDto ToListItem(ProductNeutralManagerProjection row) => new()
     {
-        Uid = row.Uid, Version = row.Version, IsDeleted = row.IsDeleted,
-        CreatedDate = row.CreatedDate, CreatedBy = row.CreatedBy, UpdatedDate = row.UpdatedDate, UpdatedBy = row.UpdatedBy,
-        MasterSku = row.MasterSku, ProductMasterDescriptionZh = row.ProductMasterDescriptionZh,
-        CategoryId = row.CategoryId, CategoryName = row.CategoryName, ColorName = row.ColorName,
+        Uid = row.Uid,
+        Version = row.Version,
+        IsDeleted = row.IsDeleted,
+        CreatedDate = row.CreatedDate,
+        CreatedBy = row.CreatedBy,
+        UpdatedDate = row.UpdatedDate,
+        UpdatedBy = row.UpdatedBy,
+        MasterSku = row.MasterSku,
+        ProductMasterDescriptionZh = row.ProductMasterDescriptionZh,
+        CategoryId = row.CategoryId,
+        CategoryName = row.CategoryName,
+        ColorName = row.ColorName,
         Data = new ProductNeutralManagerWriteDto
         {
-            ProductMasterId = row.ProductMasterId, ProductCode = row.ProductCode, ColorId = row.ColorId,
-            DefaultSalesPriceUsd = row.DefaultSalesPriceUsd, DefaultExchangeRate = row.DefaultExchangeRate,
-            ProfitMargin = row.ProfitMargin, DefaultPurchasePriceCny = row.DefaultPurchasePriceCny, ImagePath = row.ImagePath
+            ProductMasterId = row.ProductMasterId,
+            ProductCode = row.ProductCode,
+            ColorId = row.ColorId,
+            DefaultSalesPriceUsd = row.DefaultSalesPriceUsd,
+            DefaultExchangeRate = row.DefaultExchangeRate,
+            ProfitMargin = row.ProfitMargin,
+            DefaultPurchasePriceCny = row.DefaultPurchasePriceCny,
+            ImagePath = row.ImagePath
         }
     };
 

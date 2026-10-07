@@ -100,7 +100,7 @@ public sealed class PurchaseDraftAppendSqlTests
             {
                 await services.GetRequiredService<IPurchaseOrderDraftRepository>().InsertPurchaseDraftLinesAsync(model.Lines);
                 var session = services.GetRequiredService<DbSession>();
-                var columns = string.Join(',', PostgreSqlEntityMetadata.GetMetadata(typeof(PurchaseOrderLine)).Columns.Select(column =>
+                var columns = string.Join(',', EntityMetadataCache.GetMetadata(typeof(PurchaseOrderLine)).Columns.Select(column =>
                     PostgreSqlNames.Quote(column.ColumnName) + " AS " + PostgreSqlNames.Quote(column.PropertyName)));
                 var line = await session.Connection.QuerySingleAsync<PurchaseOrderLine>(
                     $"SELECT {columns} FROM public.purchase_order_line WHERE uid=@Uid", new { model.Lines.Single().Uid }, session.Transaction);

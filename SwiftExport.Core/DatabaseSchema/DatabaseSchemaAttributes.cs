@@ -1,6 +1,6 @@
 namespace SwiftExport.Core.DatabaseSchema;
 
-/// <summary>声明实体表上的 SQL Server 索引，列名必须使用实体属性名。</summary>
+/// <summary>声明实体表上的 PostgreSQL 索引，索引键与覆盖列使用实体属性名。</summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
 public sealed class DbIndexAttribute(string name, params string[] columns) : Attribute
 {
@@ -13,14 +13,14 @@ public sealed class DbIndexAttribute(string name, params string[] columns) : Att
     /// <summary>是否建立唯一索引。</summary>
     public bool IsUnique { get; set; }
 
-    /// <summary>过滤索引谓词；只能引用当前实体列。</summary>
+    /// <summary>使用 PostgreSQL 物理列名的部分索引谓词；只能引用当前实体列。</summary>
     public string? Filter { get; set; }
 
     /// <summary>只作覆盖查询、不参与排序的实体属性名。</summary>
     public string[] IncludeColumns { get; set; } = [];
 }
 
-/// <summary>声明只依赖当前行的 SQL Server CHECK 约束。</summary>
+/// <summary>声明只依赖当前行、使用 PostgreSQL 语法和物理列名的 CHECK 约束。</summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
 public sealed class DbCheckAttribute(string name, string expression) : Attribute
 {
@@ -80,10 +80,10 @@ public sealed class PolymorphicLogicalReferenceAttribute(
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
 public sealed class DbColumnAttribute : Attribute
 {
-    /// <summary>显式 SQL Server 列类型；为空时使用生成器的受控约定。</summary>
+    /// <summary>显式 PostgreSQL 列类型；为空时使用生成器的受控约定。</summary>
     public string? StoreType { get; set; }
 
-    /// <summary>SQL Server 默认值表达式；为空时不建立默认约束。</summary>
+    /// <summary>PostgreSQL 默认值表达式；为空时不建立默认约束。</summary>
     public string? DefaultExpression { get; set; }
 }
 

@@ -113,13 +113,13 @@ public sealed class PostgreSqlAdminPasswordRecoveryStore(string connectionString
     /// <summary>复用实体映射取得引用后的物理表名，避免旧 SQL 表名的复数约定污染 PG 名称。</summary>
     private static string Table<T>()
     {
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(T));
         return $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
     }
 
     /// <summary>通过同一元数据取得持久化列，不另建字段映射。</summary>
     private static string Column<T>(string property) => PostgreSqlNames.Quote(
-        PostgreSqlEntityMetadata.GetMetadata(typeof(T)).Columns.Single(x => x.PropertyName == property).ColumnName);
+        EntityMetadataCache.GetMetadata(typeof(T)).Columns.Single(x => x.PropertyName == property).ColumnName);
 
     /// <summary>为本工具两条命令显式绑定 text 和身份/版本；可空文本保留数据库 NULL，不做业务清洗。</summary>
     private sealed class RecoveryParameters(string? userName, string? passwordHash = null,

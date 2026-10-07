@@ -1,10 +1,10 @@
-﻿using SwiftExport.Core.Common;
+using SwiftExport.Core.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData
 {
     /// <summary>物料清单组成行实体，保存父产品在指定 BOM 版本下的组件及用量比例。</summary>
-    [Table("Bom")]
+    [Table("bom")]
 public partial class Bom : BaseEntity
     {
         /// <summary>该实体保存的BOM 编号。</summary>

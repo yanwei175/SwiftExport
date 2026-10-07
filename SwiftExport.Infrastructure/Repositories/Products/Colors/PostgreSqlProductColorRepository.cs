@@ -14,10 +14,30 @@ public sealed class PostgreSqlProductColorRepository(RepositoryBaseContext conte
     : PostgreSqlDapperRepository<ProductColor>(context), IProductColorRepository
 {
     private static readonly string Table = $"{PostgreSqlNames.Quote(Metadata.SchemaName)}.{PostgreSqlNames.Quote(Metadata.TableName)}";
-    private static readonly EntityMetadata ProductMetadata = PostgreSqlEntityMetadata.GetMetadata(typeof(Product));
+    private static readonly EntityMetadata ProductMetadata = EntityMetadataCache.GetMetadata(typeof(Product));
     private static readonly string ProductTable = $"{PostgreSqlNames.Quote(ProductMetadata.SchemaName)}.{PostgreSqlNames.Quote(ProductMetadata.TableName)}";
-    private static readonly string Columns = Projection(Metadata.Columns.Select(c => c.PropertyName));
-    private static readonly string NarrowColumns = Projection(["Uid", "Version", "IsDeleted", "ColorCodeUnique", "ColorCode", "ColorNameEn", "ColorNameZh"]);
+    private const string Columns = """
+        c."uid" AS "Uid",
+        c."version" AS "Version",
+        c."is_deleted" AS "IsDeleted",
+        c."created_date" AS "CreatedDate",
+        c."created_by" AS "CreatedBy",
+        c."updated_date" AS "UpdatedDate",
+        c."updated_by" AS "UpdatedBy",
+        c."color_code_unique" AS "ColorCodeUnique",
+        c."color_code" AS "ColorCode",
+        c."color_name_en" AS "ColorNameEn",
+        c."color_name_zh" AS "ColorNameZh"
+    """;
+    private const string NarrowColumns = """
+        c."uid" AS "Uid",
+        c."version" AS "Version",
+        c."is_deleted" AS "IsDeleted",
+        c."color_code_unique" AS "ColorCodeUnique",
+        c."color_code" AS "ColorCode",
+        c."color_name_en" AS "ColorNameEn",
+        c."color_name_zh" AS "ColorNameZh"
+    """;
 
     /// <summary>存在检查包含软删颜色，保持输入原文本；尾部 ASCII 空格及 ICU 比较不代表唯一索引已适配。</summary>
     public Task<bool> ExistByColorCode(string productColor)
@@ -84,10 +104,6 @@ public sealed class PostgreSqlProductColorRepository(RepositoryBaseContext conte
         var rows = await Connection.QueryAsync<ProductColor>($"SELECT {Columns} FROM {Table} c WHERE {where} ORDER BY c.color_code_unique COLLATE public.erp_dictionary_ci ASC NULLS FIRST, c.uid LIMIT @Limit OFFSET @Offset", parameters, Transaction);
         return new PagedResponseBase<ProductColor> { Items = rows.AsList(), TotalCount = count, PageIndex = index, PageSize = size };
     }
-
-    /// <summary>从实体映射选择指定属性，显式别名还原 CLR 字段；输入只由本类固定字段组成。</summary>
-    private static string Projection(IEnumerable<string> properties) => string.Join(", ", properties.Select(p =>
-        $"c.{PostgreSqlNames.Quote(Metadata.GetProperty(p).ColumnName)} AS {PostgreSqlNames.Quote(p)}"));
 
     /// <summary>用存在子查询比较文本数组，避免重复输入放大返回行；列与参数名只来自固定调用。</summary>
     private static string Matches(string column, string parameter) => $"EXISTS (SELECT 1 FROM unnest(@{parameter}) AS requested(code) WHERE rtrim(c.{column}, ' ') COLLATE public.erp_dictionary_ci = rtrim(requested.code, ' ') COLLATE public.erp_dictionary_ci)";

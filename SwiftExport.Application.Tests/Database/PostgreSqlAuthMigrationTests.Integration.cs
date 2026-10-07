@@ -246,7 +246,7 @@ public sealed class PostgreSqlAuthMigrationIntegrationTests
     {
         // 通用 Add 会重新生成 Uid 并重置 IsDeleted，不能用于已关联的专用记录和删除状态夹具。
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(typeof(T));
+        var metadata = EntityMetadataCache.GetMetadata(typeof(T));
         var table = $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
         var columns = string.Join(", ", metadata.Columns.Select(column => PostgreSqlNames.Quote(column.ColumnName)));
         var values = string.Join(", ", metadata.Columns.Select(column => "@" + column.ParameterName));

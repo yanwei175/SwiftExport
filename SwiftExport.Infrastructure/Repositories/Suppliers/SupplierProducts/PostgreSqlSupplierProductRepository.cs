@@ -14,8 +14,24 @@ namespace SwiftExport.Infrastructure.Repositories.Suppliers.SupplierProducts;
 public sealed class PostgreSqlSupplierProductRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<SupplierProduct>(context), ISupplierProductRepository
 {
-    private static readonly string EntityColumns = string.Join(",", Metadata.Columns.Select(column =>
-        $"sp.{PostgreSqlNames.Quote(column.ColumnName)} AS {PostgreSqlNames.Quote(column.PropertyName)}"));
+    private const string EntityColumns = """
+        sp."uid" AS "Uid",
+        sp."version" AS "Version",
+        sp."is_deleted" AS "IsDeleted",
+        sp."created_date" AS "CreatedDate",
+        sp."created_by" AS "CreatedBy",
+        sp."updated_date" AS "UpdatedDate",
+        sp."updated_by" AS "UpdatedBy",
+        sp."supplier_id" AS "SupplierId",
+        sp."supplier_code" AS "SupplierCode",
+        sp."sku_id" AS "SkuId",
+        sp."product_sku" AS "ProductSku",
+        sp."supplier_sku" AS "SupplierSku",
+        sp."supplier_sku_description_zh" AS "SupplierSkuDescriptionZh",
+        sp."supplier_sku_features_zh" AS "SupplierSkuFeaturesZh",
+        sp."unit_price" AS "UnitPrice",
+        sp."tax_price" AS "TaxPrice"
+    """;
     private const string Projection = """
         sp.uid AS "Uid",sp.version AS "Version",sp.is_deleted AS "IsDeleted",
         sp.created_date AS "CreatedDate",sp.created_by AS "CreatedBy",sp.updated_date AS "UpdatedDate",sp.updated_by AS "UpdatedBy",

@@ -9,7 +9,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.DatabaseSchema;
 
-/// <summary>从实体元数据生成PostgreSQL 18空库结构评审基线；不连接数据库、不迁数据、不替换SQL Server生成器。</summary>
+/// <summary>从实体元数据生成PostgreSQL 18空库结构评审基线；不连接数据库、不迁数据、不向已有库部署。</summary>
 public sealed class PostgreSqlSchemaGenerator
 {
     /// <summary>生成表、序列、索引、CHECK、保护触发器及中文说明；未知类型或命名碰撞立即失败。</summary>
@@ -71,14 +71,14 @@ END $$;
                 if (c.Property.GetCustomAttribute<ForeignKeyAttribute>() is not null) throw new InvalidOperationException("不允许数据库外键属性。");
                 var collation = IsDictionary(entity) && c.Property.PropertyType == typeof(string)
                     ? " COLLATE public.erp_dictionary_ci" : "";
-                var definition = $"    {Q(c.ColumnName)} {ResolveType(c.Property)}{collation}{(EntityColumnSchema.IsNullable(c.Property) ? " NULL" : " NOT NULL")}";
+                var definition = $"    {Q(c.ColumnName)} {EntityColumnSchema.ResolveStoreType(c.Property)}{collation}{(EntityColumnSchema.IsNullable(c.Property) ? " NULL" : " NOT NULL")}";
                 var value = c.Property.GetCustomAttribute<DbColumnAttribute>()?.DefaultExpression;
                 if (value is not null) definition += " DEFAULT " + Default(c.Property, value);
                 return definition;
             }).ToList();
             columns.Add($"    CONSTRAINT {Q(Register("pk_" + map.TableName))} PRIMARY KEY ({Q(map.KeyName)})");
             foreach (var check in entity.GetCustomAttributes<DbCheckAttribute>(true).OrderBy(c => c.Name, StringComparer.Ordinal))
-                columns.Add($"    CONSTRAINT {Q(Register(check.Name.Replace("{Table}", entity.Name, StringComparison.Ordinal)))} CHECK ({PostgreSqlSchemaExpressions.Convert(entity, check.Expression)})");
+                columns.Add($"    CONSTRAINT {Q(Register(check.Name.Replace("{Table}", entity.Name, StringComparison.Ordinal)))} CHECK ({check.Expression})");
             sql.AppendLine($"CREATE TABLE {Table(entity)} (\n{string.Join(",\n", columns)}\n);");
         }
         foreach (var entity in entities)
@@ -87,7 +87,7 @@ END $$;
             {
                 if (index.Columns.Count == 0) throw new InvalidOperationException("索引没有键列。");
                 var include = index.IncludeColumns.Length == 0 ? "" : $" INCLUDE ({string.Join(", ", index.IncludeColumns.Select(c => Column(entity, c)))})";
-                var filter = string.IsNullOrWhiteSpace(index.Filter) ? "" : " WHERE " + PostgreSqlSchemaExpressions.Convert(entity, index.Filter);
+                var filter = string.IsNullOrWhiteSpace(index.Filter) ? "" : " WHERE " + index.Filter;
                 var keys = index.Columns.Select(c => IndexColumn(entity, index, c));
                 // 客户 PO 两个可空编码沿用 SQL Server 唯一键的 NULL 相等规则，不放宽重复默认配置。
                 var nulls = entity == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
@@ -132,30 +132,11 @@ END $$;
         return approvedCode ? $"(rtrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)" : Column(entity, property);
     }
 
-    /// <summary>显式适配当前类型注解，未知存储类型不回退成text；UTC与业务本地时间分开。</summary>
-    internal static string ResolveType(PropertyInfo property)
-    {
-        var type = EntityColumnSchema.ResolveStoreType(property).ToLowerInvariant();
-        if (type == "uniqueidentifier") return "uuid";
-        if (type == "bit") return "boolean";
-        if (type == "int") return "integer";
-        if (type is "bigint" or "smallint" or "date") return type;
-        if (type == "tinyint") throw new InvalidOperationException("tinyint需显式范围约束后适配。");
-        if (type == "float") return "double precision";
-        if (Regex.IsMatch(type, @"^decimal\(\d+,\d+\)$")) return type.Replace("decimal", "numeric", StringComparison.Ordinal);
-        if (type is "nvarchar(max)" or "varchar(max)") return "text";
-        if (Regex.IsMatch(type, @"^n?varchar\(\d+\)$")) return type.TrimStart('n');
-        if (type == "varbinary(max)") return "bytea";
-        if (type == "datetime2(7)") return property.Name.EndsWith("Utc", StringComparison.Ordinal) ? "timestamp(6) with time zone" : "timestamp(6) without time zone";
-        if (type == "datetimeoffset(7)") return "timestamp(6) with time zone";
-        throw new InvalidOperationException($"{property.DeclaringType?.Name}.{property.Name}的类型{type}尚未适配。");
-    }
-
     /// <summary>默认值只接受当前元数据使用的常量；不隐式转换时间、序列或提供者函数。</summary>
     private static string Default(PropertyInfo property, string expression)
     {
         if ((Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType) == typeof(bool))
-            return expression switch { "0" => "FALSE", "1" => "TRUE", _ => throw new InvalidOperationException("未适配布尔默认值。") };
+            return expression switch { "FALSE" => "FALSE", "TRUE" => "TRUE", _ => throw new InvalidOperationException("布尔默认值必须声明为TRUE或FALSE。") };
         if (Regex.IsMatch(expression, @"^-?\d+(\.\d+)?$")) return expression;
         throw new InvalidOperationException($"未适配默认表达式：{expression}");
     }
@@ -200,7 +181,7 @@ END $$;
         }
     }
 
-    private static EntityMetadata Map(Type entity) => PostgreSqlEntityMetadata.GetMetadata(entity);
+    private static EntityMetadata Map(Type entity) => EntityMetadataCache.GetMetadata(entity);
     private static string Q(string name) => PostgreSqlNames.Quote(name);
     private static string Table(Type entity) => $"{Q(Map(entity).SchemaName)}.{Q(Map(entity).TableName)}";
     private static string Column(Type entity, string property) => Q(Map(entity).GetProperty(property).ColumnName);

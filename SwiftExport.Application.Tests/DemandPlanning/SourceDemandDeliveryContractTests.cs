@@ -72,7 +72,7 @@ public sealed class SourceDemandDeliveryContractTests
         foreach (var forbidden in new[] { "DemandExecutionLink", "PurchaseOrder", "InboundDocument", "OutboundDocument", "PackingList",
                      "demand_execution_link", "purchase_order", "inbound_document", "outbound_document", "packing_list" })
             Assert.IsFalse(exitSql.Contains(forbidden, StringComparison.Ordinal), forbidden);
-        StringAssert.Contains(exitSql, "nd.{C(\"LifecycleStatus\")} NOT IN (8,9)");
+        StringAssert.Contains(exitSql, "nd.\"lifecycle_status\" NOT IN (8,9)");
         StringAssert.Contains(material, "AssessSourceExitAsync");
         StringAssert.Contains(source, "VerifySourceExitAsync");
         StringAssert.Contains(shipping, "ActiveDraftCount");

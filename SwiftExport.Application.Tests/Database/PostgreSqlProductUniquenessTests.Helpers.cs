@@ -60,7 +60,7 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
     {
         Assert.IsTrue(entity is ProductMaster or ProductNeutral or ProductColor);
         context.AuditStamp.StampForInsert(entity);
-        var metadata = PostgreSqlEntityMetadata.GetMetadata(entity.GetType());
+        var metadata = EntityMetadataCache.GetMetadata(entity.GetType());
         var columns = string.Join(",", metadata.Columns.Select(x => PostgreSqlNames.Quote(x.ColumnName)));
         var values = string.Join(",", metadata.Columns.Select(x => "@" + x.ParameterName));
         Assert.AreEqual(1, await context.Session.Connection.ExecuteAsync(new CommandDefinition(
