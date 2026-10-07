@@ -31,13 +31,13 @@ public sealed class ForExcelSalesOrderService(IForExcelSalesOrderRepository repo
             : await repository.FindCustomersAsync(request.CustomerCode.Trim(),token);
         if (customers.Count != 1 || !customers[0].IsActive)
         {
-            Add(result.Issues,"CustomerUnavailable","CustomerCode","客户不存在、停用或代码存在歧义。");
+            Add(result.Issues,SalesOrderImportIssueCodes.CustomerUnavailable,"CustomerCode","客户不存在、停用或代码存在歧义。");
             foreach (var line in request.Lines)
             {
                 var checkedLine = new SalesOrderImportLineCheckDto { ClientLineId=line.ClientLineId, MatchStatus=line.IsNonStandard ? "NonStandard" : "NotMatched" };
                 CheckNumbers(line,checkedLine.Issues);
                 if (line.IsNonStandard) CheckNonStandard(line,checkedLine.Issues);
-                else Add(checkedLine.Issues,"CustomerRequired","CustomerSku","请先定位有效客户。");
+                else Add(checkedLine.Issues,SalesOrderImportIssueCodes.CustomerRequired,"CustomerSku","请先定位有效客户。");
                 result.Lines.Add(checkedLine);
             }
             return ServiceResult<CheckSalesOrderImportResponse>.Ok(result);
@@ -49,7 +49,7 @@ public sealed class ForExcelSalesOrderService(IForExcelSalesOrderRepository repo
         result.ExistingOrders = (await repository.FindExistingOrdersAsync(result.Customer.Uid,
             request.Header.InvoiceNo,request.Header.CustomerPoNo,token)).ToList();
         if (result.ExistingOrders.Count>0)
-            Add(result.Issues,"ExistingOrders","Header","该客户已有相同发票号或 PO 号的订单，请确认是否仍新建。",true,request.AcceptExistingOrders);
+            Add(result.Issues,SalesOrderImportIssueCodes.ExistingOrders,"Header","该客户已有相同发票号或 PO 号的订单，请确认是否仍新建。",true,request.AcceptExistingOrders);
         foreach (var line in request.Lines)
         {
             token.ThrowIfCancellationRequested();
@@ -64,17 +64,17 @@ public sealed class ForExcelSalesOrderService(IForExcelSalesOrderRepository repo
                     ? item.Candidates.SingleOrDefault(c => c.CustomerProductId == line.SelectedCustomerProductId.Value)
                     : null;
                 if (line.SelectedCustomerProductId.HasValue && selected is null)
-                { item.MatchStatus="Unavailable"; Add(item.Issues,"SelectionInvalid","SelectedCustomerProductId","所选关联不属于当前客户及型号候选。"); }
-                else if (item.Candidates.Count==0) { item.MatchStatus="NotMatched"; Add(item.Issues,"ProductNotMatched","CustomerSku","客户产品型号未匹配，请修正或明确标记非标。"); }
-                else if (item.Candidates.Count!=1 && selected is null) { item.MatchStatus="Ambiguous"; Add(item.Issues,"ProductAmbiguous","CustomerSku","同一客户型号存在多个关联，不能自动选择。"); }
+                { item.MatchStatus="Unavailable"; Add(item.Issues,SalesOrderImportIssueCodes.SelectionInvalid,"SelectedCustomerProductId","所选关联不属于当前客户及型号候选。"); }
+                else if (item.Candidates.Count==0) { item.MatchStatus="NotMatched"; Add(item.Issues,SalesOrderImportIssueCodes.ProductNotMatched,"CustomerSku","客户产品型号未匹配，请修正或明确标记非标。"); }
+                else if (item.Candidates.Count!=1 && selected is null) { item.MatchStatus="Ambiguous"; Add(item.Issues,SalesOrderImportIssueCodes.ProductAmbiguous,"CustomerSku","同一客户型号存在多个关联，不能自动选择。"); }
                 else if (!(selected ?? item.Candidates[0]).IsUsable || !(selected ?? item.Candidates[0]).ProductId.HasValue || (selected ?? item.Candidates[0]).ProductId==Guid.Empty
                     || string.IsNullOrWhiteSpace((selected ?? item.Candidates[0]).Sku) || string.IsNullOrWhiteSpace((selected ?? item.Candidates[0]).Unit))
-                { item.MatchStatus="Unavailable"; Add(item.Issues,"ProductUnavailable","CustomerSku","关联或产品不可用，或产品未设置单位。"); }
+                { item.MatchStatus="Unavailable"; Add(item.Issues,SalesOrderImportIssueCodes.ProductUnavailable,"CustomerSku","关联或产品不可用，或产品未设置单位。"); }
                 else
                 {
                     item.MatchStatus="Matched"; item.Product=selected ?? item.Candidates[0];
                     if (!string.IsNullOrWhiteSpace(line.LinkSku) && Normalize(line.LinkSku)!=Normalize(item.Product.LinkSku))
-                        Add(item.Issues,"LinkSkuMismatch","LinkSku","原表中性型号与系统不同，请比较后确认。",true,line.AcceptLinkSkuMismatch);
+                        Add(item.Issues,SalesOrderImportIssueCodes.LinkSkuMismatch,"LinkSku","原表中性型号与系统不同，请比较后确认。",true,line.AcceptLinkSkuMismatch);
                 }
             }
             result.Lines.Add(item);
@@ -84,26 +84,29 @@ public sealed class ForExcelSalesOrderService(IForExcelSalesOrderRepository repo
     }
     // 型号仅去首尾空格及忽略大小写，不删除符号、前导零或内部空格。
     private static string Normalize(string value) => value?.Trim().ToUpperInvariant() ?? "";
+    /// <summary>检查导入单头必填项与数值范围，向既有问题集合追加阻断信息。</summary>
     private static void CheckHeader(SalesOrderImportHeaderInput header,List<SalesOrderImportIssueDto> issues)
     {
-        if (!header.OrderDate.HasValue) Add(issues,"OrderDateRequired","Header.OrderDate","订单日期不能为空。");
-        if (!(header.ExchangeRate>0)) Add(issues,"ExchangeRateInvalid","Header.ExchangeRate","汇率必须大于零。");
-        if (Normalize(header.Currency) is not ("CNY" or "USD")) Add(issues,"CurrencyRequired","Header.Currency","请明确选择 CNY 或 USD。");
-        if (header.DepositRate is <0 or >1) Add(issues,"DepositRateInvalid","Header.DepositRate","定金比例必须在 0 到 1 之间。");
+        if (!header.OrderDate.HasValue) Add(issues,SalesOrderImportIssueCodes.OrderDateRequired,"Header.OrderDate","订单日期不能为空。");
+        if (!(header.ExchangeRate>0)) Add(issues,SalesOrderImportIssueCodes.ExchangeRateInvalid,"Header.ExchangeRate","汇率必须大于零。");
+        if (Normalize(header.Currency) is not ("CNY" or "USD")) Add(issues,SalesOrderImportIssueCodes.CurrencyRequired,"Header.Currency","请明确选择 CNY 或 USD。");
+        if (header.DepositRate is <0 or >1) Add(issues,SalesOrderImportIssueCodes.DepositRateInvalid,"Header.DepositRate","定金比例必须在 0 到 1 之间。");
     }
+    /// <summary>将非标行缺少描述或单位记录为导入问题，保持检查请求的正常响应。</summary>
     private static void CheckNonStandard(SalesOrderImportLineInput line,List<SalesOrderImportIssueDto> issues)
     {
-        if (string.IsNullOrWhiteSpace(line.DescriptionEn)) Add(issues,"DescriptionRequired","DescriptionEn","非标件必须填写描述。");
-        if (string.IsNullOrWhiteSpace(line.Unit)) Add(issues,"UnitRequired","Unit","非标件必须填写单位。");
+        if (string.IsNullOrWhiteSpace(line.DescriptionEn)) Add(issues,SalesOrderImportIssueCodes.DescriptionRequired,"DescriptionEn","非标件必须填写描述。");
+        if (string.IsNullOrWhiteSpace(line.Unit)) Add(issues,SalesOrderImportIssueCodes.UnitRequired,"Unit","非标件必须填写单位。");
     }
+    /// <summary>检查数量、包装和金额边界；问题只阻止保存，不变更导入检查的 HTTP 状态。</summary>
     private static void CheckNumbers(SalesOrderImportLineInput line,List<SalesOrderImportIssueDto> issues)
     {
-        if (!(line.Qty>0)) Add(issues,"QuantityInvalid","Qty","数量必须大于零。");
-        if (line.PcsOfCarton.HasValue && line.PcsOfCarton<=0) Add(issues,"PackingInvalid","PcsOfCarton","每箱数量必须大于零。");
+        if (!(line.Qty>0)) Add(issues,SalesOrderImportIssueCodes.QuantityInvalid,"Qty","数量必须大于零。");
+        if (line.PcsOfCarton.HasValue && line.PcsOfCarton<=0) Add(issues,SalesOrderImportIssueCodes.PackingInvalid,"PcsOfCarton","每箱数量必须大于零。");
         foreach (var (value,field) in new[]{(line.CnyPrice,"CnyPrice"),(line.UsdPrice,"UsdPrice"),(line.GwOfCarton,"GwOfCarton"),(line.NwOfCarton,"NwOfCarton"),(line.CbmOfCarton,"CbmOfCarton")})
-            if (value<0) Add(issues,"NumberNegative",field,"不能为负数。");
+            if (value<0) Add(issues,SalesOrderImportIssueCodes.NumberNegative,field,"不能为负数。");
         try { _=line.Qty*line.CnyPrice; _=line.Qty*line.UsdPrice; }
-        catch (OverflowException) { Add(issues,"AmountOverflow","Qty","数量与单价乘积超出支持范围。"); }
+        catch (OverflowException) { Add(issues,SalesOrderImportIssueCodes.AmountOverflow,"Qty","数量与单价乘积超出支持范围。"); }
     }
     private static void Add(List<SalesOrderImportIssueDto> issues,string code,string field,string message,bool confirmation=false,bool acknowledged=false)
         => issues.Add(new SalesOrderImportIssueDto { Code=code,Field=field,Message=message,RequiresConfirmation=confirmation,Acknowledged=acknowledged });

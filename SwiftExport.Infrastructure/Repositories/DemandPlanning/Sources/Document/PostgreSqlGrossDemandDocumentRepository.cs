@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using System.Data;
 using Dapper;
 using Npgsql;
@@ -233,7 +234,7 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
                 InsertSourceDemandSql,
                 PostgreSqlParameters.Entity(demand, Map))), allowNewIdentity: true);
             results.Add(rows == 1 ? RepositoryWriteResult.Ok(demand.Uid, null, demand.Version, "新增成功。")
-                : RepositoryWriteResult.Fail(demand.Uid, null, "INSERT_FAILED", "新增毛需求失败。"));
+                : RepositoryWriteResult.Fail(demand.Uid, null, ServiceErrorCodes.InsertFailed, "新增毛需求失败。"));
         }
         return results;
     }
@@ -256,7 +257,7 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
               AND "lifecycle_status"=0 AND "is_deleted"=FALSE RETURNING "version";
             """, p));
         return version.HasValue ? RepositoryWriteResult.Ok(uid, expectedVersion, version, "手工毛需求已关闭。")
-            : RepositoryWriteResult.Fail(uid, expectedVersion, "CONCURRENCY_CONFLICT", "手工毛需求状态或版本已变化，请刷新后重试。");
+            : RepositoryWriteResult.Fail(uid, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "手工毛需求状态或版本已变化，请刷新后重试。");
     });
 
     /// <summary>上层已证明无物料历史后物理删除；本方法仅Distinct身份与活动未删条件，不增加版本/历史检查。</summary>
@@ -298,7 +299,7 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
               AND "is_deleted"=FALSE{additionalWhere} RETURNING "version";
             """, p));
         return version.HasValue ? RepositoryWriteResult.Ok(demand.Uid, expectedVersion, version, success)
-            : RepositoryWriteResult.Fail(demand.Uid, expectedVersion, "CONCURRENCY_CONFLICT", conflict);
+            : RepositoryWriteResult.Fail(demand.Uid, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, conflict);
     });
 
     /// <summary>父事务必须已有覆盖，绝不事务内迟补S；无父事务时仅借用一次方法租约，不创建或改变业务事务。</summary>

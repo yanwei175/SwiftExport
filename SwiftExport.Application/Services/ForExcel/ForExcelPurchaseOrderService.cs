@@ -35,11 +35,11 @@ public sealed class ForExcelPurchaseOrderService(IForExcelPurchaseOrderRepositor
         var customers = string.IsNullOrWhiteSpace(request.CustomerCode) ? []
             : await repository.FindCustomersAsync(request.CustomerCode.Trim(),token);
         if (customers.Count != 1 || !customers[0].IsActive || customers[0].Uid == Guid.Empty)
-            Add(result.Issues,"CustomerUnavailable","CustomerCode","客户不存在、停用或代码有歧义。");
+            Add(result.Issues,PurchaseOrderImportIssueCodes.CustomerUnavailable,"CustomerCode","客户不存在、停用或代码有歧义。");
         else result.Customer = customers[0];
         var supplier = request.SupplierId == Guid.Empty ? null : await repository.FindSupplierAsync(request.SupplierId,token);
         if (!UsableSupplier(supplier))
-            Add(result.Issues,"SupplierUnavailable","SupplierId","请选择有效实际供应商。");
+            Add(result.Issues,PurchaseOrderImportIssueCodes.SupplierUnavailable,"SupplierId","请选择有效实际供应商。");
         else result.Supplier = supplier;
         var skus = request.Lines.Where(x => !x.IsNonStandard && !string.IsNullOrWhiteSpace(x.CustomerSku))
             .Select(x => IndependentPurchaseOrderInputPolicy.Normalize(x.CustomerSku)).Distinct().ToArray();
@@ -57,10 +57,10 @@ public sealed class ForExcelPurchaseOrderService(IForExcelPurchaseOrderRepositor
             if (line.IsNonStandard)
             {
                 if (!string.IsNullOrWhiteSpace(line.Unit) && await repository.FindUnitAsync(line.Unit,token) is null)
-                    Add(item.Issues,"UnitUnavailable","Unit","非标单位未启用或有歧义。");
+                    Add(item.Issues,PurchaseOrderImportIssueCodes.UnitUnavailable,"Unit","非标单位未启用或有歧义。");
             }
             else if (result.Customer is null)
-                Add(item.Issues,"CustomerRequired","CustomerSku","请先定位有效客户。");
+                Add(item.Issues,PurchaseOrderImportIssueCodes.CustomerRequired,"CustomerSku","请先定位有效客户。");
             else
             {
                 item.Candidates = candidates.Where(x => IndependentPurchaseOrderInputPolicy.Normalize(x.CustomerSku)
@@ -69,19 +69,19 @@ public sealed class ForExcelPurchaseOrderService(IForExcelPurchaseOrderRepositor
                 {
                     var product = IndependentPurchaseOrderInputPolicy.Resolve(line.CustomerSku,line.SelectedCustomerProductId,candidates);
                     if (await repository.FindUnitAsync(product.Unit,token) is null)
-                        throw new ProcurementOperationException("ProductUnavailable","产品基础单位未启用或有歧义。","Unit");
+                        throw new ProcurementOperationException(ProcurementErrorCodes.ProductUnavailable,"产品基础单位未启用或有歧义。","Unit");
                     item.Product = product; item.MatchStatus = "Matched";
                     if (!string.IsNullOrWhiteSpace(line.LinkSku) && IndependentPurchaseOrderInputPolicy.Normalize(line.LinkSku)
                         != IndependentPurchaseOrderInputPolicy.Normalize(product.LinkSku))
-                        Add(item.Issues,"LinkSkuMismatch","LinkSku","本司型号与系统中性型号不同，请核对后确认。",true,line.AcceptLinkSkuMismatch);
+                        Add(item.Issues,PurchaseOrderImportIssueCodes.LinkSkuMismatch,"LinkSku","本司型号与系统中性型号不同，请核对后确认。",true,line.AcceptLinkSkuMismatch);
                     if (product.MaterialType == MaterialTypesEnum.客供件
                         && (!line.DeliverySupplierId.HasValue || !UsableSupplier(await repository.FindSupplierAsync(line.DeliverySupplierId.Value,token))))
-                        Add(item.Issues,"DeliverySupplierRequired","DeliverySupplierId","客供件必须选择有效送达供应商。");
+                        Add(item.Issues,PurchaseOrderImportIssueCodes.DeliverySupplierRequired,"DeliverySupplierId","客供件必须选择有效送达供应商。");
                 }
                 catch (ProcurementOperationException ex)
                 {
-                    item.MatchStatus = ex.Code == "ProductAmbiguous" ? "Ambiguous"
-                        : ex.Code == "ProductNotMatched" ? "NotMatched" : "Unavailable";
+                    item.MatchStatus = ex.Code == ProcurementErrorCodes.ProductAmbiguous ? "Ambiguous"
+                        : ex.Code == ProcurementErrorCodes.ProductNotMatched ? "NotMatched" : "Unavailable";
                     Add(item.Issues,ex.Code,ex.Field,ex.Message);
                 }
             }

@@ -15,6 +15,7 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 
 - 分析或治理 Core Entity 字段、逻辑外键、历史快照、DTO 分类与字段来源、数据库模型或 Infrastructure 实现路线：读 `../data-model-governance/SKILL.md`。该 Skill 只负责分析、治理和规划；实现 Repository、SQL、DTO 或 Entity 时继续使用对应实现 Skill。
 - 新增/修改 API、Controller、Application Service：读 `../api-application-service/SKILL.md`。
+- 盘点或整改应用服务可读性、用例调用主线、公共服务复用及跨层修改影响：读 `../application-usecase-readability/SKILL.md`；明确实施时按其专项工作流执行，只解释或设计时不自动修改代码。
 - 涉及复杂单据草稿、确认、过账、反向、`CommandId`、Preview、幂等回执、多仓储事务或锁顺序：读 `../application-document-command/SKILL.md`。
 - 规划或重构 Controller、Application Service、Interface、Policy、Repository、DTO/API 的文件和职责边界：读 `../backend-file-organization/SKILL.md`。
 - 选择后端构建、契约、权限、并发、幂等、事务、SQL 或数据库验证：读 `../backend-quality-gates/SKILL.md`。

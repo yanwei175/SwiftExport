@@ -265,7 +265,7 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
             """;
         var ownLinks = (await context.Session.Connection.QueryAsync<DemandExecutionLink>(Command(ownLinkSql, new { uid }, ct))).ToList();
         if (ownLinks.Any(link => !demandIds.Contains(link.NetDemandId)))
-            return (null, new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "采购引用已变化或物料来源缺失，请重新预览。", Field = "ExpectedVersion" });
+            return (null, new ServiceErrorDto { Code = ServiceErrorCodes.ConcurrencyConflict, Message = "采购引用已变化或物料来源缺失，请重新预览。", Field = "ExpectedVersion" });
         facts.Links = facts.Links.Concat(ownLinks).DistinctBy(link => link.Uid).ToList();
         facts.Head = await context.Session.Connection.QuerySingleOrDefaultAsync<PurchaseOrderHead>(Command(
             $"SELECT {PurchaseOrderHeadColumns} FROM public.purchase_order_head WHERE uid=@uid FOR UPDATE", new { uid }, ct));
@@ -312,7 +312,7 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
         var finalLinks = (await context.Session.Connection.QueryAsync<DemandExecutionLink>(Command(ownLinkSql, new { uid }, ct))).ToList();
         if (!ownLinks.Select(link => (link.Uid, link.Version, link.NetDemandId, link.TargetLineId)).ToHashSet()
             .SetEquals(finalLinks.Select(link => (link.Uid, link.Version, link.NetDemandId, link.TargetLineId))))
-            return (null, new ServiceErrorDto { Code = "CONCURRENCY_CONFLICT", Message = "锁定过程中采购引用集合发生变化，请重新预览。", Field = "ExpectedVersion" });
+            return (null, new ServiceErrorDto { Code = ServiceErrorCodes.ConcurrencyConflict, Message = "锁定过程中采购引用集合发生变化，请重新预览。", Field = "ExpectedVersion" });
         if (!includeDownstream) return (facts, null);
 
         // 可空采购行侧在 LATERAL 内共享锁实际行，外层只锁非空头行；不对外连接或 EXISTS 结果直接加更新锁。
@@ -371,7 +371,7 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
                 updated_date=@UpdatedDate,updated_by=@UpdatedBy,version=version+1
             WHERE uid=@Uid AND version=@Version AND lifecycle_status=0 AND is_deleted=FALSE;
             """, HeadParameters(head, cancel, operation == ProcurementReversalOperation.Void), ct)) != 1)
-            return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购状态已变化，反向操作未执行。");
+            return RepositoryWriteResult.Fail(head.Uid, head.Version, ServiceErrorCodes.ConcurrencyConflict, "采购状态已变化，反向操作未执行。");
         head.Version++;
         if (cancel)
         {
@@ -388,7 +388,7 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
                         cancelled_by=@UpdatedBy,cancelled_reason=@reason,updated_date=@UpdatedDate,updated_by=@UpdatedBy,version=version+1
                     WHERE uid=@Uid AND version=@Version AND link_status=0 AND is_deleted=FALSE;
                     """, ReleaseParameters(link, reason), ct)) != 1)
-                    return RepositoryWriteResult.Fail(link.Uid, link.Version, "CONCURRENCY_CONFLICT", "采购贡献已变化，解除引用未执行。");
+                    return RepositoryWriteResult.Fail(link.Uid, link.Version, ServiceErrorCodes.ConcurrencyConflict, "采购贡献已变化，解除引用未执行。");
                 link.Version++; link.LinkStatus = DemandExecutionLinkStatusEnum.Cancelled; link.ReleasedQty = link.AllocatedQty;
                 link.CancelledAt = link.UpdatedDate; link.CancelledBy = link.UpdatedBy; link.CancelledReason = reason;
             }
@@ -400,7 +400,7 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
                     if (await context.Session.Connection.ExecuteAsync(Command("""
                         UPDATE public.purchase_order_line SET is_deleted=TRUE,version=version+1,updated_date=@UpdatedDate,updated_by=@UpdatedBy
                         WHERE uid=@Uid AND purchase_order_id=@PurchaseOrderId AND version=@Version AND is_deleted=FALSE;
-                        """, Parameters(line, "Uid", "PurchaseOrderId", "Version", "UpdatedDate", "UpdatedBy"), ct)) != 1) return RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "采购行已变化，删除未执行。");
+                        """, Parameters(line, "Uid", "PurchaseOrderId", "Version", "UpdatedDate", "UpdatedBy"), ct)) != 1) return RepositoryWriteResult.Fail(line.Uid, line.Version, ServiceErrorCodes.ConcurrencyConflict, "采购行已变化，删除未执行。");
                     line.IsDeleted = true; line.Version++;
                 }
                 head.ExpectedDate = facts.Lines.Where(x => !x.IsDeleted).Min(x => x.PlannedDeliveryDate);

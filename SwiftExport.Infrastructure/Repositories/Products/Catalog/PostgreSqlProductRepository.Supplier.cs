@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Infrastructure.Repositories.Base;
@@ -26,6 +27,6 @@ public partial class PostgreSqlProductRepository
         var version = await Connection.QuerySingleOrDefaultAsync<int?>(sql, parameters, Transaction);
         return version.HasValue
             ? RepositoryWriteResult.Ok(productId, expectedVersion, version.Value, "默认供应商设置成功。")
-            : RepositoryWriteResult.Fail(productId, expectedVersion, "CONCURRENCY_CONFLICT", "产品已被其他用户修改，请刷新后重试。");
+            : RepositoryWriteResult.Fail(productId, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "产品已被其他用户修改，请刷新后重试。");
     }
 }

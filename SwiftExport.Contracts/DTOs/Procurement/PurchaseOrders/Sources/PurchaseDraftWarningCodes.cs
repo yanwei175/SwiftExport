@@ -7,7 +7,9 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
 /// <summary>转采购预览和创建使用的稳定警告代码。</summary>
     public static class PurchaseDraftWarningCodes
     {
-        public const string InvalidPurchaseQuantity = "INVALID_PURCHASE_QUANTITY";
+        /// <summary>采购数量校验的兼容成员；预览警告和创建失败引用同一规则代码。</summary>
+        /// <summary>采购数量校验的兼容成员；预览警告和创建失败引用同一规则代码。</summary>
+        public const string InvalidPurchaseQuantity = PurchaseDraftErrorCodes.InvalidPurchaseQuantity;
         public const string PurchaseSupplierRequired = "PURCHASE_SUPPLIER_REQUIRED";
         public const string PurchaseSupplierInvalid = "PURCHASE_SUPPLIER_INVALID";
         public const string DeliveryTargetRequired = "DELIVERY_TARGET_REQUIRED";

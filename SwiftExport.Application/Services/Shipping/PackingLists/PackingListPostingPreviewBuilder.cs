@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -48,15 +49,15 @@ public sealed class PackingListPostingPreviewBuilder
         var active = lines.Where(x => !x.IsDeleted).OrderBy(x => x.LineNumber).ThenBy(x => x.Uid).ToArray();
         if (head.IsDeleted || head.PostingStatus != PackingListPostingStatusEnum.Unposted
             || head.LifecycleStatus != PackingListLifecycleStatusEnum.Active)
-            blockers.Add(new("INVALID_STATE", null, "只有有效未过账草稿可以过账。"));
+            blockers.Add(new(PackingListErrorCodes.InvalidState, null, "只有有效未过账草稿可以过账。"));
         if (active.Length == 0 || active.Any(x => x.PackingListHeadId != head.Uid || x.Qty <= 0
             || decimal.Round(x.Qty, 4) != x.Qty || x.LineNumber <= 0)
             || active.Select(x => x.Uid).Distinct().Count() != active.Length)
-            blockers.Add(new("INVALID_LINES", null, "箱单行归属、身份或数量无效。"));
+            blockers.Add(new(PackingListErrorCodes.InvalidLines, null, "箱单行归属、身份或数量无效。"));
         if (active.Any(x => !x.GrossDemandId.HasValue))
-            blockers.Add(new("SOURCE_NOT_ASSOCIATED", null, "箱单尚有待关联来源行，请先分配全部数量。"));
+            blockers.Add(new(PackingListErrorCodes.SourceNotAssociated, null, "箱单尚有待关联来源行，请先分配全部数量。"));
         if (sources.GroupBy(x => x.Id).Any(x => x.Count() != 1))
-            blockers.Add(new("AMBIGUOUS_SOURCE", null, "来源事实存在重复身份。"));
+            blockers.Add(new(PackingListErrorCodes.AmbiguousSource, null, "来源事实存在重复身份。"));
         if (blockers.Count != 0) return new(null, [], blockers);
         var sourceMap = sources.ToDictionary(x => x.Id);
         var demands = new List<PackingListCapacityAllocator.Demand>();
@@ -68,15 +69,15 @@ public sealed class PackingListPostingPreviewBuilder
             var qty = group.Sum(x => x.Qty);
             if (!sourceMap.TryGetValue(group.Key!.Value, out var source) || !source.IsActive)
             {
-                blockers.Add(new("SOURCE_INVALID", group.Key, "来源不存在或已失效。"));
+                blockers.Add(new(PackingListErrorCodes.SourceInvalid, group.Key, "来源不存在或已失效。"));
                 continue;
             }
             if (source.CustomerId != head.CustomerId)
-                blockers.Add(new("CUSTOMER_MISMATCH", source.Id, "来源不属于箱单客户。"));
+                blockers.Add(new(PackingListErrorCodes.CustomerMismatch, source.Id, "来源不属于箱单客户。"));
             if (qty > source.RemainingQty)
-                blockers.Add(new("DELIVERY_EXCEEDED", source.Id, "本次出货超过待交付数量。", qty - source.RemainingQty));
+                blockers.Add(new(PackingListErrorCodes.DeliveryExceeded, source.Id, "本次出货超过待交付数量。", qty - source.RemainingQty));
             if (group.Any(x => x.ProductId != source.ProductId || !SameUnit(x.UnitSnapshot, source.Unit)))
-                blockers.Add(new("SOURCE_CHANGED", source.Id, "产品或单位与当前来源不一致，请更新草稿。"));
+                blockers.Add(new(PackingListErrorCodes.SourceChanged, source.Id, "产品或单位与当前来源不一致，请更新草稿。"));
             if (source.DeliveryOnly)
             {
                 actions.AddRange(group.Select(x => new Action("Delivery", x.Uid, source.Id, source.ProductId,
@@ -86,7 +87,7 @@ public sealed class PackingListPostingPreviewBuilder
             if (source.ProductId is null || source.RootId is null || source.RootQty <= 0
                 || string.IsNullOrWhiteSpace(source.Unit) || source.PurchaseLineIds.Count == 0)
             {
-                blockers.Add(new("DEMAND_INVALID", source.Id, "库存来源缺少有效产品、单位、根需求或采购执行关系。"));
+                blockers.Add(new(PackingListErrorCodes.DemandInvalid, source.Id, "库存来源缺少有效产品、单位、根需求或采购执行关系。"));
                 continue;
             }
             AddDemand(source.Id, source.ProductId.Value, source.Unit, qty, null);
@@ -95,7 +96,7 @@ public sealed class PackingListPostingPreviewBuilder
                 if (component.Id == Guid.Empty || component.ProductId == Guid.Empty || component.GrossQty < 0
                     || string.IsNullOrWhiteSpace(component.Unit))
                 {
-                    blockers.Add(new("COMPONENT_INVALID", source.Id, "客供件拆解快照无效。"));
+                    blockers.Add(new(PackingListErrorCodes.ComponentInvalid, source.Id, "客供件拆解快照无效。"));
                     continue;
                 }
                 var consumed = PackingListExecutionQuantities.ComponentConsumption(qty, source.RootQty, component.GrossQty);
@@ -107,7 +108,7 @@ public sealed class PackingListPostingPreviewBuilder
             {
                 if (!owners.TryAdd(id, (source, component, qty, group.ToArray())))
                 {
-                    blockers.Add(new("DUPLICATE_DEMAND", source.Id, "需求身份重复，不能重复耗用。"));
+                    blockers.Add(new(PackingListErrorCodes.DuplicateDemand, source.Id, "需求身份重复，不能重复耗用。"));
                     return;
                 }
                 demands.Add(new(id, amount, component != null));
@@ -132,7 +133,7 @@ public sealed class PackingListPostingPreviewBuilder
         var allocation = new PackingListCapacityAllocator().Allocate(supplies, demands, candidates, token);
         if (!allocation.Success)
             return new(null, [], allocation.Shortfalls.Select(x => new Blocker(
-                owners[x.Key].Component == null ? "SUPPLY_SHORTFALL" : "COMPONENT_SHORTFALL",
+                owners[x.Key].Component == null ? PackingListErrorCodes.SupplyShortfall : PackingListErrorCodes.ComponentShortfall,
                 owners[x.Key].Source.Id, "可用库存或关联采购容量不足。", x.Value)).ToArray());
         var stockMap = stocks.Where(x => usedSupplyIds.Contains(x.Id)).ToDictionary(x => x.Id);
         var receiptMap = receipts.Where(x => usedSupplyIds.Contains(x.Id)).ToDictionary(x => x.Id);

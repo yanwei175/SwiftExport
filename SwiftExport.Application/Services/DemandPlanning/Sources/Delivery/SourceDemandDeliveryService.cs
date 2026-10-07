@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Delivery;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.Auth;
@@ -38,7 +39,7 @@ public sealed class SourceDemandDeliveryService(
                 currentUser.UserId.Value,
                 "DemandPlanning.Source.View",
                 cancellationToken))
-            return ServiceResult<T>.Fail("FORBIDDEN", "当前用户没有需求计划模块访问权限。");
+            return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden, "当前用户没有需求计划模块访问权限。");
         return await action();
     }
 }

@@ -405,10 +405,19 @@
   </ItemGroup>
   <!-- Include the build rules for a C# project. -->
   <ItemGroup>
+    <Compile Include="Features\Sales\Orders\Models\SalesOrderListRow.cs" />
+    <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderListViewModel.cs" />
+    <Compile Include="Features\Sales\Orders\Views\SalesOrderListView.xaml.cs"><DependentUpon>SalesOrderListView.xaml</DependentUpon></Compile>
+    <Page Include="Features\Sales\Orders\Views\SalesOrderListView.xaml"><Generator>MSBuild:Compile</Generator></Page>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Features\Procurement\PurchaseOrders\Models\*.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\Services\*.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Addresses.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Submission.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderListViewModel.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml.cs"><DependentUpon>PurchaseOrderListView.xaml</DependentUpon></Compile>
+    <Page Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml"><Generator>MSBuild:Compile</Generator></Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Features\Shipping\PackingLists\**\*.cs" />

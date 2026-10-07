@@ -438,7 +438,7 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             ValidationSummary = $"{result.Error.Field}：{message}";
             SelectErrorLine(result.Error.Field);
         }
-        if (result?.Error?.Code == "VERSION_CONFLICT") _messages.ShowWarning("数据已变化", message + " 本地输入已保留，请决定是否刷新。");
+        if (result?.Error?.Code == ServiceErrorCodes.VersionConflict) _messages.ShowWarning("数据已变化", message + " 本地输入已保留，请决定是否刷新。");
         else _messages.ShowError(title, message);
     }
 

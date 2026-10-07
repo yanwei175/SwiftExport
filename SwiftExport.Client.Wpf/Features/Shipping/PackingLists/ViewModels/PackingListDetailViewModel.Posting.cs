@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using SwiftExport.Contracts.DTOs.Errors;
+using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExport.Contracts.SysEnums.Shipping;
@@ -106,7 +107,7 @@ public sealed partial class PackingListDetailViewModel
                 || result.Data.Detail.Header.PostingStatus != expectedStatus)
             {
                 // 只有服务端明确的未执行结果才能解除冻结；没有结构化结果时不猜测网络提交状态。
-                if (!result.Success && result.Error?.Code is not (null or "UNEXPECTED" or "SERVICE_UNAVAILABLE" or "OUTCOME_UNKNOWN" or "COMMAND_BUSY" or "COMMAND_CONFLICT" or "EXECUTION_INVALID" or "RESULT_MISSING"))
+                if (!result.Success && result.Error?.Code is not (null or ServiceErrorCodes.Unexpected or ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.CommandConflict or PackingListErrorCodes.ExecutionInvalid or PackingListErrorCodes.ResultMissing))
                 { _pendingPost = null; _pendingReverse = null; }
                 ReportValidationWarning(HasPendingPosting ? $"{result.Message} 结果尚未确认，请再次点击原操作以重试同一命令；当前编辑已冻结。" : result.Message);
                 return;

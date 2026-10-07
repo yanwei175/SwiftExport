@@ -1,5 +1,6 @@
-using SwiftExport.Application.Services.DemandPlanning.Policies;
+using SwiftExport.Contracts.DTOs.DemandPlanning;
 using SwiftExport.Application.Services.DemandPlanning.Materials.Establishment.Models;
+using SwiftExport.Application.Services.DemandPlanning.Policies;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.DemandPlanning;
@@ -23,35 +24,38 @@ public sealed class GrossDemandDecompositionPlanner
         ArgumentNullException.ThrowIfNull(products);
 
         if (grossDemand.DemandQty <= 0)
-            return GrossDemandDecompositionPlan.Fail("INVALID_QUANTITY", "毛需求数量必须大于零。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidQuantity, "毛需求数量必须大于零。");
         if (nextRevision <= 0)
-            return GrossDemandDecompositionPlan.Fail("INVALID_REVISION", "拆解版本必须大于零。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidRevision, "拆解版本必须大于零。");
 
         if (grossDemand.IsNonStandard)
             return BuildNonStandardPlan(grossDemand, nextRevision);
         if (!grossDemand.ProductId.HasValue || rootProduct is null || rootProduct.Uid != grossDemand.ProductId.Value)
-            return GrossDemandDecompositionPlan.Fail("PRODUCT_NOT_FOUND", "毛需求关联的产品不存在或已删除。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.ProductNotFound, "毛需求关联的产品不存在或已删除。");
         if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(rootProduct))
-            return GrossDemandDecompositionPlan.Fail("CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED", "客供件不能作为标准毛需求根产品。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.CustomerSuppliedRootNotAllowed, "客供件不能作为标准毛需求根产品。");
         if ((rootProduct.BomVersion > 0) != !string.IsNullOrWhiteSpace(rootProduct.BomNo))
-            return GrossDemandDecompositionPlan.Fail("INVALID_PRODUCT_BOM", $"产品 {rootProduct.Sku} 的 BOM 编号和有效标记不一致。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidProductBom, $"产品 {rootProduct.Sku} 的 BOM 编号和有效标记不一致。");
         if (rootProduct.BomVersion > 0 && bomLines.Count == 0)
-            return GrossDemandDecompositionPlan.Fail("BOM_NOT_FOUND", $"产品 {rootProduct.Sku} 指定的共享 BOM 编号没有有效明细。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.BomNotFound, $"产品 {rootProduct.Sku} 指定的共享 BOM 编号没有有效明细。");
 
         var orderedLines = bomLines.OrderBy(x => x.LineNumber).ThenBy(x => x.Uid).ToArray();
         foreach (var line in orderedLines)
         {
             if (!line.ComponentProductId.HasValue || !products.TryGetValue(line.ComponentProductId.Value, out var child))
-                return GrossDemandDecompositionPlan.Fail("BOM_CHILD_NOT_FOUND", $"BOM 第 {line.LineNumber} 行未关联有效子产品。");
+                return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.BomChildNotFound, $"BOM 第 {line.LineNumber} 行未关联有效子产品。");
             // 来源父只负责追溯；共享组成的实际父是本次建立需求的根，不向物理行回写根身份。
             var edge = new Bom
             {
-                ParentProductId = rootProduct.Uid, ComponentProductId = line.ComponentProductId,
-                LineNumber = line.LineNumber, Numerator = line.Numerator, Denominator = line.Denominator
+                ParentProductId = rootProduct.Uid,
+                ComponentProductId = line.ComponentProductId,
+                LineNumber = line.LineNumber,
+                Numerator = line.Numerator,
+                Denominator = line.Denominator
             };
             var error = CustomerSuppliedMaterialPolicy.ValidateBomLine(edge, child);
             if (error is not null)
-                return GrossDemandDecompositionPlan.Fail("INVALID_BOM_LINE", error);
+                return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidBomLine, error);
         }
 
         var customerSuppliedLines = orderedLines
@@ -61,12 +65,12 @@ public sealed class GrossDemandDecompositionPlanner
         if (string.Equals(rootProduct.SupplyType, SupplyTypeEnums.生产, StringComparison.Ordinal)
             && customerSuppliedLines.Length > 0)
             return GrossDemandDecompositionPlan.Fail(
-                "PRODUCTION_CUSTOMER_SUPPLIED_NOT_SUPPORTED",
+                DemandPlanningErrorCodes.ProductionCustomerSuppliedNotSupported,
                 "生产型根产品包含客供件，当前版本尚未定义生产供料流程，不能拆解。");
         if (!string.Equals(rootProduct.SupplyType, SupplyTypeEnums.采购, StringComparison.Ordinal)
             && !string.Equals(rootProduct.SupplyType, SupplyTypeEnums.外协, StringComparison.Ordinal)
             && !string.Equals(rootProduct.SupplyType, SupplyTypeEnums.生产, StringComparison.Ordinal))
-            return GrossDemandDecompositionPlan.Fail("UNSUPPORTED_SUPPLY_TYPE", $"产品 {rootProduct.Sku} 的供货类型无效。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.UnsupportedSupplyType, $"产品 {rootProduct.Sku} 的供货类型无效。");
 
         return BuildRootPlan(grossDemand, rootProduct, customerSuppliedLines, nextRevision);
     }
@@ -144,7 +148,7 @@ public sealed class GrossDemandDecompositionPlanner
             var child = entry.Product;
             var childError = CustomerSuppliedMaterialPolicy.ValidateProduct(child, hasActiveBom: false);
             if (childError is not null)
-                return GrossDemandDecompositionPlan.Fail("INVALID_CUSTOMER_SUPPLIED_PRODUCT", childError);
+                return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidCustomerSuppliedProduct, childError);
             rows.Add(new NetDemand
             {
                 Uid = SwiftExport.Contracts.Common.GuidSequentialGenerator.NewGuid(),
@@ -179,9 +183,9 @@ public sealed class GrossDemandDecompositionPlanner
     /// <summary>按 BOM 分子和分母换算子件数量，拒绝非正数量与比例。</summary>
     public static decimal CalculateComponentQty(decimal parentQty, int numerator, int denominator)
     {
-        if (parentQty <= 0) throw new ArgumentOutOfRangeException(nameof(parentQty));
-        if (numerator <= 0) throw new ArgumentOutOfRangeException(nameof(numerator));
-        if (denominator <= 0) throw new ArgumentOutOfRangeException(nameof(denominator));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(parentQty);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(numerator);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(denominator);
         return parentQty * numerator / denominator;
     }
 

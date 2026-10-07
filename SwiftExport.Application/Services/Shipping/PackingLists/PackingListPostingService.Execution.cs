@@ -1,4 +1,6 @@
-﻿using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
+﻿using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Application.Interfaces.Inventory.AutomaticDocuments;
 using SwiftExport.Core.Interfaces.Inventory.Inbounds;
 using SwiftExport.Application.Commands;
 using Mapster;
@@ -52,11 +54,11 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
         await RequirePermissionAsync(token);
         Validate(request.PackingListId, request.ExpectedVersion, request.BusinessDate);
         if (request.CommandId == Guid.Empty || string.IsNullOrWhiteSpace(request.PreviewToken))
-            throw new PackingListPostingFailure("INVALID_COMMAND", "缺少稳定命令身份或预览令牌。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.InvalidCommand, "缺少稳定命令身份或预览令牌。");
         if (context.Session.Transaction is not null)
-            throw new PackingListPostingFailure("TRANSACTION_EXISTS", "不能接管已有业务事务。");
+            throw new PackingListPostingFailure(PackingListErrorCodes.TransactionExists, "不能接管已有业务事务。");
         if (!await executions.IsSchemaReadyAsync(token))
-            throw new PackingListPostingFailure("SCHEMA_NOT_READY", "执行证据表尚未部署。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.SchemaNotReady, "执行证据表尚未部署。");
         var fingerprint = Hash(JsonSerializer.Serialize(new { Operation = "Post", User = user.UserId,
             request.PackingListId, request.CommandId, request.ExpectedVersion, Date = request.BusinessDate.Date, request.PreviewToken }));
         // 已持久化结果不依赖当前需求或库存；这里只决定是否跳过探测，事务内仍锁命令并重新核验。
@@ -90,14 +92,14 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
         PackingListPostingFactsResolver.Resolved? candidate, Guid[] sourceIds, string fingerprint, CancellationToken token)
     {
             if (candidate == null)
-                throw new PackingListPostingFailure("EXECUTION_INVALID", "已观察到的原执行记录缺失，不能重新执行库存操作。");
+                throw new PackingListPostingFailure(PackingListErrorCodes.ExecutionInvalid, "已观察到的原执行记录缺失，不能重新执行库存操作。");
             // 与来源退出和草稿保存统一：来源/需求/Link 在箱单之前，不在持有箱单锁后反向获取来源锁。
             await factsRepository.LockSourcesAsync(sourceIds, token);
             var head = await packingLists.LockHeaderAsync(request.PackingListId, false, token);
             CheckVersion(head, request.ExpectedVersion);
             var physical = await packingLists.LockLinesAsync(request.PackingListId, token);
             if (physical.Any(x => !x.GrossDemandId.HasValue || !sourceIds.Contains(x.GrossDemandId.Value)))
-                throw new PackingListPostingFailure("VERSION_CONFLICT", "箱单来源集合已变化，请刷新。");
+                throw new PackingListPostingFailure(ServiceErrorCodes.VersionConflict, "箱单来源集合已变化，请刷新。");
             CheckPreview(candidate.Preview, request.PreviewToken);
             var builder = new PackingListAutomaticCommandBuilder();
             var commands = builder.Build(request.CommandId, head!.Uid, head.PackingListNo, request.BusinessDate, candidate.Preview,
@@ -124,7 +126,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
                 Detail = await packingLists.GetDetailAsync(head.Uid, token),
                 InboundDocumentIds = received.Documents.Select(x => x.DocumentId).ToArray(),
                 OutboundDocumentIds = issued.Documents.Select(x => x.DocumentId).ToArray() };
-            if (result.Detail == null) throw new PackingListPostingFailure("RESULT_MISSING", "过账后的箱单详情不可读取。");
+            if (result.Detail == null) throw new PackingListPostingFailure(PackingListErrorCodes.ResultMissing, "过账后的箱单详情不可读取。");
             var resultJson = JsonSerializer.Serialize(result);
             await executions.AppendAsync(new PackingListPostingExecution { Uid = executionId,
                 PackingListHeadId = head.Uid, PackingListNo = head.PackingListNo, CommandId = request.CommandId,
@@ -136,9 +138,9 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
                 ChangedFieldsJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint }), RelatedObjectsJson = resultJson,
                 UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now,
                 Summary = "自动入出库、执行证据和箱单状态在同一事务提交。" }) != 1)
-                throw new PackingListPostingFailure("LOG_FAILED", "业务日志写入失败。");
+                throw new PackingListPostingFailure(PackingListErrorCodes.LogFailed, "业务日志写入失败。");
             if (context.Session.Transaction is null)
-                throw new PackingListPostingFailure("TRANSACTION_ABORTED", "内部执行已终止外层事务。");
+                throw new PackingListPostingFailure(PackingListErrorCodes.TransactionAborted, "内部执行已终止外层事务。");
             return result;
 
     }
@@ -163,7 +165,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
     {
         var results = received.Documents.Concat(issued.Documents).SelectMany(d => d.Lines.Select(l => (Document: d, Line: l))).ToArray();
         if (results.Length != commands.LineActions.Count || results.Select(x => x.Line.RequestLineId).Distinct().Count() != results.Length)
-            throw new PackingListPostingFailure("EXECUTION_INVALID", "自动单据返回行不完整或重复。");
+            throw new PackingListPostingFailure(PackingListErrorCodes.ExecutionInvalid, "自动单据返回行不完整或重复。");
         var output = new List<PackingListPostingExecutionLine>();
         foreach (var row in preview.Actions.Where(x => x.Kind == "Delivery")) Add(row, null, null);
         foreach (var pair in commands.LineActions.OrderBy(x => x.Key))
@@ -171,7 +173,7 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
             var result = results.SingleOrDefault(x => x.Line.RequestLineId == pair.Key);
             if (result.Document == null || result.Document.DocumentId == Guid.Empty || result.Document.Version <= 0
                 || result.Line.LedgerId == Guid.Empty || result.Line.DocumentLineId == Guid.Empty)
-                throw new PackingListPostingFailure("EXECUTION_INVALID", "自动单据缺少实际行和流水对应关系。");
+                throw new PackingListPostingFailure(PackingListErrorCodes.ExecutionInvalid, "自动单据缺少实际行和流水对应关系。");
             Add(pair.Value, result.Document, result.Line);
         }
         return output;
@@ -192,26 +194,26 @@ public sealed partial class PackingListPostingService(ServiceBaseContext context
     private async Task RequirePermissionAsync(CancellationToken token)
     {
         if (!user.IsAuthenticated || user.UserId is not { } id || !await permissions.HasPermissionAsync(id, Permission, token))
-            throw new PackingListPostingFailure("FORBIDDEN", "没有装箱单过账权限。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.Forbidden, "没有装箱单过账权限。");
     }
     /// <summary>命令必填身份和业务日期验证。</summary>
     private static void Validate(Guid uid, int version, DateTime date)
     {
         if (uid == Guid.Empty || version <= 0 || date == default)
-            throw new PackingListPostingFailure("INVALID_COMMAND", "箱单身份、版本或业务日期无效。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.InvalidCommand, "箱单身份、版本或业务日期无效。");
     }
     /// <summary>先检查版本，再由预览计算器检查生命周期。</summary>
     private static void CheckVersion(PackingListHead? head, int version)
     {
-        if (head == null) throw new PackingListPostingFailure("NOT_FOUND", "箱单不存在。");
-        if (head.Version != version) throw new PackingListPostingFailure("VERSION_CONFLICT", "箱单已变化，请刷新。");
+        if (head == null) throw new PackingListPostingFailure(ServiceErrorCodes.NotFound, "箱单不存在。");
+        if (head.Version != version) throw new PackingListPostingFailure(ServiceErrorCodes.VersionConflict, "箱单已变化，请刷新。");
     }
     /// <summary>有阻断或锁后事实变化均不执行任何库存写入。</summary>
     private static void CheckPreview(PackingListPostingPreviewBuilder.Preview preview, string expected)
     {
         if (preview.Blockers.Count > 0) throw new PackingListPostingFailure(preview.Blockers[0].Code, preview.Blockers[0].Message) { Blockers = preview.Blockers };
         if (!string.Equals(preview.Token, expected, StringComparison.Ordinal))
-            throw new PackingListPostingFailure("PREVIEW_STALE", "影响过账的事实已变化，请重新预览。");
+            throw new PackingListPostingFailure(PackingListErrorCodes.PreviewStale, "影响过账的事实已变化，请重新预览。");
     }
     /// <summary>固定 UTF-8 SHA-256 请求指纹。</summary>
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

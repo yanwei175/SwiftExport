@@ -61,19 +61,19 @@ public sealed class AfterSalesCancellationService(ServiceBaseContext context,
         token.ThrowIfCancellationRequested();
         var before = await audit.SnapshotAsync(uid);
         var head = await documents.GetHeaderAsync(uid, true)
-            ?? throw new AfterSalesException("NOT_FOUND", "售后单不存在。");
+            ?? throw new AfterSalesException(ServiceErrorCodes.NotFound, "售后单不存在。");
         RequireVersion(head, command.Version);
         var lines = (await documents.GetLinesAsync(uid, true)).Where(x => !x.IsDeleted).ToList();
         RequireOpen(head);
         RequireReason(command.Reason);
         if (head.ConfirmationStatus != ConfirmationStatusEnum.已确认)
-            Fail("BUSINESS_BLOCKED", "当前未确认实物需求。");
+            Fail(ServiceErrorCodes.BusinessBlocked, "当前未确认实物需求。");
         await reception.CancelConfirmationAsync("CR", uid,
             lines.Where(x => x.Quantity > 0).Select(x => x.Uid).ToList(), command.Reason);
         head.ConfirmationStatus = ConfirmationStatusEnum.待确认;
         head.DemandConfirmedAt = null;
         head.DemandConfirmedBy = null;
-        if (!await documents.WriteHeaderAsync(head, false)) Fail("VERSION_CONFLICT", "售后单状态已变化。");
+        if (!await documents.WriteHeaderAsync(head, false)) Fail(ServiceErrorCodes.VersionConflict, "售后单状态已变化。");
         var result = Result(head, lines.Any(x => x.Quantity > 0));
         var after = await audit.SnapshotAsync(uid);
         await audit.WriteAsync(uid, command.CommandId, "CancelConfirmation", command.Reason, result, before, after);

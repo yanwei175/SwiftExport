@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Contracts.Common;
@@ -142,7 +143,7 @@ public class PostgreSqlDapperRepository<T>(RepositoryBaseContext context) : IRep
             return RepositoryWriteResult.Fail(
                 entity.Uid,
                 null,
-                "INSERT_FAILED",
+                ServiceErrorCodes.InsertFailed,
                 "新增失败。");
         }
         return RepositoryWriteResult.Ok(
@@ -187,7 +188,7 @@ public class PostgreSqlDapperRepository<T>(RepositoryBaseContext context) : IRep
             return RepositoryWriteResult.Fail(
                 entity.Uid,
                 entity.Version,
-                "CONCURRENCY_CONFLICT",
+                ServiceErrorCodes.ConcurrencyConflict,
                 "资料已被其他人修改或删除，请刷新后重试。");
         }
 
@@ -224,7 +225,7 @@ public class PostgreSqlDapperRepository<T>(RepositoryBaseContext context) : IRep
                 return RepositoryWriteResult.Fail(
                     uid,
                     version,
-                    "CONCURRENCY_CONFLICT",
+                    ServiceErrorCodes.ConcurrencyConflict,
                     "删除失败，可能已被其他人修改或删除。");
             }
 
@@ -247,7 +248,7 @@ public class PostgreSqlDapperRepository<T>(RepositoryBaseContext context) : IRep
             return RepositoryWriteResult.Fail(
                 uid,
                 version,
-                "CONCURRENCY_CONFLICT",
+                ServiceErrorCodes.ConcurrencyConflict,
                 "删除失败，客户资料可能已被其他人修改或删除。");
         }
 

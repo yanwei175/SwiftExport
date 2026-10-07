@@ -180,7 +180,7 @@ public sealed partial class AfterSalesQualityCategoryManagerViewModel : ViewMode
                     StatusMessage = "保存结果尚未确定，本地输入已保留。请刷新核对服务端分类后再编辑。";
                     return;
                 }
-                StatusMessage = result.Error?.Code == "CONCURRENCY_CONFLICT"
+                StatusMessage = result.Error?.Code == ServiceErrorCodes.ConcurrencyConflict
                     ? "分类已被其他用户修改，本地输入已保留，请决定是否刷新。" : "保存失败，本地输入已保留。";
                 return;
             }

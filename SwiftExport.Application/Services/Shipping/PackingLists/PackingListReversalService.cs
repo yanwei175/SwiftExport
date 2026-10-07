@@ -38,13 +38,13 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
     public async Task<ServiceResult<PackingListPostingPreviewDto>> ReversePreviewAsync(Guid uid,
         PackingListReversePreviewRequest request, CancellationToken token)
     {
-        if (request is null) return ServiceResult<PackingListPostingPreviewDto>.Fail("INVALID_COMMAND", "反向预览请求不能为空。");
+        if (request is null) return ServiceResult<PackingListPostingPreviewDto>.Fail(ServiceErrorCodes.InvalidCommand, "反向预览请求不能为空。");
         try
         {
             var preview = await ReversePreviewCoreAsync(uid, request.ExpectedVersion, request.BusinessDate, request.Reason ?? "", token);
             var detail = await packingLists.GetDetailAsync(uid, token);
             if (detail?.Header == null || detail.Header.Version != request.ExpectedVersion)
-                return ServiceResult<PackingListPostingPreviewDto>.Fail("VERSION_CONFLICT", "箱单已变化，请刷新后预览。");
+                return ServiceResult<PackingListPostingPreviewDto>.Fail(ServiceErrorCodes.VersionConflict, "箱单已变化，请刷新后预览。");
             var result = new PackingListPostingPreviewDto { PackingListId = uid, ExpectedVersion = request.ExpectedVersion,
                 BusinessDate = request.BusinessDate.Date, IsReverse = true, PreviewToken = preview.Token,
                 Actions = preview.Actions.Select(x => x.Adapt<PackingListPostingActionDto>(mapping)).ToList(),
@@ -98,7 +98,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
                 }, token);
         }
         catch (CommandValidationException error)
-        { return ServiceResult<PackingListPostingCommandResult>.Fail("INVALID_COMMAND", error.Message); }
+        { return ServiceResult<PackingListPostingCommandResult>.Fail(ServiceErrorCodes.InvalidCommand, error.Message); }
     }
 
     /// <inheritdoc/>
@@ -107,7 +107,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
     {
         await RequireReversePermissionAsync(token);
         ValidateReverse(uid, expectedVersion, businessDate, reason);
-        if (!await executions.IsSchemaReadyAsync(token)) throw new PackingListPostingFailure("SCHEMA_NOT_READY", "执行证据表尚未部署。");
+        if (!await executions.IsSchemaReadyAsync(token)) throw new PackingListPostingFailure(ServiceErrorCodes.SchemaNotReady, "执行证据表尚未部署。");
         var facts = await executions.ReadReverseFactsAsync(uid, token);
         CheckVersion(facts.Head, expectedVersion);
         return new PackingListReversePreviewBuilder().Build(facts, businessDate, reason);
@@ -120,9 +120,9 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
         await RequireReversePermissionAsync(token);
         ValidateReverse(request.PackingListId, request.ExpectedVersion, request.BusinessDate, request.Reason);
         if (request.CommandId == Guid.Empty || string.IsNullOrWhiteSpace(request.PreviewToken))
-            throw new PackingListPostingFailure("INVALID_COMMAND", "缺少反向命令身份或预览令牌。");
-        if (context.Session.Transaction != null) throw new PackingListPostingFailure("TRANSACTION_EXISTS", "不能接管已有事务。");
-        if (!await executions.IsSchemaReadyAsync(token)) throw new PackingListPostingFailure("SCHEMA_NOT_READY", "执行证据表尚未部署。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.InvalidCommand, "缺少反向命令身份或预览令牌。");
+        if (context.Session.Transaction != null) throw new PackingListPostingFailure(PackingListErrorCodes.TransactionExists, "不能接管已有事务。");
+        if (!await executions.IsSchemaReadyAsync(token)) throw new PackingListPostingFailure(ServiceErrorCodes.SchemaNotReady, "执行证据表尚未部署。");
         var reason = request.Reason.Trim();
         var fingerprint = Hash(JsonSerializer.Serialize(new { Operation = "Reverse", User = user.UserId,
             request.PackingListId, request.CommandId, request.ExpectedVersion, Date = request.BusinessDate.Date, Reason = reason, request.PreviewToken }));
@@ -155,13 +155,13 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
         PackingListReverseFacts? candidateFacts, Guid[] sourceIds, string reason, string fingerprint, CancellationToken token)
     {
             if (candidateFacts == null)
-                throw new PackingListPostingFailure("EXECUTION_INVALID", "已观察到的原反向记录缺失，不能重新执行库存操作。");
+                throw new PackingListPostingFailure(PackingListErrorCodes.ExecutionInvalid, "已观察到的原反向记录缺失，不能重新执行库存操作。");
             await factsRepository.LockSourcesAsync(sourceIds, token);
             var head = await packingLists.LockHeaderAsync(request.PackingListId, false, token);
             CheckVersion(head, request.ExpectedVersion);
             var physical = await packingLists.LockLinesAsync(request.PackingListId, token);
             if (physical.Any(x => (!x.GrossDemandId.HasValue || !sourceIds.Contains(x.GrossDemandId.Value))))
-                throw new PackingListPostingFailure("VERSION_CONFLICT", "箱单来源集合已变化，请刷新。");
+                throw new PackingListPostingFailure(ServiceErrorCodes.VersionConflict, "箱单来源集合已变化，请刷新。");
             var facts = candidateFacts;
             var preview = new PackingListReversePreviewBuilder().Build(facts, request.BusinessDate, reason);
             CheckPreview(preview, request.PreviewToken);
@@ -199,7 +199,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
                 Detail = await packingLists.GetDetailAsync(head.Uid, token),
                 InboundDocumentIds = received.Documents.Select(x => x.DocumentId).ToArray(),
                 OutboundDocumentIds = issued.Documents.Select(x => x.DocumentId).ToArray() };
-            if (result.Detail == null) throw new PackingListPostingFailure("RESULT_MISSING", "反向后的箱单详情不可读取。");
+            if (result.Detail == null) throw new PackingListPostingFailure(PackingListErrorCodes.ResultMissing, "反向后的箱单详情不可读取。");
             var resultJson = JsonSerializer.Serialize(result);
             await executions.AppendAsync(new PackingListPostingExecution { Uid = executionId,
                 PackingListHeadId = head.Uid, PackingListNo = head.PackingListNo, CommandId = request.CommandId,
@@ -212,8 +212,8 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
                 Reason = reason, ChangedFieldsJson = JsonSerializer.Serialize(new { Fingerprint = fingerprint }), RelatedObjectsJson = resultJson,
                 UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now,
                 Summary = "先恢复全部出库、再撤销本箱单自动入库；原事实保留。" }) != 1)
-                throw new PackingListPostingFailure("LOG_FAILED", "反向日志写入失败。");
-            if (context.Session.Transaction is null) throw new PackingListPostingFailure("TRANSACTION_ABORTED", "内部反向已终止外层事务。");
+                throw new PackingListPostingFailure(PackingListErrorCodes.LogFailed, "反向日志写入失败。");
+            if (context.Session.Transaction is null) throw new PackingListPostingFailure(PackingListErrorCodes.TransactionAborted, "内部反向已终止外层事务。");
             return result;
 
             AutomaticReverseRequest? ReverseCommand(bool isInbound)
@@ -238,7 +238,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
         if (results.Length != originalInventory.Length
             || results.Select(x => (x.Document.DocumentId, x.Line.DocumentLineId)).Distinct().Count() != results.Length
             || results.Select(x => x.Line.LedgerId).Distinct().Count() != results.Length)
-            throw new PackingListPostingFailure("EXECUTION_INVALID", "反向返回的原单明细不完整或重复。");
+            throw new PackingListPostingFailure(PackingListErrorCodes.ExecutionInvalid, "反向返回的原单明细不完整或重复。");
         var output = new List<PackingListPostingExecutionLine>();
         foreach (var original in facts.Evidence.OrderBy(x => x.LineNumber))
         {
@@ -253,7 +253,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
                     || actual.Document.Version <= original.DocumentVersion
                     || actual.Line.RequestLineId != original.DocumentLineId
                     || actual.Line.LedgerId == Guid.Empty || originalLedgerIds.Contains(actual.Line.LedgerId))
-                    throw new PackingListPostingFailure("EXECUTION_INVALID", "缺少实际反向流水或单据状态异常。");
+                    throw new PackingListPostingFailure(PackingListErrorCodes.ExecutionInvalid, "缺少实际反向流水或单据状态异常。");
                 clone.DocumentVersion = actual.Document.Version;
                 clone.LedgerId = actual.Line.LedgerId;
             }
@@ -266,28 +266,28 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
     private async Task RequireReversePermissionAsync(CancellationToken token)
     {
         if (!user.IsAuthenticated || user.UserId is not { } id || !await permissions.HasPermissionAsync(id, SwiftExport.Contracts.DTOs.Auth.PermissionKeys.PackingListReverse, token))
-            throw new PackingListPostingFailure("FORBIDDEN", "没有装箱单反过账权限。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.Forbidden, "没有装箱单反过账权限。");
     }
     /// <summary>原因有明确长度限制，日期与 InvoiceDate 独立。</summary>
     private static void ValidateReverse(Guid uid, int version, DateTime date, string reason)
     {
         Validate(uid, version, date);
         if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > 2000)
-            throw new PackingListPostingFailure("INVALID_COMMAND", "反向原因必须填写且不能超过 2000 字符。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.InvalidCommand, "反向原因必须填写且不能超过 2000 字符。");
     }
 
     /// <summary>反向命令身份和业务日期必须有效。</summary>
     private static void Validate(Guid uid, int version, DateTime date)
     {
         if (uid == Guid.Empty || version <= 0 || date == default)
-            throw new PackingListPostingFailure("INVALID_COMMAND", "箱单身份、版本或业务日期无效。");
+            throw new PackingListPostingFailure(ServiceErrorCodes.InvalidCommand, "箱单身份、版本或业务日期无效。");
     }
 
     /// <summary>在读取反向事实前拒绝已经变化的箱单版本。</summary>
     private static void CheckVersion(PackingListHead? head, int version)
     {
-        if (head == null) throw new PackingListPostingFailure("NOT_FOUND", "箱单不存在。");
-        if (head.Version != version) throw new PackingListPostingFailure("VERSION_CONFLICT", "箱单已变化，请刷新。");
+        if (head == null) throw new PackingListPostingFailure(ServiceErrorCodes.NotFound, "箱单不存在。");
+        if (head.Version != version) throw new PackingListPostingFailure(ServiceErrorCodes.VersionConflict, "箱单已变化，请刷新。");
     }
 
     /// <summary>原执行证据或令牌变化时，拒绝全部反向写入。</summary>
@@ -296,7 +296,7 @@ public sealed class PackingListReversalService(ServiceBaseContext context, IPack
         if (preview.Blockers.Count > 0)
             throw new PackingListPostingFailure(preview.Blockers[0].Code, preview.Blockers[0].Message) { Blockers = preview.Blockers };
         if (!string.Equals(preview.Token, expected, StringComparison.Ordinal))
-            throw new PackingListPostingFailure("PREVIEW_STALE", "影响过账的事实已变化，请重新预览。");
+            throw new PackingListPostingFailure(PackingListErrorCodes.PreviewStale, "影响过账的事实已变化，请重新预览。");
     }
 
     /// <summary>固定原有请求指纹格式，供执行证据和业务审计追溯。</summary>

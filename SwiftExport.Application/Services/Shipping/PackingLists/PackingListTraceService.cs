@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Mapster;
 using SwiftExport.Application.Interfaces.Auth;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
@@ -21,19 +22,19 @@ public sealed class PackingListTraceService(IPackingListQueryRepository packingL
     {
         if (!user.IsAuthenticated || user.UserId is not { } actor
             || !await permissions.HasPermissionAsync(actor, "Shipping.PackingList.View", token))
-            return ServiceResult<PackingListTraceDto>.Fail("FORBIDDEN", "没有出货模块访问权限。");
-        if (uid == Guid.Empty) return ServiceResult<PackingListTraceDto>.Fail("INVALID_COMMAND", "箱单身份不能为空。");
+            return ServiceResult<PackingListTraceDto>.Fail(ServiceErrorCodes.Forbidden, "没有出货模块访问权限。");
+        if (uid == Guid.Empty) return ServiceResult<PackingListTraceDto>.Fail(ServiceErrorCodes.InvalidCommand, "箱单身份不能为空。");
         var detail = await packingLists.GetDetailAsync(uid, token);
-        if (detail == null) return ServiceResult<PackingListTraceDto>.Fail("NOT_FOUND", "箱单不存在。");
+        if (detail == null) return ServiceResult<PackingListTraceDto>.Fail(ServiceErrorCodes.NotFound, "箱单不存在。");
         if (!await executions.IsSchemaReadyAsync(token))
-            return ServiceResult<PackingListTraceDto>.Fail("SCHEMA_NOT_READY", "箱单执行记录表尚未部署。");
+            return ServiceResult<PackingListTraceDto>.Fail(ServiceErrorCodes.SchemaNotReady, "箱单执行记录表尚未部署。");
         var facts = await executions.ReadAsync(uid, token);
         // 历史损坏不得伪装成空执行；也不能把其他箱单的执行证据混入当前响应。
         var ids = facts.Heads.Select(x => x.Uid).ToHashSet();
         if (ids.Count != facts.Heads.Count || facts.Heads.Any(x => x.PackingListHeadId != uid || x.IsDeleted)
             || facts.Lines.Any(x => !ids.Contains(x.ExecutionId) || x.IsDeleted)
             || facts.Lines.Select(x => x.Uid).Distinct().Count() != facts.Lines.Count)
-            return ServiceResult<PackingListTraceDto>.Fail("EXECUTION_INVALID", "执行记录归属或完整性异常。");
+            return ServiceResult<PackingListTraceDto>.Fail(PackingListErrorCodes.ExecutionInvalid, "执行记录归属或完整性异常。");
         var result = new PackingListTraceDto { PackingListId = uid, PackingListNo = detail.Header.PackingListNo,
             HasExecutionEvidence = facts.Heads.Count > 0,
             Notice = facts.Heads.Count == 0 ? "尚无可证明的执行记录；不能据此推算历史库存或反向。" : "数量方向由执行操作决定，正向与反向不能直接累加。" };

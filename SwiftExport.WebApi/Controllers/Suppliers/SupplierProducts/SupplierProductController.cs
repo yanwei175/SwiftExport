@@ -6,6 +6,7 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers.Responses;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Suppliers.SupplierProducts;
@@ -27,10 +28,15 @@ public sealed class SupplierProductController(
     [PreventDuplicateRequest]
     public Task<ServiceResult<SaveItemResult>> Create([FromBody] CreateItemRequest<SupplierProductDto> dto) => maintenance.AddAsync(dto);
 
-    /// <summary>更新供应商产品资料。</summary>
+    /// <summary>核对路径与外层请求身份后更新资料，身份冲突不调用写入服务。</summary>
     [HttpPut("{id}")]
     [PreventDuplicateRequest]
-    public Task<ServiceResult<SaveItemResult>> Update(Guid id, [FromBody] UpdateItemRequest<SupplierProductDto> dto) => maintenance.UpdateAsync(dto);
+    public Task<ServiceResult<SaveItemResult>> Update(Guid id, [FromBody] UpdateItemRequest<SupplierProductDto> dto)
+    {
+        if (id != dto.Uid)
+            return Task.FromResult(ServiceResult<SaveItemResult>.Fail(ServiceErrorCodes.Validation, "路径 Id 与请求体 Uid 不一致。", "Uid"));
+        return maintenance.UpdateAsync(dto);
+    }
 
     /// <summary>删除供应商产品资料。</summary>
     [HttpDelete("{id}")]

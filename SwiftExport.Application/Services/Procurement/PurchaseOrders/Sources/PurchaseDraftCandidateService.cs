@@ -37,7 +37,7 @@ public sealed class PurchaseDraftCandidateService(
         request ??= new PurchaseDraftCandidateQuery();
         request.SourceType = request.SourceType?.Trim();
         if (request.SourceUid.HasValue != !string.IsNullOrWhiteSpace(request.SourceType) || request.SourceUid == Guid.Empty)
-            return ServiceResult<List<PurchaseDraftCandidateDto>>.Fail("INVALID_SOURCE", "来源类型和来源 Uid 必须同时提供或同时为空。");
+            return ServiceResult<List<PurchaseDraftCandidateDto>>.Fail(PurchaseDraftErrorCodes.InvalidSource, "来源类型和来源 Uid 必须同时提供或同时为空。");
 
         try
         {

@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using System.Data;
 using Mapster;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,7 @@ public sealed class AfterSalesQualityCategoryService(
     public async Task<ServiceResult<List<AfterSalesQualityCategoryDto>>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         if (!await AuthorizedAsync(PermissionKeys.QualityControlAfterSalesView, cancellationToken))
-            return ServiceResult<List<AfterSalesQualityCategoryDto>>.Fail("FORBIDDEN", "当前账号无售后查看权限。");
+            return ServiceResult<List<AfterSalesQualityCategoryDto>>.Fail(ServiceErrorCodes.Forbidden, "当前账号无售后查看权限。");
         var entities = await repository.ReadAllAsync(false, cancellationToken);
         return ServiceResult<List<AfterSalesQualityCategoryDto>>.Ok(entities.Adapt<List<AfterSalesQualityCategoryDto>>());
     }
@@ -37,16 +38,16 @@ public sealed class AfterSalesQualityCategoryService(
         AfterSalesQualityCategoryBatchSaveRequest batchReq, CancellationToken cancellationToken = default)
     {
         if (!await AuthorizedAsync(PermissionKeys.AfterSalesMaintain, cancellationToken))
-            return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail("FORBIDDEN", "当前账号无售后维护权限。");
-        if (batchReq is null) return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail("VALIDATION", "请求不能为空。");
+            return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail(ServiceErrorCodes.Forbidden, "当前账号无售后维护权限。");
+        if (batchReq is null) return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail(ServiceErrorCodes.Validation, "请求不能为空。");
         batchReq.CreateItems ??= [];
         batchReq.UpdateItems ??= [];
         batchReq.DeleteItems ??= [];
         if (batchReq.CreateItems.Any(x => x is null) || batchReq.UpdateItems.Any(x => x is null) || batchReq.DeleteItems.Any(x => x is null))
-            return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail("VALIDATION", "批量明细不能包含空项。");
-        if (!batchReq.HasChanges) return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail("VALIDATION", "没有需要保存的数据。");
+            return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail(ServiceErrorCodes.Validation, "批量明细不能包含空项。");
+        if (!batchReq.HasChanges) return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail(ServiceErrorCodes.Validation, "没有需要保存的数据。");
         if (_session.Transaction is not null)
-            return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail("BUSINESS_BLOCKED", "不能接管外部事务。");
+            return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail(ServiceErrorCodes.BusinessBlocked, "不能接管外部事务。");
 
         var response = new AfterSalesQualityCategoryBatchSaveResponse { TotalCount = batchReq.TotalCount };
         IDbTransaction? owned = null;
@@ -57,7 +58,7 @@ public sealed class AfterSalesQualityCategoryService(
             owned = _session.Connection.BeginTransaction(IsolationLevel.Serializable);
             _session.Transaction = owned;
             var preparation = await PrepareBatchSaveAsync(batchReq, cancellationToken);
-            if (preparation.Error is not null) throw new CategoryWriteException("VALIDATION", preparation.Error);
+            if (preparation.Error is not null) throw new CategoryWriteException(ServiceErrorCodes.Validation, preparation.Error);
             var ids = preparation.ExistingById.Keys.ToDictionary(uid => uid, uid => uid);
             foreach (var create in preparation.CreateItems)
             {
@@ -108,14 +109,14 @@ public sealed class AfterSalesQualityCategoryService(
             var kind = _session.Errors.Classify(exception);
             var code = kind switch
             {
-                DatabaseFailureKind.SerializationFailure or DatabaseFailureKind.Deadlock => "SERVICE_UNAVAILABLE",
-                DatabaseFailureKind.UniqueConflict => "BUSINESS_BLOCKED",
-                _ when committing => "OUTCOME_UNKNOWN",
-                _ => "UNEXPECTED"
+                DatabaseFailureKind.SerializationFailure or DatabaseFailureKind.Deadlock => ServiceErrorCodes.ServiceUnavailable,
+                DatabaseFailureKind.UniqueConflict => ServiceErrorCodes.BusinessBlocked,
+                _ when committing => ServiceErrorCodes.OutcomeUnknown,
+                _ => ServiceErrorCodes.Unexpected
             };
-            var message = code == "OUTCOME_UNKNOWN" ? "提交结果尚不确定，请刷新核实后再操作。"
-                : code == "SERVICE_UNAVAILABLE" ? "分类或引用发生并发变化，请刷新后重试。"
-                : code == "BUSINESS_BLOCKED" ? "分类编码已被使用，请刷新后修改。" : "分类保存失败，所有未提交操作已回滚。";
+            var message = code == ServiceErrorCodes.OutcomeUnknown ? "提交结果尚不确定，请刷新核实后再操作。"
+                : code == ServiceErrorCodes.ServiceUnavailable ? "分类或引用发生并发变化，请刷新后重试。"
+                : code == ServiceErrorCodes.BusinessBlocked ? "分类编码已被使用，请刷新后修改。" : "分类保存失败，所有未提交操作已回滚。";
             return ServiceResult<AfterSalesQualityCategoryBatchSaveResponse>.Fail(code, message);
         }
         finally
@@ -186,14 +187,14 @@ public sealed class AfterSalesQualityCategoryService(
             if (!existingById.TryGetValue(item.Uid, out var entity))
                 return AfterSalesQualityCategoryBatchPreparation.Fail($"修改失败：售后品质分类 {item.Uid} 不存在或已删除。");
             if (entity.Version != item.Version)
-                throw new CategoryWriteException("CONCURRENCY_CONFLICT", $"售后品质分类 {item.Uid} 已被其他人修改，请刷新后重试。");
+                throw new CategoryWriteException(ServiceErrorCodes.ConcurrencyConflict, $"售后品质分类 {item.Uid} 已被其他人修改，请刷新后重试。");
         }
         foreach (var item in request.DeleteItems)
         {
             if (!existingById.TryGetValue(item.Uid, out var entity))
                 return AfterSalesQualityCategoryBatchPreparation.Fail($"删除失败：售后品质分类 {item.Uid} 不存在或已删除。");
             if (entity.Version != item.Version)
-                throw new CategoryWriteException("CONCURRENCY_CONFLICT", $"售后品质分类 {item.Uid} 已被其他人修改，请刷新后重试。");
+                throw new CategoryWriteException(ServiceErrorCodes.ConcurrencyConflict, $"售后品质分类 {item.Uid} 已被其他人修改，请刷新后重试。");
         }
 
         var deletedIds = request.DeleteItems.Select(item => item.Uid).ToHashSet();
@@ -283,7 +284,7 @@ public sealed class AfterSalesQualityCategoryService(
                                || !pending.ContainsKey(item.Request.Data.ParentId.Value))
                 .ToArray();
             if (ready.Length == 0)
-                throw new CategoryWriteException("VALIDATION", "新增分类层级无法按父子顺序保存。");
+                throw new CategoryWriteException(ServiceErrorCodes.Validation, "新增分类层级无法按父子顺序保存。");
             foreach (var item in ready)
             {
                 result.Add(item);
@@ -356,7 +357,7 @@ public sealed class AfterSalesQualityCategoryService(
     private static void EnsureWriteSucceeded(RepositoryWriteResult result, string fallbackMessage)
     {
         if (!result.Success)
-            throw new CategoryWriteException(result.ErrorCode ?? "BUSINESS_BLOCKED", result.Message ?? fallbackMessage);
+            throw new CategoryWriteException(result.ErrorCode ?? ServiceErrorCodes.BusinessBlocked, result.Message ?? fallbackMessage);
     }
 
     /// <summary>失败时尽力回滚，清理异常仅记录日志而不覆盖原始失败。</summary>

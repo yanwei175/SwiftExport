@@ -172,6 +172,34 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
         }
         /// <summary>Ribbon 只读内存中的装箱单创建权限。</summary>
         public bool CanImportPackingList => user?.HasPermission("Shipping.PackingList.Create") == true;
+        /// <summary>销售列表只读入口使用已验证会话的查看权限。</summary>
+        public bool CanBrowseSalesOrders => user?.HasPermission(PermissionKeys.SalesOrderView) == true;
+        /// <summary>在所属 Excel 窗口切换销售订单侧栏；宿主管理复用、宽度及页面 Scope。</summary>
+        public void OpenSalesOrderList(Office.IRibbonControl control)
+        {
+            if (!IsReady || !CanBrowseSalesOrders || IsRestoring || IsLoginOpen) return;
+            try { taskPanes.TogglePane(context.GetWindow(control), "sales-order-list"); }
+            catch (Exception ex)
+            {
+                log.Write("OpenSalesOrderListFailure", ex);
+                Status = "无法打开销售订单侧栏，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        /// <summary>采购列表入口只读取已验证会话的采购查看权限。</summary>
+        public bool CanBrowsePurchaseOrders => user?.HasPermission(PermissionKeys.ProcurementOrderRead) == true;
+        /// <summary>在所属 Excel 窗口切换采购列表侧栏，复用既有 TaskPane Scope。</summary>
+        public void OpenPurchaseOrderList(Office.IRibbonControl control)
+        {
+            if (!IsReady || !CanBrowsePurchaseOrders || IsRestoring || IsLoginOpen) return;
+            try { taskPanes.TogglePane(context.GetWindow(control), "purchase-order-list"); }
+            catch (Exception ex)
+            {
+                log.Write("OpenPurchaseOrderListFailure", ex);
+                Status = "无法打开采购订单侧栏，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
+        }
         /// <summary>Ribbon 切换配置侧栏，导入页按业务组受控定位配置。</summary>
         public void OpenExcelReadProfile(Office.IRibbonControl control, Guid? initialProfile = null, string groupCode = "SalesOrder")
         {

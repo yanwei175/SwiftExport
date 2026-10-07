@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.SysEnums;
@@ -13,7 +14,7 @@ public static class AfterSalesPolicy
     /// <summary>验证一个投诉的描述及整单人民币成本；存在正数量要求才要求责任方和已定金额。</summary>
     public static void ValidateHeader(AfterSalesHeader head, bool confirming)
     {
-        void Reject(string field,string message) => throw new AfterSalesException("VALIDATION",message,"Header."+field);
+        void Reject(string field,string message) => throw new AfterSalesException(ServiceErrorCodes.Validation,message,"Header."+field);
         if(string.IsNullOrWhiteSpace(head.IssueDescription)) Reject("IssueDescription","必须填写投诉描述。");
         if(head.CustomerComplaintNo?.Length>100) Reject("CustomerComplaintNo","客户投诉单号不能超过100字。");
         if(head.ServiceAmountCny < 0 || head.ServiceAmountCny > 9999999999999999.99m
@@ -43,7 +44,7 @@ public static class AfterSalesPolicy
     /// <summary>验证行基本事实；空数量可保留补件事实，正数量确认时要求完整实物内容。</summary>
     public static void ValidateLine(AfterSalesLine line, bool confirming)
     {
-        void Reject(string field,string message) => throw new AfterSalesException("VALIDATION",message,$"Lines[{line.Uid}].{field}");
+        void Reject(string field,string message) => throw new AfterSalesException(ServiceErrorCodes.Validation,message,$"Lines[{line.Uid}].{field}");
         if (line.Quantity < 0 || line.Quantity > 99999999999999.9999m || decimal.Round(line.Quantity ?? 0,4) != (line.Quantity ?? 0)) Reject("Quantity","数量必须非负，整数最多十四位、小数最多四位。");
         if (line.IsNonStandard && line.ProductId.HasValue) Reject("ProductId","非标不能绑定产品。");
         if (!confirming || !(line.Quantity > 0)) return;

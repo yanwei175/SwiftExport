@@ -86,6 +86,12 @@ public sealed class HttpErrorContractTests
     [DataRow("SUPPLY_SHORTFALL", 422)]
     [DataRow("SERVICE_UNAVAILABLE", 503)]
     [DataRow("OUTCOME_UNKNOWN", 503)]
+    [DataRow("EXCEL_READ_DUPLICATE_NAME", 409)]
+    [DataRow("SelectionInvalid", 400)]
+    [DataRow("ProductNotMatched", 422)]
+    [DataRow("ProductAmbiguous", 422)]
+    [DataRow("ProductUnavailable", 422)]
+    [DataRow("SOURCE_NOT_ASSOCIATED", 422)]
     public async Task Failure_UsesHttpStatusAndNullData(string code, int status)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"error-probe/failure/{code}");
@@ -131,6 +137,23 @@ public sealed class HttpErrorContractTests
         var body = await AssertFailureAsync(response, 500, "UNEXPECTED");
         Assert.IsFalse(body.ToString().Contains("secret-sql", StringComparison.Ordinal));
         Assert.IsTrue(response.Headers.Contains("X-Correlation-ID"));
+    }
+
+    /// <summary>行级错误、预览阻断和导入问题属于正常响应内容，即使同码已登记也不改成 HTTP 失败。</summary>
+    [TestMethod]
+    [DataRow("rows", "items[0].errorCode", "CONCURRENCY_CONFLICT")]
+    [DataRow("preview", "blockers[0].code", "SOURCE_NOT_ASSOCIATED")]
+    [DataRow("import", "issues[0].code", "ProductNotMatched")]
+    [DataRow("warning", "issues[0].code", "ExistingOrders")]
+    public async Task NormalIssuePayloads_KeepSuccessfulEnvelope(string path, string codePath, string expectedCode)
+    {
+        using var response = await _client.GetAsync($"error-probe/{path}");
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        var body = JObject.Parse(await response.Content.ReadAsStringAsync());
+        Assert.AreEqual(true, (bool?)body["success"]);
+        Assert.AreEqual(JTokenType.Null, body["error"]?.Type);
+        Assert.AreEqual(expectedCode, (string?)body["data"]!.SelectToken(codePath));
+        if (path == "warning") Assert.AreEqual(true, (bool?)body["data"]!["issues"]![0]!["requiresConfirmation"]);
     }
 
     /// <summary>Application 异步验证异常应带字段路径返回 400，并保留关联标识。</summary>
@@ -198,6 +221,37 @@ public sealed class ErrorProbeController : ControllerBase
     /// <summary>测试系统异常出口。</summary>
     [AllowAnonymous, HttpGet("throw")]
     public IActionResult Throw() => throw new InvalidOperationException("secret-sql");
+
+    /// <summary>模拟正常批量保存包装中的行级拒绝，验证结果过滤器不检查 Data 内的错误码。</summary>
+    [AllowAnonymous, HttpGet("rows")]
+    public ServiceResult<BatchSaveResponseBase> Rows() => ServiceResult<BatchSaveResponseBase>.Ok(new()
+    {
+        Items = [new() { ClientKey = "row-1", Success = false, ErrorCode = ServiceErrorCodes.ConcurrencyConflict, Message = "行版本已变化。" }]
+    });
+
+    /// <summary>模拟只读预览的阻断项，保留专用业务 DTO 和成功响应。</summary>
+    [AllowAnonymous, HttpGet("preview")]
+    public ServiceResult<SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListPostingPreviewDto> Preview() =>
+        ServiceResult<SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListPostingPreviewDto>.Ok(new()
+        {
+            Blockers = [new() { Code = SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListErrorCodes.SourceNotAssociated, Message = "尚有未关联行。" }]
+        });
+
+    /// <summary>模拟导入检查的阻断问题，即使同值用于采购命令失败也不改写此响应。</summary>
+    [AllowAnonymous, HttpGet("import")]
+    public ServiceResult<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportResponse> Import() =>
+        ServiceResult<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportResponse>.Ok(new()
+        {
+            Issues = [new() { Code = SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.SalesOrderImportIssueCodes.ProductNotMatched, Message = "客户型号未匹配。" }]
+        });
+
+    /// <summary>模拟导入确认警告，机器代码与是否确认保持原业务字段。</summary>
+    [AllowAnonymous, HttpGet("warning")]
+    public ServiceResult<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportResponse> Warning() =>
+        ServiceResult<SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.CheckSalesOrderImportResponse>.Ok(new()
+        {
+            Issues = [new() { Code = SwiftExport.Contracts.DTOs.ForExcel.SalesOrders.SalesOrderImportIssueCodes.ExistingOrders, Message = "存在同号订单。", RequiresConfirmation = true }]
+        });
 
     /// <summary>模拟 Application 请求验证拒绝，检查全局异常出口。</summary>
     [AllowAnonymous, HttpGet("command-validation")]

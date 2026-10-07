@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Application.Services.Systems.Numbering;
 using SwiftExport.Core.Interfaces.DemandPlanning.Sources.Document;
@@ -83,7 +84,7 @@ public sealed class PurchaseDraftCreationService(
         var resultBuffer = new PurchaseDraftSourceResultBuffer(result);
         if (_session.Transaction is not null)
         {
-            result.ErrorCode = "TRANSACTION_ALREADY_ACTIVE";
+            result.ErrorCode = PurchaseDraftErrorCodes.TransactionAlreadyActive;
             result.Message = "当前请求存在未完成事务。";
             return result;
         }
@@ -98,7 +99,7 @@ public sealed class PurchaseDraftCreationService(
         {
             // 准备超时未开启事务，沿原来源失败返回；不把整批改成原子命令或重执行业务。
             _logger.LogWarning("来源 {SourceType}/{SourceUid} 创建采购草稿的资源准备超时。", source.SourceType, source.SourceUid);
-            result.ErrorCode = "UNEXPECTED_ERROR";
+            result.ErrorCode = PurchaseDraftErrorCodes.UnexpectedError;
             result.Message = "创建采购草稿失败。";
             return result;
         }
@@ -109,13 +110,13 @@ public sealed class PurchaseDraftCreationService(
             // 固定锁序：GrossDemand -> NetDemand -> Link/CommandItem -> PurchaseOrder。
             var grossDemands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(source.SourceType, source.SourceUid);
             if (grossDemands.Count == 0)
-                throw new PurchaseDraftException("SOURCE_NOT_FOUND", "来源单没有活动毛需求。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceNotFound, "来源单没有活动毛需求。");
 
             var netDemands = new List<NetDemand>();
             foreach (var grossDemand in grossDemands)
                 netDemands.AddRange(await netDemandRepository.GetActiveByGrossDemandForUpdateAsync(grossDemand.Uid));
             if (netDemands.Count == 0)
-                throw new PurchaseDraftException("CORRUPTED_STATE", "来源单没有活动净需求。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.CorruptedState, "来源单没有活动净需求。");
 
             var activeLinks = await executionLinkRepository.GetActiveByNetDemandIdsForUpdateAsync(
                 netDemands.Select(x => x.Uid));
@@ -126,7 +127,7 @@ public sealed class PurchaseDraftCreationService(
             {
                 var replay = await TryBuildReplayAsync(command, source, existingCommandLinks, cancellationToken);
                 if (replay is null)
-                    throw new PurchaseDraftException("IDEMPOTENCY_PARTIAL_STATE",
+                    throw new PurchaseDraftException(PurchaseDraftErrorCodes.IdempotencyPartialState,
                         "执行请求只有部分命令项已写入，数据需要人工检查。");
                 _session.Transaction.Commit();
                 return replay;
@@ -139,12 +140,12 @@ public sealed class PurchaseDraftCreationService(
                 x.SourceUid == source.SourceUid
                 && string.Equals(x.SourceType, source.SourceType, StringComparison.OrdinalIgnoreCase));
             if (sourcePreview is null || sourcePreview.Documents.Count == 0)
-                throw new PurchaseDraftException("NOTHING_TO_CREATE", "来源单没有可转采购的剩余数量。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.NothingToCreate, "来源单没有可转采购的剩余数量。");
             if (sourcePreview.HasBlockingWarning())
-                throw new PurchaseDraftException("PREVIEW_BLOCKED",
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewBlocked,
                     string.Join("；", sourcePreview.Warnings.Where(x => x.IsBlocker).Select(x => x.Message)));
             if (!string.Equals(sourcePreview.SourcePreviewToken, source.SourcePreviewToken, StringComparison.Ordinal))
-                throw new PurchaseDraftException("PREVIEW_EXPIRED", "来源事实已变化，请重新预览。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewExpired, "来源事实已变化，请重新预览。");
 
             var confirmedCodes = source.ConfirmedWarningCodes
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -155,7 +156,7 @@ public sealed class PurchaseDraftCreationService(
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             if (unconfirmed.Length > 0)
-                throw new PurchaseDraftException("WARNING_CONFIRMATION_REQUIRED",
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.WarningConfirmationRequired,
                     $"以下强警告尚未确认：{string.Join(",", unconfirmed)}。");
 
             var targetBySupplier = ValidateAndIndexTargets(command.EntryMode, source, sourcePreview.Documents);
@@ -173,7 +174,7 @@ public sealed class PurchaseDraftCreationService(
                     appendHead = await purchaseDraftRepository.GetSafeDraftForUpdateAsync(
                         target!.ExistingPurchaseOrderId!.Value,
                         target.ExpectedPurchaseOrderVersion!.Value)
-                        ?? throw new PurchaseDraftException("APPEND_TARGET_UNSAFE",
+                        ?? throw new PurchaseDraftException(PurchaseDraftErrorCodes.AppendTargetUnsafe,
                             "目标采购草稿已变化、已确认或已有收货/库存事实。");
                     ValidateAppendHead(appendHead, source, document);
                     purchaseOrderId = appendHead.Uid;
@@ -185,7 +186,7 @@ public sealed class PurchaseDraftCreationService(
                     var duplicateHead = await purchaseDraftRepository.GetByExecutionScopeForUpdateAsync(
                         command.ExecutionRequestId, source.SourceType, source.SourceUid, document.SupplierId);
                     if (duplicateHead is not null)
-                        throw new PurchaseDraftException("IDEMPOTENCY_PARTIAL_STATE",
+                        throw new PurchaseDraftException(PurchaseDraftErrorCodes.IdempotencyPartialState,
                             "已存在同执行请求采购头但缺少完整 Link，数据需要人工检查。");
 
                     var number = await documentNoService.GetNextDocumentNoAsync(new DocumentNoRequest
@@ -194,7 +195,7 @@ public sealed class PurchaseDraftCreationService(
                         BusinessDate = DateTime.Now
                     });
                     if (!number.Success || string.IsNullOrWhiteSpace(number.Data?.DocumentNo))
-                        throw new PurchaseDraftException("DOCUMENT_NO_FAILED", number.Message ?? "采购单号生成失败。");
+                        throw new PurchaseDraftException(PurchaseDraftErrorCodes.DocumentNoFailed, number.Message ?? "采购单号生成失败。");
                     purchaseOrderId = GuidSequentialGenerator.NewGuid();
                     orderNo = number.Data.DocumentNo;
                     firstLineNumber = 1;
@@ -205,15 +206,15 @@ public sealed class PurchaseDraftCreationService(
                     firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew);
                 if (writeModel.Head is not null
                     && await purchaseDraftRepository.InsertPurchaseDraftAsync(writeModel.Head) != 1)
-                    throw new PurchaseDraftException("PURCHASE_HEAD_INSERT_FAILED", "采购草稿头写入失败。");
+                    throw new PurchaseDraftException(PurchaseDraftErrorCodes.PurchaseHeadInsertFailed, "采购草稿头写入失败。");
                 if (await purchaseDraftRepository.InsertPurchaseDraftLinesAsync(writeModel.Lines) != writeModel.Lines.Count)
-                    throw new PurchaseDraftException("PURCHASE_LINE_INSERT_FAILED", "采购草稿行写入不完整。");
+                    throw new PurchaseDraftException(PurchaseDraftErrorCodes.PurchaseLineInsertFailed, "采购草稿行写入不完整。");
                 if (await executionLinkRepository.InsertPurchaseLinksAsync(writeModel.Links) != writeModel.Links.Count)
-                    throw new PurchaseDraftException("PURCHASE_LINK_INSERT_FAILED", "采购追溯 Link 写入不完整。");
+                    throw new PurchaseDraftException(PurchaseDraftErrorCodes.PurchaseLinkInsertFailed, "采购追溯 Link 写入不完整。");
                 if (appendHead is not null
                     && await purchaseDraftRepository.AdvanceDraftVersionAfterAppendAsync(
                         appendHead.Uid, appendHead.Version) != 1)
-                    throw new PurchaseDraftException("APPEND_CONCURRENCY_CONFLICT", "追加采购草稿时版本已变化。");
+                    throw new PurchaseDraftException(PurchaseDraftErrorCodes.AppendConcurrencyConflict, "追加采购草稿时版本已变化。");
 
                 resultBuffer.Stage(new CreatedPurchaseDraftDto
                 {
@@ -252,7 +253,7 @@ public sealed class PurchaseDraftCreationService(
             _session.Transaction.Rollback();
             resultBuffer.Rollback();
             _logger.LogError(ex, "来源 {SourceType}/{SourceUid} 创建采购草稿失败。", source.SourceType, source.SourceUid);
-            result.ErrorCode = "UNEXPECTED_ERROR";
+            result.ErrorCode = PurchaseDraftErrorCodes.UnexpectedError;
             result.Message = "创建采购草稿失败。";
             return result;
         }
@@ -284,7 +285,7 @@ public sealed class PurchaseDraftCreationService(
             if (link.ExecutionRequestId != command.ExecutionRequestId
                 || link.NetDemandId != item.NetDemandId
                 || link.AllocatedQty != item.PurchaseQty)
-                throw new PurchaseDraftException("IDEMPOTENCY_KEY_REUSED",
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.IdempotencyKeyReused,
                     "CommandItemId 已被不同的执行事实使用。");
         }
 
@@ -317,21 +318,21 @@ public sealed class PurchaseDraftCreationService(
         IReadOnlyList<PurchaseDraftPreviewDocumentDto> documents)
     {
         if (source.Targets.GroupBy(x => x.SupplierId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("DUPLICATE_TARGET", "同一供应商存在重复采购草稿目标。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.DuplicateTarget, "同一供应商存在重复采购草稿目标。");
         var documentSuppliers = documents.Select(x => x.SupplierId).ToHashSet();
         if (source.Targets.Any(x => !documentSuppliers.Contains(x.SupplierId)))
-            throw new PurchaseDraftException("INVALID_TARGET", "采购草稿目标包含本来源不存在的供应商。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidTarget, "采购草稿目标包含本来源不存在的供应商。");
         foreach (var target in source.Targets)
         {
             if (entryMode == PurchaseDraftEntryModeEnum.SourceOneClick
                 && target.TargetMode != PurchaseDraftTargetModeEnum.CreateNew)
-                throw new PurchaseDraftException("ONE_CLICK_MUST_CREATE_NEW", "来源一键转采购只能新建草稿。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.OneClickMustCreateNew, "来源一键转采购只能新建草稿。");
             if (target.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting
                 && (!target.ExistingPurchaseOrderId.HasValue
                     || target.ExistingPurchaseOrderId.Value == Guid.Empty
                     || !target.ExpectedPurchaseOrderVersion.HasValue
                     || target.ExpectedPurchaseOrderVersion.Value <= 0))
-                throw new PurchaseDraftException("APPEND_TARGET_REQUIRED", "追加采购草稿必须携带目标 Uid 和版本。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.AppendTargetRequired, "追加采购草稿必须携带目标 Uid 和版本。");
         }
         return source.Targets.ToDictionary(x => x.SupplierId);
     }
@@ -348,7 +349,7 @@ public sealed class PurchaseDraftCreationService(
             || !string.Equals(head.DemandSourceType, source.SourceType, StringComparison.OrdinalIgnoreCase)
             || head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active
             || head.ConfirmationStatus != ConfirmationStatusEnum.待确认)
-            throw new PurchaseDraftException("APPEND_TARGET_MISMATCH", "目标采购草稿与客户、来源或供应商不一致。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.AppendTargetMismatch, "目标采购草稿与客户、来源或供应商不一致。");
     }
 
     /// <summary>在任何来源事务前验证执行身份、来源集合及命令项唯一性。</summary>
@@ -356,24 +357,24 @@ public sealed class PurchaseDraftCreationService(
     {
         if (command is null || command.ExecutionRequestId == Guid.Empty
             || string.IsNullOrWhiteSpace(command.PreviewToken))
-            throw new PurchaseDraftException("INVALID_COMMAND", "执行请求和预览 Token 不能为空。");
+            throw new PurchaseDraftException(ServiceErrorCodes.InvalidCommand, "执行请求和预览 Token 不能为空。");
         if (!Enum.IsDefined(command.EntryMode))
-            throw new PurchaseDraftException("INVALID_ENTRY_MODE", "采购入口模式无效。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidEntryMode, "采购入口模式无效。");
         if (command.Sources is null || command.Sources.Count == 0)
-            throw new PurchaseDraftException("SOURCE_REQUIRED", "至少提交一个来源单。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceRequired, "至少提交一个来源单。");
         if (command.Sources.Any(x => x is null))
-            throw new PurchaseDraftException("INVALID_SOURCE", "来源命令不能为空。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidSource, "来源命令不能为空。");
         if (command.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick && command.Sources.Count != 1)
-            throw new PurchaseDraftException("ONE_CLICK_SINGLE_SOURCE", "来源一键转采购只能提交一个来源单。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.OneClickSingleSource, "来源一键转采购只能提交一个来源单。");
         if (command.Sources.Count == 1
             && !string.Equals(command.PreviewToken, command.Sources[0].SourcePreviewToken, StringComparison.Ordinal))
-            throw new PurchaseDraftException("PREVIEW_TOKEN_MISMATCH", "单来源预览 Token 与来源 Token 不一致。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewTokenMismatch, "单来源预览 Token 与来源 Token 不一致。");
         if (command.Sources.GroupBy(x => (x.SourceType?.Trim().ToUpperInvariant(), x.SourceUid)).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("DUPLICATE_SOURCE", "执行命令包含重复来源单。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.DuplicateSource, "执行命令包含重复来源单。");
         var allItems = command.Sources.SelectMany(x => x.Items ?? new List<CreatePurchaseDraftItemCommand>()).ToList();
         if (allItems.GroupBy(x => x.CommandItemId).Any(x => x.Count() > 1)
             || allItems.GroupBy(x => x.NetDemandId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("DUPLICATE_ITEM", "不同来源之间不能重复提交命令项或物料需求。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.DuplicateItem, "不同来源之间不能重复提交命令项或物料需求。");
         foreach (var source in command.Sources)
         {
             source.SourceType = source.SourceType?.Trim();
@@ -383,7 +384,7 @@ public sealed class PurchaseDraftCreationService(
                 || string.IsNullOrWhiteSpace(source.SourcePreviewToken)
                 || source.Items is null || source.Items.Count == 0
                 || !Enum.IsDefined(source.LineMode))
-                throw new PurchaseDraftException("INVALID_SOURCE", "来源命令缺少来源、Token、模式或计划项。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidSource, "来源命令缺少来源、Token、模式或计划项。");
             ValidateCreateItems(source.Items);
         }
     }
@@ -395,7 +396,7 @@ public sealed class PurchaseDraftCreationService(
                            || x.ExpectedVersion <= 0 || x.ExpectedRemainingQty <= 0 || x.PurchaseQty <= 0)
             || items.GroupBy(x => x.CommandItemId).Any(x => x.Count() > 1)
             || items.GroupBy(x => x.NetDemandId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("INVALID_ITEM", "执行命令包含无效或重复的物料需求项。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidItem, "执行命令包含无效或重复的物料需求项。");
     }
 
 }

@@ -1,3 +1,6 @@
+using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.Errors;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -16,39 +19,39 @@ public sealed class PackingListReversePreviewBuilder
     public Preview Build(PackingListReverseFacts facts, DateTime businessDate, string reason)
     {
         if (facts.Head == null || facts.Head.IsDeleted || facts.Head.PostingStatus != PackingListPostingStatusEnum.Posted)
-            return Fail("INVALID_STATE", "只有已过账箱单可以反过账。");
-        if (businessDate == default || string.IsNullOrWhiteSpace(reason)) return Fail("INVALID_COMMAND", "反向日期和原因不能为空。");
+            return Fail(PackingListErrorCodes.InvalidState, "只有已过账箱单可以反过账。");
+        if (businessDate == default || string.IsNullOrWhiteSpace(reason)) return Fail(ServiceErrorCodes.InvalidCommand, "反向日期和原因不能为空。");
         if (facts.Executions.Count != 1 || facts.Executions[0].Operation != 1 || facts.Executions[0].IsDeleted
             || facts.Executions[0].PackingListHeadId != facts.Head.Uid || facts.Executions[0].CommandId != facts.Head.PostCommandId)
-            return Fail("EXECUTION_INVALID", "缺少唯一可证明的原正向执行记录。");
+            return Fail(PackingListErrorCodes.ExecutionInvalid, "缺少唯一可证明的原正向执行记录。");
         var execution = facts.Executions[0];
         if (facts.Evidence.Count == 0 || facts.Evidence.Any(x => x.IsDeleted || x.ExecutionId != execution.Uid
             || x.Qty <= 0 || x.OriginalExecutionLineId.HasValue
             || x.ActionKind is not ("Delivery" or "Receipt" or "Shipment" or "Consumption")))
-            return Fail("EXECUTION_INVALID", "原执行明细缺失或异常。");
+            return Fail(PackingListErrorCodes.ExecutionInvalid, "原执行明细缺失或异常。");
         var physical = facts.PackingLines.Where(x => !x.IsDeleted).ToDictionary(x => x.Uid);
         if (facts.Evidence.Any(x => !physical.TryGetValue(x.PackingListLineId, out var line)
-            || line.GrossDemandId != x.GrossDemandId)) return Fail("EXECUTION_INVALID", "执行明细与箱单来源归属不一致。");
+            || line.GrossDemandId != x.GrossDemandId)) return Fail(PackingListErrorCodes.ExecutionInvalid, "执行明细与箱单来源归属不一致。");
         foreach (var line in physical.Values)
         {
             var delivered = facts.Evidence.Where(x => x.PackingListLineId == line.Uid && x.ActionKind is "Delivery" or "Shipment").ToArray();
             if (delivered.Sum(x => x.Qty) != line.Qty || delivered.Any(x => x.ProductId != line.ProductId || !SameUnit(x.Unit, line.UnitSnapshot)))
-                return Fail("EXECUTION_INVALID", "原交付执行与物理箱单行不一致。");
+                return Fail(PackingListErrorCodes.ExecutionInvalid, "原交付执行与物理箱单行不一致。");
         }
         var stockEvidence = facts.Evidence.Where(x => x.ActionKind != "Delivery").ToArray();
         if (stockEvidence.Any(x => x.LedgerId == null || x.DocumentLineId == null || x.DocumentId == null
             || x.ProductId == null || x.WarehouseSiteId == null)
             || stockEvidence.Select(x => x.LedgerId).Distinct().Count() != stockEvidence.Length
             || facts.Ledgers.Count != stockEvidence.Length)
-            return Fail("LEDGER_INTEGRITY", "原流水缺失、重复或已有反向、更正。");
+            return Fail(InventoryErrorCodes.LedgerIntegrity, "原流水缺失、重复或已有反向、更正。");
         if (facts.Evidence.Any(x => x.ActionKind == "Delivery" && (x.LedgerId.HasValue || x.DocumentId.HasValue || x.WarehouseSiteId.HasValue)))
-            return Fail("EXECUTION_INVALID", "无库存交付不应具有库存执行关联。");
+            return Fail(PackingListErrorCodes.ExecutionInvalid, "无库存交付不应具有库存执行关联。");
         var inEvidence = stockEvidence.Where(x => x.ActionKind == "Receipt").ToArray();
         var outEvidence = stockEvidence.Where(x => x.ActionKind != "Receipt").ToArray();
         if (facts.InboundHeads.Count != inEvidence.Select(x => x.DocumentId).Distinct().Count()
             || facts.OutboundHeads.Count != outEvidence.Select(x => x.DocumentId).Distinct().Count()
             || facts.InboundLines.Count != inEvidence.Length || facts.OutboundLines.Count != outEvidence.Length)
-            return Fail("DOCUMENT_INTEGRITY", "自动单据与执行记录不完整对应。");
+            return Fail(PackingListErrorCodes.DocumentIntegrity, "自动单据与执行记录不完整对应。");
         var balances = new Dictionary<(Guid Warehouse, Guid Product), decimal>();
         foreach (var row in stockEvidence.OrderBy(x => x.ActionKind == "Receipt" ? 1 : 0).ThenBy(x => x.DocumentId).ThenBy(x => x.LineNumber))
         {
@@ -62,7 +65,7 @@ public sealed class PackingListReversePreviewBuilder
                 || ledger.SourceDocumentType != (inbound ? "InboundDocument" : "OutboundDocument")
                 || ledger.TransactionType != expectedType || ledger.WarehouseSiteId != row.WarehouseSiteId || ledger.ProductId != row.ProductId
                 || ledger.QuantityDelta != (inbound ? row.Qty : -row.Qty) || !SameUnit(ledger.UnitSnapshot, row.Unit))
-                return Fail("LEDGER_INTEGRITY", "执行证据与原库存流水不一致。");
+                return Fail(InventoryErrorCodes.LedgerIntegrity, "执行证据与原库存流水不一致。");
             if (inbound)
             {
                 var head = facts.InboundHeads.SingleOrDefault(x => x.Uid == row.DocumentId);
@@ -73,7 +76,7 @@ public sealed class PackingListReversePreviewBuilder
                     || head.Version != row.DocumentVersion || head.WarehouseSiteId != row.WarehouseSiteId
                     || line == null || line.IsDeleted || line.InboundDocumentId != head.Uid || line.ProductId != row.ProductId
                     || line.Quantity != row.Qty || line.SourceLineId != row.PurchaseLineId || line.Uid != ledger.CommandItemId || !SameUnit(line.UnitSnapshot, row.Unit))
-                    return Fail("DOCUMENT_INTEGRITY", "原自动入库单据状态、版本或数量不一致。");
+                    return Fail(PackingListErrorCodes.DocumentIntegrity, "原自动入库单据状态、版本或数量不一致。");
             }
             else
             {
@@ -85,7 +88,7 @@ public sealed class PackingListReversePreviewBuilder
                     || head.Version != row.DocumentVersion || head.WarehouseSiteId != row.WarehouseSiteId
                     || line == null || line.IsDeleted || line.OutboundDocumentId != head.Uid || line.ProductId != row.ProductId
                     || line.Quantity != row.Qty || line.CommandItemId != ledger.CommandItemId || !SameUnit(line.UnitSnapshot, row.Unit))
-                    return Fail("DOCUMENT_INTEGRITY", "原自动出库单据状态、版本或数量不一致。");
+                    return Fail(PackingListErrorCodes.DocumentIntegrity, "原自动出库单据状态、版本或数量不一致。");
             }
             var key = (row.WarehouseSiteId!.Value, row.ProductId!.Value);
             if (!balances.TryGetValue(key, out var current))
@@ -94,11 +97,11 @@ public sealed class PackingListReversePreviewBuilder
                 var matching = facts.Balances.Where(x => x.WarehouseSiteId == key.Item1 && x.ProductId == key.Item2).ToArray();
                 // 与库存内核历史反向一致：停用仓可恢复历史，但缺失或删除不能猜测。
                 if (warehouse == null || warehouse.IsDeleted || matching.Length != 1 || matching[0].IsDeleted || !SameUnit(matching[0].UnitSnapshot, row.Unit))
-                    return Fail("BALANCE_INVALID", "原仓库或库存余额缺失、已删除或单位异常。");
+                    return Fail(PackingListErrorCodes.BalanceInvalid, "原仓库或库存余额缺失、已删除或单位异常。");
                 current = matching[0].OnHandQty;
             }
             var after = current - ledger.QuantityDelta;
-            if (after < 0) return Fail("NEGATIVE_STOCK", "反向自动入库后库存不足，不能执行普通反过账。");
+            if (after < 0) return Fail(PackingListErrorCodes.NegativeStock, "反向自动入库后库存不足，不能执行普通反过账。");
             balances[key] = after;
         }
         var actions = facts.Evidence.OrderBy(x => x.ActionKind == "Receipt" ? 1 : 0).ThenBy(x => x.LineNumber)

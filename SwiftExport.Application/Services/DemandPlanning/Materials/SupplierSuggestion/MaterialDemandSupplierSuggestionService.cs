@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.DemandPlanning;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
 using SwiftExport.Core.Interfaces.DemandPlanning.Materials.Document;
 using Microsoft.Extensions.Logging;
@@ -45,9 +46,9 @@ public sealed class MaterialDemandSupplierSuggestionService(
         UpdateSuggestedPurchaseSupplierCommand command, CancellationToken token)
     {
         if (command is null || command.NetDemandId == Guid.Empty || command.Version <= 0)
-            return ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>.Fail("INVALID_COMMAND", "物料需求和版本不能为空。");
+            return ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>.Fail(ServiceErrorCodes.InvalidCommand, "物料需求和版本不能为空。");
         if (command.SuggestedPurchaseSupplierId == Guid.Empty)
-            return ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>.Fail("INVALID_SUPPLIER", "供应商 Uid 无效；清空建议请提交 null。");
+            return ServiceResult<CommandExecutionResult<UpdateSuggestedPurchaseSupplierResult>>.Fail(DemandPlanningErrorCodes.InvalidSupplier, "供应商 Uid 无效；清空建议请提交 null。");
         var result = await executor.ExecuteAsync(command.CommandId, CommandType, command.NetDemandId,
             new { command.NetDemandId, command.Version, command.SuggestedPurchaseSupplierId },
             ct => UpdateInTransactionAsync(command, ct), token,
@@ -63,15 +64,15 @@ public sealed class MaterialDemandSupplierSuggestionService(
         cancellationToken.ThrowIfCancellationRequested();
         var family = await netDemandRepository.GetActiveFamilyForUpdateAsync(command.NetDemandId);
         var demand = family.SingleOrDefault(item => item.Uid == command.NetDemandId)
-            ?? throw new SuggestedSupplierException("MATERIAL_DEMAND_NOT_ACTIVE", "物料需求不存在、已回退或已作废。");
+            ?? throw new SuggestedSupplierException(DemandPlanningErrorCodes.MaterialDemandNotActive, "物料需求不存在、已回退或已作废。");
         if (demand.Version != command.Version)
-            throw new SuggestedSupplierException("CONCURRENCY_CONFLICT", "物料需求已被其他用户修改，请刷新后重试。");
+            throw new SuggestedSupplierException(ServiceErrorCodes.ConcurrencyConflict, "物料需求已被其他用户修改，请刷新后重试。");
 
         Supplier? supplier = null;
         if (command.SuggestedPurchaseSupplierId.HasValue)
         {
             supplier = await supplierRepository.GetByIdAsync(command.SuggestedPurchaseSupplierId.Value, withUpdLock: true)
-                ?? throw new SuggestedSupplierException("INVALID_SUPPLIER", "推荐采购供应商不存在或已停用。");
+                ?? throw new SuggestedSupplierException(DemandPlanningErrorCodes.InvalidSupplier, "推荐采购供应商不存在或已停用。");
         }
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -90,7 +91,7 @@ public sealed class MaterialDemandSupplierSuggestionService(
         var affected = await netDemandRepository.UpdateSuggestedPurchaseSupplierAsync(
             demand.Uid, demand.Version, command.SuggestedPurchaseSupplierId);
         if (affected != 1)
-            throw new SuggestedSupplierException("CONCURRENCY_CONFLICT", "物料需求已被其他用户修改，请刷新后重试。");
+            throw new SuggestedSupplierException(ServiceErrorCodes.ConcurrencyConflict, "物料需求已被其他用户修改，请刷新后重试。");
         cancellationToken.ThrowIfCancellationRequested();
 
         return new UpdateSuggestedPurchaseSupplierResult

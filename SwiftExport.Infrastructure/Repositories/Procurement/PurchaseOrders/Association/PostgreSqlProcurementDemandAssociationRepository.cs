@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using System.Data;
 using Dapper;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
@@ -78,7 +79,7 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
             WHERE "uid"=@Uid AND "version"=@Version AND "is_deleted"=FALSE
                 AND "lifecycle_status"=0 AND "confirmation_status" IN(0,1);
             """, PostgreSqlParameters.Entity(head, HeadMap), ct)) != 1)
-            return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购版本或状态已变化，请重新预览。");
+            return RepositoryWriteResult.Fail(head.Uid, head.Version, ServiceErrorCodes.ConcurrencyConflict, "采购版本或状态已变化，请重新预览。");
         head.Version++;
         foreach (var line in lines.OrderBy(x => x.Uid))
         {
@@ -91,7 +92,7 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
                 WHERE "uid"=@Uid AND "purchase_order_id"=@PurchaseOrderId
                     AND "version"=@Version AND "is_deleted"=FALSE;
                 """, PostgreSqlParameters.Entity(line, LineMap), ct)) != 1)
-                return RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "采购行版本已变化，请重新预览。");
+                return RepositoryWriteResult.Fail(line.Uid, line.Version, ServiceErrorCodes.ConcurrencyConflict, "采购行版本已变化，请重新预览。");
             line.Version++;
         }
         return RepositoryWriteResult.Ok(head.Uid, version, head.Version);

@@ -92,16 +92,16 @@ public static class IndependentPurchaseOrderInputPolicy
     {
         var items = candidates.Where(x => Normalize(x.CustomerSku) == Normalize(customerSku)).ToList();
         if (string.IsNullOrWhiteSpace(customerSku) || items.Count == 0)
-            throw new ProcurementOperationException("ProductNotMatched","客户型号未匹配；请修正或明确标记非标。","CustomerSku");
+            throw new ProcurementOperationException(ProcurementErrorCodes.ProductNotMatched,"客户型号未匹配；请修正或明确标记非标。","CustomerSku");
         var selected = selection.HasValue ? items.SingleOrDefault(x => x.CustomerProductId == selection.Value) : null;
         if (selection.HasValue && selected is null)
-            throw new ProcurementOperationException("SelectionInvalid","所选关联不属于当前客户及型号。","SelectedCustomerProductId");
+            throw new ProcurementOperationException(ProcurementErrorCodes.SelectionInvalid,"所选关联不属于当前客户及型号。","SelectedCustomerProductId");
         if (selected is null && items.Count != 1)
-            throw new ProcurementOperationException("ProductAmbiguous","当前客户型号有多个关联，请明确选择。","CustomerSku");
+            throw new ProcurementOperationException(ProcurementErrorCodes.ProductAmbiguous,"当前客户型号有多个关联，请明确选择。","CustomerSku");
         selected ??= items[0];
         if (!selected.IsUsable || !selected.ProductId.HasValue || selected.ProductId == Guid.Empty
             || string.IsNullOrWhiteSpace(selected.Sku) || string.IsNullOrWhiteSpace(selected.Unit))
-            throw new ProcurementOperationException("ProductUnavailable","关联或产品不可采购，或基础单位缺失。","CustomerSku");
+            throw new ProcurementOperationException(ProcurementErrorCodes.ProductUnavailable,"关联或产品不可采购，或基础单位缺失。","CustomerSku");
         return selected;
     }
 

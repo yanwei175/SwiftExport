@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
@@ -78,7 +79,7 @@ public sealed class PostgreSqlSalesOrderLineRepository(RepositoryBaseContext con
             PostgreSqlParameters.Entity(entity, Metadata), transaction: Transaction);
         return rows == 1
             ? RepositoryWriteResult.Ok(entity.Uid, null, entity.Version, "新增销售订单行成功。")
-            : RepositoryWriteResult.Fail(entity.Uid, null, "INSERT_FAILED", "新增销售订单行失败。");
+            : RepositoryWriteResult.Fail(entity.Uid, null, ServiceErrorCodes.InsertFailed, "新增销售订单行失败。");
     }
 
     /// <summary>先观察MAX再更新当前有效范围，不推进版本或审计；返回真实UPDATE行数供用例核对完整行集合。</summary>
@@ -124,7 +125,7 @@ public sealed class PostgreSqlSalesOrderLineRepository(RepositoryBaseContext con
                 """, parameters, transaction: Transaction);
             results.Add(newVersion.HasValue
                 ? RepositoryWriteResult.Ok(line.Uid, line.Version, newVersion.Value, "删除销售订单行成功。")
-                : RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "删除销售订单行失败，数据已被其他用户修改。"));
+                : RepositoryWriteResult.Fail(line.Uid, line.Version, ServiceErrorCodes.ConcurrencyConflict, "删除销售订单行失败，数据已被其他用户修改。"));
         }
         return results;
     }

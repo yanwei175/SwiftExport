@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Application.Interfaces.Systems.Numbering;
 using SwiftExport.Application.Services.Inventory.Posting;
 using SwiftExport.Core.Interfaces.Inventory.AutomaticDocuments;
@@ -42,7 +43,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
         try
         {
             RequireUser();
-            if (submitted is null) Fail("VALIDATION", "请求不能为空。");
+            if (submitted is null) Fail(ServiceErrorCodes.Validation, "请求不能为空。");
             // 冻结输入，避免 await 期间调用方修改请求形成指纹与写入内容不一致。
             var request = JsonSerializer.Deserialize<AutomaticPostingRequest>(JsonSerializer.Serialize(submitted))!;
             scope.Require(request.CommandId, request.CorrelationId, request.PackingListId);
@@ -64,18 +65,18 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
             {
                 token.ThrowIfCancellationRequested();
                 var warehouse = await warehouses.GetByIdAsync(group.WarehouseSiteId, true);
-                if (warehouse is null || warehouse.IsDeleted || !warehouse.IsActive) Fail("WAREHOUSE_INVALID", "仓库不可用于新库存事实。", group.GroupId);
+                if (warehouse is null || warehouse.IsDeleted || !warehouse.IsActive) Fail(InventoryErrorCodes.WarehouseInvalid, "仓库不可用于新库存事实。", group.GroupId);
                 if (isInbound)
                 {
-                    if (await inbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("COMMAND_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
+                    if (await inbound.LockHeaderAsync(group.GroupId, token) is not null) Fail(ServiceErrorCodes.CommandConflict, "自动单据身份已存在且没有本命令结果。", group.GroupId);
                 }
-                else if (await outbound.LockHeaderAsync(group.GroupId, token) is not null) Fail("COMMAND_CONFLICT", "自动单据身份已存在且没有本命令结果。", group.GroupId);
+                else if (await outbound.LockHeaderAsync(group.GroupId, token) is not null) Fail(ServiceErrorCodes.CommandConflict, "自动单据身份已存在且没有本命令结果。", group.GroupId);
                 var number = await numbers.GetNextDocumentNoAsync(new()
                 {
                     DocType = isInbound ? DocumentTypeStaticsEnum.InboundDocument : DocumentTypeStaticsEnum.OutboundDocument,
                     BusinessDate = request.BusinessDate, Operator = user.UserName
                 });
-                if (!number.Success || string.IsNullOrWhiteSpace(number.Data?.DocumentNo)) Fail("NUMBER_FAILED", number.Message ?? "自动单据取号失败。");
+                if (!number.Success || string.IsNullOrWhiteSpace(number.Data?.DocumentNo)) Fail(InventoryErrorCodes.NumberFailed, number.Message ?? "自动单据取号失败。");
                 var documentNo = number.Data!.DocumentNo;
                 var items = new List<InventoryPostingItem>();
                 var inLines = new List<InboundDocumentLine>();
@@ -83,7 +84,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
                 foreach (var line in group.Lines.OrderBy(x => x.LineId))
                 {
                     var product = await stocks.GetProductForPostingAsync(line.ProductId);
-                    if (product is null || !SameUnit(product.Unit, line.Unit)) Fail("PRODUCT_UNIT_INVALID", "产品不存在或单位不匹配。", line.LineId);
+                    if (product is null || !SameUnit(product.Unit, line.Unit)) Fail(InventoryErrorCodes.ProductUnitInvalid, "产品不存在或单位不匹配。", line.LineId);
                     var description = product!.DescriptionEn ?? product.DescriptionZh;
                     inLines.Add(new() { Uid = line.LineId, InboundDocumentId = group.GroupId, LineNumber = inLines.Count + 1,
                         ProductId = line.ProductId, SkuSnapshot = product.Sku, DescriptionSnapshot = description, UnitSnapshot = line.Unit,
@@ -112,7 +113,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
                 else await repository.InsertOutboundAsync(oh, outLines, token);
                 var posted = await inventory.PostAsync(request.CommandId, items, token);
                 if (posted.Count != items.Count || posted.Select(x => x.CommandItemId).Distinct().Count() != items.Count)
-                    Fail("OUTCOME_INVALID", "库存内核未返回完整明细结果。");
+                    Fail(InventoryErrorCodes.OutcomeInvalid, "库存内核未返回完整明细结果。");
                 if (isInbound)
                 {
                     ih.PostedDate = DateTime.Now; ih.PostedBy = user.UserName;
@@ -140,23 +141,23 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         var all = request.Groups.SelectMany(g => g.Lines.Select(l => (Group: g, Line: l))).ToArray();
         var ids = all.Select(x => x.Line.PurchaseLineId!.Value).Distinct().Order().ToArray();
-        if (await sourceRepository.HasUnprovenReceiptAsync(token)) Fail("RECEIPT_HISTORY_INVALID", "存在无法证明来源的正式收货历史。");
+        if (await sourceRepository.HasUnprovenReceiptAsync(token)) Fail(InventoryErrorCodes.ReceiptHistoryInvalid, "存在无法证明来源的正式收货历史。");
         var sources = (await sourceRepository.ReadPostingSourcesAsync(ids, token)).ToDictionary(x => x.SourceLineId);
         foreach (var group in all.GroupBy(x => x.Line.PurchaseLineId!.Value))
         {
             if (!sources.TryGetValue(group.Key, out var s) || !s.IsReceivable || s.IsCustomerSupplied)
-                Fail("PURCHASE_NOT_RECEIVABLE", "采购来源不允许成品自动收货，客供件必须手动入库。", group.Key);
+                Fail(InventoryErrorCodes.PurchaseNotReceivable, "采购来源不允许成品自动收货，客供件必须手动入库。", group.Key);
             if (s!.PostedNetQty < 0 || s.OriginalQty <= 0 || group.Sum(x => x.Line.Quantity) > s.OriginalQty - s.PostedNetQty)
-                Fail("PURCHASE_CAPACITY_EXCEEDED", "本批自动入库超过采购剩余可收数量。", group.Key);
+                Fail(InventoryErrorCodes.PurchaseCapacityExceeded, "本批自动入库超过采购剩余可收数量。", group.Key);
             var supplier = await repository.GetPurchaseSupplierAsync(group.Key, token);
             foreach (var row in group)
             {
                 var warehouse = await warehouses.GetByIdAsync(row.Group.WarehouseSiteId, true);
                 if (!supplier.HasValue || warehouse?.SupplierId != supplier || warehouse.IsDeleted || !warehouse.IsActive
                     || warehouse.SiteType != WarehouseSiteTypeEnum.SupplierVirtual)
-                    Fail("SUPPLIER_WAREHOUSE_INVALID", "自动入库仓必须是采购供应商的有效虚拟仓。", row.Line.LineId);
+                    Fail(InventoryErrorCodes.SupplierWarehouseInvalid, "自动入库仓必须是采购供应商的有效虚拟仓。", row.Line.LineId);
                 if (s.ProductId != row.Line.ProductId || !SameUnit(s.Unit, row.Line.Unit) || !SameUnit(s.CurrentUnit, row.Line.Unit))
-                    Fail("PRODUCT_UNIT_INVALID", "采购产品或计量单位不一致。", row.Line.LineId);
+                    Fail(InventoryErrorCodes.ProductUnitInvalid, "采购产品或计量单位不一致。", row.Line.LineId);
             }
         }
     }
@@ -166,15 +167,15 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     {
         request.PackingListNo = request.PackingListNo?.Trim() ?? "";
         if (request.BusinessDate == default || request.PackingListNo.Length is < 1 or > 100 || request.Groups.Count is < 1 or > 500)
-            Fail("VALIDATION", "箱单编号、业务日期或单据组数量无效。");
+            Fail(ServiceErrorCodes.Validation, "箱单编号、业务日期或单据组数量无效。");
         var ids = new HashSet<Guid>();
         var grouping = new HashSet<(Guid, OutboundDocumentTypeEnum?)>();
         foreach (var group in request.Groups)
         {
             if (group.GroupId == Guid.Empty || !ids.Add(group.GroupId) || group.WarehouseSiteId == Guid.Empty || group.Lines.Count is < 1 or > 500
-                || !grouping.Add((group.WarehouseSiteId, group.OutboundType))) Fail("VALIDATION", "组身份、仓库、类型或明细数量无效。");
+                || !grouping.Add((group.WarehouseSiteId, group.OutboundType))) Fail(ServiceErrorCodes.Validation, "组身份、仓库、类型或明细数量无效。");
             if (isInbound ? group.OutboundType.HasValue : group.OutboundType is not (OutboundDocumentTypeEnum.FinalCustomerShipment or OutboundDocumentTypeEnum.CustomerSuppliedConsumption))
-                Fail("UNSUPPORTED_TYPE", "自动单据类型不受支持。");
+                Fail(InventoryErrorCodes.UnsupportedType, "自动单据类型不受支持。");
             foreach (var line in group.Lines)
             {
                 line.Unit = line.Unit?.Trim().ToUpperInvariant() ?? "";
@@ -182,7 +183,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
                     || line.Unit.Length is < 1 or > 100 || line.Quantity <= 0 || line.Quantity > 99999999999999.9999m
                     || decimal.Round(line.Quantity, 4) != line.Quantity
                     || (isInbound ? line.PurchaseLineId is null || line.PurchaseLineId == Guid.Empty : line.PurchaseLineId.HasValue))
-                    Fail("VALIDATION", "明细身份、依据、数量、单位或采购字段无效。", line.LineId);
+                    Fail(ServiceErrorCodes.Validation, "明细身份、依据、数量、单位或采购字段无效。", line.LineId);
                 // 去掉十进制尾零，仅统一指纹表示，不改变或舍入业务数量。
                 line.Quantity = decimal.Parse(line.Quantity.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture),
                     System.Globalization.CultureInfo.InvariantCulture);
@@ -193,9 +194,10 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
         }
     }
 
+    /// <summary>自动库存参与端口要求有效当前身份，不能以内部调用绕过原身份边界。</summary>
     private void RequireUser()
     {
-        if (!user.IsAuthenticated || user.UserId is null || user.UserId == Guid.Empty) Fail("UNAUTHENTICATED", "自动库存操作必须具有当前用户身份。");
+        if (!user.IsAuthenticated || user.UserId is null || user.UserId == Guid.Empty) Fail(ServiceErrorCodes.Unauthenticated, "自动库存操作必须具有当前用户身份。");
     }
 
     /// <summary>日志是批次幂等结果权威，库存明细幂等为第二道保护。</summary>
@@ -204,14 +206,15 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
         var prior = await logs.GetByModuleCommandAsync(Module, command);
         if (prior is null) return null;
         if (prior.OperationType != operation || prior.UserUid != user.UserId || prior.ChangedFieldsJson != fingerprint)
-            Fail("COMMAND_CONFLICT", "命令已用于不同用户、操作或内容。");
+            Fail(ServiceErrorCodes.CommandConflict, "命令已用于不同用户、操作或内容。");
         var result = JsonSerializer.Deserialize<AutomaticPostingResult>(prior.RelatedObjectsJson ?? "null");
         if (result is null || result.Documents.Count == 0 || result.Documents.Any(x => x.DocumentId == Guid.Empty || x.Lines.Count == 0))
-            Fail("OUTCOME_INVALID", "历史自动单据结果不完整，不能重放。");
+            Fail(InventoryErrorCodes.OutcomeInvalid, "历史自动单据结果不完整，不能重放。");
         result!.AlreadyApplied = true;
         return result;
     }
 
+    /// <summary>在调用方事务中记录自动单据结果；审计写入失败使原操作失败，不能发布部分结果。</summary>
     private async Task SaveResultAsync(Guid command, Guid correlation, Guid packingList, string? no, string operation,
         string fingerprint, AutomaticPostingResult result, string? reason, CancellationToken token)
     {
@@ -223,7 +226,7 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
             AggregateNoSnapshot = no, Summary = "自动单据、库存和结果加入外层事务。", Reason = reason,
             ChangedFieldsJson = fingerprint, RelatedObjectsJson = JsonSerializer.Serialize(result), UserUid = user.UserId,
             UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now
-        }) != 1) Fail("LOG_WRITE_FAILED", "自动单据结果日志写入失败。");
+        }) != 1) Fail(ServiceErrorCodes.LogWriteFailed, "自动单据结果日志写入失败。");
         token.ThrowIfCancellationRequested();
     }
 
@@ -235,10 +238,10 @@ public sealed partial class AutomaticPostingPorts(AutomaticPostingScope scope, I
     private static Exception MapFailure(Exception error) => error switch
     {
         AutomaticPostingException or OperationCanceledException => error,
-        System.Data.DBConcurrencyException => new AutomaticPostingException("VERSION_CONFLICT", error.Message),
-        InventoryPostingException => new AutomaticPostingException(error.Message.StartsWith("COMMAND_CONFLICT", StringComparison.Ordinal)
-            ? "COMMAND_CONFLICT" : "INVENTORY_BLOCKED", error.Message),
-        _ => new AutomaticPostingException("WRITE_FAILED", "自动库存操作失败，当前事务已回滚：" + error.Message)
+        System.Data.DBConcurrencyException => new AutomaticPostingException(ServiceErrorCodes.VersionConflict, error.Message),
+        InventoryPostingException => new AutomaticPostingException(error.Message.StartsWith(ServiceErrorCodes.CommandConflict, StringComparison.Ordinal)
+            ? ServiceErrorCodes.CommandConflict : InventoryErrorCodes.InventoryBlocked, error.Message),
+        _ => new AutomaticPostingException(ServiceErrorCodes.WriteFailed, "自动库存操作失败，当前事务已回滚：" + error.Message)
     };
     [System.Diagnostics.CodeAnalysis.DoesNotReturn]
     private static void Fail(string code, string message, Guid? id = null) => AutomaticPostingScope.Fail(code, message, id);

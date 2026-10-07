@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SwiftExport.Contracts.DTOs.Errors;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -188,6 +189,7 @@ namespace SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels
                 ErrorMessage = string.Join("；", result.Data.Issues.Select(x => x.Message)); Notify();
             });
         });
+        /// <summary>创建箱单草稿并保留未决命令；只有明确业务拒绝或有效成功才解除原重试状态。</summary>
         private Task SaveAsync() => RunAsync(async (version, token) =>
         {
             if (pending == null)
@@ -202,7 +204,7 @@ namespace SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels
                 if (!result.Success)
                 {
                     // 明确失败可修改；结果不明只能重试原命令，避免再次建单。
-                    if (result.Error?.Code != null && !new[] { "OUTCOME_UNKNOWN", "UNEXPECTED", "SERVICE_UNAVAILABLE", "COMMAND_BUSY", "COMMAND_CONFLICT" }.Contains(result.Error.Code)) { pending = null; checkedRevision = -1; }
+                    if (result.Error?.Code != null && !new[] { ServiceErrorCodes.OutcomeUnknown, ServiceErrorCodes.Unexpected, ServiceErrorCodes.ServiceUnavailable, ServiceErrorCodes.CommandBusy, ServiceErrorCodes.CommandConflict }.Contains(result.Error.Code)) { pending = null; checkedRevision = -1; }
                     ErrorMessage = result.Message; Notify(); return;
                 }
                 if (result.Data?.Detail?.Header == null || result.Data.Uid != pending.Uid) { ErrorMessage = "保存结果不完整，请重试原命令。"; return; }

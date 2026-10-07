@@ -60,6 +60,9 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
             services.AddSingleton(ExcelImportRegistry.CreateDefault());
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISalesOrderDetailApi>("api/sales-orders/detail"));
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISalesOrderManagerApi>("api/sales-orders/manager"));
+            services.AddScoped<SalesOrderListViewModel>();
+            services.AddScoped<SalesOrderListView>();
             services.AddSingleton(TaskPaneRegistrar.CreateDefault());
             services.AddScoped<TaskPaneContext>();
             services.AddScoped<SalesOrderImportPrompt>();
@@ -71,6 +74,9 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddScoped<SalesOrderImportView>();
             services.AddScoped<PurchaseOrderImportViewModel>();
             services.AddScoped<PurchaseOrderImportView>();
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.Procurement.IPurchaseOrderManagerApi>("api/procurement/order-manager"));
+            services.AddScoped<PurchaseOrderListViewModel>();
+            services.AddScoped<PurchaseOrderListView>();
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.ForExcel.IForExcelPackingListApi>("api/for-excel/packing-lists"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.Shipping.IPackingListApi>("api/shipping/packing-lists"));
             services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels.PackingListImportViewModel>();

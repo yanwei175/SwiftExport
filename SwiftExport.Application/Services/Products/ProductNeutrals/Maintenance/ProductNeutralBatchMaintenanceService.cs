@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Core.Interfaces.Products.Colors;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
@@ -220,9 +221,9 @@ public sealed class ProductNeutralBatchMaintenanceService(
         if (result.Success) return;
         var code = result.ErrorCode?.ToUpperInvariant() switch
         {
-            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
-            "PRODUCT_MASTER_SKU_OCCUPIED" or "PRODUCT_NEUTRAL_CODE_OCCUPIED" => ServiceErrorCodes.Validation,
-            "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED" => ServiceErrorCodes.BusinessBlocked,
+            ServiceErrorCodes.ConcurrencyConflict => ServiceErrorCodes.VersionConflict,
+            ProductErrorCodes.ProductMasterSkuOccupied or ProductErrorCodes.ProductNeutralCodeOccupied => ServiceErrorCodes.Validation,
+            ProductErrorCodes.ProductNeutralMasterColorOccupied => ServiceErrorCodes.BusinessBlocked,
             _ => ServiceErrorCodes.BusinessBlocked
         };
         throw new ProductNeutralBatchWriteException(code,

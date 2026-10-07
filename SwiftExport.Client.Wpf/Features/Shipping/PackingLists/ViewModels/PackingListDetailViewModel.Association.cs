@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using SwiftExport.Contracts.DTOs.Errors;
+using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
 using SwiftExportClient.Features.Shipping.PackingLists.Models;
 namespace SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
@@ -44,7 +45,7 @@ public sealed partial class PackingListDetailViewModel
             if (_disposed || sessionEpoch != _associationSessionEpoch) return;
             if (!result.Success || result.Data?.Uid != _uid || !IsValidDetail(result.Data.Detail))
             {
-                if (!result.Success && result.Error?.Code is not (null or "UNEXPECTED" or "SERVICE_UNAVAILABLE" or "OUTCOME_UNKNOWN" or "COMMAND_BUSY" or "COMMAND_CONFLICT")) _pendingAssociation = null;
+                if (!result.Success && result.Error?.Code is not (null or ServiceErrorCodes.Unexpected or ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.CommandConflict)) _pendingAssociation = null;
                 ReportValidationWarning(_pendingAssociation == null ? result.Message : result.Message + " 结果未确认，请点击关联来源重试原命令。 "); return;
             }
             _pendingAssociation = null; _lastAllocation = null; ApplyDetail(result.Data.Detail);

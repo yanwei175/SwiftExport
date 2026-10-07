@@ -86,6 +86,29 @@ public sealed class MaterialDemandPublicCommandTests
             (await f.Establish.EstablishAsync(swapped)).Error.Code);
     }
 
+    /// <summary>生命周期、上游来源版本和活动物料依据保持原拒绝语义，不因主线整理而允许重建。</summary>
+    [TestMethod]
+    [DataRow("lifecycle", "INVALID_SOURCE_LIFECYCLE")]
+    [DataRow("source-version", "SOURCE_CHANGED")]
+    [DataRow("basis", "SOURCE_CHANGE_REQUIRES_DISPOSITION")]
+    public async Task Establish_SourceGuardsRejectBeforeWrites(string scenario, string expectedCode)
+    {
+        var fixture = new Fixture();
+        switch (scenario)
+        {
+            case "lifecycle": fixture.Demand.LifecycleStatus = SwiftExport.Contracts.SysEnums.GrossDemandLifecycleStatusEnum.Closed; break;
+            case "source-version": fixture.Demand.SourceVersion = 2; break;
+            case "basis": fixture.Demand.DemandBasisFingerprint = "changed-basis"; break;
+        }
+        var result = await fixture.Establish.EstablishAsync(fixture.EstablishCommand(Guid.NewGuid()));
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(expectedCode, result.Error.Code);
+        Assert.AreEqual(0, fixture.AuditWrites);
+        Assert.AreEqual(0, fixture.ReceiptWrites);
+        Assert.AreEqual(0, fixture.Connection.Commits);
+        Assert.AreEqual(1, fixture.Connection.Rollbacks);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
     /// <summary>回退原因 Trim 后等价；更换内容或操作人不能占用原命令身份。</summary>
     [TestMethod]
     public async Task Rollback_ReplayNormalizationAndConflicts()
@@ -225,6 +248,7 @@ public sealed class MaterialDemandPublicCommandTests
         public Action? OnGrossRead;
         private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
 
+        /// <summary>组合真实命令机制和只被本测试调用的内存仓储，不连接数据库。</summary>
         public Fixture()
         {
             Session = (DbSession)RuntimeHelpers.GetUninitializedObject(typeof(DbSession));
@@ -281,7 +305,7 @@ public sealed class MaterialDemandPublicCommandTests
                 Proxy<ISupplierRepository>((m, a) => throw new AssertFailedException(m.Name)),
                 Proxy<IBomRepository>((m, a) => throw new AssertFailedException(m.Name)),
                 logs, correlation, User, new GrossDemandDecompositionPlanner(),
-                new MaterialDemandSuggestedSupplierInitializer(), permissions, pipeline, executor);
+                permissions, pipeline, executor);
             Reverse = new MaterialDemandReversalService(context, source, material, execution, logs,
                 correlation, User, permissions, pipeline, executor);
         }

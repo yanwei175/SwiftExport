@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -75,5 +76,5 @@ public sealed class PostgreSqlSalesOrderHeadRepository(RepositoryBaseContext con
     private static RepositoryWriteResult ToWriteResult(Guid uid, int version, int? updated, string operation)
         => updated.HasValue
             ? RepositoryWriteResult.Ok(uid, version, updated.Value, $"{operation}成功。")
-            : RepositoryWriteResult.Fail(uid, version, "CONCURRENCY_CONFLICT", $"{operation}失败，订单已被其他用户修改，请刷新后重试。");
+            : RepositoryWriteResult.Fail(uid, version, ServiceErrorCodes.ConcurrencyConflict, $"{operation}失败，订单已被其他用户修改，请刷新后重试。");
 }

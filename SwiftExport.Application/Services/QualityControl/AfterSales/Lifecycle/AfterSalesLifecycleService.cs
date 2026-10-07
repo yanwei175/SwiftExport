@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.QualityControl;
 using System.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Commands;
@@ -63,9 +64,9 @@ public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
         RequireReason(command.Reason);
         var positive = facts.Lines.Where(x => x.Quantity > 0).ToList();
         if (positive.Count > 0 && facts.Head.ConfirmationStatus != ConfirmationStatusEnum.已确认)
-            Fail("BUSINESS_BLOCKED", "存在尚未确认的实物要求。");
+            Fail(ServiceErrorCodes.BusinessBlocked, "存在尚未确认的实物要求。");
         if (positive.Count > 0)
-            Fail("AFTERSALES_DELIVERY_QUERY_UNAVAILABLE",
+            Fail(AfterSalesErrorCodes.AftersalesDeliveryQueryUnavailable,
                 "售后补货交付查询尚未接入，当前无法核验对应售后来源的 PackingList 是否已生效，不能结案。");
         facts.Head.DocumentStatus = DocumentStatusEnum.Closed;
         facts.Head.Conclusion = command.Reason;
@@ -99,7 +100,7 @@ public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
         var facts = await LoadForChangeAsync(uid, command.Version);
         RequireReason(command.Reason);
         if (facts.Head.DocumentStatus != DocumentStatusEnum.Closed)
-            Fail("BUSINESS_BLOCKED", "只有已结案售后单可以重开。");
+            Fail(ServiceErrorCodes.BusinessBlocked, "只有已结案售后单可以重开。");
         facts.Head.DocumentStatus = DocumentStatusEnum.Open;
         return await FinishChangeAsync(uid, command.CommandId, "Reopen", command.Reason, facts);
     }
@@ -133,7 +134,7 @@ public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
         RequireOpen(facts.Head);
         RequireReason(command.Reason);
         if (facts.Head.ConfirmationStatus == ConfirmationStatusEnum.已确认 || await reception.HasActiveAsync("CR", uid))
-            Fail("BUSINESS_BLOCKED", "必须先成功取消确认并处置来源要求，才能作废。");
+            Fail(ServiceErrorCodes.BusinessBlocked, "必须先成功取消确认并处置来源要求，才能作废。");
         facts.Head.DocumentStatus = DocumentStatusEnum.Voided;
         return await FinishChangeAsync(uid, command.CommandId, "Void", command.Reason, facts);
     }
@@ -143,7 +144,7 @@ public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
     {
         var before = await audit.SnapshotAsync(uid);
         var head = await documents.GetHeaderAsync(uid, true)
-            ?? throw new AfterSalesException("NOT_FOUND", "售后单不存在。");
+            ?? throw new AfterSalesException(ServiceErrorCodes.NotFound, "售后单不存在。");
         RequireVersion(head, version);
         var lines = (await documents.GetLinesAsync(uid, true)).Where(x => !x.IsDeleted).ToList();
         return new ChangeFacts(head, lines, before);
@@ -154,7 +155,7 @@ public sealed class AfterSalesLifecycleService(ServiceBaseContext context,
         string operation, string? reason, ChangeFacts facts)
     {
         if (!await documents.WriteHeaderAsync(facts.Head, false))
-            Fail("VERSION_CONFLICT", "售后单状态已变化。");
+            Fail(ServiceErrorCodes.VersionConflict, "售后单状态已变化。");
         var result = Result(facts.Head, facts.Lines.Any(x => x.Quantity > 0));
         var after = await audit.SnapshotAsync(uid);
         await audit.WriteAsync(uid, commandId, operation, reason, result, facts.Before, after);

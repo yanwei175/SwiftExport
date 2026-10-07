@@ -19,7 +19,7 @@ public sealed partial class PackingListPostingService
 {
     /// <inheritdoc/>
     public Task<ServiceResult<PackingListPostingPreviewDto>> PreviewAsync(Guid uid, PackingListPostPreviewRequest request, CancellationToken token) =>
-        request == null ? Task.FromResult(ServiceResult<PackingListPostingPreviewDto>.Fail("INVALID_COMMAND", "预览请求不能为空。")) :
+        request == null ? Task.FromResult(ServiceResult<PackingListPostingPreviewDto>.Fail(ServiceErrorCodes.InvalidCommand, "预览请求不能为空。")) :
         PreviewCore(uid, request.ExpectedVersion, request.BusinessDate, token);
 
     /// <inheritdoc/>
@@ -52,7 +52,7 @@ public sealed partial class PackingListPostingService
         }
         catch (CommandValidationException error)
         {
-            return ServiceResult<PackingListPostingCommandResult>.Fail("INVALID_COMMAND", error.Message);
+            return ServiceResult<PackingListPostingCommandResult>.Fail(ServiceErrorCodes.InvalidCommand, error.Message);
         }
     }
 
@@ -64,7 +64,7 @@ public sealed partial class PackingListPostingService
             var plan = await PreviewCoreAsync(uid, version, date, token);
             var detail = await packingLists.GetDetailAsync(uid, token);
             if (detail?.Header == null || detail.Header.Version != version)
-                return ServiceResult<PackingListPostingPreviewDto>.Fail("VERSION_CONFLICT", "箱单已变化，请刷新后预览。");
+                return ServiceResult<PackingListPostingPreviewDto>.Fail(ServiceErrorCodes.VersionConflict, "箱单已变化，请刷新后预览。");
             var result = new PackingListPostingPreviewDto { PackingListId = uid, ExpectedVersion = version,
                 BusinessDate = date.Date, IsReverse = false, PreviewToken = plan.Token,
                 Actions = plan.Actions.Select(x => x.Adapt<PackingListPostingActionDto>(mapping)).ToList(),

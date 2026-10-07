@@ -193,7 +193,7 @@ public sealed partial class PackingListDraftService(
         }
         catch (SourceDeliveryException ex)
         {
-            var mapped = ex.Code == "DELIVERY_QUERY_UNAVAILABLE"
+            var mapped = ex.Code == PackingListErrorCodes.DeliveryUnavailable
                 ? PackingListErrorCodes.DeliveryUnavailable
                 : PackingListErrorCodes.SourceChanged;
             throw new PackingListException(mapped, ex.Message);
@@ -533,7 +533,7 @@ public sealed partial class PackingListDraftService(
         try { return ServiceResult<T>.Ok(await action()); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch (PackingListException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
-        catch (SourceDeliveryException ex) { return ServiceResult<T>.Fail(ex.Code == "DELIVERY_QUERY_UNAVAILABLE" ? PackingListErrorCodes.DeliveryUnavailable : PackingListErrorCodes.SourceChanged, ex.Message); }
+        catch (SourceDeliveryException ex) { return ServiceResult<T>.Fail(ex.Code == PackingListErrorCodes.DeliveryUnavailable ? PackingListErrorCodes.DeliveryUnavailable : PackingListErrorCodes.SourceChanged, ex.Message); }
         catch (BusinessCommandException ex) { return ServiceResult<T>.Fail(ex.Code, ex.Message, ex.Field); }
         catch (DBConcurrencyException ex) { return ServiceResult<T>.Fail(PackingListErrorCodes.VersionConflict, ex.Message); }
         catch (Exception ex)

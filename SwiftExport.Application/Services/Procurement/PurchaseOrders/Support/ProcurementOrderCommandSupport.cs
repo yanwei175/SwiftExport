@@ -62,7 +62,7 @@ public sealed class ProcurementOrderCommandSupport(
         if (result.Success) return;
         var code = result.ErrorCode switch
         {
-            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
+            ServiceErrorCodes.ConcurrencyConflict => ServiceErrorCodes.VersionConflict,
             ServiceErrorCodes.VersionConflict or ServiceErrorCodes.NotFound or ServiceErrorCodes.Validation
                 or ServiceErrorCodes.BusinessBlocked => result.ErrorCode,
             _ => ServiceErrorCodes.BusinessBlocked
@@ -79,8 +79,8 @@ public sealed class ProcurementOrderCommandSupport(
     {
         if (result.Error is { } error)
             throw new ProcurementOperationException(
-                error.Code == "CONCURRENCY_CONFLICT" ? ServiceErrorCodes.VersionConflict : error.Code,
-                error.Message, error.Code is "CONCURRENCY_CONFLICT" or ServiceErrorCodes.VersionConflict ? "ExpectedVersion" : error.Field);
+                error.Code == ServiceErrorCodes.ConcurrencyConflict ? ServiceErrorCodes.VersionConflict : error.Code,
+                error.Message, error.Code is ServiceErrorCodes.ConcurrencyConflict or ServiceErrorCodes.VersionConflict ? "ExpectedVersion" : error.Field);
         return result.Facts ?? throw new InvalidOperationException("采购锁定读取未返回完整事实。");
     }
 

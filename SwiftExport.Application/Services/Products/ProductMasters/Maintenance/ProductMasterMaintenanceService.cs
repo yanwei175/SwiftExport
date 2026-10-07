@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Products;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Products.ProductMasters.Maintenance;
@@ -519,9 +520,9 @@ public sealed partial class ProductMasterMaintenanceService(
         if (result.Success) return;
         var code = result.ErrorCode?.ToUpperInvariant() switch
         {
-            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
-            "PRODUCT_MASTER_SKU_OCCUPIED" or "PRODUCT_NEUTRAL_CODE_OCCUPIED" => ServiceErrorCodes.Validation,
-            "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED" => ServiceErrorCodes.BusinessBlocked,
+            ServiceErrorCodes.ConcurrencyConflict => ServiceErrorCodes.VersionConflict,
+            ProductErrorCodes.ProductMasterSkuOccupied or ProductErrorCodes.ProductNeutralCodeOccupied => ServiceErrorCodes.Validation,
+            ProductErrorCodes.ProductNeutralMasterColorOccupied => ServiceErrorCodes.BusinessBlocked,
             _ => ServiceErrorCodes.BusinessBlocked
         };
         throw new ProductMasterWriteException(code, string.IsNullOrWhiteSpace(result.Message) ? message : result.Message);

@@ -31,7 +31,7 @@ internal static class SalesOrderRules
         if (result.Success) return;
         var code = result.ErrorCode switch
         {
-            "CONCURRENCY_CONFLICT" => ServiceErrorCodes.VersionConflict,
+            ServiceErrorCodes.ConcurrencyConflict => ServiceErrorCodes.VersionConflict,
             ServiceErrorCodes.VersionConflict or ServiceErrorCodes.NotFound
                 or ServiceErrorCodes.Validation or ServiceErrorCodes.BusinessBlocked => result.ErrorCode,
             _ => ServiceErrorCodes.BusinessBlocked

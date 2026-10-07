@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using SwiftExport.Contracts.DTOs.Errors;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.MasterData;
@@ -309,6 +310,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
     }
 
     [RelayCommand(CanExecute = nameof(CanConfirmCommand))]
+    /// <summary>按原确认协议发送采购命令；明确拒绝按共享错误码处理，未知结果保留原请求。</summary>
     private async Task ConfirmAsync()
     {
         if (!CanConfirmCommand()) return;
@@ -326,7 +328,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         }
         NotifyState();
         var result = await _api.ConfirmAsync(PurchaseOrderId, _pendingConfirmation);
-        if (!result.Success && result.Error?.Code is "VALIDATION" or "BUSINESS_BLOCKED" or "VERSION_CONFLICT" or "FORBIDDEN" or "UNAUTHENTICATED" or "PROC_BOM_BASIS_CHANGED")
+        if (!result.Success && result.Error?.Code is ServiceErrorCodes.Validation or ServiceErrorCodes.BusinessBlocked or ServiceErrorCodes.VersionConflict or ServiceErrorCodes.Forbidden or ServiceErrorCodes.Unauthenticated or ProcurementErrorCodes.BomBasisChanged)
             _pendingConfirmation = null;
         NotifyState();
         if (!Handle(result.ToClientResult(), "确认采购失败")) return;

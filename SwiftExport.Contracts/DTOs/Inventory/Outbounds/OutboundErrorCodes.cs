@@ -4,8 +4,8 @@ namespace SwiftExport.Contracts.DTOs.Inventory.Outbounds
     public static class OutboundErrorCodes
     {
         /// <summary>命令可能仍在执行，必须保留原请求重试。</summary>
-        public const string CommandBusy = "COMMAND_BUSY";
+        public const string CommandBusy = SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.CommandBusy;
         /// <summary>无法确认提交结果，不能重新生成命令标识。</summary>
-        public const string OutcomeUnknown = "OUTCOME_UNKNOWN";
+        public const string OutcomeUnknown = SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.OutcomeUnknown;
     }
 }

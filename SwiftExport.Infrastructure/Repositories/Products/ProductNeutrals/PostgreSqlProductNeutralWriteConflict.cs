@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Products;
 using Npgsql;
 using SwiftExport.Contracts.Wrappers;
 
@@ -14,6 +15,6 @@ internal static class PostgreSqlProductNeutralWriteConflict
     /// <summary>已命中白名单的异常只产生固定文案及零影响行回执，不暴露数据库消息或约束明细。</summary>
     internal static RepositoryWriteResult CreateResult(Guid uid, int? oldVersion, PostgresException exception)
         => exception.ConstraintName == "ux_product_neutral_product_code"
-            ? RepositoryWriteResult.Fail(uid, oldVersion, "PRODUCT_NEUTRAL_CODE_OCCUPIED", "中性产品编码已被占用")
-            : RepositoryWriteResult.Fail(uid, oldVersion, "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", "该主型号下颜色已被占用");
+            ? RepositoryWriteResult.Fail(uid, oldVersion, ProductErrorCodes.ProductNeutralCodeOccupied, "中性产品编码已被占用")
+            : RepositoryWriteResult.Fail(uid, oldVersion, ProductErrorCodes.ProductNeutralMasterColorOccupied, "该主型号下颜色已被占用");
 }

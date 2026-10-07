@@ -100,6 +100,12 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProcurementOrderConfirmationController.ConfirmAsync"] = PermissionKeys.ProcurementOrderConfirm,
         ["ProcurementOrderDraftController.CreateAsync"] = PermissionKeys.ProcurementOrderCreate,
         ["ProcurementOrderDraftController.SaveAsync"] = PermissionKeys.ProcurementOrderEdit,
+        // 补关联沿用用例的采购编辑权限，Excel 检查沿用正式导入的创建权限。
+        ["ProcurementDemandAssociationController.GetDemandAssociationContextAsync"] = PermissionKeys.ProcurementOrderEdit,
+        ["ProcurementDemandAssociationController.SearchDemandAssociationCandidatesAsync"] = PermissionKeys.ProcurementOrderEdit,
+        ["ProcurementDemandAssociationController.PreviewDemandAssociationAsync"] = PermissionKeys.ProcurementOrderEdit,
+        ["ProcurementDemandAssociationController.AssociateDemandsAsync"] = PermissionKeys.ProcurementOrderEdit,
+        ["ForExcelPurchaseOrderController.CheckAsync"] = PermissionKeys.ProcurementOrderCreate,
         ["PurchaseDraftCreationController.CreateAsync"] = PermissionKeys.ProcurementOrderCreate,
         ["PurchaseDraftPreviewController.PreviewAsync"] = PermissionKeys.ProcurementOrderCreate,
         ["PurchaseOrderProgressQueryController.SearchAsync"] = PermissionKeys.ProcurementProgressView,

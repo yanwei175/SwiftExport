@@ -201,7 +201,6 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Application.Interfaces.Shipping.PackingLists.IPackingListReversalService,
             SwiftExport.Application.Services.Shipping.PackingLists.PackingListReversalService>();
         services.AddScoped<GrossDemandDecompositionPlanner>();
-        services.AddScoped<MaterialDemandSuggestedSupplierInitializer>();
         services.AddScoped<PurchaseDraftPreviewBuilder>();
         services.AddScoped<PurchaseDraftWriteModelBuilder>();
         services.AddScoped<SwiftExport.Application.Services.Procurement.PurchaseOrders.Draft.FromDemand.PurchaseDraftPreviewService>();

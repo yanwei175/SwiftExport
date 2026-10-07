@@ -10,6 +10,10 @@
   <group id="settingsGroup" label="设置">
    <button id="excelReadProfile" label="Excel 读取配置" onAction="OnExcelReadProfile" getVisible="GetReadProfileSettingsVisible" getEnabled="GetReadProfileSettingsEnabled" screentip="在右侧栏设置读取地址，可同时操作工作表"/>
   </group>
+  <group id="documentGroup" label="单据">
+   <button id="salesOrderList" label="销售订单" onAction="OnSalesOrderList" getEnabled="GetSalesOrderListEnabled" screentip="在右侧栏查询销售订单；Excel 生成待实现"/>
+   <button id="purchaseOrderList" label="采购订单" onAction="OnPurchaseOrderList" getEnabled="GetPurchaseOrderListEnabled" screentip="在右侧栏查询采购订单；Excel 生成待实现"/>
+  </group>
   <group id="importGroup" label="数据导入">
    <button id="salesOrderImport" label="销售订单导入" onAction="OnSalesImport" getEnabled="GetSalesImportEnabled" screentip="本地编辑预览，暂不保存至服务器"/>
    <button id="purchaseOrderImportPreview" label="采购订单导入" onAction="OnPurchaseImportPreview" getEnabled="GetPurchaseImportPreviewEnabled" screentip="按地址读取、检验后创建无来源采购草稿"/>

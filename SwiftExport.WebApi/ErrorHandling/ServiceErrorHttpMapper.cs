@@ -1,3 +1,11 @@
+using SwiftExport.Contracts.DTOs.SystemDtos.ExcelReadProfiles;
+using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Contracts.DTOs.QualityControl;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
+using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
+using SwiftExport.Contracts.DTOs.Inventory;
+using SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery;
+using SwiftExport.Contracts.DTOs.DemandPlanning;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Files;
 
@@ -9,51 +17,53 @@ public static class ServiceErrorHttpMapper
     /// <summary>返回错误的 HTTP 状态；未登记代码按服务端契约错误处理。</summary>
     public static int GetStatusCode(string? code) => code switch
     {
-        ServiceErrorCodes.Validation or "INVALID_COMMAND" or "INVALID_DRAFT" or "INVALID_ITEM"
-            or "INVALID_LINES" or "INVALID_QUANTITY" or "INVALID_REVISION" or "INVALID_REASON"
-            or "INVALID_SUPPLIER" or "INVALID_TARGET" or "INVALID_SOURCE" or "INVALID_PREVIEW_MODE"
-            or "INVALID_ENTRY_MODE" or "ITEM_REQUIRED" or "SOURCE_REQUIRED" or "CUSTOMER_REQUIRED"
-            or "APPEND_TARGET_REQUIRED" or "DELIVERY_TARGET_REQUIRED" or "EXECUTION_REQUEST_REQUIRED"
-            or "INVALID_PURCHASE_QUANTITY" or "DUPLICATE_ITEM" or "DUPLICATE_SOURCE_LINE"
-            or "DUPLICATE_SOURCE" or "DUPLICATE_TARGET" or "SOURCE_DELIVERY_QUERY_INVALID"
-            or "SOURCE_DELIVERY_CLAIM_INVALID" => 400,
+        ServiceErrorCodes.Validation or ProcurementErrorCodes.SelectionInvalid or ServiceErrorCodes.InvalidCommand or PackingListErrorCodes.InvalidDraft or PurchaseDraftErrorCodes.InvalidItem
+            or PackingListErrorCodes.InvalidLines or DemandPlanningErrorCodes.InvalidQuantity or DemandPlanningErrorCodes.InvalidRevision or ServiceErrorCodes.InvalidReason
+            or DemandPlanningErrorCodes.InvalidSupplier or PurchaseDraftErrorCodes.InvalidTarget or PurchaseDraftErrorCodes.InvalidSource or PurchaseDraftErrorCodes.InvalidPreviewMode
+            or PurchaseDraftErrorCodes.InvalidEntryMode or PurchaseDraftErrorCodes.ItemRequired or PurchaseDraftErrorCodes.SourceRequired or PurchaseDraftErrorCodes.CustomerRequired
+            or PurchaseDraftErrorCodes.AppendTargetRequired or PurchaseDraftWarningCodes.DeliveryTargetRequired or PurchaseDraftErrorCodes.ExecutionRequestRequired
+            or PurchaseDraftErrorCodes.InvalidPurchaseQuantity or PurchaseDraftErrorCodes.DuplicateItem or DemandPlanningErrorCodes.DuplicateSourceLine
+            or PurchaseDraftErrorCodes.DuplicateSource or PurchaseDraftErrorCodes.DuplicateTarget or SourceDeliveryErrorCodes.SourceDeliveryQueryInvalid
+            or SourceDeliveryErrorCodes.ClaimInvalid => 400,
         ServiceErrorCodes.Unauthenticated => 401,
         ServiceErrorCodes.Forbidden => 403,
-        ServiceErrorCodes.NotFound or "MASTER_DATA_NOT_FOUND" or "NET_DEMAND_NOT_FOUND"
-            or "SOURCE_NOT_FOUND" or "SOURCE_HEADER_NOT_FOUND" or "SOURCE_DELIVERY_NOT_FOUND"
-            or "PRODUCT_NOT_FOUND" or "BOM_NOT_FOUND" or "BOM_CHILD_NOT_FOUND" => 404,
+        ServiceErrorCodes.NotFound or PurchaseDraftErrorCodes.MasterDataNotFound or PurchaseDraftErrorCodes.NetDemandNotFound
+            or DemandPlanningErrorCodes.SourceNotFound or PurchaseDraftErrorCodes.SourceHeaderNotFound or SourceDeliveryErrorCodes.NotFound
+            or DemandPlanningErrorCodes.ProductNotFound or DemandPlanningErrorCodes.BomNotFound or DemandPlanningErrorCodes.BomChildNotFound => 404,
         ServiceErrorCodes.VersionConflict or ServiceErrorCodes.CommandConflict or FileErrorCodes.Conflict
-            or ServiceErrorCodes.StateBlocked or ServiceErrorCodes.CommandBusy
-            or "APPEND_CONCURRENCY_CONFLICT" or "CONCURRENCY_CONFLICT" or "REVISION_CONFLICT"
-            or "SOURCE_VERSION_CONFLICT" or "STALE_SOURCE_VERSION" or "SOURCE_DELIVERY_VERSION_CONFLICT"
-            or "COMMAND_REUSED" or "IDEMPOTENCY_KEY_REUSED" or "SOURCE_CHANGED" or "LINE_SET_MISMATCH"
-            or "INVALID_STATE" or "DOCUMENT_STATE_INVALID" or "INVALID_SOURCE_LIFECYCLE"
-            or "PREVIEW_EXPIRED" or "PREVIEW_FACT_CHANGED" or "PREVIEW_TOKEN_MISMATCH" or "PREVIEW_STALE"
-            or "PROC_BOM_BASIS_CHANGED" or "DEMAND_STALE" or "DUPLICATE_ACTIVE_SOURCE"
-            or "SOURCE_DELIVERY_INACTIVE" or "MATERIAL_DEMAND_NOT_ACTIVE" => 409,
+            or ExcelReadProfileErrorCodes.ExcelReadDuplicateName or ServiceErrorCodes.StateBlocked or ServiceErrorCodes.CommandBusy
+            or PurchaseDraftErrorCodes.AppendConcurrencyConflict or ServiceErrorCodes.ConcurrencyConflict or DemandPlanningErrorCodes.RevisionConflict
+            or DemandPlanningErrorCodes.SourceVersionConflict or DemandPlanningErrorCodes.StaleSourceVersion or SourceDeliveryErrorCodes.VersionConflict
+            or ServiceErrorCodes.CommandReused or PurchaseDraftErrorCodes.IdempotencyKeyReused or PackingListErrorCodes.SourceChanged or PackingListErrorCodes.LineSetMismatch
+            or PackingListErrorCodes.InvalidState or InventoryErrorCodes.DocumentStateInvalid or DemandPlanningErrorCodes.InvalidSourceLifecycle
+            or PurchaseDraftErrorCodes.PreviewExpired or PurchaseDraftErrorCodes.PreviewFactChanged or PurchaseDraftErrorCodes.PreviewTokenMismatch or PackingListErrorCodes.PreviewStale
+            or ProcurementErrorCodes.BomBasisChanged or PackingListErrorCodes.DemandStale or DemandPlanningErrorCodes.DuplicateActiveSource
+            or SourceDeliveryErrorCodes.Inactive or DemandPlanningErrorCodes.MaterialDemandNotActive => 409,
         FileErrorCodes.UploadTooLarge => 413,
         FileErrorCodes.UnsupportedMediaType => 415,
-        ServiceErrorCodes.BusinessBlocked or "AMBIGUOUS_SOURCE" or "APPEND_TARGET_MISMATCH"
-            or "APPEND_TARGET_UNSAFE" or "BALANCE_INVALID" or "COMPONENT_INVALID" or "COMPONENT_SHORTFALL"
-            or "CUSTOMER_INVALID" or "CUSTOMER_MISMATCH" or "CUSTOMER_SUPPLIED_ROOT_NOT_ALLOWED"
-            or "DELIVERY_EXCEEDED" or "DEMAND_AMBIGUOUS" or "DEMAND_INVALID"
-            or "DIFFERENT_PLANNED_DELIVERY_DATES" or "DOWNSTREAM_EXECUTION_EXISTS" or "DUPLICATE_DEMAND"
-            or "EXECUTION_LINK_INVALID" or "EXECUTION_TYPE_NOT_PURCHASE" or "INVALID_BOM_LINE"
-            or "INVALID_CUSTOMER_SUPPLIED_PRODUCT" or "INVALID_PRODUCT_BOM" or "INVENTORY_BLOCKED"
-            or "NEGATIVE_STOCK" or "NON_STANDARD_PRODUCT_FORBIDDEN" or "NOTHING_TO_CREATE"
-            or "ONE_CLICK_MUST_CREATE_NEW" or "ONE_CLICK_REQUIRES_ALL_REMAINING" or "ONE_CLICK_SINGLE_SOURCE"
-            or "PREVIEW_BLOCKED" or "PRODUCT_INVALID" or "PRODUCT_UNIT_INVALID" or "PRODUCT_UNIT_REQUIRED"
-            or "PRODUCTION_CUSTOMER_SUPPLIED_NOT_SUPPORTED" or "PURCHASE_CAPACITY_EXCEEDED"
-            or "PURCHASE_DATA_INCOMPLETE" or "PURCHASE_NOT_RECEIVABLE" or "PURCHASE_SUPPLIER_INVALID"
-            or "PURCHASE_SUPPLIER_REQUIRED" or "RELATED_CUSTOMER_SUPPLIED_REMAINING"
-            or "SOURCE_CHANGE_REQUIRES_DISPOSITION" or "SOURCE_DELIVERY_EXCEEDED" or "SOURCE_DELIVERY_EXISTS"
-            or "SOURCE_DEMAND_MISMATCH" or "SOURCE_EXIT_BLOCKED" or "SOURCE_INVALID" or "SOURCE_TYPE_NOT_SUPPORTED"
-            or "SUPPLIER_PRODUCT_DUPLICATE" or "SUPPLIER_WAREHOUSE_INVALID" or "SUPPLY_SHORTFALL"
-            or "UNSUBMITTED_ACTIVE_SOURCE" or "UNSUPPORTED_SUPPLY_TYPE" or "UNSUPPORTED_TYPE"
-            or "WAREHOUSE_INVALID" or "WARNING_CONFIRMATION_REQUIRED" => 422,
+        ServiceErrorCodes.BusinessBlocked or ProcurementErrorCodes.ProductNotMatched
+            or ProcurementErrorCodes.ProductAmbiguous or ProcurementErrorCodes.ProductUnavailable
+            or PackingListErrorCodes.SourceNotAssociated or PackingListErrorCodes.AmbiguousSource or PurchaseDraftErrorCodes.AppendTargetMismatch
+            or PurchaseDraftErrorCodes.AppendTargetUnsafe or PackingListErrorCodes.BalanceInvalid or PackingListErrorCodes.ComponentInvalid or PackingListErrorCodes.ComponentShortfall
+            or PackingListErrorCodes.CustomerInvalid or PackingListErrorCodes.CustomerMismatch or DemandPlanningErrorCodes.CustomerSuppliedRootNotAllowed
+            or PackingListErrorCodes.DeliveryExceeded or PackingListErrorCodes.DemandAmbiguous or PackingListErrorCodes.DemandInvalid
+            or PurchaseDraftWarningCodes.DifferentPlannedDeliveryDates or DemandPlanningErrorCodes.DownstreamExecutionExists or PackingListErrorCodes.DuplicateDemand
+            or PackingListErrorCodes.ExecutionLinkInvalid or PurchaseDraftWarningCodes.ExecutionTypeNotPurchase or DemandPlanningErrorCodes.InvalidBomLine
+            or DemandPlanningErrorCodes.InvalidCustomerSuppliedProduct or DemandPlanningErrorCodes.InvalidProductBom or InventoryErrorCodes.InventoryBlocked
+            or PackingListErrorCodes.NegativeStock or DemandPlanningErrorCodes.NonStandardProductForbidden or PurchaseDraftErrorCodes.NothingToCreate
+            or PurchaseDraftErrorCodes.OneClickMustCreateNew or PurchaseDraftErrorCodes.OneClickRequiresAllRemaining or PurchaseDraftErrorCodes.OneClickSingleSource
+            or PurchaseDraftErrorCodes.PreviewBlocked or PackingListErrorCodes.ProductInvalid or InventoryErrorCodes.ProductUnitInvalid or DemandPlanningErrorCodes.ProductUnitRequired
+            or DemandPlanningErrorCodes.ProductionCustomerSuppliedNotSupported or InventoryErrorCodes.PurchaseCapacityExceeded
+            or PurchaseDraftWarningCodes.PurchaseDataIncomplete or InventoryErrorCodes.PurchaseNotReceivable or PurchaseDraftWarningCodes.PurchaseSupplierInvalid
+            or PurchaseDraftWarningCodes.PurchaseSupplierRequired or PurchaseDraftWarningCodes.RelatedCustomerSuppliedRemaining
+            or DemandPlanningErrorCodes.SourceChangeRequiresDisposition or SourceDeliveryErrorCodes.Exceeded or SourceDeliveryErrorCodes.SourceDeliveryExists
+            or DemandPlanningErrorCodes.SourceDemandMismatch or DemandPlanningErrorCodes.SourceExitBlocked or PackingListErrorCodes.SourceInvalid or DemandPlanningErrorCodes.SourceTypeNotSupported
+            or PurchaseDraftErrorCodes.SupplierProductDuplicate or InventoryErrorCodes.SupplierWarehouseInvalid or PackingListErrorCodes.SupplyShortfall
+            or DemandPlanningErrorCodes.UnsubmittedActiveSource or DemandPlanningErrorCodes.UnsupportedSupplyType or InventoryErrorCodes.UnsupportedType
+            or InventoryErrorCodes.WarehouseInvalid or PurchaseDraftErrorCodes.WarningConfirmationRequired => 422,
         ServiceErrorCodes.RateLimited => 429,
         ServiceErrorCodes.ServiceUnavailable or ServiceErrorCodes.OutcomeUnknown
-            or "SCHEMA_NOT_READY" or "DELIVERY_QUERY_UNAVAILABLE" or "AFTERSALES_DELIVERY_QUERY_UNAVAILABLE" => 503,
+            or ServiceErrorCodes.SchemaNotReady or SourceDeliveryErrorCodes.QueryUnavailable or AfterSalesErrorCodes.AftersalesDeliveryQueryUnavailable => 503,
         // 技术故障和未登记代码均由出口隐藏内部细节，保留日志用于定位。
         _ => 500
     };

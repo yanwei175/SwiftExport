@@ -141,7 +141,7 @@ public sealed class ExcelReadProfileService(IExcelReadProfileRepository reposito
         catch (Exception exception) when (context.Session.Errors.Classify(exception) == DatabaseFailureKind.UniqueConflict)
         {
             Rollback(transaction);
-            return Fail<T>("EXCEL_READ_DUPLICATE_NAME", "同一单据分组的配置名称已存在。", "ConfigName");
+            return Fail<T>(ExcelReadProfileErrorCodes.ExcelReadDuplicateName, "同一单据分组的配置名称已存在。", "ConfigName");
         }
         catch (OperationCanceledException) { Rollback(transaction); throw; }
         catch (Exception exception)

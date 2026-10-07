@@ -1,6 +1,6 @@
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
 {
-    /// <summary>定义统一来源交付查询和额度复核的稳定错误代码。</summary>
+    /// <summary>定义来源交付查询和额度复核代码；共享交付不可用码供箱单兼容成员引用。</summary>
     public static class SourceDeliveryErrorCodes
     {
         /// <summary>数据库结构或历史事实不足以证明交付净额。</summary>
@@ -15,5 +15,11 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
         public const string VersionConflict = "SOURCE_DELIVERY_VERSION_CONFLICT";
         /// <summary>聚合申报数量超过当前剩余可交付量。</summary>
         public const string Exceeded = "SOURCE_DELIVERY_EXCEEDED";
+        /// <summary>来源交付查询条件或来源身份无效。</summary>
+        public const string SourceDeliveryQueryInvalid = "SOURCE_DELIVERY_QUERY_INVALID";
+        /// <summary>来源退出所需的历史交付事实无法证明。</summary>
+        public const string SourceDeliveryHistoryInvalid = "SOURCE_DELIVERY_HISTORY_INVALID";
+        /// <summary>来源仍有净交付事实，不能退出。</summary>
+        public const string SourceDeliveryExists = "SOURCE_DELIVERY_EXISTS";
     }
 }

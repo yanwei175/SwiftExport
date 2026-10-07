@@ -81,4 +81,15 @@
   <Compile Include="../SwiftExport.Client.VSTO.Tests/PackingListImportTests.cs" Link="PackingListImportTests.cs"/>
   <PackageReference Include="MSTest.TestFramework" Version="4.3.0" ExcludeAssets="analyzers"/>
  </ItemGroup>
+ <ItemGroup>
+  <Compile Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Views/SalesOrderListView.xaml.cs" Link="Features/Sales/Orders/Views/SalesOrderListView.xaml.cs"/>
+  <Page Include="../SwiftExport.Client.VSTO/Features/Sales/Orders/Views/SalesOrderListView.xaml" Link="Features/Sales/Orders/Views/SalesOrderListView.xaml"/>
+  <Compile Include="../SwiftExport.Client.VSTO.Tests/SalesOrderListTests.cs" Link="SalesOrderListTests.cs"/>
+ </ItemGroup>
+ <ItemGroup>
+  <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderListViewModel.cs" Link="Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderListViewModel.cs"/>
+  <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml.cs" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml.cs"/>
+  <Page Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml"/>
+  <Compile Include="../SwiftExport.Client.VSTO.Tests/PurchaseOrderListTests.cs" Link="PurchaseOrderListTests.cs"/>
+ </ItemGroup>
 </Project>

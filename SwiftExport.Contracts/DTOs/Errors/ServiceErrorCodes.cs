@@ -31,5 +31,23 @@ namespace SwiftExport.Contracts.DTOs.Errors
         public const string ServiceUnavailable = "SERVICE_UNAVAILABLE";
         /// <summary>无法确认提交结果，应保留原命令。</summary>
         public const string OutcomeUnknown = "OUTCOME_UNKNOWN";
+        /// <summary>命令身份或必填输入无效；保留遗留字符串，区别于通用字段验证码。</summary>
+        public const string InvalidCommand = "INVALID_COMMAND";
+        /// <summary>仓储或遗留服务检测到版本并发冲突；不改写为 VERSION_CONFLICT。</summary>
+        public const string ConcurrencyConflict = "CONCURRENCY_CONFLICT";
+        /// <summary>业务审计写入失败，不能发布未完成命令。</summary>
+        public const string LogWriteFailed = "LOG_WRITE_FAILED";
+        /// <summary>持久化写入未成功，详情只能留在服务端日志。</summary>
+        public const string WriteFailed = "WRITE_FAILED";
+        /// <summary>仓储新增未成功；可用于行级保存结果，不自动决定整个响应状态。</summary>
+        public const string InsertFailed = "INSERT_FAILED";
+        /// <summary>内部参与者缺少调用方事务，属于执行边界错误。</summary>
+        public const string TransactionRequired = "TRANSACTION_REQUIRED";
+        /// <summary>当前数据库结构尚不支持所请求的执行能力。</summary>
+        public const string SchemaNotReady = "SCHEMA_NOT_READY";
+        /// <summary>操作原因格式无效，保留既有 HTTP 登记。</summary>
+        public const string InvalidReason = "INVALID_REASON";
+        /// <summary>遗留命令身份被其他内容占用，保留原值。</summary>
+        public const string CommandReused = "COMMAND_REUSED";
     }
 }

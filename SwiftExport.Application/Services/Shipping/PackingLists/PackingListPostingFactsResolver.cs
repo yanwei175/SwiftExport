@@ -1,4 +1,6 @@
-﻿using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
+﻿using SwiftExport.Contracts.DTOs.Shipping.PackingLists;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Contracts.DTOs.Inventory.Inbounds.Posting;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -22,13 +24,13 @@ public sealed class PackingListPostingFactsResolver
         DateTime businessDate, bool hasUnprovenReceipt, CancellationToken token = default)
     {
         var blockers = new List<Blocker>();
-        if (facts.Head is null) return Failed(new("NOT_FOUND", null, "箱单不存在。"));
-        if (!facts.CustomerExists) return Failed(new("CUSTOMER_INVALID", null, "箱单客户不存在或已删除。"));
+        if (facts.Head is null) return Failed(new(ServiceErrorCodes.NotFound, null, "箱单不存在。"));
+        if (!facts.CustomerExists) return Failed(new(PackingListErrorCodes.CustomerInvalid, null, "箱单客户不存在或已删除。"));
         var products = facts.Products.ToDictionary(x => x.Uid);
         var purchases = facts.PurchaseLines.ToDictionary(x => x.Uid);
         var purchaseHeads = facts.PurchaseHeads.ToDictionary(x => x.Uid);
         if (facts.Lines.Any(x => !x.IsDeleted && !x.GrossDemandId.HasValue))
-            return Failed(new("SOURCE_NOT_ASSOCIATED", null, "箱单尚有待关联来源行，请先分配全部数量。"));
+            return Failed(new(PackingListErrorCodes.SourceNotAssociated, null, "箱单尚有待关联来源行，请先分配全部数量。"));
         var normalized = new List<Source>();
         var allPurchaseIds = new HashSet<Guid>();
         var stockProducts = new HashSet<Guid>();
@@ -49,27 +51,27 @@ public sealed class PackingListPostingFactsResolver
             if (source.ProductId is not { } productId || !products.TryGetValue(productId, out var product)
                 || product.IsDeleted || string.IsNullOrWhiteSpace(product.Unit) || !SameUnit(product.Unit, unit))
             {
-                blockers.Add(new("PRODUCT_INVALID", source.Uid, "来源产品不存在、已删除或计量单位不一致。"));
+                blockers.Add(new(PackingListErrorCodes.ProductInvalid, source.Uid, "来源产品不存在、已删除或计量单位不一致。"));
                 continue;
             }
             if (roots.Length != 1 || roots[0].RootNetDemandId != roots[0].Uid || roots[0].ProductId != productId
                 || roots[0].GrossQty <= 0)
             {
-                blockers.Add(new("DEMAND_INVALID", source.Uid, "来源必须具有唯一有效根物料需求。"));
+                blockers.Add(new(PackingListErrorCodes.DemandInvalid, source.Uid, "来源必须具有唯一有效根物料需求。"));
                 continue;
             }
             var root = roots[0];
             if (string.IsNullOrWhiteSpace(source.DemandBasisFingerprint)
                 || root.SourceDemandBasisFingerprintSnapshot != source.DemandBasisFingerprint)
             {
-                blockers.Add(new("DEMAND_STALE", source.Uid, "物料拆解不能证明与当前来源实物要求一致。"));
+                blockers.Add(new(PackingListErrorCodes.DemandStale, source.Uid, "物料拆解不能证明与当前来源实物要求一致。"));
                 continue;
             }
             var tree = facts.Demands.Where(x => x.GrossDemandId == source.Uid && !x.IsDeleted
                 && x.LifecycleStatus == NetDemandLifecycleStatusEnum.Active).ToArray();
             if (tree.Any(x => x.RootNetDemandId != root.Uid || x.DecompositionRevision != root.DecompositionRevision))
             {
-                blockers.Add(new("DEMAND_AMBIGUOUS", source.Uid, "存在跨根或跨拆解批次的活动物料需求。"));
+                blockers.Add(new(PackingListErrorCodes.DemandAmbiguous, source.Uid, "存在跨根或跨拆解批次的活动物料需求。"));
                 continue;
             }
             var links = facts.Links.Where(x => x.NetDemandId == root.Uid && !x.IsDeleted
@@ -82,7 +84,7 @@ public sealed class PackingListPostingFactsResolver
                     || line.PurchaseOrderId != link.TargetHeadId || line.ProductId != productId || line.IsDeleted
                     || !purchaseHeads.TryGetValue(line.PurchaseOrderId, out var po) || po.IsDeleted)
                 {
-                    blockers.Add(new("EXECUTION_LINK_INVALID", source.Uid, "执行关系的采购目标、产品或归属无效。"));
+                    blockers.Add(new(PackingListErrorCodes.ExecutionLinkInvalid, source.Uid, "执行关系的采购目标、产品或归属无效。"));
                     continue;
                 }
                 linkedPurchases.Add(line.Uid);
@@ -97,7 +99,7 @@ public sealed class PackingListPostingFactsResolver
                     || child.ProductId is not { } childId || !products.TryGetValue(childId, out var childProduct)
                     || childProduct.IsDeleted || string.IsNullOrWhiteSpace(childProduct.Unit) || child.GrossQty < 0)
                 {
-                    blockers.Add(new("COMPONENT_INVALID", source.Uid, "客供件归属、送达关系、产品或数量快照无效。"));
+                    blockers.Add(new(PackingListErrorCodes.ComponentInvalid, source.Uid, "客供件归属、送达关系、产品或数量快照无效。"));
                     continue;
                 }
                 components.Add(new(child.Uid, childId, childProduct.Unit.Trim(), child.GrossQty, child.Version));
@@ -117,7 +119,7 @@ public sealed class PackingListPostingFactsResolver
             var balances = facts.Balances.Where(x => x.ProductId == product && x.WarehouseSiteId == warehouse.Uid).ToArray();
             if (balances.Length > 1 || balances.Any(x => x.IsDeleted || !SameUnit(x.UnitSnapshot, products[product].Unit)))
             {
-                blockers.Add(new("BALANCE_INVALID", null, "库存投影重复、已删除或单位与产品不一致。"));
+                blockers.Add(new(PackingListErrorCodes.BalanceInvalid, null, "库存投影重复、已删除或单位与产品不一致。"));
                 continue;
             }
             var balance = balances.SingleOrDefault();

@@ -74,23 +74,23 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
     {
             token.ThrowIfCancellationRequested();
             var before = await audit.SnapshotAsync(uid);
-            if (uid==Guid.Empty || uid!=command.Uid) Fail("VALIDATION","单据身份不能为空且必须与路由一致。","Uid");
+            if (uid==Guid.Empty || uid!=command.Uid) Fail(ServiceErrorCodes.Validation,"单据身份不能为空且必须与路由一致。","Uid");
             if (command.Header is null || command.AddedLines is null || command.UpdatedLines is null || command.DeletedLines is null)
-                Fail("VALIDATION","单头与行变更集合不能为空。");
+                Fail(ServiceErrorCodes.Validation,"单头与行变更集合不能为空。");
             var added = command.AddedLines.Where(x => !AfterSalesPolicy.IsEmptyPlaceholder(x)).ToList();
             var head = create ? new AfterSalesHeader { Uid=uid } : await documents.GetHeaderAsync(uid,true)
-                ?? throw new AfterSalesException("NOT_FOUND", "售后单不存在。");
-            if (create && await documents.GetHeaderAsync(uid,true) is not null) Fail("VERSION_CONFLICT","单据身份已存在。");
+                ?? throw new AfterSalesException(ServiceErrorCodes.NotFound, "售后单不存在。");
+            if (create && await documents.GetHeaderAsync(uid,true) is not null) Fail(ServiceErrorCodes.VersionConflict,"单据身份已存在。");
             if (!create) RequireVersion(head,command.Version);
             RequireOpen(head);
             var all = (await documents.GetLinesAsync(uid,true)).ToList();
             var existing = all.Where(x=>!x.IsDeleted).ToDictionary(x=>x.Uid);
             var ids = added.Select(x=>x.Uid).Concat(command.UpdatedLines.Select(x=>x.Uid)).Concat(command.DeletedLines.Select(x=>x.Uid)).ToList();
-            if (ids.Any(x=>x==Guid.Empty) || ids.Distinct().Count()!=ids.Count) Fail("VALIDATION","行身份为空或在多个变更集合中重复。");
+            if (ids.Any(x=>x==Guid.Empty) || ids.Distinct().Count()!=ids.Count) Fail(ServiceErrorCodes.Validation,"行身份为空或在多个变更集合中重复。");
             var confirmed=head.ConfirmationStatus==ConfirmationStatusEnum.已确认;
             if (confirmed && (!AfterSalesPolicy.LockedHeaderFactsEqual(head.Adapt<AfterSalesEditHeaderDto>(),command.Header)
                 || added.Count>0 || command.DeletedLines.Count>0))
-                Fail("BUSINESS_BLOCKED","确认后的单头事实和行结构已锁定，请先取消确认。");
+                Fail(ServiceErrorCodes.BusinessBlocked,"确认后的单头事实和行结构已锁定，请先取消确认。");
 
             var oldHeader=head.Adapt<AfterSalesHeader>();
             var previousCustomer=head.CustomerId;
@@ -100,7 +100,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
                 command.Header.Adapt(head);
                 head.AcceptedDate=head.AcceptedDate.Date;
                 head.ExpectedCompletionDate=head.ExpectedCompletionDate?.Date;
-                if (head.AcceptedDate==default) Fail("VALIDATION","必须填写受理日期。","Header.AcceptedDate");
+                if (head.AcceptedDate==default) Fail(ServiceErrorCodes.Validation,"必须填写受理日期。","Header.AcceptedDate");
                 if (create || previousCustomer!=head.CustomerId)
                 {
                     head.CustomerCodeSnapshot=customer.Code;
@@ -116,7 +116,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             var next=all.Count==0?1:all.Max(x=>x.LineNumber)+1;
             foreach (var input in added)
             {
-                if (all.Any(x=>x.Uid==input.Uid)) Fail("VALIDATION","不能复用历史行身份。");
+                if (all.Any(x=>x.Uid==input.Uid)) Fail(ServiceErrorCodes.Validation,"不能复用历史行身份。");
                 var line=input.Adapt<AfterSalesLine>();
                 line.HeaderId=uid; line.LineNumber=next++; line.Version=1;
                 await NormalizeLineAsync(line,null,head.CustomerId);
@@ -124,10 +124,10 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             }
             foreach (var input in command.UpdatedLines)
             {
-                if (!existing.TryGetValue(input.Uid,out var old)) Fail("VALIDATION","更新行不属于当前单据。");
-                if (old!.Version!=input.Version) Fail("VERSION_CONFLICT","售后行已变化，请刷新。");
+                if (!existing.TryGetValue(input.Uid,out var old)) Fail(ServiceErrorCodes.Validation,"更新行不属于当前单据。");
+                if (old!.Version!=input.Version) Fail(ServiceErrorCodes.VersionConflict,"售后行已变化，请刷新。");
                 if (confirmed && !AfterSalesPolicy.LockedFactsEqual(old.Adapt<AfterSalesEditLineDto>(),input))
-                    Fail("BUSINESS_BLOCKED","已确认行的事实字段已锁定，请先取消确认。");
+                    Fail(ServiceErrorCodes.BusinessBlocked,"已确认行的事实字段已锁定，请先取消确认。");
                 var line=old.Adapt<AfterSalesLine>();
                 input.Adapt(line);
                 if (!confirmed) await NormalizeLineAsync(line,old,head.CustomerId,previousCustomer!=head.CustomerId);
@@ -136,8 +136,8 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             }
             foreach (var input in command.DeletedLines)
             {
-                if (!existing.TryGetValue(input.Uid,out var line)) Fail("VALIDATION","删除行不属于当前单据。");
-                if (line!.Version!=input.Version) Fail("VERSION_CONFLICT","删除行已变化。");
+                if (!existing.TryGetValue(input.Uid,out var line)) Fail(ServiceErrorCodes.Validation,"删除行不属于当前单据。");
+                if (line!.Version!=input.Version) Fail(ServiceErrorCodes.VersionConflict,"删除行已变化。");
                 line.IsDeleted=true; writes.Add((line,false)); existing.Remove(line.Uid);
             }
             // 换客户时同步未进入修改集合的补件客户型号，保持同一客户的快照口径。
@@ -158,12 +158,12 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
             if (create)
             {
                 var number=await numbering.GetNextDocumentNoAsync(new DocumentNoRequest {DocType="CR",BusinessDate=head.AcceptedDate,SerialWidth=4,Operator=user.UserName});
-                if(!number.Success) Fail("BUSINESS_BLOCKED","售后单号生成失败。");
+                if(!number.Success) Fail(ServiceErrorCodes.BusinessBlocked,"售后单号生成失败。");
                 head.AfterSalesNo=number.Data.DocumentNo;
             }
-            if(!await documents.WriteHeaderAsync(head,create)) Fail("VERSION_CONFLICT","售后单保存冲突。");
+            if(!await documents.WriteHeaderAsync(head,create)) Fail(ServiceErrorCodes.VersionConflict,"售后单保存冲突。");
             foreach(var item in writes)
-                if(!await documents.WriteLineAsync(item.Line,item.Insert)) Fail("VERSION_CONFLICT","售后行保存冲突。");
+                if(!await documents.WriteLineAsync(item.Line,item.Insert)) Fail(ServiceErrorCodes.VersionConflict,"售后行保存冲突。");
             var result = Result(head,existing.Values.Any(x=>x.Quantity>0));
             var after = await audit.SnapshotAsync(uid);
             await audit.WriteAsync(uid, command.CommandId, create ? "Create" : "Save", null, result, before, after);
@@ -176,7 +176,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
         line.UnitSnapshot=line.UnitSnapshot?.Trim() ?? string.Empty;
         if(line.IsNonStandard)
         {
-            if(line.ProductId.HasValue) Fail("VALIDATION","非标不能绑定Product。",$"Lines[{line.Uid}].ProductId");
+            if(line.ProductId.HasValue) Fail(ServiceErrorCodes.Validation,"非标不能绑定Product。",$"Lines[{line.Uid}].ProductId");
             line.SkuSnapshot=NonStandardSkuGenerator.Create(line.Uid);
         }
         else if(line.ProductId.HasValue && (old is null||old.ProductId!=line.ProductId||old.IsNonStandard))
@@ -257,7 +257,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
     }
 
     private async Task<AfterSalesLookupDto> ReferenceAsync(string kind,Guid uid,Guid? customerId,bool active,string field)
-        => await lookups.ReferenceAsync(kind,uid,customerId,active) ?? throw new AfterSalesException("VALIDATION","引用对象不存在、不适用或已停用。",field);
+        => await lookups.ReferenceAsync(kind,uid,customerId,active) ?? throw new AfterSalesException(ServiceErrorCodes.Validation,"引用对象不存在、不适用或已停用。",field);
 
     // 在数据库截断或溢出前提供稳定字段错误，不把输入静默裁剪。
     private static void ValidateLengths(object entity)
@@ -269,7 +269,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
                 property.Name=="LocalFileFolder"?1000:
                 property.Name is "DescriptionSnapshot" or "SpecificationSnapshot"?500:
                 property.Name=="CustomerNameSnapshot"?200:100;
-            if(value.Length>max) Fail("VALIDATION",$"字段长度不能超过{max}。",(entity is AfterSalesHeader ? "Header." : $"Lines[{((AfterSalesLine)entity).Uid}].")+property.Name);
+            if(value.Length>max) Fail(ServiceErrorCodes.Validation,$"字段长度不能超过{max}。",(entity is AfterSalesHeader ? "Header." : $"Lines[{((AfterSalesLine)entity).Uid}].")+property.Name);
         }
     }
 

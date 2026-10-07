@@ -1,3 +1,5 @@
+using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using Npgsql;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
@@ -53,7 +55,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         try { return await base.AddAsync(entity); }
         catch (PostgresException exception) when (IsSkuConflict(exception))
         {
-            return RepositoryWriteResult.Fail(entity.Uid, null, "PRODUCT_MASTER_SKU_OCCUPIED", "主型号编码已被占用");
+            return RepositoryWriteResult.Fail(entity.Uid, null, ProductErrorCodes.ProductMasterSkuOccupied, "主型号编码已被占用");
         }
     }
 
@@ -65,7 +67,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         try { return await base.UpdateAsync(entity); }
         catch (PostgresException exception) when (IsSkuConflict(exception))
         {
-            return RepositoryWriteResult.Fail(entity.Uid, oldVersion, "PRODUCT_MASTER_SKU_OCCUPIED", "主型号编码已被占用");
+            return RepositoryWriteResult.Fail(entity.Uid, oldVersion, ProductErrorCodes.ProductMasterSkuOccupied, "主型号编码已被占用");
         }
     }
 
@@ -178,7 +180,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
             """, parameters, Transaction, cancellationToken: cancellationToken));
         return version.HasValue
             ? RepositoryWriteResult.Ok(productMasterId, expectedVersion, version.Value, "主型号归类成功。")
-            : RepositoryWriteResult.Fail(productMasterId, expectedVersion, "CONCURRENCY_CONFLICT", "主型号已被其他用户修改、删除或已归入目标分类，请刷新后重试。");
+            : RepositoryWriteResult.Fail(productMasterId, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "主型号已被其他用户修改、删除或已归入目标分类，请刷新后重试。");
     }
 
     /// <summary>需要维护锁时必须使用调用方事务，不创建隐式事务或扩大到分类供应商侧。</summary>

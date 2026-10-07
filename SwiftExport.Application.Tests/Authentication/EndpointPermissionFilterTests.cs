@@ -39,7 +39,7 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 旧表头映射的四个写端点已退役，保留其余端点的逐项权限检查。
-        Assert.AreEqual(227, routes.Count);
+        Assert.AreEqual(232, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.DeleteAsync"]);
@@ -81,6 +81,30 @@ public sealed class EndpointPermissionFilterTests
         CollectionAssert.AreEqual(new[] { permission }, authorized.RequestedKeys);
     }
 
+    /// <summary>采购补关联和导入检查按真实 MVC 方法登记，Async 动作名规范化不能造成漏配。</summary>
+    [TestMethod]
+    [DataRow("ProcurementDemandAssociationController.GetDemandAssociationContextAsync", "Procurement.Order.Edit", "Procurement.Order.Create")]
+    [DataRow("ProcurementDemandAssociationController.SearchDemandAssociationCandidatesAsync", "Procurement.Order.Edit", "Procurement.Order.Create")]
+    [DataRow("ProcurementDemandAssociationController.PreviewDemandAssociationAsync", "Procurement.Order.Edit", "Procurement.Order.Create")]
+    [DataRow("ProcurementDemandAssociationController.AssociateDemandsAsync", "Procurement.Order.Edit", "Procurement.Order.Create")]
+    [DataRow("ForExcelPurchaseOrderController.CheckAsync", "Procurement.Order.Create", "Procurement.Order.Edit")]
+    public async Task ProcurementImportAndAssociationActions_RequireExactPermission(string action, string permission, string otherPermission)
+    {
+        Assert.IsTrue(MvcActions.Value.TryGetValue(action, out var descriptor), "必须验证真实 MVC Action。");
+        Assert.AreEqual(descriptor.MethodInfo.Name[..^5], descriptor.ActionName, "MVC 动作名会去掉 Async 后缀。");
+        foreach (var allowed in new[] { Array.Empty<string>(), new[] { otherPermission } })
+        {
+            var denied = await ExecuteAsync(action, allowed);
+            Assert.IsFalse(denied.Continued);
+            Assert.AreEqual(ServiceErrorCodes.Forbidden, denied.ErrorCode);
+        }
+        var unauthenticated = await ExecuteAsync(action, [permission], authenticated: false);
+        Assert.IsFalse(unauthenticated.Continued);
+        Assert.AreEqual(ServiceErrorCodes.Unauthenticated, unauthenticated.ErrorCode);
+        var authorized = await ExecuteAsync(action, [permission]);
+        Assert.IsTrue(authorized.Continued, action);
+        CollectionAssert.AreEqual(new[] { permission }, authorized.RequestedKeys);
+    }
     /// <summary>分类树读取和保存分别要求查看、维护权限，不能互相替代或绕过身份校验。</summary>
     [TestMethod]
     [DataRow("AfterSalesQualityCategoryController.GetAllAsync", "QualityControl.AfterSales.View", "QualityControl.AfterSales.Maintain")]

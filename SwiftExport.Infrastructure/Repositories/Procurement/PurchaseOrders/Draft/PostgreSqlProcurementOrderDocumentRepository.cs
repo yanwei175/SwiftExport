@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Procurement;
@@ -247,7 +248,7 @@ public sealed class PostgreSqlProcurementOrderDocumentRepository(RepositoryBaseC
                 AND h."confirmation_status"=0 AND h."lifecycle_status"=0 AND h."is_deleted"=FALSE;
             """;
         if (await context.Session.Connection.ExecuteAsync(Command(headSql, PostgreSqlParameters.Entity(head, Head), ct)) != 1)
-            return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购头并发冲突。");
+            return RepositoryWriteResult.Fail(head.Uid, head.Version, ServiceErrorCodes.ConcurrencyConflict, "采购头并发冲突。");
         foreach (var line in lines)
         {
             context.AuditStamp.StampForUpdate(line);
@@ -260,7 +261,7 @@ public sealed class PostgreSqlProcurementOrderDocumentRepository(RepositoryBaseC
                     AND h."is_deleted"=FALSE AND h."confirmation_status"=0 AND h."lifecycle_status"=0;
                 """;
             if (await context.Session.Connection.ExecuteAsync(Command(lineSql, PostgreSqlParameters.Entity(line, Line), ct)) != 1)
-                return RepositoryWriteResult.Fail(line.Uid, line.Version, "CONCURRENCY_CONFLICT", "采购行并发冲突。");
+                return RepositoryWriteResult.Fail(line.Uid, line.Version, ServiceErrorCodes.ConcurrencyConflict, "采购行并发冲突。");
         }
         return RepositoryWriteResult.Ok(head.Uid, head.Version, head.Version + 1);
     }
@@ -277,7 +278,7 @@ public sealed class PostgreSqlProcurementOrderDocumentRepository(RepositoryBaseC
                 AND h."confirmation_status"=0 AND h."lifecycle_status"=0 AND h."is_deleted"=FALSE;
             """;
         if (await context.Session.Connection.ExecuteAsync(Command(sql, PostgreSqlParameters.Entity(head, Head), ct)) != 1)
-            return RepositoryWriteResult.Fail(head.Uid, head.Version, "CONCURRENCY_CONFLICT", "采购确认并发冲突。");
+            return RepositoryWriteResult.Fail(head.Uid, head.Version, ServiceErrorCodes.ConcurrencyConflict, "采购确认并发冲突。");
         return RepositoryWriteResult.Ok(head.Uid, head.Version, head.Version + 1);
     }
 

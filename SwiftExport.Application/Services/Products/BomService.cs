@@ -535,7 +535,7 @@ public partial class BomService(
     {
         if (!result.Success)
         {
-            var errorCode = result.ErrorCode is "CONCURRENCY_CONFLICT" or ServiceErrorCodes.VersionConflict
+            var errorCode = result.ErrorCode is ServiceErrorCodes.ConcurrencyConflict or ServiceErrorCodes.VersionConflict
                 ? ServiceErrorCodes.VersionConflict
                 : ServiceErrorCodes.BusinessBlocked;
             throw new BomBatchWriteException(result.Message ?? fallbackMessage, errorCode);

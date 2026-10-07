@@ -76,13 +76,13 @@ public sealed class AfterSalesConfirmationService(
         token.ThrowIfCancellationRequested();
         var before = await SnapshotAsync(uid);
         var head = await repository.GetHeaderAsync(uid, true)
-            ?? throw new AfterSalesException("NOT_FOUND", "售后单不存在。");
+            ?? throw new AfterSalesException(ServiceErrorCodes.NotFound, "售后单不存在。");
         if (head.Version != command.Version)
-            throw new AfterSalesException("VERSION_CONFLICT", "售后单已被其他操作更新，请刷新。");
+            throw new AfterSalesException(ServiceErrorCodes.VersionConflict, "售后单已被其他操作更新，请刷新。");
         if (head.DocumentStatus != DocumentStatusEnum.Open)
-            throw new AfterSalesException("BUSINESS_BLOCKED", "售后单已关闭或作废。");
+            throw new AfterSalesException(ServiceErrorCodes.BusinessBlocked, "售后单已关闭或作废。");
         if (head.ConfirmationStatus == ConfirmationStatusEnum.已确认)
-            throw new AfterSalesException("BUSINESS_BLOCKED", "实物需求已经确认。");
+            throw new AfterSalesException(ServiceErrorCodes.BusinessBlocked, "实物需求已经确认。");
 
         var lines = (await repository.GetLinesAsync(uid, true)).Where(line => !line.IsDeleted).ToList();
         var positive = lines.Where(line => line.Quantity > 0).ToList();
@@ -100,7 +100,7 @@ public sealed class AfterSalesConfirmationService(
             head.DemandConfirmedBy = user.UserName;
         }
         if (!await repository.WriteHeaderAsync(head, false))
-            throw new AfterSalesException("VERSION_CONFLICT", "售后单状态已变化。");
+            throw new AfterSalesException(ServiceErrorCodes.VersionConflict, "售后单状态已变化。");
         var result = new AfterSalesCommandResult
         {
             Uid = head.Uid, AfterSalesNo = head.AfterSalesNo, Version = head.Version,
@@ -141,7 +141,7 @@ public sealed class AfterSalesConfirmationService(
     private async Task ReferenceAsync(string kind, Guid uid, Guid? customerId, bool active, string field)
     {
         if (await lookups.ReferenceAsync(kind, uid, customerId, active) is null)
-            throw new AfterSalesException("VALIDATION", "引用对象不存在、不适用或已停用。", field);
+            throw new AfterSalesException(ServiceErrorCodes.Validation, "引用对象不存在、不适用或已停用。", field);
     }
 
     /// <summary>按正数量行建立 CR 来源命令；纯投诉不会调用此方法。</summary>
@@ -189,7 +189,7 @@ public sealed class AfterSalesConfirmationService(
             RelatedObjectsJson = JsonSerializer.Serialize(new { SourceUid = uid }),
             UserUid = user.UserId, UserNameSnapshot = user.UserName, OccurredDate = DateTime.Now
         });
-        if (affected != 1) throw new AfterSalesException("LOG_WRITE_FAILED", "售后确认审计写入失败。");
+        if (affected != 1) throw new AfterSalesException(ServiceErrorCodes.LogWriteFailed, "售后确认审计写入失败。");
     }
 
     /// <summary>未登录与品质模块拒绝均先于回执和事务返回。</summary>

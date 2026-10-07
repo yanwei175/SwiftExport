@@ -7,6 +7,7 @@ using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.WebApi.RequestProtection;
 
@@ -27,10 +28,15 @@ public sealed class ProductController(IProductQueryService query, IProductMainte
     [PreventDuplicateRequest]
     public Task<ServiceResult<SaveItemResult>> Create([FromBody] CreateItemRequest<ProductDto> dto) => maintenance.AddAsync(dto);
 
-    /// <summary>保留基础更新路由与防重复标记。</summary>
+    /// <summary>核对路径与外层请求身份后更新资料，身份冲突不调用写入服务。</summary>
     [HttpPut("{id}")]
     [PreventDuplicateRequest]
-    public Task<ServiceResult<SaveItemResult>> Update(Guid id, [FromBody] UpdateItemRequest<ProductDto> dto) => maintenance.UpdateAsync(dto);
+    public Task<ServiceResult<SaveItemResult>> Update(Guid id, [FromBody] UpdateItemRequest<ProductDto> dto)
+    {
+        if (id != dto.Uid)
+            return Task.FromResult(ServiceResult<SaveItemResult>.Fail(ServiceErrorCodes.Validation, "路径 Id 与请求体 Uid 不一致。", "Uid"));
+        return maintenance.UpdateAsync(dto);
+    }
 
     /// <summary>保留基础删除路由与防重复标记。</summary>
     [HttpDelete("{id}")]

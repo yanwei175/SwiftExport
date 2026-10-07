@@ -57,7 +57,7 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
         }
     }
     protected virtual async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<TDto>> updateItems) => await Task.FromResult<string?>(null);
-    /// <summary>校验更新并保存目标实体，目标缺失返回未找到错误。</summary>
+    /// <summary>校验更新并以外层 Uid、Version 保存目标实体；DTO 映射不能改变更新身份或并发条件。</summary>
     public virtual async Task<ServiceResult<SaveItemResult>> UpdateAsync(UpdateItemRequest<TDto> item)
     {
         try
@@ -83,6 +83,9 @@ public class BaseService<TEntity, TDto>(IRepository<TEntity> repository, Service
             }
 
             item.Data.Adapt(existing);
+            // 外层请求拥有更新目标与并发版本，DTO 仅提供业务字段，不能覆盖写入条件。
+            existing.Uid = item.Uid;
+            existing.Version = item.Version;
             var writeResult = await _repository.UpdateAsync(existing);
 
             if (Logger.IsEnabled(LogLevel.Information))

@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Common;
 using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Base;
 
-// ★ 1. 必须是 abstract，防止 ASP.NET 把它当成一个真实的 Controller 跑去注册
+/// <summary>提供实体 CRUD 的 HTTP 边界，更新时拒绝路径与请求体身份冲突。</summary>
 // ★ 2. 路由标在这里，所有子类自动继承这个规则！
 [ApiController]
 [Route("api/[controller]")]
@@ -26,11 +27,13 @@ public abstract class BaseController<TEntity, TDto>(IBaseService<TEntity, TDto> 
         return await _service.AddAsync(dto);
     }
 
+    /// <summary>核对路径与外层请求身份后委托更新，身份冲突不调用写入服务。</summary>
     [HttpPut("{id}")]
     [PreventDuplicateRequest] // 中文注释：防抖式防重复提交，同接口 3 秒冷却。
     public virtual async Task<ServiceResult<SaveItemResult>> Update(Guid id, [FromBody] UpdateItemRequest<TDto> dto)
     {
-        // 你可以在基类里做一些统一拦截，比如 ID 校验
+        if (id != dto.Uid)
+            return ServiceResult<SaveItemResult>.Fail(ServiceErrorCodes.Validation, "路径 Id 与请求体 Uid 不一致。", "Uid");
         return await _service.UpdateAsync(dto);
     }
 

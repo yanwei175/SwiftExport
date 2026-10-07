@@ -42,7 +42,7 @@ public sealed class ProcurementReversalSession
     {
         var key = (user, uid);
         if (!_pending.TryGetValue(key, out var pending)) return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.Validation, "没有待重试命令。");
-        if (!_sending.TryAdd(key, 0)) return ServiceResult<ProcurementOrderCommandResult>.Fail("COMMAND_BUSY", "原命令正在处理中。");
+        if (!_sending.TryAdd(key, 0)) return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.CommandBusy, "原命令正在处理中。");
         try
         {
             var result = pending.Operation switch
@@ -60,12 +60,12 @@ public sealed class ProcurementReversalSession
                     || result.Data.LifecycleStatus != (pending.Operation == ProcurementReversalOperation.Void ? PurchaseOrderLifecycleStatusEnum.Voided : PurchaseOrderLifecycleStatusEnum.Active)
                     || (pending.Operation == ProcurementReversalOperation.DeleteLines && result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认)
                     || (pending.Operation == ProcurementReversalOperation.CancelConfirmation && (result.Data.ConfirmationStatus != ConfirmationStatusEnum.待确认 || result.Data.ConfirmationId.HasValue)))
-                    return ServiceResult<ProcurementOrderCommandResult>.Fail("OUTCOME_UNKNOWN", "响应不完整，请重试原命令确认结果。");
+                    return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "响应不完整，请重试原命令确认结果。");
                 if (pending.Operation == ProcurementReversalOperation.DeleteLines)
                 {
                     var removed = JsonSerializer.Deserialize<DeleteProcurementDraftLinesCommand>(pending.CommandJson)!.Lines.Select(x => x.PurchaseOrderLineId).ToHashSet();
                     if (result.Data.Lines.Any(x => removed.Contains(x.PurchaseOrderLineId)))
-                        return ServiceResult<ProcurementOrderCommandResult>.Fail("OUTCOME_UNKNOWN", "回执仍包含被删行，请重试原命令确认结果。");
+                        return ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "回执仍包含被删行，请重试原命令确认结果。");
                 }
                 _pending.TryRemove(key, out _);
             }

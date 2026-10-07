@@ -19,6 +19,16 @@ namespace SwiftExport.Client.VSTO.WpfTests
         {
             try
             {
+                if (args.Length == 1 && args[0] == "--purchase-list-only")
+                {
+                    using (var listHost = new WpfRuntimeHost()) { listHost.Initialize(); PurchaseOrderListChecks.Run(Check); }
+                    Console.WriteLine("PASS Purchase order list: " + checks + " assertions"); return 0;
+                }
+                if (args.Length == 1 && args[0] == "--sales-list-only")
+                {
+                    using (var listHost = new WpfRuntimeHost()) { listHost.Initialize(); SalesOrderListChecks.Run(Check); }
+                    Console.WriteLine("PASS Sales order list: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--packing-import-only")
                 {
                     using (var packingHost = new WpfRuntimeHost()) { packingHost.Initialize(); PackingListImportChecks.Run(Check); }

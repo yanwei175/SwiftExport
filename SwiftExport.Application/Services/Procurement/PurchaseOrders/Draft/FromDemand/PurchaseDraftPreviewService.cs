@@ -84,7 +84,7 @@ public sealed class PurchaseDraftPreviewService(
             }, cancellationToken);
             var sourceRows = page.Items;
             if (sourceRows.Count == 0)
-                throw new PurchaseDraftException("SOURCE_NOT_FOUND", "来源单没有活动物料需求。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceNotFound, "来源单没有活动物料需求。");
             if (request.Items.Count > 0)
             {
                 var rowByDemand = sourceRows.ToDictionary(x => x.Uid);
@@ -93,7 +93,7 @@ public sealed class PurchaseDraftPreviewService(
                     if (!rowByDemand.TryGetValue(item.NetDemandId, out var row)
                         || row.Version != item.ExpectedVersion
                         || row.RemainingQty != item.ExpectedRemainingQty)
-                        throw new PurchaseDraftException("PREVIEW_FACT_CHANGED",
+                        throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewFactChanged,
                             "一键预览包含不属于当前来源或已经变化的物料需求。");
                 }
             }
@@ -110,10 +110,10 @@ public sealed class PurchaseDraftPreviewService(
                 PageSize = 1
             }, cancellationToken);
             var row = page.Items.SingleOrDefault()
-                ?? throw new PurchaseDraftException("NET_DEMAND_NOT_FOUND", "选择的活动物料需求不存在。");
+                ?? throw new PurchaseDraftException(PurchaseDraftErrorCodes.NetDemandNotFound, "选择的活动物料需求不存在。");
             if (row.Version != item.ExpectedVersion
                 || row.RemainingQty != item.ExpectedRemainingQty)
-                throw new PurchaseDraftException("PREVIEW_FACT_CHANGED", "物料需求版本或剩余数量已变化，请刷新后重试。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewFactChanged, "物料需求版本或剩余数量已变化，请刷新后重试。");
             selectedRows.Add(row);
         }
 
@@ -208,14 +208,14 @@ public sealed class PurchaseDraftPreviewService(
         {
             var key = (target.SourceType.Trim().ToUpperInvariant(), target.SourceUid, target.SupplierId);
             if (!selectedDocumentKeys.Contains(key))
-                throw new PurchaseDraftException("INVALID_TARGET", "采购草稿目标不属于本次选中的来源和供应商。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidTarget, "采购草稿目标不属于本次选中的来源和供应商。");
             if (target.TargetMode == PurchaseDraftTargetModeEnum.AppendExisting
                 && !safeAppend.Any(x => x.PurchaseOrderId == target.ExistingPurchaseOrderId
                     && x.Version == target.ExpectedPurchaseOrderVersion
                     && x.SourceUid == target.SourceUid
                     && x.SupplierId == target.SupplierId
                     && string.Equals(x.SourceType, target.SourceType, StringComparison.OrdinalIgnoreCase)))
-                throw new PurchaseDraftException("APPEND_TARGET_UNSAFE", "目标采购草稿已不满足安全追加条件。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.AppendTargetUnsafe, "目标采购草稿已不满足安全追加条件。");
         }
 
         return new PurchaseDraftPreviewBuildRequest
@@ -410,7 +410,7 @@ public sealed class PurchaseDraftPreviewService(
             .ToList();
         if (documents.Count == 0) return [];
         if (documents.Any(x => !x.CustomerId.HasValue || x.CustomerId.Value == Guid.Empty))
-            throw new PurchaseDraftException("CUSTOMER_REQUIRED", "采购预览缺少可确认的客户身份，不能构造单头。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.CustomerRequired, "采购预览缺少可确认的客户身份，不能构造单头。");
 
         var customerIds = documents.Select(x => x.CustomerId!.Value).Distinct().ToArray();
         var supplierIds = documents.Select(x => x.PurchaseSupplierId!.Value).Distinct().ToArray();
@@ -424,7 +424,7 @@ public sealed class PurchaseDraftPreviewService(
         var salesHeads = (await salesOrderHeadRepository.GetByIdListAsync(salesSourceIds, withUpdLock))
             .ToDictionary(x => x.Uid);
         if (salesSourceIds.Any(id => !salesHeads.ContainsKey(id)))
-            throw new PurchaseDraftException("SOURCE_HEADER_NOT_FOUND", "销售来源单头已不存在，不能推断客户 PO 号或业务关联号。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceHeaderNotFound, "销售来源单头已不存在，不能推断客户 PO 号或业务关联号。");
 
         var configs = new Dictionary<(Guid CustomerId, Guid SupplierId), SwiftExport.Contracts.DTOs.Customers.CustomerPoConfigDto?>();
         foreach (var key in documents
@@ -440,7 +440,7 @@ public sealed class PurchaseDraftPreviewService(
             var customerId = document.CustomerId!.Value;
             var supplierId = document.PurchaseSupplierId!.Value;
             if (!customers.TryGetValue(customerId, out var customer) || !suppliers.TryGetValue(supplierId, out var supplier))
-                throw new PurchaseDraftException("MASTER_DATA_NOT_FOUND", "采购预览关联的客户或供应商主数据已不存在。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.MasterDataNotFound, "采购预览关联的客户或供应商主数据已不存在。");
             configs.TryGetValue((customerId, supplierId), out var config);
             salesHeads.TryGetValue(document.SourceUid, out var salesHead);
             var hasSalesSource = string.Equals(
@@ -508,7 +508,7 @@ public sealed class PurchaseDraftPreviewService(
         foreach (var candidate in candidates)
         {
             if (!heads.TryGetValue(candidate.PurchaseOrderId, out var head))
-                throw new PurchaseDraftException("APPEND_TARGET_UNSAFE", "安全追加候选的采购单头已不存在。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.AppendTargetUnsafe, "安全追加候选的采购单头已不存在。");
             candidate.Header = MapExistingHeader(head);
         }
     }
@@ -549,7 +549,7 @@ public sealed class PurchaseDraftPreviewService(
         var rows = await supplierProductRepository.GetPurchaseDataAsync(keys);
         var duplicates = rows.GroupBy(x => (x.SkuId, x.SupplierId)).Where(x => x.Count() > 1).ToArray();
         if (duplicates.Length > 0)
-            throw new PurchaseDraftException("SUPPLIER_PRODUCT_DUPLICATE", "存在重复的活动供应商产品资料，不能确定采购价格。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.SupplierProductDuplicate, "存在重复的活动供应商产品资料，不能确定采购价格。");
         return rows.ToDictionary(
             x => ((Guid?)x.SkuId, (Guid?)x.SupplierId),
             x => x);
@@ -642,6 +642,7 @@ public sealed class PurchaseDraftPreviewService(
                 ? DemandExecutionTypeEnum.Outsourcing
                 : DemandExecutionTypeEnum.Purchase;
 
+    /// <summary>锁定后复核活动来源、版本和剩余量；来源一键模式必须覆盖全部剩余需求。</summary>
     private static void ValidateLockedItems(
         PurchaseDraftEntryModeEnum entryMode,
         CreatePurchaseDraftSourceCommand source,
@@ -651,12 +652,12 @@ public sealed class PurchaseDraftPreviewService(
         foreach (var item in source.Items)
         {
             if (!candidateById.TryGetValue(item.NetDemandId, out var candidate))
-                throw new PurchaseDraftException("NET_DEMAND_NOT_FOUND", "物料需求不属于当前活动来源单。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.NetDemandNotFound, "物料需求不属于当前活动来源单。");
             if (candidate.NetDemandVersion != item.ExpectedVersion
                 || candidate.RemainingQty != item.ExpectedRemainingQty)
-                throw new PurchaseDraftException("PREVIEW_EXPIRED", "计划版本或剩余数量已变化，请重新预览。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.PreviewExpired, "计划版本或剩余数量已变化，请重新预览。");
             if (item.PurchaseQty <= 0 || item.PurchaseQty > candidate.RemainingQty)
-                throw new PurchaseDraftException("INVALID_PURCHASE_QUANTITY", "采购数量超出当前剩余量。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidPurchaseQuantity, "采购数量超出当前剩余量。");
         }
 
         if (entryMode == PurchaseDraftEntryModeEnum.SourceOneClick)
@@ -667,7 +668,7 @@ public sealed class PurchaseDraftPreviewService(
                 .ToHashSet();
             if (!required.SetEquals(source.Items.Select(x => x.NetDemandId))
                 || source.Items.Any(x => x.PurchaseQty != x.ExpectedRemainingQty))
-                throw new PurchaseDraftException("ONE_CLICK_REQUIRES_ALL_REMAINING",
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.OneClickRequiresAllRemaining,
                     "来源一键转采购必须包含全部采购型剩余计划并使用全部剩余量。");
         }
     }
@@ -676,10 +677,10 @@ public sealed class PurchaseDraftPreviewService(
     private static void ValidatePreviewRequest(PurchaseDraftPreviewRequest request)
     {
         if (request is null || request.ExecutionRequestId == Guid.Empty)
-            throw new PurchaseDraftException("EXECUTION_REQUEST_REQUIRED", "执行请求 Uid 不能为空。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.ExecutionRequestRequired, "执行请求 Uid 不能为空。");
         request.Items ??= new List<PurchaseDraftPreviewItem>();
         if (!Enum.IsDefined(request.EntryMode) || !Enum.IsDefined(request.LineMode))
-            throw new PurchaseDraftException("INVALID_PREVIEW_MODE", "采购预览模式无效。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidPreviewMode, "采购预览模式无效。");
         request.SourceType = request.SourceType?.Trim();
         request.Targets ??= new List<PurchaseDraftTargetSelectionDto>();
         foreach (var target in request.Targets)
@@ -692,32 +693,33 @@ public sealed class PurchaseDraftPreviewService(
                         || target.ExistingPurchaseOrderId.Value == Guid.Empty
                         || !target.ExpectedPurchaseOrderVersion.HasValue
                         || target.ExpectedPurchaseOrderVersion.Value <= 0)))
-                throw new PurchaseDraftException("INVALID_TARGET", "采购草稿目标无效。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidTarget, "采购草稿目标无效。");
         }
         if (request.Targets.GroupBy(x => (x.SourceType?.ToUpperInvariant(), x.SourceUid, x.SupplierId)).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("DUPLICATE_TARGET", "同一来源供应商存在重复采购草稿目标。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.DuplicateTarget, "同一来源供应商存在重复采购草稿目标。");
         if (request.EntryMode == PurchaseDraftEntryModeEnum.SourceOneClick)
         {
             if (string.IsNullOrWhiteSpace(request.SourceType)
                 || !request.SourceUid.HasValue || request.SourceUid.Value == Guid.Empty)
-                throw new PurchaseDraftException("SOURCE_REQUIRED", "来源一键预览必须指定来源单。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceRequired, "来源一键预览必须指定来源单。");
             if (request.Targets.Any(x => x.TargetMode != PurchaseDraftTargetModeEnum.CreateNew))
-                throw new PurchaseDraftException("ONE_CLICK_MUST_CREATE_NEW", "来源一键预览只能新建采购草稿。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.OneClickMustCreateNew, "来源一键预览只能新建采购草稿。");
         }
         else if (request.Items is null || request.Items.Count == 0)
         {
-            throw new PurchaseDraftException("ITEM_REQUIRED", "人工预览至少选择一条计划。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.ItemRequired, "人工预览至少选择一条计划。");
         }
         ValidatePreviewItems(request.Items);
     }
 
+    /// <summary>预览项须具有唯一命令项和物料身份，防止同一需求重复参与本次预览。</summary>
     private static void ValidatePreviewItems(IReadOnlyList<PurchaseDraftPreviewItem> items)
     {
         if (items.Any(x => x.CommandItemId == Guid.Empty || x.NetDemandId == Guid.Empty
                            || x.ExpectedVersion <= 0 || x.ExpectedRemainingQty < 0)
             || items.GroupBy(x => x.CommandItemId).Any(x => x.Count() > 1)
             || items.GroupBy(x => x.NetDemandId).Any(x => x.Count() > 1))
-            throw new PurchaseDraftException("INVALID_ITEM", "预览包含无效或重复的命令项/物料需求。");
+            throw new PurchaseDraftException(PurchaseDraftErrorCodes.InvalidItem, "预览包含无效或重复的命令项/物料需求。");
     }
 
 }

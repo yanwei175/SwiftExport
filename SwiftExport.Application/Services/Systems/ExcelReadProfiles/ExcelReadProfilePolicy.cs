@@ -84,22 +84,22 @@ public static class ExcelReadProfilePolicy
     public static void Evaluate(ExcelReadProfileDto profile)
     {
         profile.Issues.Clear();
-        if (profile.Fields.Count == 0) Add("EXCEL_READ_FIELDS_REQUIRED", "Fields", "请至少指定一个字段的读取位置。");
+        if (profile.Fields.Count == 0) Add(ExcelReadProfileErrorCodes.ExcelReadFieldsRequired, "Fields", "请至少指定一个字段的读取位置。");
         var downward = profile.Fields.Where(field => field.IsDownward).ToArray();
         if (downward.Length > 0)
         {
             TryCell(downward[0].CellAddress, out _, out var startRow);
             if (downward.Any(field => !TryCell(field.CellAddress, out _, out var row) || row != startRow))
-                Add("EXCEL_READ_START_ROW_MISMATCH", "Fields", "向下读取字段必须位于同一起始行。");
-            if (profile.EndMode == 0) Add("EXCEL_READ_END_REQUIRED", "EndMode", "向下读取必须指定末行判断列或汇总行。");
+                Add(ExcelReadProfileErrorCodes.ExcelReadStartRowMismatch, "Fields", "向下读取字段必须位于同一起始行。");
+            if (profile.EndMode == 0) Add(ExcelReadProfileErrorCodes.ExcelReadEndRequired, "EndMode", "向下读取必须指定末行判断列或汇总行。");
             if (profile.EndMode == 1 && string.IsNullOrEmpty(profile.LastRowColumn))
-                Add("EXCEL_READ_COLUMN_REQUIRED", "LastRowColumn", "请指定明细工作表中的末行判断列。");
+                Add(ExcelReadProfileErrorCodes.ExcelReadColumnRequired, "LastRowColumn", "请指定明细工作表中的末行判断列。");
             if (profile.EndMode == 2)
             {
                 if (!TryCell(profile.SummaryCellAddress, out _, out var summaryRow))
-                    Add("EXCEL_READ_SUMMARY_REQUIRED", "SummaryCellAddress", "请指定明细工作表中的汇总单元格。");
+                    Add(ExcelReadProfileErrorCodes.ExcelReadSummaryRequired, "SummaryCellAddress", "请指定明细工作表中的汇总单元格。");
                 else if (summaryRow <= startRow)
-                    Add("EXCEL_READ_SUMMARY_BEFORE_START", "SummaryCellAddress", "汇总行必须位于明细起始行之后。");
+                    Add(ExcelReadProfileErrorCodes.ExcelReadSummaryBeforeStart, "SummaryCellAddress", "汇总行必须位于明细起始行之后。");
             }
         }
         profile.CanRead = profile.Issues.Count == 0;

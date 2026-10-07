@@ -30,7 +30,7 @@ public sealed class SourceDeliveryService(
             cancellationToken.ThrowIfCancellationRequested();
             if (request is null)
                 return ServiceResult<PagedResponseBase<SourceDemandDeliveryItemDto>>.Fail(
-                    "SOURCE_DELIVERY_QUERY_INVALID", "查询条件不能为空。");
+                    SourceDeliveryErrorCodes.SourceDeliveryQueryInvalid, "查询条件不能为空。");
             request.PageIndex = Math.Max(1, request.PageIndex);
             request.PageSize = Math.Clamp(request.PageSize, 1, 200);
             if (!await queryRepository.IsSchemaReadyAsync(cancellationToken))
@@ -56,7 +56,7 @@ public sealed class SourceDeliveryService(
             cancellationToken.ThrowIfCancellationRequested();
             if (grossDemandId == Guid.Empty)
                 return ServiceResult<SourceDemandDeliveryItemDto>.Fail(
-                    "SOURCE_DELIVERY_QUERY_INVALID", "来源需求标识不能为空。", nameof(grossDemandId));
+                    SourceDeliveryErrorCodes.SourceDeliveryQueryInvalid, "来源需求标识不能为空。", nameof(grossDemandId));
             if (!await queryRepository.IsSchemaReadyAsync(cancellationToken))
                 return ServiceResult<SourceDemandDeliveryItemDto>.Fail(
                     UnavailableCode, "来源交付查询所需数据库结构尚未就绪。");
@@ -145,7 +145,7 @@ public sealed class SourceDeliveryService(
             throw new InvalidOperationException("来源交付退出核验必须加入调用方业务事务。");
         if (string.IsNullOrWhiteSpace(sourceType) || sourceUid == Guid.Empty
             || grossDemandIds.Count == 0 || grossDemandIds.Any(id => id == Guid.Empty))
-            throw new SourceDeliveryException("SOURCE_DELIVERY_HISTORY_INVALID", "来源交付退出身份不完整，不能证明退出安全。");
+            throw new SourceDeliveryException(SourceDeliveryErrorCodes.SourceDeliveryHistoryInvalid, "来源交付退出身份不完整，不能证明退出安全。");
 
         try
         {
@@ -154,10 +154,10 @@ public sealed class SourceDeliveryService(
             var assessment = await packingListRepository.AssessSourceExitForUpdateAsync(
                 grossDemandIds, cancellationToken);
             if (assessment.InvalidHistoryCount > 0)
-                throw new SourceDeliveryException("SOURCE_DELIVERY_HISTORY_INVALID",
+                throw new SourceDeliveryException(SourceDeliveryErrorCodes.SourceDeliveryHistoryInvalid,
                     "来源关联的 PackingList 或正式客户出库历史不完整，不能自动退出。");
             if (assessment.HasEffectiveDelivery)
-                throw new SourceDeliveryException("SOURCE_DELIVERY_EXISTS",
+                throw new SourceDeliveryException(SourceDeliveryErrorCodes.SourceDeliveryExists,
                     "来源仍被 PackingList 草稿或未反向的正式客户交付引用，请先完成对应反向处理。");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

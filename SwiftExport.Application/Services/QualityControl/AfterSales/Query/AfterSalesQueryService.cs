@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Exceptions;
@@ -52,7 +53,7 @@ public sealed class AfterSalesQueryService(ServiceBaseContext context, IAfterSal
         => ReadAsync(async () =>
         {
             // 保持头行在同一读取版本，避免并发保存导致编辑页拿到混合快照。
-            if(context.Session.Transaction is not null) Fail("BUSINESS_BLOCKED","不能接管外部事务。");
+            if(context.Session.Transaction is not null) Fail(ServiceErrorCodes.BusinessBlocked,"不能接管外部事务。");
             using var tx=context.Session.Connection.BeginTransaction(IsolationLevel.RepeatableRead);
             context.Session.Transaction=tx;
             try
@@ -70,17 +71,18 @@ public sealed class AfterSalesQueryService(ServiceBaseContext context, IAfterSal
 
     private async Task<ServiceResult<T>> ReadAsync<T>(Func<Task<T>> action,CancellationToken token)
     {
-        if(!await AuthorizedAsync(token)) return ServiceResult<T>.Fail("FORBIDDEN","当前账号无品质管理权限。");
+        if(!await AuthorizedAsync(token)) return ServiceResult<T>.Fail(ServiceErrorCodes.Forbidden,"当前账号无品质管理权限。");
         try { token.ThrowIfCancellationRequested(); return ServiceResult<T>.Ok(await action()); }
         catch(AfterSalesException ex) {return ServiceResult<T>.Fail(ex.Code,ex.Message,ex.Field);}
-        catch(ArgumentException) {return ServiceResult<T>.Fail("VALIDATION","查询条件或候选类型无效。");}
+        catch(ArgumentException) {return ServiceResult<T>.Fail(ServiceErrorCodes.Validation,"查询条件或候选类型无效。");}
     }
 
     private Task<bool> AuthorizedAsync(CancellationToken token)
         => user.IsAuthenticated && user.UserId.HasValue
             ? permissions.HasPermissionAsync(user.UserId.Value,"QualityControl.AfterSales.View",token)
             : Task.FromResult(false);
+    /// <summary>按既有读取方式取得售后单头，不存在时通过共享资源缺失码返回失败。</summary>
     private async Task<AfterSalesHeader> RequireHeaderAsync(Guid uid,bool locked=false)
-        => await documents.GetHeaderAsync(uid,locked) ?? throw new AfterSalesException("NOT_FOUND","售后单不存在。");
+        => await documents.GetHeaderAsync(uid,locked) ?? throw new AfterSalesException(ServiceErrorCodes.NotFound,"售后单不存在。");
 
 }

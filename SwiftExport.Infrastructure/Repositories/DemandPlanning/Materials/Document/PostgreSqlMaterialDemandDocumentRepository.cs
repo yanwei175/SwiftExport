@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 using Npgsql;
@@ -208,7 +209,7 @@ public sealed class PostgreSqlMaterialDemandDocumentRepository(RepositoryBaseCon
             var rows = await InGrossScope([demand.GrossDemandId], () => context.Session.Connection.ExecuteAsync(Command(
                 InsertDecompositionSql, PostgreSqlParameters.Entity(demand, Map))));
             results.Add(rows == 1 ? RepositoryWriteResult.Ok(demand.Uid, null, demand.Version, "新增成功。")
-                : RepositoryWriteResult.Fail(demand.Uid, null, "INSERT_FAILED", "新增净需求失败。"));
+                : RepositoryWriteResult.Fail(demand.Uid, null, ServiceErrorCodes.InsertFailed, "新增净需求失败。"));
         }
         return results;
     }
