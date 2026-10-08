@@ -17,6 +17,10 @@ namespace SwiftExport.Contracts.SysEnums
         public const string Unit = "Unit";
         /// <summary>旧售后品质字典的迁移识别码；当前分类由独立品质分类树维护。</summary>
         public const string AfterSalesQualityCategory = "AfterSalesQualityCategory";
+        /// <summary>流量测试功能字典编码；具体功能由字典维护。</summary>
+        public const string FlowTestFunction = "FlowTestFunction";
+        /// <summary>流量测试限流器规格字典编码；包含明确的不限流选项。</summary>
+        public const string FlowLimiterSpecification = "FlowLimiterSpecification";
 
         // 以下业务字段不属于通用字典值，只保留仍被运行时查询使用的稳定编码。
         public const string ProductType = "ProductType"; // 当前使用固定物料类型枚举。
@@ -29,7 +33,9 @@ namespace SwiftExport.Contracts.SysEnums
             Incoterm,
             PaymentMethod,
             ShippedBy,
-            Unit
+            Unit,
+            FlowTestFunction,
+            FlowLimiterSpecification
         };
     }
 }

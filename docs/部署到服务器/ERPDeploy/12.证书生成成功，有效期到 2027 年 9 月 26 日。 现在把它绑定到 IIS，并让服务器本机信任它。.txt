@@ -1,0 +1,45 @@
+**证书生成成功，有效期到 2027 年 9 月 26 日。** 现在把它绑定到 IIS，并让服务器本机信任它。
+
+在服务器的**管理员 PowerShell** 中，依次执行。
+
+先安装根证书信任：
+
+```powershell
+Import-Certificate `
+    -FilePath "D:\ERPDeploy\Certificates\Root.cer" `
+    -CertStoreLocation "Cert:\LocalMachine\Root"
+```
+
+再创建 HTTPS 绑定：
+
+```powershell
+Import-Module WebAdministration
+
+New-WebBinding `
+    -Name "SwiftExport_WebApi" `
+    -Protocol "https" `
+    -IPAddress "192.168.3.12" `
+    -Port 443
+```
+
+为这个绑定指定刚生成的服务器证书：
+
+```powershell
+$binding = Get-WebBinding `
+    -Name "SwiftExport_WebApi" `
+    -Protocol "https" `
+    -Port 443
+
+$binding.AddSslCertificate(
+    "FDB0AEEBB495F796BCD43E035506645E79847462",
+    "My"
+)
+```
+
+最后，在**服务器本机浏览器**打开：
+
+```text
+https://192.168.3.12/files/ProductImages/test.jpg
+```
+
+告诉我图片是否正常显示，以及有没有证书警告。**先验证服务器本机，成功后再开放内网防火墙，并给你的开发电脑安装根证书。**

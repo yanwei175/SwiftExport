@@ -1,0 +1,46 @@
+**数据库授权完成。** 现在在服务器生成配置文件，使用 Windows 身份验证，不需要数据库密码。
+
+在服务器的**管理员 PowerShell** 中，完整复制执行下面这一段：
+
+```powershell
+$configPath = "D:\Apps\SwiftExport_WebApi\appsettings.Production.json"
+
+if (Test-Path -LiteralPath $configPath) {
+    throw "生产配置已经存在，停止执行，避免覆盖现有配置。"
+}
+
+# 随机生成登录令牌签名密钥，不在终端显示。
+$keyBytes = New-Object byte[] 48
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($keyBytes)
+$rng.Dispose()
+
+$config = @{
+    ConnectionStrings = @{
+        Default = "Server=localhost;Database=dv_next;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;"
+    }
+    Auth = @{
+        UseDevUser = $false
+        JwtKey = [Convert]::ToBase64String($keyBytes)
+        JwtIssuer = "SwiftExport"
+        JwtAudience = "SwiftExportClient"
+    }
+    FileStorage = @{
+        Enabled = $true
+        RootPath = "D:\ERPFiles"
+    }
+    AllowedHosts = "*"
+    Serilog = @{
+        MinimumLevel = "Information"
+    }
+}
+
+$config | ConvertTo-Json -Depth 5 |
+    Set-Content -LiteralPath $configPath -Encoding UTF8
+
+Write-Host "服务器配置已生成。"
+```
+
+这里的 `TrustServerCertificate=True` 只用于本机 SQL Server 连接，**与之后浏览器访问 HTTPS 所需的证书无关**。
+
+看到“服务器配置已生成”后告诉我即可，**不要把配置文件内容贴出来，里面有生成的密钥**。下一步创建 IIS 网站，先在服务器本机验证启动。

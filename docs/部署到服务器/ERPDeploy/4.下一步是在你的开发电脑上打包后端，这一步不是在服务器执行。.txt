@@ -1,0 +1,77 @@
+**环境检查通过，可以部署后端了。** .NET 10 运行时和 `AspNetCoreModuleV2` 都已安装，IIS 也重启成功。多个运行时版本并存正常，不需要卸载旧版本。
+
+下一步是**在你的开发电脑上打包后端**，这一步不是在服务器执行。
+
+在项目目录打开 PowerShell，运行：
+
+```powershell
+cd D:\Documents\source\CSharp\SwiftExport
+
+.\_tools\Deployment\打包后端.ps1 -OutputDirectory D:\ERPDeploy\SwiftExport_WebApi
+```
+
+输出目录需要尚不存在；如果已经存在，换一个新目录即可。
+
+这个脚本会发布 Release 版本，并移除发布包里的开发环境配置，避免把开发数据库连接和密钥直接带到服务器。服务器配置我们下一步单独填写。
+
+成功后，将 **`D:\ERPDeploy\SwiftExport_WebApi` 里面的全部文件**复制到服务器：
+
+```text
+D:\Apps\SwiftExport_WebApi
+```
+
+复制完成后，该目录下应直接看到：
+
+```text
+SwiftExport.WebApi.dll
+web.config
+appsettings.json
+其他依赖文件……
+```
+
+**先完成打包和复制，暂时不用启动程序。** 把发布结果告诉我，下一步配置 IIS 运行身份及 `dv_next` 数据库访问权限。
+
+==================================
+碰到脚本执行策略拦截
+=================================
+
+**不需要管理员运行**，这是 PowerShell 的脚本执行策略拦截，与文件权限无关。
+
+在当前 PowerShell 窗口依次执行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+.\_tools\Deployment\打包后端.ps1 -OutputDirectory D:\ERPDeploy\SwiftExport_WebApi
+```
+
+这里的 `-Scope Process` **只对当前 PowerShell 窗口有效**，关闭窗口就失效，不会永久修改系统策略。
+
+如果第一条命令提示被组策略覆盖，把提示发给我。
+
+输入 Y，然后按回车即可。
+确认后会继续执行打包命令。这个设置只对当前 PowerShell 窗口有效；等打包结束，把结果发给我。
+
+**打包成功。** 那 3 条 `NU1900` 警告表示无法连接 NuGet 获取漏洞检查数据，没有阻止本次发布。
+
+现在把开发电脑上这个目录中的**全部文件和子文件夹**：
+
+```text
+D:\ERPDeploy\SwiftExport_WebApi
+```
+
+复制到服务器 `192.168.3.12` 的：
+
+```text
+D:\Apps\SwiftExport_WebApi
+```
+
+注意复制的是**里面的内容**，不要多套一层目录。复制完成后应当能直接找到：
+
+```text
+D:\Apps\SwiftExport_WebApi\SwiftExport.WebApi.dll
+D:\Apps\SwiftExport_WebApi\web.config
+D:\Apps\SwiftExport_WebApi\appsettings.json
+```
+
+复制好后告诉我，我们继续创建 IIS 应用程序池，并给它访问 `dv_next` 的权限。

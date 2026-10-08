@@ -163,6 +163,14 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string ProductsProductView = "Products.Product.View";
         /// <summary>售后单查看权限。</summary>
         public const string QualityControlAfterSalesView = "QualityControl.AfterSales.View";
+        /// <summary>流量测试组查询权限。</summary>
+        public const string QualityControlFlowView = "QualityControl.Flow.View";
+        /// <summary>流量测试组新增权限。</summary>
+        public const string QualityControlFlowCreate = "QualityControl.Flow.Create";
+        /// <summary>流量测试组修改权限。</summary>
+        public const string QualityControlFlowEdit = "QualityControl.Flow.Edit";
+        /// <summary>流量测试组删除权限。</summary>
+        public const string QualityControlFlowDelete = "QualityControl.Flow.Delete";
         /// <summary>装箱单创建权限。</summary>
         public const string ShippingPackingListCreate = "Shipping.PackingList.Create";
         /// <summary>装箱单删除权限。</summary>

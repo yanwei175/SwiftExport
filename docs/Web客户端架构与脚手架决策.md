@@ -1,6 +1,6 @@
 # Web 客户端架构与脚手架决策（方案基线，未实施）
 
-更新：2026-10-08。用户本轮选择“先完成架构、脚手架比较和目录方案”，并明确首期采用 ERP 内部多标签工作区。本文只形成方案，不生成工程、不安装依赖、不修改业务代码，也不启动新的实施任务。
+更新：2026-10-08。本轮按三份文档审查补齐职责、状态所有权、公共契约与可追溯门禁，保留 Framework SPA、现有目录和首期 ERP 多标签主干。下文规则是后续实施的方案基线；不生成工程、工作流或 Skills，不把未验证的版本组合写成已通过。
 
 ## 1. 建议与边界
 
@@ -24,10 +24,20 @@
 
 ## 2. 脚手架比较
 
+先区分三个层次，避免把工程能力当作现成 ERP：
+
+| 层次 | 解决的问题 | 本项目归属 |
+| --- | --- | --- |
+| 基础工程脚手架 | 工程创建、开发服务器、编译构建 | Vite 等构建基础 |
+| 应用框架约定 | 入口、路由模块、类型生成、错误边界、构建约定 | React Router Framework SPA |
+| ERP 应用架构 | 多标签、权限消费、草稿、批量保存、业务模块 | SwiftExport 自有架构 |
+
+Framework Mode 的官方能力不能代替本项目的业务目录、权限模型或编辑机制。[React Router 模式说明](https://reactrouter.com/start/modes)
+
 | 候选 | 能提供的基础 | 对本项目的代价 | 判断 |
 | --- | --- | --- | --- |
 | React Router 官方基础模板，Framework SPA Mode | 标准根路由/路由模块、路由类型生成、按路由拆分和静态 SPA 构建 | 仍须组织业务模块、API、权限与编辑状态；构建时根页面必须可预渲染 | **首选**：采用框架维护的工程约定，按下文补 ERP 边界 |
-| Vite 官方 `react-ts` + React Router Data Mode | React/TS/Vite 基础工程；路由数据 API 可按需接入 | 路由装配、类型约束与懒加载更多由项目组织 | **有效备选**：构建时根渲染确实造成难以消除的集成问题时采用；保留同一业务目录边界 |
+| Vite 官方 `react-ts` + React Router Data Mode | React/TS/Vite 基础工程；路由数据 API 可按需接入 | 路由装配、类型约束与懒加载更多由项目组织 | **比较记录**：当前不切换；有具体失败证据时走独立架构变更，不由实施 Agent 自动启用 |
 | Ant Design Pro / Umi Max | 管理台模板、布局、菜单及 Umi 约定，可生成静态前端 | 改变既定 Vite/React Router 工程主线；模板有额外页面、插件及另一套 API 生成接线要裁剪 | **不作本次基座**：若用户更重视现成管理台页面，才重新评估；不是技术不兼容 |
 | 社区完整 boilerplate，如 Bulletproof React | 可参考按 feature 聚合和单向依赖的经验 | 同时承接作者的依赖、样例业务和维护策略，无法替代本项目契约验收 | **用作组织参考**，不整体复制源码 |
 
@@ -36,6 +46,8 @@
 Ant Design 是组件库，Ant Design Pro 是管理台方案，两者不能混为一谈。选择 Ant Design 组件并不要求使用 Pro/Umi，也不要求为 ProTable 的数据模式改造现有 POST 查询或 BatchSave。
 
 ## 3. 采用框架约定，但不引入前端业务服务器
+
+采用 React Router Framework SPA，是为了使用官方维护的工程入口、路由模块、类型生成和构建约定。后端仍为 ASP.NET Core；业务读取/提交由 TanStack Query 与生成 API Client 负责。Router 不建立第二套业务缓存，不承担业务保存编排。ERP 页签由 Workspace 管理，页面注册、参数类型、懒加载和生命周期按本文与多标签设计统一规定。
 
 实施时使用官方基础模板，生成命令形式为 `npx create-react-router@<已核对版本> SwiftExport.WebApp`；实际 CLI、模板来源/提交及生成日期记入工程说明。首次可查 latest 来确定候选，确定后记录精确版本并提交 lockfile，不以未核验的固定版本伪称兼容。
 
@@ -194,6 +206,22 @@ SwiftExport.WebApp/
 | 通用编辑集合 | 纯数据转换与状态；feature 提供可写字段和响应接纳策略 | 不把所有单据统一成 CRUD |
 | 生成 DTO | feature 引用或映射成 EditorRow | 不同时维护另一份手写传输类型 |
 
+### 6.1 代码归属与跨模块交互
+
+| 代码 | 固定归属 | 禁止归属/职责 |
+| --- | --- | --- |
+| 导航、页签注册、模块组合 | 应用组装层 | 普通业务页面不得自建导航/标签管理器 |
+| 产品保存流程、产品 DTO 映射 | features/products | 公共 Grid、通用请求层不得承载产品保存规则 |
+| 当前用户权限检查工具 | shared/authorization | feature 不重写权限算法或根据角色名授权 |
+| HTTP 执行、认证头、传输错误分类 | shared/api | 页面不散落 fetch/认证头/全局错误判断 |
+| 通用增改删状态算法 | shared/editing | 不依赖产品 API，不持有服务器缓存 |
+| 行号、填充、单元格编辑交互 | shared/ui 下的 Grid | 不负责事务提交、BatchSave 或回执接纳 |
+| 产品列定义、字段输入校验 | 产品 feature | 不放进万能表格配置中心 |
+
+产品页读取供应商候选，使用已声明的生成读取操作和 shared/query 的统一 Query Key；不导入供应商管理页的内部 hook 或编辑模型。产品页打开供应商详情，发出 Workspace 公共打开意图 `{ pageKind, params }`，由应用页面目录校验参数与权限、定位或加载目标；不导入供应商页面组件或操作工作区 reducer。读取候选不等于得到供应商详情的打开权限。
+
+依赖检查须覆盖 shared 反向导入、feature 跨模块深层引用，以及 feature 对 app/workspace 实现的引用。真正跨模块组合归应用层；公共打开意图与注入契约归 shared/workspace，不引入新的模块全局状态。
+
 目录设计参考了社区 [Bulletproof React 的 feature 聚合与单向依赖](https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md)。它是社区工程经验，不是 React 官方标准，也不整体复制其依赖。
 
 另核对了 [Feature-Sliced Design 的层与导入约束](https://feature-sliced.design/docs/reference/layers)。FSD 明确允许仅采用需要的层；本项目借鉴职责和依赖思想，**不宣称完全采用 FSD**，也不照搬 pages/widgets/features/entities 的完整分层。这里的 feature 是 ERP 用例模块聚合，语义与 FSD 的交互切片不完全相同。
@@ -210,7 +238,8 @@ SwiftExport.WebApp/
 | 页签顺序、激活与描述 | workspace reducer + Context | 不存产品 DTO/表单草稿；只接收 dirty/pending/unknown 摘要与关闭接口 |
 | 可分享的活动页签身份 | URL + workspace 地址解析 | 仅活动页签写 URL；隐藏页依照自己的 descriptor，不读取全局 route params |
 | 页码与筛选 | 各页签的 feature 状态 | 切换页签保留；dirty 时不能静默切换该页签的结果集 |
-| 未保存输入、baseline Version、增改删集合 | feature 编辑状态 / 通用 editing | 只接纳已确认的服务端回执；不被后台查询刷新覆盖 |
+| 当前编辑值 | Form 或编辑集合，按下文三种模式选择 | 同一字段只有一个当前值来源；草稿不进入 Query 缓存 |
+| baseline Version、冻结提交、回执接纳 | feature 编辑会话 | 不被后台查询刷新覆盖，不提前增加 Version |
 | 行选择、展开、活动单元格 | 页面/控件 React 状态 | 与持久业务事实、服务器权限分离 |
 | 字段输入错误 | Ant Form / feature validator | 提供输入体验；不复制服务器跨业务状态决策 |
 
@@ -222,6 +251,22 @@ routes.ts 只注册框架入口。workspace 页面目录统一 pageKind、权限
 
 **首期必须支持内部多标签工作区**：切换保留筛选、表单、编辑集合及滚动；同一已有单据重复打开激活原页签；新建单据各有独立临时身份；tabId 保存后仍稳定。关闭脏页提供保存/放弃/取消；保存中或结果未知阻止普通关闭；切换不弹未保存确认。浏览器刷新不等于内部切换，跨刷新恢复草稿尚未纳入首期。
 
+<a id="web-field-owner"></a>
+
+### 7.1 字段值的唯一所有权
+
+| 编辑场景 | 当前编辑值的权威来源 | 保存入口 |
+| --- | --- | --- |
+| 普通单对象表单 | Ant Form；feature 控制器持有基线、版本与保存状态 | feature 读取并校验 Form 值，再构建请求 |
+| 批量编辑列表 | useEditableCollection | feature 从编辑集合生成 BatchSave |
+| 单据头 + 多行明细 | 头字段属于 Form，行字段属于编辑集合 | 同一个 feature 编辑会话统一校验、冻结并提交 |
+
+**WEB-EDIT-01：同一字段只允许一个当前编辑值来源。** baseline 和当前值可以分开保存；不允许 Form、useState、编辑集合各保留一份可写当前对象，再用多个 useEffect 双向同步。Form 实例随该 tabId 的编辑会话保留，展示子树挂载/恢复不重复用 initialValues 覆盖草稿；初始化、明确放弃或确认回执接纳才能显式重设基线/表单。
+
+带 name 的 Form.Item 由 Form 接管值与变更；程序赋值使用 Form API。Grid 单元格临时输入缓冲只服务当前控件，提交即进入编辑集合，不能成为另一份长期业务当前值。[Ant Form 数据收集约定](https://ant.design/components/form/)
+
+**WEB-EDIT-02：dirty 是参与保存字段的归一化投影与 baseline 的比较结果。** 比较排除 selection、展开、错误及只读联表显示字段；null/空串等价性按字段契约决定。改动后恢复原值必须回到 clean，touched/曾经编辑不能直接当 dirty。Form 的变更事件只触发比较或更新摘要，不复制一份 Form 当前值到控制器；集合增改删从同一编辑状态推导。具体集合算法继续由 [编辑基础设施](web-frontend-architecture.md) 负责。
+
 ## 8. API 接入不会要求页面层重写
 
 已验收工具仍位于 [_tools/Web契约验证](../_tools/Web契约验证/使用说明.md)。该目录用于后端契约验收，不变成前端运行时依赖。Web 项目消费已审核的 schema 快照，持有自己的生成配置、lockfile 和 generated 产物；可从独立项目目录生成、构建，不依赖后端源码或 PowerShell 脚本在场。
@@ -229,6 +274,29 @@ routes.ts 只注册框架入口。workspace 页面目录统一 pageKind、权限
 后端改动 → 契约验收并导出 schema → 审核兼容差异 → 更新 Web 的 openapi 快照 → 生成 DTO/操作 → 类型检查 → feature mapper/query 调整 → 页面验证。HTTP API 是契约；数据库模型或 C# Contracts 项目不是浏览器依赖。
 
 generated 管线路径只有一个；不同时引入 Orval 和另一套手写 client。统一请求边界可以通过生成器 mutator 或薄调用接线实现，以实际生成验收确定方式；它负责 Authorization、signal、错误分类及 trace，不包含产品规则。传输层不依赖 React hook，也不自行跳转页面；会话层消费认证失效事件并组织重新登录。
+
+<a id="web-api-layers"></a>
+
+### 8.1 唯一调用链与结果解释
+
+```text
+页面/页签控制器
+  → feature queries / mutations
+  → Orval 生成 HTTP 操作
+  → shared/api 统一请求执行边界
+  → ASP.NET Core API
+```
+
+| 位置 | 负责 | 禁止 |
+| --- | --- | --- |
+| 页面/页签控制器 | 用户动作、编辑会话、展示状态、调用 feature 保存入口 | 手写第二套 HTTP 操作或直接解读其他模块保存协议 |
+| feature queries/mutations | 本业务结果解释、DTO 映射、回执核对/接纳、相关缓存失效 | 把草稿写入 Query 缓存、只按 HTTP 成功接纳 |
+| 生成 HTTP 操作 | Endpoint、参数、请求 DTO、响应类型 | 手工修改 generated，另写同构传输 DTO |
+| shared/api 请求执行 | 认证头、signal、网络/HTTP 状态、追踪信息 | 统一强行解包 data、吞掉 error/行失败、业务保存/跳转 |
+
+**WEB-API-01：HTTP 成功不必然是业务成功，业务外层成功也不必然是每行保存成功。** 保留 status、headers、完整正文以及网络/取消信息；裸 DTO、ServiceResult、原子整批与行级响应由各 feature 按实际契约解释。通用层不做 acceptChanges，不把所有 200 当整批成功，不分析中文 message 猜版本冲突。
+
+这条链是工程基座接线目标，尚未配置 Web 运行时 mutator。实施时选择能让生成操作委托唯一请求执行边界的接线，重新验证生成差异、状态联合类型、signal 和路径编码；不靠手改生成文件实现。读取使用统一身份范围 Query Key；提交关闭自动重试，错误和取消都不证明服务端未写入。
 
 必须保留本轮已经验证的事实：login/me 是裸 DTO，其他首批成功多为 ServiceResult；Fetch 状态联合类型不能把非 2xx 当成功。Product 过期版本是 422，而 503/OUTCOME_UNKNOWN 要保留提交意图。通用 CRUD 的外层成功与行失败不能被统一 transport 抹掉。写操作不开自动重试；Query 的默认读取重试/焦点刷新也需显式约束。[Query 默认行为](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)、[现有验收报告](Web首批接口契约验收.md)、[Orval 输出配置](https://orval.dev/docs/reference/configuration/output/)
 
@@ -263,6 +331,26 @@ SPA 回退仅处理页面导航：/api、/files 和不存在的资源不能落�
 | 跨平台 | Node 脚本不绑定 PowerShell/cmd；核对大小写、UTF-8、路径；Linux 构建需实际环境验证 |
 | 独立发布 | Web 可从本目录构建；Windows/Linux 页面回退与 API 路由区别明确；不修改既有 API 网站去托管 React |
 
+<a id="web-rule-checks"></a>
+
+### 10.1 规则与证据必须对应
+
+以下均为后续检查要求，尚未创建 ESLint/Vitest/Playwright 配置或执行这些场景。
+
+| 规则 | 必须关联的检查/测试 | 通过标准 |
+| --- | --- | --- |
+| 应用 → feature → shared；跨模块公共意图 | ESLint import 边界，加禁止引用样例核验 | shared 反向引用和 feature 深层跨模块引用确实报错 |
+| generated 唯一来源 | 锁文件安装后重新生成并检查 diff | 无未解释的手工生成差异，不回写接受漂移 |
+| WEB-EDIT-01/02 字段唯一、dirty 比较 | Form/集合测试 | 改回原值 clean；无多份可写当前值同步 |
+| WEB-TAB-01 切换保留、稳定身份 | 两个编辑标签浏览器测试 | Form/Grid 草稿与滚动保留；重复打开不重置 |
+| WEB-TAB-02 保存入口与冻结 | 活动单元格、隐藏 Form 保存浏览器测试 | 最后一个未失焦值进入请求；保存中本页只读 |
+| WEB-TAB-03 回执归原标签 | 两标签并行操作测试 | A 保存后切 B，回执只更新 A，不覆盖 B |
+| WEB-TAB-04/WEB-API-01 未知结果保留 | 断网/响应丢失/503 场景测试 | 不自动重发、不接纳/丢弃，人工核实出口可用 |
+| 权限影响已打开页与候选 | 会话/权限浏览器矩阵 | 活动/隐藏页权限撤销生效，缺候选权限不扩权 |
+| 根页面构建与联合生命周期 | Framework SPA 构建、Ant Tabs + Activity 实测 | 构建不读身份/API；实际挂载与 Effect 清理符合设计 |
+
+WEB-TAB 规则的正文只在 [多标签设计](Web多标签工作区设计.md) 维护；后续工作流与 Skills 引用规则和测试，不再复制一套不同表述。
+
 导航阻断依照 Router 官方 API 实施，浏览器关闭/刷新另用 beforeunload；两者不能互相替代。[React Router 导航阻断](https://reactrouter.com/how-to/navigation-blocking)
 
 建议后续先落地这套骨架，再实施登录和产品 feature。普通表格/表单优先直接用 Ant；SwiftDataGrid 和通用 editing 按产品真实编辑需求建立最小实现，随后用分类树和单据场景检验扩展，不先造完整 Excel 引擎。
@@ -273,4 +361,46 @@ SPA 回退仅处理页面导航：/api、/files 和不存在的资源不能落�
 
 本轮完成官方资料检索、脚手架静态比较、现有选型/契约工具核对和目录职责规划。未执行 create-react-router/create-vite、npm 安装、TypeScript/React 构建、浏览器测试、Linux 构建或部署；所有框架联合兼容性和目录实例均为后续验收目标，不是已通过证据。
 
-本轮新增本文与多标签设计，并同步原六份文档；可用性盘点保留为历史静态快照。已有 WPF/VSTO/BOM/OpenAPI 并行改动保持原样；没有新增前后端业务功能、Agent/Skill 或数据库写入。
+前一轮新增本文与多标签设计并同步原六份文档；本次审查落实只修改三份目标文档，保留历史验收结果。本次只执行文档、引用、官方资料与必要源码核对，不新增前后端业务功能或治理入口。
+
+<a id="web-authority"></a>
+
+### 11.1 权威、工作流和 Skills 的分工
+
+| 材料 | 唯一职责 |
+| --- | --- |
+| 架构决策 | 技术选择、依赖/字段所有权、调用层、规则正文；本文为总入口 |
+| 多标签设计 | 身份、活动状态、编辑会话、保存/关闭公共契约及恢复协调 |
+| 契约验收记录 | 指定日期与源码范围的后端事实/证据、未验证项；不证明 Web 已实现 |
+| AGENTS.md 与 Router | 启动、角色、读取接线、授权边界；不复制架构正文 |
+| Skill | 某类任务怎么做、复用什么、如何验收；引用规则正文 |
+| 工作流与自动检查 | 执行顺序、文件归属、最终整合验证及规则对应检查 |
+
+规则正文只维护一处。原六份资料继续提供领域细则、历史盘点和规划；本轮新增的字段所有权/调用层以本文为准，页签规则以多标签设计为准。旧 SOP/Skills 分类尚待治理接线，不能据其草案创建另一套规则。
+
+保持 **1 个入口 + 5 个执行 Skill**，按这次审查收敛职责；以下是替代旧规划分类的治理输入，英文目录名和具体文件接线在后续授权治理任务中确定。
+
+| Skill | 覆盖范围 | 必须引用 |
+| --- | --- | --- |
+| Web 任务入口 | 意图/对象判定、架构读取、必要 Skill 选择 | 根 AGENTS/Router、本文；不自动创建或委派任务 |
+| 业务模块开发 | feature、页面注册、Form、权限消费、跨模块调用 | §6/7、多标签公共契约与权限设计 |
+| API 契约接入 | schema/Orval、请求边界、Query Key、认证与错误 | §8、真实接口验收与契约细则 |
+| 编辑与批量保存 | baseline/dirty、Form/Grid、冻结、逐类回执接纳 | §7.1、编辑细则及多标签保存规则 |
+| 多标签工作区 | 身份、保活、活动状态、关闭、会话恢复 | 多标签设计；不创建控制器继承框架 |
+| 验证与交付 | 类型/依赖、测试、浏览器、构建和证据 | §10.1、测试与验收总纲、最终整合门禁 |
+
+每个正式 Skill 必须有 name/description 元数据、适用/不适用、输入、授权写入范围、必须复用入口、禁止事项及验收步骤；使用 skill-creator 校验。规划文件不是已发现的 Skill。[官方 Skills 说明](https://learn.chatgpt.com/docs/build-skills)
+
+**根目录可达门禁**：后续先在根 AGENTS/Router 接入明确的 Web 读取入口，再从仓库根目录和 Web 子目录各启动验证任务，证明都读到 Web 架构、命中 Web Skill，WPF 请求仍走既有路线。只在 SwiftExport.WebApp/AGENTS.md 写规则，不能证明根目录启动已加载该文件。[官方 AGENTS 加载范围](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+
+当前仓库治理约定仍在 .codex/skills。官方原生发现说明为从 CWD 向仓库根扫描 .agents/skills；二者必须区分。后续实测若需发现入口，提出可审查的链接/注册或迁移方案，保持一个规范源与唯一 Skill name，不维护两个副本；本轮不迁移目录，也不假称根启动已通过发现验收。
+
+<a id="web-change-control"></a>
+
+### 11.2 架构变更与并行写入门禁
+
+业务任务不得自行换 Router 模式、增加状态管理库、创建第二套 API Client、改变草稿所有权或扩大后端权限。需要改变时提交独立架构变更说明：具体失败证据、原因、选项、影响范围/调用方、兼容方式和验证计划，经用户确认后修改对应权威规则；不能把单页绕行作为新默认。
+
+并行任务采用隔离工作区或明确逐文件写入归属。共享文件同一时刻只有一个写者，接管须确认原任务停止并重读状态/diff。交付前验证最终整合版本，记录提交/工作树范围和命令结果；隔离快照通过不替代整合通过，失败不得删断言或扩大 skip。此要求沿用现有 [共享工作区治理](../.agents/references/架构治理与路由判定规则.md)。
+
+定稿顺序为：三份讨论稿规则收敛 → 按授权接入 AGENTS/工作流/Skills → 工程基座与联合兼容性验收 → 锁定实际版本/模板基线 → 业务模块开发。骨架验证页只验证既定规则；验证失败走架构变更，不让每个业务页另造机制。

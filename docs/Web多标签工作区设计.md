@@ -38,7 +38,7 @@ workspace 的页面目录负责把 pageKind 转为描述和 feature 入口。用
 
 页签栏使用 Ant Design Tabs 的受控 activeKey、editable-card、onEdit 与 items；隐藏默认新增按钮，由菜单/业务动作打开页面。保持隐藏内容，首次激活才载入，不让切换直接销毁标签。[Ant Design Tabs](https://ant.design/components/tabs/)
 
-建议选用支持稳定 Activity 的 React 19 版本。React Activity 在隐藏时保留状态/DOM，同时清理 Effects，恢复显示后重新建立 Effects；它提供生命周期机制，不替代页签身份和业务保存协议。[React Activity](https://react.dev/reference/react/Activity)
+采用支持稳定 Activity 的 React 19.2 或后续兼容稳定版本作为候选，精确版本须联合验收后锁定。React Activity 在隐藏时保留状态/DOM，同时清理 Effects，恢复显示后重新建立 Effects；它提供生命周期机制，不替代页签身份和业务保存协议。[React Activity](https://react.dev/reference/react/Activity)
 
 **实施门禁**：Ant Tabs + Activity + Ant Form/弹层 + Query 的组合需实际浏览器验证。本轮未实测，不声称仅设置 destroyOnHidden=false 就完成 ERP 标签保活。Ant 的生命周期配置与 Activity 的职责不同，必须保留稳定 tabId 和首次访问状态，并测试实际挂载/卸载次数。
 
@@ -57,6 +57,10 @@ flowchart TD
 
 此图是组件职责蓝图。每个真实标签都有自己的控制器实例；隐藏改变展示树生命周期，关闭才移除该页签实例。
 
+**页签控制器的定义**：每个 tabId 对应一个 feature 编辑会话，由组件与 hooks 实现，持有基线/版本、Form 实例或编辑集合、保存快照/状态及关闭契约。Form/集合的当前值所有权遵循 [字段唯一来源](Web客户端架构与脚手架决策.md#web-field-owner)，控制器不另存同字段当前值副本。不创建 BaseController → EditableController 的继承框架，不照搬 WPF ViewModelBase。
+
+**WEB-TAB-01：稳定实例与显式活动状态。** Workspace 向控制器提供 isActive。Activity 外的 Query、轮询和搜索防抖不会随内部展示 Effects 自动清理，必须根据 isActive 与权限显式 enabled/停止调度；隐藏时放弃过期读取回写，恢复按 stale/dirty 策略处理。是否取消正在读取的请求按查询策略决定，不能取消已经发出的保存。Activity 只管理内部展示生命周期。[React Activity 生命周期边界](https://react.dev/reference/react/Activity)
+
 ## 5. Workspace 与业务模块的职责
 
 | 对象 | 拥有 | 不拥有 |
@@ -72,6 +76,27 @@ Workspace 只接收状态摘要和必要回调，不保存所有页面的完整 
 
 关闭注册/状态摘要由实际 tabId 生命周期管理：Activity 的隐藏清理不能使关闭守卫失效。清除 callback、释放资源只发生在真正关闭/身份销毁时；隐藏时的 UI 订阅清理由展示层负责。这一点必须覆盖隐藏 dirty 标签的关闭测试。
 
+<a id="workspace-contract"></a>
+
+### 5.1 公共契约的必需语义
+
+以下定义契约内容，尚未创建 TypeScript 接口或运行时 registry。实现文件归 shared/workspace；app 负责注入/组合，feature 只依赖该公共契约。
+
+| 方向 | 内容 | 行为约束 |
+| --- | --- | --- |
+| Workspace → feature | 只读 descriptor：tabId、pageKind、类型化 params、business identity；isActive | descriptor 标识本页，隐藏页不改读活动 URL；参数由页面目录校验 |
+| Workspace → feature | open/activate 公共导航意图 | 页面目录检查权限和去重；feature 不导入目标页面/工作区 reducer |
+| feature → Workspace | dirty、saving、unknown 摘要及必要状态说明 | 不上传 DTO/字段值；摘要来自当前编辑会话，不由宿主推导业务成功 |
+| Workspace → feature | requestSave、requestDiscard、canClose | 命令只针对指定 tabId；全部保存复用同一 feature 保存入口 |
+| feature → Workspace | saved / unsaved / failed / unknown | saved 仅在确认回执已接纳且 dirty=false；unsaved 表示仍需处理，不允许关闭 |
+| feature → Workspace | 关闭许可或阻断原因 | saving/unknown 阻断普通关闭；discard 不得绕过未知结果恢复 |
+
+requestSave 是异步的：saved → 重新检查该页摘要/权限后关闭；unsaved/failed → 激活目标页并显示可处理错误，停止该轮批量关闭；unknown → 进入恢复入口，停止普通关闭。等待期间拒绝对同一 tabId 发第二次保存/放弃，关闭协调不能以请求已完成或 HTTP 200 代替 saved。Workspace 不解析 Product BatchSave；feature 不操作 Workspace 内部 reducer。
+
+canClose 只查询 allowed/blocked 及原因，不触发保存或放弃。requestDiscard 仅在非 saving/unknown 且用户确认后恢复基线，返回 discarded/cancelled/blocked；只有 discarded 且 dirty=false 才可普通关闭。结果未知的人工终止由下文专用恢复动作返回 manualTerminated 与保全记录标识，只供该次明确确认的关闭分支使用，不把它转换为 saved/clean，也不让批量关闭自动调用。
+
+注册与回调依稳定 tabId 生命周期保持，状态取最新会话值，不能闭包捕获初始 dirty/旧 Form。真正关闭才注销；换身份清理遵守会话隔离规则。接口的失败/取消只报告事实，不推断后台已回滚。
+
 ## 6. 切换、关闭与保存规则
 
 | 场景 | 首期行为 |
@@ -81,6 +106,7 @@ Workspace 只接收状态摘要和必要回调，不保存所有页面的完整 
 | 关闭 dirty 标签 | 保存 / 放弃 / 取消；保存成功且回执已接纳后才关闭；失败停留 |
 | 关闭只读或无保存用例的 dirty 状态 | 不承诺通用自动保存；提供符合该页面能力的放弃/取消与原因 |
 | 保存期间切换 | 可以切换；原标签仍负责回执、状态提示与缓存失效，不能因失活取消写入 |
+| 保存期间本页编辑 | 业务编辑区只读；阻止输入、粘贴、填充、增删行及会改动保存字段的操作；其他标签可编辑 |
 | 保存期间关闭/批量关闭 | 阻止关闭，提示等待结果；不得取消请求后假称服务端未提交 |
 | 结果未知 | 保留冻结输入与已有 CommandId，阻止普通关闭；提供该用例允许的核实/恢复流程 |
 | 关闭其他/全部 | 先汇总 dirty/pending/unknown，逐项处理；取消或失败停止，不强制删除剩余状态 |
@@ -88,13 +114,41 @@ Workspace 只接收状态摘要和必要回调，不保存所有页面的完整 
 | 草稿期间筛选/分页/刷新本页 | 本页确认保存/放弃/取消；与单纯标签切换区别处理 |
 | 页面离开工作区/主动登出 | 汇总所有标签，不仅活动标签；未处理保存/未知状态前不得假称可以安全退出 |
 
+<a id="workspace-save"></a>
+
+### 6.1 唯一保存入口、隐藏校验与编辑冻结
+
+**WEB-TAB-02：工具栏保存、关闭时保存、关闭其他/全部时保存，均调用同一 feature 保存入口。** 首期对隐藏页统一先激活并等待展示就绪，再提交活动单元格缓冲（包括尚未失焦的输入），校验 Form/编辑集合及本次操作权限，最后从权威当前值生成不可变冻结请求。校验失败定位该页字段，不发送请求，不继续批量关闭。展示就绪通过显式生命周期握手处理，不靠任意 setTimeout 猜测 Form 已挂载。
+
+同一会话锁从准备/校验至回执接纳完成，拒绝重入及修改保存字段。保存期间允许切换和操作其他标签；本页业务编辑区保持只读，接纳已确认回执后才恢复编辑。明确拒绝保留草稿并解除提交锁；结果未知按下文保留冻结输入和恢复限制。不能接纳请求 A 时顺带清除用户后改的 B；首期不支持保存期间继续编辑。以后要支持须另提 revision/后续 patch 合并设计。
+
+**WEB-TAB-03：回执绑定发起时的 tabId、编辑会话和提交尝试。** 已派发请求不因 isActive 变化取消，回执只更新原控制器；失活标签更新摘要，错误定位先激活目标，不能写入“当前活动标签”或重复弹窗。会话销毁/换用户时拒绝回写到新会话，取消客户端接收不等于服务端回滚，仍须保留必要核实信息。
+
 Product 原子批量保存仅整批确认成功后接纳；当前 stale Version 为 422/BUSINESS_BLOCKED。专用单据命令按实际 CommandId/Version/回执处理。Workspace 不解析各业务响应，也不发明一个“所有页签通用 saveAll”事务。
+
+<a id="workspace-recovery"></a>
+
+### 6.2 结果未知的恢复与人工退出
+
+**WEB-TAB-04：未知结果不自动重发、不接纳、不普通放弃；必须有可达恢复出口。** feature 按真实后端能力选择流程，Workspace 只展示状态并协调激活/关闭。
+
+| 后端能力 | 可执行恢复路径 | 解除限制的条件 |
+| --- | --- | --- |
+| 已有 CommandId 和结果查询协议 | 保留原 CommandId/冻结内容；按协议查询或核实，若允许重放也只复用同一意图 | 完整确认成功并接纳，或确认未生效后保留草稿解除冻结；结果仍未知则继续核实 |
+| 没有结果查询协议（当前 Product BatchSave） | 保存请求/时间/实体版本/ClientKey/追踪信息；独立读回、逐项比较，必要时由有权限的业务人员按现有运维渠道核实 | 全批结果有充分证据才接纳；确认未生效才解冻保留草稿；读回不足或部分无法确认走人工处理 |
+| 只有客户端 attemptId | 仅关联本地尝试和诊断；配合上一行流程 | 不作为服务器幂等键、结果查询凭证或安全重试依据 |
+
+独立读回不能 reset 当前草稿，也不能仅凭某行值相等推断整批成功；新建行无可确认身份或读权不足时，明确交由有权限人员核实，不自动重复新增或临时扩权。保全材料不得包含 token/密码，只由同一用户或合法授权人员按业务权限查看；首期仍不自动将完整草稿持久化到浏览器磁盘。
+
+人工处理入口至少提供：查看本次冻结内容与追踪信息、再次只读核实、记录核实结论，以及明确的“终止本地恢复并关闭”操作。后者要求先保全必要记录，再由用户确认本地草稿将释放、服务端结果仍未确认且不得据此重发；记为人工终止，不标 clean/saved，不模拟 rollback。普通关闭/全部关闭不能调用这一分支。若当前业务环境没有足够核实渠道，页面应说明需谁介入并保留证据，不能只给永久禁用的关闭按钮。
+
+当前 Product 422/BUSINESS_BLOCKED 按业务拒绝保留草稿并显示消息，不解析中文 message 判定版本冲突，也不据其文案断言回滚成功。该 code 未覆盖所有未确认回滚分支；任何写入失败都可进入人工核实，专用冲突 UX 和更完整未知分类须先有稳定机器可读契约。实际能力/缺口见 [产品恢复前提](Web首批接口契约验收.md#product-recovery)。
 
 useBlocker 用于离开工作区的 SPA 导航，不能覆盖普通窗口关闭/刷新，也不能替代内置标签关闭守卫；beforeunload 只提供浏览器有限离开提示。[React Router useBlocker](https://reactrouter.com/api/hooks/useBlocker)
 
 ## 7. 失活、权限与会话
 
-失活后暂停仅用于当前显示的自动刷新、搜索防抖、订阅和弹层；恢复时按 stale 与 dirty 策略决定重读，不能无条件 reset 草稿。实际 Query enabled/cancellation 边界要验证，不能仅依赖 CSS 隐藏。停止读取不等于取消数据库事务，关闭浏览器也不等于回滚。
+失活查询按 WEB-TAB-01 的 isActive 接线；显示订阅/弹层在 Activity 内清理，外部 Query/防抖显式控制，恢复不能无条件 reset 草稿。停止读取不等于取消数据库事务，关闭浏览器也不等于回滚。
 
 已经发送的保存操作不在 UI 隐藏清理中 abort。保存完成的状态与错误写回原 tabId 的控制器，不写入“当前活动页”。同一保存结果只展示一次；非活动标签先更新标记/摘要，不弹出会打断另一页输入的强制窗口。
 
@@ -138,5 +192,10 @@ app/
 8. 前进/后退与直接 URL 打开只影响目标定位，不重建整套标签；非法参数与无权限被拒绝。
 9. 401 同用户恢复与换用户清理分别验证；已打开标签的权限撤销生效。
 10. 离开工作区和刷新按所有标签汇总；原生提示不被误称为持久化或事务保证。
+11. 隐藏页关闭时保存先激活等待 Form 就绪；Grid 最后一个未失焦值进入请求，校验错误定位原标签。
+12. 同页保存准备/请求/接纳期间不能输入、粘贴、填充或增删；可切换编辑 B，A 的回执不覆盖 B。
+13. Activity 外的读取确实受 isActive/权限控制；隐藏清理不注销守卫、不取消已发送保存，恢复无重复订阅。
+14. 未知提交没有自动重试；有/无 CommandId 两种恢复分别验证，读回不足保持未知，人工终止有记录和明确确认。
+15. Form/集合改回原值即 clean；控制器不保留第二份字段当前值，展示恢复不覆盖草稿。
 
 其中 reducer/身份/关闭协调用单元测试，Activity/Ant Form/焦点/滚动/地址和请求行为用 Playwright 实际验证。首期骨架必须先用两个带可编辑输入的验证标签证明状态保留，再开发产品业务；这两个验证标签不伪造后端能力，也不成为长期业务示例库。

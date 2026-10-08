@@ -1,0 +1,6 @@
+﻿RootThumbprint=78C89519F2F84B0595F1E769BD6084C4768C26D7
+ServerThumbprint=FDB0AEEBB495F796BCD43E035506645E79847462
+ServerIp=192.168.3.12
+Expires=2027-09-26T16:42:27.0000000+08:00
+续签在持有根私钥的管理员电脑执行，复用 RootThumbprint；不要重新创建根。
+根私钥不可导出，请保护此管理环境；环境丢失后需换根并重新部署客户端信任。

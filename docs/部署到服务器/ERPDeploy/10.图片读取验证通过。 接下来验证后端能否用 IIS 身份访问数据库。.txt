@@ -1,0 +1,26 @@
+**图片读取验证通过。** 接下来验证后端能否用 IIS 身份访问数据库。
+
+我们先用一个虚构账号请求登录，不需要输入真实密码。在**服务器 PowerShell** 执行：
+
+```powershell
+$body = @{
+    userName = "__deployment_probe__"
+    password = "not-a-real-password"
+} | ConvertTo-Json
+
+try {
+    Invoke-RestMethod `
+        -Uri "http://127.0.0.1:5080/api/auth/login" `
+        -Method Post `
+        -ContentType "application/json" `
+        -Body $body
+}
+catch {
+    Write-Host $_.Exception.Message
+    Write-Host $_.ErrorDetails.Message
+}
+```
+
+**预期返回 `401`，并提示“用户名或密码错误”。** 我已核对源码：这个请求会先查询数据库，再判断账号，因此该响应能验证数据库连接和用户表读取正常，不会创建账号。
+
+如果返回 `500`，我们再查看服务器日志定位。把执行结果贴给我即可。

@@ -1,0 +1,13 @@
+现在把服务器的：
+D:\ERPDeploy\Certificates\Root.cer
+复制到开发电脑，例如 D:\Downloads\Root.cer。然后在开发电脑的管理员 PowerShell 中执行：
+Import-Certificate `
+    -FilePath "D:\Downloads\Root.cer" `
+    -CertStoreLocation "Cert:\LocalMachine\Root"
+只复制 Root.cer，不用复制 Server.pfx。
+完成后关闭并重新打开浏览器，再访问上面的 HTTPS 地址。如果仍有提示，把地址栏中的完整地址和提示文字发给我，我们判断是地址输错还是证书信任问题。
+
+
+成功后，重新打开浏览器访问：
+https://192.168.3.12/files/ProductImages/test.jpg
+这次应当可以正常显示图片，不再提示证书不受信任。

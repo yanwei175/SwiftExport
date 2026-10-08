@@ -1,9 +1,15 @@
 using Serilog;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using SwiftExport.WebApi.Configuration;
 
+// Windows 服务的工作目录可能是 System32；配置、宿主内容和日志须统一定位到程序目录。
+// 普通运行保留原有工作目录语义，兼容 Visual Studio 和现有 IIS 启动方式。
+var contentRoot = WindowsServiceHelpers.IsWindowsService()
+    ? AppContext.BaseDirectory
+    : Directory.GetCurrentDirectory();
 // 1. 读取配置文件
 var configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
+    .SetBasePath(contentRoot)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
     .Build();
@@ -16,7 +22,7 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(configuration) // ★ 这里的关键，读取 appsettings.json 的配 置
     .Enrich.FromLogContext()
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} <s:{SourceContext}>{NewLine}{Exception}")
-    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30,
+    .WriteTo.File(Path.Combine(contentRoot, "Logs/log-.txt"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30,
         outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
     .CreateLogger();
 
@@ -32,7 +38,13 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     Log.Information("SwiftExport 后端 Web API 启动中...");
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = contentRoot
+    });
+    // 仅被 Windows 服务管理器启动时接管服务生命周期；控制台、IIS 和 Linux 继续使用原宿主生命周期。
+    builder.Host.UseWindowsService(options => options.ServiceName = "SwiftExport_WebApi");
 
     // ══════════════════════════════════════════════════════
     // 生产安全检查：禁止生产环境使用 DevUser（防裸奔）

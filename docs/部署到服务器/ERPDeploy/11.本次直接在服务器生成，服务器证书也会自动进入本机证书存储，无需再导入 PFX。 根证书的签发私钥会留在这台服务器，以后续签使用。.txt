@@ -1,0 +1,28 @@
+在服务器的**管理员 PowerShell** 中，先执行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+```
+
+再执行证书生成脚本：
+
+```powershell
+& "D:\ERPDeploy\创建内网证书.ps1" `
+    -ServerIp "192.168.3.12" `
+    -OutputDirectory "D:\ERPDeploy\Certificates" `
+    -CreateRoot
+```
+
+它会提示你设置 **`Server.pfx` 导出密码**。自行设置并妥善保存，不需要发给我。
+
+成功后会生成：
+
+| 文件 | 用途 |
+|---|---|
+| `Root.cer` | 给客户端安装，用来信任我们的内部证书 |
+| `Server.pfx` | 带私钥的服务器证书，只供服务器使用 |
+| `证书信息.txt` | 记录证书指纹及有效期，可以发给我 |
+
+**本次直接在服务器生成，服务器证书也会自动进入本机证书存储，无需再导入 PFX。** 根证书的签发私钥会留在这台服务器，以后续签使用。
+
+执行完成后，把终端结果和 `证书信息.txt` 的内容发给我。不要发送 `Server.pfx` 或密码。

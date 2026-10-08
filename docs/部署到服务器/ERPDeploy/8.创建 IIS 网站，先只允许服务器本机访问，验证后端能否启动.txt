@@ -1,0 +1,26 @@
+下一步**创建 IIS 网站，先只允许服务器本机访问，验证后端能否启动**。
+
+在服务器的管理员 PowerShell 中执行：
+
+```powershell
+Import-Module WebAdministration
+
+New-Website `
+    -Name "SwiftExport_WebApi" `
+    -PhysicalPath "D:\Apps\SwiftExport_WebApi" `
+    -ApplicationPool "SwiftExport_WebApi" `
+    -IPAddress "127.0.0.1" `
+    -Port 5080
+```
+
+这里先用本机 `5080` 端口，不需要开放防火墙。后面配置 HTTPS 时再提供内网访问。
+
+然后执行下面的检查：
+
+```powershell
+curl.exe -i http://127.0.0.1:5080/
+```
+
+**把输出贴给我。**
+
+目前没有首页，生产环境也没有开启 Swagger，所以返回 **404 并带有项目的 JSON 错误响应**是合理结果，说明请求已经进入后端；如果返回 `500.19`、`500.30` 等 IIS 错误，我们就根据具体信息处理。这一步只验证启动，数据库连接稍后单独验证。

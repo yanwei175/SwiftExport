@@ -38,8 +38,8 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        // 旧表头映射的四个写端点已退役，保留其余端点的逐项权限检查。
-        Assert.AreEqual(235, routes.Count);
+        // 旧表头映射的四个写端点已退役，流量管理新增五个端点；保留逐项权限检查。
+        Assert.AreEqual(240, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.DeleteAsync"]);

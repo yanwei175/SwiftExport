@@ -1,0 +1,38 @@
+好，接下来**重启 IIS，让它加载刚安装的托管模块**。这只重启 Web 服务，不会重启服务器或 SQL Server。
+
+在服务器的**管理员 PowerShell** 中依次执行：
+
+```powershell
+
+net stop was /y
+net start w3svc
+
+```
+
+然后检查运行环境：
+
+```powershell
+
+dotnet --list-runtimes
+
+```
+
+正常应该包含下面两项，补丁版本以实际安装为准：
+
+```text
+
+Microsoft.AspNetCore.App 10.0.x
+Microsoft.NETCore.App 10.0.x
+
+```
+
+再检查 IIS 托管模块：
+
+```powershell
+
+Import-Module WebAdministration
+Get-WebGlobalModule -Name AspNetCoreModuleV2
+
+```
+
+**把运行时列表和模块检查结果贴给我。** 确认后，我们就发布项目，并配置后端连接 `dv_next` 数据库。

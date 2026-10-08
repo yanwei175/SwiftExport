@@ -34,6 +34,18 @@
 | GET `api/quality-control/after-sales/{uid:guid}` | GetAsync | `Task<ServiceResult<AfterSalesDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/QualityControl/AfterSales/Query/AfterSalesQueryController.cs:19) |
 | GET `api/quality-control/after-sales/lookups/{kind}` | LookupAsync | `Task<ServiceResult<PagedResponseBase<AfterSalesLookupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/QualityControl/AfterSales/Query/AfterSalesQueryController.cs:23) |
 
+## FlowController（2026-10-08新增）
+
+流量测试组接口详情见[后端使用说明](QualityControl/FlowManagement/BackendGuide.md)，共享契约见[IFlowApi](../SwiftExport.Contracts/Apis/QualityControl/FlowManagement/IFlowApi.cs)。
+
+| HTTP及路由 | 动作 | 返回契约 | 源码 |
+| --- | --- | --- | --- |
+| POST `api/quality-control/flows/search` | GetPagedAsync | `ServiceResult<PagedResponseBase<FlowListItemDto>>` | [流量控制器](../SwiftExport.WebApi/Controllers/QualityControl/FlowManagement/FlowController.cs) |
+| GET `api/quality-control/flows/{id:guid}` | GetByIdAsync | `ServiceResult<FlowDetailDto>` | [流量控制器](../SwiftExport.WebApi/Controllers/QualityControl/FlowManagement/FlowController.cs) |
+| POST `api/quality-control/flows` | CreateAsync | `ServiceResult<FlowSaveResponse>` | [流量控制器](../SwiftExport.WebApi/Controllers/QualityControl/FlowManagement/FlowController.cs) |
+| PUT `api/quality-control/flows/{id:guid}` | UpdateAsync | `ServiceResult<FlowSaveResponse>` | [流量控制器](../SwiftExport.WebApi/Controllers/QualityControl/FlowManagement/FlowController.cs) |
+| DELETE `api/quality-control/flows/{id:guid}` | DeleteAsync | `ServiceResult<SaveItemResult>` | [流量控制器](../SwiftExport.WebApi/Controllers/QualityControl/FlowManagement/FlowController.cs) |
+
 ## AuthController
 
 | HTTP及路由 | 动作 | 返回契约 | 源码 |

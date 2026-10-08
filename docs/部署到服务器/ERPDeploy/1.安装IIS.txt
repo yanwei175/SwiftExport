@@ -1,0 +1,2 @@
+管理员 PowerShell 中执行：
+Install-WindowsFeature Web-Server, Web-Mgmt-Console, Web-Scripting-Tools -IncludeManagementTools

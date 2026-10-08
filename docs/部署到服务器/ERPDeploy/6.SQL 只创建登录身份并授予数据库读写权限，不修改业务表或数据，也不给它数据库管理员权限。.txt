@@ -1,0 +1,42 @@
+**文件夹权限设置成功。** 下一步给后端运行身份访问 `dv_next` 的权限。
+
+在**服务器上打开 SSMS**，使用 Windows 身份验证连接 `localhost`，点击“新建查询”，粘贴并执行：
+
+```sql
+USE [master];
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.server_principals
+    WHERE name = N'IIS APPPOOL\SwiftExport_WebApi'
+)
+BEGIN
+    CREATE LOGIN [IIS APPPOOL\SwiftExport_WebApi]
+        FROM WINDOWS;
+END;
+GO
+
+USE [dv_next];
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.database_principals
+    WHERE name = N'IIS APPPOOL\SwiftExport_WebApi'
+)
+BEGIN
+    CREATE USER [IIS APPPOOL\SwiftExport_WebApi]
+        FOR LOGIN [IIS APPPOOL\SwiftExport_WebApi];
+END;
+GO
+
+ALTER ROLE [db_datareader]
+    ADD MEMBER [IIS APPPOOL\SwiftExport_WebApi];
+
+ALTER ROLE [db_datawriter]
+    ADD MEMBER [IIS APPPOOL\SwiftExport_WebApi];
+GO
+```
+
+这段 SQL **只创建登录身份并授予数据库读写权限，不修改业务表或数据**，也不给它数据库管理员权限。
+
+执行后把结果告诉我。然后我们填写服务器配置，让后端使用这个 Windows 身份连接数据库。

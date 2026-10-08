@@ -1,0 +1,43 @@
+接下来在服务器上创建后端的**独立运行身份**。IIS 中叫“应用程序池”，后面数据库权限也授予这个身份。
+
+在服务器的**管理员 PowerShell** 中执行：
+
+```powershell
+Import-Module WebAdministration
+
+New-WebAppPool -Name "SwiftExport_WebApi"
+
+Set-ItemProperty "IIS:\AppPools\SwiftExport_WebApi" `
+    -Name managedRuntimeVersion -Value ""
+
+Set-ItemProperty "IIS:\AppPools\SwiftExport_WebApi" `
+    -Name processModel.identityType -Value 4
+```
+
+这里设置“无托管代码”是正常的：我们的 .NET 10 后端由刚安装的 Hosting Bundle 托管。
+
+再赋予它读取程序、写入日志和读取图片的权限：
+
+最后一行少了结尾的英文双引号 `"`，所以 PowerShell 显示 `>>`，等待你继续输入。
+
+再把下面三条**逐条复制执行**：
+
+```powershell
+New-Item -ItemType Directory -Path "D:\Apps\SwiftExport_WebApi\Logs" -Force
+```
+
+```powershell
+icacls "D:\Apps\SwiftExport_WebApi" /grant "IIS AppPool\SwiftExport_WebApi:(OI)(CI)RX"
+```
+
+```powershell
+icacls "D:\Apps\SwiftExport_WebApi\Logs" /grant "IIS AppPool\SwiftExport_WebApi:(OI)(CI)M"
+```
+
+最后执行图片目录权限：
+
+```powershell
+icacls "D:\ERPFiles\ProductImages" /grant "IIS AppPool\SwiftExport_WebApi:(OI)(CI)RX"
+```
+
+应用程序池已经创建成功，**前面的创建命令不用重跑**。
