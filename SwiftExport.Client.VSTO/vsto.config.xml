@@ -1,2 +1,2 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Vsto><ApiBaseUrl>https://localhost:7286</ApiBaseUrl></Vsto>
+<Vsto><ApiBaseUrl>https://192.168.3.12</ApiBaseUrl></Vsto>

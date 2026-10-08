@@ -8,7 +8,6 @@
         <ResourceDictionary Source="Colors.xaml"/>
         <ResourceDictionary Source="Variables.xaml"/>
         <ResourceDictionary Source="UserWpfUiThemeResources.xaml"/>
-        <ResourceDictionary Source="Typography.xaml"/>
         <ResourceDictionary Source="Borders.xaml"/>
         <ResourceDictionary Source="Button.xaml"/>
         <ResourceDictionary Source="ContextMenu.xaml"/>
@@ -20,7 +19,7 @@
         <ResourceDictionary Source="DataGrid.xaml"/>
         <ResourceDictionary Source="TabControl.xaml"/>
         <ResourceDictionary Source="Image.xaml"/>
+        <!-- 部分控件字典重新合并官方文字样式，统一字体必须在它们之后生效。 -->
+        <ResourceDictionary Source="Typography.xaml"/>
     </ResourceDictionary.MergedDictionaries>
-    
-    <FontFamily x:Key="UserFontOrder">Microsoft YaHei, Segoe UI, Arial, sans-serif</FontFamily>
 </ResourceDictionary>

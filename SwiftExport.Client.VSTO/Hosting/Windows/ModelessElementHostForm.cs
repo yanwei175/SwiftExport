@@ -34,10 +34,13 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
         /// <summary>当前承载的 WPF 页面；关闭确认只读取该实例，不重新解析依赖。</summary>
         public UIElement Content { get { return host.Child; } }
 
-        /// <summary>将已从页面 Scope 创建的 WPF 内容装入窗体。</summary>
+        /// <summary>为页面绑定统一字体，再将已从 Scope 创建的 WPF 内容装入窗体。</summary>
         public void LoadWpfUI(UIElement content)
         {
             if (IsDisposed || Disposing) throw new ObjectDisposedException(nameof(ModelessElementHostForm));
+            // 只统一字体族，保留页面的字号、字重及 WPF-UI 控件模板。
+            if (content is System.Windows.FrameworkElement element)
+                element.SetResourceReference(System.Windows.Documents.TextElement.FontFamilyProperty, "SwiftExportFont");
             host.Child = content ?? throw new ArgumentNullException(nameof(content));
         }
 

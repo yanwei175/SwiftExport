@@ -55,15 +55,15 @@ Swagger 路径沿用现有小写路由配置。POST 发布本轮验收的 `appli
 
 ## 产品批量保存的实际边界
 
-真实 `ProductMaintenanceService` 使用最外层 Serializable 事务，对整批校验及写入。失败回滚后不回传可接纳的部分成功行；成功才返回完整整批回执。外层 Uid/Version 驱动写入，不能用 Data.Version 覆盖外层版本。
+真实 `ProductMaintenanceService` 使用最外层 Serializable 事务，对整批校验及写入。失败不回传可接纳的部分成功行；成功才返回完整整批回执。失败出口能否机器确认未生效见下文门槛，不能由“整批原子”推断所有失败均已确认回滚。外层 Uid/Version 驱动写入，不能用 Data.Version 覆盖外层版本。
 
 | 场景 | 当前语义与证据 |
 | --- | --- |
 | HTTP 空批次/损坏 JSON/错误 Guid | 400 VALIDATION，业务端口未调用 |
 | 缺任一操作权限 | 403 FORBIDDEN，业务端口未调用 |
-| 实际产品外层版本过期、业务校验或写入拒绝 | 服务失败、data=null；当前归为 BUSINESS_BLOCKED，映射 422；补充断言并沿用事务夹具验证 |
+| 实际产品外层版本过期、业务校验或写入拒绝 | 服务失败、data=null；当前归为 BUSINESS_BLOCKED，映射 422；补充断言并沿用事务夹具验证。业务拒绝展示不能证明所有同 code 分支未生效 |
 | 完整成功 | 200、ServiceResult.success=true、整批 allSucceeded；保存后以 ClientKey/Uid/Version 回执核对草稿 |
-| 序列化失败/可判定的事务失败 | SERVICE_UNAVAILABLE，503；不自动重试 |
+| 已分类的序列化终止 | SERVICE_UNAVAILABLE，503；事务夹具覆盖读取/写入/提交阶段及清理故障，不自动重试；不把其他 503 一并视为已确认未生效 |
 | 提交结果无法确认 | OUTCOME_UNKNOWN，503；需核实，不能直接接纳草稿或再次提交 |
 | 泛型服务行失败 | 可能仍为 HTTP 200、外层 success=true，行 success=false/code=CONCURRENCY_CONFLICT；已有 Customer 服务与 HTTP 回归测试保留此约定 |
 
@@ -75,18 +75,32 @@ HTTP 测试注入 VERSION_CONFLICT 验证全局 409 映射，只证明已有错�
 
 ## 后续产品接入的恢复与错误门槛（2026-10-08 补充，未验收）
 
-未知恢复的规则正文统一见 [WEB-TAB-04 恢复与人工退出](Web多标签工作区设计.md#workspace-recovery)。按已有 CommandId/结果查询协议、无查询协议、仅本地 attemptId 三类能力选择，不给所有业务加 GUID 就宣称幂等。本节只明确当前 Product 的接入条件。
+提交分类与解锁的规则正文见 [WEB-TAB-02/03 保存契约](Web多标签工作区设计.md#workspace-save)，未知恢复与记录导出见 [WEB-TAB-04 恢复与人工退出](Web多标签工作区设计.md#workspace-recovery)。本节只记录当前 Product 的证据、保守接入规则及缺口，不把待实施规则写成后端已具备的能力。
 
 | 能力/缺口 | Product 当前事实 | 前端必须实现与验证 |
 | --- | --- | --- |
 | 冻结请求与追踪 | BatchSave 无业务 CommandId/幂等键；X-Correlation-ID 用于追踪 | 保留提交时间、完整冻结意图、ClientKey/Uid/基线 Version 和追踪头；attemptId 只作本地关联 |
 | 结果核实 | 没有专用保存结果查询协议 | 用现有授权读取独立核对；读回不 reset 草稿，不凭部分行相等接纳全批 |
 | 无法机器核实 | 新建行身份、部分回执、读权不足可能使读回不充分 | 有权限业务人员按现有业务/运维渠道核实；保全记录，明确结论及责任人，不扩权或自动重发 |
-| 人工退出 | 当前尚未开发 Web 恢复 UI | 必须有保全记录、明确确认的人工终止出口；释放本地页签不标保存成功、不宣称后台已回滚 |
-| 版本拒绝 | 422/BUSINESS_BLOCKED 无专用版本冲突标识 | 按业务拒绝保留草稿、显示信息；不分析中文 message 猜冲突，不提供假定精确识别的冲突合并界面 |
-| 未确认回滚分类不完整 | 部分分支仍是 BUSINESS_BLOCKED/UNEXPECTED | 所有写失败提供核实入口，不能从 status/code 单独断言绝无写入；更完整分类作为独立后端契约需求 |
+| 人工退出 | 当前尚未开发 Web 恢复 UI/导出 | 按 WEB-TAB-04 实施用户主动、当前权限允许的记录导出及两步确认；未保全/无权限/取消不终止，批量关闭不调用；本地释放不表示服务器失败 |
+| 版本拒绝 | 422/BUSINESS_BLOCKED 无专用版本冲突标识 | 展示业务拒绝并保留草稿；不能解析中文 message 区分冲突，也不能据此归为 B 类或解锁重提 |
+| 未确认回滚分类不完整 | 校验/行写入失败的 BUSINESS_BLOCKED，以及一般异常的 UNEXPECTED，在回滚确认与未确认分支使用相同 code；只在 message 有差异 | 已派发 Product 请求收到 422/BUSINESS_BLOCKED 或 500/UNEXPECTED，当前一律按 C 类保留冻结请求和锁，进入核实；即使文案称已回滚，也不 acceptChanges、不普通放弃、不自动或默认允许重提。取得满足 A/B 的独立证据后才接纳/解锁 |
 
-真实 OUTCOME_UNKNOWN、请求已发出后网络无响应、无法接纳的回执须进入恢复限制，不 accept/reject 或盲重发。400/403 的宿主短路证据限定于已测场景；普通 422 按业务拒绝处理也不等于确认数据库回滚。专用冲突处理和自动恢复功能只有稳定机器协议及定向验证后才能承诺。
+上述差异可定向核对 [ProductMaintenanceService.BatchSaveAsync](../SwiftExport.Application/Services/Products/Catalog/Maintenance/ProductMaintenanceService.cs)、[事务夹具](../SwiftExport.Application.Tests/MasterData/ProductBomSaveBoundaryTests.cs) 和 [首批 HTTP 测试](../SwiftExport.Application.Tests/WebApi/首批WebHttp契约测试.cs)。这是源码/既有测试断言的只读核对，没有重跑测试，也不证明当前整合或 PostgreSQL 实测通过。BUSINESS_BLOCKED 还包含派发后无法从响应辨识的事务前拒绝；不能用“这次可能尚未写入”替代可靠分类。
+
+**产品真实写入接入前的独立后端契约门槛（未完成）**：提供稳定机器可读语义，能区分本次确认未生效与未确认回滚/提交结果，并覆盖校验、行写失败、一般异常及提交/清理故障组合；专用版本冲突 UX 另需稳定冲突标识。须同步端点契约并完成定向 HTTP、事务及隔离 PostgreSQL 验收，前端再核验完整回执/恢复行为。本轮不指定错误码或 DTO 的实现形式，不修改事务、权限或命令管道。没有 CommandId/结果查询协议的现状仍然保留，不将新增命令管道作为本轮任务。
+
+| 分类验收场景 | 后续通过要求与当前证据边界 |
+| --- | --- |
+| 确认未发送 | 派发前转换/校验失败或明确未执行发送：B 类，保留包括无效缓冲的输入，解除准备锁，实际请求数为零；网络错误/取消/超时本身不作未发送证据 |
+| 已验证短路拒绝 | 仅已测 Product 空批次/损坏 JSON/错误 Guid 的 400/VALIDATION，以及缺操作权限的 403/FORBIDDEN，宿主证明业务端口未调用；feature 核对具体契约后可按 B 类。不能推广到任意端点或同状态码其他场景，权限未恢复仍禁止提交 |
+| 无法确认的业务失败 | 当前 Product BUSINESS_BLOCKED/UNEXPECTED 按 C 类，即使展示“业务拒绝”也保留锁；后端门槛须验证回滚确认/未确认可机器区分，而非读取中文 message |
+| 序列化终止 | Product SERVICE_UNAVAILABLE 的具体序列化分支有内存夹具断言支持未提交；按 B 类接入前补定向 HTTP/实际 PG 分类及未生效证据。不满足已验证具体契约时按 C 类，不以 503 统一解锁 |
+| 响应丢失/未知结果 | 请求已发出无可靠响应、OUTCOME_UNKNOWN 或回执不完整/无法关联：C 类；保留冻结意图/追踪，不重发、不接纳、不普通放弃，恢复不足继续限制 |
+| 完整成功 | Product HTTP 200、外层 success、整批 allSucceeded 均满足，逐项核对 ClientKey/Uid/Version、操作及完整覆盖冻结请求；完成接纳后才更新基线/解锁，剩余输入保护仍阻止 saved/关闭 |
+| 已有行级部分成功 | 其他业务沿用真实行级契约，仅接纳确认成功行、保留明确失败行；全部行结果确认并处理后可解锁但仍有草稿返回 unsaved，未确认行按 C 类。既有 Customer 回归约定不等于 Web UI 已验收，不改成 Product 原子语义 |
+
+恢复导出取消/失败、未确认、权限不足、合法保全后人工终止及批量关闭不能绕过的验收统一见 [多标签恢复规则](Web多标签工作区设计.md#workspace-recovery) 与该文第 9 节验收矩阵；首期恢复记录的文件去向、权限和确认规则只在该设计维护。
 
 ## 典型账号的整页可用性门槛（2026-10-08 补充，未验收）
 

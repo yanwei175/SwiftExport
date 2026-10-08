@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web 编辑与批量保存"
+  short_description: "维护字段唯一来源和输入缓冲保护并核对冻结请求与回执"
+  default_prompt: "请使用 $react-web-editing 按 SwiftExport 已确认 Web 架构完成当前授权任务。"

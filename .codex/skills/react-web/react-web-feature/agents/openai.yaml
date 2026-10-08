@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web 主壳与业务模块"
+  short_description: "开发 Web 主壳和业务模块并接好表单权限及跨模块调用"
+  default_prompt: "请使用 $react-web-feature 按 SwiftExport 已确认 Web 架构完成当前授权任务。"

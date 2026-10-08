@@ -53,7 +53,9 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 wpf = new WpfRuntimeHost();
                 wpf.Initialize();
                 var directory = Path.GetDirectoryName(new Uri(typeof(AddInBootstrapper).Assembly.CodeBase).LocalPath);
-                provider = ServiceRegistration.Build(ApiOptions.Load(directory), dispatcher, log, addIn.Application);
+                var options = ApiOptions.Load(directory);
+                log.WriteApiEndpoint(options.BaseAddress);
+                provider = ServiceRegistration.Build(options, dispatcher, log, addIn.Application);
                 session = provider.GetRequiredService<SessionService>();
                 user = provider.GetRequiredService<CurrentUserService>();
                 login = provider.GetRequiredService<LoginCoordinator>();

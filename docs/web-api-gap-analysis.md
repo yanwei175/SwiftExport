@@ -1,6 +1,6 @@
 # Web API 差距与前置工作（状态跟踪）
 
-原审计：2026-10-07；状态同步：2026-10-08。与[可用性盘点](web-readiness-audit.md)、[权限设计](web-permission-design.md)联合使用。本文区分已关闭问题、待验证疑点和按用例接入条件，不实施修复，也不是全部后端整改任务书。
+原审计：2026-10-07；状态同步：2026-10-09。与[可用性盘点](web-readiness-audit.md)、[权限设计](web-permission-design.md)联合使用。本文区分已关闭问题、待验证疑点和按用例接入条件，不实施修复，也不是全部后端整改任务书。历史计数与测试复核仍属于原证据日期，本次未重跑；执行入口已接入 [Web 工作流](../.agents/workflows/Web前端工作流.md)。
 
 ## 1. 当前结论与已关闭事项
 
@@ -26,7 +26,7 @@
 | API-08 | Can Keep，强类型筛选 | ProductSearchRequest的分类/颜色/客户集合，销售/采购的日期状态条件已存在；没有公开通用Filter DSL | feature映射条件；禁发字段名/SQL表达式；只有真实需求才加通用规则 |
 | API-09 | Should Fix，排序/搜索UX | 没有统一排序请求；Keyword/BatchKeywords/Keywords/QuickView含义不同 | 当前Table不展示无法全局生效的服务端排序；专用DTO名称可保留，新增白名单排序按模块实施 |
 | API-10 | Can Keep，批量shape | CreateItems/UpdateItems/DeleteItems；ClientKey/RowIndex关联；Version在Update/Delete包装；Computed TotalCount/HasChanges是只读 | 不把createdItems直接作为body；以mapper构建DTO，忽略只读计算字段 |
-| API-11 | 首批协议已明确；其他模块按需验收 | Product stale Version 是 422/BUSINESS_BLOCKED，原子批次失败不接纳；通用 CRUD 可 HTTP200 外层成功但行失败。旧 Supplier 错误分类风险不代表全仓已统一或已验收 | 消费实际两层协议；不以 409 为 Product 开工前提。需要结构化冲突专门 UX 时另立契约需求；不解析中文 Message 猜类型 |
+| API-11 | Product 真实写入前门槛未完成；其他模块按需验收 | Product stale Version 是 422/BUSINESS_BLOCKED；该 code 及 UNEXPECTED 无法可靠区分未生效/未知。通用 CRUD 可 HTTP200 外层成功但行失败 | 按 [真实分类门槛](Web首批接口契约验收.md#product-recovery) 保持不明确失败的锁；先补稳定机器语义及定向验收，再接真实写入。不要求机械改 409；保留其他业务行级语义 |
 | API-12 | Should Fix，业务/Validation | Fail(message)默认BUSINESS_BLOCKED→422，旧输入校验、缺失对象也使用此重载；ModelState只回首个error.Field | 新触碰用例区分VALIDATION/NOT_FOUND/STATE_BLOCKED；稳定码分支，不解析中文Message；错误汇总按真实表单需求 |
 | API-13 | Can Keep，HTTP错误出口 | ModelState400、JWT401/403、StatusCodePages补401/403/404；ServiceErrorHttpMapper覆盖409/422/429/503；未知码500且脱敏 | 保留ServiceResult错误协议，无需另造ProblemDetails；补OpenAPI声明而非第二套runtime响应 |
 | API-14 | Can Keep，成功shape例外 | auth/login返回LoginTokenDto，auth/me返回MeDto，其他多数ServiceResult，download二进制，HEAD无正文 | transport按契约解析，不统一把所有成功响应当data字段 |
@@ -91,12 +91,12 @@
 | P0（首批已验收） | OpenAPI 完整性 | 九端点已有隔离 HTTP/schema/Orval/strict 证据；后续 feature 只补自己需要的契约，不重复修首批 |
 | P0 | 浏览器网络基线 | 推荐生产同origin反向代理/api和图片，开发Vite proxy；若直连不同origin则明确AddCors/UseCors、OPTIONS与允许origin/header/method；现在未实现CORS |
 | P0 | JWT使用 | 现有Bearer可用；明确过期401保留草稿、重新登录，首次me加载及权限；DevUser关闭场景验证；不要求先上Refresh Token |
-| P0（前端消费与联调） | 错误与并发 | Product 当前 stale Version 为 422/BUSINESS_BLOCKED；检查两层 success、原子回执、OUTCOME_UNKNOWN；不盲重试。真实 PG 并发另验收 |
+| P0（Product 真实写入前） | 结果分类与并发 | 按 [产品接入门槛](Web首批接口契约验收.md#product-recovery) 补稳定未生效/未知机器语义及定向 HTTP/事务/PG 证据，feature 按 [保存契约](Web多标签工作区设计.md#workspace-save) 解锁/接纳；不以 422 拒绝默认重提 |
 | P0 | DTO数据含义 | Guid临时到持久Uid映射、null/optional、enum、业务日期/时刻；金钱输入保留十进制文本并在boundary转现有decimal JSON，金额/舍入仍服务端权威 |
 | 已关闭 | 五端点权限登记 | 已登记精确键，不再派重复修复任务；模块联调仍检查授权 |
 | P1 | 文件与图片 | 在使用上传/下载时补schema、Blob授权读取、公共图片URL；已有Range/HEAD/大小限制，验收代理大小/超时与Header读取；业务附件列表/归属尚未发现 |
 | P1 | 权限/会话体验 | 复用me，不重复建current-user-permissions；登出清Query cache，403刷新me；角色变更不会自动刷新客户端快照，重新读取策略需实现 |
-| P1 | 编辑/批量保存 | SwiftDataGrid基础、useEditableCollection、未保存导航、保存中禁止并发编辑、按模块原子性处理SaveItemResult、保留失败草稿 |
+| P1 | 编辑/批量保存 | SwiftDataGrid/集合遵守 [完整输入保护](Web多标签工作区设计.md#workspace-contract)、保存准备/保存锁及真实行级回执；未知恢复/授权记录导出及人工终止按 WEB-TAB-04 验收 |
 | P1 | 测试/CI/部署 | DTO生成差异、类型检查、lint、针对性单元+HTTP mock+浏览器闭环；静态部署SPA fallback、hash assets缓存、入口无长缓存、HTTPS |
 | P1 | 日志/审计 | 使用X-Correlation-ID和已有CommandId/BusinessOperationLog；记录错误类别和用例，脱敏；按需要建立审计查看，不新增第三套审计存储 |
 | P1（有实际需求） | 远程排序/查询取消 | 仅给实际表格支持白名单排序；新触碰旧资料查询补全token链；不要默认通用DSL |
@@ -114,7 +114,7 @@ PoC先用现有Bearer，访问token保存在会话内存；刷新页面需重新
 
 ### 完成标准
 
-完成P0意味着所选PoC闭环有证据：匿名登录、me、无权403、列表分页/搜索、批量建改删、陈旧版本拒绝、结果不明保留草稿、重新登录恢复流程、schema生成编译通过。不是“六份规划文档写完即后端已达标”。
+完成 P0 须证明所选用例的真实契约与实际环境，Product 写入先满足结果分类门槛，再验证批量建改删/完整回执/未知恢复及典型账号整页；主壳、读取和模拟可先进行。具体检查引用正式 Web 工作流与多标签验收矩阵，不把文档/Skills 完成或旧生成链路通过当作业务验收。
 
 ## 6. 待确认与验证证据
 

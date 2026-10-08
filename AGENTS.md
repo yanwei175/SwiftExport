@@ -55,13 +55,13 @@
 1. 不修改业务代码，除非用户明确要求实现功能、修复问题或调整业务行为。
 2. 源码用于确认实现事实；文档与源码冲突时，区分过期描述和仍有效的目标约定，登记偏差，不把当前实现自动提升为目标规则。
 3. 文件名能用中文时优先中文；Codex/工具强制识别的文件名除外，例如 `AGENTS.md`、`SKILL.md`、`*.toml`。
-4. 当前前端主线是 `.NET 10 WPF + CommunityToolkit MVVM`。
+4. 当前桌面前端主线是 `.NET 10 WPF + CommunityToolkit MVVM`；Web 目标使用独立的 React Web 治理入口。任务即使引用 .NET 10 客户端作参考，也按实际修改目标选择角色，不把 WPF 实现规范套到 Web。
 5. 当前 .NET 10 WPF 的 MVVM 代码必须遵循 `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`。
 
 ### 中文注释铁律
 
 - 除 XAML 外，新增或修改的手写源码必须提供中文职责级注释。
-- 类型、接口、枚举及 `public`、`protected` 成员使用中文 XML `<summary>`，说明职责、输入输出和重要副作用。
+- C# 类型、接口、枚举及 `public`、`protected` 成员使用中文 XML `<summary>`；TypeScript/TSX 对应职责使用中文 JSDoc/TSDoc，说明职责、输入输出和重要副作用。
 - 私有非显然方法，以及业务规则、状态流转、事务、复杂 SQL、算法和异常分支，必须有中文方法说明或关键逻辑注释。
 - 注释解释“负责什么、为什么这样做、有什么边界”，不得逐行复述语法。
 - 修改已有行为时同步更新相关注释，禁止保留已经失真的说明。
@@ -87,6 +87,7 @@
 
 - 后端技能组放在 `.codex/skills/aspdotnet10/**`。
 - 前端 WPF 设计、控件、MVVM 技能组放在 `.codex/skills/wpf-dotnet10-design/**`。
+- Web 技能组的单一正文放在 `.codex/skills/react-web/**`；根目录 `.agents/skills` 仅通过目录链接提供原生发现，不维护第二份正文。Web 工作流由 Router 接线，不能只依赖尚不存在的 Web 子目录规则。
 - 新增技能应先接入对应技能组的 `index/SKILL.md`，不要把技能路由写进本文件。
 
 - 技能目录名可以用英文短横线，便于工具识别。

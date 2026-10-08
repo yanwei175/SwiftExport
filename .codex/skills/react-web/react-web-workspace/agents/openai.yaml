@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web 多标签工作区"
+  short_description: "管理稳定页签及完整关闭保护并协调会话和未知结果恢复"
+  default_prompt: "请使用 $react-web-workspace 按 SwiftExport 已确认 Web 架构完成当前授权任务。"

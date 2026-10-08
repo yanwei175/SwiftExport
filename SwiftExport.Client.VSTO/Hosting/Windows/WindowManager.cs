@@ -25,6 +25,8 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
             try
             {
                 window = factory();
+                // WPF 独立窗口与 ElementHost 页面使用同一字体资源，不依赖宿主默认字体。
+                window.SetResourceReference(Window.FontFamilyProperty, "SwiftExportFont");
                 if (owner != IntPtr.Zero) new WindowInteropHelper(window).Owner = owner;
                 window.ShowInTaskbar = false;
                 window.Closed += (sender, args) => { windows.Remove(key); scope?.Dispose(); };
@@ -48,6 +50,7 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
             try
             {
                 window = factory();
+                window.SetResourceReference(Window.FontFamilyProperty, "SwiftExportFont");
                 if (owner != IntPtr.Zero) new WindowInteropHelper(window).Owner = owner;
                 window.ShowInTaskbar = false;
                 windows.Add(key, window);

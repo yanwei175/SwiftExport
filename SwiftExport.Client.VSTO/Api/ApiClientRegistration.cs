@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
 using Refit;
@@ -36,16 +37,23 @@ namespace SwiftExport.Client.VSTO.Api
                 return RestService.For<T>(client);
             }
         }
-        /// <summary>设置受信服务器和明确超时，不改变证书验证。</summary>
+        /// <summary>为插件连接使用 TLS 1.2 和明确超时，保留证书验证，不改变宿主全局协议。</summary>
         public ApiClientRegistration(Uri server, SessionService session)
-            : this(server, session, new HttpClientHandler()) { }
+            : this(server, session, CreateTransport()) { }
+
+        /// <summary>隔离 Excel AppDomain 的旧 TLS 默认值，认证及业务请求共用同一传输策略。</summary>
+        internal static HttpClientHandler CreateTransport()
+        {
+            // VSTO 宿主可能仍默认 SSL 3.0／TLS 1.0；只配置本插件连接，不能修改其他插件的网络环境。
+            return new HttpClientHandler { SslProtocols = SslProtocols.Tls12 };
+        }
         // 测试可替换传输，仍执行 Contracts 中真实生成的 Refit 代理。
         internal ApiClientRegistration(Uri server, SessionService session, HttpMessageHandler candidateTransport,
             HttpMessageHandler businessTransport = null)
         {
             this.candidateTransport = candidateTransport;
             candidates = new HttpClient(candidateTransport, false) { BaseAddress = server, Timeout = TimeSpan.FromSeconds(15) };
-            authenticatedTransport = new AuthTokenHandler(session) { InnerHandler = businessTransport ?? new HttpClientHandler() };
+            authenticatedTransport = new AuthTokenHandler(session) { InnerHandler = businessTransport ?? CreateTransport() };
             authenticated = new HttpClient(authenticatedTransport, false)
             { BaseAddress = server, Timeout = TimeSpan.FromSeconds(30) };
         }

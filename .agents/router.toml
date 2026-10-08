@@ -360,6 +360,19 @@ skill_group = ".codex/skills/wpf-dotnet10-design/index/SKILL.md"
 triggers = ["前端", "WPF", ".NET 10", "CommunityToolkit", "ViewModel", "LineModel", "XAML", "DataGrid", "页面", "样式"]
 
 [[routes]]
+id = "web-frontend"
+agent = "web-frontend"
+workflow = ".agents/workflows/Web前端工作流.md"
+skill_group = ".codex/skills/react-web/index/SKILL.md"
+references = [
+  "docs/Web客户端架构与脚手架决策.md",
+  "docs/Web多标签工作区设计.md",
+  "docs/Web首批接口契约验收.md",
+]
+# Web 是目标对象判定，不按排位覆盖治理、规划或审查；WPF 作为参考不改变 Web 实施归属。
+triggers = ["Web前端", "SwiftExport.WebApp", "React", "TypeScript", "Ant Design", "Workspace", "Web主壳", "Web ShellWindow", "react-web"]
+
+[[routes]]
 id = "review"
 agent = "reviewer"
 workflow = ".agents/workflows/代码审查工作流.md"

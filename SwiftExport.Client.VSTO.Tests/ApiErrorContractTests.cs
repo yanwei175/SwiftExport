@@ -1,4 +1,7 @@
+using System;
 using System.Net;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,6 +30,52 @@ namespace SwiftExport.Client.VSTO.Tests
         {
             var exception = await CreateAsync("<html>secret</html>");
             Assert.IsFalse(new ApiCallRunner(new AddInLog()).Describe(exception).Contains("secret"));
+        }
+
+        /// <summary>证书信任错误保留分类，任何层级的消息都不进入日志。</summary>
+        [TestMethod]
+        public void TransportDiagnosticsExcludeSensitiveMessages()
+        {
+            var inner = new WebException("password=private-token", null, WebExceptionStatus.TrustFailure, null);
+            var exception = new HttpRequestException("https://server/?token=private-token", inner);
+            var text = AddInLog.FormatException(exception);
+            StringAssert.Contains(text, "HttpRequestException");
+            StringAssert.Contains(text, "WebStatus=TrustFailure");
+            StringAssert.Contains(text, "HResult=0x");
+            Assert.IsFalse(text.Contains("private-token"));
+            Assert.IsFalse(text.Contains("https://"));
+        }
+
+        /// <summary>嵌套 Socket 错误能够区分连接被拒绝与证书问题。</summary>
+        [TestMethod]
+        public void TransportDiagnosticsIncludeSocketCode()
+        {
+            var exception = new HttpRequestException("secret", new SocketException((int)SocketError.ConnectionRefused));
+            StringAssert.Contains(AddInLog.FormatException(exception), "SocketError=ConnectionRefused");
+        }
+
+        /// <summary>限制异常链长度，空异常不产生误导信息。</summary>
+        [TestMethod]
+        public void TransportDiagnosticsAreBounded()
+        {
+            Exception exception = new Exception("secret");
+            for (var index = 0; index < 20; index++) exception = new Exception("secret", exception);
+            var text = AddInLog.FormatException(exception);
+            Assert.AreEqual(8, text.Split(new[] { "HResult=" }, StringSplitOptions.None).Length - 1);
+            Assert.AreEqual(string.Empty, AddInLog.FormatException(null));
+        }
+
+        /// <summary>插件传输显式启用 TLS 1.2，同时保留平台证书验证与宿主全局协议。</summary>
+        [TestMethod]
+        public void PluginTransportUsesTls12WithoutChangingHostPolicy()
+        {
+            var original = ServicePointManager.SecurityProtocol;
+            using (var transport = ApiClientRegistration.CreateTransport())
+            {
+                Assert.AreEqual(SslProtocols.Tls12, transport.SslProtocols);
+                Assert.IsNull(transport.ServerCertificateCustomValidationCallback);
+                Assert.AreEqual(original, ServicePointManager.SecurityProtocol);
+            }
         }
 
         /// <summary>创建带响应内容的真实 Refit 异常。</summary>

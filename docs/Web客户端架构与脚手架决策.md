@@ -1,12 +1,12 @@
 # Web 客户端架构与脚手架决策（方案基线，未实施）
 
-更新：2026-10-08。本轮按三份文档审查补齐职责、状态所有权、公共契约与可追溯门禁，保留 Framework SPA、现有目录和首期 ERP 多标签主干。下文规则是后续实施的方案基线；不生成工程、工作流或 Skills，不把未验证的版本组合写成已通过。
+更新：2026-10-09。三份文档收口规则保持不变；本轮同步旧引用并建立 AGENTS/Router、Web 角色、工作流及 1 入口 + 5 执行 Skill。Web 工程和联合版本组合尚未实施/验收，不把治理接线完成写成工程通过。
 
 ## 1. 建议与边界
 
 建议新建独立 `SwiftExport.WebApp`，采用 **React Router 官方脚手架 + Framework SPA Mode + React + TypeScript + Ant Design + TanStack Query + Orval Fetch**。React Router Framework Mode 的构建仍基于 Vite。项目独立安装、构建、测试和发布；后端是现有 ASP.NET Core HTTP API，开发断言绑定 PostgreSQL + Dapper。
 
-这是针对本项目的方案选择，不是官方规定的 ERP 标准。早期 Data Mode 草案统一调整为 **Framework SPA Mode**，采用官方工程约定和路由类型生成；业务页签在工作区独立懒加载。编辑集合、权限权威和业务命令边界继续保留。接口行为以 [最新接口验收](Web首批接口契约验收.md) 为准，当前产品过期版本是 `422 / BUSINESS_BLOCKED`。相关六份文档已同步，方案不自动安装成 Agent/Skill 规则。
+这是针对本项目的方案选择，不是官方规定的 ERP 标准。早期 Data Mode 草案统一调整为 **Framework SPA Mode**，采用官方工程约定和路由类型生成；业务页签在工作区独立懒加载。编辑集合、权限权威和业务命令边界继续保留。接口行为以 [最新接口验收](Web首批接口契约验收.md) 为准，当前产品过期版本是 `422 / BUSINESS_BLOCKED`。相关资料已同步，治理入口已按授权接线；原生发现和业务实现的证据仍分别记录。
 
 官方文档说明 React Router 的模式区别及 Framework Mode 的能力；React 官方的新项目指南也将 React Router 列为候选框架。采用 Framework Mode 不要求把 .NET 后端替换成 JavaScript 后端。[React 新项目指南](https://react.dev/learn/creating-a-react-app)、[React Router 模式选择](https://reactrouter.com/start/modes)
 
@@ -19,7 +19,7 @@
 | 表格与编辑 | Ant Table + 受控 SwiftDataGrid；纯编辑集合；feature 专用请求映射 | [编辑基础设施](web-frontend-architecture.md) |
 | API 契约 | 已验收 Orval Fetch；按实际 HTTP/内层结果消费，不强制改成 409 | [差距状态](web-api-gap-analysis.md)、[验收报告](Web首批接口契约验收.md) |
 | 权限 | me.Permissions + 唯一 PermissionKey 目录；已打开页签也重新核权 | [权限设计](web-permission-design.md) |
-| 开发流程与技能 | 独立 Web SOP；1 个技能组入口 + 5 个执行 Skill，尚未注册/创建 | [SOP](web-agent-workflow.md)、[Skills 规划](web-skills-plan.md) |
+| 开发流程与技能 | 独立 Web 角色/工作流及 1 个入口 + 5 个执行 Skill 已建立；运行时尚未实施 | [SOP](web-agent-workflow.md)、[Skills 规划](web-skills-plan.md) |
 | 发布 | 独立静态产物；Windows/IIS、Linux/Nginx 适配，同源 API 代理 | 本文第 9 节 |
 
 ## 2. 脚手架比较
@@ -135,7 +135,7 @@ SwiftExport.WebApp/
       页签容器.tsx               # 稳定 tabId、控制器、Activity 与页签错误边界
       页面目录.ts                # pageKind、权限、显式 lazy import 与去重规则
       活动页地址.ts              # 活动页签的 URL 编解码，隐藏页不读全局参数
-      关闭协调.ts                # dirty/pending/unknown 的关闭保护
+      关闭协调.ts                # 完整输入/保存/未知状态的关闭保护
     features/
       auth/
         pages/登录页.tsx
@@ -235,9 +235,9 @@ SwiftExport.WebApp/
 | 已登录身份与 token 生命周期 | bootstrap + shared/session | 登录流程由 auth feature 发起；身份切换取消旧请求并清理对应缓存/草稿 |
 | me 与权限快照 | Query / 会话初始化 | 权限来自 me，不根据角色显示名猜测；后端最终授权 |
 | 产品、字典、候选查询结果 | Query | 同一操作/输入使用规范查询键，允许共享快照；按身份隔离 |
-| 页签顺序、激活与描述 | workspace reducer + Context | 不存产品 DTO/表单草稿；只接收 dirty/pending/unknown 摘要与关闭接口 |
+| 页签顺序、激活与描述 | workspace reducer + Context | 不存产品 DTO/表单草稿；只接收 [完整保护摘要与关闭接口](Web多标签工作区设计.md#workspace-contract) |
 | 可分享的活动页签身份 | URL + workspace 地址解析 | 仅活动页签写 URL；隐藏页依照自己的 descriptor，不读取全局 route params |
-| 页码与筛选 | 各页签的 feature 状态 | 切换页签保留；dirty 时不能静默切换该页签的结果集 |
+| 页码与筛选 | 各页签的 feature 状态 | 切换页签保留；替换结果集遵守完整输入保护，不能只看业务 dirty |
 | 当前编辑值 | Form 或编辑集合，按下文三种模式选择 | 同一字段只有一个当前值来源；草稿不进入 Query 缓存 |
 | baseline Version、冻结提交、回执接纳 | feature 编辑会话 | 不被后台查询刷新覆盖，不提前增加 Version |
 | 行选择、展开、活动单元格 | 页面/控件 React 状态 | 与持久业务事实、服务器权限分离 |
@@ -249,7 +249,7 @@ Router 负责登录/工作区/错误入口及离开工作区的导航阻断；wo
 
 routes.ts 只注册框架入口。workspace 页面目录统一 pageKind、权限、业务身份与显式 lazy import；导航目录引用 pageKind，活动地址编解码也查询同一页面目录。业务页不各建一个 URL 路由管理器，框架按路由拆分不能替代内部业务页签的显式懒加载。
 
-**首期必须支持内部多标签工作区**：切换保留筛选、表单、编辑集合及滚动；同一已有单据重复打开激活原页签；新建单据各有独立临时身份；tabId 保存后仍稳定。关闭脏页提供保存/放弃/取消；保存中或结果未知阻止普通关闭；切换不弹未保存确认。浏览器刷新不等于内部切换，跨刷新恢复草稿尚未纳入首期。
+**首期必须支持内部多标签工作区**：切换保留筛选、表单、编辑集合、未提交输入及滚动；同一已有单据重复打开激活原页签；新建单据各有独立临时身份；tabId 保存后仍稳定。关闭与离开保护统一遵守 [公共契约](Web多标签工作区设计.md#workspace-contract)，不能只看集合 dirty；切换不弹未保存确认、不强制校验。浏览器刷新不等于内部切换，跨刷新恢复草稿尚未纳入首期。
 
 <a id="web-field-owner"></a>
 
@@ -263,9 +263,9 @@ routes.ts 只注册框架入口。workspace 页面目录统一 pageKind、权限
 
 **WEB-EDIT-01：同一字段只允许一个当前编辑值来源。** baseline 和当前值可以分开保存；不允许 Form、useState、编辑集合各保留一份可写当前对象，再用多个 useEffect 双向同步。Form 实例随该 tabId 的编辑会话保留，展示子树挂载/恢复不重复用 initialValues 覆盖草稿；初始化、明确放弃或确认回执接纳才能显式重设基线/表单。
 
-带 name 的 Form.Item 由 Form 接管值与变更；程序赋值使用 Form API。Grid 单元格临时输入缓冲只服务当前控件，提交即进入编辑集合，不能成为另一份长期业务当前值。[Ant Form 数据收集约定](https://ant.design/components/form/)
+带 name 的 Form.Item 由 Form 接管值与变更；程序赋值使用 Form API。Grid 单元格临时缓冲拥有尚未转换/提交的控件原始输入，成功提交才进入编辑集合，不能成为另一份长期业务当前值。其保留与保护摘要遵守 [多标签公共契约](Web多标签工作区设计.md#workspace-contract)，不能因隐藏或尚未更新集合而丢失。[Ant Form 数据收集约定](https://ant.design/components/form/)
 
-**WEB-EDIT-02：dirty 是参与保存字段的归一化投影与 baseline 的比较结果。** 比较排除 selection、展开、错误及只读联表显示字段；null/空串等价性按字段契约决定。改动后恢复原值必须回到 clean，touched/曾经编辑不能直接当 dirty。Form 的变更事件只触发比较或更新摘要，不复制一份 Form 当前值到控制器；集合增改删从同一编辑状态推导。具体集合算法继续由 [编辑基础设施](web-frontend-architecture.md) 负责。
+**WEB-EDIT-02：dirty 是参与保存字段的归一化投影与 baseline 的比较结果。** 比较排除 selection、展开、错误及只读联表显示字段；null/空串等价性按字段契约决定。改动后恢复原值必须回到业务 clean，touched/曾经编辑不能直接当 dirty。业务 clean 不等于没有待保护输入；未提交输入及关闭放行条件只在 [多标签公共契约](Web多标签工作区设计.md#workspace-contract) 定义。Form 的变更事件只触发比较或更新摘要，不复制一份 Form 当前值到控制器；集合增改删从同一编辑状态推导。具体集合算法参考 [编辑基础设施旧规划](web-frontend-architecture.md)，与本基线冲突的保护/保存表述须在后续治理中同步。
 
 ## 8. API 接入不会要求页面层重写
 
@@ -294,11 +294,11 @@ generated 管线路径只有一个；不同时引入 Orval 和另一套手写 cl
 | 生成 HTTP 操作 | Endpoint、参数、请求 DTO、响应类型 | 手工修改 generated，另写同构传输 DTO |
 | shared/api 请求执行 | 认证头、signal、网络/HTTP 状态、追踪信息 | 统一强行解包 data、吞掉 error/行失败、业务保存/跳转 |
 
-**WEB-API-01：HTTP 成功不必然是业务成功，业务外层成功也不必然是每行保存成功。** 保留 status、headers、完整正文以及网络/取消信息；裸 DTO、ServiceResult、原子整批与行级响应由各 feature 按实际契约解释。通用层不做 acceptChanges，不把所有 200 当整批成功，不分析中文 message 猜版本冲突。
+**WEB-API-01：HTTP 成功不必然是业务成功，业务外层成功也不必然是每行保存成功。** 保留请求发送阶段、status、headers、完整正文以及网络/取消信息；裸 DTO、ServiceResult、原子整批与行级响应由各 feature 按实际契约解释。通用层不做 acceptChanges，不把所有 200 当整批成功，不按状态码统一判断写入是否生效，不分析中文 message 猜回滚、冲突或成功。提交分类与解锁条件唯一正文见 [多标签保存契约](Web多标签工作区设计.md#workspace-save)，具体 Product 证据/缺口见 [验收报告](Web首批接口契约验收.md#product-recovery)。
 
-这条链是工程基座接线目标，尚未配置 Web 运行时 mutator。实施时选择能让生成操作委托唯一请求执行边界的接线，重新验证生成差异、状态联合类型、signal 和路径编码；不靠手改生成文件实现。读取使用统一身份范围 Query Key；提交关闭自动重试，错误和取消都不证明服务端未写入。
+这条链是工程基座接线目标，尚未配置 Web 运行时 mutator。实施时选择能让生成操作委托唯一请求执行边界的接线，重新验证生成差异、状态联合类型、signal 和路径编码；不靠手改生成文件实现。读取使用统一身份范围 Query Key；提交关闭自动重试，错误和取消本身不证明服务端未写入。
 
-必须保留本轮已经验证的事实：login/me 是裸 DTO，其他首批成功多为 ServiceResult；Fetch 状态联合类型不能把非 2xx 当成功。Product 过期版本是 422，而 503/OUTCOME_UNKNOWN 要保留提交意图。通用 CRUD 的外层成功与行失败不能被统一 transport 抹掉。写操作不开自动重试；Query 的默认读取重试/焦点刷新也需显式约束。[Query 默认行为](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)、[现有验收报告](Web首批接口契约验收.md)、[Orval 输出配置](https://orval.dev/docs/reference/configuration/output/)
+必须保留指定历史验收范围的事实：login/me 是裸 DTO，其他首批成功多为 ServiceResult；Fetch 状态联合类型不能把非 2xx 当成功。Product 过期版本是 422/BUSINESS_BLOCKED，其业务拒绝展示不证明本次操作未生效，分类遵守上述真实端点证据。通用 CRUD 的外层成功与行失败不能被统一 transport 抹掉。写操作不开自动重试；Query 的默认读取重试/焦点刷新也需显式约束。[Query 默认行为](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)、[现有验收报告](Web首批接口契约验收.md)、[Orval 输出配置](https://orval.dev/docs/reference/configuration/output/)
 
 权限键首期仅集中使用真实已核对键，后续机器投影从后端权威目录来；不能从 DTO 的普通 string 字段推导完整权限目录。生成 DTO 的日期字符串不是时区决策；金额 JSON number 不代表前端浮点计算可作为财务权威。编辑模型与 mapper 负责输入边界，服务器决定业务结果。
 
@@ -341,11 +341,12 @@ SPA 回退仅处理页面导航：/api、/files 和不存在的资源不能落�
 | --- | --- | --- |
 | 应用 → feature → shared；跨模块公共意图 | ESLint import 边界，加禁止引用样例核验 | shared 反向引用和 feature 深层跨模块引用确实报错 |
 | generated 唯一来源 | 锁文件安装后重新生成并检查 diff | 无未解释的手工生成差异，不回写接受漂移 |
-| WEB-EDIT-01/02 字段唯一、dirty 比较 | Form/集合测试 | 改回原值 clean；无多份可写当前值同步 |
-| WEB-TAB-01 切换保留、稳定身份 | 两个编辑标签浏览器测试 | Form/Grid 草稿与滚动保留；重复打开不重置 |
-| WEB-TAB-02 保存入口与冻结 | 活动单元格、隐藏 Form 保存浏览器测试 | 最后一个未失焦值进入请求；保存中本页只读 |
+| WEB-EDIT-01/02 字段唯一、dirty 比较 | Form/集合及单元格缓冲测试 | 恢复原值/取消编辑解除对应保护；无多份业务当前值，聚焦/touched 不算修改 |
+| WEB-TAB-01/公共契约 切换与输入保护 | 两个编辑标签浏览器测试 | 首次未失焦输入阻止当前/全部关闭；切换无强制校验，隐藏后仍保护；数据替换/离开同用摘要 |
+| WEB-TAB-02 保存入口与冻结 | 活动单元格、隐藏 Form 保存浏览器测试 | 最后一个未失焦值进入请求；无效/未完成输入保留且校验失败不发请求；保存准备/保存中本页只读 |
 | WEB-TAB-03 回执归原标签 | 两标签并行操作测试 | A 保存后切 B，回执只更新 A，不覆盖 B |
-| WEB-TAB-04/WEB-API-01 未知结果保留 | 断网/响应丢失/503 场景测试 | 不自动重发、不接纳/丢弃，人工核实出口可用 |
+| WEB-TAB-02/03、WEB-API-01 提交分类 | 按端点验证未发送、短路拒绝、无法确认的业务失败、响应丢失、完整成功及已有行级部分成功 | 依据完整证据接纳/解锁；显示业务拒绝不等于确认未生效；部分行回执不被抹掉 |
+| WEB-TAB-04 未知恢复与保全 | 恢复/导出/人工终止浏览器矩阵 | 未知不重发/接纳/普通放弃；导出取消/失败、未确认、无权限均不终止，保全后明确确认才释放；批量关闭不绕过 |
 | 权限影响已打开页与候选 | 会话/权限浏览器矩阵 | 活动/隐藏页权限撤销生效，缺候选权限不扩权 |
 | 根页面构建与联合生命周期 | Framework SPA 构建、Ant Tabs + Activity 实测 | 构建不读身份/API；实际挂载与 Effect 清理符合设计 |
 
@@ -361,7 +362,7 @@ WEB-TAB 规则的正文只在 [多标签设计](Web多标签工作区设计.md) 
 
 本轮完成官方资料检索、脚手架静态比较、现有选型/契约工具核对和目录职责规划。未执行 create-react-router/create-vite、npm 安装、TypeScript/React 构建、浏览器测试、Linux 构建或部署；所有框架联合兼容性和目录实例均为后续验收目标，不是已通过证据。
 
-前一轮新增本文与多标签设计并同步原六份文档；本次审查落实只修改三份目标文档，保留历史验收结果。本次只执行文档、引用、官方资料与必要源码核对，不新增前后端业务功能或治理入口。
+2026-10-08 收口仅修改三份目标文档，保留历史验收结果。2026-10-09 按用户授权同步旧规划及治理/Skills 接线；未新增前后端业务功能，未重跑历史业务验收。
 
 <a id="web-authority"></a>
 
@@ -376,9 +377,9 @@ WEB-TAB 规则的正文只在 [多标签设计](Web多标签工作区设计.md) 
 | Skill | 某类任务怎么做、复用什么、如何验收；引用规则正文 |
 | 工作流与自动检查 | 执行顺序、文件归属、最终整合验证及规则对应检查 |
 
-规则正文只维护一处。原六份资料继续提供领域细则、历史盘点和规划；本轮新增的字段所有权/调用层以本文为准，页签规则以多标签设计为准。旧 SOP/Skills 分类尚待治理接线，不能据其草案创建另一套规则。
+规则正文只维护一处。原六份资料继续提供领域细则、历史盘点和规划；本轮新增的字段所有权/调用层以本文为准，页签规则以多标签设计为准。旧 SOP/Skills 分类已收敛为正式入口索引，具体执行只维护在 [Web 工作流](../.agents/workflows/Web前端工作流.md) 与对应 SKILL，不创建另一套规则。
 
-保持 **1 个入口 + 5 个执行 Skill**，按这次审查收敛职责；以下是替代旧规划分类的治理输入，英文目录名和具体文件接线在后续授权治理任务中确定。
+保持 **1 个入口 + 5 个执行 Skill**。正式正文见 [技能组入口](../.codex/skills/react-web/index/SKILL.md)，具体目录及职责映射见 [Skills 接线](web-skills-plan.md)；下表保留已确认职责，不另维护执行步骤。
 
 | Skill | 覆盖范围 | 必须引用 |
 | --- | --- | --- |
@@ -391,9 +392,9 @@ WEB-TAB 规则的正文只在 [多标签设计](Web多标签工作区设计.md) 
 
 每个正式 Skill 必须有 name/description 元数据、适用/不适用、输入、授权写入范围、必须复用入口、禁止事项及验收步骤；使用 skill-creator 校验。规划文件不是已发现的 Skill。[官方 Skills 说明](https://learn.chatgpt.com/docs/build-skills)
 
-**根目录可达门禁**：后续先在根 AGENTS/Router 接入明确的 Web 读取入口，再从仓库根目录和 Web 子目录各启动验证任务，证明都读到 Web 架构、命中 Web Skill，WPF 请求仍走既有路线。只在 SwiftExport.WebApp/AGENTS.md 写规则，不能证明根目录启动已加载该文件。[官方 AGENTS 加载范围](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
+**根目录可达门禁**：根 AGENTS/Router 已接入 Web 角色/工作流/技能正文，并提供仓库根的发现目录链接。本轮只校验接线与可达性；从根目录及实际 Web 子目录启动新会话的发现行为仍须单独验证，WPF 请求继续走既有路线。尚未创建 Web 目录，不能宣称子目录启动已通过。[官方 AGENTS 加载范围](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
-当前仓库治理约定仍在 .codex/skills。官方原生发现说明为从 CWD 向仓库根扫描 .agents/skills；二者必须区分。后续实测若需发现入口，提出可审查的链接/注册或迁移方案，保持一个规范源与唯一 Skill name，不维护两个副本；本轮不迁移目录，也不假称根启动已通过发现验收。
+当前 Web 技能正文仍在 .codex/skills/react-web；仓库根 .agents/skills 的六个相对目录链接指向单一正文，保持唯一 Skill name，不维护副本、不改全局配置。官方原生发现扫描 .agents/skills 且支持技能目录链接；本轮文件/链接校验与新会话实际发现须区分，具体接线见 [Skills 目录](web-skills-plan.md)。
 
 <a id="web-change-control"></a>
 

@@ -19,6 +19,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
         {
             try
             {
+                if (args.Length == 1 && args[0] == "--typography-only")
+                {
+                    using (var fontHost = new WpfRuntimeHost()) { fontHost.Initialize(); TypographyChecks.Run(Check); }
+                    Console.WriteLine("PASS Typography: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--purchase-list-only")
                 {
                     using (var listHost = new WpfRuntimeHost()) { listHost.Initialize(); PurchaseOrderListChecks.Run(Check); }

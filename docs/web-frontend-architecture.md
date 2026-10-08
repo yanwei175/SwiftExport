@@ -2,7 +2,7 @@
 
 日期：2026-10-07。推荐新建独立 `SwiftExport.WebApp`，本轮不创建应用或修改现有WPF。业务事实仍由同一SwiftExport.WebApi、Application、PG事务负责。现有源据与差距见[盘点](web-readiness-audit.md)、[差距](web-api-gap-analysis.md)，权限见[统一权限设计](web-permission-design.md)。
 
-2026-10-08 同步：脚手架/目录以 [总决策](Web客户端架构与脚手架决策.md) 为权威，内部多标签为首期要求；本文负责 Grid、编辑集合和模块数据边界。首批九个端点的运行证据见 [接口验收](Web首批接口契约验收.md)，不再将 Product 必须改为 409 作为写入前提。
+2026-10-09 同步：脚手架/目录/字段所有权以 [总决策](Web客户端架构与脚手架决策.md) 为权威，本文只维护 Grid、编辑集合和模块数据细则。输入保护、提交分类、锁与人工终止以 [多标签公共契约](Web多标签工作区设计.md#workspace-contract) 为准；真实 Product 写入须满足 [接口门槛](Web首批接口契约验收.md#product-recovery)，不要求机械改为 409。正式入口见 [Web 工作流](../.agents/workflows/Web前端工作流.md) 与 [技能组](../.codex/skills/react-web/index/SKILL.md)，不代表 UI 已实施。
 
 ## 1. 最小技术栈与版本策略
 
@@ -65,7 +65,9 @@ Ant Tabs 控制页签栏；稳定 React Activity 保留隐藏展示状态并清�
 flowchart LR
   Q[Query服务器快照] --> M[feature mapper]
   M --> E[useEditableCollection草稿]
-  E --> G[SwiftDataGrid与Form]
+  E --> G[SwiftDataGrid]
+  M --> F[Ant Form：仅其拥有的字段]
+  F --> B
   G -->|编辑意图| E
   E --> B[feature请求builder]
   B --> C[生成API函数]
@@ -78,11 +80,11 @@ flowchart LR
 
 Query key必须含规范化筛选/页码/业务身份与会话隔离；登出清缓存，不能让下一用户看到上一用户数据。POST page/search是读查询，也使用useQuery；Query function传递AbortSignal，debounce作用于提交的搜索词。日期/集合规范化不应改变服务器定义的业务含义。
 
-编辑页从快照显式初始化草稿。后台刷新不能覆盖dirty集合；Table显示草稿而不是直接改Query缓存。保存成功采用服务器归一化快照与NewVersion，再失效相关列表/详情；首期保存中锁住编辑，避免提交旧值后误accept新修改。Query默认重试/焦点刷新需显式约束，依据[TanStack defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)：读请求可有限重试瞬时网络故障，401/403等不重试；写mutation默认禁盲重试。
+编辑页从快照显式初始化草稿。后台刷新不能覆盖受保护的业务修改或原始输入；Table 显示集合草稿，Form 仅拥有按字段模式分配给它的字段，不直接改 Query 缓存。回执接纳和保存锁遵守 [保存契约](Web多标签工作区设计.md#workspace-save)，再失效相关列表/详情。Query默认重试/焦点刷新需显式约束，依据[TanStack defaults](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)：读请求可有限重试瞬时网络故障，401/403等不重试；写mutation默认禁盲重试。
 
 普通Form用Ant规则做必填和范围体验；服务器error.Field映射到表单/行，跨业务规则仍服务端最终校验。金额保留输入文本，在mapper验证并转当前decimal JSON；展示用Intl，不把JS浮点计算当权威金额。若业务要求超出JS number安全范围/精度，应先确认金额契约，再选择十进制库或字符串传输，不能自改后端schema。
 
-统一错误至少携带status、code、message、field、correlationId、是否结果未知。400定位输入；401终止身份且保留用户内存草稿供重新登录流程；403刷新me和权限；409提供刷新/比较，不自动覆盖；422展示业务阻断；429按Retry-After提示；503/OUTCOME_UNKNOWN保留原意图。500不得只显示“未保存所以可以直接重试”。依据[ServiceErrorHttpMapper](../SwiftExport.WebApi/ErrorHandling/ServiceErrorHttpMapper.cs)、[GlobalExceptionMiddleware](../SwiftExport.WebApi/ErrorHandling/GlobalExceptionMiddleware.cs)、[WPF ApiCallRunner](../SwiftExport.Client.Wpf/Services/Api/ApiCallRunner.cs)。
+统一传输错误保留发送阶段、status、code、message、field、correlationId 及网络/取消事实；字段定位、重认证、权限更新、业务拒绝等展示由 feature/会话处理。是否生效、回执接纳与解锁只按 [三类提交结果](Web多标签工作区设计.md#workspace-save)，不从状态码或中文 message 统一推导；Product 的 BUSINESS_BLOCKED/UNEXPECTED 保守处理见 [真实契约缺口](Web首批接口契约验收.md#product-recovery)。依据[ServiceErrorHttpMapper](../SwiftExport.WebApi/ErrorHandling/ServiceErrorHttpMapper.cs)、[GlobalExceptionMiddleware](../SwiftExport.WebApi/ErrorHandling/GlobalExceptionMiddleware.cs)、[WPF ApiCallRunner](../SwiftExport.Client.Wpf/Services/Api/ApiCallRunner.cs)。
 
 ## 4. SwiftDataGrid边界与首期能力
 
@@ -91,7 +93,7 @@ Query key必须含规范化筛选/页码/业务身份与会话隔离；登出清
 SwiftDataGrid是Ant Table的受控组合：
 - 接受rows、稳定getRowKey、columns、selection、pagination与cell errors；emit onCellChange/onRowSelectionChange/onFillDown，feature处理状态。
 - ShowRowNumber只用于显示：平面分页为(pageIndex-1)*pageSize+index+1；树使用当前可见顺序或明确层级编号，不能当ClientKey/行ID。
-- Editable Cell先实现文本、数值、日期、lookup；cell提交多字段patch经feature validator，不能直接写row对象。
+- Editable Cell先实现文本、数值、日期、lookup；cell提交多字段patch经feature validator，不能直接写row对象。尚未提交的原始缓冲及其保护注册遵守多标签公共契约，不在隐藏清理中丢失，也不另存长期业务当前值。
 - Ctrl+D：定义源为选择区首行，按当前可见顺序填至后续目标；首期无完整矩形区选择时限定为同一活动列。跳过非编辑列/行和禁用单元格，校验每个patch，阻止浏览器收藏快捷键仅限Grid内有效操作。文本编辑框内不抢快捷键。
 - 禁止填Uid/Version/审计字段、已交付/已收货投影等只读事实；权限和生命周期限定由feature传入canEdit。
 - Selection与activeCell为UI状态；持久选择只保存稳定rowKey，重载时核对存在性。
@@ -130,7 +132,7 @@ type EditableCollection<T> = {
 };
 ```
 
-以上是设计草案，不是生成DTO。acceptChanges只能由已确认保存成功路径调用；reset用于首次载入或用户明确放弃重载，不能静默覆盖dirty。原值比较按可写字段normalize/project函数，排除UI selection/error/服务器联表展示字段；使用结构化比较而非整个JSON字符串机械比较。null与空串是否等价由字段契约决定。
+以上是设计草案，不是生成DTO。isDirty 仅表达集合业务修改，不是关闭放行依据；feature 另从原始缓冲报告公共契约所需摘要。acceptChanges 仅接纳完整核对的确认成功结果；reset/reject 只在首次初始化或公共契约允许的明确放弃中使用，不能覆盖受保护输入或绕过未知恢复。原值比较按可写字段normalize/project函数，排除UI selection/error/服务器联表展示字段；使用结构化比较而非整个JSON字符串机械比较。null与空串是否等价由字段契约决定。
 
 ### 状态转换与重要边界
 
@@ -139,17 +141,17 @@ type EditableCollection<T> = {
 | Guid新建行 | crypto.randomUUID生成ClientKey；需临时Uid作树关系时另外保留临时身份。通用PG AddAsync会重生成Uid，保存后用ClientKey→响应Uid映射 |
 | Version | 保存Update/Delete用已接受baseline的版本；编辑值不能改变Version；成功用NewVersion/重读快照更新，失败不得增加版本 |
 | 新增后删除 | 从created与可见items移除，不产生DeleteItemRequest；不得向服务端删除从未持久化的Uid |
-| 既有行删除后恢复 | 删除池保留原实体与删除前草稿；restore恢复删除前编辑态，RejectChanges恢复baseline并清全部变更 |
+| 既有行删除后恢复 | 删除池保留原实体与删除前草稿；restore恢复删除前编辑态；RejectChanges 只作为公共放弃流程允许时的集合算法，不自行放行关闭或未知结果 |
 | 修改后恢复原值 | 对可写投影重新比较，回到clean，不因“曾编辑”永久dirty |
 | 修改后删除 | 只生成Delete；保留baseline Version；恢复删除可继续原修改 |
 | 原始集合别名 | baseline必须与可编辑对象隔离，不能深层数组/对象共引用；immutable patch |
 | Tree | 存储flat身份关系，渲染时构树；父子新增按后端协议提交，保存后重映射ParentId；删除父不能自动级联猜测业务语义 |
 | 行排序 | 展示排序不是业务修改；只有服务端可写SortNo改变才dirty |
-| 服务端分页 | 首期dirty时禁止直接切页/筛选，提供保存/放弃/取消。不同页快照不能当完整集合，未出现行不等于删除 |
+| 服务端分页 | 替换编辑数据按完整保护摘要处理，不只检查集合 dirty；不同页快照不能当完整集合，未出现行不等于删除 |
 | 跨页编辑（以后） | baseline/变更按稳定身份保存局部片段；明确已加载范围、版本和服务端排序，不能通过合并页实现任意全局Ctrl+D |
-| 页签切换/关闭/刷新 | 切换保留草稿；关闭由 Workspace 守卫；离开工作区用 router blocker，刷新用 beforeunload；保存失败保持；重认证只恢复同用户 |
-| 结果不明 | 不accept、不reject；保留提交快照与原CommandId（有该契约时），重放/查询确认；普通BatchSave没有CommandId时核对当前持久状态后人工决定 |
-| 后台数据刷新 | 若dirty保留本地并提示远端变化；不能在Query onSuccess中无条件reset |
+| 页签切换/关闭/刷新 | 切换保留原始缓冲、不强制校验；所有关闭/数据替换/离开遵守公共契约最新摘要，beforeunload 仅有限提醒 |
+| 结果不明 | 按 [WEB-TAB-04](Web多标签工作区设计.md#workspace-recovery) 保持冻结与锁；仅真实协议允许查询/重放，人工终止须先合法导出保全并确认，不能默认解锁重提 |
+| 后台数据刷新 | 若有业务修改或未提交输入，保留本地并提示远端变化；不能在Query onSuccess中无条件reset |
 | 保存时再编辑 | 首期禁用；以后若允许需提交快照/revision，只accept实际提交且确认的值，保留后续patch |
 
 通用新增身份与分类树事实分别见[PostgreSqlDapperRepository.AddAsync](../SwiftExport.Infrastructure/Repositories/Base/PostgreSqlDapperRepository.cs)、[ProductCategoryService](../SwiftExport.Application/Services/Products/Categories/ProductCategoryService.cs)。分类保存通过logicalUid→persistedUid及父先子后处理，不表示所有树端点都有同一能力。
@@ -186,12 +188,12 @@ hook可通过纯mapper构建通用BatchSaveRequest，但销售SaveSalesOrderRequ
 
 [BatchSaveResponseBase](../SwiftExport.Contracts/Wrappers/BatchSaveResponseBase.cs)包含Items、SuccessCount/FailedCount/AllSucceeded，**类型存在不证明该接口允许部分提交**。
 
-1. HTTP非2xx/外层Success=false：不接纳任何行，不把本地推测的成功变更清掉。
+1. 按 [三类提交结果](Web多标签工作区设计.md#workspace-save) 判定可接纳范围和锁。HTTP非2xx/外层Success=false 不代表未生效；不能清除本地推测成功变更，已有明确行级/文件部分结果仍由各 feature 按真实契约核对。
 2. 原子接口（已核对Product、ProductCategory、Supplier等整批事务）：仅整批确认成功且Items逐项成功才整体接纳。缺失/重复ClientKey、Operation不匹配、SuccessCount不一致视为协议异常，重读确认，不手动丢行。
 3. 明确逐项提交接口：按ClientKey+Operation对齐，仅接纳已确认成功项；失败项保留草稿/删除池/error，新Uid与Version只对成功项更新。不能先全局accept再把失败行重新加回来。
 4. 产品图片是明确部分成功，但它是ProductImageBatchUploadResultDto，不套SaveItemResult。multipart解析中途失败仍可能已有文件发布，不得以外层失败推断文件全回滚；应读回/逐项确认，禁止无条件整批重传覆盖。
 5. 专用单据保存返回服务器详情/新头行版本时，以该专用响应为准，不强行解析BatchSaveResponseBase。
-6. 网络断线或commit结果未知时，保留输入。具有BusinessCommandExecutor协议的请求重试复用同CommandId及内容；Product普通批量没有此协议，禁止赋一个前端随机id就认为获得幂等。
+6. 网络断线或commit结果未知时走 WEB-TAB-04。只有后端真实允许重放才复用同 CommandId/内容；Product 普通批量没有此协议，禁止赋前端随机 id 宣称幂等。证据不足保持限制，授权记录导出及人工终止的正文不在此重复维护。
 
 源码依据：[ProductMaintenanceService](../SwiftExport.Application/Services/Products/Catalog/Maintenance/ProductMaintenanceService.cs)、[SupplierService](../SwiftExport.Application/Services/Suppliers/Management/SupplierService.cs)、[ProductImageController](../SwiftExport.WebApi/Controllers/Files/ProductImageController.cs)、[ProductImageUploadService](../SwiftExport.Application/Services/Files/ProductImages/ProductImageUploadService.cs)、[BusinessCommandExecutor](../SwiftExport.Application/Commands/BusinessCommandExecutor.cs)。
 
@@ -199,7 +201,7 @@ hook可通过纯mapper构建通用BatchSaveRequest，但销售SaveSalesOrderRequ
 
 选择**Product产品管理**，先列表、筛选、详情/lookup，再单页批量编辑、新增/修改/软删与冲突反馈；首轮引用已有分类/颜色/供应商/仓候选，不同时扩建它们的全部维护页。Product覆盖真实分页、复杂筛选、权限、Guid/Version、原子BatchSave且不用跨域库存过账，是比SalesOrder/PackingList更小的验证面。
 
-PoC必须覆盖：me加载、View与Create/Edit/Delete分别授权、query取消、null/enum/date字段、临时Uid替换、恢复原值、新增后删除、失败保留草稿、当前真实的 422/BUSINESS_BLOCKED 陈旧版本拒绝、网络未知、dirty 筛选/分页确认、Ctrl+D 不能改 Uid/Version。HTTP 200 也要检查外层与行结果；没有结构化 VERSION_CONFLICT 时不解析中文消息猜冲突类型，也不自动覆盖重试。首批契约已验收，不要求先统一后端为 409。
+PoC按 [架构规则矩阵](Web客户端架构与脚手架决策.md#web-rule-checks) 与多标签第 9 节验证首次未失焦输入、隐藏关闭、恢复/取消、无效输入无请求、保存分类/回执/恢复保全；同时核验 me/独立操作键、字段转换、身份版本映射及 Ctrl+D 可写范围。Product 真实写入须先满足独立契约门槛；422 业务拒绝不当作未生效证据，不解析中文消息，也不自动重试。读页面/模拟验证可先开展，不要求先机械统一为 409。
 
 骨架先通过两个编辑页签切换保留、隐藏页关闭守卫、保存回原页签及同实体去重验证；Product 闭环随后接入。真实 PostgreSQL 写入/并发和浏览器联调仍需实际验收，不由隔离 HTTP 测试代替。
 

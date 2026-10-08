@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web API 契约接入"
+  short_description: "审核真实接口与生成操作并维护统一请求查询及错误事实"
+  default_prompt: "请使用 $react-web-api 按 SwiftExport 已确认 Web 架构完成当前授权任务。"

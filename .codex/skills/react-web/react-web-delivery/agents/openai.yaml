@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web 验证与交付"
+  short_description: "按当前实际改动选择工程浏览器与契约证据并完成整合交付"
+  default_prompt: "请使用 $react-web-delivery 按 SwiftExport 已确认 Web 架构完成当前授权任务。"

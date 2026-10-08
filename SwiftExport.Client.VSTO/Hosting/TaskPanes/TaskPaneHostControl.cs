@@ -20,10 +20,13 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
             try { LoadWpfUI(content); }
             catch { Dispose(); throw; }
         }
-        /// <summary>宿主创建完成后装载页面，不创建额外 WPF 线程。</summary>
+        /// <summary>宿主创建完成后绑定统一字体并装载页面，不创建额外 WPF 线程。</summary>
         public void LoadWpfUI(System.Windows.UIElement content)
         {
             if (IsDisposed || Disposing) throw new System.ObjectDisposedException(nameof(TaskPaneHostControl));
+            // 根页面使用插件字体资源，阻止 ElementHost 的 WinForms 默认字体向正文传播。
+            if (content is System.Windows.FrameworkElement element)
+                element.SetResourceReference(System.Windows.Documents.TextElement.FontFamilyProperty, "SwiftExportFont");
             host.Child = content;
         }
         /// <summary>幂等断开 WPF 内容；Office 或父控件已释放 ElementHost 时不再写入 Child。</summary>

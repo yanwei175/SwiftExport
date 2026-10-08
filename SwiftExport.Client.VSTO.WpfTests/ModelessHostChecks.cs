@@ -88,6 +88,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 var host = form.Controls.OfType<ElementHost>().Single();
                 var view = (PurchaseOrderImportView)host.Child;
                 var model = (PurchaseOrderImportViewModel)view.DataContext;
+                check(view.FontFamily.Equals(System.Windows.Application.Current.FindResource("SwiftExportFont")),
+                    "实际采购页面由公共宿主统一字体，无需单独声明");
                 check(form is ModelessElementHostForm && form.Visible
                     && form.Width <= Screen.PrimaryScreen.WorkingArea.Width
                     && form.Height <= Screen.PrimaryScreen.WorkingArea.Height,

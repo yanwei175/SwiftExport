@@ -385,11 +385,10 @@
       <ContainsDesignTimeResources>true</ContainsDesignTimeResources>
     </Page>
     <Content Include="vsto.config.xml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="docs\**\*.md;AGENTS.md" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="Services\ExcelImport\ExcelAddressRead.cs" />
     <Compile Include="Excel\Reading\ExcelAddressReader.cs" />
@@ -400,15 +399,23 @@
     <Compile Include="Features\Settings\ExcelReadProfiles\Services\ExcelReadProfileService.cs" />
     <Compile Include="Features\Settings\ExcelReadProfiles\ViewModels\ExcelReadProfileViewModel.cs" />
     <Compile Include="Features\Settings\ExcelReadProfiles\Views\ExcelReadProfileView.xaml.cs" />
-    <Page Include="Resources\Controls\ExcelCellAddressBox.xaml"><Generator>MSBuild:Compile</Generator></Page>
-    <Page Include="Features\Settings\ExcelReadProfiles\Views\ExcelReadProfileView.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Resources\Controls\ExcelCellAddressBox.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Features\Settings\ExcelReadProfiles\Views\ExcelReadProfileView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <!-- Include the build rules for a C# project. -->
   <ItemGroup>
     <Compile Include="Features\Sales\Orders\Models\SalesOrderListRow.cs" />
     <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderListViewModel.cs" />
-    <Compile Include="Features\Sales\Orders\Views\SalesOrderListView.xaml.cs"><DependentUpon>SalesOrderListView.xaml</DependentUpon></Compile>
-    <Page Include="Features\Sales\Orders\Views\SalesOrderListView.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Features\Sales\Orders\Views\SalesOrderListView.xaml.cs">
+      <DependentUpon>SalesOrderListView.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Features\Sales\Orders\Views\SalesOrderListView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Features\Procurement\PurchaseOrders\Models\*.cs" />
@@ -416,12 +423,18 @@
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Addresses.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Submission.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderListViewModel.cs" />
-    <Compile Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml.cs"><DependentUpon>PurchaseOrderListView.xaml</DependentUpon></Compile>
-    <Page Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Compile Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml.cs">
+      <DependentUpon>PurchaseOrderListView.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Features\Shipping\PackingLists\**\*.cs" />
-    <Page Include="Features\Shipping\PackingLists\Views\PackingListImportView.xaml"><Generator>MSBuild:Compile</Generator></Page>
+    <Page Include="Features\Shipping\PackingLists\Views\PackingListImportView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->

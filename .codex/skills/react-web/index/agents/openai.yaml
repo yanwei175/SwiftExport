@@ -1,0 +1,4 @@
+interface:
+  display_name: "SwiftExport Web 任务入口"
+  short_description: "按实际 Web 目标选择五项执行技能并读取唯一架构权威入口"
+  default_prompt: "请使用 $react-web 按 SwiftExport 已确认 Web 架构完成当前授权任务。"

@@ -1,208 +1,35 @@
-# Web 前端 Skills 规划（方案基线，未创建）
+# Web 前端 Skills 接线与职责
 
-日期：2026-10-07。本轮不创建Skill、不修改技能索引或Router；未来真正创建技能时使用skill-creator，并由治理任务按授权接线。本计划复用现有后端技能，Web专项不能覆盖WPF/Contracts兼容或后端事务规范。
+原规划：2026-10-07；接线更新：2026-10-09。已按 [架构权威表](Web客户端架构与脚手架决策.md#web-authority) 建立 **1 个入口 + 5 个执行 Skill**，替代早期 feature-page/api-query/form-validation/grid-editing/auth-permission 分类。Form 与权限消费归模块，编辑算法归编辑，认证查询归 API，会话与关闭归 Workspace；不维护两套执行规范。
 
-2026-10-08 同步：[总决策](Web客户端架构与脚手架决策.md) 管脚手架和 app 目录；[多标签工作区](Web多标签工作区设计.md) 管页签规则。保留 1 入口 + 5 执行 Skill；多标签归 feature-page，编辑内核归 grid-editing，不再增加独立 keep-alive/Workspace 碎片技能。
+## 1. 正式入口与发现
 
-## 1. 规模与入口
+正文目录为 `.codex/skills/react-web`，由 [根 AGENTS](../AGENTS.md) → [Router](../.agents/router.toml) → [Web 工作流](../.agents/workflows/Web前端工作流.md) → [技能组入口](../.codex/skills/react-web/index/SKILL.md) 接线。原生发现目录 `.agents/skills/<skill-name>` 通过目录链接指向相应正文，不复制内容或维护同名副本；无需修改全局配置。
 
-建议 **1个技能组入口 + 5个执行Skill**，不把react-query、api-client、openapi-client、batch-save、permission拆成几十个重复小文件。
+Codex 从 CWD 向仓库根扫描 `.agents/skills` 并支持技能目录链接；[官方说明](https://learn.chatgpt.com/docs/build-skills)。本轮校验文件/链接及结构可达，不把静态校验写成新会话实际发现通过；如选择器未刷新，重新启动对应会话再核验。
 
-```text
-.codex/skills/react-web/
-  index/SKILL.md
-  feature-page/SKILL.md
-  api-query/SKILL.md
-  form-validation/SKILL.md
-  grid-editing/SKILL.md
-  auth-permission/SKILL.md
-```
+## 2. 六项职责及唯一正文
 
-技能目录英文便于识别；SKILL.md使用工具固定名，docs/检查清单.md、examples/产品页面示例.tsx等给人阅读文件优先中文。入口按任务意图与目标对象选择适用子技能，不按首个关键词命中；与现有[后端入口](../.codex/skills/aspdotnet10/index/SKILL.md)和[WPF入口](../.codex/skills/wpf-dotnet10-design/index/SKILL.md)分别维护。这个新组尚未存在，不得声称已安装。
+| Skill | 正文 | 适用边界 |
+| --- | --- | --- |
+| react-web | [入口](../.codex/skills/react-web/index/SKILL.md) | 意图/对象、规则读取、按需选择，不自动委派 |
+| react-web-feature | [模块与主壳](../.codex/skills/react-web/react-web-feature/SKILL.md) | feature、应用组合、Form/验证、权限消费、跨模块意图 |
+| react-web-api | [API 接入](../.codex/skills/react-web/react-web-api/SKILL.md) | schema/Orval、传输事实、Query Key、认证/错误接线 |
+| react-web-editing | [编辑保存](../.codex/skills/react-web/react-web-editing/SKILL.md) | 字段 owner、baseline/dirty、原始缓冲、冻结及逐类回执 |
+| react-web-workspace | [多标签](../.codex/skills/react-web/react-web-workspace/SKILL.md) | 身份、Activity、完整保护、关闭、会话及未知恢复 |
+| react-web-delivery | [验证交付](../.codex/skills/react-web/react-web-delivery/SKILL.md) | 类型/依赖/生成、状态/浏览器/契约证据及最终整合 |
 
-index包含：
-- 适用React Web范围及明确禁止覆盖WPF/后端的边界。
-- 读取AGENTS/Router/当前工作流及去重规则的引用。
-- 路由表：页面→feature；生成/查询/错误→api-query；Form→form；Grid/脏状态/批量映射→grid-editing；登录/权限→auth-permission。
-- 多命中补齐必要技能，仍只有一个主角色，不能自动开启并行任务。
-- 所有子技能的短路径，以及公共transport/Grid/EditableCollection等真实实现入口，尚未实现只标规划。
-- 适用后端契约/命令技能引用，不复制其全文，不创造Web专属第三套ServiceResult/Permission模型。
+每项含 frontmatter、适用/输入、允许范围、复用入口、禁止事项和验收；技术正文只引用 [架构决策](Web客户端架构与脚手架决策.md)、[多标签契约](Web多标签工作区设计.md)、[真实契约证据](Web首批接口契约验收.md) 及各自领域细则。这里是接线目录，不另维护伪代码与检查清单副本。
 
-## 2. feature-page：模块页面与文件边界
+## 3. 典型任务组合
 
-**场景**：新增products、supplier-products、sales-orders等feature；列表/详情/Drawer、模块目录和依赖调整。不是皮肤换色或任意全仓重构入口。
+| 请求 | 必要技能 | 限制 |
+| --- | --- | --- |
+| 参考 .NET 10 客户端建立 Web ShellWindow | feature + workspace + delivery；登录接入再加 api，保存验证页再加 editing | WPF 只读行为参考；不复制 MVVM/AttachedProperty，不默认接产品真实写入 |
+| Product 批量编辑 | feature + api + editing + workspace + delivery | 先满足 [Product 门槛](Web首批接口契约验收.md#product-recovery)，主壳/模拟通过不能代替 |
+| 只审查未失焦输入关闭保护 | workspace + editing + delivery | Reviewer，只读，不能因技能可写而修代码 |
+| 维护 Web Skills/路由 | 根治理工作流及 skill-creator | 仅授权治理文件，不生成应用 |
 
-**推荐写法**：
-- 读模块地图→真实Endpoint/DTO/权限→现有公共组件，再建立页面。
-- pages负责协调，queries/mutations负责远程交互，mapper区分DTO与EditorRow；只有实质转换才需api.ts。
-- 页签由 descriptor 提供 Uid/参数，React key 用稳定 tabId；URL 只定位活动页，隐藏页不读全局 useParams/useSearchParams。Form/草稿独立于其他标签，不存 Workspace 的全局 DTO 单例。
-- 页面目录统一 pageKind/权限/显式 lazy import；feature 通过 shared 注入契约注册关闭保护和状态摘要。控制器/保存位于 Activity 外，展示位于内；隐藏清理不能注销关闭守卫或 abort 已派发写入。
-- 初始loading、empty、query error、detail not found及dirty导航都明确定义。
-- UI中文职责注释、只触碰授权feature与必要公共文件。
+## 4. 验证范围
 
-**禁止写法**：页面手写fetch、复制ProductDto、万能BasePage/FeatureManager、目录空模板、依赖其他feature内部、为完成页面自行新增后端业务。
-
-**示例（组织草案）**：
-
-```text
-app/features/products/产品页签入口.tsx → pages/产品管理页.tsx
-  调用 useProductPage(search)
-  用 mapper 创建 EditorRow 草稿
-  把 rows/selection/onCellChange 传给 SwiftDataGrid
-  调用保存 mutation；成功确认后更新collection并精确失效query
-```
-
-**检查清单**：
-- [ ] 模块用例和写入范围明确，有对应源码/契约。
-- [ ] query/mutation/mapper职责清楚；没有第三套公共基类。
-- [ ] dirty 不被刷新覆盖；标签切换保留；关闭和离开工作区分别可取消，hidden 页仍有守卫。
-- [ ] 同实体去重；新单保存 tabId 稳定；保存回原页签；失败/未知不关闭；焦点/弹层/订阅生命周期实测。
-- [ ] loading/空/错误/无权限可解释，类型检查、最小浏览器流程通过。
-
-依据：[Web前端目录方案](web-frontend-architecture.md)、[ProductController](../SwiftExport.WebApi/Controllers/Products/Catalog/ProductController.cs)、[主数据地图](../.agents/references/模块能力地图/主数据模块能力地图.md)。
-
-## 3. api-query：OpenAPI Client、Query与错误
-
-**场景**：更新schema/生成client、连接GET或POST查询、mutation/失效、分页、网络取消和通用错误。将openapi-client、api-client、react-query、error-handling合并在同一协议责任下。
-
-**推荐写法**：
-- 使用固定schema和Orval版本，generated不可手改；调用已有Fetch操作。
-- query key包含规范化筛选/页码/范围，POST搜索仍是query；signal透传。
-- 一个transport负责Bearer、HTTP/error、correlation和二进制；Auth裸DTO与ServiceResult通过端点声明区分。
-- feature mutation声明精确cache失效；写入不自动重试，CommandId协议另从后端技能确认。
-- 401/403/409/422/429/503按稳定code分类，field定位由Form/Grid处理。
-- nullable、enum、decimal/date与生成编译是实际验证，不用any或断言压住类型错误。
-
-**禁止写法**：并行保留Orval和手写SDK、在component拼URL、把所有响应都解包data、只用HTTP200判断保存成功、用中文message做if、失效所有query后清dirty、为了生成改稳定API。
-
-**示例（伪代码，实际函数名来自生成结果）**：
-
-```typescript
-// POST page属于读取；业务筛选和页码进入key，取消信号进入调用链。
-const queryOptions = {
-  queryKey: ["products", "page", normalizedSearch],
-  queryFn: ({ signal }) => productPage(normalizedSearch, { signal }),
-};
-// 保存按真实语义处理；Product批量没有客户端CommandId，不能伪造自动重试幂等。
-const mutationOptions = {
-  mutationFn: saveProductBatch,
-  retry: false,
-};
-```
-
-**检查清单**：
-- [ ] paths/method/request/response与Controller一致；生成+tsc通过。
-- [ ] 已声明所需HTTP失败和JWT；serializer/schema样本一致。
-- [ ] null/枚举/二进制不误解析；CancellationToken/AbortSignal作用范围清楚。
-- [ ] 会话切换清 cache；后台标签保存结果按原 tabId 接纳；未知写入保留输入，不生成新命令盲重试。
-- [ ] 日志脱敏且有correlation，错误只展示一次。
-
-依据：[差距与生成器选择](web-api-gap-analysis.md)、[错误Mapper](../SwiftExport.WebApi/ErrorHandling/ServiceErrorHttpMapper.cs)、[已有命令Skill](../.codex/skills/aspdotnet10/application-document-command/SKILL.md)。
-
-## 4. form-validation：Ant Form与字段转换
-
-**场景**：普通资料/单据头表单，字段校验、lookup、服务器字段错误、日期和金额输入。避免Ant Form、React Hook Form和自定义表单引擎同时维护。
-
-**推荐写法**：
-- Ant Form规则做输入体验，feature validators纯函数处理跨字段输入；业务执行资格由服务端。
-- DTO→Editor→DTO经显式mapper，文本、null、日期、金额语义按契约定义。
-- 日期只在boundary转换；Date-only、本地墙上时间和UTC时刻不能混用toISOString。
-- 服务器error.Field映射到真实路径；行错误由Grid显示，公共错误区保留不能定位的业务阻断。
-- 提交只包含可写字段；审计、状态投影、交付/收货累计值保持只读。
-
-**禁止写法**：完整展示DTO直接post、双份Form和collection分别各写同一字段、用JS浮点重算并覆盖服务端金额、把null全转空字符串、把所有DateTime补Z、重复添加第三方表单框架。
-
-**示例（流程）**：
-
-```text
-Form输入 → 验证required/range → mapper构建专用请求
-server error.Field="Header.CustomerId" → setFields到CustomerId
-server code=BUSINESS_BLOCKED且无field → 页面业务错误区
-```
-
-**检查清单**：
-- [ ] 可写字段明确，生成DTO与编辑类型无重复。
-- [ ] 服务端字段路径能定位；不能定位仍可见，不吞错误。
-- [ ] null/空串、金额/舍入、日期/时区已确认。
-- [ ] 失败保留表单，dirty一致，权限/生命周期禁止编辑有效。
-
-依据：[BaseDto](../SwiftExport.Contracts/DTOs/Base/BaseDto.cs)、[时间参数绑定](../SwiftExport.Infrastructure/Repositories/Base/PostgreSqlParameters.cs)、[SaveAfterSalesCommand](../SwiftExport.Contracts/DTOs/QualityControl/AfterSales/Maintenance/SaveAfterSalesCommand.cs)。
-
-## 5. grid-editing：SwiftDataGrid、EditableCollection与BatchSave
-
-**场景**：可编辑表格、树表、选择/行号/Ctrl+D、草稿变更、恢复、通用BatchSave或专用单据builder。Grid与collection同一Skill说明边界，避免两个Skill互相重复全部状态规则。
-
-**推荐写法**：
-- Grid受控呈现、emit意图，collection持immutable baseline和草稿，feature完成字段patch与请求mapper。
-- ClientKey稳定；通用新增Uid可能被服务端替换，成功按ClientKey接纳Uid/NewVersion。
-- created/updated/deleted互斥，按可写规范化投影与baseline比较；新增删掉消失，恢复原值转clean。
-- 删除池保存原始与删除前编辑态；reject回baseline；tree为flat存储+渲染派生。
-- dirty期间切服务端页/筛选需要保存/放弃/取消；不把未加载行当删除。
-- 保存时冻结提交/禁编辑，原子批次整体接纳，明确部分成功才逐项接纳，未知结果不accept。
-- Ctrl+D范围、可写列、权限、校验和焦点清楚，拒绝填Uid/Version/审计。
-
-**禁止写法**：Grid调用API/组BatchSave、RowIndex作主键、一律AcceptChanges、用当前DTO.Version代替baseline版本、自增Version、假定树父删自动级联、普通BatchSave强加CommandId、单据统一降为通用CRUD。
-
-**示例（状态表）**：
-
-| 操作 | created | updated | deleted | isDirty |
-| --- | --- | --- | --- | --- |
-| 已有行A→B | 无 | 该行 | 无 | true |
-| 再改B→A | 无 | 无 | 无 | false |
-| 新建X→删除X | 无 | 无 | 无 | false（无其他变更） |
-| 已有行删除→restore | 无 | 按删除前修改态决定 | 无 | 按比较决定 |
-| 批量写失败/未知 | 保留 | 保留 | 保留 | true |
-
-**检查清单**：
-- [ ] 上述转换有纯状态测试；baseline对象不与草稿共引用。
-- [ ] ClientKey唯一、响应完整、Uid/ParentId映射及NewVersion验证。
-- [ ] 原子性由服务源码确认，不能从BatchSaveResponse类型推断部分成功。
-- [ ] 保存失败保留草稿；Result 未知不会盲重发；有 CommandId 则复用原意图；隐藏/切换不清变更集。
-- [ ] 服务端分页/树/键盘/未保存导航有针对性浏览器验证。
-- [ ] feature专用请求没有被通用builder改变业务边界。
-
-依据：[collection完整方案](web-frontend-architecture.md)、[BatchSave包装](../SwiftExport.Contracts/Wrappers/BatchSaveRequestBase.cs)、[SaveItemResult](../SwiftExport.Contracts/Wrappers/BatchSaveResponseBase.cs)、[WPF BaseListModel](../SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs)。
-
-## 6. auth-permission：会话与统一PermissionKey
-
-**场景**：登录/me、路由/菜单/按钮、退出与401/403、权限键投影更新。
-
-**推荐写法**：
-- 现有Bearer+me，token存储策略明确；首期会话内存方案，刷新重登录是已知体验。
-- 只按me.Permissions精确匹配；同一代码目录投影供Web/WPF/Backend共用。
-- 页面目录要求 View/Read，mutation 按实际 Create/Edit/Delete/Maintain/Confirm 键；菜单、URL 打开与已驻留页签都核权，模块分组不授予子操作。
-- 主动登出先汇总所有页签 dirty/pending/unknown，再清缓存/上下文；401 遮蔽工作区并保留同会话草稿，恢复必须同用户且重读 me；换用户清旧草稿。
-- RBAC/文件Admin保留政策与服务内授权显式说明，不把IsAdmin做全应用万能判断。
-- 未登记端点交后端补矩阵，不绕过EndpointPermissionFilter。
-
-**禁止写法**：JWT roles claim作为实时权限、角色中文名判断、localStorage默认永久token、token放query、另造ModulePermissions、由sys_view_route推导授权、普通用户初始化强制访问管理员permissions目录。
-
-**示例（逻辑草案）**：
-
-```typescript
-// PermissionKeys投影必须与Contracts代码目录校验；没有角色名或通配符兜底。
-const canView = permissions.has(PermissionKeys.ProductsProductView);
-const canSave =
-  (!hasCreates || permissions.has(PermissionKeys.ProductsProductCreate)) &&
-  (!hasUpdates || permissions.has(PermissionKeys.ProductsProductEdit)) &&
-  (!hasDeletes || permissions.has(PermissionKeys.ProductsProductDelete));
-```
-
-**检查清单**：
-- [ ] login/me真实响应类型有schema；前端不能单靠JWT解码宣布认证有效。
-- [ ] View与写入键分开，混合BatchSave检查全部实际键。
-- [ ] 保留权限/最后管理员/账号状态由服务器控制，UI无绕过。
-- [ ] 401/403 与用户切换不泄漏缓存/草稿，已打开/隐藏标签权限撤销生效；服务器仍独立拒绝。
-- [ ] TypeScript键与PermissionCatalog一致，未知键无授权。
-- [ ] DevUser关闭后验证登录/匿名，未把开发免登录当Web认证完成。
-
-依据：[权限设计](web-permission-design.md)、[MeDto](../SwiftExport.Contracts/DTOs/Auth/Session/MeDto.cs)、[PermissionCatalog](../SwiftExport.Contracts/DTOs/Auth/Permissions/PermissionCatalog.cs)。
-
-## 7. 落地顺序与Skill验收
-
-方案基线已明确；后续授权实施时注册独立 Web 角色/SOP，并建立 index、feature-page、api-query；首期工作区同时需要 auth-permission，Product 编辑需要 form-validation/grid-editing。先验证两页签再接产品，不重复修已验收九端点。无需新增单独 Workspace/batch-save/openapi-client/permission/error-handling 技能；真实设施成熟后回填示例路径，不在 Skill 维护第二套实现。
-
-每个Skill固定包含frontmatter（name/description）、适用/不适用、唯一权威引用、推荐/禁止、一个短示例、必要检查清单。示例与当前生成client/API同步，旧示例失效须更新，不能把schema手改绕过generated规则。
-
-创建后验证：skill-creator结构校验、路径存在、触发无WPF/Web冲突、引用去重、典型任务路由场景、实际Product闭环。Skill通过静态校验不等于功能通过；本轮没有创建或执行这些Skill，也没有修改现行AI开发入口。
-
+结构验证使用 skill-creator 的 quick_validate；额外核对 TOML、引用/锚点、唯一 name、根/子目录入口、路由场景及 diff。新会话实际发现、工程联合兼容性、Product/浏览器/真实 PG 验收分别记录；本轮未实施功能，也未把历史测试计数改为当前通过。
