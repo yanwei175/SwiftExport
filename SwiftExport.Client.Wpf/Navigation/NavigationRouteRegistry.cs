@@ -19,6 +19,7 @@ using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
+using SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels;
 using SwiftExportClient.Features.Sales;
 using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
@@ -89,6 +90,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PurchaseOrderDetailViewModel.RouteKey, "采购单详情", "Workspace", typeof(PurchaseOrderDetailViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
 
         new(AfterSalesManagerViewModel.RouteKey, "售后服务管理", "Manager", typeof(AfterSalesManagerViewModel), NavigationModuleKeys.QualityControl, "QualityControl.AfterSales.View"),
+        new(FlowManagerViewModel.RouteKey, "流量管理", "Manager", typeof(FlowManagerViewModel), NavigationModuleKeys.QualityControl, PermissionKeys.QualityControlFlowView),
+        new(FlowDetailViewModel.RouteKey, "流量测试组", "Detail", typeof(FlowDetailViewModel), NavigationModuleKeys.QualityControl, PermissionKeys.QualityControlFlowView),
 
         new(AfterSalesQualityCategoryManagerViewModel.RouteKey, "售后品质分类", "Workspace", typeof(AfterSalesQualityCategoryManagerViewModel), NavigationModuleKeys.QualityControl, PermissionKeys.QualityControlAfterSalesView),
 
@@ -200,6 +203,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new(AfterSalesManagerViewModel.RouteKey, "售后投诉", "Manager", "ClipboardTaskListLtr24"),
+                    new(FlowManagerViewModel.RouteKey, "流量管理", "Manager", "DocumentTable24"),
                     new(AfterSalesQualityCategoryManagerViewModel.RouteKey, "品质分类", "Workspace", "Folder24"),
                 ]),
             new(

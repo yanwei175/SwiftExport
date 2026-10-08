@@ -70,12 +70,14 @@ public sealed class FlowRepositoryTests
         Assert.IsNotNull(detail);
         Assert.AreEqual(header.Uid, detail.Uid);
         Assert.AreEqual(7, detail.Version);
+        Assert.AreEqual(header.TestDate, detail.TestDate);
         Assert.AreEqual("OLD-SKU", detail.SkuSnapshot);
         Assert.AreEqual(2, detail.Lines.Count);
         Assert.AreEqual(0m, detail.Lines[0].Flow1BarLMin);
         Assert.IsNull(detail.Lines[0].Flow20PsiGpm);
         Assert.AreEqual(1.5m, detail.Lines[1].Flow100PsiGpm);
         StringAssert.Contains(f.Connection.Text, "LEFT JOIN public.flow_line");
+        StringAssert.Contains(f.Connection.Text, "h.\"test_date\"::timestamp without time zone AS \"TestDate\"");
         Assert.IsFalse(f.Connection.Text.Contains("sys_dict", StringComparison.Ordinal));
         Assert.AreEqual(1, f.Connection.Commands);
     }
@@ -115,11 +117,29 @@ public sealed class FlowRepositoryTests
         var result = await f.Repository.GetPagedAsync(new FlowSearchRequest { PageIndex = 4, PageSize = 2, SkuSnapshot = "%'probe" }, default);
         Assert.AreEqual(3, result.TotalCount);
         Assert.AreEqual(1, result.Items.Count);
+        Assert.AreEqual(new DateTime(2026, 10, 8), result.Items[0].TestDate);
+        StringAssert.Contains(f.Connection.Text, "h.\"test_date\"::timestamp without time zone AS \"TestDate\"");
         Assert.AreEqual(6L, f.Connection.Values["Offset"]);
         Assert.AreEqual(2, f.Connection.Values["Limit"]);
         Assert.AreEqual("%'probe", f.Connection.Values["Sku"]);
         StringAssert.Contains(f.Connection.Text, "ORDER BY h.test_date DESC,h.uid DESC LIMIT @Limit OFFSET @Offset");
         Assert.IsFalse(f.Connection.Text.Contains("%'probe", StringComparison.Ordinal));
+    }
+
+    /// <summary>维护锁头沿用相同日期转换，保持版本、取消令牌和调用方事务。</summary>
+    [TestMethod]
+    public async Task HeaderReadKeepsDateProjectionAndLock()
+    {
+        using var f = new Fixture();
+        using var transaction = f.Session.Connection.BeginTransaction(); f.Session.Transaction = transaction;
+        var expected = new FlowHeader { TestDate = new(2026, 10, 8), Version = 3 };
+        var rows = EntityTable<FlowHeader>("h"); rows.Rows.Add(Values(expected)); f.Connection.Results = [rows];
+        using var token = new CancellationTokenSource();
+        var actual = await f.Repository.ReadHeaderAsync(expected.Uid, true, token.Token);
+        Assert.IsNotNull(actual); Assert.AreEqual(expected.TestDate, actual.TestDate); Assert.AreEqual(3, actual.Version);
+        StringAssert.Contains(f.Connection.Text, "h.\"test_date\"::timestamp without time zone AS \"TestDate\"");
+        StringAssert.Contains(f.Connection.Text, "FOR UPDATE");
+        Assert.AreSame(transaction, f.Connection.LastTransaction); Assert.AreEqual(token.Token, f.Connection.LastToken);
     }
 
     private static DataTable VersionTable(int version)

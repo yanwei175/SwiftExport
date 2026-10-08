@@ -59,6 +59,7 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     public int RefreshSuppliersCallCount { get; private set; }
     public int EnsureWarehouseSitesLoadedCallCount { get; private set; }
     public int RefreshWarehouseSitesCallCount { get; private set; }
+    public int RefreshDictionariesCallCount { get; private set; }
 
     public IReadOnlyList<SysDictDataDto> GetDictionaryValues(string dictCode, bool enabledOnly = true) =>
         DictionaryValues
@@ -93,7 +94,12 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     }
     public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => throw new NotSupportedException();
     public Task<CacheRefreshResult> RefreshCurrenciesAsync() => throw new NotSupportedException();
-    public Task<CacheRefreshResult> RefreshDictionariesAsync() => throw new NotSupportedException();
+    /// <summary>字典刷新沿用离线成功或失败结果，统计调用；不向实际服务发送请求。</summary>
+    public Task<CacheRefreshResult> RefreshDictionariesAsync()
+    {
+        RefreshDictionariesCallCount++;
+        return Task.FromResult(_ensureResult);
+    }
 
     public void Clear()
     {

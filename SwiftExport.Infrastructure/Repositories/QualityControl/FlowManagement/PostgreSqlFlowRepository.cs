@@ -162,9 +162,16 @@ public sealed class PostgreSqlFlowRepository(RepositoryBaseContext context) : IF
             RepositoryWriteResult.Fail(id, version, ServiceErrorCodes.ConcurrencyConflict, "流量记录已被修改或删除。");
     }
 
-    /// <summary>为固定实体生成带 CLR 别名的完整投影，不拼接用户输入，也不使用 SELECT *。</summary>
+    /// <summary>为固定实体生成带 CLR 别名的完整投影；测试日期投影为无时区午夜，兼容契约 DateTime，不改变数据库 date 列。</summary>
     private static string Projection<T>(string alias) where T : BaseEntity => string.Join(",", EntityMetadataCache.GetMetadata<T>().Columns
-        .Select(c => $"{alias}.{PostgreSqlNames.Quote(c.ColumnName)} AS {PostgreSqlNames.Quote(c.PropertyName)}"));
+        .Select(c =>
+        {
+            var value = $"{alias}.{PostgreSqlNames.Quote(c.ColumnName)}";
+            // Npgsql 的 date 默认读取可能为 DateOnly，Dapper 不能直接映射到当前实体和 netstandard 契约的 DateTime。
+            if (typeof(T) == typeof(FlowHeader) && c.PropertyName == nameof(FlowHeader.TestDate))
+                value += "::timestamp without time zone";
+            return $"{value} AS {PostgreSqlNames.Quote(c.PropertyName)}";
+        }));
     private static string Qualified(EntityMetadata metadata) => $"{PostgreSqlNames.Quote(metadata.SchemaName)}.{PostgreSqlNames.Quote(metadata.TableName)}";
 
     /// <summary>SKU 按字面子串搜索，百分号等字符不会变成通配符；日期上下界均包含当天。</summary>

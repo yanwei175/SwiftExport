@@ -106,6 +106,8 @@ public static class ViewRegistrationExtensions
         services.AddTransient<PurchaseOrderDetailViewModel>();
         services.AddTransient<PurchaseDemandAssociationViewModel>();
         services.AddTransient<AfterSalesManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels.FlowManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels.FlowDetailViewModel>();
         services.AddTransient<AfterSalesDetailViewModel>();
         services.AddTransient<AfterSalesQualityCategoryManagerViewModel>();
         services.AddTransient<PurchaseCandidateSelectionViewModel>();

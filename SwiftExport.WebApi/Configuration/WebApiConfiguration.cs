@@ -16,6 +16,8 @@ using SwiftExport.WebApi.Files;
 using SwiftExport.WebApi.OpenApi;
 using Microsoft.OpenApi;
 using System.Text;
+using System.Net;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace SwiftExport.WebApi.Configuration;
 
@@ -25,6 +27,17 @@ public static class WebApiConfiguration
     /// <summary>注册后端依赖、JWT 身份验证和 HTTP 框架选项；沿用宿主配置。</summary>
     public static void AddWebApiServices(this WebApplicationBuilder builder)
     {
+        // Caddy 与后端在同一服务器；只接受回环代理传入的协议和客户端地址，不信任局域网直连伪造头。
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardLimit = 1;
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+            options.KnownProxies.Add(IPAddress.Loopback);
+            options.KnownProxies.Add(IPAddress.IPv6Loopback);
+        });
+
         // 1. 注册基础设施
         builder.Services.AddInfrastructureServices();
 
@@ -142,6 +155,9 @@ public static class WebApiConfiguration
     /// <summary>挂载追踪、异常、空错误响应补全、认证授权和 Controller 端点。</summary>
     public static void UseWebApiPipeline(this WebApplication app)
     {
+        // 必须早于 HTTPS 跳转；否则 Caddy 的 HTTPS 请求到达 HTTP 后端后会反复重定向。
+        app.UseForwardedHeaders();
+
         // ==========================================
         // 4. 配置 HTTP 请求管道 (Middlewares)
         // ==========================================

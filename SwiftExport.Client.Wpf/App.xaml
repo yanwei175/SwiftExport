@@ -34,6 +34,7 @@
                 <ResourceDictionary Source="Features/DemandPlanning/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Procurement/页面模板.xaml" />
                 <ResourceDictionary Source="Features/QualityControl/页面模板.xaml" />
+                <ResourceDictionary Source="Features/QualityControl/FlowManagement/FlowTemplates.xaml" />
                 <ResourceDictionary Source="Features/Inventory/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Shipping/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Planning/页面模板.xaml" />

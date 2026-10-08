@@ -1,0 +1,133 @@
+<UserControl x:Name="Root" x:Class="SwiftExportClient.Features.QualityControl.FlowManagement.Views.FlowDetailView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:products="clr-namespace:SwiftExportClient.Features.Products.Components"
+ xmlns:converters="clr-namespace:SwiftExportClient.Features.QualityControl.FlowManagement.Converters"
+ xmlns:text="clr-namespace:SwiftExportClient.Features.QualityControl.FlowManagement.Resources">
+ <UserControl.Resources>
+  <converters:FlowLineStateConverter x:Key="LineStateText"/>
+  <Style x:Key="DictionaryItem" TargetType="ComboBoxItem"><Setter Property="IsEnabled" Value="{Binding IsEnabled}"/></Style>
+ </UserControl.Resources>
+ <Grid Margin="12">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <DockPanel Margin="0,0,0,12">
+   <TextBlock Text="{Binding DocumentTitle}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
+   <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+    <Button Content="保存整组" Command="{Binding SaveCommand}" Padding="12,4" Margin="8,0,0,0"/>
+    <Button Content="重新读取" Command="{Binding ReloadCommand}" Padding="12,4" Margin="8,0,0,0"/>
+    <Button Content="刷新字典" Command="{Binding RefreshDictionariesCommand}" Padding="12,4" Margin="8,0,0,0"/>
+    <Button Content="删除整组" Command="{Binding DeleteCommand}" Padding="12,4" Margin="8,0,0,0"/>
+   </StackPanel>
+  </DockPanel>
+  <Grid Grid.Row="1" Margin="0,0,0,12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <StackPanel>
+    <TextBlock Text="物料（保存后固定）" Margin="0,0,0,4"/>
+    <products:ProductLookupTextBox x:Name="MaterialEditor" Tag="Header.MaterialId" SelectedProduct="{Binding SelectedMaterial,Mode=TwoWay}"
+     ItemsSource="{Binding MaterialOptions}" SearchCommand="{Binding SearchMaterialsCommand}" IsBusy="{Binding IsMaterialSearchBusy}"
+     IsEnabled="{Binding CanSelectMaterial}" AutomationProperties.Name="测试物料" Placeholder="搜索并选择物料"/>
+    <TextBlock Text="{Binding Header.SkuSnapshot}" Margin="0,4,0,0"/>
+   </StackPanel>
+   <StackPanel Grid.Column="2">
+    <TextBlock Text="测试日期" Margin="0,0,0,4"/>
+    <DatePicker x:Name="TestDatePicker" Tag="Header.TestDate" SelectedDateFormat="Short" SelectedDate="{Binding Header.TestDate,Mode=TwoWay,NotifyOnValidationError=True,ValidatesOnExceptions=True}"
+     IsEnabled="{Binding CanEdit}" DateValidationError="OnDateValidationError" AutomationProperties.Name="测试日期"/>
+   </StackPanel>
+   <StackPanel Grid.Row="1" Margin="0,8,0,0">
+    <TextBlock Text="市场说明" Margin="0,0,0,4"/>
+    <TextBox Text="{Binding Header.MarketDescription,UpdateSourceTrigger=PropertyChanged}" MaxLength="2000"
+     IsEnabled="{Binding CanEdit}" AutomationProperties.Name="市场说明"/>
+   </StackPanel>
+   <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,8,0,0">
+    <TextBlock Text="公共配件配置说明" Margin="0,0,0,4"/>
+    <TextBox Text="{Binding Header.ConfigurationDescription,UpdateSourceTrigger=PropertyChanged}" MaxLength="2000"
+     IsEnabled="{Binding CanEdit}" AutomationProperties.Name="公共配件配置说明"/>
+   </StackPanel>
+   <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Margin="0,8,0,0">
+    <TextBlock Text="备注" Margin="0,0,0,4"/>
+    <TextBox Text="{Binding Header.Remark,UpdateSourceTrigger=PropertyChanged}" MaxLength="2000"
+     IsEnabled="{Binding CanEdit}" AutomationProperties.Name="测试组备注"/>
+   </StackPanel>
+  </Grid>
+  <DockPanel Grid.Row="2" Margin="0,0,0,8">
+   <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+    <Button Content="添加功能" Command="{Binding AddLineCommand}" Padding="12,4" Margin="8,0,0,0"/>
+    <Button Content="移除选中行" Command="{Binding RemoveLineCommand}" Padding="12,4" Margin="8,0,0,0"/>
+   </StackPanel>
+   <StackPanel>
+    <WrapPanel><TextBlock Text="{x:Static text:FlowText.BarUnit}" FontWeight="SemiBold" Margin="0,0,16,4"/><TextBlock Text="{x:Static text:FlowText.PsiUnit}" FontWeight="SemiBold"/></WrapPanel>
+    <TextBlock Text="{x:Static text:FlowText.MeasurementHelp}" TextWrapping="Wrap"/>
+   </StackPanel>
+  </DockPanel>
+  <DataGrid x:Name="FlowGrid" Grid.Row="3" ItemsSource="{Binding Lines}" SelectedItem="{Binding SelectedLine}"
+   IsReadOnly="{Binding CanEdit,Converter={StaticResource InverseBooleanConverter}}"
+   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single"
+   FrozenColumnCount="3" EnableRowVirtualization="True" EnableColumnVirtualization="True" BeginningEdit="OnBeginningEdit"
+   AutomationProperties.Name="功能流量测量表">
+   <DataGrid.Columns>
+    <DataGridTextColumn Header="状态" Binding="{Binding State,Converter={StaticResource LineStateText}}" IsReadOnly="True" Width="70"/>
+    <DataGridTemplateColumn Header="功能" SortMemberPath="FunctionId" Width="160">
+     <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding FunctionDisplayName}" VerticalAlignment="Center" Margin="4"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+     <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
+      <ComboBox ItemsSource="{Binding FunctionOptions}" SelectedValue="{Binding FunctionId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+       SelectedValuePath="Uid" DisplayMemberPath="Name" ItemContainerStyle="{StaticResource DictionaryItem}" AutomationProperties.Name="测试功能"/>
+     </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+    </DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="限流器规格" SortMemberPath="LimiterSpecificationId" Width="160">
+     <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding LimiterDisplayName}" VerticalAlignment="Center" Margin="4"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+     <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
+      <ComboBox ItemsSource="{Binding LimiterOptions}" SelectedValue="{Binding LimiterSpecificationId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
+       SelectedValuePath="Uid" DisplayMemberPath="Name" ItemContainerStyle="{StaticResource DictionaryItem}" AutomationProperties.Name="限流器规格"/>
+     </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+    </DataGridTemplateColumn>
+    <DataGridTextColumn SortMemberPath="Flow1BarLMin" Width="100" Binding="{Binding Flow1BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="1 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow2BarLMin" Width="100" Binding="{Binding Flow2BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="2 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow3BarLMin" Width="100" Binding="{Binding Flow3BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="3 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow4BarLMin" Width="100" Binding="{Binding Flow4BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="4 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow5BarLMin" Width="100" Binding="{Binding Flow5BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="5 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow6BarLMin" Width="100" Binding="{Binding Flow6BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="6 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow7BarLMin" Width="100" Binding="{Binding Flow7BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="7 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow8BarLMin" Width="100" Binding="{Binding Flow8BarLMin,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="8 bar&#10;L/min" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow20PsiGpm" Width="100" Binding="{Binding Flow20PsiGpm,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="20 PSI&#10;GPM" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow40PsiGpm" Width="100" Binding="{Binding Flow40PsiGpm,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="40 PSI&#10;GPM" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow60PsiGpm" Width="100" Binding="{Binding Flow60PsiGpm,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="60 PSI&#10;GPM" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow80PsiGpm" Width="100" Binding="{Binding Flow80PsiGpm,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="80 PSI&#10;GPM" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn SortMemberPath="Flow100PsiGpm" Width="100" Binding="{Binding Flow100PsiGpm,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,StringFormat=0.####,TargetNullValue='',NotifyOnValidationError=True,ValidatesOnExceptions=True}">
+     <DataGridTextColumn.Header><TextBlock Text="100 PSI&#10;GPM" TextAlignment="Center"/></DataGridTextColumn.Header>
+    </DataGridTextColumn>
+    <DataGridTextColumn Header="排序" SortMemberPath="SortNo" Binding="{Binding SortNo,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,NotifyOnValidationError=True,ValidatesOnExceptions=True}" Width="70"/>
+    <DataGridTextColumn Header="行备注 / 限流器型号" Binding="{Binding Remark,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" Width="220"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <StackPanel Grid.Row="4" Margin="0,12,0,0">
+   <TextBlock Text="纠正已有记录使用保存；更换限流器重新实测或再次实测，请新建测试组。" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding BusyMessage}" AutomationProperties.LiveSetting="Polite"/>
+   <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+   <TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+  </StackPanel>
+ </Grid>
+</UserControl>

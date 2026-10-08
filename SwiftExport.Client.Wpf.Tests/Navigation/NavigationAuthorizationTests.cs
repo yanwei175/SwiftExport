@@ -29,6 +29,7 @@ public sealed class NavigationAuthorizationTests
             "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
             "DemandPlanning.Source.View", "DemandPlanning.Source.View", "DemandPlanning.Material.View", "DemandPlanning.Material.View",
             "Procurement.Order.Read", "Procurement.Order.Edit", "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
+            "QualityControl.AfterSales.View", PermissionKeys.QualityControlFlowView, PermissionKeys.QualityControlFlowView,
             "QualityControl.AfterSales.View", "QualityControl.AfterSales.View",
             "Inventory.Warehouse.View", "Inventory.Balance.View", "Inventory.Inbound.View", "Inventory.Outbound.View",
             "Inventory.Balance.View", "DemandPlanning.Source.View", null

@@ -141,9 +141,10 @@ function Start-BackendInstance([string]$InstallPath, [string]$Mode, [string]$Lis
             $registered = Get-CimInstance Win32_Service -Filter "Name='$script:BackendServiceName'"
             $changed = Invoke-CimMethod -InputObject $registered -MethodName Change -Arguments @{
                 StartName = 'NT SERVICE\' + $script:BackendServiceName
-                StartPassword = ''
+                # 虚拟账户由 Windows 管理密码，原生接口要求 NULL；空字符串会触发账户/参数校验失败。
+                StartPassword = $null
             }
-            if ($changed.ReturnValue -ne 0) { throw '服务运行身份设置失败。' }
+            if ($changed.ReturnValue -ne 0) { throw "服务运行身份设置失败，Windows CIM 返回码：$($changed.ReturnValue)，账户：NT SERVICE\$script:BackendServiceName。" }
         } else {
             # 使用结构化 CIM 参数保留带空格程序路径的引号，避免外部命令行二次解析造成路径错误。
             $registered = Get-CimInstance Win32_Service -Filter "Name='$script:BackendServiceName'"

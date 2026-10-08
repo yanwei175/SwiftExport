@@ -1,0 +1,7 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="clr-namespace:SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels"
+ xmlns:views="clr-namespace:SwiftExportClient.Features.QualityControl.FlowManagement.Views">
+ <DataTemplate DataType="{x:Type vm:FlowManagerViewModel}"><views:FlowManagerView /></DataTemplate>
+ <DataTemplate DataType="{x:Type vm:FlowDetailViewModel}"><views:FlowDetailView /></DataTemplate>
+</ResourceDictionary>

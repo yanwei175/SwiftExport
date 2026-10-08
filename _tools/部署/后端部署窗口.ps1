@@ -45,7 +45,7 @@ function Add-DeploymentInput([string]$Caption, [int]$Top, [bool]$SelectFile) {
 
 $packageBox = Add-DeploymentInput 'Visual Studio 发布目录（复制到服务器后的完整文件夹）' 15 $false
 $targetBox = Add-DeploymentInput '服务器安装目录（更新时保持同一个目录）' 80 $false
-$targetBox.Text = 'D:\Apps\SwiftExport_WebApi'
+$targetBox.Text = 'D:\Apps\SwiftExport_Service'
 $configurationBox = Add-DeploymentInput '首次部署：选择服务器生产配置 JSON；更新时留空' 145 $true
 $modeLabel = New-Object Windows.Forms.Label
 $modeLabel.Text = '运行方式'
@@ -55,12 +55,12 @@ $modeBox.DropDownStyle = 'DropDownList'
 $modeBox.SetBounds(120, 210, 220, 30)
 [void]$modeBox.Items.Add('直接运行（由工具管理进程）')
 [void]$modeBox.Items.Add('Windows 服务（开机自动启动）')
-$modeBox.SelectedIndex = 0
+$modeBox.SelectedIndex = 1
 $urlLabel = New-Object Windows.Forms.Label
-$urlLabel.Text = '监听地址（内网访问可用 http://0.0.0.0:5080）'
+$urlLabel.Text = '后端监听地址（Caddy 托管请保持回环地址，与 Caddyfile 一致）'
 $urlLabel.SetBounds(20, 251, 660, 24)
 $urlBox = New-Object Windows.Forms.TextBox
-$urlBox.Text = 'http://127.0.0.1:5080'
+$urlBox.Text = 'http://127.0.0.1:5081'
 $urlBox.SetBounds(20, 279, 660, 28)
 $note = New-Object Windows.Forms.Label
 $note.Text = '部署会短暂停止后端，请先结束保存/过账操作。更新保留配置；服务模式需管理员运行。'
@@ -68,12 +68,24 @@ $note.SetBounds(20, 318, 660, 45)
 $deployButton = New-Object Windows.Forms.Button
 $deployButton.Text = '部署 / 更新'
 $deployButton.SetBounds(20, 365, 160, 40)
+$hostingButton = New-Object Windows.Forms.Button
+$hostingButton.Text = '首次安装 Caddy / 切换 IIS'
+$hostingButton.SetBounds(200, 365, 300, 40)
+$hostingButton.Add_Click({
+    # 独立窗口继承当前管理员身份；两个工具不能同时部署同一后端目标。
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = 'powershell.exe'
+    $start.Arguments = '-NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + (Join-Path $PSScriptRoot 'Caddy首次安装窗口.ps1') + '"'
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    [void][Diagnostics.Process]::Start($start)
+})
 $logBox = New-Object Windows.Forms.TextBox
 $logBox.Multiline = $true
 $logBox.ReadOnly = $true
 $logBox.ScrollBars = 'Vertical'
 $logBox.SetBounds(20, 420, 660, 110)
-$form.Controls.AddRange(@($modeLabel,$modeBox,$urlLabel,$urlBox,$note,$deployButton,$logBox))
+$form.Controls.AddRange(@($modeLabel,$modeBox,$urlLabel,$urlBox,$note,$deployButton,$hostingButton,$logBox))
 
 # 只记住目录和运行选项；配置文件的内容和密钥不会写进窗口设置。
 if (Test-Path -LiteralPath $settingsPath) {
@@ -89,6 +101,7 @@ $deployButton.Add_Click({
     if ($script:DeploymentBusy) { return }
     $script:DeploymentBusy = $true
     $deployButton.Enabled = $false
+    $hostingButton.Enabled = $false
     $form.UseWaitCursor = $true
     try {
         $options = @{
@@ -118,6 +131,7 @@ $deployButton.Add_Click({
     } finally {
         $script:DeploymentBusy = $false
         $deployButton.Enabled = $true
+        $hostingButton.Enabled = $true
         $form.UseWaitCursor = $false
     }
 })
