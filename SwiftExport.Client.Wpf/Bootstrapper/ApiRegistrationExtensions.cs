@@ -17,11 +17,13 @@ using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Bootstrapper;
 
+/// <summary>集中注册按业务 Controller 基地址访问的 Refit 契约和客户端认证处理器。</summary>
 public static class ApiRegistrationExtensions
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan AuthTimeout = TimeSpan.FromSeconds(15);
 
+    /// <summary>注册客户端 API，包括 BOM 专用窄绑定，沿用公共会话认证和请求超时。</summary>
     public static IServiceCollection AddSwiftExportApis(this IServiceCollection services)
     {
         services.AddRefitClient<IAuthApi>()
@@ -89,6 +91,7 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IProductColorApi>("ProductColor");
         services.AddControllerApi<IProductCategoryApi>("ProductCategory");
         services.AddControllerApi<IBomApi>("Bom");
+        services.AddControllerApi<IProductBomBindingApi>("Product");
     }
 
     private static void AddSupplierApis(this IServiceCollection services)

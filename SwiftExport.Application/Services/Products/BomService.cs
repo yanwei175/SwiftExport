@@ -31,15 +31,15 @@ public partial class BomService(
 
     #region BOM管理CRUD操作
 
-    public async Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNoAsync(string bomNo)
+    /// <summary>读取当前共享组成；空 BOM 返回成功空集合，支持建立绑定后继续录入子件。</summary>
+    public async Task<ServiceResult<List<BomDto>>> GetBomDtoByBomNoAsync(string bomNo, CancellationToken cancellationToken = default)
     {
-        var entities = await bomRepo.GetBomDtoByBomNoAsync(bomNo);
-        if (!entities.Any()) return ServiceResult<List<BomDto>>.Fail("未找到数据");
-
+        var entities = await bomRepo.GetBomDtoByBomNoAsync(bomNo, cancellationToken);
         return ServiceResult<List<BomDto>>.Ok([.. entities]);
     }
 
-    public async Task<ServiceResult<bool>> ValidateBomAsync(string productSku)
+    /// <summary>对已保存的产品 BOM 执行现有合理性校验，取消令牌贯穿产品和组成读取。</summary>
+    public async Task<ServiceResult<bool>> ValidateBomAsync(string productSku, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(productSku))
         {
@@ -47,14 +47,14 @@ public partial class BomService(
         }
 
         // 0. 获取产品的 BOM 号
-        Product? pd = await pdRepo.GetBySkuAsync(productSku);
+        Product? pd = await pdRepo.GetBySkuAsync(productSku, cancellationToken);
         if (pd == null || string.IsNullOrEmpty(pd.BomNo))
             return ServiceResult<bool>.Fail("产品型号不存在或产品没设置BOM");
 
         string bomNo = pd.BomNo;
 
         // 1. 查询该产品的 BOM 项
-        var bomItems = await bomRepo.GetBomByBomNoAsync(bomNo);
+        var bomItems = await bomRepo.GetBomByBomNoAsync(bomNo, cancellationToken);
         if (bomItems == null || !bomItems.Any())
             return ServiceResult<bool>.Fail("该Bom 没有 BOM 数据，视为不合法");
 
@@ -66,8 +66,8 @@ public partial class BomService(
         foreach (var item in bomItems)
         {
             var exists = item.ComponentProductId.HasValue
-                ? await pdRepo.ExistsIdAsync(item.ComponentProductId.Value)
-                : await pdRepo.GetBySkuAsync(item.ComponentSkuSnapshot) != null;
+                ? await pdRepo.GetByIdAsync(item.ComponentProductId.Value, cancellationToken) != null
+                : await pdRepo.GetBySkuAsync(item.ComponentSkuSnapshot, cancellationToken) != null;
             if (!exists) return ServiceResult<bool>.Fail($"子项{item.ComponentSkuSnapshot}不存在");
         }
 
@@ -82,11 +82,11 @@ public partial class BomService(
         {
             if (!visited.Add(currentBomNo)) return true; // 已访问过，说明有环
 
-            var children = await bomRepo.GetBomByBomNoAsync(currentBomNo);
+            var children = await bomRepo.GetBomByBomNoAsync(currentBomNo, cancellationToken);
             foreach (var child in children)
             {
                 // 递归检查子件的 BOM
-                var subPd = await pdRepo.GetBySkuAsync(child.ComponentSkuSnapshot);
+                var subPd = await pdRepo.GetBySkuAsync(child.ComponentSkuSnapshot, cancellationToken);
                 if (subPd != null && !string.IsNullOrEmpty(subPd.BomNo))
                 {
                     if (await HasCycleAsync(subPd.BomNo)) return true;
@@ -102,23 +102,25 @@ public partial class BomService(
         return ServiceResult<bool>.Ok(true); // 所有检查通过
     }
 
-    public async Task<ServiceResult<IEnumerable<BomTreeDto>>> GetBomTreeAsync(string productSku)
+    /// <summary>读取已保存组成的多层只读结构，沿用现有循环截断边界。</summary>
+    public async Task<ServiceResult<IEnumerable<BomTreeDto>>> GetBomTreeAsync(string productSku, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(productSku))
             return ServiceResult<IEnumerable<BomTreeDto>>.Fail("产品SKU不能为空");
 
-        var pd = await pdRepo.GetBySkuAsync(productSku);
+        var pd = await pdRepo.GetBySkuAsync(productSku, cancellationToken);
         if (pd == null || string.IsNullOrEmpty(pd.BomNo))
         {
             return ServiceResult<IEnumerable<BomTreeDto>>.Ok([]);
         }
 
         var visited = new HashSet<string>();
-        var result = await BuildBomTreeAsync(pd.BomNo, visited);
+        var result = await BuildBomTreeAsync(pd.BomNo, visited, cancellationToken);
         return ServiceResult<IEnumerable<BomTreeDto>>.Ok(result);
     }
 
-    private async Task<List<BomTreeDto>> BuildBomTreeAsync(string bomNo, HashSet<string> visited)
+    /// <summary>逐层读取当前组成；已访问编号截断递归，页面离开可取消后续读取。</summary>
+    private async Task<List<BomTreeDto>> BuildBomTreeAsync(string bomNo, HashSet<string> visited, CancellationToken cancellationToken)
     {
         var resultList = new List<BomTreeDto>();
         if (!visited.Add(bomNo))
@@ -127,11 +129,11 @@ public partial class BomService(
             return resultList;
         }
 
-        var bomItems = await bomRepo.GetBomByBomNoAsync(bomNo);
+        var bomItems = await bomRepo.GetBomByBomNoAsync(bomNo, cancellationToken);
         foreach (var item in bomItems)
         {
             var dto = item.Adapt<BomTreeDto>();
-            var subPd = await pdRepo.GetBySkuAsync(item.ComponentSkuSnapshot);
+            var subPd = await pdRepo.GetBySkuAsync(item.ComponentSkuSnapshot, cancellationToken);
             if (subPd != null)
             {
                 // 补齐显示用的字段
@@ -144,7 +146,7 @@ public partial class BomService(
                 // 条件：实体有BomNo 且 本身的类型不是"止拆"
                 if (subPd.BomVersion > 0 && !string.IsNullOrEmpty(subPd.BomNo))
                 {
-                    dto.Children = await BuildBomTreeAsync(subPd.BomNo, visited);
+                    dto.Children = await BuildBomTreeAsync(subPd.BomNo, visited, cancellationToken);
                 }
             }
             else

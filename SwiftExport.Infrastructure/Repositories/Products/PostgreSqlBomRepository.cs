@@ -110,18 +110,24 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         """;
 
     /// <summary>按 Trim 后编号查询共享有效组成，每个物理行只返回一次；组件编码保留快照，展示资料取当前有效引用。</summary>
-    public Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo) => Connection.QueryAsync<BomDto>($"""
+    public Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo) => GetBomDtoByBomNoAsync(bomNo, CancellationToken.None);
+
+    /// <summary>按共享编号读取展示，并将页面取消令牌传入 Dapper 命令。</summary>
+    public Task<IEnumerable<BomDto>> GetBomDtoByBomNoAsync(string bomNo, CancellationToken cancellationToken) => Connection.QueryAsync<BomDto>(new CommandDefinition($"""
         SELECT {DtoColumns} FROM public.bom b {DisplayJoins}
         WHERE {Equal("b.bom_no", "@BomNo")} AND b.is_deleted=FALSE AND {OrdinaryCurrentQualification}
         ORDER BY b.line_number,b.uid
-        """, new { BomNo = bomNo.Trim() }, transaction: Transaction);
+        """, new { BomNo = bomNo.Trim() }, Transaction, cancellationToken: cancellationToken));
 
     /// <summary>按 Trim 后编号读取共享结构，任意未删有效引用产品提供资格；完整映射且保留存储父身份，包含停用产品。</summary>
-    public Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo) => Connection.QueryAsync<Bom>($"""
+    public Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo) => GetBomByBomNoAsync(bomNo, CancellationToken.None);
+
+    /// <summary>按共享编号读取当前结构，支持递归树查询取消。</summary>
+    public Task<IEnumerable<Bom>> GetBomByBomNoAsync(string bomNo, CancellationToken cancellationToken) => Connection.QueryAsync<Bom>(new CommandDefinition($"""
         SELECT {EntityColumns} FROM public.bom b
         WHERE {Equal("b.bom_no", "@BomNo")} AND b.is_deleted=FALSE AND {OrdinaryCurrentQualification}
         ORDER BY b.line_number,b.uid
-        """, new { BomNo = bomNo.Trim() }, transaction: Transaction);
+        """, new { BomNo = bomNo.Trim() }, Transaction, cancellationToken: cancellationToken));
 
     /// <summary>按编号及指定版本读取未软删行，不新增父产品当前版本或有效性联接；空白编号及非正版本直接返回空集合。</summary>
     public async Task<IReadOnlyList<Bom>> GetByBomNoAndVersionAsync(string bomNo, int version)
@@ -226,6 +232,10 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
 
     /// <summary>在调用方事务内以单语句读取共享事实，ICU 与尾空格规则只决定数据库组键，不按标记数值过滤组成。</summary>
     public Task<IReadOnlyList<SharedBomGroup>> GetSharedSaveFactsAsync(IReadOnlyList<string> requestedBomNos, bool withUpdLock = true)
+        => GetSharedSaveFactsAsync(requestedBomNos, withUpdLock, CancellationToken.None);
+
+    /// <summary>在共享事务中读取可取消图事实，数据库组键和现有保存锁边界保持一致。</summary>
+    public Task<IReadOnlyList<SharedBomGroup>> GetSharedSaveFactsAsync(IReadOnlyList<string> requestedBomNos, bool withUpdLock, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(requestedBomNos);
         // 共享写入的隔离级别由最外层用例控制；保留接口参数，不把旧范围提示转换为全图行锁。
@@ -259,7 +269,7 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
             LEFT JOIN public.product p ON r.kind=1 AND r.entity_uid=p.uid
             ORDER BY r.group_key,r.kind,r.entity_uid,r.input_index
             """;
-        return ReadSharedSaveFactsAsync(Connection, transaction, sql, parameters);
+        return ReadSharedSaveFactsAsync(Connection, transaction, sql, parameters, cancellationToken);
     }
 
     /// <summary>只对仓储内部固定文本表达式生成 ICU 等值条件，兼容尾部 ASCII 空格且不改变前导空格或存储快照。</summary>
@@ -268,10 +278,10 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
 
     /// <summary>按数据库本次组键汇总三类事实，输入空组和没有组成的共享产品仍保留；组键不可作为持久身份。</summary>
     private static async Task<IReadOnlyList<SharedBomGroup>> ReadSharedSaveFactsAsync(IDbConnection connection, IDbTransaction transaction,
-        string sql, object parameters)
+        string sql, object parameters, CancellationToken cancellationToken)
     {
         var groups = new Dictionary<long, GroupRows>();
-        await connection.QueryAsync<FactHeader, Bom, Product, int>(sql, (header, line, product) =>
+        await connection.QueryAsync<FactHeader, Bom, Product, int>(new CommandDefinition(sql, parameters, transaction, cancellationToken: cancellationToken), (header, line, product) =>
         {
             if (!groups.TryGetValue(header.GroupKey, out var group))
             {
@@ -283,7 +293,7 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
             if (header.Kind == 1 && product is not null) group.Products.Add(product);
             if (header.Kind == 2 && header.InputIndex.HasValue) group.InputIndexes.Add(header.InputIndex.Value);
             return 0;
-        }, parameters, transaction, splitOn: "Uid,Uid");
+        }, splitOn: "Uid,Uid");
         return groups.OrderBy(pair => pair.Key).Select(pair => new SharedBomGroup
         {
             GroupKey = pair.Key,

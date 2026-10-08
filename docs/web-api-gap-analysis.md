@@ -1,12 +1,14 @@
-# Web API 差距与前置工作（草案）
+# Web API 差距与前置工作（状态跟踪）
 
-日期：2026-10-07。与[可用性盘点](web-readiness-audit.md)、[权限设计](web-permission-design.md)联合使用。本文给出未来任务，不实施修复；Must Fix是满足对应Web用例的条件，不要求全部模块在Product PoC前改完。
+原审计：2026-10-07；状态同步：2026-10-08。与[可用性盘点](web-readiness-audit.md)、[权限设计](web-permission-design.md)联合使用。本文区分已关闭问题、待验证疑点和按用例接入条件，不实施修复，也不是全部后端整改任务书。
 
-## 1. 三个主要阻碍
+## 1. 当前结论与已关闭事项
 
-1. **OpenAPI与实际JSON/HTTP契约没有完整对齐。** Newtonsoft枚举、Auth的IActionResult、错误Filter、手动上传/下载都缺生成所需的元数据。
-2. **浏览器接入缺明确基线。** 没有CORS接线，Bearer会话存储/过期策略、文件请求和图片origin尚须选择、验证；同源代理可避免生产跨域需求。
-3. **写入结果与授权接线存在具体缺口。** 通用CRUD路径身份和Version有歧义、部分并发错误丢失分类、5个新端点被默认拒绝。必须按功能处理，不能用按钮隐藏或自动重试掩盖。
+1. **首批九个端点契约已验收。** 已补 Newtonsoft/schema、成功/错误/JWT 声明，并完成固定 Orval Fetch 生成和 strict 检查。其余接口特别是文件仍按真实页面需求验收，不能泛称全部 OpenAPI 已完整。
+2. **前端接入方案已明确，部署尚未验收。** 独立静态 Web + 同源反向代理；开发 Vite proxy；内存 Bearer + me，过期同用户重认证。该方案无需先新增全局 CORS，实际网络/文件验收另做。
+3. **身份、Version 和五端点登记问题已修复。** API-03/05/20 不再发整改任务。产品过期版本当前为 422/BUSINESS_BLOCKED，HTTP 200 内层失败也须检查；这些已明确的协议不因偏好 409 自动成为待修 Bug。
+
+依据 [首批接口验收](Web首批接口契约验收.md) 与 [_tools 验证说明](../_tools/Web契约验证/使用说明.md)：隔离验收报告 155 项通过，不写数据库。报告中的共享区权限数量断言失败属于当时并行状态；本次仅复核该数量断言测试 1 项通过，不声称共享区全套重跑。真实 PG 并发、文件及实际浏览器部署仍未覆盖。
 
 依据：[WebApiConfiguration](../SwiftExport.WebApi/Configuration/WebApiConfiguration.cs)、[BaseController](../SwiftExport.WebApi/Controllers/Base/BaseController.cs)、[EndpointPermissionFilter](../SwiftExport.WebApi/Authentication/EndpointPermissionFilter.cs)、[ProductMaintenanceService](../SwiftExport.Application/Services/Products/Catalog/Maintenance/ProductMaintenanceService.cs)。
 
@@ -16,57 +18,57 @@
 | --- | --- | --- | --- |
 | API-01 | Can Keep，全局 | api/[controller]、api/sales-orders、api/system等风格并存；LowercaseUrls配置不使历史模板自动统一。浏览器均能消费 | 生成器采用真实paths；新路由命名稳定，不批量改旧URL |
 | API-02 | Can Keep，查询/命令 | POST page/search与GET售后筛选并存；POST批量、confirm/post/reverse有业务含义 | adapter使用真实method，不为REST机械重写；查询虽POST仍可用useQuery |
-| API-03 | Must Fix，采用单项Update前 | BaseController.Update、ProductController.Update、SupplierProductController.Update等接收路由Guid id但只转发body.Uid，未比对两者；路径A可以实际修改B | 比对路由与body身份并拒绝不一致，保留既有请求包装；PoC先走batch-save |
-| API-04 | Must Fix，采用单项Delete前 | `DELETE {id}`的参数是复杂DeleteItemRequest id，没有明确FromBody/FromQuery；ApiController复杂绑定推断与路径Guid不一致，Refit泛型又只发Guid路径 | 明确Guid路由及版本来源，兼容已有调用方；用真实MVC验证path/body/query与生成client；PoC用DeleteItems |
-| API-05 | Must Fix，使用BaseService单项Update前 | BaseService.UpdateAsync按item.Uid加载实体后item.Data.Adapt(existing)，未将item.Version显式赋给entity.Version；包装Version与Data.Version可能不一致，实际依据取决于映射 | 统一以包装身份/预期Version为权威，验证陈旧请求必冲突。Product已有SaveBoundary重写，勿将此问题泛化到所有Product写入 |
+| API-03 | 已关闭 | 路由 id 与 body.Uid 一致性校验已补 | 保留原请求包装，不重复修复；新入口继续核对身份 |
+| API-04 | 待 HTTP 验证，采用单项 Delete 前 | 旧复杂 DeleteItemRequest 参数和 Guid 路径存在静态绑定疑点；尚无本轮真实 MVC 复现 | 先验证实际 path/body/query 与调用方，确认失败才定修复；Product 使用已验收 DeleteItems |
+| API-05 | 已关闭 | BaseService 映射后显式赋包装 Uid/Version | 不重复整改；各新接入模块仍验证自己的并发协议 |
 | API-06 | Can Keep，分页shape | PagedRequestBase有PageIndex=1/PageSize=20/Keyword；PagedResponseBase是Items/TotalCount/PageIndex/PageSize/TotalPages，不叫PagedResult | Table分页从实际响应读取，生成器用现有类型 |
 | API-07 | Should Fix，参数策略 | Product仓储归一化页码、最大500；RBAC服务验证1..200；AfterSalesSearchRequest没有属性默认值；候选默认页大小不同 | 文档明确默认/上限，前端总是发送合法值；不是强制所有模块同一上限 |
 | API-08 | Can Keep，强类型筛选 | ProductSearchRequest的分类/颜色/客户集合，销售/采购的日期状态条件已存在；没有公开通用Filter DSL | feature映射条件；禁发字段名/SQL表达式；只有真实需求才加通用规则 |
 | API-09 | Should Fix，排序/搜索UX | 没有统一排序请求；Keyword/BatchKeywords/Keywords/QuickView含义不同 | 当前Table不展示无法全局生效的服务端排序；专用DTO名称可保留，新增白名单排序按模块实施 |
 | API-10 | Can Keep，批量shape | CreateItems/UpdateItems/DeleteItems；ClientKey/RowIndex关联；Version在Update/Delete包装；Computed TotalCount/HasChanges是只读 | 不把createdItems直接作为body；以mapper构建DTO，忽略只读计算字段 |
-| API-11 | Must Fix，首批写入模块 | BaseService可能ServiceResult.Success=true而SaveItemResult.Success=false；HTTP Filter只看外层Success，内层冲突仍可能200。Product/Category整批失败返回外层Fail但经纯Message分支转为BUSINESS_BLOCKED/422；Supplier批量写冲突异常转UNEXPECTED/500 | 为选定PoC端点保证VERSION_CONFLICT/409或明确的逐项协议；前端检查两层结果。不能宣称全仓409已统一 |
+| API-11 | 首批协议已明确；其他模块按需验收 | Product stale Version 是 422/BUSINESS_BLOCKED，原子批次失败不接纳；通用 CRUD 可 HTTP200 外层成功但行失败。旧 Supplier 错误分类风险不代表全仓已统一或已验收 | 消费实际两层协议；不以 409 为 Product 开工前提。需要结构化冲突专门 UX 时另立契约需求；不解析中文 Message 猜类型 |
 | API-12 | Should Fix，业务/Validation | Fail(message)默认BUSINESS_BLOCKED→422，旧输入校验、缺失对象也使用此重载；ModelState只回首个error.Field | 新触碰用例区分VALIDATION/NOT_FOUND/STATE_BLOCKED；稳定码分支，不解析中文Message；错误汇总按真实表单需求 |
 | API-13 | Can Keep，HTTP错误出口 | ModelState400、JWT401/403、StatusCodePages补401/403/404；ServiceErrorHttpMapper覆盖409/422/429/503；未知码500且脱敏 | 保留ServiceResult错误协议，无需另造ProblemDetails；补OpenAPI声明而非第二套runtime响应 |
 | API-14 | Can Keep，成功shape例外 | auth/login返回LoginTokenDto，auth/me返回MeDto，其他多数ServiceResult，download二进制，HEAD无正文 | transport按契约解析，不统一把所有成功响应当data字段 |
-| API-15 | Must Fix，自动生成前 | runtime StringEnumConverter，Swagger无Newtonsoft支持接线；DTO可能被导出为数字枚举而线上输出名称 | 在原Swashbuckle上接Newtonsoft schema支持并对照样本；保留实体数据库整数枚举与HTTP字符串枚举的职责区别 |
-| API-16 | Must Fix，自动生成前 | Contracts netstandard2.0未开启NRT；参考类型可null，runtime保留null；nullable数值显式?，成功Error=null、失败Data=null | 明确nullable/required语义，schema补充不破坏netstandard2.0；测试null、缺省、必填集合，TS开启strict |
+| API-15 | 首批已关闭；新增契约按需验证 | 已接 Newtonsoft schema 支持，首批枚举样本与生成结果已对照 | 后续新增字段继续查实际 JSON；不改变数据库整数枚举语义 |
+| API-16 | 首批已验收；其余 DTO 按需核对 | 首批 nullable/required/集合已完成 schema 与严格类型验证；Contracts 仍保留 netstandard2.0 | 新接入模型核对 null/缺省/必填集合，不能宣称全仓 DTO 已完整 |
 | API-17 | Should Fix，取消 | 273条声明中110条签名无CancellationToken（含继承和HTTP计数）；现代单据多有token，手工来源及旧资料CRUD缺；有token不代表仓储全链传递 | 按新触碰查询传递RequestAborted，避免浏览器取消仍耗资源；已提交写入取消不能视作回滚 |
 | API-18 | Must Fix，跨日期/时区用例前 | BaseDto用DateTime?，BaseService有DateTime.Now，PG参数显式区分timestamp与timestamptz；无全局业务日期语义约定 | 列字段矩阵：业务日期/本地墙上时间/UTC时刻；未分清不能统一toISOString或给旧值补Z |
 | API-19 | Can Keep，Guid | Guid路径/DTO与PG uuid可映射TS string；通用仓储新增会覆盖Uid生成新值 | 浏览器crypto.randomUUID用于ClientKey/临时技术身份；必须以响应Uid重映射，不能要求复制旧顺序Guid算法 |
-| API-20 | Must Fix，对应5用例上线前 | ProcurementDemandAssociationController的context/candidates/preview/associate与ForExcelPurchaseOrderController.CheckAsync均未登记SingleKeys或其他分支 | 决定已有细键后登记并验证无权拒绝/有权到达；不去掉默认拒绝，不通过Admin绕过 |
+| API-20 | 已关闭 | 采购关联四动作登记 Procurement.Order.Edit；采购 Excel Check 登记 Procurement.Order.Create | 不重复修复；默认拒绝继续保留；后续功能联调检查真实键 |
 | API-21 | Can Keep，文件政策 | FileAccessPolicy活动用户可读、Admin可写；端点还要求System.Files.Manage；PermissionCatalog有保留权限 | 明确UI按真实双层条件，不推断普通用户获键即可上传；非管理员上传需单独业务授权 |
 | API-22 | Should Fix，旧Refit契约 | IGenericApi的TDto/Guid响应与BaseController不一致；IProductApi.GetCategoryTreeAsync没有实际路径 | 核查实际调用方后修兼容；TS从OpenAPI生成，禁止以Refit作为唯一协议事实 |
 
 具体代码：
 [BaseService](../SwiftExport.Application/Services/Base/BaseService.cs)、[Product单项重写](../SwiftExport.Application/Services/Products/Catalog/Maintenance/ProductMaintenanceService.SaveBoundary.cs)、[SupplierService](../SwiftExport.Application/Services/Suppliers/Management/SupplierService.cs)、[CategoryService](../SwiftExport.Application/Services/Products/Categories/ProductCategoryService.cs)、[SaveItemResultFactory](../SwiftExport.Contracts/Common/SaveItemResultFactory.cs)、[ServiceResultHttpFilter](../SwiftExport.WebApi/ErrorHandling/ServiceResultHttpFilter.cs)、[ServiceResult](../SwiftExport.Contracts/Wrappers/ServiceResult.cs)、[时间参数](../SwiftExport.Infrastructure/Repositories/Base/PostgreSqlParameters.cs)、[通用仓储](../SwiftExport.Infrastructure/Repositories/Base/PostgreSqlDapperRepository.cs)、[FileAccessPolicy](../SwiftExport.Application/Services/Files/FileAccessPolicy.cs)。
 
-以上Must Fix均为后续授权任务；本轮不修改。
+表中静态计数与未重新验收的模块描述来自初次快照；不是当前全量复扫结果。已关闭项不再修，待验证项先复现，条件项只在采用对应用例时处理；本轮不修改代码。
 
-## 3. OpenAPI / Swagger专项
+## 3. OpenAPI / Swagger专项：初次检查表与后续覆盖
 
-宿主引用Swashbuckle.AspNetCore **10.2.3**，注册ApiExplorer与SwaggerGen，只有CustomSchemaIds，Development才公开Swagger/UI。未发现ProducesResponseType、Consumes、security definition/requirement、Newtonsoft schema支持或文件专用operation filter。Swagger生成器存在不等于完整schema，实际OpenAPI版本和完整JSON尚待运行确认。
+下表保留初次静态审计的检查点，不代表当前仍无元数据。随后已补 Swashbuckle Newtonsoft 支持、稳定 schema/operation ID、首批响应/认证/错误与 nullable 声明；运行生成和客户端验证见首批报告。尚未覆盖文件和所有未来业务 DTO。生产仍不因生成客户端而强开 Swagger UI。
 
-| 检查点 | 静态结论 | 首次生成前验收 |
+| 检查点 | 当前覆盖 / 初次风险 | 后续动作 |
 | --- | --- | --- |
-| Endpoint覆盖 | 显式Http属性与继承CRUD可被探索；实际273条静态声明与paths合并计数会不同 | 用MVC action descriptor对照，验证5个被拒绝路径不能当可用 |
-| DTO schema | 强类型声明可提供模型；Auth所有action用IActionResult，无法单靠返回声明得出成功模型 | login明确LoginTokenDto，me明确MeDto，其余明确ServiceResult具体T |
-| Enum | Newtonsoft StringEnumConverter已配置；Swashbuckle默认serializer模型不自动等同Newtonsoft | 选择真实ConfirmationStatusEnum样本，对比schema.enum与实际JSON字符串 |
-| Nullable/required | 数值Guid?等有信息；旧参考类型、computed getter、null的Data/Error需校准 | 成功/失败/空列表/null字段样本、严格TS编译，不以?等同可省略 |
-| 泛型、分页、BatchSave | 闭合泛型原则上可导出，不需要TS支持CLR泛型本身 | 核验ServiceResult<PagedResponseBase<ProductDto>>、ProductBatchSaveRequest/Response和SaveItemResult |
-| schema ID | CustomSchemaIds直接用Type.FullName.Replace('+','.')；闭合泛型FullName含反引号、方括号/逗号、程序集信息 | 这是静态风险，尚未看到实际失败JSON；校验所有component key与$ref，采用稳定递归类型名，保留同名DTO命名空间区分 |
-| operationId/tag | 没有显式稳定operationId策略 | 检查唯一性/稳定性，按Controller+方法区分同名Search；既有路径无需重命名 |
+| Endpoint覆盖 | 首批九端点/30组件已导出并验收；五权限路径已登记；273 是原静态快照 | 新页面按 MVC descriptor/真实 paths 核对，不把静态数量当运行成功率 |
+| DTO schema | 首批 login/me 裸 DTO、其他包装成功类型已声明 | 新接入 IActionResult 端点明确实际正文，不批量改变成功 shape |
+| Enum | Newtonsoft 支持已接线，首批字符串枚举已对照 HTTP 与生成结果 | 后续枚举新增继续样本对照，不改变存储整数语义 |
+| Nullable/required | 首批 null/集合/必填语义已验证；全仓旧参考类型未统一验收 | 按实际 DTO 验证缺省/null，strict 编译，不以 nullable 等同可省略 |
+| 泛型、分页、BatchSave | 首批分页/批量包装已生成并严格编译 | 后续闭合泛型用同一策略，响应完整性仍由 feature 检查 |
+| schema ID | 初次隔离导出复现泛型组件名违规，现已稳定命名并验证 | 保留全量引用/组件检查；不再派首次修复任务 |
+| operationId/tag | 首批稳定 operationId 已补 | 新端点核对唯一/稳定；无需重命名既有 URL |
 | 统一错误 | 实际ServiceResult<object>.Fail经Filter/中间件输出；不是ProblemDetails | 描述400/401/403/404/409/422/429/500/503与error字段，413/415按上传；定义default错误响应 |
-| JWT | runtime Bearer已配置；文档没有Bearersecurity schema | schema定义http bearer；匿名login/client-version不要求token，其他endpoint按实际身份标注 |
+| JWT | Bearer 定义和首批 requirement 已补，login 匿名、me 受保护已验收 | 后续端点按实际身份标注；不能宣称全仓 security 已核对 |
 | 上传原始流 | PUT files/{containerId}只在内部读Request.Body，没有显式body参数 | requestBody application/octet-stream、binary；path/overwrite为query |
 | multipart | ProductImageController手动MultipartReader只接收重复files节，无IFormFile参数 | requestBody multipart/form-data对象files=array(binary)，写清逐项响应；不能只加Consumes就认为body已导出 |
 | 下载/HEAD | IActionResult返回File流，enableRangeProcessing=true；无成功内容声明 | GET 200/206 binary、HEAD无body；描述Range/Content-Range、Content-Disposition及416 |
 | 生产Swagger | Development分支发布，生产不公开 | CI离线导出schema或隔离Development宿主；不为生成器强开生产UI |
 
-据[Swashbuckle官方说明](https://github.com/domaindrivendev/Swashbuckle.AspNetCore/blob/master/README.md)，Newtonsoft需要显式支持接线。组件名称应遵循[OpenAPI组件规范](https://spec.openapis.org/oas/v3.0.3.html#components-object)。这是针对现有配置的风险判断；没有实测schema时不声称“全部泛型无法生成”或“已有生成失败”。
+依据 [Swashbuckle 官方说明](https://github.com/domaindrivendev/Swashbuckle.AspNetCore/blob/master/README.md) 与 [OpenAPI 组件规范](https://spec.openapis.org/oas/v3.0.3.html#components-object)；本项目实际复现/修复证据见首批报告。只报告覆盖范围，不扩写成所有泛型或所有接口均已验收。
 
-**当前不能依赖自动生成完整正确调用的接口族**：Auth成功类型未声明、文件原始流/手动multipart/下载缺元数据、模糊单项DELETE，以及所有未声明的运行错误。强类型page/batch-save具备基础，仍需枚举、nullable与schema ID验证。
+**当前未验收范围**：文件原始流/手动 multipart/下载、模糊单项 DELETE 及首批之外所需运行错误。Auth login/me 与首批 page/batch-save 已有声明和运行生成证据，不再列为未声明。
 
-推荐顺序：保留Swashbuckle → 补serializer/成功与错误/二进制声明 → 导出全量schema → lint与$ref校验 → 为Product、auth、files做生成编译样例 → 真实HTTP样本对照 → CI固定输出。不要先切NSwag服务器生成器来掩盖原契约缺口。
+后续保留 Swashbuckle，按待接入端点补描述 → 导出并核对 schema/$ref → 同一 Orval 生成编译 → HTTP 样本对照 → 固定产物。首批 Product/auth 已完成此路径；文件在实际采用时补齐，不切第二套服务器生成器。
 
 ## 4. TypeScript Client方案比较
 
@@ -86,12 +88,12 @@
 
 | 优先级 | 事项 / 条件 | 交付与验收标准 |
 | --- | --- | --- |
-| P0 | 首批OpenAPI完整性 | auth/me/login、Product page/batch、字典/分类读取以及所需错误完整；全schema能lint、生成、tsc；无需先补所有未来页面 |
+| P0（首批已验收） | OpenAPI 完整性 | 九端点已有隔离 HTTP/schema/Orval/strict 证据；后续 feature 只补自己需要的契约，不重复修首批 |
 | P0 | 浏览器网络基线 | 推荐生产同origin反向代理/api和图片，开发Vite proxy；若直连不同origin则明确AddCors/UseCors、OPTIONS与允许origin/header/method；现在未实现CORS |
 | P0 | JWT使用 | 现有Bearer可用；明确过期401保留草稿、重新登录，首次me加载及权限；DevUser关闭场景验证；不要求先上Refresh Token |
-| P0 | 错误与并发 | 首批Product stale Version稳定409；其他模块接入前补对应码；两层success、OUTCOME_UNKNOWN、429有明确体验，无盲重试 |
+| P0（前端消费与联调） | 错误与并发 | Product 当前 stale Version 为 422/BUSINESS_BLOCKED；检查两层 success、原子回执、OUTCOME_UNKNOWN；不盲重试。真实 PG 并发另验收 |
 | P0 | DTO数据含义 | Guid临时到持久Uid映射、null/optional、enum、业务日期/时刻；金钱输入保留十进制文本并在boundary转现有decimal JSON，金额/舍入仍服务端权威 |
-| P0（对应模块） | 5端点权限登记 | 采购需求关联/采购导入上线前登记；Product PoC无需等待这些功能 |
+| 已关闭 | 五端点权限登记 | 已登记精确键，不再派重复修复任务；模块联调仍检查授权 |
 | P1 | 文件与图片 | 在使用上传/下载时补schema、Blob授权读取、公共图片URL；已有Range/HEAD/大小限制，验收代理大小/超时与Header读取；业务附件列表/归属尚未发现 |
 | P1 | 权限/会话体验 | 复用me，不重复建current-user-permissions；登出清Query cache，403刷新me；角色变更不会自动刷新客户端快照，重新读取策略需实现 |
 | P1 | 编辑/批量保存 | SwiftDataGrid基础、useEditableCollection、未保存导航、保存中禁止并发编辑、按模块原子性处理SaveItemResult、保留失败草稿 |
@@ -116,7 +118,7 @@ PoC先用现有Bearer，访问token保存在会话内存；刷新页面需重新
 
 ## 6. 待确认与验证证据
 
-未验证运行Swagger、TS生成、浏览器跨域、真实PG并发；未扫描或公布配置密钥值。部署是否已有反向代理CORS/缓存、数据库是否保留历史授权表、静态MainImage是否均为HTTP可用地址，本轮无法确认。
+首批已验证运行 Swagger、Orval Fetch 生成和 strict 类型检查，见报告；尚未验证实际浏览器部署/文件、真实 PG 并发或所有业务组合。未扫描或公布配置密钥值。部署代理/缓存、运行库历史授权表、MainImage 地址可用性仍不能由源码推定。
 
 未来最小验证可复用[HttpErrorContractTests](../SwiftExport.Application.Tests/Authentication/HttpErrorContractTests.cs)、[JwtAndControllerContractTests](../SwiftExport.Application.Tests/Authentication/JwtAndControllerContractTests.cs)、[EndpointPermissionHttpTests](../SwiftExport.Application.Tests/Authentication/EndpointPermissionHttpTests.cs)、[FileApiIntegrationTests](../SwiftExport.Application.Tests/Files/FileApiIntegrationTests.cs)。真实PG写测试须另有明确实例/库/数据与清理授权，文档规划不构成数据库写入授权。
 

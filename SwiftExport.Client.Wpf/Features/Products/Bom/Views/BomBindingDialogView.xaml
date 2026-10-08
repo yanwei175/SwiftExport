@@ -1,0 +1,12 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.Bom.Views.BomBindingDialogView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+ <StackPanel Margin="0,8">
+  <TextBlock Text="{Binding ProductText, StringFormat=目标成品：{0}}" Margin="0,0,0,12"/>
+  <CheckBox Content="绑定已有共享编号" IsChecked="{Binding BindExisting}" IsEnabled="{Binding IsNotBusy}" Margin="0,0,0,12"/>
+  <ui:TextBox Text="{Binding BomNo, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsNotBusy}" MaxLength="200" PlaceholderText="BOM 编号（新建默认使用 SKU）" AutomationProperties.Name="BOM 编号"/>
+  <ui:Button Content="查看编号 / 共享信息" Command="{Binding PreviewCommand}" Margin="0,12,0,8" HorizontalAlignment="Left"/>
+  <TextBlock Text="{Binding PreviewText}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+  <TextBlock Text="建立新编号先保存绑定，再维护组成。绑定已有编号将使用该编号的当前共享组成。" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlock}"/>
+  <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+ </StackPanel>
+</UserControl>

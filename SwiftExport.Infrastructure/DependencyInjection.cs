@@ -134,6 +134,8 @@ public static class DependencyInjection
         services.AddScoped<IProductNeutralRepository, PostgreSqlProductNeutralRepository>();
         services.AddScoped<IProductNeutralManagerRepository, PostgreSqlProductNeutralManagerRepository>();
         services.AddScoped<IBomRepository, PostgreSqlBomRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Products.BomManagement.IBomManagementQueryRepository, SwiftExport.Infrastructure.Repositories.Products.BomManagement.PostgreSqlBomManagementQueryRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Products.BomManagement.IProductBomBindingRepository, SwiftExport.Infrastructure.Repositories.Products.BomManagement.PostgreSqlProductBomBindingRepository>();
         services.AddScoped<ICustomerRepository, PostgreSqlCustomerRepository>();
         services.AddScoped<ICustomerPoConfigRepository, PostgreSqlCustomerPoConfigRepository>();
         // 注册客户产品仓储

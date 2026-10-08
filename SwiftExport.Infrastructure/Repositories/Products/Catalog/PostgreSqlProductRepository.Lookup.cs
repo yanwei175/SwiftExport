@@ -9,7 +9,10 @@ namespace SwiftExport.Infrastructure.Repositories.Products.Catalog;
 public partial class PostgreSqlProductRepository
 {
     /// <summary>关键词 Trim，最多五十条；百分号下划线仍是裸 LIKE 通配符，方括号字符组跨库差异待主控决定。</summary>
-    public async Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request)
+    public Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request) => SearchLookupAsync(request, CancellationToken.None);
+
+    /// <summary>保留候选筛选与排序，把替代型搜索令牌传递到数据库。</summary>
+    public async Task<IReadOnlyList<ProductLookupDto>> SearchLookupAsync(ProductLookupRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         var keyword = request.Keyword?.Trim();
@@ -30,7 +33,7 @@ public partial class PostgreSqlProductRepository
         var contains = string.Join(" OR ", new[] { "p.sku", "p.description_en", "p.description_zh", "p.link_sku", "pat.category_name" }
             .Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @ContainsKeyword ESCAPE ''"));
         // 不加 IsActive 条件：普通产品与客户关系的资格边界继续由原业务入口负责。
-        var rows = await Connection.QueryAsync<ProductLookupDto>($"""
+        var rows = await Connection.QueryAsync<ProductLookupDto>(new CommandDefinition($"""
             SELECT p."uid" AS "Uid",p."sku" AS "Sku",p."description_en" AS "DescriptionEn",p."description_zh" AS "DescriptionZh",p."link_sku" AS "LinkSku",p."main_image" AS "MainImage",p."features_en" AS "FeaturesEn",p."features_zh" AS "FeaturesZh",p."material_type" AS "MaterialType",p."unit" AS "Unit",p."usd_price" AS "USDPrice",p."cny_price" AS "CNYPrice",
                 {category},pc.color_name_zh AS "Finish"
             FROM public.product p
@@ -48,7 +51,7 @@ public partial class PostgreSqlProductRepository
                 WHEN EXISTS (SELECT 1 FROM public.customer_product prefixCp WHERE prefixCp.sku_id=p.uid
                     AND (prefixCp.is_deleted=FALSE OR prefixCp.is_deleted IS NULL) AND prefixCp.customer_sku COLLATE public.erp_dictionary_ci LIKE @PrefixKeyword ESCAPE '') THEN 3
                 ELSE 4 END,p.sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,p.uid LIMIT @Limit
-            """, parameters, Transaction);
+            """, parameters, Transaction, cancellationToken: cancellationToken));
         return rows.ToArray();
     }
 }

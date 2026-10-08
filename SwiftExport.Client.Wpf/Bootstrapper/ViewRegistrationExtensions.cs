@@ -27,7 +27,7 @@ using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
-using SwiftExportClient.Features.Products.Placeholders.ViewModels;
+using SwiftExportClient.Features.Products.Bom.Services;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
@@ -70,7 +70,9 @@ public static class ViewRegistrationExtensions
         services.AddTransient<ProductCategoryAssignmentViewModel>();
         services.AddTransient<ProductCategoryManagerViewModel>();
 
-        services.AddTransient<ProductBomViewModel>();
+        services.AddTransient<BomManagerViewModel>();
+        services.AddTransient<IBomBindingClientService, BomBindingClientService>();
+        services.AddTransient<IBomManagementDialogService, BomManagementDialogService>();
 
         services.AddTransient<CustomerManagerViewModel>();
         services.AddTransient<CustomerPoConfigManagerViewModel>();

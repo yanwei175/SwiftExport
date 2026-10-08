@@ -39,7 +39,7 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 旧表头映射的四个写端点已退役，保留其余端点的逐项权限检查。
-        Assert.AreEqual(232, routes.Count);
+        Assert.AreEqual(235, routes.Count);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.DeleteAsync"]);

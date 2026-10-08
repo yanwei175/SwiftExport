@@ -111,9 +111,29 @@ public partial class PostgreSqlProductRepository
         """;
 
     /// <summary>按原始 SKU 查未删除产品，尾部 ASCII 空格及大小写比较兼容原等值规则，停用产品仍可读取。</summary>
-    public Task<Product?> GetBySkuAsync(string sku) => Connection.QueryFirstOrDefaultAsync<Product>(
+    public Task<Product?> GetBySkuAsync(string sku) => GetBySkuAsync(sku, CancellationToken.None);
+
+    /// <summary>按 SKU 可取消地读取未删除产品，保持既有编码等值边界。</summary>
+    public Task<Product?> GetBySkuAsync(string sku, CancellationToken cancellationToken) => Connection.QueryFirstOrDefaultAsync<Product>(new CommandDefinition(
         $"SELECT {CatalogEntityColumns} FROM public.product p WHERE {CatalogEqual("p.sku", "@Sku")} AND p.is_deleted=FALSE ORDER BY p.uid LIMIT 1",
-        new { Sku = sku }, Transaction);
+        new { Sku = sku }, Transaction, cancellationToken: cancellationToken));
+
+    /// <summary>可取消地读取完整产品实体，保留 BOM 绑定校验所需的主型号及全部资料事实。</summary>
+    public Task<Product?> GetByIdAsync(Guid uid, CancellationToken cancellationToken) => Connection.QuerySingleOrDefaultAsync<Product>(new CommandDefinition(
+        $"SELECT {CatalogEntityColumns} FROM public.product p WHERE p.uid=@Uid AND (p.is_deleted=FALSE OR p.is_deleted IS NULL)",
+        new { Uid = uid }, Transaction, cancellationToken: cancellationToken));
+
+    /// <summary>可取消读取绑定图需要的未删除子产品；空集合不发出数据库命令。</summary>
+    public async Task<IReadOnlyList<Product>> GetByIdListAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken)
+    {
+        var values = ids.Distinct().ToArray();
+        if (values.Length == 0) return [];
+        var parameters = new PostgreSqlParameters();
+        parameters.AddIds("Ids", values);
+        return (await Connection.QueryAsync<Product>(new CommandDefinition(
+            $"SELECT {CatalogEntityColumns} FROM public.product p WHERE p.uid=ANY(@Ids) AND (p.is_deleted=FALSE OR p.is_deleted IS NULL)",
+            parameters, Transaction, cancellationToken: cancellationToken))).AsList();
+    }
 
     /// <summary>详情只投影现有 DTO 字段；已失效供应商仓库隐藏名称，保留产品上的逻辑标识。</summary>
     public Task<ProductDto?> GetDtoByIdAsync(Guid uid) => Connection.QuerySingleOrDefaultAsync<ProductDto>($"""

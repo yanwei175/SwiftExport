@@ -234,6 +234,8 @@ public sealed class ProductBomSaveBoundaryTests
         Assert.IsFalse(result.Success);
         Assert.AreEqual(before, fixture.State());
         Assert.AreEqual(0, fixture.SuccessfulWrites);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code, "当前产品版本冲突沿用整批业务阻断契约。");
+        Assert.IsNull(result.Data, "失败不能回传看似可接纳的行级成功结果。");
         fixture.AssertTransaction(0, 1);
         fixture.AssertNoBomBypass();
     }

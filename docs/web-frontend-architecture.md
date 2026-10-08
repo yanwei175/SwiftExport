@@ -1,22 +1,24 @@
-# Web 前端架构与编辑基础设施（草案）
+# Web 前端架构与编辑基础设施（方案基线，未实施）
 
 日期：2026-10-07。推荐新建独立 `SwiftExport.WebApp`，本轮不创建应用或修改现有WPF。业务事实仍由同一SwiftExport.WebApi、Application、PG事务负责。现有源据与差距见[盘点](web-readiness-audit.md)、[差距](web-api-gap-analysis.md)，权限见[统一权限设计](web-permission-design.md)。
+
+2026-10-08 同步：脚手架/目录以 [总决策](Web客户端架构与脚手架决策.md) 为权威，内部多标签为首期要求；本文负责 Grid、编辑集合和模块数据边界。首批九个端点的运行证据见 [接口验收](Web首批接口契约验收.md)，不再将 Product 必须改为 409 作为写入前提。
 
 ## 1. 最小技术栈与版本策略
 
 | 项目 | 推荐 | 边界 / 原因 |
 | --- | --- | --- |
 | Node / npm | Node 24 LTS，同一补丁版本用于开发/CI；npm使用随选定Node提供的版本并固定 | 用.nvmrc或.node-version、engines/packageManager、package-lock.json记具体版本；npm ci可重复安装。不要在任务中随意改包管理器 |
-| 构建 | Vite + React TypeScript模板 | 单SPA，静态产物；没有SSR/SEO用例，不增加Next.js、Umi或服务端前端框架 |
-| React | React 19稳定系列，React/react-dom/types匹配并锁定 | 不默认启用实验API或额外Compiler；用PoC确定具体patch |
+| 构建 | React Router 官方基础模板，Framework SPA，Vite 构建 | ssr:false；构建期根渲染须安全，生产静态产物；独立于 .NET publish |
+| React | 支持稳定 Activity 的 React 19 系列，React/react-dom/types匹配并锁定 | 用实际骨架验收确定 patch，不默认引实验 API/Compiler |
 | TypeScript | 当期开工时稳定、与Vite/Orval兼容的一条主线，锁定版本 | strict、noUncheckedIndexedAccess；DTO由schema生成，类型检查单独执行 |
 | UI | Ant Design 6稳定系列 + 官方icons | Form/Table/Drawer/Modal/ConfigProvider；不同时加另一套组件库或Ant Design Pro框架 |
 | 远程状态 | TanStack Query v5 | query负责服务器快照，mutation负责动作和cache失效；不存未保存编辑行 |
-| 路由 | React Router稳定版的Data Mode，createBrowserRouter | 需要页面离开阻断和路由错误边界；业务请求仍由Query负责，loader不建第二套数据缓存。主版本在PoC时固定 |
+| 路由与工作区 | React Router Framework SPA + 内部多标签 Workspace | 框架负责应用入口；Workspace 管理业务页签、关闭与显式懒加载；Query 不与 loader 建两套缓存 |
 | API | Orval生成Fetch操作函数和DTO；统一transport/custom mutator | 不默认Axios；生成hooks可后续选择，不能生成后又手写同样的HTTP方法 |
 | 表单 | Ant Design Form + rules + feature纯验证函数 | 普通表单不再加React Hook Form/Formik/Zod；只有实际复杂跨对象验证需求才评估schema库 |
 | 日期 | Day.js + Intl | 与Ant DatePicker协作，boundary转换；业务日期与UTC时刻分开，插件仅按真实需要引入 |
-| 状态管理 | React useState/useReducer/Context | Context用于会话/配置；编辑集合局部状态；首期不加Redux/Zustand |
+| 状态管理 | React useState/useReducer/Context | 工作区只管页签描述/摘要，feature 管各页签草稿；首期不加 Redux/Zustand |
 | 国际化 | 首期中文zh_CN locale、集中消息；多语言确认后react-i18next | 业务字段显示名与HTTP错误码分开；不把大规模翻译工程作为PoC条件 |
 | 权限 | me.Permissions +本地路由/操作映射 | 精确匹配同一PermissionKey，服务器最终授权；不引CASL或自定义权限树 |
 | 错误 | 一个ApiError模型、Query/mutation错误展示、路由ErrorBoundary | 401/403/409/422/429/503分类，保留草稿；不吞异常或反复Toast |
@@ -32,77 +34,30 @@
 
 ## 2. 目录与依赖方向
 
-以下为建议目录，文件按实际职责出现，不要求每个feature都创建空目录：
-
-```text
-SwiftExport.WebApp/
-  docs/                         # 未来批准后的Web规则入口，引用现有权威规范
-  openapi/                      # 固定schema快照，不含运行凭据
-  src/
-    app/
-      providers.tsx             # Query/Ant/session组合
-      router.tsx                # 路由注册与lazy加载
-      layouts/ErpLayout.tsx
-      error-boundary.tsx
-    api/
-      generated/                # Orval DTO和操作函数，禁止手改
-      transport.ts              # token、headers、HTTP/error、signal与binary
-      api-error.ts
-    auth/
-      session.tsx               # token/me状态，登出清理
-      LoginPage.tsx
-    permissions/
-      permission-keys.ts        # 来自同一代码目录的机器可核对投影
-      usePermission.ts
-      route-access.ts
-    components/
-      swift-data-grid/           # UI/选择/单元格，不依赖feature或API
-      lookup/                   # 通用候选呈现，查询由feature传入
-      feedback/                 # 错误和保存摘要等跨模块体验
-    hooks/
-      editable-collection/      # 纯状态reducer + React适配 +测试
-      use-unsaved-changes.ts
-    features/
-      products/
-        pages/                  # 管理页、详情页；负责协调
-        components/             # 产品专用列、表单、候选呈现
-        queries.ts              # Query key/options/hooks
-        mutations.ts            # 保存后精确失效与结果处理
-        api.ts                  # 仅在需shape转换时对生成函数做窄适配
-        models.ts               # EditorRow/输入状态，不复制生成DTO
-        mappers.ts              # DTO↔编辑模型、构建专用请求
-        permissions.ts          # 操作到既有键的映射
-        validators.ts          # 客户端输入校验，不重算业务状态
-        routes.ts
-      product-categories/
-      suppliers/
-      supplier-products/
-      sales-orders/
-      after-sales/
-      demand-planning/
-      purchase-orders/
-      inventory/
-      packing-lists/
-      system/
-    utils/                      # 已被多个feature真实复用的纯函数
-    styles/
-    test/
-```
+唯一完整目录蓝图见 [脚手架决策第 5 节](Web客户端架构与脚手架决策.md)。保留框架默认 app 源码根，不同时维护另一套 src/app 模板；下列是逻辑职责摘要，尚未创建工程。
 
 | 放置点 | 应放 | 禁止 |
 | --- | --- | --- |
-| app | provider、壳、路由和错误边界 | 产品保存DTO、所有模块业务逻辑 |
-| api/generated | schema导出的模型和HTTP操作 | dirty/selected/React状态；人工修生成文件 |
-| api/transport | 网络协议、会话头、错误读取/Blob | SKU规则、库存数量、BatchSave合并、角色判断 |
-| features/* | 该业务页面、query/mutation、mapper、validator | 复制另一个feature内部实现；绕过现有API直接访问DB |
-| components/swift-data-grid | 显示、选择、编辑意图、键盘 | 调API、持久dirty tracking、组BatchSave、自动赋Version |
-| hooks/editable-collection | baseline、变更集、恢复、结果接纳 | HTTP、UI弹窗、权限授权、库存/单据生命周期 |
-| permissions/auth | 身份快照、键匹配、菜单体验 | JWT解码角色即授权，客户端IsAdmin万能放行 |
-| utils | 独立纯通用逻辑 | 万能service/manager、提前“可扩展”框架、DTO副本 |
+| app/root、routes、bootstrap、layouts、navigation | 框架入口、Provider、主壳与导航组装 | 产品保存 DTO、全部模块业务逻辑 |
+| app/workspace | 页面目录、稳定 tabId、激活/关闭协调、状态摘要、显式懒加载 | 完整业务草稿、通用 saveAll 事务、取消写入后宣称回滚 |
+| app/features/* | 该业务页面、页签控制器、query/mutation、mapper、validator | 导入 workspace 内部实现；跨 feature 深层引用；直接访问 DB |
+| app/shared/api/generated | schema 导出的模型和 HTTP 操作 | dirty/selected/React 状态；手改生成文件 |
+| app/shared/api | 网络协议、会话头、HTTP 错误/Blob | SKU 规则、库存数量、BatchSave 合并、角色判断 |
+| app/shared/workspace | 上层注入的页签参数、状态报告和关闭契约 | 引用具体业务模块、另造 tab manager |
+| app/shared/ui/swift-data-grid | 显示、选择、编辑意图、键盘 | 调 API、持有 dirty、组 BatchSave、自动赋 Version |
+| app/shared/editing | baseline、变更集、恢复、结果接纳；React 适配 | HTTP、弹窗、权限授权、库存/单据生命周期 |
+| app/shared/session、authorization | 身份快照、精确键匹配 | JWT 解码角色即授权、客户端 IsAdmin 万能放行 |
+| app/shared/format | 已被真实用例需要的日期/数字纯转换 | 万能 utils/service/manager、DTO 副本 |
 
-feature依赖api/generated和公共组件；公共组件不能依赖feature。跨feature候选调用通过窄公开查询/组件组合，不把全部业务扔进utils或共用BasePage。数据库/Core Entity不会直接进入Web包。
+依赖方向是应用组装 → feature → shared；组装也可直接使用 shared。产品候选查询使用生成操作和规范 query key，不导入其他维护页的内部 hook。手写文件优先中文，工具固定入口使用标准名称；不机械生成空模块。
 
-源码理由：[Contracts netstandard2.0](../SwiftExport.Contracts/SwiftExport.Contracts.csproj)保留WPF/VSTO共享兼容性；[NavigationRouteRegistry](../SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs)说明菜单与权限不等于服务端动态页面；[ProductSearchRequest](../SwiftExport.Contracts/DTOs/Products/Catalog/Requests/ProductSearchRequest.cs)与[SaveSalesOrderRequest](../SwiftExport.Contracts/DTOs/SalesOrders/Draft/SaveSalesOrderRequest.cs)体现查询/写命令/编辑模型需要不同责任。
+源码理由：[Contracts netstandard2.0](../SwiftExport.Contracts/SwiftExport.Contracts.csproj)保留 WPF/VSTO 共享兼容性；[NavigationRouteRegistry](../SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs)说明菜单与权限不等于服务端动态页面；[ProductSearchRequest](../SwiftExport.Contracts/DTOs/Products/Catalog/Requests/ProductSearchRequest.cs)与[SaveSalesOrderRequest](../SwiftExport.Contracts/DTOs/SalesOrders/Draft/SaveSalesOrderRequest.cs)体现查询/写命令/编辑模型需要不同责任。
+
+### 首期多标签工作区
+
+业务入口统一登记到 workspace 页面目录，以 descriptor 传入业务身份。列表按 pageKind 去重，已有单据按 pageKind + Uid 去重，新单据用独立临时身份；React key 使用稳定 tabId。切换保留输入和滚动，不执行关闭确认；关闭、离开工作区和刷新分别保护全部相关草稿。
+
+Ant Tabs 控制页签栏；稳定 React Activity 保留隐藏展示状态并清理展示 Effects。控制器/保存/关闭保护在 Activity 外，通过 shared 窄契约接宿主，不能因隐藏注销守卫。URL 只定位活动页，隐藏页不读取全局 useParams/useSearchParams。该组合尚待浏览器实测，完整规则与验收见 [多标签工作区](Web多标签工作区设计.md)。
 
 ## 3. 查询、表单、权限和错误数据流
 
@@ -192,7 +147,7 @@ type EditableCollection<T> = {
 | 行排序 | 展示排序不是业务修改；只有服务端可写SortNo改变才dirty |
 | 服务端分页 | 首期dirty时禁止直接切页/筛选，提供保存/放弃/取消。不同页快照不能当完整集合，未出现行不等于删除 |
 | 跨页编辑（以后） | baseline/变更按稳定身份保存局部片段；明确已加载范围、版本和服务端排序，不能通过合并页实现任意全局Ctrl+D |
-| 切页/关闭/刷新 | app用router blocker + beforeunload；保存失败保持阻断；登出/401与草稿恢复须明确同用户，不能跨用户共享 |
+| 页签切换/关闭/刷新 | 切换保留草稿；关闭由 Workspace 守卫；离开工作区用 router blocker，刷新用 beforeunload；保存失败保持；重认证只恢复同用户 |
 | 结果不明 | 不accept、不reject；保留提交快照与原CommandId（有该契约时），重放/查询确认；普通BatchSave没有CommandId时核对当前持久状态后人工决定 |
 | 后台数据刷新 | 若dirty保留本地并提示远端变化；不能在Query onSuccess中无条件reset |
 | 保存时再编辑 | 首期禁用；以后若允许需提交快照/revision，只accept实际提交且确认的值，保留后续patch |
@@ -244,9 +199,11 @@ hook可通过纯mapper构建通用BatchSaveRequest，但销售SaveSalesOrderRequ
 
 选择**Product产品管理**，先列表、筛选、详情/lookup，再单页批量编辑、新增/修改/软删与冲突反馈；首轮引用已有分类/颜色/供应商/仓候选，不同时扩建它们的全部维护页。Product覆盖真实分页、复杂筛选、权限、Guid/Version、原子BatchSave且不用跨域库存过账，是比SalesOrder/PackingList更小的验证面。
 
-PoC必须覆盖：me加载、View与Create/Edit/Delete分别授权、query取消、null/enum/date字段、临时Uid替换、恢复原值、新增后删除、失败保留草稿、409、网络未知、未保存切页、Ctrl+D不能改Uid/Version。先关闭API-11的Product错误分类缺口；如果未解决可做只读PoC，但不能宣布写入闭环完成。
+PoC必须覆盖：me加载、View与Create/Edit/Delete分别授权、query取消、null/enum/date字段、临时Uid替换、恢复原值、新增后删除、失败保留草稿、当前真实的 422/BUSINESS_BLOCKED 陈旧版本拒绝、网络未知、dirty 筛选/分页确认、Ctrl+D 不能改 Uid/Version。HTTP 200 也要检查外层与行结果；没有结构化 VERSION_CONFLICT 时不解析中文消息猜冲突类型，也不自动覆盖重试。首批契约已验收，不要求先统一后端为 409。
+
+骨架先通过两个编辑页签切换保留、隐藏页关闭守卫、保存回原页签及同实体去重验证；Product 闭环随后接入。真实 PostgreSQL 写入/并发和浏览器联调仍需实际验收，不由隔离 HTTP 测试代替。
 
 第二步可选ProductCategory树验证父子新建与映射；第三步SupplierProduct验证报价字段与SupplierId作用域；第四步SalesOrder验证专用头行CommandId。TreeData、服务器分页、部分成功与复杂单据分别验收，不要求首个Grid同时证明所有场景。
 
-本轮没有npm安装、Web代码或生成器实测；上述目录和接口都是待批准落地的规划，不改变现行.NET 10 WPF主线。
+本轮没有 npm 安装或 Web 实现；首批生成器实测由独立契约任务完成，见上述验收报告。目录、Workspace 与 Grid 仍为未实施方案，不改变现行 .NET 10 WPF 主线。
 

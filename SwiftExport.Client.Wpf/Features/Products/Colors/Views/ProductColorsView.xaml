@@ -181,7 +181,6 @@
         <Grid Grid.Row="4">
             <DataGrid x:Name="ColorsGrid"
                       ItemsSource="{Binding Lines.Items}"
-                      Background="Transparent"
                       Style="{StaticResource SwiftExportDataGrid}"
                       RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                       IsReadOnly="False"

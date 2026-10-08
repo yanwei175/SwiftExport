@@ -13,6 +13,8 @@ using SwiftExport.WebApi.Observability;
 
 using SwiftExport.WebApi.Authentication;
 using SwiftExport.WebApi.Files;
+using SwiftExport.WebApi.OpenApi;
+using Microsoft.OpenApi;
 using System.Text;
 
 namespace SwiftExport.WebApi.Configuration;
@@ -94,7 +96,7 @@ public static class WebApiConfiguration
         // 中文注释：注册内存缓存，供 PreventDuplicateRequestAttribute 防抖 Filter 使用。
         builder.Services.AddMemoryCache();
         // 中文注释：统一使用 Newtonsoft.Json，与前端 Refit（.NET Framework 4.8）行为完全一致。
-        // 枚举字符串/整数双向支持、驼峰命名、null 忽略等均由 Newtonsoft 处理，无需额外 Converter。
+        // 枚举由显式 Converter 输出字符串，字段使用 MVC 默认驼峰命名，并保留 null。
         builder.Services.AddControllers(options =>
             {
                 options.Filters.Add<ServiceResultHttpFilter>();
@@ -120,9 +122,20 @@ public static class WebApiConfiguration
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(options =>
         {
-            // 详情新旧链允许保留同名 DTO；Swagger 使用完整类型名隔离组件定义，避免短名称 SchemaId 冲突。
-            options.CustomSchemaIds(type => type.FullName?.Replace('+', '.') ?? type.Name);
+            options.SwaggerDoc("v1", new OpenApiInfo { Title = "SwiftExport ERP API", Version = "v1" });
+            // 保留同名 DTO 的命名空间，封闭泛型不输出程序集限定名。
+            options.CustomSchemaIds(WebContractSchemaIds.Create);
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
+                Description = "使用登录返回的 access_token；服务器实时核验凭据版本和操作权限。"
+            });
+            options.OperationFilter<FirstWebContractOperationFilter>();
+            options.DocumentFilter<FirstWebContractOperationFilter>();
+            options.UseAllOfToExtendReferenceSchemas();
         });
+        // schema 使用与实际 MVC 相同的 Newtonsoft 契约和枚举转换器。
+        builder.Services.AddSwaggerGenNewtonsoftSupport();
         builder.Services.AddRouting(options => options.LowercaseUrls = true);
     }
 

@@ -66,11 +66,11 @@ public sealed class ProductQueryService(
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request)
+    public async Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Keyword))
             return ServiceResult<List<ProductLookupDto>>.Ok([]);
-        var items = await repository.SearchLookupAsync(request);
+        var items = await repository.SearchLookupAsync(request, cancellationToken);
         return ServiceResult<List<ProductLookupDto>>.Ok(items.ToList());
     }
 

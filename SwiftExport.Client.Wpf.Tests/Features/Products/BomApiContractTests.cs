@@ -21,6 +21,7 @@ public sealed class BomApiContractTests
         Assert.IsNotNull(method!.GetParameters()[0].GetCustomAttributes(typeof(BodyAttribute), false).SingleOrDefault());
     }
 
+    /// <summary>Lookup 请求体及可取消读取契约保持轻量，不携带产品写入资料。</summary>
     [TestMethod]
     public void ProductLookup_ShouldUseDedicatedPostBodyContract()
     {
@@ -30,7 +31,8 @@ public sealed class BomApiContractTests
         Assert.IsNotNull(method);
         Assert.IsNotNull(post);
         Assert.AreEqual("/lookup", post.Path);
-        Assert.AreEqual(typeof(ProductLookupRequest), method!.GetParameters().Single().ParameterType);
+        Assert.AreEqual(typeof(ProductLookupRequest), method!.GetParameters()[0].ParameterType);
+        Assert.AreEqual(typeof(CancellationToken), method.GetParameters()[1].ParameterType);
         Assert.IsNotNull(method.GetParameters()[0].GetCustomAttributes(typeof(BodyAttribute), false).SingleOrDefault());
         Assert.AreEqual(20, new ProductLookupRequest().Limit);
 
@@ -53,6 +55,7 @@ public sealed class BomApiContractTests
                 nameof(ProductLookupDto.FeaturesEn),
                 nameof(ProductLookupDto.FeaturesZh),
                 nameof(ProductLookupDto.MaterialType),
+                nameof(ProductLookupDto.Unit),
                 nameof(ProductLookupDto.USDPrice),
                 nameof(ProductLookupDto.CNYPrice),
             },

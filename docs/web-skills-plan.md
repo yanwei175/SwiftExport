@@ -1,6 +1,8 @@
-# Web 前端 Skills 规划（草案）
+# Web 前端 Skills 规划（方案基线，未创建）
 
 日期：2026-10-07。本轮不创建Skill、不修改技能索引或Router；未来真正创建技能时使用skill-creator，并由治理任务按授权接线。本计划复用现有后端技能，Web专项不能覆盖WPF/Contracts兼容或后端事务规范。
+
+2026-10-08 同步：[总决策](Web客户端架构与脚手架决策.md) 管脚手架和 app 目录；[多标签工作区](Web多标签工作区设计.md) 管页签规则。保留 1 入口 + 5 执行 Skill；多标签归 feature-page，编辑内核归 grid-editing，不再增加独立 keep-alive/Workspace 碎片技能。
 
 ## 1. 规模与入口
 
@@ -33,7 +35,8 @@ index包含：
 **推荐写法**：
 - 读模块地图→真实Endpoint/DTO/权限→现有公共组件，再建立页面。
 - pages负责协调，queries/mutations负责远程交互，mapper区分DTO与EditorRow；只有实质转换才需api.ts。
-- 以路由参数稳定Uid标识详情，筛选/页码可URL化；不把Form实例或编辑对象塞到跨页共享单例。
+- 页签由 descriptor 提供 Uid/参数，React key 用稳定 tabId；URL 只定位活动页，隐藏页不读全局 useParams/useSearchParams。Form/草稿独立于其他标签，不存 Workspace 的全局 DTO 单例。
+- 页面目录统一 pageKind/权限/显式 lazy import；feature 通过 shared 注入契约注册关闭保护和状态摘要。控制器/保存位于 Activity 外，展示位于内；隐藏清理不能注销关闭守卫或 abort 已派发写入。
 - 初始loading、empty、query error、detail not found及dirty导航都明确定义。
 - UI中文职责注释、只触碰授权feature与必要公共文件。
 
@@ -42,7 +45,7 @@ index包含：
 **示例（组织草案）**：
 
 ```text
-products/pages/ProductManagerPage.tsx
+app/features/products/产品页签入口.tsx → pages/产品管理页.tsx
   调用 useProductPage(search)
   用 mapper 创建 EditorRow 草稿
   把 rows/selection/onCellChange 传给 SwiftDataGrid
@@ -52,7 +55,8 @@ products/pages/ProductManagerPage.tsx
 **检查清单**：
 - [ ] 模块用例和写入范围明确，有对应源码/契约。
 - [ ] query/mutation/mapper职责清楚；没有第三套公共基类。
-- [ ] dirty未被焦点刷新覆盖；路由离开可取消。
+- [ ] dirty 不被刷新覆盖；标签切换保留；关闭和离开工作区分别可取消，hidden 页仍有守卫。
+- [ ] 同实体去重；新单保存 tabId 稳定；保存回原页签；失败/未知不关闭；焦点/弹层/订阅生命周期实测。
 - [ ] loading/空/错误/无权限可解释，类型检查、最小浏览器流程通过。
 
 依据：[Web前端目录方案](web-frontend-architecture.md)、[ProductController](../SwiftExport.WebApi/Controllers/Products/Catalog/ProductController.cs)、[主数据地图](../.agents/references/模块能力地图/主数据模块能力地图.md)。
@@ -90,7 +94,7 @@ const mutationOptions = {
 - [ ] paths/method/request/response与Controller一致；生成+tsc通过。
 - [ ] 已声明所需HTTP失败和JWT；serializer/schema样本一致。
 - [ ] null/枚举/二进制不误解析；CancellationToken/AbortSignal作用范围清楚。
-- [ ] 会话切换清cache；未知写入结果保留输入，不生成新命令盲重试。
+- [ ] 会话切换清 cache；后台标签保存结果按原 tabId 接纳；未知写入保留输入，不生成新命令盲重试。
 - [ ] 日志脱敏且有correlation，错误只展示一次。
 
 依据：[差距与生成器选择](web-api-gap-analysis.md)、[错误Mapper](../SwiftExport.WebApi/ErrorHandling/ServiceErrorHttpMapper.cs)、[已有命令Skill](../.codex/skills/aspdotnet10/application-document-command/SKILL.md)。
@@ -153,7 +157,7 @@ server code=BUSINESS_BLOCKED且无field → 页面业务错误区
 - [ ] 上述转换有纯状态测试；baseline对象不与草稿共引用。
 - [ ] ClientKey唯一、响应完整、Uid/ParentId映射及NewVersion验证。
 - [ ] 原子性由服务源码确认，不能从BatchSaveResponse类型推断部分成功。
-- [ ] 保存失败保留草稿；Result未知不会盲重发；有CommandId则复用原意图。
+- [ ] 保存失败保留草稿；Result 未知不会盲重发；有 CommandId 则复用原意图；隐藏/切换不清变更集。
 - [ ] 服务端分页/树/键盘/未保存导航有针对性浏览器验证。
 - [ ] feature专用请求没有被通用builder改变业务边界。
 
@@ -166,8 +170,8 @@ server code=BUSINESS_BLOCKED且无field → 页面业务错误区
 **推荐写法**：
 - 现有Bearer+me，token存储策略明确；首期会话内存方案，刷新重登录是已知体验。
 - 只按me.Permissions精确匹配；同一代码目录投影供Web/WPF/Backend共用。
-- route要求View/Read，mutation按实际Create/Edit/Delete/Maintain/Confirm键，模块分组不授予子操作。
-- 登出清Query cache和私有编辑上下文；401保留同会话内草稿直到用户决定，恢复须同一用户。
+- 页面目录要求 View/Read，mutation 按实际 Create/Edit/Delete/Maintain/Confirm 键；菜单、URL 打开与已驻留页签都核权，模块分组不授予子操作。
+- 主动登出先汇总所有页签 dirty/pending/unknown，再清缓存/上下文；401 遮蔽工作区并保留同会话草稿，恢复必须同用户且重读 me；换用户清旧草稿。
 - RBAC/文件Admin保留政策与服务内授权显式说明，不把IsAdmin做全应用万能判断。
 - 未登记端点交后端补矩阵，不绕过EndpointPermissionFilter。
 
@@ -188,7 +192,7 @@ const canSave =
 - [ ] login/me真实响应类型有schema；前端不能单靠JWT解码宣布认证有效。
 - [ ] View与写入键分开，混合BatchSave检查全部实际键。
 - [ ] 保留权限/最后管理员/账号状态由服务器控制，UI无绕过。
-- [ ] 401/403与用户切换不泄漏缓存/草稿，服务器仍独立拒绝。
+- [ ] 401/403 与用户切换不泄漏缓存/草稿，已打开/隐藏标签权限撤销生效；服务器仍独立拒绝。
 - [ ] TypeScript键与PermissionCatalog一致，未知键无授权。
 - [ ] DevUser关闭后验证登录/匿名，未把开发免登录当Web认证完成。
 
@@ -196,7 +200,7 @@ const canSave =
 
 ## 7. 落地顺序与Skill验收
 
-先批准Web工作流/技术栈与P0边界，再建立index、feature-page、api-query；第一次Product PoC需要form-validation、grid-editing、auth-permission同步齐备。无需再增加单独batch-save/openapi-client/permission/error-handling碎片技能；公共设施实际成熟后把真实示例路径回填，而不是在Skill里维护第二套完整实现。
+方案基线已明确；后续授权实施时注册独立 Web 角色/SOP，并建立 index、feature-page、api-query；首期工作区同时需要 auth-permission，Product 编辑需要 form-validation/grid-editing。先验证两页签再接产品，不重复修已验收九端点。无需新增单独 Workspace/batch-save/openapi-client/permission/error-handling 技能；真实设施成熟后回填示例路径，不在 Skill 维护第二套实现。
 
 每个Skill固定包含frontmatter（name/description）、适用/不适用、唯一权威引用、推荐/禁止、一个短示例、必要检查清单。示例与当前生成client/API同步，旧示例失效须更新，不能把schema手改绕过generated规则。
 

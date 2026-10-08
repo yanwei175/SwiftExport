@@ -55,7 +55,6 @@
                     <WrapPanel HorizontalAlignment="Left">
 
                         <ui:Button Margin="0,0,8,0" MinWidth="70"
-                                   Appearance="Primary"
                                    Command="{Binding AddRowCommand}"
                                    Content="新增"
                                    ToolTip="新增产品">
@@ -130,15 +129,13 @@
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" MinWidth="200" MaxWidth="420" />
+                <ColumnDefinition Width="1*" MinWidth="280" MaxWidth="480" />
                 <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="9*" />
             </Grid.ColumnDefinitions>
 
-            <Border BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource SwiftExportCornerRadius}"
-                    Padding="8">
+            <ui:Card HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                     HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -153,7 +150,7 @@
                                         SelectionChangedCommand="{Binding ApplyCategoryFilterCommand}"
                                         AutomationProperties.Name="中性产品分类筛选" />
                 </Grid>
-            </Border>
+            </ui:Card>
 
             <GridSplitter Grid.Column="1" Width="4" Background="Transparent" HorizontalAlignment="Stretch" />
 

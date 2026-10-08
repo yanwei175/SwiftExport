@@ -1,0 +1,45 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.Bom.Views.BomTreeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:dto="clr-namespace:SwiftExport.Contracts.DTOs.Products;assembly=SwiftExport.Contracts"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls">
+    
+    
+    <UserControl.Resources>
+        <HierarchicalDataTemplate DataType="{x:Type dto:BomTreeDto}" ItemsSource="{Binding Children}">
+            <StackPanel Orientation="Horizontal" Margin="0,4">
+                
+                <controls:CachedImage Width="40" Height="40"
+                                      SourcePath="{Binding MainImage}" 
+                                      Style="{StaticResource SwiftExportCachedImage}"/>
+                
+                <StackPanel Margin="8,0" MinWidth="120">
+                    
+                    <TextBlock Text="{Binding SubSku}" FontWeight="SemiBold"/>
+                    
+                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="360"/>
+                    
+                </StackPanel>
+                
+                <TextBlock Text="用量：" VerticalAlignment="Center"/>
+                
+                <TextBlock Text="{Binding Numerator}" VerticalAlignment="Center"/>
+                
+                <TextBlock Text=" / " VerticalAlignment="Center"/>
+                
+                <TextBlock Text="{Binding Denominator}" VerticalAlignment="Center"/>
+                
+            </StackPanel>
+            
+        </HierarchicalDataTemplate>
+    </UserControl.Resources>
+    
+    <TreeView ItemsSource="{Binding}" 
+              AutomationProperties.Name="已保存 BOM 层级结构">
+        <TreeView.ItemContainerStyle>
+            <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                <Setter Property="IsExpanded" Value="True"/>
+            </Style>
+        </TreeView.ItemContainerStyle>
+    </TreeView>
+</UserControl>

@@ -1,4 +1,4 @@
-﻿using SwiftExport.Application.Interfaces.Systems.Currencies;
+using SwiftExport.Application.Interfaces.Systems.Currencies;
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Types;
 using SwiftExport.Application.Interfaces.Systems.ExchangeRates;
@@ -165,6 +165,8 @@ public static class DependencyInjection
         services.AddScoped<IProductNeutralQueryService, ProductNeutralQueryService>();
         services.AddScoped<IProductNeutralBatchMaintenanceService, ProductNeutralBatchMaintenanceService>();
         services.AddScoped<IBomService, BomService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.Products.BomManagement.IBomManagementQueryService, SwiftExport.Application.Services.Products.BomManagement.BomManagementQueryService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.Products.BomManagement.IProductBomBindingService, SwiftExport.Application.Services.Products.BomManagement.ProductBomBindingService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerPoConfigService, CustomerPoConfigService>();
         // ✅ 补充注册客户产品服务

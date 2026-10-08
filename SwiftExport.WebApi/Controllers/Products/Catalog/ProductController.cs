@@ -49,7 +49,7 @@ public sealed class ProductController(IProductQueryService query, IProductMainte
 
     /// <summary>搜索产品选择器。</summary>
     [HttpPost("lookup")]
-    public Task<ServiceResult<List<ProductLookupDto>>> SearchLookup([FromBody] ProductLookupRequest request) => query.SearchLookupAsync(request);
+    public Task<ServiceResult<List<ProductLookupDto>>> SearchLookup([FromBody] ProductLookupRequest request, CancellationToken cancellationToken) => query.SearchLookupAsync(request, cancellationToken);
 
     /// <summary>保留大数据量查询阻断。</summary>
     [HttpGet("all")]
@@ -68,6 +68,13 @@ public sealed class ProductController(IProductQueryService query, IProductMainte
     [HttpPost("batch-save")]
     [PreventDuplicateRequest(WindowSeconds = 5)]
     public Task<ServiceResult<ProductBatchSaveResponse>> BatchSave([FromBody] ProductBatchSaveRequest request) => maintenance.BatchSaveAsync(request);
+
+    /// <summary>按版本只更新 BOM 绑定，服务端复核共享结构并保留其他产品字段。</summary>
+    [HttpPost("{id}/bom-binding")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SaveItemResult>> BindBom(Guid id, [FromBody] ProductBomBindingRequest request,
+        [FromServices] SwiftExport.Application.Interfaces.Products.BomManagement.IProductBomBindingService binding,
+        CancellationToken cancellationToken) => binding.BindAsync(id, request, cancellationToken);
 
     /// <summary>按产品编辑权限从所选产品的主型号拉取中英文描述。</summary>
     [HttpPost("pull-master-descriptions")]

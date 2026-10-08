@@ -125,7 +125,7 @@ public sealed class BomProductLookupTests
     private sealed class ProductApiStub(
         Func<ProductLookupRequest, Task<ServiceResult<List<ProductLookupDto>>>>? lookup = null) : IProductApi
     {
-        public Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request) =>
+        public Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request, CancellationToken cancellationToken = default) =>
             lookup?.Invoke(request)
             ?? Task.FromResult(ServiceResult<List<ProductLookupDto>>.Ok([]));
 

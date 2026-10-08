@@ -100,7 +100,7 @@ public sealed class ProductsMaterialTypeFilterTests
 
         public Task<ServiceResult<List<ProductCategoryDto>>> GetCategoryTreeAsync() => NotSupported<List<ProductCategoryDto>>();
 
-        public Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request) => NotSupported<List<ProductLookupDto>>();
+        public Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync(ProductLookupRequest request, CancellationToken cancellationToken = default) => NotSupported<List<ProductLookupDto>>();
 
         public Task<ServiceResult<List<string>>> GetAllCustomerCodeListAsync() => NotSupported<List<string>>();
 

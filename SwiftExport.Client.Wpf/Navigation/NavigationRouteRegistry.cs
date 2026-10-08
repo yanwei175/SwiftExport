@@ -15,7 +15,7 @@ using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
-using SwiftExportClient.Features.Products.Placeholders.ViewModels;
+using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
@@ -52,7 +52,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel), NavigationModuleKeys.Products, "Products.Color.View"),
 
-        new("product-bom", "BOM", "Workspace", typeof(ProductBomViewModel), NavigationModuleKeys.Products, "Products.Bom.View"),
+        new("product-bom", "BOM 管理", "Workspace", typeof(BomManagerViewModel), NavigationModuleKeys.Products, "Products.Bom.View"),
 
         new("customers", "客户管理", "Workspace", typeof(CustomerManagerViewModel), NavigationModuleKeys.Customers, "Customers.Customer.View"),
 
@@ -133,7 +133,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new("products", "物料管理", "Workspace", "Cube24"),
                     new("product-category-manager", "产品分类", "Workspace", "Folder24"),
                     new("product-colors", "产品颜色", "Workspace", "Color24"),
-                    new("product-bom", "物料清单", "Workspace", "Branch24"),
+                    new("product-bom", "BOM 管理", "Workspace", "Branch24"),
                 ]),
             new(
                 "customers",

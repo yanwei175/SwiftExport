@@ -1,0 +1,16 @@
+{
+  "name": "swiftexport-web-contract-verification",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "schema": "node 核对首批OpenAPI.mjs",
+    "generate": "orval --config orval.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:fetch": "node --experimental-strip-types Fetch请求验收.ts",
+    "verify": "npm run schema && npm run generate && npm run typecheck && npm run test:fetch"
+  },
+  "devDependencies": {
+    "orval": "8.40.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,6 +1,8 @@
-# Web 与 WPF 统一权限设计（草案）
+# Web 与 WPF 统一权限设计（方案基线，Web 未实施）
 
 日期：2026-10-07。本文区分当前源码、偏差、Web需求和推荐目标，不删除任何模型/表、不迁移授权数据、不扩大角色权限。完整Endpoint到Key见[盘点附录](web-readiness-audit.md)。
+
+2026-10-08 同步：盘点附录是初次快照，五端点漏登记已修复；首批 login/me 的契约与权限 HTTP 证据见 [接口验收](Web首批接口契约验收.md)。前端目录以 [脚手架决策](Web客户端架构与脚手架决策.md) 为准，多标签规则见 [工作区设计](Web多标签工作区设计.md)。
 
 ## 1. 当前真实模型
 
@@ -70,9 +72,9 @@ Auth注册/重置还通过UserAccountService实时验证管理员；新注册用
 | Role与User直接授权冲突 | 未发现活动User→Permission直接授权路径，也没有allow/deny覆盖算法 | 不为了未来灵活性新增直接授权和角色继承 |
 | ModulePermission重复 | NavigationModuleKeys/PermissionCatalog.GroupKey用于菜单或分组，不参与User直接模块赋权 | Group/Module不授予所有子操作，View不包含Confirm/Post/Reverse |
 | 后端Key统一程度 | PermissionKeys/Catalog已有统一常量；部分Application/WPF仍使用同值字符串字面量，存在漂移维护风险 | 新触碰代码引用同一目录；TS必须自动核对键，逐步替换即可 |
-| 全局端点漏登记 | 采购关联4动作、采购Excel检查1动作不在Filter矩阵，默认403；服务内权限不能使它们绕过Filter | 上线对应用例前补精确键与HTTP拒绝/放行验证 |
+| 初次五端点漏登记 | 已补采购关联四动作 Procurement.Order.Edit、采购 Excel 检查 Procurement.Order.Create | 已关闭，不重复修复；默认拒绝保留，后续接入按实际键验收 |
 | WPF权限不同源 | CurrentUserService读取me.Permissions，NavigationAccessService精确匹配，无角色名兜底 | Web复用同一me，不建立另一个模块权限API |
-| SysViewRoute混合职责 | 未见活动实体；WPF本地注册页面与RequiredPermission，不从DB授权表动态生成页面 | Web也本地route registry；路由URL不是PermissionKey |
+| SysViewRoute混合职责 | 未见活动实体；WPF本地注册页面与RequiredPermission，不从DB授权表动态生成页面 | Web 用本地 workspace 页面目录；导航引用 pageKind，URL 不是 PermissionKey |
 | 字段/行权限 | DocumentPermissionDto旧预留未接入，没有通用服务器字段级授权模型 | feature编辑限制是体验；真正字段授权新增必须后端明确规则，不能假称已经支持 |
 
 WPF依据：[CurrentUserService](../SwiftExport.Client.Wpf/Authentication/CurrentUserService.cs)、[NavigationAccessService](../SwiftExport.Client.Wpf/Navigation/NavigationAccessService.cs)、[NavigationRouteRegistry](../SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs)、[DocumentPermissionDto](../SwiftExport.Contracts/DTOs/Auth/Permissions/DocumentPermissionDto.cs)。
@@ -108,11 +110,13 @@ OpenAPI只描述PermissionKey为string，不会自动导出C#静态常量值集�
 
 一个可见页面不代表所有写入都可做。编辑按钮还需结合服务端返回状态和本地输入规则；服务器必须独立拒绝。遇403重新读me并保持草稿，禁止自动换Admin重试；遇401保留当前会话内草稿、重认证同用户后恢复。登出切用户须清query cache和私有草稿。
 
+多标签中的授权不能只作用于菜单。打开/URL 定位/重新激活及权限快照更新都核对页面读取权，写入前按实际操作重新检查。失去写权时冻结写按钮并保留原草稿；失去读权时遮蔽已打开内容，不继续后台读取。401 遮蔽整个工作区、停止新写入，已派发请求仍按结果处理；同用户重认证后重读 me 再恢复有权页签，不同用户清旧工作区与缓存。主动登出先汇总所有页签的 dirty/pending/unknown，不只检查当前页；不把服务器拒绝误当客户端已回滚。
+
 不要删除SysUserModulePermission/SysViewRoute：源码已无活动链，本轮无删除对象与数据库证据。若未来发现残留，先列真实引用、数据用途、备份与迁移范围，再决定退役；不从背景旧名重新创建这些模型。
 
 ## 7. 后续验收
 
 复用[PermissionCatalogConsistencyTests](../SwiftExport.Application.Tests/Authentication/PermissionCatalogConsistencyTests.cs)、[RbacPermissionEvaluationTests](../SwiftExport.Application.Tests/Authentication/RbacPermissionEvaluationTests.cs)、[EndpointPermissionFilterTests](../SwiftExport.Application.Tests/Authentication/EndpointPermissionFilterTests.cs)、[RbacManagementServiceTests](../SwiftExport.Application.Tests/Authentication/RbacManagementServiceTests.cs)、[WPF导航测试](../SwiftExport.Client.Wpf.Tests/Navigation/NavigationAuthorizationTests.cs)。
 
-验收要证明：停用账号/角色不授予、未知Key拒绝、非Admin不能获保留键、最后管理员保护、BatchSave混合操作精确授权、合法新端点能到达、角色变更后旧token的后端授权即时变化、WPF/Web同一me快照体验一致。源码/测试存在不能当作本轮运行通过；本轮未执行权限测试或读取数据库授权数据。
+验收要证明：停用账号/角色不授予、未知 Key 拒绝、非 Admin 不能获保留键、最后管理员保护、混合 BatchSave 精确授权、合法新端点能到达、旧 token 后端授权随角色变化、已打开/隐藏页签权限撤销、同用户重认证与不同用户隔离。首批隔离测试证据见报告；本轮只复核权限数量断言一项通过，未读取运行库授权数据，也未完成 Web 多标签权限实测。
 

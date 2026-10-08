@@ -153,7 +153,7 @@ public partial class ProductMaintenanceService
     }
 
     /// <summary>既有组成只能绑定当前被有效产品使用的正标记共享组；新空编号可准备父产品，孤立或非正旧行不得借此激活。</summary>
-    private static string? ValidateNewBinding(Product product, SharedBomGroup? group, HashSet<long> affectedKeys)
+    internal static string? ValidateNewBinding(Product product, SharedBomGroup? group, HashSet<long> affectedKeys)
     {
         if (string.IsNullOrWhiteSpace(product.BomNo) || group is null)
             return $"产品 {product.Sku} 的有效 BOM 标记必须有可确认的编号。";

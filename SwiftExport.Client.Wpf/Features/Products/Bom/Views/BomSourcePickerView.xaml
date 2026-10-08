@@ -1,0 +1,27 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.Bom.Views.BomSourcePickerView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+ xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+ xmlns:core="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid">
+ <Grid Margin="0,8">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <DockPanel Margin="0,0,0,8">
+   <ui:Button DockPanel.Dock="Right" Content="查询" Command="{Binding SearchCommand}" Margin="8,0,0,0"/>
+   <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="SKU、描述、BOM 编号" AutomationProperties.Name="复制来源关键词">
+    <ui:TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding SearchCommand}"/></ui:TextBox.InputBindings>
+   </ui:TextBox>
+  </DockPanel>
+  <DataGrid Grid.Row="1" ItemsSource="{Binding Products}" SelectedItem="{Binding SelectedProduct, Mode=TwoWay}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single"
+   Style="{StaticResource SwiftExportDataGrid}" core:EnterpriseGrid.IsEnabled="True" core:GridVirtualization.IsEnabled="True" AutomationProperties.Name="复制来源成品">
+   <DataGrid.Columns>
+    <DataGridTemplateColumn Header="图片" Width="64"><DataGridTemplateColumn.CellTemplate><DataTemplate><controls:CachedImage Width="48" Height="48" SourcePath="{Binding MainImage}" Style="{StaticResource SwiftExportCachedImage}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="SKU" Binding="{Binding Sku}" Width="140"/>
+    <DataGridTextColumn Header="描述" Binding="{Binding DescriptionZh}" Width="*"/>
+    <DataGridTextColumn Header="BOM 编号" Binding="{Binding BomNo}" Width="140"/>
+    <DataGridTextColumn Header="子件数" Binding="{Binding ComponentCount}" Width="80"/>
+    <DataGridTextColumn Header="共享产品数" Binding="{Binding SharedProductCount}" Width="100"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  <TextBlock Grid.Row="2" Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,8"/>
+  <controls:PageNavigator Grid.Row="3" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex, Mode=TwoWay}" PageSize="{Binding PageSize, Mode=TwoWay}" PageChangeCommand="{Binding PageChangeCommand}"/>
+ </Grid>
+</UserControl>
