@@ -1,0 +1,2312 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "SwiftExport ERP API",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "验证凭据并返回裸 Token DTO。",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.LoginRequestDto"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "成功，直接返回 DTO。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.LoginTokenDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "返回裸身份 DTO；权限快照不替代服务器实时授权。",
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "description": "成功，直接返回 DTO。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.MeDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/product/page": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "summary": "产品分页；要求 Products.Product.View。",
+        "operationId": "getProductPage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.Requests.ProductSearchRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/product/batch-save": {
+      "post": {
+        "tags": [
+          "Product"
+        ],
+        "summary": "原子保存；按集合分别要求 Products.Product.Create/Edit/Delete。当前过期版本按 BUSINESS_BLOCKED 返回 422；未知提交结果返回 503，禁止盲目重试。",
+        "operationId": "saveProductBatch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.Requests.ProductBatchSaveRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Products.Responses.ProductBatchSaveResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED：单实例短时防重复提交。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Retry-After": {
+                "description": "建议等待的秒数；不表示业务幂等。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_UNAVAILABLE 或 OUTCOME_UNKNOWN：事务终止或提交结果无法确认。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/productcategory/all": {
+      "get": {
+        "tags": [
+          "ProductCategory"
+        ],
+        "summary": "读取平铺分类及 ParentId；要求 Products.Category.View。",
+        "operationId": "getProductCategories",
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.Products.ProductCategoryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/sysdictdata/by-code/{dictCode}": {
+      "get": {
+        "tags": [
+          "SysDictData"
+        ],
+        "summary": "按字典 Code 读取字典值；产品单位使用 Unit，要求 System.Dictionary.View。",
+        "operationId": "getDictionaryByCode",
+        "parameters": [
+          {
+            "name": "dictCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/productcolor/all": {
+      "get": {
+        "tags": [
+          "ProductColor"
+        ],
+        "summary": "读取产品颜色；要求 Products.Color.View。",
+        "operationId": "getProductColors",
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.Products.ProductColorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/supplier/page": {
+      "post": {
+        "tags": [
+          "Supplier"
+        ],
+        "summary": "产品默认供应商/制造商选择查询；要求 Suppliers.Supplier.View。",
+        "operationId": "getSupplierPage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierSearchRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/product/default-warehouse-candidates": {
+      "get": {
+        "tags": [
+          "Product"
+        ],
+        "summary": "产品参考仓库查询；要求 Products.Product.View，不授予库存管理查询。",
+        "operationId": "getProductWarehouseCandidates",
+        "parameters": [
+          {
+            "name": "Keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageIndex",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功，返回既有 ServiceResult 包装。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDefaultWarehouseCandidateDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "FORBIDDEN：缺少当前操作权限。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BUSINESS_BLOCKED：业务校验或整批写入阻断。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SwiftExport.Contracts.DTOs.Auth.LoginRequestDto": {
+        "required": [
+          "password",
+          "userName"
+        ],
+        "type": "object",
+        "properties": {
+          "userName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.LoginTokenDto": {
+        "required": [
+          "access_token"
+        ],
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "field": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.MeDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "nickName": {
+            "type": "string",
+            "nullable": true
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "roleCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "isAdmin": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.Requests.ProductSearchRequest": {
+        "type": "object",
+        "properties": {
+          "batchKeywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "colorCodeUnique": {
+            "type": "string",
+            "nullable": true
+          },
+          "userTag": {
+            "type": "string",
+            "nullable": true
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "colorIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "customerCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "categoryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "materialTypeList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "keyword": {
+            "type": "string",
+            "nullable": true
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.ProductDto"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.ProductDto": {
+        "type": "object",
+        "properties": {
+          "masterSku": {
+            "type": "string",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "nullable": true
+          },
+          "descriptionEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "descriptionZh": {
+            "type": "string",
+            "nullable": true
+          },
+          "featuresEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "featuresZh": {
+            "type": "string",
+            "nullable": true
+          },
+          "finish": {
+            "type": "string",
+            "nullable": true
+          },
+          "materialType": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "supplyType": {
+            "type": "string",
+            "nullable": true
+          },
+          "bomVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bomNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "linkSku": {
+            "type": "string",
+            "nullable": true
+          },
+          "cnyPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "usdPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "pcsOfCarton": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "nwOfCarton": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "gwOfCarton": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "cbmOfCarton": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "categoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "colorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "categoryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "supplierName": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultSupplierId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "defaultWarehouseSiteId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "defaultWarehouseCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultWarehouseName": {
+            "type": "string",
+            "nullable": true
+          },
+          "manufacturerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "manufacturerCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "manufacturerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "manufacturerModel": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultSupplierCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "mainImage": {
+            "type": "string",
+            "nullable": true
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.Requests.ProductBatchSaveRequest": {
+        "type": "object",
+        "properties": {
+          "createItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.Products.ProductDto"
+            },
+            "nullable": true
+          },
+          "updateItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.Products.ProductDto"
+            },
+            "nullable": true
+          },
+          "deleteItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.DeleteItemRequest"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "hasChanges": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.Products.ProductDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.ProductDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.Products.ProductDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.ProductDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.DeleteItemRequest": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isSoftDelete": {
+            "type": "boolean"
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Products.Responses.ProductBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.Responses.ProductBatchSaveResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.Responses.ProductBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.SaveItemResult"
+            },
+            "nullable": true
+          },
+          "successCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "allSucceeded": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "addSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "updateSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "deleteSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.SaveItemResult": {
+        "type": "object",
+        "properties": {
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "operation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.SysEnums.StaticEnums.SaveOperation"
+              }
+            ]
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "oldVersion": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "newVersion": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.SysEnums.StaticEnums.SaveOperation": {
+        "enum": [
+          "Create",
+          "Update",
+          "Delete"
+        ],
+        "type": "string"
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.Products.ProductCategoryDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.ProductCategoryDto"
+            },
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.ProductCategoryDto": {
+        "type": "object",
+        "properties": {
+          "categoryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "fakeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "categoryCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "sortNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto"
+            },
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto": {
+        "type": "object",
+        "properties": {
+          "dictCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataNameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataNameZh": {
+            "type": "string",
+            "nullable": true
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "cssClass": {
+            "type": "string",
+            "nullable": true
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "isEnabled": {
+            "type": "boolean"
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.Products.ProductColorDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.ProductColorDto"
+            },
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.ProductColorDto": {
+        "type": "object",
+        "properties": {
+          "colorCodeUnique": {
+            "type": "string",
+            "nullable": true
+          },
+          "colorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "colorNameEn": {
+            "type": "string",
+            "nullable": true
+          },
+          "colorNameZh": {
+            "type": "string",
+            "nullable": true
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierSearchRequest": {
+        "type": "object",
+        "properties": {
+          "batchKeywords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "keyword": {
+            "type": "string",
+            "nullable": true
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Suppliers.SupplierDto": {
+        "type": "object",
+        "properties": {
+          "supplierCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "supplierName": {
+            "type": "string",
+            "nullable": true
+          },
+          "zheKou": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "zheKouBeiZhu": {
+            "type": "string",
+            "nullable": true
+          },
+          "docRelateNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactPerson": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "contactPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "taxRate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "paymentTerms": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultLeadTime": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDefaultWarehouseCandidateDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDefaultWarehouseCandidateDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Products.ProductDefaultWarehouseCandidateDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Products.ProductDefaultWarehouseCandidateDto"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Products.ProductDefaultWarehouseCandidateDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "使用登录返回的 access_token；服务器实时核验凭据版本和操作权限。",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

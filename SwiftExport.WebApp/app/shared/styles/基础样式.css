@@ -1,0 +1,79 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  color: #203441;
+  background: #f3f6f8;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+.app-layout {
+  min-height: 100vh;
+}
+.brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #176d88;
+  font-size: 20px;
+  font-weight: 700;
+  border-bottom: 1px solid #edf1f3;
+}
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid #edf1f3;
+}
+.app-content {
+  padding: 16px 24px;
+}
+.app-footer {
+  padding: 12px 24px;
+  background: #fff;
+}
+.workspace-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.tab-display {
+  height: calc(100vh - 220px);
+  min-height: 360px;
+  overflow: auto;
+}
+.discard-button {
+  cursor: pointer;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  border-radius: 6px;
+  padding: 5px 15px;
+  margin-right: 8px;
+}
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login-card {
+  width: min(100%, 420px);
+}
+@media (max-width: 760px) {
+  .app-header {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 8px;
+  }
+  .app-content {
+    padding: 12px;
+  }
+  .app-header .ant-space {
+    flex-wrap: wrap;
+  }
+}
