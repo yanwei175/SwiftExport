@@ -6,6 +6,59 @@
   min-width: 0;
 }
 
+/* 仅有界高度模式收缩原生 ProTable/Ant6 Spin 包装；其他页面继续使用自然高度。 */
+.swift-data-grid-fill-height {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+  max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.swift-data-grid-fill-height > .ant-pro-table,
+.swift-data-grid-fill-height .ant-table-wrapper,
+.swift-data-grid-fill-height .ant-table-wrapper > .ant-spin,
+.swift-data-grid-fill-height
+  .ant-table-wrapper
+  > .ant-spin
+  > .ant-spin-container,
+.swift-data-grid-fill-height .ant-table,
+.swift-data-grid-fill-height .ant-table-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 宽表只在正文内部横滚，不能把右对齐的原生工具栏挤到裁切区域外。 */
+.swift-data-grid-fill-height .ant-pro-table-list-toolbar,
+.swift-data-grid-fill-height .ant-pro-table-list-toolbar-container,
+.swift-data-grid-fill-height .ant-pro-table-list-toolbar-right,
+.swift-data-grid-fill-height .ant-table-header,
+.swift-data-grid-fill-height .ant-table-body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 工具栏、分页和独立表头保留自然高度，剩余空间只分给 scroll.y 生成的正文容器。 */
+.swift-data-grid-fill-height .ant-pro-table-list-toolbar,
+.swift-data-grid-fill-height .ant-table-pagination,
+.swift-data-grid-fill-height .ant-table-header {
+  flex: none;
+}
+
+.swift-data-grid-fill-height .ant-table-body {
+  flex: 1;
+  min-height: 0;
+  /* 原生 scroll.y 默认内联 overflow-y:scroll；按内容自动显示滚动条，保留横向滚动。 */
+  overflow-y: auto !important;
+}
+
 .swift-data-grid .swift-grid-header {
   position: relative;
   overflow: visible !important;

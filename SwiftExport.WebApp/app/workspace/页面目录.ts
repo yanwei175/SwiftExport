@@ -25,6 +25,13 @@ export const pageDirectory: Readonly<Record<string, PageDefinition>> = {
     title: "首页",
     component: lazy(() => import("../features/home/首页页签入口")),
   },
+  "dictionary-management": {
+    title: "字典管理",
+    permission: "System.Dictionary.View",
+    component: lazy(
+      () => import("../features/system/dictionaries/字典页签入口"),
+    ),
+  },
   ...(probeEntry
     ? {
         "verification-form": {

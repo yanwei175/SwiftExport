@@ -45,6 +45,7 @@ export function SwiftDataGrid<T extends object>({
   showRowNumber = true,
   pagination,
   loading = false,
+  fillHeight = false,
   columnsState,
   onColumnWidthChange,
   toolBarRender,
@@ -429,7 +430,11 @@ export function SwiftDataGrid<T extends object>({
   return (
     <div
       ref={container}
-      className="swift-data-grid"
+      className={
+        fillHeight
+          ? "swift-data-grid swift-data-grid-fill-height"
+          : "swift-data-grid"
+      }
       role="group"
       aria-label="数据表格"
       onKeyDown={handleKeyDown}
@@ -458,6 +463,8 @@ export function SwiftDataGrid<T extends object>({
             (sum, column) => sum + widthFor(column),
             showRowNumber ? 120 : 48,
           ),
+          // 原生固定表头配合有界 flex 容器分配正文高度，不测量 DOM 或介入业务编辑状态。
+          y: fillHeight ? "100%" : undefined,
         }}
         search={false}
         cardBordered={false}

@@ -318,6 +318,12 @@
                 <TextBlock Grid.Column="5" Margin="42,0,0,0" Text="{Binding TotalCnyAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
             </Grid>
         </DockPanel>
-        <ui:InfoBar Grid.Row="5" Title="请检查销售订单" Message="{Binding ValidationSummary}" Severity="Warning" IsClosable="False" IsOpen="{Binding HasValidationError}" />
+        <ScrollViewer x:Name="ValidationDetailsScroll" Grid.Row="5" MaxHeight="120"
+                      Visibility="{Binding HasValidationError, Converter={StaticResource ExtraFieldsVisibility}}"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Focusable="True" AutomationProperties.Name="销售订单校验详情">
+            <ui:InfoBar Title="请检查销售订单" Message="{Binding ValidationSummary}"
+                        Severity="Warning" IsClosable="False" IsOpen="{Binding HasValidationError}" />
+        </ScrollViewer>
     </Grid>
 </UserControl>

@@ -359,6 +359,141 @@ export interface SwiftExportContractsWrappersServiceResultOfSystemCollectionsGen
   error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
 }
 
+export interface SwiftExportContractsDTOsSystemDtosSysDictTypeDto {
+  /** @nullable */
+  dictCode?: string | null;
+  /** @nullable */
+  dictName?: string | null;
+  isSystem?: boolean;
+  /** @nullable */
+  remark?: string | null;
+  /** @nullable */
+  parentId?: string | null;
+  sortOrder?: number;
+  /** @nullable */
+  groupCode?: string | null;
+  /** @nullable */
+  groupName?: string | null;
+  uid?: string;
+  version?: number;
+  isDeleted?: boolean;
+  /** @nullable */
+  createdDate?: string | null;
+  /** @nullable */
+  createdBy?: string | null;
+  /** @nullable */
+  updatedDate?: string | null;
+  /** @nullable */
+  updatedBy?: string | null;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericIReadOnlyListOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  /** @nullable */
+  data?: SwiftExportContractsDTOsSystemDtosSysDictTypeDto[] | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsWrappersCreateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto {
+  data?: SwiftExportContractsDTOsSystemDtosSysDictTypeDto | null;
+  /** @nullable */
+  clientKey?: string | null;
+  /** @nullable */
+  rowIndex?: number | null;
+}
+
+export interface SwiftExportContractsWrappersUpdateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto {
+  uid?: string;
+  version?: number;
+  data?: SwiftExportContractsDTOsSystemDtosSysDictTypeDto | null;
+  /** @nullable */
+  clientKey?: string | null;
+  /** @nullable */
+  rowIndex?: number | null;
+}
+
+export interface SwiftExportContractsDTOsSystemDtosRequestsSysDictTypeBatchSaveRequest {
+  /** @nullable */
+  createItems?: SwiftExportContractsWrappersCreateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto[] | null;
+  /** @nullable */
+  updateItems?: SwiftExportContractsWrappersUpdateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto[] | null;
+  /** @nullable */
+  deleteItems?: SwiftExportContractsWrappersDeleteItemRequest[] | null;
+  readonly totalCount?: number;
+  readonly hasChanges?: boolean;
+}
+
+export interface SwiftExportContractsDTOsSystemDtosResponsesSysDictTypeBatchSaveResponse {
+  totalCount?: number;
+  /** @nullable */
+  items?: SwiftExportContractsWrappersSaveItemResult[] | null;
+  readonly successCount?: number;
+  readonly failedCount?: number;
+  readonly allSucceeded?: boolean;
+  readonly addSuccessCount?: number;
+  readonly updateSuccessCount?: number;
+  readonly deleteSuccessCount?: number;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictTypeBatchSaveResponse {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsSystemDtosResponsesSysDictTypeBatchSaveResponse | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsWrappersCreateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictDataDto {
+  data?: SwiftExportContractsDTOsSystemDtosSysDictDataDto | null;
+  /** @nullable */
+  clientKey?: string | null;
+  /** @nullable */
+  rowIndex?: number | null;
+}
+
+export interface SwiftExportContractsWrappersUpdateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictDataDto {
+  uid?: string;
+  version?: number;
+  data?: SwiftExportContractsDTOsSystemDtosSysDictDataDto | null;
+  /** @nullable */
+  clientKey?: string | null;
+  /** @nullable */
+  rowIndex?: number | null;
+}
+
+export interface SwiftExportContractsDTOsSystemDtosRequestsSysDictDataBatchSaveRequest {
+  /** @nullable */
+  createItems?: SwiftExportContractsWrappersCreateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictDataDto[] | null;
+  /** @nullable */
+  updateItems?: SwiftExportContractsWrappersUpdateItemRequestOfSwiftExportContractsDTOsSystemDtosSysDictDataDto[] | null;
+  /** @nullable */
+  deleteItems?: SwiftExportContractsWrappersDeleteItemRequest[] | null;
+  readonly totalCount?: number;
+  readonly hasChanges?: boolean;
+}
+
+export interface SwiftExportContractsDTOsSystemDtosResponsesSysDictDataBatchSaveResponse {
+  totalCount?: number;
+  /** @nullable */
+  items?: SwiftExportContractsWrappersSaveItemResult[] | null;
+  readonly successCount?: number;
+  readonly failedCount?: number;
+  readonly allSucceeded?: boolean;
+  readonly addSuccessCount?: number;
+  readonly updateSuccessCount?: number;
+  readonly deleteSuccessCount?: number;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictDataBatchSaveResponse {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsSystemDtosResponsesSysDictDataBatchSaveResponse | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
 export interface SwiftExportContractsDTOsProductsProductColorDto {
   /** @nullable */
   colorCodeUnique?: string | null;
@@ -1031,6 +1166,163 @@ export const getDictionaryByCode = async (dictCode: string, options?: Parameters
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export type getDictionaryTypesResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericIReadOnlyListOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto
+  status: 200
+}
+
+export type getDictionaryTypesResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericIReadOnlyListOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto
+  status: 200
+}
+
+export type getDictionaryTypesResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericIReadOnlyListOfSwiftExportContractsDTOsSystemDtosSysDictTypeDto
+  status: 200
+}
+
+export type getDictionaryTypesResponseSuccess = (getDictionaryTypesResponse200TextPlain | getDictionaryTypesResponse200ApplicationJson | getDictionaryTypesResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getDictionaryTypesResponse = (getDictionaryTypesResponseSuccess)
+
+export const getGetDictionaryTypesUrl = () => {
+
+
+
+
+  return `/api/sysdicttype/all`
+}
+
+export const getDictionaryTypes = async ( options?: Parameters<typeof executeRequest>[1]): Promise<getDictionaryTypesResponse> => {
+
+  return executeRequest<getDictionaryTypesResponse>(getGetDictionaryTypesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type saveDictionaryTypesResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictTypeBatchSaveResponse
+  status: 200
+}
+
+export type saveDictionaryTypesResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictTypeBatchSaveResponse
+  status: 200
+}
+
+export type saveDictionaryTypesResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictTypeBatchSaveResponse
+  status: 200
+}
+
+export type saveDictionaryTypesResponseSuccess = (saveDictionaryTypesResponse200TextPlain | saveDictionaryTypesResponse200ApplicationJson | saveDictionaryTypesResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type saveDictionaryTypesResponse = (saveDictionaryTypesResponseSuccess)
+
+export const getSaveDictionaryTypesUrl = () => {
+
+
+
+
+  return `/api/sysdicttype/batch-save`
+}
+
+export const saveDictionaryTypes = async (swiftExportContractsDTOsSystemDtosRequestsSysDictTypeBatchSaveRequest?: NonReadonly<SwiftExportContractsDTOsSystemDtosRequestsSysDictTypeBatchSaveRequest>, options?: Parameters<typeof executeRequest>[1]): Promise<saveDictionaryTypesResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<saveDictionaryTypesResponse>(getSaveDictionaryTypesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsSystemDtosRequestsSysDictTypeBatchSaveRequest)
+  }
+);}
+
+
+
+export type saveDictionaryItemsResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictDataBatchSaveResponse
+  status: 200
+}
+
+export type saveDictionaryItemsResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictDataBatchSaveResponse
+  status: 200
+}
+
+export type saveDictionaryItemsResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSystemDtosResponsesSysDictDataBatchSaveResponse
+  status: 200
+}
+
+export type saveDictionaryItemsResponseSuccess = (saveDictionaryItemsResponse200TextPlain | saveDictionaryItemsResponse200ApplicationJson | saveDictionaryItemsResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type saveDictionaryItemsResponse = (saveDictionaryItemsResponseSuccess)
+
+export const getSaveDictionaryItemsUrl = () => {
+
+
+
+
+  return `/api/sysdictdata/batch-save`
+}
+
+export const saveDictionaryItems = async (swiftExportContractsDTOsSystemDtosRequestsSysDictDataBatchSaveRequest?: NonReadonly<SwiftExportContractsDTOsSystemDtosRequestsSysDictDataBatchSaveRequest>, options?: Parameters<typeof executeRequest>[1]): Promise<saveDictionaryItemsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<saveDictionaryItemsResponse>(getSaveDictionaryItemsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsSystemDtosRequestsSysDictDataBatchSaveRequest)
   }
 );}
 

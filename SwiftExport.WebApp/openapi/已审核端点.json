@@ -8,6 +8,9 @@
   ["/api/product/batch-save", "post", "saveProductBatch"],
   ["/api/productcategory/all", "get", "getProductCategories"],
   ["/api/sysdictdata/by-code/{dictCode}", "get", "getDictionaryByCode"],
+  ["/api/sysdicttype/all", "get", "getDictionaryTypes", "web-alias"],
+  ["/api/sysdicttype/batch-save", "post", "saveDictionaryTypes", "web-alias"],
+  ["/api/sysdictdata/batch-save", "post", "saveDictionaryItems", "web-alias"],
   ["/api/productcolor/all", "get", "getProductColors"],
   ["/api/supplier/page", "post", "getSupplierPage"],
   ["/api/product/default-warehouse-candidates", "get", "getProductWarehouseCandidates"]

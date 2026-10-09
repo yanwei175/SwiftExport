@@ -8,31 +8,34 @@ export function WorkspaceView() {
   const workspace = useWorkspace();
   return (
     <section className="workspace" aria-label="多标签工作区">
-      <div className="workspace-toolbar">
-        <Space>
-          <Button
-            onClick={() =>
-              void workspace.close(
-                workspace.tabs
-                  .filter((tab) => tab.tabId !== workspace.activeId)
-                  .map((tab) => tab.tabId),
-              )
-            }
-          >
-            关闭其他
-          </Button>
-          <Button
-            onClick={() =>
-              void workspace.close(workspace.tabs.map((tab) => tab.tabId))
-            }
-          >
-            关闭全部
-          </Button>
-        </Space>
-      </div>
       <Tabs
         type="editable-card"
         hideAdd
+        // 关闭操作复用 Tabs 标题栏的右侧入口，避免单独一行挤占业务页高度。
+        tabBarExtraContent={
+          <div className="workspace-toolbar">
+            <Space>
+              <Button
+                onClick={() =>
+                  void workspace.close(
+                    workspace.tabs
+                      .filter((tab) => tab.tabId !== workspace.activeId)
+                      .map((tab) => tab.tabId),
+                  )
+                }
+              >
+                关闭其他
+              </Button>
+              <Button
+                onClick={() =>
+                  void workspace.close(workspace.tabs.map((tab) => tab.tabId))
+                }
+              >
+                关闭全部
+              </Button>
+            </Space>
+          </div>
+        }
         destroyOnHidden={false}
         activeKey={workspace.activeId ?? undefined}
         onChange={workspace.activate}

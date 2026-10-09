@@ -3,6 +3,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ExperimentOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { App, Button, Layout, Menu, Space, Typography } from "antd";
 import { Link } from "react-router";
@@ -54,6 +55,23 @@ export function WorkspaceLayout() {
               label: "首页",
               onClick: () => workspace.open({ pageKind: "home" }),
             },
+            ...(session.user?.permissions?.includes("System.Dictionary.View")
+              ? [
+                  {
+                    key: "system-settings",
+                    icon: <SettingOutlined />,
+                    label: "系统设置",
+                    children: [
+                      {
+                        key: "dictionary-management",
+                        label: "字典管理",
+                        onClick: () =>
+                          workspace.open({ pageKind: "dictionary-management" }),
+                      },
+                    ],
+                  },
+                ]
+              : []),
             ...(probeAllowed
               ? [
                   {

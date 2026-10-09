@@ -25,10 +25,21 @@ const selected = JSON.parse(
   ),
 );
 const paths = {};
-for (const [path, method, operationId] of selected) {
+for (const [path, method, operationId, idSource] of selected) {
   const operation = document.paths?.[path]?.[method];
   assert.ok(operation, `缺少 ${method} ${path}`);
-  assert.equal(operation.operationId, operationId);
+  // 未命名管理端点只补审核后的客户端方法名；已有后端 ID 不能静默覆盖。
+  // 路径、DTO、响应、认证描述仍全部来自真实 Swagger，不补造后端能力。
+  assert.ok(idSource === undefined || idSource === "web-alias", "未知 ID 来源");
+  if (idSource === "web-alias") {
+    assert.ok(!operation.operationId, `${path} 已有后端 ID，请重新审核清单`);
+  } else assert.equal(operation.operationId, operationId);
+  assert.ok(
+    !Object.values(paths).some((methods) =>
+      Object.values(methods).some((item) => item.operationId === operationId),
+    ),
+    `重复操作 ID：${operationId}`,
+  );
   assert.ok(
     operation.responses?.[
       operationId === "logoutBrowserSession" ? "204" : "200"
@@ -37,7 +48,11 @@ for (const [path, method, operationId] of selected) {
   );
   if (operationId !== "logoutBrowserSession")
     assert.ok(operation.responses["200"].content?.["application/json"]?.schema);
-  paths[path] = { ...paths[path], [method]: operation };
+  paths[path] = {
+    ...paths[path],
+    [method]:
+      idSource === "web-alias" ? { ...operation, operationId } : operation,
+  };
 }
 const schemas = {};
 // 引用闭包只能来自实际导出；悬空或未知引用立即停止，不能手造 DTO。

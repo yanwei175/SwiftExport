@@ -8,7 +8,8 @@ body {
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
 }
 .app-layout {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
 }
 .brand {
   height: 64px;
@@ -29,7 +30,10 @@ body {
   border-bottom: 1px solid #edf1f3;
 }
 .app-content {
-  padding: 16px 24px;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 12px;
 }
 .app-footer {
   padding: 12px 24px;
@@ -38,11 +42,25 @@ body {
 .workspace-toolbar {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 12px;
+}
+/* 实际头部、页签和验收栏参与高度分配，不再用固定像素猜业务区高度。 */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.workspace > .ant-tabs {
+  flex-shrink: 0;
+}
+/* 页签和关闭动作共用一行，内容只保留小间距。 */
+.workspace > .ant-tabs > .ant-tabs-nav {
+  margin-bottom: 8px;
 }
 .tab-display {
-  height: calc(100vh - 220px);
-  min-height: 360px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 .page-state {
@@ -77,7 +95,7 @@ body {
     gap: 8px;
   }
   .app-content {
-    padding: 12px;
+    padding: 8px;
   }
   .app-header .ant-space {
     flex-wrap: wrap;

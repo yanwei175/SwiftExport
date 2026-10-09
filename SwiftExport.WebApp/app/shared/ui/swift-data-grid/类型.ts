@@ -93,6 +93,8 @@ export interface SwiftDataGridProps<T extends object> {
   showRowNumber?: boolean;
   pagination?: SwiftDataGridPagination;
   loading?: boolean;
+  /** 占满调用方提供的有界高度，表头、工具栏及分页固定，仅表格正文内部滚动；默认自然高度。 */
+  fillHeight?: boolean;
   /** 列设置只接受受控布局，不启用 ProTable 的第二套 Storage 持久化。 */
   columnsState?: {
     value: Record<string, ColumnsState>;

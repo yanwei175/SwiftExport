@@ -106,8 +106,44 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 }
                 finally { window.Close(); }
             }
+            CheckManyValidationMessages(check);
             CheckPaneHostLifetime(check);
             CheckPaneRegistration(check);
+        }
+        // 模拟大量 Excel 明细尚未匹配的状态，验证完整反馈不会挤走表格且仍能滚动查看。
+        private static void CheckManyValidationMessages(Action<bool, string> check)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                var view = new SalesOrderImportView(f.Model);
+                var window = new Window { Content = view, Width = 1280, Height = 820, ShowInTaskbar = false };
+                window.Show(); Pump();
+                try
+                {
+                    f.Model.SelectedCustomer = f.Cache.Customers[0];
+                    for (var i = 0; i < 142; i++)
+                        f.Model.Lines.Add(new SwiftExport.Client.VSTO.Features.Sales.Orders.Models.SalesOrderImportLine(false, null)
+                            { CustomerSku = "AQ" + i, QtyText = "1" });
+                    Pump(); view.UpdateLayout();
+                    var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                    check(grid.ActualHeight > view.ActualHeight * 0.35
+                        && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
+                        "142 行校验提示仍给明细保留可见高度：明细=" + grid.ActualHeight + "，页面=" + view.ActualHeight);
+                    var details = (ScrollViewer)view.FindName("ValidationDetailsScroll");
+                    check(details != null && details.ScrollableHeight > 0,
+                        "超长校验提示使用内部滚动而非撑高页面");
+                    details.ScrollToBottom(); Pump();
+                    check(details.VerticalOffset > 0
+                        && ((Wpf.Ui.Controls.InfoBar)details.Content).Message.Contains("第 142 行："),
+                        "校验信息完整保留，能滚动到最后一行");
+                    check(f.Model.HasValidationError && !f.Model.SaveDraftCommand.CanExecute(null),
+                        "限制提示高度不改变校验状态和保存门禁");
+                    f.Model.Lines.Clear(); Pump(); view.UpdateLayout();
+                    check(grid.ActualHeight > view.ActualHeight * 0.35 && f.Model.Lines.Count == 0,
+                        "校验提示缩短后明细布局和行集合正常更新");
+                }
+                finally { window.Close(); }
+            }
         }
         // 使用真实 ElementHost 验证侧栏隐藏保留内容、移除宿主断开 WPF；不伪装成 Office 集成测试。
         private static void CheckPaneHostLifetime(Action<bool, string> check)

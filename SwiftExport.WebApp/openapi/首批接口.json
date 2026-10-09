@@ -943,6 +943,176 @@
         ]
       }
     },
+    "/api/sysdicttype/all": {
+      "get": {
+        "tags": [
+          "SysDictType"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getDictionaryTypes"
+      }
+    },
+    "/api/sysdicttype/batch-save": {
+      "post": {
+        "tags": [
+          "SysDictType"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictTypeBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictTypeBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictTypeBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictTypeBatchSaveRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictTypeBatchSaveResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictTypeBatchSaveResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictTypeBatchSaveResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "saveDictionaryTypes"
+      }
+    },
+    "/api/sysdictdata/batch-save": {
+      "post": {
+        "tags": [
+          "SysDictData"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictDataBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictDataBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictDataBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictDataBatchSaveRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictDataBatchSaveResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictDataBatchSaveResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictDataBatchSaveResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "saveDictionaryItems"
+      }
+    },
     "/api/productcolor/all": {
       "get": {
         "tags": [
@@ -2202,6 +2372,431 @@
           "updatedBy": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.IReadOnlyListOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+            },
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto": {
+        "type": "object",
+        "properties": {
+          "dictCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "dictName": {
+            "type": "string",
+            "nullable": true
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "remark": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "groupCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "groupName": {
+            "type": "string",
+            "nullable": true
+          },
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          },
+          "createdDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictTypeBatchSaveRequest": {
+        "type": "object",
+        "properties": {
+          "createItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+            },
+            "nullable": true
+          },
+          "updateItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+            },
+            "nullable": true
+          },
+          "deleteItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.DeleteItemRequest"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "hasChanges": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.SysDictTypeDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictTypeBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictTypeBatchSaveResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictTypeBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.SaveItemResult"
+            },
+            "nullable": true
+          },
+          "successCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "allSucceeded": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "addSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "updateSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "deleteSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.SystemDtos.Requests.SysDictDataBatchSaveRequest": {
+        "type": "object",
+        "properties": {
+          "createItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto"
+            },
+            "nullable": true
+          },
+          "updateItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto"
+            },
+            "nullable": true
+          },
+          "deleteItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.DeleteItemRequest"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "hasChanges": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictDataBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictDataBatchSaveResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.SystemDtos.Responses.SysDictDataBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.SaveItemResult"
+            },
+            "nullable": true
+          },
+          "successCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "allSucceeded": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "addSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "updateSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "deleteSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
           }
         },
         "additionalProperties": false
