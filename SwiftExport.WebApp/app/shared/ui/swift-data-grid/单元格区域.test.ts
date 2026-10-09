@@ -38,8 +38,18 @@ describe("单元格区域", () => {
       ),
     ).toEqual({
       columns: [
-        { columnKey: "name", source: rows[1], targets: [rows[2], rows[3]] },
-        { columnKey: "quantity", source: rows[1], targets: [rows[2], rows[3]] },
+        {
+          columnKey: "name",
+          fields: ["name"],
+          source: rows[1],
+          targets: [rows[2], rows[3]],
+        },
+        {
+          columnKey: "quantity",
+          fields: ["quantity"],
+          source: rows[1],
+          targets: [rows[2], rows[3]],
+        },
       ],
     });
   });
@@ -56,7 +66,14 @@ describe("单元格区域", () => {
         (row) => row.key !== "r2",
       ),
     ).toEqual({
-      columns: [{ columnKey: "quantity", source: rows[0], targets: [rows[2]] }],
+      columns: [
+        {
+          columnKey: "quantity",
+          fields: ["quantity"],
+          source: rows[0],
+          targets: [rows[2]],
+        },
+      ],
     });
     expect(
       buildGridFillDownIntent(
@@ -67,6 +84,117 @@ describe("单元格区域", () => {
         (row) => row.key !== "r1",
       ),
     ).toBeNull();
+  });
+
+  it("一列声明多个业务字段，未展示字段同样传递且重复标识只保留一次", () => {
+    const fields = ["relatedId", "displayName", "relatedId"];
+    const rows = [
+      { relatedId: "id-a", displayName: "源值" },
+      { relatedId: "id-b", displayName: "目标值" },
+    ];
+    const intent = buildGridFillDownIntent(
+      { firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 0 },
+      rows,
+      ["lookup"],
+      () => true,
+      () => true,
+      () => fields,
+    );
+    expect(intent).toEqual({
+      columns: [
+        {
+          columnKey: "lookup",
+          fields: ["relatedId", "displayName"],
+          source: rows[0],
+          targets: [rows[1]],
+        },
+      ],
+    });
+    expect(intent?.columns[0]?.fields).not.toBe(fields);
+    expect(intent?.columns[0]?.source).toBe(rows[0]);
+    expect(rows[1]).toEqual({ relatedId: "id-b", displayName: "目标值" });
+    expect(fields).toEqual(["relatedId", "displayName", "relatedId"]);
+  });
+
+  it("未声明映射时只传列 key，空映射禁用该列而不替换成默认映射", () => {
+    const rows = [{ key: "r1" }, { key: "r2" }];
+    const range = { firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 1 };
+    const defaults = buildGridFillDownIntent(
+      range,
+      rows,
+      columnKeys,
+      () => true,
+      () => true,
+    );
+    expect(defaults?.columns.map(({ fields }) => fields)).toEqual([
+      ["name"],
+      ["quantity"],
+    ]);
+    const explicit = buildGridFillDownIntent(
+      range,
+      rows,
+      columnKeys,
+      () => true,
+      () => true,
+      (key) => (key === "name" ? [] : ["amount"]),
+    );
+    expect(
+      explicit?.columns.map(({ columnKey, fields }) => ({ columnKey, fields })),
+    ).toEqual([{ columnKey: "quantity", fields: ["amount"] }]);
+    expect(
+      buildGridFillDownIntent(
+        range,
+        rows,
+        columnKeys,
+        () => true,
+        () => true,
+        () => [],
+      ),
+    ).toBeNull();
+  });
+
+  it("任何可填列声明空白字段时拒绝整个区域，不修正字段名或只发出其他列", () => {
+    const rows = [{ key: "r1" }, { key: "r2" }];
+    const range = { firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 1 };
+    for (const invalid of [
+      "",
+      " ",
+      " name",
+      "name ",
+      "display name",
+      "name\n",
+    ]) {
+      expect(
+        buildGridFillDownIntent(
+          range,
+          rows,
+          columnKeys,
+          () => true,
+          () => true,
+          (key) => (key === "quantity" ? ["amount", invalid] : [key]),
+        ),
+      ).toBeNull();
+    }
+  });
+
+  it("不可填列或只读源不读取映射，不解析业务字段路径", () => {
+    const rows = [{ key: "r1" }, { key: "r2" }];
+    const range = { firstRow: 0, lastRow: 1, firstColumn: 0, lastColumn: 2 };
+    const queried: string[] = [];
+    const intent = buildGridFillDownIntent(
+      range,
+      rows,
+      columnKeys,
+      (key) => key !== "version",
+      (_row, key) => key !== "quantity",
+      (key) => {
+        queried.push(key);
+        return ["business.value"];
+      },
+    );
+    expect(queried).toEqual(["name"]);
+    expect(intent?.columns[0]?.fields).toEqual(["business.value"]);
+    expect(rows).toEqual([{ key: "r1" }, { key: "r2" }]);
   });
 
   it("单选及单行区域不产生填充", () => {

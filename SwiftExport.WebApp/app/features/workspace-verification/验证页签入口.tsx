@@ -591,8 +591,10 @@ function BasicVerificationTab({
       raw: string;
       targets: EditableRow<VerificationValue>[];
     }[] = [];
-    for (const { columnKey, source, targets } of columns) {
+    for (const { columnKey, fields, source, targets } of columns) {
       if (columnKey !== "name" && columnKey !== "quantity") return;
+      // 普通验收列只允许自身字段，公共元数据不能把身份或版本扩入可写投影。
+      if (fields.length !== 1 || fields[0] !== columnKey) return;
       const currentSource = visible.find(
         (row) => row.clientKey === source.clientKey,
       );

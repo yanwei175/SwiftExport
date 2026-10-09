@@ -31,12 +31,23 @@ export default defineConfig(async ({ mode, command, isPreview }) => {
       include: [
         "react",
         "react-dom",
+        "react-dom/client",
         "react/jsx-runtime",
+        "react/jsx-dev-runtime",
         "react-router",
+        "react-router/dom",
         "antd",
         "antd/locale/zh_CN",
         "@ant-design/icons",
         "@tanstack/react-query",
+        "dayjs",
+        // 显式预构建当前使用的公开 Pro 子入口，避免冷启动首次懒加载时重打包并重载页面。
+        "@ant-design/pro-components/form",
+        "@ant-design/pro-components/table/core",
+        "@ant-design/pro-components/table/editable",
+        "@ant-design/pro-components/table/drag-sort",
+        "@ant-design/pro-components/descriptions",
+        "@ant-design/pro-components/list",
       ],
     },
     server: {

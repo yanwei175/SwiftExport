@@ -82,26 +82,38 @@ export function constrainGridColumnWidth(width: number): number {
     : 160;
 }
 
-/** 只从当前可见矩形生成逐列意图；只读源与目标跳过，单行区域不会填充。 */
+/**
+ * 只从当前可见矩形生成逐列意图，不读取字段值或写入行对象。
+ * 关联字段无需有表格列；重复标识去重、空数组禁用该列，非法空白标识拒绝整个区域。
+ */
 export function buildGridFillDownIntent<T extends object>(
   range: GridCellRange | null,
   rows: readonly T[],
   columnKeys: readonly string[],
   canFillColumn: (columnKey: string) => boolean,
   isWritable: (row: T, columnKey: string) => boolean,
+  getFields: (columnKey: string) => readonly string[] = (columnKey) => [
+    columnKey,
+  ],
 ): SwiftDataGridFillDownIntent<T> | null {
   if (!range || range.firstRow >= range.lastRow) return null;
   const source = rows[range.firstRow];
   if (!source) return null;
-  const columns = columnKeys
-    .slice(range.firstColumn, range.lastColumn + 1)
-    .flatMap((columnKey) => {
-      if (!canFillColumn(columnKey) || !isWritable(source, columnKey))
-        return [];
-      const targets = rows
-        .slice(range.firstRow + 1, range.lastRow + 1)
-        .filter((row) => isWritable(row, columnKey));
-      return targets.length ? [{ columnKey, source, targets }] : [];
-    });
+  const columns: SwiftDataGridFillDownIntent<T>["columns"][number][] = [];
+  for (const columnKey of columnKeys.slice(
+    range.firstColumn,
+    range.lastColumn + 1,
+  )) {
+    if (!canFillColumn(columnKey) || !isWritable(source, columnKey)) continue;
+    const declaredFields = getFields(columnKey);
+    if (!declaredFields.length) continue;
+    // 不默默修正配置或发出部分区域；字段实际含义和可写白名单仍由 feature 核对。
+    if (declaredFields.some((field) => !field || /\s/.test(field))) return null;
+    const fields = [...new Set(declaredFields)];
+    const targets = rows
+      .slice(range.firstRow + 1, range.lastRow + 1)
+      .filter((row) => isWritable(row, columnKey));
+    if (targets.length) columns.push({ columnKey, fields, source, targets });
+  }
   return columns.length ? { columns } : null;
 }

@@ -692,6 +692,10 @@ test.describe("真实浏览器骨架与模拟契约", () => {
     await page.goBack();
     await expect(page).toHaveURL(savedAddress.href);
     await expect(page.getByRole("tab", { name: /表单验收/ })).toHaveCount(1);
+    // 地址先更新，Activity 激活随后完成；只读取原页签已恢复可见后的身份。
+    await expect(
+      page.locator(`[data-testid="verification-${tabId}"]:visible`),
+    ).toBeVisible();
     expect(
       (
         await activePane(page)

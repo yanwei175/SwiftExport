@@ -195,7 +195,8 @@
             </StackPanel>
         </ScrollViewer>
         <WrapPanel Grid.Row="2" Margin="0,8,0,8">
-            <ui:Button Content="读取明细" Command="{Binding ReadLinesCommand}" AutomationProperties.Name="按地址配置读取 Excel 明细" Margin="0,0,8,0" />
+            <ui:Button Content="读取明细" Command="{Binding ReadLinesCommand}" AutomationProperties.Name="按地址配置读取 Excel 明细" Margin="0,0,8,0"
+                       ToolTip="按已保存配置，从第一条数据向下读取至结束边界（包含隐藏行）。地址不能选表头；净重、毛重、体积的跨行合并合计留空提示，数量与型号等其他字段须逐行填写。" />
             <ui:Button Content="添加产品" Command="{Binding AddStandardLineCommand}" Margin="0,0,8,0" />
             <ui:Button Content="添加非标件" Command="{Binding AddNonStandardLineCommand}" Margin="0,0,8,0" />
             <ui:Button Content="删除行" Command="{Binding DeleteSelectedLineCommand}" />

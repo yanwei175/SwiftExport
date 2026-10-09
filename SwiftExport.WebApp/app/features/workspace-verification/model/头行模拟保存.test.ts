@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  acceptEditableRow,
+  createEditableRow,
+  discardEditableRows,
+  isRowDirty,
+  updateEditableRow,
+} from "../../../shared/editing/编辑集合";
+import {
   createDocumentRecoveryRecord,
   freezeDocument,
   isCompleteDocumentReceipt,
@@ -27,6 +34,7 @@ describe("头行验收契约", () => {
         uid: "uid-a",
         version: 4,
         name: "行",
+        referenceCode: "REF-A",
         quantity: 2,
         kind: "normal" as const,
         businessDate: null,
@@ -37,6 +45,13 @@ describe("头行验收契约", () => {
   it("数字/null/日期转换不把未完成输入送入业务值", () => {
     expect(parseDocumentLineField("quantity", "-")).toEqual({ valid: false });
     expect(parseDocumentLineField("quantity", "0")).toEqual({ valid: false });
+    expect(parseDocumentLineField("referenceCode", "")).toEqual({
+      valid: false,
+    });
+    expect(parseDocumentLineField("referenceCode", "REF-RAW-A")).toEqual({
+      valid: true,
+      value: "REF-RAW-A",
+    });
     expect(parseDocumentLineField("businessDate", "")).toEqual({
       valid: true,
       value: null,
@@ -52,8 +67,10 @@ describe("头行验收契约", () => {
     const attempt = freezeDocument(source);
     source.header.name = "后改";
     source.lines[0]!.name = "后改行";
+    source.lines[0]!.referenceCode = "REF-LATER";
     expect(attempt.header.name).toBe("头");
     expect(attempt.lines[0]!.name).toBe("行");
+    expect(attempt.lines[0]!.referenceCode).toBe("REF-A");
     const result = {
       kind: "confirmed" as const,
       attemptId: attempt.attemptId,
@@ -84,9 +101,36 @@ describe("头行验收契约", () => {
     expect(record.frozenSubmission.lines[0]).toMatchObject({
       ClientKey: "line-a",
       Version: 4,
+      referenceCode: "REF-A",
     });
     expect(JSON.stringify(record)).not.toMatch(
       /Authorization|access_token|CommandId|password/,
+    );
+  });
+  it("未显示的业务字段参与修改、放弃与确认接纳，身份和基线仍独立", () => {
+    const { clientKey, uid, version, ...values } = input().lines[0]!;
+    const initial = createEditableRow(clientKey, uid, version, values);
+    const changed = updateEditableRow([initial], clientKey, {
+      name: "关联名称",
+      referenceCode: "REF-CHANGED",
+    });
+    expect(isRowDirty(changed[0]!)).toBe(true);
+    expect(changed[0]).toMatchObject({ clientKey, uid, version });
+    expect(changed[0]!.baseline.referenceCode).toBe("REF-A");
+    expect(discardEditableRows(changed)[0]!.current.referenceCode).toBe(
+      "REF-A",
+    );
+    const accepted = acceptEditableRow(
+      changed,
+      clientKey,
+      uid,
+      version + 1,
+      changed[0]!.current,
+    );
+    expect(accepted[0]!.baseline.referenceCode).toBe("REF-CHANGED");
+    expect(isRowDirty(accepted[0]!)).toBe(false);
+    expect(discardEditableRows(accepted)[0]!.current.referenceCode).toBe(
+      "REF-CHANGED",
     );
   });
   it("本地模拟分别确认成功、未生效与未知，不宣称后端已具备", async () => {

@@ -14,6 +14,8 @@ export interface DocumentHeader {
 /** 验收明细可写字段；身份及版本由编辑集合元数据持有。 */
 export interface DocumentLine {
   name: string;
+  /** 名称列关联的业务编号；没有独立表格列，仍参与编辑、校验与保存。 */
+  referenceCode: string;
   quantity: number;
   kind: "normal" | "fragile";
   businessDate: string | null;

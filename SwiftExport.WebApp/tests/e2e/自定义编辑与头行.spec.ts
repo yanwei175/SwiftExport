@@ -17,6 +17,26 @@ const permissions = [
   "Products.Category.View",
 ];
 
+/** 观测真实编辑会话投影；raw 优先，身份及版本用于验证填充不会复制元数据。 */
+interface DocumentLineSnapshot {
+  rowKey: string;
+  uid: string;
+  version: number;
+  name: string;
+  quantity: number | string;
+  kind: string;
+  businessDate: string | null;
+  categoryId: string | null;
+  referenceCode: string;
+}
+
+/** 读取验收页白名单投影，不绕过控件直接调用 feature 或修改其内部状态。 */
+async function lineValues(pane: Locator): Promise<DocumentLineSnapshot[]> {
+  return JSON.parse(
+    (await pane.getByTestId("document-line-values").textContent())!,
+  );
+}
+
 /** 始终定位真实可见 Activity 展示，隐藏节点不能代替活动编辑器。 */
 function documentPane(page: Page): Locator {
   return page.locator('[data-testid^="document-verification-"]:visible');
@@ -301,6 +321,211 @@ test("头行多列区域任一源无效时整次拒绝，不先填入合法列",
   await expect(pane).toContainText("没有填充其他行");
   await expect(pane).toContainText("提交尝试：0");
   await expect(pane).toContainText("业务修改：否；未提交输入：是");
+});
+
+test("名称区域填充关联隐藏字段，身份版本及未选字段不变，取消恢复整组输入", async ({
+  page,
+}) => {
+  const pane = documentPane(page);
+  const before = await lineValues(pane);
+  await expect(pane.locator('th[data-column-key="referenceCode"]')).toHaveCount(
+    0,
+  );
+  expect(before.map((line) => line.referenceCode)).toEqual(["REF-A", "REF-B"]);
+  await selectLineRange(pane, "name");
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  // 显示名称相同也必须填充关联编号；只改变该组的目标值，不能复制身份、版本或数量。
+  await expect
+    .poll(() => lineValues(pane))
+    .toEqual([before[0], { ...before[1], referenceCode: "REF-A" }]);
+  await expect(pane).toContainText("业务修改：否；未提交输入：是");
+  await pane.getByLabel("明细2名称", { exact: true }).press("Escape");
+  await expect.poll(() => lineValues(pane)).toEqual(before);
+  await expect(pane).toContainText("业务修改：否；未提交输入：否");
+  await expect(pane).toContainText("提交尝试：0");
+});
+
+test("仅关联隐藏字段变化，切页后关闭原标签仍保护，取消后正常释放", async ({
+  page,
+}) => {
+  const pane = documentPane(page);
+  const before = await lineValues(pane);
+  const tab = await tabForDocument(page);
+  await selectLineRange(pane, "name");
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  await expect
+    .poll(() => lineValues(pane))
+    .toEqual([before[0], { ...before[1], referenceCode: "REF-A" }]);
+  await page.getByRole("menuitem", { name: /首页/ }).click();
+  await expect(documentPane(page)).toHaveCount(0);
+  await tab.locator(".ant-tabs-tab-remove").click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await cancelDialog(page);
+  await expect(tab).toBeVisible();
+  await tab.getByRole("tab").click();
+  await expect(documentPane(page)).toBeVisible();
+  await expect
+    .poll(() => lineValues(pane))
+    .toEqual([before[0], { ...before[1], referenceCode: "REF-A" }]);
+  await pane.getByLabel("明细2名称", { exact: true }).press("Escape");
+  await expect.poll(() => lineValues(pane)).toEqual(before);
+  await expect(pane).toContainText("业务修改：否；未提交输入：否");
+  await tab.locator(".ant-tabs-tab-remove").click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(tab).toHaveCount(0);
+});
+
+test("关联填充读取源名称与隐藏字段的最新raw，未失焦输入不会退回基线", async ({
+  page,
+}) => {
+  const pane = documentPane(page);
+  const before = await lineValues(pane);
+  await pane
+    .getByRole("button", { name: "模拟关联字段修改", exact: true })
+    .click();
+  const name = pane.getByLabel("明细1名称", { exact: true });
+  await name.fill("最新未失焦名称");
+  await expect(name).toBeFocused();
+  await selectLineRange(pane, "name");
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  await expect
+    .poll(() => lineValues(pane))
+    .toEqual(
+      before.map((line) => ({
+        ...line,
+        name: "最新未失焦名称",
+        referenceCode: "REF-RAW-A",
+      })),
+    );
+  await expect(pane).toContainText("业务修改：否；未提交输入：是");
+  // 取消目标单元格要撤销它的关联输入，源行独立的输入保护仍然存在。
+  await pane.getByLabel("明细2名称", { exact: true }).press("Escape");
+  await expect
+    .poll(() => lineValues(pane))
+    .toEqual([
+      {
+        ...before[0],
+        name: "最新未失焦名称",
+        referenceCode: "REF-RAW-A",
+      },
+      before[1],
+    ]);
+  await expect(pane).toContainText("未提交输入：是");
+  await name.press("Escape");
+  await expect.poll(() => lineValues(pane)).toEqual(before);
+  await expect(pane).toContainText("业务修改：否；未提交输入：否");
+});
+
+test("隐藏源字段无效时整块区域拒绝，无合法列部分填入且保存不派发", async ({
+  page,
+}) => {
+  const pane = documentPane(page);
+  await pane.getByLabel("明细1名称", { exact: true }).fill("不能先填此名称");
+  await pane.getByLabel("明细1数量", { exact: true }).fill("9");
+  await pane
+    .getByRole("button", { name: "模拟关联字段无效", exact: true })
+    .click();
+  const before = await lineValues(pane);
+  expect(before[0]?.referenceCode).toBe("");
+  await pane
+    .locator('td[data-column-key="name"]')
+    .first()
+    .click({ position: { x: 2, y: 2 } });
+  await pane
+    .locator('td[data-column-key="quantity"]')
+    .nth(1)
+    .click({ modifiers: ["Shift"], position: { x: 2, y: 2 } });
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  await expect(pane).toContainText("没有填充其他行");
+  await expect.poll(() => lineValues(pane)).toEqual(before);
+  await pane.getByRole("button", { name: "保存头行", exact: true }).click();
+  await expect(pane).toContainText("提交尝试：0");
+  await expect(pane).toContainText("保存状态：idle");
+  await expect.poll(() => lineValues(pane)).toEqual(before);
+  await expect(pane).toContainText("未提交输入：是");
+  await page.locator(".ant-tabs-tab-active .ant-tabs-tab-remove").click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await cancelDialog(page);
+});
+
+test("关联隐藏字段进入同一次头行冻结与成功接纳，完整回执后全会话clean", async ({
+  page,
+}) => {
+  const pane = documentPane(page);
+  const before = await lineValues(pane);
+  await pane
+    .getByRole("button", { name: "模拟关联字段修改", exact: true })
+    .click();
+  await pane.getByLabel("明细1名称", { exact: true }).fill("关联保存名称");
+  await selectLineRange(pane, "name");
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  await expect(pane).toContainText("未提交输入：是");
+  await pane.getByRole("button", { name: "保存头行", exact: true }).click();
+  await expect(pane).toContainText("头与所有明细完整模拟回执已核对接纳");
+  await expect
+    .poll(() => lineValues(pane))
+    .toEqual(
+      before.map((line) => ({
+        ...line,
+        version: line.version + 1,
+        name: "关联保存名称",
+        referenceCode: "REF-RAW-A",
+      })),
+    );
+  await expect(pane).toContainText("业务修改：否；未提交输入：否");
+  await expect(pane).toContainText("提交尝试：1");
+  await page.locator(".ant-tabs-tab-active .ant-tabs-tab-remove").click();
+  await expect(pane).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("关联填充结果未知时锁住同一冻结内容，导出包括隐藏字段与原身份版本", async ({
+  page,
+}) => {
+  const pane = documentPane(page);
+  const before = await lineValues(pane);
+  await pane
+    .getByRole("button", { name: "模拟关联字段修改", exact: true })
+    .click();
+  await pane.getByLabel("明细1名称", { exact: true }).fill("关联冻结名称");
+  await selectLineRange(pane, "name");
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  await scenario(page, "响应丢失");
+  await pane.getByRole("button", { name: "保存头行", exact: true }).click();
+  await expect(pane).toContainText("保存状态：unknown");
+  await expect(pane.getByLabel("明细2名称", { exact: true })).toHaveAttribute(
+    "readonly",
+    "",
+  );
+  await expect(
+    pane.getByRole("button", { name: "向下填充", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "关闭全部", exact: true }).click();
+  await expect(pane).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const downloading = page.waitForEvent("download");
+  await pane.getByRole("button", { name: "导出恢复记录", exact: true }).click();
+  const download = await downloading;
+  const record = JSON.parse(await readFile((await download.path())!, "utf8"));
+  expect(download.suggestedFilename()).toBe(
+    `SwiftExport-恢复记录-${record.recordId}.json`,
+  );
+  expect(record.interfaceOperation).toContain("no HTTP request");
+  expect(record.frozenSubmission.lines).toEqual(
+    before.map(({ rowKey, uid, version, ...values }) => ({
+      ...values,
+      ClientKey: rowKey,
+      Uid: uid,
+      Version: version,
+      name: "关联冻结名称",
+      referenceCode: "REF-RAW-A",
+    })),
+  );
+  expect(JSON.stringify(record)).not.toMatch(
+    /Authorization|access_token|password|CommandId|csrf-test/,
+  );
+  await expect(pane).toContainText("保存状态：unknown");
+  await expect(pane).toContainText("提交尝试：1");
 });
 
 test("分类撤读权只冻结对应编辑，不扩大权限且不重新读取", async ({ page }) => {

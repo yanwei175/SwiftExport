@@ -41,12 +41,30 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
         public bool Detail { get; set; }
         public List<List<ExcelAddressValue>> Rows { get; set; } = new List<List<ExcelAddressValue>>();
     }
-    /// <summary>客户端结构校验，不校验订单业务；不依赖后端 CanRead 代替本地字段边界。</summary>
+    /// <summary>客户端地址与读取边界规则，不校验订单业务；不依赖后端 CanRead 代替本地字段边界。</summary>
     public static class ExcelAddressRules
     {
-        /// <summary>仅装箱单的可选包装字段允许跳过跨行合并；数量、型号和销售采购保持严格读取。</summary>
-        public static bool AllowMergedDetailSkip(string groupCode, string fieldKey) => groupCode == "PackingList"
-            && new[] { "Line.Marks", "Line.PcsPerPackage", "Line.NwPerPackage", "Line.GwPerPackage", "Line.CbmPerPackage" }.Contains(fieldKey);
+        /// <summary>从单列 Value2 数据块底部查找非空、未合并的末行；没有候选时返回块首行之前，供宿主继续向上查找。</summary>
+        public static int FindLastUnmergedRow(object value, int firstRow, int rowCount, Func<int, bool> isMerged, CancellationToken token)
+        {
+            if (isMerged == null) throw new ArgumentNullException(nameof(isMerged));
+            token.ThrowIfCancellationRequested();
+            var values = value as object[,];
+            for (var index = rowCount - 1; index >= 0; index--)
+            {
+                if (index % 1024 == 0) token.ThrowIfCancellationRequested();
+                var item = values == null ? value : values[index + values.GetLowerBound(0), values.GetLowerBound(1)];
+                // 空白不查询 COM 合并状态；数值零和错误值仍算有内容，不按 TOTAL 等文字猜测汇总行。
+                if (item == null || item is string text && string.IsNullOrWhiteSpace(text)) continue;
+                var row = firstRow + index;
+                if (!isMerged(row)) return row;
+            }
+            return firstRow - 1;
+        }
+        /// <summary>销售合并重量／体积合计及装箱可选包装字段留空提示，防止重复分配；数量、型号等仍严格读取。</summary>
+        public static bool AllowMergedDetailSkip(string groupCode, string fieldKey) =>
+            groupCode == "SalesOrder" && new[] { "Line.NwOfCarton", "Line.GwOfCarton", "Line.CbmOfCarton" }.Contains(fieldKey)
+            || groupCode == "PackingList" && new[] { "Line.Marks", "Line.PcsPerPackage", "Line.NwPerPackage", "Line.GwPerPackage", "Line.CbmPerPackage" }.Contains(fieldKey);
         /// <summary>解析合法的单格 A1 地址，接受绝对标记，拒绝范围和外部引用。</summary>
         public static bool TryCell(string address, out int row, out int column)
         {

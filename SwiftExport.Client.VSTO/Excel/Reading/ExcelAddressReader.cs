@@ -120,8 +120,8 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
             }
             finally { Release(workbook); Release(active); }
         }
-        // 按块读取指定列的 Value2，完全包含隐藏／筛选行；空结果公式和空白文字不算有值。
-        // 不依赖 Find、End 或 UsedRange 的可见性与历史设置，每块结束检查取消。
+        // 按块查找指定列最后一个非空、未合并的单元格，跳过合并汇总；包含隐藏／筛选行。
+        // 只对有内容的候选查询合并状态，不依赖 Find、End 或 UsedRange 的历史设置。
         private static int LastRow(ExcelInterop.Worksheet sheet, string column, int start, CancellationToken token)
         {
             if (!ExcelAddressRules.TryCell((column ?? "") + "1", out var row, out var col)) throw new InvalidOperationException("末行判断列无效。");
@@ -133,19 +133,29 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                 try
                 {
                     range = sheet.get_Range(column + top, column + bottom);
-                    var value = range.Value2; var values = value as object[,];
-                    for (var index = bottom - top; index >= 0; index--)
-                    {
-                        var item = values == null ? value : values[index + values.GetLowerBound(0), values.GetLowerBound(1)];
-                        if (item != null && !(item is string text && string.IsNullOrWhiteSpace(text))) return top + index;
-                    }
+                    object value = range.Value2;
+                    var hasMerged = !(range.MergeCells is bool merged && !merged);
+                    var last = ExcelAddressRules.FindLastUnmergedRow(value, top, bottom - top + 1,
+                        candidate => hasMerged && IsMergedCell(sheet, candidate, col), token);
+                    if (last >= top) return last;
                 }
                 finally { Release(range); }
                 bottom = top - 1;
             }
             return start - 1;
         }
-        // 单头合并区域读取左上角；明细跨行合并不解释成多条记录，仅指定的装箱可选字段可留空提示。
+        /// <summary>仅检查末行候选是否属于合并区域，借用工作表并释放本次单格引用。</summary>
+        private static bool IsMergedCell(ExcelInterop.Worksheet sheet, int row, int column)
+        {
+            ExcelInterop.Range cell = null;
+            try
+            {
+                cell = sheet.get_Range(ExcelAddressRules.ColumnName(column) + row);
+                return cell.MergeCells is bool merged && merged;
+            }
+            finally { Release(cell); }
+        }
+        // 单头合并区域读取左上角；指定包装字段的跨行合计只保留来源，不向各明细复制或自动分摊。
         private static ExcelAddressValue ReadCell(ExcelInterop.Worksheet sheet, string key, int row, int column, bool detail, bool allowMergedSkip = false)
         {
             ExcelInterop.Range cell = null, area = null, rows = null, first = null;
@@ -156,8 +166,15 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                 {
                     area = cell.MergeArea; rows = area.Rows;
                     if (detail && rows.Count > 1 && allowMergedSkip)
-                        return new ExcelAddressValue { FieldKey = key, Row = row, Column = column, Issue = "跨行合并包装字段留空，请保存草稿后整理包装。" };
-                    if (detail && rows.Count > 1) throw new InvalidOperationException("明细存在跨行合并单元格，请拆分后再读取。");
+                    {
+                        first = sheet.get_Range(ExcelAddressRules.ColumnName(area.Column) + area.Row);
+                        // Issue 阻止解析器向目标字段赋值；原合计值留在来源快照供人工核对。
+                        return new ExcelAddressValue { FieldKey = key, Row = row, Column = column, Value = first.Value2,
+                            Issue = "跨行合并区域 " + area.get_Address(false, false)
+                                + " 的包装值不自动分配到各明细，目标字段已留空，请核对后补充。" };
+                    }
+                    if (detail && rows.Count > 1) throw new InvalidOperationException(key + " 在 " + area.get_Address(false, false)
+                        + " 存在跨行合并，请拆分为一行一条明细后再读取。");
                     first = sheet.get_Range(ExcelAddressRules.ColumnName(area.Column) + area.Row);
                     return Cell(key, area.Row, area.Column, first.Value2);
                 }

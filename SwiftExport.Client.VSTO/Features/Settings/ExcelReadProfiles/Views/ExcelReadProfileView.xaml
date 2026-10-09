@@ -34,7 +34,7 @@
                     <TextBox Text="{Binding WorksheetName, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
             </WrapPanel>
-            <TextBlock Text="读取使用当前活动工作表；参考名称不限定来源。单头读取一次，明细地址选择首条明细。" TextWrapping="Wrap"/>
+            <TextBlock Text="读取使用当前活动工作表；参考名称不限定来源。单头选择存放值的单元格，明细选择第一条数据，不选表头。" TextWrapping="Wrap"/>
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="{DynamicResource SwiftExportBackground}">
@@ -72,7 +72,11 @@
 
                 <ui:Card Grid.Row="1" Margin="0,0,0,8" IsEnabled="{Binding CanChangeFields}">
                     <StackPanel>
-                        <TextBlock Text="明细首行地址配置" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="明细第一条数据地址（不是表头）" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="例如第 7 行是表头、第 8 行是第一条数据：客户型号选 C8，数量选 K8。所有明细字段必须从同一行开始，读取包含这一行。"
+                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <TextBlock Text="单头合并单元格读取左上角的值；明细允许同一行内横向合并。销售净重、毛重、体积的跨行合并合计留空提示，其余字段继续读取；PackingList 的可选箱唛及每箱包装数值跨行合并也留空提示。数量、型号等其他字段仍不能跨行合并，请让一行对应一条明细。"
+                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                         <DataGrid x:Name="FieldGrid" 
                               FontSize="{DynamicResource ControlContentThemeFontSize}"
@@ -95,11 +99,12 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <DataGridTemplateColumn Header="单元格地址" Width="2*" MinWidth="120">
+                                <DataGridTemplateColumn Header="第一条数据地址" Width="2*" MinWidth="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="4" VerticalAlignment="Center">
-                                                <TextBox Text="{Binding CellAddress, UpdateSourceTrigger=PropertyChanged}" 
+                                                <TextBox Text="{Binding CellAddress, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="填写第一条明细数据的单元格地址，不填表头；所有明细字段的行号须一致。"
                                                      IsEnabled="{Binding IsKnown}"/>
                                                 <TextBlock Text="{Binding Preview}" TextTrimming="CharacterEllipsis" FontSize="11" Opacity="0.6"/>
                                             </StackPanel>
@@ -119,7 +124,7 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="4">
-                                                <Button Content="获取" Command="{Binding DataContext.PickCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
+                                                <Button Content="获取" ToolTip="选择第一条明细数据的单元格，不选表头或整列。" Command="{Binding DataContext.PickCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
                                                 <Button Content="清除" Margin="4,0,0,0" Command="{Binding DataContext.ClearCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
                                             </StackPanel>
                                         </DataTemplate>
@@ -140,7 +145,7 @@
                                     <sys:Int32>0</sys:Int32>
                                 </ComboBoxItem.Tag>
                             </ComboBoxItem>
-                            <ComboBoxItem Content="指定列的最后有值行">
+                            <ComboBoxItem Content="指定列最后一个非空且未合并的单元格">
                                 <ComboBoxItem.Tag>
                                     <sys:Int32>1</sys:Int32>
                                 </ComboBoxItem.Tag>
@@ -153,7 +158,7 @@
                         </ComboBox>
                         <WrapPanel>
                             <TextBlock Text="末行判断列" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <TextBox Width="60" Text="{Binding LastRowColumn, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Width="60" Text="{Binding LastRowColumn, UpdateSourceTrigger=PropertyChanged}" ToolTip="建议选客户型号等未合并的明细列；从底部跳过空白及合并单元格，定位最后一条数据。"/>
                             <Button Content="获取列" Command="{Binding PickLastColumnCommand}" Margin="4,0,16,0"/>
 
                             <TextBlock Text="汇总单元格" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -161,6 +166,8 @@
                             <Button Content="获取地址" Command="{Binding PickSummaryCommand}" Margin="4,0,0,0"/>
 
                         </WrapPanel>
+                        <TextBlock Text="按列判断末行时跳过合并单元格（包括横向合并），仍包含隐藏行。未合并的合计或备注不会自动排除；判断列应选明细专用列，或改用汇总单元格所在行之前。"
+                                   TextWrapping="Wrap" Margin="0,8,0,0"/>
                         <TextBlock Text="备注" Margin="0,8,0,4"/>
                         <TextBox Text="{Binding Remark, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>

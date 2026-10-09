@@ -100,7 +100,7 @@ export function SwiftDataGrid<T extends object>({
       (canEdit?.(row, column.key) ?? true)
     );
   }
-  /** 每列顶部是源，下方仅包含矩形内的可写目标；行勾选不参与填充。 */
+  /** 每列顶部是源，关联字段仅作为元数据传递；目标限定可见矩形，行勾选不参与。 */
   function getFillIntent(): SwiftDataGridFillDownIntent<T> | null {
     if (
       !onFillDown ||
@@ -125,6 +125,10 @@ export function SwiftDataGrid<T extends object>({
         const column = visibleColumns.find((item) => item.key === key);
         return Boolean(column && isEditable(row, column));
       },
+      (key) =>
+        visibleColumns.find((column) => column.key === key)?.fillDownFields ?? [
+          key,
+        ],
     );
   }
   /** 按最新 props 重算区域意图，不转换字段、不改变集合或基线。 */
@@ -136,6 +140,12 @@ export function SwiftDataGrid<T extends object>({
   }
   /** 焦点在单元格本身时方向键移动，Shift 扩区；不抢编辑器内部按键。 */
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    // 浮层属于 React 子树，但不属于 Grid DOM；其快捷键仍归对应 Ant 控件。
+    if (
+      !(event.target instanceof Node) ||
+      !event.currentTarget.contains(event.target)
+    )
+      return;
     if (event.defaultPrevented || isInteractive(event.target)) return;
     if (
       event.ctrlKey &&
@@ -360,6 +370,12 @@ export function SwiftDataGrid<T extends object>({
             ? "swift-grid-cell swift-grid-cell-selected"
             : "swift-grid-cell",
           onClick: (event) => {
+            // Ant 浮层通过 React 树冒泡到 td，但 DOM 在 body；候选点击不属于单元格选择。
+            if (
+              !(event.target instanceof Node) ||
+              !event.currentTarget.contains(event.target)
+            )
+              return;
             if (suppressClick.current) {
               suppressClick.current = false;
               return;
@@ -367,6 +383,12 @@ export function SwiftDataGrid<T extends object>({
             selectCell({ rowKey, columnKey: column.key }, event.shiftKey);
           },
           onPointerDown: (event) => {
+            // 同样排除 Select/DatePicker 的 portal，不能对选项捕获指针或阻止默认选择。
+            if (
+              !(event.target instanceof Node) ||
+              !event.currentTarget.contains(event.target)
+            )
+              return;
             suppressClick.current = false;
             if (event.button !== 0 || isInteractive(event.target)) return;
             const cell = { rowKey, columnKey: column.key };

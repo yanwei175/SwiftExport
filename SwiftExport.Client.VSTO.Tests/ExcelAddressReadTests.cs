@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.VSTO.Testing;
@@ -19,6 +20,83 @@ namespace SwiftExport.Client.VSTO.Tests
     [TestClass]
     public sealed class ExcelAddressReadTests
     {
+        /// <summary>按真实 Value2 的一基数组查找末行，跳过末尾合并合计及备注，不因内部空行提前结束。</summary>
+        [TestMethod]
+        public void LastRowSkipsMergedSummaryAndEmptyCells()
+        {
+            var values = (object[,])Array.CreateInstance(typeof(object), new[] { 7, 1 }, new[] { 1, 1 });
+            values[1, 1] = "AQ1"; values[3, 1] = 0d; values[4, 1] = "  ";
+            values[5, 1] = "TOTAL"; values[7, 1] = "合并备注";
+            var visited = new List<int>();
+            var result = ExcelAddressRules.FindLastUnmergedRow(values, 8, 7,
+                row => { visited.Add(row); return row == 12 || row == 14; }, CancellationToken.None);
+            Assert.AreEqual(10, result);
+            CollectionAssert.AreEqual(new[] { 14, 12, 10 }, visited);
+        }
+        /// <summary>块内只有空白或合并内容时继续找上一个块，不把合并首行认作明细末行。</summary>
+        [TestMethod]
+        public void LastRowReturnsBeforeBlockWhenNoEligibleCell()
+        {
+            var values = new object[,] { { null }, { "" }, { "合并汇总" } };
+            Assert.AreEqual(7, ExcelAddressRules.FindLastUnmergedRow(values, 8, 3, row => true, CancellationToken.None));
+            Assert.AreEqual(20, ExcelAddressRules.FindLastUnmergedRow("  ", 21, 1,
+                row => { Assert.Fail("空白不应查询合并状态"); return false; }, CancellationToken.None));
+        }
+        /// <summary>单格 Value2 保留零值，并严格按是否合并判断，不按汇总文字自动过滤未合并的单元格。</summary>
+        [TestMethod]
+        public void LastRowHandlesSingleCellAndDoesNotGuessSummaryText()
+        {
+            Assert.AreEqual(21, ExcelAddressRules.FindLastUnmergedRow(0d, 21, 1, row => false, CancellationToken.None));
+            Assert.AreEqual(20, ExcelAddressRules.FindLastUnmergedRow(5d, 21, 1, row => true, CancellationToken.None));
+            Assert.AreEqual(21, ExcelAddressRules.FindLastUnmergedRow("TOTAL", 21, 1, row => false, CancellationToken.None));
+        }
+        /// <summary>已取消的末行扫描不再查询候选，避免旧页面操作继续触碰 Excel。</summary>
+        [TestMethod]
+        public void LastRowHonorsCancellationBeforeMergeLookup()
+        {
+            using (var cancellation = new CancellationTokenSource())
+            {
+                cancellation.Cancel();
+                Assert.ThrowsExactly<OperationCanceledException>(() => ExcelAddressRules.FindLastUnmergedRow("AQ1", 8, 1,
+                    row => { Assert.Fail("已取消不得查询合并状态"); return false; }, cancellation.Token));
+            }
+        }
+        /// <summary>合并合计不复制进每箱字段，型号与数量继续导入；来源值和区域提示保留供人工核对。</summary>
+        [TestMethod]
+        public void SalesMergedPackagingTotalsRemainUnassigned()
+        {
+            var snapshot = new ExcelAddressSnapshot { Detail = true };
+            var keys = new[] { "Line.NwOfCarton", "Line.GwOfCarton", "Line.CbmOfCarton" };
+            for (var row = 8; row <= 9; row++)
+            {
+                var cells = new List<ExcelAddressValue> { Value("Line.CustomerSku", row, "AQ" + row), Value("Line.Qty", row, row - 6) };
+                foreach (var key in keys)
+                {
+                    Assert.IsTrue(ExcelAddressRules.AllowMergedDetailSkip("SalesOrder", key));
+                    cells.Add(new ExcelAddressValue { FieldKey = key, Row = row, Column = 12, Value = 12.5d,
+                        Issue = "跨行合并区域 L8:L9 的包装值不自动分配到各明细，目标字段已留空，请核对后补充。" });
+                }
+                snapshot.Rows.Add(cells);
+            }
+            var result = new SalesOrderAddressParser(ExcelImportRegistry.CreateDefault()).Parse(snapshot);
+            Assert.AreEqual(2, result.Lines.Count); Assert.AreEqual(5m, result.Lines.Sum(line => line.Qty.Value));
+            Assert.AreEqual(6, result.Issues.Count); Assert.IsTrue(result.Message.Contains("L8:L9"));
+            foreach (var line in result.Lines)
+            {
+                Assert.IsNull(line.NwOfCarton); Assert.IsNull(line.GwOfCarton); Assert.IsNull(line.CbmOfCarton);
+                Assert.AreEqual(3, line.Source.Cells.Count(cell => keys.Contains(cell.FieldKey) && cell.Text == "12.5"));
+                Assert.IsFalse(string.IsNullOrWhiteSpace(line.CustomerSku));
+            }
+        }
+        /// <summary>包装合计容错仅限已确认字段，不放开数量、型号、单价、每箱数量及其他业务组。</summary>
+        [TestMethod]
+        public void SalesMergedPackagingDoesNotRelaxIdentityOrQuantity()
+        {
+            foreach (var key in new[] { "Line.CustomerSku", "Line.LinkSku", "Line.Qty", "Line.PcsOfCarton", "Line.CnyPrice" })
+                Assert.IsFalse(ExcelAddressRules.AllowMergedDetailSkip("SalesOrder", key));
+            Assert.IsFalse(ExcelAddressRules.AllowMergedDetailSkip("PurchaseOrder", "Line.NwOfCarton"));
+            Assert.IsFalse(ExcelAddressRules.AllowMergedDetailSkip("Unknown", "Line.GwOfCarton"));
+        }
         /// <summary>地址支持绝对标记，拒绝范围、公式和越界值。</summary>
         [TestMethod]
         public void AddressBoundsAndDirections()

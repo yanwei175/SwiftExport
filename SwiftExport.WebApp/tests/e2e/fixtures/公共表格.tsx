@@ -102,14 +102,18 @@ function ControlledGridHarness() {
     return raw[`${row.key}:${field}`] ?? row[field];
   }
 
-  /** 填充按指定列写入原始缓冲，逐行权限过滤由 Grid 的公开意图可直接观察。 */
+  /** 夹具显式接纳映射字段；列 key 只标识交互，Grid 不读取或复制行属性。 */
   function fillDown(intent: SwiftDataGridFillDownIntent<FixtureRow>) {
     setRaw((current) => {
       const next = { ...current };
       for (const column of intent.columns) {
-        const field = column.columnKey as EditableField;
-        const source = getText(column.source, field);
-        for (const row of column.targets) next[`${row.key}:${field}`] = source;
+        for (const field of column.fields) {
+          if (field !== "name" && field !== "quantity" && field !== "immutable")
+            continue;
+          const source = getText(column.source, field);
+          for (const row of column.targets)
+            next[`${row.key}:${field}`] = source;
+        }
       }
       return next;
     });

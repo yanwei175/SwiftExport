@@ -44,7 +44,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                             "宽配置页的单头地址在同一行排列");
                         window.Width = 360; Pump(); view.UpdateLayout();
                         secondPosition = second.TransformToAncestor(headers).Transform(new Point());
-                        check(secondPosition.Y > firstPosition.Y && ((ScrollViewer)view.Content).ScrollableWidth == 0,
+                        var contentScroll = ((Grid)view.Content).Children.OfType<ScrollViewer>().Single();
+                        check(secondPosition.Y > firstPosition.Y && contentScroll.ScrollableWidth == 0,
                             "窄配置页的单头地址自动换行且无需横向滚动");
                         window.Width = 1100; Pump(); view.UpdateLayout();
                         var grid = Descendants<DataGrid>(view).Single();
@@ -86,8 +87,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
         private static void CheckSidePane(Action<bool, string> check)
         {
             var config = SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.CreateDefault().Get("excel-read-profile");
-            check(config.ViewType == typeof(ExcelReadProfileView) && config.DefaultWidth == 860 && config.DockPosition == Dock.Right,
-                "读取配置注册为当前 860 宽右侧窗格");
+            check(config.ViewType == typeof(ExcelReadProfileView) && config.DockPosition == Dock.Right,
+                "读取配置注册为右侧窗格，宽度由页面配置决定");
             using (var f = new ImportTestFixture())
             using (var form = new System.Windows.Forms.Form { Width = 560, Height = 820, ShowInTaskbar = false })
             {
@@ -101,7 +102,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(requests == 1, "销售设计入口通过组合层打开侧栏，不再创建大型配置窗体");
                     var host = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(view) { Dock = System.Windows.Forms.DockStyle.Fill };
                     form.Controls.Add(host); form.Show(); Pump();
-                    var scroll = (ScrollViewer)view.Content; var layout = (Grid)scroll.Content;
+                    var root = (Grid)view.Content;
+                    var scroll = root.Children.OfType<ScrollViewer>().Single(); var layout = (Grid)scroll.Content;
                     check(layout.MinWidth == 0 && layout.ActualWidth <= form.ClientSize.Width, "配置页不再强制 700 宽，适应窄侧栏");
                     check(scroll.ScrollableWidth == 0 && scroll.ScrollableHeight > 0, "窄侧栏纵向滚动且不需横向访问整个页面");
                     var row = model.HeaderFields.Single(r => r.FieldKey == "Header.InvoiceNo"); row.CellAddress = "M99";

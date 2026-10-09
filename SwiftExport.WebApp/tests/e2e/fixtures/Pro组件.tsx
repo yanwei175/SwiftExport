@@ -169,6 +169,8 @@ function ProComponentsHarness() {
         title: "名称",
         dataIndex: "name",
         width: 230,
+        // 默认错误 Popover 会按校验状态改变输入父节点；内联错误保持原始编辑 DOM 与焦点。
+        errorType: "default",
         formItemProps: {
           rules: [
             { required: true, whitespace: true, message: "名称不能为空。" },
@@ -195,6 +197,7 @@ function ProComponentsHarness() {
         title: "数量",
         dataIndex: "quantity",
         width: 160,
+        errorType: "default",
         // 用 Input 保留原始数字文本；InputNumber 不作为未完成数字输入的权威。
         formItemProps: {
           rules: [

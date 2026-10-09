@@ -89,6 +89,7 @@ const initialForm: HeaderForm = {
 };
 const initialLine: DocumentLine = {
   name: "验收明细",
+  referenceCode: "REF-A",
   quantity: 1,
   kind: "normal",
   businessDate: null,
@@ -101,15 +102,32 @@ const scenarioOptions = [
   { value: "lost-response", label: "响应丢失" },
   { value: "slow", label: "慢成功" },
 ];
-const lineFields: readonly (keyof DocumentLine)[] = [
+/** 可见列与完整可写投影分别声明，隐藏业务字段不会被漏出保存或保护范围。 */
+const visibleLineFields = [
   "name",
   "quantity",
   "kind",
   "businessDate",
   "categoryId",
-];
+] as const satisfies readonly (keyof DocumentLine)[];
+const lineFields = [
+  ...visibleLineFields,
+  "referenceCode",
+] as const satisfies readonly (keyof DocumentLine)[];
+/** 一列关联多个业务字段；Grid 元数据不能扩大此 feature 的可写字段白名单。 */
+const fillDownFields = {
+  name: ["name", "referenceCode"],
+  quantity: ["quantity"],
+  kind: ["kind"],
+  businessDate: ["businessDate"],
+  categoryId: ["categoryId"],
+} as const satisfies Record<
+  (typeof visibleLineFields)[number],
+  readonly (keyof DocumentLine)[]
+>;
 const fieldTitles = {
   name: "名称",
+  referenceCode: "关联编号",
   quantity: "数量",
   kind: "类型",
   businessDate: "日期",
@@ -150,7 +168,10 @@ export default function DocumentVerificationTab({
   const headerVersionRef = useRef(1);
   const rowsRef = useRef<EditableRow<DocumentLine>[]>([
     createEditableRow("doc-row-1", "document-line-1", 1, initialLine),
-    createEditableRow("doc-row-2", "document-line-2", 1, initialLine),
+    createEditableRow("doc-row-2", "document-line-2", 1, {
+      ...initialLine,
+      referenceCode: "REF-B",
+    }),
   ]);
   const buffersRef = useRef(new Map<string, LineBuffer>());
   const errorsRef = useRef(new Map<string, string>());
@@ -273,15 +294,18 @@ export default function DocumentVerificationTab({
     errorsRef.current.delete(key);
     publish();
   }
-  /** Escape 只取消对应原始缓冲，已进入集合的其他草稿保持原状。 */
+  /** Escape 取消该可见列的关联原始缓冲，其他列及已进入集合的草稿保持原状。 */
   function cancelCell(
     row: EditableRow<DocumentLine>,
     field: keyof DocumentLine,
   ) {
     if (phaseRef.current !== "idle" || !currentAccess(false)) return;
-    const key = `${row.clientKey}:${field}`;
-    buffersRef.current.delete(key);
-    errorsRef.current.delete(key);
+    const fields = field === "referenceCode" ? [field] : fillDownFields[field];
+    for (const relatedField of fields) {
+      const key = `${row.clientKey}:${relatedField}`;
+      buffersRef.current.delete(key);
+      errorsRef.current.delete(key);
+    }
     publish();
   }
   /** 保存前统一校验所有原始缓冲及明细业务值；任何错误均不生成提交尝试。 */
@@ -430,6 +454,7 @@ export default function DocumentVerificationTab({
           receipt.version,
           {
             name: submitted.name,
+            referenceCode: submitted.referenceCode,
             quantity: submitted.quantity,
             kind: submitted.kind,
             businessDate: submitted.businessDate,
@@ -544,54 +569,83 @@ export default function DocumentVerificationTab({
     pageErrorsRef.current = mapped.page;
     publish();
   }
-  /** 区域先全量核权、重定位及校验，再统一写入缓冲；任一无效源不会产生部分填充。 */
+  /** 区域和每列关联字段全部核权、重定位及校验后，才一次写入目标缓冲；冲突或无效源整次拒绝。 */
   function fillDown(
     intent: SwiftDataGridFillDownIntent<EditableRow<DocumentLine>>,
   ) {
     if (!currentAccess() || phaseRef.current !== "idle") return;
-    const patches: {
-      row: EditableRow<DocumentLine>;
-      field: keyof DocumentLine;
-      raw: string;
-    }[] = [];
-    for (const { columnKey, source, targets } of intent.columns) {
-      if (!lineFields.includes(columnKey as keyof DocumentLine)) return;
-      const field = columnKey as keyof DocumentLine;
+    const patches = new Map<
+      string,
+      { row: EditableRow<DocumentLine>; field: keyof DocumentLine; raw: string }
+    >();
+    for (const { columnKey, fields, source, targets } of intent.columns) {
+      if (
+        !visibleLineFields.includes(
+          columnKey as (typeof visibleLineFields)[number],
+        )
+      )
+        return;
+      const declared =
+        fillDownFields[columnKey as (typeof visibleLineFields)[number]];
+      // 意图只描述用户选区；实际允许写入的字段仍由当前 feature 的声明决定。
+      if (
+        fields.length !== declared.length ||
+        fields.some((field, index) => field !== declared[index]) ||
+        declared.some((field) => !lineFields.includes(field))
+      )
+        return;
       const latestSource = rowsRef.current.find(
-        (row) => row.clientKey === source.clientKey && !row.deleted,
+        (row) =>
+          row.clientKey === source.clientKey &&
+          row.uid === source.uid &&
+          row.version === source.version &&
+          !row.deleted,
       );
       if (!latestSource) return;
-      const raw = cellText(latestSource, field);
-      if (
-        field === "categoryId" &&
-        (!sessionRef.current.user?.permissions?.includes(
-          "Products.Category.View",
-        ) ||
-          (raw !== "" &&
-            !options.some(
-              (option) => option.value === raw && !option.disabled,
-            )))
-      ) {
-        notice("warning", "源分类或读取权限不允许填充，没有填充其他行。 ");
-        return;
-      }
-      if (!parseDocumentLineField(field, raw).valid) {
-        errorsRef.current.set(
-          `${latestSource.clientKey}:${field}`,
-          "源输入尚未通过校验，没有填充其他行。 ",
-        );
-        publish();
-        return;
-      }
-      for (const target of targets) {
-        const row = rowsRef.current.find(
-          (item) => item.clientKey === target.clientKey && !item.deleted,
-        );
-        if (!row) return;
-        patches.push({ row, field, raw });
+      for (const field of declared) {
+        const raw = cellText(latestSource, field);
+        if (
+          field === "categoryId" &&
+          (!sessionRef.current.user?.permissions?.includes(
+            "Products.Category.View",
+          ) ||
+            (raw !== "" &&
+              !options.some(
+                (option) => option.value === raw && !option.disabled,
+              )))
+        ) {
+          notice("warning", "源分类或读取权限不允许填充，没有填充其他行。 ");
+          return;
+        }
+        if (!parseDocumentLineField(field, raw).valid) {
+          errorsRef.current.set(
+            `${latestSource.clientKey}:${field}`,
+            `${fieldTitles[field]}源输入尚未通过校验，没有填充其他行。`,
+          );
+          publish();
+          return;
+        }
+        for (const target of targets) {
+          const row = rowsRef.current.find(
+            (item) =>
+              item.clientKey === target.clientKey &&
+              item.uid === target.uid &&
+              item.version === target.version &&
+              !item.deleted,
+          );
+          if (!row) return;
+          const key = `${row.clientKey}:${field}`;
+          const existing = patches.get(key);
+          if (existing && existing.raw !== raw) {
+            notice("warning", "关联字段填充值冲突，没有填充任何目标单元格。");
+            return;
+          }
+          patches.set(key, { row, field, raw });
+        }
       }
     }
-    for (const { row, field, raw } of patches) {
+    if (!currentAccess() || phaseRef.current !== "idle") return;
+    for (const { row, field, raw } of patches.values()) {
       const key = `${row.clientKey}:${field}`;
       const buffer: LineBuffer = {
         clientKey: row.clientKey,
@@ -697,12 +751,17 @@ export default function DocumentVerificationTab({
   }
 
   const columns: SwiftDataGridColumn<EditableRow<DocumentLine>>[] =
-    lineFields.map((field) => {
+    visibleLineFields.map((field) => {
       const feedback = {
         getLabel: (_row: EditableRow<DocumentLine>, index: number) =>
           `明细${index + 1}${fieldTitles[field]}`,
         getError: (row: EditableRow<DocumentLine>) =>
-          errorsRef.current.get(`${row.clientKey}:${field}`),
+          fillDownFields[field]
+            .map((related) =>
+              errorsRef.current.get(`${row.clientKey}:${related}`),
+            )
+            .filter(Boolean)
+            .join("；") || undefined,
         onCancel: (row: EditableRow<DocumentLine>) => cancelCell(row, field),
       };
       if (field === "name" || field === "quantity")
@@ -710,6 +769,7 @@ export default function DocumentVerificationTab({
           key: field,
           title: fieldTitles[field],
           width: 200,
+          fillDownFields: fillDownFields[field],
           editor: {
             ...feedback,
             inputMode: field === "quantity" ? "numeric" : undefined,
@@ -722,6 +782,7 @@ export default function DocumentVerificationTab({
         key: field,
         title: fieldTitles[field],
         width: 210,
+        fillDownFields: fillDownFields[field],
         allowFillDown: true,
         readOnly: field === "categoryId" && !canReadCategory,
         editor: {
@@ -856,6 +917,35 @@ export default function DocumentVerificationTab({
                     onTerminate={() => void terminateRecovery()}
                   />
                 )}
+                <Typography.Text type="secondary">
+                  名称列向下填充同时更新名称和关联编号；编号没有独立表格列，仅用于本地验收。
+                </Typography.Text>
+                <Typography.Text code data-testid="document-reference-codes">
+                  {JSON.stringify(
+                    rowsRef.current.map((row) => ({
+                      rowKey: row.clientKey,
+                      referenceCode: cellText(row, "referenceCode"),
+                    })),
+                  )}
+                </Typography.Text>
+                <Typography.Text code data-testid="document-line-values">
+                  {JSON.stringify(
+                    rowsRef.current.map((row) => ({
+                      rowKey: row.clientKey,
+                      uid: row.uid,
+                      version: row.version,
+                      ...row.current,
+                      ...Object.fromEntries(
+                        lineFields.flatMap((field) => {
+                          const buffer = buffersRef.current.get(
+                            `${row.clientKey}:${field}`,
+                          );
+                          return buffer ? [[field, buffer.raw]] : [];
+                        }),
+                      ),
+                    })),
+                  )}
+                </Typography.Text>
                 <ProForm<HeaderForm>
                   name={`document-${descriptor.tabId}`}
                   form={form}
@@ -983,6 +1073,34 @@ export default function DocumentVerificationTab({
                   </Button>
                   <Button disabled={locked} onClick={simulateFieldErrors}>
                     模拟字段错误
+                  </Button>
+                  <Button
+                    disabled={locked || !canEdit}
+                    onClick={() => {
+                      const row = rowsRef.current[0];
+                      if (row) changeCell(row, "referenceCode", "REF-RAW-A");
+                    }}
+                  >
+                    模拟关联字段修改
+                  </Button>
+                  <Button
+                    disabled={locked || !canEdit}
+                    onClick={() => {
+                      const row = rowsRef.current[0];
+                      if (row) changeCell(row, "referenceCode", "");
+                    }}
+                  >
+                    模拟关联字段无效
+                  </Button>
+                  <Button
+                    disabled={locked || !canEdit}
+                    onClick={() => {
+                      const row = rowsRef.current[0];
+                      if (row && currentAccess())
+                        cancelCell(row, "referenceCode");
+                    }}
+                  >
+                    取消关联字段输入
                   </Button>
                 </Space>
               </>

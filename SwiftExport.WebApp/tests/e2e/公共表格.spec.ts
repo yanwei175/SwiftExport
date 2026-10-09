@@ -24,7 +24,7 @@ async function observePage(page: Page): Promise<Observations> {
   page.on("console", (entry) => {
     if (
       entry.type() === "error" &&
-      /hydration|hydrated|react error|maximum update depth|uncaught/i.test(
+      /hydration|hydrated|react error|maximum update depth|cannot update a component|uncaught/i.test(
         entry.text(),
       )
     )
@@ -634,6 +634,122 @@ test.describe("公共表格受控 UI 夹具", () => {
     await expect(
       page.getByRole("textbox", { name: "c-name", exact: true }),
     ).toHaveValue("隐藏源");
+  });
+
+  test("原生列设置隐藏与恢复经偏好持久化，输入保留且至少保留一列", async ({
+    page,
+  }) => {
+    await page
+      .getByRole("textbox", { name: "b-name", exact: true })
+      .fill("列配置不丢当前输入");
+    await page
+      .getByRole("textbox", { name: "b-quantity", exact: true })
+      .fill("29");
+    const setting = dataGrid(page).getByRole("button", {
+      name: "表格显示设置",
+      exact: true,
+    });
+    await setting.click();
+    const popup = page.locator(".ant-pro-table-column-setting-overlay:visible");
+    /** 原生Tree复选框没有独立名称，从对应标题树项定位，不借行勾选改变列。 */
+    const columnCheckbox = (title: string) =>
+      popup
+        .getByRole("treeitem")
+        .filter({ has: page.getByText(title, { exact: true }) })
+        .getByRole("checkbox");
+    await columnCheckbox("数量").uncheck();
+    await expect(gridCell(page, "b", "quantity")).toHaveCount(0);
+    await expect(
+      page.getByRole("textbox", { name: "b-name", exact: true }),
+    ).toHaveValue("列配置不丢当前输入");
+    const hidden = await page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("swiftexport:web:prefs:v1:grid-fixture-user")!,
+      ),
+    );
+    expect(hidden.grids["controlled-grid"].hiddenColumnIds).toEqual([
+      "quantity",
+    ]);
+    await columnCheckbox("数量").check();
+    await expect(
+      page.getByRole("textbox", { name: "b-quantity", exact: true }),
+    ).toHaveValue("29");
+    await columnCheckbox("数量").uncheck();
+    await page.reload();
+    await expect(gridCell(page, "b", "quantity")).toHaveCount(0);
+    await setting.click();
+    await expect(columnCheckbox("数量")).not.toBeChecked();
+    await columnCheckbox("数量").check();
+    await expect(
+      page.getByRole("textbox", { name: "b-quantity", exact: true }),
+    ).toHaveValue("7");
+    for (const title of ["数量", "只读列", "自定义展示", "长候选"]) {
+      await columnCheckbox(title).uncheck();
+    }
+    await expect(columnCheckbox("名称")).toBeChecked();
+    await expect(columnCheckbox("名称")).toBeDisabled();
+    await expect(
+      dataGrid(page).locator("thead th[data-column-key]"),
+    ).toHaveCount(1);
+    await popup.getByRole("checkbox", { name: "列展示", exact: true }).check();
+    await expect(
+      dataGrid(page).locator("thead th[data-column-key]"),
+    ).toHaveCount(5);
+    await setting.click();
+    await expect(popup).toHaveCount(0);
+  });
+
+  test("原生列设置拖动顺序经用户偏好保存，刷新后仍按列key呈现", async ({
+    page,
+  }) => {
+    const headers = dataGrid(page).locator("thead th[data-column-key]");
+    const readOrder = () =>
+      headers.evaluateAll((elements) =>
+        elements.map((element) => element.getAttribute("data-column-key")),
+      );
+    const before = await readOrder();
+    await dataGrid(page)
+      .getByRole("button", { name: "表格显示设置", exact: true })
+      .click();
+    const popup = page.locator(".ant-pro-table-column-setting-overlay:visible");
+    const source = popup
+      .getByRole("treeitem")
+      .filter({ has: page.getByText("名称", { exact: true }) });
+    const target = popup
+      .getByRole("treeitem")
+      .filter({ has: page.getByText("数量", { exact: true }) });
+    const handle = source.locator(".ant-tree-draggable-icon");
+    // 先等待原生把手可交互再量尺寸，避免Popover入场动画期间得到缩放中的坐标。
+    await handle.hover();
+    const sourceBox = (await handle.boundingBox())!;
+    const targetBox = (await target.boundingBox())!;
+    const startX = sourceBox.x + sourceBox.width / 2;
+    const startY = sourceBox.y + sourceBox.height / 2;
+    const dropX = targetBox.x + targetBox.width / 2;
+    const dropY = targetBox.y + targetBox.height - 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 5, startY + 7, { steps: 3 });
+    await expect(source).toHaveClass(/dragging/);
+    await page.mouse.move(dropX, dropY - 1, { steps: 12 });
+    // HTML5拖放需要在目标内再次移动产生dragover；插入线出现后才结束同一次拖动。
+    await page.mouse.move(dropX, dropY);
+    await expect(target.locator(".ant-tree-drop-indicator")).toBeVisible();
+    await page.mouse.up();
+    await expect.poll(readOrder).not.toEqual(before);
+    const reordered = await readOrder();
+    expect([...reordered].sort()).toEqual([...before].sort());
+    const stored = await page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("swiftexport:web:prefs:v1:grid-fixture-user")!,
+      ),
+    );
+    expect(stored.grids["controlled-grid"].columnOrder).toEqual(reordered);
+    await page.reload();
+    await expect.poll(readOrder).toEqual(reordered);
+    await expect(
+      page.getByRole("textbox", { name: "b-name", exact: true }),
+    ).toHaveValue("可见首行");
   });
 
   test("列宽鼠标拖动与键盘调节经用户偏好持久化，刷新后恢复", async ({

@@ -50,6 +50,8 @@ export type SwiftDataGridColumn<T extends object> = {
   readOnly?: boolean;
   /** 文本列默认允许填充，自定义列须显式允许，业务仍自行校验接纳。 */
   allowFillDown?: boolean;
+  /** 关联业务字段标识可包含未展示字段；默认 [key]，不解析路径或授权字段写入。 */
+  fillDownFields?: readonly string[];
 } & (
   | {
       editor: SwiftDataGridTextEditor<T> | SwiftDataGridCustomEditor<T>;
@@ -71,6 +73,8 @@ export interface SwiftDataGridFillDownIntent<T extends object> {
   /** 每列使用矩形顶部作为源，单次交给 feature 统一校验与提交编辑意图。 */
   columns: readonly {
     columnKey: string;
+    /** 当前列声明的关联字段；feature 复核映射、字段写权并统一更新，Grid 不反射读写。 */
+    fields: readonly string[];
     source: T;
     targets: readonly T[];
   }[];
