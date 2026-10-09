@@ -15,15 +15,27 @@ import {
   Input,
   Select,
   Space,
-  Table,
   Typography,
 } from "antd";
-import type { TableColumnsType } from "antd";
+import { RecoveryActions } from "../../shared/ui/恢复操作";
+import { SwiftDataGrid } from "../../shared/ui/swift-data-grid";
+import type {
+  SwiftDataGridColumn,
+  SwiftDataGridFillDownIntent,
+  SwiftDataGridRowKey,
+} from "../../shared/ui/swift-data-grid";
 import {
+  acceptDeletedEditableRow,
   acceptEditableRow,
+  addEditableRow,
+  createCreatedEditableRow,
   createEditableRow,
   discardEditableRows,
+  getEditableChanges,
+  getVisibleEditableRows,
   isRowDirty,
+  removeEditableRow,
+  restoreEditableRow,
   updateEditableRow,
 } from "../../shared/editing/编辑集合";
 import type { EditableRow } from "../../shared/editing/编辑集合";
@@ -105,6 +117,7 @@ export default function VerificationTab({
     createEditableRow("row-2", `${descriptor.identity}:2`, 1, initialValue),
   ]);
   const buffersRef = useRef(new Map<string, CellBuffer>());
+  const selectionRef = useRef<readonly SwiftDataGridRowKey[]>([]);
   const errorsRef = useRef(new Map<string, string>());
   const phaseRef = useRef<Phase>("idle");
   const scenarioRef = useRef<SaveScenario>("success");
@@ -184,7 +197,14 @@ export default function VerificationTab({
   /** 仅把可转换的缓冲写入集合；无效内容始终保留，不因失焦或保存失败丢失。 */
   function commitBuffers(): boolean {
     errorsRef.current.clear();
-    for (const [key, buffer] of buffersRef.current) {
+    // 已删除行只提交基线身份/版本；原缓冲保留供删除恢复，不参加值校验或修改。
+    const visibleKeys = new Set(
+      getVisibleEditableRows(rowsRef.current).map((row) => row.clientKey),
+    );
+    const activeBuffers = [...buffersRef.current].filter(([, buffer]) =>
+      visibleKeys.has(buffer.clientKey),
+    );
+    for (const [key, buffer] of activeBuffers) {
       if (buffer.field === "quantity") {
         const quantity = parseQuantity(buffer.raw);
         if (quantity === null)
@@ -193,7 +213,7 @@ export default function VerificationTab({
         errorsRef.current.set(key, "名称不能为空。 ");
     }
     if (errorsRef.current.size) return false;
-    for (const buffer of buffersRef.current.values()) {
+    for (const [key, buffer] of activeBuffers) {
       rowsRef.current = updateEditableRow(
         rowsRef.current,
         buffer.clientKey,
@@ -201,8 +221,8 @@ export default function VerificationTab({
           ? { name: buffer.raw }
           : { quantity: parseQuantity(buffer.raw)! },
       );
+      buffersRef.current.delete(key);
     }
-    buffersRef.current.clear();
     return true;
   }
 
@@ -226,21 +246,44 @@ export default function VerificationTab({
       if (isGrid) {
         if (!commitBuffers())
           throw new Error("单元格输入未通过校验，未发送提交。 ");
-        if (
-          rowsRef.current.some(
-            (row) =>
-              !row.current.name.trim() ||
-              parseQuantity(String(row.current.quantity)) === null,
-          )
-        ) {
+        for (const row of getVisibleEditableRows(rowsRef.current)) {
+          if (!row.current.name.trim())
+            errorsRef.current.set(`${row.clientKey}:name`, "名称不能为空。");
+          if (parseQuantity(String(row.current.quantity)) === null)
+            errorsRef.current.set(
+              `${row.clientKey}:quantity`,
+              "数量必须是正整数。",
+            );
+        }
+        if (errorsRef.current.size) {
           throw new Error("编辑集合校验失败，未发送提交。 ");
         }
-        items = rowsRef.current.map((row) => ({
+        const changes = getEditableChanges(rowsRef.current);
+        items = [
+          ...changes.created.map((row) => ({
+            row,
+            operation: "create" as const,
+          })),
+          ...changes.updated.map((row) => ({
+            row,
+            operation: "update" as const,
+          })),
+          ...changes.deleted.map((row) => ({
+            row,
+            operation: "delete" as const,
+          })),
+        ].map(({ row, operation }) => ({
           ...row.current,
           clientKey: row.clientKey,
           uid: row.uid,
           version: row.version,
+          operation,
         }));
+        if (items.length === 0) {
+          phaseRef.current = "idle";
+          publish();
+          return isUnprotected(getSummary()) ? "saved" : "unsaved";
+        }
       } else {
         await form.validateFields();
         const current = readForm();
@@ -304,15 +347,28 @@ export default function VerificationTab({
         const submitted = attempt.items.find(
           (item) => item.clientKey === receipt.clientKey,
         )!;
-        if (isGrid)
-          rowsRef.current = acceptEditableRow(
-            rowsRef.current,
-            receipt.clientKey,
-            receipt.uid,
-            receipt.version,
-            { name: submitted.name, quantity: submitted.quantity },
-          );
-        else {
+        if (isGrid) {
+          if (submitted.operation === "delete") {
+            rowsRef.current = acceptDeletedEditableRow(
+              rowsRef.current,
+              receipt.clientKey,
+            );
+            for (const [key, buffer] of buffersRef.current) {
+              if (buffer.clientKey === receipt.clientKey)
+                buffersRef.current.delete(key);
+            }
+            selectionRef.current = selectionRef.current.filter(
+              (key) => key !== receipt.clientKey,
+            );
+          } else
+            rowsRef.current = acceptEditableRow(
+              rowsRef.current,
+              receipt.clientKey,
+              receipt.uid,
+              receipt.version,
+              { name: submitted.name, quantity: submitted.quantity },
+            );
+        } else {
           baselineRef.current = {
             name: submitted.name,
             quantity: submitted.quantity,
@@ -369,8 +425,10 @@ export default function VerificationTab({
       !current.user?.permissions?.includes("Products.Product.View")
     )
       return "blocked";
-    if (isGrid) rowsRef.current = discardEditableRows(rowsRef.current);
-    else
+    if (isGrid) {
+      rowsRef.current = discardEditableRows(rowsRef.current);
+      selectionRef.current = [];
+    } else
       form.setFieldsValue({
         name: baselineRef.current.name,
         quantity: String(baselineRef.current.quantity),
@@ -460,6 +518,71 @@ export default function VerificationTab({
       errorsRef.current.clear();
     }
     publish();
+  }
+
+  /** 新增只建立本地稳定 ClientKey；服务器 Uid/Version 由已核对回执接纳。 */
+  function addRow() {
+    if (phaseRef.current !== "idle" || !hasCurrentAccess()) return;
+    rowsRef.current = addEditableRow(
+      rowsRef.current,
+      createCreatedEditableRow(crypto.randomUUID(), { name: "", quantity: 1 }),
+    );
+    publish();
+  }
+
+  /** 删除已存在行保留草稿和缓冲供恢复，未保存新增行删除则消除整个本地意图。 */
+  function deleteSelectedRows() {
+    if (phaseRef.current !== "idle" || !hasCurrentAccess()) return;
+    for (const key of selectionRef.current)
+      rowsRef.current = removeEditableRow(rowsRef.current, String(key));
+    const retainedKeys = new Set(rowsRef.current.map((row) => row.clientKey));
+    for (const [key, buffer] of buffersRef.current) {
+      if (!retainedKeys.has(buffer.clientKey)) {
+        buffersRef.current.delete(key);
+        errorsRef.current.delete(key);
+      }
+    }
+    selectionRef.current = [];
+    publish();
+  }
+
+  /** 恢复删除重新呈现删除前的集合草稿和原始输入，不重读或替换服务器快照。 */
+  function restoreDeletedRows() {
+    if (phaseRef.current !== "idle" || !hasCurrentAccess()) return;
+    for (const row of getEditableChanges(rowsRef.current).deleted)
+      rowsRef.current = restoreEditableRow(rowsRef.current, row.clientKey);
+    publish();
+  }
+
+  /** 表格仅发填充意图；本 feature 校验源值后再逐项建立受保护的原始缓冲。 */
+  function fillDown({
+    columnKey,
+    source,
+    targets,
+  }: SwiftDataGridFillDownIntent<EditableRow<VerificationValue>>) {
+    if (
+      phaseRef.current !== "idle" ||
+      !hasCurrentAccess() ||
+      (columnKey !== "name" && columnKey !== "quantity")
+    )
+      return;
+    const key = `${source.clientKey}:${columnKey}`;
+    const raw =
+      buffersRef.current.get(key)?.raw ?? String(source.current[columnKey]);
+    const error =
+      columnKey === "quantity"
+        ? parseQuantity(raw) === null
+          ? "数量必须是正整数，未完成输入仍保留。"
+          : null
+        : !raw.trim()
+          ? "名称不能为空。"
+          : null;
+    if (error) {
+      errorsRef.current.set(key, error);
+      showNotice("warning", "源单元格尚未通过校验，没有填充其他行。");
+      return;
+    }
+    for (const row of targets) changeCell(row, columnKey, raw);
   }
 
   /** 数据替换复用最新保护语义及同一保存/放弃入口，用户取消时保持输入。 */
@@ -585,45 +708,32 @@ export default function VerificationTab({
   }
 
   const summary = getSummary();
-  const columns: TableColumnsType<EditableRow<VerificationValue>> = [
-    { title: "行", dataIndex: "clientKey", width: 100 },
+  const changes = getEditableChanges(rowsRef.current);
+  const columns: SwiftDataGridColumn<EditableRow<VerificationValue>>[] = [
     ...(["name", "quantity"] as const).map((field) => ({
       title: field === "name" ? "名称" : "数量",
       key: field,
-      render: (
-        _: unknown,
-        row: EditableRow<VerificationValue>,
-        index: number,
-      ) => {
-        const key = `${row.clientKey}:${field}`;
-        const error = errorsRef.current.get(key);
-        return (
-          <div>
-            <Input
-              aria-label={`${index === 0 ? "行" : `第${index + 1}行`}${field === "name" ? "名称" : "数量"}`}
-              value={
-                buffersRef.current.get(key)?.raw ?? String(row.current[field])
-              }
-              status={error ? "error" : undefined}
-              readOnly={locked || !canEdit}
-              onChange={(event) => changeCell(row, field, event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  cancelCell(key);
-                }
-              }}
-            />
-            {error && (
-              <Typography.Text type="danger" role="alert">
-                {error}
-              </Typography.Text>
-            )}
-          </div>
-        );
+      editor: {
+        getLabel: (_row: EditableRow<VerificationValue>, index: number) =>
+          `${index === 0 ? "行" : `第${index + 1}行`}${field === "name" ? "名称" : "数量"}`,
+        getText: (row: EditableRow<VerificationValue>) =>
+          buffersRef.current.get(`${row.clientKey}:${field}`)?.raw ??
+          String(row.current[field]),
+        getError: (row: EditableRow<VerificationValue>) =>
+          errorsRef.current.get(`${row.clientKey}:${field}`),
+        onChange: (row: EditableRow<VerificationValue>, raw: string) =>
+          changeCell(row, field, raw),
+        onCancel: (row: EditableRow<VerificationValue>) =>
+          cancelCell(`${row.clientKey}:${field}`),
       },
     })),
-    { title: "基线版本", dataIndex: "version", width: 120 },
+    {
+      title: "基线版本",
+      key: "version",
+      readOnly: true,
+      render: (row) => row.version,
+      width: 120,
+    },
   ];
 
   return renderDisplay(
@@ -669,9 +779,27 @@ export default function VerificationTab({
               }
               ；提交次数：{attemptsRef.current}；回执版本：
               {isGrid
-                ? Math.max(...rowsRef.current.map((row) => row.version))
+                ? Math.max(0, ...rowsRef.current.map((row) => row.version))
                 : formVersionRef.current}
             </Typography.Text>
+            {phaseRef.current === "unknown" && (
+              <RecoveryActions
+                title="未知结果恢复（本地模拟）"
+                description={
+                  <Space orientation="vertical">
+                    <Typography.Text>
+                      先导出并妥善保留记录，再按两步确认终止；下载启动不代表文件已保存。
+                    </Typography.Text>
+                    <Typography.Text>
+                      冻结尝试：{frozenRef.current?.attemptId}；attemptId
+                      不是后端幂等键。
+                    </Typography.Text>
+                  </Space>
+                }
+                onExport={exportRecovery}
+                onTerminate={() => void terminateRecovery()}
+              />
+            )}
             {!canEdit && (
               <Alert
                 type="warning"
@@ -679,13 +807,44 @@ export default function VerificationTab({
               />
             )}
             {isGrid ? (
-              <Table
-                rowKey="clientKey"
-                dataSource={rowsRef.current}
-                columns={columns}
-                pagination={false}
-                size="small"
-              />
+              <Space orientation="vertical" style={{ width: "100%" }}>
+                <Space wrap>
+                  <Button disabled={locked || !canEdit} onClick={addRow}>
+                    新增行
+                  </Button>
+                  <Button
+                    disabled={
+                      locked || !canEdit || !selectionRef.current.length
+                    }
+                    onClick={deleteSelectedRows}
+                  >
+                    删除选中行
+                  </Button>
+                  <Button
+                    disabled={locked || !canEdit || !changes.deleted.length}
+                    onClick={restoreDeletedRows}
+                  >
+                    恢复删除行
+                  </Button>
+                  <Typography.Text>
+                    新增：{changes.created.length}；修改：
+                    {changes.updated.length}；删除：{changes.deleted.length}
+                  </Typography.Text>
+                </Space>
+                <SwiftDataGrid
+                  rows={getVisibleEditableRows(rowsRef.current)}
+                  getRowKey={(row) => row.clientKey}
+                  columns={columns}
+                  readOnly={locked || !canEdit}
+                  selectedKeys={selectionRef.current}
+                  onSelectionChange={(keys) => {
+                    selectionRef.current = keys;
+                    publish();
+                  }}
+                  onFillDown={fillDown}
+                  showRowNumber
+                />
+              </Space>
             ) : (
               <Form<FormValue>
                 name={`verification-${descriptor.tabId}`}
@@ -772,22 +931,6 @@ export default function VerificationTab({
                 showIcon
                 role="status"
               />
-            )}
-            {phaseRef.current === "unknown" && (
-              <Card size="small" title="未知结果恢复（本地模拟）">
-                <Space orientation="vertical">
-                  <Typography.Text>
-                    冻结尝试：{frozenRef.current?.attemptId}；attemptId
-                    不是后端幂等键。
-                  </Typography.Text>
-                  <Space>
-                    <Button onClick={exportRecovery}>导出恢复记录</Button>
-                    <Button danger onClick={() => void terminateRecovery()}>
-                      终止本地恢复
-                    </Button>
-                  </Space>
-                </Space>
-              </Card>
             )}
           </Space>
         </Card>

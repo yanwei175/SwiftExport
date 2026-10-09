@@ -1,12 +1,12 @@
 import type { VerificationValue } from "./模拟保存";
+import { hasInputChanges } from "../../../shared/editing/未提交输入";
+import type { UncommittedInput } from "../../../shared/editing/未提交输入";
 
 /** 缓冲仅保存当前控件的原始内容及进入编辑时值，不形成第二份长期业务数据。 */
-export interface CellBuffer {
-  clientKey: string;
-  field: keyof VerificationValue;
-  raw: string;
-  original: string | number;
-}
+export type CellBuffer = UncommittedInput<
+  keyof VerificationValue,
+  string | number
+>;
 
 /** 数量必须为正整数；空串、小数及未完成负号保持无效原始输入。 */
 export function parseQuantity(raw: string): number | null {
@@ -17,7 +17,9 @@ export function parseQuantity(raw: string): number | null {
 
 /** 按字段业务等价规则判断实际输入变化，不把聚焦或曾经输入当永久修改。 */
 export function bufferNeedsProtection(buffer: CellBuffer): boolean {
-  if (buffer.field === "name") return buffer.raw !== buffer.original;
-  const value = parseQuantity(buffer.raw);
-  return value === null || value !== buffer.original;
+  return hasInputChanges(buffer, (raw) => {
+    if (buffer.field === "name") return { valid: true, value: raw };
+    const value = parseQuantity(raw);
+    return value === null ? { valid: false } : { valid: true, value };
+  });
 }

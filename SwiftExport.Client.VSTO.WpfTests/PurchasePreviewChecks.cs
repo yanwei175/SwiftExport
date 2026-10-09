@@ -28,6 +28,13 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 {
                     view.UpdateLayout(); Pump();
                     var grid=(DataGrid)view.FindName("OrderLinesGrid");
+                    check(view.Content is Grid && grid.ActualHeight > 0
+                        && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
+                        "采购明细在有限窗体高度中显示，不依赖顶层滚动");
+                    var previousHeight = grid.ActualHeight;
+                    window.Height += 120; Pump(); view.UpdateLayout();
+                    check(grid.ActualHeight > previousHeight + 30, "采购窗体增高时明细区域随之伸展");
+                    window.Height -= 120; Pump(); view.UpdateLayout();
                     check(ReferenceEquals(view.DataContext,model) && ReferenceEquals(grid.ItemsSource,model.Lines),"采购页绑定真实通知模型和明细");
                     check(!grid.IsReadOnly && grid.SelectionMode==DataGridSelectionMode.Extended && !grid.CanUserAddRows,"原生 DataGrid 可编辑、多选且禁止空白自动行");
                     check(grid.ActualWidth>0 && grid.ActualWidth<window.ActualWidth,"表格横向滚动不会把窗体撑宽");

@@ -20,11 +20,11 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
         {
             var registrar = new TaskPaneRegistrar();
             registrar.Register(new TaskPaneConfig("excel-read-profile", "Excel 读取配置",
-                typeof(Features.Settings.ExcelReadProfiles.Views.ExcelReadProfileView), 560));
+                typeof(Features.Settings.ExcelReadProfiles.Views.ExcelReadProfileView), 860));
             registrar.Register(new TaskPaneConfig("sales-order-list", "销售订单",
-                typeof(Features.Sales.Orders.Views.SalesOrderListView), 720));
+                typeof(Features.Sales.Orders.Views.SalesOrderListView), 860));
             registrar.Register(new TaskPaneConfig("purchase-order-list", "采购订单",
-                typeof(Features.Procurement.PurchaseOrders.Views.PurchaseOrderListView), 720));
+                typeof(Features.Procurement.PurchaseOrders.Views.PurchaseOrderListView), 860));
             return registrar;
         }
     }

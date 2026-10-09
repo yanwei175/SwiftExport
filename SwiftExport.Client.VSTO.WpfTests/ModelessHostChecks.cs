@@ -40,6 +40,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     "非模态 WinForms 承载窗体装入 WPF 页面");
                 check(form.AutoScaleMode == AutoScaleMode.Dpi && form.FormBorderStyle == FormBorderStyle.Sizable,
                     "承载窗体集中设置 DPI 缩放模式与可调整边框");
+                check(host.BackColorTransparent && form.Opacity == 1 && form.TransparencyKey.IsEmpty,
+                    "宿主只透出父窗体背景，不启用整窗透明或颜色穿透");
                 check(context.Handle == form.Handle, "确认框归属设置窗体");
                 manager.Show<TestView>("settings", "设置页", IntPtr.Zero, new Size(800, 600));
                 check(ReferenceEquals(form, Application.OpenForms.Cast<Form>().Single(item => item.Text == "设置页")),
@@ -88,6 +90,9 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 var host = form.Controls.OfType<ElementHost>().Single();
                 var view = (PurchaseOrderImportView)host.Child;
                 var model = (PurchaseOrderImportViewModel)view.DataContext;
+                check(((System.Windows.Controls.Grid)view.Content).Background is System.Windows.Media.SolidColorBrush background
+                    && background.Color.A == 0 && host.BackColorTransparent,
+                    "实际采购页透明留白接入透明 ElementHost");
                 check(view.FontFamily.Equals(System.Windows.Application.Current.FindResource("SwiftExportFont")),
                     "实际采购页面由公共宿主统一字体，无需单独声明");
                 check(form is ModelessElementHostForm && form.Visible

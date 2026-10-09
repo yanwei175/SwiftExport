@@ -1,4 +1,5 @@
-import { Button, Empty, Space, Tabs, Tag } from "antd";
+import { Button, Space, Tabs, Tag } from "antd";
+import { PageState } from "../shared/ui/页面状态";
 import { useWorkspace } from "./工作区Provider";
 import { TabFrame } from "./页签容器";
 
@@ -57,7 +58,7 @@ export function WorkspaceView() {
         })}
       />
       {workspace.tabs.length === 0 && (
-        <Empty description="工作区为空，请从导航打开页面。" />
+        <PageState kind="empty" description="工作区为空，请从导航打开页面。" />
       )}
       {workspace.tabs.map((tab) => (
         <TabFrame

@@ -35,6 +35,18 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     {
                         window.Show(); Pump();
                         check(ReferenceEquals(view.DataContext, model), "配置页 DataContext 正确");
+                        var headers = (ItemsControl)view.FindName("HeaderFieldsControl");
+                        var first = (FrameworkElement)headers.ItemContainerGenerator.ContainerFromIndex(0);
+                        var second = (FrameworkElement)headers.ItemContainerGenerator.ContainerFromIndex(1);
+                        var firstPosition = first.TransformToAncestor(headers).Transform(new Point());
+                        var secondPosition = second.TransformToAncestor(headers).Transform(new Point());
+                        check(Math.Abs(firstPosition.Y - secondPosition.Y) < 1 && secondPosition.X > firstPosition.X,
+                            "宽配置页的单头地址在同一行排列");
+                        window.Width = 360; Pump(); view.UpdateLayout();
+                        secondPosition = second.TransformToAncestor(headers).Transform(new Point());
+                        check(secondPosition.Y > firstPosition.Y && ((ScrollViewer)view.Content).ScrollableWidth == 0,
+                            "窄配置页的单头地址自动换行且无需横向滚动");
+                        window.Width = 1100; Pump(); view.UpdateLayout();
                         var grid = Descendants<DataGrid>(view).Single();
                         check(grid.Columns.Count == 4, "明细采用字段、地址、方向、操作四列");
                         check(model.LineFields.All(r => r.IsDownward), "明细字段默认向下读取");
@@ -74,10 +86,10 @@ namespace SwiftExport.Client.VSTO.WpfTests
         private static void CheckSidePane(Action<bool, string> check)
         {
             var config = SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneRegistrar.CreateDefault().Get("excel-read-profile");
-            check(config.ViewType == typeof(ExcelReadProfileView) && config.DefaultWidth == 560 && config.DockPosition == Dock.Right,
-                "读取配置注册为 560 宽右侧窗格");
+            check(config.ViewType == typeof(ExcelReadProfileView) && config.DefaultWidth == 860 && config.DockPosition == Dock.Right,
+                "读取配置注册为当前 860 宽右侧窗格");
             using (var f = new ImportTestFixture())
-            using (var form = new System.Windows.Forms.Form { Width = config.DefaultWidth, Height = 820, ShowInTaskbar = false })
+            using (var form = new System.Windows.Forms.Form { Width = 560, Height = 820, ShowInTaskbar = false })
             {
                 f.Session.TryCommit(f.Session.Capture().Version, "token", new MeDto { UserId = "admin", Permissions = new List<string> { PermissionKeys.SystemExcelFieldMappingManage } });
                 using (var model = new ExcelReadProfileViewModel(f.ProfileService, f.AddressReader, ExcelImportRegistry.CreateDefault(), f.Session, f, new ApiCallRunner(new AddInLog()), f))

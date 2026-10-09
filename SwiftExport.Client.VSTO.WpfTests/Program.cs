@@ -17,6 +17,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
         [STAThread]
         private static int Main(string[] args)
         {
+            // 测试直接调用页面命令时也使用 UI 同步上下文，模拟宿主消息循环中的按钮回调。
+            System.Threading.SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
             try
             {
                 if (args.Length == 1 && args[0] == "--typography-only")

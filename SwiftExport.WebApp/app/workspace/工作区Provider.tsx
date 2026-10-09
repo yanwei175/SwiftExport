@@ -176,6 +176,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             emptyProtection();
           const requiredHandling = !isUnprotected(summary);
           if (summary.preparing || summary.saving || summary.unknown) {
+            // 批量关闭遇到恢复限制时定位原页，用户可立即看到该会话的合法恢复出口。
+            if (summary.unknown) activate(id);
             void message.warning(
               summary.unknown
                 ? "结果未知，请在原页核实或处理恢复记录。"

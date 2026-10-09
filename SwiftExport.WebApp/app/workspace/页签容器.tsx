@@ -1,6 +1,6 @@
 import { Activity, Component, Suspense, useLayoutEffect } from "react";
 import type { ReactNode } from "react";
-import { Alert, Spin } from "antd";
+import { PageState } from "../shared/ui/页面状态";
 import { TabHostContext } from "../shared/workspace/useWorkspaceTab";
 import { useSession } from "../shared/session/会话上下文";
 import type { TabDescriptor } from "../shared/workspace/页签契约";
@@ -22,7 +22,7 @@ class TabErrorBoundary extends Component<
   }
   render() {
     return this.state.failed ? (
-      <Alert type="error" title="该页暂时无法显示，其他页签仍可使用。" />
+      <PageState kind="error" title="该页暂时无法显示，其他页签仍可使用。" />
     ) : (
       this.props.children
     );
@@ -69,7 +69,7 @@ export function TabFrame({
   return (
     <TabHostContext.Provider value={workspace.host(tab)}>
       <TabErrorBoundary>
-        <Suspense fallback={<Spin aria-label="正在加载页面" />}>
+        <Suspense fallback={<PageState kind="loading" />}>
           <Entry
             descriptor={tab}
             isActive={active && Boolean(permitted)}
@@ -84,8 +84,8 @@ export function TabFrame({
             )}
           />
           {active && !permitted && (
-            <Alert
-              type="warning"
+            <PageState
+              kind="forbidden"
               title="当前没有页面读取权限"
               description="原输入保持保护，请通过现有合法业务渠道处理。"
             />

@@ -8,8 +8,11 @@
              Background="{DynamicResource SwiftExportBackground}" Foreground="{DynamicResource SwiftExportForeground}">
     <Grid Margin="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <StackPanel Margin="0,0,0,12">
             <TextBlock Text="Excel 工具栏" FontWeight="SemiBold" Margin="0,0,0,4"/>
@@ -22,12 +25,21 @@
             </WrapPanel>
         </StackPanel>
         <Grid Grid.Row="1" IsEnabled="{Binding CanBrowse}" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <StackPanel Margin="0,0,8,8">
                 <TextBlock Text="Keyword" Margin="0,0,0,4"/>
                 <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="关键词" AutomationProperties.Name="销售订单关键词">
-                    <ui:TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding SearchCommand}"/></ui:TextBox.InputBindings>
+                    <ui:TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding SearchCommand}"/>
+                    </ui:TextBox.InputBindings>
                 </ui:TextBox>
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="0,0,0,8">
@@ -54,16 +66,31 @@
             <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
             <TextBlock Text="数量为 — 表示无法汇总；数量单位见行提示。" FontSize="12" Opacity="0.7"/>
         </StackPanel>
-        <DataGrid x:Name="OrdersGrid" Grid.Row="3" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder, Mode=TwoWay}"
-                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                  SelectionMode="Single" SelectionUnit="FullRow" IsEnabled="{Binding CanBrowse}"
-                  EnableRowVirtualization="True" EnableColumnVirtualization="True" AutomationProperties.Name="销售订单列表">
-            <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="ToolTip" Value="{Binding Order.UnitSnapshot, StringFormat=数量单位：{0}}"/></Style></DataGrid.RowStyle>
+        <DataGrid x:Name="OrdersGrid" Grid.Row="3" 
+                  ItemsSource="{Binding Orders}" 
+                  SelectedItem="{Binding SelectedOrder, Mode=TwoWay}"
+                  FontSize="{DynamicResource ControlContentThemeFontSize}"
+                  AutoGenerateColumns="False" 
+                  CanUserAddRows="False" 
+                  CanUserDeleteRows="False"
+                  SelectionMode="Single" 
+                  SelectionUnit="FullRow" 
+                  IsEnabled="{Binding CanBrowse}"
+                  EnableRowVirtualization="True" 
+                  EnableColumnVirtualization="True" 
+                  AutomationProperties.Name="销售订单列表">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="ToolTip" Value="{Binding Order.UnitSnapshot, StringFormat=数量单位：{0}}"/>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="勾选" Width="44">
-                    <DataGridTemplateColumn.CellTemplate><DataTemplate>
-                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="勾选订单"/>
-                    </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="勾选订单"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="确认" Binding="{Binding ConfirmationText}" IsReadOnly="True" Width="64"/>
                 <DataGridTextColumn Header="单据" Binding="{Binding DocumentText}" IsReadOnly="True" Width="64"/>

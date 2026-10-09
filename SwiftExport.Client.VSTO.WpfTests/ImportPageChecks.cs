@@ -53,6 +53,13 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     customerEditor.CommitExternalSelection(secondCustomer, LookupCommitReason.Mouse); Pump();
                     check(customer.SelectedCustomer == f.Cache.Customers[0] && f.Model.Lines.Count == 1, "取消更换客户恢复控件显示并保留行");
                     var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                    check(view.Content is Grid && grid.ActualHeight > 0
+                        && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
+                        "销售明细在有限窗体高度中显示，不依赖顶层滚动");
+                    var previousHeight = grid.ActualHeight;
+                    window.Height += 120; Pump(); view.UpdateLayout();
+                    check(grid.ActualHeight > previousHeight + 30, "销售窗体增高时明细区域随之伸展");
+                    window.Height -= 120; Pump(); view.UpdateLayout();
                     grid.SelectedItem = standard; grid.CurrentCell = new DataGridCellInfo(standard, grid.Columns[1]); grid.BeginEdit(); Pump();
                     var product = Descendants<SalesProductLookupTextBox>(grid).Single();
                     var candidate = new SalesOrderProductLookupDto { ProductId = Guid.NewGuid(), Sku = "SKU1", UsdPrice = 5m };
@@ -109,8 +116,10 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 f.Model.Header.Remark = "保留草稿";
                 form.Hide(); Pump(); form.Show(); Pump();
                 check(f.Model.Header.Remark == "保留草稿" && f.Cache.Loads == 1, "隐藏重新显示不重置草稿或重复加载");
-                var scroll = (ScrollViewer)view.Content;
-                check(scroll.ScrollableHeight > 0, "窄窗格可纵向滚动访问完整页面");
+                var layout = (Grid)view.Content;
+                var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                check(layout.ActualWidth <= form.ClientSize.Width && grid.ActualHeight > 0,
+                    "有限 ElementHost 中页面不撑宽且明细保留可用高度");
                 host.Dispose(); host.Dispose(); f.Model.Dispose(); Pump();
                 check(host.IsDisposed, "Office 与会话先后释放同一宿主不抛异常");
                 var childFirst = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(new UserControl());

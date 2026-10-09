@@ -2,8 +2,14 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" xmlns:controls="clr-namespace:SwiftExport.Client.VSTO.Resources.Controls"
  xmlns:suppliers="clr-namespace:SwiftExport.Client.VSTO.Features.Suppliers.Components">
- <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource SwiftExportBackground}">
- <StackPanel Margin="16">
+ <Grid Margin="16" Background="Transparent">
+  <Grid.RowDefinitions>
+   <RowDefinition Height="Auto"/>
+   <RowDefinition Height="3*"/>
+   <RowDefinition Height="2*"/>
+   <RowDefinition Height="Auto"/>
+  </Grid.RowDefinitions>
+  <StackPanel Grid.Row="0">
   <TextBlock Text="采购订单导入" FontSize="24" FontWeight="SemiBold"/>
   <TextBlock Text="读取 Excel → 手工修正 → 检验并匹配 → 新建无来源草稿。币种固定 CNY，单价为未税价。" Margin="0,4,0,12"/>
   <WrapPanel Margin="0,0,0,12">
@@ -18,6 +24,9 @@
    <Button Content="重试原保存请求" Command="{Binding RetrySaveCommand}" Margin="0,0,8,8"/>
    <Button Content="开始新导入" Command="{Binding NewImportCommand}" Margin="0,0,8,8"/>
   </WrapPanel>
+  </StackPanel>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <StackPanel>
   <ui:Card Margin="0,0,0,12">
    <StackPanel>
     <TextBlock Text="单头资料" FontWeight="SemiBold" Margin="0,0,0,8"/>
@@ -52,15 +61,23 @@
     <TextBlock Text="特殊要求（Remark）" Margin="0,0,0,4"/><TextBox Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64"/>
    </StackPanel>
   </ui:Card>
-  <ui:Card>
-   <StackPanel><WrapPanel Margin="0,0,0,8">
+  </StackPanel>
+  </ScrollViewer>
+  <ui:Card Grid.Row="2">
+   <Grid>
+    <Grid.RowDefinitions>
+     <RowDefinition Height="Auto"/>
+     <RowDefinition Height="*"/>
+     <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    <WrapPanel Grid.Row="0" Margin="0,0,0,8">
     <Button Content="添加标准行" Command="{Binding AddStandardLineCommand}" Margin="0,0,8,0"/>
     <Button Content="添加非标行" Command="{Binding AddNonStandardLineCommand}" Margin="0,0,8,0"/>
     <Button Content="删除选中行" Command="{Binding DeleteSelectedLineCommand}"/>
    </WrapPanel>
-   <DataGrid x:Name="OrderLinesGrid" ItemsSource="{Binding Lines}" Style="{StaticResource SwiftExportDataGrid}"
+   <DataGrid x:Name="OrderLinesGrid" Grid.Row="1" ItemsSource="{Binding Lines}" Style="{StaticResource SwiftExportDataGrid}"
     AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
-    IsReadOnly="{Binding IsReadOnly}" SelectionChanged="OnSelectionChanged" MinHeight="300" MaxHeight="540">
+    IsReadOnly="{Binding IsReadOnly}" SelectionChanged="OnSelectionChanged">
     <DataGrid.Columns>
      <DataGridTemplateColumn Header="行类型" Width="130"><DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}"><CheckBox Content="非标产品" IsChecked="{Binding IsNonStandard, Mode=OneWay}" Command="{Binding DataContext.ToggleNonStandardCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/></StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
      <DataGridTemplateColumn Header="系统图片" Width="80" IsReadOnly="True"><DataGridTemplateColumn.CellTemplate><DataTemplate><controls:HttpsImage SourcePath="{Binding MainImage}" Width="64" Height="64" Stretch="Uniform"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -93,13 +110,14 @@
      </DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
     </DataGrid.Columns>
    </DataGrid>
-   <WrapPanel Margin="0,12,0,0"><TextBlock Text="明细：" /><TextBlock Text="{Binding Lines.Count}" Margin="0,0,20,0"/><TextBlock Text="输入数量统计：" /><TextBlock Text="{Binding TotalQuantity}" Margin="0,0,20,0"/><TextBlock Text="CNY 未税行金额：" /><TextBlock Text="{Binding TotalAmount, StringFormat=N2}"/></WrapPanel>
-   </StackPanel>
+   <WrapPanel Grid.Row="2" Margin="0,12,0,0"><TextBlock Text="明细：" /><TextBlock Text="{Binding Lines.Count}" Margin="0,0,20,0"/><TextBlock Text="输入数量统计：" /><TextBlock Text="{Binding TotalQuantity}" Margin="0,0,20,0"/><TextBlock Text="CNY 未税行金额：" /><TextBlock Text="{Binding TotalAmount, StringFormat=N2}"/></WrapPanel>
+   </Grid>
   </ui:Card>
+  <StackPanel Grid.Row="3">
   <TextBlock Text="{Binding ParseMessage}" TextWrapping="Wrap" Margin="0,8,0,0"/>
   <TextBlock Text="{Binding SubmissionMessage}" TextWrapping="Wrap" Margin="0,8,0,0"/>
   <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="DarkOrange" Margin="0,8,0,0"/>
   <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Foreground="Red" Margin="0,8,0,0"/>
  </StackPanel>
- </ScrollViewer>
+ </Grid>
 </UserControl>

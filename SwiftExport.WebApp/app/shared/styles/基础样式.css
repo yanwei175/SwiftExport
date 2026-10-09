@@ -45,6 +45,12 @@ body {
   min-height: 360px;
   overflow: auto;
 }
+.page-state {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  padding: 24px;
+}
 .discard-button {
   cursor: pointer;
   border: 1px solid #d9d9d9;

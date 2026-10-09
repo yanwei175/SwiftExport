@@ -16,6 +16,7 @@ export interface FrozenItem extends VerificationValue {
   clientKey: string;
   uid: string;
   version: number;
+  operation?: "create" | "update" | "delete";
 }
 /** 一个不可变的本地提交尝试；attemptId 仅作客户端关联。 */
 export interface FrozenAttempt {
@@ -37,6 +38,7 @@ export type SimulationResult =
         uid: string;
         version: number;
         success: boolean;
+        operation?: "create" | "update" | "delete";
       }[];
     }
   | { kind: "not-effective"; code: "SIMULATION_NO_EFFECT"; explanation: string }
@@ -98,9 +100,13 @@ export async function simulateSave(
     attemptId: attempt.attemptId,
     items: attempt.items.map((item, index) => ({
       clientKey: item.clientKey,
-      uid: attempt.isNewDocument ? crypto.randomUUID() : item.uid,
+      uid:
+        attempt.isNewDocument || item.operation === "create"
+          ? crypto.randomUUID()
+          : item.uid,
       version: item.version + 1,
       success: scenario !== "partial" || index === 0,
+      operation: item.operation ?? "update",
     })),
   };
 }
@@ -124,11 +130,12 @@ export function isCompleteReceipt(
     );
     return (
       !!submitted &&
-      (attempt.isNewDocument
+      (attempt.isNewDocument || submitted.operation === "create"
         ? /^[a-zA-Z0-9-]{1,80}$/.test(receipt.uid) &&
           receipt.uid !== submitted.uid
         : receipt.uid === submitted.uid) &&
-      receipt.version === submitted.version + 1
+      receipt.version === submitted.version + 1 &&
+      (receipt.operation ?? "update") === (submitted.operation ?? "update")
     );
   });
 }
@@ -147,12 +154,13 @@ export function createRecoveryRecord(
     attemptId: attempt.attemptId,
     attemptIdMeaning: "仅用于本地关联，不是后端幂等键",
     frozenSubmission: attempt.items.map(
-      ({ clientKey, uid, version, name, quantity }) => ({
+      ({ clientKey, uid, version, name, quantity, operation }) => ({
         ClientKey: clientKey,
         Uid: uid,
         Version: version,
         name,
         quantity,
+        operation: operation ?? "update",
       }),
     ),
     response:
