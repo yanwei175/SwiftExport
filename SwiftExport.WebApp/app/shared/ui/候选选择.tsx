@@ -9,22 +9,60 @@ export interface LookupOption<Key extends string | number> {
 }
 
 /** 搜索词与选中值分别受控；远程查询、授权和输入接纳均由调用方执行。 */
-export interface LookupSelectProps<
+interface LookupSelectCommonProps<
   Key extends string | number,
 > extends AriaAttributes {
   id?: string;
   label: string;
-  value: Key | null;
   options: readonly LookupOption<Key>[];
-  selectedOption?: LookupOption<Key>;
   searchValue: string;
   onSearchChange(text: string): void;
-  onChange(value: Key | null): void;
   mode?: "local" | "remote";
   readOnly?: boolean;
   disabled?: boolean;
   loading?: boolean;
   error?: string;
+}
+
+/** 单选和多选仅改变选值类型；搜索模式、授权和读取仍由原入口负责。 */
+export type LookupSelectProps<Key extends string | number> =
+  LookupSelectCommonProps<Key> &
+    (
+      | {
+          selectionMode?: "single";
+          value: Key | null;
+          selectedOption?: LookupOption<Key>;
+          selectedOptions?: never;
+          onChange(value: Key | null): void;
+        }
+      | {
+          selectionMode: "multiple";
+          value: readonly Key[];
+          selectedOptions?: readonly LookupOption<Key>[];
+          selectedOption?: never;
+          onChange(value: Key[]): void;
+        }
+    );
+
+/** 多选缺项也只补显示标签；不把缺项或重复项变成新的合法可选候选。 */
+export function preserveSelectedOptions<Key extends string | number>(
+  options: readonly LookupOption<Key>[],
+  values: readonly Key[],
+  selectedOptions: readonly LookupOption<Key>[] = [],
+): LookupOption<Key>[] {
+  const missing = [...new Set(values)].filter(
+    (value) => !options.some((option) => option.value === value),
+  );
+  return [
+    ...missing.map((value) => ({
+      value,
+      label:
+        selectedOptions.find((option) => option.value === value)?.label ??
+        String(value),
+      disabled: true,
+    })),
+    ...options,
+  ];
 }
 
 /** 合并当前项仅用于显示，不允许把当前页之外的旧值重新选成未授权候选。 */
@@ -47,36 +85,50 @@ export function preserveSelectedOption<Key extends string | number>(
 }
 
 /** 本地/远程共用 Ant Select 呈现，结果缺项或搜索改变不自动清除业务选中值。 */
-export function LookupSelect<Key extends string | number>({
-  id,
-  label,
-  value,
-  options,
-  selectedOption,
-  searchValue,
-  onSearchChange,
-  onChange,
-  mode = "local",
-  readOnly = false,
-  disabled = false,
-  loading = false,
-  error,
-  ...aria
-}: LookupSelectProps<Key>) {
+export function LookupSelect<Key extends string | number>(
+  props: LookupSelectProps<Key>,
+) {
+  const {
+    id,
+    label,
+    value,
+    options,
+    selectedOption,
+    selectedOptions,
+    selectionMode,
+    searchValue,
+    onSearchChange,
+    onChange,
+    mode = "local",
+    readOnly = false,
+    disabled = false,
+    loading = false,
+    error,
+    ...aria
+  } = props;
   const blocked = readOnly || disabled;
   return (
-    <Space orientation="vertical" style={{ width: "100%" }}>
-      <Select<Key, LookupOption<Key>>
+    <Space
+      orientation="vertical"
+      style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
+    >
+      <Select<Key | Key[], LookupOption<Key>>
         {...aria}
         id={id}
         aria-label={aria["aria-label"] ?? label}
-        value={value}
-        options={preserveSelectedOption(options, value, selectedOption)}
+        mode={selectionMode === "multiple" ? "multiple" : undefined}
+        value={selectionMode === "multiple" ? [...value] : value}
+        options={
+          selectionMode === "multiple"
+            ? preserveSelectedOptions(options, value, selectedOptions)
+            : preserveSelectedOption(options, value, selectedOption)
+        }
+        maxTagCount={selectionMode === "multiple" ? "responsive" : undefined}
         disabled={blocked}
         loading={loading}
         allowClear
         status={error ? "error" : undefined}
-        style={{ width: "100%", minWidth: 150 }}
+        style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
         showSearch={{
           searchValue,
           autoClearSearchValue: false,
@@ -94,7 +146,10 @@ export function LookupSelect<Key extends string | number>({
                   ),
         }}
         onChange={(next) => {
-          if (!blocked) onChange(next ?? null);
+          if (blocked) return;
+          if (selectionMode === "multiple")
+            onChange(Array.isArray(next) ? next : []);
+          else onChange(Array.isArray(next) ? null : (next ?? null));
         }}
         notFoundContent={loading ? "正在读取候选…" : (error ?? "暂无匹配候选")}
       />

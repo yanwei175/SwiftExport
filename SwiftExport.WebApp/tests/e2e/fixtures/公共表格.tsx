@@ -1,8 +1,20 @@
-import { useEffect, useState } from "react";
+import { Activity, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { App, Button, Checkbox, ConfigProvider, Space, Typography } from "antd";
+import {
+  App,
+  Button,
+  Checkbox,
+  ConfigProvider,
+  Select,
+  Space,
+  Typography,
+} from "antd";
 import zhCN from "antd/locale/zh_CN";
-import { SwiftDataGrid } from "../../../app/shared/ui/swift-data-grid";
+import { PreferenceDataGrid } from "../../../app/shared/ui/偏好表格";
+import {
+  UserPreferencesProvider,
+  useUserPreferences,
+} from "../../../app/shared/preferences/用户偏好上下文";
 import type {
   SwiftDataGridColumn,
   SwiftDataGridFillDownIntent,
@@ -19,6 +31,8 @@ interface FixtureRow {
   writable: boolean;
 }
 type EditableField = "name" | "quantity" | "immutable";
+const longChoice =
+  "Exposed Shower Columns & Mixers — very long selected label that must never expand the fixed column";
 const visibleRows: readonly FixtureRow[] = [
   {
     key: "b",
@@ -55,10 +69,13 @@ function ControlledGridHarness() {
   const [selected, setSelected] = useState<SwiftDataGridRowKey[]>([]);
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [readOnly, setReadOnly] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [narrow, setNarrow] = useState(false);
+  const preferences = useUserPreferences();
   const [pageIndex, setPageIndex] = useState(3);
   const [pageRequest, setPageRequest] = useState<number | null>(null);
   const [fillHistory, setFillHistory] = useState<
-    { columnKey: string; source: string; targets: string[] }[]
+    { columns: { columnKey: string; source: string; targets: string[] }[] }[]
   >([]);
   const [cancelled, setCancelled] = useState("");
   const [shortcut, setShortcut] = useState<{
@@ -87,19 +104,23 @@ function ControlledGridHarness() {
 
   /** 填充按指定列写入原始缓冲，逐行权限过滤由 Grid 的公开意图可直接观察。 */
   function fillDown(intent: SwiftDataGridFillDownIntent<FixtureRow>) {
-    const field = intent.columnKey as EditableField;
-    const source = getText(intent.source, field);
     setRaw((current) => {
       const next = { ...current };
-      for (const row of intent.targets) next[`${row.key}:${field}`] = source;
+      for (const column of intent.columns) {
+        const field = column.columnKey as EditableField;
+        const source = getText(column.source, field);
+        for (const row of column.targets) next[`${row.key}:${field}`] = source;
+      }
       return next;
     });
     setFillHistory((current) => [
       ...current,
       {
-        columnKey: intent.columnKey,
-        source: intent.source.key,
-        targets: intent.targets.map((row) => row.key),
+        columns: intent.columns.map((column) => ({
+          columnKey: column.columnKey,
+          source: column.source.key,
+          targets: column.targets.map((row) => row.key),
+        })),
       },
     ]);
   }
@@ -108,6 +129,7 @@ function ControlledGridHarness() {
     ...(["name", "quantity", "immutable"] as const).map((field) => ({
       key: field,
       title: { name: "名称", quantity: "数量", immutable: "只读列" }[field],
+      width: field === "name" ? 180 : 130,
       readOnly: field === "immutable",
       editor: {
         getText: (row: FixtureRow) => getText(row, field),
@@ -136,7 +158,26 @@ function ControlledGridHarness() {
     {
       key: "description",
       title: "自定义展示",
+      width: 180,
       render: (row) => `自定义-${row.key}`,
+    },
+    {
+      key: "choice",
+      title: "长候选",
+      width: 160,
+      editor: {
+        kind: "custom",
+        getLabel: (row) => `${row.key}-choice`,
+        render: ({ inputAttributes, readOnly: disabled }) => (
+          <Select
+            {...inputAttributes}
+            style={{ width: "100%", minWidth: 0 }}
+            value="long-choice"
+            disabled={disabled}
+            options={[{ value: "long-choice", label: longChoice }]}
+          />
+        ),
+      },
     },
   ];
   return (
@@ -150,6 +191,12 @@ function ControlledGridHarness() {
         </Checkbox>
         <Space>
           <Button onClick={() => setSelected([])}>清除选择</Button>
+          <Button onClick={() => setHidden((value) => !value)}>
+            {hidden ? "显示表格" : "隐藏表格"}
+          </Button>
+          <Button onClick={() => setNarrow((value) => !value)}>
+            {narrow ? "恢复宽容器" : "使用窄容器"}
+          </Button>
           <Button onClick={() => setSelected(["d", "off-page", "a", "c", "b"])}>
             使用乱序及跨页选择
           </Button>
@@ -178,24 +225,35 @@ function ControlledGridHarness() {
         <Typography.Text data-testid="page-request">
           {pageRequest ?? "无"}
         </Typography.Text>
-        <SwiftDataGrid<FixtureRow>
-          rows={visibleRows}
-          getRowKey={(row) => row.key}
-          columns={columns}
-          readOnly={readOnly}
-          canEdit={(row) => row.writable}
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
-          onFillDown={fillDown}
-          showRowNumber
-          pagination={{
-            pageIndex,
-            pageSize: 10,
-            total: 40,
-            // 这里只记录意图；父级明确接纳之前，表格不能自行换页或重编行身份。
-            onChange: (nextPage) => setPageRequest(nextPage),
-          }}
-        />
+        <Typography.Text data-testid="storage-status">
+          {preferences.storageStatus}
+        </Typography.Text>
+        <div
+          data-testid="grid-container"
+          style={{ width: narrow ? 520 : 1100, maxWidth: "100%" }}
+        >
+          <Activity mode={hidden ? "hidden" : "visible"}>
+            <PreferenceDataGrid<FixtureRow>
+              preferenceId="controlled-grid"
+              rows={visibleRows}
+              getRowKey={(row) => row.key}
+              columns={columns}
+              readOnly={readOnly}
+              canEdit={(row) => row.writable}
+              selectedKeys={selected}
+              onSelectionChange={setSelected}
+              onFillDown={fillDown}
+              showRowNumber
+              pagination={{
+                pageIndex,
+                pageSize: 10,
+                total: 40,
+                // 这里只记录意图；父级明确接纳之前，表格不能自行换页或重编行身份。
+                onChange: (nextPage) => setPageRequest(nextPage),
+              }}
+            />
+          </Activity>
+        </div>
       </Space>
     </main>
   );
@@ -205,7 +263,9 @@ createRoot(document.getElementById("root")!).render(
   // 公共 UI 夹具仅提供 Ant 上下文；应用启动恢复由独立会话/工作区场景验收。
   <ConfigProvider locale={zhCN}>
     <App>
-      <ControlledGridHarness />
+      <UserPreferencesProvider userId="grid-fixture-user">
+        <ControlledGridHarness />
+      </UserPreferencesProvider>
     </App>
   </ConfigProvider>,
 );

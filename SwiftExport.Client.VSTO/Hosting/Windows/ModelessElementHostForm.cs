@@ -50,8 +50,8 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
         {
             if (preferred.Width <= 0 || preferred.Height <= 0) throw new ArgumentOutOfRangeException(nameof(preferred));
             if (workingArea.Width <= 0 || workingArea.Height <= 0) throw new ArgumentOutOfRangeException(nameof(workingArea));
-            var width = Math.Min(Math.Max(preferred.Width, (int)(workingArea.Width * 0.78)), (int)(workingArea.Width * 0.92));
-            var height = Math.Min(Math.Max(preferred.Height, (int)(workingArea.Height * 0.78)), (int)(workingArea.Height * 0.90));
+            var width = Math.Min(Math.Max(preferred.Width, (int)(workingArea.Width * 0.9)), (int)(workingArea.Width * 0.92));
+            var height = Math.Min(Math.Max(preferred.Height, (int)(workingArea.Height * 0.9)), (int)(workingArea.Height * 0.90));
             return new Size(Math.Max(1, width), Math.Max(1, height));
         }
 
@@ -67,6 +67,20 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
                 }
             }
             finally { base.Dispose(disposing); }
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // ModelessElementHostForm
+            // 
+            this.ClientSize = new System.Drawing.Size(276, 236);
+            this.Font = new System.Drawing.Font("微软雅黑", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+            this.Name = "ModelessElementHostForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.ResumeLayout(false);
+
         }
     }
 }

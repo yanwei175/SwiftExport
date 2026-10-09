@@ -1,8 +1,8 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using SwiftExport.Client.VSTO.Services.ExcelImport;
 using System;
 using System.ComponentModel;
 using System.Linq;
-using CommunityToolkit.Mvvm.ComponentModel;
-using SwiftExport.Client.VSTO.Services.ExcelImport;
 namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models
 {
     /// <summary>采购导入单头，仅承载内存编辑；身份通过后端检验接纳，特殊要求保存为 Remark。</summary>
@@ -14,11 +14,11 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models
         public string CustomerCode { get => CustomerCodeValue; set => SetProperty(ref CustomerCodeValue, value); }
         private string BoNoValue = "";
         /// <summary>Excel采购单号的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.BoNo", "Excel采购单号")]
+        [ExcelImportField("Header.BoNo", "自定义采购单号")]
         public string BoNo { get => BoNoValue; set => SetProperty(ref BoNoValue, value); }
         private string CustomerPoNoValue = "";
         /// <summary>客户PO的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.CustomerPoNo", "客户PO")]
+        [ExcelImportField("Header.CustomerPoNo", "客户PO号")]
         public string CustomerPoNo { get => CustomerPoNoValue; set => SetProperty(ref CustomerPoNoValue, value); }
         private string SalesPersonValue = "";
         /// <summary>业务员的编辑值，保留原始输入。</summary>
@@ -84,9 +84,11 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models
         /// <summary>供应商回复日期。</summary>
         [ExcelImportField("Header.ReplyDate", "回复交期")]
         public DateTime? ReplyDate { get => replyDate; set => SetProperty(ref replyDate, value); }
+
         /// <summary>新手工行采用此日期；之后不自动覆盖行交期。</summary>
         [ExcelImportField("Header.DeliveryDate", "预计交期")]
         public DateTime? DeliveryDate { get => deliveryDate; set => SetProperty(ref deliveryDate, value); }
+
         /// <summary>记录性倍率，空值不伪造为零。</summary>
         public decimal? DiscountRate => PurchaseImportNumbers.Parse(DiscountRateText);
         /// <summary>记录性金额调整，允许负数，不参与行汇总。</summary>

@@ -44,8 +44,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(f.Model.Header.Currency == "CNY", "币种选择双向回写编码");
                     f.Cache.CurrencyItems.Clear(); Pump();
                     check(f.Model.Header.Currency == "CNY" && (string)currency.SelectedValue == "CNY", "缓存清空保留当前币种与界面回显");
-                    var tradePopup = (Popup)view.FindName("TradePopup");
-                    ((ToggleButton)view.FindName("TradeToggleButton")).IsChecked = true; Pump();
+                    var tradePopup = (Popup)view.FindName("OtherPopup");
+                    ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked = true; Pump();
                     var payment = Descendants<ComboBox>(tradePopup.Child).Single(c => BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "Header.PaymentMethod");
                     f.Cache.DictionaryItems.Clear(); Pump();
                     check(f.Model.Header.PaymentMethod == "TT" && (string)payment.SelectedValue == "TT", "字典刷新不清掉当前付款方式");
@@ -84,7 +84,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
                     grid.SelectAll(); Pump(); f.Model.DeleteSelectedLineCommand.Execute(null); Pump();
                     check(f.Model.Lines.Count == 0, "DataGrid 多选桥接删除所有选中行");
-                    ((ToggleButton)view.FindName("TradeToggleButton")).IsChecked = true; Pump();
+                    ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked = true; Pump();
                     var dates = Descendants<DatePicker>(tradePopup.Child).Where(d => BindingOperations.GetBinding(d, DatePicker.SelectedDateProperty)?.Path.Path == "Header.Etd").ToArray();
                     check(dates.Length == 1, "ETD 已绑定而不是空白占位");
                     tradePopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
@@ -127,11 +127,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 var grid = (DataGrid)view.FindName("OrderLinesGrid");
                 check(layout.ActualWidth <= form.ClientSize.Width && grid.ActualHeight > 0,
                     "有限 ElementHost 中页面不撑宽且明细保留可用高度：宽=" + layout.ActualWidth + "/" + form.ClientSize.Width + "，高=" + view.ActualHeight + "，行=" + string.Join("/", layout.RowDefinitions.Select(row => row.ActualHeight)));
-                var popup = (Popup)view.FindName("ShippingPopup");
-                ((ToggleButton)view.FindName("ShippingToggleButton")).IsChecked = true; Pump();
+                var popup = (Popup)view.FindName("OtherPopup");
+                ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked = true; Pump();
                 check(popup.IsOpen, "ElementHost 中能够打开单头 Popup");
                 host.Dispose(); host.Dispose(); f.Model.Dispose(); Pump();
-                check(!popup.IsOpen && ((ToggleButton)view.FindName("ShippingToggleButton")).IsChecked == false,
+                check(!popup.IsOpen && ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked == false,
                     "释放 ElementHost 同时关闭独立弹层并复位入口");
                 check(host.IsDisposed, "Office 与会话先后释放同一宿主不抛异常");
                 var childFirst = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(new UserControl());

@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | 独立工程与脚手架 | 同仓库独立 SwiftExport.WebApp；官方 React Router 基础模板，Framework SPA | 本文 |
 | ERP 多标签工作区 | 内部页签保留草稿；稳定 tabId；关闭协调；隐藏不丢状态 | [多标签设计](Web多标签工作区设计.md) |
-| 表格与编辑 | Ant Table + 受控 SwiftDataGrid；纯编辑集合；feature 专用请求映射 | [编辑基础设施](web-frontend-architecture.md) |
+| 表格与编辑 | ProComponents + 受控 SwiftDataGrid 单元格增强；纯编辑集合；feature 专用请求映射 | [编辑基础设施](web-frontend-architecture.md) |
 | API 契约 | 已验收 Orval Fetch；按实际 HTTP/内层结果消费，不强制改成 409 | [差距状态](web-api-gap-analysis.md)、[验收报告](Web首批接口契约验收.md) |
 | 权限 | me.Permissions + 唯一 PermissionKey 目录；已打开页签也重新核权 | [权限设计](web-permission-design.md) |
 | 开发流程与技能 | 独立 Web 角色/工作流及 1 个入口 + 5 个执行 Skill 已建立；运行时证据单独记录 | [SOP](web-agent-workflow.md)、[Skills 规划](web-skills-plan.md) |
@@ -44,6 +44,8 @@ Framework Mode 的官方能力不能代替本项目的业务目录、权限模�
 依据：[React Router 官方安装与模板](https://reactrouter.com/start/framework/installation)、[Vite 官方模板](https://vite.dev/guide/)、[Ant Design 与 Umi 集成](https://ant.design/docs/react/use-with-umi/)、[Ant Design Pro 官方依赖清单](https://github.com/ant-design/ant-design-pro/blob/master/package.json)。当前 Pro 上游已包含 React 19、Ant Design 6、Query 和 Umi Max；不能用“只支持旧版本”否定它。这里没有安装或实测任何候选，优劣是结合当前项目约束的推断。
 
 Ant Design 是组件库，Ant Design Pro 是管理台方案，两者不能混为一谈。选择 Ant Design 组件并不要求使用 Pro/Umi，也不要求为 ProTable 的数据模式改造现有 POST 查询或 BatchSave。
+
+独立的 ProComponents 是本项目高级组合组件来源，与采用 Ant Design Pro 整套应用模板分开。按页面场景复用 ProTable、ProForm、EditableProTable、DragSortTable、ProDescriptions 和 ProList；SwiftDataGrid 的单元格选择、区域填充、列宽及编辑接线规则集中维护于 [表格边界](web-frontend-architecture.md#4-swiftdatagrid边界与首期能力)。新增依赖按真实发布版及当前 Ant Design 6 的 peer 约束锁定；预发行版本必须明确记录，并以本项目类型、构建和浏览器验收证明适用范围。
 
 ## 3. 采用框架约定，但不引入前端业务服务器
 
@@ -75,6 +77,7 @@ SPA Mode 构建生成入口 HTML；发布目标为客户端静态产物，通常
 | React / TypeScript | 组件与类型约束 | React 19 稳定系列；TS 与模板及已验证 Orval 兼容，实施时锁精确版本；strict 与 noUncheckedIndexedAccess |
 | Vite / React Router Framework | 开发构建、路由、路由类型、错误边界与拆分 | SPA；使用框架入口，不再手工并建 createBrowserRouter 或第二个 RouterProvider |
 | Ant Design | Form/Table/Layout/Drawer/Modal、主题和中文 locale | Ant Design 6；标准控件直接使用，只包装有明确项目职责的部分 |
+| ProComponents | 查询表格、表单布局、详情、列表及行排序等现成组合 | 复用受控数据与公开扩展入口；不启用另一套业务 request 调度或直接 Storage 持久化，不改变字段当前值所有权 |
 | TanStack Query | 服务器快照、读取去重、缓存失效、提交状态 | 业务数据的唯一客户端缓存所有者 |
 | Orval Fetch | OpenAPI DTO 与 HTTP 操作函数 | 复用已验收生成策略，保留状态联合类型及路径编码；不手改生成文件 |
 | React 状态 / Ant Form | 页面草稿、选择、展开、表单输入 | 不把草稿放进 Query 缓存；首期无额外全局状态库 |

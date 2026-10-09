@@ -1,4 +1,8 @@
 import type { AriaAttributes, HTMLAttributes, ReactNode } from "react";
+import type {
+  ColumnsState,
+  ProTableProps,
+} from "@ant-design/pro-components/table";
 
 /** 行身份只用于定位和选择；序号、当前页位置与业务实体身份不互相替代。 */
 export type SwiftDataGridRowKey = string | number;
@@ -64,12 +68,15 @@ export interface SwiftDataGridPagination {
 
 /** 向下填充仅传递可见顺序中的源与可写目标，不转换字段、不写入集合或后端。 */
 export interface SwiftDataGridFillDownIntent<T extends object> {
-  columnKey: string;
-  source: T;
-  targets: readonly T[];
+  /** 每列使用矩形顶部作为源，单次交给 feature 统一校验与提交编辑意图。 */
+  columns: readonly {
+    columnKey: string;
+    source: T;
+    targets: readonly T[];
+  }[];
 }
 
-/** 公共表格只组合 Ant Table/Input；草稿、校验、替换保护与保存由 feature 负责。 */
+/** 公共表格组合 ProTable 与受控编辑器；草稿、校验、替换保护和保存由 feature 负责。 */
 export interface SwiftDataGridProps<T extends object> {
   rows: readonly T[];
   getRowKey(row: T): SwiftDataGridRowKey;
@@ -81,4 +88,16 @@ export interface SwiftDataGridProps<T extends object> {
   onFillDown?(intent: SwiftDataGridFillDownIntent<T>): void;
   showRowNumber?: boolean;
   pagination?: SwiftDataGridPagination;
+  loading?: boolean;
+  /** 列设置只接受受控布局，不启用 ProTable 的第二套 Storage 持久化。 */
+  columnsState?: {
+    value: Record<string, ColumnsState>;
+    onChange(value: Record<string, ColumnsState>): void;
+  };
+  onColumnWidthChange?(columnKey: string, width: number): void;
+  /** 调用方可以复用公开工具栏插槽，不覆盖业务查询、编辑和保存入口。 */
+  toolBarRender?: Exclude<
+    ProTableProps<T, Record<string, unknown>>["toolBarRender"],
+    false
+  >;
 }

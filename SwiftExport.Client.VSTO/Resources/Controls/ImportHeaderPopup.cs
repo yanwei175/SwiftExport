@@ -8,12 +8,25 @@ namespace SwiftExport.Client.VSTO.Resources.Controls
     /// <summary>导入单头的原生 Popup：统一关闭命令、Esc 和卸载清理，不拥有编辑模型。</summary>
     public sealed class ImportHeaderPopup : Popup
     {
+        /// <summary>控制开关的按钮，独立于定位容器；未设置时沿用作为 PlacementTarget 的 ToggleButton。</summary>
+        public static readonly DependencyProperty EntryButtonProperty = DependencyProperty.Register(
+            nameof(EntryButton), typeof(ToggleButton), typeof(ImportHeaderPopup),
+            new PropertyMetadata(null, OnEntryButtonChanged));
+
         private readonly CommandBinding closeBinding;
         private FrameworkElement target;
+        private ToggleButton entryButton;
         private UIElement content;
         private bool suppressToggleClick;
 
-        /// <summary>使用原生外部点击关闭机制，关闭时仍保留弹层中的输入与绑定。</summary>
+        /// <summary>指定开关入口，使 Popup 可以相对 StackPanel 等容器定位而不监听整个容器的点击。</summary>
+        public ToggleButton EntryButton
+        {
+            get => (ToggleButton)GetValue(EntryButtonProperty);
+            set => SetValue(EntryButtonProperty, value);
+        }
+
+        /// <summary>默认使用原生外部点击关闭机制，允许页面通过 StaysOpen 调整驻留策略；关闭保留输入与绑定。</summary>
         public ImportHeaderPopup()
         {
             StaysOpen = false;
@@ -37,7 +50,7 @@ namespace SwiftExport.Client.VSTO.Resources.Controls
         /// <summary>解除本次内容事件；识别按钮外部点击，防止自动关闭后同一次点击又重新打开。</summary>
         protected override void OnClosed(EventArgs e)
         {
-            suppressToggleClick = Mouse.LeftButton == MouseButtonState.Pressed && target != null && target.IsMouseOver;
+            suppressToggleClick = Mouse.LeftButton == MouseButtonState.Pressed && entryButton != null && entryButton.IsMouseOver;
             if (content != null)
             {
                 content.KeyDown -= OnContentKeyDown;
@@ -55,25 +68,38 @@ namespace SwiftExport.Client.VSTO.Resources.Controls
             DetachTarget();
         }
 
-        /// <summary>只订阅当前入口的视图事件，不持有宿主句柄或 COM 对象。</summary>
+        /// <summary>入口重新绑定时更新视图事件；定位容器只负责位置和卸载，不负责按钮点击。</summary>
+        private static void OnEntryButtonChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
+        {
+            ((ImportHeaderPopup)sender).AttachTarget();
+        }
+
+        /// <summary>仅在入口按钮订阅点击，定位容器只订阅卸载，不持有宿主句柄或 COM 对象。</summary>
         private void AttachTarget()
         {
-            if (ReferenceEquals(target, PlacementTarget)) return;
+            var nextEntry = EntryButton ?? PlacementTarget as ToggleButton;
+            if (ReferenceEquals(target, PlacementTarget) && ReferenceEquals(entryButton, nextEntry)) return;
             DetachTarget();
             target = PlacementTarget as FrameworkElement;
-            if (target == null) return;
-            target.PreviewMouseLeftButtonDown += OnTargetMouseDown;
-            target.PreviewMouseLeftButtonUp += OnTargetMouseUp;
-            target.Unloaded += OnPopupUnloaded;
+            entryButton = nextEntry;
+            if (target != null) target.Unloaded += OnPopupUnloaded;
+            if (entryButton == null) return;
+            entryButton.PreviewMouseLeftButtonDown += OnTargetMouseDown;
+            entryButton.PreviewMouseLeftButtonUp += OnTargetMouseUp;
+            if (!ReferenceEquals(entryButton, target)) entryButton.Unloaded += OnPopupUnloaded;
         }
 
         /// <summary>页面卸载或入口变更时解除订阅，重新显示时可再接线。</summary>
         private void DetachTarget()
         {
-            if (target == null) return;
-            target.PreviewMouseLeftButtonDown -= OnTargetMouseDown;
-            target.PreviewMouseLeftButtonUp -= OnTargetMouseUp;
-            target.Unloaded -= OnPopupUnloaded;
+            if (entryButton != null)
+            {
+                entryButton.PreviewMouseLeftButtonDown -= OnTargetMouseDown;
+                entryButton.PreviewMouseLeftButtonUp -= OnTargetMouseUp;
+                if (!ReferenceEquals(entryButton, target)) entryButton.Unloaded -= OnPopupUnloaded;
+            }
+            if (target != null) target.Unloaded -= OnPopupUnloaded;
+            entryButton = null;
             target = null;
             suppressToggleClick = false;
         }
@@ -107,7 +133,7 @@ namespace SwiftExport.Client.VSTO.Resources.Controls
         private void CloseAndRestoreFocus()
         {
             SetCurrentValue(IsOpenProperty, false);
-            target?.Focus();
+            entryButton?.Focus();
         }
     }
 }

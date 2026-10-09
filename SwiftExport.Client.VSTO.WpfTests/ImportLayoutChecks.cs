@@ -14,16 +14,15 @@ namespace SwiftExport.Client.VSTO.WpfTests
     internal static class ImportLayoutChecks
     {
         /// <summary>检查默认列、往返切换、弹层编辑上下文及关闭操作，确保弹层不占明细布局高度。</summary>
-        internal static void Run(UserControl view, DataGrid grid, Action<bool, string> check)
+        internal static void Run(UserControl view, DataGrid grid, Action<bool, string> check, int expectedPopupCount = 1)
         {
             var toggle = (Wpf.Ui.Controls.ToggleSwitch)view.FindName("ExtraFieldsSwitch");
-            var header = (ScrollViewer)view.FindName("HeaderScroll");
+            var header = (StackPanel)view.FindName("HeaderStackPanel");
             var optional = grid.Columns.Where(column => BindingOperations.IsDataBound(column, DataGridColumn.VisibilityProperty)).ToArray();
             var required = grid.Columns.Except(optional).ToArray();
             var items = grid.ItemsSource;
             var rows = grid.Items.Cast<object>().ToArray();
-            var popupBar = ((StackPanel)header.Content).Children.OfType<WrapPanel>().Single();
-            var popups = popupBar.Children.OfType<Popup>().ToArray();
+            var popups = header.Children.OfType<Popup>().ToArray();
             Pump(); view.UpdateLayout();
             check(toggle.IsChecked == false && optional.Length > 0 && optional.All(column => column.Visibility == Visibility.Collapsed),
                 "实际开关默认隐藏次要字段，包括非可视树中的 DataGridColumn");
@@ -35,20 +34,30 @@ namespace SwiftExport.Client.VSTO.WpfTests
             toggle.SetCurrentValue(ToggleButton.IsCheckedProperty, false); Pump();
             check(optional.All(column => column.Visibility == Visibility.Collapsed) && ReferenceEquals(items, grid.ItemsSource)
                 && rows.SequenceEqual(grid.Items.Cast<object>()), "关闭开关不替换或删除已加载明细");
-            check(popups.Length >= 2 && popups.All(popup => !popup.IsOpen), "附加单头资料默认关闭，各入口使用独立 Popup");
+            check(popups.Length == expectedPopupCount && popups.All(popup => !popup.IsOpen)
+                && Descendants<ToggleButton>(header).Count(button => button.Name.EndsWith("ToggleButton", StringComparison.Ordinal)
+                    && ReferenceEquals(view.FindName(button.Name), button)) == expectedPopupCount,
+                "附加单头资料统一为一个默认关闭的弹层和一个入口");
             check(grid.ActualHeight > view.ActualHeight * 0.35,
                 "默认布局给明细保留充足高度，采购卡片也实际拉伸：明细=" + grid.ActualHeight + "，页面=" + view.ActualHeight + "，单头=" + header.ActualHeight);
             var defaultHeight = grid.ActualHeight;
             foreach (var popup in popups)
             {
-                var entry = (ToggleButton)popup.PlacementTarget;
+                var entry = ((SwiftExport.Client.VSTO.Resources.Controls.ImportHeaderPopup)popup).EntryButton
+                    ?? (ToggleButton)popup.PlacementTarget;
+                check(ReferenceEquals(popup.PlacementTarget, header) && popup.StaysOpen
+                    && ReferenceEquals(entry, view.FindName("OtherToggleButton")),
+                    "定位容器与开关按钮独立，单头弹层显式驻留");
                 entry.SetCurrentValue(ToggleButton.IsCheckedProperty, true); Pump(); view.UpdateLayout();
                 check(popup.IsOpen && ReferenceEquals(popup.DataContext, view.DataContext)
                     && Math.Abs(grid.ActualHeight - defaultHeight) < 1,
                     "入口打开真实 Popup，共用编辑模型且不挤占明细：" + entry.Name);
-                check(!popup.StaysOpen && ((FrameworkElement)popup.Child).ActualWidth > 0
+                header.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+                    { RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent }); Pump();
+                check(popup.IsOpen && entry.IsChecked == true, "定位容器点击不再冒充入口关闭弹层");
+                check(((FrameworkElement)popup.Child).ActualWidth > 0
                     && ((FrameworkElement)popup.Child).ActualHeight > 0,
-                    "弹层形成可编辑窗口，使用原生外部点击关闭");
+                    "弹层形成可编辑窗口");
                 var editors = Descendants<TextBox>(popup.Child).Where(editor => editor.IsEnabled).ToArray();
                 check(editors.All(editor => ReferenceEquals(editor.DataContext, view.DataContext)
                     && editor.FontFamily.Equals(entry.FontFamily)), "独立弹层中的编辑器继续使用页面模型和统一字体");
@@ -63,10 +72,12 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 if (date != null)
                 {
                     date.IsDropDownOpen = true; Pump();
-                    check(popup.IsOpen && date.IsDropDownOpen, "单头弹层内的日历展开不关闭外层弹层");
+                    check(popup.IsOpen && date.IsDropDownOpen, "单头弹层内的日历展开不关闭外层弹层：" + entry.Name
+                        + "，弹层=" + popup.IsOpen + "，日历=" + date.IsDropDownOpen);
                     date.IsDropDownOpen = false; Pump();
                 }
-                ApplicationCommands.Close.Execute(null, popup.Child); Pump();
+                var closeButton = Descendants<Button>(popup.Child).Single(button => ReferenceEquals(button.Command, ApplicationCommands.Close));
+                ApplicationCommands.Close.Execute(closeButton.CommandParameter, closeButton); Pump();
                 check(!popup.IsOpen && entry.IsChecked == false, "关闭按钮命令同步复位入口");
                 entry.SetCurrentValue(ToggleButton.IsCheckedProperty, true); Pump();
                 var escape = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(popup.Child), 0, Key.Escape)

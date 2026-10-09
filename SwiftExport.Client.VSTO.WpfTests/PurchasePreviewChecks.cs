@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
@@ -28,8 +29,9 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 try
                 {
                     view.UpdateLayout(); Pump();
+                    CheckContainerAnchor(view, check);
                     var grid=(DataGrid)view.FindName("OrderLinesGrid");
-                    ImportLayoutChecks.Run(view, grid, check);
+                    ImportLayoutChecks.Run(view, grid, check, expectedPopupCount: 1);
                     check(view.Content is Grid && grid.ActualHeight > 0
                         && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
                         "采购明细在有限窗体高度中显示，不依赖顶层滚动");
@@ -42,8 +44,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(grid.ActualWidth>0 && grid.ActualWidth<window.ActualWidth,"表格横向滚动不会把窗体撑宽");
                     check(grid.Columns.Any(c=>(string)c.Header=="Excel本司型号") && grid.Columns.Any(c=>(string)c.Header=="系统SKU")
                         && grid.Columns.Any(c=>(string)c.Header=="含税单价（可空）"),"原表型号、系统身份及报价列完整");
-                    var discountPopup = (Popup)view.FindName("DiscountPopup");
-                    ((ToggleButton)view.FindName("DiscountToggleButton")).IsChecked = true; Pump();
+                    var discountPopup = (Popup)view.FindName("OtherPopup");
+                    ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked = true; Pump();
                     var headerBoxes=Descendants<TextBox>(view).Concat(Descendants<TextBox>(discountPopup.Child)).ToArray();
                     var bo=headerBoxes.Single(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.BoNo");
                     bo.Text="BO-EDIT"; bo.GetBindingExpression(TextBox.TextProperty).UpdateSource();
@@ -53,14 +55,14 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(model.Header.Remark=="新的特殊要求","特殊要求绑定 Remark");
                     check(headerBoxes.Any(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.DiscountRateText")
                         && headerBoxes.Any(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.DiscountAmountText"),"优惠倍率和整单优惠金额有真实绑定");
-                    var discounts = (ToggleButton)view.FindName("DiscountToggleButton");
+                    var discounts = (ToggleButton)view.FindName("OtherToggleButton");
                     var rate = (TextBox)view.FindName("DiscountRateBox");
                     rate.Text = "bad"; rate.GetBindingExpression(TextBox.TextProperty).UpdateSource(); Pump();
                     discountPopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
                     check(((TextBlock)discounts.Content).Text.Contains("输入有误") && model.Header.DiscountRateText == "bad",
                         "优惠输入错误在关闭后的入口按钮提示，并保留原始文字");
                     rate.Text = ""; rate.GetBindingExpression(TextBox.TextProperty).UpdateSource(); Pump();
-                    check(((TextBlock)discounts.Content).Text == "优惠及特殊要求", "修正优惠输入后入口按钮清除错误提示");
+                    check(((TextBlock)discounts.Content).Text == "其他表头资料", "修正优惠输入后入口按钮清除错误提示");
                     var date=Descendants<DatePicker>(view).Single(d=>d.GetBindingExpression(DatePicker.SelectedDateProperty)?.ParentBinding.Path?.Path=="Header.DeliveryDate");
                     date.SelectedDate=new DateTime(2026,12,1); check(model.Header.DeliveryDate==new DateTime(2026,12,1),"单头日期双向回写");
                     var line=model.Lines[0]; check(!line.CanEditUnit,"标准单位禁止手工伪造");
@@ -82,6 +84,26 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 }
                 finally { window.Close(); }
             }
+        }
+
+        /// <summary>复现定位在单头容器时，弹层内部鼠标事件不应被误认为再次点击入口。</summary>
+        private static void CheckContainerAnchor(PurchaseOrderImportView view, Action<bool, string> check)
+        {
+            var popup = (Popup)view.FindName("OtherPopup");
+            var entry = (ToggleButton)view.FindName("OtherToggleButton");
+            entry.IsChecked = true; Pump();
+            var editor = (TextBox)view.FindName("DiscountRateBox");
+            editor.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+                { RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent });
+            Pump();
+            check(popup.IsOpen && entry.IsChecked == true,
+                "Popup 定位在 StackPanel 时点击内部输入框仍驻留");
+            ((FrameworkElement)popup.PlacementTarget).RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+                { RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent });
+            Pump();
+            check(popup.IsOpen && entry.IsChecked == true,
+                "StaysOpen=true 时定位容器的点击不能触发入口按钮关闭逻辑");
+            popup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
         }
         // 独立配置页面的真实分组下拉须和模型一致，取消不能留下界面假选择。
         private static void CheckConfigurationGroups(PurchaseImportTestFixture fixture,Action<bool,string> check)

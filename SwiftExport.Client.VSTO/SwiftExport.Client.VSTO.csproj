@@ -201,6 +201,9 @@
     <EmbeddedResource Include="Hosting\TaskPanes\TaskPaneHostControl.resx">
       <DependentUpon>TaskPaneHostControl.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Hosting\Windows\ModelessElementHostForm.resx">
+      <DependentUpon>ModelessElementHostForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

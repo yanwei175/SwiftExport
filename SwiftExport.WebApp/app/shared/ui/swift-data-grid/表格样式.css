@@ -1,0 +1,87 @@
+/* 固定列尺寸约束展示和编辑器，长候选文本不得反向撑开相邻列。 */
+.swift-data-grid,
+.swift-data-grid .ant-pro-table,
+.swift-data-grid .ant-table-wrapper {
+  width: 100%;
+  min-width: 0;
+}
+
+.swift-data-grid .swift-grid-header {
+  position: relative;
+  overflow: visible !important;
+}
+
+/* Ant 的默认 min-width:100% 会把额外空间分摊给定宽列；保留声明像素并允许横向滚动。 */
+.swift-data-grid .ant-table-container table {
+  min-width: 0 !important;
+}
+
+.swift-grid-header-title {
+  display: block;
+  padding-right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swift-grid-resize {
+  position: absolute;
+  z-index: 2;
+  inset: 0 -4px 0 auto;
+  width: 9px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.swift-grid-resize:hover,
+.swift-grid-resize:focus-visible {
+  background: rgb(23 109 136 / 28%);
+  outline: 2px solid #176d88;
+}
+
+.swift-grid-cell {
+  min-width: 0;
+  outline-offset: -2px;
+}
+
+.swift-data-grid .swift-grid-cell-selected {
+  background: rgb(23 109 136 / 9%);
+  box-shadow: inset 0 0 0 1px #176d88;
+}
+
+.swift-grid-editor,
+.swift-grid-display {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.swift-grid-display {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swift-grid-editor > .ant-input,
+.swift-grid-editor > .ant-input-number,
+.swift-grid-editor > .ant-select,
+.swift-grid-editor > .ant-picker {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+.swift-grid-editor .ant-select-selection-item,
+.swift-grid-editor .ant-select-content,
+.swift-grid-editor .ant-select-selector,
+.swift-grid-editor .ant-picker-input {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swift-grid-editor [role="alert"] {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

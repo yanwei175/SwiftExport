@@ -118,6 +118,15 @@ async function scenario(page: Page, label: string) {
     label,
   );
 }
+/** 单列填充按单元格区域选择，行勾选仍只用于行级操作。 */
+async function selectLineRange(pane: Locator, columnKey: string) {
+  const cells = pane.locator(`td[data-column-key="${columnKey}"]`);
+  await cells.first().click({ position: { x: 2, y: 2 } });
+  await cells.nth(1).click({
+    modifiers: ["Shift"],
+    position: { x: 2, y: 2 },
+  });
+}
 async function cancelDialog(page: Page) {
   await page
     .getByRole("dialog")
@@ -205,16 +214,7 @@ test("受控枚举显式填充当前列，日期只接受面板值，Escape取�
   const kind = pane.getByRole("combobox", { name: "明细1类型", exact: true });
   await selectOption(page, kind, "易碎");
   await expect(pane).toContainText("未提交输入：是");
-  await pane
-    .getByRole("checkbox", { name: "选择行 doc-row-1", exact: true })
-    .check();
-  await pane
-    .getByRole("checkbox", { name: "选择行 doc-row-2", exact: true })
-    .check();
-  await pane
-    .locator('td[data-column-key="kind"]')
-    .first()
-    .click({ position: { x: 2, y: 2 } });
+  await selectLineRange(pane, "kind");
   await pane.getByRole("button", { name: "向下填充", exact: true }).click();
   await expect(pane.locator('td[data-column-key="kind"]').nth(1)).toContainText(
     "易碎",
@@ -271,22 +271,36 @@ test("候选搜索与值分离，缺项保留标签但不能填为新候选", as
   await expect(
     pane.locator('td[data-column-key="categoryId"]').first(),
   ).toContainText("分类甲");
-  await pane
-    .getByRole("checkbox", { name: "选择行 doc-row-1", exact: true })
-    .check();
-  await pane
-    .getByRole("checkbox", { name: "选择行 doc-row-2", exact: true })
-    .check();
-  await pane
-    .locator('td[data-column-key="categoryId"]')
-    .first()
-    .click({ position: { x: 2, y: 2 } });
+  await selectLineRange(pane, "categoryId");
   await pane.getByRole("button", { name: "向下填充", exact: true }).click();
   await expect(pane).toContainText("没有填充其他行");
   await expect(
     pane.locator('td[data-column-key="categoryId"]').nth(1),
   ).not.toContainText("分类甲");
   await expect(pane).toContainText("业务修改：否；未提交输入：否");
+});
+
+test("头行多列区域任一源无效时整次拒绝，不先填入合法列", async ({ page }) => {
+  const pane = documentPane(page);
+  await pane.getByLabel("明细1名称", { exact: true }).fill("只应保留在源行");
+  await pane.getByLabel("明细1数量", { exact: true }).fill("-");
+  await pane
+    .locator('td[data-column-key="name"]')
+    .first()
+    .click({ position: { x: 2, y: 2 } });
+  await pane
+    .locator('td[data-column-key="quantity"]')
+    .nth(1)
+    .click({ modifiers: ["Shift"], position: { x: 2, y: 2 } });
+  await pane.getByRole("button", { name: "向下填充", exact: true }).click();
+  await expect(pane.getByLabel("明细2名称", { exact: true })).toHaveValue(
+    "验收明细",
+  );
+  await expect(pane.getByLabel("明细2数量", { exact: true })).toHaveValue("1");
+  await expect(pane.getByLabel("明细1数量", { exact: true })).toHaveValue("-");
+  await expect(pane).toContainText("没有填充其他行");
+  await expect(pane).toContainText("提交尝试：0");
+  await expect(pane).toContainText("业务修改：否；未提交输入：是");
 });
 
 test("分类撤读权只冻结对应编辑，不扩大权限且不重新读取", async ({ page }) => {

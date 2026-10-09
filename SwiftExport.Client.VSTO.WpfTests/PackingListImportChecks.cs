@@ -28,8 +28,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(ReferenceEquals(grid.ItemsSource, model.Lines), "装箱单绑定真实行集合");
                     check(grid.IsEnabled && !grid.IsReadOnly && !grid.CanUserAddRows, "原生表格允许编辑并禁止自动空白行");
                     check(grid.Columns.Any(x => (string)x.Header == "PO 原文") && grid.Columns.Any(x => (string)x.Header == "Invoice 原文"), "Q/R 参考列可编辑");
-                    var transportPopup = (Popup)view.FindName("TransportPopup");
-                    ((ToggleButton)view.FindName("TransportToggleButton")).IsChecked = true; Pump();
+                    var transportPopup = (Popup)view.FindName("OtherPopup");
+                    ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked = true; Pump();
                     var dates = Find<DatePicker>(transportPopup.Child).ToArray();
                     var eta = dates.Single(x => x.GetBindingExpression(DatePicker.SelectedDateProperty)?.ParentBinding.Path?.Path == "Header.Eta");
                     eta.SelectedDate = new DateTime(2026, 12, 3); check(model.Header.Eta == eta.SelectedDate, "ETA 双向绑定");

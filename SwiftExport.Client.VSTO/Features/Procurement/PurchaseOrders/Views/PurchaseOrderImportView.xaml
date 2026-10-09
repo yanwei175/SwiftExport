@@ -34,6 +34,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+
         <WrapPanel Grid.Row="0" Margin="0,0,0,8">
             <ComboBox Width="220" ItemsSource="{Binding ReadProfiles}" DisplayMemberPath="ConfigName" SelectedItem="{Binding SelectedReadProfile, Mode=TwoWay}" IsEnabled="{Binding CanSelectReadProfile}" Margin="0,0,8,8" />
             <ui:Button Content="读取单头" Command="{Binding ReadHeaderCommand}" Margin="0,0,8,8" />
@@ -51,188 +52,184 @@
                 </MenuItem>
             </Menu>
         </WrapPanel>
-        <ScrollViewer x:Name="HeaderScroll" Grid.Row="1" MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ImportHeaderMaxHeight}}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,8">
-            <StackPanel>
-                <ui:Card Margin="0,0,0,8">
-                    <StackPanel>
-                        <WrapPanel IsEnabled="{Binding IsEditable}">
-                            <StackPanel Width="200" Margin="0,0,12,8">
-                                <TextBlock Text="客户代码" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding Header.CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                            </StackPanel>
-                            <StackPanel Width="200" Margin="0,0,12,8">
-                                <TextBlock Text="实际供应商" Margin="0,0,0,4" />
-                                <suppliers:SupplierAutoSuggestComboBox ItemsSource="{Binding ReferenceData.Suppliers}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}" />
-                            </StackPanel>
-                            <StackPanel Width="200" Margin="0,0,12,8">
-                                <TextBlock Text="Excel采购单号" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding Header.BoNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                            </StackPanel>
-                            <StackPanel Width="200" Margin="0,0,12,8">
-                                <TextBlock Text="订单日期" Margin="0,0,0,4" />
-                                <DatePicker SelectedDate="{Binding Header.OrderDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                            <StackPanel Width="200" Margin="0,0,12,8">
-                                <TextBlock Text="新行默认交期" Margin="0,0,0,4" />
-                                <DatePicker SelectedDate="{Binding Header.DeliveryDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            </StackPanel>
-                        </WrapPanel>
-                        <WrapPanel>
-                            <TextBlock Text="匹配客户：" />
-                            <TextBlock Text="{Binding CustomerName}" Margin="0,0,24,0" />
-                            <TextBlock Text="系统采购号：" />
-                            <TextBlock Text="{Binding OrderNo}" />
-                        </WrapPanel>
-                    </StackPanel>
-                </ui:Card>
-                <WrapPanel Margin="0,0,0,8">
-                    <ToggleButton x:Name="OtherToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="人员及其他资料" Content="人员及其他资料" />
-                    <controls:ImportHeaderPopup x:Name="OtherPopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=OtherToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=OtherToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
-                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
-                                    <TextBlock Text="人员及其他资料" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                </DockPanel>
-                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <WrapPanel Margin="8" IsEnabled="{Binding IsEditable}">
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="客户PO" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.CustomerPoNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="业务员" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.SalesPerson, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="跟单员" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.PurchasePerson, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="供应商回复交期" Margin="0,0,0,4" />
-                                            <DatePicker SelectedDate="{Binding Header.ReplyDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                        </StackPanel>
-                                    </WrapPanel>
-                                </ScrollViewer>
-                            </Grid>
-                        </Border>
-                    </controls:ImportHeaderPopup>
-                    <ToggleButton x:Name="PackagingToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="包装及配置" Content="包装及配置" />
-                    <controls:ImportHeaderPopup x:Name="PackagingPopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=PackagingToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=PackagingToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
-                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
-                                    <TextBlock Text="包装及配置" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                </DockPanel>
-                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <WrapPanel Margin="8" IsEnabled="{Binding IsEditable}">
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="进水管" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.InletHoseType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="起泡器" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.AeratorType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="托盘" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.PalletType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="内盒" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.BoxType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="标贴" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.LabelType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="说明书" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.InstructionManualType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="外箱" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.CartonType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                        <StackPanel Width="200" Margin="0,0,12,8">
-                                            <TextBlock Text="商标" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.LogoType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                        </StackPanel>
-                                    </WrapPanel>
-                                </ScrollViewer>
-                            </Grid>
-                        </Border>
-                    </controls:ImportHeaderPopup>
-                    <ToggleButton x:Name="DiscountToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="优惠及特殊要求">
-                        <ToggleButton.Content>
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="优惠及特殊要求" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ElementName=DiscountRateBox, Path=(Validation.HasError)}" Value="True">
-                                                <Setter Property="Text" Value="优惠及特殊要求（输入有误，请打开检查）" />
-                                                <Setter Property="Foreground" Value="DarkOrange" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding ElementName=DiscountAmountBox, Path=(Validation.HasError)}" Value="True">
-                                                <Setter Property="Text" Value="优惠及特殊要求（输入有误，请打开检查）" />
-                                                <Setter Property="Foreground" Value="DarkOrange" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </ToggleButton.Content>
-                    </ToggleButton>
-                    <controls:ImportHeaderPopup x:Name="DiscountPopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=DiscountToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=DiscountToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
-                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
-                                    <TextBlock Text="优惠及特殊要求" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                </DockPanel>
-                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <StackPanel Margin="8" IsEnabled="{Binding IsEditable}">
-                                        <WrapPanel>
-                                            <StackPanel Width="200" Margin="0,0,12,8">
-                                                <TextBlock Text="优惠备注" Margin="0,0,0,4" />
-                                                <TextBox Text="{Binding Header.DiscountRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                            </StackPanel>
-                                            <StackPanel Width="200" Margin="0,0,12,8">
-                                                <TextBlock Text="优惠倍率" Margin="0,0,0,4" />
-                                                <TextBox x:Name="DiscountRateBox" Text="{Binding Header.DiscountRateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                            </StackPanel>
-                                            <StackPanel Width="200" Margin="0,0,12,8">
-                                                <TextBlock Text="整单优惠金额" Margin="0,0,0,4" />
-                                                <TextBox x:Name="DiscountAmountBox" Text="{Binding Header.DiscountAmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
-                                            </StackPanel>
-                                        </WrapPanel>
-                                        <TextBlock Text="优惠倍率与整单优惠金额只记录，不改变下方行金额汇总。" Margin="0,0,0,8" />
-                                        <StackPanel Margin="0,0,0,8">
-                                            <TextBlock Text="特殊要求（Remark）" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Grid>
-                        </Border>
-                    </controls:ImportHeaderPopup>
-                </WrapPanel>
-            </StackPanel>
-        </ScrollViewer>
+
+
+        <StackPanel x:Name="HeaderStackPanel" Grid.Row="1" Margin="0,0,0,8" HorizontalAlignment="Stretch">
+            
+            <ui:Card Margin="0,0,0,8">
+                
+                <StackPanel>
+                    
+                    <WrapPanel IsEnabled="{Binding IsEditable}">
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="客户代码" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding Header.CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                        </StackPanel>
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="实际供应商" Margin="0,0,0,4" />
+                            <suppliers:SupplierAutoSuggestComboBox ItemsSource="{Binding ReferenceData.Suppliers}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="自定义采购单号" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding Header.BoNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                        </StackPanel>
+                        
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="客户PO号" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding Header.CustomerPoNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                        </StackPanel>
+                        
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="订单日期" Margin="0,0,0,4" />
+                            <DatePicker SelectedDate="{Binding Header.OrderDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            SelectedDateFormat="Short"/>
+                        </StackPanel>
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="预计交期" Margin="0,0,0,4" />
+                            <DatePicker SelectedDate="{Binding Header.DeliveryDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                            SelectedDateFormat="Short"/>
+                        </StackPanel>
+                        
+                        <StackPanel Width="160" Margin="0,0,12,8">
+                            <TextBlock Text="供应商回复交期" Margin="0,0,0,4" />
+                            <DatePicker SelectedDate="{Binding Header.ReplyDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        SelectedDateFormat="Short"/>
+                        </StackPanel>
+                        
+                    </WrapPanel>
+
+                    <WrapPanel >
+                        <ToggleButton x:Name="OtherToggleButton" IsChecked="False" Margin="0,0,24,0" AutomationProperties.Name="其他表头资料">
+                            <ToggleButton.Content>
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="其他表头资料" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ElementName=DiscountRateBox, Path=(Validation.HasError)}" Value="True">
+                                                    <Setter Property="Text" Value="优惠及特殊要求（输入有误，请打开检查）" />
+                                                    <Setter Property="Foreground" Value="DarkOrange" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ElementName=DiscountAmountBox, Path=(Validation.HasError)}" Value="True">
+                                                    <Setter Property="Text" Value="优惠及特殊要求（输入有误，请打开检查）" />
+                                                    <Setter Property="Foreground" Value="DarkOrange" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </ToggleButton.Content>
+                        </ToggleButton>
+                        
+                        <TextBlock Text="匹配客户名称：" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CustomerName}" Margin="0,0,24,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="系统采购单号：" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding OrderNo}" VerticalAlignment="Center" Margin="0,0,24,0"/>
+                    </WrapPanel>
+
+
+                    
+                </StackPanel>
+            </ui:Card>
+
+            <controls:ImportHeaderPopup x:Name="OtherPopup" 
+                                        IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=OtherToggleButton}" 
+                                        Placement="Bottom" 
+                                        PlacementTarget="{Binding ElementName=HeaderStackPanel}"  
+                                        EntryButton="{Binding ElementName=OtherToggleButton}"
+                                        DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" 
+                                        Width="{Binding ActualWidth, ElementName=HeaderStackPanel}" 
+                                        VerticalOffset="4" 
+                                        AllowsTransparency="True" 
+                                        StaysOpen="True" 
+                                        PopupAnimation="None" 
+                                        TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" 
+                                        TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
+                <Border Padding="12" 
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
+                        BorderThickness="1"
+                        KeyboardNavigation.TabNavigation="Cycle">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
+                            <TextBlock Text="其他表头资料" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <WrapPanel Margin="8" IsEnabled="{Binding IsEditable}">
+
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="业务员" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.SalesPerson, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="跟单员" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.PurchasePerson, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="进水管" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.InletHoseType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="起泡器" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.AeratorType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="托盘" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.PalletType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="内盒" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.BoxType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="标贴" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.LabelType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="说明书" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.InstructionManualType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="外箱" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.CartonType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="商标" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.LogoType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="优惠备注" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.DiscountRemark, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="优惠倍率" Margin="0,0,0,4" />
+                                    <TextBox x:Name="DiscountRateBox" Text="{Binding Header.DiscountRateText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>
+                                <StackPanel Width="200" Margin="0,0,12,8">
+                                    <TextBlock Text="整单优惠金额" Margin="0,0,0,4" />
+                                    <TextBox x:Name="DiscountAmountBox" Text="{Binding Header.DiscountAmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                                </StackPanel>                                
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock Text="特殊要求（Remark）" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" MinWidth="220" />
+                                </StackPanel>
+                                
+                            </WrapPanel>
+                            
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </controls:ImportHeaderPopup>
+        </StackPanel>
+
+
+
         <ui:Card Grid.Row="2" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch">
             <Grid>
                 <Grid.RowDefinitions>
@@ -246,9 +243,21 @@
                     <ui:Button Content="删除选中行" Command="{Binding DeleteSelectedLineCommand}" />
                     <ui:ToggleSwitch x:Name="ExtraFieldsSwitch" Content="显示更多字段" IsChecked="False" Margin="16,0,0,0" VerticalAlignment="Center" ToolTip="显示或隐藏次要明细字段；不清除已有数据" AutomationProperties.Name="显示更多明细字段" />
                 </WrapPanel>
-                <DataGrid ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" x:Name="OrderLinesGrid" Grid.Row="1" ItemsSource="{Binding Lines}" Style="{StaticResource SwiftExportDataGrid}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended" SelectionUnit="FullRow" IsReadOnly="{Binding IsReadOnly}" SelectionChanged="OnSelectionChanged">
+                <DataGrid ScrollViewer.HorizontalScrollBarVisibility="Auto" 
+                          ScrollViewer.VerticalScrollBarVisibility="Auto" 
+                          x:Name="OrderLinesGrid" Grid.Row="1" 
+                          ItemsSource="{Binding Lines}" 
+                          Style="{StaticResource SwiftExportDataGrid}" 
+                          FontSize="{DynamicResource ControlContentThemeFontSize}"
+                          AutoGenerateColumns="False" 
+                          CanUserAddRows="False" 
+                          CanUserDeleteRows="False" 
+                          SelectionMode="Extended" 
+                          SelectionUnit="FullRow" 
+                          IsReadOnly="{Binding IsReadOnly}" 
+                          SelectionChanged="OnSelectionChanged">
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="行类型" Width="130">
+                        <DataGridTemplateColumn Header="行类型" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
@@ -274,6 +283,7 @@
                         <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="配置" Width="230" Binding="{Binding FeaturesZh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" IsReadOnly="False" />
                         <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="物料类型" Width="100" Binding="{Binding MaterialType, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" />
                         <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="供货方式" Width="90" Binding="{Binding SupplyType, Mode=OneWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="True" />
+
                         <DataGridTemplateColumn Header="单位" Width="100">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -348,6 +358,7 @@
                 </WrapPanel>
             </Grid>
         </ui:Card>
+
         <StackPanel Grid.Row="3">
             <TextBlock Text="{Binding ParseMessage}" Style="{StaticResource ImportStatusText}" TextWrapping="Wrap" Margin="0,8,0,0" />
             <TextBlock Text="{Binding SubmissionMessage}" Style="{StaticResource ImportStatusText}" TextWrapping="Wrap" Margin="0,8,0,0" />

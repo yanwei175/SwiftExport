@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
+import { ProForm } from "@ant-design/pro-components/form";
 import {
   Alert,
   App,
@@ -18,7 +19,7 @@ import {
   Typography,
 } from "antd";
 import { RecoveryActions } from "../../shared/ui/恢复操作";
-import { SwiftDataGrid } from "../../shared/ui/swift-data-grid";
+import { PreferenceDataGrid } from "../../shared/ui/偏好表格";
 import type {
   SwiftDataGridColumn,
   SwiftDataGridFillDownIntent,
@@ -579,35 +580,52 @@ function BasicVerificationTab({
     publish();
   }
 
-  /** 表格仅发填充意图；本 feature 校验源值后再逐项建立受保护的原始缓冲。 */
+  /** 先核对整个区域的最新源输入，再统一建立目标缓冲；任一源无效时不产生部分填充。 */
   function fillDown({
-    columnKey,
-    source,
-    targets,
+    columns,
   }: SwiftDataGridFillDownIntent<EditableRow<VerificationValue>>) {
-    if (
-      phaseRef.current !== "idle" ||
-      !hasCurrentAccess() ||
-      (columnKey !== "name" && columnKey !== "quantity")
-    )
-      return;
-    const key = `${source.clientKey}:${columnKey}`;
-    const raw =
-      buffersRef.current.get(key)?.raw ?? String(source.current[columnKey]);
-    const error =
-      columnKey === "quantity"
-        ? parseQuantity(raw) === null
-          ? "数量必须是正整数，未完成输入仍保留。"
-          : null
-        : !raw.trim()
-          ? "名称不能为空。"
-          : null;
-    if (error) {
-      errorsRef.current.set(key, error);
-      showNotice("warning", "源单元格尚未通过校验，没有填充其他行。");
-      return;
+    if (phaseRef.current !== "idle" || !hasCurrentAccess()) return;
+    const visible = getVisibleEditableRows(rowsRef.current);
+    const pending: {
+      field: "name" | "quantity";
+      raw: string;
+      targets: EditableRow<VerificationValue>[];
+    }[] = [];
+    for (const { columnKey, source, targets } of columns) {
+      if (columnKey !== "name" && columnKey !== "quantity") return;
+      const currentSource = visible.find(
+        (row) => row.clientKey === source.clientKey,
+      );
+      if (!currentSource) return;
+      const key = `${currentSource.clientKey}:${columnKey}`;
+      const raw =
+        buffersRef.current.get(key)?.raw ??
+        String(currentSource.current[columnKey]);
+      const error =
+        columnKey === "quantity"
+          ? parseQuantity(raw) === null
+            ? "数量必须是正整数，未完成输入仍保留。"
+            : null
+          : !raw.trim()
+            ? "名称不能为空。"
+            : null;
+      if (error) {
+        errorsRef.current.set(key, error);
+        showNotice("warning", "源单元格尚未通过校验，没有填充其他行。");
+        return;
+      }
+      const currentTargets = targets.map((target) =>
+        visible.find((row) => row.clientKey === target.clientKey),
+      );
+      if (currentTargets.some((row) => row === undefined)) return;
+      pending.push({
+        field: columnKey,
+        raw,
+        targets: currentTargets as EditableRow<VerificationValue>[],
+      });
     }
-    for (const row of targets) changeCell(row, columnKey, raw);
+    for (const { field, raw, targets } of pending)
+      for (const row of targets) changeCell(row, field, raw);
   }
 
   /** 数据替换复用最新保护语义及同一保存/放弃入口，用户取消时保持输入。 */
@@ -856,7 +874,8 @@ function BasicVerificationTab({
                     {changes.updated.length}；删除：{changes.deleted.length}
                   </Typography.Text>
                 </Space>
-                <SwiftDataGrid
+                <PreferenceDataGrid
+                  preferenceId="verification.grid"
                   rows={getVisibleEditableRows(rowsRef.current)}
                   getRowKey={(row) => row.clientKey}
                   columns={columns}
@@ -871,7 +890,7 @@ function BasicVerificationTab({
                 />
               </Space>
             ) : (
-              <Form<FormValue>
+              <ProForm<FormValue>
                 name={`verification-${descriptor.tabId}`}
                 form={form}
                 initialValues={initialFormValue}
@@ -879,6 +898,13 @@ function BasicVerificationTab({
                 preserve
                 disabled={locked || !canEdit}
                 onValuesChange={publish}
+                submitter={false}
+                omitNil={false}
+                dateFormatter={false}
+                syncToUrl={false}
+                syncToInitialValues={false}
+                autoFocusFirstInput={false}
+                isKeyPressSubmit={false}
               >
                 <Form.Item
                   name="name"
@@ -907,7 +933,7 @@ function BasicVerificationTab({
                 >
                   <Input inputMode="numeric" />
                 </Form.Item>
-              </Form>
+              </ProForm>
             )}
             <Space wrap>
               {!isGrid && (

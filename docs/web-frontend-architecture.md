@@ -12,11 +12,11 @@
 | 构建 | React Router 官方基础模板，Framework SPA，Vite 构建 | ssr:false；构建期根渲染须安全，生产静态产物；独立于 .NET publish |
 | React | 支持稳定 Activity 的 React 19 系列，React/react-dom/types匹配并锁定 | 用实际骨架验收确定 patch，不默认引实验 API/Compiler |
 | TypeScript | 当期开工时稳定、与Vite/Orval兼容的一条主线，锁定版本 | strict、noUncheckedIndexedAccess；DTO由schema生成，类型检查单独执行 |
-| UI | Ant Design 6稳定系列 + 官方icons | Form/Table/Drawer/Modal/ConfigProvider；不同时加另一套组件库或Ant Design Pro框架 |
+| UI | Ant Design 6稳定系列 + 官方icons、独立 ProComponents | 复用控件及高级组合；不引入 Ant Design Pro/Umi 应用模板，实际兼容版本见工程入口 |
 | 远程状态 | TanStack Query v5 | query负责服务器快照，mutation负责动作和cache失效；不存未保存编辑行 |
 | 路由与工作区 | React Router Framework SPA + 内部多标签 Workspace | 框架负责应用入口；Workspace 管理业务页签、关闭与显式懒加载；Query 不与 loader 建两套缓存 |
 | API | Orval生成Fetch操作函数和DTO；统一transport/custom mutator | 不默认Axios；生成hooks可后续选择，不能生成后又手写同样的HTTP方法 |
-| 表单 | Ant Design Form + rules + feature纯验证函数 | 普通表单不再加React Hook Form/Formik/Zod；只有实际复杂跨对象验证需求才评估schema库 |
+| 表单 | Ant Design Form / ProForm + rules + feature纯验证函数 | ProForm 复用同一 Form 实例；不增加第二份当前值或 React Hook Form/Formik/Zod |
 | 日期 | Day.js + Intl | 与Ant DatePicker协作，boundary转换；业务日期与UTC时刻分开，插件仅按真实需要引入 |
 | 状态管理 | React useState/useReducer/Context | 工作区只管页签描述/摘要，feature 管各页签草稿；首期不加 Redux/Zustand |
 | 国际化 | 首期中文zh_CN locale、集中消息；多语言确认后react-i18next | 业务字段显示名与HTTP错误码分开；不把大规模翻译工程作为PoC条件 |
@@ -92,18 +92,24 @@ Query key 使用 [查询键](../SwiftExport.WebApp/app/shared/query/查询键.ts
 
 用户提出的拆分合理，Web不需要复制全部WPF EnterpriseGrid。其选择/验证等模块职责可作行为参考，不能把WPF AttachedProperty结构搬到React。
 
-SwiftDataGrid是Ant Table的受控组合：
+按场景直接复用 ProComponents：查询列表用 ProTable，行编辑可选 EditableProTable，行拖序用 DragSortTable，详情与列表用 ProDescriptions/ProList，表单及弹窗表单用 ProForm/ModalForm/DrawerForm。DragSortTable 的行拖序不等于拖动列宽。组件数据由 feature 提供，不通过组件的 `request` 建第二条请求链；列设置不启用 ProComponents 自带的持久化，仍走现有用户偏好入口。
+
+SwiftDataGrid 是受控 ProTable 的薄组合，只补单元格选择、区域填充、列宽及项目编辑意图：
 
 - 实际 [类型入口](../SwiftExport.WebApp/app/shared/ui/swift-data-grid/类型.ts) 接受 rows、getRowKey、columns、selectedKeys/onSelectionChange、pagination 与可写限制。列 editor 转交输入/取消并读取错误，onFillDown 仅发填充意图，feature 处理业务状态。
 - showRowNumber 只显示平面分页序号 `(pageIndex-1)*pageSize+index+1`，不能当 ClientKey/行 ID；树编号需随实际树页面单独定义。
 - 已有受控文本编辑及列内 `kind: "custom"` 组合；日期、枚举和候选复用 Ant 控件及公共转换，不建编辑器注册表。自定义编辑器接收一致的只读、错误、标签与取消上下文；尚未提交缓冲仍遵守多标签公共契约。
-- Ctrl+D：定义源为选择区首行，按当前可见顺序填至后续目标；首期无完整矩形区选择时限定为同一活动列。跳过非编辑列/行和禁用单元格，校验每个patch，阻止浏览器收藏快捷键仅限Grid内有效操作。文本编辑框内不抢快捷键。
+- 单击选中一个单元格；Shift 点击、Shift 方向键或从单元格空白处拖动扩展成矩形区域。区域锚点/终点使用稳定 rowKey/columnKey，与删除等操作的行勾选分别维护。可见行列顺序或分页改变时解除旧区域，业务值变化不解除，Activity 隐藏保留区域及输入。
+- 向下填充和 Ctrl+D 使用同一个区域意图：每个选中可编辑列的顶部单元格为源，按当前可见顺序填到区域内后续可编辑目标。一次发出全部列意图；feature 核对最新行、权限、候选及全部源输入后才更新目标缓冲，任一源无效则整次不填。填充不提交后端、不接纳基线，也不绕过未提交输入保护。Grid 内存在有效操作时才拦截 Ctrl+D，文本编辑框内不抢快捷键。
 - 禁止填Uid/Version/审计字段、已交付/已收货投影等只读事实；权限和生命周期限定由feature传入canEdit。
-- Selection 与 activeCell 为会话 UI 状态，选择保存稳定 rowKey，重载时核对存在性；本期持久偏好不包含业务行选择。列布局通过 [PreferenceDataGrid](../SwiftExport.WebApp/app/shared/ui/偏好表格.tsx) 消费当前声明列白名单。
+- 行选择、单元格区域为会话 UI 状态，不进入持久偏好。列显示/顺序使用 ProTable 原生列设置，通过 [PreferenceDataGrid](../SwiftExport.WebApp/app/shared/ui/偏好表格.tsx) 的受控 columnsState 接现有声明列白名单。列宽用表头分隔柄拖动或键盘调整，并由同一用户偏好入口保存。
+- 固定表格布局并按列宽计算横向滚动范围；输入、Select 与自定义编辑器限制在单元格内，长文本截断或提供完整内容提示，不撑开其他列。多选直接使用 Ant Select 的 multiple 模式，公共候选入口只适配受控值与已有搜索/权限边界。
 - TreeData 与大数据虚拟化尚未建立；后续树只渲染 parent/children 派生投影，排序/展开不改变业务父子关系。大数据先服务端分页，不先建完整 Excel 引擎。
 - 键盘/焦点/屏幕阅读器、空状态、loading与行错误反馈属于组件质量；业务存储和未保存导航不属于Grid。
 
-当前对照：[SwiftExport.Wpf.EnterpriseGrid](../SwiftExport.Wpf.EnterpriseGrid)、[BaseListModel](../SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs)。ShowRowNumber/Ctrl+D必须有浏览器行为验证，组件库自带Table不自动提供ERP这些语义。
+ProForm 保留原 Form 实例的字段所有权；项目编辑表单显式关闭自动提交按钮、日期格式化和空值剔除，由原 feature 保存入口转换、校验和冻结。EditableProTable 用于业务前先验证受控行值、无效原始输入、隐藏保留、取消及保存阻断，不把它的编辑数据和编辑集合同时设为当前值权威。组件兼容夹具只证明指定组合，不宣称真实业务已接入。
+
+当前行为参考：[SwiftExport.Wpf.EnterpriseGrid](../SwiftExport.Wpf.EnterpriseGrid)、[BaseListModel](../SwiftExport.Client.Wpf/Mvvm/BaseListModel.cs)。单元格区域、列宽、长内容布局、原始输入与 Activity 必须有浏览器行为验证；实际版本和证据见工程入口及骨架验收记录。
 
 ## 5. 公共编辑集合模型
 

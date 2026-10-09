@@ -21,6 +21,7 @@ import {
 import dayjs from "dayjs";
 import type { Dayjs } from "dayjs";
 import { PreferenceDataGrid } from "../../shared/ui/偏好表格";
+import { ProForm } from "@ant-design/pro-components/form";
 import type {
   SwiftDataGridColumn,
   SwiftDataGridFillDownIntent,
@@ -543,40 +544,69 @@ export default function DocumentVerificationTab({
     pageErrorsRef.current = mapped.page;
     publish();
   }
-  /** 填充意图仍由 feature 校验并写入原始缓冲，不能填元数据或未授权分类。 */
-  function fillDown({
-    columnKey,
-    source,
-    targets,
-  }: SwiftDataGridFillDownIntent<EditableRow<DocumentLine>>) {
-    if (
-      !lineFields.includes(columnKey as keyof DocumentLine) ||
-      !currentAccess() ||
-      locked
-    )
-      return;
-    const field = columnKey as keyof DocumentLine;
-    const raw = cellText(source, field);
-    if (
-      field === "categoryId" &&
-      raw !== "" &&
-      !options.some((option) => option.value === raw)
-    ) {
-      notice(
-        "warning",
-        "源分类只保留原标签，不在当前允许候选中，没有填充其他行。 ",
+  /** 区域先全量核权、重定位及校验，再统一写入缓冲；任一无效源不会产生部分填充。 */
+  function fillDown(
+    intent: SwiftDataGridFillDownIntent<EditableRow<DocumentLine>>,
+  ) {
+    if (!currentAccess() || phaseRef.current !== "idle") return;
+    const patches: {
+      row: EditableRow<DocumentLine>;
+      field: keyof DocumentLine;
+      raw: string;
+    }[] = [];
+    for (const { columnKey, source, targets } of intent.columns) {
+      if (!lineFields.includes(columnKey as keyof DocumentLine)) return;
+      const field = columnKey as keyof DocumentLine;
+      const latestSource = rowsRef.current.find(
+        (row) => row.clientKey === source.clientKey && !row.deleted,
       );
-      return;
+      if (!latestSource) return;
+      const raw = cellText(latestSource, field);
+      if (
+        field === "categoryId" &&
+        (!sessionRef.current.user?.permissions?.includes(
+          "Products.Category.View",
+        ) ||
+          (raw !== "" &&
+            !options.some(
+              (option) => option.value === raw && !option.disabled,
+            )))
+      ) {
+        notice("warning", "源分类或读取权限不允许填充，没有填充其他行。 ");
+        return;
+      }
+      if (!parseDocumentLineField(field, raw).valid) {
+        errorsRef.current.set(
+          `${latestSource.clientKey}:${field}`,
+          "源输入尚未通过校验，没有填充其他行。 ",
+        );
+        publish();
+        return;
+      }
+      for (const target of targets) {
+        const row = rowsRef.current.find(
+          (item) => item.clientKey === target.clientKey && !item.deleted,
+        );
+        if (!row) return;
+        patches.push({ row, field, raw });
+      }
     }
-    if (!parseDocumentLineField(field, raw).valid) {
-      errorsRef.current.set(
-        `${source.clientKey}:${field}`,
-        "源输入尚未通过校验，不填充。 ",
-      );
-      publish();
-      return;
+    for (const { row, field, raw } of patches) {
+      const key = `${row.clientKey}:${field}`;
+      const buffer: LineBuffer = {
+        clientKey: row.clientKey,
+        field,
+        raw,
+        original: buffersRef.current.get(key)?.original ?? row.current[field],
+      };
+      if (
+        hasInputChanges(buffer, (text) => parseDocumentLineField(field, text))
+      )
+        buffersRef.current.set(key, buffer);
+      else buffersRef.current.delete(key);
+      errorsRef.current.delete(key);
     }
-    for (const row of targets) changeCell(row, field, raw);
+    publish();
   }
   /** 下载只导出当前身份可访问的白名单材料，启动下载不证明文件已可靠保存。 */
   function exportRecovery() {
@@ -826,7 +856,7 @@ export default function DocumentVerificationTab({
                     onTerminate={() => void terminateRecovery()}
                   />
                 )}
-                <Form<HeaderForm>
+                <ProForm<HeaderForm>
                   name={`document-${descriptor.tabId}`}
                   form={form}
                   initialValues={initialForm}
@@ -834,6 +864,13 @@ export default function DocumentVerificationTab({
                   preserve
                   disabled={locked || !canEdit}
                   onValuesChange={publish}
+                  submitter={false}
+                  omitNil={false}
+                  dateFormatter={false}
+                  syncToUrl={false}
+                  syncToInitialValues={false}
+                  autoFocusFirstInput={false}
+                  isKeyPressSubmit={false}
                 >
                   <Form.Item
                     name="name"
@@ -865,7 +902,7 @@ export default function DocumentVerificationTab({
                   <Form.Item name="businessDate" label="业务日期">
                     <DatePicker inputReadOnly />
                   </Form.Item>
-                </Form>
+                </ProForm>
                 {!canReadCategory && (
                   <Alert
                     type="info"

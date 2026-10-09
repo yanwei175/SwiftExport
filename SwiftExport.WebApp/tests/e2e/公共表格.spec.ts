@@ -89,6 +89,26 @@ function dataGrid(page: Page): Locator {
   return page.getByRole("group", { name: "数据表格", exact: true });
 }
 
+/** 通过稳定行身份与列 key 定位单元格，行勾选不参与区域选择。 */
+function gridCell(page: Page, rowKey: string, columnKey: string): Locator {
+  return dataGrid(page).locator(
+    `[data-row-key="${rowKey}"] td[data-column-key="${columnKey}"]`,
+  );
+}
+
+/** 从单元格边缘发起真实单选/Shift扩区，避免抢输入框的文本选择。 */
+async function selectRange(
+  page: Page,
+  first: [string, string],
+  last: [string, string],
+): Promise<void> {
+  await gridCell(page, ...first).click({ position: { x: 2, y: 2 } });
+  await gridCell(page, ...last).click({
+    position: { x: 2, y: 2 },
+    modifiers: ["Shift"],
+  });
+}
+
 /** 通过公共菜单打开已有验证 feature；页面依旧拥有原始缓冲与关闭保护。 */
 async function openProbe(page: Page, kind: "form" | "grid") {
   const item = page.getByRole("menuitem", {
@@ -229,7 +249,7 @@ test.describe("真实页复用公共表格的输入保护", () => {
     await expect(input).toHaveAttribute("aria-invalid", "false");
   });
 
-  test("指定活动列填充只转交原始文本，另一列与两个基线均不被改写", async ({
+  test("行勾选不产生填充区域，指定单元格列填充保留其他列输入与基线", async ({
     page,
   }) => {
     const pane = activePane(page);
@@ -243,6 +263,10 @@ test.describe("真实页复用公共表格的输入保护", () => {
     await pane
       .getByRole("textbox", { name: "行名称", exact: true })
       .fill("只填名称");
+    await expect(
+      dataGrid(page).getByRole("button", { name: "向下填充", exact: true }),
+    ).toBeDisabled();
+    await selectRange(page, ["row-1", "name"], ["row-2", "name"]);
     await dataGrid(page)
       .getByRole("button", { name: "向下填充", exact: true })
       .click();
@@ -257,6 +281,7 @@ test.describe("真实页复用公共表格的输入保护", () => {
     ).toHaveValue("1e");
     await expect(pane.getByText("业务修改：否；未提交输入：是")).toBeVisible();
     await pane.getByRole("textbox", { name: "行数量", exact: true }).fill("9");
+    await selectRange(page, ["row-1", "quantity"], ["row-2", "quantity"]);
     const quantityCell = dataGrid(page).locator(
       '[data-row-key="row-1"] [data-column-key="quantity"]',
     );
@@ -287,6 +312,7 @@ test.describe("真实页复用公共表格的输入保护", () => {
       exact: true,
     });
     await input.fill("输入内快捷键");
+    await selectRange(page, ["row-1", "name"], ["row-2", "name"]);
     expect(await dispatchCtrlD(input)).toBe(false);
     await expect(
       activePane(page).getByRole("textbox", { name: "第2行名称", exact: true }),
@@ -307,6 +333,25 @@ test.describe("真实页复用公共表格的输入保护", () => {
       activePane(page).getByRole("textbox", { name: "第2行名称", exact: true }),
     ).toHaveValue("初始名称");
   });
+  test("无法转换的源数量不能填入目标，保留原始文本且不派发保存", async ({
+    page,
+  }) => {
+    const pane = activePane(page);
+    const source = pane.getByRole("textbox", { name: "行数量", exact: true });
+    await source.fill("1e");
+    await selectRange(page, ["row-1", "quantity"], ["row-2", "quantity"]);
+    await dataGrid(page)
+      .getByRole("button", { name: "向下填充", exact: true })
+      .click();
+    await expect(source).toHaveValue("1e");
+    await expect(
+      pane.getByRole("textbox", { name: "第2行数量", exact: true }),
+    ).toHaveValue("1");
+    await expect(pane).toContainText("未提交输入：是");
+    await pane.getByRole("button", { name: "保存", exact: true }).click();
+    await expect(pane).toContainText("提交次数：0");
+    await expect(source).toHaveAttribute("aria-invalid", "true");
+  });
 });
 
 test.describe("公共表格受控 UI 夹具", () => {
@@ -321,7 +366,7 @@ test.describe("公共表格受控 UI 夹具", () => {
     expect(observed.errors).toEqual([]);
   });
 
-  test("可见顺序决定源，跨页选择不参与，逐行只读目标被跳过", async ({
+  test("区域按可见顺序决定源，行勾选独立且逐行只读目标被跳过", async ({
     page,
   }) => {
     await page
@@ -338,11 +383,21 @@ test.describe("公共表格受控 UI 夹具", () => {
     await page
       .getByRole("textbox", { name: "b-name", exact: true })
       .fill("受控源文本");
+    await expect(
+      dataGrid(page).getByRole("button", { name: "向下填充", exact: true }),
+    ).toBeDisabled();
+    await selectRange(page, ["b", "name"], ["d", "name"]);
+    await expect(gridCell(page, "a", "name")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await dataGrid(page)
       .getByRole("button", { name: "向下填充", exact: true })
       .click();
     await expect(page.getByTestId("fill-history")).toHaveText(
-      JSON.stringify([{ columnKey: "name", source: "b", targets: ["c", "d"] }]),
+      JSON.stringify([
+        { columns: [{ columnKey: "name", source: "b", targets: ["c", "d"] }] },
+      ]),
     );
     await expect(
       page.getByRole("textbox", { name: "a-name", exact: true }),
@@ -350,28 +405,89 @@ test.describe("公共表格受控 UI 夹具", () => {
     await expect(
       page.getByRole("textbox", { name: "a-name", exact: true }),
     ).toHaveJSProperty("readOnly", true);
-    await expect(
-      page.getByRole("textbox", { name: "c-name", exact: true }),
-    ).toHaveValue("受控源文本");
-    await expect(
-      page.getByRole("textbox", { name: "d-name", exact: true }),
-    ).toHaveValue("受控源文本");
+    for (const key of ["c", "d"]) {
+      await expect(
+        page.getByRole("textbox", { name: `${key}-name`, exact: true }),
+      ).toHaveValue("受控源文本");
+    }
     await page.getByRole("button", { name: "清除选择", exact: true }).click();
     await expect(page.getByTestId("selection-value")).toHaveText("[]");
     await expect(
       dataGrid(page).getByRole("checkbox", { name: "选择行 b", exact: true }),
     ).not.toBeChecked();
+    // 清除用于删除的行勾选不清除独立的单元格区域。
+    await expect(gridCell(page, "c", "name")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(
+      dataGrid(page).getByRole("button", { name: "向下填充", exact: true }),
+    ).toBeEnabled();
+    await gridCell(page, "b", "name").click({ position: { x: 2, y: 2 } });
+    await expect(gridCell(page, "c", "name")).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
     await expect(
       dataGrid(page).getByRole("button", { name: "向下填充", exact: true }),
     ).toBeDisabled();
   });
 
-  test("Ctrl+D 只填活动列，输入与只读列不拦截，错误文本关联且 Escape 转交取消", async ({
+  test("多列矩形逐列用顶部源填充，未选中字段与只读目标不变", async ({
     page,
   }) => {
+    await page
+      .getByRole("textbox", { name: "b-name", exact: true })
+      .fill("区域名称");
+    await page
+      .getByRole("textbox", { name: "b-quantity", exact: true })
+      .fill("19");
+    await selectRange(page, ["b", "name"], ["d", "quantity"]);
+    for (const key of ["b", "a", "c", "d"]) {
+      for (const field of ["name", "quantity"]) {
+        await expect(gridCell(page, key, field)).toHaveAttribute(
+          "aria-selected",
+          "true",
+        );
+      }
+      await expect(gridCell(page, key, "immutable")).toHaveAttribute(
+        "aria-selected",
+        "false",
+      );
+    }
     await dataGrid(page)
-      .getByRole("checkbox", { name: "选择当前页全部行", exact: true })
-      .check();
+      .getByRole("button", { name: "向下填充", exact: true })
+      .click();
+    await expect(page.getByTestId("fill-history")).toHaveText(
+      JSON.stringify([
+        {
+          columns: [
+            { columnKey: "name", source: "b", targets: ["c", "d"] },
+            { columnKey: "quantity", source: "b", targets: ["c", "d"] },
+          ],
+        },
+      ]),
+    );
+    for (const key of ["c", "d"]) {
+      await expect(
+        page.getByRole("textbox", { name: `${key}-name`, exact: true }),
+      ).toHaveValue("区域名称");
+      await expect(
+        page.getByRole("textbox", { name: `${key}-quantity`, exact: true }),
+      ).toHaveValue("19");
+      await expect(
+        page.getByRole("textbox", { name: `${key}-immutable`, exact: true }),
+      ).toHaveValue(`锁定${key.toUpperCase()}`);
+    }
+    await expect(
+      page.getByRole("textbox", { name: "a-quantity", exact: true }),
+    ).toHaveValue("2");
+    await expect(page.getByTestId("selection-value")).toHaveText("[]");
+  });
+
+  test("Ctrl+D只转交选区，输入与只读列不拦截，错误文本关联且Escape转交取消", async ({
+    page,
+  }) => {
     const quantity = page.getByRole("textbox", {
       name: "b-quantity",
       exact: true,
@@ -382,14 +498,14 @@ test.describe("公共表格受控 UI 夹具", () => {
       '"prevented":false',
     );
     await expect(page.getByTestId("fill-history")).toHaveText("[]");
-    const quantityCell = dataGrid(page).locator(
-      '[data-row-key="b"] [data-column-key="quantity"]',
-    );
+    await selectRange(page, ["b", "quantity"], ["d", "quantity"]);
+    const quantityCell = gridCell(page, "b", "quantity");
     await quantityCell.focus();
     await quantityCell.press("Control+d");
     await expect(page.getByTestId("shortcut-value")).toContainText(
       '"prevented":true',
     );
+    // UI夹具故意接受raw意图，证明Grid没有偷偷转换业务值；真实feature另验证无效源拒绝。
     await expect(
       page.getByRole("textbox", { name: "c-quantity", exact: true }),
     ).toHaveValue("1e");
@@ -402,9 +518,8 @@ test.describe("公共表格受控 UI 夹具", () => {
     await expect(page.locator(`[id="${errorId}"]`)).toHaveText(
       "数量尚未完成。",
     );
-    const readOnlyCell = dataGrid(page).locator(
-      '[data-row-key="b"] [data-column-key="immutable"]',
-    );
+    const readOnlyCell = gridCell(page, "b", "immutable");
+    await readOnlyCell.click({ position: { x: 2, y: 2 } });
     await readOnlyCell.focus();
     expect(await dispatchCtrlD(readOnlyCell)).toBe(false);
     await expect(
@@ -412,7 +527,11 @@ test.describe("公共表格受控 UI 夹具", () => {
     ).toBeDisabled();
     await expect(page.getByTestId("fill-history")).toHaveText(
       JSON.stringify([
-        { columnKey: "quantity", source: "b", targets: ["c", "d"] },
+        {
+          columns: [
+            { columnKey: "quantity", source: "b", targets: ["c", "d"] },
+          ],
+        },
       ]),
     );
     await quantity.press("Escape");
@@ -426,23 +545,17 @@ test.describe("公共表格受控 UI 夹具", () => {
   test("全只读或只有只读目标时不产生填充，选择本身不算编辑权限", async ({
     page,
   }) => {
-    await dataGrid(page)
-      .getByRole("checkbox", { name: "选择行 b", exact: true })
-      .check();
-    await dataGrid(page)
-      .getByRole("checkbox", { name: "选择行 a", exact: true })
-      .check();
-    const cell = dataGrid(page).locator(
-      '[data-row-key="b"] [data-column-key="name"]',
-    );
+    await selectRange(page, ["b", "name"], ["a", "name"]);
+    const cell = gridCell(page, "b", "name");
     await cell.focus();
     await expect(
       dataGrid(page).getByRole("button", { name: "向下填充", exact: true }),
     ).toBeDisabled();
     expect(await dispatchCtrlD(cell)).toBe(false);
-    await dataGrid(page)
-      .getByRole("checkbox", { name: "选择行 c", exact: true })
-      .check();
+    await gridCell(page, "c", "name").click({
+      position: { x: 2, y: 2 },
+      modifiers: ["Shift"],
+    });
     await expect(
       dataGrid(page).getByRole("button", { name: "向下填充", exact: true }),
     ).toBeEnabled();
@@ -457,7 +570,181 @@ test.describe("公共表格受控 UI 夹具", () => {
     await expect(page.getByTestId("fill-history")).toHaveText("[]");
   });
 
-  test("分页仅发受控意图，行号按页偏移显示且稳定 rowKey 与选择不变化", async ({
+  test("鼠标拖动与Shift方向键扩展矩形，普通单击恢复单选", async ({ page }) => {
+    const start = gridCell(page, "b", "name");
+    const end = gridCell(page, "c", "quantity");
+    const startBox = (await start.boundingBox())!;
+    const endBox = (await end.boundingBox())!;
+    await page.mouse.move(startBox.x + 2, startBox.y + 2);
+    await page.mouse.down();
+    await page.mouse.move(endBox.x + 2, endBox.y + 2, { steps: 12 });
+    await page.mouse.up();
+    await expect(gridCell(page, "a", "quantity")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(gridCell(page, "d", "quantity")).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    await start.click({ position: { x: 2, y: 2 } });
+    await start.focus();
+    await start.press("Shift+ArrowRight");
+    await page.keyboard.press("Shift+ArrowDown");
+    await expect(gridCell(page, "a", "quantity")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(gridCell(page, "c", "name")).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    await gridCell(page, "d", "name").click({ position: { x: 2, y: 2 } });
+    await expect(gridCell(page, "d", "name")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(gridCell(page, "b", "name")).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    await expect(page.getByTestId("fill-history")).toHaveText("[]");
+  });
+
+  test("Activity隐藏保留源输入与区域，恢复后仍按原区域填充", async ({
+    page,
+  }) => {
+    await page
+      .getByRole("textbox", { name: "b-name", exact: true })
+      .fill("隐藏源");
+    await selectRange(page, ["b", "name"], ["d", "name"]);
+    await page.getByRole("button", { name: "隐藏表格", exact: true }).click();
+    await expect(dataGrid(page)).toBeHidden();
+    await page.getByRole("button", { name: "显示表格", exact: true }).click();
+    await expect(
+      page.getByRole("textbox", { name: "b-name", exact: true }),
+    ).toHaveValue("隐藏源");
+    await expect(gridCell(page, "d", "name")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await dataGrid(page)
+      .getByRole("button", { name: "向下填充", exact: true })
+      .click();
+    await expect(
+      page.getByRole("textbox", { name: "c-name", exact: true }),
+    ).toHaveValue("隐藏源");
+  });
+
+  test("列宽鼠标拖动与键盘调节经用户偏好持久化，刷新后恢复", async ({
+    page,
+  }) => {
+    const handle = dataGrid(page).getByRole("separator", {
+      name: "调整名称列宽",
+      exact: true,
+    });
+    await expect(handle).toHaveAttribute("aria-orientation", "vertical");
+    const initial = Number(await handle.getAttribute("aria-valuenow"));
+    const box = (await handle.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, {
+      steps: 8,
+    });
+    await page.mouse.up();
+    await expect
+      .poll(async () => Number(await handle.getAttribute("aria-valuenow")))
+      .toBeGreaterThan(initial + 40);
+    const dragged = Number(await handle.getAttribute("aria-valuenow"));
+    await handle.focus();
+    await handle.press("ArrowRight");
+    await expect(handle).toHaveAttribute("aria-valuenow", String(dragged + 10));
+    await handle.press("ArrowLeft");
+    await expect(handle).toHaveAttribute("aria-valuenow", String(dragged));
+    const stored = await page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("swiftexport:web:prefs:v1:grid-fixture-user")!,
+      ),
+    );
+    expect(stored.grids["controlled-grid"].columnWidths.name).toBe(dragged);
+    expect(JSON.stringify(stored)).not.toMatch(
+      /可见首行|可写目标|Authorization|access_token|password/,
+    );
+    await page.reload();
+    await expect(
+      dataGrid(page).getByRole("separator", {
+        name: "调整名称列宽",
+        exact: true,
+      }),
+    ).toHaveAttribute("aria-valuenow", String(dragged));
+    await expect(
+      page.getByRole("textbox", { name: "b-name", exact: true }),
+    ).toHaveValue("可见首行");
+  });
+
+  test("Storage不可用时列宽仍在内存调整，不影响输入与填充", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "localStorage", {
+        get() {
+          throw new DOMException("disabled", "SecurityError");
+        },
+      });
+    });
+    await page.reload();
+    await expect(page.getByTestId("storage-status")).toHaveText("memory-only");
+    const handle = dataGrid(page).getByRole("separator", {
+      name: "调整名称列宽",
+      exact: true,
+    });
+    await handle.focus();
+    await handle.press("ArrowRight");
+    await expect(handle).toHaveAttribute("aria-valuenow", "190");
+    await page
+      .getByRole("textbox", { name: "b-name", exact: true })
+      .fill("存储故障仍可编辑");
+    await selectRange(page, ["b", "name"], ["c", "name"]);
+    await dataGrid(page)
+      .getByRole("button", { name: "向下填充", exact: true })
+      .click();
+    await expect(
+      page.getByRole("textbox", { name: "c-name", exact: true }),
+    ).toHaveValue("存储故障仍可编辑");
+  });
+
+  test("窄容器横向滚动，长Select内容不撑大固定列或相邻列", async ({ page }) => {
+    await page.getByRole("button", { name: "使用窄容器", exact: true }).click();
+    const nameBox = (await gridCell(page, "b", "name").boundingBox())!;
+    const choiceCell = gridCell(page, "b", "choice");
+    const choiceWidth = await choiceCell.evaluate(
+      (element) => element.getBoundingClientRect().width,
+    );
+    expect(Math.abs(nameBox.width - 180)).toBeLessThan(2);
+    expect(Math.abs(choiceWidth - 160)).toBeLessThan(2);
+    const measurements = await page
+      .getByTestId("grid-container")
+      .evaluate((element) => {
+        const scroller =
+          element.querySelector<HTMLElement>(".ant-table-content")!;
+        const input = element.querySelector<HTMLElement>(
+          '[data-row-key="b"] [data-column-key="choice"] .ant-select',
+        )!;
+        return {
+          outer: element.getBoundingClientRect().width,
+          viewport: scroller.clientWidth,
+          content: scroller.scrollWidth,
+          control: input.getBoundingClientRect().width,
+        };
+      });
+    expect(measurements.outer).toBe(520);
+    expect(measurements.viewport).toBeLessThanOrEqual(520);
+    expect(measurements.content).toBeGreaterThan(measurements.viewport);
+    expect(measurements.control).toBeLessThanOrEqual(choiceWidth);
+    await expect(choiceCell).toContainText("Exposed Shower Columns & Mixers");
+  });
+
+  test("分页仅发受控意图，行号按页偏移显示且稳定rowKey与行勾选不变化", async ({
     page,
   }) => {
     const row = dataGrid(page).locator('[data-row-key="b"]');
