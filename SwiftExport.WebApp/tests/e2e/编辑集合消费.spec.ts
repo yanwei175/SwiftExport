@@ -1,4 +1,6 @@
+import { installBrowserSessionProtocol, mockJwtToken } from "./会话模拟";
 import { expect, test } from "@playwright/test";
+const authToken = mockJwtToken("tester");
 import type { Page } from "@playwright/test";
 
 /** 真实页面消费公共编辑集合，业务请求全部阻断；只模拟已有 login/me。 */
@@ -13,7 +15,7 @@ async function openGrid(page: Page) {
       calls.push(path);
       if (path === "/api/auth/login") {
         await route.fulfill({
-          json: { access_token: "collection-test-token" },
+          json: { access_token: authToken },
         });
       } else if (path === "/api/auth/me") {
         await route.fulfill({
@@ -26,6 +28,7 @@ async function openGrid(page: Page) {
       } else await route.abort("blockedbyclient");
     },
   );
+  await installBrowserSessionProtocol(page, authToken);
   await page.goto("/login");
   await page.getByLabel("用户名", { exact: true }).fill("tester");
   await page

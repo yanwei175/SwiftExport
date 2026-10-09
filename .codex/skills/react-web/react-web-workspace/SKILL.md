@@ -15,7 +15,7 @@ description: SwiftExport Web 多标签工作区。用于 pageKind/tabId/业务�
 2. 按 WEB-TAB-01 放置控制器、保存及保护注册的生命周期；Activity 仅包展示，隐藏不能卸载会话、清 raw buffer 或注销保护。外部查询受 isActive 与权限控制。
 3. 用 [公共契约](../../../../docs/Web多标签工作区设计.md#workspace-contract) 的最新完整摘要实现 canClose/requestSave/requestDiscard；关闭当前/其他/全部及数据替换/离开/主动登出同用此语义。saved/discarded 后再次判定，不能以 dirty=false 或 callback 已结束移除实例。
 4. 隐藏目标保存先激活，等待显式展示就绪握手再走 feature 唯一保存入口；无效输入定位原页，失败/取消/未知停止批量关闭。回执只更新发起会话，不写活动标签。
-5. 401 保留同用户会话并遮蔽，重认证重读 me；权限撤销影响已打开页，换用户隔离缓存及草稿。不要借参考 WPF 会话机制引入新 token 存储方案。
+5. 401/到期保留同用户会话并遮蔽，按 [会话规则](../../../../docs/Web多标签工作区设计.md#workspace-session) 恢复原 JWT 后重读 me；权限撤销影响已打开页，换用户先通过完整离开与退出确认再隔离缓存/草稿。恢复失败、退出未确认提供重试，Cookie 恢复不等于草稿持久化；不再另选 token 存储方案。
 6. 未知结果按 [WEB-TAB-04](../../../../docs/Web多标签工作区设计.md#workspace-recovery) 的真实后端能力恢复；无查询协议不伪造。授权主动导出核实记录，严格遵守文件/recordId、脱敏、当前权限和两步确认；失败/取消/未确认不返回 manualTerminated，批量关闭不触发人工终止。
 
 ## 禁止事项

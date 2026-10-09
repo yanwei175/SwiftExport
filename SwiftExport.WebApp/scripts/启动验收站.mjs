@@ -10,7 +10,7 @@ const cli = path.join(
 );
 const child = spawn(
   process.execPath,
-  [cli, "dev", "--host", "127.0.0.1", "--port", "4173"],
+  [cli, "dev", "--host", "localhost", "--port", "4173", "--strictPort"],
   {
     stdio: "inherit",
     env: { ...process.env, VITE_ENABLE_WORKSPACE_PROBES: "true" },

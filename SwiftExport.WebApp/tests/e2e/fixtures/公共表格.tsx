@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Button, Checkbox, Space, Typography } from "antd";
-import { ApplicationProviders } from "../../../app/bootstrap/应用Providers";
+import { App, Button, Checkbox, ConfigProvider, Space, Typography } from "antd";
+import zhCN from "antd/locale/zh_CN";
 import { SwiftDataGrid } from "../../../app/shared/ui/swift-data-grid";
 import type {
   SwiftDataGridColumn,
@@ -202,7 +202,10 @@ function ControlledGridHarness() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <ApplicationProviders>
-    <ControlledGridHarness />
-  </ApplicationProviders>,
+  // 公共 UI 夹具仅提供 Ant 上下文；应用启动恢复由独立会话/工作区场景验收。
+  <ConfigProvider locale={zhCN}>
+    <App>
+      <ControlledGridHarness />
+    </App>
+  </ConfigProvider>,
 );

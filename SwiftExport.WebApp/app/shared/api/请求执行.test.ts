@@ -4,6 +4,9 @@ import {
   getMe,
   getProductWarehouseCandidates,
   login,
+  getBrowserSessionCsrf,
+  restoreBrowserSession,
+  logoutBrowserSession,
   saveProductBatch,
 } from "./generated/client";
 import {
@@ -12,6 +15,10 @@ import {
   setAccessToken,
   subscribeAuthenticationEvents,
 } from "./请求执行";
+import {
+  clearDiagnostics,
+  getDiagnosticSnapshot,
+} from "../diagnostics/诊断记录";
 
 /** 构造模拟 HTTP 正文；只验证传输接线，不连接实际后端或数据库。 */
 function response(body: unknown, status = 200): Response {
@@ -27,10 +34,59 @@ function response(body: unknown, status = 200): Response {
 
 afterEach(() => {
   setAccessToken(null);
+  clearDiagnostics();
   vi.restoreAllMocks();
 });
 
 describe("生成 Fetch 的统一请求事实", () => {
+  it("Cookie 会话仅四个显式入口使用，普通业务不发送 Cookie 或混用 Bearer", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => response({}));
+    setAccessToken("old-secret");
+    await getBrowserSessionCsrf();
+    await restoreBrowserSession();
+    await logoutBrowserSession({ headers: { "X-CSRF-TOKEN": "csrf" } });
+    await login(
+      { userName: "x", password: "x" },
+      {
+        headers: {
+          "X-SwiftExport-Web-Session": "1",
+          Authorization: "old-secret",
+        },
+      },
+    );
+    for (const [, options] of fetch.mock.calls) {
+      expect(options?.credentials).toBe("same-origin");
+      expect(new Headers(options?.headers).has("Authorization")).toBe(false);
+    }
+    await getMe({ credentials: "include" });
+    expect(fetch.mock.calls[4]?.[1]?.credentials).toBe("omit");
+    expect(
+      new Headers(fetch.mock.calls[4]?.[1]?.headers).get("Authorization"),
+    ).toBe("Bearer old-secret");
+  });
+
+  it("请求诊断只保留审核操作和追踪事实，不包含参数、正文或凭据", async () => {
+    setAccessToken("secret-token");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      response(
+        { password: "secret-body", error: { message: "private-business" } },
+        500,
+      ),
+    );
+    await getDictionaryByCode("private-lookup-value");
+    expect(getDiagnosticSnapshot()).toHaveLength(1);
+    expect(getDiagnosticSnapshot()[0]).toMatchObject({
+      operationId: "getDictionaryByCode",
+      status: 500,
+      phase: "response",
+      correlationId: "api-test",
+    });
+    expect(JSON.stringify(getDiagnosticSnapshot())).not.toMatch(
+      /secret-token|secret-body|private-business|private-lookup-value|Authorization/,
+    );
+  });
   it("认证裸 DTO 不解包，登录不发送旧令牌，me 自动携带当前 Bearer", async () => {
     const fetch = vi
       .spyOn(globalThis, "fetch")

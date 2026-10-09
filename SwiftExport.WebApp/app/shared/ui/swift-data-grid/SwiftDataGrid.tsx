@@ -54,6 +54,7 @@ export function SwiftDataGrid<T extends object>({
     if (!onFillDown || readOnly || !activeCell) return null;
     const column = columns.find((item) => item.key === activeCell.columnKey);
     if (!column?.editor || column.readOnly) return null;
+    if (!(column.allowFillDown ?? column.editor.kind !== "custom")) return null;
     if (!rows.some((row) => getRowKey(row) === activeCell.rowKey)) return null;
     const selected = new Set(selectedKeys);
     const visibleSelection = rows.filter((row) => selected.has(getRowKey(row)));
@@ -110,26 +111,52 @@ export function SwiftDataGrid<T extends object>({
       const error = editor.getError?.(row, index);
       const editable = isEditable(row, column);
       const errorId = `${gridId}-${encodeURIComponent(String(getRowKey(row)))}-${encodeURIComponent(column.key)}-error`;
+      const inputAttributes = {
+        id: `${errorId}-input`,
+        "aria-label": editor.getLabel(row, index),
+        "aria-invalid": Boolean(error),
+        "aria-describedby": error ? errorId : undefined,
+      } as const;
+      /** 取消只转交此单元格，已提交的集合修改由 feature 保持。 */
+      const cancel = () => {
+        if (editable) editor.onCancel?.(row, index);
+      };
       return (
-        <div>
-          <Input
-            aria-label={editor.getLabel(row, index)}
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? errorId : undefined}
-            value={editor.getText(row, index)}
-            inputMode={editor.inputMode}
-            readOnly={!editable}
-            status={error ? "error" : undefined}
-            onChange={(event) => {
-              if (editable) editor.onChange(row, event.target.value, index);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && editable && editor.onCancel) {
-                event.preventDefault();
-                editor.onCancel(row, index);
-              }
-            }}
-          />
+        <div
+          data-readonly={!editable}
+          onKeyDown={(event) => {
+            if (
+              event.key === "Escape" &&
+              !event.defaultPrevented &&
+              editable &&
+              editor.onCancel
+            ) {
+              event.preventDefault();
+              cancel();
+            }
+          }}
+        >
+          {editor.kind === "custom" ? (
+            editor.render({
+              row,
+              index,
+              readOnly: !editable,
+              error,
+              inputAttributes,
+              cancel,
+            })
+          ) : (
+            <Input
+              {...inputAttributes}
+              value={editor.getText(row, index)}
+              inputMode={editor.inputMode}
+              readOnly={!editable}
+              status={error ? "error" : undefined}
+              onChange={(event) => {
+                if (editable) editor.onChange(row, event.target.value, index);
+              }}
+            />
+          )}
           {error && (
             <Typography.Text id={errorId} type="danger" role="alert">
               {error}

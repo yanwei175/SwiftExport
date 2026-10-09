@@ -28,5 +28,11 @@ describe("当前用户的精确权限投影", () => {
       false,
     );
     expect(hasPermission({ permissions: [""] }, "")).toBe(false);
+    expect(
+      hasPermission(
+        { permissions: ["Unknown.Module.View"] },
+        "Unknown.Module.View",
+      ),
+    ).toBe(false);
   });
 });

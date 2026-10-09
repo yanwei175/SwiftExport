@@ -1,4 +1,10 @@
+import {
+  installBrowserSessionProtocol,
+  mockJwtToken,
+  authenticationCalls,
+} from "./会话模拟";
 import { expect, test } from "@playwright/test";
+const authToken = mockJwtToken("tester");
 import type { Locator, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
@@ -53,13 +59,13 @@ async function installAuth(page: Page): Promise<AuthFixture> {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ access_token: "grid-test-token" }),
+      body: JSON.stringify({ access_token: authToken }),
     });
   });
   await page.route("**/api/auth/me", async (route) => {
     expect(route.request().method()).toBe("GET");
     expect(route.request().headers()["authorization"]).toBe(
-      "Bearer grid-test-token",
+      "Bearer " + authToken,
     );
     await route.fulfill({
       status: 200,
@@ -138,6 +144,7 @@ test.describe("真实页复用公共表格的输入保护", () => {
   let auth: AuthFixture;
   test.beforeEach(async ({ page }) => {
     auth = await installAuth(page);
+    await installBrowserSessionProtocol(page, authToken);
     await page.goto("/login");
     await page.getByLabel("用户名", { exact: true }).fill("tester");
     await page.getByLabel("密码", { exact: true }).fill("grid-test-password");
@@ -150,9 +157,7 @@ test.describe("真实页复用公共表格的输入保护", () => {
   });
   test.afterEach(() => {
     expect(
-      auth.apiCalls.filter(
-        (call) => !["POST /api/auth/login", "GET /api/auth/me"].includes(call),
-      ),
+      auth.apiCalls.filter((call) => !authenticationCalls.includes(call)),
     ).toEqual([]);
     expect(auth.errors, "公共 Grid 不能造成页面或 hydration 异常").toEqual([]);
   });

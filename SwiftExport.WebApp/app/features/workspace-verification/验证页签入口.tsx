@@ -40,6 +40,7 @@ import {
 } from "../../shared/editing/编辑集合";
 import type { EditableRow } from "../../shared/editing/编辑集合";
 import { useSession } from "../../shared/session/会话上下文";
+import { recordDiagnostic } from "../../shared/diagnostics/诊断记录";
 import { useWorkspaceTab } from "../../shared/workspace/useWorkspaceTab";
 import { isUnprotected } from "../../shared/workspace/页签契约";
 import type {
@@ -57,6 +58,7 @@ import {
   isCompleteReceipt,
   simulateSave,
 } from "./model/模拟保存";
+import DocumentVerificationTab from "./头行验收页签";
 import type {
   FrozenAttempt,
   SaveScenario,
@@ -94,7 +96,16 @@ function DisplayLifecycle({
 }
 
 /** 两个受环境开关限制的骨架验收页，共享既定保存契约但从不请求业务写入。 */
-export default function VerificationTab({
+export default function VerificationTab(props: WorkspaceTabProps) {
+  return props.descriptor.params.id === "document-verification" ? (
+    <DocumentVerificationTab {...props} />
+  ) : (
+    <BasicVerificationTab {...props} />
+  );
+}
+
+/** 保留既有单 Form 与批量列表入口，头行联合验收通过独立实例组合，不改变旧页语义。 */
+function BasicVerificationTab({
   descriptor,
   isActive,
   renderDisplay,
@@ -321,6 +332,20 @@ export default function VerificationTab({
         return "unknown";
       }
       responseRef.current = result;
+      recordDiagnostic({
+        event: "save-outcome",
+        level: "info",
+        pageKind: descriptor.pageKind,
+        tabId: descriptor.tabId,
+        operationId: "verification.save",
+        attemptId: attempt.attemptId,
+        outcome:
+          result.kind === "not-effective"
+            ? "B"
+            : result.kind === "confirmed" && isCompleteReceipt(attempt, result)
+              ? "A"
+              : "C",
+      });
       if (result.kind === "unknown") {
         phaseRef.current = "unknown";
         showNotice(
@@ -885,6 +910,18 @@ export default function VerificationTab({
               </Form>
             )}
             <Space wrap>
+              {!isGrid && (
+                <Button
+                  onClick={() =>
+                    host.open({
+                      pageKind: "verification-form",
+                      params: { id: "document-verification" },
+                    })
+                  }
+                >
+                  打开头行验收
+                </Button>
+              )}
               <Select
                 aria-label="保存场景"
                 value={scenarioRef.current}

@@ -22,13 +22,13 @@ namespace SwiftExport.Client.VSTO.Hosting.Windows
             StartPosition = owner == IntPtr.Zero ? FormStartPosition.CenterScreen : FormStartPosition.CenterParent;
             ShowInTaskbar = false;
             Text = title;
-            BackColor = Color.FromArgb(226, 230, 235);
+            BackColor = Color.White;
             Padding = new Padding(1);
             var initialSize = CalculateInitialSize(preferredSize, area.Size);
             MinimumSize = new Size(Math.Min(640, initialSize.Width), Math.Min(420, initialSize.Height));
             Size = initialSize;
-            // 透明 WPF 区域显示父窗体背景；不启用窗口穿透或改变 Excel 的背景效果。
-            host = new ElementHost { Dock = DockStyle.Fill, BackColorTransparent = true };
+            // 宿主和页面留白统一为白色，避免透明内容暴露 WinForms 的底色。
+            host = new ElementHost { Dock = DockStyle.Fill, BackColor = Color.White, BackColorTransparent = false };
             Controls.Add(host);
         }
 

@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
+using SwiftExport.Contracts.DTOs.Auth;
 
 namespace SwiftExport.Application.Tests.WebApi;
 
@@ -224,6 +225,27 @@ public sealed class FirstWebHttpContractTests
         var loginSchema = schemas["SwiftExport.Contracts.DTOs.Auth.LoginRequestDto"]!;
         CollectionAssert.AreEquivalent(new[] { "userName", "password" }, loginSchema["required"]!.Values<string>().ToArray());
         Assert.AreNotEqual(true, (bool?)loginSchema.SelectToken("properties.password.nullable"));
+        var csrf = doc["paths"]!["/api/auth/browser-session/csrf"]!["get"]!;
+        Assert.AreEqual("getBrowserSessionCsrf", (string?)csrf["operationId"]);
+        Assert.AreEqual(0, ((JArray)csrf["security"]!).Count);
+        StringAssert.EndsWith((string)csrf.SelectToken("responses.200.content['application/json'].schema['$ref']")!, "BrowserSessionCsrfDto");
+        var restore = doc["paths"]!["/api/auth/browser-session/restore"]!["get"]!;
+        Assert.AreEqual("restoreBrowserSession", (string?)restore["operationId"]);
+        Assert.IsNotNull(restore.SelectToken("security[0].BrowserSessionCookie"));
+        Assert.IsNull(restore.SelectToken("security[0].Bearer"));
+        var logout = doc["paths"]!["/api/auth/browser-session/logout"]!["post"]!;
+        Assert.AreEqual("logoutBrowserSession", (string?)logout["operationId"]);
+        Assert.IsNotNull(logout.SelectToken("responses.204"));
+        Assert.IsNull(logout.SelectToken("responses.200"));
+        Assert.AreEqual("cookie", (string?)doc.SelectToken("components.securitySchemes.BrowserSessionCookie.in"));
+
+        // 权限目录来自真实 Contracts 静态权威源；导出由显式路径控制，不引入运行时权限扩大。
+        var codes = PermissionCatalog.All.Select(item => item.PermissionKey).OrderBy(item => item, StringComparer.Ordinal).ToArray();
+        Assert.IsTrue(codes.Length > 0 && codes.All(code => !string.IsNullOrWhiteSpace(code)));
+        Assert.AreEqual(codes.Length, codes.Distinct(StringComparer.Ordinal).Count(), "权限目录不得含重复键。");
+        var permissionExport = Environment.GetEnvironmentVariable("SWIFTEXPORT_WEB_PERMISSIONS_OUTPUT");
+        if (!string.IsNullOrWhiteSpace(permissionExport))
+            await File.WriteAllTextAsync(Path.GetFullPath(permissionExport), new JObject { ["codes"] = new JArray(codes) }.ToString(), new UTF8Encoding(false));
     }
 
     /// <summary>通过真实登录获取令牌，后续请求不绕过生产 JWT 中间件。</summary>

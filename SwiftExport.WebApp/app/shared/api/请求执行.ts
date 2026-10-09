@@ -1,3 +1,6 @@
+import { recordDiagnostic } from "../diagnostics/诊断记录";
+import reviewedEndpoints from "../../../openapi/已审核端点.json";
+
 /** 请求执行的可观察阶段；已派发不表示服务器已经收到或提交。 */
 export type RequestPhase = "not-sent" | "dispatched" | "response";
 
@@ -11,6 +14,31 @@ export interface RequestFacts {
   readonly headers?: Headers;
   readonly rawBody?: string;
   readonly correlationId?: string;
+}
+
+/** 从已审核清单映射固定操作名，只记录元数据，绝不复制路径参数或响应正文。 */
+function diagnoseFailure(
+  facts: RequestFacts,
+  kind?: RequestTransportError["kind"],
+): void {
+  // 换身份或退出后的旧请求不能重新填充已清空的会话诊断。
+  if (facts.credentialRevision !== credentialRevision) return;
+  const operationId = reviewedEndpoints.find(
+    ([path, method]) =>
+      method?.toUpperCase() === facts.method.toUpperCase() &&
+      new RegExp("^" + path!.replace(/\{[^/]+\}/g, "[^/]+") + "$").test(
+        facts.path.split("?")[0]!,
+      ),
+  )?.[2];
+  recordDiagnostic({
+    event: "request-failed",
+    level: "warn",
+    operationId,
+    status: facts.status,
+    phase: facts.phase,
+    kind,
+    correlationId: facts.correlationId,
+  });
 }
 
 /** 网络、取消或不可解析响应的事实错误；取消和网络故障不证明回滚。 */
@@ -32,6 +60,7 @@ export class RequestTransportError extends Error {
       options,
     );
     this.name = "RequestTransportError";
+    diagnoseFailure(facts, kind);
   }
 }
 
@@ -43,6 +72,11 @@ export interface AuthenticationEvent {
 }
 
 let accessToken: string | null = null;
+const browserSessionPaths = new Set([
+  "/api/auth/browser-session/csrf",
+  "/api/auth/browser-session/restore",
+  "/api/auth/browser-session/logout",
+]);
 let credentialRevision = 0;
 const listeners = new Set<(event: AuthenticationEvent) => void>();
 const responseFacts = new WeakMap<object, RequestFacts>();
@@ -91,11 +125,19 @@ export async function executeRequest<T>(
       throw new Error("只允许同源 API 路径，且请求信号必须有效。");
     }
     const headers = new Headers(options?.headers);
-    // 登录请求不带旧 Bearer，其他操作只使用会话层持有的当前凭据。
+    // 仅显式浏览器会话操作发送同源 Cookie，避免旧 Bearer 与恢复身份混用。
     headers.delete("Authorization");
-    if (accessToken && path !== "/api/auth/login")
+    const browserSession =
+      browserSessionPaths.has(path) ||
+      (path === "/api/auth/login" &&
+        headers.get("X-SwiftExport-Web-Session") === "1");
+    if (accessToken && path !== "/api/auth/login" && !browserSession)
       headers.set("Authorization", `Bearer ${accessToken}`);
-    requestOptions = { ...options, headers, credentials: "omit" };
+    requestOptions = {
+      ...options,
+      headers,
+      credentials: browserSession ? "same-origin" : "omit",
+    };
   } catch (cause) {
     throw new RequestTransportError("not-sent", facts, { cause });
   }
@@ -119,9 +161,11 @@ export async function executeRequest<T>(
     headers: response.headers,
     correlationId: response.headers.get("X-Correlation-ID") ?? undefined,
   };
+  if (response.status >= 400) diagnoseFailure(facts);
   if (
     (response.status === 401 || response.status === 403) &&
-    path !== "/api/auth/login"
+    path !== "/api/auth/login" &&
+    !browserSessionPaths.has(path)
   ) {
     const event: AuthenticationEvent = {
       status: response.status,

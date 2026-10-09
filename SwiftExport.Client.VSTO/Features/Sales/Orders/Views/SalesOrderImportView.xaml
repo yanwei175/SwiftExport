@@ -1,460 +1,361 @@
-﻿<UserControl x:Class="SwiftExport.Client.VSTO.Features.Sales.Orders.Views.SalesOrderImportView"
+<UserControl
+             x:Class="SwiftExport.Client.VSTO.Features.Sales.Orders.Views.SalesOrderImportView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:converters="clr-namespace:SwiftExport.Client.VSTO.Resources.Converters"
              xmlns:custromers="clr-namespace:SwiftExport.Client.VSTO.Features.Customers.Components"
              xmlns:sales="clr-namespace:SwiftExport.Client.VSTO.Features.Sales.Orders.Components"
              xmlns:vm="clr-namespace:SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels"
              mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance vm:SalesOrderImportViewModel}"
              d:Width="1980"
-             d:Height="1020">
-        <Grid Margin="12" Background="Transparent">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <!--Excel操作功能区域-->
-            <Grid Grid.Row="0" Margin="0,0,0,8">
+             d:Height="1020"
+             d:DataContext="{d:DesignInstance vm:SalesOrderImportViewModel}"
+             Background="{DynamicResource SwiftExportBackground}"
+             Foreground="{DynamicResource SwiftExportForeground}"
+             FontSize="{DynamicResource ControlContentThemeFontSize}"
+             xmlns:controls="clr-namespace:SwiftExport.Client.VSTO.Resources.Controls">
+    <UserControl.Resources>
+        <converters:ImportHeaderMaxHeightConverter x:Key="ImportHeaderMaxHeight" />
+        <BooleanToVisibilityConverter x:Key="ExtraFieldsVisibility" />
+        <Style x:Key="ImportStatusText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <WrapPanel>
+                <ComboBox Width="160" IsEnabled="{Binding CanSelectReadProfile}" ItemsSource="{Binding ReadProfiles}" DisplayMemberPath="ConfigName" SelectedItem="{Binding SelectedReadProfile, Mode=TwoWay}" Margin="0,0,8,8" />
+                <ui:Button Content="读取单头" Command="{Binding ReadHeaderCommand}" Margin="0,0,8,8" AutomationProperties.Name="按地址配置读取 Excel 单头" />
+                <ui:Button Content="检验与匹配" Command="{Binding CheckImportCommand}" Margin="0,0,8,8" />
+                <ui:Button Content="保存草稿" ToolTip="需要销售订单维护权限，且当前编辑版本已通过检验" Command="{Binding SaveDraftCommand}" Appearance="Primary" Margin="0,0,8,8" />
+                <Menu Background="Transparent" VerticalAlignment="Center" Margin="0,0,8,8">
+                    <MenuItem Header="更多">
+                        <MenuItem Header="刷新读取配置" Command="{Binding RefreshReadProfilesCommand}" />
+                        <MenuItem Header="设计读取配置" Command="{Binding DesignReadProfileCommand}" />
+                        <MenuItem Header="加载基础资料 / 重试" Command="{Binding InitializeCommand}" />
+                        <Separator />
+                        <MenuItem Header="重试原保存请求" Command="{Binding RetrySaveCommand}" />
+                        <MenuItem Header="开始新导入" Command="{Binding NewImportCommand}" />
+                    </MenuItem>
+                </Menu>
+            </WrapPanel>
+            <ScrollViewer MaxHeight="64" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
-                    <WrapPanel>
-                        <ComboBox Width="200" IsEnabled="{Binding CanSelectReadProfile}" ItemsSource="{Binding ReadProfiles}" DisplayMemberPath="ConfigName" SelectedItem="{Binding SelectedReadProfile, Mode=TwoWay}" Margin="0,0,8,0"/>
-                        <ui:Button Content="刷新配置" Command="{Binding RefreshReadProfilesCommand}" Margin="0,0,8,0"/>
-                        <ui:Button Content="设计读取配置" Command="{Binding DesignReadProfileCommand}" Margin="0,0,8,0"/>
-                    </WrapPanel>
-                    <WrapPanel>
-                        <ui:Button Content="加载基础资料 / 重试" Command="{Binding InitializeCommand}" Margin="0,0,8,0"/>
-                        <ui:Button Content="检验与匹配" Command="{Binding CheckImportCommand}" Margin="0,0,8,0"/>
-                        <ui:Button Content="保存草稿至服务器" ToolTip="需要销售订单维护权限，且当前编辑版本已通过检验" Command="{Binding SaveDraftCommand}" Margin="0,0,8,0" Appearance="Primary"/>
-                        <ui:Button Content="重试原保存请求" Command="{Binding RetrySaveCommand}" Margin="0,0,8,0"/>
-                        <ui:Button Content="开始新导入" Command="{Binding NewImportCommand}" Margin="0,0,8,0"/>
-                        <ui:Button Content="按配置读取单头" Command="{Binding ReadHeaderCommand}" Margin="0,0,8,0"
-                           AutomationProperties.Name="按地址配置读取 Excel 单头"/>
-                    </WrapPanel>
-                    <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
-                        <StackPanel>
-                            <TextBlock Text="{Binding SubmissionMessage}" TextWrapping="Wrap" AutomationProperties.Name="检查与保存结果"/>
-                            <TextBlock Text="{Binding ParseMessage}" TextWrapping="Wrap" AutomationProperties.Name="Excel 解析结果"/>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <Expander Header="Excel 单头原文（仅供核对）" Margin="0,4,0,0">
-                        <StackPanel>
-                            <TextBlock Text="{Binding Header.OriginalTerms, StringFormat='Terms: {0}'}" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding Header.OriginalUpdateDateText, StringFormat='UpdateDate: {0}'}"/>
-                        </StackPanel>
-                    </Expander>
+                    <TextBlock Text="{Binding SubmissionMessage}" Style="{StaticResource ImportStatusText}" TextWrapping="Wrap" AutomationProperties.Name="检查与保存结果" />
+                    <TextBlock Text="{Binding ParseMessage}" Style="{StaticResource ImportStatusText}" TextWrapping="Wrap" AutomationProperties.Name="Excel 解析结果" />
                 </StackPanel>
-            </Grid>
-
-            <!--销售订单详情-->
-            <Grid Grid.Row="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="3*" />
-                    <RowDefinition Height="8" />
-                    <RowDefinition Height="0"/>
-                    <RowDefinition Height="8" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="8" />
-                    <RowDefinition Height="2*" />
-                    <RowDefinition Height="4" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <!--单头-->
-                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="8"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                <ui:Card Grid.Row="0" IsEnabled="{Binding IsEditable}">
+            </ScrollViewer>
+        </StackPanel>
+        <ScrollViewer x:Name="HeaderScroll" Grid.Row="1" MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource ImportHeaderMaxHeight}}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <ui:Card IsEnabled="{Binding IsEditable}" Margin="0,0,0,8">
                     <WrapPanel>
                         <StackPanel Width="220" Margin="0,0,12,8">
-                            <TextBlock Text="客户代码" Margin="0,0,0,4"/>
-                            <custromers:CustomerAutoSuggestComboBox ItemsSource="{Binding ReferenceData.Customers}"
-                            SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
-                            SelectionCommittedCommand="{Binding CustomerSelectedCommand}"
-                            SelectionClearedCommand="{Binding CustomerClearedCommand}"/>
+                            <TextBlock Text="客户代码" Margin="0,0,0,4" />
+                            <custromers:CustomerAutoSuggestComboBox ItemsSource="{Binding ReferenceData.Customers}" SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}" SelectionCommittedCommand="{Binding CustomerSelectedCommand}" SelectionClearedCommand="{Binding CustomerClearedCommand}" />
                         </StackPanel>
                         <StackPanel Width="180" Margin="0,0,12,8">
-                            <TextBlock Text="订单号" Margin="0,0,0,4"/>
-                            <ui:TextBox Text="{Binding Header.OrderNo}" IsReadOnly="True" PlaceholderText="新订单服务端生成"/>
+                            <TextBlock Text="订单号" Margin="0,0,0,4" />
+                            <ui:TextBox Text="{Binding Header.OrderNo}" IsReadOnly="True" PlaceholderText="新订单服务端生成" />
                         </StackPanel>
                         <StackPanel Width="150" Margin="0,0,12,8">
-                            <TextBlock Text="订单日期" Margin="0,0,0,4"/>
-                            <DatePicker SelectedDateFormat="Short" 
-                                    SelectedDate="{Binding Header.OrderDate, Mode=TwoWay}"/>
+                            <TextBlock Text="订单日期" Margin="0,0,0,4" />
+                            <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.OrderDate, Mode=TwoWay}" />
                         </StackPanel>
                         <StackPanel Width="150" Margin="0,0,12,8">
-                            <TextBlock Text="订单交期" Margin="0,0,0,4"/>
-                            <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.DeliveryDate, Mode=TwoWay}"/>
-                        </StackPanel>
-                        <StackPanel Width="150" Margin="0,0,12,8">
-                            <TextBlock Text="回复日期" Margin="0,0,0,4"/>
-                            <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.ReplyDate, Mode=TwoWay}"/>
+                            <TextBlock Text="订单交期" Margin="0,0,0,4" />
+                            <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.DeliveryDate, Mode=TwoWay}" />
                         </StackPanel>
                         <StackPanel Width="100" Margin="0,0,12,8">
-                            <TextBlock Text="币种" Margin="0,0,0,4"/>
-                            <ComboBox ItemsSource="{Binding CurrencyOptions}" DisplayMemberPath="CurrencyCode" SelectedValuePath="CurrencyCode" SelectedValue="{Binding Header.Currency, Mode=TwoWay}"/>
+                            <TextBlock Text="币种" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding CurrencyOptions}" DisplayMemberPath="CurrencyCode" SelectedValuePath="CurrencyCode" SelectedValue="{Binding Header.Currency, Mode=TwoWay}" />
                         </StackPanel>
                         <StackPanel Width="100" Margin="0,0,12,8">
-                            <TextBlock Text="汇率" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding Header.ExchangeRateText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
+                            <TextBlock Text="汇率" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding Header.ExchangeRateText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
                         </StackPanel>
-                        <StackPanel Width="160" Margin="0,0,12,8">
-                            <TextBlock Text="付款方式" Margin="0,0,0,4"/>
-                            <ComboBox ItemsSource="{Binding PaymentMethodOptions}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" SelectedValue="{Binding Header.PaymentMethod, Mode=TwoWay}"/>
+                        <StackPanel Width="200" Margin="0,0,12,8">
+                            <TextBlock Text="客户 PO" Margin="0,0,0,4" />
+                            <ui:TextBox PlaceholderText="客户Po号" Text="{Binding Header.CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
-                        <StackPanel Width="160" Margin="0,0,12,8">
-                            <TextBlock Text="贸易术语" Margin="0,0,0,4"/>
-                            <ComboBox ItemsSource="{Binding IncotermOptions}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" SelectedValue="{Binding Header.Incoterm, Mode=TwoWay}"/>
+                        <StackPanel Width="200" Margin="0,0,12,8">
+                            <TextBlock Text="发票号" Margin="0,0,0,4" />
+                            <ui:TextBox PlaceholderText="发票号" Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                     </WrapPanel>
                 </ui:Card>
-
-                <ui:Card Grid.Row="2" IsEnabled="{Binding IsEditable}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="4"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="4"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="4"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="4"/>
-                            <RowDefinition Height="50"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="6*"/>
-                            <ColumnDefinition Width="20" />
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="2*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Ship-To"/>
-
-                        <ui:TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
-                                    PlaceholderText="客户联系人..."
-                                    Text="{Binding Header.ShipToName, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <ui:TextBox Grid.Row="4" Grid.ColumnSpan="3" 
-                                    PlaceholderText="客户地址..."
-                                 Text="{Binding Header.ShipToAddress, UpdateSourceTrigger=PropertyChanged}" 
-                                 TextWrapping="Wrap"/>
-
-                        <TextBlock Grid.Row="6" Text="Phone:" VerticalAlignment="Center" />
-                        <ui:TextBox Grid.Row="6" Grid.Column="2"
-                                    Text="{Binding Header.ShipToPhone, UpdateSourceTrigger=PropertyChanged}"
-                                    PlaceholderText="联系方式:"/>
-
-                        <TextBlock Grid.Row="8" Text="Terms:" VerticalAlignment="Center" />
-                        <ui:TextBox Grid.Row="8" Grid.Column="2" 
-                                    Text="{Binding Header.IncotermSortRemark,UpdateSourceTrigger=PropertyChanged}"
-                                    PlaceholderText="IncotermSortRemark:"
-                                    TextAlignment="Left" TextWrapping="Wrap"/>
-
-
-                        <TextBlock Grid.Column="4" Text="PO No" VerticalAlignment="Center" />
-                        <ui:TextBox Grid.Column="6" Grid.ColumnSpan="8"
-                                    PlaceholderText="客户Po号"
-                                Text="{Binding Header.CustomerPoNo, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Grid.Row="2" Grid.Column="4" Text="InvoiceNo" VerticalAlignment="Center" />
-                        <ui:TextBox Grid.Row="2" Grid.Column="6" Grid.ColumnSpan="8" 
-                                    PlaceholderText="发票号"
-                                    Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
-
-                        <TextBlock Grid.Row="4" Grid.Column="4" Text="Date:" VerticalAlignment="Center" />
-                        <DatePicker IsEnabled="False" ToolTip="待契约支持后实现" Grid.Row="4" Grid.Column="6"  SelectedDateFormat="Short"/>
-
-                        <TextBlock Grid.Row="4" Grid.Column="8" Text="UpdateDate:" VerticalAlignment="Center" />
-                        <DatePicker IsEnabled="False" ToolTip="待契约支持后实现" Grid.Row="4" Grid.Column="10"  SelectedDateFormat="Short"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="4" Text="ETD:" VerticalAlignment="Center" />
-                        <DatePicker SelectedDateFormat="Short" Grid.Row="6" Grid.Column="6" ToolTip="ETD" SelectedDate="{Binding Header.Etd, Mode=TwoWay}"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="8" Text="ETA:" VerticalAlignment="Center" />
-                        <DatePicker SelectedDateFormat="Short" Grid.Row="6" Grid.Column="10" Grid.ColumnSpan="6" ToolTip="ETA" SelectedDate="{Binding Header.Eta, Mode=TwoWay}"/>
-
-                        <TextBlock Grid.Row="8" Grid.Column="4" Text="Shipped By:" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="8" Grid.Column="6" Grid.ColumnSpan="6" VerticalContentAlignment="Center"
-                                      ItemsSource="{Binding ShippedByOptions}"
-                                      SelectedValue="{Binding Header.ShippedBy, Mode=TwoWay}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn"
-                                      TextSearch.TextPath="DataNameEn" />
-                    </Grid>
-                </ui:Card>
-
-                </Grid>
-                </ScrollViewer>
-                <GridSplitter Grid.Row="3"/>
-
-                <!--DataGrid操作-->
-                <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,4,0,4">
-                    <ui:Button Margin="0,0,4,0" Command="{Binding ReadLinesCommand}" Content="按配置读取明细"
-                           AutomationProperties.Name="按地址配置读取 Excel 明细"/>
-                    <ui:Button Margin="0,0,4,0"  Command="{Binding AddStandardLineCommand}"  Content="添加产品" />
-                    <ui:Button Margin="0,0,4,0"  Command="{Binding AddNonStandardLineCommand}"  Content="添加非标件" />
-                    <ui:Button Margin="0,0,4,0"  Command="{Binding DeleteSelectedLineCommand}"  Content="删除行" />
-                </StackPanel>
-
-                <DataGrid x:Name="OrderLinesGrid" Grid.Row="6"                  
-                      RowHeight="{StaticResource DataGridRowHeightMedium}"
-                      FontSize="{DynamicResource ControlContentThemeFontSize}"
-                      ItemsSource="{Binding Lines}" SelectionChanged="OnSelectionChanged" CanUserDeleteRows="False"
-                      AutoGenerateColumns="False"
-                      CanUserAddRows="False"
-                      CanUserSortColumns="False"
-                      IsReadOnly="{Binding IsReadOnly}"
-                      SelectionMode="Extended"
-                      SelectionUnit="FullRow" RowDetailsVisibilityMode="VisibleWhenSelected">
-
-                    <DataGrid.Columns>
-
-                        <DataGridTextColumn Header="类型" Width="58" IsReadOnly="True"
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        Binding="{Binding LineTypeText}"/>
-
-                        <DataGridTemplateColumn Header="SKU" Width="185">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Sku}" Style="{StaticResource SwiftExportDataGridTextBlock}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <Grid>
-                                        <sales:SalesProductLookupTextBox x:Name="ProductEditor"
-                                        SelectedProduct="{Binding SelectedProduct, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                        ItemsSource="{Binding ProductCandidates}" SearchCommand="{Binding SearchCommand}"
-                                        SelectionCommittedCommand="{Binding CommitProductCommand}"
-                                        SelectionClearedCommand="{Binding ClearProductCommand}" IsBusy="{Binding IsSearchBusy}"/>
-                                        <TextBlock x:Name="NonStandardSku" Text="{Binding Sku}" Visibility="Collapsed"/>
+                <WrapPanel Margin="0,0,0,8">
+                    <ToggleButton x:Name="ShippingToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="收货资料" Content="收货资料" />
+                    <controls:ImportHeaderPopup x:Name="ShippingPopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=ShippingToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=ShippingToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
+                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
+                                    <TextBlock Text="收货资料" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <WrapPanel Margin="8" IsEnabled="{Binding IsEditable}">
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="收货名称" Margin="0,0,0,4" />
+                                            <ui:TextBox PlaceholderText="客户联系人..." Text="{Binding Header.ShipToName, UpdateSourceTrigger=PropertyChanged}" />
+                                        </StackPanel>
+                                        <StackPanel Width="400" Margin="0,0,12,8">
+                                            <TextBlock Text="收货地址" Margin="0,0,0,4" />
+                                            <ui:TextBox PlaceholderText="客户地址..." Text="{Binding Header.ShipToAddress, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="联系电话" Margin="0,0,0,4" />
+                                            <ui:TextBox Text="{Binding Header.ShipToPhone, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="联系方式:" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </controls:ImportHeaderPopup>
+                    <ToggleButton x:Name="TradeToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="贸易与运输资料" Content="贸易与运输资料" />
+                    <controls:ImportHeaderPopup x:Name="TradePopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=TradeToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=TradeToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
+                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
+                                    <TextBlock Text="贸易与运输资料" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <WrapPanel Margin="8" IsEnabled="{Binding IsEditable}">
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="回复日期" Margin="0,0,0,4" />
+                                            <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.ReplyDate, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="付款方式" Margin="0,0,0,4" />
+                                            <ComboBox ItemsSource="{Binding PaymentMethodOptions}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" SelectedValue="{Binding Header.PaymentMethod, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="贸易术语" Margin="0,0,0,4" />
+                                            <ComboBox ItemsSource="{Binding IncotermOptions}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" SelectedValue="{Binding Header.Incoterm, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Width="400" Margin="0,0,12,8">
+                                            <TextBlock Text="贸易条款说明" Margin="0,0,0,4" />
+                                            <ui:TextBox Text="{Binding Header.IncotermSortRemark,UpdateSourceTrigger=PropertyChanged}" PlaceholderText="IncotermSortRemark:" TextAlignment="Left" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="ETD" Margin="0,0,0,4" />
+                                            <DatePicker SelectedDateFormat="Short" ToolTip="ETD" SelectedDate="{Binding Header.Etd, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="ETA" Margin="0,0,0,4" />
+                                            <DatePicker SelectedDateFormat="Short" ToolTip="ETA" SelectedDate="{Binding Header.Eta, Mode=TwoWay}" />
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="运输方式" Margin="0,0,0,4" />
+                                            <ComboBox VerticalContentAlignment="Center" ItemsSource="{Binding ShippedByOptions}" SelectedValue="{Binding Header.ShippedBy, Mode=TwoWay}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" TextSearch.TextPath="DataNameEn" />
+                                        </StackPanel>
+                                    </WrapPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </controls:ImportHeaderPopup>
+                    <ToggleButton x:Name="RemarkToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="备注" Content="备注" />
+                    <controls:ImportHeaderPopup x:Name="RemarkPopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=RemarkToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=RemarkToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
+                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
+                                    <TextBlock Text="备注" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <Grid Height="60">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="4" />
+                                            <ColumnDefinition Width="*" MinWidth="200" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="备注:" VerticalAlignment="Top" />
+                                        <ui:TextBox Grid.Column="2" FontSize="10" IsEnabled="{Binding IsEditable}" Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" />
                                     </Grid>
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding IsNonStandard}" Value="True">
-                                            <Setter TargetName="ProductEditor" Property="Visibility" Value="Collapsed"/>
-                                            <Setter TargetName="NonStandardSku" Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
-                        </DataGridTemplateColumn>
-
-                        <DataGridTextColumn Header="客户型号" Width="125"
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                        Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <DataGridTextColumn Header="原表中性型号" Width="135"
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                        Binding="{Binding OriginalLinkSku, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <DataGridTextColumn Header="原表中性型号" Width="135"
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                        Binding="{Binding OriginalLinkSku, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <DataGridTextColumn Header="英文描述" Width="210" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                        Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <DataGridTextColumn Header="英文颜色" Width="105" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                        Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <DataGridTextColumn Header="英文配置" Width="150" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
-                                        Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}"/>
-
-                        <DataGridTextColumn Header="数量" Width="78" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding QtyText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-
-                        <DataGridTemplateColumn Header="单位" Width="100">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding UnitSnapshot}" ToolTip="标准产品单位由后端确定；本期查询未提供单位"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <ComboBox IsEnabled="{Binding IsNonStandard}"
-                                    ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                    DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn"
-                                    SelectedValue="{Binding UnitSnapshot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
-                        </DataGridTemplateColumn>
-
-                        <DataGridTextColumn Header="USD单价" Width="88" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding UsdPriceText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-
-                        <DataGridTextColumn Header="CNY单价" Width="88" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding CnyPriceText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-
-                        <DataGridTextColumn Header="USD金额" Width="92" IsReadOnly="True" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        Binding="{Binding UsdAmount, StringFormat=N2}"/>
-
-                        <DataGridTextColumn Header="CNY金额" Width="92" IsReadOnly="True" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        Binding="{Binding CnyAmount, StringFormat=N2}" />
-
-                        <DataGridTextColumn Header="PCS/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding PcsOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-                        <DataGridTextColumn Header="NW/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding NwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-                        <DataGridTextColumn Header="GW/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding GwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-                        <DataGridTextColumn Header="M3/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding CbmOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-
-                        <DataGridTextColumn Header="PCS/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding PcsOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-                        <DataGridTextColumn Header="NW/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding NwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-                        <DataGridTextColumn Header="GW/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding GwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-                        <DataGridTextColumn Header="M3/CTN" Width="85"
-                                        ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding CbmOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"/>
-
-                        <DataGridTemplateColumn Header="预计交期" Width="125">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding ExpectedDeliveryDate, StringFormat=yyyy-MM-dd}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <DatePicker SelectedDate="{Binding ExpectedDeliveryDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
-                        </DataGridTemplateColumn>
-
-                        <DataGridTextColumn Header="备注" Width="*" 
-                                        ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
-                                        Binding="{Binding SubNote, UpdateSourceTrigger=PropertyChanged}"/>
-                        <DataGridTextColumn Header="系统中性型号" Binding="{Binding LinkSku}" IsReadOnly="True" Width="130"/>
-                        <DataGridTextColumn Header="匹配状态" Binding="{Binding MatchStatus}" IsReadOnly="True" Width="100"/>
-                        <DataGridTemplateColumn Header="行类型处理" Width="105">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <ui:Button Content="切换标准/非标" Command="{Binding DataContext.ToggleNonStandardCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-
-                    <DataGrid.RowDetailsTemplate>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </controls:ImportHeaderPopup>
+                    <ToggleButton x:Name="OriginalToggleButton" IsChecked="False" Margin="0,0,8,4" AutomationProperties.Name="Excel 单头原文（仅供核对）" Content="Excel 单头原文（仅供核对）" />
+                    <controls:ImportHeaderPopup x:Name="OriginalPopup" IsOpen="{Binding IsChecked, Mode=TwoWay, ElementName=OriginalToggleButton}" Placement="Bottom" PlacementTarget="{Binding ElementName=OriginalToggleButton}" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" Width="{Binding ActualWidth, ElementName=HeaderScroll}" MaxWidth="900" VerticalOffset="4" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None" TextElement.FontFamily="{Binding PlacementTarget.FontFamily, RelativeSource={RelativeSource Self}}" TextElement.FontSize="{Binding PlacementTarget.FontSize, RelativeSource={RelativeSource Self}}">
+                        <Border Padding="12" Background="{DynamicResource SwiftExportBackground}" BorderBrush="#D7DCE3" BorderThickness="1" CornerRadius="4" KeyboardNavigation.TabNavigation="Cycle">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button Content="关闭" DockPanel.Dock="Right" Command="{x:Static ApplicationCommands.Close}" />
+                                    <TextBlock Text="Excel 单头原文（仅供核对）" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" MaxHeight="400" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Header.OriginalTerms, StringFormat='Terms: {0}'}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Header.OriginalUpdateDateText, StringFormat='UpdateDate: {0}'}" />
+                                        <TextBlock Text="原表附加日期（暂不保存）" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <DatePicker IsEnabled="False" ToolTip="待契约支持后实现" SelectedDateFormat="Short" />
+                                            <DatePicker IsEnabled="False" ToolTip="待契约支持后实现" SelectedDateFormat="Short" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </controls:ImportHeaderPopup>
+                </WrapPanel>
+            </StackPanel>
+        </ScrollViewer>
+        <WrapPanel Grid.Row="2" Margin="0,8,0,8">
+            <ui:Button Content="读取明细" Command="{Binding ReadLinesCommand}" AutomationProperties.Name="按地址配置读取 Excel 明细" Margin="0,0,8,0" />
+            <ui:Button Content="添加产品" Command="{Binding AddStandardLineCommand}" Margin="0,0,8,0" />
+            <ui:Button Content="添加非标件" Command="{Binding AddNonStandardLineCommand}" Margin="0,0,8,0" />
+            <ui:Button Content="删除行" Command="{Binding DeleteSelectedLineCommand}" />
+            <ui:ToggleSwitch x:Name="ExtraFieldsSwitch" Content="显示更多字段" IsChecked="False" Margin="16,0,0,0" VerticalAlignment="Center" ToolTip="显示或隐藏次要明细字段；不清除已有数据" AutomationProperties.Name="显示更多明细字段" />
+        </WrapPanel>
+        <DataGrid ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" x:Name="OrderLinesGrid" Grid.Row="3" RowHeight="{StaticResource DataGridRowHeightMedium}" FontSize="{DynamicResource ControlContentThemeFontSize}" ItemsSource="{Binding Lines}" SelectionChanged="OnSelectionChanged" CanUserDeleteRows="False" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="False" IsReadOnly="{Binding IsReadOnly}" SelectionMode="Extended" SelectionUnit="FullRow" RowDetailsVisibilityMode="VisibleWhenSelected">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="类型" Width="58" IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" Binding="{Binding LineTypeText}" />
+                <DataGridTemplateColumn Header="SKU" Width="185">
+                    <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <StackPanel Margin="8" IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
-                                <TextBlock Text="{Binding MatchMessage}" TextWrapping="Wrap"/>
-                                <WrapPanel>
-                                    <TextBlock Text="多候选：" VerticalAlignment="Center"/>
-                                    <ComboBox Width="230" ItemsSource="{Binding MatchCandidates}" SelectedItem="{Binding SelectedMatchCandidate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="产品匹配候选">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding Sku}"/>
-                                                    <TextBlock Text="{Binding LinkSku, StringFormat=' / {0}'}"/>
-                                                    <TextBlock Text="{Binding IsUsable, StringFormat=' / 可用：{0}'}"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <ui:Button Content="使用所选候选后重新检验" Command="{Binding DataContext.ChooseMatchCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Margin="8,0"/>
-                                    <CheckBox Content="已核对原表与系统中性型号，确认差异" IsChecked="{Binding AcceptLinkSkuMismatch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
-                                </WrapPanel>
-                            </StackPanel>
+                            <TextBlock Text="{Binding Sku}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
                         </DataTemplate>
-                    </DataGrid.RowDetailsTemplate>
-                </DataGrid>
-
-                <!--汇总-->
-                <DockPanel Grid.Row="8">
-                    <Grid Height="60">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="*" MinWidth="200"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock  Grid.Column="0" Text="备注:" VerticalAlignment="Top" />
-                        <ui:TextBox Grid.Column="2" 
-                                FontSize="10" 
-                                IsEnabled="{Binding IsEditable}" Text="{Binding Header.Remark, UpdateSourceTrigger=PropertyChanged}" 
-                                TextWrapping="Wrap" 
-                                AcceptsReturn="True" />
-                    </Grid>
-                    <Grid DockPanel.Dock="Right">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="16" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding BusyMessage}" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="1" Text="输入数量：" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="1" Margin="75,0,0,0" Text="{Binding TotalQty, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="3" Text="USD：" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="3" Margin="42,0,0,0" Text="{Binding TotalUsdAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="5" Text="CNY：" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="5" Margin="42,0,0,0" Text="{Binding TotalCnyAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </Grid>
-                </DockPanel>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <sales:SalesProductLookupTextBox x:Name="ProductEditor" SelectedProduct="{Binding SelectedProduct, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding ProductCandidates}" SearchCommand="{Binding SearchCommand}" SelectionCommittedCommand="{Binding CommitProductCommand}" SelectionClearedCommand="{Binding ClearProductCommand}" IsBusy="{Binding IsSearchBusy}" />
+                                <TextBlock x:Name="NonStandardSku" Text="{Binding Sku}" Visibility="Collapsed" />
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsNonStandard}" Value="True">
+                                    <Setter TargetName="ProductEditor" Property="Visibility" Value="Collapsed" />
+                                    <Setter TargetName="NonStandardSku" Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="客户型号" Width="125" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTextColumn Header="原表中性型号" Width="135" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" Binding="{Binding OriginalLinkSku, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTextColumn Header="英文描述" Width="210" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="英文颜色" Width="105" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="英文配置" Width="150" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTextColumn Header="数量" Width="78" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding QtyText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTemplateColumn Header="单位" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding UnitSnapshot}" ToolTip="标准产品单位由后端确定；本期查询未提供单位" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <ComboBox IsEnabled="{Binding IsNonStandard}" ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}" DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" SelectedValue="{Binding UnitSnapshot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="USD单价" Width="88" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding UsdPriceText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTextColumn Header="CNY单价" Width="88" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding CnyPriceText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTextColumn Header="USD金额" Width="92" IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Binding="{Binding UsdAmount, StringFormat=N2}" />
+                <DataGridTextColumn Header="CNY金额" Width="92" IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" Binding="{Binding CnyAmount, StringFormat=N2}" />
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="PCS/CTN" Width="85" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding PcsOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="NW/CTN" Width="85" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding NwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="GW/CTN" Width="85" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding GwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="M3/CTN" Width="85" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" Binding="{Binding CbmOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
+                <DataGridTemplateColumn Header="预计交期" Width="125">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ExpectedDeliveryDate, StringFormat=yyyy-MM-dd}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <DatePicker SelectedDate="{Binding ExpectedDeliveryDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" Header="备注" Width="*" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" Binding="{Binding SubNote, UpdateSourceTrigger=PropertyChanged}" />
+                <DataGridTextColumn Header="系统中性型号" Binding="{Binding LinkSku}" IsReadOnly="True" Width="130" />
+                <DataGridTextColumn Header="匹配状态" Binding="{Binding MatchStatus}" IsReadOnly="True" Width="100" />
+                <DataGridTemplateColumn Header="行类型处理" Width="105">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ui:Button Content="切换标准/非标" Command="{Binding DataContext.ToggleNonStandardCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="8" IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                        <TextBlock Text="{Binding MatchMessage}" TextWrapping="Wrap" />
+                        <WrapPanel>
+                            <TextBlock Text="多候选：" VerticalAlignment="Center" />
+                            <ComboBox Width="230" ItemsSource="{Binding MatchCandidates}" SelectedItem="{Binding SelectedMatchCandidate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="产品匹配候选">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Sku}" />
+                                            <TextBlock Text="{Binding LinkSku, StringFormat=' / {0}'}" />
+                                            <TextBlock Text="{Binding IsUsable, StringFormat=' / 可用：{0}'}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <ui:Button Content="使用所选候选后重新检验" Command="{Binding DataContext.ChooseMatchCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" Margin="8,0" />
+                            <CheckBox Content="已核对原表与系统中性型号，确认差异" IsChecked="{Binding AcceptLinkSkuMismatch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" />
+                        </WrapPanel>
+                    </StackPanel>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
+        </DataGrid>
+        <DockPanel Grid.Row="4">
+            <Grid DockPanel.Dock="Right">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding BusyMessage}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="输入数量：" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Margin="75,0,0,0" Text="{Binding TotalQty, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="3" Text="USD：" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="3" Margin="42,0,0,0" Text="{Binding TotalUsdAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="5" Text="CNY：" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="5" Margin="42,0,0,0" Text="{Binding TotalCnyAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
             </Grid>
-
-
-            <ui:InfoBar Grid.Row="2"
-                    Title="请检查销售订单"
-                    Message="{Binding ValidationSummary}"
-                    Severity="Warning"
-                    IsClosable="False"
-                    IsOpen="{Binding HasValidationError}" />
-
-
-        </Grid>
+        </DockPanel>
+        <ui:InfoBar Grid.Row="5" Title="请检查销售订单" Message="{Binding ValidationSummary}" Severity="Warning" IsClosable="False" IsOpen="{Binding HasValidationError}" />
+    </Grid>
 </UserControl>
-
-

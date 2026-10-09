@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { generatePermissionKeys } from "./权限键投影.mjs";
 
 // 重新生成后逐字节比较；发现漂移立即失败，不替人工接受生成差异。
 const project = fileURLToPath(new URL("../", import.meta.url));
+await generatePermissionKeys(true);
 const target = new URL(
   "../app/shared/api/generated/client.ts",
   import.meta.url,

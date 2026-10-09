@@ -8,7 +8,25 @@
 >
 > **2026-10-08 文档修订**：保留以下历史命令/计数/失败，补充后续实施门槛。当前源码的权限数量断言已为 235（本次只读核对），不是仍停留在 232；本轮未重新运行测试，不能把这项静态变化写成当前全套通过。
 
-## 范围与实现
+<a id="browser-session-facts"></a>
+
+## 2026-10-09 浏览器会话定向补验
+
+按用户授权新增以下会话 HTTP 能力，未修改 Product DTO、事务、权限或 BatchSave 行为。协议规则正文只维护在 [公共设施基线](Web客户端架构与脚手架决策.md#web-common-services)，前端整合证据见 [骨架记录](../SwiftExport.WebApp/docs/骨架验收记录.md#公共设施计划实施与最终整合验收)。
+
+| 新操作 | 指定范围事实 |
+| --- | --- |
+| `GET /api/auth/browser-session/csrf` | 裸 BrowserSessionCsrfDto，复用 ASP.NET 防伪令牌；浏览器登录/退出核验 |
+| `GET /api/auth/browser-session/restore` | 仅 Cookie 走既有 JWT/实时凭据版本验证，返回原 LoginTokenDto；严格原 exp，不续签或重新设置 Cookie |
+| `POST /api/auth/browser-session/logout` | CSRF 验证后删除恢复 Cookie，204；旧 JWT 的服务器撤销未增加 |
+
+已有 login 保留 WPF 的 DTO 与无 Cookie 行为，只有明确 Web 标记才增加防伪与原 JWT Cookie。真实 HTTPS 隔离宿主验证混用 Bearer、缺失/损坏防伪、Cookie 属性/期限、不续期、过期及凭据版本变化被拒绝；普通业务仍只接 Bearer，Cookie 不授权普通端点。
+
+`FirstWebHttpContractTests` 与 `BrowserSessionHttpTests` 最终共 **38/38 通过、0 跳过**；使用真实 Controller/JWT/Antiforgery 管道，业务及凭据数据端口为隔离夹具，没有连接 PostgreSQL。当前真实 Swagger 导出加审核切片/Orval/权限投影已通过，Web 客户端含 12 个审核操作，PermissionCatalog.All 投影为 116 个键。运行客户端仅 WebApp 一份；历史工具生成样例不成为第二套客户端。
+
+这些证据不证明真实账号登录、运行库权限/候选组合或生产 Cookie 托管已通过；也不关闭下文 Product 稳定结果分类、回滚确认及恢复查询缺口。2026-10-07 历史日期、命令、计数及未通过项继续保留如下。
+
+## 2026-10-07 范围与实现
 
 主角色为 Backend，采用后端 API 工作流。写入限于 WebApi 契约描述/配置、相关测试、独立生成验证工具和本报告。本轮没有修改 Application/Core/Infrastructure 业务行为，没有修改共享 DTO、权限策略、CORS 或令牌策略，没有运行 PostgreSQL 写入、部署、提交或推送。
 
@@ -29,6 +47,8 @@
 Swagger 路径沿用现有小写路由配置。POST 发布本轮验收的 `application/json`；查询参数保留生成文档中的名称。现有服务器仍使用原来的绑定和序列化设置。
 
 ## 已有约定的验证
+
+以下主体保留 2026-10-07 的首批范围。2026-10-09 新增浏览器会话的指定事实见 [定向会话补验](#browser-session-facts)，不能用它替代原报告未通过的组合测试或 Product 真实写入门槛。
 
 - 登录/me 的成功正文没有 `success/data` 包装；失败仍由统一 `ServiceResult<object>` 出口返回。
 - 产品分页是 POST page，包含分页与筛选；没有替换为简化 search 接口。
@@ -82,7 +102,7 @@ HTTP 测试注入 VERSION_CONFLICT 验证全局 409 映射，只证明已有错�
 | 冻结请求与追踪 | BatchSave 无业务 CommandId/幂等键；X-Correlation-ID 用于追踪 | 保留提交时间、完整冻结意图、ClientKey/Uid/基线 Version 和追踪头；attemptId 只作本地关联 |
 | 结果核实 | 没有专用保存结果查询协议 | 用现有授权读取独立核对；读回不 reset 草稿，不凭部分行相等接纳全批 |
 | 无法机器核实 | 新建行身份、部分回执、读权不足可能使读回不充分 | 有权限业务人员按现有业务/运维渠道核实；保全记录，明确结论及责任人，不扩权或自动重发 |
-| 人工退出 | 当前尚未开发 Web 恢复 UI/导出 | 按 WEB-TAB-04 实施用户主动、当前权限允许的记录导出及两步确认；未保全/无权限/取消不终止，批量关闭不调用；本地释放不表示服务器失败 |
+| 人工退出 | Product 真实请求的恢复 UI/材料导出尚未接入；公共入口已由模拟验收页消费 | 按 WEB-TAB-04 接真实用例并核验用户主动、当前权限允许的记录导出及两步确认；未保全/无权限/取消不终止，批量关闭不调用；本地释放不表示服务器失败 |
 | 版本拒绝 | 422/BUSINESS_BLOCKED 无专用版本冲突标识 | 展示业务拒绝并保留草稿；不能解析中文 message 区分冲突，也不能据此归为 B 类或解锁重提 |
 | 未确认回滚分类不完整 | 校验/行写入失败的 BUSINESS_BLOCKED，以及一般异常的 UNEXPECTED，在回滚确认与未确认分支使用相同 code；只在 message 有差异 | 已派发 Product 请求收到 422/BUSINESS_BLOCKED 或 500/UNEXPECTED，当前一律按 C 类保留冻结请求和锁，进入核实；即使文案称已回滚，也不 acceptChanges、不普通放弃、不自动或默认允许重提。取得满足 A/B 的独立证据后才接纳/解锁 |
 

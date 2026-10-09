@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -21,6 +21,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
     /// <summary>加载实际导入页并验证 WPF 绑定、选择器和 DataGrid 编辑模板，不连接 Excel。</summary>
     internal static class ImportPageChecks
     {
+        /// <summary>验证真实销售导入页的布局、选择、编辑绑定及宿主释放，不加载 Office。</summary>
         internal static void Run(Action<bool, string> check)
         {
             using (var f = new ImportTestFixture())
@@ -43,9 +44,12 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(f.Model.Header.Currency == "CNY", "币种选择双向回写编码");
                     f.Cache.CurrencyItems.Clear(); Pump();
                     check(f.Model.Header.Currency == "CNY" && (string)currency.SelectedValue == "CNY", "缓存清空保留当前币种与界面回显");
-                    var payment = Descendants<ComboBox>(view).Single(c => BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "Header.PaymentMethod");
+                    var tradePopup = (Popup)view.FindName("TradePopup");
+                    ((ToggleButton)view.FindName("TradeToggleButton")).IsChecked = true; Pump();
+                    var payment = Descendants<ComboBox>(tradePopup.Child).Single(c => BindingOperations.GetBinding(c, Selector.SelectedValueProperty)?.Path.Path == "Header.PaymentMethod");
                     f.Cache.DictionaryItems.Clear(); Pump();
                     check(f.Model.Header.PaymentMethod == "TT" && (string)payment.SelectedValue == "TT", "字典刷新不清掉当前付款方式");
+                    tradePopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
                     f.Model.AddStandardLineCommand.Execute(null); Pump();
                     var standard = f.Model.Lines[0];
                     var secondCustomer = new CustomerDto { Uid = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "乙" };
@@ -53,6 +57,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     customerEditor.CommitExternalSelection(secondCustomer, LookupCommitReason.Mouse); Pump();
                     check(customer.SelectedCustomer == f.Cache.Customers[0] && f.Model.Lines.Count == 1, "取消更换客户恢复控件显示并保留行");
                     var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                    ImportLayoutChecks.Run(view, grid, check);
                     check(view.Content is Grid && grid.ActualHeight > 0
                         && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
                         "销售明细在有限窗体高度中显示，不依赖顶层滚动");
@@ -79,8 +84,10 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true);
                     grid.SelectAll(); Pump(); f.Model.DeleteSelectedLineCommand.Execute(null); Pump();
                     check(f.Model.Lines.Count == 0, "DataGrid 多选桥接删除所有选中行");
-                    var dates = Descendants<DatePicker>(view).Where(d => BindingOperations.GetBinding(d, DatePicker.SelectedDateProperty)?.Path.Path == "Header.Etd").ToArray();
+                    ((ToggleButton)view.FindName("TradeToggleButton")).IsChecked = true; Pump();
+                    var dates = Descendants<DatePicker>(tradePopup.Child).Where(d => BindingOperations.GetBinding(d, DatePicker.SelectedDateProperty)?.Path.Path == "Header.Etd").ToArray();
                     check(dates.Length == 1, "ETD 已绑定而不是空白占位");
+                    tradePopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
                     check(!Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.SaveDraftCommand)).IsEnabled, "未获维护权限且未检验时服务器保存入口不可执行");
                     var headerButton = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.ReadHeaderCommand));
                     var linesButton = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.ReadLinesCommand));
@@ -119,8 +126,13 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 var layout = (Grid)view.Content;
                 var grid = (DataGrid)view.FindName("OrderLinesGrid");
                 check(layout.ActualWidth <= form.ClientSize.Width && grid.ActualHeight > 0,
-                    "有限 ElementHost 中页面不撑宽且明细保留可用高度");
+                    "有限 ElementHost 中页面不撑宽且明细保留可用高度：宽=" + layout.ActualWidth + "/" + form.ClientSize.Width + "，高=" + view.ActualHeight + "，行=" + string.Join("/", layout.RowDefinitions.Select(row => row.ActualHeight)));
+                var popup = (Popup)view.FindName("ShippingPopup");
+                ((ToggleButton)view.FindName("ShippingToggleButton")).IsChecked = true; Pump();
+                check(popup.IsOpen, "ElementHost 中能够打开单头 Popup");
                 host.Dispose(); host.Dispose(); f.Model.Dispose(); Pump();
+                check(!popup.IsOpen && ((ToggleButton)view.FindName("ShippingToggleButton")).IsChecked == false,
+                    "释放 ElementHost 同时关闭独立弹层并复位入口");
                 check(host.IsDisposed, "Office 与会话先后释放同一宿主不抛异常");
                 var childFirst = new SwiftExport.Client.VSTO.Hosting.TaskPanes.TaskPaneHostControl(new UserControl());
                 childFirst.Controls[0].Dispose();

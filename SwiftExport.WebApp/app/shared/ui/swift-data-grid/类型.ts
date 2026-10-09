@@ -1,16 +1,41 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { AriaAttributes, HTMLAttributes, ReactNode } from "react";
 
 /** 行身份只用于定位和选择；序号、当前页位置与业务实体身份不互相替代。 */
 export type SwiftDataGridRowKey = string | number;
 
-/** 文本值、原始缓冲、转换与错误均由调用方拥有，Grid 只显示并转交输入意图。 */
-export interface SwiftDataGridTextEditor<T extends object> {
-  getText(row: T, index: number): string;
-  onChange(row: T, text: string, index: number): void;
+/** 全部编辑器复用标签、错误与取消；业务当前值和转换始终属于调用方。 */
+export interface SwiftDataGridEditorFeedback<T extends object> {
   onCancel?(row: T, index: number): void;
   getError?(row: T, index: number): string | undefined;
   getLabel(row: T, index: number): string;
+}
+
+/** 自定义控件接收一致的只读与无障碍上下文，不获得业务状态或 HTTP 能力。 */
+export interface SwiftDataGridEditorContext<T extends object> {
+  row: T;
+  index: number;
+  readOnly: boolean;
+  error?: string;
+  inputAttributes: AriaAttributes & { id: string };
+  cancel(): void;
+}
+
+/** 文本值、原始缓冲、转换与错误均由调用方拥有，Grid 只显示并转交输入意图。 */
+export interface SwiftDataGridTextEditor<
+  T extends object,
+> extends SwiftDataGridEditorFeedback<T> {
+  kind?: "text";
+  getText(row: T, index: number): string;
+  onChange(row: T, text: string, index: number): void;
   inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
+}
+
+/** 枚举、日期及候选通过列内受控组合实现，不使用编辑器注册表或插件协议。 */
+export interface SwiftDataGridCustomEditor<
+  T extends object,
+> extends SwiftDataGridEditorFeedback<T> {
+  kind: "custom";
+  render(context: SwiftDataGridEditorContext<T>): ReactNode;
 }
 
 /** 列 key 保持稳定；自定义展示和受控文本编辑只选择其中一种。 */
@@ -19,8 +44,13 @@ export type SwiftDataGridColumn<T extends object> = {
   title: ReactNode;
   width?: string | number;
   readOnly?: boolean;
+  /** 文本列默认允许填充，自定义列须显式允许，业务仍自行校验接纳。 */
+  allowFillDown?: boolean;
 } & (
-  | { editor: SwiftDataGridTextEditor<T>; render?: never }
+  | {
+      editor: SwiftDataGridTextEditor<T> | SwiftDataGridCustomEditor<T>;
+      render?: never;
+    }
   | { render(row: T, index: number): ReactNode; editor?: never }
 );
 

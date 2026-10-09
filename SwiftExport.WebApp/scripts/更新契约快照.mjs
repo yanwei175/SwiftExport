@@ -1,0 +1,96 @@
+import { readFile, writeFile } from "node:fs/promises";
+import assert from "node:assert/strict";
+import {
+  generatePermissionKeys,
+  projectPermissionKeys,
+} from "./权限键投影.mjs";
+
+// 仅更新已审核清单，保留真实 schema/security；变更仍须审阅实际 diff。
+const flags = new Map();
+for (let i = 2; i < process.argv.length; i += 2)
+  flags.set(process.argv[i], process.argv[i + 1]);
+assert.ok(
+  flags.get("--openapi") && flags.get("--permissions"),
+  "使用 --openapi <导出文件> --permissions <目录文件>",
+);
+const document = JSON.parse(await readFile(flags.get("--openapi"), "utf8"));
+const permissions = JSON.parse(
+  await readFile(flags.get("--permissions"), "utf8"),
+);
+projectPermissionKeys(permissions);
+const selected = JSON.parse(
+  await readFile(
+    new URL("../openapi/已审核端点.json", import.meta.url),
+    "utf8",
+  ),
+);
+const paths = {};
+for (const [path, method, operationId] of selected) {
+  const operation = document.paths?.[path]?.[method];
+  assert.ok(operation, `缺少 ${method} ${path}`);
+  assert.equal(operation.operationId, operationId);
+  assert.ok(
+    operation.responses?.[
+      operationId === "logoutBrowserSession" ? "204" : "200"
+    ],
+    `${operationId} 缺少成功响应`,
+  );
+  if (operationId !== "logoutBrowserSession")
+    assert.ok(operation.responses["200"].content?.["application/json"]?.schema);
+  paths[path] = { ...paths[path], [method]: operation };
+}
+const schemas = {};
+// 引用闭包只能来自实际导出；悬空或未知引用立即停止，不能手造 DTO。
+function collect(value) {
+  if (value === null || typeof value !== "object") return;
+  if (typeof value.$ref === "string") {
+    assert.ok(
+      value.$ref.startsWith("#/components/schemas/"),
+      `未知引用 ${value.$ref}`,
+    );
+    const name = value.$ref.slice("#/components/schemas/".length);
+    if (!(name in schemas)) {
+      assert.ok(document.components?.schemas?.[name], `悬空引用 ${name}`);
+      schemas[name] = document.components.schemas[name];
+      collect(schemas[name]);
+    }
+  }
+  for (const child of Object.values(value)) collect(child);
+}
+collect(paths);
+const usedSecurity = new Set(
+  Object.values(paths).flatMap((methods) =>
+    Object.values(methods).flatMap((operation) =>
+      (operation.security ?? []).flatMap(Object.keys),
+    ),
+  ),
+);
+const securitySchemes = {};
+for (const name of usedSecurity) {
+  assert.ok(
+    document.components?.securitySchemes?.[name],
+    `缺少认证描述 ${name}`,
+  );
+  securitySchemes[name] = document.components.securitySchemes[name];
+}
+await writeFile(
+  new URL("../openapi/首批接口.json", import.meta.url),
+  JSON.stringify(
+    {
+      openapi: document.openapi,
+      info: document.info,
+      paths,
+      components: { schemas, securitySchemes },
+    },
+    null,
+    2,
+  ) + "\n",
+);
+await writeFile(
+  new URL("../openapi/权限目录.json", import.meta.url),
+  JSON.stringify({ codes: [...permissions.codes].sort() }, null, 2) + "\n",
+);
+await generatePermissionKeys();
+process.stdout.write(
+  `已从真实导出更新 ${selected.length} 个审核端点与 ${permissions.codes.length} 个权限键；请审阅差异并运行 generate/typecheck。\n`,
+);

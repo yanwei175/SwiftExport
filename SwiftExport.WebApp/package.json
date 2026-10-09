@@ -5,11 +5,13 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
+    "dev:cert": "node scripts/准备开发证书.mjs",
     "preview": "node scripts/静态预览.mjs",
     "typecheck": "react-router typegen && tsc --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check app tests scripts *.ts *.js *.mjs *.json",
     "generate": "orval --config orval.config.mjs",
+    "contract:update": "node scripts/更新契约快照.mjs",
     "generate:check": "node scripts/核对生成产物.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",

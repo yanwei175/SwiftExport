@@ -2,6 +2,9 @@
 export { SwiftDataGrid } from "./SwiftDataGrid";
 export type {
   SwiftDataGridColumn,
+  SwiftDataGridCustomEditor,
+  SwiftDataGridEditorContext,
+  SwiftDataGridEditorFeedback,
   SwiftDataGridFillDownIntent,
   SwiftDataGridPagination,
   SwiftDataGridProps,

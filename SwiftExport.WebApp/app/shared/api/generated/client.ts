@@ -77,6 +77,11 @@ export interface SwiftExportContractsDTOsAuthMeDto {
   isAdmin?: boolean;
 }
 
+export interface SwiftExportContractsDTOsAuthBrowserSessionCsrfDto {
+  /** @minLength 1 */
+  requestToken: string;
+}
+
 export interface SwiftExportContractsDTOsProductsRequestsProductSearchRequest {
   /** @nullable */
   batchKeywords?: string[] | null;
@@ -520,7 +525,7 @@ export const getLoginUrl = () => {
 }
 
 /**
- * @summary 验证凭据并返回裸 Token DTO。
+ * @summary 验证凭据并返回裸 Token DTO。Web 标记为 1 时必须 HTTPS、无 Authorization，并验证匿名 X-CSRF-TOKEN；保存同一原 JWT Cookie，不改变 WPF 调用。
  */
 export const login = async (swiftExportContractsDTOsAuthLoginRequestDto: SwiftExportContractsDTOsAuthLoginRequestDto, options?: Parameters<typeof executeRequest>[1]): Promise<loginResponse> => {
 
@@ -595,6 +600,155 @@ export const getMe = async ( options?: Parameters<typeof executeRequest>[1]): Pr
   {
     ...options,
     method: 'GET'
+
+
+  }
+);}
+
+
+
+export type getBrowserSessionCsrfResponse200 = {
+  data: SwiftExportContractsDTOsAuthBrowserSessionCsrfDto
+  status: 200
+}
+
+export type getBrowserSessionCsrfResponse400 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 400
+}
+
+export type getBrowserSessionCsrfResponse500 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 500
+}
+
+export type getBrowserSessionCsrfResponseSuccess = (getBrowserSessionCsrfResponse200) & {
+  headers: Headers;
+};
+export type getBrowserSessionCsrfResponseError = (getBrowserSessionCsrfResponse400 | getBrowserSessionCsrfResponse500) & {
+  headers: Headers;
+};
+
+export type getBrowserSessionCsrfResponse = (getBrowserSessionCsrfResponseSuccess | getBrowserSessionCsrfResponseError)
+
+export const getGetBrowserSessionCsrfUrl = () => {
+
+
+
+
+  return `/api/auth/browser-session/csrf`
+}
+
+/**
+ * @summary 匿名取得 Web 登录/退出防伪令牌；必须 HTTPS、无 Authorization，防伪 Cookie 覆盖 /api/auth。
+ */
+export const getBrowserSessionCsrf = async ( options?: Parameters<typeof executeRequest>[1]): Promise<getBrowserSessionCsrfResponse> => {
+
+  return executeRequest<getBrowserSessionCsrfResponse>(getGetBrowserSessionCsrfUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type restoreBrowserSessionResponse200 = {
+  data: SwiftExportContractsDTOsAuthLoginTokenDto
+  status: 200
+}
+
+export type restoreBrowserSessionResponse400 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 400
+}
+
+export type restoreBrowserSessionResponse401 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 401
+}
+
+export type restoreBrowserSessionResponse500 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 500
+}
+
+export type restoreBrowserSessionResponseSuccess = (restoreBrowserSessionResponse200) & {
+  headers: Headers;
+};
+export type restoreBrowserSessionResponseError = (restoreBrowserSessionResponse400 | restoreBrowserSessionResponse401 | restoreBrowserSessionResponse500) & {
+  headers: Headers;
+};
+
+export type restoreBrowserSessionResponse = (restoreBrowserSessionResponseSuccess | restoreBrowserSessionResponseError)
+
+export const getRestoreBrowserSessionUrl = () => {
+
+
+
+
+  return `/api/auth/browser-session/restore`
+}
+
+/**
+ * @summary 仅从恢复 Cookie 返回同一原 JWT；复用密码学及凭据版本验证，严格检查原 exp，不续签、不设置 Cookie，拒绝 Authorization。
+ */
+export const restoreBrowserSession = async ( options?: Parameters<typeof executeRequest>[1]): Promise<restoreBrowserSessionResponse> => {
+
+  return executeRequest<restoreBrowserSessionResponse>(getRestoreBrowserSessionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type logoutBrowserSessionResponse204 = {
+  data: void
+  status: 204
+}
+
+export type logoutBrowserSessionResponse400 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 400
+}
+
+export type logoutBrowserSessionResponse500 = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemObject
+  status: 500
+}
+
+export type logoutBrowserSessionResponseSuccess = (logoutBrowserSessionResponse204) & {
+  headers: Headers;
+};
+export type logoutBrowserSessionResponseError = (logoutBrowserSessionResponse400 | logoutBrowserSessionResponse500) & {
+  headers: Headers;
+};
+
+export type logoutBrowserSessionResponse = (logoutBrowserSessionResponseSuccess | logoutBrowserSessionResponseError)
+
+export const getLogoutBrowserSessionUrl = () => {
+
+
+
+
+  return `/api/auth/browser-session/logout`
+}
+
+/**
+ * @summary 匿名防伪验证后删除恢复 Cookie；必须 HTTPS、无 Authorization。204 仅证明协议成功，不撤销 JWT；随后以不接纳身份的 restore=401 核对恢复不可用。
+ */
+export const logoutBrowserSession = async ( options?: Parameters<typeof executeRequest>[1]): Promise<logoutBrowserSessionResponse> => {
+
+  return executeRequest<logoutBrowserSessionResponse>(getLogoutBrowserSessionUrl(),
+  {
+    ...options,
+    method: 'POST'
 
 
   }

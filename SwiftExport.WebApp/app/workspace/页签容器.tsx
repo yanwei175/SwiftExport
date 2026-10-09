@@ -6,6 +6,7 @@ import { useSession } from "../shared/session/会话上下文";
 import type { TabDescriptor } from "../shared/workspace/页签契约";
 import { pageDirectory } from "./页面目录";
 import { useWorkspace } from "./工作区Provider";
+import { recordDiagnostic } from "../shared/diagnostics/诊断记录";
 
 /** 页面错误仅隔离本页，不销毁其他页签及其编辑会话。 */
 class TabErrorBoundary extends Component<
@@ -18,6 +19,11 @@ class TabErrorBoundary extends Component<
   }
   /** 展示错误结束显式握手，避免隐藏保存永远占用准备锁。 */
   componentDidCatch() {
+    recordDiagnostic({
+      event: "render-failed",
+      level: "error",
+      kind: "unexpected",
+    });
     this.props.onFailure?.();
   }
   render() {

@@ -5,16 +5,22 @@ import {
   ExperimentOutlined,
 } from "@ant-design/icons";
 import { App, Button, Layout, Menu, Space, Typography } from "antd";
-import { useState } from "react";
 import { Link } from "react-router";
+import { useState } from "react";
 import { useSession } from "../shared/session/会话上下文";
 import { useWorkspace } from "../workspace/工作区Provider";
 import { WorkspaceView } from "../workspace/工作区视图";
 import { pageDirectory, probesEnabled } from "../workspace/页面目录";
+import { useUserPreferences } from "../shared/preferences/用户偏好上下文";
 
 /** 工作区布局组合导航、页签和账户入口，业务保存留在 feature。 */
 export function WorkspaceLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const { sidebarCollapsed, setSidebarCollapsed } = useUserPreferences();
+  // 响应式折叠只是当前展示状态，窗口尺寸不得覆盖用户保存的偏好。
+  const [responsiveCollapsed, setResponsiveCollapsed] = useState<
+    boolean | undefined
+  >();
+  const collapsed = responsiveCollapsed ?? sidebarCollapsed;
   const session = useSession();
   const workspace = useWorkspace();
   const { message, notification, modal } = App.useApp();
@@ -30,7 +36,9 @@ export function WorkspaceLayout() {
         width={220}
         theme="light"
         breakpoint="lg"
-        onBreakpoint={(broken) => setCollapsed(broken)}
+        onBreakpoint={(broken) =>
+          setResponsiveCollapsed(broken ? true : undefined)
+        }
       >
         <div className="brand">{collapsed ? "SE" : "SwiftExport"}</div>
         <Menu
@@ -85,7 +93,10 @@ export function WorkspaceLayout() {
               aria-label="折叠导航"
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={() => {
+                setResponsiveCollapsed(undefined);
+                setSidebarCollapsed(!collapsed);
+              }}
             />
             <Typography.Text strong>SwiftExport 工作区</Typography.Text>
           </Space>
@@ -102,7 +113,13 @@ export function WorkspaceLayout() {
             >
               刷新权限
             </Button>
-            <Button onClick={() => void workspace.leave(session.logout)}>
+            <Button
+              onClick={() =>
+                void workspace
+                  .leave(session.logout)
+                  .catch(() => message.warning("退出尚未确认，请重试。"))
+              }
+            >
               退出登录
             </Button>
           </Space>

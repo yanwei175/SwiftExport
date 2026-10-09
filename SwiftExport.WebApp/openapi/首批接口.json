@@ -10,8 +10,26 @@
         "tags": [
           "Auth"
         ],
-        "summary": "验证凭据并返回裸 Token DTO。",
+        "summary": "验证凭据并返回裸 Token DTO。Web 标记为 1 时必须 HTTPS、无 Authorization，并验证匿名 X-CSRF-TOKEN；保存同一原 JWT Cookie，不改变 WPF 调用。",
         "operationId": "login",
+        "parameters": [
+          {
+            "name": "X-SwiftExport-Web-Session",
+            "in": "header",
+            "description": "仅 Web 传 1；不携带该标记时保持 WPF 登录协议。",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "description": "Web 模式必填；来自匿名 csrf 端点，普通 WPF 登录不需要。",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -38,7 +56,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
             "headers": {
               "X-Correlation-ID": {
                 "description": "服务器调用追踪标识。",
@@ -187,6 +205,212 @@
         ]
       }
     },
+    "/api/auth/browser-session/csrf": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "匿名取得 Web 登录/退出防伪令牌；必须 HTTPS、无 Authorization，防伪 Cookie 覆盖 /api/auth。",
+        "operationId": "getBrowserSessionCsrf",
+        "responses": {
+          "200": {
+            "description": "成功，直接返回 DTO。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.BrowserSessionCsrfDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/auth/browser-session/restore": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "仅从恢复 Cookie 返回同一原 JWT；复用密码学及凭据版本验证，严格检查原 exp，不续签、不设置 Cookie，拒绝 Authorization。",
+        "operationId": "restoreBrowserSession",
+        "responses": {
+          "200": {
+            "description": "成功，直接返回 DTO。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.LoginTokenDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED：令牌无效、凭据版本变化或登录凭据失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "Bearer 挑战。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BrowserSessionCookie": []
+          }
+        ]
+      }
+    },
+    "/api/auth/browser-session/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "匿名防伪验证后删除恢复 Cookie；必须 HTTPS、无 Authorization。204 仅证明协议成功，不撤销 JWT；随后以不接纳身份的 restore=401 核对恢复不可用。",
+        "operationId": "logoutBrowserSession",
+        "parameters": [
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "description": "与匿名防伪 Cookie 配对的请求令牌。",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "删除恢复 Cookie 的协议已执行；无正文，不表示服务器 JWT 撤销。"
+          },
+          "400": {
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "UNEXPECTED：已隐藏技术异常详情。",
+            "headers": {
+              "X-Correlation-ID": {
+                "description": "服务器调用追踪标识。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Object"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
     "/api/product/page": {
       "post": {
         "tags": [
@@ -220,7 +444,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
             "headers": {
               "X-Correlation-ID": {
                 "description": "服务器调用追踪标识。",
@@ -356,7 +580,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
             "headers": {
               "X-Correlation-ID": {
                 "description": "服务器调用追踪标识。",
@@ -856,7 +1080,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
             "headers": {
               "X-Correlation-ID": {
                 "description": "服务器调用追踪标识。",
@@ -1003,7 +1227,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION：请求绑定或参数验证失败。",
+            "description": "VALIDATION：请求绑定、参数、防伪或浏览器会话协议验证失败。",
             "headers": {
               "X-Correlation-ID": {
                 "description": "服务器调用追踪标识。",
@@ -1220,6 +1444,19 @@
           },
           "isAdmin": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.BrowserSessionCsrfDto": {
+        "required": [
+          "requestToken"
+        ],
+        "type": "object",
+        "properties": {
+          "requestToken": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -2306,6 +2543,12 @@
         "description": "使用登录返回的 access_token；服务器实时核验凭据版本和操作权限。",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      },
+      "BrowserSessionCookie": {
+        "type": "apiKey",
+        "description": "仅 restore 读取的 HttpOnly 原 JWT Cookie；不续签、不作为普通业务 API 认证方式。",
+        "name": "SwiftExport.Web.Restore",
+        "in": "cookie"
       }
     }
   }

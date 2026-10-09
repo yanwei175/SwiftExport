@@ -1,4 +1,10 @@
+import {
+  installBrowserSessionProtocol,
+  mockJwtToken,
+  authenticationCalls,
+} from "./会话模拟";
 import { expect, test } from "@playwright/test";
+const authToken = mockJwtToken("tester");
 import type { Locator, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
@@ -18,7 +24,7 @@ async function prepareRecoveryProbe(page: Page, kind: ProbeKind) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ access_token: "recovery-test-token-only" }),
+          body: JSON.stringify({ access_token: authToken }),
         });
         return;
       }
@@ -38,6 +44,7 @@ async function prepareRecoveryProbe(page: Page, kind: ProbeKind) {
       await route.abort("blockedbyclient");
     },
   );
+  await installBrowserSessionProtocol(page, authToken);
   await page.goto("/login");
   await page.getByLabel("用户名", { exact: true }).fill("tester");
   await page
@@ -102,10 +109,7 @@ test.describe("恢复出口在常见窗口内可见且仍受保全约束", () =>
         pane.getByRole("button", { name: "终止本地恢复", exact: true }),
       ).toBeInViewport({ ratio: 1 });
       expect(
-        fixture.apiCalls.filter(
-          (call) =>
-            !["POST /api/auth/login", "GET /api/auth/me"].includes(call),
-        ),
+        fixture.apiCalls.filter((call) => !authenticationCalls.includes(call)),
       ).toEqual([]);
       expect(fixture.errors).toEqual([]);
     });
@@ -182,10 +186,7 @@ test.describe("恢复出口在常见窗口内可见且仍受保全约束", () =>
         .click();
       await expect(tab).toHaveCount(0);
       expect(
-        fixture.apiCalls.filter(
-          (call) =>
-            !["POST /api/auth/login", "GET /api/auth/me"].includes(call),
-        ),
+        fixture.apiCalls.filter((call) => !authenticationCalls.includes(call)),
       ).toEqual([]);
       expect(fixture.errors).toEqual([]);
     });

@@ -283,6 +283,8 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
     private static readonly HashSet<string> ExplicitIdentityActions = new(StringComparer.Ordinal)
     {
         "AuthController.Login", "AuthController.Me", "AuthController.ChangePassword",
+        // 浏览器协议自行验证匿名防伪或由 [Authorize] 验证恢复 JWT，不增加任何业务权限。
+        "AuthController.BrowserSessionCsrf", "AuthController.RestoreBrowserSession", "AuthController.LogoutBrowserSession",
         "FileController.Download", "ClientVersionController.Get"
     };
 

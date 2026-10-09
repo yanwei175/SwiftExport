@@ -18,7 +18,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const storeRef = useRef<SessionStore | null>(null);
   if (!storeRef.current) storeRef.current = createSessionStore(queryClient);
   const store = storeRef.current;
-  useEffect(() => store.start(), [store]);
+  useEffect(() => {
+    const stop = store.start();
+    void store.restore().catch(() => undefined);
+    return stop;
+  }, [store]);
   return (
     <SessionContext.Provider value={store}>{children}</SessionContext.Provider>
   );
@@ -38,6 +42,7 @@ export function useSession(): SessionState & SessionActions {
   return {
     ...state,
     login: store.login,
+    restore: store.restore,
     logout: store.logout,
     refreshPermissions: store.refreshPermissions,
   };

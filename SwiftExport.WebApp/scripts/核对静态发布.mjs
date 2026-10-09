@@ -55,9 +55,33 @@ try {
     )
       errors.push(entry.text());
   });
-  await page.route("**/api/auth/login", (route) =>
-    route.fulfill({ json: { access_token: "static-verification-token" } }),
-  );
+  // 此 HTTP 静态站只核对生产页面组合；Cookie/HTTPS 恢复由浏览器专项验收覆盖。
+  const token = [
+    Buffer.from('{"alg":"HS256"}').toString("base64url"),
+    Buffer.from(
+      JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 43_200 }),
+    ).toString("base64url"),
+    "static-test-only",
+  ].join(".");
+  let restorable = false;
+  await page.route("**/api/auth/login", (route) => {
+    restorable = true;
+    return route.fulfill({ json: { access_token: token } });
+  });
+  await page.route("**/api/auth/browser-session/*", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    assert.equal(route.request().headers().authorization, undefined);
+    if (path.endsWith("/csrf"))
+      return route.fulfill({ json: { requestToken: "static-csrf-only" } });
+    if (path.endsWith("/restore"))
+      return route.fulfill({
+        status: restorable ? 200 : 401,
+        json: restorable
+          ? { access_token: token }
+          : { code: "UNAUTHENTICATED" },
+      });
+    return route.abort("blockedbyclient");
+  });
   await page.route("**/api/auth/me", (route) =>
     route.fulfill({
       json: {

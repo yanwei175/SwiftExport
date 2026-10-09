@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Threading;
 using SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Views;
@@ -23,12 +24,16 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 try
                 {
                     Pump(); view.UpdateLayout(); var grid = (DataGrid)view.FindName("LinesGrid");
+                    ImportLayoutChecks.Run(view, grid, check);
                     check(ReferenceEquals(grid.ItemsSource, model.Lines), "装箱单绑定真实行集合");
                     check(grid.IsEnabled && !grid.IsReadOnly && !grid.CanUserAddRows, "原生表格允许编辑并禁止自动空白行");
                     check(grid.Columns.Any(x => (string)x.Header == "PO 原文") && grid.Columns.Any(x => (string)x.Header == "Invoice 原文"), "Q/R 参考列可编辑");
-                    var dates = Find<DatePicker>(view).ToArray();
+                    var transportPopup = (Popup)view.FindName("TransportPopup");
+                    ((ToggleButton)view.FindName("TransportToggleButton")).IsChecked = true; Pump();
+                    var dates = Find<DatePicker>(transportPopup.Child).ToArray();
                     var eta = dates.Single(x => x.GetBindingExpression(DatePicker.SelectedDateProperty)?.ParentBinding.Path?.Path == "Header.Eta");
                     eta.SelectedDate = new DateTime(2026, 12, 3); check(model.Header.Eta == eta.SelectedDate, "ETA 双向绑定");
+                    transportPopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
                     var unitColumn = (DataGridTemplateColumn)grid.Columns.Single(x => (string)x.Header == "单位");
                     var editor = (Wpf.Ui.Controls.TextBox)unitColumn.CellTemplate.LoadContent(); editor.DataContext = model.Lines[0]; Pump();
                     check(!editor.IsEnabled, "标准单位只读"); model.Lines[0].IsNonStandard = true; Pump(); check(editor.IsEnabled, "非标单位允许输入"); model.Lines[0].IsNonStandard = false;

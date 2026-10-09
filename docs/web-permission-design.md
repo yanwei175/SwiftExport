@@ -1,8 +1,10 @@
-# Web 与 WPF 统一权限设计（方案基线，Web 未实施）
+# Web 与 WPF 统一权限设计
 
-日期：2026-10-07。本文区分当前源码、偏差、Web需求和推荐目标，不删除任何模型/表、不迁移授权数据、不扩大角色权限。完整Endpoint到Key见[盘点附录](web-readiness-audit.md)。
+原盘点：2026-10-07。本文区分源码事实、偏差、Web 需求和目标，不删除模型/表、不迁移授权数据、不扩大角色权限。初次 Endpoint 到 Key 快照见 [盘点附录](web-readiness-audit.md)。
 
 2026-10-08 同步：盘点附录是初次快照，五端点漏登记已修复；首批 login/me 的契约与权限 HTTP 证据见 [接口验收](Web首批接口契约验收.md)。前端目录以 [脚手架决策](Web客户端架构与脚手架决策.md) 为准，多标签规则见 [工作区设计](Web多标签工作区设计.md)。
+
+2026-10-09 同步：Web 已有会话/精确权限入口和后端目录机器投影。12 小时原 JWT 恢复、permissionEpoch 与缓存撤权规则引用 [公共设施基线](Web客户端架构与脚手架决策.md#web-common-services)，登录/退出/身份隔离引用 [工作区会话规则](Web多标签工作区设计.md#workspace-session)。当前使用点及验证范围分别见 [公共设施说明](../SwiftExport.WebApp/docs/前端基础设施与使用入口.md) 和 [骨架验收记录](../SwiftExport.WebApp/docs/骨架验收记录.md)，不表示真实账号授权数据已验收。
 
 ## 1. 当前真实模型
 
@@ -54,7 +56,7 @@ flowchart TD
 
 JWT本身不包含整组角色/Permission；每次OnTokenValidated核对活动用户和CredentialVersion，密码修改/重置递增凭据版本使旧token失效。用户停用/软删也会拒绝；角色变化无需重签JWT才能在后端生效。客户端me是快照，仍需重新读取才能更新菜单，不能把“后端实时查”误写为“界面实时推送”。
 
-DevUser仅Development+配置允许+没有Bearer时注入；Program禁止生产开启。它会影响本地匿名/登录测试，应在验证时关闭。依据[DevUserMiddleware](../SwiftExport.WebApi/Development/DevUserMiddleware.cs)、[Program](../SwiftExport.WebApi/Program.cs)。Refresh Token、服务端logout/revoke接口本轮未发现；客户端清token不等于撤销泄露token。
+DevUser 仅 Development+配置允许+没有 Bearer 时注入，Program 禁止生产开启；匿名/登录验证应关闭它。依据 [DevUserMiddleware](../SwiftExport.WebApi/Development/DevUserMiddleware.cs)、[Program](../SwiftExport.WebApi/Program.cs)。初次盘点未发现 Refresh Token 或 logout/revoke；现有 Web browser-session/logout 只清浏览器恢复 Cookie，不是 JWT 撤销/续签协议，不能把退出当作泄露 token 已失效。
 
 ## 3. 权限计算与管理边界
 
@@ -85,6 +87,7 @@ WPF依据：[CurrentUserService](../SwiftExport.Client.Wpf/Authentication/Curren
 
 - `POST /api/auth/login`：LoginRequestDto → LoginTokenDto.access_token。
 - `GET /api/auth/me`：MeDto含UserId、UserName、NickName、Roles（显示）、RoleCodes（稳定编码）、IsAdmin、Permissions。
+- `GET /api/auth/browser-session/csrf`、`GET /api/auth/browser-session/restore`、`POST /api/auth/browser-session/logout`：已纳入审核快照及生成操作的浏览器恢复链；业务读取仍使用内存 Bearer/me，不读取 Cookie 内容作为权限。
 - `POST /api/system/users/page`及用户详情/启停/角色整组替换/有效权限查看。
 - `POST /api/system/roles/page`及角色CRUD/启停/权限整组替换。
 - `GET /api/system/permissions`：管理目录；保留查看键，普通用户不能把它当自己的必需初始化请求。
@@ -94,9 +97,9 @@ WPF依据：[CurrentUserService](../SwiftExport.Client.Wpf/Authentication/Curren
 
 ## 6. 推荐最终模型与Web规则
 
-目标继续 **User → Role → Permission → PermissionKey**，维持当前扁平RBAC、不增加User直接授权/deny继承/通用ABAC。WPF与Backend继续用Contracts常量，Web从同一目录生成或经过CI比对的TS投影。
+目标继续 **User → Role → Permission → PermissionKey**，维持当前扁平 RBAC，不增加 User 直接授权/deny 继承/通用 ABAC。WPF 与 Backend 继续用 Contracts 常量；Web 使用同一目录导出的 [权限键](../SwiftExport.WebApp/app/shared/authorization/generated/权限键.ts) 与 [精确检查入口](../SwiftExport.WebApp/app/shared/authorization/权限检查.ts)。
 
-OpenAPI只描述PermissionKey为string，不会自动导出C#静态常量值集合。未来可通过既有代码目录的构建期小工具输出TS键，或先维护窄投影并用目录一致性检查保证值完全相等；选择一个正式入口，不能让普通用户读取受保护目录接口才能启动应用。此生成接线需要后续授权，不是本轮已实现。
+OpenAPI 只描述 PermissionKey 为 string，不导出 C# 静态常量集合。现有 [真实契约导出入口](../_tools/Web契约验证/导出Web契约.ps1) 同时从 PermissionCatalog.All 导出目录，Web [快照更新](../SwiftExport.WebApp/scripts/更新契约快照.mjs) 递归投影已审核端点及权限 JSON，生成固定 TS 键；[生成核对](../SwiftExport.WebApp/scripts/核对生成产物.mjs) 检查漂移。不得手写第二份权限清单，也不要求普通用户调用受保护的系统权限管理目录来初始化。具体命令见 [工程入口](../SwiftExport.WebApp/docs/工程入口与命令.md)。
 
 路由要求View/Read，按钮要求独立Create/Edit/Delete/Maintain/Confirm等；BatchSave根据实际操作集合检查所有需要的键。例如Product：
 
@@ -108,7 +111,7 @@ OpenAPI只描述PermissionKey为string，不会自动导出C#静态常量值集�
 | 删除 | Products.Product.Delete |
 | 包含新增+更新的批量 | Create与Edit都必须具备 |
 
-一个可见页面不代表所有写入都可做。编辑按钮还需结合服务端返回状态和本地输入规则；服务器必须独立拒绝。遇403重新读me并保持草稿，禁止自动换Admin重试；遇401保留当前会话内草稿、重认证同用户后恢复。登出切用户须清query cache和私有草稿。
+一个可见页面不代表所有写入都可做；编辑还结合服务器状态和本地输入规则，后端独立授权。403 由会话入口更新 me 并保留草稿，不自动换 Admin 重试；401/原 JWT 到期按工作区会话规则重认证。页面使用生成 PermissionKey，不靠角色名或 IsAdmin 兜底；缓存清理与 identityEpoch/permissionEpoch 的边界不在本文重复定义。
 
 多标签中的授权不能只作用于菜单。打开/URL 定位/重新激活及权限快照更新都核对页面读取权，写入前按实际操作重新检查。失去写权时冻结写按钮并保留原草稿；失去读权时遮蔽已打开内容，不继续后台读取。401 遮蔽整个工作区、停止新写入，已派发请求仍按结果处理；同用户重认证后重读 me 再恢复有权页签，不同用户清旧工作区与缓存。主动登出汇总所有页签的 [完整保护摘要](Web多标签工作区设计.md#workspace-contract)，含未提交输入和保存准备，不只检查当前页；恢复记录导出/人工终止另按 [WEB-TAB-04](Web多标签工作区设计.md#workspace-recovery) 核当前身份与权限，不能借导出绕过撤权或身份切换。服务器业务拒绝不等于确认未生效。
 
@@ -118,5 +121,7 @@ OpenAPI只描述PermissionKey为string，不会自动导出C#静态常量值集�
 
 复用[PermissionCatalogConsistencyTests](../SwiftExport.Application.Tests/Authentication/PermissionCatalogConsistencyTests.cs)、[RbacPermissionEvaluationTests](../SwiftExport.Application.Tests/Authentication/RbacPermissionEvaluationTests.cs)、[EndpointPermissionFilterTests](../SwiftExport.Application.Tests/Authentication/EndpointPermissionFilterTests.cs)、[RbacManagementServiceTests](../SwiftExport.Application.Tests/Authentication/RbacManagementServiceTests.cs)、[WPF导航测试](../SwiftExport.Client.Wpf.Tests/Navigation/NavigationAuthorizationTests.cs)。
 
-验收要证明：停用账号/角色不授予、未知 Key 拒绝、非 Admin 不能获保留键、最后管理员保护、混合 BatchSave 精确授权、合法新端点能到达、旧 token 后端授权随角色变化、已打开/隐藏页签权限撤销、同用户重认证与不同用户隔离。首批隔离测试证据见报告；本轮只复核权限数量断言一项通过，未读取运行库授权数据，也未完成 Web 多标签权限实测。
+验收要证明：停用账号/角色不授予、未知 Key 拒绝、非 Admin 不能获保留键、最后管理员保护、混合 BatchSave 精确授权、合法新端点能到达、旧 token 后端授权随角色变化、已打开/隐藏页签权限撤销、同用户重认证与不同用户隔离。另核验实际权限投影一致性、恢复后的 me 验证、撤权时旧 Query 取消/清理及迟到读取隔离。真实账号的候选读取与整页可用性仍按接口报告验收，不借下拉读取扩权。
+
+初次权限盘点阶段只复核权限数量断言一项通过，未读取运行库授权数据，也未完成 Web 多标签权限实测；该历史范围保留。后续公共设施的当前检查见骨架记录，源码入口存在不替代真实账号、数据库或发布验收。
 

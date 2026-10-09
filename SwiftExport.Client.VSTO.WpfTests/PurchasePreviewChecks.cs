@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Threading;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Views;
@@ -28,6 +29,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 {
                     view.UpdateLayout(); Pump();
                     var grid=(DataGrid)view.FindName("OrderLinesGrid");
+                    ImportLayoutChecks.Run(view, grid, check);
                     check(view.Content is Grid && grid.ActualHeight > 0
                         && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
                         "采购明细在有限窗体高度中显示，不依赖顶层滚动");
@@ -40,7 +42,9 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(grid.ActualWidth>0 && grid.ActualWidth<window.ActualWidth,"表格横向滚动不会把窗体撑宽");
                     check(grid.Columns.Any(c=>(string)c.Header=="Excel本司型号") && grid.Columns.Any(c=>(string)c.Header=="系统SKU")
                         && grid.Columns.Any(c=>(string)c.Header=="含税单价（可空）"),"原表型号、系统身份及报价列完整");
-                    var headerBoxes=Descendants<TextBox>(view).ToArray();
+                    var discountPopup = (Popup)view.FindName("DiscountPopup");
+                    ((ToggleButton)view.FindName("DiscountToggleButton")).IsChecked = true; Pump();
+                    var headerBoxes=Descendants<TextBox>(view).Concat(Descendants<TextBox>(discountPopup.Child)).ToArray();
                     var bo=headerBoxes.Single(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.BoNo");
                     bo.Text="BO-EDIT"; bo.GetBindingExpression(TextBox.TextProperty).UpdateSource();
                     check(model.Header.BoNo=="BO-EDIT","单头编辑双向回写");
@@ -49,6 +53,14 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(model.Header.Remark=="新的特殊要求","特殊要求绑定 Remark");
                     check(headerBoxes.Any(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.DiscountRateText")
                         && headerBoxes.Any(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.DiscountAmountText"),"优惠倍率和整单优惠金额有真实绑定");
+                    var discounts = (ToggleButton)view.FindName("DiscountToggleButton");
+                    var rate = (TextBox)view.FindName("DiscountRateBox");
+                    rate.Text = "bad"; rate.GetBindingExpression(TextBox.TextProperty).UpdateSource(); Pump();
+                    discountPopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
+                    check(((TextBlock)discounts.Content).Text.Contains("输入有误") && model.Header.DiscountRateText == "bad",
+                        "优惠输入错误在关闭后的入口按钮提示，并保留原始文字");
+                    rate.Text = ""; rate.GetBindingExpression(TextBox.TextProperty).UpdateSource(); Pump();
+                    check(((TextBlock)discounts.Content).Text == "优惠及特殊要求", "修正优惠输入后入口按钮清除错误提示");
                     var date=Descendants<DatePicker>(view).Single(d=>d.GetBindingExpression(DatePicker.SelectedDateProperty)?.ParentBinding.Path?.Path=="Header.DeliveryDate");
                     date.SelectedDate=new DateTime(2026,12,1); check(model.Header.DeliveryDate==new DateTime(2026,12,1),"单头日期双向回写");
                     var line=model.Lines[0]; check(!line.CanEditUnit,"标准单位禁止手工伪造");

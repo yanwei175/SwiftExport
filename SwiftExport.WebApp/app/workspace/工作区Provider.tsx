@@ -35,7 +35,7 @@ interface WorkspaceContextValue {
   host(tab: TabDescriptor): TabHost;
   markVisible(id: string, ready: boolean): void;
   markFailed(id: string): void;
-  leave(action: () => void): Promise<void>;
+  leave(action: () => void | Promise<void>): Promise<void>;
 }
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
@@ -403,7 +403,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       });
   }, [blocker, close]);
   const leave = useCallback(
-    async (action: () => void) => {
+    async (action: () => void | Promise<void>) => {
       const expectedEpoch = sessionRef.current.identityEpoch;
       if (
         !(await close(stateRef.current.tabs.map((tab) => tab.tabId))) ||
@@ -419,7 +419,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         void message.warning("其他页签出现新的未保存输入，请处理后再离开。");
         return;
       }
-      action();
+      await action();
     },
     [close, message],
   );

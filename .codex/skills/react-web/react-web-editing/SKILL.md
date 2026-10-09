@@ -18,6 +18,7 @@ description: SwiftExport Web 编辑与批量保存。用于 Form/Grid 当前值�
 3. 保存调用同一 feature 入口，复用 commit-active-editor、字段验证和 freeze；失败不发请求并保留输入。准备至接纳按契约锁编辑，其他页可操作；保存前重新核操作权限。
 4. 构建请求用 baseline Uid/Version、稳定 ClientKey 和可写字段投影；RowIndex 仅定位。冻结范围与回执逐项关联，完整核对 operation/身份/版本/计数/遗漏重复，再按实际端点契约接纳。
 5. 按 A/B/C 处理锁及草稿；已确认部分成功只接纳对应行，未确认行仍受限制。Product 真实写入先满足 [独立后端门槛](../../../../docs/Web首批接口契约验收.md#product-recovery)，不把普通 BatchSave 自动升级为 CommandId 命令。
+6. 复用 shared/format 的数字/日期转换、shared/editing 的字段错误定位、SwiftDataGrid custom editor 与候选控件；远程读取由 feature Query 管理。头 Form + 行集合先参考现有头行验收会话的统一校验/冻结，不能复制一套长期头字段当前值。公共设施边界只引用 [架构基线](../../../../docs/Web客户端架构与脚手架决策.md#web-common-services)。
 
 ## 禁止事项
 

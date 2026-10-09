@@ -1,6 +1,6 @@
 # Web 前端工作流
 
-更新：2026-10-09。用于已授权的 React Web 实现/补测，主角色为 `web-frontend`；规划、治理和只读审查仍按 Router policy 选原角色。此工作流已落盘接线，不表示应用或自动路由执行器已实现。
+更新：2026-10-09。用于已授权的 React Web 实现/补测，主角色为 `web-frontend`；规划、治理和只读审查仍按 Router policy 选原角色。此工作流已落盘接线，应用与自动路由执行器的证据须分别记录，不能由工作流存在推断通过。
 
 ## 执行顺序
 
@@ -10,7 +10,7 @@
 4. 主壳任务只读对照 [ShellWindow](../../SwiftExport.Client.Wpf/Shell/ShellWindow.xaml)、[ShellViewModel](../../SwiftExport.Client.Wpf/Shell/ShellViewModel.cs)、[导航注册](../../SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs) 及直接调用链。记录可复用行为和 Web 对应 owner；不要复制 WPF 框架实现或把未读页面事实猜成需求。主壳可先验证独立的两个编辑页签，不借机铺开业务页面。
 5. 按任务引用现有 Form/Grid/编辑集合/生成操作/Query Key/权限/页签公共接口；不存在时仅实现已授权用例所需能力。设计未决或必须改变基座、状态所有权、公共契约、后端权限时，按 [架构变更门禁](../../docs/Web客户端架构与脚手架决策.md#web-change-control) 先给出具体变更说明，不能由页面自行改规则。
 6. 实现前列明字段当前值 owner、原始缓冲 owner、完整保护摘要、保存锁阶段、A/B/C 所需端点证据、回执归属和适用恢复出口。Product 真实写入前核对 [产品门槛](../../docs/Web首批接口契约验收.md#product-recovery)；未满足时阻止该接入，继续不依赖真实写入的主壳/读取/模拟验证，不伪称缺口关闭。
-7. 精准实现授权部分。工程与版本组合先验收再锁定；业务草稿不进入 Query，生成代码不手改。WPF、Contracts 和后端只能只读参考，需要修改时单列交接，不凭“前端依赖”扩权。
+7. 精准实现授权部分。公共设施按 [架构基线](../../docs/Web客户端架构与脚手架决策.md#web-common-services) 先规则同步、实际契约导出/权限投影、Orval 生成，再接会话与公共设施，最终整合验收后进入业务页。工程与版本组合先验收再锁定；业务草稿不进入 Query，生成代码不手改。WPF、Contracts 和后端默认只读，需要修改时按明确授权单列文件归属交接，不凭“前端依赖”扩权。
 8. 使用 [验证与交付 Skill](../../.codex/skills/react-web/react-web-delivery/SKILL.md) 按实际改动选择检查。工程基座验证 Framework 根构建、Ant Tabs + Activity/隐藏 Form/缓冲保留、会话；编辑/保存验证完整链条，真实接口及 PostgreSQL 写入另需对应授权和环境证据。
 9. 验证最终整合版本，审查 diff、依赖/生成差异，记录命令、版本、通过/失败及未运行范围。既有失败不能删断言或改为广泛 skip；旧快照不替代当前整合。
 10. 中文简洁交付：文件与行为、是否改业务代码、验证及限制、未满足接入门槛。未经授权不提交、推送、部署、建立其他聊天或并行委派。

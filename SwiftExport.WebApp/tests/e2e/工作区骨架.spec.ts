@@ -1,4 +1,10 @@
+import {
+  installBrowserSessionProtocol,
+  mockJwtToken,
+  authenticationCalls,
+} from "./会话模拟";
 import { expect, test } from "@playwright/test";
+const authToken = mockJwtToken("tester");
 import type { Locator, Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
@@ -55,14 +61,14 @@ async function installAuth(page: Page): Promise<AuthFixture> {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ access_token: "test-token-only" }),
+      body: JSON.stringify({ access_token: authToken }),
     });
   });
   await page.route("**/api/auth/me", async (route) => {
     await fixture.meGate;
     expect(route.request().method()).toBe("GET");
     expect(route.request().headers()["authorization"]).toBe(
-      "Bearer test-token-only",
+      "Bearer " + authToken,
     );
     await route.fulfill({
       status: fixture.meStatus,
@@ -141,14 +147,13 @@ test.describe("真实浏览器骨架与模拟契约", () => {
   let auth: AuthFixture;
   test.beforeEach(async ({ page }) => {
     auth = await installAuth(page);
+    await installBrowserSessionProtocol(page, authToken);
     await page.goto("/login");
     await login(page);
   });
   test.afterEach(async () => {
     expect(
-      auth.apiCalls.filter(
-        (call) => !["POST /api/auth/login", "GET /api/auth/me"].includes(call),
-      ),
+      auth.apiCalls.filter((call) => !authenticationCalls.includes(call)),
       "骨架验收不得请求真实业务端点",
     ).toEqual([]);
     expect(auth.errors, "不允许页面异常或 hydration 错误").toEqual([]);
@@ -626,6 +631,7 @@ test.describe("真实浏览器骨架与模拟契约", () => {
     await closeActive(page);
     await expect(page.getByRole("tab", { name: /表单验收/ })).toHaveCount(2);
     // 清除实例后从地址进入，验证新实例不会把 pageKind 前缀误当作服务器 Uid。
+    await installBrowserSessionProtocol(page, authToken);
     await page.goto(savedAddress.href);
     await expect(page).toHaveURL(/\/login$/);
     await login(page);
@@ -707,6 +713,7 @@ test.describe("真实浏览器骨架与模拟契约", () => {
   test("首次直接深链接登录后恢复指定实体，身份参数不携带草稿或凭据", async ({
     page,
   }) => {
+    await installBrowserSessionProtocol(page, authToken);
     await page.goto("/workspace?view=verification-grid&id=direct-grid");
     await expect(page).toHaveURL(/\/login$/);
     await login(page);
@@ -724,6 +731,7 @@ test.describe("真实浏览器骨架与模拟契约", () => {
   });
 
   test("非法深链接参数与无读权入口不能展示验证数据", async ({ page }) => {
+    await installBrowserSessionProtocol(page, authToken);
     await page.goto("/workspace?view=verification-grid&id=invalid.value");
     await expect(page).toHaveURL(/\/login$/);
     await login(page);
@@ -732,6 +740,7 @@ test.describe("真实浏览器骨架与模拟契约", () => {
     ).toBeVisible();
     await expect(activePane(page)).toHaveCount(0);
     auth.identity.permissions = [];
+    await installBrowserSessionProtocol(page, authToken);
     await page.goto("/workspace?view=verification-grid&id=direct-grid");
     await expect(page).toHaveURL(/\/login$/);
     await login(page);
@@ -785,9 +794,7 @@ test.describe("真实浏览器骨架与模拟契约", () => {
     await cancelDialog(page);
   });
 
-  test("401 后不同用户隔离旧草稿，原地址重新定位干净编辑会话", async ({
-    page,
-  }) => {
+  test("401 后不匹配身份不能接纳，原用户核实后仍保留草稿", async ({ page }) => {
     await openProbe(page, "grid");
     await activePane(page)
       .getByRole("textbox", { name: "行名称", exact: true })
@@ -804,18 +811,22 @@ test.describe("真实浏览器骨架与模拟契约", () => {
       userId: "user-b",
       nickName: "第二位用户",
     };
+    const dialog = page.getByRole("dialog", { name: "重新认证", exact: true });
+    await dialog.getByLabel("用户名", { exact: true }).fill("tester");
+    await dialog.getByLabel("密码", { exact: true }).fill("test-password-only");
+    await dialog.getByRole("button", { name: "登录", exact: true }).click();
+    await expect(dialog).toContainText("身份与原会话不一致");
+    await expect(activePane(page)).toHaveCount(0);
+    auth.identity = {
+      ...auth.identity,
+      userId: "user-a",
+      nickName: "验收用户",
+    };
     await login(page, true);
-    await expect(page.getByText("第二位用户", { exact: true })).toBeVisible();
-    await openProbe(page, "grid");
-    await expect(activePane(page).getByText(/标签身份/)).not.toHaveText(
-      identity,
-    );
+    await expect(activePane(page).getByText(/标签身份/)).toHaveText(identity);
     await expect(
       activePane(page).getByRole("textbox", { name: "行名称", exact: true }),
-    ).toHaveValue("初始名称");
-    await expect(page.getByText("旧用户私有草稿", { exact: true })).toHaveCount(
-      0,
-    );
+    ).toHaveValue("旧用户私有草稿");
   });
 
   test("已打开页面撤写变只读、撤读隐藏，恢复权限仍保留缓冲", async ({

@@ -11,6 +11,8 @@ async function walk(directory) {
   }
 }
 await walk(root);
+// 审核清单是受控的 JSON 模块输入，核对其真实大小写，不放行任意根外导入。
+await walk(path.resolve("openapi"));
 const known = new Set(files.map((file) => file.replaceAll("\\", "/")));
 const folded = new Set();
 for (const file of files) {

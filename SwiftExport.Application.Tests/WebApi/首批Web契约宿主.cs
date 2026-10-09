@@ -26,6 +26,9 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.WebApi.Configuration;
+using System.Net;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace SwiftExport.Application.Tests.WebApi;
 
@@ -43,11 +46,14 @@ internal sealed class FirstWebContractHost : IAsyncDisposable
     internal SupplierSearchRequest? SupplierSearch;
     internal string? FailureCode;
     internal int BusinessCalls;
+    internal int AuthenticationCalls;
+    internal int CredentialValidationCalls;
     internal WebApplication App = null!;
     internal HttpClient Client = null!;
+    private X509Certificate2? _certificate;
 
     /// <summary>使用显式测试 JWT 配置和禁用的文件/开发身份，不读取业务连接或解析真实仓储。</summary>
-    internal async Task StartAsync()
+    internal async Task StartAsync(bool browserHttps = false)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
         // 不继承构建输出目录中的 appsettings 或环境连接配置，意外仓储解析也禁止创建连接。
@@ -61,7 +67,21 @@ internal sealed class FirstWebContractHost : IAsyncDisposable
         builder.Configuration["FileStorage:Enabled"] = "false";
         builder.Configuration["FileStorage:ProductImages:UploadEnabled"] = "false";
         builder.Logging.ClearProviders();
-        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        if (browserHttps)
+        {
+            // 一次性测试证书不导出到文件、不修改信任或用户开发证书；Windows SChannel 需导入临时密钥容器。
+            using var rsa = RSA.Create(2048);
+            var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            var names = new SubjectAlternativeNameBuilder();
+            names.AddIpAddress(IPAddress.Loopback);
+            request.CertificateExtensions.Add(names.Build());
+            using var issued = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
+            var pfx = issued.Export(X509ContentType.Pfx);
+            try { _certificate = X509CertificateLoader.LoadPkcs12(pfx, null); }
+            finally { CryptographicOperations.ZeroMemory(pfx); }
+            builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(_certificate)));
+        }
+        else builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.AddWebApiServices();
         builder.Services.AddControllers().AddApplicationPart(typeof(SwiftExport.WebApi.Controllers.Auth.AuthController).Assembly);
         builder.Services.AddSingleton(CreateProxy<SwiftExport.Infrastructure.Data.IDbConnectionFactory>(Reject));
@@ -148,7 +168,11 @@ internal sealed class FirstWebContractHost : IAsyncDisposable
         App.UseWebApiPipeline();
         await App.StartAsync();
         var address = App.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-        Client = new HttpClient { BaseAddress = new Uri(address) };
+        var handler = new HttpClientHandler();
+        if (_certificate is not null)
+            handler.ServerCertificateCustomValidationCallback = (_, certificate, _, _) =>
+                certificate?.GetCertHashString() == _certificate.GetCertHashString();
+        Client = new HttpClient(handler) { BaseAddress = new Uri(address) };
     }
 
     /// <summary>仅返回签发/验证 JWT 所需的测试身份；真实账号密码与数据库投影由已有 Auth 测试覆盖。</summary>
@@ -157,6 +181,7 @@ internal sealed class FirstWebContractHost : IAsyncDisposable
         switch (name)
         {
             case "AuthenticateAsync":
+                AuthenticationCalls++;
                 Login = (LoginRequestDto)args[0]!;
                 if (string.IsNullOrWhiteSpace(Login.UserName) || string.IsNullOrWhiteSpace(Login.Password))
                     return new SwiftExport.Application.Services.Auth.Session.AuthSessionService(null!, null!, null!, null!).AuthenticateAsync(Login);
@@ -164,6 +189,7 @@ internal sealed class FirstWebContractHost : IAsyncDisposable
                     ? ServiceResult<AuthenticatedUser>.Ok(new() { UserId = UserId, UserName = "contract-user", CredentialVersion = 3 })
                     : ServiceResult<AuthenticatedUser>.Fail("UNAUTHENTICATED", "凭据无效。"));
             case "IsCredentialVersionValidAsync":
+                CredentialValidationCalls++;
                 return Task.FromResult(CredentialValid && (Guid)args[0]! == UserId && (int)args[1]! == 3);
             case "GetCurrentUserAsync":
                 return Task.FromResult(ServiceResult<MeDto>.Ok(new() { UserId = UserId.ToString(), UserName = "contract-user", NickName = null, Permissions = Permissions.ToList() }));
@@ -187,6 +213,7 @@ internal sealed class FirstWebContractHost : IAsyncDisposable
     {
         Client?.Dispose();
         if (App is not null) await App.DisposeAsync();
+        _certificate?.Dispose();
     }
 
     /// <summary>局部服务代理，保持原接口方法与参数。</summary>

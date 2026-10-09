@@ -68,6 +68,21 @@ public static class WebApiConfiguration
                 options.IncludeErrorDetails = false;
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        // 浏览器协议拒绝 Header/Cookie 混用，且只有 restore 从 Cookie 建立身份。
+                        // 登录、csrf 和退出保持匿名，使防伪令牌的签发/验证身份一致。
+                        if (BrowserSessionProtocol.IsBrowserRequest(context.Request))
+                        {
+                            if (context.Request.Headers.ContainsKey("Authorization") || !BrowserSessionProtocol.IsRestoreRequest(context.Request))
+                                context.NoResult();
+                            else if (context.Request.Cookies.TryGetValue(BrowserSessionProtocol.RestoreCookie, out var token))
+                                context.Token = token;
+                            else
+                                context.NoResult();
+                        }
+                        return Task.CompletedTask;
+                    },
                     OnChallenge = context =>
                     {
                         context.HandleResponse();
@@ -77,6 +92,12 @@ public static class WebApiConfiguration
                     OnForbidden = context => ServiceErrorResponse.WriteAsync(context.HttpContext, ServiceErrorCodes.Forbidden, "当前账号没有执行该操作的权限。"),
                     OnTokenValidated = async context =>
                     {
+                        // 恢复以原 JWT exp 为严格上限，不借普通 Bearer 的时钟容差延长浏览器免登录时间。
+                        if (BrowserSessionProtocol.IsRestoreRequest(context.Request) && context.SecurityToken.ValidTo <= DateTime.UtcNow)
+                        {
+                            context.Fail("浏览器登录状态已到期。");
+                            return;
+                        }
                         var validator = context.HttpContext.RequestServices
                             .GetRequiredService<CredentialVersionTokenValidator>();
                         if (!await validator.ValidateAsync(context.Principal!, context.HttpContext.RequestAborted))
@@ -101,6 +122,17 @@ public static class WebApiConfiguration
         builder.Services.AddSingleton<IAuthTokenFactory, AuthTokenFactory>();
         builder.Services.AddScoped<CredentialVersionTokenValidator>();
         builder.Services.AddScoped<EndpointPermissionFilter>();
+        // Web 登录仍在 /api/auth/login；防伪 Cookie 必须覆盖该路径，而恢复 Cookie 范围保持更窄。
+        builder.Services.AddAntiforgery(options =>
+        {
+            options.HeaderName = BrowserSessionProtocol.CsrfHeader;
+            options.Cookie.Name = BrowserSessionProtocol.CsrfCookie;
+            options.Cookie.Path = "/api/auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.IsEssential = true;
+        });
 
         // ══════════════════════════════════════════════════════
         // 4. 注册 Web API 核心服务
@@ -143,6 +175,11 @@ public static class WebApiConfiguration
                 Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "JWT",
                 Description = "使用登录返回的 access_token；服务器实时核验凭据版本和操作权限。"
             });
+            options.AddSecurityDefinition("BrowserSessionCookie", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey, In = ParameterLocation.Cookie, Name = BrowserSessionProtocol.RestoreCookie,
+                Description = "仅 restore 读取的 HttpOnly 原 JWT Cookie；不续签、不作为普通业务 API 认证方式。"
+            });
             options.OperationFilter<FirstWebContractOperationFilter>();
             options.DocumentFilter<FirstWebContractOperationFilter>();
             options.UseAllOfToExtendReferenceSchemas();
@@ -184,7 +221,25 @@ public static class WebApiConfiguration
 
         // DevUser 免登录注入（仅 Development 且 UseDevUser=true 时激活）
         // 注意：必须在 UseAuthentication 之前，这样才能覆盖 HttpContext.User
-        app.UseMiddleware<DevUserMiddleware>();
+        app.Use(async (context, next) =>
+        {
+            if (BrowserSessionProtocol.IsBrowserRequest(context.Request))
+            {
+                // 原 JWT/防伪响应不可缓存，且在 JWT 解析前拒绝旧 Bearer，避免验证 Header 后返回另一枚 Cookie JWT。
+                context.Response.Headers.CacheControl = "no-store";
+                context.Response.Headers.Pragma = "no-cache";
+                if (!context.Request.IsHttps || context.Request.Headers.ContainsKey("Authorization"))
+                {
+                    await ServiceErrorResponse.WriteAsync(context, ServiceErrorCodes.Validation,
+                        "浏览器会话请求必须使用 HTTPS，且不得携带 Authorization。");
+                    return;
+                }
+            }
+            await next(context);
+        });
+        // 浏览器协议不注入开发身份，保持防伪生成/验证匿名且恢复必须通过真实 JWT 验证。
+        app.UseWhen(context => !BrowserSessionProtocol.IsBrowserRequest(context.Request),
+            branch => branch.UseMiddleware<DevUserMiddleware>());
 
         if (app.Environment.IsDevelopment())
         {

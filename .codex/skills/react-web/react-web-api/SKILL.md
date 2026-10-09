@@ -15,9 +15,9 @@ description: SwiftExport Web API 契约接入。用于审核 OpenAPI、Orval Fet
 
 1. 核对 paths/method/requestBody/response/security、枚举/null/日期及 auth 裸 DTO 例外；更新审核过的快照，以锁定 Orval 配置生成 HTTP 操作，不手改 generated。
 2. 搜索并复用唯一请求执行边界；生成操作委托它传 token、signal、HTTP/网络事实及允许的追踪。选择 schema 中真实函数名，不手写同构 DTO/HTTP 操作。
-3. Query Key 包含规范操作、输入和身份范围；POST page/search 仍属读取。查询信号透传，Activity 外的 enabled/轮询/防抖另按 isActive/权限接线。写 mutation 关闭自动重试，精确失效相关键。
+3. Query Key 包含规范操作、输入、身份及 permissionEpoch；POST page/search 仍属读取。复用 [公共设施基线](../../../../docs/Web客户端架构与脚手架决策.md#web-common-services) 的三类 queryPolicies；查询信号透传，Activity 外的 enabled/防抖另按 isActive/权限接线。写 mutation 关闭自动重试，精确失效相关键；核权变化移除旧业务快照，不覆盖草稿。
 4. 按端点记录“响应形态→可证明结果→证据范围”。通用层保留发送阶段、状态和完整响应，feature 按公共保存契约决定 A/B/C；展示错误与证明未生效分开。取消/超时不作回滚证据，不分析中文 message。
-5. 首期内存 Bearer + me，401 同用户重认证及已驻留页权限更新配合 workspace；换身份隔离缓存，不引入未经批准的持久化或 Refresh Token 模拟。
+5. 复用已确认的 12 小时原 JWT 恢复 Cookie + 内存 Bearer/me 接线。浏览器会话操作才允许同源 credentials，不携带旧 Bearer；普通业务仍为 Bearer/omit。新增真实端点必须先导出/审核 OpenAPI 并 Orval 生成，再接前端；权限键由后端目录机器投影。401/到期保留同用户会话，退出确认与换身份按 [多标签会话规则](../../../../docs/Web多标签工作区设计.md#workspace-session)；不续签、不将 token 写入 Storage。
 
 ## 禁止事项
 

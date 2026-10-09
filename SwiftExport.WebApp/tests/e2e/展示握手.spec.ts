@@ -1,4 +1,10 @@
+import {
+  installBrowserSessionProtocol,
+  mockJwtToken,
+  authenticationCalls,
+} from "./会话模拟";
 import { expect, test } from "@playwright/test";
+const authToken = mockJwtToken("tester");
 import { readFile } from "node:fs/promises";
 
 test.describe("受控浏览器组件的真实展示等待", () => {
@@ -33,7 +39,7 @@ test.describe("受控浏览器组件的真实展示等待", () => {
         route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ access_token: "handshake-test-token" }),
+          body: JSON.stringify({ access_token: authToken }),
         }),
       );
       await page.route("**/api/auth/me", (route) =>
@@ -61,6 +67,7 @@ test.describe("受控浏览器组件的真实展示等待", () => {
             ),
           }),
       );
+      await installBrowserSessionProtocol(page, authToken);
       await page.goto("/tests/e2e/fixtures/展示握手.html");
       await page.getByLabel("用户名", { exact: true }).fill("tester");
       await page
@@ -116,7 +123,8 @@ test.describe("受控浏览器组件的真实展示等待", () => {
       ).toHaveValue("等待中未派发的原始输入");
       expect(
         apiPaths.filter(
-          (path) => !["/api/auth/login", "/api/auth/me"].includes(path),
+          (path) =>
+            !authenticationCalls.some((call) => call.endsWith(" " + path)),
         ),
       ).toEqual([]);
       expect(errors).toEqual([]);

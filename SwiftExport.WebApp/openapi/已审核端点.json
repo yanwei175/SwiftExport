@@ -1,0 +1,14 @@
+[
+  ["/api/auth/login", "post", "login"],
+  ["/api/auth/me", "get", "getMe"],
+  ["/api/auth/browser-session/csrf", "get", "getBrowserSessionCsrf"],
+  ["/api/auth/browser-session/restore", "get", "restoreBrowserSession"],
+  ["/api/auth/browser-session/logout", "post", "logoutBrowserSession"],
+  ["/api/product/page", "post", "getProductPage"],
+  ["/api/product/batch-save", "post", "saveProductBatch"],
+  ["/api/productcategory/all", "get", "getProductCategories"],
+  ["/api/sysdictdata/by-code/{dictCode}", "get", "getDictionaryByCode"],
+  ["/api/productcolor/all", "get", "getProductColors"],
+  ["/api/supplier/page", "post", "getSupplierPage"],
+  ["/api/product/default-warehouse-candidates", "get", "getProductWarehouseCandidates"]
+]

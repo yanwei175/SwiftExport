@@ -1,6 +1,6 @@
-# Web 客户端架构与脚手架决策（方案基线，未实施）
+# Web 客户端架构与脚手架决策
 
-更新：2026-10-09。三份文档收口规则保持不变；本轮同步旧引用并建立 AGENTS/Router、Web 角色、工作流及 1 入口 + 5 执行 Skill。Web 工程和联合版本组合尚未实施/验收，不把治理接线完成写成工程通过。
+更新：2026-10-09。工程、主壳与公共编辑入口已建立，实际版本及分阶段证据见 [骨架验收记录](../SwiftExport.WebApp/docs/骨架验收记录.md)。本次按已确认计划补齐自动契约导出、12 小时会话恢复、缓存、偏好、诊断及编辑能力；本节规则是目标约定，当前整合验收另行记录，不以文档更新宣称通过。
 
 ## 1. 建议与边界
 
@@ -19,7 +19,7 @@
 | 表格与编辑 | Ant Table + 受控 SwiftDataGrid；纯编辑集合；feature 专用请求映射 | [编辑基础设施](web-frontend-architecture.md) |
 | API 契约 | 已验收 Orval Fetch；按实际 HTTP/内层结果消费，不强制改成 409 | [差距状态](web-api-gap-analysis.md)、[验收报告](Web首批接口契约验收.md) |
 | 权限 | me.Permissions + 唯一 PermissionKey 目录；已打开页签也重新核权 | [权限设计](web-permission-design.md) |
-| 开发流程与技能 | 独立 Web 角色/工作流及 1 个入口 + 5 个执行 Skill 已建立；运行时尚未实施 | [SOP](web-agent-workflow.md)、[Skills 规划](web-skills-plan.md) |
+| 开发流程与技能 | 独立 Web 角色/工作流及 1 个入口 + 5 个执行 Skill 已建立；运行时证据单独记录 | [SOP](web-agent-workflow.md)、[Skills 规划](web-skills-plan.md) |
 | 发布 | 独立静态产物；Windows/IIS、Linux/Nginx 适配，同源 API 代理 | 本文第 9 节 |
 
 ## 2. 脚手架比较
@@ -84,7 +84,7 @@ SPA Mode 构建生成入口 HTML；发布目标为客户端静态产物，通常
 
 Ant Design 官方提供 Vite 集成说明；Query 官方明确区分服务器状态与客户端状态。本项目的“缓存不承接编辑草稿”是对该边界的应用。[Ant Design 与 Vite](https://ant.design/docs/react/use-with-vite/)、[Query 的状态职责](https://tanstack.com/query/latest/docs/framework/react/guides/does-this-replace-client-state)
 
-版本基线复用已验收工具的 Node 24、Orval 8.40.0/TypeScript 7.0.2 作为兼容候选，不代表它们与尚未生成的框架模板已联合验证。模板可能要求其他精确版本；必须实际安装、类型生成、测试和构建后才能冻结，不能先同时升级全部库。
+早期契约工具使用 Node 24、Orval 8.40.0/TypeScript 7.0.2；Web 工程按实际框架 peer 约束采用独立锁文件，准确版本及联合检查见 [工程入口](../SwiftExport.WebApp/docs/工程入口与命令.md) 与 [骨架记录](../SwiftExport.WebApp/docs/骨架验收记录.md)。不将工具的旧候选版本当作当前工程版本，不自行同时升级全部库。
 
 ## 5. 建议目录
 
@@ -243,6 +243,20 @@ SwiftExport.WebApp/
 | 行选择、展开、活动单元格 | 页面/控件 React 状态 | 与持久业务事实、服务器权限分离 |
 | 字段输入错误 | Ant Form / feature validator | 提供输入体验；不复制服务器跨业务状态决策 |
 
+<a id="web-common-services"></a>
+
+### 7.0 会话、缓存与公共设施基线
+
+后端 JWT 仍在签发后 12 小时到期。Web 首期采用 HttpOnly 恢复 Cookie 保存同一 JWT，业务请求使用内存 Bearer；刷新或关闭浏览器重开先恢复原 JWT，再核实 me。不续签、不延长 exp，普通 WPF 登录和 Bearer 验证保持原行为。Cookie 必须 Secure、SameSite Strict、无 Domain，恢复范围限定 `/api/auth/browser-session`；开发及生产 Web 入口均使用 HTTPS 同源代理。退出清除浏览器恢复凭据，不宣称服务器撤销旧 JWT。保存、关闭、身份更换与退出的保护流程见 [多标签会话规则](Web多标签工作区设计.md#workspace-session)。
+
+Query 只缓存服务器快照，键包含 userId、identityEpoch、permissionEpoch、规范操作及输入。业务查询默认 staleTime=0/gcTime=5 分钟；远程候选为 30 秒/10 分钟；低频参考数据为 5 分钟/30 分钟。读写不自动重试、查询不随窗口聚焦刷新、不默认轮询；活动且有读权的查询在重新启用、挂载或重连时核新。权限集合改变后先停止旧读取，取消并移除旧权限范围业务快照，再开放新范围；身份 epoch 仍表示草稿归属，权限 epoch 不重建同用户草稿。gcTime 是无观察者回收时间，不是内存容量保证，也不据此驱逐有保护摘要的标签。后台更新不覆盖 Form/Grid 的当前值或基线，明确放弃后的重载失败仍保留原会话。
+
+localStorage 仅保存按已核实 userId 隔离、带版本的界面偏好：侧栏折叠、声明过的列布局及分页大小。不保存 token、权限、DTO、搜索内容、页签身份或草稿；损坏、不可用或配额失败降级当前页面内存状态，只操作本应用对应键。诊断最多 100 条内存白名单事件，限操作、阶段、状态、追踪标识等，无任意 payload、正文、凭据或自动上传；登出和换身份清理。诊断不替代业务恢复保全记录。
+
+弹窗/message/notification 复用 Ant App 上下文。feature 映射服务器字段到 Form 路径、ClientKey/列或页级错误，未知字段仍显示，错误不参与 dirty。数值保留无效 raw 输入、不静默舍入；业务日期与时刻分别按字段契约转换，首期日期选择器 inputReadOnly。Grid 的受控 custom editor 共用只读/错误/取消/无障碍约束，填充仅发意图。候选搜索词与业务选值分离，远程搜索防抖 300ms，迟到结果不覆盖当前搜索，已有值缺候选仍保留；不扩大读取权限。头 Form 与行集合由一个 feature 会话统一校验、冻结和接纳。
+
+文件/图片接口先经 OpenAPI 审核与生成，鉴权、读取及上传结果解释归 feature；受保护资源不得用泄露 token 的 URL。HTTP 缓存遵循真实端点响应，临时 Object URL 由创建者释放。实际适配在首个相关页面之前完成，不虚构文件服务或将恢复 JSON 导出当上传。
+
 React 官方说明了避免冗余、重复和过深状态的原则；这里把互斥增改删集合从同一编辑状态推导，避免维护数套可漂移副本。[React 状态结构](https://react.dev/learn/choosing-the-state-structure)
 
 Router 负责登录/工作区/错误入口及离开工作区的导航阻断；workspace 负责内部页签。Query 负责业务读取和提交，不同时建立 loaderData 和 Query 两套快照。Ant Form 的提交使用 feature mutation，不同时混用 Router action 执行同一次保存。页签控制器、关闭保护和保存状态位于 Activity 外；隐藏仅暂停页面展示副作用，不能丢草稿或取消已派发写入。具体生命周期见 [多标签设计](Web多标签工作区设计.md)。
@@ -265,7 +279,7 @@ routes.ts 只注册框架入口。workspace 页面目录统一 pageKind、权限
 
 带 name 的 Form.Item 由 Form 接管值与变更；程序赋值使用 Form API。Grid 单元格临时缓冲拥有尚未转换/提交的控件原始输入，成功提交才进入编辑集合，不能成为另一份长期业务当前值。其保留与保护摘要遵守 [多标签公共契约](Web多标签工作区设计.md#workspace-contract)，不能因隐藏或尚未更新集合而丢失。[Ant Form 数据收集约定](https://ant.design/components/form/)
 
-**WEB-EDIT-02：dirty 是参与保存字段的归一化投影与 baseline 的比较结果。** 比较排除 selection、展开、错误及只读联表显示字段；null/空串等价性按字段契约决定。改动后恢复原值必须回到业务 clean，touched/曾经编辑不能直接当 dirty。业务 clean 不等于没有待保护输入；未提交输入及关闭放行条件只在 [多标签公共契约](Web多标签工作区设计.md#workspace-contract) 定义。Form 的变更事件只触发比较或更新摘要，不复制一份 Form 当前值到控制器；集合增改删从同一编辑状态推导。具体集合算法参考 [编辑基础设施旧规划](web-frontend-architecture.md)，与本基线冲突的保护/保存表述须在后续治理中同步。
+**WEB-EDIT-02：dirty 是参与保存字段的归一化投影与 baseline 的比较结果。** 比较排除 selection、展开、错误及只读联表显示字段；null/空串等价性按字段契约决定。改动后恢复原值必须回到业务 clean，touched/曾经编辑不能直接当 dirty。业务 clean 不等于没有待保护输入；未提交输入及关闭放行条件只在 [多标签公共契约](Web多标签工作区设计.md#workspace-contract) 定义。Form 的变更事件只触发比较或更新摘要，不复制一份 Form 当前值到控制器；集合增改删从同一编辑状态推导。具体集合算法参考 [编辑基础设施](web-frontend-architecture.md)，实际复用入口见 Web 工程公共设施说明。
 
 ## 8. API 接入不会要求页面层重写
 
@@ -273,7 +287,7 @@ routes.ts 只注册框架入口。workspace 页面目录统一 pageKind、权限
 
 后端改动 → 契约验收并导出 schema → 审核兼容差异 → 更新 Web 的 openapi 快照 → 生成 DTO/操作 → 类型检查 → feature mapper/query 调整 → 页面验证。HTTP API 是契约；数据库模型或 C# Contracts 项目不是浏览器依赖。
 
-generated 管线路径只有一个；不同时引入 Orval 和另一套手写 client。统一请求边界可以通过生成器 mutator 或薄调用接线实现，以实际生成验收确定方式；它负责 Authorization、signal、错误分类及 trace，不包含产品规则。传输层不依赖 React hook，也不自行跳转页面；会话层消费认证失效事件并组织重新登录。
+generated 管线路径只有一个；不同时引入 Orval 和另一套手写 client。现有 Orval mutator 委托唯一请求执行边界负责 Authorization、signal、错误事实及 trace，不包含产品规则。新增接入先导出实际 OpenAPI、核对已审核端点清单与差异、更新快照、生成并类型检查，再写 feature。PermissionCatalog.All 同批投影权限键快照与 TS 常量，不从 me 的普通 string 推导目录；产物自带于 Web，运行时不依赖 .NET 源码。传输层不依赖 React hook，也不自行跳转页面。
 
 <a id="web-api-layers"></a>
 
@@ -296,11 +310,11 @@ generated 管线路径只有一个；不同时引入 Orval 和另一套手写 cl
 
 **WEB-API-01：HTTP 成功不必然是业务成功，业务外层成功也不必然是每行保存成功。** 保留请求发送阶段、status、headers、完整正文以及网络/取消信息；裸 DTO、ServiceResult、原子整批与行级响应由各 feature 按实际契约解释。通用层不做 acceptChanges，不把所有 200 当整批成功，不按状态码统一判断写入是否生效，不分析中文 message 猜回滚、冲突或成功。提交分类与解锁条件唯一正文见 [多标签保存契约](Web多标签工作区设计.md#workspace-save)，具体 Product 证据/缺口见 [验收报告](Web首批接口契约验收.md#product-recovery)。
 
-这条链是工程基座接线目标，尚未配置 Web 运行时 mutator。实施时选择能让生成操作委托唯一请求执行边界的接线，重新验证生成差异、状态联合类型、signal 和路径编码；不靠手改生成文件实现。读取使用统一身份范围 Query Key；提交关闭自动重试，错误和取消本身不证明服务端未写入。
+该调用链已有 Web 运行时 mutator，新增操作继续重新验证生成差异、状态联合类型、signal 和路径编码；不靠手改生成文件实现。仅明确的浏览器会话操作与 Web 模式 login 允许 same-origin credentials 且不携带旧 Bearer；普通业务保持 Bearer/omit。读取使用统一身份与权限范围 Query Key；提交关闭自动重试，错误和取消本身不证明服务端未写入。
 
 必须保留指定历史验收范围的事实：login/me 是裸 DTO，其他首批成功多为 ServiceResult；Fetch 状态联合类型不能把非 2xx 当成功。Product 过期版本是 422/BUSINESS_BLOCKED，其业务拒绝展示不证明本次操作未生效，分类遵守上述真实端点证据。通用 CRUD 的外层成功与行失败不能被统一 transport 抹掉。写操作不开自动重试；Query 的默认读取重试/焦点刷新也需显式约束。[Query 默认行为](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)、[现有验收报告](Web首批接口契约验收.md)、[Orval 输出配置](https://orval.dev/docs/reference/configuration/output/)
 
-权限键首期仅集中使用真实已核对键，后续机器投影从后端权威目录来；不能从 DTO 的普通 string 字段推导完整权限目录。生成 DTO 的日期字符串不是时区决策；金额 JSON number 不代表前端浮点计算可作为财务权威。编辑模型与 mapper 负责输入边界，服务器决定业务结果。
+权限键由真实 `PermissionCatalog.All` 机器投影为审核快照及 TS 常量，浏览器精确核验已知键与 me 的交集；不能从 DTO 的普通 string 字段推导完整权限目录。生成 DTO 的日期字符串不是时区决策；金额 JSON number 不代表前端浮点计算可作为财务权威。编辑模型与 mapper 负责输入边界，服务器决定业务结果。
 
 ## 9. 独立发布与跨平台
 
@@ -335,7 +349,7 @@ SPA 回退仅处理页面导航：/api、/files 和不存在的资源不能落�
 
 ### 10.1 规则与证据必须对应
 
-以下均为后续检查要求，尚未创建 ESLint/Vitest/Playwright 配置或执行这些场景。
+以下为持续检查要求；已有配置及历史结果见工程验收记录，每次交付仍需证明当前整合版本的适用场景。
 
 | 规则 | 必须关联的检查/测试 | 通过标准 |
 | --- | --- | --- |
@@ -358,7 +372,7 @@ WEB-TAB 规则的正文只在 [多标签设计](Web多标签工作区设计.md) 
 
 ## 11. 开工前待定的产品选择与本轮证据
 
-多标签已明确为首期需求。会话先采用内存 Bearer、刷新重新登录；未保存草稿先只保留在当前浏览器运行会话。若后续要求刷新保持登录或跨刷新恢复草稿，再单独确定存储、过期、身份隔离与清理策略；不能默默用 localStorage 实现所有持久化。
+多标签已明确为首期需求。12 小时内刷新与关闭浏览器重开恢复登录按 [公共设施基线](#web-common-services) 实施；未保存草稿仍只保留在当前浏览器运行会话，跨刷新草稿、离线缓存及服务器 JWT 撤销不在本期。
 
 本轮完成官方资料检索、脚手架静态比较、现有选型/契约工具核对和目录职责规划。未执行 create-react-router/create-vite、npm 安装、TypeScript/React 构建、浏览器测试、Linux 构建或部署；所有框架联合兼容性和目录实例均为后续验收目标，不是已通过证据。
 
