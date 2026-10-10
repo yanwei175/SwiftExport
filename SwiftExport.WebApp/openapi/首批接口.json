@@ -1499,6 +1499,1135 @@
           }
         ]
       }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.RegisterRequestDto"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.RegisterRequestDto"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.RegisterRequestDto"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.RegisterRequestDto"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "operationId": "registerUser"
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ChangePasswordRequestDto"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ChangePasswordRequestDto"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ChangePasswordRequestDto"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ChangePasswordRequestDto"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "operationId": "changeOwnPassword"
+      }
+    },
+    "/api/auth/admin/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.AdminResetPasswordRequestDto"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.AdminResetPasswordRequestDto"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.AdminResetPasswordRequestDto"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.AdminResetPasswordRequestDto"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "operationId": "resetUserPassword"
+      }
+    },
+    "/api/system/users/page": {
+      "post": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getManagedUsersPage"
+      }
+    },
+    "/api/system/users/{id}": {
+      "get": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getManagedUser"
+      },
+      "put": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedUserRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedUserRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedUserRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedUserRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "updateManagedUser"
+      }
+    },
+    "/api/system/users/{id}/status": {
+      "put": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "setManagedUserStatus"
+      }
+    },
+    "/api/system/users/{id}/roles": {
+      "get": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getUserRoles"
+      },
+      "put": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceUserRolesRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceUserRolesRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceUserRolesRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceUserRolesRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "replaceUserRoles"
+      }
+    },
+    "/api/system/users/{id}/effective-permissions": {
+      "get": {
+        "tags": [
+          "RbacUsers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSystem.String"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSystem.String"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSystem.String"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getUserEffectivePermissions"
+      }
+    },
+    "/api/system/roles/page": {
+      "post": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getManagedRolesPage"
+      }
+    },
+    "/api/system/roles/{id}": {
+      "get": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getManagedRole"
+      },
+      "put": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedRoleRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedRoleRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedRoleRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UpdateManagedRoleRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "updateManagedRole"
+      },
+      "delete": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Boolean"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Boolean"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Boolean"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteManagedRole"
+      }
+    },
+    "/api/system/roles": {
+      "post": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.CreateManagedRoleRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.CreateManagedRoleRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.CreateManagedRoleRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.CreateManagedRoleRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "createManagedRole"
+      }
+    },
+    "/api/system/roles/{id}/status": {
+      "put": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "setManagedRoleStatus"
+      }
+    },
+    "/api/system/roles/{id}/permissions": {
+      "get": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getRolePermissions"
+      },
+      "put": {
+        "tags": [
+          "RbacRoles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceRolePermissionsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceRolePermissionsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceRolePermissionsRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ReplaceRolePermissionsRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "replaceRolePermissions"
+      }
+    },
+    "/api/system/permissions": {
+      "get": {
+        "tags": [
+          "RbacPermissions"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSwiftExport.Contracts.DTOs.Auth.ManagedPermissionDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSwiftExport.Contracts.DTOs.Auth.ManagedPermissionDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSwiftExport.Contracts.DTOs.Auth.ManagedPermissionDto"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getManagedPermissions"
+      }
     }
   },
   "components": {
@@ -3127,6 +4256,662 @@
           "name": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.RegisterRequestDto": {
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "nullable": true
+          },
+          "nickName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ChangePasswordRequestDto": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "nullable": true
+          },
+          "newPassword": {
+            "type": "string",
+            "nullable": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.AdminResetPasswordRequestDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "newPassword": {
+            "type": "string",
+            "nullable": true
+          },
+          "confirmPassword": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ManagedPageRequest": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "keyword": {
+            "type": "string",
+            "nullable": true
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ManagedUserDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "nickName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedUserDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedUserDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.UpdateManagedUserRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nickName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.SetManagedStatusRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.UserRolesDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.UserRolesDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.UserRolesDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ReplaceUserRolesRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSystem.String": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.PagedResponseBaseOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ManagedRoleDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roleCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isSystem": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.ManagedRoleDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedRoleDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.UpdateManagedRoleRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Boolean": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "boolean"
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.CreateManagedRoleRequest": {
+        "type": "object",
+        "properties": {
+          "roleCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Auth.RolePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.RolePermissionsDto"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.RolePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "permissionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "isAutomatic": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ReplaceRolePermissionsRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "permissionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSystem.Collections.Generic.ListOfSwiftExport.Contracts.DTOs.Auth.ManagedPermissionDto": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Auth.ManagedPermissionDto"
+            },
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Auth.ManagedPermissionDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "permissionKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "groupKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isAssignable": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

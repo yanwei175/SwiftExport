@@ -13,6 +13,8 @@ import { useWorkspace } from "../workspace/工作区Provider";
 import { WorkspaceView } from "../workspace/工作区视图";
 import { pageDirectory, probesEnabled } from "../workspace/页面目录";
 import { useUserPreferences } from "../shared/preferences/用户偏好上下文";
+import { settingsPages } from "../features/system/rbac/页面定义";
+import { hasPermission } from "../shared/authorization/权限检查";
 
 /** 工作区布局组合导航、页签和账户入口，业务保存留在 feature。 */
 export function WorkspaceLayout() {
@@ -25,6 +27,24 @@ export function WorkspaceLayout() {
   const session = useSession();
   const workspace = useWorkspace();
   const { message, notification, modal } = App.useApp();
+  const settingsItems: { key: string; label: string; onClick: () => void }[] =
+    Object.entries(settingsPages)
+      .filter(
+        ([, definition]) =>
+          !("permission" in definition) ||
+          hasPermission(session.user, definition.permission),
+      )
+      .map(([key, definition]) => ({
+        key,
+        label: definition.title,
+        onClick: () => workspace.open({ pageKind: key }),
+      }));
+  if (hasPermission(session.user, "System.Dictionary.View"))
+    settingsItems.push({
+      key: "dictionary-management",
+      label: "字典管理",
+      onClick: () => workspace.open({ pageKind: "dictionary-management" }),
+    });
   const probeAllowed =
     probesEnabled &&
     session.user?.permissions?.includes(
@@ -55,20 +75,13 @@ export function WorkspaceLayout() {
               label: "首页",
               onClick: () => workspace.open({ pageKind: "home" }),
             },
-            ...(session.user?.permissions?.includes("System.Dictionary.View")
+            ...(settingsItems.length
               ? [
                   {
                     key: "system-settings",
                     icon: <SettingOutlined />,
                     label: "系统设置",
-                    children: [
-                      {
-                        key: "dictionary-management",
-                        label: "字典管理",
-                        onClick: () =>
-                          workspace.open({ pageKind: "dictionary-management" }),
-                      },
-                    ],
+                    children: settingsItems,
                   },
                 ]
               : []),

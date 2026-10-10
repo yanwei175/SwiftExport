@@ -616,10 +616,247 @@ export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContracts
   error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
 }
 
+export interface SwiftExportContractsDTOsAuthRegisterRequestDto {
+  /** @nullable */
+  userName?: string | null;
+  /** @nullable */
+  password?: string | null;
+  /** @nullable */
+  confirmPassword?: string | null;
+  /** @nullable */
+  nickName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phoneNumber?: string | null;
+}
+
+export interface SwiftExportContractsDTOsAuthChangePasswordRequestDto {
+  /** @nullable */
+  currentPassword?: string | null;
+  /** @nullable */
+  newPassword?: string | null;
+  /** @nullable */
+  confirmPassword?: string | null;
+}
+
+export interface SwiftExportContractsDTOsAuthAdminResetPasswordRequestDto {
+  userId?: string;
+  /** @nullable */
+  newPassword?: string | null;
+  /** @nullable */
+  confirmPassword?: string | null;
+}
+
+export interface SwiftExportContractsDTOsAuthManagedPageRequest {
+  /** @nullable */
+  isActive?: boolean | null;
+  /** @nullable */
+  keyword?: string | null;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+export interface SwiftExportContractsDTOsAuthManagedUserDto {
+  uid?: string;
+  version?: number;
+  /** @nullable */
+  userName?: string | null;
+  /** @nullable */
+  nickName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phoneNumber?: string | null;
+  isActive?: boolean;
+  isAdmin?: boolean;
+}
+
+export interface SwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedUserDto {
+  /** @nullable */
+  items?: SwiftExportContractsDTOsAuthManagedUserDto[] | null;
+  totalCount?: number;
+  pageIndex?: number;
+  pageSize?: number;
+  readonly totalPages?: number;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedUserDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedUserDto | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsAuthManagedUserDto | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsDTOsAuthUpdateManagedUserRequest {
+  expectedVersion?: number;
+  /** @nullable */
+  nickName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  phoneNumber?: string | null;
+}
+
+export interface SwiftExportContractsDTOsAuthSetManagedStatusRequest {
+  expectedVersion?: number;
+  isActive?: boolean;
+}
+
+export interface SwiftExportContractsDTOsAuthUserRolesDto {
+  userId?: string;
+  version?: number;
+  /** @nullable */
+  roleIds?: string[] | null;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsAuthUserRolesDto | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsDTOsAuthReplaceUserRolesRequest {
+  expectedVersion?: number;
+  /** @nullable */
+  roleIds?: string[] | null;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSystemString {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  /** @nullable */
+  data?: string[] | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsDTOsAuthManagedRoleDto {
+  uid?: string;
+  version?: number;
+  /** @nullable */
+  roleCode?: string | null;
+  /** @nullable */
+  roleName?: string | null;
+  /** @nullable */
+  description?: string | null;
+  isActive?: boolean;
+  isSystem?: boolean;
+}
+
+export interface SwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedRoleDto {
+  /** @nullable */
+  items?: SwiftExportContractsDTOsAuthManagedRoleDto[] | null;
+  totalCount?: number;
+  pageIndex?: number;
+  pageSize?: number;
+  readonly totalPages?: number;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedRoleDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedRoleDto | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsAuthManagedRoleDto | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsDTOsAuthUpdateManagedRoleRequest {
+  expectedVersion?: number;
+  /** @nullable */
+  roleName?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSystemBoolean {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: boolean;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsDTOsAuthCreateManagedRoleRequest {
+  /** @nullable */
+  roleCode?: string | null;
+  /** @nullable */
+  roleName?: string | null;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface SwiftExportContractsDTOsAuthRolePermissionsDto {
+  roleId?: string;
+  version?: number;
+  /** @nullable */
+  permissionIds?: string[] | null;
+  isAutomatic?: boolean;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsAuthRolePermissionsDto | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
+export interface SwiftExportContractsDTOsAuthReplaceRolePermissionsRequest {
+  expectedVersion?: number;
+  /** @nullable */
+  permissionIds?: string[] | null;
+}
+
+export interface SwiftExportContractsDTOsAuthManagedPermissionDto {
+  uid?: string;
+  /** @nullable */
+  permissionKey?: string | null;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  groupKey?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  isAssignable?: boolean;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSwiftExportContractsDTOsAuthManagedPermissionDto {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  /** @nullable */
+  data?: SwiftExportContractsDTOsAuthManagedPermissionDto[] | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
 export type GetProductWarehouseCandidatesParams = {
 Keyword?: string;
 PageIndex?: number;
 PageSize?: number;
+};
+
+export type DeleteManagedRoleParams = {
+expectedVersion?: number;
 };
 
 export type loginResponse200 = {
@@ -1523,6 +1760,976 @@ export const getGetProductWarehouseCandidatesUrl = (params?: GetProductWarehouse
 export const getProductWarehouseCandidates = async (params?: GetProductWarehouseCandidatesParams, options?: Parameters<typeof executeRequest>[1]): Promise<getProductWarehouseCandidatesResponse> => {
 
   return executeRequest<getProductWarehouseCandidatesResponse>(getGetProductWarehouseCandidatesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type registerUserResponse200 = {
+  data: void
+  status: 200
+}
+
+export type registerUserResponseSuccess = (registerUserResponse200) & {
+  headers: Headers;
+};
+;
+
+export type registerUserResponse = (registerUserResponseSuccess)
+
+export const getRegisterUserUrl = () => {
+
+
+
+
+  return `/api/auth/register`
+}
+
+export const registerUser = async (swiftExportContractsDTOsAuthRegisterRequestDto?: SwiftExportContractsDTOsAuthRegisterRequestDto, options?: Parameters<typeof executeRequest>[1]): Promise<registerUserResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<registerUserResponse>(getRegisterUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthRegisterRequestDto)
+  }
+);}
+
+
+
+export type changeOwnPasswordResponse200 = {
+  data: void
+  status: 200
+}
+
+export type changeOwnPasswordResponseSuccess = (changeOwnPasswordResponse200) & {
+  headers: Headers;
+};
+;
+
+export type changeOwnPasswordResponse = (changeOwnPasswordResponseSuccess)
+
+export const getChangeOwnPasswordUrl = () => {
+
+
+
+
+  return `/api/auth/change-password`
+}
+
+export const changeOwnPassword = async (swiftExportContractsDTOsAuthChangePasswordRequestDto?: SwiftExportContractsDTOsAuthChangePasswordRequestDto, options?: Parameters<typeof executeRequest>[1]): Promise<changeOwnPasswordResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<changeOwnPasswordResponse>(getChangeOwnPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthChangePasswordRequestDto)
+  }
+);}
+
+
+
+export type resetUserPasswordResponse200 = {
+  data: void
+  status: 200
+}
+
+export type resetUserPasswordResponseSuccess = (resetUserPasswordResponse200) & {
+  headers: Headers;
+};
+;
+
+export type resetUserPasswordResponse = (resetUserPasswordResponseSuccess)
+
+export const getResetUserPasswordUrl = () => {
+
+
+
+
+  return `/api/auth/admin/reset-password`
+}
+
+export const resetUserPassword = async (swiftExportContractsDTOsAuthAdminResetPasswordRequestDto?: SwiftExportContractsDTOsAuthAdminResetPasswordRequestDto, options?: Parameters<typeof executeRequest>[1]): Promise<resetUserPasswordResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<resetUserPasswordResponse>(getResetUserPasswordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthAdminResetPasswordRequestDto)
+  }
+);}
+
+
+
+export type getManagedUsersPageResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type getManagedUsersPageResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type getManagedUsersPageResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type getManagedUsersPageResponseSuccess = (getManagedUsersPageResponse200TextPlain | getManagedUsersPageResponse200ApplicationJson | getManagedUsersPageResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getManagedUsersPageResponse = (getManagedUsersPageResponseSuccess)
+
+export const getGetManagedUsersPageUrl = () => {
+
+
+
+
+  return `/api/system/users/page`
+}
+
+export const getManagedUsersPage = async (swiftExportContractsDTOsAuthManagedPageRequest?: SwiftExportContractsDTOsAuthManagedPageRequest, options?: Parameters<typeof executeRequest>[1]): Promise<getManagedUsersPageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<getManagedUsersPageResponse>(getGetManagedUsersPageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthManagedPageRequest)
+  }
+);}
+
+
+
+export type getManagedUserResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type getManagedUserResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type getManagedUserResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type getManagedUserResponseSuccess = (getManagedUserResponse200TextPlain | getManagedUserResponse200ApplicationJson | getManagedUserResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getManagedUserResponse = (getManagedUserResponseSuccess)
+
+export const getGetManagedUserUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/users/${encodeURIComponent(String(id))}`
+}
+
+export const getManagedUser = async (id: string, options?: Parameters<typeof executeRequest>[1]): Promise<getManagedUserResponse> => {
+
+  return executeRequest<getManagedUserResponse>(getGetManagedUserUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type updateManagedUserResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type updateManagedUserResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type updateManagedUserResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type updateManagedUserResponseSuccess = (updateManagedUserResponse200TextPlain | updateManagedUserResponse200ApplicationJson | updateManagedUserResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type updateManagedUserResponse = (updateManagedUserResponseSuccess)
+
+export const getUpdateManagedUserUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/users/${encodeURIComponent(String(id))}`
+}
+
+export const updateManagedUser = async (id: string,
+    swiftExportContractsDTOsAuthUpdateManagedUserRequest?: SwiftExportContractsDTOsAuthUpdateManagedUserRequest, options?: Parameters<typeof executeRequest>[1]): Promise<updateManagedUserResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<updateManagedUserResponse>(getUpdateManagedUserUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthUpdateManagedUserRequest)
+  }
+);}
+
+
+
+export type setManagedUserStatusResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type setManagedUserStatusResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type setManagedUserStatusResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedUserDto
+  status: 200
+}
+
+export type setManagedUserStatusResponseSuccess = (setManagedUserStatusResponse200TextPlain | setManagedUserStatusResponse200ApplicationJson | setManagedUserStatusResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type setManagedUserStatusResponse = (setManagedUserStatusResponseSuccess)
+
+export const getSetManagedUserStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/users/${encodeURIComponent(String(id))}/status`
+}
+
+export const setManagedUserStatus = async (id: string,
+    swiftExportContractsDTOsAuthSetManagedStatusRequest?: SwiftExportContractsDTOsAuthSetManagedStatusRequest, options?: Parameters<typeof executeRequest>[1]): Promise<setManagedUserStatusResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<setManagedUserStatusResponse>(getSetManagedUserStatusUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthSetManagedStatusRequest)
+  }
+);}
+
+
+
+export type getUserRolesResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto
+  status: 200
+}
+
+export type getUserRolesResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto
+  status: 200
+}
+
+export type getUserRolesResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto
+  status: 200
+}
+
+export type getUserRolesResponseSuccess = (getUserRolesResponse200TextPlain | getUserRolesResponse200ApplicationJson | getUserRolesResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getUserRolesResponse = (getUserRolesResponseSuccess)
+
+export const getGetUserRolesUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/users/${encodeURIComponent(String(id))}/roles`
+}
+
+export const getUserRoles = async (id: string, options?: Parameters<typeof executeRequest>[1]): Promise<getUserRolesResponse> => {
+
+  return executeRequest<getUserRolesResponse>(getGetUserRolesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type replaceUserRolesResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto
+  status: 200
+}
+
+export type replaceUserRolesResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto
+  status: 200
+}
+
+export type replaceUserRolesResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthUserRolesDto
+  status: 200
+}
+
+export type replaceUserRolesResponseSuccess = (replaceUserRolesResponse200TextPlain | replaceUserRolesResponse200ApplicationJson | replaceUserRolesResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type replaceUserRolesResponse = (replaceUserRolesResponseSuccess)
+
+export const getReplaceUserRolesUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/users/${encodeURIComponent(String(id))}/roles`
+}
+
+export const replaceUserRoles = async (id: string,
+    swiftExportContractsDTOsAuthReplaceUserRolesRequest?: SwiftExportContractsDTOsAuthReplaceUserRolesRequest, options?: Parameters<typeof executeRequest>[1]): Promise<replaceUserRolesResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<replaceUserRolesResponse>(getReplaceUserRolesUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthReplaceUserRolesRequest)
+  }
+);}
+
+
+
+export type getUserEffectivePermissionsResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSystemString
+  status: 200
+}
+
+export type getUserEffectivePermissionsResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSystemString
+  status: 200
+}
+
+export type getUserEffectivePermissionsResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSystemString
+  status: 200
+}
+
+export type getUserEffectivePermissionsResponseSuccess = (getUserEffectivePermissionsResponse200TextPlain | getUserEffectivePermissionsResponse200ApplicationJson | getUserEffectivePermissionsResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getUserEffectivePermissionsResponse = (getUserEffectivePermissionsResponseSuccess)
+
+export const getGetUserEffectivePermissionsUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/users/${encodeURIComponent(String(id))}/effective-permissions`
+}
+
+export const getUserEffectivePermissions = async (id: string, options?: Parameters<typeof executeRequest>[1]): Promise<getUserEffectivePermissionsResponse> => {
+
+  return executeRequest<getUserEffectivePermissionsResponse>(getGetUserEffectivePermissionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type getManagedRolesPageResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type getManagedRolesPageResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type getManagedRolesPageResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsWrappersPagedResponseBaseOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type getManagedRolesPageResponseSuccess = (getManagedRolesPageResponse200TextPlain | getManagedRolesPageResponse200ApplicationJson | getManagedRolesPageResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getManagedRolesPageResponse = (getManagedRolesPageResponseSuccess)
+
+export const getGetManagedRolesPageUrl = () => {
+
+
+
+
+  return `/api/system/roles/page`
+}
+
+export const getManagedRolesPage = async (swiftExportContractsDTOsAuthManagedPageRequest?: SwiftExportContractsDTOsAuthManagedPageRequest, options?: Parameters<typeof executeRequest>[1]): Promise<getManagedRolesPageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<getManagedRolesPageResponse>(getGetManagedRolesPageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthManagedPageRequest)
+  }
+);}
+
+
+
+export type getManagedRoleResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type getManagedRoleResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type getManagedRoleResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type getManagedRoleResponseSuccess = (getManagedRoleResponse200TextPlain | getManagedRoleResponse200ApplicationJson | getManagedRoleResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getManagedRoleResponse = (getManagedRoleResponseSuccess)
+
+export const getGetManagedRoleUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/roles/${encodeURIComponent(String(id))}`
+}
+
+export const getManagedRole = async (id: string, options?: Parameters<typeof executeRequest>[1]): Promise<getManagedRoleResponse> => {
+
+  return executeRequest<getManagedRoleResponse>(getGetManagedRoleUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type updateManagedRoleResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type updateManagedRoleResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type updateManagedRoleResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type updateManagedRoleResponseSuccess = (updateManagedRoleResponse200TextPlain | updateManagedRoleResponse200ApplicationJson | updateManagedRoleResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type updateManagedRoleResponse = (updateManagedRoleResponseSuccess)
+
+export const getUpdateManagedRoleUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/roles/${encodeURIComponent(String(id))}`
+}
+
+export const updateManagedRole = async (id: string,
+    swiftExportContractsDTOsAuthUpdateManagedRoleRequest?: SwiftExportContractsDTOsAuthUpdateManagedRoleRequest, options?: Parameters<typeof executeRequest>[1]): Promise<updateManagedRoleResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<updateManagedRoleResponse>(getUpdateManagedRoleUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthUpdateManagedRoleRequest)
+  }
+);}
+
+
+
+export type deleteManagedRoleResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemBoolean
+  status: 200
+}
+
+export type deleteManagedRoleResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemBoolean
+  status: 200
+}
+
+export type deleteManagedRoleResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemBoolean
+  status: 200
+}
+
+export type deleteManagedRoleResponseSuccess = (deleteManagedRoleResponse200TextPlain | deleteManagedRoleResponse200ApplicationJson | deleteManagedRoleResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type deleteManagedRoleResponse = (deleteManagedRoleResponseSuccess)
+
+export const getDeleteManagedRoleUrl = (id: string,
+    params?: DeleteManagedRoleParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/system/roles/${encodeURIComponent(String(id))}?${stringifiedParams}` : `/api/system/roles/${encodeURIComponent(String(id))}`
+}
+
+export const deleteManagedRole = async (id: string,
+    params?: DeleteManagedRoleParams, options?: Parameters<typeof executeRequest>[1]): Promise<deleteManagedRoleResponse> => {
+
+  return executeRequest<deleteManagedRoleResponse>(getDeleteManagedRoleUrl(id,params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export type createManagedRoleResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type createManagedRoleResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type createManagedRoleResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type createManagedRoleResponseSuccess = (createManagedRoleResponse200TextPlain | createManagedRoleResponse200ApplicationJson | createManagedRoleResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type createManagedRoleResponse = (createManagedRoleResponseSuccess)
+
+export const getCreateManagedRoleUrl = () => {
+
+
+
+
+  return `/api/system/roles`
+}
+
+export const createManagedRole = async (swiftExportContractsDTOsAuthCreateManagedRoleRequest?: SwiftExportContractsDTOsAuthCreateManagedRoleRequest, options?: Parameters<typeof executeRequest>[1]): Promise<createManagedRoleResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<createManagedRoleResponse>(getCreateManagedRoleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthCreateManagedRoleRequest)
+  }
+);}
+
+
+
+export type setManagedRoleStatusResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type setManagedRoleStatusResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type setManagedRoleStatusResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthManagedRoleDto
+  status: 200
+}
+
+export type setManagedRoleStatusResponseSuccess = (setManagedRoleStatusResponse200TextPlain | setManagedRoleStatusResponse200ApplicationJson | setManagedRoleStatusResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type setManagedRoleStatusResponse = (setManagedRoleStatusResponseSuccess)
+
+export const getSetManagedRoleStatusUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/roles/${encodeURIComponent(String(id))}/status`
+}
+
+export const setManagedRoleStatus = async (id: string,
+    swiftExportContractsDTOsAuthSetManagedStatusRequest?: SwiftExportContractsDTOsAuthSetManagedStatusRequest, options?: Parameters<typeof executeRequest>[1]): Promise<setManagedRoleStatusResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<setManagedRoleStatusResponse>(getSetManagedRoleStatusUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthSetManagedStatusRequest)
+  }
+);}
+
+
+
+export type getRolePermissionsResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto
+  status: 200
+}
+
+export type getRolePermissionsResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto
+  status: 200
+}
+
+export type getRolePermissionsResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto
+  status: 200
+}
+
+export type getRolePermissionsResponseSuccess = (getRolePermissionsResponse200TextPlain | getRolePermissionsResponse200ApplicationJson | getRolePermissionsResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getRolePermissionsResponse = (getRolePermissionsResponseSuccess)
+
+export const getGetRolePermissionsUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/roles/${encodeURIComponent(String(id))}/permissions`
+}
+
+export const getRolePermissions = async (id: string, options?: Parameters<typeof executeRequest>[1]): Promise<getRolePermissionsResponse> => {
+
+  return executeRequest<getRolePermissionsResponse>(getGetRolePermissionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export type replaceRolePermissionsResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto
+  status: 200
+}
+
+export type replaceRolePermissionsResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto
+  status: 200
+}
+
+export type replaceRolePermissionsResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsAuthRolePermissionsDto
+  status: 200
+}
+
+export type replaceRolePermissionsResponseSuccess = (replaceRolePermissionsResponse200TextPlain | replaceRolePermissionsResponse200ApplicationJson | replaceRolePermissionsResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type replaceRolePermissionsResponse = (replaceRolePermissionsResponseSuccess)
+
+export const getReplaceRolePermissionsUrl = (id: string,) => {
+
+
+
+
+  return `/api/system/roles/${encodeURIComponent(String(id))}/permissions`
+}
+
+export const replaceRolePermissions = async (id: string,
+    swiftExportContractsDTOsAuthReplaceRolePermissionsRequest?: SwiftExportContractsDTOsAuthReplaceRolePermissionsRequest, options?: Parameters<typeof executeRequest>[1]): Promise<replaceRolePermissionsResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<replaceRolePermissionsResponse>(getReplaceRolePermissionsUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsAuthReplaceRolePermissionsRequest)
+  }
+);}
+
+
+
+export type getManagedPermissionsResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSwiftExportContractsDTOsAuthManagedPermissionDto
+  status: 200
+}
+
+export type getManagedPermissionsResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSwiftExportContractsDTOsAuthManagedPermissionDto
+  status: 200
+}
+
+export type getManagedPermissionsResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSystemCollectionsGenericListOfSwiftExportContractsDTOsAuthManagedPermissionDto
+  status: 200
+}
+
+export type getManagedPermissionsResponseSuccess = (getManagedPermissionsResponse200TextPlain | getManagedPermissionsResponse200ApplicationJson | getManagedPermissionsResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type getManagedPermissionsResponse = (getManagedPermissionsResponseSuccess)
+
+export const getGetManagedPermissionsUrl = () => {
+
+
+
+
+  return `/api/system/permissions`
+}
+
+export const getManagedPermissions = async ( options?: Parameters<typeof executeRequest>[1]): Promise<getManagedPermissionsResponse> => {
+
+  return executeRequest<getManagedPermissionsResponse>(getGetManagedPermissionsUrl(),
   {
     ...options,
     method: 'GET'

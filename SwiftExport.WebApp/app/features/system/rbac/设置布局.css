@@ -1,0 +1,33 @@
+.settings-page {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.settings-page h4 {
+  margin: 0 !important;
+}
+.settings-table-card {
+  flex: 1;
+  min-height: 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.settings-table-card > .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+.settings-editor {
+  max-width: 980px;
+}
+.settings-editor .ant-select {
+  width: 100%;
+}
+.settings-permission-tags {
+  max-height: 180px;
+  overflow: auto;
+}

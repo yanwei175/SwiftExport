@@ -25,7 +25,7 @@ const selected = JSON.parse(
   ),
 );
 const paths = {};
-for (const [path, method, operationId, idSource] of selected) {
+for (const [path, method, operationId, idSource, responseSource] of selected) {
   const operation = document.paths?.[path]?.[method];
   assert.ok(operation, `缺少 ${method} ${path}`);
   // 未命名管理端点只补审核后的客户端方法名；已有后端 ID 不能静默覆盖。
@@ -46,7 +46,17 @@ for (const [path, method, operationId, idSource] of selected) {
     ],
     `${operationId} 缺少成功响应`,
   );
-  if (operationId !== "logoutBrowserSession")
+  assert.ok(
+    responseSource === undefined || responseSource === "response-untyped",
+    "未知响应来源",
+  );
+  // 明确审核无响应 schema 的现有账号端点：保留真实缺口，feature 运行时核对未知正文。
+  if (responseSource === "response-untyped") {
+    assert.ok(
+      !operation.responses["200"].content,
+      `${path} 已有响应描述，请重新审核`,
+    );
+  } else if (operationId !== "logoutBrowserSession")
     assert.ok(operation.responses["200"].content?.["application/json"]?.schema);
   paths[path] = {
     ...paths[path],
