@@ -132,6 +132,7 @@ namespace SwiftExport.Core.Entities.SalesOrders
 {
     [DbCheck("CK_SalesOrderHeader_Status", "\"document_status\" IN ( 0 , 8 , 9 ) AND \"confirmation_status\" IN ( 0 , 1 )")]
     [DbIndex("UX_SalesOrderHeader_OrderNo", nameof(SalesOrderHeader.OrderNo), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
+    [DbIndex("UX_SalesOrderHeader_InvoiceNo", nameof(SalesOrderHeader.InvoiceNo), IsUnique = true, Filter = "\"is_deleted\" = FALSE AND \"invoice_no\" IS NOT NULL AND btrim(\"invoice_no\", ' ') <> ''")]
     [DbIndex("IX_SalesOrderHeader_Customer_Date", nameof(SalesOrderHeader.CustomerId), nameof(SalesOrderHeader.OrderDate), Filter = "\"is_deleted\" = FALSE")]
     [LogicalReference(nameof(SalesOrderHeader.CustomerId), typeof(Customer))]
     public partial class SalesOrderHeader { }

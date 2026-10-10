@@ -231,6 +231,7 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
             Cleanup(() => provider?.GetRequiredService<ModelessElementHostWindowManager>().Dispose());
             Cleanup(() => provider?.GetRequiredService<WindowManager>().Dispose());
             Cleanup(() => taskPanes?.Dispose());
+            Cleanup(() => Resources.Controls.ImageSourceLoader.ReleaseShared());
             Cleanup(() => provider?.Dispose());
             Cleanup(() => wpf?.Dispose());
             Cleanup(() => dispatcher?.Dispose());

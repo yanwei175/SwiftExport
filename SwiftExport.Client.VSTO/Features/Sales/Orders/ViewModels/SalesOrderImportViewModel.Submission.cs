@@ -28,8 +28,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public IAsyncRelayCommand CheckImportCommand { get; private set; }
         /// <summary>独立匹配所有行的产品身份，不授予整单保存资格。</summary>
         public IAsyncRelayCommand MatchAllSkusCommand { get; private set; }
-        /// <summary>只匹配视图选中行的产品身份，不影响未选中行。</summary>
-        public IAsyncRelayCommand MatchSelectedSkusCommand { get; private set; }
+        /// <summary>按行内按钮传入的对象匹配产品身份，不依赖网格选择或影响其他行。</summary>
+        public IAsyncRelayCommand<SalesOrderImportLine> MatchLineSkuCommand { get; private set; }
         /// <summary>仅当本次输入完整通过检查时新建草稿；成功后禁止再次新建同一份输入。</summary>
         public IAsyncRelayCommand SaveDraftCommand { get; private set; }
         /// <summary>结果未知时显式重发原请求和原 CommandId，不读取当前编辑值重新组装。</summary>
@@ -61,22 +61,23 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         {
             checkApi = service;
             CheckImportCommand = new AsyncRelayCommand(CheckImportAsync, () => CanMatchSkus && Lines.Count > 0);
-            MatchAllSkusCommand = new AsyncRelayCommand(() => MatchSkusAsync(false), () => CanMatchSkus && Lines.Count > 0);
-            MatchSelectedSkusCommand = new AsyncRelayCommand(() => MatchSkusAsync(true), () => CanMatchSkus && selectedLines.Any(Lines.Contains));
+            MatchAllSkusCommand = new AsyncRelayCommand(() => MatchSkusAsync(), () => CanMatchSkus && Lines.Count > 0);
+            MatchLineSkuCommand = new AsyncRelayCommand<SalesOrderImportLine>(line => line == null ? Task.CompletedTask : MatchSkusAsync(line),
+                line => CanMatchSkus && line != null && Lines.Contains(line));
             SaveDraftCommand = new AsyncRelayCommand(SaveDraftAsync, () => CanSaveDraft);
             RetrySaveCommand = new AsyncRelayCommand(SaveDraftAsync, () => !IsDisposed && !saving && HasPendingSave && HasMaintainPermission && Accept(pageVersion));
             NewImportCommand = new RelayCommand(StartNewImport, () => !IsDisposed && saveCompleted && !saving && Accept(pageVersion));
             ToggleNonStandardCommand = new RelayCommand<SalesOrderImportLine>(l => { if (IsEditable && Lines.Contains(l)) { CancelSearch(l); l.SetNonStandard(!l.IsNonStandard); } }, l => IsEditable && l != null && Lines.Contains(l));
             ChooseMatchCommand = new RelayCommand<SalesOrderImportLine>(l => { if (CanMatchSkus && Lines.Contains(l)) l.ChooseMatchCandidate(); }, l => CanMatchSkus && l != null && Lines.Contains(l));
-            foreach (var command in new IRelayCommand[] { CheckImportCommand, MatchAllSkusCommand, MatchSelectedSkusCommand, SaveDraftCommand, RetrySaveCommand, NewImportCommand, ToggleNonStandardCommand, ChooseMatchCommand }) RegisterCommand(command);
+            foreach (var command in new IRelayCommand[] { CheckImportCommand, MatchAllSkusCommand, MatchLineSkuCommand, SaveDraftCommand, RetrySaveCommand, NewImportCommand, ToggleNonStandardCommand, ChooseMatchCommand }) RegisterCommand(command);
         }
         // 复用批量检查契约；单头问题不阻止产品查询，不处理重复订单确认，也不接纳 CanSave。
-        private async Task MatchSkusAsync(bool selectedOnly)
+        private async Task MatchSkusAsync(SalesOrderImportLine target = null)
         {
-            if (!CanMatchSkus) return;
-            var rows = (selectedOnly ? Lines.Where(selectedLines.Contains) : Lines).ToArray();
+            if (!CanMatchSkus || (target != null && !Lines.Contains(target))) return;
+            var rows = target == null ? Lines.ToArray() : new[] { target };
             if (rows.Length == 0) return;
-            if (rows.Length > 500) { SubmissionMessage = "每次匹配最多支持 500 行，请选择部分明细后匹配。"; return; }
+            if (rows.Length > 500) { SubmissionMessage = "每次匹配最多支持 500 行，请缩小导入范围或使用行内匹配。"; return; }
             var version = pageVersion; var revision = documentRevision;
             var rowVersions = rows.Select(l => l.EditRevision).ToArray();
             var token = submissionLifetime.Token;

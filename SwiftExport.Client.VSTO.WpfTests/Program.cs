@@ -21,6 +21,16 @@ namespace SwiftExport.Client.VSTO.WpfTests
             System.Threading.SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
             try
             {
+                if (args.Length == 1 && args[0] == "--images-only")
+                {
+                    ImageLoadingChecks.Run(Check);
+                    Console.WriteLine("PASS Images: " + checks + " assertions"); return 0;
+                }
+                if (args.Length == 2 && args[0] == "--image-url")
+                {
+                    ImageLoadingChecks.CheckServer(args[1], Check);
+                    Console.WriteLine("PASS Image server: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--typography-only")
                 {
                     using (var fontHost = new WpfRuntimeHost()) { fontHost.Initialize(); TypographyChecks.Run(Check); }

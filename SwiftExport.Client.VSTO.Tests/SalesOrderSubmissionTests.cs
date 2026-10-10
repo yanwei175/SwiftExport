@@ -37,9 +37,30 @@ namespace SwiftExport.Client.VSTO.Tests
         private static ServiceResult<SaveSalesOrderResponse> Saved(ImportTestFixture f) => ServiceResult<SaveSalesOrderResponse>.Ok(new SaveSalesOrderResponse {
             Document = new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto { Uid = Guid.NewGuid(), CustomerId = f.Model.Header.CustomerId, OrderNo = "SO1" } } });
 
-        /// <summary>所有匹配入口依赖已接纳客户；只有选中行时才启用局部匹配。</summary>
+        /// <summary>字典外运输字符串不触发缺失提示，检验后原样进入草稿请求。</summary>
         [TestMethod]
-        public async Task MatchingRequiresCustomerAndSelection()
+        public async Task FreeTextShippedByIsNotRestrictedToDictionary()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                await Prepare(f);
+                const string shippedBy = "1x40HQ / customer arranged shipment";
+                f.Model.Header.ShippedBy = shippedBy;
+                Assert.IsFalse(f.Model.ValidationSummary.Contains(shippedBy));
+                Assert.IsTrue(f.Model.ShippedByOptions.Any(item => item.DataNameEn == shippedBy));
+                SaveSalesOrderRequest sent = null;
+                f.Api.Save = request => { sent = request; return Task.FromResult(Saved(f)); };
+                await f.Model.CheckImportAsync();
+                Assert.IsTrue(f.Model.CanSaveDraft);
+                await f.Model.SaveDraftAsync();
+                Assert.IsNotNull(sent);
+                Assert.AreEqual(shippedBy, sent.Header.ShippedBy);
+            }
+        }
+
+        /// <summary>匹配依赖客户，单行匹配还须传入本页的有效行，不依赖选择集合。</summary>
+        [TestMethod]
+        public async Task MatchingRequiresCustomerAndLiveRow()
         {
             using (var f = new ImportTestFixture())
             {
@@ -48,16 +69,18 @@ namespace SwiftExport.Client.VSTO.Tests
                 var line = new SalesOrderImportLine(false, null); f.Model.Lines.Add(line); f.Model.SetSelectedLines(new[] { line });
                 Assert.IsFalse(f.Model.CheckImportCommand.CanExecute(null));
                 Assert.IsFalse(f.Model.MatchAllSkusCommand.CanExecute(null));
-                Assert.IsFalse(f.Model.MatchSelectedSkusCommand.CanExecute(null));
+                Assert.IsFalse(f.Model.MatchLineSkuCommand.CanExecute(line));
                 f.Model.SelectedCustomer = f.Cache.Customers[0]; f.Model.CustomerSelectedCommand.Execute(null);
                 f.Model.AddStandardLineCommand.Execute(null);
                 Assert.IsTrue(f.Model.CheckImportCommand.CanExecute(null)); Assert.IsTrue(f.Model.MatchAllSkusCommand.CanExecute(null));
-                Assert.IsFalse(f.Model.MatchSelectedSkusCommand.CanExecute(null));
-                f.Model.SetSelectedLines(f.Model.Lines); Assert.IsTrue(f.Model.MatchSelectedSkusCommand.CanExecute(null));
+                Assert.IsFalse(f.Model.MatchLineSkuCommand.CanExecute(null));
+                Assert.IsTrue(f.Model.MatchLineSkuCommand.CanExecute(f.Model.Lines[0]));
+                Assert.IsFalse(f.Model.MatchLineSkuCommand.CanExecute(line), "换客户清掉的旧行不能匹配");
+                Assert.IsFalse(f.Model.MatchLineSkuCommand.CanExecute(new SalesOrderImportLine(false, null)));
             }
         }
 
-        /// <summary>独立匹配不要求单头完成，选中范围不污染其他行，全部匹配也不能代替整单保存检验。</summary>
+        /// <summary>独立匹配不要求单头完成；参数行与选择行不同也只匹配参数行，不能代替整单检验。</summary>
         [TestMethod]
         public async Task IndependentMatchingPreservesScopeAndSaveGate()
         {
@@ -68,15 +91,17 @@ namespace SwiftExport.Client.VSTO.Tests
                 f.Model.Header.ExchangeRateText = "";
                 CheckSalesOrderImportRequest sent = null;
                 f.CheckApi.Check = (r, t) => { sent = r; return Task.FromResult(Checked(f, r)); };
-                f.Model.SetSelectedLines(new[] { second });
-                await f.Model.MatchSelectedSkusCommand.ExecuteAsync(null);
+                f.Model.SetSelectedLines(new[] { first });
+                await f.Model.MatchLineSkuCommand.ExecuteAsync(null);
+                Assert.IsNull(sent, "缺少参数时不能误变为匹配全部");
+                await f.Model.MatchLineSkuCommand.ExecuteAsync(second);
                 Assert.AreEqual(f.Model.Header.CustomerCode, sent.CustomerCode); Assert.AreEqual(1, sent.Lines.Count);
                 Assert.AreEqual(second.Uid, sent.Lines[0].ClientLineId); Assert.IsNull(first.ProductId);
                 Assert.AreEqual("REAL1", second.Sku); Assert.IsTrue(second.IsCheckPassed); Assert.IsFalse(f.Model.CanSaveDraft);
                 await f.Model.MatchAllSkusCommand.ExecuteAsync(null);
                 Assert.AreEqual(2, sent.Lines.Count); Assert.IsTrue(first.IsCheckPassed); Assert.IsFalse(f.Model.CanSaveDraft);
                 await f.Model.CheckImportAsync(); Assert.IsTrue(f.Model.CanSaveDraft);
-                await f.Model.MatchSelectedSkusCommand.ExecuteAsync(null); Assert.IsFalse(f.Model.CanSaveDraft);
+                await f.Model.MatchLineSkuCommand.ExecuteAsync(second); Assert.IsFalse(f.Model.CanSaveDraft);
                 second.QtyText = "0"; Assert.IsFalse(second.IsCheckPassed);
             }
         }
@@ -118,7 +143,7 @@ namespace SwiftExport.Client.VSTO.Tests
                 var wait = new TaskCompletionSource<ServiceResult<CheckSalesOrderImportResponse>>();
                 CheckSalesOrderImportRequest sent = null; var calls = 0;
                 f.CheckApi.Check = (r, t) => { sent = r; calls++; return wait.Task; };
-                var task = f.Model.MatchSelectedSkusCommand.ExecuteAsync(null);
+                var task = f.Model.MatchLineSkuCommand.ExecuteAsync(row);
                 Assert.IsFalse(f.Model.MatchAllSkusCommand.CanExecute(null)); Assert.IsFalse(f.Model.CheckImportCommand.CanExecute(null));
                 await f.Model.MatchAllSkusCommand.ExecuteAsync(null); Assert.AreEqual(1, calls);
                 var response = Checked(f, sent);

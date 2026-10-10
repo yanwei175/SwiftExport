@@ -80,6 +80,18 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public decimal? TotalUsdAmount => Sum(line => line.UsdAmount);
         /// <summary>合计有效 CNY 金额，不使用汇率推算。</summary>
         public decimal? TotalCnyAmount => Sum(line => line.CnyAmount);
+        /// <summary>人民币单价和金额仅在当前单头选择 CNY 时显示，不清除隐藏值。</summary>
+        public bool IsCnyCurrency => string.Equals(Header.Currency, "CNY", StringComparison.OrdinalIgnoreCase);
+        /// <summary>按数量除以每箱数量统计箱数，保留小数，不推断拼箱。</summary>
+        public decimal? TotalCartons => Sum(line => PackingTotal(line, 1m));
+        /// <summary>合计箱数乘每箱毛重，缺失或非法包装值不计入。</summary>
+        public decimal? TotalGrossWeight => Sum(line => PackingTotal(line, line.GwOfCarton));
+        /// <summary>合计箱数乘每箱体积，跨行合并的空快照不重复分配。</summary>
+        public decimal? TotalVolume => Sum(line => PackingTotal(line, line.CbmOfCarton));
+        /// <summary>包装统计缺少输入或溢出时提示，不增加草稿保存校验。</summary>
+        public string PackingSummaryWarning => Lines.Any(line => !PackingTotal(line, 1m).HasValue
+            || !PackingTotal(line, line.GwOfCarton).HasValue || !PackingTotal(line, line.CbmOfCarton).HasValue)
+            || !TotalCartons.HasValue || !TotalGrossWeight.HasValue || !TotalVolume.HasValue ? "包装汇总不完整" : "";
         /// <summary>汇总缺失资料、行校验及不完整统计提示。</summary>
         public string ValidationSummary => string.Join("\n", new[] { Header.Error, MissingOptionMessage }
             .Concat(Lines.Select((line, index) => string.IsNullOrEmpty(line.Error) ? "" : "第 " + (index + 1) + " 行：" + line.Error))
@@ -232,9 +244,19 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             try { return Lines.Sum(line => selector(line) ?? 0m); }
             catch (OverflowException) { return null; }
         }
+        // 包装只按快照计算；非法数量、每箱数量、缺失资料及溢出均返回空值。
+        private static decimal? PackingTotal(SalesOrderImportLine line, decimal? perCarton)
+        {
+            if (!line.Qty.HasValue || !line.PcsOfCarton.HasValue || !perCarton.HasValue) return null;
+            try { return line.Qty.Value / line.PcsOfCarton.Value * perCarton.Value; }
+            catch (OverflowException) { return null; }
+        }
         // 所有派生属性和命令统一通知，避免增删或换号后按钮状态残留。
         private void NotifyState()
         {
+            OnPropertyChanged(nameof(IsCnyCurrency));
+            OnPropertyChanged(nameof(TotalCartons)); OnPropertyChanged(nameof(TotalGrossWeight));
+            OnPropertyChanged(nameof(TotalVolume)); OnPropertyChanged(nameof(PackingSummaryWarning));
             foreach (var name in new[] { nameof(CanSaveDraft), nameof(HasPendingSave), nameof(PendingCommandId), nameof(CanSelectReadProfile), nameof(IsEditable), nameof(IsReadOnly), nameof(HasEdits), nameof(BusyMessage), nameof(TotalQty), nameof(TotalUsdAmount), nameof(TotalCnyAmount), nameof(ValidationSummary), nameof(HasValidationError) }) OnPropertyChanged(name);
             RefreshCommands();
             foreach (var line in Lines) { line.SearchCommand?.NotifyCanExecuteChanged(); line.CommitProductCommand?.NotifyCanExecuteChanged(); line.ClearProductCommand?.NotifyCanExecuteChanged(); }

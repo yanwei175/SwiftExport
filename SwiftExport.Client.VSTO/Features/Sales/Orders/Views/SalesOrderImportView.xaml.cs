@@ -2,12 +2,13 @@
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.Models;
 using SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
 {
-    /// <summary>只桥接视图加载和多选状态，业务行为交给 ViewModel。</summary>
+    /// <summary>桥接视图加载、删除选择及行模板命令状态，业务行为交给 ViewModel。</summary>
     public partial class SalesOrderImportView : UserControl
     {
         private readonly SalesOrderImportViewModel model;
@@ -32,6 +33,23 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
         {
             if (!ReferenceEquals(args.OriginalSource, OrderLinesGrid)) return;
             model.SetSelectedLines(OrderLinesGrid.SelectedItems.Cast<SalesOrderImportLine>().ToArray());
+        }
+
+        /// <summary>行按钮加载后，在参数绑定完成时刷新命令，避免新行显示旧的禁用状态。</summary>
+        private void OnMatchButtonLoaded(object sender, RoutedEventArgs args) { RefreshMatchButton(sender); }
+
+        /// <summary>虚拟化复用行模板时刷新参数命令，不根据网格选择决定匹配目标。</summary>
+        private void OnMatchButtonDataContextChanged(object sender, DependencyPropertyChangedEventArgs args) { RefreshMatchButton(sender); }
+
+        /// <summary>集合通知先于模板绑定；在 Loaded 优先级等待 DataBind 完成，仅重算活跃按钮的资格。</summary>
+        private void RefreshMatchButton(object sender)
+        {
+            var button = sender as FrameworkElement;
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                if (button?.IsLoaded == true && model != null && !model.IsDisposed)
+                    model.MatchLineSkuCommand.NotifyCanExecuteChanged();
+            }));
         }
     }
 }

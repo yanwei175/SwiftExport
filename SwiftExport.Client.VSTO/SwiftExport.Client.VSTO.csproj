@@ -309,6 +309,7 @@
     </Compile>
     <Compile Include="Resources\Controls\LookupTextMatcher.cs" />
     <Compile Include="Resources\Controls\HttpsImage.cs" />
+    <Compile Include="Resources\Controls\ImageSourceLoader.cs" />
     <Compile Include="Resources\Controls\ImportHeaderPopup.cs" />
     <Compile Include="Features\Customers\Components\CustomerAutoSuggestComboBox.xaml.cs">
       <DependentUpon>CustomerAutoSuggestComboBox.xaml</DependentUpon>

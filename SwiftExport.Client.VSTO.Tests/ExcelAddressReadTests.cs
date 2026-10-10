@@ -142,6 +142,32 @@ namespace SwiftExport.Client.VSTO.Tests
                 f.Confirm = true; await f.Model.ReadHeaderCommand.ExecuteAsync(null); Assert.AreEqual("260820", f.Model.Header.InvoiceNo); Assert.AreEqual(1, f.Model.Lines.Count);
             }
         }
+        /// <summary>只覆盖实际读取字段，客户默认资料及未映射的人工输入保留，映射空值仍清除。</summary>
+        [TestMethod]
+        public async Task HeaderReadPreservesUnmappedValuesAndClearsMappedBlank()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                await f.Start(); await f.Model.EnsureReadProfilesAsync();
+                var header = f.Model.Header;
+                header.Currency = "CNY"; header.PaymentMethod = "Deposit"; header.Incoterm = "FOB";
+                header.IncotermLocation = "Jiangmen"; header.DepositRate = 0.3m; header.LeadTimeDays = 30;
+                header.DeliveryDate = new DateTime(2026, 12, 1); header.ShipToName = "Keep name";
+                header.InvoiceNo = "OLD"; var customer = header.CustomerId;
+                f.AddressReader.Read = _ => Task.FromResult(new ExcelAddressSnapshot { Rows = new List<List<ExcelAddressValue>> {
+                    new List<ExcelAddressValue> { Value("Header.InvoiceNo", 12, "NEW"), Value("Header.ShipToPhone", 5, null) } } });
+                header.ShipToPhone = "Old phone";
+                await f.Model.ReadHeaderCommand.ExecuteAsync(null);
+                Assert.AreSame(header, f.Model.Header); Assert.AreEqual(customer, header.CustomerId);
+                Assert.AreEqual("NEW", header.InvoiceNo); Assert.AreEqual("", header.ShipToPhone);
+                Assert.AreEqual("CNY", header.Currency); Assert.AreEqual("Deposit", header.PaymentMethod);
+                Assert.AreEqual("FOB", header.Incoterm); Assert.AreEqual("Jiangmen", header.IncotermLocation);
+                Assert.AreEqual(0.3m, header.DepositRate); Assert.AreEqual(30, header.LeadTimeDays);
+                Assert.AreEqual(new DateTime(2026, 12, 1), header.DeliveryDate); Assert.AreEqual("Keep name", header.ShipToName);
+                Assert.AreEqual(2, header.Source.Cells.Count);
+            }
+        }
+
         /// <summary>旧账号读取和已释放页面不能接纳迟到快照。</summary>
         [TestMethod]
         public async Task LateReadAfterSessionChangeOrDisposeIsRejected()

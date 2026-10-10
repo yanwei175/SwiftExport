@@ -1523,6 +1523,7 @@ CREATE TRIGGER "tr_purchase_order_head_immutable_identity" BEFORE UPDATE ON "pub
 CREATE INDEX "ix_purchase_order_line_product" ON "public"."purchase_order_line" ("product_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_purchase_order_line_head_line" ON "public"."purchase_order_line" ("purchase_order_id", "line_number") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_sales_order_header_customer_date" ON "public"."sales_order_header" ("customer_id", "order_date") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_sales_order_header_invoice_no" ON "public"."sales_order_header" ((btrim("invoice_no", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE AND "invoice_no" IS NOT NULL AND btrim("invoice_no", ' ') <> '';
 CREATE UNIQUE INDEX "ux_sales_order_header_order_no" ON "public"."sales_order_header" ("order_no") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_sales_order_line_head_line" ON "public"."sales_order_line" ("sales_order_id", "line_number") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_supplier_supplier_code" ON "public"."supplier" ((rtrim("supplier_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;

@@ -174,7 +174,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                 await dispatcher.InvokeAsync(() =>
                 {
                     if (!Accept(version)) return;
-                    if (HasEdits && !prompt.ConfirmDiscard(detail ? "读取将替换全部明细，保留单头。是否继续？" : "读取将替换单头，保留已选客户和全部明细。是否继续？")) return;
+                    if (HasEdits && !prompt.ConfirmDiscard(detail ? "读取将替换全部明细，保留单头。是否继续？" : "读取将替换已配置的单头字段，保留未配置字段、已选客户和全部明细。是否继续？")) return;
                     if (!Accept(version)) return;
                     applyingParsedPart = true;
                     try
@@ -187,8 +187,15 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                         else
                         {
                             if (result.Header == null) throw new InvalidOperationException("没有可读取的单头字段。");
-                            result.Header.CustomerId = Header.CustomerId; result.Header.CustomerCode = Header.CustomerCode;
-                            header.PropertyChanged -= HeaderChanged; header = result.Header; header.PropertyChanged += HeaderChanged; OnPropertyChanged(nameof(Header));
+                            // 仅复制本次快照中的活动字段，保留客户默认值及未配置的人工输入；配置单元格为空仍显式清除。
+                            var readKeys = snapshot.Rows.SelectMany(row => row).Select(cell => cell.FieldKey).ToArray();
+                            foreach (var field in addressDefinition.Fields.Where(field => field.ModelType == addressDefinition.HeaderType && readKeys.Contains(field.FieldKey)))
+                            {
+                                var value = field.ModelType.GetProperty(field.PropertyName).GetValue(result.Header);
+                                field.Assign(Header, value);
+                            }
+                            Header.Source.SetCells(result.Header.Source.Cells);
+                            Header.Source.SetIssues(result.Header.Source.Issues);
                             foreach (var line in Lines) line.InvalidateCheck();
                         }
                     }

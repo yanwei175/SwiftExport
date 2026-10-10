@@ -44,7 +44,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
     private const string UpdateType = "Orders.SalesOrder.UpdateDraft";
     private const string DeleteType = "Orders.SalesOrder.DeleteDraft";
     /// <summary>
-    /// 新建或更新未确认、未关闭的销售订单，并一次性保存订单头和全部行变更。
+    /// 新建或更新未确认、未关闭的销售订单，发票号不得被其他未删订单占用，并一次性保存头行变更。
     /// </summary>
     /// <remarks>
     /// 新建时申请正式订单号；更新时校验头、行 Version，并把旧行号暂存到安全区，
@@ -81,6 +81,11 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
             var customer = await customerRepository.GetByIdAsync(headerRequest.CustomerId)
                 ?? throw new SalesOrderValidationException("所选客户不存在或已删除。");
 
+            // 全客户范围的发票号占用须在保存事务内重查，不能信任导入检查时用户确认的重复提示。
+            if (await headRepository.InvoiceNoExistsAsync(headerRequest.InvoiceNo ?? "", headerRequest.Uid, token))
+                throw new BusinessCommandException(ServiceErrorCodes.Validation,
+                    "发票号已被未删除的销售订单使用，请删除原来的草稿或修改发票号后重新保存。", "Header.InvoiceNo");
+
             SalesOrderHeader header;
             IReadOnlyList<SalesOrderLine> existingLines;
             if (isCreate)
@@ -115,7 +120,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
                 header.DocumentStatus = SalesOrderDocumentStatusEnum.Open;
                 header.ConfirmationStatus = ConfirmationStatusEnum.待确认;
                 var addHeaderResult = await headRepository.AddAsync(header);
-                EnsureWriteSucceeded(addHeaderResult);
+                EnsureHeaderWriteSucceeded(addHeaderResult);
                 foreach (var line in lineBuild.ActiveLines)
                 {
                     line.SalesOrderId = header.Uid;
@@ -125,7 +130,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
             else
             {
                 var updateHeaderResult = await headRepository.UpdateAsync(header);
-                EnsureWriteSucceeded(updateHeaderResult);
+                EnsureHeaderWriteSucceeded(updateHeaderResult);
                 var stagedLineCount = await lineRepository.StageLineNumbersAsync(
                     header.Uid,
                     lineBuild.ActiveLines.Count);
@@ -154,6 +159,14 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
         => RunAsync(() => pipeline.ExecuteAsync<SalesOrderCommandRequest, bool>(
             request, request?.CommandId, DeleteType, AuthorizeDeleteAsync,
             token => ExecuteDeleteCommandAsync(uid, request!, token), CancellationToken.None));
+
+    /// <summary>发票唯一索引的并发拒绝指向单头字段，其他头写入错误沿用原并发分类。</summary>
+    private static void EnsureHeaderWriteSucceeded(RepositoryWriteResult result)
+    {
+        if (!result.Success && result.ErrorCode == ServiceErrorCodes.Validation)
+            throw new BusinessCommandException(result.ErrorCode, result.Message, "Header.InvoiceNo");
+        EnsureWriteSucceeded(result);
+    }
 
     /// <summary>路由身份在回执前校验；删除后的重试可直接读到持久化 true。</summary>
     private async Task<ServiceResult<CommandExecutionResult<bool>>> ExecuteDeleteCommandAsync(

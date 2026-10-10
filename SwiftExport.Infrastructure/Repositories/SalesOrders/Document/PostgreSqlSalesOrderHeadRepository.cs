@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
+using Npgsql;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.SalesOrders;
@@ -15,6 +16,44 @@ public sealed class PostgreSqlSalesOrderHeadRepository(RepositoryBaseContext con
     : PostgreSqlDapperRepository<SalesOrderHeader>(context), ISalesOrderHeadRepository
 {
     private static readonly string HeaderTable = PostgreSqlNames.Quote(Metadata.SchemaName) + "." + PostgreSqlNames.Quote(Metadata.TableName);
+    private const string InvoiceIndexName = "ux_sales_order_header_invoice_no";
+    private const string DuplicateInvoiceMessage = "发票号已被未删除的销售订单使用，请删除原来的草稿或修改发票号后重新保存。";
+    private static readonly string InvoiceLookupSql = $"""
+        SELECT EXISTS (SELECT 1 FROM {HeaderTable}
+            WHERE is_deleted=FALSE AND uid<>@ExcludeUid
+              AND btrim(invoice_no,' ') COLLATE public.erp_dictionary_ci
+                = btrim(@InvoiceNo,' ') COLLATE public.erp_dictionary_ci);
+        """;
+
+    /// <summary>在调用方事务内按发票号查重，普通空格及大小写与唯一索引一致；空值不占用编号。</summary>
+    public Task<bool> InvoiceNoExistsAsync(string invoiceNo, Guid excludeUid, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(invoiceNo)) return Task.FromResult(false);
+        return Connection.ExecuteScalarAsync<bool>(new CommandDefinition(InvoiceLookupSql,
+            new { InvoiceNo = invoiceNo.Trim(), ExcludeUid = excludeUid }, Transaction, cancellationToken: token));
+    }
+
+    /// <summary>新增沿用泛型写入，只把发票唯一索引冲突转换为业务拒绝；失败事务由外层回滚。</summary>
+    public override async Task<RepositoryWriteResult> AddAsync(SalesOrderHeader entity)
+    {
+        try { return await base.AddAsync(entity); }
+        catch (PostgresException ex) when (IsInvoiceConflict(ex))
+        { return RepositoryWriteResult.Fail(entity.Uid, null, ServiceErrorCodes.Validation, DuplicateInvoiceMessage); }
+    }
+
+    /// <summary>更新沿用原版本条件，同号并发冲突返回可读提示，不吞掉其他约束异常。</summary>
+    public override async Task<RepositoryWriteResult> UpdateAsync(SalesOrderHeader entity)
+    {
+        var oldVersion = entity.Version;
+        try { return await base.UpdateAsync(entity); }
+        catch (PostgresException ex) when (IsInvoiceConflict(ex))
+        { return RepositoryWriteResult.Fail(entity.Uid, oldVersion, ServiceErrorCodes.Validation, DuplicateInvoiceMessage); }
+    }
+
+    // 仅识别发票号索引，不把订单号、行号或其他唯一性问题伪装成发票重复。
+    private static bool IsInvoiceConflict(PostgresException error)
+        => error.SqlState == PostgresErrorCodes.UniqueViolation && error.ConstraintName == InvoiceIndexName;
 
     /// <summary>按原版本与软删除条件更新确认状态；不增加生命周期或原状态限制，返回源并发失败契约。</summary>
     public async Task<RepositoryWriteResult> SetConfirmationStatusAsync(Guid uid, int version, ConfirmationStatusEnum status)

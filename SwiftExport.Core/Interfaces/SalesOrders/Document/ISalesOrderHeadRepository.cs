@@ -11,6 +11,9 @@ namespace SwiftExport.Core.Interfaces.SalesOrders.Document;
 /// </summary>
 public interface ISalesOrderHeadRepository : IRepository<SalesOrderHeader>
 {
+    /// <summary>检查未软删除订单是否占用发票号，不限客户或确认状态；更新时排除当前头身份。</summary>
+    Task<bool> InvoiceNoExistsAsync(string invoiceNo, Guid excludeUid, CancellationToken token);
+
     /// <summary>按版本更新销售订单确认状态。</summary>
     Task<RepositoryWriteResult> SetConfirmationStatusAsync(Guid uid, int version, ConfirmationStatusEnum status);
 

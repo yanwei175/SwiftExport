@@ -12,6 +12,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public IReadOnlyList<SysDicCurrencyDto> CurrencyOptions { get; private set; }
         public IReadOnlyList<SysDictDataDto> PaymentMethodOptions { get; private set; }
         public IReadOnlyList<SysDictDataDto> IncotermOptions { get; private set; }
+        /// <summary>运输方式字典仅提供建议；单头自由字符串不受候选范围限制。</summary>
         public IReadOnlyList<SysDictDataDto> ShippedByOptions { get; private set; }
         public IReadOnlyList<SysDictDataDto> UnitOptions { get; private set; }
         private string MissingOptionMessage { get; set; } = "";
@@ -34,7 +35,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                 CurrencyOptions = currencies;
                 PaymentMethodOptions = CreateOptions(DictCodes.PaymentMethod, new[] { Header.PaymentMethod }, missing);
                 IncotermOptions = CreateOptions(DictCodes.Incoterm, new[] { Header.Incoterm }, missing);
-                ShippedByOptions = CreateOptions(DictCodes.ShippedBy, new[] { Header.ShippedBy }, missing);
+                ShippedByOptions = CreateOptions(DictCodes.ShippedBy, new[] { Header.ShippedBy }, missing, false);
                 UnitOptions = CreateOptions(DictCodes.Unit, Lines.Where(l => l.IsNonStandard).Select(l => l.UnitSnapshot), missing);
                 if (Header.CustomerId != Guid.Empty && !ReferenceData.Customers.Any(c => c.Uid == Header.CustomerId)) missing.Add("当前客户");
                 MissingOptionMessage = missing.Count == 0 ? "" : "以下值已不在可选基础资料中，请核对：" + string.Join("、", missing.Distinct());
@@ -42,13 +43,15 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             }
             finally { refreshingOptions = false; }
         }
-        private IReadOnlyList<SysDictDataDto> CreateOptions(string code, IEnumerable<string> selected, List<string> missing)
+        /// <summary>保留编辑中的候选值；运输方式只作输入建议，字典外文本不产生缺失提示。</summary>
+        private IReadOnlyList<SysDictDataDto> CreateOptions(string code, IEnumerable<string> selected, List<string> missing, bool reportMissing = true)
         {
             var values = ReferenceData.GetDictionaryValues(code).ToList();
             foreach (var value in selected.Where(s => !string.IsNullOrEmpty(s)).Distinct())
             {
                 if (values.Any(item => item.DataNameEn == value)) continue;
-                values.Add(new SysDictDataDto { DictCode = code, DataNameEn = value }); missing.Add(value);
+                values.Add(new SysDictDataDto { DictCode = code, DataNameEn = value });
+                if (reportMissing) missing.Add(value);
             }
             values.Insert(0, new SysDictDataDto { DictCode = code, DataNameEn = "", DataNameZh = "（空）" });
             return values;

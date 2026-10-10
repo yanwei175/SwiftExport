@@ -14,6 +14,29 @@ namespace SwiftExport.Client.VSTO.Tests
     [TestClass]
     public sealed class SalesOrderImportTests
     {
+        /// <summary>包装汇总保留小数箱数，缺失资料不伪造，数量非正状态随编辑通知。</summary>
+        [TestMethod]
+        public async Task PackingTotalsAndQuantityHighlightFollowEdits()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                await f.Start(); f.Model.AddStandardLineCommand.Execute(null);
+                var row = f.Model.Lines[0]; row.QtyText = "5"; row.PcsOfCartonText = "2";
+                row.GwOfCartonText = "3"; row.CbmOfCartonText = "0.1";
+                Assert.AreEqual(2.5m, f.Model.TotalCartons); Assert.AreEqual(7.5m, f.Model.TotalGrossWeight);
+                Assert.AreEqual(0.25m, f.Model.TotalVolume); Assert.AreEqual("", f.Model.PackingSummaryWarning);
+                row.GwOfCartonText = ""; Assert.AreEqual(0m, f.Model.TotalGrossWeight);
+                Assert.AreEqual(0.25m, f.Model.TotalVolume); Assert.IsTrue(f.Model.PackingSummaryWarning.Length > 0);
+                var notified = false;
+                row.PropertyChanged += (sender, args) => { if (args.PropertyName == "IsQtyNonPositive") notified = true; };
+                row.QtyText = "0"; Assert.IsTrue(row.IsQtyNonPositive); Assert.IsTrue(notified);
+                Assert.AreEqual(0m, f.Model.TotalCartons); Assert.AreEqual(0m, f.Model.TotalQty);
+                row.QtyText = "-2"; Assert.IsTrue(row.IsQtyNonPositive);
+                row.QtyText = "bad"; Assert.IsFalse(row.IsQtyNonPositive); Assert.IsNull(row.Qty);
+                f.Model.Header.Currency = "CNY"; Assert.IsTrue(f.Model.IsCnyCurrency);
+                f.Model.Header.Currency = "USD"; Assert.IsFalse(f.Model.IsCnyCurrency);
+            }
+        }
         /// <summary>首次按需加载，失败可重试，成功后重复打开不重复加载。</summary>
         [TestMethod]
         public async Task LazyLoadFailureRetryAndIdempotence()

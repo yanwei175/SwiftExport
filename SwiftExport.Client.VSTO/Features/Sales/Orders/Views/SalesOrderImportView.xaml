@@ -20,6 +20,20 @@
     <UserControl.Resources>
         <converters:ImportHeaderMaxHeightConverter x:Key="ImportHeaderMaxHeight" />
         <BooleanToVisibilityConverter x:Key="ExtraFieldsVisibility" />
+        <Style x:Key="ImportQtyText" TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridNumberTextBlock}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsQtyNonPositive}" Value="True">
+                    <Setter Property="Foreground" Value="Red" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ImportQtyEditor" TargetType="TextBox" BasedOn="{StaticResource SwiftExportDataGridNumberTextBox}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsQtyNonPositive}" Value="True">
+                    <Setter Property="Foreground" Value="Red" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="ImportStatusText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Style.Triggers>
                 <Trigger Property="Text" Value="">
@@ -41,7 +55,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <WrapPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                    <TextBlock Text="选择客户 : " Margin="0,0,0,4" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold"/>
+                    <TextBlock Text="选择客户 * : " Margin="0,0,0,4" VerticalAlignment="Center" Foreground="Red" FontWeight="Bold"/>
                     <custromers:CustomerAutoSuggestComboBox Width="150"
                         ItemsSource="{Binding ReferenceData.Customers}" 
                         SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}" 
@@ -102,7 +116,7 @@
                             <ui:TextBox Text="{Binding Header.OrderNo}" IsReadOnly="True" PlaceholderText="新订单服务端生成" />
                         </StackPanel>
                         <StackPanel Width="130" Margin="0,0,12,0">
-                            <TextBlock Text="订单日期" Margin="0,0,0,4" />
+                            <TextBlock Text="订单日期 *" Foreground="Red" Margin="0,0,0,4" />
                             <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.OrderDate, Mode=TwoWay}" />
                         </StackPanel>
                         <StackPanel Width="130" Margin="0,0,12,0">
@@ -110,7 +124,7 @@
                             <DatePicker SelectedDateFormat="Short" SelectedDate="{Binding Header.DeliveryDate, Mode=TwoWay}" />
                         </StackPanel>
                         <StackPanel Width="100" Margin="0,0,12,0">
-                            <TextBlock Text="币种" Margin="0,0,0,4" />
+                            <TextBlock Text="币种 *" Foreground="Red" Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding CurrencyOptions}" Padding="8,2,0,2" VerticalContentAlignment="Center"
                                       DisplayMemberPath="CurrencyCode" SelectedValuePath="CurrencyCode" SelectedValue="{Binding Header.Currency, Mode=TwoWay}" />
                         </StackPanel>
@@ -196,7 +210,7 @@
                                     PlaceholderText="发票号" 
                                     Text="{Binding Header.InvoiceNo, UpdateSourceTrigger=PropertyChanged}" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="4" Text="Date:" VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="4" Grid.Column="4" Text="Date *:" Foreground="Red" VerticalAlignment="Center" />
                         <DatePicker Grid.Row="4" Grid.Column="6" SelectedDate="{Binding Header.OrderDate, Mode=TwoWay}"
                                     SelectedDateFormat="Short"
                                     ToolTip="发票日期"/>
@@ -235,7 +249,7 @@
             
             <ui:Button Content="匹配全部 SKU" Command="{Binding MatchAllSkusCommand}" Margin="0,0,8,0" ToolTip="按客户代码匹配全部明细，保存前仍需整单检验" />
 
-            <ui:Button Content="匹配选中 SKU" Command="{Binding MatchSelectedSkusCommand}" Margin="0,0,8,0" ToolTip="只匹配选中明细，保存前仍需整单检验" />
+
             
             <ui:Button Content="添加产品" Command="{Binding AddStandardLineCommand}" Margin="0,0,8,0" />
             <ui:Button Content="添加非标件" Command="{Binding AddNonStandardLineCommand}" Margin="0,0,8,0" />
@@ -249,6 +263,18 @@
                              VerticalAlignment="Center" 
                              ToolTip="显示或隐藏次要明细字段；不清除已有数据" 
                              AutomationProperties.Name="显示更多明细字段" />
+            <StackPanel Orientation="Horizontal" Margin="20,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="总数量：" /><TextBlock Text="{Binding TotalQty, StringFormat=N2}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                <TextBlock Text="总箱数：" /><TextBlock Text="{Binding TotalCartons, StringFormat=N2}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                <TextBlock Text="总毛重 (kg)：" /><TextBlock Text="{Binding TotalGrossWeight, StringFormat=N2}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                <TextBlock Text="总体积 (m³)：" /><TextBlock Text="{Binding TotalVolume, StringFormat=N3}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                <TextBlock Text="USD：" /><TextBlock Text="{Binding TotalUsdAmount, StringFormat=N2}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsCnyCurrency, Converter={StaticResource ExtraFieldsVisibility}}">
+                    <TextBlock Text="CNY：" /><TextBlock Text="{Binding TotalCnyAmount, StringFormat=N2}" FontWeight="SemiBold" Margin="0,0,12,0" />
+                </StackPanel>
+            </StackPanel>
+            <TextBlock Text="{Binding PackingSummaryWarning}" Foreground="Red" Margin="12,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding BusyMessage}" Margin="12,0,0,0" VerticalAlignment="Center" />
         </WrapPanel>
         <DataGrid ScrollViewer.HorizontalScrollBarVisibility="Auto" 
                   ScrollViewer.VerticalScrollBarVisibility="Auto" 
@@ -263,8 +289,7 @@
                   CanUserSortColumns="True" 
                   IsReadOnly="{Binding IsReadOnly}" 
                   SelectionMode="Single" 
-                  SelectionUnit="FullRow" 
-                  RowDetailsVisibilityMode="VisibleWhenSelected">
+                  SelectionUnit="FullRow">
             <DataGrid.RowHeaderTemplate>
                 <DataTemplate>
                     <Ellipse Width="10" Height="10"
@@ -286,8 +311,82 @@
 
             <DataGrid.Columns>
  
-                <DataGridTextColumn Header="校验" Width="160" IsReadOnly="True"
-                                    Binding="{Binding MatchMessage}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
+                <DataGridTemplateColumn Header="匹配处理" Width="170" IsReadOnly="True"
+                                        SortMemberPath="IsCheckPassed" CanUserSort="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CheckStatusText}" ToolTip="{Binding MatchMessage}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <ui:Button Content="匹配 SKU" Padding="6,2"
+                                               Loaded="OnMatchButtonLoaded" DataContextChanged="OnMatchButtonDataContextChanged"
+                                               CommandParameter="{Binding}"
+                                               Command="{Binding DataContext.MatchLineSkuCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" ToolTip="只匹配本行；保存前仍须整单检验"
+                                               AutomationProperties.Name="匹配本行 SKU" />
+                                    <ToggleButton x:Name="MatchActionsEntry" Content="处理" Margin="4,0,0,0" Padding="6,2"
+                                                  Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                  ToolTip="查看匹配反馈、选择候选并确认型号差异"
+                                                  AutomationProperties.Name="本行匹配处理" />
+                                    <controls:ImportHeaderPopup x:Name="RowMatchPopup"
+                                        EntryButton="{Binding ElementName=MatchActionsEntry}"
+                                        PlacementTarget="{Binding ElementName=MatchActionsEntry}"
+                                        IsOpen="{Binding IsChecked, ElementName=MatchActionsEntry, Mode=TwoWay}"
+                                        DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                        Tag="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}"
+                                        Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                                        <Border Width="420" Padding="12" CornerRadius="4"
+                                                Background="{DynamicResource SwiftExportBackground}"
+                                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1"
+                                                TextElement.Foreground="{DynamicResource SwiftExportForeground}"
+                                                TextElement.FontFamily="{Binding PlacementTarget.FontFamily, ElementName=RowMatchPopup}"
+                                                TextElement.FontSize="{DynamicResource ControlContentThemeFontSize}">
+                                            <StackPanel>
+                                                <DockPanel Margin="0,0,0,8">
+                                                    <Button DockPanel.Dock="Right" Content="关闭" Command="{x:Static ApplicationCommands.Close}" />
+                                                    <TextBlock Text="本行匹配处理" FontWeight="Bold" VerticalAlignment="Center" />
+                                                </DockPanel>
+                                                <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding CustomerSku, StringFormat='客户型号：{0}'}" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding OriginalLinkSku, StringFormat='Excel 中性型号：{0}'}" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding LinkSku, StringFormat='系统中性型号：{0}'}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                                        <StackPanel IsEnabled="{Binding Tag.IsEditable, ElementName=RowMatchPopup}">
+                                                            <TextBlock Text="候选 SKU" />
+                                                            <ComboBox ItemsSource="{Binding MatchCandidates}"
+                                                                      SelectedItem="{Binding SelectedMatchCandidate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                      AutomationProperties.Name="产品匹配候选">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock Text="{Binding Sku}" />
+                                                                            <TextBlock Text="{Binding LinkSku, StringFormat=' / {0}'}" />
+                                                                            <TextBlock Text="{Binding IsUsable, StringFormat=' / 可用：{0}'}" />
+                                                                        </StackPanel>
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
+                                                            <ui:Button Content="应用候选（需重新匹配）" HorizontalAlignment="Left" Margin="0,8,0,8"
+                                                                       Command="{Binding Tag.ChooseMatchCommand, ElementName=RowMatchPopup}"
+                                                                       CommandParameter="{Binding}" />
+                                                            <CheckBox Content="已核对 Excel 与系统中性型号，确认差异"
+                                                                      IsChecked="{Binding AcceptLinkSkuMismatch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                            <ui:Button Content="匹配本行 SKU" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                                                       Loaded="OnMatchButtonLoaded" DataContextChanged="OnMatchButtonDataContextChanged"
+                                                                       Command="{Binding Tag.MatchLineSkuCommand, ElementName=RowMatchPopup}"
+                                                                       CommandParameter="{Binding}" />
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding MatchMessage}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                                        <TextBlock Text="行匹配通过后，保存前仍须执行顶部整单检验。" TextWrapping="Wrap" Margin="0,8,0,0" />
+                                                    </StackPanel>
+                                                </ScrollViewer>
+                                            </StackPanel>
+                                        </Border>
+                                    </controls:ImportHeaderPopup>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
                 <DataGridTemplateColumn Header="非标件" Width="72" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
@@ -363,8 +462,8 @@
                                     Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}" />
 
                 <DataGridTextColumn Header="数量" Width="60" 
-                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" 
+                                    ElementStyle="{StaticResource ImportQtyText}"
+                                    EditingElementStyle="{StaticResource ImportQtyEditor}"
                                     Binding="{Binding QtyText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
 
                 <DataGridTemplateColumn Header="单位" Width="70">
@@ -392,6 +491,7 @@
                                     Binding="{Binding UsdPriceText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
 
                 <DataGridTextColumn Header="CNY单价" Width="60" 
+                                    Visibility="{Binding DataContext.IsCnyCurrency, Source={x:Reference HeaderStackPanel}, Converter={StaticResource ExtraFieldsVisibility}}"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" 
                                     Binding="{Binding CnyPriceText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
@@ -401,11 +501,11 @@
                                     Binding="{Binding UsdAmount, StringFormat=N2}" />
 
                 <DataGridTextColumn Header="CNY金额" Width="92" IsReadOnly="True" 
+                                    Visibility="{Binding DataContext.IsCnyCurrency, Source={x:Reference HeaderStackPanel}, Converter={StaticResource ExtraFieldsVisibility}}"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                     Binding="{Binding CnyAmount, StringFormat=N2}" />
 
-                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" 
-                                    Header="PCS/CTN" Width="85" 
+                <DataGridTextColumn Header="PCS/CTN" Width="85"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" 
                                     Binding="{Binding PcsOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
@@ -422,8 +522,7 @@
                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" 
                                     Binding="{Binding GwOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
 
-                <DataGridTextColumn Visibility="{Binding IsChecked, Source={x:Reference ExtraFieldsSwitch}, Converter={StaticResource ExtraFieldsVisibility}}" 
-                                    Header="M3/CTN" Width="85" 
+                <DataGridTextColumn Header="M3/CTN" Width="85"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" 
                                     Binding="{Binding CbmOfCartonText, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" />
@@ -453,74 +552,8 @@
 
             </DataGrid.Columns>
 
-            <DataGrid.RowDetailsTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="8" IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
-                        <WrapPanel>
-                            
-                            <TextBlock Text="候选Sku：" VerticalAlignment="Center" />
-                            <ComboBox Width="130" ItemsSource="{Binding MatchCandidates}" 
-                                      FontSize="10"
-                                      SelectedItem="{Binding SelectedMatchCandidate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                                      AutomationProperties.Name="产品匹配候选">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Sku}" />
-                                            <TextBlock Text="{Binding LinkSku, StringFormat=' / {0}'}" />
-                                            <TextBlock Text="{Binding IsUsable, StringFormat=' / 可用：{0}'}" />
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
 
-                            <ui:Button Content="使用所选候选后重新检验" 
-                                       Command="{Binding DataContext.ChooseMatchCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                       CommandParameter="{Binding}" 
-                                       Margin="8,0" />
-
-                            <CheckBox Content="忽略Excel中性型号与系统间差异   " 
-                                      IsChecked="{Binding AcceptLinkSkuMismatch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                                      VerticalAlignment="Center" />
-                            
-                            <TextBlock Text="{Binding MatchMessage}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                        </WrapPanel>
-                    </StackPanel>
-                </DataTemplate>
-            </DataGrid.RowDetailsTemplate>
         </DataGrid>
-
-        <DockPanel Grid.Row="4">
-            <Grid DockPanel.Dock="Right">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding BusyMessage}" VerticalAlignment="Center" />
-
-                <TextBlock Grid.Column="1" Text="输入数量：" VerticalAlignment="Center" />
-
-                <TextBlock Grid.Column="1" Margin="75,0,0,0" 
-                           Text="{Binding TotalQty, StringFormat=N2}" FontWeight="SemiBold" 
-                           VerticalAlignment="Center" />
-
-                <TextBlock Grid.Column="3" Text="USD：" VerticalAlignment="Center" />
-
-                <TextBlock Grid.Column="3" Margin="42,0,0,0" 
-                           Text="{Binding TotalUsdAmount, StringFormat=N2}" 
-                           FontWeight="SemiBold" VerticalAlignment="Center" />
-
-                <TextBlock Grid.Column="5" Text="CNY：" VerticalAlignment="Center" />
-
-                <TextBlock Grid.Column="5" Margin="42,0,0,0" 
-                           Text="{Binding TotalCnyAmount, StringFormat=N2}"
-                           FontWeight="SemiBold" VerticalAlignment="Center" />
-            </Grid>
-        </DockPanel>
 
         <ScrollViewer x:Name="ValidationDetailsScroll" Grid.Row="5" MaxHeight="120"
                       Visibility="{Binding HasValidationError, Converter={StaticResource ExtraFieldsVisibility}}"

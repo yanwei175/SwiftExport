@@ -64,6 +64,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public DateTime? ExpectedDeliveryDate { get => expectedDeliveryDate; set => SetProperty(ref expectedDeliveryDate, value); }
 
         public decimal? Qty => Parse(QtyText, true);
+        /// <summary>标记能解析但不大于零的数量，供网格定位需修正或删除的行。</summary>
+        public bool IsQtyNonPositive => decimal.TryParse(QtyText, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) && value <= 0;
         public decimal? UsdPrice => Parse(UsdPriceText, false);
         public decimal? CnyPrice => Parse(CnyPriceText, false);
         public decimal? UsdAmount => Multiply(Qty, UsdPrice);
@@ -122,6 +124,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         }
         private void NotifyAmounts()
         {
+            OnPropertyChanged(nameof(IsQtyNonPositive));
             OnPropertyChanged(nameof(Qty)); OnPropertyChanged(nameof(UsdPrice)); OnPropertyChanged(nameof(CnyPrice)); OnPropertyChanged(nameof(UsdAmount)); OnPropertyChanged(nameof(CnyAmount)); OnPropertyChanged(nameof(Error));
         }
     }
