@@ -23,6 +23,19 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 [TestClass]
 public sealed class SalesOrderModelsAndContractsTests
 {
+    /// <summary>详情编辑模型读回及再次保存保留可空发票更新日期快照，不新增业务校验。</summary>
+    [TestMethod]
+    public void InvoiceUpdateDateRoundTripsThroughEditor()
+    {
+        foreach (var snapshot in new DateTime?[] { null, new DateTime(2026, 8, 25) })
+        {
+            var model = new SalesOrderHeaderEditModel();
+            model.Load(new SalesOrderEditHeaderDto { CustomerId = Guid.NewGuid(), CustomerCode = "C", OrderDate = new DateTime(2026, 8, 19), InvoiceUpdateDate = snapshot });
+            Assert.AreEqual(snapshot, model.InvoiceUpdateDate); Assert.AreEqual(snapshot, model.ToDto().InvoiceUpdateDate);
+            Assert.IsNull(model.ValidateModel()); Assert.AreEqual(new DateTime(2026, 8, 19), model.ToDto().OrderDate);
+        }
+    }
+
     /// <summary>废弃汇率不校验、不补默认值；加载及回传保留原始历史值。</summary>
     [TestMethod]
     public void DeprecatedExchangeRateDoesNotBlockHeaderValidation()

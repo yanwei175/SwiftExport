@@ -20,6 +20,36 @@ namespace SwiftExport.Client.VSTO.WpfTests
     /// <summary>使用真实销售导入 XAML 验证检查反馈、候选提交和保存门禁；不访问 Office 或服务器。</summary>
     internal static class SubmissionPageChecks
     {
+        /// <summary>用实际模板验证图片路径绑定及发票更新日期双向编辑；不下载远程图片。</summary>
+        internal static void CheckSnapshotControls(Action<bool, string> check)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                f.Session.TryCommit(f.Session.Capture().Version, "test-token", new MeDto { UserId = "writer", Permissions = new List<string> { PermissionKeys.SalesOrderMaintain } });
+                var view = new SalesOrderImportView(f.Model);
+                var window = new Window { Content = view, Width = 1500, Height = 950, ShowInTaskbar = false };
+                try
+                {
+                    window.Show(); Pump();
+                    var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                    var column = grid.Columns.OfType<DataGridTemplateColumn>().Single(c => Equals(c.Header, "图片"));
+                    var image = (SwiftExport.Client.VSTO.Resources.Controls.HttpsImage)column.CellTemplate.LoadContent();
+                    image.DataContext = new { MainImage = "https://example.invalid/product.png" };
+                    Pump(); image.GetBindingExpression(SwiftExport.Client.VSTO.Resources.Controls.HttpsImage.SourcePathProperty).UpdateTarget();
+                    check(column.IsReadOnly && image.SourcePath == "https://example.invalid/product.png", "图片列只读并绑定匹配后的 MainImage；当前路径=" + image.SourcePath);
+                    check(image.Source == null && !image.IsLoaded, "未加载模板不下载图片，测试不访问网络");
+                    var date = Descendants<DatePicker>(view).Single(p => BindingOperations.GetBinding(p, DatePicker.SelectedDateProperty)?.Path.Path == "Header.InvoiceUpdateDate");
+                    date.SetCurrentValue(DatePicker.SelectedDateProperty, new DateTime(2026, 8, 25));
+                    date.GetBindingExpression(DatePicker.SelectedDateProperty).UpdateSource(); Pump();
+                    check(f.Model.Header.InvoiceUpdateDate == new DateTime(2026, 8, 25), "发票更新日期控件回写快照");
+                    f.Model.Header.InvoiceUpdateDate = null; Pump(); check(date.SelectedDate == null, "空快照回显为空，不补默认日期");
+                    var invoiceDates = Descendants<DatePicker>(view).Where(p => BindingOperations.GetBinding(p, DatePicker.SelectedDateProperty)?.Path.Path == "Header.OrderDate").ToArray();
+                    check(invoiceDates.Length > 0 && invoiceDates.All(p => p.SelectedDate == f.Model.Header.OrderDate), "发票日期仍使用订单日期，更新快照不改订单日期");
+                }
+                finally { window.Close(); }
+            }
+        }
+
         // 所有检查在 STA 消息循环运行，按钮和 RowDetails 使用实际模板。
         internal static void Run(Action<bool, string> check)
         {

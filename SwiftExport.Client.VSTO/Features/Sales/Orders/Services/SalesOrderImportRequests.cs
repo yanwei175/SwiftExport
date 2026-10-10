@@ -32,6 +32,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Services
                 Header = new SalesOrderEditHeaderDto { Uid = Guid.Empty, Version = 0,
                     CustomerId = h.CustomerId, CustomerCode = h.CustomerCode, OrderNo = "",
                     InvoiceNo = h.InvoiceNo, CustomerPoNo = h.CustomerPoNo, Currency = h.Currency,
+                    InvoiceUpdateDate = h.InvoiceUpdateDate,
                     DepositRate = h.DepositRate, LeadTimeDays = h.LeadTimeDays,
                     PaymentMethod = h.PaymentMethod, ShippedBy = h.ShippedBy, Incoterm = h.Incoterm,
                     IncotermSortRemark = h.IncotermSortRemark, IncotermLocation = h.IncotermLocation,

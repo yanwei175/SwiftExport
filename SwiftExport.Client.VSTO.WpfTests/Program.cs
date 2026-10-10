@@ -85,6 +85,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     using (var submissionHost = new WpfRuntimeHost()) { submissionHost.Initialize(); SubmissionPageChecks.Run(Check); }
                     Console.WriteLine("PASS Sales submission: " + checks + " assertions"); return 0;
                 }
+                if (args.Length == 1 && args[0] == "--sales-snapshot-only")
+                {
+                    using (var snapshotHost = new WpfRuntimeHost()) { snapshotHost.Initialize(); SubmissionPageChecks.CheckSnapshotControls(Check); }
+                    Console.WriteLine("PASS Sales snapshot: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--import-only")
                 {
                     using (var importHost = new WpfRuntimeHost())

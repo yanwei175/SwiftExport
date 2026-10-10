@@ -371,6 +371,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
         header.CustomerId = customer.Uid;
         header.CustomerCode = customer.CustomerCode;
         header.InvoiceNo = dto.InvoiceNo?.Trim();
+        header.InvoiceUpdateDate = dto.InvoiceUpdateDate;
         header.CustomerPoNo = dto.CustomerPoNo?.Trim();
         header.ShippedBy = dto.ShippedBy?.Trim();
         header.Currency = string.IsNullOrWhiteSpace(dto.Currency) ? "USD" : dto.Currency.Trim().ToUpperInvariant();

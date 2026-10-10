@@ -51,7 +51,7 @@ export function ApplicationProviders({ children }: { children: ReactNode }) {
         button={{ autoInsertSpace: false }}
         theme={{
           token: {
-            colorPrimary: "#176d88",
+            colorPrimary: "#0078d4",
             borderRadius: 6,
             fontFamily: '"Segoe UI", "Microsoft YaHei", sans-serif',
           },

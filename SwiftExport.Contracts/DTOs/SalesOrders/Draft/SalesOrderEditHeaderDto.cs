@@ -14,6 +14,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Detail
         public string CustomerCode { get; set; }
         public string OrderNo { get; set; }
         public string InvoiceNo { get; set; }
+        /// <summary>发票更新日期快照，可空，不用于金额、交期或需求计算。</summary>
+        public DateTime? InvoiceUpdateDate { get; set; }
         public string CustomerPoNo { get; set; }
         public string ShippedBy { get; set; }
         public string Currency { get; set; }

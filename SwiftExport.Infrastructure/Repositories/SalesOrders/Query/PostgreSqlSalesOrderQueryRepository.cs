@@ -28,6 +28,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository(RepositoryBaseCo
         "confirmation_status" AS "ConfirmationStatus",
         "order_no" AS "OrderNo",
         "invoice_no" AS "InvoiceNo",
+        "invoice_update_date" AS "InvoiceUpdateDate",
         "customer_id" AS "CustomerId",
         "customer_code" AS "CustomerCode",
         "customer_po_no" AS "CustomerPoNo",

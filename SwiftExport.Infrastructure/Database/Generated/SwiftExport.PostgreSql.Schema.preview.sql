@@ -1107,6 +1107,7 @@ CREATE TABLE "public"."sales_order_header" (
     "confirmation_status" integer NOT NULL,
     "order_no" varchar(300) NOT NULL,
     "invoice_no" varchar(300) NULL,
+    "invoice_update_date" timestamp(6) without time zone NULL,
     "customer_id" uuid NULL,
     "customer_code" varchar(300) NULL,
     "customer_po_no" varchar(300) NULL,
@@ -2463,6 +2464,7 @@ COMMENT ON COLUMN "public"."sales_order_header"."document_status" IS '单据生�
 COMMENT ON COLUMN "public"."sales_order_header"."confirmation_status" IS '确认状态，用于判断当前记录允许执行的业务操作。';
 COMMENT ON COLUMN "public"."sales_order_header"."order_no" IS '该实体保存的销售订单号。';
 COMMENT ON COLUMN "public"."sales_order_header"."invoice_no" IS '该实体保存的商业发票号。';
+COMMENT ON COLUMN "public"."sales_order_header"."invoice_update_date" IS '原单据的发票更新日期快照，可空；不参与金额、交期或需求计算。';
 COMMENT ON COLUMN "public"."sales_order_header"."customer_id" IS '关联的客户主数据唯一标识。';
 COMMENT ON COLUMN "public"."sales_order_header"."customer_code" IS '该实体保存的客户业务编码。';
 COMMENT ON COLUMN "public"."sales_order_header"."customer_po_no" IS '该实体保存的客户采购单号。';

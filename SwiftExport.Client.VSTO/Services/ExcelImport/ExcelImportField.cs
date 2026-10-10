@@ -12,11 +12,14 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
         {
             ModelType = modelType; this.property = property;
             FieldKey = attribute.FieldKey; DisplayName = attribute.DisplayName;
+            DisplayOrder = attribute.DisplayOrder;
             SupportsCreate = attribute.SupportsCreate; SupportsUpdate = attribute.SupportsUpdate;
         }
         public Type ModelType { get; }
         public string FieldKey { get; }
         public string DisplayName { get; }
+        /// <summary>模型特性指定的配置页显示顺序，不改变字段键或受控赋值规则。</summary>
+        public int DisplayOrder { get; }
         public string PropertyName => property.Name;
         public bool SupportsCreate { get; }
         public bool SupportsUpdate { get; }

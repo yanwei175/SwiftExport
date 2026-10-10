@@ -1,4 +1,5 @@
 import { lazy } from "react";
+import type { PermissionKey } from "../shared/authorization/generated/权限键";
 import type { ComponentType, LazyExoticComponent } from "react";
 import type {
   OpenIntent,
@@ -60,6 +61,13 @@ export const pageDirectory: Readonly<Record<string, PageDefinition>> = {
       () => import("../features/system/dictionaries/字典页签入口"),
     ),
   },
+  "supplier-management": {
+    title: "供应商管理",
+    permission: "Suppliers.Supplier.View" satisfies PermissionKey,
+    component: lazy(
+      () => import("../features/suppliers/management/供应商页签入口"),
+    ),
+  },
   ...(probeEntry
     ? {
         "verification-form": {
@@ -80,6 +88,8 @@ export const pageDirectory: Readonly<Record<string, PageDefinition>> = {
 export function validIntent(intent: OpenIntent): boolean {
   return (
     Boolean(pageDirectory[intent.pageKind]) &&
+    (intent.pageKind !== "supplier-management" ||
+      (!intent.params?.id && !intent.params?.draft)) &&
     (!(intent.pageKind in settingsPages) ||
       (!intent.params?.id && !intent.params?.draft)) &&
     (!(intent.pageKind in settingsEditors) ||

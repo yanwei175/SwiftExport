@@ -78,6 +78,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         CustomerCode = header.CustomerCode ?? string.Empty,
         OrderNo = header.OrderNo,
         InvoiceNo = header.InvoiceNo ?? string.Empty,
+        InvoiceUpdateDate = header.InvoiceUpdateDate,
         CustomerPoNo = header.CustomerPoNo ?? string.Empty,
         ShippedBy = header.ShippedBy ?? string.Empty,
         Currency = header.Currency ?? string.Empty,

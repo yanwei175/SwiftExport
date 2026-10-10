@@ -242,7 +242,8 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
                 var names = profile.Fields.Where(f => !ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey))
                     .Select(f => f.WorksheetName).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
                 WorksheetName = names.Length == 1 ? names[0] : "";
-                foreach (var field in definition.Fields)
+                // 仅调整配置编辑器顺序；目录及读取仍使用稳定字段键，同序号按键确定顺序。
+                foreach (var field in definition.Fields.OrderBy(f => f.DisplayOrder).ThenBy(f => f.FieldKey, StringComparer.Ordinal))
                 {
                     var saved = profile.Fields.FirstOrDefault(f => f.TargetFieldKey == field.FieldKey);
                     AddRow(new ExcelReadFieldModel

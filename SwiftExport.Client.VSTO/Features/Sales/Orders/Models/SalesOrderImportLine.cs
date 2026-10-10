@@ -1,12 +1,12 @@
-﻿using System;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
+using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
 {
@@ -36,27 +36,33 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public Guid? ProductId { get => productId; private set => SetProperty(ref productId, value); }
         public Guid? CustomerProductId { get => customerProductId; private set => SetProperty(ref customerProductId, value); }
         public string Sku { get => sku; private set => SetProperty(ref sku, value); }
-        [ExcelImportField("Line.CustomerSku", "客户型号")]
+
+        [ExcelImportField("Line.CustomerSku", "客户型号", DisplayOrder = 10)]
         public string CustomerSku { get => customerSku; set => SetProperty(ref customerSku, value); }
-        [ExcelImportField("Line.DescriptionEn", "英文描述")]
+
+        [ExcelImportField("Line.DescriptionEn", "英文描述", DisplayOrder = 12)]
         public string DescriptionEn { get => descriptionEn; set => SetProperty(ref descriptionEn, value); }
-        [ExcelImportField("Line.ColorNameEn", "英文颜色")]
+        [ExcelImportField("Line.ColorNameEn", "英文颜色", DisplayOrder = 13)]
         public string ColorNameEn { get => colorNameEn; set => SetProperty(ref colorNameEn, value); }
-        [ExcelImportField("Line.FeaturesEn", "英文特性")]
+        [ExcelImportField("Line.FeaturesEn", "英文特性", DisplayOrder = 14)]
         public string FeaturesEn { get => featuresEn; set => SetProperty(ref featuresEn, value); }
-        [ExcelImportField("Line.Unit", "非标行单位")]
+
+        [ExcelImportField("Line.UsdPrice", "美元单价", DisplayOrder = 15)]
+        public string UsdPriceText { get => usdPriceText; set { if (SetProperty(ref usdPriceText, value)) NotifyAmounts(); } }
+        [ExcelImportField("Line.CnyPrice", "人民币单价", DisplayOrder = 16)]
+        public string CnyPriceText { get => cnyPriceText; set { if (SetProperty(ref cnyPriceText, value)) NotifyAmounts(); } }
+
+        [ExcelImportField("Line.Qty", "数量", DisplayOrder = 17)]
+        public string QtyText { get => qtyText; set { if (SetProperty(ref qtyText, value)) NotifyAmounts(); } }
+
+
         public string UnitSnapshot { get => unitSnapshot; set { if (value != null) SetProperty(ref unitSnapshot, value); } }
-        [ExcelImportField("Line.SubNote", "行备注")]
+        [ExcelImportField("Line.SubNote", "行备注", DisplayOrder = 101)]
         public string SubNote { get => subNote; set => SetProperty(ref subNote, value); }
         public string MainImage { get => mainImage; private set => SetProperty(ref mainImage, value); }
-        [ExcelImportField("Line.ExpectedDeliveryDate", "预计交货日期")]
+        [ExcelImportField("Line.ExpectedDeliveryDate", "预计交货日期", DisplayOrder = 102)]
         public DateTime? ExpectedDeliveryDate { get => expectedDeliveryDate; set => SetProperty(ref expectedDeliveryDate, value); }
-        [ExcelImportField("Line.Qty", "数量")]
-        public string QtyText { get => qtyText; set { if (SetProperty(ref qtyText, value)) NotifyAmounts(); } }
-        [ExcelImportField("Line.UsdPrice", "美元单价")]
-        public string UsdPriceText { get => usdPriceText; set { if (SetProperty(ref usdPriceText, value)) NotifyAmounts(); } }
-        [ExcelImportField("Line.CnyPrice", "人民币单价")]
-        public string CnyPriceText { get => cnyPriceText; set { if (SetProperty(ref cnyPriceText, value)) NotifyAmounts(); } }
+
         public decimal? Qty => Parse(QtyText, true);
         public decimal? UsdPrice => Parse(UsdPriceText, false);
         public decimal? CnyPrice => Parse(CnyPriceText, false);

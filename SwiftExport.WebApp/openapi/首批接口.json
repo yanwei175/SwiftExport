@@ -1353,6 +1353,76 @@
         ]
       }
     },
+    "/api/supplier/batch-save": {
+      "post": {
+        "tags": [
+          "Supplier"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json-patch+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierBatchSaveRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierBatchSaveRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Suppliers.Responses.SupplierBatchSaveResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Suppliers.Responses.SupplierBatchSaveResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Suppliers.Responses.SupplierBatchSaveResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "saveSupplierBatch"
+      }
+    },
     "/api/product/default-warehouse-candidates": {
       "get": {
         "tags": [
@@ -4179,6 +4249,171 @@
           "updatedBy": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Suppliers.Requests.SupplierBatchSaveRequest": {
+        "type": "object",
+        "properties": {
+          "createItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+            },
+            "nullable": true
+          },
+          "updateItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+            },
+            "nullable": true
+          },
+          "deleteItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.DeleteItemRequest"
+            },
+            "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "hasChanges": {
+            "type": "boolean",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.CreateItemRequestOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.UpdateItemRequestOfSwiftExport.Contracts.DTOs.Suppliers.SupplierDto": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.SupplierDto"
+              }
+            ],
+            "nullable": true
+          },
+          "clientKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "rowIndex": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.Wrappers.ServiceResultOfSwiftExport.Contracts.DTOs.Suppliers.Responses.SupplierBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Suppliers.Responses.SupplierBatchSaveResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SwiftExport.Contracts.DTOs.Errors.ServiceErrorDto"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SwiftExport.Contracts.DTOs.Suppliers.Responses.SupplierBatchSaveResponse": {
+        "type": "object",
+        "properties": {
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SwiftExport.Contracts.Wrappers.SaveItemResult"
+            },
+            "nullable": true
+          },
+          "successCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "allSucceeded": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "addSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "updateSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "deleteSuccessCount": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
           }
         },
         "additionalProperties": false

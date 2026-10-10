@@ -13,7 +13,7 @@ $stage = Join-Path $repository ('artifacts/deployment-packages/' + [Guid]::NewGu
 [void][IO.Directory]::CreateDirectory((Join-Path $stage 'bin'))
 # 使用白名单，禁止把窗口设置、生产 JSON、证书、私钥或测试 artifacts 一起打包。
 $names = @(
-    '启动后端部署工具.cmd','管理员启动窗口.ps1','后端部署窗口.ps1','后端部署核心.ps1',
+    '启动后端部署工具.cmd','管理员启动窗口.ps1','deployment-launcher.ps1','后端部署窗口.ps1','后端部署核心.ps1',
     '启动Caddy首次安装.cmd','Caddy首次安装窗口.ps1','首次安装Caddy托管.ps1',
     '首次托管核心.ps1','Caddy托管核心.ps1','安装客户端根证书.ps1','清理旧IIS部署.ps1',
     '获取Caddy.ps1','打包部署工具.ps1','打包后端.ps1',

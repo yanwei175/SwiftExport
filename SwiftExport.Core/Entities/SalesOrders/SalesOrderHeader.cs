@@ -17,6 +17,8 @@ public partial class SalesOrderHeader : BaseEntity
     public required string OrderNo { get; set; }
     /// <summary>该实体保存的商业发票号。</summary>
     public string? InvoiceNo { get; set; }
+    /// <summary>原单据的发票更新日期快照，可空；不参与金额、交期或需求计算。</summary>
+    public DateTime? InvoiceUpdateDate { get; set; }
 
     /// <summary>关联的客户主数据唯一标识。</summary>
     public Guid? CustomerId { get; set; }

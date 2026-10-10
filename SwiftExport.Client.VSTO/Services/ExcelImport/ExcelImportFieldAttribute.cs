@@ -13,6 +13,8 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
         }
         public string FieldKey { get; }
         public string DisplayName { get; }
+        /// <summary>配置页显示顺序，数字小者靠前；未指定时排最后，不参与读取或赋值。</summary>
+        public int DisplayOrder { get; set; } = int.MaxValue;
         public bool SupportsCreate { get; set; } = true;
         public bool SupportsUpdate { get; set; } = true;
     }

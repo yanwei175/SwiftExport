@@ -591,6 +591,55 @@ export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContracts
   error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
 }
 
+export interface SwiftExportContractsWrappersCreateItemRequestOfSwiftExportContractsDTOsSuppliersSupplierDto {
+  data?: SwiftExportContractsDTOsSuppliersSupplierDto | null;
+  /** @nullable */
+  clientKey?: string | null;
+  /** @nullable */
+  rowIndex?: number | null;
+}
+
+export interface SwiftExportContractsWrappersUpdateItemRequestOfSwiftExportContractsDTOsSuppliersSupplierDto {
+  uid?: string;
+  version?: number;
+  data?: SwiftExportContractsDTOsSuppliersSupplierDto | null;
+  /** @nullable */
+  clientKey?: string | null;
+  /** @nullable */
+  rowIndex?: number | null;
+}
+
+export interface SwiftExportContractsDTOsSuppliersRequestsSupplierBatchSaveRequest {
+  /** @nullable */
+  createItems?: SwiftExportContractsWrappersCreateItemRequestOfSwiftExportContractsDTOsSuppliersSupplierDto[] | null;
+  /** @nullable */
+  updateItems?: SwiftExportContractsWrappersUpdateItemRequestOfSwiftExportContractsDTOsSuppliersSupplierDto[] | null;
+  /** @nullable */
+  deleteItems?: SwiftExportContractsWrappersDeleteItemRequest[] | null;
+  readonly totalCount?: number;
+  readonly hasChanges?: boolean;
+}
+
+export interface SwiftExportContractsDTOsSuppliersResponsesSupplierBatchSaveResponse {
+  totalCount?: number;
+  /** @nullable */
+  items?: SwiftExportContractsWrappersSaveItemResult[] | null;
+  readonly successCount?: number;
+  readonly failedCount?: number;
+  readonly allSucceeded?: boolean;
+  readonly addSuccessCount?: number;
+  readonly updateSuccessCount?: number;
+  readonly deleteSuccessCount?: number;
+}
+
+export interface SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSuppliersResponsesSupplierBatchSaveResponse {
+  success?: boolean;
+  /** @nullable */
+  message?: string | null;
+  data?: SwiftExportContractsDTOsSuppliersResponsesSupplierBatchSaveResponse | null;
+  error?: SwiftExportContractsDTOsErrorsServiceErrorDto | null;
+}
+
 export interface SwiftExportContractsDTOsProductsProductDefaultWarehouseCandidateDto {
   uid?: string;
   /** @nullable */
@@ -1695,6 +1744,63 @@ return executeRequest<getSupplierPageResponse>(getGetSupplierPageUrl(),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(swiftExportContractsDTOsSuppliersRequestsSupplierSearchRequest)
+  }
+);}
+
+
+
+export type saveSupplierBatchResponse200TextPlain = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSuppliersResponsesSupplierBatchSaveResponse
+  status: 200
+}
+
+export type saveSupplierBatchResponse200ApplicationJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSuppliersResponsesSupplierBatchSaveResponse
+  status: 200
+}
+
+export type saveSupplierBatchResponse200TextJson = {
+  data: SwiftExportContractsWrappersServiceResultOfSwiftExportContractsDTOsSuppliersResponsesSupplierBatchSaveResponse
+  status: 200
+}
+
+export type saveSupplierBatchResponseSuccess = (saveSupplierBatchResponse200TextPlain | saveSupplierBatchResponse200ApplicationJson | saveSupplierBatchResponse200TextJson) & {
+  headers: Headers;
+};
+;
+
+export type saveSupplierBatchResponse = (saveSupplierBatchResponseSuccess)
+
+export const getSaveSupplierBatchUrl = () => {
+
+
+
+
+  return `/api/supplier/batch-save`
+}
+
+export const saveSupplierBatch = async (swiftExportContractsDTOsSuppliersRequestsSupplierBatchSaveRequest?: NonReadonly<SwiftExportContractsDTOsSuppliersRequestsSupplierBatchSaveRequest>, options?: Parameters<typeof executeRequest>[1]): Promise<saveSupplierBatchResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return executeRequest<saveSupplierBatchResponse>(getSaveSupplierBatchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json-patch+json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(swiftExportContractsDTOsSuppliersRequestsSupplierBatchSaveRequest)
   }
 );}
 

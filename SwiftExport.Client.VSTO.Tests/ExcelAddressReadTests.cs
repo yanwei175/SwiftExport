@@ -281,6 +281,76 @@ namespace SwiftExport.Client.VSTO.Tests
             }
         }
 
+        /// <summary>按新字段特性读取发票更新日期，独立保留订单日期，非法日期不伪造默认值。</summary>
+        [TestMethod]
+        public void InvoiceUpdateDateIsReadAsIndependentOptionalSnapshot()
+        {
+            var registry = ExcelImportRegistry.CreateDefault();
+            Assert.IsTrue(registry.Find("SalesOrder").ContainsField("Header.InvoiceUpdateDate"));
+            var parser = new SalesOrderAddressParser(registry);
+            var snapshot = new ExcelAddressSnapshot { Rows = new List<List<ExcelAddressValue>> { new List<ExcelAddressValue> {
+                Value("Header.OrderDate", 1, "08/19/2026"), Value("Header.InvoiceUpdateDate", 2, "08/25/2026") } } };
+            var result = parser.Parse(snapshot);
+            Assert.AreEqual(0, result.Issues.Count); Assert.AreEqual(new DateTime(2026, 8, 19), result.Header.OrderDate);
+            Assert.AreEqual(new DateTime(2026, 8, 25), result.Header.InvoiceUpdateDate);
+            snapshot.Rows[0][1].Value = null;
+            result = parser.Parse(snapshot); Assert.AreEqual(0, result.Issues.Count); Assert.IsNull(result.Header.InvoiceUpdateDate);
+            snapshot.Rows[0][1].Value = "invalid-date";
+            result = parser.Parse(snapshot); Assert.AreEqual(1, result.Issues.Count); Assert.IsNull(result.Header.InvoiceUpdateDate);
+            Assert.AreEqual("invalid-date", result.Header.Source.Cells[1].Text);
+        }
+
+        /// <summary>配置页按模型顺序分别排列单头和明细，同序号按键排列；已有地址及未知字段保持不变。</summary>
+        [TestMethod]
+        public async Task DisplayOrderReordersEditorsWithoutChangingSavedAddresses()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                Grant(f);
+                f.ProfileApi.Profile.Fields.Add(new ExcelReadFieldDto { TargetFieldKey = "Header.FutureField", CellAddress = "A2" });
+                var definition = new ExcelImportDefinition("SalesOrder", "测试排序", typeof(OrderedHeader), typeof(OrderedLine));
+                Assert.AreEqual(10, definition.Fields.Single(field => field.FieldKey == "Header.InvoiceNo").DisplayOrder);
+                Assert.AreEqual(int.MaxValue, definition.Fields.Single(field => field.FieldKey == "Header.Unordered").DisplayOrder);
+                CollectionAssert.AreEqual(definition.Fields.Select(field => field.FieldKey).OrderBy(key => key, StringComparer.Ordinal).ToArray(),
+                    definition.Fields.Select(field => field.FieldKey).ToArray(), "显示排序不能改变目录的稳定键顺序");
+                using (var model = new ExcelReadProfileViewModel(f.ProfileService, f.AddressReader, new ExcelImportRegistry(definition),
+                    f.Session, f, new ApiCallRunner(new AddInLog()), f))
+                {
+                    await model.InitializeAsync();
+                    CollectionAssert.AreEqual(new[] { "Header.Zulu", "Header.Alpha", "Header.InvoiceNo", "Header.Unordered", "Header.FutureField" },
+                        model.HeaderFields.Select(row => row.FieldKey).ToArray());
+                    CollectionAssert.AreEqual(new[] { "Line.Qty", "Line.CustomerSku", "Line.Unordered" },
+                        model.LineFields.Select(row => row.FieldKey).ToArray());
+                    Assert.IsFalse(model.HeaderFields.Last().IsKnown); Assert.IsFalse(model.HasChanges);
+                    var request = model.BuildRequest();
+                    foreach (var saved in f.ProfileApi.Profile.Fields)
+                    {
+                        var actual = request.Fields.Single(field => field.TargetFieldKey == saved.TargetFieldKey);
+                        Assert.AreEqual(saved.CellAddress, actual.CellAddress); Assert.AreEqual(saved.IsDownward, actual.IsDownward);
+                    }
+                    await model.SaveCommand.ExecuteAsync(null);
+                    CollectionAssert.AreEqual(new[] { "Header.Zulu", "Header.Alpha", "Header.InvoiceNo", "Header.Unordered", "Header.FutureField" },
+                        model.HeaderFields.Select(row => row.FieldKey).ToArray(), "保存回显仍遵循模型显示顺序");
+                }
+            }
+        }
+
+        /// <summary>模拟用户给单头特性配置优先级，包含同序号与未指定字段。</summary>
+        public sealed class OrderedHeader
+        {
+            [ExcelImportField("Header.InvoiceNo", "发票号", DisplayOrder = 10)] public string InvoiceNo { get; set; }
+            [ExcelImportField("Header.Zulu", "优先字段", DisplayOrder = 0)] public string Zulu { get; set; }
+            [ExcelImportField("Header.Alpha", "同序号字段", DisplayOrder = 10)] public string Alpha { get; set; }
+            [ExcelImportField("Header.Unordered", "末尾字段")] public string Unordered { get; set; }
+        }
+        /// <summary>模拟明细的独立显示顺序；字段键仍使用读取协议已有名称。</summary>
+        public sealed class OrderedLine
+        {
+            [ExcelImportField("Line.CustomerSku", "客户型号", DisplayOrder = 20)] public string CustomerSku { get; set; }
+            [ExcelImportField("Line.Qty", "数量", DisplayOrder = 0)] public string Qty { get; set; }
+            [ExcelImportField("Line.Unordered", "末尾字段")] public string Unordered { get; set; }
+        }
+
         private static ExcelAddressValue Value(string key, int row, object value) => new ExcelAddressValue { FieldKey = key, Row = row, Column = 1, Value = value };
         private static void Grant(ImportTestFixture f) => f.Session.TryCommit(f.Session.Capture().Version, "token", new MeDto { UserId = "admin", UserName = "admin", Permissions = new List<string> { PermissionKeys.SystemExcelFieldMappingManage } });
         private static ExcelReadProfileViewModel Config(ImportTestFixture f) => new ExcelReadProfileViewModel(f.ProfileService, f.AddressReader, ExcelImportRegistry.CreateDefault(), f.Session, f, new ApiCallRunner(new AddInLog()), f);

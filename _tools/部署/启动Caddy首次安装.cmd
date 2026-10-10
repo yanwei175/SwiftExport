@@ -1,4 +1,10 @@
 @echo off
-chcp 65001 >nul
-rem 双击自动请求管理员权限；授权后打开首次安装窗口。
-powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0管理员启动窗口.ps1" -WindowScript "Caddy首次安装窗口.ps1"
+setlocal
+if not exist "%~dp0deployment-launcher.ps1" (
+    echo Missing deployment-launcher.ps1. Extract the complete tools ZIP first.
+    pause
+    exit /b 1
+)
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -STA -ExecutionPolicy Bypass -File "%~dp0deployment-launcher.ps1" -Mode Install
+if errorlevel 1 pause
+endlocal

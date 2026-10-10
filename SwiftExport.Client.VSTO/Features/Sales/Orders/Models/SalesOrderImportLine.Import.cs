@@ -1,10 +1,10 @@
-﻿using System;
-using SwiftExport.Client.VSTO.Services.ExcelImport;
+﻿using SwiftExport.Client.VSTO.Services.ExcelImport;
+using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.ForExcel.SalesOrders;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using SwiftExport.Contracts.Common;
-using SwiftExport.Contracts.DTOs.ForExcel.SalesOrders;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
 {
@@ -24,7 +24,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         /// <summary>请求开始时捕获的编辑版本；页面还需核对客户、会话和生命周期。</summary>
         public long EditRevision => editRevision;
         /// <summary>原表 Aquavit Code；检查请求使用此值，不能用系统匹配值替换。</summary>
-        [ExcelImportField("Line.LinkSku", "中性产品型号（Aquavit Code）")]
+        [ExcelImportField("Line.LinkSku", "Excel本司型号", DisplayOrder = 11)]
         public string OriginalLinkSku { get => originalLinkSku; set => SetProperty(ref originalLinkSku, value); }
         /// <summary>检查返回的系统中性型号，和真实 SKU、原表型号分开显示。</summary>
         public string LinkSku { get => linkSku; private set => SetProperty(ref linkSku, value); }
@@ -41,16 +41,16 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         /// <summary>用户对本行中性型号差异的明确确认；再次改变型号或产品时复位。</summary>
         public bool AcceptLinkSkuMismatch { get => acceptLinkSkuMismatch; set => SetProperty(ref acceptLinkSkuMismatch, value); }
         /// <summary>每箱数量输入文字，保留未完成或非法输入。</summary>
-        [ExcelImportField("Line.PcsOfCarton", "每箱数量")]
+        [ExcelImportField("Line.PcsOfCarton", "每箱数量", DisplayOrder = 18)]
         public string PcsOfCartonText { get => pcsOfCartonText; set { if (SetProperty(ref pcsOfCartonText, value)) { OnPropertyChanged(nameof(PcsOfCarton)); OnPropertyChanged(nameof(Error)); } } }
         /// <summary>每箱净重输入文字，保留未完成或非法输入。</summary>
-        [ExcelImportField("Line.NwOfCarton", "每箱净重")]
+        [ExcelImportField("Line.NwOfCarton", "每箱净重", DisplayOrder = 19)]
         public string NwOfCartonText { get => nwOfCartonText; set { if (SetProperty(ref nwOfCartonText, value)) { OnPropertyChanged(nameof(NwOfCarton)); OnPropertyChanged(nameof(Error)); } } }
         /// <summary>每箱毛重输入文字，保留未完成或非法输入。</summary>
-        [ExcelImportField("Line.GwOfCarton", "每箱毛重")]
+        [ExcelImportField("Line.GwOfCarton", "每箱毛重", DisplayOrder = 20)]
         public string GwOfCartonText { get => gwOfCartonText; set { if (SetProperty(ref gwOfCartonText, value)) { OnPropertyChanged(nameof(GwOfCarton)); OnPropertyChanged(nameof(Error)); } } }
         /// <summary>每箱体积输入文字，保留未完成或非法输入。</summary>
-        [ExcelImportField("Line.CbmOfCarton", "每箱体积")]
+        [ExcelImportField("Line.CbmOfCarton", "每箱体积", DisplayOrder = 21)]
         public string CbmOfCartonText { get => cbmOfCartonText; set { if (SetProperty(ref cbmOfCartonText, value)) { OnPropertyChanged(nameof(CbmOfCarton)); OnPropertyChanged(nameof(Error)); } } }
         /// <summary>已验证的PcsOfCarton值；空或非法输入返回空值，原文字仍保留。</summary>
         public decimal? PcsOfCarton => Parse(PcsOfCartonText, true);
@@ -107,8 +107,12 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
             Sku = value ? NonStandardSkuGenerator.Create(Uid) : "";
             SelectedProduct = null; ProductCandidates.Clear();
             ResetMismatchConfirmation(); InvalidateCheck();
-            OnPropertyChanged(nameof(IsNonStandard)); OnPropertyChanged(nameof(LineTypeText)); OnPropertyChanged(nameof(Error));
-            SearchCommand?.NotifyCanExecuteChanged(); CommitProductCommand?.NotifyCanExecuteChanged(); ClearProductCommand?.NotifyCanExecuteChanged();
+            OnPropertyChanged(nameof(IsNonStandard));
+            OnPropertyChanged(nameof(LineTypeText));
+            OnPropertyChanged(nameof(Error));
+            SearchCommand?.NotifyCanExecuteChanged();
+            CommitProductCommand?.NotifyCanExecuteChanged();
+            ClearProductCommand?.NotifyCanExecuteChanged();
         }
 
         /// <summary>接纳同一行同一编辑版本的检查结果，仅回填身份和系统型号／单位／图片，保留 Excel 的成交快照。</summary>

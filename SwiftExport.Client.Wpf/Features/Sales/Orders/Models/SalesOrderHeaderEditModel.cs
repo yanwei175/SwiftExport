@@ -16,6 +16,8 @@ public sealed partial class SalesOrderHeaderEditModel : ObservableObject
     [ObservableProperty] public partial string CustomerCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string OrderNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string InvoiceNo { get; set; } = string.Empty;
+    /// <summary>详情加载及保存时原样保留发票更新日期快照，不参与业务计算。</summary>
+    [ObservableProperty] public partial DateTime? InvoiceUpdateDate { get; set; }
     [ObservableProperty] public partial string CustomerPoNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string ShippedBy { get; set; } = string.Empty;
     [ObservableProperty] public partial string Currency { get; set; } = "USD";

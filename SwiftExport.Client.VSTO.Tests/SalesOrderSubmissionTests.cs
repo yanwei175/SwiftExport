@@ -138,11 +138,13 @@ namespace SwiftExport.Client.VSTO.Tests
             using (var f = new ImportTestFixture())
             {
                 await Prepare(f); var l = f.Model.Lines[0]; SaveSalesOrderRequest sent = null;
+                f.Model.Header.InvoiceUpdateDate = new DateTime(2026, 8, 25);
                 f.Api.Save = r => { sent = r; return Task.FromResult(Saved(f)); };
                 await f.Model.CheckImportAsync(); Assert.IsTrue(f.Model.CanSaveDraft); Assert.AreEqual("REAL1", l.Sku);
                 Assert.AreEqual("AA1", l.OriginalLinkSku); Assert.AreEqual("5.18", l.UsdPriceText);
                 await f.Model.SaveDraftAsync(); Assert.AreEqual(Guid.Empty, sent.Header.Uid); Assert.AreEqual(l.Uid, sent.Lines[0].Uid);
                 Assert.AreEqual("SYSTEM-AA1", sent.Lines[0].LinkSku); Assert.AreEqual(5.18m, sent.Lines[0].UsdPrice);
+                Assert.AreEqual(new DateTime(2026, 8, 25), sent.Header.InvoiceUpdateDate);
                 Assert.AreEqual("SO1", f.Model.Header.OrderNo); Assert.IsFalse(f.Model.IsEditable); Assert.IsFalse(f.Model.HasEdits);
                 Assert.IsFalse(f.Model.SaveDraftCommand.CanExecute(null)); f.Model.NewImportCommand.Execute(null);
                 Assert.IsTrue(f.Model.IsEditable); Assert.AreEqual(0, f.Model.Lines.Count); Assert.AreEqual("", f.Model.Header.OrderNo);

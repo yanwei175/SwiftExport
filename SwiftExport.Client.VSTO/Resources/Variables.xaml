@@ -103,7 +103,7 @@
 
     <system:Double x:Key="SwiftExportControlHeight">30</system:Double>
 
-    <system:Double x:Key="SwiftExportDefaltFontSize">12</system:Double>
+    <system:Double x:Key="SwiftExportDefaltFontSize">10</system:Double>
 
     <system:Double x:Key="SwiftExport.LookUpTextBoxFontSize">12</system:Double>
     <system:Double x:Key="SwiftExport.LookUpTextBoxFontSizeInTitle">12</system:Double>

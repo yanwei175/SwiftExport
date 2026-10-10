@@ -4,6 +4,7 @@ import {
   MenuUnfoldOutlined,
   ExperimentOutlined,
   SettingOutlined,
+  DatabaseOutlined,
 } from "@ant-design/icons";
 import { App, Button, Layout, Menu, Space, Typography } from "antd";
 import { Link } from "react-router";
@@ -75,6 +76,26 @@ export function WorkspaceLayout() {
               label: "首页",
               onClick: () => workspace.open({ pageKind: "home" }),
             },
+            ...(hasPermission(
+              session.user,
+              pageDirectory["supplier-management"]!.permission!,
+            )
+              ? [
+                  {
+                    key: "master-data",
+                    icon: <DatabaseOutlined />,
+                    label: "主数据",
+                    children: [
+                      {
+                        key: "supplier-management",
+                        label: "供应商管理",
+                        onClick: () =>
+                          workspace.open({ pageKind: "supplier-management" }),
+                      },
+                    ],
+                  },
+                ]
+              : []),
             ...(settingsItems.length
               ? [
                   {

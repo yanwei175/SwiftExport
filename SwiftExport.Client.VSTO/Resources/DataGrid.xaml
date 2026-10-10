@@ -14,7 +14,7 @@
         <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Margin" Value="4,0" />
+        <Setter Property="Margin" Value="2,0" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         <Setter Property="TextWrapping" Value="NoWrap" />
         <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
@@ -34,7 +34,7 @@
         <Setter Property="TextAlignment" Value="Right" />
     </Style>
     
-    <Style x:Key="SwiftExportDataGridTextBox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource  DefaultDataGridTextEditingElementStyle}">
+    <Style x:Key="SwiftExportDataGridTextBox" TargetType="{x:Type TextBox}" BasedOn="{StaticResource {x:Type TextBox}}">
         <Setter Property="FontSize" Value="{StaticResource SwiftExportDefaltFontSize}" />
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Padding" Value="2,0,0,0" />
@@ -191,7 +191,7 @@
         </Style.Triggers>
     </Style>
 
-    <Style x:Key="SwiftExportDataGridCell" TargetType="{x:Type DataGridCell}" BasedOn="{StaticResource DefaultUiDataGridCellStyle}">
+    <Style x:Key="SwiftExportDataGridCell" TargetType="{x:Type DataGridCell}" BasedOn="{StaticResource {x:Type DataGridCell}}">
         <Setter Property="Padding" Value="{DynamicResource SwiftExportDataGridCellPadding}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
@@ -203,8 +203,14 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type DataGridCell}">
-                    <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                    <Border Padding="{TemplateBinding Padding}" 
+                            Background="{TemplateBinding Background}" 
+                            BorderBrush="{TemplateBinding BorderBrush}" 
+                            BorderThickness="{TemplateBinding BorderThickness}" 
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" 
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
@@ -222,7 +228,7 @@
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource SwiftExportBrush.DataGridSelectedBackground}" />
-                <Setter Property="Foreground" Value="{DynamicResource SwiftExportBrush.DataGridSelectedForeground}" />
+                <Setter Property="Foreground" Value="{DynamicResource UserTextFillColorPrimaryBrush}"/>
             </Trigger>
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>
@@ -249,6 +255,8 @@
         <Setter Property="GridLinesVisibility" Value="Horizontal" />
         <Setter Property="RowHeaderWidth" Value="32" />
         <Setter Property="RowHeaderStyle" Value="{StaticResource SwiftExportDataGridRowHeader}" />
+        <Setter Property="RowStyle"  Value="{StaticResource SwiftExportDataGridRow}" />
+        <Setter Property="CellStyle" Value="{StaticResource SwiftExportDataGridCell}" />
         <Setter Property="AlternationCount" Value="2" />
         <Setter Property="AlternatingRowBackground" Value="{DynamicResource UserLayerFillColorAltBrush}" />
     </Style>

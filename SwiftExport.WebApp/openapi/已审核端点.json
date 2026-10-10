@@ -13,6 +13,7 @@
   ["/api/sysdictdata/batch-save", "post", "saveDictionaryItems", "web-alias"],
   ["/api/productcolor/all", "get", "getProductColors"],
   ["/api/supplier/page", "post", "getSupplierPage"],
+  ["/api/supplier/batch-save", "post", "saveSupplierBatch", "web-alias"],
   ["/api/product/default-warehouse-candidates", "get", "getProductWarehouseCandidates"],
   ["/api/auth/register", "post", "registerUser", "web-alias", "response-untyped"],
   ["/api/auth/change-password", "post", "changeOwnPassword", "web-alias", "response-untyped"],
