@@ -2468,7 +2468,7 @@ COMMENT ON COLUMN "public"."sales_order_header"."customer_code" IS '该实体保
 COMMENT ON COLUMN "public"."sales_order_header"."customer_po_no" IS '该实体保存的客户采购单号。';
 COMMENT ON COLUMN "public"."sales_order_header"."shipped_by" IS '该实体保存的运输方式。';
 COMMENT ON COLUMN "public"."sales_order_header"."currency" IS '该实体保存的交易币种。';
-COMMENT ON COLUMN "public"."sales_order_header"."exchange_rate" IS '该实体保存的订单结算汇率。';
+COMMENT ON COLUMN "public"."sales_order_header"."exchange_rate" IS '已弃用的兼容存储；新建留空，更新保留历史值，不参与销售校验或价格换算。';
 COMMENT ON COLUMN "public"."sales_order_header"."total_amount_original_currency" IS '该实体保存的原币订单总金额。';
 COMMENT ON COLUMN "public"."sales_order_header"."total_amount_local_currency" IS '该实体保存的本位币订单总金额。';
 COMMENT ON COLUMN "public"."sales_order_header"."ship_to_name" IS '该实体保存的收货方名称。';

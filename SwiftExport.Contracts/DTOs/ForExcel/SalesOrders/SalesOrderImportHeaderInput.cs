@@ -14,7 +14,7 @@ namespace SwiftExport.Contracts.DTOs.ForExcel.SalesOrders
         public DateTime? OrderDate { get; set; }
         /// <summary>需明确确认的币种：CNY 或 USD。</summary>
         public string Currency { get; set; }
-        /// <summary>明确输入的正汇率，不从双币种报价推算。</summary>
+        /// <summary>已弃用的兼容输入；允许缺失、零和旧非法数值，检查忽略此字段。</summary>
         public decimal? ExchangeRate { get; set; }
         /// <summary>可选定金比例，填写时在 0 到 1 之间。</summary>
         public decimal? DepositRate { get; set; }

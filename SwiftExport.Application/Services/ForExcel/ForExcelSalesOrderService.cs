@@ -84,11 +84,10 @@ public sealed class ForExcelSalesOrderService(IForExcelSalesOrderRepository repo
     }
     // 型号仅去首尾空格及忽略大小写，不删除符号、前导零或内部空格。
     private static string Normalize(string value) => value?.Trim().ToUpperInvariant() ?? "";
-    /// <summary>检查导入单头必填项与数值范围，向既有问题集合追加阻断信息。</summary>
+    /// <summary>检查日期、币种和定金比例；废弃汇率不参与检查，也不推算报价。</summary>
     private static void CheckHeader(SalesOrderImportHeaderInput header,List<SalesOrderImportIssueDto> issues)
     {
         if (!header.OrderDate.HasValue) Add(issues,SalesOrderImportIssueCodes.OrderDateRequired,"Header.OrderDate","订单日期不能为空。");
-        if (!(header.ExchangeRate>0)) Add(issues,SalesOrderImportIssueCodes.ExchangeRateInvalid,"Header.ExchangeRate","汇率必须大于零。");
         if (Normalize(header.Currency) is not ("CNY" or "USD")) Add(issues,SalesOrderImportIssueCodes.CurrencyRequired,"Header.Currency","请明确选择 CNY 或 USD。");
         if (header.DepositRate is <0 or >1) Add(issues,SalesOrderImportIssueCodes.DepositRateInvalid,"Header.DepositRate","定金比例必须在 0 到 1 之间。");
     }

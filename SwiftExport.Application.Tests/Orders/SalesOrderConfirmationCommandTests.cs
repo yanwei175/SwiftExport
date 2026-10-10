@@ -35,6 +35,20 @@ namespace SwiftExport.Application.Tests.Orders;
 [TestClass]
 public sealed class SalesOrderConfirmationCommandTests
 {
+    /// <summary>旧汇率为空、零或负值仍可确认；保留原存储值，来源接收和确认状态继续正常执行。</summary>
+    [TestMethod]
+    public async Task DeprecatedExchangeRateDoesNotBlockConfirmation()
+    {
+        foreach (var rate in new decimal?[] { null, 0m, -7m })
+        {
+            var f = new Fixture(); f.Header.ExchangeRate = rate;
+            var result = await f.Service.ConfirmAsync(f.Header.Uid, f.Command(Guid.NewGuid()));
+            Assert.IsTrue(result.Success, result.Message);
+            Assert.AreEqual(ConfirmationStatusEnum.已确认, result.Data.ConfirmationStatus);
+            Assert.AreEqual(1, f.SourceCalls); Assert.AreEqual(rate, f.Header.ExchangeRate);
+        }
+    }
+
     /// <summary>同一命令重放原结果，旧版本不再读取销售事实，异输入、目标和操作人均冲突。</summary>
     [TestMethod]
     public async Task Receipt_ReplaysOriginalAndRejectsConflictingIntent()

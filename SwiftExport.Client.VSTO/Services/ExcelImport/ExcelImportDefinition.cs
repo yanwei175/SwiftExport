@@ -36,7 +36,7 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
         public bool TryAssign(object model, string fieldKey, object value, CultureInfo dateCulture, out string error)
             => TryAssignValues(model, new[] { new KeyValuePair<string, object>(fieldKey, value) }, dateCulture, out error);
 
-        /// <summary>先检查全部键和存储类型再赋值；同次读取多个源列命中同一目标时拒绝覆盖。</summary>
+        /// <summary>先检查活动键和类型再赋值；销售旧汇率输入忽略，其他重复目标仍拒绝覆盖。</summary>
         public bool TryAssignValues(object model, IEnumerable<KeyValuePair<string, object>> values, CultureInfo dateCulture, out string error)
         {
             error = "";
@@ -46,6 +46,8 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
             var prepared = new List<KeyValuePair<ExcelImportField, object>>();
             foreach (var value in values)
             {
+                // 旧快照可能仍携带汇率键；不转换其原值，也不把已停用输入当成未知字段错误。
+                if (model.GetType() == HeaderType && ExcelAddressRules.IsDeprecatedField(GroupCode, value.Key)) continue;
                 if (value.Key == null || !byKey.TryGetValue(value.Key, out var field) || field.ModelType != model.GetType())
                 { error = "目标字段未在当前模型声明为可导入：" + value.Key; return false; }
                 if (!seen.Add(value.Key)) { error = "多个源列同时命中目标字段：" + value.Key; return false; }

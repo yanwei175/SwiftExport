@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Client.VSTO.Api;
 using SwiftExport.Client.VSTO.Authentication;
 using SwiftExport.Client.VSTO.Features.Sales.Orders;
@@ -14,8 +7,15 @@ using SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.Services;
 using SwiftExport.Client.VSTO.Hosting.Threading;
 using SwiftExport.Client.VSTO.Mvvm;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
-using SwiftExport.Contracts.DTOs.SystemDtos.ExcelReadProfiles;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.SystemDtos.ExcelReadProfiles;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
 {
@@ -32,6 +32,8 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         private readonly ISalesOrderImportPrompt prompt;
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private readonly List<ExcelReadFieldModel> subscribed = new List<ExcelReadFieldModel>();
+        // 已弃用的销售汇率配置不再创建编辑器；保留独立快照，保存其他字段时原样回传。
+        private readonly List<ExcelReadFieldDto> deprecatedFields = new List<ExcelReadFieldDto>();
         private long sessionVersion;
         private Guid? uid, initialUid;
         private int version, endMode;
@@ -73,9 +75,12 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             }
             if (!Discard("切换业务分组将丢弃当前未保存配置，是否继续？") || !CanEdit) return false;
             applying = true;
-            try { definition = next; uid = null; initialUid = profileUid; initialized = false; ClearRows(); Profiles.Clear();
+            try
+            {
+                definition = next; uid = null; initialUid = profileUid; initialized = false; ClearRows(); Profiles.Clear();
                 ConfigName = WorksheetName = Remark = LastRowColumn = SummaryCellAddress = ""; EndMode = 0; dirty = false;
-                Title = next.DisplayName + "读取配置"; OnPropertyChanged(nameof(CurrentGroupCode)); OnPropertyChanged(nameof(CurrentUid)); OnPropertyChanged(nameof(HasChanges)); }
+                Title = next.DisplayName + "读取配置"; OnPropertyChanged(nameof(CurrentGroupCode)); OnPropertyChanged(nameof(CurrentUid)); OnPropertyChanged(nameof(HasChanges));
+            }
             finally { applying = false; }
             await ReloadAsync(); return initialized;
         }
@@ -185,24 +190,45 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             {
                 var profileUid = uid.Value;
                 var result = await service.DeleteAsync(profileUid, version, token); Ensure(result.Success, result.Message);
-                await UiAsync(() => { var item = Profiles.FirstOrDefault(p => p.Uid == uid); if (item != null) Profiles.Remove(item);
-                    uid = null; ClearRows(); dirty = false; Status = "配置已删除，请选择其他配置或新建。"; OnPropertyChanged(nameof(CurrentUid)); });
+                await UiAsync(() =>
+                {
+                    var item = Profiles.FirstOrDefault(p => p.Uid == uid); if (item != null) Profiles.Remove(item);
+                    uid = null; ClearRows(); dirty = false; Status = "配置已删除，请选择其他配置或新建。"; OnPropertyChanged(nameof(CurrentUid));
+                });
             });
         }
-        /// <summary>空地址表示移除该字段；未知字段原样保留，不静默删除未来版本的配置。</summary>
+        /// <summary>组装活动字段修改；未知字段及已弃用销售汇率配置保留，不静默删除旧数据。</summary>
         public UpdateExcelReadProfileRequest BuildRequest()
         {
             var fields = HeaderFields.Concat(LineFields).Where(r => !string.IsNullOrWhiteSpace(r.CellAddress)).Select(row =>
             {
                 if (!ExcelAddressRules.TryCell(row.CellAddress, out var r, out var c)) throw new InvalidOperationException(row.DisplayName + "地址无效。");
                 if (row.IsKnown && row.IsDownward == row.IsHeader) throw new InvalidOperationException(row.DisplayName + "：单头读取一次，明细须向下读取。");
-                return new ExcelReadFieldDto { TargetFieldKey = row.FieldKey, CellAddress = ExcelAddressRules.ColumnName(c) + r,
-                    WorksheetName = string.IsNullOrWhiteSpace(WorksheetName) ? null : WorksheetName.Trim(), IsDownward = row.IsDownward };
+                return new ExcelReadFieldDto
+                {
+                    TargetFieldKey = row.FieldKey,
+                    CellAddress = ExcelAddressRules.ColumnName(c) + r,
+                    WorksheetName = string.IsNullOrWhiteSpace(WorksheetName) ? null : WorksheetName.Trim(),
+                    IsDownward = row.IsDownward
+                };
             }).ToList();
-            return new UpdateExcelReadProfileRequest { ExpectedVersion = version, ConfigName = ConfigName, Remark = Remark, EndMode = EndMode,
-                LastRowColumn = EndMode == 1 ? LastRowColumn?.Trim().ToUpperInvariant() : null, SummaryCellAddress = EndMode == 2 ? SummaryCellAddress?.Trim() : null, Fields = fields };
+            fields.AddRange(deprecatedFields.Select(field => new ExcelReadFieldDto
+            {
+                TargetFieldKey = field.TargetFieldKey, CellAddress = field.CellAddress,
+                WorksheetName = field.WorksheetName, IsDownward = field.IsDownward
+            }));
+            return new UpdateExcelReadProfileRequest
+            {
+                ExpectedVersion = version,
+                ConfigName = ConfigName,
+                Remark = Remark,
+                EndMode = EndMode,
+                LastRowColumn = EndMode == 1 ? LastRowColumn?.Trim().ToUpperInvariant() : null,
+                SummaryCellAddress = EndMode == 2 ? SummaryCellAddress?.Trim() : null,
+                Fields = fields
+            };
         }
-        // 用已保存快照重建已知字段编辑器，同时保留未知字段。
+        /// <summary>重建活动字段编辑器；销售旧汇率配置只保留原记录，不开放地址编辑。</summary>
         private void Apply(ExcelReadProfileDto profile)
         {
             if (!Accept()) return;
@@ -212,17 +238,30 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             {
                 ClearRows(); uid = profile.Uid; version = profile.Version; ConfigName = profile.ConfigName; Remark = profile.Remark; EndMode = profile.EndMode;
                 LastRowColumn = profile.LastRowColumn; SummaryCellAddress = profile.SummaryCellAddress;
-                var names = profile.Fields.Select(f => f.WorksheetName).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
+                // 旧汇率参考表名只属于兼容记录，不能清空或改变活动字段的统一表名。
+                var names = profile.Fields.Where(f => !ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey))
+                    .Select(f => f.WorksheetName).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
                 WorksheetName = names.Length == 1 ? names[0] : "";
                 foreach (var field in definition.Fields)
                 {
                     var saved = profile.Fields.FirstOrDefault(f => f.TargetFieldKey == field.FieldKey);
-                    AddRow(new ExcelReadFieldModel { FieldKey = field.FieldKey, DisplayName = field.DisplayName, IsHeader = field.ModelType == definition.HeaderType,
-                        CellAddress = saved?.CellAddress ?? "", IsDownward = saved?.IsDownward ?? field.ModelType == definition.LineType });
+                    AddRow(new ExcelReadFieldModel
+                    {
+                        FieldKey = field.FieldKey,
+                        DisplayName = field.DisplayName,
+                        IsHeader = field.ModelType == definition.HeaderType,
+                        CellAddress = saved?.CellAddress ?? "",
+                        IsDownward = saved?.IsDownward ?? field.ModelType == definition.LineType
+                    });
                 }
-                foreach (var field in profile.Fields.Where(f => !definition.ContainsField(f.TargetFieldKey)))
+                deprecatedFields.AddRange(profile.Fields.Where(f => ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey))
+                    .Select(field => new ExcelReadFieldDto { TargetFieldKey = field.TargetFieldKey, CellAddress = field.CellAddress,
+                        WorksheetName = field.WorksheetName, IsDownward = field.IsDownward }));
+                foreach (var field in profile.Fields.Where(f => !definition.ContainsField(f.TargetFieldKey)
+                    && !ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey)))
                     AddRow(new ExcelReadFieldModel { FieldKey = field.TargetFieldKey, DisplayName = "未知字段（保留）：" + field.TargetFieldKey, IsKnown = false, CellAddress = field.CellAddress, IsDownward = field.IsDownward, IsHeader = !field.IsDownward });
                 dirty = false; Status = names.Length > 1 ? "参考工作表名称不一致；顶部填写统一名称，保存后统一。" : "配置已加载。";
+                if (deprecatedFields.Count > 0) Status += "\n旧销售汇率地址已弃用，不读取；配置记录继续保留。";
                 var issues = ExcelAddressRules.Validate(profile, definition); if (issues.Count > 0) Status += "\n" + string.Join("\n", issues);
                 OnPropertyChanged(nameof(CurrentUid)); OnPropertyChanged(nameof(HasChanges));
             }
@@ -231,7 +270,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         // 统一登记字段通知，清除与释放必须对称解绑。
         private void AddRow(ExcelReadFieldModel row) { (row.IsHeader ? HeaderFields : LineFields).Add(row); row.PropertyChanged += RowChanged; subscribed.Add(row); }
         // 解绑旧字段并清空可观察集合，不保留来源业务值。
-        private void ClearRows() { foreach (var row in subscribed) row.PropertyChanged -= RowChanged; subscribed.Clear(); HeaderFields.Clear(); LineFields.Clear(); }
+        private void ClearRows() { foreach (var row in subscribed) row.PropertyChanged -= RowChanged; subscribed.Clear(); HeaderFields.Clear(); LineFields.Clear(); deprecatedFields.Clear(); }
         /// <summary>忙碌变化同时刷新整个配置编辑区。</summary>
         protected override void OnPropertyChanged(PropertyChangedEventArgs args)
         {
@@ -249,10 +288,13 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         // 将选中单格转换为判断列或汇总地址。
         private async Task PickBoundaryAsync(bool column)
         {
-            await RunAsync(async token => { var selected = await reader.SelectCellAsync(token); if (selected == null) return;
-                await UiAsync(() => { ExcelAddressRules.TryCell(selected.Address, out var r, out var c); if (column) LastRowColumn = ExcelAddressRules.ColumnName(c); else SummaryCellAddress = selected.Address; }); });
+            await RunAsync(async token =>
+            {
+                var selected = await reader.SelectCellAsync(token); if (selected == null) return;
+                await UiAsync(() => { ExcelAddressRules.TryCell(selected.Address, out var r, out var c); if (column) LastRowColumn = ExcelAddressRules.ColumnName(c); else SummaryCellAddress = selected.Address; });
+            });
         }
-        // 仅预览已保存快照，不让未保存地址进入导入流程；实际数据不参与服务器保存。
+        /// <summary>仅预览已保存活动字段；旧销售汇率配置不决定预览方向，也不触发 Excel 读取。</summary>
         private async Task PreviewAsync()
         {
             await RunAsync(async token =>
@@ -260,7 +302,13 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
                 var result = await service.GetAsync(uid.Value, token); Ensure(result.Success, result.Message); if (!Accept()) return;
                 var issues = ExcelAddressRules.Validate(result.Data, definition); if (issues.Count > 0) throw new InvalidOperationException(string.Join("\n", issues));
                 // 每次只预览一种部分，保证整次操作使用同一工作表快照。
-                var detail = result.Data.Fields.Any(f => f.IsDownward);
+                var fields = result.Data.Fields.Where(f => !ExcelAddressRules.IsDeprecatedField(result.Data.GroupCode, f.TargetFieldKey)).ToArray();
+                if (fields.Length == 0)
+                {
+                    await UiAsync(() => Status = "旧销售汇率地址已弃用；没有活动字段可预览，配置记录继续保留。");
+                    return;
+                }
+                var detail = fields.Any(f => f.IsDownward);
                 var data = await reader.ReadAsync(result.Data, detail, token); if (!Accept()) return;
                 await UiAsync(() =>
                 {

@@ -10,13 +10,13 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Services
     /// <summary>组装导入检查和新建草稿请求；明确区分原表型号、系统身份及服务器生成的单头身份。</summary>
     internal static class SalesOrderImportRequests
     {
-        /// <summary>复制当次检查输入；非法数字必须由调用者先阻断。</summary>
+        /// <summary>复制当次检查输入；数量和单价须先校验，废弃汇率不传入。</summary>
         internal static CheckSalesOrderImportRequest Check(SalesOrderImportHeader h, IEnumerable<SalesOrderImportLine> lines, bool acceptExisting)
         {
             return new CheckSalesOrderImportRequest {
                 CustomerCode = h.CustomerCode, AcceptExistingOrders = acceptExisting,
                 Header = new SalesOrderImportHeaderInput { InvoiceNo = h.InvoiceNo, CustomerPoNo = h.CustomerPoNo,
-                    OrderDate = h.OrderDate, Currency = h.Currency, ExchangeRate = h.ExchangeRate, DepositRate = h.DepositRate },
+                    OrderDate = h.OrderDate, Currency = h.Currency, DepositRate = h.DepositRate },
                 Lines = lines.Select(l => new SalesOrderImportLineInput { ClientLineId = l.Uid,
                     CustomerSku = l.CustomerSku, SelectedCustomerProductId = l.SelectedMatchId ?? l.CustomerProductId,
                     LinkSku = l.OriginalLinkSku, IsNonStandard = l.IsNonStandard, DescriptionEn = l.DescriptionEn,
@@ -25,14 +25,14 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Services
                     CbmOfCarton = l.CbmOfCarton, AcceptLinkSkuMismatch = l.AcceptLinkSkuMismatch }).ToList()
             };
         }
-        /// <summary>新建头必须使用空 Uid，明细保持本地稳定 Uid；不传原表 UpdateDate 或计算汇总。</summary>
+        /// <summary>新建头使用空 Uid，明细保持稳定 Uid；废弃汇率留空，保留双币种原始报价。</summary>
         internal static SaveSalesOrderRequest Save(SalesOrderImportHeader h, IEnumerable<SalesOrderImportLine> lines)
         {
             return new SaveSalesOrderRequest { CommandId = Guid.NewGuid(),
                 Header = new SalesOrderEditHeaderDto { Uid = Guid.Empty, Version = 0,
                     CustomerId = h.CustomerId, CustomerCode = h.CustomerCode, OrderNo = "",
                     InvoiceNo = h.InvoiceNo, CustomerPoNo = h.CustomerPoNo, Currency = h.Currency,
-                    ExchangeRate = h.ExchangeRate.Value, DepositRate = h.DepositRate, LeadTimeDays = h.LeadTimeDays,
+                    DepositRate = h.DepositRate, LeadTimeDays = h.LeadTimeDays,
                     PaymentMethod = h.PaymentMethod, ShippedBy = h.ShippedBy, Incoterm = h.Incoterm,
                     IncotermSortRemark = h.IncotermSortRemark, IncotermLocation = h.IncotermLocation,
                     ShipToName = h.ShipToName, ShipToAddress = h.ShipToAddress, ShipToPhone = h.ShipToPhone,

@@ -182,10 +182,10 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             if (!resetting) { dirty = true; InvalidateSubmission(); }
             RefreshOptions(); NotifyState();
         }
-        // 只改变当前草稿，候选集重建不写回共享资料。
+        /// <summary>活动单头编辑使整单检查失效；废弃汇率兼容文本不改变保存资格。</summary>
         private void HeaderChanged(object sender, PropertyChangedEventArgs args)
         {
-            if (resetting || applyingSubmission) return;
+            if (resetting || applyingSubmission || args.PropertyName == nameof(SalesOrderImportHeader.ExchangeRateText)) return;
             InvalidateSubmission(); dirty = true;
             if (new[] { "Currency", "PaymentMethod", "Incoterm", "ShippedBy" }.Contains(args.PropertyName)) RefreshOptions();
             NotifyState();

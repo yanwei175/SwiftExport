@@ -30,7 +30,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                 CancelSearch(line); line.ClearProduct();
             }, () => CanSearch(line));
         }
-        private bool CanSearch(SalesOrderImportLine line) => IsEditable && !line.IsNonStandard && Lines.Contains(line) && Header.CustomerId != Guid.Empty;
+        private bool CanSearch(SalesOrderImportLine line) => IsEditable && !line.IsNonStandard && Lines.Contains(line)
+            && Header.CustomerId != Guid.Empty && !string.IsNullOrWhiteSpace(Header.CustomerCode);
         private async Task SearchAsync(SalesOrderImportLine line, string keyword)
         {
             if (!CanSearch(line)) return;

@@ -12,7 +12,7 @@ namespace SwiftExport.Client.VSTO.Tests
     [TestClass]
     public sealed class ExcelImportReflectionTests
     {
-        /// <summary>保留已有销售逻辑键，并只暴露标记属性，身份、系统 SKU 和检查状态不进入目录。</summary>
+        /// <summary>保留活动销售逻辑键，废弃汇率、身份、系统 SKU 和检查状态不进入目录。</summary>
         [TestMethod]
         public void SalesDirectoryComesFromModelAttributes()
         {
@@ -20,13 +20,13 @@ namespace SwiftExport.Client.VSTO.Tests
             Assert.AreEqual("SalesOrder", definition.GroupCode); Assert.AreEqual(3, registry.Groups.Count);
             Assert.AreEqual("PurchaseOrder", registry.Find("PurchaseOrder").GroupCode);
             Assert.AreEqual("PackingList", registry.Find("PackingList").GroupCode); Assert.IsNull(registry.Find("Unknown"));
-            var existingKeys = new[] { "Header.InvoiceNo", "Header.CustomerPoNo", "Header.ShippedBy", "Header.Currency", "Header.ExchangeRate",
+            var existingKeys = new[] { "Header.InvoiceNo", "Header.CustomerPoNo", "Header.ShippedBy", "Header.Currency",
                 "Header.ShipToName", "Header.ShipToAddress", "Header.ShipToPhone", "Header.Incoterm", "Header.IncotermLocation", "Header.Remark",
                 "Header.OrderDate", "Header.DeliveryDate", "Header.Etd", "Header.Eta", "Line.CustomerSku", "Line.DescriptionEn", "Line.ColorNameEn",
                 "Line.FeaturesEn", "Line.Qty", "Line.CnyPrice", "Line.UsdPrice", "Line.PcsOfCarton", "Line.NwOfCarton", "Line.GwOfCarton",
                 "Line.CbmOfCarton", "Line.ExpectedDeliveryDate", "Line.SubNote" };
             foreach (var key in existingKeys) Assert.IsTrue(definition.ContainsField(key), key);
-            foreach (var key in new[] { "Header.CustomerId", "Header.CustomerCode", "Header.OrderNo", "Line.ProductId", "Line.CustomerProductId",
+            foreach (var key in new[] { "Header.ExchangeRate", "Header.CustomerId", "Header.CustomerCode", "Header.OrderNo", "Line.ProductId", "Line.CustomerProductId",
                 "Line.Sku", "Line.Uid", "Line.MatchStatus", "Line.AcceptLinkSkuMismatch", "Line.SearchCommand", "Line.QtyText" })
                 Assert.IsFalse(definition.ContainsField(key), key);
             Assert.AreEqual("QtyText", definition.Fields.Single(v => v.FieldKey == "Line.Qty").PropertyName);
@@ -87,6 +87,21 @@ namespace SwiftExport.Client.VSTO.Tests
             Assert.ThrowsExactly<InvalidOperationException>(() => new ExcelImportRegistry(valid, valid));
             Assert.ThrowsExactly<InvalidOperationException>(() => new ExcelImportDefinition("Test", "测试", typeof(PrivateSetterHeader), typeof(TestLine)));
             Assert.ThrowsExactly<InvalidOperationException>(() => new ExcelImportDefinition("Test", "测试", typeof(DuplicateHeader), typeof(TestLine)));
+        }
+
+        /// <summary>旧汇率值不转换或赋值；其他已声明字段仍按原有目录正常导入。</summary>
+        [TestMethod]
+        public void DeprecatedSalesExchangeRateIsIgnoredDuringAssignment()
+        {
+            var definition = ExcelImportRegistry.CreateDefault().Find("SalesOrder");
+            var header = new SalesOrderImportHeader { ExchangeRateText = "旧内存文本" }; string error;
+            foreach (var value in new object[] { null, "bad", 0m, -7m, new object() })
+            {
+                Assert.IsTrue(definition.TryAssignValues(header, new[] { Pair("Header.ExchangeRate", value), Pair("Header.InvoiceNo", "INV") }, CultureInfo.InvariantCulture, out error), error);
+                Assert.AreEqual("旧内存文本", header.ExchangeRateText); Assert.IsNull(header.ExchangeRate);
+                Assert.AreEqual("INV", header.InvoiceNo); Assert.AreEqual("", header[nameof(header.ExchangeRateText)]);
+            }
+            Assert.IsFalse(ExcelAddressRules.IsDeprecatedField("PurchaseOrder", "Header.ExchangeRate"));
         }
 
         private static KeyValuePair<string, object> Pair(string key, object value) => new KeyValuePair<string, object>(key, value);

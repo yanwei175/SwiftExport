@@ -357,7 +357,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
     }
 
     /// <summary>
-    /// 把订单头编辑 DTO 应用到实体，并根据当前活动行重新计算订单汇总金额。
+    /// 把订单头编辑 DTO 应用到实体，并按各币种价格快照汇总；废弃汇率不校验、不覆盖历史值。
     /// </summary>
     private static void ApplyHeaderChanges(
         SalesOrderHeader header,
@@ -366,7 +366,6 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
         IReadOnlyList<SalesOrderLine> lines)
     {
         if (!dto.OrderDate.HasValue) throw new SalesOrderValidationException("订单日期不能为空。");
-        if (dto.ExchangeRate <= 0) throw new SalesOrderValidationException("汇率必须大于零。");
         if (dto.DepositRate is < 0 or > 1) throw new SalesOrderValidationException("定金比例必须在 0 到 1 之间。");
 
         header.CustomerId = customer.Uid;
@@ -375,7 +374,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
         header.CustomerPoNo = dto.CustomerPoNo?.Trim();
         header.ShippedBy = dto.ShippedBy?.Trim();
         header.Currency = string.IsNullOrWhiteSpace(dto.Currency) ? "USD" : dto.Currency.Trim().ToUpperInvariant();
-        header.ExchangeRate = dto.ExchangeRate;
+        // 汇率只保留兼容存储：忽略旧客户端输入，新建留空，更新保留原记录。
         header.TotalAmountLocalCurrency = lines.Sum(line => line.CnyAmount ?? 0);
         header.TotalAmountOriginalCurrency = string.Equals(header.Currency, "CNY", StringComparison.OrdinalIgnoreCase)
             ? header.TotalAmountLocalCurrency

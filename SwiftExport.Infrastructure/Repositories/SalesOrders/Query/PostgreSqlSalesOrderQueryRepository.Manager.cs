@@ -199,7 +199,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
                h.order_no AS "OrderNo",COALESCE(h.customer_id,'00000000-0000-0000-0000-000000000000'::uuid) AS "CustomerId",
                COALESCE(h.customer_code,'') AS "CustomerCode",COALESCE(c.customer_name,'') AS "CustomerName",
                COALESCE(h.customer_po_no,'') AS "CustomerPoNo",COALESCE(h.invoice_no,'') AS "InvoiceNo",
-               COALESCE(h.currency,'') AS "Currency",COALESCE(h.exchange_rate,0) AS "ExchangeRate",
+               COALESCE(h.currency,'') AS "Currency",h.exchange_rate AS "ExchangeRate",
                CASE WHEN {ManagerQuantityGate} THEN f.ordered_qty END AS "TotalQty",
                CASE WHEN {ManagerQuantityGate} THEN f.shipped_qty END AS "TotalShippedQty",
                CASE WHEN {ManagerQuantityGate} THEN f.unshipped_qty END AS "TotalUnshippedQty",

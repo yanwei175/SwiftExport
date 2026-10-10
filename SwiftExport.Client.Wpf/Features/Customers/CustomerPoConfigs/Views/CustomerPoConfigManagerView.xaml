@@ -160,9 +160,15 @@
                                         SortMemberPath="Currency"
                                         gridColumns:GridColumn.Key="currency"
                                         gridColumns:GridColumn.FieldPath="Currency">
+
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ComboBox Margin="4,0"
+                            <TextBlock Text="{Binding Currency}" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate>
+                        <DataTemplate>
+                            <ComboBox Margin="4,0" VerticalContentAlignment="Center"
                                       FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                       ItemsSource="{Binding DataContext.CurrencyOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                       ItemTemplate="{StaticResource CustomerPoConfigCurrencyOptionTemplate}"
@@ -171,11 +177,11 @@
                                       TextSearch.TextPath="CurrencyCode"
                                       AutomationProperties.Name="默认币种" />
                         </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
 
                 <gridNumeric:NumericDataGridColumn Header="默认折扣率（≥0；1.05 表示涨价 5%）" Width="230"
-                                                   Binding="{Binding DefaultDiscountRate, UpdateSourceTrigger=LostFocus}"
+                                                   Binding="{Binding DefaultDiscountRate, UpdateSourceTrigger=LostFocus, StringFormat=N2}"
                                                    Minimum="0" AllowEmpty="True" MaximumDecimalPlaces="6"
                                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
@@ -199,7 +205,10 @@
                 <DataGridTextColumn Header="标志" Width="120" Binding="{Binding LogoType, UpdateSourceTrigger=LostFocus}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" gridColumns:GridColumn.Key="logo-type" gridColumns:GridColumn.FieldPath="LogoType" />
                 <DataGridTextColumn Header="销售人员" Width="110" Binding="{Binding SalesPerson, UpdateSourceTrigger=LostFocus}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" gridColumns:GridColumn.Key="sales-person" gridColumns:GridColumn.FieldPath="SalesPerson" />
                 <DataGridTextColumn Header="采购人员" Width="110" Binding="{Binding Purchaser, UpdateSourceTrigger=LostFocus}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" gridColumns:GridColumn.Key="purchaser" gridColumns:GridColumn.FieldPath="Purchaser" />
-                <DataGridTextColumn Header="备注" Width="220" Binding="{Binding Note, UpdateSourceTrigger=LostFocus}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" gridColumns:GridColumn.Key="note" gridColumns:GridColumn.FieldPath="Note" />
+                <DataGridTextColumn Header="备注" Width="220" Binding="{Binding Note, UpdateSourceTrigger=LostFocus}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" 
+                                    gridColumns:GridColumn.Key="note" gridColumns:GridColumn.FieldPath="Note" />
             </DataGrid.Columns>
         </DataGrid>
 

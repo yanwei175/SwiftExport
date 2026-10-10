@@ -61,7 +61,7 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
             await dispatcher.InvokeAsync(() => { token.ThrowIfCancellationRequested(); result = Read(profile, detail, token); });
             return result;
         }
-        // 一次操作只捕获一次 ActiveSheet，不使用配置中的参考名称查找工作表。
+        /// <summary>一次捕获活动工作表并读取活动字段；销售旧汇率地址在单元格访问前跳过。</summary>
         private ExcelAddressSnapshot Read(ExcelReadProfileDto profile, bool detail, CancellationToken token)
         {
             ExcelInterop.Worksheet sheet = null;
@@ -72,7 +72,8 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                 active = application.ActiveSheet; sheet = active as ExcelInterop.Worksheet;
                 if (sheet == null) throw new InvalidOperationException("请先选择需要读取的 Excel 工作表，图表页不可读取。");
                 workbook = (ExcelInterop.Workbook)sheet.Parent;
-                var fields = profile.Fields.Where(f => f.IsDownward == detail).ToArray();
+                var fields = profile.Fields.Where(f => f.IsDownward == detail
+                    && !ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey)).ToArray();
                 if (fields.Length == 0) throw new InvalidOperationException(detail ? "没有配置明细字段。" : "没有配置单头字段。");
                 foreach (var f in fields)
                     if (!ExcelAddressRules.TryCell(f.CellAddress, out var r, out var c)) throw new InvalidOperationException("配置地址无效。");

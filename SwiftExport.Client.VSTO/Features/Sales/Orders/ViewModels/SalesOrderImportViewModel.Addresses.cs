@@ -150,6 +150,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             try { await dispatcher.InvokeAsync(() => { if (IsDisposed) return; if (parsing || profilesLoading) refreshPending = true; else RefreshReadProfilesCommand.Execute(null); }); }
             catch (OperationCanceledException) { }
         }
+        /// <summary>读取活动地址并受控接纳；仅含废弃汇率的部分跳过读取，保留现有销售输入。</summary>
         private async Task ReadAddressesAsync(bool detail)
         {
             if (!CanReadAddresses()) return;
@@ -162,6 +163,12 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                 if (!saved.Success) throw new InvalidOperationException(saved.Message);
                 var issues = ExcelAddressRules.Validate(saved.Data, addressDefinition);
                 if (issues.Count > 0) throw new InvalidOperationException(string.Join("\n", issues));
+                if (saved.Data.Fields.Any(f => ExcelAddressRules.IsDeprecatedField(saved.Data.GroupCode, f.TargetFieldKey))
+                    && !saved.Data.Fields.Any(f => f.IsDownward == detail && !ExcelAddressRules.IsDeprecatedField(saved.Data.GroupCode, f.TargetFieldKey)))
+                {
+                    await dispatcher.InvokeAsync(() => { if (Accept(version)) ParseMessage = "旧销售汇率地址已弃用；此部分没有活动字段，保留当前输入。"; });
+                    return;
+                }
                 var snapshot = await addressReader.ReadAsync(saved.Data, detail, token); if (!Accept(version)) return;
                 var result = await Task.Run(() => addressParser.Parse(snapshot), token);
                 await dispatcher.InvokeAsync(() =>

@@ -19,9 +19,27 @@ using System.Xml.Linq;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
+/// <summary>核对销售模型校验、快照转换及页面契约；真实控件行为在 STA 环境验证。</summary>
 [TestClass]
 public sealed class SalesOrderModelsAndContractsTests
 {
+    /// <summary>废弃汇率不校验、不补默认值；加载及回传保留原始历史值。</summary>
+    [TestMethod]
+    public void DeprecatedExchangeRateDoesNotBlockHeaderValidation()
+    {
+        Assert.IsNull(new SalesOrderHeaderEditModel().ExchangeRate);
+        foreach (var rate in new decimal?[] { null, 0m, -7m, 7.2m })
+        {
+            var model = new SalesOrderHeaderEditModel();
+            model.Load(new SalesOrderEditHeaderDto { CustomerId = Guid.NewGuid(), CustomerCode = "C", OrderDate = DateTime.Today, Currency = "CNY", ExchangeRate = rate });
+            Assert.IsNull(model.ValidateModel()); Assert.AreEqual(rate, model.ToDto().ExchangeRate);
+            Assert.AreEqual("CNY", model.ToDto().Currency);
+            model.OrderDate = null; Assert.AreEqual("订单日期不能为空。", model.ValidateModel());
+            model.OrderDate = DateTime.Today; model.DepositRate = 2m; Assert.AreEqual("定金比例必须在 0 到 1 之间。", model.ValidateModel());
+            model.DepositRate = 0; model.CustomerId = Guid.Empty; Assert.AreEqual("请选择客户。", model.ValidateModel());
+        }
+    }
+
     /// <summary>详情单位列只允许非标行编辑，并由 Unit 字典提供代码选项。</summary>
     [TestMethod]
     public void DetailUnitColumn_ShouldUseDictionaryForNonStandardLines()

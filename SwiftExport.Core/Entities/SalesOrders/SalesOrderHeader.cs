@@ -30,7 +30,7 @@ public partial class SalesOrderHeader : BaseEntity
 
     /// <summary>该实体保存的交易币种。</summary>
     public string? Currency { get; set; }
-    /// <summary>该实体保存的订单结算汇率。</summary>
+    /// <summary>已弃用的兼容存储；新建留空，更新保留历史值，不参与销售校验或价格换算。</summary>
     public decimal? ExchangeRate { get; set; }
 
     /// <summary>该实体保存的原币订单总金额。</summary>

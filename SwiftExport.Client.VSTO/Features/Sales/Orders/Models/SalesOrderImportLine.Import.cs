@@ -30,6 +30,10 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         public string LinkSku { get => linkSku; private set => SetProperty(ref linkSku, value); }
         /// <summary>后端逐行状态；编辑后回到 NotChecked，不能据此单独决定整单可保存。</summary>
         public string MatchStatus => matchStatus;
+        /// <summary>行头只显示通过或未通过；产品身份通过后仍须满足本行输入和差异确认要求。</summary>
+        public bool IsCheckPassed => (MatchStatus == "Matched" || MatchStatus == "NonStandard") && string.IsNullOrEmpty(Error);
+        /// <summary>红绿状态的文字替代，供提示及辅助阅读使用；不代表整单可以保存。</summary>
+        public string CheckStatusText => IsCheckPassed ? "校验通过" : "未校验通过";
         /// <summary>本次检查的不可变候选快照；多候选禁止自动取第一条。</summary>
         public IReadOnlyList<SalesOrderImportMatchCandidate> MatchCandidates => matchCandidates;
         /// <summary>本次检查的问题快照；确认提示应重新请求后端验证。</summary>
@@ -68,7 +72,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         /// <summary>用户明确选定的客户产品关联；修改客户型号或转换行类型后清除。</summary>
         public Guid? SelectedMatchId => selectedMatchId;
         /// <summary>显示本行的匹配反馈及需确认问题。</summary>
-        public string MatchMessage => MatchStatus + "：" + string.Join("；", CheckIssues.Select(v => v.Message));
+        public string MatchMessage => CheckStatusText + "：" + string.Join("；", CheckIssues.Select(v => v.Message));
         /// <summary>仅接纳当前候选集中的可用关联，不取第一项，也不直接赋产品身份。</summary>
         public bool ChooseMatchCandidate()
         {
@@ -166,6 +170,11 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
                 InvalidateCheck();
             }
             base.OnPropertyChanged(e);
+            if (e.PropertyName == nameof(Error) || e.PropertyName == nameof(MatchStatus))
+            {
+                base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(IsCheckPassed)));
+                base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(CheckStatusText)));
+            }
         }
         // 型号差异确认仅对当时的原表型号与匹配条件有效。
         private void ResetMismatchConfirmation()

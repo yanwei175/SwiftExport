@@ -37,6 +37,100 @@ namespace SwiftExport.Client.VSTO.Tests
         private static ServiceResult<SaveSalesOrderResponse> Saved(ImportTestFixture f) => ServiceResult<SaveSalesOrderResponse>.Ok(new SaveSalesOrderResponse {
             Document = new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto { Uid = Guid.NewGuid(), CustomerId = f.Model.Header.CustomerId, OrderNo = "SO1" } } });
 
+        /// <summary>所有匹配入口依赖已接纳客户；只有选中行时才启用局部匹配。</summary>
+        [TestMethod]
+        public async Task MatchingRequiresCustomerAndSelection()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                f.Session.TryCommit(f.Session.Capture().Version, "test-token", new MeDto { UserId = "writer", Permissions = new List<string> { PermissionKeys.SalesOrderMaintain } });
+                await f.Model.InitializeAsync();
+                var line = new SalesOrderImportLine(false, null); f.Model.Lines.Add(line); f.Model.SetSelectedLines(new[] { line });
+                Assert.IsFalse(f.Model.CheckImportCommand.CanExecute(null));
+                Assert.IsFalse(f.Model.MatchAllSkusCommand.CanExecute(null));
+                Assert.IsFalse(f.Model.MatchSelectedSkusCommand.CanExecute(null));
+                f.Model.SelectedCustomer = f.Cache.Customers[0]; f.Model.CustomerSelectedCommand.Execute(null);
+                f.Model.AddStandardLineCommand.Execute(null);
+                Assert.IsTrue(f.Model.CheckImportCommand.CanExecute(null)); Assert.IsTrue(f.Model.MatchAllSkusCommand.CanExecute(null));
+                Assert.IsFalse(f.Model.MatchSelectedSkusCommand.CanExecute(null));
+                f.Model.SetSelectedLines(f.Model.Lines); Assert.IsTrue(f.Model.MatchSelectedSkusCommand.CanExecute(null));
+            }
+        }
+
+        /// <summary>独立匹配不要求单头完成，选中范围不污染其他行，全部匹配也不能代替整单保存检验。</summary>
+        [TestMethod]
+        public async Task IndependentMatchingPreservesScopeAndSaveGate()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                await Prepare(f); f.Model.AddStandardLineCommand.Execute(null);
+                var first = f.Model.Lines[0]; var second = f.Model.Lines[1]; second.CustomerSku = "AQ2";
+                f.Model.Header.ExchangeRateText = "";
+                CheckSalesOrderImportRequest sent = null;
+                f.CheckApi.Check = (r, t) => { sent = r; return Task.FromResult(Checked(f, r)); };
+                f.Model.SetSelectedLines(new[] { second });
+                await f.Model.MatchSelectedSkusCommand.ExecuteAsync(null);
+                Assert.AreEqual(f.Model.Header.CustomerCode, sent.CustomerCode); Assert.AreEqual(1, sent.Lines.Count);
+                Assert.AreEqual(second.Uid, sent.Lines[0].ClientLineId); Assert.IsNull(first.ProductId);
+                Assert.AreEqual("REAL1", second.Sku); Assert.IsTrue(second.IsCheckPassed); Assert.IsFalse(f.Model.CanSaveDraft);
+                await f.Model.MatchAllSkusCommand.ExecuteAsync(null);
+                Assert.AreEqual(2, sent.Lines.Count); Assert.IsTrue(first.IsCheckPassed); Assert.IsFalse(f.Model.CanSaveDraft);
+                await f.Model.CheckImportAsync(); Assert.IsTrue(f.Model.CanSaveDraft);
+                await f.Model.MatchSelectedSkusCommand.ExecuteAsync(null); Assert.IsFalse(f.Model.CanSaveDraft);
+                second.QtyText = "0"; Assert.IsFalse(second.IsCheckPassed);
+            }
+        }
+
+        /// <summary>旧汇率文本不阻断检查或保存，不发生空值解引用，双币种报价保持原输入。</summary>
+        [TestMethod]
+        [DataRow("")]
+        [DataRow("0")]
+        [DataRow("-7")]
+        [DataRow("bad")]
+        public async Task DeprecatedExchangeRateDoesNotBlockDraft(string text)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                await Prepare(f); f.Model.Header.ExchangeRateText = text;
+                f.Model.Lines[0].CnyPriceText = "37.7";
+                f.CheckApi.Check = (r, t) => { Assert.IsNull(r.Header.ExchangeRate); return Task.FromResult(Checked(f, r)); };
+                await f.Model.CheckImportAsync(); Assert.IsTrue(f.Model.CanSaveDraft);
+                f.Model.Header.ExchangeRateText = "旧文本变化";
+                Assert.IsTrue(f.Model.CanSaveDraft, "废弃字段不应使活动输入检查失效");
+                SaveSalesOrderRequest sent = null;
+                f.Api.Save = r => { sent = r; return Task.FromResult(Saved(f)); };
+                await f.Model.SaveDraftAsync();
+                Assert.IsNotNull(sent); Assert.IsNull(sent.Header.ExchangeRate);
+                Assert.AreEqual(f.Model.Header.Currency, sent.Header.Currency);
+                Assert.AreEqual(5.18m, sent.Lines[0].UsdPrice); Assert.AreEqual(37.7m, sent.Lines[0].CnyPrice);
+                Assert.AreEqual("SO1", f.Model.Header.OrderNo);
+            }
+        }
+
+        /// <summary>局部匹配共用并发锁，编辑、删除、换号和释放后均拒绝迟到身份回填。</summary>
+        [TestMethod]
+        public async Task LateSkuMatchingCannotWriteBack()
+        {
+            for (var action = 0; action < 4; action++)
+            using (var f = new ImportTestFixture())
+            {
+                await Prepare(f); var row = f.Model.Lines[0]; f.Model.SetSelectedLines(new[] { row });
+                var wait = new TaskCompletionSource<ServiceResult<CheckSalesOrderImportResponse>>();
+                CheckSalesOrderImportRequest sent = null; var calls = 0;
+                f.CheckApi.Check = (r, t) => { sent = r; calls++; return wait.Task; };
+                var task = f.Model.MatchSelectedSkusCommand.ExecuteAsync(null);
+                Assert.IsFalse(f.Model.MatchAllSkusCommand.CanExecute(null)); Assert.IsFalse(f.Model.CheckImportCommand.CanExecute(null));
+                await f.Model.MatchAllSkusCommand.ExecuteAsync(null); Assert.AreEqual(1, calls);
+                var response = Checked(f, sent);
+                if (action == 0) row.CustomerSku = "changed";
+                else if (action == 1) f.Model.Lines.Remove(row);
+                else if (action == 2) f.Login("other");
+                else f.Model.Dispose();
+                wait.SetResult(response); await task;
+                Assert.IsNull(row.ProductId); Assert.IsFalse(row.IsCheckPassed); Assert.IsFalse(f.Model.CanSaveDraft);
+            }
+        }
+
         /// <summary>产品身份由检查回填，商业资料保持原值；新建只接受空头身份和稳定行身份。</summary>
         [TestMethod]
         public async Task CheckedIdentityAndSaveReceipt()

@@ -1,12 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Npgsql;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Tools.DbSeed;
+
+// 离线导出必须在任何连接/账号环境变量读取前分流；生成文件永不触发数据库访问。
+if (args.Length > 0 && args[0] == "--export-permissions-sql")
+{
+    if (args.Length != 2 || string.IsNullOrWhiteSpace(args[1]))
+        throw new ArgumentException("用法：DbSeed --export-permissions-sql <输出.sql路径>。");
+    var outputPath = Path.GetFullPath(args[1]);
+    var sql = PermissionCatalogSqlGenerator.Generate();
+    Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+    await File.WriteAllTextAsync(outputPath, sql, new UTF8Encoding(false));
+    Console.WriteLine($"已生成权限目录 SQL（{PermissionCatalog.All.Count} 项）：{outputPath}；未连接或写入数据库。");
+    return;
+}
 
 var connectionString = Environment.GetEnvironmentVariable("SWIFTEXPORT_DBSEED_CONNECTION");
 var userName = Environment.GetEnvironmentVariable("SWIFTEXPORT_DBSEED_USERNAME")?.Trim();
@@ -18,7 +33,7 @@ if (args.Length > 0)
 {
     if (args[0] != "--sync-permissions" || args.Length > 2
         || (args.Length == 2 && args[1] != "--dry-run"))
-        throw new ArgumentException("用法：DbSeed [--sync-permissions [--dry-run]]。");
+        throw new ArgumentException("用法：DbSeed [--sync-permissions [--dry-run]] 或 --export-permissions-sql <输出.sql路径>。");
     using var session = new DbSession(new PostgreSqlConnectionFactory(connectionString));
     await new PostgreSqlPermissionCatalogSync(session).RunAsync(args.Length == 2);
     return;

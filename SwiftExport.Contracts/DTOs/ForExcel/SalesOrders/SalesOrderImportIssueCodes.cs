@@ -21,7 +21,7 @@ namespace SwiftExport.Contracts.DTOs.ForExcel.SalesOrders
         public const string LinkSkuMismatch = "LinkSkuMismatch";
         /// <summary>导入单头缺少订单日期。</summary>
         public const string OrderDateRequired = "OrderDateRequired";
-        /// <summary>导入汇率不是正数。</summary>
+        /// <summary>已弃用的旧汇率错误码，仅保留契约兼容；销售导入检查不再产生此问题。</summary>
         public const string ExchangeRateInvalid = "ExchangeRateInvalid";
         /// <summary>导入币种未明确选择。</summary>
         public const string CurrencyRequired = "CurrencyRequired";

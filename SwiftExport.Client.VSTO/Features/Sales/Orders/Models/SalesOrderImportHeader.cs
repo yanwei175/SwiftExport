@@ -1,7 +1,6 @@
 ﻿using System;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
 using System.ComponentModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
@@ -24,9 +23,9 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         private string currency = "USD";
         [ExcelImportField("Header.Currency", "币种")]
         public string Currency { get => currency; set { if (value != null) SetProperty(ref currency, value); } }
-        private string exchangeRateText = "1";
-        [ExcelImportField("Header.ExchangeRate", "汇率")]
-        public string ExchangeRateText { get => exchangeRateText; set { if (SetProperty(ref exchangeRateText, value)) OnPropertyChanged(nameof(ExchangeRate)); } }
+        private string exchangeRateText = "";
+        /// <summary>仅保留旧内存调用的文本属性；不再解析、导入或用于销售检查及保存。</summary>
+        public string ExchangeRateText { get => exchangeRateText; set => SetProperty(ref exchangeRateText, value); }
         private decimal depositRate;
         public decimal DepositRate { get => depositRate; set => SetProperty(ref depositRate, value); }
         private int leadTimeDays;
@@ -71,12 +70,12 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         private DateTime? eta = null;
         [ExcelImportField("Header.Eta", "预计到港日期")]
         public DateTime? Eta { get => eta; set => SetProperty(ref eta, value); }
-        /// <summary>当前输入的汇率；无效文本不转换为零。</summary>
-        public decimal? ExchangeRate => decimal.TryParse(ExchangeRateText, NumberStyles.Number, CultureInfo.CurrentCulture, out var value) && value > 0 ? value : (decimal?)null;
+        /// <summary>废弃汇率不再解析；新导入始终不提供汇率，不以默认值伪装有效输入。</summary>
+        public decimal? ExchangeRate => null;
         /// <summary>提供单头必填和输入错误汇总。</summary>
         public string Error => Source.Error + (CustomerId == Guid.Empty ? "请选择客户。" : "")
-            + (OrderDate.HasValue ? "" : "订单日期不能为空。") + this[nameof(ExchangeRateText)];
-        /// <summary>供 WPF 输入框显示汇率格式错误。</summary>
-        public string this[string name] => name == nameof(ExchangeRateText) && !ExchangeRate.HasValue ? "汇率必须是大于零的数字。" : string.Empty;
+            + (OrderDate.HasValue ? "" : "订单日期不能为空。");
+        /// <summary>保留数据错误接口兼容；废弃汇率文本不产生字段错误。</summary>
+        public string this[string name] => string.Empty;
     }
 }

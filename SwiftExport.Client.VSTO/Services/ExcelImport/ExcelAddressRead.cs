@@ -44,6 +44,11 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
     /// <summary>客户端地址与读取边界规则，不校验订单业务；不依赖后端 CanRead 代替本地字段边界。</summary>
     public static class ExcelAddressRules
     {
+        /// <summary>仅销售旧汇率配置停用；记录继续保存，但不校验地址、读取单元格或赋值。</summary>
+        public static bool IsDeprecatedField(string groupCode, string fieldKey) =>
+            string.Equals(groupCode, "SalesOrder", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(fieldKey, "Header.ExchangeRate", StringComparison.OrdinalIgnoreCase);
+
         /// <summary>从单列 Value2 数据块底部查找非空、未合并的末行；没有候选时返回块首行之前，供宿主继续向上查找。</summary>
         public static int FindLastUnmergedRow(object value, int firstRow, int rowCount, Func<int, bool> isMerged, CancellationToken token)
         {
@@ -82,7 +87,7 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
             while (column > 0) { column--; value = (char)('A' + column % 26) + value; column /= 26; }
             return value;
         }
-        /// <summary>校验字段目录、读取方向、同一起始行和结束边界，返回全部问题。</summary>
+        /// <summary>校验活动字段目录、方向和读取边界；已弃用销售汇率配置不产生读取问题。</summary>
         public static IReadOnlyList<string> Validate(ExcelReadProfileDto profile, ExcelImportDefinition definition)
         {
             var issues = new List<string>();
@@ -95,6 +100,7 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
             foreach (var field in fields)
             {
                 if (field == null) { issues.Add("配置包含空字段。"); continue; }
+                if (IsDeprecatedField(profile.GroupCode, field.TargetFieldKey)) continue;
                 var known = definition.Fields.FirstOrDefault(f => f.FieldKey == field.TargetFieldKey);
                 if (known == null) issues.Add("客户端不认识字段：" + field.TargetFieldKey);
                 if (!seen.Add(field.TargetFieldKey ?? "")) issues.Add("字段重复：" + field.TargetFieldKey);

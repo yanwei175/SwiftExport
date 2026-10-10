@@ -22,7 +22,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Manager
         public string CustomerPoNo { get; set; }
         public string InvoiceNo { get; set; }
         public string Currency { get; set; }
-        public decimal ExchangeRate { get; set; }
+        /// <summary>已弃用的兼容查询字段，原样保留历史值，不参与销售业务或价格换算。</summary>
+        public decimal? ExchangeRate { get; set; }
         /// <summary>所有活动行单位相同且交付可核实时的订购数量，否则为空。</summary>
         public decimal? TotalQty { get; set; }
         /// <summary>可汇总数量的单位代码；多单位或无法核实时为空。</summary>

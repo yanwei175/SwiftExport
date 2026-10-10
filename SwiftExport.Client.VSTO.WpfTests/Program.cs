@@ -80,6 +80,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     Console.WriteLine("PASS Implicit: " + checks + " assertions");
                     return 0;
                 }
+                if (args.Length == 1 && args[0] == "--sales-submission-only")
+                {
+                    using (var submissionHost = new WpfRuntimeHost()) { submissionHost.Initialize(); SubmissionPageChecks.Run(Check); }
+                    Console.WriteLine("PASS Sales submission: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--import-only")
                 {
                     using (var importHost = new WpfRuntimeHost())

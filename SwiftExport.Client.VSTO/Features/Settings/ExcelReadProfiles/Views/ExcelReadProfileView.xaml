@@ -17,7 +17,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,8">
             <WrapPanel>
                 <ComboBox x:Name="GroupSelector" Width="140" ItemsSource="{Binding Groups}" DisplayMemberPath="DisplayName" SelectedValuePath="GroupCode" SelectedValue="{Binding CurrentGroupCode, Mode=OneWay}" IsEnabled="{Binding CanChangeFields}" SelectionChanged="GroupChanged" Margin="0,0,8,8"/>
-                <ComboBox x:Name="ProfileSelector" IsEnabled="{Binding CanChangeFields}" Width="220" ItemsSource="{Binding Profiles}" DisplayMemberPath="ConfigName" SelectedValuePath="Uid" SelectedValue="{Binding CurrentUid, Mode=OneWay}" SelectionChanged="ProfileChanged" Margin="0,0,8,8"/>
+                <ComboBox x:Name="ProfileSelector" IsEnabled="{Binding CanChangeFields}" Width="140" ItemsSource="{Binding Profiles}" DisplayMemberPath="ConfigName" SelectedValuePath="Uid" SelectedValue="{Binding CurrentUid, Mode=OneWay}" SelectionChanged="ProfileChanged" Margin="0,0,8,8"/>
                 <Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="0,0,8,8"/>
                 <Button Content="新建空配置" Command="{Binding CreateCommand}" Margin="0,0,8,8"/>
                 <ui:Button Content="保存配置" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,8,8"/>
@@ -25,11 +25,11 @@
                 <Button Content="预览已保存配置" Command="{Binding PreviewCommand}" Margin="0,0,8,8"/>
             </WrapPanel>
             <WrapPanel IsEnabled="{Binding CanChangeFields}">
-                <StackPanel Width="240" Margin="0,0,12,8">
+                <StackPanel Width="140" Margin="0,0,12,8">
                     <TextBlock Text="配置名称"/>
                     <TextBox Text="{Binding ConfigName, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
-                <StackPanel Width="240" Margin="0,0,12,8">
+                <StackPanel Width="140" Margin="0,0,12,8">
                     <TextBlock Text="参考工作表名称（可空）"/>
                     <TextBox Text="{Binding WorksheetName, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
@@ -59,7 +59,8 @@
                                 <DataTemplate>
                                     <StackPanel Width="220" Margin="0,0,8,8" IsEnabled="{Binding IsKnown}">
                                         <TextBlock Text="{Binding DisplayName}" ToolTip="{Binding FieldKey}" Margin="0,0,0,4"/>
-                                        <controls:ExcelCellAddressBox Address="{Binding CellAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" CommandParameter="{Binding}"
+                                        <controls:ExcelCellAddressBox Address="{Binding CellAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                                      CommandParameter="{Binding}"
                                                                 PickCommand="{Binding DataContext.PickCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" 
                                                                   ClearCommand="{Binding DataContext.ClearCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"/>
                                         <TextBlock Text="{Binding Preview}" Foreground="{DynamicResource SwiftExportForeground}" TextTrimming="CharacterEllipsis"/>
@@ -72,9 +73,10 @@
 
                 <ui:Card Grid.Row="1" Margin="0,0,0,8" IsEnabled="{Binding CanChangeFields}">
                     <StackPanel>
-                        <TextBlock Text="明细第一条数据地址（不是表头）" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="明细第一条数据地址（不是表头）" FontWeight="SemiBold" Margin="0,0,0,8" Foreground="Red"/>
                         <TextBlock Text="例如第 7 行是表头、第 8 行是第一条数据：客户型号选 C8，数量选 K8。所有明细字段必须从同一行开始，读取包含这一行。"
                                    TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        
                         <TextBlock Text="单头合并单元格读取左上角的值；明细允许同一行内横向合并。销售净重、毛重、体积的跨行合并合计留空提示，其余字段继续读取；PackingList 的可选箱唛及每箱包装数值跨行合并也留空提示。数量、型号等其他字段仍不能跨行合并，请让一行对应一条明细。"
                                    TextWrapping="Wrap" Margin="0,0,0,8"/>
 

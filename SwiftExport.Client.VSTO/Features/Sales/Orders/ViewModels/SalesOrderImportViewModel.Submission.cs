@@ -26,6 +26,10 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         private string submissionMessage = "";
         /// <summary>执行只读匹配，确认提示变化后仍须重新检验。</summary>
         public IAsyncRelayCommand CheckImportCommand { get; private set; }
+        /// <summary>独立匹配所有行的产品身份，不授予整单保存资格。</summary>
+        public IAsyncRelayCommand MatchAllSkusCommand { get; private set; }
+        /// <summary>只匹配视图选中行的产品身份，不影响未选中行。</summary>
+        public IAsyncRelayCommand MatchSelectedSkusCommand { get; private set; }
         /// <summary>仅当本次输入完整通过检查时新建草稿；成功后禁止再次新建同一份输入。</summary>
         public IAsyncRelayCommand SaveDraftCommand { get; private set; }
         /// <summary>结果未知时显式重发原请求和原 CommandId，不读取当前编辑值重新组装。</summary>
@@ -48,19 +52,73 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public string PendingCommandId => pendingSave?.CommandId.ToString() ?? "";
         private bool HasMaintainPermission => session.Capture().User?.Permissions?.Contains(PermissionKeys.SalesOrderMaintain) == true;
         private bool SubmissionLocked => checking || saving || saveCompleted || pendingSave != null;
+        // 匹配必须基于已接纳的客户身份及代码，读取或保存期间复用整单忙碌门禁。
+        private bool CanMatchSkus => IsEditable && HasMaintainPermission && checkApi != null
+            && Header.CustomerId != Guid.Empty && !string.IsNullOrWhiteSpace(Header.CustomerCode);
 
         // 首期直接复用窄 Refit 接口，DTO 组装放在业务服务文件；不建立新导航或通用命令框架。
         private void InitializeSubmission(IForExcelSalesOrderApi service)
         {
             checkApi = service;
-            CheckImportCommand = new AsyncRelayCommand(CheckImportAsync, () => IsEditable && HasMaintainPermission && checkApi != null && Lines.Count > 0);
+            CheckImportCommand = new AsyncRelayCommand(CheckImportAsync, () => CanMatchSkus && Lines.Count > 0);
+            MatchAllSkusCommand = new AsyncRelayCommand(() => MatchSkusAsync(false), () => CanMatchSkus && Lines.Count > 0);
+            MatchSelectedSkusCommand = new AsyncRelayCommand(() => MatchSkusAsync(true), () => CanMatchSkus && selectedLines.Any(Lines.Contains));
             SaveDraftCommand = new AsyncRelayCommand(SaveDraftAsync, () => CanSaveDraft);
             RetrySaveCommand = new AsyncRelayCommand(SaveDraftAsync, () => !IsDisposed && !saving && HasPendingSave && HasMaintainPermission && Accept(pageVersion));
             NewImportCommand = new RelayCommand(StartNewImport, () => !IsDisposed && saveCompleted && !saving && Accept(pageVersion));
             ToggleNonStandardCommand = new RelayCommand<SalesOrderImportLine>(l => { if (IsEditable && Lines.Contains(l)) { CancelSearch(l); l.SetNonStandard(!l.IsNonStandard); } }, l => IsEditable && l != null && Lines.Contains(l));
-            ChooseMatchCommand = new RelayCommand<SalesOrderImportLine>(l => { if (IsEditable && Lines.Contains(l)) l.ChooseMatchCandidate(); }, l => IsEditable && l != null && Lines.Contains(l));
-            foreach (var command in new IRelayCommand[] { CheckImportCommand, SaveDraftCommand, RetrySaveCommand, NewImportCommand, ToggleNonStandardCommand, ChooseMatchCommand }) RegisterCommand(command);
+            ChooseMatchCommand = new RelayCommand<SalesOrderImportLine>(l => { if (CanMatchSkus && Lines.Contains(l)) l.ChooseMatchCandidate(); }, l => CanMatchSkus && l != null && Lines.Contains(l));
+            foreach (var command in new IRelayCommand[] { CheckImportCommand, MatchAllSkusCommand, MatchSelectedSkusCommand, SaveDraftCommand, RetrySaveCommand, NewImportCommand, ToggleNonStandardCommand, ChooseMatchCommand }) RegisterCommand(command);
         }
+        // 复用批量检查契约；单头问题不阻止产品查询，不处理重复订单确认，也不接纳 CanSave。
+        private async Task MatchSkusAsync(bool selectedOnly)
+        {
+            if (!CanMatchSkus) return;
+            var rows = (selectedOnly ? Lines.Where(selectedLines.Contains) : Lines).ToArray();
+            if (rows.Length == 0) return;
+            if (rows.Length > 500) { SubmissionMessage = "每次匹配最多支持 500 行，请选择部分明细后匹配。"; return; }
+            var version = pageVersion; var revision = documentRevision;
+            var rowVersions = rows.Select(l => l.EditRevision).ToArray();
+            var token = submissionLifetime.Token;
+            var request = SalesOrderImportRequests.Check(Header, rows, false);
+            checking = true; serverCanSave = false; checkedRevision = -1; acceptExistingOrders = false;
+            CancelSearches(); SubmissionMessage = "正在匹配 SKU…"; NotifyState();
+            try
+            {
+                var result = await checkApi.CheckAsync(request, token);
+                await DeliverSubmissionAsync(() =>
+                {
+                    if (!Accept(version) || documentRevision != revision || token.IsCancellationRequested
+                        || rows.Where((l, i) => !Lines.Contains(l) || l.EditRevision != rowVersions[i]).Any()) return;
+                    var data = result?.Data;
+                    if (result?.Success != true || data == null)
+                    { SubmissionMessage = result?.Error?.Message ?? result?.Message ?? "匹配未返回有效结果。"; return; }
+                    if (!HasCompleteCheckResult(data, rows))
+                    { SubmissionMessage = "匹配未返回完整且一致的客户和明细，请重新匹配。"; return; }
+                    applyingSubmission = true;
+                    bool valid;
+                    try { valid = rows.Select((l, i) => l.TryApplyCheck(data.Lines.Single(r => r.ClientLineId == l.Uid), rowVersions[i])).All(v => v); }
+                    finally { applyingSubmission = false; }
+                    SubmissionMessage = valid
+                        ? "SKU 匹配完成：" + rows.Count(l => l.IsCheckPassed) + "/" + rows.Length + " 行校验通过。保存前请执行顶部整单检验。"
+                        : "部分匹配结果无效，请重新匹配；保存前仍须整单检验。";
+                    NotifyState();
+                });
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { /* 会话或页面结束，不接纳旧结果。 */ }
+            catch (Exception ex)
+            {
+                await DeliverSubmissionAsync(() => { if (Accept(version) && !token.IsCancellationRequested && revision == documentRevision) SubmissionMessage = errors.Describe(ex); });
+            }
+            finally { await DeliverSubmissionAsync(() => { if (Accept(version)) { checking = false; NotifyState(); } }); }
+        }
+        // 完整响应必须覆盖当次冻结的行身份；不会把其他客户或其他行的结果接纳到当前草稿。
+        private bool HasCompleteCheckResult(CheckSalesOrderImportResponse data, SalesOrderImportLine[] rows) =>
+            data.Customer != null && data.Customer.IsActive && data.Customer.Uid == Header.CustomerId
+            && string.Equals(data.Customer.CustomerCode, Header.CustomerCode, StringComparison.OrdinalIgnoreCase)
+            && data.Lines != null && data.Lines.Count == rows.Length && data.Lines.All(l => l != null)
+            && data.Lines.Select(l => l.ClientLineId).Distinct().Count() == rows.Length
+            && data.Lines.All(l => rows.Any(r => r.Uid == l.ClientLineId));
         // 编辑使整单授权快照失效；不会悄悄删除商业值或把匹配失败行转为非标。
         private void InvalidateSubmission()
         {
@@ -94,11 +152,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                             || rows.Where((l, i) => l.EditRevision != rowVersions[i]).Any()) return;
                         if (result == null || !result.Success || result.Data == null) { SubmissionMessage = result?.Error?.Message ?? result?.Message ?? "检验未返回有效结果。"; return; }
                         var data = result.Data;
-                        if (data.Customer == null || !data.Customer.IsActive || data.Customer.Uid != Header.CustomerId
-                            || !string.Equals(data.Customer.CustomerCode, Header.CustomerCode, StringComparison.OrdinalIgnoreCase)
-                            || data.Lines == null || data.Lines.Count != rows.Length || data.Lines.Any(l => l == null)
-                            || data.Lines.Select(l => l.ClientLineId).Distinct().Count() != rows.Length
-                            || data.Lines.Any(l => !rows.Any(r => r.Uid == l.ClientLineId)))
+                        if (!HasCompleteCheckResult(data, rows))
                         { SubmissionMessage = string.Join("；", (data.Issues ?? new List<SalesOrderImportIssueDto>()).Select(i => i.Message)) + " 检验未返回完整且一致的客户和明细，不能保存。"; return; }
                         applyingSubmission = true;
                         bool valid;

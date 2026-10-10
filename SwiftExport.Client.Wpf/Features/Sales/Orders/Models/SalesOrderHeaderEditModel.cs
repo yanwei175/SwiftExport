@@ -19,7 +19,8 @@ public sealed partial class SalesOrderHeaderEditModel : ObservableObject
     [ObservableProperty] public partial string CustomerPoNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string ShippedBy { get; set; } = string.Empty;
     [ObservableProperty] public partial string Currency { get; set; } = "USD";
-    [ObservableProperty] public partial decimal ExchangeRate { get; set; } = 1m;
+    /// <summary>保留查询得到的废弃汇率快照，不提供编辑入口，不参与本地校验。</summary>
+    [ObservableProperty] public partial decimal? ExchangeRate { get; set; }
     [ObservableProperty] public partial string ShipToName { get; set; } = string.Empty;
     [ObservableProperty] public partial string ShipToAddress { get; set; } = string.Empty;
     [ObservableProperty] public partial string ShipToPhone { get; set; } = string.Empty;
@@ -37,10 +38,13 @@ public sealed partial class SalesOrderHeaderEditModel : ObservableObject
     [ObservableProperty] public partial DateTime? Eta { get; set; }
     [ObservableProperty] public partial DateTime? Etd { get; set; }
 
+    /// <summary>载入销售单头快照，包括仅供兼容的历史字段。</summary>
     public void Load(SalesOrderEditHeaderDto dto) => dto.Adapt(this);
 
+    /// <summary>输出销售单头编辑快照；后端忽略废弃汇率的输入。</summary>
     public SalesOrderEditHeaderDto ToDto() => this.Adapt<SalesOrderEditHeaderDto>();
 
+    /// <summary>验证客户、订单日期和定金比例，汇率缺失或旧非法值不阻断操作。</summary>
     public string? ValidateModel()
     {
         if (CustomerId == Guid.Empty || string.IsNullOrWhiteSpace(CustomerCode))
@@ -51,11 +55,6 @@ public sealed partial class SalesOrderHeaderEditModel : ObservableObject
         if (OrderDate is null)
         {
             return "订单日期不能为空。";
-        }
-
-        if (ExchangeRate <= 0)
-        {
-            return "汇率必须大于零。";
         }
 
         if (DepositRate is < 0 or > 1)

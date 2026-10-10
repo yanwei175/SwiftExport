@@ -13,7 +13,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Services
         private readonly ExcelImportDefinition definition;
         /// <summary>复用模型特性生成的字段目录，不接受任意属性反射。</summary>
         public SalesOrderAddressParser(ExcelImportRegistry registry) { definition = registry.Find("SalesOrder"); }
-        /// <summary>按行赋值，跳过全空明细并提示；部分为空或转换失败的行保留待修正。</summary>
+        /// <summary>按行赋值并保留来源原文；销售旧汇率不解析、不产生错误，其他转换失败保留待修正。</summary>
         public SalesOrderAddressResult Parse(ExcelAddressSnapshot snapshot)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
@@ -28,6 +28,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Services
                 source.SetCells(values.Select(v => new SalesOrderImportSourceCell(v.Row, v.Column, "", v.FieldKey, Convert.ToString(v.Value, CultureInfo.InvariantCulture))));
                 foreach (var cell in values)
                 {
+                    if (ExcelAddressRules.IsDeprecatedField(definition.GroupCode, cell.FieldKey)) continue;
                     var field = definition.Fields.First(f => f.FieldKey == cell.FieldKey);
                     object value = cell.Value;
                     if (!string.IsNullOrEmpty(cell.Issue)) { result.Issues.Add(field.DisplayName + "：" + cell.Issue); continue; }

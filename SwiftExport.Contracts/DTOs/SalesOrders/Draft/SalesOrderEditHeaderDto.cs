@@ -17,7 +17,8 @@ namespace SwiftExport.Contracts.DTOs.SalesOrders.Detail
         public string CustomerPoNo { get; set; }
         public string ShippedBy { get; set; }
         public string Currency { get; set; }
-        public decimal ExchangeRate { get; set; }
+        /// <summary>已弃用的兼容字段；查询保留历史值，保存忽略输入，不参与校验或价格换算。</summary>
+        public decimal? ExchangeRate { get; set; }
         public string ShipToName { get; set; }
         public string ShipToAddress { get; set; }
         public string ShipToPhone { get; set; }

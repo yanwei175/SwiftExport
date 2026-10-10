@@ -656,6 +656,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         CustomerCandidates.Clear();
     }
 
+    /// <summary>初始化销售草稿及编辑状态；废弃汇率留空，不从客户或币种主数据补值。</summary>
     private void InitializeNewDocument()
     {
         _loadingDocument = true;
@@ -664,7 +665,6 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
             DocumentStatus = SalesOrderDocumentStatusEnum.Open,
             ConfirmationStatus = ConfirmationStatusEnum.待确认,
             Currency = "USD",
-            ExchangeRate = 1m,
             OrderDate = DateTime.Today,
         });
         Lines.Clear();

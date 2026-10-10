@@ -188,10 +188,6 @@
                              Text="{Binding Header.Currency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              TextSearch.TextPath="CurrencyCode" />
 
-                    <TextBlock Grid.Row="0" Grid.Column="24" Text="汇率:" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="0" Grid.Column="26" 
-                            Text="{Binding Header.ExchangeRate, UpdateSourceTrigger=LostFocus}" />
-
                     <TextBlock Grid.Row="0" Grid.Column="28" Text="付款方式:" VerticalAlignment="Center" />
                     <ComboBox Grid.Row="0" Grid.Column="30" VerticalContentAlignment="Center"
                              ItemsSource="{Binding PaymentMethodOptions}"

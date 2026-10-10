@@ -44,6 +44,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                                         new SalesOrderImportIssueDto { Code = "LinkSkuMismatch", Message = "请核对型号", RequiresConfirmation = true, Acknowledged = accepted } } } } })); };
                     var grid = (DataGrid)view.FindName("OrderLinesGrid"); grid.SelectedItem = row; Pump();
                     var save = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.SaveDraftCommand));
+                    check(!Descendants<TextBox>(view).Any(box => BindingOperations.GetBinding(box, TextBox.TextProperty)?.Path.Path == "Header.ExchangeRateText"), "销售导入页无汇率编辑入口");
+                    f.Model.Header.ExchangeRateText = "旧非法文本";
                     check(!save.IsEnabled, "未检验时真实保存按钮禁用");
                     f.Model.CheckImportCommand.Execute(null); Pump();
                     var chooser = Descendants<ComboBox>(grid).Single(c => BindingOperations.GetBinding(c, ItemsControl.ItemsSourceProperty)?.Path.Path == "MatchCandidates");
@@ -69,6 +71,65 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 }
                 finally { window.Close(); }
             }
+            CheckMatchingControls(check);
+        }
+        // 用实际模板和原生点击路径验证非标勾选、红绿状态及客户门禁，不把颜色存在当作业务通过。
+        private static void CheckMatchingControls(Action<bool, string> check)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                f.Session.TryCommit(f.Session.Capture().Version, "test-token", new MeDto { UserId = "writer", Permissions = new List<string> { PermissionKeys.SalesOrderMaintain } });
+                var view = new SalesOrderImportView(f.Model);
+                var window = new Window { Content = view, Width = 1500, Height = 900, ShowInTaskbar = false };
+                window.Show(); Pump();
+                try
+                {
+                    var grid = (DataGrid)view.FindName("OrderLinesGrid");
+                    var all = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.MatchAllSkusCommand));
+                    var selected = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.MatchSelectedSkusCommand));
+                    var full = Descendants<Button>(view).Single(b => ReferenceEquals(b.Command, f.Model.CheckImportCommand));
+                    check(!all.IsEnabled && !selected.IsEnabled && !full.IsEnabled, "未选客户时三个匹配按钮均禁用");
+                    f.Model.SelectedCustomer = f.Cache.Customers[0]; f.Model.CustomerSelectedCommand.Execute(null);
+                    f.Model.AddStandardLineCommand.Execute(null); var row = f.Model.Lines[0]; row.CustomerSku = "AQ1";
+                    Pump(); check(all.IsEnabled && full.IsEnabled && !selected.IsEnabled, "已选客户启用全部匹配，选中匹配仍需选行");
+                    grid.SelectedItem = row; Pump();
+                    check(selected.IsEnabled && grid.Columns.Count(c => (string)c.Header == "非标件") == 1
+                        && !grid.Columns.Any(c => new[] { "类型", "行类型处理", "匹配状态" }.Contains((string)c.Header)),
+                        "单一非标模板列替代类型及处理列，匹配改由行头显示");
+                    var critical = (SolidColorBrush)view.FindResource("UserBusinessTextCriticalBrush");
+                    var success = (SolidColorBrush)view.FindResource("UserBusinessTextSuccessBrush");
+                    check(StatusDot(grid, row).Fill is SolidColorBrush red && red.Color == critical.Color, "未校验行头显示红色圆点");
+                    f.CheckApi.Check = (r, t) => Task.FromResult(ServiceResult<CheckSalesOrderImportResponse>.Ok(new CheckSalesOrderImportResponse {
+                        Customer = new SalesOrderImportCustomerDto { Uid = f.Model.Header.CustomerId, CustomerCode = r.CustomerCode, IsActive = true }, CanSave = true,
+                        Lines = r.Lines.Select(l => new SalesOrderImportLineCheckDto { ClientLineId = l.ClientLineId, MatchStatus = l.IsNonStandard ? "NonStandard" : "Matched",
+                            Product = l.IsNonStandard ? null : new SalesOrderImportProductCandidateDto { ProductId = Guid.NewGuid(), CustomerProductId = Guid.NewGuid(), Sku = "REAL", Unit = "PCS", IsUsable = true } }).ToList() }));
+                    f.Model.MatchSelectedSkusCommand.Execute(null); Pump();
+                    check(row.Sku == "REAL" && StatusDot(grid, row).Fill is SolidColorBrush green && green.Color == success.Color
+                        && !f.Model.CanSaveDraft, "选中匹配回填真实 SKU、圆点变绿，但仍需整单检验");
+                    var box = Descendants<CheckBox>(grid).Single(c => ReferenceEquals(c.Command, f.Model.ToggleNonStandardCommand));
+                    ClickCheckBox(box); Pump();
+                    check(row.IsNonStandard && box.IsChecked == true && row.ProductId == null && !row.IsCheckPassed,
+                        "实际勾选转非标、清除产品身份并使校验失效");
+                    row.DescriptionEn = "手工件"; f.Model.MatchAllSkusCommand.Execute(null); Pump();
+                    check(row.IsCheckPassed && StatusDot(grid, row).Fill is SolidColorBrush nonStandardGreen && nonStandardGreen.Color == success.Color,
+                        "非标行通过检查后也显示绿色");
+                    ClickCheckBox(box); Pump(); check(!row.IsNonStandard && box.IsChecked == false && !row.IsCheckPassed, "取消非标勾选回到待匹配标准行");
+                    var message = Descendants<TextBlock>(view).Single(b => BindingOperations.GetBinding(b, TextBlock.TextProperty)?.Path.Path == "SubmissionMessage");
+                    check(message.Foreground is SolidColorBrush text && text.Color == critical.Color, "顶部检验反馈采用红色文字");
+                    f.Model.CustomerClearedCommand.Execute(null); Pump();
+                    check(!all.IsEnabled && !selected.IsEnabled && !full.IsEnabled, "清空客户后所有匹配入口即时禁用");
+                }
+                finally { window.Close(); }
+            }
+        }
+        // Toggle 自动化接口只改变 IsChecked，不执行绑定命令；调用原生 OnClick 验证鼠标/键盘的完整切换路径。
+        private static void ClickCheckBox(CheckBox box) => typeof(CheckBox)
+            .GetMethod("OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(box, null);
+        // 定位目标行真正的行头模板，确保验证的是用户看见的状态圆点。
+        private static System.Windows.Shapes.Ellipse StatusDot(DataGrid grid, object row)
+        {
+            var container = (DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(row);
+            return Descendants<System.Windows.Shapes.Ellipse>(Descendants<DataGridRowHeader>(container).Single()).Single();
         }
         private static void Pump() { var frame = new DispatcherFrame(); Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false)); Dispatcher.PushFrame(frame); }
         private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

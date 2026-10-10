@@ -14,10 +14,10 @@
         {
             Source.PropertyChanged += (sender, args) => OnPropertyChanged(nameof(Error));
         }
-        /// <summary>创建待解析单头，缺失 Date 不用今天补齐，币种与汇率须明确指定。</summary>
+        /// <summary>创建待解析单头，日期与币种须明确指定；废弃汇率保持空值。</summary>
         public static SalesOrderImportHeader CreateForImport()
         {
-            return new SalesOrderImportHeader { OrderDate = null, Currency = "", ExchangeRateText = "" };
+            return new SalesOrderImportHeader { OrderDate = null, Currency = "" };
         }
     }
 }

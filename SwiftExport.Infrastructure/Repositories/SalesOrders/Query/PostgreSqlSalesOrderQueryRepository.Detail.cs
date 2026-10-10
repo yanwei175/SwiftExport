@@ -67,7 +67,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         };
     }
 
-    /// <summary>按原编辑头契约回落可空商业字段；关闭信息仍独立返回，不回查主数据补快照。</summary>
+    /// <summary>映射编辑头快照并原样保留废弃汇率；关闭信息独立返回，不回查主数据补快照。</summary>
     private static SalesOrderEditHeaderDto MapHeader(SalesOrderHeader header) => new()
     {
         Uid = header.Uid,
@@ -81,7 +81,7 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         CustomerPoNo = header.CustomerPoNo ?? string.Empty,
         ShippedBy = header.ShippedBy ?? string.Empty,
         Currency = header.Currency ?? string.Empty,
-        ExchangeRate = header.ExchangeRate ?? 0,
+        ExchangeRate = header.ExchangeRate,
         ShipToName = header.ShipToName ?? string.Empty,
         ShipToAddress = header.ShipToAddress ?? string.Empty,
         ShipToPhone = header.ShipToPhone ?? string.Empty,

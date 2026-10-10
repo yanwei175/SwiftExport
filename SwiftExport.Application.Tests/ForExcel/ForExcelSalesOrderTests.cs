@@ -82,7 +82,7 @@ public sealed class ForExcelSalesOrderTests
         r=f.Request();r.Header.OrderDate=null;r.Header.ExchangeRate=0;r.Header.Currency="";
         r.Lines[0].Qty=decimal.MaxValue;r.Lines[0].CnyPrice=2;r.Lines[0].GwOfCarton=-1;
         var result=await f.Service.CheckAsync(r);Assert.IsFalse(result.Data.CanSave);
-        Assert.AreEqual(3,result.Data.Issues.Count);
+        CollectionAssert.AreEquivalent(new[]{"OrderDateRequired","CurrencyRequired"},result.Data.Issues.Select(i=>i.Code).ToArray());
         CollectionAssert.AreEquivalent(new[]{"NumberNegative","AmountOverflow"},result.Data.Lines[0].Issues.Select(i=>i.Code).ToArray());
     }
     /// <summary>取消不变为通过结果。</summary>
@@ -103,6 +103,22 @@ public sealed class ForExcelSalesOrderTests
         request.Lines[0].SelectedCustomerProductId=Guid.NewGuid();
         result=await f.Service.CheckAsync(request);Assert.IsFalse(result.Data.CanSave);Assert.AreEqual("SelectionInvalid",result.Data.Lines[0].Issues.Single().Code);
     }
+    /// <summary>缺失、零和旧负汇率不阻断检查，也不改写币种或双币种单价。</summary>
+    [TestMethod]
+    public async Task DeprecatedExchangeRateDoesNotBlockCheckOrConvertPrices()
+    {
+        foreach (var rate in new decimal?[] { null, 0m, -7m, 7.2m })
+        {
+            var f = new Fixture(); var request = f.Request();
+            request.Header.ExchangeRate = rate; request.Lines[0].UsdPrice = 5.18m;
+            var result = await f.Service.CheckAsync(request);
+            Assert.IsTrue(result.Success, result.Message); Assert.IsTrue(result.Data.CanSave);
+            Assert.AreEqual(0, result.Data.Issues.Count);
+            Assert.AreEqual(rate, request.Header.ExchangeRate); Assert.AreEqual("CNY", request.Header.Currency);
+            Assert.AreEqual(37.7m, request.Lines[0].CnyPrice); Assert.AreEqual(5.18m, request.Lines[0].UsdPrice);
+        }
+    }
+
     private sealed class Fixture:IForExcelSalesOrderRepository,ICurrentUser,IPermissionEvaluationService
     {
         internal int CustomerCalls,MatchCalls;internal string[] Skus=[];internal bool Allowed=true;

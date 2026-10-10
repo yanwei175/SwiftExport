@@ -1,4 +1,3 @@
-using System.Data;
 using Dapper;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
@@ -7,8 +6,8 @@ using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces.Customers.PoConfigs;
 using SwiftExport.Infrastructure.Contexts;
-using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
+using System.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers.PoConfigs;
 
@@ -137,7 +136,7 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
         var total = await Connection.ExecuteScalarAsync<int>($"SELECT count(*) FROM public.customer_po_config cpc {where}", parameters, Transaction);
         var rows = await Connection.QueryAsync<CustomerPoConfigDto>($"""
             SELECT {Columns} FROM public.customer_po_config cpc {where}
-            ORDER BY cpc.created_date DESC NULLS LAST,cpc.uid DESC LIMIT @PageSize OFFSET @Offset
+            ORDER BY cpc.customer_code DESC NULLS LAST,cpc.uid DESC LIMIT @PageSize OFFSET @Offset
             """, parameters, Transaction);
         return new PagedResponseBase<CustomerPoConfigDto>
         { Items = rows.ToList(), TotalCount = total, PageIndex = index, PageSize = size };

@@ -218,6 +218,69 @@ namespace SwiftExport.Client.VSTO.Tests
                 }
             }
         }
+        /// <summary>销售旧汇率配置的地址、方向和原值错误均忽略，其他字段仍正常校验与解析。</summary>
+        [TestMethod]
+        public void DeprecatedExchangeRateDoesNotBlockAddressValidationOrParsing()
+        {
+            var api = new AddressProfileApi(); var definition = ExcelImportRegistry.CreateDefault().Find("SalesOrder");
+            api.Profile.Fields.Add(new ExcelReadFieldDto { TargetFieldKey = "Header.ExchangeRate", CellAddress = "invalid", IsDownward = true });
+            Assert.AreEqual(0, ExcelAddressRules.Validate(api.Profile, definition).Count);
+            foreach (var value in new object[] { null, "bad", 0m, -7m })
+            {
+                var snapshot = new ExcelAddressSnapshot { Rows = new List<List<ExcelAddressValue>> { new List<ExcelAddressValue> {
+                    Value("Header.InvoiceNo", 1, "INV"), new ExcelAddressValue { FieldKey = "Header.ExchangeRate", Row = 1, Column = 2, Value = value, Issue = "Excel 错误值" } } } };
+                var result = new SalesOrderAddressParser(ExcelImportRegistry.CreateDefault()).Parse(snapshot);
+                Assert.AreEqual(0, result.Issues.Count); Assert.AreEqual("INV", result.Header.InvoiceNo);
+                Assert.IsNull(result.Header.ExchangeRate); Assert.AreEqual(2, result.Header.Source.Cells.Count);
+            }
+            api.Profile.Fields[0].CellAddress = "invalid";
+            Assert.IsTrue(ExcelAddressRules.Validate(api.Profile, definition).Any(issue => issue.Contains("Header.InvoiceNo")));
+        }
+
+        /// <summary>只有旧汇率地址时读取成为无副作用的跳过，不触碰 Excel 或替换现有销售输入。</summary>
+        [TestMethod]
+        public async Task DeprecatedOnlyHeaderReadPreservesCurrentInputs()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                f.ProfileApi.Profile.Fields = new List<ExcelReadFieldDto> { new ExcelReadFieldDto { TargetFieldKey = "Header.ExchangeRate", CellAddress = "invalid" } };
+                f.ProfileApi.Profile.EndMode = 0;
+                await f.Start(); await f.Model.EnsureReadProfilesAsync(); f.Model.Header.InvoiceNo = "KEEP";
+                f.AddressReader.Read = _ => throw new InvalidOperationException("废弃配置不得读取 Excel");
+                await f.Model.ReadHeaderCommand.ExecuteAsync(null);
+                Assert.AreEqual("KEEP", f.Model.Header.InvoiceNo); Assert.AreEqual("", f.Model.ErrorMessage);
+                Assert.IsTrue(f.Model.ParseMessage.Contains("已弃用"));
+            }
+        }
+
+        /// <summary>旧汇率不影响活动参考表名，退出编辑目录但保存时保留原记录；重载后不串配置。</summary>
+        [TestMethod]
+        public async Task DeprecatedExchangeRateConfigurationIsPreservedWithoutEditor()
+        {
+            using (var f = new ImportTestFixture())
+            {
+                Grant(f);
+                foreach (var field in f.ProfileApi.Profile.Fields) field.WorksheetName = "活动表";
+                f.ProfileApi.Profile.Fields.Add(new ExcelReadFieldDto { TargetFieldKey = "Header.ExchangeRate", CellAddress = "$H$2", WorksheetName = "旧表", IsDownward = false });
+                using (var model = Config(f))
+                {
+                    await model.InitializeAsync();
+                    Assert.AreEqual("活动表", model.WorksheetName);
+                    Assert.IsFalse(model.HeaderFields.Concat(model.LineFields).Any(row => row.FieldKey == "Header.ExchangeRate"));
+                    Assert.IsTrue(model.Status.Contains("已弃用")); model.WorksheetName = "新表";
+                    var legacy = model.BuildRequest().Fields.Single(field => field.TargetFieldKey == "Header.ExchangeRate");
+                    Assert.AreEqual("$H$2", legacy.CellAddress); Assert.AreEqual("旧表", legacy.WorksheetName); Assert.IsFalse(legacy.IsDownward);
+                    legacy.CellAddress = "改动请求副本";
+                    Assert.AreEqual("$H$2", model.BuildRequest().Fields.Single(field => field.TargetFieldKey == "Header.ExchangeRate").CellAddress);
+                    await model.SaveCommand.ExecuteAsync(null);
+                    Assert.AreEqual("$H$2", f.ProfileApi.LastRequest.Fields.Single(field => field.TargetFieldKey == "Header.ExchangeRate").CellAddress);
+                    f.ProfileApi.Profile.Fields.RemoveAll(field => field.TargetFieldKey == "Header.ExchangeRate");
+                    await model.ReloadCommand.ExecuteAsync(null);
+                    Assert.IsFalse(model.BuildRequest().Fields.Any(field => field.TargetFieldKey == "Header.ExchangeRate"));
+                }
+            }
+        }
+
         private static ExcelAddressValue Value(string key, int row, object value) => new ExcelAddressValue { FieldKey = key, Row = row, Column = 1, Value = value };
         private static void Grant(ImportTestFixture f) => f.Session.TryCommit(f.Session.Capture().Version, "token", new MeDto { UserId = "admin", UserName = "admin", Permissions = new List<string> { PermissionKeys.SystemExcelFieldMappingManage } });
         private static ExcelReadProfileViewModel Config(ImportTestFixture f) => new ExcelReadProfileViewModel(f.ProfileService, f.AddressReader, ExcelImportRegistry.CreateDefault(), f.Session, f, new ApiCallRunner(new AddInLog()), f);
