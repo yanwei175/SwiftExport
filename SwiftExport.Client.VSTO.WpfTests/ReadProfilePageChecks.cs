@@ -81,7 +81,56 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     finally { window.Close(); }
                 }
             }
+            CheckEmptyPackingProfile(check);
             CheckSidePane(check);
+        }
+        // 通过实际分组下拉和新建按钮复现空列表场景；字段只按特性生成，地址由用户明确获取。
+        private static void CheckEmptyPackingProfile(Action<bool, string> check)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                f.ProfileApi.NoProfiles = true;
+                f.Session.TryCommit(f.Session.Capture().Version, "token", new MeDto { UserId = "admin", Permissions = new List<string> { PermissionKeys.SystemExcelFieldMappingManage } });
+                using (var model = new ExcelReadProfileViewModel(f.ProfileService, f.AddressReader, ExcelImportRegistry.CreateDefault(), f.Session, f, new ApiCallRunner(new AddInLog()), f))
+                {
+                    var view = new ExcelReadProfileView(model);
+                    var window = new Window { Content = view, Width = 900, Height = 850 };
+                    f.Dispatch = action => window.Dispatcher.CheckAccess() ? Immediate(action) : window.Dispatcher.InvokeAsync(action).Task;
+                    try
+                    {
+                        window.Show(); Pump();
+                        ((ComboBox)view.FindName("GroupSelector")).SelectedValue = "PackingList"; Pump();
+                        var create = Descendants<Button>(view).Single(button => Equals(button.Content, "新建空配置"));
+                        check(model.CurrentGroupCode == "PackingList" && model.Profiles.Count == 0 && create.IsEnabled,
+                            "装箱单配置列表和名称为空时，新建按钮仍可用");
+                        check(f.ProfileApi.Creates == 0 && model.CurrentUid == null && !model.SaveCommand.CanExecute(null),
+                            "空分组不自动写库，未创建前没有保存身份");
+                        create.Command.Execute(create.CommandParameter); Pump(); view.UpdateLayout();
+                        check(model.ConfigName == "装箱单读取配置" && f.ProfileApi.LastCreate.GroupCode == "PackingList"
+                            && model.Profiles.Count == 1 && Equals(((ComboBox)view.FindName("ProfileSelector")).SelectedValue, model.CurrentUid),
+                            "显式新建使用装箱单默认名称，并回显真实配置身份");
+                        var definition = ExcelImportRegistry.CreateDefault().Find("PackingList");
+                        check(model.HeaderFields.Count + model.LineFields.Count == definition.Fields.Count
+                            && model.HeaderFields.All(row => row.CellAddress == "" && !row.IsDownward)
+                            && model.LineFields.All(row => row.CellAddress == "" && row.IsDownward),
+                            "服务器空字段返回后仍生成单头、明细编辑器，地址留空且方向正确");
+                        var headers = (ItemsControl)view.FindName("HeaderFieldsControl");
+                        check(headers.Items.Count == model.HeaderFields.Count && model.HeaderFields[3].FieldKey == "Header.ExcelDocumentNo",
+                            "单头发票号地址按 DisplayOrder 40 显示在联系人和日期之间");
+                        var document = model.HeaderFields.Single(row => row.FieldKey == "Header.ExcelDocumentNo");
+                        var box = Descendants<ExcelCellAddressBox>(view).Single(control => ReferenceEquals(control.DataContext, document));
+                        f.AddressReader.Selection = new ExcelCellSelection { Address = "N5", Preview = "24th", WorksheetName = "PL" };
+                        var pick = Descendants<Button>(box).Single(button => Equals(button.Content, "获取"));
+                        pick.Command.Execute(pick.CommandParameter); Pump();
+                        check(document.IsKnown && document.CellAddress == "N5" && document.Preview == "24th",
+                            "单头发票号是活动配置，支持地址选取及本地值预览");
+                        model.SaveCommand.Execute(null); Pump();
+                        check(f.ProfileApi.LastRequest.Fields.Single(field => field.TargetFieldKey == "Header.ExcelDocumentNo").CellAddress == "N5",
+                            "单头发票号地址通过原保存接口保留，供后续导出定位使用");
+                    }
+                    finally { window.Close(); }
+                }
+            }
         }
         // 使用真实 ElementHost 模拟窄侧栏；隐藏重开不得丢失配置，实际 Office 显隐仍需实机验收。
         private static void CheckSidePane(Action<bool, string> check)

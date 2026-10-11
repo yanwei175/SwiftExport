@@ -46,7 +46,7 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
             var prepared = new List<KeyValuePair<ExcelImportField, object>>();
             foreach (var value in values)
             {
-                // 旧快照可能仍携带汇率键；不转换其原值，也不把已停用输入当成未知字段错误。
+                // 旧快照可能仍携带已弃用字段键；不转换其原值，也不把停用输入当成未知字段错误。
                 if (model.GetType() == HeaderType && ExcelAddressRules.IsDeprecatedField(GroupCode, value.Key)) continue;
                 if (value.Key == null || !byKey.TryGetValue(value.Key, out var field) || field.ModelType != model.GetType())
                 { error = "目标字段未在当前模型声明为可导入：" + value.Key; return false; }

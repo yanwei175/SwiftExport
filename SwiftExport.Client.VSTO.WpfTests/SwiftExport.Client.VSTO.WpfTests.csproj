@@ -91,5 +91,7 @@
   <Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml.cs" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml.cs"/>
   <Page Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml" Link="Features/Procurement/PurchaseOrders/Views/PurchaseOrderListView.xaml"/>
   <Compile Include="../SwiftExport.Client.VSTO.Tests/PurchaseOrderListTests.cs" Link="PurchaseOrderListTests.cs"/>
+  <Compile Include="../SwiftExport.Client.VSTO/Services/OrderExport/*.cs" LinkBase="Production/OrderExport"/>
+  <Compile Include="../SwiftExport.Client.VSTO/Excel/Writing/OrderExport/PurchaseOrderTemplateLayout.cs" Link="Production/OrderExport/PurchaseOrderTemplateLayout.cs"/>
  </ItemGroup>
 </Project>

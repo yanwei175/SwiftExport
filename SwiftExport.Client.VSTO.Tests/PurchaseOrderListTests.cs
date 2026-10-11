@@ -13,6 +13,7 @@ using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Client.VSTO.Services.OrderExport;
 
 namespace SwiftExport.Client.VSTO.Tests
 {
@@ -99,16 +100,64 @@ namespace SwiftExport.Client.VSTO.Tests
             }
         }
 
+        /// <summary>单张使用高亮行，批量冻结勾选集合，导出期间禁止重复命令。</summary>
+        [TestMethod]
+        public async Task ExportSelectionGateAndFrozenInput()
+        {
+            using (var fixture = new Fixture())
+            {
+                var model = fixture.Model;
+                Assert.IsFalse(model.ExportSelectedCommand.CanExecute(null));
+                await model.InitializeAsync(); model.SelectedOrder = model.Orders[0]; model.OutputPath = System.IO.Path.GetTempPath();
+                Assert.IsTrue(model.ExportSelectedCommand.CanExecute(null)); Assert.IsFalse(model.ExportCheckedCommand.CanExecute(null));
+                var pending = new TaskCompletionSource<PurchaseOrderExportResult>(); fixture.Exporter.Response = () => pending.Task;
+                var path = model.OutputPath; var running = model.ExportSelectedCommand.ExecuteAsync(null);
+                Assert.IsTrue(model.IsExporting); Assert.IsFalse(model.ExportCheckedCommand.CanExecute(null)); Assert.IsFalse(model.SearchCommand.CanExecute(null));
+                model.OutputPath = "C:\\another";
+                Assert.AreEqual(path, fixture.Exporter.LastPath); Assert.AreEqual(model.SelectedOrder.Order.PurchaseOrderId, fixture.Exporter.LastIds[0]);
+                pending.SetResult(new PurchaseOrderExportResult()); await running;
+                Assert.IsFalse(model.IsExporting); Assert.IsFalse(model.IsBusy);
+                model.Orders[0].IsChecked = true;
+                var other = new SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models.PurchaseOrderListRow(new PurchaseOrderManagerListItemDto { PurchaseOrderId = Guid.NewGuid() });
+                model.Orders.Add(other); model.SelectedOrder = other;
+                fixture.Exporter.Response = () => Task.FromResult(new PurchaseOrderExportResult());
+                await model.ExportCheckedCommand.ExecuteAsync(null);
+                CollectionAssert.AreEqual(new[] { model.Orders[0].Order.PurchaseOrderId }, fixture.Exporter.LastIds);
+                model.OutputPath = ""; Assert.IsFalse(model.ExportSelectedCommand.CanExecute(null));
+            }
+        }
+
+        /// <summary>忽略取消的导出结果不能写入新账号或已销毁的页面。</summary>
+        [TestMethod]
+        public async Task ExportResultCannotCrossSessionOrDisposal()
+        {
+            using (var fixture = new Fixture())
+            {
+                var model = fixture.Model; await model.InitializeAsync(); model.SelectedOrder = model.Orders[0]; model.OutputPath = System.IO.Path.GetTempPath();
+                var pending = new TaskCompletionSource<PurchaseOrderExportResult>(); fixture.Exporter.Response = () => pending.Task;
+                var running = model.ExportSelectedCommand.ExecuteAsync(null); fixture.Login("second");
+                Assert.IsTrue(fixture.Exporter.LastToken.IsCancellationRequested);
+                var result = new PurchaseOrderExportResult(); result.Files.Add("old-account.xlsx");
+                pending.SetResult(result); await running; Assert.AreEqual("", model.ExportReport);
+                await model.InitializeAsync(); model.SelectedOrder = model.Orders[0];
+                pending = new TaskCompletionSource<PurchaseOrderExportResult>(); fixture.Exporter.Response = () => pending.Task;
+                running = model.ExportSelectedCommand.ExecuteAsync(null); model.Dispose();
+                Assert.IsTrue(fixture.Exporter.LastToken.IsCancellationRequested);
+                pending.SetResult(result); await running; Assert.AreEqual("", model.ExportReport);
+            }
+        }
+
         /// <summary>为纯托管及 STA 场景提供同一个轻量会话与查询替身。</summary>
         internal sealed class Fixture : IDisposable, ITokenStore, IUiDispatcher
         {
             internal readonly QueryApi Api = new QueryApi();
             internal readonly SessionService Session;
+            internal readonly ExportService Exporter = new ExportService();
             internal readonly PurchaseOrderListViewModel Model;
             internal Fixture()
             {
                 Session = new SessionService(this); Login("first");
-                Model = new PurchaseOrderListViewModel(Api, Session, new CurrentUserService(Session), this, new ApiCallRunner(new AddInLog()));
+                Model = new PurchaseOrderListViewModel(Api, Session, new CurrentUserService(Session), this, new ApiCallRunner(new AddInLog()), Exporter);
             }
             internal void Login(string id, bool allowed = true) => Session.TryCommit(Session.Capture().Version, "test-token",
                 new MeDto { UserId = id, UserName = id, Permissions = allowed ? new List<string> { PermissionKeys.ProcurementOrderRead } : new List<string>() });
@@ -123,6 +172,17 @@ namespace SwiftExport.Client.VSTO.Tests
             public void Clear() { }
             public Task InvokeAsync(Action action) { action(); return Task.CompletedTask; }
             public void Dispose() { Model.Dispose(); Session.Dispose(); }
+        }
+        /// <summary>模拟文件导出入口，记录点击时冻结的订单及路径，可故意返回迟到结果。</summary>
+        internal sealed class ExportService : IPurchaseOrderExportService
+        {
+            internal Guid[] LastIds;
+            internal string LastPath;
+            internal CancellationToken LastToken;
+            internal int Calls;
+            internal Func<Task<PurchaseOrderExportResult>> Response = () => Task.FromResult(new PurchaseOrderExportResult());
+            public Task<PurchaseOrderExportResult> ExportAsync(IReadOnlyList<Guid> ids, string path, Action<string> progress, CancellationToken token)
+            { Calls++; LastIds = System.Linq.Enumerable.ToArray(ids); LastPath = path; LastToken = token; progress?.Invoke("导出中"); return Response(); }
         }
         /// <summary>记录实际传入的共享搜索契约，允许模拟忽略取消的迟到响应。</summary>
         internal sealed class QueryApi : IPurchaseOrderManagerApi

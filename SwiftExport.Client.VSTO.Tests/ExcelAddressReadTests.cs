@@ -361,6 +361,63 @@ namespace SwiftExport.Client.VSTO.Tests
             }
         }
 
+        /// <summary>空分组允许显式新建默认名称的配置，服务器只返空配置头，客户端生成全部有特性的地址编辑器。</summary>
+        [TestMethod]
+        [DataRow("SalesOrder")]
+        [DataRow("PurchaseOrder")]
+        [DataRow("PackingList")]
+        public async Task EmptyGroupCanCreateItsReflectedProfile(string groupCode)
+        {
+            using (var f = new ImportTestFixture())
+            {
+                Grant(f); f.ProfileApi.NoProfiles = true;
+                using (var model = Config(f))
+                {
+                    await model.SelectGroupAsync(groupCode); await model.InitializeAsync();
+                    Assert.AreEqual(0, model.Profiles.Count); Assert.AreEqual("", model.ConfigName);
+                    Assert.IsNull(model.CurrentUid); Assert.IsFalse(model.SaveCommand.CanExecute(null));
+                    Assert.AreEqual(0, f.ProfileApi.Creates, "加载空分组不得自动写入配置");
+                    Assert.IsTrue(model.CreateCommand.CanExecute(null), "未命名的空分组仍可点击新建");
+                    await model.CreateCommand.ExecuteAsync(null);
+                    var definition = ExcelImportRegistry.CreateDefault().Find(groupCode);
+                    Assert.AreEqual(groupCode, f.ProfileApi.LastCreate.GroupCode);
+                    Assert.AreEqual(definition.DisplayName + "读取配置", model.ConfigName);
+                    Assert.AreEqual(model.ConfigName, f.ProfileApi.LastCreate.ConfigName);
+                    Assert.AreEqual(f.ProfileApi.Profile.Uid, model.CurrentUid); Assert.AreNotEqual(Guid.Empty, model.CurrentUid);
+                    Assert.AreEqual(1, model.Profiles.Count); Assert.AreEqual(0, f.ProfileApi.Profile.Fields.Count);
+                    Assert.AreEqual(definition.Fields.Count, model.HeaderFields.Count + model.LineFields.Count);
+                    Assert.IsTrue(model.HeaderFields.All(row => row.CellAddress == "" && !row.IsDownward));
+                    Assert.IsTrue(model.LineFields.All(row => row.CellAddress == "" && row.IsDownward));
+                    CollectionAssert.AreEqual(definition.Fields.Where(field => field.ModelType == definition.HeaderType)
+                        .OrderBy(field => field.DisplayOrder).ThenBy(field => field.FieldKey, StringComparer.Ordinal)
+                        .Select(field => field.FieldKey).ToArray(), model.HeaderFields.Select(row => row.FieldKey).ToArray());
+                    Assert.IsTrue(model.SaveCommand.CanExecute(null)); Assert.IsFalse(model.HasChanges);
+                }
+            }
+        }
+
+        /// <summary>新建仍接纳用户填写的名称，且未获配置维护权限时不得开放按钮。</summary>
+        [TestMethod]
+        public async Task ExplicitProfileNameAndCreatePermissionArePreserved()
+        {
+            using (var f = new ImportTestFixture())
+            using (var model = Config(f))
+            {
+                Assert.IsFalse(model.CreateCommand.CanExecute(null));
+            }
+            using (var f = new ImportTestFixture())
+            {
+                Grant(f); f.ProfileApi.NoProfiles = true;
+                using (var model = Config(f))
+                {
+                    await model.InitializeAsync(); model.ConfigName = "我的模板";
+                    await model.CreateCommand.ExecuteAsync(null);
+                    Assert.AreEqual("我的模板", f.ProfileApi.LastCreate.ConfigName);
+                    Assert.AreEqual("我的模板", model.ConfigName);
+                }
+            }
+        }
+
         /// <summary>模拟用户给单头特性配置优先级，包含同序号与未指定字段。</summary>
         public sealed class OrderedHeader
         {

@@ -19,14 +19,17 @@ using Wpf.Ui;
 
 namespace SwiftExportClient.Bootstrapper;
 
+/// <summary>注册客户端 API、会话、缓存、导航及应用级更新服务。</summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>绑定运行配置并建立客户端服务生命周期。</summary>
     public static IServiceCollection AddSwiftExportClientServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services.Configure<ApiOptions>(configuration.GetSection(ApiOptions.SectionName));
         services.Configure<ClientOptions>(configuration.GetSection(ClientOptions.SectionName));
+        services.Configure<ClientUpdateOptions>(configuration.GetSection(ClientUpdateOptions.SectionName));
         services.Configure<ProductOptions>(configuration.GetSection(ProductOptions.SectionName));
         services.Configure<ImageCacheOptions>(configuration.GetSection(ImageCacheOptions.SectionName));
         services.AddHttpClient(ImageCacheService.HttpClientName, client =>
@@ -51,6 +54,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMessageService, WpfUiMessageService>();
         services.AddSingleton<IDialogService, WpfUiDialogService>();
         services.AddSingleton<IClientVersionService, ClientVersionService>();
+        services.AddSingleton<IClientUpdateService, VelopackUpdateService>();
+        services.AddSingleton<IClientRestartGuard, ClientRestartGuard>();
+        services.AddSingleton<ClientUpdateViewModel>();
+        services.AddSingleton<ClientUpdateDialogService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();

@@ -63,7 +63,7 @@ namespace SwiftExport.Client.VSTO.Tests
                 line.AcceptLinkSkuMismatch = true; Assert.IsFalse(f.Model.SaveCommand.CanExecute(null)); line.OriginalLinkSku = "changed"; Assert.IsFalse(line.AcceptLinkSkuMismatch);
                 await f.Model.CheckCommand.ExecuteAsync(null); await f.Model.SaveCommand.ExecuteAsync(null);
                 Assert.IsNull(f.Transport.Commands[0].Lines[0].GrossDemandId); Assert.AreEqual(f.Transport.ProductId, f.Transport.Commands[0].Lines[0].ProductId);
-                StringAssert.Contains(f.Transport.Commands[0].Header.Note, "24th"); Assert.IsFalse(f.Model.CanEdit); StringAssert.Contains(f.Model.Message, "PL-TEST");
+                Assert.AreEqual("manual note", f.Transport.Commands[0].Header.Note); Assert.IsFalse(f.Model.CanEdit); StringAssert.Contains(f.Model.Message, "PL-TEST");
             }
         }
         /// <summary>网络结果未知时冻结请求并使用同一 CommandId 和快照重试；非法包装文字不变成空值。</summary>
@@ -82,9 +82,9 @@ namespace SwiftExport.Client.VSTO.Tests
                 Assert.AreEqual(commandId, f.Transport.Commands[1].CommandId); Assert.AreEqual(3m, f.Transport.Commands[1].Lines[0].Qty);
             }
         }
-        /// <summary>旧账号、已编辑或释放后的检查均不得接纳。</summary>
+        /// <summary>旧账号、已编辑或释放后的检查均不得接纳；更换客户保留输入并清除产品身份。</summary>
         [TestMethod]
-        public async Task LateResultsAndCustomerCancellation()
+        public async Task LateResultsAndCustomerChangesPreserveInputs()
         {
             for (var scenario = 0; scenario < 3; scenario++)
             using (var f = new Fixture())
@@ -99,9 +99,19 @@ namespace SwiftExport.Client.VSTO.Tests
             }
             using (var f = new Fixture())
             {
-                await f.Start(); var old = f.Model.SelectedCustomer;
-                f.Base.Confirm = false; f.Model.SelectedCustomer = new SwiftExport.Contracts.DTOs.Customers.CustomerDto { Uid = Guid.NewGuid() };
-                Assert.AreSame(old, f.Model.SelectedCustomer); Assert.AreEqual(1, f.Model.Lines.Count);
+                await f.Start(); f.Model.Header.CustomerAddress = "keep address";
+                var replacement = new SwiftExport.Contracts.DTOs.Customers.CustomerDto { Uid = Guid.NewGuid(), CustomerCode = "C2" };
+                f.Base.Cache.CustomerItems.Add(replacement);
+                await f.Model.CheckCommand.ExecuteAsync(null);
+                var line = f.Model.Lines[0]; line.AcceptLinkSkuMismatch = true;
+                var prompts = f.Base.Prompts; f.Base.Confirm = false; f.Model.SelectedCustomer = replacement;
+                Assert.AreSame(replacement, f.Model.SelectedCustomer); Assert.AreEqual(1, f.Model.Lines.Count);
+                Assert.AreEqual(prompts, f.Base.Prompts); Assert.AreEqual("manual", line.DescriptionEn); Assert.AreEqual("3", line.QtyText);
+                Assert.IsNull(line.ToInput(1).ProductId); Assert.AreEqual("", line.Sku); Assert.AreEqual("", line.MainImage); Assert.IsFalse(line.AcceptLinkSkuMismatch);
+                Assert.AreEqual("keep address", f.Model.Header.CustomerAddress);
+                Assert.IsFalse(f.Model.SaveCommand.CanExecute(null));
+                f.Model.CustomerClearedCommand.Execute(null);
+                Assert.IsNull(f.Model.SelectedCustomer); Assert.AreSame(line, f.Model.Lines[0]); Assert.IsFalse(f.Model.MatchAllSkusCommand.CanExecute(null));
             }
         }
         /// <summary>更换候选对象后保留所选关系；确认差异、改单及重新检查后仍可保存，关系消失时清除选择。</summary>
@@ -129,6 +139,174 @@ namespace SwiftExport.Client.VSTO.Tests
                 Assert.IsNull(line.SelectedCandidate); Assert.IsFalse(f.Model.SaveCommand.CanExecute(null));
             }
         }
+        /// <summary>独立匹配无需完整单头，非法数值不因请求降为空或零而显示通过；本行不改其他行。</summary>
+        [TestMethod]
+        public async Task IndependentMatchingAndInvalidInput()
+        {
+            using (var f = new Fixture())
+            {
+                await f.Start(); var first = f.Model.Lines[0];
+                f.Model.Header.InvoiceDate = null; first.QtyText = "bad"; first.GwPerPackageText = "bad";
+                await f.Model.MatchAllSkusCommand.ExecuteAsync(null);
+                Assert.AreEqual("REAL-SKU", first.Sku); Assert.IsFalse(first.IsCheckPassed); Assert.IsFalse(f.Model.SaveCommand.CanExecute(null));
+                Assert.AreEqual("bad", first.QtyText); Assert.AreEqual("bad", first.GwPerPackageText);
+                first.QtyText = "3"; first.GwPerPackageText = "";
+                Assert.AreEqual("REAL-SKU", first.Sku); Assert.AreEqual("https://test.invalid/product.png", first.MainImage);
+                await f.Model.MatchLineSkuCommand.ExecuteAsync(first);
+                Assert.IsTrue(first.IsCheckPassed); Assert.IsFalse(f.Model.SaveCommand.CanExecute(null));
+                f.Model.AddStandardLineCommand.Execute(null); var second = f.Model.Lines[1]; second.CustomerSku = "C2"; second.QtyText = "2";
+                await f.Model.MatchLineSkuCommand.ExecuteAsync(second);
+                Assert.AreEqual(second.Uid, f.Transport.LastCheck.Lines.Single().Uid); Assert.IsTrue(first.IsCheckPassed); Assert.IsTrue(second.IsCheckPassed);
+                second.CustomerSku = "changed"; Assert.AreEqual("", second.Sku); Assert.AreEqual("", second.MainImage);
+                f.Model.Header.InvoiceDate = DateTime.Today;
+                await f.Model.CheckCommand.ExecuteAsync(null); Assert.IsTrue(f.Model.SaveCommand.CanExecute(null));
+                second.DescriptionEn = "edited"; Assert.IsFalse(f.Model.SaveCommand.CanExecute(null)); Assert.AreEqual("REAL-SKU", second.Sku);
+            }
+        }
+        /// <summary>本行匹配丢弃已删除行、编辑及账号变化后的结果；不完整身份不能接纳。</summary>
+        [TestMethod]
+        public async Task LateMatchingAndIncompleteResponse()
+        {
+            for (var scenario = 0; scenario < 4; scenario++)
+            using (var f = new Fixture())
+            {
+                await f.Start(); var row = f.Model.Lines[0]; var source = new TaskCompletionSource<CheckPackingListImportResponse>();
+                f.Transport.Check = request => source.Task; var matching = f.Model.MatchLineSkuCommand.ExecuteAsync(row);
+                if (scenario == 0) f.Model.Lines.Remove(row);
+                if (scenario == 1) row.QtyText = "5";
+                if (scenario == 2) f.Base.Login("another-user");
+                if (scenario == 3) f.Model.Dispose();
+                source.SetResult(f.Transport.Response(f.Transport.LastCheck)); await matching;
+                Assert.AreEqual("", row.Sku); Assert.IsFalse(f.Model.SaveCommand.CanExecute(null));
+            }
+            using (var f = new Fixture())
+            {
+                await f.Start();
+                f.Transport.Check = request => Task.FromResult(new CheckPackingListImportResponse { CanSave = true });
+                await f.Model.MatchAllSkusCommand.ExecuteAsync(null);
+                Assert.AreEqual("", f.Model.Lines[0].Sku); StringAssert.Contains(f.Model.ErrorMessage, "身份不完整");
+            }
+        }
+        /// <summary>地址读取只覆盖实际字段，空单元格清空；取消及读取中修订保留原输入。</summary>
+        [TestMethod]
+        public async Task ControlledHeaderReadAndRetry()
+        {
+            using (var f = new Fixture())
+            {
+                await f.Start(); var header = f.Model.Header; var line = f.Model.Lines[0];
+                header.CustomerName = "manual name"; header.CustomerAddress = "manual address"; header.Eta = new DateTime(2026, 12, 3);
+                f.Model.SelectedReadProfile = f.Model.ReadProfiles[0];
+                f.Base.AddressReader.Read = detail => Task.FromResult(new ExcelAddressSnapshot { Rows = new List<List<ExcelAddressValue>> { new List<ExcelAddressValue> {
+                    new ExcelAddressValue { FieldKey = "Header.SealNo", Value = "SEAL-25" }, new ExcelAddressValue { FieldKey = "Header.CustomerName", Value = null },
+                    new ExcelAddressValue { FieldKey = "Header.ExcelDocumentNo", Value = "Excel number differs from lines" } } } });
+                f.Base.Confirm = false; await f.Model.ReadHeaderCommand.ExecuteAsync(null); Assert.AreEqual("manual name", header.CustomerName);
+                f.Base.Confirm = true; await f.Model.ReadHeaderCommand.ExecuteAsync(null);
+                Assert.AreSame(header, f.Model.Header); Assert.IsTrue(string.IsNullOrEmpty(header.CustomerName)); Assert.AreEqual("SEAL-25", header.SealNo);
+                Assert.AreEqual("Excel number differs from lines", header.ExcelDocumentNo);
+                Assert.AreEqual("", f.Model.InvoiceNosSummary); Assert.AreEqual("manual note", header.Note);
+                Assert.AreEqual("manual address", header.CustomerAddress); Assert.AreEqual(new DateTime(2026, 12, 3), header.Eta);
+                Assert.AreSame(line, f.Model.Lines[0]); Assert.IsNotNull(f.Model.SelectedCustomer);
+                var late = new TaskCompletionSource<ExcelAddressSnapshot>(); f.Base.AddressReader.Read = detail => late.Task;
+                var reading = f.Model.ReadHeaderCommand.ExecuteAsync(null); header.SealNo = "edited";
+                late.SetResult(new ExcelAddressSnapshot { Rows = new List<List<ExcelAddressValue>> { new List<ExcelAddressValue> { new ExcelAddressValue { FieldKey = "Header.SealNo", Value = "old" } } } });
+                await reading; Assert.AreEqual("edited", header.SealNo);
+            }
+        }
+        /// <summary>导入顺序稳定，批量替换重新编号；删除、多选和非标切换不丢失商业原文。</summary>
+        [TestMethod]
+        public async Task NumberingDeletionAndNonStandard()
+        {
+            using (var f = new Fixture())
+            {
+                await f.Start(); var first = f.Model.Lines[0];
+                f.Model.AddNonStandardLineCommand.Execute(null); var second = f.Model.Lines[1]; second.QtyText = "2"; second.DescriptionEn = "nonstandard"; second.Unit = "PCS";
+                Assert.IsTrue(second.IsNonStandard); Assert.AreEqual(1, first.LineNumber); Assert.AreEqual(2, second.LineNumber);
+                await f.Model.MatchAllSkusCommand.ExecuteAsync(null); Assert.IsTrue(second.IsCheckPassed);
+                f.Model.ToggleNonStandardCommand.Execute(first); Assert.IsTrue(first.IsNonStandard); Assert.AreEqual("manual", first.DescriptionEn); Assert.AreEqual("3", first.QtyText); Assert.IsNull(first.ToInput(1).ProductId);
+                f.Model.SetSelectedLines(new[] { first }); f.Model.DeleteLineCommand.Execute(null); Assert.AreEqual(2, second.LineNumber);
+                PackingListImportLine added = null; f.Model.LineAdded += line => added = line; f.Model.AddStandardLineCommand.Execute(null); Assert.AreEqual(3, added.LineNumber);
+                f.Model.SetSelectedLines(f.Model.Lines.ToArray()); f.Model.DeleteLineCommand.Execute(null); Assert.AreEqual(0, f.Model.Lines.Count);
+                f.Model.SelectedReadProfile = f.Model.ReadProfiles[0]; f.Base.AddressReader.Read = detail => Task.FromResult(new ExcelAddressSnapshot { Detail = true, Rows = new List<List<ExcelAddressValue>> {
+                    new List<ExcelAddressValue> { new ExcelAddressValue { FieldKey = "Line.CustomerSku", Value = "A" } },
+                    new List<ExcelAddressValue> { new ExcelAddressValue { FieldKey = "Line.CustomerSku", Value = "B" } } } });
+                added = null; await f.Model.ReadLinesCommand.ExecuteAsync(null);
+                CollectionAssert.AreEqual(new[] { 1, 2 }, f.Model.Lines.Select(line => line.LineNumber).ToArray()); Assert.IsNull(added);
+                Assert.IsFalse(ExcelImportRegistry.CreateDefault().Find("PackingList").ContainsField("Line.LineNumber"));
+            }
+        }
+        /// <summary>逐行包装保留小数，不自动拼箱；缺失、非法、非正数量及溢出均明确提示。</summary>
+        [TestMethod]
+        public async Task PackagingSummaryAndUnboundSave()
+        {
+            using (var f = new Fixture())
+            {
+                await f.Start(); var row = f.Model.Lines[0]; row.PcsPerPackageText = "2"; row.GwPerPackageText = "1.2"; row.CbmPerPackageText = "0.1";
+                StringAssert.Contains(f.Model.Summary, "总箱数：" + 1.5m.ToString("N2")); StringAssert.Contains(f.Model.Summary, "总毛重：" + 1.8m.ToString("N2"));
+                StringAssert.Contains(f.Model.Summary, "总体积：" + .15m.ToString("N3")); Assert.IsFalse(f.Model.Summary.Contains("不完整"));
+                row.QtyText = "0"; Assert.IsTrue(row.IsQuantityNonPositive); StringAssert.Contains(f.Model.Summary, "不完整");
+                row.QtyText = "3"; row.GwPerPackageText = decimal.MaxValue.ToString(); StringAssert.Contains(f.Model.Summary, "包装汇总不完整");
+                row.GwPerPackageText = ""; row.PcsPerPackageText = ""; row.CbmPerPackageText = "";
+                await f.Model.CheckCommand.ExecuteAsync(null); Assert.IsTrue(f.Model.SaveCommand.CanExecute(null));
+                await f.Model.SaveCommand.ExecuteAsync(null);
+                var input = f.Transport.Commands.Single().Lines.Single(); Assert.IsNull(input.GrossDemandId); Assert.IsNull(input.PackingGroupId);
+                Assert.AreEqual(1, input.LineNumber); Assert.AreEqual("PL-TEST", f.Model.PackingListNo);
+            }
+        }
+
+        /// <summary>发票号汇总随增删和编辑变化，保存后使用服务器值；新导入和会话切换清除旧汇总。</summary>
+        [TestMethod]
+        public async Task InvoiceSummaryTracksRowsAndUsesServerValue()
+        {
+            for (var changeSession = 0; changeSession < 2; changeSession++)
+            using (var f = new Fixture())
+            {
+                await f.Start(); var notifications = 0;
+                f.Model.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(f.Model.InvoiceNosSummary)) notifications++; };
+                f.Model.Lines[0].InvoiceNo = " INV-2 ";
+                foreach (var invoice in new[] { "INV-1", " INV-2 ", "inv-1", "   " })
+                {
+                    f.Model.AddStandardLineCommand.Execute(null);
+                    var added = f.Model.Lines.Last(); added.CustomerSku = "C1"; added.QtyText = "1"; added.InvoiceNo = invoice;
+                }
+                Assert.AreEqual("INV-2, INV-1, inv-1", f.Model.InvoiceNosSummary);
+                f.Model.Lines[0].InvoiceNo = " INV-3 ";
+                Assert.AreEqual("INV-3, INV-1, INV-2, inv-1", f.Model.InvoiceNosSummary);
+                f.Model.SetSelectedLines(new[] { f.Model.Lines[2] }); f.Model.DeleteLineCommand.Execute(null);
+                Assert.AreEqual("INV-3, INV-1, inv-1", f.Model.InvoiceNosSummary); Assert.IsTrue(notifications > 0);
+                f.Transport.InvoiceSummary = "SERVER-RESULT";
+                await f.Model.CheckCommand.ExecuteAsync(null); await f.Model.SaveCommand.ExecuteAsync(null);
+                Assert.AreEqual("SERVER-RESULT", f.Model.InvoiceNosSummary);
+                Assert.AreEqual("Excel raw document", f.Model.Header.ExcelDocumentNo);
+                Assert.AreEqual("manual note", f.Transport.Commands.Single().Header.Note);
+                if (changeSession == 0) f.Model.NewCommand.Execute(null); else f.Base.Login("new-user");
+                Assert.AreEqual("", f.Model.InvoiceNosSummary);
+            }
+        }
+        /// <summary>单头发票号地址可配置和读取，但不替代明细汇总或改写备注；系统汇总不暴露为导入字段。</summary>
+        [TestMethod]
+        public void DocumentNumberAddressIsActiveAndReadsLocally()
+        {
+            var registry = ExcelImportRegistry.CreateDefault(); var definition = registry.Find("PackingList");
+            Assert.IsTrue(definition.ContainsField("Header.ExcelDocumentNo")); Assert.IsFalse(definition.ContainsField("Header.InvoiceNosSummary"));
+            Assert.AreEqual(40, definition.Fields.Single(field => field.FieldKey == "Header.ExcelDocumentNo").DisplayOrder);
+            Assert.IsFalse(ExcelAddressRules.IsDeprecatedField("PackingList", "Header.ExcelDocumentNo"));
+            Assert.IsFalse(ExcelAddressRules.IsDeprecatedField("PackingList", "Line.InvoiceNo"));
+            using (var f = new Fixture())
+            {
+                var document = new SwiftExport.Contracts.DTOs.SystemDtos.ExcelReadProfiles.ExcelReadFieldDto
+                    { TargetFieldKey = "Header.ExcelDocumentNo", CellAddress = "not-an-address" };
+                f.Base.ProfileApi.Profile.Fields.Add(document);
+                Assert.IsTrue(ExcelAddressRules.Validate(f.Base.ProfileApi.Profile, definition).Any(issue => issue.Contains("Header.ExcelDocumentNo")));
+                document.CellAddress = "M12";
+                Assert.AreEqual(0, ExcelAddressRules.Validate(f.Base.ProfileApi.Profile, definition).Count);
+            }
+            var snapshot = new ExcelAddressSnapshot { Rows = new List<List<ExcelAddressValue>> { new List<ExcelAddressValue> {
+                new ExcelAddressValue { FieldKey = "Header.ExcelDocumentNo", Value = "24th" } } } };
+            var parsed = new PackingListAddressParser(registry).Parse(snapshot);
+            Assert.AreEqual("24th", parsed.Header.ExcelDocumentNo); Assert.AreEqual("", parsed.Header.Note);
+            Assert.AreEqual(0, parsed.Issues.Count);
+        }
+
         // 每次响应使用新对象模拟 HTTP 反序列化；服务器只接纳用户显式选择且已确认型号差异的关系。
         internal static CheckPackingListImportResponse CandidateResponse(CheckPackingListImportRequest request, Guid[] choices)
         {
@@ -152,14 +330,16 @@ namespace SwiftExport.Client.VSTO.Tests
             {
                 Base.Session.TryCommit(Base.Session.Capture().Version, "test", new MeDto { UserId = "packing", Permissions = new List<string> { "Shipping.PackingList.Create" } });
                 Base.ProfileApi.Profile.GroupCode = "PackingList";
+                Base.ProfileApi.Profile.Fields[0].TargetFieldKey = "Header.SealNo";
                 clients = new ApiClientRegistration(new Uri("https://test.invalid/"), Base.Session, new Transport(), Transport);
                 Model = new PackingListImportViewModel(Base.Session, Base, Base.AddressReader, Base.ProfileService, ExcelImportRegistry.CreateDefault(), Base.Cache,
                     clients.Create<IForExcelPackingListApi>("api/for-excel/packing-lists"), clients.Create<IPackingListApi>("api/shipping/packing-lists"), Base, new ApiCallRunner(new AddInLog()));
             }
             internal async Task Start()
             {
-                await Model.InitializeAsync(); Model.SelectedCustomer = Base.Cache.Customers[0]; Model.Header.ExcelDocumentNo = "24th";
-                Model.AddLineCommand.Execute(null); var row = Model.Lines[0]; row.CustomerSku = "C1"; row.OriginalLinkSku = "LINK"; row.DescriptionEn = "manual"; row.QtyText = "3";
+                await Model.InitializeAsync(); Model.SelectedCustomer = Base.Cache.Customers[0]; Model.Header.Note = "manual note";
+                Model.Header.ExcelDocumentNo = "Excel raw document";
+                Model.AddStandardLineCommand.Execute(null); var row = Model.Lines[0]; row.CustomerSku = "C1"; row.OriginalLinkSku = "LINK"; row.DescriptionEn = "manual"; row.QtyText = "3";
             }
             /// <summary>释放页面及自有 HTTP，借用服务最后释放。</summary>
             public void Dispose() { Model.Dispose(); clients.Dispose(); Base.Dispose(); }
@@ -170,6 +350,7 @@ namespace SwiftExport.Client.VSTO.Tests
             internal Guid ProductId = Guid.NewGuid();
             internal int Checks;
             internal bool FailWrite;
+            internal string InvoiceSummary;
             internal CheckPackingListImportRequest LastCheck;
             internal Func<CheckPackingListImportRequest, Task<CheckPackingListImportResponse>> Check;
             internal readonly List<CreatePackingListDraftCommand> Commands = new List<CreatePackingListDraftCommand>();
@@ -185,12 +366,12 @@ namespace SwiftExport.Client.VSTO.Tests
                     Assert.AreEqual("/api/shipping/packing-lists/drafts", request.RequestUri.AbsolutePath);
                     var command = JsonSerializer.Deserialize<CreatePackingListDraftCommand>(body, Json); Commands.Add(command);
                     if (FailWrite) throw new HttpRequestException("断网");
-                    result = ServiceResult<PackingListDraftCommandResult>.Ok(new PackingListDraftCommandResult { Uid = command.Uid, Detail = new PackingListDetailDto { Header = new PackingListHeaderDto { Uid = command.Uid, PackingListNo = "PL-TEST" } } });
+                    result = ServiceResult<PackingListDraftCommandResult>.Ok(new PackingListDraftCommandResult { Uid = command.Uid, Detail = new PackingListDetailDto { Header = new PackingListHeaderDto { Uid = command.Uid, PackingListNo = "PL-TEST", InvoiceNosSummary = InvoiceSummary } } });
                 }
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(result, result.GetType(), Json), Encoding.UTF8, "application/json") };
             }
             internal CheckPackingListImportResponse Response(CheckPackingListImportRequest request) => new CheckPackingListImportResponse { CanSave = true,
-                Lines = request.Lines.Select(x => new PackingListImportLineCheckDto { ClientLineId = x.Uid, MatchStatus = "Matched", Product = new PackingListImportProductCandidateDto { ProductId = ProductId, Sku = "REAL-SKU", LinkSku = "LINK", Unit = "PCS", IsUsable = true } }).ToList() };
+                Lines = request.Lines.Select(x => new PackingListImportLineCheckDto { ClientLineId = x.Uid, MatchStatus = x.IsNonStandardSnapshot ? "NonStandard" : "Matched", Product = x.IsNonStandardSnapshot ? null : new PackingListImportProductCandidateDto { ProductId = ProductId, Sku = "REAL-SKU", LinkSku = "LINK", Unit = "PCS", MainImage = "https://test.invalid/product.png", IsUsable = true } }).ToList() };
         }
     }
 }

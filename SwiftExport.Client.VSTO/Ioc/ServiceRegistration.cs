@@ -37,6 +37,13 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton(log);
             services.AddSingleton<IUiDispatcher>(dispatcher);
             services.AddSingleton<IExcelDispatcher>(dispatcher);
+            services.AddSingleton<SwiftExport.Client.VSTO.Excel.Writing.OrderExport.PurchaseOrderTemplateService>();
+            services.AddSingleton<SwiftExport.Client.VSTO.Services.OrderExport.IPurchaseOrderWorkbookWriter>(p =>
+                new SwiftExport.Client.VSTO.Excel.Writing.OrderExport.PurchaseOrderWorkbookWriter(application, dispatcher,
+                    p.GetRequiredService<SwiftExport.Client.VSTO.Excel.Writing.OrderExport.PurchaseOrderTemplateService>(),
+                    p.GetRequiredService<SessionService>(), log));
+            services.AddSingleton<SwiftExport.Client.VSTO.Services.OrderExport.IPurchaseOrderExportService,
+                SwiftExport.Client.VSTO.Services.OrderExport.PurchaseOrderExportService>();
             services.AddSingleton<IExcelAddressReader>(new ExcelAddressReader(application, dispatcher));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IExcelReadProfileApi>());
             services.AddSingleton<ExcelReadProfileService>();

@@ -1,0 +1,10 @@
+# 合并进现有 https://192.168.3.12:443 站点块中，替换原来的单行 reverse_proxy。
+# 保留现有 bind、tls internal、全局存储和其他配置，不另建 CA。
+handle_path /client-updates/* {
+    root * D:/ClientUpdates
+    header Cache-Control "no-store"
+    file_server
+}
+handle {
+    reverse_proxy 127.0.0.1:5081
+}

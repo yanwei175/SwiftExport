@@ -13,6 +13,41 @@ namespace SwiftExport.Client.VSTO.WpfTests
     /// <summary>在独立 STA 验证真实列表 XAML、选择绑定和默认窗格配置，不加载 Office。</summary>
     internal static class PurchaseOrderListChecks
     {
+        /// <summary>仅验证导出交互，不把可调整的窗格宽度当成导出命令的验收条件。</summary>
+        internal static void RunExportControls(Action<bool, string> check)
+        {
+            using (var fixture = new PurchaseOrderListTests.Fixture())
+            {
+                var model = fixture.Model; var view = new PurchaseOrderListView(model);
+                var window = new Window { Style = null, Content = view, Width = 1000, Height = 800, ShowInTaskbar = false };
+                window.Show();
+                try
+                {
+                    Pump(); view.UpdateLayout();
+                    var grid = (DataGrid)view.FindName("OrdersGrid");
+                    var selected = (Wpf.Ui.Controls.Button)view.FindName("GenerateSelectedButton");
+                    var batch = (Wpf.Ui.Controls.Button)view.FindName("GenerateCheckedButton");
+                    var path = (Wpf.Ui.Controls.TextBox)view.FindName("OutputPathBox");
+                    path.Text = System.IO.Path.GetTempPath(); Pump();
+                    check(!selected.IsEnabled && !batch.IsEnabled, "未选择时两个导出按钮禁用");
+                    grid.SelectedItem = model.Orders[0]; Pump();
+                    check(selected.IsEnabled && !batch.IsEnabled && ReferenceEquals(selected.Command, model.ExportSelectedCommand), "高亮行仅启用单张导出");
+                    model.Orders[0].IsChecked = true; Pump();
+                    check(batch.IsEnabled && ReferenceEquals(batch.Command, model.ExportCheckedCommand), "勾选后启用批量导出");
+                    var pending = new System.Threading.Tasks.TaskCompletionSource<SwiftExport.Client.VSTO.Services.OrderExport.PurchaseOrderExportResult>();
+                    fixture.Exporter.Response = () => pending.Task;
+                    var running = model.ExportSelectedCommand.ExecuteAsync(null); Pump();
+                    check(path.IsReadOnly && !selected.IsEnabled && !batch.IsEnabled && !grid.IsEnabled, "导出期间路径只读，命令及订单选择冻结");
+                    var result = new SwiftExport.Client.VSTO.Services.OrderExport.PurchaseOrderExportResult();
+                    result.Files.Add("采购单.xlsx"); pending.SetResult(result); Pump();
+                    check(running.IsCompleted && !path.IsReadOnly && selected.IsEnabled && model.ExportReport.Contains("采购单.xlsx"), "导出完成恢复按钮并展示文件路径");
+                    fixture.Session.TryEnd(fixture.Session.Capture().Version); Pump();
+                    check(!selected.IsEnabled && !batch.IsEnabled && model.ExportReport == "", "退出账号禁用导出并清理旧报告");
+                }
+                finally { window.Close(); }
+            }
+        }
+
         internal static void Run(Action<bool, string> check)
         {
             var config = TaskPaneRegistrar.CreateDefault().Get("purchase-order-list");
@@ -44,12 +79,17 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(ReadCellText(grid, 5) == "—", "空数量保留未知提示而非零");
                     check(ReadCellText(grid, 6) == "4.25", "已知已备好合计使用 ReadyQty");
                     check(ReadCellText(grid, 7) == "部分货好" && ReadCellText(grid, 8) == "部分收", "货好与收货状态来自契约");
-                    check(!((Wpf.Ui.Controls.Button)view.FindName("GenerateSelectedButton")).IsEnabled
-                        && !((Wpf.Ui.Controls.Button)view.FindName("GenerateCheckedButton")).IsEnabled, "两个生成入口仅预留且禁用");
+                    var selected = (Wpf.Ui.Controls.Button)view.FindName("GenerateSelectedButton");
+                    var batch = (Wpf.Ui.Controls.Button)view.FindName("GenerateCheckedButton");
+                    check(selected.IsEnabled && batch.IsEnabled && ReferenceEquals(selected.Command, model.ExportSelectedCommand)
+                        && ReferenceEquals(batch.Command, model.ExportCheckedCommand), "当前行和勾选订单各绑定真实导出命令");
+                    model.Orders[0].IsChecked = false; Pump();
+                    check(selected.IsEnabled && !batch.IsEnabled, "取消勾选仅禁用批量，不影响高亮行导出");
+                    model.Orders[0].IsChecked = true; Pump();
                     view.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent)); Pump();
                     check(fixture.Api.Requests.Count == 1 && model.CheckedCount == 1, "重复显示不重复请求或清空勾选");
                     fixture.Session.TryEnd(fixture.Session.Capture().Version); Pump();
-                    check(!grid.IsEnabled && model.Orders.Count == 0, "退出账号清空并禁用旧列表");
+                    check(!grid.IsEnabled && model.Orders.Count == 0 && !selected.IsEnabled && !batch.IsEnabled, "退出账号清空并禁用列表及导出");
                 }
                 finally { window.Close(); }
             }

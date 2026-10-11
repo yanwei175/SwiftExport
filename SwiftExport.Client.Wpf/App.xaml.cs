@@ -10,11 +10,13 @@ using SwiftExportClient.Resources.Controls;
 
 namespace SwiftExportClient;
 
+/// <summary>启动应用服务、最低版本校验及登录会话，协调进程级更新提示。</summary>
 public partial class App : Application
 {
     private IHost? _host;
     private bool _switchingSession;
 
+    /// <summary>先检查兼容性，再启动业务窗口并检查可用更新。</summary>
     protected override async void OnStartup(StartupEventArgs e)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -28,22 +30,11 @@ public partial class App : Application
         var versionCheck = await _host.Services.GetRequiredService<IClientVersionService>().CheckAsync();
         if (!versionCheck.CanContinue)
         {
-            MessageBox.Show(
-                BuildUpdateMessage(versionCheck),
-                "SwiftExport Client",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            // 最低版本拦截先提供真实下载安装入口；关闭后仍不允许旧客户端登录。
+            _host.Services.GetRequiredService<ClientUpdateDialogService>()
+                .Show(requirementMessage: BuildUpdateMessage(versionCheck));
             Shutdown();
             return;
-        }
-
-        if (versionCheck.Requirement is UpdateRequirement.Optional)
-        {
-            MessageBox.Show(
-                BuildUpdateMessage(versionCheck),
-                "SwiftExport Client",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
         }
 
         var authService = _host.Services.GetRequiredService<IAuthService>();
@@ -58,6 +49,14 @@ public partial class App : Application
         }
 
         ShowShellWindow();
+        // 每次进程启动检查一次；没有更新时不打断登录或工作。
+        var updates = _host.Services.GetRequiredService<ClientUpdateViewModel>();
+        await updates.CheckOnStartupAsync();
+        if (updates.AvailableRelease is not null && MainWindow is ShellWindow shell && shell.IsVisible)
+        {
+            _host.Services.GetRequiredService<SwiftExportClient.Services.UI.IMessageService>()
+                .ShowInfo("客户端更新", updates.Message);
+        }
     }
 
     private bool ShowLoginWindow()

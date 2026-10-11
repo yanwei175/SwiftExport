@@ -87,6 +87,8 @@
                                    Style="{StaticResource CaptionTextBlock}"
                                    VerticalAlignment="Center"
                                    Margin="0,0,12,0" />
+                        <Button Content="{Binding Updates.EntryLabel}" Click="OnCheckUpdatesClick"
+                                ToolTip="{Binding Updates.Message}" MinWidth="96" Margin="0,0,8,0" />
                         <Button Content="退出登录"
                                 Command="{Binding LogoutCommand}"
                                 MinWidth="88"

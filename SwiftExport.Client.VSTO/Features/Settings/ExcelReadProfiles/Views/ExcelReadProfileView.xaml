@@ -19,7 +19,7 @@
                 <ComboBox x:Name="GroupSelector" Width="140" ItemsSource="{Binding Groups}" DisplayMemberPath="DisplayName" SelectedValuePath="GroupCode" SelectedValue="{Binding CurrentGroupCode, Mode=OneWay}" IsEnabled="{Binding CanChangeFields}" SelectionChanged="GroupChanged" Margin="0,0,8,8"/>
                 <ComboBox x:Name="ProfileSelector" IsEnabled="{Binding CanChangeFields}" Width="140" ItemsSource="{Binding Profiles}" DisplayMemberPath="ConfigName" SelectedValuePath="Uid" SelectedValue="{Binding CurrentUid, Mode=OneWay}" SelectionChanged="ProfileChanged" Margin="0,0,8,8"/>
                 <Button Content="重新加载" Command="{Binding ReloadCommand}" Margin="0,0,8,8"/>
-                <Button Content="新建空配置" Command="{Binding CreateCommand}" Margin="0,0,8,8"/>
+                <Button Content="新建空配置" Command="{Binding CreateCommand}" ToolTip="新建当前业务组的配置；名称未填写时使用默认名称。创建后获取字段地址并保存。" Margin="0,0,8,8"/>
                 <ui:Button Content="保存配置" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,8,8"/>
                 <Button Content="删除配置" Command="{Binding DeleteCommand}" Margin="0,0,8,8"/>
                 <Button Content="预览已保存配置" Command="{Binding PreviewCommand}" Margin="0,0,8,8"/>

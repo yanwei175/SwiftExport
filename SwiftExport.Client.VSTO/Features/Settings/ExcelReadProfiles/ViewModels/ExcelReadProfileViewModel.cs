@@ -19,7 +19,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
 {
-    /// <summary>维护销售或采购地址配置，分组从模型目录选择，业务资格不进入配置保存。</summary>
+    /// <summary>维护销售、采购和装箱单地址配置，分组从模型目录选择，业务资格不进入配置保存。</summary>
     public sealed class ExcelReadProfileViewModel : ViewModelBaseEx
     {
         private readonly ExcelReadProfileService service;
@@ -47,7 +47,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             this.dispatcher = dispatcher; this.errors = errors; this.prompt = prompt; sessionVersion = session.Capture().Version;
             Title = "销售订单读取配置";
             ReloadCommand = new AsyncRelayCommand(ReloadAsync, () => CanEdit && !IsBusy);
-            CreateCommand = new AsyncRelayCommand(CreateAsync, () => CanEdit && !IsBusy && !string.IsNullOrWhiteSpace(ConfigName));
+            CreateCommand = new AsyncRelayCommand(CreateAsync, () => CanEdit && !IsBusy);
             SaveCommand = new AsyncRelayCommand(SaveAsync, () => CanEdit && !IsBusy && uid.HasValue);
             DeleteCommand = new AsyncRelayCommand(DeleteAsync, () => CanEdit && !IsBusy && uid.HasValue);
             PickCommand = new AsyncRelayCommand<ExcelReadFieldModel>(PickAsync, row => CanEdit && !IsBusy && row != null && row.IsKnown);
@@ -94,7 +94,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         public bool CanChangeFields => CanEdit && !IsBusy;
         /// <summary>用于切换和关闭确认的未保存标记。</summary>
         public bool HasChanges => dirty;
-        /// <summary>配置名称，与原配置 UID 分开编辑，新建采用此名称。</summary>
+        /// <summary>配置名称，与原配置 UID 分开编辑；新建时为空则使用当前业务组的默认名称。</summary>
         public string ConfigName { get => name; set { if (SetProperty(ref name, value)) Edited(); } }
         /// <summary>顶部统一的可空参考名称，不用于实际读取源定位。</summary>
         public string WorksheetName { get => worksheet; set { if (SetProperty(ref worksheet, value)) Edited(); } }
@@ -109,6 +109,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
         /// <summary>当前配置完整性及操作反馈。</summary>
         public string Status { get => status; private set => SetProperty(ref status, value); }
         public IAsyncRelayCommand ReloadCommand { get; }
+        /// <summary>显式新建当前分组的空配置；名称为空时采用分组默认名称。</summary>
         public IAsyncRelayCommand CreateCommand { get; }
         public IAsyncRelayCommand SaveCommand { get; }
         public IAsyncRelayCommand DeleteCommand { get; }
@@ -150,14 +151,14 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
                 });
                 if (!Accept()) return;
                 if (chosen.HasValue) { var detail = await service.GetAsync(chosen.Value, token); Ensure(detail.Success, detail.Message); await UiAsync(() => Apply(detail.Data)); }
-                else await UiAsync(() => { ClearRows(); uid = null; dirty = false; Status = "没有配置，请填写名称并新建。"; });
+                else await UiAsync(() => { ClearRows(); uid = null; dirty = false; Status = "没有配置，请点击“新建空配置”。名称为空时使用当前业务组的默认名称。"; });
                 await UiAsync(() => { initialized = true; OnPropertyChanged(nameof(CurrentUid)); });
             });
         }
-        // 创建空配置后接纳服务器身份，不覆盖其他已保存配置。
+        // 仅在用户点击新建后创建空配置；未填写名称时使用分组名称，不在加载时自动写入服务器。
         private async Task CreateAsync()
         {
-            var newName = ConfigName;
+            var newName = string.IsNullOrWhiteSpace(ConfigName) ? definition.DisplayName + "读取配置" : ConfigName;
             if (!Discard("新建空配置将丢弃当前未保存修改。是否继续？")) return;
             await RunAsync(async token =>
             {
@@ -197,7 +198,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
                 });
             });
         }
-        /// <summary>组装活动字段修改；未知字段及已弃用销售汇率配置保留，不静默删除旧数据。</summary>
+        /// <summary>组装活动字段修改；未知字段及已弃用配置保留，不静默删除旧数据。</summary>
         public UpdateExcelReadProfileRequest BuildRequest()
         {
             var fields = HeaderFields.Concat(LineFields).Where(r => !string.IsNullOrWhiteSpace(r.CellAddress)).Select(row =>
@@ -228,7 +229,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
                 Fields = fields
             };
         }
-        /// <summary>重建活动字段编辑器；销售旧汇率配置只保留原记录，不开放地址编辑。</summary>
+        /// <summary>重建活动字段编辑器；已弃用字段配置只保留原记录，不开放地址编辑。</summary>
         private void Apply(ExcelReadProfileDto profile)
         {
             if (!Accept()) return;
@@ -238,7 +239,7 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
             {
                 ClearRows(); uid = profile.Uid; version = profile.Version; ConfigName = profile.ConfigName; Remark = profile.Remark; EndMode = profile.EndMode;
                 LastRowColumn = profile.LastRowColumn; SummaryCellAddress = profile.SummaryCellAddress;
-                // 旧汇率参考表名只属于兼容记录，不能清空或改变活动字段的统一表名。
+                // 弃用字段参考表名只属于兼容记录，不能清空或改变活动字段的统一表名。
                 var names = profile.Fields.Where(f => !ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey))
                     .Select(f => f.WorksheetName).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToArray();
                 WorksheetName = names.Length == 1 ? names[0] : "";
@@ -261,8 +262,9 @@ namespace SwiftExport.Client.VSTO.Features.Settings.ExcelReadProfiles.ViewModels
                 foreach (var field in profile.Fields.Where(f => !definition.ContainsField(f.TargetFieldKey)
                     && !ExcelAddressRules.IsDeprecatedField(profile.GroupCode, f.TargetFieldKey)))
                     AddRow(new ExcelReadFieldModel { FieldKey = field.TargetFieldKey, DisplayName = "未知字段（保留）：" + field.TargetFieldKey, IsKnown = false, CellAddress = field.CellAddress, IsDownward = field.IsDownward, IsHeader = !field.IsDownward });
-                dirty = false; Status = names.Length > 1 ? "参考工作表名称不一致；顶部填写统一名称，保存后统一。" : "配置已加载。";
-                if (deprecatedFields.Count > 0) Status += "\n旧销售汇率地址已弃用，不读取；配置记录继续保留。";
+                dirty = false; Status = names.Length > 1 ? "参考工作表名称不一致；顶部填写统一名称，保存后统一。"
+                    : profile.Fields.Count == 0 ? "空配置已就绪，请获取单头及明细地址并设置结束方式后保存。" : "配置已加载。";
+                if (deprecatedFields.Count > 0) Status += "\n已弃用字段地址不再读取；配置记录继续保留。";
                 var issues = ExcelAddressRules.Validate(profile, definition); if (issues.Count > 0) Status += "\n" + string.Join("\n", issues);
                 OnPropertyChanged(nameof(CurrentUid)); OnPropertyChanged(nameof(HasChanges));
             }

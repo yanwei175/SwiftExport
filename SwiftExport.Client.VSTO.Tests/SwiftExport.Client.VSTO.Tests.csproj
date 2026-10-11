@@ -14,6 +14,8 @@
   <ProjectReference Include="../SwiftExport.Contracts/SwiftExport.Contracts.csproj"/>
   <Reference Include="System.Net.Http"/><Reference Include="System.Security"/>
   <Reference Include="System.Xml.Linq"/>
+  <Compile Include="../SwiftExport.Client.VSTO/Excel/Writing/OrderExport/PurchaseOrderTemplateLayout.cs" Link="Production/OrderExport/PurchaseOrderTemplateLayout.cs"/>
+  <Compile Include="../SwiftExport.Client.VSTO/Services/OrderExport/*.cs" LinkBase="Production/OrderExport"/>
   <Compile Include="../SwiftExport.Client.VSTO/Authentication/*.cs" Exclude="../SwiftExport.Client.VSTO/Authentication/LoginWindow.xaml.cs;../SwiftExport.Client.VSTO/Authentication/LoginCoordinator.cs" LinkBase="Production/Authentication"/>
   <Compile Include="../SwiftExport.Client.VSTO/Mvvm/*.cs;../SwiftExport.Client.VSTO/Api/*.cs;../SwiftExport.Client.VSTO/Diagnostics/*.cs;../SwiftExport.Client.VSTO/Hosting/Threading/IUiDispatcher.cs" LinkBase="Production"/>
   <None Include="../SwiftExport.Client.VSTO/SwiftExportRibbon.xml" Link="SwiftExportRibbon.xml" CopyToOutputDirectory="PreserveNewest"/>

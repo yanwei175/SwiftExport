@@ -238,7 +238,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
-    <Folder Include="Excel\Writing\" />
     <Folder Include="Features\DataImport\" />
     <Folder Include="Features\DocumentGeneration\" />
   </ItemGroup>
@@ -398,6 +397,10 @@
   <ItemGroup>
     <Compile Include="Services\ExcelImport\ExcelAddressRead.cs" />
     <Compile Include="Excel\Reading\ExcelAddressReader.cs" />
+    <Compile Include="Excel\Writing\OrderExport\PurchaseOrderTemplateLayout.cs" />
+    <Compile Include="Excel\Writing\OrderExport\PurchaseOrderTemplateService.cs" />
+    <Compile Include="Excel\Writing\OrderExport\PurchaseOrderWorkbookWriter.cs" />
+    <Compile Include="Services\OrderExport\*.cs" />
     <Compile Include="Features\Sales\Orders\Services\SalesOrderAddressParser.cs" />
     <Compile Include="Features\Sales\Orders\ViewModels\SalesOrderImportViewModel.Addresses.cs" />
     <Compile Include="Resources\Controls\ExcelCellAddressBox.xaml.cs" />
@@ -438,7 +441,14 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Features\Shipping\PackingLists\**\*.cs" />
+    <Compile Include="Features\Shipping\PackingLists\Models\PackingListImportHeader.cs" />
+    <Compile Include="Features\Shipping\PackingLists\Models\PackingListImportLine.cs" />
+    <Compile Include="Features\Shipping\PackingLists\Services\PackingListAddressParser.cs" />
+    <Compile Include="Features\Shipping\PackingLists\ViewModels\PackingListImportViewModel.cs" />
+    <Compile Include="Features\Shipping\PackingLists\ViewModels\PackingListImportDesignViewModel.cs" />
+    <Compile Include="Features\Shipping\PackingLists\Views\PackingListImportView.xaml.cs">
+      <DependentUpon>PackingListImportView.xaml</DependentUpon>
+    </Compile>
     <Page Include="Features\Shipping\PackingLists\Views\PackingListImportView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

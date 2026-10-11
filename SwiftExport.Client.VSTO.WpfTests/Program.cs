@@ -36,6 +36,11 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     using (var fontHost = new WpfRuntimeHost()) { fontHost.Initialize(); TypographyChecks.Run(Check); }
                     Console.WriteLine("PASS Typography: " + checks + " assertions"); return 0;
                 }
+                if (args.Length == 1 && args[0] == "--purchase-export-only")
+                {
+                    using (var exportHost = new WpfRuntimeHost()) { exportHost.Initialize(); PurchaseOrderListChecks.RunExportControls(Check); }
+                    Console.WriteLine("PASS Purchase order export: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--purchase-list-only")
                 {
                     using (var listHost = new WpfRuntimeHost()) { listHost.Initialize(); PurchaseOrderListChecks.Run(Check); }

@@ -11,6 +11,7 @@ using SwiftExport.Client.VSTO.Authentication;
 using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models;
 using SwiftExport.Client.VSTO.Hosting.Threading;
 using SwiftExport.Client.VSTO.Mvvm;
+using SwiftExport.Client.VSTO.Services.OrderExport;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
@@ -27,7 +28,10 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         private readonly CurrentUserService user;
         private readonly IUiDispatcher dispatcher;
         private readonly ApiCallRunner errors;
+        private readonly IPurchaseOrderExportService exporter;
         private CancellationTokenSource query;
+        private CancellationTokenSource export;
+        private string exportReport = "";
         private long sessionVersion;
         private long? initializedVersion;
         private string keyword = "", customerCode = "", statusText = "点击查询加载采购订单。";
@@ -44,10 +48,14 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         public int Confirmation { get { return confirmation; } set { SetProperty(ref confirmation, value); } }
         /// <summary>复用服务端快捷视图，与其余条件取交集。</summary>
         public PurchaseDueViewEnum QuickView { get { return quickView; } set { SetProperty(ref quickView, value); } }
-        /// <summary>预留 Excel 输出目录，默认本机桌面；本期不创建文件。</summary>
-        public string OutputPath { get { return outputPath; } set { SetProperty(ref outputPath, value); } }
-        /// <summary>DataGrid 当前行，为后续单张生成预留，不自动勾选。</summary>
-        public PurchaseOrderListRow SelectedOrder { get { return selectedOrder; } set { SetProperty(ref selectedOrder, value); } }
+        /// <summary>导出目标文件夹，默认桌面；一次导出冻结点击时的目录。</summary>
+        public string OutputPath { get { return outputPath; } set { if (SetProperty(ref outputPath, value)) RefreshCommands(); } }
+        /// <summary>单张导出使用的当前行，独立于批量勾选状态。</summary>
+        public PurchaseOrderListRow SelectedOrder { get { return selectedOrder; } set { if (SetProperty(ref selectedOrder, value)) RefreshCommands(); } }
+        /// <summary>导出结果，包括成功路径、缺失快照提示及各订单失败说明。</summary>
+        public string ExportReport { get { return exportReport; } private set { SetProperty(ref exportReport, value); } }
+        /// <summary>控制导出期间输出路径只读，避免界面目录与已冻结目录混淆。</summary>
+        public bool IsExporting => export != null;
         /// <summary>显示已接纳的查询范围与账号变更提示。</summary>
         public string StatusText { get { return statusText; } private set { SetProperty(ref statusText, value); } }
         public ObservableCollection<PurchaseOrderListRow> Orders { get; } = new ObservableCollection<PurchaseOrderListRow>();
@@ -72,12 +80,17 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         public IAsyncRelayCommand RefreshCommand { get; }
         public IAsyncRelayCommand PreviousPageCommand { get; }
         public IAsyncRelayCommand NextPageCommand { get; }
+        /// <summary>生成当前高亮订单，使用完整详情及固定采购模板。</summary>
+        public IAsyncRelayCommand ExportSelectedCommand { get; }
+        /// <summary>仅导出当前页显式勾选的订单，一张订单一个文件。</summary>
+        public IAsyncRelayCommand ExportCheckedCommand { get; }
 
         /// <summary>仅登记依赖与命令；首次显示才请求搜索，不在 Excel 启动时预热。</summary>
         public PurchaseOrderListViewModel(IPurchaseOrderManagerApi api, SessionService session, CurrentUserService user,
-            IUiDispatcher dispatcher, ApiCallRunner errors)
+            IUiDispatcher dispatcher, ApiCallRunner errors, IPurchaseOrderExportService exporter)
         {
             this.api = api; this.session = session; this.user = user; this.dispatcher = dispatcher; this.errors = errors;
+            this.exporter = exporter;
             Title = "采购订单"; sessionVersion = session.Capture().Version;
             SearchCommand = new AsyncRelayCommand(() => LoadAsync(1), () => CanBrowse);
             RefreshCommand = new AsyncRelayCommand(() => LoadAsync(pageIndex), () => CanBrowse);
@@ -85,6 +98,10 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
             NextPageCommand = new AsyncRelayCommand(() => LoadAsync(pageIndex + 1), () => CanBrowse && (long)pageIndex * PageSize < totalCount);
             RegisterCommand(SearchCommand); RegisterCommand(RefreshCommand);
             RegisterCommand(PreviousPageCommand); RegisterCommand(NextPageCommand);
+            ExportSelectedCommand = new AsyncRelayCommand(() => ExportAsync(false), () => CanBrowse && SelectedOrder != null
+                && Orders.Contains(SelectedOrder) && !string.IsNullOrWhiteSpace(OutputPath));
+            ExportCheckedCommand = new AsyncRelayCommand(() => ExportAsync(true), () => CanBrowse && CheckedCount > 0 && !string.IsNullOrWhiteSpace(OutputPath));
+            RegisterCommand(ExportSelectedCommand); RegisterCommand(ExportCheckedCommand);
             session.Changed += OnSessionChanged;
         }
 
@@ -144,7 +161,54 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
             && !operation.IsCancellationRequested && ReferenceEquals(query, operation) && session.Capture().Version == version;
         // 只监听勾选属性，不把选择状态写入 Contracts DTO。
         private void OnRowChanged(object sender, PropertyChangedEventArgs args)
-        { if (args.PropertyName == nameof(PurchaseOrderListRow.IsChecked)) OnPropertyChanged(nameof(CheckedCount)); }
+        { if (args.PropertyName == nameof(PurchaseOrderListRow.IsChecked)) { OnPropertyChanged(nameof(CheckedCount)); RefreshCommands(); } }
+
+        // 单张与批量共享门禁，冻结目录和订单身份；迟到的进度或结果不能回填新账号页面。
+        private async Task ExportAsync(bool checkedOrders)
+        {
+            if (!CanBrowse || string.IsNullOrWhiteSpace(OutputPath)) return;
+            var ids = checkedOrders ? Orders.Where(row => row.IsChecked).Select(row => row.Order.PurchaseOrderId).ToArray()
+                : SelectedOrder != null && Orders.Contains(SelectedOrder) ? new[] { SelectedOrder.Order.PurchaseOrderId } : new Guid[0];
+            if (ids.Length == 0) return;
+            var path = OutputPath; var operation = new CancellationTokenSource(); var version = session.Capture().Version;
+            export = operation; IsBusy = true; ErrorMessage = ""; ExportReport = "";
+            OnPropertyChanged(nameof(CanBrowse)); OnPropertyChanged(nameof(IsExporting));
+            try
+            {
+                var result = await exporter.ExportAsync(ids, path, message =>
+                {
+                    if (CanAcceptExport(operation, version)) StatusText = message;
+                }, operation.Token);
+                if (!CanAcceptExport(operation, version)) return;
+                StatusText = "导出完成：成功 " + result.Files.Count + " 张，失败 " + result.FailedCount + " 张。";
+                ExportReport = string.Join(Environment.NewLine, result.Files.Concat(result.Messages));
+            }
+            catch (OperationCanceledException) when (operation.IsCancellationRequested || session.Capture().Version != version) { }
+            catch (Exception ex)
+            {
+                if (CanAcceptExport(operation, version))
+                {
+                    ErrorMessage = ex is ArgumentException ? ex.Message : ex is UnauthorizedAccessException
+                        ? "没有输出文件夹的写入权限。" : ex is System.IO.IOException ? "无法创建输出文件夹，请检查路径和磁盘空间。" : errors.Describe(ex);
+                    StatusText = "采购订单导出未完成。";
+                }
+            }
+            finally
+            {
+                if (ReferenceEquals(export, operation))
+                { export = null; IsBusy = false; OnPropertyChanged(nameof(CanBrowse)); OnPropertyChanged(nameof(IsExporting)); RefreshCommands(); }
+                operation.Dispose();
+            }
+        }
+
+        private bool CanAcceptExport(CancellationTokenSource operation, long version) => !IsDisposed
+            && !operation.IsCancellationRequested && ReferenceEquals(export, operation) && session.Capture().Version == version;
+        // 会话通知可能来自 HTTP 线程；立即取消，不能等 Excel 完成当前 COM 批次后才撤销。
+        private void CancelExport()
+        {
+            try { export?.Cancel(); }
+            catch (ObjectDisposedException) { /* 旧批次已结束，结束后的取消无副作用。 */ }
+        }
         private void ClearOrders()
         {
             foreach (var row in Orders) row.PropertyChanged -= OnRowChanged;
@@ -153,15 +217,16 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         // 事件可由 HTTP 线程触发；清空旧账号筛选、行及勾选后，等待用户首次显示或主动查询。
         private async void OnSessionChanged(object sender, EventArgs args)
         {
+            CancelExport();
             try
             {
                 await dispatcher.InvokeAsync(() =>
                 {
                     if (IsDisposed || sessionVersion == session.Capture().Version) return;
                     sessionVersion = session.Capture().Version; initializedVersion = null;
-                    query?.Cancel(); query = null; IsBusy = false;
+                    query?.Cancel(); query = null; export = null; IsBusy = false;
                     ClearOrders(); Keyword = ""; CustomerCode = ""; Confirmation = -1; QuickView = PurchaseDueViewEnum.All;
-                    pageIndex = 1; totalCount = 0; ErrorMessage = "";
+                    pageIndex = 1; totalCount = 0; ErrorMessage = ""; ExportReport = ""; OnPropertyChanged(nameof(IsExporting));
                     StatusText = "账号已变更，请重新查询采购订单。";
                     OnPropertyChanged(nameof(PageStatus)); OnPropertyChanged(nameof(CanBrowse)); RefreshCommands();
                 });
@@ -172,6 +237,7 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         protected override void DisposeCore()
         {
             session.Changed -= OnSessionChanged;
+            CancelExport(); export = null;
             query?.Cancel(); query = null; ClearOrders();
         }
     }

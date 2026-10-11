@@ -18,10 +18,10 @@
         <StackPanel Margin="0,0,0,12">
             <TextBlock Text="Excel 工具栏" FontWeight="SemiBold" Margin="0,0,0,4"/>
             <ui:TextBox x:Name="OutputPathBox" Text="{Binding OutputPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        PlaceholderText="输出路径" AutomationProperties.Name="Excel 输出路径"/>
+                        PlaceholderText="输出路径" IsReadOnly="{Binding IsExporting}" AutomationProperties.Name="Excel 输出路径"/>
             <WrapPanel Margin="0,8,0,0">
-                <ui:Button x:Name="GenerateSelectedButton" Content="生成选中订单成 Excel（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
-                <ui:Button x:Name="GenerateCheckedButton" Content="批量生成勾选订单成 Excel（待实现）" IsEnabled="False" Margin="0,0,0,4"/>
+                <ui:Button x:Name="GenerateSelectedButton" Content="生成选中订单成 Excel" Command="{Binding ExportSelectedCommand}" Margin="0,0,8,4"/>
+                <ui:Button x:Name="GenerateCheckedButton" Content="批量生成勾选订单成 Excel" Command="{Binding ExportCheckedCommand}" Margin="0,0,0,4"/>
                 <TextBlock Text="{Binding CheckedCount, StringFormat=本页已勾选：{0}}" VerticalAlignment="Center" Margin="0,0,8,4"/>
             </WrapPanel>
         </StackPanel>
@@ -65,6 +65,9 @@
         <StackPanel Grid.Row="2" Margin="0,0,0,8">
             <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource SwiftExportError}" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+            <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <TextBlock Text="{Binding ExportReport}" TextWrapping="Wrap" TextOptions.TextFormattingMode="Display"/>
+            </ScrollViewer>
             <TextBlock Text="数量为 — 表示无法汇总；已知已备好合计不代表全部反馈。" FontSize="12" Opacity="0.7"/>
         </StackPanel>
         <DataGrid x:Name="OrdersGrid" Grid.Row="3" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder, Mode=TwoWay}"

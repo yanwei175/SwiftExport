@@ -14,15 +14,24 @@ namespace SwiftExport.Client.VSTO.Testing
         internal ExcelReadProfileDto Profile = new ExcelReadProfileDto { Uid = Guid.NewGuid(), Version = 1, GroupCode = "SalesOrder", ConfigName = "模板", CanRead = true, EndMode = 2, SummaryCellAddress = "D30",
             Fields = new List<ExcelReadFieldDto> { new ExcelReadFieldDto { TargetFieldKey = "Header.InvoiceNo", CellAddress = "M12" },
                 new ExcelReadFieldDto { TargetFieldKey = "Line.CustomerSku", CellAddress = "C18", IsDownward = true }, new ExcelReadFieldDto { TargetFieldKey = "Line.Qty", CellAddress = "J18", IsDownward = true } } };
-        internal int Lists, Gets, Saves;
+        internal int Lists, Gets, Saves, Creates;
+        internal bool NoProfiles;
         internal bool FailSave = false;
+        internal CreateExcelReadProfileRequest LastCreate;
         internal UpdateExcelReadProfileRequest LastRequest;
         internal Func<Task<ServiceResult<ExcelReadProfileDto>>> GetOverride = null;
         public Task<ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>> ListAsync(string groupCode, CancellationToken token = default(CancellationToken))
-        { Lists++; return Task.FromResult(ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>.Ok(new[] { new ExcelReadProfileListItemDto { Uid = Profile.Uid, ConfigName = Profile.ConfigName, GroupCode = Profile.GroupCode, Version = Profile.Version } })); }
+        { Lists++; return Task.FromResult(ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>.Ok(NoProfiles ? new ExcelReadProfileListItemDto[0] : new[] { new ExcelReadProfileListItemDto { Uid = Profile.Uid, ConfigName = Profile.ConfigName, GroupCode = Profile.GroupCode, Version = Profile.Version } })); }
         public Task<ServiceResult<ExcelReadProfileDto>> GetAsync(Guid uid, CancellationToken token = default(CancellationToken))
         { Gets++; return GetOverride != null ? GetOverride() : Task.FromResult(ServiceResult<ExcelReadProfileDto>.Ok(Profile)); }
-        public Task<ServiceResult<ExcelReadProfileDto>> CreateAsync(CreateExcelReadProfileRequest request, CancellationToken token = default(CancellationToken)) => Task.FromResult(ServiceResult<ExcelReadProfileDto>.Ok(Profile));
+        /// <summary>模拟只新建配置头的接口；字段编辑器须由客户端目录生成，不由夹具预置。</summary>
+        public Task<ServiceResult<ExcelReadProfileDto>> CreateAsync(CreateExcelReadProfileRequest request, CancellationToken token = default(CancellationToken))
+        {
+            Creates++; LastCreate = request; NoProfiles = false;
+            Profile = new ExcelReadProfileDto { Uid = Guid.NewGuid(), Version = 1, GroupCode = request.GroupCode,
+                ConfigName = request.ConfigName, Fields = new List<ExcelReadFieldDto>() };
+            return Task.FromResult(ServiceResult<ExcelReadProfileDto>.Ok(Profile));
+        }
         public Task<ServiceResult<ExcelReadProfileDto>> UpdateAsync(Guid uid, UpdateExcelReadProfileRequest request, CancellationToken token = default(CancellationToken))
         {
             Saves++; LastRequest = request;

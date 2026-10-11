@@ -1,21 +1,21 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Updates;
-using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Updates;
 
+/// <summary>使用真实安装版本检查后端最低兼容版本，不依赖可能过期的配置版本。</summary>
 public sealed class ClientVersionService(
     IClientVersionApi clientVersionApi,
     IApiCallRunner apiCallRunner,
-    IOptions<ClientOptions> clientOptions,
+    IClientUpdateService updates,
     ILogger<ClientVersionService> logger) : IClientVersionService
 {
+    /// <summary>读取后端发布策略并区分必须升级、建议升级及检查失败。</summary>
     public async Task<ClientVersionCheckResult> CheckAsync()
     {
-        var currentVersion = clientOptions.Value.Version;
+        var currentVersion = updates.CurrentVersion;
         var result = await apiCallRunner.RunAsync(
             clientVersionApi.GetAsync,
             "版本检查失败");

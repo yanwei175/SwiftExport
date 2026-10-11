@@ -6,6 +6,7 @@ using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Updates;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
@@ -28,6 +29,7 @@ public sealed partial class ShellViewModel : ViewModelBaseEx, IDisposable
     private bool _isDisposed;
     private CancellationTokenSource? _statusResetCancellation;
 
+    /// <summary>组合导航、会话、状态消息及应用级更新状态。</summary>
     public ShellViewModel(
         IOptions<ClientOptions> clientOptions,
         IOptions<ApiOptions> apiOptions,
@@ -36,7 +38,8 @@ public sealed partial class ShellViewModel : ViewModelBaseEx, IDisposable
         INavigationAccessService navigationAccessService,
         INavigationService navigationService,
         ISessionService sessionService,
-        IStatusMessageService statusMessageService)
+        IStatusMessageService statusMessageService,
+        ClientUpdateViewModel updates)
     {
         _navigationService = navigationService;
         _currentUserService = currentUserService;
@@ -51,7 +54,8 @@ public sealed partial class ShellViewModel : ViewModelBaseEx, IDisposable
         var api = apiOptions.Value;
 
         Title = client.ApplicationName;
-        ClientVersion = client.Version;
+        Updates = updates;
+        ClientVersion = updates.CurrentVersion;
         ApiBaseUrl = api.BaseUrl;
         FilteredMenuItems = _menuFilter.Filter(_allMenuItems, MenuSearchText);
         OpenTabs = navigationService.OpenTabs;
@@ -62,6 +66,9 @@ public sealed partial class ShellViewModel : ViewModelBaseEx, IDisposable
     }
 
     private string ClientVersion { get; }
+
+    /// <summary>应用级更新提示与进度，切换登录不会清空已下载包。</summary>
+    public ClientUpdateViewModel Updates { get; }
 
     private string ApiBaseUrl { get; }
 
