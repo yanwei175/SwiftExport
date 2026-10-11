@@ -189,6 +189,11 @@ public sealed class PurchaseDraftCreationService(
                         throw new PurchaseDraftException(PurchaseDraftErrorCodes.IdempotencyPartialState,
                             "已存在同执行请求采购头但缺少完整 Link，数据需要人工检查。");
 
+                    // 追加既有草稿不占新号；首次创建仍需复核全库 BONO，不能依赖预览。
+                    if (await purchaseDraftRepository.BoNoExistsAsync(document.Header.BoNo, cancellationToken))
+                        throw new PurchaseDraftException(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Validation,
+                            "自定义采购单号（BONO）已被未删除的采购订单使用，请修改后重新保存。");
+
                     var number = await documentNoService.GetNextDocumentNoAsync(new DocumentNoRequest
                     {
                         DocType = DocumentTypeStaticsEnum.PurchaseOrder,
@@ -204,9 +209,13 @@ public sealed class PurchaseDraftCreationService(
                 var writeModel = writeModelBuilder.Build(
                     document, command.ExecutionRequestId, purchaseOrderId, orderNo,
                     firstLineNumber, targetMode == PurchaseDraftTargetModeEnum.CreateNew);
-                if (writeModel.Head is not null
-                    && await purchaseDraftRepository.InsertPurchaseDraftAsync(writeModel.Head) != 1)
-                    throw new PurchaseDraftException(PurchaseDraftErrorCodes.PurchaseHeadInsertFailed, "采购草稿头写入失败。");
+                if (writeModel.Head is not null)
+                {
+                    var write = await purchaseDraftRepository.InsertPurchaseDraftAsync(writeModel.Head);
+                    if (!write.Success)
+                        throw new PurchaseDraftException(write.ErrorCode ?? PurchaseDraftErrorCodes.PurchaseHeadInsertFailed,
+                            write.Message ?? "采购草稿头写入失败。");
+                }
                 if (await purchaseDraftRepository.InsertPurchaseDraftLinesAsync(writeModel.Lines) != writeModel.Lines.Count)
                     throw new PurchaseDraftException(PurchaseDraftErrorCodes.PurchaseLineInsertFailed, "采购草稿行写入不完整。");
                 if (await executionLinkRepository.InsertPurchaseLinksAsync(writeModel.Links) != writeModel.Links.Count)

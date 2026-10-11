@@ -6,12 +6,35 @@ using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.ForExcel;
+using SwiftExport.Core.Interfaces.Procurement;
+using SwiftExport.Core.Entities.Procurement;
+using SwiftExport.Contracts.Wrappers;
 namespace SwiftExport.Application.Tests.ForExcel;
 
 /// <summary>采购检查纯托管回归：匹配、非标、鉴权、确认与取消；不连接数据库。</summary>
 [TestClass]
 public sealed class ForExcelPurchaseOrderTests
 {
+    /// <summary>BONO 重复只阻断保存，仍返回可用产品；空号不参与占号。</summary>
+    [TestMethod]
+    public async Task DuplicateBoNoBlocksSaveWithoutDiscardingProductMatch()
+    {
+        var f = new Fixture { DuplicateBoNo = true }; var request = f.Request();
+        var result = await f.Service.CheckAsync(request);
+        Assert.IsFalse(result.Data.CanSave); Assert.AreEqual("REAL-SKU", result.Data.Lines[0].Product.Sku);
+        var issue = result.Data.Issues.Single(x => x.Code == PurchaseOrderImportIssueCodes.BoNoAlreadyExists);
+        Assert.AreEqual("BoNo", issue.Field); Assert.IsFalse(issue.RequiresConfirmation);
+        request.Header.BoNo = "   "; Assert.IsTrue((await f.Service.CheckAsync(request)).Data.CanSave);
+    }
+    /// <summary>没有供应商的独立 SKU 检查仍返回产品，仅整单资格被拒绝。</summary>
+    [TestMethod]
+    public async Task MissingSupplierStillReturnsProductResult()
+    {
+        var f = new Fixture(); var request = f.Request(); request.SupplierId = Guid.Empty;
+        var result = await f.Service.CheckAsync(request);
+        Assert.IsFalse(result.Data.CanSave); Assert.AreEqual("Matched", result.Data.Lines[0].MatchStatus);
+        Assert.AreEqual("REAL-SKU", result.Data.Lines[0].Product.Sku);
+    }
     /// <summary>精确客户型号返回真实 SKU，并保持报价、配置、优惠和 BoNo 输入原样。</summary>
     [TestMethod]
     public async Task MatchesCustomerSkuWithoutOverwritingSnapshots()
@@ -138,14 +161,21 @@ public sealed class ForExcelPurchaseOrderTests
     }
 
     /// <summary>窄仓储和权限替身只观察当前用例，不模拟 SQL Server 事务。</summary>
-    private sealed class Fixture : IForExcelPurchaseOrderRepository,ICurrentUser,IPermissionEvaluationService
+    private sealed class Fixture : IForExcelPurchaseOrderRepository,ICurrentUser,IPermissionEvaluationService,IProcurementOrderDocumentRepository
     {
         internal int Calls,MatchCalls;internal string[] Skus=[];
-        internal bool Allowed=true,UnitEnabled=true;
+        internal bool Allowed=true,UnitEnabled=true,DuplicateBoNo;
         internal PurchaseOrderImportCustomerDto Customer=new(){Uid=Guid.NewGuid(),CustomerCode="C",IsActive=true};
         internal PurchaseOrderImportSupplierDto Supplier=new(){Uid=Guid.NewGuid(),SupplierCode="S",SupplierName="供应商",IsActive=true};
         internal List<PurchaseOrderImportProductCandidateDto> Products=[new(){CustomerProductId=Guid.NewGuid(),ProductId=Guid.NewGuid(),CustomerSku="AQ",Sku="REAL-SKU",LinkSku="L",Unit="PCS",IsUsable=true}];
-        internal ForExcelPurchaseOrderService Service=>new(this,this,this);
+        internal ForExcelPurchaseOrderService Service=>new(this,this,this,this);
+        public Task<bool> BoNoExistsAsync(string? boNo,CancellationToken token)
+        { token.ThrowIfCancellationRequested();Calls++;return Task.FromResult(DuplicateBoNo && !string.IsNullOrEmpty(boNo?.Trim(' '))); }
+        public Task<PurchaseOrderHead?> GetHeadAsync(Guid uid,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<List<PurchaseOrderLine>> GetLinesAsync(Guid uid,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<RepositoryWriteResult> InsertAsync(PurchaseOrderHead h,IReadOnlyList<PurchaseOrderLine> l,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<RepositoryWriteResult> SaveAsync(PurchaseOrderHead h,IReadOnlyList<PurchaseOrderLine> l,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<RepositoryWriteResult> ConfirmAsync(PurchaseOrderHead h,CancellationToken ct)=>throw new NotSupportedException();
         internal CheckPurchaseOrderImportRequest Request()=>new(){CustomerCode="C",SupplierId=Supplier.Uid,
             Header=new(){OrderDate=DateTime.Today,BoNo="AT260820DQ"},
             Lines=[new(){ClientLineId=Guid.NewGuid(),CustomerSku="AQ",LinkSku="L",Quantity=36,UnitPrice=116,FeaturesZh="Excel配置"}]};

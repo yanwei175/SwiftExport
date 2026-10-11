@@ -217,6 +217,7 @@ namespace SwiftExport.Core.Entities.Procurement
     [DbCheck("CK_PurchaseOrderHead_Status", "\"confirmation_status\" IN ( 0 , 1 ) AND \"lifecycle_status\" IN ( 0 , 8 , 9 )")]
     [DbCheck("CK_PurchaseOrderHead_Discount", "\"discount_rate\" IS NULL OR \"discount_rate\" >= 0")]
     [DbIndex("UX_PurchaseOrderHead_OrderNo", nameof(PurchaseOrderHead.OrderNo), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
+    [DbIndex("UX_PurchaseOrderHead_BoNo", nameof(PurchaseOrderHead.BoNo), IsUnique = true, Filter = "\"is_deleted\" = FALSE AND \"bo_no\" IS NOT NULL AND btrim(\"bo_no\", ' ') <> ''")]
     [DbIndex("UX_PurchaseOrderHead_ExecutionRequest", nameof(PurchaseOrderHead.ExecutionRequestId), nameof(PurchaseOrderHead.SupplierId), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
     [LogicalReference(nameof(PurchaseOrderHead.CustomerId), typeof(Customer))]
     [LogicalReference(nameof(PurchaseOrderHead.SupplierId), typeof(Supplier), IsRequired = true)]

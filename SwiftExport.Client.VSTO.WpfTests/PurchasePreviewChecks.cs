@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -29,9 +30,8 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 try
                 {
                     view.UpdateLayout(); Pump();
-                    CheckContainerAnchor(view, check);
                     var grid=(DataGrid)view.FindName("OrderLinesGrid");
-                    ImportLayoutChecks.Run(view, grid, check, expectedPopupCount: 1);
+                    CheckPermanentHeader(view, grid, check);
                     check(view.Content is Grid && grid.ActualHeight > 0
                         && grid.TransformToAncestor(view).Transform(new Point(0, grid.ActualHeight)).Y <= view.ActualHeight,
                         "采购明细在有限窗体高度中显示，不依赖顶层滚动");
@@ -44,9 +44,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(grid.ActualWidth>0 && grid.ActualWidth<window.ActualWidth,"表格横向滚动不会把窗体撑宽");
                     check(grid.Columns.Any(c=>(string)c.Header=="Excel本司型号") && grid.Columns.Any(c=>(string)c.Header=="系统SKU")
                         && grid.Columns.Any(c=>(string)c.Header=="含税单价（可空）"),"原表型号、系统身份及报价列完整");
-                    var discountPopup = (Popup)view.FindName("OtherPopup");
-                    ((ToggleButton)view.FindName("OtherToggleButton")).IsChecked = true; Pump();
-                    var headerBoxes=Descendants<TextBox>(view).Concat(Descendants<TextBox>(discountPopup.Child)).ToArray();
+                    var headerBoxes=Descendants<TextBox>(view).ToArray();
                     var bo=headerBoxes.Single(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.BoNo");
                     bo.Text="BO-EDIT"; bo.GetBindingExpression(TextBox.TextProperty).UpdateSource();
                     check(model.Header.BoNo=="BO-EDIT","单头编辑双向回写");
@@ -55,14 +53,10 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     check(model.Header.Remark=="新的特殊要求","特殊要求绑定 Remark");
                     check(headerBoxes.Any(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.DiscountRateText")
                         && headerBoxes.Any(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path=="Header.DiscountAmountText"),"优惠倍率和整单优惠金额有真实绑定");
-                    var discounts = (ToggleButton)view.FindName("OtherToggleButton");
                     var rate = (TextBox)view.FindName("DiscountRateBox");
                     rate.Text = "bad"; rate.GetBindingExpression(TextBox.TextProperty).UpdateSource(); Pump();
-                    discountPopup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
-                    check(((TextBlock)discounts.Content).Text.Contains("输入有误") && model.Header.DiscountRateText == "bad",
-                        "优惠输入错误在关闭后的入口按钮提示，并保留原始文字");
+                    check(model.ValidationSummary.Contains("优惠") && model.Header.DiscountRateText == "bad", "常驻优惠控件保留非法原文并反馈错误");
                     rate.Text = ""; rate.GetBindingExpression(TextBox.TextProperty).UpdateSource(); Pump();
-                    check(((TextBlock)discounts.Content).Text == "其他表头资料", "修正优惠输入后入口按钮清除错误提示");
                     var date=Descendants<DatePicker>(view).Single(d=>d.GetBindingExpression(DatePicker.SelectedDateProperty)?.ParentBinding.Path?.Path=="Header.DeliveryDate");
                     date.SelectedDate=new DateTime(2026,12,1); check(model.Header.DeliveryDate==new DateTime(2026,12,1),"单头日期双向回写");
                     var line=model.Lines[0]; check(!line.CanEditUnit,"标准单位禁止手工伪造");
@@ -78,6 +72,14 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     model.DeleteSelectedLineCommand.Execute(null); check(model.Lines.Count==0,"多选删除全部目标行");
                     model.AddStandardLineCommand.Execute(null); line=model.Lines[0]; line.CustomerSku="AQ1"; line.QuantityText="1"; line.UnitPriceText="2";
                     Wait(model.CheckImportAsync()); Pump(); check(model.CanSaveDraft && line.Sku=="REAL-SKU","匹配后系统 SKU 及保存资格回显");
+                    CheckMatchPopup(view, grid, line, check);
+                    CheckSortingAndRowType(model, grid, line, view, check);
+                    line.QuantityText="0"; Pump();
+                    var quantityColumn=grid.Columns.OfType<DataGridTextColumn>().Single(c=>Equals(c.Header,"数量"));
+                    var quantityText=(TextBlock)quantityColumn.GetCellContent(line);
+                    check((quantityText.Foreground as SolidColorBrush)?.Color == Colors.Red,"零数量真实显示红色");
+                    line.QuantityText="1"; Pump();
+                    check((quantityText.Foreground as SolidColorBrush)?.Color != Colors.Red,"正数量恢复默认颜色");
                     line.UnitPriceText="bad"; Pump(); check(!model.CanSaveDraft && model.ValidationSummary.Contains("不完整"),"非法价格立即阻断保存并提示统计不完整");
                     fixture.Base.Confirm=false; check(!view.CanClose(),"取消普通关闭保留内存编辑");
                     CheckConfigurationGroups(fixture,check);
@@ -86,24 +88,69 @@ namespace SwiftExport.Client.VSTO.WpfTests
             }
         }
 
-        /// <summary>复现定位在单头容器时，弹层内部鼠标事件不应被误认为再次点击入口。</summary>
-        private static void CheckContainerAnchor(PurchaseOrderImportView view, Action<bool, string> check)
+        /// <summary>表头全部常驻且横向分组；校验列表有高度上限，不挤掉明细。</summary>
+        private static void CheckPermanentHeader(PurchaseOrderImportView view, DataGrid grid, Action<bool,string> check)
         {
-            var popup = (Popup)view.FindName("OtherPopup");
-            var entry = (ToggleButton)view.FindName("OtherToggleButton");
-            entry.IsChecked = true; Pump();
-            var editor = (TextBox)view.FindName("DiscountRateBox");
-            editor.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
-                { RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent });
-            Pump();
-            check(popup.IsOpen && entry.IsChecked == true,
-                "Popup 定位在 StackPanel 时点击内部输入框仍驻留");
-            ((FrameworkElement)popup.PlacementTarget).RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
-                { RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent });
-            Pump();
-            check(popup.IsOpen && entry.IsChecked == true,
-                "StaysOpen=true 时定位容器的点击不能触发入口按钮关闭逻辑");
-            popup.SetCurrentValue(Popup.IsOpenProperty, false); Pump();
+            check(view.FindName("OtherPopup") == null && view.FindName("OtherToggleButton") == null,"采购表头已退出折叠弹层");
+            var fields=Descendants<TextBox>(view).Select(b=>b.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path?.Path).ToArray();
+            foreach(var field in new[]{"CustomerPoNo","BoNo","SalesPerson","Remark","PurchasePerson","InletHoseType","AeratorType","PalletType","BoxType","LabelType","InstructionManualType","CartonType","LogoType","DiscountRateText","DiscountAmountText","DiscountRemark"})
+                check(fields.Contains("Header."+field),"常驻表头双向绑定："+field);
+            var required=Descendants<TextBlock>(view).Where(b=>b.Text.EndsWith(" *",StringComparison.Ordinal)).ToArray();
+            check(required.Length==3 && required.All(b=>(b.Foreground as SolidColorBrush)?.Color==Colors.Red),"客户、供应商、订单日期红星必填提示");
+            var toggle=(Wpf.Ui.Controls.ToggleSwitch)view.FindName("ExtraFieldsSwitch");
+            var optional=grid.Columns.Where(c=>System.Windows.Data.BindingOperations.IsDataBound(c,DataGridColumn.VisibilityProperty)).ToArray();
+            check(optional.Length>0 && optional.All(c=>c.Visibility==Visibility.Collapsed),"默认隐藏次要明细字段");
+            toggle.IsChecked=true; Pump(); check(optional.All(c=>c.Visibility==Visibility.Visible),"更多字段开关能显示全部次要列");
+            toggle.IsChecked=false; Pump();
+            var previousHeight=grid.ActualHeight;
+            var model=(SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels.PurchaseOrderImportViewModel)view.DataContext;
+            for(var i=0;i<150;i++) model.AddStandardLineCommand.Execute(null);
+            Pump(); view.UpdateLayout();
+            check(grid.ActualHeight>view.ActualHeight*0.35 && grid.ActualHeight>=previousHeight-84,"大量错误仅在有上限的提示区域滚动，明细仍有可用高度");
+            model.SetSelectedLines(model.Lines.Skip(1).ToArray()); model.DeleteSelectedLineCommand.Execute(null); Pump();
+            var status=Descendants<TextBlock>(view).First(b=>b.GetBindingExpression(TextBlock.TextProperty)?.ParentBinding.Path?.Path=="ValidationSummary");
+            check((status.Foreground as SolidColorBrush)?.Color==Colors.Red,"顶部校验提示使用红字");
+            check(grid.Columns.Single(c=>Equals(c.Header,"校验")).SortMemberPath=="IsCheckPassed","校验列按通过状态排序");
+            check(grid.Columns.Any(c=>Equals(c.Header,"非标件")) && !grid.Columns.Any(c=>Equals(c.Header,"行类型")),"单一非标复选列取代重复行类型");
+        }
+        /// <summary>真实行模板共享行和页面命令，弹层关闭不覆盖编辑值。</summary>
+        private static void CheckMatchPopup(PurchaseOrderImportView view, DataGrid grid, PurchaseOrderImportLine line, Action<bool,string> check)
+        {
+            Pump(); grid.ScrollIntoView(line); grid.UpdateLayout(); Pump();
+            var column=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"校验"));
+            var content=column.GetCellContent(line);
+            var entry=Descendants<ToggleButton>(content).Single(b=>b.Name=="MatchActionsEntry");
+            var popup=Descendants<Popup>(content).Single(); entry.IsChecked=true; Pump();
+            check(popup.IsOpen && ReferenceEquals(popup.DataContext,line),"行内匹配弹层保持当前行上下文");
+            var button=Descendants<Button>(popup.Child).Single(b=>Equals(b.Content,"匹配本行 SKU"));
+            check(button.Command!=null && ReferenceEquals(button.CommandParameter,line),"行内弹层匹配命令绑定本行");
+            var close=Descendants<Button>(popup.Child).Single(b=>ReferenceEquals(b.Command,ApplicationCommands.Close));
+            ApplicationCommands.Close.Execute(null,close); Pump();
+            check(!popup.IsOpen && entry.IsChecked==false,"行内关闭按钮同步复位入口");
+            var ellipse=Descendants<System.Windows.Shapes.Ellipse>((DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(line)).First(e=>e.Width==10);
+            check((ellipse.Fill as SolidColorBrush)?.Color == ((SolidColorBrush)view.FindResource("UserBusinessTextSuccessBrush")).Color
+                && line.IsCheckPassed,"通过行显示绿色状态圆点");
+            var image=(SwiftExport.Client.VSTO.Resources.Controls.HttpsImage)((DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"系统图片"))).CellTemplate.LoadContent();
+            image.DataContext=new { MainImage="https://example.invalid/test.png" }; Pump();
+            check(image.SourcePath=="https://example.invalid/test.png" && !image.IsLoaded,"图片列保留 HTTPS 路径绑定，未加载模板不下载");
+        }
+        /// <summary>真实视图可将未通过行集中排序，非标复选框使用当前行命令而不依赖选中项。</summary>
+        private static void CheckSortingAndRowType(SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels.PurchaseOrderImportViewModel model,
+            DataGrid grid, PurchaseOrderImportLine passed, PurchaseOrderImportView view, Action<bool,string> check)
+        {
+            model.AddStandardLineCommand.Execute(null); var pending=model.Lines.Last();
+            var collection=System.Windows.Data.CollectionViewSource.GetDefaultView(grid.ItemsSource);
+            collection.SortDescriptions.Add(new SortDescription(nameof(PurchaseOrderImportLine.IsCheckPassed),ListSortDirection.Ascending));
+            Pump(); grid.ScrollIntoView(pending); grid.UpdateLayout(); Pump();
+            check(ReferenceEquals(grid.Items[0],pending) && ReferenceEquals(grid.Items[1],passed),"按校验排序将未通过行放在一起");
+            var row=(DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(pending);
+            var ellipse=Descendants<System.Windows.Shapes.Ellipse>(row).Single(e=>e.Width==10);
+            check((ellipse.Fill as SolidColorBrush)?.Color==((SolidColorBrush)view.FindResource("UserBusinessTextCriticalBrush")).Color,"未通过行显示红色状态圆点");
+            var typeColumn=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"非标件"));
+            var checkbox=Descendants<CheckBox>(typeColumn.GetCellContent(pending)).Single();
+            checkbox.Command.Execute(checkbox.CommandParameter); Pump();
+            check(pending.IsNonStandard && checkbox.IsChecked==true && ReferenceEquals(checkbox.CommandParameter,pending),"非标复选命令只改变当前行并回显");
+            collection.SortDescriptions.Clear(); model.Lines.Remove(pending); Wait(model.CheckImportAsync()); Pump();
         }
         // 独立配置页面的真实分组下拉须和模型一致，取消不能留下界面假选择。
         private static void CheckConfigurationGroups(PurchaseImportTestFixture fixture,Action<bool,string> check)

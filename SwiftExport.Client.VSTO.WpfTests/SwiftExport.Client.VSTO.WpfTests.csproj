@@ -72,7 +72,7 @@
  <Page Include="../SwiftExport.Client.VSTO/Resources/Controls/ExcelCellAddressBox.xaml" Link="Resources/Controls/ExcelCellAddressBox.xaml"/>
  </ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO.Tests/AddressReadTestDoubles.cs" Link="AddressReadTestDoubles.cs"/></ItemGroup>
- <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Models/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Services/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Addresses.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Submission.cs" LinkBase="Production/PurchaseImport"/></ItemGroup>
+ <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Models/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/Services/*.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Addresses.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Submission.cs;../SwiftExport.Client.VSTO/Features/Procurement/PurchaseOrders/ViewModels/PurchaseOrderImportViewModel.Defaults.cs" LinkBase="Production/PurchaseImport"/></ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO.Tests/PurchaseImportTestFixture.cs" Link="PurchaseImportTestFixture.cs"/></ItemGroup>
  <ItemGroup><Compile Include="../SwiftExport.Client.VSTO/Api/ApiClientRegistration.cs;../SwiftExport.Client.VSTO/Api/AuthTokenHandler.cs;../SwiftExport.Client.VSTO/Authentication/IAuthGateway.cs" LinkBase="Production/PurchaseHttp"/></ItemGroup>
  <ItemGroup>

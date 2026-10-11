@@ -49,6 +49,10 @@ public sealed class ProcurementOrderDraftService(
         var customer = (await references.GetCustomerAsync(command.CustomerId, ct))!;
         var supplier = await confirmation.RequireSupplierAsync(command.SupplierId, ct);
         IndependentPurchaseOrderInputPolicy.ValidateHeader(command);
+        // 检查接口仅供预览；正式创建在事务内复核，唯一索引处理并发占号。
+        if (await repository.BoNoExistsAsync(command.BoNo, ct))
+            throw ProcurementOperationException.Validation(
+                "自定义采购单号（BONO）已被未删除的采购订单使用，请修改后重新保存。", "BoNo");
         // 只映射商务快照；系统身份、来源与审计不由输入控制。
         var head = command.Adapt<PurchaseOrderHead>(mappings);
         head.Uid = GuidSequentialGenerator.NewGuid(); head.OriginKind = 2;
@@ -122,7 +126,7 @@ public sealed class ProcurementOrderDraftService(
         head.OrderNo = number.Data.DocumentNo;
         head.ExpectedDate = lines.Min(x => x.PlannedDeliveryDate);
         foreach (var line in lines) line.OrderNo = head.OrderNo;
-        await repository.InsertAsync(head, lines, ct);
+        ProcurementOrderCommandSupport.EnsureWriteSucceeded(await repository.InsertAsync(head, lines, ct));
         var result = ProcurementOrderCommandSupport.Result(head, lines);
         await support.RecordSuccessAsync(command.CommandId, "Create", result, ct);
         return result;

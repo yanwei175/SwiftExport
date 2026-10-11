@@ -4,6 +4,8 @@ using Npgsql;
 using NpgsqlTypes;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Entities.Inventory;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Procurement;
@@ -13,9 +15,26 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Draft;
 
-/// <summary>完整实现需求转采购草稿的PostgreSQL八方法接口；借用当前会话，保留固定写列及生命周期门禁，不接管来源事务。</summary>
+/// <summary>实现需求转采购草稿持久化；借用当前会话，保留固定写列、占号约束及生命周期门禁，不接管来源事务。</summary>
 public sealed class PostgreSqlPurchaseOrderDraftRepository(RepositoryBaseContext context) : IPurchaseOrderDraftRepository
 {
+    private const string BoNoLookupSql = """
+        SELECT EXISTS (SELECT 1 FROM public.purchase_order_head
+            WHERE is_deleted=FALSE AND bo_no IS NOT NULL AND btrim(bo_no,' ')<>''
+              AND btrim(bo_no,' ') COLLATE public.erp_dictionary_ci
+                = btrim(@BoNo,' ') COLLATE public.erp_dictionary_ci);
+        """;
+    /// <summary>在来源事务内查询所有未删除订单的 BONO，不限制状态及双方身份。</summary>
+    public Task<bool> BoNoExistsAsync(string? boNo, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return string.IsNullOrEmpty(boNo?.Trim(' ')) ? Task.FromResult(false)
+            : context.Session.Connection.ExecuteScalarAsync<bool>(new CommandDefinition(BoNoLookupSql,
+                new { BoNo = boNo }, context.Session.Transaction, cancellationToken: cancellationToken));
+    }
+    /// <summary>只将 BONO 唯一约束冲突转换为业务拒绝。</summary>
+    private static bool IsBoNoConflict(PostgresException error)
+        => error.SqlState == PostgresErrorCodes.UniqueViolation && error.ConstraintName == "ux_purchase_order_head_bo_no";
     /// <summary>本仓储固定持久化列及参数，保留原写入范围。</summary>
     private const string HeadInsertSql = """
         INSERT INTO "public"."purchase_order_head" ("uid",
@@ -260,17 +279,26 @@ public sealed class PostgreSqlPurchaseOrderDraftRepository(RepositoryBaseContext
         }, context.Session.Transaction);
     }
 
-    /// <summary>按原45固定头字段新增；保留Application生成的Uid，打戳后清软删，仅非正版本调整为1，返回影响行数。</summary>
-    public async Task<int> InsertPurchaseDraftAsync(PurchaseOrderHead head)
+    /// <summary>按固定头字段新增并打戳；返回明确写入结果，失败由来源用例回滚。</summary>
+    public async Task<RepositoryWriteResult> InsertPurchaseDraftAsync(PurchaseOrderHead head)
     {
         ArgumentNullException.ThrowIfNull(head);
         if (head.Uid == Guid.Empty) throw new ArgumentException("采购草稿必须由 Application 预生成 Uid。", nameof(head));
         context.AuditStamp.StampForInsert(head);
         head.IsDeleted = false;
         if (head.Version <= 0) head.Version = 1;
-        return await context.Session.Connection.ExecuteAsync(
-            HeadInsertSql,
-            PostgreSqlParameters.Entity(head, Head), context.Session.Transaction);
+        try
+        {
+            var count = await context.Session.Connection.ExecuteAsync(
+                HeadInsertSql, PostgreSqlParameters.Entity(head, Head), context.Session.Transaction);
+            return count == 1 ? RepositoryWriteResult.Ok(head.Uid, null, head.Version)
+                : RepositoryWriteResult.Fail(head.Uid, null, ServiceErrorCodes.BusinessBlocked, "采购草稿头写入失败。");
+        }
+        catch (PostgresException ex) when (IsBoNoConflict(ex))
+        {
+            return RepositoryWriteResult.Fail(head.Uid, null, ServiceErrorCodes.Validation,
+                "自定义采购单号（BONO）已被未删除的采购订单使用，请修改后重新保存。");
+        }
     }
 
     /// <summary>锁现有未删明细后聚合最大行号；父头未删才计入，空集返回0，不宣称明细空范围已加锁。</summary>

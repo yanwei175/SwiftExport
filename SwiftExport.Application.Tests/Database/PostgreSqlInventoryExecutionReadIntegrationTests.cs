@@ -43,7 +43,7 @@ public sealed partial class PostgreSqlInboundQueryMigrationTests
         await f.Add(f.Product);var user=new WorkspaceUser();var context=new RepositoryBaseContext(f.Session,NullLoggerFactory.Instance,new AuditStampService(user),user);
         var draft=new PostgreSqlPurchaseOrderDraftRepository(context);var reversal=new PostgreSqlProcurementReversalRepository(context);
         f.Purchase.DemandSourceType="SO";f.Purchase.DemandSourceUid=Guid.NewGuid();f.Purchase.DemandSourceNo=f.Prefix;f.Purchase.Version=0;f.PurchaseLine.Version=0;f.PurchaseLine.PlannedDeliveryDate=f.Today.AddDays(2);
-        Assert.AreEqual(1,await draft.InsertPurchaseDraftAsync(f.Purchase));Assert.AreEqual(1,f.Purchase.Version);Assert.AreEqual(0,await draft.GetMaxLineNumberForUpdateAsync(f.Purchase.Uid));
+        Assert.IsTrue((await draft.InsertPurchaseDraftAsync(f.Purchase)).Success);Assert.AreEqual(1,f.Purchase.Version);Assert.AreEqual(0,await draft.GetMaxLineNumberForUpdateAsync(f.Purchase.Uid));
         Assert.AreEqual(1,await draft.InsertPurchaseDraftLinesAsync([f.PurchaseLine]));Assert.AreEqual(1,f.PurchaseLine.Version);Assert.AreEqual(1,await draft.GetMaxLineNumberForUpdateAsync(f.Purchase.Uid));
         Assert.AreEqual(f.Purchase.Uid,(await draft.GetByExecutionScopeForUpdateAsync(f.Purchase.ExecutionRequestId,"SO",f.Purchase.DemandSourceUid!.Value,f.Purchase.SupplierId))?.Uid);
         Assert.IsNotNull(await draft.GetSafeDraftForUpdateAsync(f.Purchase.Uid,1));

@@ -1,6 +1,7 @@
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Core.Entities.Procurement;
+using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Core.Interfaces.Procurement;
 
@@ -21,7 +22,10 @@ public interface IPurchaseOrderDraftRepository
     Task<IReadOnlyList<PurchaseOrderHead>> GetPurchaseDraftsByIdsAsync(
         IEnumerable<Guid> uids,
         CancellationToken cancellationToken = default);
-    Task<int> InsertPurchaseDraftAsync(PurchaseOrderHead head);
+    /// <summary>查询全部未删除采购单的非空 BONO，借用来源用例事务。</summary>
+    Task<bool> BoNoExistsAsync(string? boNo, CancellationToken cancellationToken = default);
+    /// <summary>插入采购头并返回结构化拒绝；调用方必须检查失败并回滚。</summary>
+    Task<RepositoryWriteResult> InsertPurchaseDraftAsync(PurchaseOrderHead head);
     Task<int> GetMaxLineNumberForUpdateAsync(Guid purchaseOrderId);
     Task<int> InsertPurchaseDraftLinesAsync(IEnumerable<PurchaseOrderLine> lines);
     Task<int> AdvanceDraftVersionAfterAppendAsync(Guid uid, int expectedVersion);

@@ -106,12 +106,15 @@ END $$;
     private static bool IsDictionary(Type entity) => entity == typeof(SwiftExport.Core.Entities.Systems.Dictionaries.Types.SysDictType)
         || entity == typeof(SwiftExport.Core.Entities.Systems.Dictionaries.Data.SysDictData);
 
-    /// <summary>编码及来源索引复用查询的尾普通空格与 ICU 规则；销售发票索引修剪首尾普通空格，保留原文本及其他索引。</summary>
+    /// <summary>编码及来源索引复用查询的普通空格与 ICU 规则；销售发票和采购 BONO 修剪首尾空格，保留原文本。</summary>
     private static string IndexColumn(Type entity, DbIndexAttribute index, string property)
     {
         // 销售发票在所有未删订单中唯一，首尾普通空格与大小写按保存查重口径处理。
         if (entity == typeof(SwiftExport.Core.Entities.SalesOrders.SalesOrderHeader)
             && index.Name == "UX_SalesOrderHeader_InvoiceNo" && property == "InvoiceNo")
+            return $"(btrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)";
+        if (entity == typeof(SwiftExport.Core.Entities.Procurement.PurchaseOrderHead)
+            && index.Name == "UX_PurchaseOrderHead_BoNo" && property == "BoNo")
             return $"(btrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)";
         if (IsDictionary(entity) && property == "DictCode") return $"rtrim({Column(entity, property)}, ' ')";
         var approvedCode = entity == typeof(SwiftExport.Core.Entities.MasterData.Customer)

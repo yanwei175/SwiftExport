@@ -175,10 +175,12 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
                         else
                         {
                             if (result.Header == null) throw new InvalidOperationException("没有可读取的单头字段。");
-                            if (string.IsNullOrWhiteSpace(result.Header.CustomerCode)) result.Header.CustomerCode = Header.CustomerCode;
-                            customerId = Guid.Empty; CustomerName = "";
-                            header.PropertyChanged -= HeaderChanged; header = result.Header; header.PropertyChanged += HeaderChanged; OnPropertyChanged(nameof(Header));
-                            foreach (var line in Lines) line.ResetMatch();
+                            // 只更新确实读取的配置字段；配置为空明确清空，未配置不覆盖默认及手工资料。
+                            var readKeys = snapshot.Rows.SelectMany(row => row).Select(cell => cell.FieldKey).ToArray();
+                            foreach (var field in addressDefinition.Fields.Where(field => field.ModelType == addressDefinition.HeaderType && readKeys.Contains(field.FieldKey)))
+                                field.Assign(Header, field.ModelType.GetProperty(field.PropertyName).GetValue(result.Header));
+                            ResolveCustomerCode();
+                            foreach (var line in Lines) line.InvalidateCheck();
                         }
                     }
                     finally { applyingParsedPart = false; }
@@ -191,7 +193,7 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
             finally
             {
                 var refresh = false;
-                try { await dispatcher.InvokeAsync(() => { if (!Accept(version)) return; parsing = false; NotifyState(); refresh = refreshPending; refreshPending = false; }); }
+                try { await dispatcher.InvokeAsync(() => { if (!Accept(version)) return; parsing = false; NotifyState(); RequestDefaults(); refresh = refreshPending; refreshPending = false; }); }
                 catch (OperationCanceledException) { }
                 if (refresh && Accept(version))
                 {

@@ -1516,6 +1516,7 @@ CREATE INDEX "ix_purchase_confirmation_node_line" ON "public"."purchase_confirma
 CREATE INDEX "ix_purchase_confirmation_node_product" ON "public"."purchase_confirmation_node" ("component_product_id");
 CREATE FUNCTION public."fn_purchase_confirmation_node_append_only"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION USING ERRCODE = 'P3100', MESSAGE = '只追加事实禁止更新或删除'; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_purchase_confirmation_node_append_only" BEFORE UPDATE OR DELETE ON "public"."purchase_confirmation_node" FOR EACH ROW EXECUTE FUNCTION public."fn_purchase_confirmation_node_append_only"();
+CREATE UNIQUE INDEX "ux_purchase_order_head_bo_no" ON "public"."purchase_order_head" ((btrim("bo_no", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE AND "bo_no" IS NOT NULL AND btrim("bo_no", ' ') <> '';
 CREATE UNIQUE INDEX "ux_purchase_order_head_execution_request" ON "public"."purchase_order_head" ("execution_request_id", "supplier_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_purchase_order_head_order_no" ON "public"."purchase_order_head" ("order_no") WHERE "is_deleted" = FALSE;
 CREATE FUNCTION public."fn_purchase_order_head_immutable_identity"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW."origin_kind" IS DISTINCT FROM OLD."origin_kind" OR NEW."execution_request_id" IS DISTINCT FROM OLD."execution_request_id" THEN RAISE EXCEPTION USING ERRCODE = 'P3101', MESSAGE = '成立身份不可修改'; END IF; RETURN NEW; END; $body$;

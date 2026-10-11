@@ -11,11 +11,12 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.ForExcel;
+using SwiftExport.Core.Interfaces.Procurement;
 namespace SwiftExport.Application.Services.ForExcel;
 
 /// <summary>只读检查采购快照；不改输入、写库、关联需求或计算整单优惠。</summary>
 public sealed class ForExcelPurchaseOrderService(IForExcelPurchaseOrderRepository repository, ICurrentUser user,
-    IPermissionEvaluationService permissions) : IForExcelPurchaseOrderService
+    IPermissionEvaluationService permissions, IProcurementOrderDocumentRepository orders) : IForExcelPurchaseOrderService
 {
     /// <inheritdoc />
     public async Task<ServiceResult<CheckPurchaseOrderImportResponse>> CheckAsync(CheckPurchaseOrderImportRequest request, CancellationToken token = default)
@@ -32,6 +33,9 @@ public sealed class ForExcelPurchaseOrderService(IForExcelPurchaseOrderRepositor
         var result = new CheckPurchaseOrderImportResponse();
         try { IndependentPurchaseOrderInputPolicy.ValidateHeader(request.Header.Adapt<CreateIndependentPurchaseOrderCommand>()); }
         catch (ProcurementOperationException ex) { Add(result.Issues,ex.Code,ex.Field,ex.Message); }
+        if (await orders.BoNoExistsAsync(request.Header.BoNo, token))
+            Add(result.Issues, PurchaseOrderImportIssueCodes.BoNoAlreadyExists, "BoNo",
+                "自定义采购单号（BONO）已被未删除的采购订单使用，请修改后重新保存。");
         var customers = string.IsNullOrWhiteSpace(request.CustomerCode) ? []
             : await repository.FindCustomersAsync(request.CustomerCode.Trim(),token);
         if (customers.Count != 1 || !customers[0].IsActive || customers[0].Uid == Guid.Empty)

@@ -19,6 +19,7 @@ using SwiftExport.Contracts.Apis.ForExcel;
 using SwiftExport.Contracts.Apis.Procurement;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.Apis.CustomerApis;
 
 namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
 {
@@ -39,10 +40,10 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         /// <summary>构造只接线，基础资料及配置首次使用才加载。</summary>
         public PurchaseOrderImportViewModel(IReferenceDataCacheService referenceData, SessionService session, IUiDispatcher dispatcher,
             ApiCallRunner errors, ISalesOrderImportPrompt prompt, ExcelReadProfileService profiles, IExcelAddressReader reader,
-            ExcelImportRegistry registry, IForExcelPurchaseOrderApi checkApi, IProcurementOrderApi orderApi)
+            ExcelImportRegistry registry, IForExcelPurchaseOrderApi checkApi, IProcurementOrderApi orderApi, ICustomerPoConfigApi configApi)
         {
             ReferenceData=referenceData; this.session=session; this.dispatcher=dispatcher; this.errors=errors; this.prompt=prompt;
-            this.checkApi=checkApi; this.orderApi=orderApi; pageVersion=session.Capture().Version; Title="采购订单导入";
+            this.checkApi=checkApi; this.orderApi=orderApi; this.configApi=configApi; pageVersion=session.Capture().Version; Title="采购订单导入";
             header.PropertyChanged+=HeaderChanged; Lines.CollectionChanged+=LinesChanged; session.Changed+=SessionChanged;
             ((INotifyCollectionChanged)ReferenceData.DictionaryValues).CollectionChanged+=DictionaryChanged;
             InitializeCommand=new AsyncRelayCommand(InitializeAsync,()=>Accept(pageVersion) && !initializing && !parsing && !SubmissionLocked);
@@ -52,11 +53,16 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
             ToggleNonStandardCommand=new RelayCommand<PurchaseOrderImportLine>(l=>l.SetNonStandard(!l.IsNonStandard),l=>IsEditable && l!=null && Lines.Contains(l));
             ChooseMatchCommand=new RelayCommand<PurchaseOrderImportLine>(l=>l.ChooseMatchCandidate(),l=>IsEditable && l!=null && Lines.Contains(l));
             ClearDeliverySupplierCommand=new RelayCommand<PurchaseOrderImportLine>(l=>l.DeliverySupplierId=null,l=>IsEditable && l!=null && Lines.Contains(l));
-            CheckImportCommand=new AsyncRelayCommand(CheckImportAsync,()=>IsEditable && HasCreatePermission && Lines.Count>0);
+            CheckImportCommand=new AsyncRelayCommand(CheckImportAsync,()=>CanMatchSkus && !configLoading && Lines.Count>0);
+            MatchAllSkusCommand=new AsyncRelayCommand(()=>MatchSkusAsync(),()=>CanMatchSkus && Lines.Count>0);
+            MatchLineSkuCommand=new AsyncRelayCommand<PurchaseOrderImportLine>(l=>MatchSkusAsync(l),l=>CanMatchSkus && l!=null && Lines.Contains(l));
+            CustomerSelectedCommand=new RelayCommand(CommitCustomer,()=>IsEditable);
+            CustomerClearedCommand=new RelayCommand(()=>CommitCustomer(null),()=>IsEditable);
+            RefreshDefaultsCommand=new AsyncRelayCommand(()=>LoadDefaultsAsync(true),()=>IsEditable && !configLoading && HasParties);
             SaveDraftCommand=new AsyncRelayCommand(SaveDraftAsync,()=>CanSaveDraft);
             RetrySaveCommand=new AsyncRelayCommand(SaveDraftAsync,()=>Accept(pageVersion) && HasCreatePermission && HasPendingSave && !saving);
             NewImportCommand=new RelayCommand(StartNewImport,()=>Accept(pageVersion) && completed && !saving);
-            foreach(var command in new IRelayCommand[] { InitializeCommand,AddStandardLineCommand,AddNonStandardLineCommand,DeleteSelectedLineCommand,ToggleNonStandardCommand,ChooseMatchCommand,ClearDeliverySupplierCommand,CheckImportCommand,SaveDraftCommand,RetrySaveCommand,NewImportCommand }) RegisterCommand(command);
+            foreach(var command in new IRelayCommand[] { InitializeCommand,AddStandardLineCommand,AddNonStandardLineCommand,DeleteSelectedLineCommand,ToggleNonStandardCommand,ChooseMatchCommand,ClearDeliverySupplierCommand,CheckImportCommand,MatchAllSkusCommand,MatchLineSkuCommand,CustomerSelectedCommand,CustomerClearedCommand,RefreshDefaultsCommand,SaveDraftCommand,RetrySaveCommand,NewImportCommand }) RegisterCommand(command);
             InitializeAddresses(profiles,reader,registry);
         }
         /// <summary>借用缓存，不编辑其中 DTO。</summary>
@@ -66,8 +72,8 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         /// <summary>当前内存明细。</summary>
         public ObservableCollection<PurchaseOrderImportLine> Lines { get; } = new ObservableCollection<PurchaseOrderImportLine>();
         /// <summary>用户明确选择实际采购供应商。</summary>
-        public SupplierDto SelectedSupplier { get => selectedSupplier; set { if(SetProperty(ref selectedSupplier,value) && !resetting) { InvalidateSubmission(); dirty=true; NotifyState(); } } }
-        /// <summary>检验后显示客户名称，不按名称猜身份。</summary>
+        public SupplierDto SelectedSupplier { get => selectedSupplier; set { if(SetProperty(ref selectedSupplier,value) && !resetting) { CancelDefaults(); InvalidateSubmission(); dirty=true; NotifyState(); RequestDefaults(); } } }
+        /// <summary>缓存明确定位的客户名称，不按名称猜身份。</summary>
         public string CustomerName { get => customerName; private set => SetProperty(ref customerName,value); }
         /// <summary>系统生成的采购号，与 Excel BoNo 分开。</summary>
         public string OrderNo { get => orderNo; private set => SetProperty(ref orderNo,value); }
@@ -131,8 +137,8 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         // 客户代码变化撤销旧关联，保留商业资料供重新匹配。
         private void HeaderChanged(object sender,PropertyChangedEventArgs args)
         {
-            if(resetting || applyingSubmission || args.PropertyName==nameof(Header.Error)) return;
-            if(args.PropertyName==nameof(Header.CustomerCode)) { CustomerName=""; customerId=Guid.Empty; foreach(var line in Lines) line.ResetMatch(); }
+            if(resetting || applyingParsedPart || applyingSubmission || args.PropertyName==nameof(Header.Error)) return;
+            if(args.PropertyName==nameof(Header.CustomerCode)) ResolveCustomerCode();
             dirty=true; InvalidateSubmission(); NotifyState();
         }
         // 行展示通知可能成组触发；只撤销整单资格，不覆盖输入值。
@@ -147,7 +153,7 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         private async void DictionaryChanged(object sender,NotifyCollectionChangedEventArgs args) { await DeliverAsync(()=>OnPropertyChanged(nameof(Units))); }
         private void NotifyState()
         {
-            foreach(var key in new[] { nameof(IsEditable),nameof(IsReadOnly),nameof(HasEdits),nameof(CanSaveDraft),nameof(HasPendingSave),nameof(PendingCommandId),nameof(TotalAmount),nameof(TotalQuantity),nameof(ValidationSummary),nameof(CanSelectReadProfile) }) OnPropertyChanged(key);
+            foreach(var key in new[] { nameof(IsEditable),nameof(IsReadOnly),nameof(HasEdits),nameof(IsDefaultsLoading),nameof(CanSaveDraft),nameof(CanMatchSkus),nameof(HasPendingSave),nameof(PendingCommandId),nameof(TotalAmount),nameof(TotalQuantity),nameof(ValidationSummary),nameof(CanSelectReadProfile) }) OnPropertyChanged(key);
             RefreshCommands();
         }
         // HTTP 管线可能从后台发出身份通知，清空编辑必须回到 Excel STA。
@@ -161,9 +167,9 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         }
         private void StartNewImport() { if(!NewImportCommand.CanExecute(null)) return; resetting=true; try { ClearDocument(); completed=false; serverCanSave=false; } finally { resetting=false; NotifyState(); } }
         // 调用者处于 resetting 状态，重建输入不产生脏标记或沿用旧身份。
-        private void ClearDocument() { Lines.Clear(); selectedLines.Clear(); SelectedSupplier=null; header.PropertyChanged-=HeaderChanged; header=new PurchaseOrderImportHeader(); header.PropertyChanged+=HeaderChanged; customerId=Guid.Empty; CustomerName=OrderNo=ParseMessage=SubmissionMessage=""; dirty=false; checkedRevision=-1; documentRevision++; OnPropertyChanged(nameof(Header)); }
+        private void ClearDocument() { CancelDefaults(); requestedPairs.Clear(); SelectedCustomer=null; DefaultsMessage=""; Lines.Clear(); selectedLines.Clear(); SelectedSupplier=null; header.PropertyChanged-=HeaderChanged; header=new PurchaseOrderImportHeader(); header.PropertyChanged+=HeaderChanged; customerId=Guid.Empty; CustomerName=OrderNo=ParseMessage=SubmissionMessage=""; dirty=false; checkedRevision=-1; documentRevision++; OnPropertyChanged(nameof(Header)); }
         private async Task DeliverAsync(Action action) { if(IsDisposed) return; try { await dispatcher.InvokeAsync(()=> { if(!IsDisposed) action(); }); } catch(OperationCanceledException) { } }
         /// <summary>取消异步请求及配置身份订阅，解绑行通知，不停止宿主消息循环。</summary>
-        protected override void DisposeCore() { submissionLifetime.Cancel(); submissionLifetime.Dispose(); DisposeAddresses(); session.Changed-=SessionChanged; ((INotifyCollectionChanged)ReferenceData.DictionaryValues).CollectionChanged-=DictionaryChanged; header.PropertyChanged-=HeaderChanged; Lines.CollectionChanged-=LinesChanged; foreach(var line in tracked) line.PropertyChanged-=LineChanged; tracked.Clear(); }
+        protected override void DisposeCore() { CancelDefaults(); submissionLifetime.Cancel(); submissionLifetime.Dispose(); DisposeAddresses(); session.Changed-=SessionChanged; ((INotifyCollectionChanged)ReferenceData.DictionaryValues).CollectionChanged-=DictionaryChanged; header.PropertyChanged-=HeaderChanged; Lines.CollectionChanged-=LinesChanged; foreach(var line in tracked) line.PropertyChanged-=LineChanged; tracked.Clear(); }
     }
 }

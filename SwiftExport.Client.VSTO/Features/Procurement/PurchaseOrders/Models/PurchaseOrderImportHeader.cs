@@ -10,84 +10,99 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models
     {
         private string CustomerCodeValue = "";
         /// <summary>客户代码的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.CustomerCode", "客户代码")]
+        [ExcelImportField("Header.CustomerCode", "客户代码", DisplayOrder = 10)]
         public string CustomerCode { get => CustomerCodeValue; set => SetProperty(ref CustomerCodeValue, value); }
-        private string BoNoValue = "";
-        /// <summary>Excel采购单号的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.BoNo", "自定义采购单号")]
-        public string BoNo { get => BoNoValue; set => SetProperty(ref BoNoValue, value); }
+
         private string CustomerPoNoValue = "";
         /// <summary>客户PO的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.CustomerPoNo", "客户PO号")]
+        [ExcelImportField("Header.CustomerPoNo", "客户PO号", DisplayOrder = 11)]
         public string CustomerPoNo { get => CustomerPoNoValue; set => SetProperty(ref CustomerPoNoValue, value); }
+
+        private string BoNoValue = "";
+        /// <summary>Excel采购单号的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.BoNo", "自定义采购单号", DisplayOrder = 12)]
+        public string BoNo { get => BoNoValue; set => SetProperty(ref BoNoValue, value); }
         private string SalesPersonValue = "";
         /// <summary>业务员的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.SalesPerson", "业务员")]
+        [ExcelImportField("Header.SalesPerson", "业务员", DisplayOrder = 13)]
         public string SalesPerson { get => SalesPersonValue; set => SetProperty(ref SalesPersonValue, value); }
-        private string PurchasePersonValue = "";
-        /// <summary>跟单员的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.PurchasePerson", "跟单员")]
-        public string PurchasePerson { get => PurchasePersonValue; set => SetProperty(ref PurchasePersonValue, value); }
-        private string InletHoseTypeValue = "";
-        /// <summary>进水管的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.InletHoseType", "进水管")]
-        public string InletHoseType { get => InletHoseTypeValue; set => SetProperty(ref InletHoseTypeValue, value); }
-        private string AeratorTypeValue = "";
-        /// <summary>起泡器的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.AeratorType", "起泡器")]
-        public string AeratorType { get => AeratorTypeValue; set => SetProperty(ref AeratorTypeValue, value); }
-        private string PalletTypeValue = "";
-        /// <summary>托盘的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.PalletType", "托盘")]
-        public string PalletType { get => PalletTypeValue; set => SetProperty(ref PalletTypeValue, value); }
-        private string BoxTypeValue = "";
-        /// <summary>内盒的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.BoxType", "内盒")]
-        public string BoxType { get => BoxTypeValue; set => SetProperty(ref BoxTypeValue, value); }
-        private string LabelTypeValue = "";
-        /// <summary>标贴的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.LabelType", "标贴")]
-        public string LabelType { get => LabelTypeValue; set => SetProperty(ref LabelTypeValue, value); }
-        private string InstructionManualTypeValue = "";
-        /// <summary>说明书的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.InstructionManualType", "说明书")]
-        public string InstructionManualType { get => InstructionManualTypeValue; set => SetProperty(ref InstructionManualTypeValue, value); }
-        private string CartonTypeValue = "";
-        /// <summary>外箱的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.CartonType", "外箱")]
-        public string CartonType { get => CartonTypeValue; set => SetProperty(ref CartonTypeValue, value); }
-        private string LogoTypeValue = "";
-        /// <summary>商标的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.LogoType", "商标")]
-        public string LogoType { get => LogoTypeValue; set => SetProperty(ref LogoTypeValue, value); }
         private string RemarkValue = "";
         /// <summary>特殊要求的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.Remark", "特殊要求")]
+        [ExcelImportField("Header.Remark", "特殊要求", DisplayOrder = 14)]
         public string Remark { get => RemarkValue; set => SetProperty(ref RemarkValue, value); }
-        private string DiscountRemarkValue = "";
-        /// <summary>优惠备注的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.DiscountRemark", "优惠备注")]
-        public string DiscountRemark { get => DiscountRemarkValue; set => SetProperty(ref DiscountRemarkValue, value); }
-        private string DiscountRateTextValue = "";
-        /// <summary>优惠倍率的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.DiscountRate", "优惠倍率")]
-        public string DiscountRateText { get => DiscountRateTextValue; set => SetProperty(ref DiscountRateTextValue, value); }
-        private string DiscountAmountTextValue = "";
-        /// <summary>整单优惠金额的编辑值，保留原始输入。</summary>
-        [ExcelImportField("Header.DiscountAmount", "整单优惠金额")]
-        public string DiscountAmountText { get => DiscountAmountTextValue; set => SetProperty(ref DiscountAmountTextValue, value); }
 
         private DateTime? orderDate = DateTime.Today, replyDate, deliveryDate;
         /// <summary>订单日期；解析时缺失保持为空。</summary>
-        [ExcelImportField("Header.OrderDate", "订单日期")]
+        [ExcelImportField("Header.OrderDate", "订单日期", DisplayOrder = 20)]
         public DateTime? OrderDate { get => orderDate; set => SetProperty(ref orderDate, value); }
-        /// <summary>供应商回复日期。</summary>
-        [ExcelImportField("Header.ReplyDate", "回复交期")]
-        public DateTime? ReplyDate { get => replyDate; set => SetProperty(ref replyDate, value); }
 
         /// <summary>新手工行采用此日期；之后不自动覆盖行交期。</summary>
-        [ExcelImportField("Header.DeliveryDate", "预计交期")]
+        [ExcelImportField("Header.DeliveryDate", "预计交期", DisplayOrder = 21)]
         public DateTime? DeliveryDate { get => deliveryDate; set => SetProperty(ref deliveryDate, value); }
+
+        /// <summary>供应商回复日期。</summary>
+        [ExcelImportField("Header.ReplyDate", "回复交期", DisplayOrder = 22)]
+        public DateTime? ReplyDate { get => replyDate; set => SetProperty(ref replyDate, value); }
+
+        private string PurchasePersonValue = "";
+        /// <summary>跟单员的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.PurchasePerson", "跟单员", DisplayOrder = 23)]
+        public string PurchasePerson { get => PurchasePersonValue; set => SetProperty(ref PurchasePersonValue, value); }
+
+
+        private string InletHoseTypeValue = "";
+        /// <summary>进水管的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.InletHoseType", "进水管", DisplayOrder = 31)]
+        public string InletHoseType { get => InletHoseTypeValue; set => SetProperty(ref InletHoseTypeValue, value); }
+        private string AeratorTypeValue = "";
+        /// <summary>起泡器的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.AeratorType", "起泡器", DisplayOrder = 32)]
+        public string AeratorType { get => AeratorTypeValue; set => SetProperty(ref AeratorTypeValue, value); }
+        private string PalletTypeValue = "";
+        /// <summary>托盘的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.PalletType", "托盘", DisplayOrder = 33)]
+        public string PalletType { get => PalletTypeValue; set => SetProperty(ref PalletTypeValue, value); }
+
+
+        private string BoxTypeValue = "";
+        /// <summary>内盒的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.BoxType", "内盒", DisplayOrder = 40)]
+        public string BoxType { get => BoxTypeValue; set => SetProperty(ref BoxTypeValue, value); }
+        private string LabelTypeValue = "";
+        /// <summary>标贴的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.LabelType", "标贴", DisplayOrder = 41)]
+        public string LabelType { get => LabelTypeValue; set => SetProperty(ref LabelTypeValue, value); }
+        private string InstructionManualTypeValue = "";
+        /// <summary>说明书的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.InstructionManualType", "说明书", DisplayOrder = 42)]
+        public string InstructionManualType { get => InstructionManualTypeValue; set => SetProperty(ref InstructionManualTypeValue, value); }
+        private string CartonTypeValue = "";
+        /// <summary>外箱的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.CartonType", "外箱", DisplayOrder = 43)]
+        public string CartonType { get => CartonTypeValue; set => SetProperty(ref CartonTypeValue, value); }
+
+
+        private string LogoTypeValue = "";
+        /// <summary>商标的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.LogoType", "光标", DisplayOrder = 50)]
+        public string LogoType { get => LogoTypeValue; set => SetProperty(ref LogoTypeValue, value); }
+
+
+        private string DiscountRateTextValue = "";
+        /// <summary>优惠倍率的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.DiscountRate", "优惠倍率", DisplayOrder = 60)]
+        public string DiscountRateText { get => DiscountRateTextValue; set => SetProperty(ref DiscountRateTextValue, value); }
+        private string DiscountAmountTextValue = "";
+        /// <summary>整单优惠金额的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.DiscountAmount", "整单优惠金额", DisplayOrder = 61)]
+        public string DiscountAmountText { get => DiscountAmountTextValue; set => SetProperty(ref DiscountAmountTextValue, value); }
+
+
+        private string DiscountRemarkValue = "";
+        /// <summary>优惠备注的编辑值，保留原始输入。</summary>
+        [ExcelImportField("Header.DiscountRemark", "优惠备注", DisplayOrder = 62)]
+        public string DiscountRemark { get => DiscountRemarkValue; set => SetProperty(ref DiscountRemarkValue, value); }
+
 
         /// <summary>记录性倍率，空值不伪造为零。</summary>
         public decimal? DiscountRate => PurchaseImportNumbers.Parse(DiscountRateText);

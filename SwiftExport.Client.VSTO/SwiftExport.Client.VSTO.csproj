@@ -428,6 +428,7 @@
     <Compile Include="Features\Procurement\PurchaseOrders\Services\*.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Addresses.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Submission.cs" />
+    <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderImportViewModel.Defaults.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\ViewModels\PurchaseOrderListViewModel.cs" />
     <Compile Include="Features\Procurement\PurchaseOrders\Views\PurchaseOrderListView.xaml.cs">
       <DependentUpon>PurchaseOrderListView.xaml</DependentUpon>

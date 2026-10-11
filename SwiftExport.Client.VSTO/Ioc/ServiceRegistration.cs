@@ -50,6 +50,7 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton<AuthService>();
             services.AddSingleton<ApiCallRunner>();
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ICustomerApi>("api/Customer"));
+            services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ICustomerPoConfigApi>("api/CustomerPoConfig"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<ISupplierApi>("api/Supplier"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IWarehouseSiteApi>("api/inventory/warehouse-sites"));
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<IProductColorApi>("api/ProductColor"));

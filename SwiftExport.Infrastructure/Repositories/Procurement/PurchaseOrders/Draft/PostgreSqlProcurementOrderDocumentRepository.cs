@@ -1,5 +1,6 @@
 using SwiftExport.Contracts.DTOs.Errors;
 using Dapper;
+using Npgsql;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Procurement;
 using SwiftExport.Core.Interfaces.Procurement;
@@ -12,6 +13,22 @@ namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Dra
 /// <summary>在调用方 PG 事务内读取、创建并保存采购头行，保留原商务白名单和版本结果，不接管业务事务。</summary>
 public sealed class PostgreSqlProcurementOrderDocumentRepository(RepositoryBaseContext context) : IProcurementOrderDocumentRepository
 {
+    private const string BoNoLookupSql = """
+        SELECT EXISTS (SELECT 1 FROM public.purchase_order_head
+            WHERE is_deleted=FALSE AND bo_no IS NOT NULL AND btrim(bo_no,' ')<>''
+              AND btrim(bo_no,' ') COLLATE public.erp_dictionary_ci
+                = btrim(@BoNo,' ') COLLATE public.erp_dictionary_ci);
+        """;
+    /// <summary>在调用方事务内查询全库有效占号；仅普通空格组成的 BONO 不占号。</summary>
+    public Task<bool> BoNoExistsAsync(string? boNo, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        return string.IsNullOrEmpty(boNo?.Trim(' ')) ? Task.FromResult(false)
+            : context.Session.Connection.ExecuteScalarAsync<bool>(Command(BoNoLookupSql, new { BoNo = boNo }, ct));
+    }
+    /// <summary>只识别 BONO 唯一约束，其他数据库故障保持原异常分类。</summary>
+    private static bool IsBoNoConflict(PostgresException error)
+        => error.SqlState == PostgresErrorCodes.UniqueViolation && error.ConstraintName == "ux_purchase_order_head_bo_no";
     /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
     private const string HeadInsertSql = """
         INSERT INTO "public"."purchase_order_head" ("uid",
@@ -226,15 +243,26 @@ public sealed class PostgreSqlProcurementOrderDocumentRepository(RepositoryBaseC
     }
 
     /// <summary>按源独立采购列清单插入头行，保留调用方身份和版本；来源头三列与行两列仍强制写空。</summary>
-    public async Task InsertAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct)
+    public async Task<RepositoryWriteResult> InsertAsync(PurchaseOrderHead head, IReadOnlyList<PurchaseOrderLine> lines, CancellationToken ct)
     {
         context.AuditStamp.StampForInsert(head);
-        await context.Session.Connection.ExecuteAsync(Command(HeadInsertSql, PostgreSqlParameters.Entity(head, Head), ct));
+        try
+        {
+            if (await context.Session.Connection.ExecuteAsync(Command(HeadInsertSql, PostgreSqlParameters.Entity(head, Head), ct)) != 1)
+                return RepositoryWriteResult.Fail(head.Uid, null, ServiceErrorCodes.BusinessBlocked, "采购头写入失败。");
+        }
+        catch (PostgresException ex) when (IsBoNoConflict(ex))
+        {
+            return RepositoryWriteResult.Fail(head.Uid, null, ServiceErrorCodes.Validation,
+                "自定义采购单号（BONO）已被未删除的采购订单使用，请修改后重新保存。");
+        }
         foreach (var line in lines)
         {
             context.AuditStamp.StampForInsert(line);
-            await context.Session.Connection.ExecuteAsync(Command(LineInsertSql, PostgreSqlParameters.Entity(line, Line), ct));
+            if (await context.Session.Connection.ExecuteAsync(Command(LineInsertSql, PostgreSqlParameters.Entity(line, Line), ct)) != 1)
+                return RepositoryWriteResult.Fail(line.Uid, null, ServiceErrorCodes.BusinessBlocked, "采购行写入失败。");
         }
+        return RepositoryWriteResult.Ok(head.Uid, null, head.Version);
     }
 
     /// <summary>仅保存原头行商务字段；任一原版本未命中返回相同失败，由调用方回滚，不自行重试或推进实体版本。</summary>

@@ -24,6 +24,10 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         private string submissionMessage="";
         /// <summary>只读检验并定位客户、供应商和标准产品。</summary>
         public IAsyncRelayCommand CheckImportCommand { get; }
+        /// <summary>匹配全部行，单头问题不丢弃有效产品结果，不授予保存资格。</summary>
+        public IAsyncRelayCommand MatchAllSkusCommand { get; }
+        /// <summary>仅匹配指定当前行，不覆盖其他行。</summary>
+        public IAsyncRelayCommand<Models.PurchaseOrderImportLine> MatchLineSkuCommand { get; }
         /// <summary>通过当前版本检验后新建独立草稿。</summary>
         public IAsyncRelayCommand SaveDraftCommand { get; }
         /// <summary>未知结果显式重发同一 CommandId 和输入，不自动重试。</summary>
@@ -37,12 +41,53 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         /// <summary>未知结果存在时禁止编辑和第二次创建。</summary>
         public bool HasPendingSave => pendingSave!=null;
         /// <summary>保存资格要求当前整单版本、逐行状态、权限及输入同时通过。</summary>
-        public bool CanSaveDraft => IsEditable && HasCreatePermission && serverCanSave && checkedRevision==documentRevision && customerId!=Guid.Empty
+        public bool CanSaveDraft => IsEditable && !configLoading && HasCreatePermission && serverCanSave && checkedRevision==documentRevision && customerId!=Guid.Empty
             && SelectedSupplier!=null && Lines.Count>0 && string.IsNullOrEmpty(Header.Error)
-            && Lines.All(l=>string.IsNullOrEmpty(l.InputError) && l.MatchStatus==(l.IsNonStandard ? "NonStandard" : "Matched"));
+            && Lines.All(l=>l.IsCheckPassed);
         private bool SubmissionLocked => checking || saving || completed || HasPendingSave;
         // 任何编辑撤销整单检查快照，不把匹配失败自动变为非标。
         private void InvalidateSubmission() { if(resetting || applyingSubmission) return; documentRevision++; checkedRevision=-1; serverCanSave=false; SubmissionMessage="资料已变化，请重新检验。"; }
+        // 复用检查 API 的行结果；供应商和单头问题只在整单检验及保存时阻断。
+        private async Task MatchSkusAsync(Models.PurchaseOrderImportLine target = null)
+        {
+            if (!CanMatchSkus || target != null && !Lines.Contains(target)) return;
+            var rows = target == null ? Lines.ToArray() : new[] { target };
+            if (rows.Length == 0 || rows.Length > 500) { SubmissionMessage = "每次匹配须包含 1 至 500 行。"; return; }
+            var version = pageVersion; var revision = documentRevision; var customer = customerId;
+            var rowVersions = rows.Select(l => l.EditRevision).ToArray(); var token = submissionLifetime.Token;
+            var request = PurchaseOrderImportRequests.Check(Header, SelectedSupplier?.Uid ?? Guid.Empty, rows);
+            checking = true; serverCanSave = false; checkedRevision = -1; SubmissionMessage = "正在匹配 SKU…"; NotifyState();
+            try
+            {
+                var response = await checkApi.CheckAsync(request, token);
+                await DeliverAsync(() =>
+                {
+                    if (!Accept(version) || token.IsCancellationRequested || customer != customerId || revision != documentRevision
+                        || rows.Where((l, i) => !Lines.Contains(l) || l.EditRevision != rowVersions[i]).Any()) return;
+                    var data = response?.Data;
+                    if (response?.Success != true || data == null)
+                    { SubmissionMessage = response?.Error?.Message ?? response?.Message ?? "匹配没有返回有效结果。"; return; }
+                    if (!HasCompleteCheckResult(data, rows, request.CustomerCode))
+                    { SubmissionMessage = "匹配未返回完整一致的客户和明细，请重新匹配。"; return; }
+                    applyingSubmission = true;
+                    bool valid;
+                    try { valid = rows.Select((l, i) => l.TryApplyCheck(data.Lines.Single(r => r.ClientLineId == l.Uid), rowVersions[i])).All(v => v); }
+                    finally { applyingSubmission = false; }
+                    SubmissionMessage = valid ? "SKU 匹配完成：" + rows.Count(l => l.IsCheckPassed) + "/" + rows.Length + " 行校验通过，保存前仍须整单检验。"
+                        : "部分产品结果无效，请重新匹配。";
+                });
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (Exception ex) { await DeliverAsync(() => { if (Accept(version) && revision == documentRevision && !token.IsCancellationRequested) SubmissionMessage = errors.Describe(ex); }); }
+            finally { await DeliverAsync(() => { if (Accept(version)) { checking = false; NotifyState(); } }); }
+        }
+        // 客户和请求行集合须完全一致，不将旧客户或其他行结果回写到当前输入。
+        private bool HasCompleteCheckResult(SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders.CheckPurchaseOrderImportResponse data,
+            Models.PurchaseOrderImportLine[] rows, string code) => data.Customer != null && data.Customer.IsActive
+            && data.Customer.Uid == customerId && string.Equals(data.Customer.CustomerCode, code, StringComparison.OrdinalIgnoreCase)
+            && data.Lines != null && data.Lines.Count == rows.Length && data.Lines.All(l => l != null)
+            && data.Lines.Select(l => l.ClientLineId).Distinct().Count() == rows.Length
+            && data.Lines.All(l => rows.Any(r => r.Uid == l.ClientLineId));
         /// <summary>检查接纳核对会话、整单版本、稳定行身份及逐行编辑版本。</summary>
         public async Task CheckImportAsync()
         {
@@ -59,7 +104,7 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
                     if(!Accept(version) || token.IsCancellationRequested || revision!=documentRevision || !rows.SequenceEqual(Lines) || rows.Where((l,i)=>l.EditRevision!=rowVersions[i]).Any()) return;
                     var data=response?.Data;
                     if(response?.Success!=true || data==null) { SubmissionMessage=response?.Error?.Message??response?.Message??"检验没有返回有效结果。"; return; }
-                    if(data.Customer==null || !data.Customer.IsActive || data.Customer.Uid==Guid.Empty || !string.Equals(data.Customer.CustomerCode,request.CustomerCode,StringComparison.OrdinalIgnoreCase)
+                    if(!HasCompleteCheckResult(data, rows, request.CustomerCode)
                         || data.Supplier==null || !data.Supplier.IsActive || data.Supplier.Uid!=request.SupplierId
                         || data.Lines==null || data.Lines.Count!=rows.Length || data.Lines.Any(l=>l==null) || data.Lines.Select(l=>l.ClientLineId).Distinct().Count()!=rows.Length
                         || data.Lines.Any(l=>!rows.Any(r=>r.Uid==l.ClientLineId)))

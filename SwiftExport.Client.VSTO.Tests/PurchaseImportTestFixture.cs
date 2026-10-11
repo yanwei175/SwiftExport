@@ -13,6 +13,8 @@ using SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels;
 using SwiftExport.Client.VSTO.Services.ExcelImport;
 using SwiftExport.Contracts.Apis.ForExcel;
 using SwiftExport.Contracts.Apis.Procurement;
+using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
 using SwiftExport.Contracts.DTOs.Procurement.OrderManagement;
@@ -29,6 +31,7 @@ namespace SwiftExport.Client.VSTO.Testing
         internal readonly PurchaseOrderImportViewModel Model;
         internal PurchaseImportTestFixture()
         {
+            Base.Cache.CustomerItems[0].Uid = Transport.CustomerId;
             Base.Session.TryCommit(Base.Session.Capture().Version,"test-token",new MeDto { UserId="buyer",UserName="buyer",Permissions=new List<string> { PermissionKeys.ProcurementOrderCreate,PermissionKeys.SystemExcelFieldMappingManage } });
             Base.ProfileApi.Profile.GroupCode="PurchaseOrder";
             Base.ProfileApi.Profile.Fields=new List<SwiftExport.Contracts.DTOs.SystemDtos.ExcelReadProfiles.ExcelReadFieldDto> {
@@ -40,7 +43,7 @@ namespace SwiftExport.Client.VSTO.Testing
         }
         internal PurchaseOrderImportViewModel CreateModel() => new PurchaseOrderImportViewModel(Base.Cache,Base.Session,Base,
             new ApiCallRunner(new AddInLog()),Base,Base.ProfileService,Base.AddressReader,ExcelImportRegistry.CreateDefault(),
-            clients.Create<IForExcelPurchaseOrderApi>("api/for-excel/purchase-orders"),clients.Create<IProcurementOrderApi>("api/procurement/orders"));
+            clients.Create<IForExcelPurchaseOrderApi>("api/for-excel/purchase-orders"),clients.Create<IProcurementOrderApi>("api/procurement/orders"),clients.Create<ICustomerPoConfigApi>("api/CustomerPoConfig"));
         internal async Task Prepare()
         {
             await Model.InitializeAsync(); Model.Header.CustomerCode="C1"; Model.SelectedSupplier=new SupplierDto { Uid=Transport.SupplierId,SupplierName="测试工厂",SupplierCode="S1" };
@@ -56,6 +59,8 @@ namespace SwiftExport.Client.VSTO.Testing
     {
         internal readonly Guid CustomerId=Guid.NewGuid(),SupplierId=Guid.NewGuid(),ProductId=Guid.NewGuid(),CustomerProductId=Guid.NewGuid();
         internal int Checks,Creates;
+        internal int ConfigCalls;
+        internal Func<Guid,Guid,Task<ServiceResult<CustomerPoConfigDto>>> ConfigOverride = (c,s) => Task.FromResult(ServiceResult<CustomerPoConfigDto>.Ok(null));
         internal bool CanSave=true;
         internal Func<CheckPurchaseOrderImportRequest,Task<CheckPurchaseOrderImportResponse>> CheckOverride = null;
         internal Func<CreateIndependentPurchaseOrderCommand,Task<ServiceResult<ProcurementOrderCommandResult>>> CreateOverride = null;
@@ -65,8 +70,14 @@ namespace SwiftExport.Client.VSTO.Testing
         /// <summary>返回与真实契约一致的 JSON，不访问真实服务器。</summary>
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token)
         {
-            var body=await request.Content.ReadAsStringAsync(); object result;
-            if(request.RequestUri.AbsolutePath.EndsWith("/check"))
+            var body=request.Content == null ? "" : await request.Content.ReadAsStringAsync(); object result;
+            if(request.RequestUri.AbsolutePath.EndsWith("/by-parties"))
+            {
+                ConfigCalls++;
+                var query = System.Web.HttpUtility.ParseQueryString(request.RequestUri.Query);
+                result = await ConfigOverride(Guid.Parse(query["customerId"]),Guid.Parse(query["supplierId"]));
+            }
+            else if(request.RequestUri.AbsolutePath.EndsWith("/check"))
             {
                 Checks++; LastCheck=JsonSerializer.Deserialize<CheckPurchaseOrderImportRequest>(body,Json);
                 result=ServiceResult<CheckPurchaseOrderImportResponse>.Ok(CheckOverride==null ? Checked(LastCheck) : await CheckOverride(LastCheck));
