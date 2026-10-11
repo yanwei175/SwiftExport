@@ -82,6 +82,7 @@ namespace SwiftExport.Client.VSTO.Testing
         internal readonly ObservableCollection<CustomerDto> CustomerItems = new ObservableCollection<CustomerDto>();
         internal readonly ObservableCollection<SysDicCurrencyDto> CurrencyItems = new ObservableCollection<SysDicCurrencyDto>();
         internal readonly ObservableCollection<SysDictDataDto> DictionaryItems = new ObservableCollection<SysDictDataDto>();
+        internal readonly ObservableCollection<SupplierDto> SupplierItems = new ObservableCollection<SupplierDto>();
         internal int Loads;
         internal Func<Task<CacheRefreshResult>> Load = () => Task.FromResult(CacheRefreshResult.Ok());
         internal ImportCache()
@@ -89,12 +90,13 @@ namespace SwiftExport.Client.VSTO.Testing
             Customers = new ReadOnlyObservableCollection<CustomerDto>(CustomerItems);
             Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(CurrencyItems);
             DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(DictionaryItems);
+            Suppliers = new ReadOnlyObservableCollection<SupplierDto>(SupplierItems);
         }
         public ReadOnlyObservableCollection<CustomerDto> Customers { get; }
         public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
         public ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; }
         public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; } = Empty<ProductColorDto>();
-        public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; } = Empty<SupplierDto>();
+        public ReadOnlyObservableCollection<SupplierDto> Suppliers { get; }
         public ReadOnlyObservableCollection<WarehouseSitePickerDto> WarehouseSites { get; } = Empty<WarehouseSitePickerDto>();
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; } = Empty<ProductCategoryCacheNode>();
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; } = Empty<ProductCategoryCacheNode>();
@@ -111,7 +113,7 @@ namespace SwiftExport.Client.VSTO.Testing
         public Task<CacheRefreshResult> RefreshProductCategoriesAsync() => EnsureLoadedAsync();
         public Task<CacheRefreshResult> RefreshCurrenciesAsync() => EnsureLoadedAsync();
         public Task<CacheRefreshResult> RefreshDictionariesAsync() => EnsureLoadedAsync();
-        public void Clear() { CustomerItems.Clear(); CurrencyItems.Clear(); DictionaryItems.Clear(); }
+        public void Clear() { CustomerItems.Clear(); CurrencyItems.Clear(); DictionaryItems.Clear(); SupplierItems.Clear(); }
     }
 
     /// <summary>提供显式设定的产品搜索与草稿保存响应；其他生命周期 API 仍禁止。</summary>

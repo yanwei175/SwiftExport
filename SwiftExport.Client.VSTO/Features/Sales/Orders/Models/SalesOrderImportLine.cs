@@ -19,6 +19,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         private DateTime? expectedDeliveryDate;
         private SalesOrderProductLookupDto selectedProduct;
         private bool isSearchBusy;
+        private int lineNumber;
 
         /// <summary>创建稳定行身份，非标编号只生成一次。</summary>
         public SalesOrderImportLine(bool nonStandard, DateTime? deliveryDate)
@@ -30,6 +31,14 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         }
         /// <summary>本地稳定行标识，检查请求作为 ClientLineId，保存作为明细 Uid。</summary>
         public Guid Uid { get; } = Guid.NewGuid();
+        /// <summary>导入顺序对应的本地行号，排序和删除不改变已有编号，不进入字段配置。</summary>
+        public int LineNumber => lineNumber;
+        /// <summary>页面接纳新行时赋号；仅通知展示，不视为商业资料修改。</summary>
+        internal void AssignLineNumber(int value)
+        {
+            lineNumber = value;
+            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(LineNumber)));
+        }
         /// <summary>只能通过受控转换切换行类型，不能由字段配置直接写入。</summary>
         public bool IsNonStandard => isNonStandard;
         public string LineTypeText => IsNonStandard ? "非标" : "标准";

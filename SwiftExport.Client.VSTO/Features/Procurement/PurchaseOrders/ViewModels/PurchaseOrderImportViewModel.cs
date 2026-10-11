@@ -37,6 +37,8 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         private bool ready, initializing, parsing, resetting, applyingParsedPart, applyingSubmission, dirty;
         private long pageVersion;
         private string parseMessage = "", customerName = "", orderNo = "";
+        /// <summary>手工新增后请求视图选中并滚动定位；批量读取不逐行抢占选择。</summary>
+        public event Action<PurchaseOrderImportLine> LineAdded;
         /// <summary>构造只接线，基础资料及配置首次使用才加载。</summary>
         public PurchaseOrderImportViewModel(IReferenceDataCacheService referenceData, SessionService session, IUiDispatcher dispatcher,
             ApiCallRunner errors, ISalesOrderImportPrompt prompt, ExcelReadProfileService profiles, IExcelAddressReader reader,
@@ -124,12 +126,21 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
             ? "保存结果未知，关闭会丢失原请求。CommandId："+PendingCommandId+"。是否关闭？" : "内存编辑尚未保存，关闭将丢失。是否关闭？"));
         private bool Accept(long version) => !IsDisposed && session.Capture().User!=null && pageVersion==version && session.Capture().Version==version;
         private bool HasCreatePermission => session.Capture().User?.Permissions?.Contains(PermissionKeys.ProcurementOrderCreate)==true;
-        private void AddLine(bool nonStandard) { if(!IsEditable) return; var line=new PurchaseOrderImportLine { QuantityText="1", PlannedDeliveryDate=Header.DeliveryDate }; line.SetNonStandard(nonStandard); Lines.Add(line); }
+        /// <summary>手工新行复制当前交期，集合完成赋号后交给视图定位。</summary>
+        private void AddLine(bool nonStandard)
+        {
+            if(!IsEditable) return;
+            var line=new PurchaseOrderImportLine { QuantityText="1", PlannedDeliveryDate=Header.DeliveryDate };
+            line.SetNonStandard(nonStandard); Lines.Add(line); LineAdded?.Invoke(line);
+        }
         private void DeleteLines() { if(!IsEditable) return; foreach(var line in selectedLines.ToArray()) Lines.Remove(line); selectedLines.Clear(); NotifyState(); }
         // 集合重置也必须解绑旧行；服务器接纳不产生用户编辑。
         private void LinesChanged(object sender, NotifyCollectionChangedEventArgs args)
         {
             if(applyingParsedPart) return;
+            // 新读取的行按集合顺序赋号；手工新增从当前最大编号继续，不重排行号。
+            var lastNumber=Lines.Select(l=>l.LineNumber).DefaultIfEmpty(0).Max();
+            foreach(var line in Lines.Where(l=>l.LineNumber==0)) line.AssignLineNumber(++lastNumber);
             foreach(var line in tracked.Where(l=>!Lines.Contains(l)).ToArray()) { line.PropertyChanged-=LineChanged; tracked.Remove(line); }
             foreach(var line in Lines.Where(l=>!tracked.Contains(l))) { tracked.Add(line); line.PropertyChanged+=LineChanged; }
             if(!resetting) { dirty=true; InvalidateSubmission(); } NotifyState();
@@ -144,7 +155,7 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         // 行展示通知可能成组触发；只撤销整单资格，不覆盖输入值。
         private void LineChanged(object sender,PropertyChangedEventArgs args)
         {
-            if(resetting || applyingParsedPart || applyingSubmission || args.PropertyName==nameof(PurchaseOrderImportLine.SelectedMatchCandidate)) return;
+            if(resetting || applyingParsedPart || applyingSubmission || args.PropertyName==nameof(PurchaseOrderImportLine.SelectedMatchCandidate) || args.PropertyName==nameof(PurchaseOrderImportLine.LineNumber)) return;
             dirty=true; InvalidateSubmission(); NotifyState();
         }
         private decimal? Sum(Func<PurchaseOrderImportLine,decimal?> selector) { try { return Lines.Sum(l=>selector(l)??0m); } catch(OverflowException) { return null; } }
@@ -170,6 +181,6 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels
         private void ClearDocument() { CancelDefaults(); requestedPairs.Clear(); SelectedCustomer=null; DefaultsMessage=""; Lines.Clear(); selectedLines.Clear(); SelectedSupplier=null; header.PropertyChanged-=HeaderChanged; header=new PurchaseOrderImportHeader(); header.PropertyChanged+=HeaderChanged; customerId=Guid.Empty; CustomerName=OrderNo=ParseMessage=SubmissionMessage=""; dirty=false; checkedRevision=-1; documentRevision++; OnPropertyChanged(nameof(Header)); }
         private async Task DeliverAsync(Action action) { if(IsDisposed) return; try { await dispatcher.InvokeAsync(()=> { if(!IsDisposed) action(); }); } catch(OperationCanceledException) { } }
         /// <summary>取消异步请求及配置身份订阅，解绑行通知，不停止宿主消息循环。</summary>
-        protected override void DisposeCore() { CancelDefaults(); submissionLifetime.Cancel(); submissionLifetime.Dispose(); DisposeAddresses(); session.Changed-=SessionChanged; ((INotifyCollectionChanged)ReferenceData.DictionaryValues).CollectionChanged-=DictionaryChanged; header.PropertyChanged-=HeaderChanged; Lines.CollectionChanged-=LinesChanged; foreach(var line in tracked) line.PropertyChanged-=LineChanged; tracked.Clear(); }
+        protected override void DisposeCore() { LineAdded=null; CancelDefaults(); submissionLifetime.Cancel(); submissionLifetime.Dispose(); DisposeAddresses(); session.Changed-=SessionChanged; ((INotifyCollectionChanged)ReferenceData.DictionaryValues).CollectionChanged-=DictionaryChanged; header.PropertyChanged-=HeaderChanged; Lines.CollectionChanged-=LinesChanged; foreach(var line in tracked) line.PropertyChanged-=LineChanged; tracked.Clear(); }
     }
 }

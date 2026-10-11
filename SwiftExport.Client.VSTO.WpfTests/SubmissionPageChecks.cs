@@ -158,10 +158,10 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     grid.SelectedItem = row; Pump();
                     check(selected.IsEnabled && grid.Columns.Count(c => (string)c.Header == "非标件") == 1
                         && !grid.Columns.Any(c => new[] { "类型", "行类型处理", "匹配状态" }.Contains((string)c.Header)),
-                        "单一非标模板列替代类型及处理列，匹配改由行头显示");
+                        "单一非标模板列替代类型及处理列，匹配圆点与行号一起显示");
                     var critical = (SolidColorBrush)view.FindResource("UserBusinessTextCriticalBrush");
                     var success = (SolidColorBrush)view.FindResource("UserBusinessTextSuccessBrush");
-                    check(StatusDot(grid, row).Fill is SolidColorBrush red && red.Color == critical.Color, "未校验行头显示红色圆点");
+                    check(StatusDot(grid, row).Fill is SolidColorBrush red && red.Color == critical.Color, "未校验行号旁显示红色圆点");
                     f.CheckApi.Check = (r, t) => Task.FromResult(ServiceResult<CheckSalesOrderImportResponse>.Ok(new CheckSalesOrderImportResponse {
                         Customer = new SalesOrderImportCustomerDto { Uid = f.Model.Header.CustomerId, CustomerCode = r.CustomerCode, IsActive = true }, CanSave = true,
                         Lines = r.Lines.Select(l => new SalesOrderImportLineCheckDto { ClientLineId = l.ClientLineId, MatchStatus = l.IsNonStandard ? "NonStandard" : "Matched",
@@ -179,6 +179,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     ClickCheckBox(box); Pump(); check(!row.IsNonStandard && box.IsChecked == false && !row.IsCheckPassed, "取消非标勾选回到待匹配标准行");
                     var message = Descendants<TextBlock>(view).Single(b => BindingOperations.GetBinding(b, TextBlock.TextProperty)?.Path.Path == "SubmissionMessage");
                     check(message.Foreground is SolidColorBrush text && text.Color == critical.Color, "顶部检验反馈采用红色文字");
+                    CheckLineNumbersAndLocation(f,grid,row,check);
                     f.Model.CustomerClearedCommand.Execute(null); Pump();
                     check(!all.IsEnabled && !selected.IsEnabled && !full.IsEnabled, "清空客户后所有匹配入口即时禁用");
                 }
@@ -188,11 +189,34 @@ namespace SwiftExport.Client.VSTO.WpfTests
         // Toggle 自动化接口只改变 IsChecked，不执行绑定命令；调用原生 OnClick 验证鼠标/键盘的完整切换路径。
         private static void ClickCheckBox(CheckBox box) => typeof(CheckBox)
             .GetMethod("OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(box, null);
-        // 定位目标行真正的行头模板，确保验证的是用户看见的状态圆点。
+        /// <summary>实际排序和长列表验证新增定位，按行号可恢复原始顺序。</summary>
+        private static void CheckLineNumbersAndLocation(ImportTestFixture fixture, DataGrid grid,
+            SwiftExport.Client.VSTO.Features.Sales.Orders.Models.SalesOrderImportLine first, Action<bool,string> check)
+        {
+            var column=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"行号"));
+            check(column.SortMemberPath=="LineNumber" && grid.RowHeaderTemplate==null && grid.RowHeaderWidth==0,"销售行号按数字排序且不再使用行头状态模板");
+            for(var i=0;i<30;i++) fixture.Model.Lines.Add(new SwiftExport.Client.VSTO.Features.Sales.Orders.Models.SalesOrderImportLine(false,null));
+            var collection=CollectionViewSource.GetDefaultView(grid.ItemsSource);
+            collection.SortDescriptions.Add(new System.ComponentModel.SortDescription("LineNumber",System.ComponentModel.ListSortDirection.Descending));
+            fixture.Model.AddNonStandardLineCommand.Execute(null); var nonstandard=fixture.Model.Lines.Last(); Pump(); grid.UpdateLayout(); Pump();
+            check(ReferenceEquals(grid.SelectedItem,nonstandard) && ReferenceEquals(grid.CurrentCell.Item,nonstandard) && ReferenceEquals(grid.Items[0],nonstandard),"倒序显示时新增非标行仍选中实际对象");
+            collection.SortDescriptions.Clear();
+            collection.SortDescriptions.Add(new System.ComponentModel.SortDescription("LineNumber",System.ComponentModel.ListSortDirection.Ascending));
+            fixture.Model.AddStandardLineCommand.Execute(null); var standard=fixture.Model.Lines.Last(); Pump(); grid.UpdateLayout(); Pump();
+            var container=(DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(standard);
+            check(ReferenceEquals(grid.SelectedItem,standard) && ReferenceEquals(grid.CurrentCell.Item,standard)
+                && container!=null && container.TransformToAncestor(grid).Transform(new Point()).Y>=0
+                && container.TransformToAncestor(grid).Transform(new Point()).Y+20<grid.ActualHeight,"长列表新增标准行后滚动到可见区域");
+            check(ReferenceEquals(grid.Items[0],first) && grid.Items.Cast<SwiftExport.Client.VSTO.Features.Sales.Orders.Models.SalesOrderImportLine>()
+                .Select(l=>l.LineNumber).SequenceEqual(Enumerable.Range(1,fixture.Model.Lines.Count)),"按行号排序恢复销售原始顺序，排序不重编号");
+            fixture.Model.SetSelectedLines(fixture.Model.Lines.Where(l=>!ReferenceEquals(l,first)).ToArray());
+            fixture.Model.DeleteSelectedLineCommand.Execute(null); collection.SortDescriptions.Clear(); Pump();
+        }
+        // 定位行号列内的实际圆点，不依赖行头或其他装饰元素。
         private static System.Windows.Shapes.Ellipse StatusDot(DataGrid grid, object row)
         {
-            var container = (DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(row);
-            return Descendants<System.Windows.Shapes.Ellipse>(Descendants<DataGridRowHeader>(container).Single()).Single();
+            var column=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"行号"));
+            return Descendants<System.Windows.Shapes.Ellipse>(column.GetCellContent(row)).Single();
         }
         private static void Pump() { var frame = new DispatcherFrame(); Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false)); Dispatcher.PushFrame(frame); }
         private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

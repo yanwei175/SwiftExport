@@ -290,30 +290,33 @@
                   AutoGenerateColumns="False" 
                   CanUserAddRows="False" 
                   CanUserSortColumns="True" 
+                  RowHeaderWidth="0"
                   IsReadOnly="{Binding IsReadOnly}" 
                   SelectionMode="Single" 
                   SelectionUnit="FullRow">
-            <DataGrid.RowHeaderTemplate>
-                <DataTemplate>
-                    <Ellipse Width="10" Height="10"
-                             ToolTip="{Binding DataContext.CheckStatusText, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
-                             AutomationProperties.Name="{Binding DataContext.CheckStatusText, RelativeSource={RelativeSource AncestorType=DataGridRow}}">
-                        <Ellipse.Style>
-                            <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding DataContext.IsCheckPassed, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                                        <Setter Property="Fill" Value="{DynamicResource UserBusinessTextSuccessBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Ellipse.Style>
-                    </Ellipse>
-                </DataTemplate>
-            </DataGrid.RowHeaderTemplate>
-
             <DataGrid.Columns>
- 
+                <DataGridTemplateColumn Header="行号" Width="80" IsReadOnly="True" SortMemberPath="LineNumber" CanUserSort="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                <Ellipse Width="10" Height="10" Margin="0,0,8,0"
+                                         ToolTip="{Binding CheckStatusText}" AutomationProperties.Name="{Binding CheckStatusText}">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Fill" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCheckPassed}" Value="True">
+                                                    <Setter Property="Fill" Value="{DynamicResource UserBusinessTextSuccessBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                                <TextBlock Text="{Binding LineNumber}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Header="匹配处理" Width="150" IsReadOnly="True"
                                         SortMemberPath="IsCheckPassed" CanUserSort="True">
                     <DataGridTemplateColumn.CellTemplate>

@@ -213,34 +213,36 @@
                           AutoGenerateColumns="False" 
                           CanUserAddRows="False" 
                           CanUserDeleteRows="False" 
-                          RowHeaderWidth="24"
+                          RowHeaderWidth="0"
                           CanUserSortColumns="True"
                           SelectionMode="Extended" 
                           SelectionUnit="FullRow" 
                           IsReadOnly="{Binding IsReadOnly}" 
                           SelectionChanged="OnSelectionChanged">
                     
-                    <DataGrid.RowHeaderTemplate>
-                        <DataTemplate>
-                            <Ellipse Width="10" Height="10"
-                                     ToolTip="{Binding DataContext.CheckStatusText, RelativeSource={RelativeSource AncestorType=DataGridRow}}"
-                                     AutomationProperties.Name="{Binding DataContext.CheckStatusText, RelativeSource={RelativeSource AncestorType=DataGridRow}}">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding DataContext.IsCheckPassed, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                                                <Setter Property="Fill" Value="{DynamicResource UserBusinessTextSuccessBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                        </DataTemplate>
-                    </DataGrid.RowHeaderTemplate>
-                    
                     <DataGrid.Columns>
-                        
+                        <DataGridTemplateColumn Header="行号" Width="80" IsReadOnly="True" SortMemberPath="LineNumber" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                        <Ellipse Width="10" Height="10" Margin="0,0,8,0"
+                                                 ToolTip="{Binding CheckStatusText}" AutomationProperties.Name="{Binding CheckStatusText}">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="{DynamicResource UserBusinessTextCriticalBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCheckPassed}" Value="True">
+                                                            <Setter Property="Fill" Value="{DynamicResource UserBusinessTextSuccessBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
+                                        <TextBlock Text="{Binding LineNumber}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="校验" Width="130" IsReadOnly="True"
                                         SortMemberPath="IsCheckPassed" CanUserSort="True">
                             <DataGridTemplateColumn.CellTemplate>
@@ -446,17 +448,14 @@
                         <DataGridTemplateColumn Header="单位" Width="80">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Unit}" VerticalAlignment="Center" Margin="4,2"/>
+                                    <Grid IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}">
+                                        <ComboBox IsEnabled="{Binding CanEditUnit}" IsEditable="True" Margin="4,2"
+                                                  ItemsSource="{Binding DataContext.Units, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                  Text="{Binding Unit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  AutomationProperties.Name="采购行单位" />
+                                    </Grid>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <ComboBox IsEnabled="{Binding CanEditUnit}" 
-                                              IsEditable="True" 
-                                              ItemsSource="{Binding DataContext.Units, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
-                                              Text="{Binding Unit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
                         <DataGridTextColumn Header="未税金额" Width="80" 
@@ -469,7 +468,7 @@
                         <DataGridTemplateColumn Header="客供件送至供应商" Width="160" >
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Grid IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}" Margin="4,2,4,2">
+                                    <Grid IsEnabled="{Binding DataContext.IsEditable, RelativeSource={RelativeSource AncestorType=DataGrid}}" Margin="4,2,0,2">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />                                            
@@ -478,7 +477,7 @@
                                                   ItemsSource="{Binding DataContext.ReferenceData.Suppliers, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                   DisplayMemberPath="SupplierName" 
                                                   SelectedValuePath="Uid" 
-                                                  SelectedValue="{Binding DeliverySupplierId, Mode=TwoWay}" />
+                                                  SelectedValue="{Binding DeliverySupplierId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
 
                                         <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon Symbol=Delete24}" BorderThickness="0" 
                                                    Command="{Binding DataContext.ClearDeliverySupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
@@ -491,7 +490,8 @@
                         <DataGridTemplateColumn Header="计划交期" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <DatePicker SelectedDate="{Binding PlannedDeliveryDate, Mode=TwoWay}" SelectedDateFormat="Short" Margin="4,2"/>
+                                    <DatePicker SelectedDate="{Binding PlannedDeliveryDate, Mode=TwoWay}" Width="60"
+                                                SelectedDateFormat="Short"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>                        

@@ -65,7 +65,7 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     window.Height += 120; Pump(); view.UpdateLayout();
                     check(grid.ActualHeight > previousHeight + 30, "销售窗体增高时明细区域随之伸展");
                     window.Height -= 120; Pump(); view.UpdateLayout();
-                    grid.SelectedItem = standard; grid.CurrentCell = new DataGridCellInfo(standard, grid.Columns[1]); grid.BeginEdit(); Pump();
+                    grid.SelectedItem = standard; grid.CurrentCell = new DataGridCellInfo(standard, grid.Columns.Single(c => Equals(c.Header, "SKU"))); grid.BeginEdit(); Pump();
                     var product = Descendants<SalesProductLookupTextBox>(grid).Single();
                     var candidate = new SalesOrderProductLookupDto { ProductId = Guid.NewGuid(), Sku = "SKU1", UsdPrice = 5m };
                     standard.ProductCandidates.Add(candidate); Pump();

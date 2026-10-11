@@ -8,7 +8,7 @@ using SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels;
 
 namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
 {
-    /// <summary>桥接视图加载、删除选择及行模板命令状态，业务行为交给 ViewModel。</summary>
+    /// <summary>桥接视图加载、删除选择、新增行定位及行模板命令状态，业务行为交给 ViewModel。</summary>
     public partial class SalesOrderImportView : UserControl
     {
         private readonly SalesOrderImportViewModel model;
@@ -18,6 +18,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
         {
             InitializeComponent(); model = vm; DataContext = vm;
             Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
             vm.DesignReadProfileRequested += uid => openConfiguration?.Invoke(uid);
         }
         /// <summary>首次打开时由组合入口接线到读取配置侧栏，视图不持有 Excel COM 或创建另一配置窗体。</summary>
@@ -26,8 +27,23 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Views
         public bool CanClose() => model.CanClose();
         private async void OnLoaded(object sender, RoutedEventArgs args)
         {
+            model.LineAdded -= OnLineAdded; model.LineAdded += OnLineAdded;
             try { await model.InitializeAsync(); await model.EnsureReadProfilesAsync(); }
             catch (OperationCanceledException) { /* Excel 已退出，禁止继续初始化视图。 */ }
+        }
+        /// <summary>离开可视树后解除定位订阅，后续重新加载可重新接线。</summary>
+        private void OnUnloaded(object sender, RoutedEventArgs args) { model.LineAdded -= OnLineAdded; }
+        /// <summary>等集合绑定完成后定位实际新行，排序后的视图仍按对象身份查找。</summary>
+        private void OnLineAdded(SalesOrderImportLine line)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                if (!IsLoaded || model.IsDisposed || !model.Lines.Contains(line)) return;
+                OrderLinesGrid.SelectedItem = line;
+                OrderLinesGrid.CurrentCell = new DataGridCellInfo(line, OrderLinesGrid.Columns[0]);
+                OrderLinesGrid.ScrollIntoView(line, OrderLinesGrid.Columns[0]);
+                OrderLinesGrid.Focus();
+            }));
         }
         private void OnSelectionChanged(object sender, SelectionChangedEventArgs args)
         {

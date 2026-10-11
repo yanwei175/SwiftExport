@@ -65,6 +65,7 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models
         private Guid? deliverySupplierId;
         private bool nonStandard, acceptMismatch, applying;
         private long revision;
+        private int lineNumber;
         private Guid? chosenId;
         private PurchaseOrderImportProductCandidateDto selectedCandidate;
         private string status = "NotChecked", sku = "", linkSku = "", image = "", materialType = "", matchMessage = "";
@@ -72,6 +73,14 @@ namespace SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.Models
         private IReadOnlyList<PurchaseOrderImportProductCandidateDto> candidates = Array.Empty<PurchaseOrderImportProductCandidateDto>();
         /// <summary>稳定的检查行标识，服务器创建明细身份另行生成。</summary>
         public Guid Uid { get; } = Guid.NewGuid();
+        /// <summary>导入顺序对应的本地行号，排序和删除不改变已有编号，不进入字段配置。</summary>
+        public int LineNumber => lineNumber;
+        /// <summary>页面接纳新行时赋号；仅通知展示，不视为商业资料修改。</summary>
+        internal void AssignLineNumber(int value)
+        {
+            lineNumber = value;
+            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(LineNumber)));
+        }
         /// <summary>每次业务编辑递增，迟到检查不能回填。</summary>
         public long EditRevision => revision;
         /// <summary>明确转换为非标；失败匹配不自动转换。</summary>

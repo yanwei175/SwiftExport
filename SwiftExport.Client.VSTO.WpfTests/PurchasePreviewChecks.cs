@@ -60,20 +60,30 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     var date=Descendants<DatePicker>(view).Single(d=>d.GetBindingExpression(DatePicker.SelectedDateProperty)?.ParentBinding.Path?.Path=="Header.DeliveryDate");
                     date.SelectedDate=new DateTime(2026,12,1); check(model.Header.DeliveryDate==new DateTime(2026,12,1),"单头日期双向回写");
                     var line=model.Lines[0]; check(!line.CanEditUnit,"标准单位禁止手工伪造");
+                    CheckDeliverySupplier(fixture, grid, line, check);
                     model.AddNonStandardLineCommand.Execute(null); var nonstandard=model.Lines[1];
                     check(nonstandard.CanEditUnit && nonstandard.PlannedDeliveryDate==model.Header.DeliveryDate,"非标单位允许编辑，新行复制当前交期");
+                    Pump(); grid.UpdateLayout(); Pump();
+                    check(ReferenceEquals(grid.SelectedItem,nonstandard) && ReferenceEquals(grid.CurrentCell.Item,nonstandard),"新增非标行后选中并定位到实际新行");
                     model.Header.DeliveryDate=new DateTime(2026,12,2); check(nonstandard.PlannedDeliveryDate==new DateTime(2026,12,1),"后续单头交期不覆盖行");
                     var unitColumn=(DataGridTemplateColumn)grid.Columns.Single(c=>(string)c.Header=="单位");
-                    var unitEditor=(ComboBox)unitColumn.CellEditingTemplate.LoadContent(); unitEditor.DataContext=line; Pump();
-                    check(!unitEditor.IsEnabled,"实际标准单位编辑模板禁用输入");
-                    unitEditor.DataContext=nonstandard; Pump(); check(unitEditor.IsEnabled,"实际非标单位编辑模板开放输入");
+                    check(unitColumn.CellEditingTemplate==null,"采购单位不依赖进入单元格编辑模式");
+                    grid.ScrollIntoView(line,unitColumn); grid.UpdateLayout(); Pump();
+                    var unitEditor=Descendants<ComboBox>(unitColumn.GetCellContent(line)).Single();
+                    check(!unitEditor.IsEnabled,"实际标准行的常显单位下拉禁用输入");
+                    grid.ScrollIntoView(nonstandard,unitColumn); grid.UpdateLayout(); Pump();
+                    unitEditor=Descendants<ComboBox>(unitColumn.GetCellContent(nonstandard)).Single();
+                    check(unitEditor.IsEnabled,"实际非标行的常显单位下拉开放输入");
+                    unitEditor.Text="BOX"; Pump();
+                    check(nonstandard.Unit=="BOX","非标单位不进入编辑模式也能即时回写");
+                    grid.SelectedItems.Clear();
                     grid.SelectedItems.Add(line); grid.SelectedItems.Add(nonstandard); Pump();
                     check(model.DeleteSelectedLineCommand.CanExecute(null),"视图多选桥接删除命令");
                     model.DeleteSelectedLineCommand.Execute(null); check(model.Lines.Count==0,"多选删除全部目标行");
                     model.AddStandardLineCommand.Execute(null); line=model.Lines[0]; line.CustomerSku="AQ1"; line.QuantityText="1"; line.UnitPriceText="2";
                     Wait(model.CheckImportAsync()); Pump(); check(model.CanSaveDraft && line.Sku=="REAL-SKU","匹配后系统 SKU 及保存资格回显");
                     CheckMatchPopup(view, grid, line, check);
-                    CheckSortingAndRowType(model, grid, line, view, check);
+                    CheckSortingAndRowType(fixture, grid, line, view, check);
                     line.QuantityText="0"; Pump();
                     var quantityColumn=grid.Columns.OfType<DataGridTextColumn>().Single(c=>Equals(c.Header,"数量"));
                     var quantityText=(TextBlock)quantityColumn.GetCellContent(line);
@@ -86,6 +96,29 @@ namespace SwiftExport.Client.VSTO.WpfTests
                 }
                 finally { window.Close(); }
             }
+        }
+
+        /// <summary>实际供应商选择与命令清空必须同步模型身份和界面选择。</summary>
+        private static void CheckDeliverySupplier(PurchaseImportTestFixture fixture, DataGrid grid,
+            PurchaseOrderImportLine line, Action<bool,string> check)
+        {
+            var supplier = new SwiftExport.Contracts.DTOs.Suppliers.SupplierDto { Uid=Guid.NewGuid(), SupplierName="送达工厂" };
+            fixture.Base.Cache.SupplierItems.Add(supplier);
+            var column=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"客供件送至供应商"));
+            grid.ScrollIntoView(line, column); grid.UpdateLayout(); Pump();
+            var content=column.GetCellContent(line);
+            var combo=Descendants<ComboBox>(content).Single();
+            combo.SelectedItem=supplier; Pump();
+            check(line.DeliverySupplierId==supplier.Uid,"送达供应商选择回写真实 ID；ID="+line.DeliverySupplierId+"，选择="+combo.SelectedValue+"，候选数="+combo.Items.Count+"，绑定="+combo.GetBindingExpression(Selector.SelectedValueProperty)?.Status);
+            var clear=Descendants<Button>(content).Single();
+            check(clear.IsEnabled && ReferenceEquals(clear.CommandParameter,line),"清空命令绑定当前行且可执行");
+            clear.Command.Execute(clear.CommandParameter); Pump();
+            check(!line.DeliverySupplierId.HasValue && combo.SelectedItem==null && combo.SelectedValue==null,
+                "清空后送达供应商 ID、下拉选择同步为空；ID="+line.DeliverySupplierId+"，选择="+combo.SelectedValue);
+            line.DeliverySupplierId=supplier.Uid; Pump();
+            check(ReferenceEquals(combo.SelectedItem,supplier),"模型的送达供应商身份能回显");
+            fixture.Model.ClearDeliverySupplierCommand.Execute(line); Pump();
+            check(combo.SelectedItem==null && !line.DeliverySupplierId.HasValue,"重新选择后再次清空不保留旧供应商");
         }
 
         /// <summary>表头全部常驻且横向分组；校验列表有高度上限，不挤掉明细。</summary>
@@ -127,7 +160,9 @@ namespace SwiftExport.Client.VSTO.WpfTests
             var close=Descendants<Button>(popup.Child).Single(b=>ReferenceEquals(b.Command,ApplicationCommands.Close));
             ApplicationCommands.Close.Execute(null,close); Pump();
             check(!popup.IsOpen && entry.IsChecked==false,"行内关闭按钮同步复位入口");
-            var ellipse=Descendants<System.Windows.Shapes.Ellipse>((DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(line)).First(e=>e.Width==10);
+            var lineColumn=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"行号"));
+            check(lineColumn.SortMemberPath=="LineNumber" && grid.RowHeaderTemplate==null && grid.RowHeaderWidth==0,"行号列可恢复导入顺序，状态不再占行头");
+            var ellipse=Descendants<System.Windows.Shapes.Ellipse>(lineColumn.GetCellContent(line)).Single();
             check((ellipse.Fill as SolidColorBrush)?.Color == ((SolidColorBrush)view.FindResource("UserBusinessTextSuccessBrush")).Color
                 && line.IsCheckPassed,"通过行显示绿色状态圆点");
             var image=(SwiftExport.Client.VSTO.Resources.Controls.HttpsImage)((DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"系统图片"))).CellTemplate.LoadContent();
@@ -135,21 +170,37 @@ namespace SwiftExport.Client.VSTO.WpfTests
             check(image.SourcePath=="https://example.invalid/test.png" && !image.IsLoaded,"图片列保留 HTTPS 路径绑定，未加载模板不下载");
         }
         /// <summary>真实视图可将未通过行集中排序，非标复选框使用当前行命令而不依赖选中项。</summary>
-        private static void CheckSortingAndRowType(SwiftExport.Client.VSTO.Features.Procurement.PurchaseOrders.ViewModels.PurchaseOrderImportViewModel model,
+        private static void CheckSortingAndRowType(PurchaseImportTestFixture fixture,
             DataGrid grid, PurchaseOrderImportLine passed, PurchaseOrderImportView view, Action<bool,string> check)
         {
+            var model=fixture.Model;
             model.AddStandardLineCommand.Execute(null); var pending=model.Lines.Last();
             var collection=System.Windows.Data.CollectionViewSource.GetDefaultView(grid.ItemsSource);
             collection.SortDescriptions.Add(new SortDescription(nameof(PurchaseOrderImportLine.IsCheckPassed),ListSortDirection.Ascending));
             Pump(); grid.ScrollIntoView(pending); grid.UpdateLayout(); Pump();
             check(ReferenceEquals(grid.Items[0],pending) && ReferenceEquals(grid.Items[1],passed),"按校验排序将未通过行放在一起");
-            var row=(DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(pending);
-            var ellipse=Descendants<System.Windows.Shapes.Ellipse>(row).Single(e=>e.Width==10);
+            check(ReferenceEquals(grid.SelectedItem,pending) && ReferenceEquals(grid.CurrentCell.Item,pending),"按校验排序后新增标准行仍定位到正确对象");
+            var lineColumn=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"行号"));
+            var ellipse=Descendants<System.Windows.Shapes.Ellipse>(lineColumn.GetCellContent(pending)).Single();
             check((ellipse.Fill as SolidColorBrush)?.Color==((SolidColorBrush)view.FindResource("UserBusinessTextCriticalBrush")).Color,"未通过行显示红色状态圆点");
             var typeColumn=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"非标件"));
             var checkbox=Descendants<CheckBox>(typeColumn.GetCellContent(pending)).Single();
             checkbox.Command.Execute(checkbox.CommandParameter); Pump();
             check(pending.IsNonStandard && checkbox.IsChecked==true && ReferenceEquals(checkbox.CommandParameter,pending),"非标复选命令只改变当前行并回显");
+            collection.SortDescriptions.Clear();
+            collection.SortDescriptions.Add(new SortDescription(nameof(PurchaseOrderImportLine.LineNumber),ListSortDirection.Ascending)); Pump();
+            check(ReferenceEquals(grid.Items[0],passed) && ReferenceEquals(grid.Items[1],pending),"按行号排序恢复新增前后的原始顺序");
+            // 异步检查会冻结页面，常显下拉不能绕过原来的编辑门禁。
+            var response=new TaskCompletionSource<SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders.CheckPurchaseOrderImportResponse>();
+            fixture.Transport.CheckOverride=request=>response.Task;
+            var task=model.MatchAllSkusCommand.ExecuteAsync(null); Pump();
+            var unitColumn=(DataGridTemplateColumn)grid.Columns.Single(c=>Equals(c.Header,"单位"));
+            grid.ScrollIntoView(pending,unitColumn); grid.UpdateLayout(); Pump();
+            var unit=Descendants<ComboBox>(unitColumn.GetCellContent(pending)).Single();
+            check(pending.CanEditUnit && !unit.IsEnabled && grid.IsReadOnly,"非标单位常显下拉仍遵守异步检查期间的页面冻结");
+            response.SetResult(fixture.Transport.Checked(fixture.Transport.LastCheck)); Wait(task); Pump();
+            check(unit.IsEnabled,"检查结束后非标单位下拉恢复编辑");
+            fixture.Transport.CheckOverride=null;
             collection.SortDescriptions.Clear(); model.Lines.Remove(pending); Wait(model.CheckImportAsync()); Pump();
         }
         // 独立配置页面的真实分组下拉须和模型一致，取消不能留下界面假选择。

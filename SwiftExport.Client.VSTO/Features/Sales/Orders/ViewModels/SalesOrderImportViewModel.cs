@@ -65,6 +65,8 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public IReferenceDataCacheService ReferenceData { get; }
         public SalesOrderImportHeader Header => header;
         public ObservableCollection<SalesOrderImportLine> Lines { get; } = new ObservableCollection<SalesOrderImportLine>();
+        /// <summary>手工新增后请求视图选中并滚动定位；批量读取不逐行抢占选择。</summary>
+        public event Action<SalesOrderImportLine> LineAdded;
         public CustomerDto SelectedCustomer { get => selectedCustomer; set => SetProperty(ref selectedCustomer, value); }
         /// <summary>仅当前已加载、已认证的会话可以编辑。</summary>
         public bool IsEditable => !IsDisposed && ready && !initializing && !parsing && !SubmissionLocked && session.Capture().User != null && session.Capture().Version == pageVersion;
@@ -168,12 +170,12 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
             Header.ShipToAddress = candidate?.Address ?? ""; Header.ShipToPhone = candidate?.PhoneNumber ?? "";
             dirty = true; RefreshOptions(); NotifyState();
         }
-        // 新行复制当前交期，之后修改单头不会覆盖行编辑。
+        /// <summary>手工新行复制当前交期，集合完成赋号后交给视图定位。</summary>
         private void AddLine(bool nonStandard)
         {
             if (!IsEditable || Header.CustomerId == Guid.Empty) return;
             var line = new SalesOrderImportLine(nonStandard, Header.DeliveryDate);
-            ConfigureSearch(line); Lines.Add(line);
+            ConfigureSearch(line); Lines.Add(line); LineAdded?.Invoke(line);
         }
         private void DeleteLines()
         {
@@ -185,6 +187,9 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         private void LinesChanged(object sender, NotifyCollectionChangedEventArgs args)
         {
             if (applyingParsedPart) return;
+            // 新读取的行按集合顺序赋号；手工新增从当前最大编号继续，不重排行号。
+            var lastNumber = Lines.Select(line => line.LineNumber).DefaultIfEmpty(0).Max();
+            foreach (var line in Lines.Where(line => line.LineNumber == 0)) line.AssignLineNumber(++lastNumber);
             foreach (var line in trackedLines.Where(line => !Lines.Contains(line)).ToArray())
             {
                 line.PropertyChanged -= LineChanged; CancelSearch(line); trackedLines.Remove(line);
@@ -206,7 +211,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         private void LineChanged(object sender, PropertyChangedEventArgs args)
         {
             if (applyingParsedPart || applyingSubmission || resetting) return;
-            if (args.PropertyName == nameof(SalesOrderImportLine.SelectedProduct) || args.PropertyName == nameof(SalesOrderImportLine.IsSearchBusy) || args.PropertyName == nameof(SalesOrderImportLine.SelectedMatchCandidate)) return;
+            if (args.PropertyName == nameof(SalesOrderImportLine.SelectedProduct) || args.PropertyName == nameof(SalesOrderImportLine.IsSearchBusy) || args.PropertyName == nameof(SalesOrderImportLine.SelectedMatchCandidate) || args.PropertyName == nameof(SalesOrderImportLine.LineNumber)) return;
             InvalidateSubmission(); dirty = true;
             if (args.PropertyName == nameof(SalesOrderImportLine.UnitSnapshot)) RefreshOptions();
             NotifyState();
@@ -264,6 +269,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         /// <summary>关闭窗口时解绑缓存和身份通知，取消所有行查询。</summary>
         protected override void DisposeCore()
         {
+            LineAdded = null;
             submissionLifetime.Cancel(); submissionLifetime.Dispose();
             DisposeAddresses();
             session.Changed -= SessionChanged;
