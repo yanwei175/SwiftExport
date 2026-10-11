@@ -20,8 +20,10 @@ namespace SwiftExport.Client.VSTO.Testing
         internal CreateExcelReadProfileRequest LastCreate;
         internal UpdateExcelReadProfileRequest LastRequest;
         internal Func<Task<ServiceResult<ExcelReadProfileDto>>> GetOverride = null;
+        internal Func<string, CancellationToken, Task<ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>>> ListOverride = null;
+        /// <summary>模拟空列表、刷新失败与忽略取消的迟到列表，其他测试沿用默认配置。</summary>
         public Task<ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>> ListAsync(string groupCode, CancellationToken token = default(CancellationToken))
-        { Lists++; return Task.FromResult(ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>.Ok(NoProfiles ? new ExcelReadProfileListItemDto[0] : new[] { new ExcelReadProfileListItemDto { Uid = Profile.Uid, ConfigName = Profile.ConfigName, GroupCode = Profile.GroupCode, Version = Profile.Version } })); }
+        { Lists++; return ListOverride != null ? ListOverride(groupCode, token) : Task.FromResult(ServiceResult<IReadOnlyList<ExcelReadProfileListItemDto>>.Ok(NoProfiles ? new ExcelReadProfileListItemDto[0] : new[] { new ExcelReadProfileListItemDto { Uid = Profile.Uid, ConfigName = Profile.ConfigName, GroupCode = Profile.GroupCode, Version = Profile.Version } })); }
         public Task<ServiceResult<ExcelReadProfileDto>> GetAsync(Guid uid, CancellationToken token = default(CancellationToken))
         { Gets++; return GetOverride != null ? GetOverride() : Task.FromResult(ServiceResult<ExcelReadProfileDto>.Ok(Profile)); }
         /// <summary>模拟只新建配置头的接口；字段编辑器须由客户端目录生成，不由夹具预置。</summary>

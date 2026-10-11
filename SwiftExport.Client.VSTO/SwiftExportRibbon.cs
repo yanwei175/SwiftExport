@@ -63,12 +63,16 @@ namespace SwiftExport.Client.VSTO
         public bool GetPurchaseOrderListEnabled(Office.IRibbonControl control) => GetAccountEnabled(control) && host.CanBrowsePurchaseOrders;
         /// <summary>将采购列表打开交给任务窗格宿主。</summary>
         public void OnPurchaseOrderList(Office.IRibbonControl control) => host?.OpenPurchaseOrderList(control);
+        /// <summary>装箱单只读入口要求已验证身份和查看权限，getter 不读取网络或磁盘。</summary>
+        public bool GetPackingListEnabled(Office.IRibbonControl control) => GetAccountEnabled(control) && host.IsAuthenticated && host.CanBrowsePackingLists;
+        /// <summary>将装箱单列表打开交给任务窗格宿主。</summary>
+        public void OnPackingList(Office.IRibbonControl control) => host?.OpenPackingList(control);
         private void Host_Changed(object sender, EventArgs args) { Refresh(); }
         // Office 缓存动态属性，状态变化后必须主动失效。
         private void Refresh()
         {
             if (ribbon == null) return;
-            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelReadProfile", "packingListImport", "salesOrderList", "purchaseOrderList" }) ribbon.InvalidateControl(id); }
+            try { foreach (var id in new[] { "accountStatus", "login", "switchAccount", "logout", "salesOrderImport", "purchaseOrderImportPreview", "excelReadProfile", "packingListImport", "salesOrderList", "purchaseOrderList", "packingList" }) ribbon.InvalidateControl(id); }
             catch (COMException) { ribbon = null; }
         }
         /// <summary>断开宿主事件与 Ribbon 引用。</summary>

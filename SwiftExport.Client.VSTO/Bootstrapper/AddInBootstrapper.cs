@@ -202,6 +202,20 @@ namespace SwiftExport.Client.VSTO.Bootstrapper
                 Changed?.Invoke(this, EventArgs.Empty);
             }
         }
+        /// <summary>装箱单列表入口只读取内存中的查看权限。</summary>
+        public bool CanBrowsePackingLists => user?.HasPermission(PermissionKeys.ShippingPackingListView) == true;
+        /// <summary>在所属 Excel 窗口切换装箱单侧栏，宽度及资源 Scope 沿用任务窗格管理。</summary>
+        public void OpenPackingList(Office.IRibbonControl control)
+        {
+            if (!IsReady || !IsAuthenticated || !CanBrowsePackingLists || IsRestoring || IsLoginOpen) return;
+            try { taskPanes.TogglePane(context.GetWindow(control), "packing-list"); }
+            catch (Exception ex)
+            {
+                log.Write("OpenPackingListFailure", ex);
+                Status = "无法打开装箱单侧栏，请查看日志";
+                Changed?.Invoke(this, EventArgs.Empty);
+            }
+        }
         /// <summary>Ribbon 切换配置侧栏，导入页按业务组受控定位配置。</summary>
         public void OpenExcelReadProfile(Office.IRibbonControl control, Guid? initialProfile = null, string groupCode = "SalesOrder")
         {

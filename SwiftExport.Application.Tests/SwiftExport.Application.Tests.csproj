@@ -18,7 +18,7 @@
     <ProjectReference Include="..\DvFileStorage\DvFileStorage.csproj" />
     <ProjectReference Include="..\SwiftExport.Application\SwiftExport.Application.csproj" />
     <ProjectReference Include="..\SwiftExport.WebApi\SwiftExport.WebApi.csproj" />
-    <ProjectReference Include="..\_tools\AdminPasswordRecovery\AdminPasswordRecovery.csproj" />
+    <ProjectReference Include="..\部署\维护工具\AdminPasswordRecovery\AdminPasswordRecovery.csproj" />
     <ProjectReference Include="..\_tools\DbSeed\DbSeed.csproj" />
   </ItemGroup>
 </Project>

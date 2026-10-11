@@ -1,0 +1,82 @@
+<UserControl x:Class="SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Views.PackingListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:customers="clr-namespace:SwiftExport.Client.VSTO.Features.Customers.Components"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="850"
+             FontSize="{DynamicResource ControlContentThemeFontSize}"
+             Background="{DynamicResource SwiftExportBackground}" Foreground="{DynamicResource SwiftExportForeground}">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,12">
+            <TextBlock Text="Excel 工具栏" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <ui:TextBox x:Name="OutputPathBox" Text="{Binding OutputPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        PlaceholderText="输出路径" AutomationProperties.Name="Excel 输出路径"/>
+            <WrapPanel Margin="0,8,0,0">
+                <ui:Button x:Name="GenerateSelectedButton" Content="生成选中箱单成 Excel（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <ui:Button x:Name="GenerateCheckedButton" Content="批量生成勾选箱单成 Excel（待实现）" IsEnabled="False" Margin="0,0,8,4"/>
+                <TextBlock Text="{Binding CheckedCount, StringFormat=本页已勾选：{0}}" VerticalAlignment="Center" Margin="0,0,0,4"/>
+            </WrapPanel>
+        </StackPanel>
+        <WrapPanel Grid.Row="1" IsEnabled="{Binding CanBrowse}" Margin="0,0,0,8">
+            <StackPanel Width="260" Margin="0,0,8,8">
+                <TextBlock Text="关键词" Margin="0,0,0,4"/>
+                <ui:TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="箱单关键词" AutomationProperties.Name="装箱单关键词">
+                    <ui:TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding SearchCommand}"/></ui:TextBox.InputBindings>
+                </ui:TextBox>
+            </StackPanel>
+            <StackPanel Width="240" Margin="0,0,8,8">
+                <TextBlock Text="客户（留空查询全部）" Margin="0,0,0,4"/>
+                <customers:CustomerAutoSuggestComboBox x:Name="CustomerSelector" ItemsSource="{Binding ReferenceData.Customers}"
+                    SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}" SelectionCommittedCommand="{Binding CustomerSelectedCommand}"
+                    SelectionClearedCommand="{Binding CustomerClearedCommand}" AutomationProperties.Name="装箱单客户"/>
+            </StackPanel>
+            <StackPanel Width="150" Margin="0,0,8,8">
+                <TextBlock Text="过账状态" Margin="0,0,0,4"/>
+                <ComboBox x:Name="PostingStatusSelector" ItemsSource="{Binding PostingStatusOptions}" DisplayMemberPath="Value" SelectedValuePath="Key"
+                    SelectedValue="{Binding PostingStatus, Mode=TwoWay}" AutomationProperties.Name="过账状态"/>
+            </StackPanel>
+            <ui:Button Content="查询" Command="{Binding SearchCommand}" Appearance="Primary" VerticalAlignment="Bottom" Margin="0,0,8,8"/>
+            <ui:Button Content="刷新" Command="{Binding RefreshCommand}" VerticalAlignment="Bottom" Margin="0,0,0,8"/>
+        </WrapPanel>
+        <ScrollViewer x:Name="StatusScroll" Grid.Row="2" MaxHeight="84" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource SwiftExportError}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding CacheMessage}" Foreground="{DynamicResource SwiftExportError}" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+        <DataGrid x:Name="DocumentsGrid" Grid.Row="3" ItemsSource="{Binding Documents}" SelectedItem="{Binding SelectedDocument, Mode=TwoWay}"
+            AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Single" SelectionUnit="FullRow"
+            IsEnabled="{Binding CanBrowse}" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+            ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="勾选" Width="48">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center"
+                            VerticalAlignment="Center" AutomationProperties.Name="勾选装箱单"/>
+                    </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="箱单号" Binding="{Binding Document.PackingListNo}" IsReadOnly="True" Width="140"/>
+                <DataGridTextColumn Header="客户" Binding="{Binding Document.CustomerNameSnapshot}" IsReadOnly="True" Width="180"/>
+                <DataGridTextColumn Header="单据日期" Binding="{Binding Document.InvoiceDate, StringFormat={}{0:yyyy-MM-dd}}" IsReadOnly="True" Width="105"/>
+                <DataGridTextColumn Header="发票号汇总" Binding="{Binding Document.InvoiceNosSummary}" IsReadOnly="True" Width="220"/>
+                <DataGridTextColumn Header="过账状态" Binding="{Binding PostingStatusText}" SortMemberPath="Document.PostingStatus" IsReadOnly="True" Width="95"/>
+                <DataGridTextColumn Header="集装箱号" Binding="{Binding Document.ContainerNo}" IsReadOnly="True" Width="140"/>
+                <DataGridTextColumn Header="封条号" Binding="{Binding Document.SealNo}" IsReadOnly="True" Width="120"/>
+                <DataGridTextColumn Header="ETD" Binding="{Binding Document.Etd, StringFormat={}{0:yyyy-MM-dd}}" IsReadOnly="True" Width="105"/>
+                <DataGridTextColumn Header="ETA" Binding="{Binding Document.Eta, StringFormat={}{0:yyyy-MM-dd}}" IsReadOnly="True" Width="105"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <WrapPanel Grid.Row="4" Margin="0,8,0,0">
+            <ui:Button Content="上一页" Command="{Binding PreviousPageCommand}" Margin="0,0,8,0"/>
+            <TextBlock Text="{Binding PageStatus}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ui:Button Content="下一页" Command="{Binding NextPageCommand}"/>
+        </WrapPanel>
+    </Grid>
+</UserControl>

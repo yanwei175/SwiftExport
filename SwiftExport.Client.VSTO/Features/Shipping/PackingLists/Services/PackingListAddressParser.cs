@@ -13,14 +13,14 @@ namespace SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Services
         private readonly ExcelImportDefinition definition;
         /// <summary>复用模型特性生成的字段目录，不接受任意属性反射。</summary>
         public PackingListAddressParser(ExcelImportRegistry registry) { definition = registry.Find("PackingList"); }
-        /// <summary>按行赋值，跳过全空明细并提示；部分为空或转换失败的行保留待修正。</summary>
+        /// <summary>按行赋值，箱唛文字本身不生成明细；部分为空或转换失败的行保留待修正。</summary>
         public PackingListAddressResult Parse(ExcelAddressSnapshot snapshot)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
             var result = new PackingListAddressResult();
             foreach (var values in snapshot.Rows)
             {
-                if (snapshot.Detail && values.All(v => v.Value == null || v.Value is string s && string.IsNullOrWhiteSpace(s))
+                if (snapshot.Detail && values.Where(v => v.FieldKey != "Line.Marks").All(v => v.Value == null || v.Value is string s && string.IsNullOrWhiteSpace(s))
                     && values.All(v => string.IsNullOrEmpty(v.Issue)))
                 { result.Issues.Add("跳过全空明细行：" + values.FirstOrDefault()?.Row); continue; }
                 object model = snapshot.Detail ? (object)new PackingListImportLine() : new PackingListImportHeader();

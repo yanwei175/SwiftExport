@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Visual Studio 本地文件夹发布：服务器配置由部署工具保留或首次单独提供。 -->
+<Project>
+  <PropertyGroup>
+    <WebPublishMethod>FileSystem</WebPublishMethod>
+    <PublishProvider>FileSystem</PublishProvider>
+    <_TargetId>Folder</_TargetId>
+    <LastUsedBuildConfiguration>Release</LastUsedBuildConfiguration>
+    <Configuration>Release</Configuration>
+    <LastUsedPlatform>Any CPU</LastUsedPlatform>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <EnvironmentName>Production</EnvironmentName>
+    <!-- 发布配置留在项目规定位置，生成产物统一进入仓库部署目录。 -->
+    <PublishDir>$(MSBuildProjectDirectory)\..\artifacts\部署\WebApi\Windows文件夹\publish\</PublishDir>
+    <PublishUrl>$(MSBuildProjectDirectory)\..\artifacts\部署\WebApi\Windows文件夹\publish\</PublishUrl>
+    <DeleteExistingFiles>true</DeleteExistingFiles>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Update="appsettings*.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+</Project>

@@ -168,7 +168,15 @@ namespace SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels
             if (!cached.Success) throw new InvalidOperationException(cached.Message);
             var list = await profiles.ListAsync("PackingList", token);
             if (!list.Success) throw new InvalidOperationException(list.Message);
-            await dispatcher.InvokeAsync(() => { if (!Accept(version)) return; ReadProfiles.Clear(); foreach (var item in list.Data) ReadProfiles.Add(item); ready = true; Notify(); });
+            await dispatcher.InvokeAsync(() =>
+            {
+                if (!Accept(version)) return;
+                var selectedUid = SelectedReadProfile?.Uid;
+                ReadProfiles.Clear(); foreach (var item in list.Data) ReadProfiles.Add(item);
+                SelectedReadProfile = ReadProfiles.FirstOrDefault(item => item.Uid == selectedUid) ?? ReadProfiles.FirstOrDefault();
+                if (ReadProfiles.Count == 0) Message = "尚无装箱单读取配置，请在设计读取配置中创建配置。";
+                ready = true; Notify();
+            });
         });
         // 捕获会话及读取前修订，避免旧账号、关闭页面或读取期间的新编辑被覆盖。
         private Task ReadAsync(bool detail) => RunAsync(async (version, token) =>

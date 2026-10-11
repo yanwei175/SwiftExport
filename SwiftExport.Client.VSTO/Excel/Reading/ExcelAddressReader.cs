@@ -111,7 +111,7 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                         for (var i = 0; i < result.Rows.Count; i++)
                         {
                             if (i % 1000 == 0) token.ThrowIfCancellationRequested();
-                            result.Rows[i].Add(hasMerged ? ReadCell(sheet, field.TargetFieldKey, start + i, column, true, ExcelAddressRules.AllowMergedDetailSkip(profile.GroupCode, field.TargetFieldKey))
+                            result.Rows[i].Add(hasMerged ? ReadCell(sheet, field.TargetFieldKey, start + i, column, true, profile.GroupCode)
                                 : Cell(field.TargetFieldKey, start + i, column, values == null ? value : values[i + values.GetLowerBound(0), values.GetLowerBound(1)]));
                         }
                     }
@@ -156,8 +156,8 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
             }
             finally { Release(cell); }
         }
-        // 单头合并区域读取左上角；指定包装字段的跨行合计只保留来源，不向各明细复制或自动分摊。
-        private static ExcelAddressValue ReadCell(ExcelInterop.Worksheet sheet, string key, int row, int column, bool detail, bool allowMergedSkip = false)
+        // 单头读取合并左上角；跨行箱唛复制文字，包装合计留空，其余明细保持严格边界。
+        private static ExcelAddressValue ReadCell(ExcelInterop.Worksheet sheet, string key, int row, int column, bool detail, string groupCode = null)
         {
             ExcelInterop.Range cell = null, area = null, rows = null, first = null;
             try
@@ -166,16 +166,12 @@ namespace SwiftExport.Client.VSTO.Excel.Reading
                 if (cell.MergeCells is bool merged && merged)
                 {
                     area = cell.MergeArea; rows = area.Rows;
-                    if (detail && rows.Count > 1 && allowMergedSkip)
+                    if (detail && rows.Count > 1)
                     {
                         first = sheet.get_Range(ExcelAddressRules.ColumnName(area.Column) + area.Row);
-                        // Issue 阻止解析器向目标字段赋值；原合计值留在来源快照供人工核对。
-                        return new ExcelAddressValue { FieldKey = key, Row = row, Column = column, Value = first.Value2,
-                            Issue = "跨行合并区域 " + area.get_Address(false, false)
-                                + " 的包装值不自动分配到各明细，目标字段已留空，请核对后补充。" };
+                        return ExcelAddressRules.ResolveMergedDetailValue(groupCode,
+                            Cell(key, row, column, first.Value2), area.get_Address(false, false));
                     }
-                    if (detail && rows.Count > 1) throw new InvalidOperationException(key + " 在 " + area.get_Address(false, false)
-                        + " 存在跨行合并，请拆分为一行一条明细后再读取。");
                     first = sheet.get_Range(ExcelAddressRules.ColumnName(area.Column) + area.Row);
                     return Cell(key, area.Row, area.Column, first.Value2);
                 }

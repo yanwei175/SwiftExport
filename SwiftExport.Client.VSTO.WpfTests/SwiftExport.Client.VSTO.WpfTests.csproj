@@ -78,6 +78,8 @@
  <ItemGroup>
   <Compile Include="../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Models/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Services/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/ViewModels/*.cs;../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Views/*.cs" LinkBase="Production/PackingListImport"/>
   <Page Include="../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Views/PackingListImportView.xaml" Link="Features/Shipping/PackingLists/Views/PackingListImportView.xaml"/>
+  <Page Include="../SwiftExport.Client.VSTO/Features/Shipping/PackingLists/Views/PackingListView.xaml" Link="Features/Shipping/PackingLists/Views/PackingListView.xaml"/>
+  <Compile Include="../SwiftExport.Client.VSTO.Tests/PackingListViewTests.cs" Link="PackingListViewTests.cs"/>
   <Compile Include="../SwiftExport.Client.VSTO.Tests/PackingListImportTests.cs" Link="PackingListImportTests.cs"/>
   <PackageReference Include="MSTest.TestFramework" Version="4.3.0" ExcludeAssets="analyzers"/>
  </ItemGroup>

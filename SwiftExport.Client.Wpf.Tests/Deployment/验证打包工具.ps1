@@ -3,11 +3,13 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$deploymentRoot = Join-Path $repositoryRoot 'SwiftExport.Client.Wpf/Deployment'
+$deploymentRoot = Join-Path $repositoryRoot '部署/ClientWpf'
 . (Join-Path $deploymentRoot '打包工具核心.ps1')
-$fixtureRoot = Join-Path $repositoryRoot ('artifacts/client-pack-tests/' + [Guid]::NewGuid().ToString('N'))
-$releaseRoot = Join-Path $fixtureRoot 'bin/Velopack/Releases'
-$settingsPath = Join-Path $fixtureRoot 'bin/Velopack/打包设置.json'
+$fixtureRoot = Join-Path $repositoryRoot ('artifacts/部署/验证/client-pack-tests/' + [Guid]::NewGuid().ToString('N'))
+$releaseRoot = Join-Path $fixtureRoot 'artifacts/部署/ClientWpf/Releases'
+$settingsPath = Join-Path $fixtureRoot '部署/本机配置/ClientWpf/打包设置.json'
+$fakeClient = Join-Path $fixtureRoot 'SwiftExport.Client.Wpf'
+[void][IO.Directory]::CreateDirectory($fakeClient)
 [void][IO.Directory]::CreateDirectory($releaseRoot)
 $script:checkCount = 0
 
@@ -25,16 +27,16 @@ function Assert-PackRejects([scriptblock]$Action, [string]$ExpectedMessage) {
 
 @{ Api = @{ BaseUrl = 'https://default.example' }; Updates = @{ FeedUrl = 'https://default.example/client-updates/' };
    Client = @{ Version = '0.1.0' } } | ConvertTo-Json -Depth 5 |
-    Set-Content -LiteralPath (Join-Path $fixtureRoot 'appsettings.json') -Encoding UTF8
-$settings = Get-ClientPackSettings $fixtureRoot $settingsPath
+    Set-Content -LiteralPath (Join-Path $fakeClient 'appsettings.json') -Encoding UTF8
+$settings = Get-ClientPackSettings $fakeClient $settingsPath
 Assert-PackEqual 'https://default.example/client-updates/' $settings.UpdateUrl '首次读取源码更新地址'
 Assert-PackEqual '0.1.0' (Get-ClientPackSuggestedVersion $releaseRoot $settings.InitialVersion) '首次版本沿用配置'
 Save-ClientPackSettings $settingsPath 'https://saved.example/updates' 'https://saved.example/'
-$saved = Get-ClientPackSettings $fixtureRoot $settingsPath
+$saved = Get-ClientPackSettings $fakeClient $settingsPath
 Assert-PackEqual 'https://saved.example/updates/' $saved.UpdateUrl '保存及规范化更新地址'
 Assert-PackEqual 'https://saved.example' $saved.ApiUrl 'API 地址沿用上次设置'
 Assert-PackRejects { Save-ClientPackSettings $settingsPath 'http://unsafe.example' 'https://saved.example' } 'HTTPS'
-Assert-PackEqual 'https://saved.example/updates/' (Get-ClientPackSettings $fixtureRoot $settingsPath).UpdateUrl '失败不得覆盖已有设置'
+Assert-PackEqual 'https://saved.example/updates/' (Get-ClientPackSettings $fakeClient $settingsPath).UpdateUrl '失败不得覆盖已有设置'
 foreach ($address in @('https://user:secret@example.com/updates/', 'https://example.com/?token=secret', 'https://example.com/#fragment')) {
     Assert-PackRejects { Assert-ClientPackHttpsAddress $address } 'HTTPS'
 }
@@ -51,10 +53,10 @@ Assert-PackEqual '0.9.10' (Get-ClientPackSuggestedVersion $releaseRoot '0.1.0') 
 Set-Content -LiteralPath (Join-Path $releaseRoot 'SwiftExportClient-0.9.12-full.nupkg') -Value '失败残留'
 Assert-PackEqual '0.9.13' (Get-ClientPackSuggestedVersion $releaseRoot '0.1.0') '失败残留包的版本不能覆盖'
 
-# 在假客户端目录运行真实核心脚本，校验失败发生在原生命令之前。
-$fakeDeployment = Join-Path $fixtureRoot 'Deployment'
+# 夹具按真实仓库布局运行核心脚本，校验从部署目录定位项目及独立产物。
+$fakeDeployment = Join-Path $fixtureRoot '部署/ClientWpf'
 [void][IO.Directory]::CreateDirectory($fakeDeployment)
-foreach ($name in @('打包客户端.ps1', '打包工具核心.ps1')) {
+foreach ($name in @('打包客户端.ps1', '打包工具核心.ps1', '一键打包客户端.ps1', 'client-pack-launcher.ps1')) {
     Copy-Item -LiteralPath (Join-Path $deploymentRoot $name) -Destination (Join-Path $fakeDeployment $name)
 }
 $packScript = Join-Path $fakeDeployment '打包客户端.ps1'
@@ -65,6 +67,9 @@ try { Assert-PackRejects { & $packScript @packArguments } '另一个客户端打
 finally { $heldLock.Dispose() }
 $packArguments.Version = '0.9.9'
 Assert-PackRejects { & $packScript @packArguments } '版本号必须大于'
+# 英文入口必须把中文交互脚本的失败码返回给 CMD，避免编译失败被误判成功。
+& "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File (Join-Path $fakeDeployment 'client-pack-launcher.ps1') -Version '0.9.9' -NonInteractive -NoOpenFolder | Out-Null
+Assert-PackEqual 1 $LASTEXITCODE '启动入口保留失败退出码'
 $packArguments.Version = '0.9.10'
 $feedBefore = Get-Content -LiteralPath $feedPath -Raw -Encoding UTF8
 function dotnet {

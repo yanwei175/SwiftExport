@@ -56,6 +56,16 @@ namespace SwiftExport.Client.VSTO.WpfTests
                     using (var packingHost = new WpfRuntimeHost()) { packingHost.Initialize(); PackingListImportChecks.Run(Check); }
                     Console.WriteLine("PASS PackingList import: " + checks + " assertions"); return 0;
                 }
+                if (args.Length == 1 && args[0] == "--packing-list-only")
+                {
+                    using (var listHost = new WpfRuntimeHost()) { listHost.Initialize(); PackingListViewChecks.Run(Check); }
+                    Console.WriteLine("PASS PackingList list: " + checks + " assertions"); return 0;
+                }
+                if (args.Length == 1 && args[0] == "--packing-profile-only")
+                {
+                    using (var packingHost = new WpfRuntimeHost()) { packingHost.Initialize(); PackingListReadChecks.Run(Check); }
+                    Console.WriteLine("PASS PackingList profile selection: " + checks + " assertions"); return 0;
+                }
                 if (args.Length == 1 && args[0] == "--purchase-preview-only")
                 {
                     using (var previewHost = new WpfRuntimeHost())

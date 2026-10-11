@@ -15,7 +15,7 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
         }
         /// <summary>取得已注册页面，未注册标识明确报错。</summary>
         public TaskPaneConfig Get(string id) => configs[id];
-        /// <summary>集中注册读取配置、销售与采购列表侧栏；导入仍使用独立窗体。</summary>
+        /// <summary>集中注册读取配置、销售、采购与装箱单列表侧栏；导入仍使用独立窗体。</summary>
         public static TaskPaneRegistrar CreateDefault()
         {
             var registrar = new TaskPaneRegistrar();
@@ -25,6 +25,8 @@ namespace SwiftExport.Client.VSTO.Hosting.TaskPanes
                 typeof(Features.Sales.Orders.Views.SalesOrderListView), 1400));
             registrar.Register(new TaskPaneConfig("purchase-order-list", "采购订单",
                 typeof(Features.Procurement.PurchaseOrders.Views.PurchaseOrderListView), 1400));
+            registrar.Register(new TaskPaneConfig("packing-list", "装箱单",
+                typeof(Features.Shipping.PackingLists.Views.PackingListView), 1400));
             return registrar;
         }
     }

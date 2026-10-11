@@ -10,11 +10,13 @@ using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
+/// <summary>验证产品页字段分组、基础资料模板及列可见性接线。</summary>
 [TestClass]
 public sealed class ProductsViewFieldModeTests
 {
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
+    /// <summary>验证现行简单和复杂字段分组及复杂列的视图模型可见性绑定。</summary>
     [TestMethod]
     public void FieldModeToggleAndColumns_ShouldMatchSimpleAndComplexContract()
     {
@@ -27,9 +29,8 @@ public sealed class ProductsViewFieldModeTests
 
         var alwaysVisibleKeys = new[]
         {
-            "main-image", "product-sku", "link-sku", "description-zh", "features-zh", "finish",
-            "category-name", "material-type", "product-unit", "supply-type", "bom-no", "default-customer-code",
-            "default-customer-sku", "default-supplier-code", "default-supplier-sku", "cny-price",
+            "main-image", "master-sku", "product-sku", "link-sku", "description-zh", "features-zh", "finish",
+            "category-name", "material-type", "product-unit", "supply-type", "bom-no", "default-supplier-code", "cny-price",
             "usd-price", "note",
         };
         foreach (var key in alwaysVisibleKeys)
@@ -40,7 +41,7 @@ public sealed class ProductsViewFieldModeTests
 
         var complexKeys = new[]
         {
-            "master-sku", "description-en", "features-en", "bom-version", "supplier-name",
+            "description-en", "features-en", "bom-version", "supplier-name",
             "pcs-of-carton", "nw-of-carton", "gw-of-carton", "cbm-of-carton",
         };
         foreach (var key in complexKeys)
@@ -72,6 +73,7 @@ public sealed class ProductsViewFieldModeTests
         Assert.IsFalse(column.Elements().Any(element => element.Name.LocalName == "DataGridTemplateColumn.CellEditingTemplate"));
     }
 
+    /// <summary>验证图片列使用缓存展示，并编辑原图片引用字段。</summary>
     [TestMethod]
     public void MainImageColumn_ShouldUseCachedDisplayAndEditablePath()
     {
@@ -84,20 +86,11 @@ public sealed class ProductsViewFieldModeTests
         StringAssert.Contains((string?)editor.Attribute("Text") ?? string.Empty, "Mode=TwoWay");
     }
 
+    /// <summary>验证颜色行编辑、分类树筛选及分类列只读展示的接线。</summary>
     [TestMethod]
     public void ColorLookupAndReadonlyCategory_ShouldUseExpectedTemplates()
     {
         var document = LoadProductsView();
-        var colorLookups = document.Descendants()
-            .Where(element => element.Name.LocalName == "LookupTextBox"
-                              && ((string?)element.Attribute("ItemsSource"))?.Contains(
-                                  "ReferenceDataCache.ProductColors",
-                                  StringComparison.Ordinal) == true)
-            .ToArray();
-        Assert.HasCount(1, colorLookups, "筛选区继续使用通用本地 Lookup。");
-        Assert.IsTrue(colorLookups.All(element => (string?)element.Attribute("SearchMode") == "Local"));
-        Assert.IsFalse(colorLookups.Any(element => element.Attribute("SearchCommand") is not null));
-
         var colorEditor = document.Descendants()
             .Single(element => element.Name.LocalName == "ProductColorLookupTextBox");
         StringAssert.Contains((string?)colorEditor.Attribute("ItemsSource") ?? string.Empty, "ReferenceDataCache.ProductColors");

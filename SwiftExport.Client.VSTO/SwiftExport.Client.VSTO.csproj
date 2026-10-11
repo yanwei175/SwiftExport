@@ -441,6 +441,15 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Features\Shipping\PackingLists\Models\PackingListRow.cs" />
+    <Compile Include="Features\Shipping\PackingLists\ViewModels\PackingListViewModel.cs" />
+    <Compile Include="Features\Shipping\PackingLists\Views\PackingListView.xaml.cs">
+      <DependentUpon>PackingListView.xaml</DependentUpon>
+    </Compile>
+    <Page Include="Features\Shipping\PackingLists\Views\PackingListView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Compile Include="Features\Shipping\PackingLists\Models\PackingListImportHeader.cs" />
     <Compile Include="Features\Shipping\PackingLists\Models\PackingListImportLine.cs" />
     <Compile Include="Features\Shipping\PackingLists\Services\PackingListAddressParser.cs" />

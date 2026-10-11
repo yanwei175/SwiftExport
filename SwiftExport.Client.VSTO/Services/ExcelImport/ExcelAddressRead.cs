@@ -66,10 +66,22 @@ namespace SwiftExport.Client.VSTO.Services.ExcelImport
             }
             return firstRow - 1;
         }
-        /// <summary>销售合并重量／体积合计及装箱可选包装字段留空提示，防止重复分配；数量、型号等仍严格读取。</summary>
+        /// <summary>销售合并重量／体积合计及装箱可选包装数值留空提示；箱唛文字另行复制，数量、型号仍严格读取。</summary>
         public static bool AllowMergedDetailSkip(string groupCode, string fieldKey) =>
             groupCode == "SalesOrder" && new[] { "Line.NwOfCarton", "Line.GwOfCarton", "Line.CbmOfCarton" }.Contains(fieldKey)
-            || groupCode == "PackingList" && new[] { "Line.Marks", "Line.PcsPerPackage", "Line.NwPerPackage", "Line.GwPerPackage", "Line.CbmPerPackage" }.Contains(fieldKey);
+            || groupCode == "PackingList" && new[] { "Line.PcsPerPackage", "Line.NwPerPackage", "Line.GwPerPackage", "Line.CbmPerPackage" }.Contains(fieldKey);
+        /// <summary>处理跨行合并的明细值：箱唛沿用各目标行的地址和原文，包装合计只留来源，其余字段拒绝读取。</summary>
+        public static ExcelAddressValue ResolveMergedDetailValue(string groupCode, ExcelAddressValue value, string mergedAddress)
+        {
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (groupCode == "PackingList" && value.FieldKey == "Line.Marks") return value;
+            if (!AllowMergedDetailSkip(groupCode, value.FieldKey))
+                throw new InvalidOperationException(value.FieldKey + " 在 " + mergedAddress
+                    + " 存在跨行合并，请拆分为一行一条明细后再读取。");
+            return new ExcelAddressValue { FieldKey = value.FieldKey, Row = value.Row, Column = value.Column, Value = value.Value,
+                Issue = "跨行合并区域 " + mergedAddress + " 的包装值不自动分配到各明细，目标字段已留空，请核对后补充。"
+                    + (string.IsNullOrEmpty(value.Issue) ? "" : " " + value.Issue) };
+        }
         /// <summary>解析合法的单格 A1 地址，接受绝对标记，拒绝范围和外部引用。</summary>
         public static bool TryCell(string address, out int row, out int column)
         {

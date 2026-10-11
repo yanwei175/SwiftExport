@@ -13,6 +13,7 @@
   <group id="documentGroup" label="单据">
    <button id="salesOrderList" label="销售订单" onAction="OnSalesOrderList" getEnabled="GetSalesOrderListEnabled" screentip="在右侧栏查询销售订单；Excel 生成待实现"/>
    <button id="purchaseOrderList" label="采购订单" onAction="OnPurchaseOrderList" getEnabled="GetPurchaseOrderListEnabled" screentip="在右侧栏查询采购订单；Excel 生成待实现"/>
+   <button id="packingList" label="装箱单" onAction="OnPackingList" getEnabled="GetPackingListEnabled" screentip="在右侧栏查询装箱单；Excel 生成待实现"/>
   </group>
   <group id="importGroup" label="数据导入">
    <button id="salesOrderImport" label="销售订单导入" onAction="OnSalesImport" getEnabled="GetSalesImportEnabled" screentip="本地编辑预览，暂不保存至服务器"/>

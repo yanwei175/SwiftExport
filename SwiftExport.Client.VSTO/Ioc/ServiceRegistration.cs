@@ -89,6 +89,8 @@ namespace SwiftExport.Client.VSTO.Ioc
             services.AddSingleton(p => p.GetRequiredService<ApiClientRegistration>().Create<SwiftExport.Contracts.Apis.Shipping.IPackingListApi>("api/shipping/packing-lists"));
             services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels.PackingListImportViewModel>();
             services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Views.PackingListImportView>();
+            services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.ViewModels.PackingListViewModel>();
+            services.AddScoped<SwiftExport.Client.VSTO.Features.Shipping.PackingLists.Views.PackingListView>();
             services.AddScoped<ModelessWindowContext>();
             services.AddSingleton<WindowManager>();
             services.AddSingleton<ModelessElementHostWindowManager>();
