@@ -19,7 +19,7 @@ using Wpf.Ui;
 
 namespace SwiftExportClient.Bootstrapper;
 
-/// <summary>注册客户端 API、会话、缓存、导航及应用级更新服务。</summary>
+/// <summary>注册客户端 API、会话、缓存、文件、导航及应用级更新服务。</summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>绑定运行配置并建立客户端服务生命周期。</summary>
@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ClientUpdateDialogService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
+        services.AddClientFileServices();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
         services.AddTransient<IProcurementReversalDialogService, ProcurementReversalDialogService>();

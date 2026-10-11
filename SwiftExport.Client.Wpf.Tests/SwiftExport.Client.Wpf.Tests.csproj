@@ -20,5 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj" />
     <EmbeddedResource Include="..\SwiftExport.Client.Wpf\App.xaml" LogicalName="DatePickerTests.App.xaml" />
+    <EmbeddedResource Include="Services\Files\**\Fixtures\*.xlsx" />
   </ItemGroup>
 </Project>
