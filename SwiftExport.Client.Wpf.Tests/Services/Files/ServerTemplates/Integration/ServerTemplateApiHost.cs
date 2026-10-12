@@ -112,7 +112,14 @@ internal sealed class ServerTemplateApiHost : IAsyncDisposable
         await source.CopyToAsync(memory);
         var bytes = memory.ToArray();
         if (includePrintFooter) bytes = AddPrintFooter(bytes);
-        var directory = Path.Combine(TemplateRoot, "test-template", $"v{version}");
+        await PublishTemplateBytesAsync(bytes, "test-template", "SO", contractKey, version, enabled);
+    }
+
+    /// <summary>发布调用方提供的真实示例模板副本，供不同单据契约贯通测试复用同一隔离 HTTP 宿主。</summary>
+    internal async Task PublishTemplateBytesAsync(byte[] bytes, string templateId, string documentType,
+        string dataContractKey, int templateVersion, bool enabled = true)
+    {
+        var directory = Path.Combine(TemplateRoot, templateId, $"v{templateVersion}");
         Directory.CreateDirectory(directory);
         await File.WriteAllBytesAsync(Path.Combine(directory, "模板.xlsx"), bytes);
         var manifest = new
@@ -122,8 +129,8 @@ internal sealed class ServerTemplateApiHost : IAsyncDisposable
             {
                 new
                 {
-                    templateId = "test-template", displayName = "受控测试单据", documentType = "SO",
-                    dataContractKey = contractKey, dataContractVersion = 1, templateVersion = version,
+                    templateId, displayName = "受控测试单据", documentType,
+                    dataContractKey, dataContractVersion = 1, templateVersion,
                     fileLength = bytes.LongLength, sha256 = Convert.ToHexString(SHA256.HashData(bytes)), enabled
                 }
             }

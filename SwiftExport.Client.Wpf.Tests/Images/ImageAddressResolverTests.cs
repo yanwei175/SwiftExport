@@ -1,6 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.SystemDtos.SystemParameters;
 using SwiftExportClient.Services.Images;
 
 namespace SwiftExport.Client.Wpf.Tests.Images;
@@ -9,6 +10,37 @@ namespace SwiftExport.Client.Wpf.Tests.Images;
 [TestClass]
 public sealed class ImageAddressResolverTests
 {
+    /// <summary>重建改为本地目录后，网络小图仍独立使用上传地址，本地加载尺寸不变。</summary>
+    [TestMethod]
+    public void LocalRebuildBase_ShouldNotChangeNetworkThumbnails()
+    {
+        using var fixture = new SystemParameterClientFixture(@"D:\Photos");
+        var upload = SystemParameterClientFixture.Parameter("https://uploads.test/catalog/");
+        upload.Key = SystemParameterKeys.ProductImagesUploadBaseUrl;
+        fixture.Cache.ApplySaved(upload);
+        using var resolver = new ImageAddressResolver(fixture.Cache);
+        Assert.IsTrue(resolver.TryGetProductBaseAddress(out var rebuildBase));
+        Assert.AreEqual(@"D:\Photos\", rebuildBase);
+        Assert.AreEqual("https://uploads.test/catalog/Thumbnails/ABC.001.jpg",
+            resolver.Resolve("https://uploads.test/catalog/ABC.001.jpg", ImageDisplayMode.Thumbnail, 800)!.SourcePath);
+        Assert.AreEqual(@"D:\Photos\ABC.001.jpg", resolver.Resolve(@"D:\Photos\ABC.001.jpg", ImageDisplayMode.Thumbnail, 800)!.SourcePath);
+        fixture.Cache.ApplySaved(SystemParameterClientFixture.Parameter(@"\\server\share\pictures", 2));
+        Assert.AreEqual("https://uploads.test/catalog/Thumbnails/ABC.001.jpg",
+            resolver.Resolve("https://uploads.test/catalog/ABC.001.jpg", ImageDisplayMode.Thumbnail, 800)!.SourcePath);
+    }
+
+    /// <summary>配置了无效上传地址时不回退旧重建网络地址或加载原图。</summary>
+    [TestMethod]
+    public void InvalidUploadAddress_ShouldNotUseRebuildUrl()
+    {
+        using var fixture = new SystemParameterClientFixture();
+        var upload = SystemParameterClientFixture.Parameter(@"D:\NotPublic");
+        upload.Key = SystemParameterKeys.ProductImagesUploadBaseUrl;
+        fixture.Cache.ApplySaved(upload);
+        using var resolver = new ImageAddressResolver(fixture.Cache);
+        Assert.IsNull(resolver.Resolve("https://example.test/files/ProductImages/a.jpg", ImageDisplayMode.Thumbnail, 96));
+    }
+
     /// <summary>托管小图只插入一个固定目录，原图删除已知缩略图目录，查询参数原样保留。</summary>
     [TestMethod]
     [DataRow("a.jpg", "a.jpg")]
@@ -68,7 +100,7 @@ public sealed class ImageAddressResolverTests
         const string url = "https://example.test/files/ProductImages/a.jpg";
         Assert.IsNull(resolver.Resolve(url, ImageDisplayMode.Thumbnail, 96));
         Assert.AreEqual(url, resolver.Resolve(url, ImageDisplayMode.Original, 400)!.SourcePath);
-        Assert.IsFalse(resolver.TryGetProductBaseUri(out _));
+        Assert.IsFalse(resolver.TryGetProductBaseAddress(out _));
     }
 
     /// <summary>完整编码保留点号并正确转义特殊字符；危险文件主体不能生成地址。</summary>

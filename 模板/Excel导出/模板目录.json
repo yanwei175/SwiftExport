@@ -1,0 +1,14 @@
+{
+  "formatVersion": 1,
+  "templates": [
+    {
+      "templateId": "purchase-order-vsto-demo",
+      "displayName": "采购单（VSTO版式示例）",
+      "documentType": "PO",
+      "dataContractKey": "purchase-order.vsto-demo",
+      "dataContractVersion": 1,
+      "templateVersion": 1,
+      "enabled": true
+    }
+  ]
+}

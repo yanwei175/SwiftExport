@@ -344,15 +344,15 @@ public sealed partial class ProductNeutralManagerViewModel
         EditColor = null;
     }
 
-    /// <summary>按最新缓存基址与完整产品编码生成原图 URL，变更由页面保存命令统一提交。</summary>
+    /// <summary>按最新重建基址与完整编码生成网络地址或本地路径，变更由页面保存命令统一提交。</summary>
     [RelayCommand(CanExecute = nameof(CanReBuildImagePath))]
     private void ReBuildImagePath(ProductNeutralManagerLineModel? line)
     {
         if (!CanReBuildImagePath(line)) return;
-        if (_imageAddresses.TryGetProductBaseUri(out var baseUri)) ApplyImagePath(line!, baseUri);
+        if (_imageAddresses.TryGetProductBaseAddress(out var baseAddress)) ApplyImagePath(line!, baseAddress);
     }
 
-    /// <summary>确认后以同一个基址快照重建勾选行 URL；空或不安全编码保持原值并计入跳过数量。</summary>
+    /// <summary>确认后以同一个基址快照重建勾选行图片引用；空或不安全编码保持原值并计入跳过数量。</summary>
     [RelayCommand(CanExecute = nameof(CanReBuildCheckedImagePaths))]
     private async Task ReBuildCheckedImagePathsAsync()
     {
@@ -373,11 +373,11 @@ public sealed partial class ProductNeutralManagerViewModel
             IsSelectionPrompt = false;
         }
 
-        if (!_imageAddresses.TryGetProductBaseUri(out var baseUri)) return;
+        if (!_imageAddresses.TryGetProductBaseAddress(out var baseAddress)) return;
         var rebuiltCount = 0;
         foreach (var line in checkedLines)
         {
-            if (ApplyImagePath(line, baseUri)) rebuiltCount++;
+            if (ApplyImagePath(line, baseAddress)) rebuiltCount++;
         }
 
         var skippedCount = checkedLines.Length - rebuiltCount;
@@ -385,11 +385,11 @@ public sealed partial class ProductNeutralManagerViewModel
         _messages.ShowSuccess("图片路径已重建", $"已重建 {rebuiltCount} 条中性产品图片路径{skippedMessage}，请保存变更。");
     }
 
-    /// <summary>使用固定基址快照和完整编码生成 JPG 地址，保留编码内点号并转义文件名。</summary>
-    private static bool ApplyImagePath(ProductNeutralManagerLineModel line, Uri baseUri)
+    /// <summary>按固定基址快照生成网络或本地 JPG 引用，保留编码内点号；网络引用才转义文件名。</summary>
+    private static bool ApplyImagePath(ProductNeutralManagerLineModel line, string baseAddress)
     {
-        if (!ProductImageAddress.TryGetProductFileName(line.ProductCode, out var fileName)) return false;
-        line.ImagePath = ProductImageAddress.BuildUrl(baseUri, fileName);
+        if (!ProductImageAddress.TryBuildProductImageReference(baseAddress, line.ProductCode, out var reference)) return false;
+        line.ImagePath = reference;
         return true;
     }
 
@@ -519,12 +519,12 @@ public sealed partial class ProductNeutralManagerViewModel
         && CanWrite
         && line is not null
         && ProductImageAddress.TryGetProductFileName(line.ProductCode, out _)
-        && _imageAddresses.TryGetProductBaseUri(out _);
+        && _imageAddresses.TryGetProductBaseAddress(out _);
     private bool CanReBuildCheckedImagePaths() =>
         IsInteractionEnabled
         && CanWrite
         && Lines.CheckedItems.Any(line => ProductImageAddress.TryGetProductFileName(line.ProductCode, out _))
-        && _imageAddresses.TryGetProductBaseUri(out _);
+        && _imageAddresses.TryGetProductBaseAddress(out _);
 
     /// <summary>取消分页和主型号搜索请求并解除集合及页面状态订阅。</summary>
     public void Dispose()

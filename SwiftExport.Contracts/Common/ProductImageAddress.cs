@@ -27,6 +27,46 @@ namespace SwiftExport.Contracts.Common
             return true;
         }
 
+        /// <summary>规范重建基址，接受网络原图目录或 Windows 绝对目录；不检查客户端目录是否可达。</summary>
+        public static bool TryNormalizeBaseAddress(string value, out string baseAddress)
+        {
+            baseAddress = null;
+            Uri baseUri;
+            if (TryNormalizeBaseUrl(value, out baseUri))
+            {
+                baseAddress = baseUri.AbsoluteUri;
+                return true;
+            }
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            var path = value.Trim().Replace('/', '\\');
+            if (path.Length > 2048 || path.Any(char.IsControl)) return false;
+            var driveRoot = path.Length >= 3 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+                && path[1] == ':' && path[2] == '\\';
+            var uncRoot = path.StartsWith("\\\\", StringComparison.Ordinal);
+            if (!driveRoot && !uncRoot) return false;
+            var segments = path.Substring(driveRoot ? 3 : 2).Split(new[] { '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            if (uncRoot && segments.Length < 2) return false;
+            // 按 Windows 目录规则校验文本，服务端运行在其他系统时也不依赖其 Path 语义。
+            if (segments.Any(segment => segment == "." || segment == ".." || segment.IndexOfAny(InvalidNameCharacters) >= 0
+                || segment.EndsWith(".", StringComparison.Ordinal) || segment.EndsWith(" ", StringComparison.Ordinal)
+                || ReservedNames.Contains(segment.Split('.')[0]))) return false;
+            baseAddress = (driveRoot ? path.Substring(0, 3) : "\\\\") + string.Join("\\", segments);
+            baseAddress = baseAddress.TrimEnd('\\') + "\\";
+            return baseAddress.Length <= 2048;
+        }
+
+        /// <summary>按当前重建基址生成完整产品图片引用；本地文件名保留原字符，网络文件名按 URI 段转义。</summary>
+        public static bool TryBuildProductImageReference(string baseAddress, string productCode, out string reference)
+        {
+            reference = null;
+            string normalized;
+            string fileName;
+            if (!TryNormalizeBaseAddress(baseAddress, out normalized) || !TryGetProductFileName(productCode, out fileName)) return false;
+            Uri baseUri;
+            reference = TryNormalizeBaseUrl(normalized, out baseUri) ? BuildUrl(baseUri, fileName) : normalized + fileName;
+            return true;
+        }
+
         /// <summary>校验单个文件主体，保留内部点号；上传和编码生成使用相同规则。</summary>
         public static bool IsValidFileStem(string stem)
         {

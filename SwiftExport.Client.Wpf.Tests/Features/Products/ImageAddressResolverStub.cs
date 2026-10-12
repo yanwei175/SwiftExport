@@ -1,4 +1,5 @@
 using SwiftExportClient.Services.Images;
+using SwiftExport.Contracts.Common;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
@@ -9,8 +10,8 @@ internal sealed class ImageAddressResolverStub(string? baseUrl = "https://exampl
     /// <inheritdoc />
     public event EventHandler? Changed;
     /// <inheritdoc />
-    public bool TryGetProductBaseUri(out Uri baseUri)
-    { baseUri = BaseUrl is null ? null! : new Uri(BaseUrl); return baseUri is not null; }
+    public bool TryGetProductBaseAddress(out string baseAddress)
+        => ProductImageAddress.TryNormalizeBaseAddress(BaseUrl!, out baseAddress);
     /// <inheritdoc />
     public ImageLoadAddress? Resolve(string? sourcePath, ImageDisplayMode mode, int decodePixelWidth) => null;
     /// <summary>模拟管理员保存或手动刷新成功后的通知。</summary>

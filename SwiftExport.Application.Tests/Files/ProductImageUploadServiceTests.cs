@@ -11,6 +11,7 @@ using SwiftExport.Application.Services.Files.ProductImages;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Files.ProductImages;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.DTOs.SystemDtos.SystemParameters;
 using SwiftExport.WebApi.Files.ProductImages;
 
 namespace SwiftExport.Application.Tests.Files;
@@ -116,9 +117,10 @@ public sealed class ProductImageUploadServiceTests
     {
         var storage = new InMemoryFileStorage();
         var parameters = new SystemParameterRepositoryStub();
+        parameters.OtherParameters[SystemParameterKeys.ProductImagesUploadBaseUrl] = (parameters.Value!, 1);
         var service = CreateService(storage, 10, parameters);
         var first = (await service.BeginBatchAsync()).Data;
-        parameters.Value = "https://new.test/catalog/";
+        parameters.OtherParameters[SystemParameterKeys.ProductImagesUploadBaseUrl] = ("https://new.test/catalog/", 2);
         var result = await service.UploadItemAsync(first, 0, "中文 #%.001.png", new MemoryStream([1]));
         Assert.IsTrue(result.Success);
         Assert.AreEqual("https://example.test/erp/files/ProductImages/%E4%B8%AD%E6%96%87%20%23%25.001.jpg", result.OriginalUrl);
@@ -127,6 +129,40 @@ public sealed class ProductImageUploadServiceTests
         var second = (await service.BeginBatchAsync()).Data;
         var next = await service.UploadItemAsync(second, 0, "ABC.001.jpg", new MemoryStream([2]));
         Assert.AreEqual("https://new.test/catalog/ABC.001.jpg", next.OriginalUrl);
+    }
+
+    /// <summary>本地重建基址不影响上传，已配置但无效的新上传地址不能被旧值掩盖。</summary>
+    [TestMethod]
+    public async Task UploadAddress_ShouldRemainIndependentFromRebuildPath()
+    {
+        var storage = new InMemoryFileStorage();
+        var parameters = new SystemParameterRepositoryStub(@"D:\Photos\");
+        parameters.OtherParameters[SystemParameterKeys.ProductImagesUploadBaseUrl] = ("https://uploads.test/photos/", 1);
+        var service = CreateService(storage, 10, parameters);
+        var session = (await service.BeginBatchAsync()).Data;
+        var uploaded = await service.UploadItemAsync(session, 0, "ABC.001.png", new MemoryStream([1]));
+        Assert.IsTrue(uploaded.Success);
+        Assert.AreEqual("https://uploads.test/photos/ABC.001.jpg", uploaded.OriginalUrl);
+        Assert.AreEqual("https://uploads.test/photos/Thumbnails/ABC.001.jpg", uploaded.ThumbnailUrl);
+        Assert.AreEqual(1, parameters.Reads);
+        parameters.Value = "https://legacy.test/images/";
+        parameters.OtherParameters[SystemParameterKeys.ProductImagesUploadBaseUrl] = (@"D:\NotPublic\", 2);
+        Assert.AreEqual(ServiceErrorCodes.ServiceUnavailable, (await service.BeginBatchAsync()).Error.Code);
+        Assert.AreEqual(2, storage.Files.Count);
+    }
+
+    /// <summary>新上传地址尚未保存时兼容旧网络基址，本地基址不能作为公开上传地址。</summary>
+    [TestMethod]
+    public async Task MissingUploadAddress_ShouldUseOnlyLegacyNetworkBase()
+    {
+        var storage = new InMemoryFileStorage();
+        var parameters = new SystemParameterRepositoryStub();
+        var service = CreateService(storage, 10, parameters);
+        Assert.IsTrue((await service.BeginBatchAsync()).Success);
+        Assert.AreEqual(2, parameters.Reads);
+        parameters.Value = @"D:\Photos\";
+        Assert.AreEqual(ServiceErrorCodes.ServiceUnavailable, (await service.BeginBatchAsync()).Error.Code);
+        Assert.AreEqual(0, storage.Files.Count);
     }
 
     private static ProductImageUploadService CreateService(IFileStorage storage, long maxFileBytes, SystemParameterRepositoryStub? parameters = null)

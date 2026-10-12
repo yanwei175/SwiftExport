@@ -43,10 +43,13 @@ public sealed class ProductImageUploadService(
                 "产品图片上传未启用。");
         }
 
-        var parameter = await parameters.FindAsync(SystemParameterKeys.ProductImagesBaseUrl, cancellationToken).ConfigureAwait(false);
+        var parameter = await parameters.FindAsync(SystemParameterKeys.ProductImagesUploadBaseUrl, cancellationToken).ConfigureAwait(false);
+        // 旧客户端升级期间兼容尚未建立独立上传地址的网络基址；已配置的新值无效时不能被旧值掩盖。
+        if (parameter is null)
+            parameter = await parameters.FindAsync(SystemParameterKeys.ProductImagesBaseUrl, cancellationToken).ConfigureAwait(false);
         if (!ProductImageAddress.TryNormalizeBaseUrl(parameter?.ParameterValue!, out var baseUri))
             return ServiceResult<ProductImageBatchSession>.Fail(ServiceErrorCodes.ServiceUnavailable,
-                "产品图片基础地址尚未配置或无效，请管理员在系统参数中维护。");
+                "产品图片上传地址尚未配置或无效，请管理员在系统参数中维护公开 HTTP/HTTPS 地址。");
         // 一批只读取一次公开基址；缺失时在处理图片和发布文件前拒绝整个批次。
         return ServiceResult<ProductImageBatchSession>.Ok(new ProductImageBatchSession(storage, baseUri));
     }

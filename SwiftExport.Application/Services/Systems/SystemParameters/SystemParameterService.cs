@@ -18,14 +18,29 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
     IPermissionEvaluationService permissions, ServiceBaseContext context) : ISystemParameterService
 {
     private readonly ILogger _logger = context.LoggerFactory.CreateLogger<SystemParameterService>();
+    /// <summary>注册参数的说明及值格式；界面直接按读取结果逐行维护，不提供任意增删键。</summary>
+    private sealed record ParameterDefinition(string Key, string DisplayName, string Description, bool AllowLocalPath);
+    private static readonly ParameterDefinition[] Definitions =
+    [
+        new(SystemParameterKeys.ProductImagesBaseUrl, "产品图片重建基址",
+            "重建图片引用使用的 HTTP/HTTPS 原图目录、Windows 本地绝对目录或 UNC 共享目录；修改此值不会改写已有产品图片引用。", true),
+        new(SystemParameterKeys.ProductImagesUploadBaseUrl, "产品图片上传地址",
+            "上传图片后公开访问的 HTTP/HTTPS 原图目录；缩略图位于其 Thumbnails 子目录。上传请求仍发往当前客户端配置的 API。", false)
+    ];
 
     /// <inheritdoc />
     public async Task<ServiceResult<IReadOnlyList<SystemParameterDto>>> ListAsync(CancellationToken cancellationToken = default)
     {
         var access = await AuthorizeAsync(false, cancellationToken);
         if (access is not null) return ServiceResult<IReadOnlyList<SystemParameterDto>>.Fail(access.Value.Code, access.Value.Message);
-        var parameter = await repository.FindAsync(SystemParameterKeys.ProductImagesBaseUrl, cancellationToken);
-        return ServiceResult<IReadOnlyList<SystemParameterDto>>.Ok([ToDto(parameter)]);
+        var parameters = new Dictionary<string, SystemParameter?>();
+        foreach (var definition in Definitions)
+            parameters[definition.Key] = await repository.FindAsync(definition.Key, cancellationToken);
+        // 升级后尚未单独配置上传地址时，展示原有网络基址作为待保存建议；不写库或沿用本地路径。
+        var legacyBase = parameters[SystemParameterKeys.ProductImagesBaseUrl]?.ParameterValue;
+        var fallback = ProductImageAddress.TryNormalizeBaseUrl(legacyBase!, out var legacyUri) ? legacyUri.AbsoluteUri : string.Empty;
+        return ServiceResult<IReadOnlyList<SystemParameterDto>>.Ok(Definitions.Select(definition => ToDto(definition,
+            parameters[definition.Key], definition.Key == SystemParameterKeys.ProductImagesUploadBaseUrl ? fallback : string.Empty)).ToArray());
     }
 
     /// <inheritdoc />
@@ -33,11 +48,18 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
     {
         var access = await AuthorizeAsync(true, cancellationToken);
         if (access is not null) return ServiceResult<SystemParameterDto>.Fail(access.Value.Code, access.Value.Message);
-        if (key != SystemParameterKeys.ProductImagesBaseUrl || request is null || request.ExpectedVersion < 0)
+        var definition = Definitions.FirstOrDefault(item => item.Key == key);
+        if (definition is null || request is null || request.ExpectedVersion < 0)
             return ServiceResult<SystemParameterDto>.Fail(ServiceErrorCodes.Validation, "参数键或预期版本无效。");
-        if (!ProductImageAddress.TryNormalizeBaseUrl(request.Value, out var baseUri))
+        string normalized;
+        var valid = definition.AllowLocalPath
+            ? ProductImageAddress.TryNormalizeBaseAddress(request.Value, out normalized)
+            : TryNormalizePublicUrl(request.Value, out normalized);
+        if (!valid)
             return ServiceResult<SystemParameterDto>.Fail(ServiceErrorCodes.Validation,
-                "请输入不含凭据、查询、片段或 Thumbnails 目录的 HTTP/HTTPS 原图目录地址（最多 2048 字符）。", "Value");
+                definition.AllowLocalPath
+                    ? "请输入 HTTP/HTTPS 原图目录或 Windows 本地、UNC 绝对目录，不允许相对路径（最多 2048 字符）。"
+                    : "请输入不含凭据、查询、片段或 Thumbnails 目录的 HTTP/HTTPS 原图目录地址（最多 2048 字符）。", "Value");
 
         var session = context.Session;
         if (session.Transaction is not null) return ServiceResult<SystemParameterDto>.Fail(ServiceErrorCodes.Unexpected, "当前请求已有未完成事务。");
@@ -46,7 +68,7 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
         session.Transaction = transaction;
         try
         {
-            var parameter = new SystemParameter { ParameterKey = key, ParameterValue = baseUri.AbsoluteUri };
+            var parameter = new SystemParameter { ParameterKey = key, ParameterValue = normalized };
             var saved = request.ExpectedVersion == 0
                 ? await repository.InsertAsync(parameter, cancellationToken)
                 : await repository.UpdateAsync(parameter, request.ExpectedVersion, cancellationToken);
@@ -57,7 +79,7 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
                 return ServiceResult<SystemParameterDto>.Fail(ServiceErrorCodes.VersionConflict, "参数已由其他人修改，请重新读取后再保存。");
             }
             transaction.Commit();
-            return ServiceResult<SystemParameterDto>.Ok(ToDto(parameter));
+            return ServiceResult<SystemParameterDto>.Ok(ToDto(definition, parameter));
         }
         catch (Exception) when (cancellationToken.IsCancellationRequested)
         { Rollback(transaction); throw new OperationCanceledException(cancellationToken); }
@@ -87,12 +109,19 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
     }
 
     /// <summary>从代码定义与当前数据库值构造公开参数，未配置时版本为 0。</summary>
-    private static SystemParameterDto ToDto(SystemParameter? parameter) => new()
+    private static SystemParameterDto ToDto(ParameterDefinition definition, SystemParameter? parameter, string fallback = "") => new()
     {
-        Key = SystemParameterKeys.ProductImagesBaseUrl, DisplayName = "产品图片基础地址",
-        Description = "产品原图目录的公开 HTTP/HTTPS 地址；缩略图位于其 Thumbnails 子目录。修改此值不会搬迁文件或改写已有产品地址。",
-        Value = parameter?.ParameterValue ?? string.Empty, Version = parameter?.Version ?? 0, IsConfigured = parameter is not null
+        Key = definition.Key, DisplayName = definition.DisplayName, Description = definition.Description,
+        Value = parameter?.ParameterValue ?? fallback, Version = parameter?.Version ?? 0, IsConfigured = parameter is not null
     };
+
+    /// <summary>上传地址始终规范为公开网络目录，不接受重建用的本地目录。</summary>
+    private static bool TryNormalizePublicUrl(string value, out string normalized)
+    {
+        var valid = ProductImageAddress.TryNormalizeBaseUrl(value, out var baseUri);
+        normalized = valid ? baseUri.AbsoluteUri : string.Empty;
+        return valid;
+    }
 
     /// <summary>尽力清理本用例事务，保留原始保存或取消失败。</summary>
     private void Rollback(IDbTransaction transaction)

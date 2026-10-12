@@ -35,6 +35,7 @@ internal sealed class SystemParameterClientFixture : IDisposable
         public int Reads { get; private set; }
         public int Writes { get; private set; }
         public UpdateSystemParameterRequest? LastRequest { get; private set; }
+        public string? LastKey { get; private set; }
         public Func<Task<ServiceResult<IReadOnlyList<SystemParameterDto>>>> Read { get; set; } = () => Task.FromResult(Result("https://example.test/files/ProductImages/"));
         public Func<UpdateSystemParameterRequest, Task<ServiceResult<SystemParameterDto>>> Save { get; set; } = request => Task.FromResult(ServiceResult<SystemParameterDto>.Ok(Parameter(request.Value, request.ExpectedVersion + 1)));
         /// <summary>构造读取回执。</summary>
@@ -43,7 +44,7 @@ internal sealed class SystemParameterClientFixture : IDisposable
         public Task<ServiceResult<IReadOnlyList<SystemParameterDto>>> ListAsync(CancellationToken cancellationToken = default) { Reads++; return Read(); }
         /// <inheritdoc />
         public Task<ServiceResult<SystemParameterDto>> UpdateAsync(string key, UpdateSystemParameterRequest request, CancellationToken cancellationToken = default)
-        { Writes++; LastRequest = request; return Save(request); }
+        { Writes++; LastKey = key; LastRequest = request; return Save(request); }
     }
     /// <summary>直接执行 API 委托，异常由测试直接观察。</summary>
     internal sealed class DirectRunner : IApiCallRunner

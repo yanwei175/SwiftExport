@@ -25,5 +25,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <EmbeddedResource Include="..\SwiftExport.Client.Wpf\App.xaml" LogicalName="DatePickerTests.App.xaml" />
     <EmbeddedResource Include="Services\Files\**\Fixtures\*.xlsx" />
+    <EmbeddedResource Include="..\模板\Excel导出\purchase-order-vsto-demo\v1\模板.xlsx"
+                      LogicalName="PurchaseOrderVstoDemo.Template.xlsx" />
   </ItemGroup>
 </Project>

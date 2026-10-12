@@ -27,6 +27,7 @@ public sealed class SystemParameterServiceTests
         var ordinary = Create(repository, session, new UserPermissionProjection());
         var read = await ordinary.ListAsync();
         Assert.IsTrue(read.Success);
+        Assert.AreEqual(2, read.Data.Count);
         Assert.AreEqual(0, read.Data[0].Version);
         Assert.IsFalse(read.Data[0].IsConfigured);
         Assert.AreEqual(ServiceErrorCodes.Forbidden, (await ordinary.UpdateAsync(SystemParameterKeys.ProductImagesBaseUrl, Request(0))).Error.Code);
@@ -91,6 +92,54 @@ public sealed class SystemParameterServiceTests
     [DataRow("", false)]
     public void BaseUrlValidation_ShouldEnforcePublicOriginalDirectory(string value, bool valid)
         => Assert.AreEqual(valid, ProductImageAddress.TryNormalizeBaseUrl(value, out _));
+
+    /// <summary>校验 Windows 与 UNC 绝对目录，不把本地文件名当作 URI 转义。</summary>
+    [TestMethod]
+    [DataRow(@"D:\Photos", @"D:\Photos\")]
+    [DataRow("D:/中文/.tmp", @"D:\中文\.tmp\")]
+    [DataRow(@"\\server\share\图片", @"\\server\share\图片\")]
+    [DataRow(@"D:\", @"D:\")]
+    [DataRow(@"D:Photos", null)]
+    [DataRow(@"photos\other", null)]
+    [DataRow(@"\\server", null)]
+    [DataRow(@"D:\Photos\..\other", null)]
+    [DataRow(@"D:\CON\images", null)]
+    public void RebuildBase_ShouldValidateLocalDirectories(string value, string? expected)
+    {
+        Assert.AreEqual(expected is not null, ProductImageAddress.TryNormalizeBaseAddress(value, out var normalized));
+        Assert.AreEqual(expected, normalized);
+        if (expected is not null)
+        {
+            Assert.IsTrue(ProductImageAddress.TryBuildProductImageReference(value, "中文 #%.001", out var reference));
+            Assert.AreEqual(expected + "中文 #%.001.jpg", reference);
+        }
+    }
+
+    /// <summary>重建和上传参数独立保存版本，升级建议不写库，上传参数只接受公开 URL。</summary>
+    [TestMethod]
+    public async Task TwoDefinitions_ShouldKeepIndependentValuesAndVersions()
+    {
+        var repository = new SystemParameterRepositoryStub();
+        var service = Create(repository, new Session());
+        var initial = (await service.ListAsync()).Data;
+        var suggested = initial.Single(item => item.Key == SystemParameterKeys.ProductImagesUploadBaseUrl);
+        Assert.AreEqual(repository.Value, suggested.Value);
+        Assert.AreEqual(0, suggested.Version);
+        Assert.IsFalse(suggested.IsConfigured);
+        Assert.AreEqual(0, repository.Writes);
+        var upload = await service.UpdateAsync(SystemParameterKeys.ProductImagesUploadBaseUrl, Request(0, "https://public.test/photos"));
+        Assert.IsTrue(upload.Success);
+        Assert.AreEqual(SystemParameterKeys.ProductImagesUploadBaseUrl, upload.Data.Key);
+        var rebuild = await service.UpdateAsync(SystemParameterKeys.ProductImagesBaseUrl, Request(1, @"D:\Photos"));
+        Assert.IsTrue(rebuild.Success);
+        Assert.AreEqual(@"D:\Photos\", rebuild.Data.Value);
+        Assert.AreEqual(2, rebuild.Data.Version);
+        var values = (await service.ListAsync()).Data;
+        Assert.AreEqual("https://public.test/photos/", values.Single(item => item.Key == SystemParameterKeys.ProductImagesUploadBaseUrl).Value);
+        Assert.AreEqual(1, values.Single(item => item.Key == SystemParameterKeys.ProductImagesUploadBaseUrl).Version);
+        Assert.AreEqual(ServiceErrorCodes.Validation,
+            (await service.UpdateAsync(SystemParameterKeys.ProductImagesUploadBaseUrl, Request(1, @"D:\Photos"))).Error.Code);
+    }
 
     private static UpdateSystemParameterRequest Request(int version, string value = " https://example.test/images ")
         => new() { ExpectedVersion = version, Value = value };

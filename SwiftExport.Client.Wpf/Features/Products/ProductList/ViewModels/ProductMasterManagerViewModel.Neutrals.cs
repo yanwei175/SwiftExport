@@ -265,19 +265,19 @@ public sealed partial class ProductMasterManagerViewModel
         if (CanEditNeutrals && line is not null) Neutrals.SetMainImage(line);
     }
 
-    /// <summary>从系统参数缓存读取原图基址，以完整编码生成 URL；不自动保存行变更。</summary>
+    /// <summary>从缓存读取重建基址，以完整编码生成网络地址或本地路径；不自动保存行变更。</summary>
     [RelayCommand(CanExecute = nameof(CanReBuildImagePath))]
     private void ReBuildImagePath(ProductNeutralLineModel? line)
     {
-        if (!CanReBuildImagePath(line) || !_imageAddresses.TryGetProductBaseUri(out var baseUri)) return;
-        if (ProductImageAddress.TryGetProductFileName(line!.ProductCode, out var fileName))
-            line.ImagePath = ProductImageAddress.BuildUrl(baseUri, fileName);
+        if (!CanReBuildImagePath(line) || !_imageAddresses.TryGetProductBaseAddress(out var baseAddress)) return;
+        if (ProductImageAddress.TryBuildProductImageReference(baseAddress, line!.ProductCode, out var reference))
+            line.ImagePath = reference;
     }
 
-    /// <summary>只对可编辑行、安全编码与有效公开基址开放重建。</summary>
+    /// <summary>只对可编辑行、安全编码与有效网络或本地重建基址开放重建。</summary>
     private bool CanReBuildImagePath(ProductNeutralLineModel? line) => CanEditNeutrals && line is not null
         && ProductImageAddress.TryGetProductFileName(line.ProductCode, out _)
-        && _imageAddresses.TryGetProductBaseUri(out _);
+        && _imageAddresses.TryGetProductBaseAddress(out _);
     /// <summary>参数变更立即刷新按钮资格，保留现有未保存行数据。</summary>
     private void OnImageConfigurationChanged(object? sender, EventArgs e)
     { if (!_disposed) ReBuildImagePathCommand.NotifyCanExecuteChanged(); }

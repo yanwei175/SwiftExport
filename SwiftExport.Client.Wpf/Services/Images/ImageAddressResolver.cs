@@ -16,11 +16,21 @@ public sealed class ImageAddressResolver : IImageAddressResolver, IDisposable
     /// <inheritdoc />
     public event EventHandler? Changed;
     /// <inheritdoc />
-    public bool TryGetProductBaseUri(out Uri baseUri)
+    public bool TryGetProductBaseAddress(out string baseAddress)
+    {
+        baseAddress = null!;
+        return _parameters.TryGetValue(SystemParameterKeys.ProductImagesBaseUrl, out var value)
+            && ProductImageAddress.TryNormalizeBaseAddress(value, out baseAddress);
+    }
+
+    /// <summary>网络展示只用上传公开地址；升级期缺少新参数时兼容原有网络基址，本地重建目录不会参与。</summary>
+    private bool TryGetProductPublicBaseUri(out Uri baseUri)
     {
         baseUri = null!;
-        return _parameters.TryGetValue(SystemParameterKeys.ProductImagesBaseUrl, out var value)
-            && ProductImageAddress.TryNormalizeBaseUrl(value, out baseUri);
+        if (_parameters.TryGetValue(SystemParameterKeys.ProductImagesUploadBaseUrl, out var uploadBase))
+            return ProductImageAddress.TryNormalizeBaseUrl(uploadBase, out baseUri);
+        return _parameters.TryGetValue(SystemParameterKeys.ProductImagesBaseUrl, out var legacyBase)
+            && ProductImageAddress.TryNormalizeBaseUrl(legacyBase, out baseUri);
     }
 
     /// <inheritdoc />
@@ -32,7 +42,7 @@ public sealed class ImageAddressResolver : IImageAddressResolver, IDisposable
         if (!Uri.TryCreate(sourcePath.Trim(), UriKind.Absolute, out var source)
             || (source.Scheme != Uri.UriSchemeHttp && source.Scheme != Uri.UriSchemeHttps)) return null;
 
-        if (!TryGetProductBaseUri(out var baseUri))
+        if (!TryGetProductPublicBaseUri(out var baseUri))
             return mode == ImageDisplayMode.Original ? new(source.AbsoluteUri, width) : null;
         // URI 目录严格区分大小写，并包含尾部斜杠，避免把相似目录或其他主机当成托管图片。
         if (source.Scheme != baseUri.Scheme || !source.IdnHost.Equals(baseUri.IdnHost, StringComparison.OrdinalIgnoreCase)

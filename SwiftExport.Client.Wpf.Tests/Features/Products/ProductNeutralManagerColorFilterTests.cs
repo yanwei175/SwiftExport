@@ -77,6 +77,21 @@ public sealed class ProductNeutralManagerColorFilterTests
         Assert.AreEqual(options.BaseUrl + escapedFileName, line.ImagePath);
     }
 
+    /// <summary>本地及 UNC 重建保留完整编码和特殊字符，不做 URI 转义。</summary>
+    [TestMethod]
+    [DataRow(@"D:\Photos", @"D:\Photos\中文 #%.001.jpg")]
+    [DataRow(@"\\server\share\图片", @"\\server\share\图片\中文 #%.001.jpg")]
+    public void ReBuildImagePath_ShouldSupportLocalBase(string baseAddress, string expected)
+    {
+        var addresses = new ImageAddressResolverStub(baseAddress);
+        using var model = CreateViewModel(new AcceptDialogService(), new SilentMessageService(), addresses);
+        var line = model.Lines.AddNewNeutral();
+        line.ProductCode = "中文 #%.001";
+        Assert.IsTrue(model.ReBuildImagePathCommand.CanExecute(line));
+        model.ReBuildImagePathCommand.Execute(line);
+        Assert.AreEqual(expected, line.ImagePath);
+    }
+
     /// <summary>缓存尚无有效基址时禁用重建，参数更新后命令直接使用新地址。</summary>
     [TestMethod]
     public void ReBuild_ShouldFollowLatestConfigurationWithoutRestart()

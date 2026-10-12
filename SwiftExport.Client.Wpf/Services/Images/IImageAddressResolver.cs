@@ -5,8 +5,8 @@ public interface IImageAddressResolver
 {
     /// <summary>配置变化通知当前可见控件重新解析。</summary>
     event EventHandler? Changed;
-    /// <summary>获取有效产品原图目录快照，用于一次编辑或批量生成。</summary>
-    bool TryGetProductBaseUri(out Uri baseUri);
+    /// <summary>获取重建基址快照，可为网络目录或 Windows 本地、UNC 绝对目录。</summary>
+    bool TryGetProductBaseAddress(out string baseAddress);
     /// <summary>解析实际加载地址与解码宽度，无有效引用返回 null。</summary>
     ImageLoadAddress? Resolve(string? sourcePath, ImageDisplayMode mode, int decodePixelWidth);
 }

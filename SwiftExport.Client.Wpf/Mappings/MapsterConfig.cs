@@ -23,6 +23,8 @@ using SwiftExportClient.Features.Suppliers.SupplierProducts.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.QualityControl.AfterSales.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
+using SwiftExport.Contracts.DTOs.SystemDtos.SystemParameters;
+using SwiftExportClient.Features.SystemSettings.SystemParameters.Models;
 
 namespace SwiftExportClient.Mappings;
 
@@ -31,6 +33,7 @@ public sealed class MapsterConfig : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
+        config.NewConfig<SystemParameterDto, SystemParameterLineModel>().Ignore(dest => dest.Status);
         new SwiftExportClient.Features.Shipping.PackingLists.Mappings.PackingListMappings().Register(config);
         new SwiftExportClient.Features.Inventory.Inbounds.Mappings.InboundManagerMappings().Register(config);
         new SwiftExportClient.Features.Inventory.Outbounds.Mappings.OutboundManagerMappings().Register(config);
