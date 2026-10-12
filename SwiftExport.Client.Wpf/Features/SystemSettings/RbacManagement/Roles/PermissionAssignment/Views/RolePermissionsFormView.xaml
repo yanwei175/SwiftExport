@@ -12,7 +12,7 @@
                 HorizontalAlignment="Right" MinWidth="32" MinHeight="32" ToolTip="关闭"
                 AutomationProperties.Name="关闭表单" />
 
-        <Grid Margin="12" MinWidth="480" MaxHeight="600" RowDefinitions="Auto,Auto,*,Auto">
+        <Grid Margin="0" RowDefinitions="Auto,Auto,*,Auto">
             <TextBlock Text="{Binding RoleName}" FontWeight="SemiBold" Margin="0,0,0,8" />
 
             <TextBox x:Name="PermissionSearch" Grid.Row="1" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"

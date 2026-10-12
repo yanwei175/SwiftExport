@@ -203,8 +203,10 @@ public sealed class SettingsDialogService : ISettingsDialogService
     {
         if (target is null || target.IsSystem || !CanOpen("System.Roles.View", true)
             || !_currentUser.HasPermission("System.Permissions.View")) return default;
+
         var model = _rolePermissionsFactory();
         var active = Begin(model.CloseState, "System.Roles.View", true, model.Dispose, "System.Permissions.View");
+
         if (active is null) { model.Dispose(); return default; }
         try
         {
@@ -233,6 +235,7 @@ public sealed class SettingsDialogService : ISettingsDialogService
         {
             PrimaryButtonText = primaryText,
             PrimaryButtonCommand = command,
+            WidthRatio = 0.6,
             CloseButtonText = "关闭",
             DefaultButton = DialogButton.Primary
         };

@@ -1,6 +1,3 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.AuthApis;
@@ -11,6 +8,9 @@ using SwiftExportClient.Features.SystemSettings.Forms.ViewModels;
 using SwiftExportClient.Features.SystemSettings.RbacManagement.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 
 namespace SwiftExportClient.Features.SystemSettings.RbacManagement.Roles.PermissionAssignment.ViewModels;
 
@@ -73,7 +73,7 @@ public sealed partial class RolePermissionsFormViewModel : ViewModelBaseEx, IDis
             var choice = new RbacChoiceModel(permission.Uid,
                 $"{permission.GroupKey} · {permission.DisplayName} ({permission.PermissionKey})",
                 permission.IsAssignable && permission.IsActive)
-                { IsSelected = selected.Contains(permission.Uid) };
+            { IsSelected = selected.Contains(permission.Uid) };
             choice.PropertyChanged += OnChoiceChanged;
             RolePermissionChoices.Add(choice);
         }

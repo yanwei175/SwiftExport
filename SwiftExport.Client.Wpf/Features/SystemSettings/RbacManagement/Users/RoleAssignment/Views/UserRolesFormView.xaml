@@ -10,7 +10,7 @@
                 HorizontalAlignment="Right" MinWidth="32" MinHeight="32" ToolTip="关闭"
                 AutomationProperties.Name="关闭表单" />
 
-    <Grid Margin="12" MinWidth="420" MaxHeight="560" RowDefinitions="Auto,*,Auto,Auto,Auto">
+    <Grid Margin="0" RowDefinitions="Auto,*,Auto,Auto,Auto">
 
         <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="0,0,0,8" />
 

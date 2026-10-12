@@ -9,15 +9,18 @@ using SwiftExportClient.Services.Caching;
 
 namespace SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 
+/// <summary>提供离线会话缓存和可控刷新结果，避免客户端测试依赖真实 API。</summary>
 internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
 {
     private readonly ObservableCollection<SysDictDataDto> _dictionaryValues;
+    private readonly ObservableCollection<CustomerDto> _customers;
     private readonly ObservableCollection<SupplierDto> _suppliers;
     private readonly ObservableCollection<WarehouseSitePickerDto> _warehouseSites;
     private readonly CacheRefreshResult _ensureResult;
     private readonly CacheRefreshResult _supplierRefreshResult;
     private readonly CacheRefreshResult _warehouseRefreshResult;
 
+    /// <summary>用指定基础资料快照和刷新结果初始化离线缓存。</summary>
     public ReferenceDataCacheServiceStub(
         IEnumerable<SysDictDataDto>? dictionaryValues = null,
         IEnumerable<SupplierDto>? suppliers = null,
@@ -27,16 +30,18 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         bool supplierRefreshSuccess = true,
         string supplierRefreshMessage = "测试供应商缓存已加载。",
         bool warehouseRefreshSuccess = true,
-        string warehouseRefreshMessage = "测试仓库缓存已加载。")
+        string warehouseRefreshMessage = "测试仓库缓存已加载。",
+        IEnumerable<CustomerDto>? customers = null)
     {
         _dictionaryValues = new ObservableCollection<SysDictDataDto>(dictionaryValues ?? []);
+        _customers = new ObservableCollection<CustomerDto>(customers ?? []);
         _suppliers = new ObservableCollection<SupplierDto>(suppliers ?? []);
         _warehouseSites = new ObservableCollection<WarehouseSitePickerDto>(warehouseSites ?? []);
         _ensureResult = CreateRefreshResult(ensureSuccess, ensureMessage);
         _supplierRefreshResult = CreateRefreshResult(supplierRefreshSuccess, supplierRefreshMessage);
         _warehouseRefreshResult = CreateRefreshResult(warehouseRefreshSuccess, warehouseRefreshMessage);
         Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>([]);
-        Customers = new ReadOnlyObservableCollection<CustomerDto>([]);
+        Customers = new ReadOnlyObservableCollection<CustomerDto>(_customers);
         Suppliers = new ReadOnlyObservableCollection<SupplierDto>(_suppliers);
         WarehouseSites = new ReadOnlyObservableCollection<WarehouseSitePickerDto>(_warehouseSites);
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
@@ -101,9 +106,11 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         return Task.FromResult(_ensureResult);
     }
 
+    /// <summary>清除测试会话的可变基础资料集合，模拟登录会话结束。</summary>
     public void Clear()
     {
         _dictionaryValues.Clear();
+        _customers.Clear();
         _suppliers.Clear();
         _warehouseSites.Clear();
     }

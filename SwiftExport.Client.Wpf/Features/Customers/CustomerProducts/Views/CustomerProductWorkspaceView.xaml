@@ -1,22 +1,9 @@
 <UserControl x:Class="SwiftExportClient.Features.Customers.CustomerProducts.Views.CustomerProductWorkspaceView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:customers="clr-namespace:SwiftExportClient.Features.Customers.Components"
              xmlns:customerProductViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
              x:Name="Root">
-    <UserControl.Resources>
-        <DataTemplate x:Key="CustomerLookupItemTemplate">
-            <StackPanel MinWidth="300">
-                <TextBlock FontWeight="SemiBold"
-                           Text="{Binding CustomerCode}" />
-                <TextBlock Margin="0,2,0,0"
-                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
-                           Text="{Binding CustomerName}"
-                           TextWrapping="Wrap" />
-            </StackPanel>
-        </DataTemplate>
-    </UserControl.Resources>
-
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -33,23 +20,12 @@
             </Grid.ColumnDefinitions>
             <TextBlock VerticalAlignment="Center"
                        Text="当前客户" />
-            <controls:LookupTextBox Grid.Column="2" StretchToHost="True"
-                                    ShowDropDownButton="True"
-                                    Placeholder="输入客户代码或名称"
-                                    SearchMode="Remote"
-                                    MinimumSearchLength="1"
-                                    ClearSelectionOnEdit="False"
-                                    RequireItemMatch="True"
-                                    DisplayMemberPath="CustomerCode"
-                                    FilterMemberPaths="CustomerCode,CustomerName"
-                                    Text="{Binding CustomerSearchText, Mode=TwoWay}"
-                                    ItemsSource="{Binding CustomerCandidates}"
-                                    SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
-                                    ItemTemplate="{StaticResource CustomerLookupItemTemplate}"
-                                    SearchCommand="{Binding SearchCustomersCommand}"
-                                    SelectionCommittedCommand="{Binding CommitCustomerCommand}"
-                                    SelectionClearedCommand="{Binding ClearCustomerCommand}"
-                                    IsBusy="{Binding IsCustomerLookupBusy}" />
+            <customers:CustomerAutoSuggestComboBox Grid.Column="2"
+                                                   Placeholder="输入客户代码或名称"
+                                                   ItemsSource="{Binding CustomerOptions}"
+                                                   SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
+                                                   SelectionCommittedCommand="{Binding CommitCustomerCommand}"
+                                                   SelectionClearedCommand="{Binding ClearCustomerCommand}" />
         </Grid>
 
         <Grid Grid.Row="2">
