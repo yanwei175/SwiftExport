@@ -12,7 +12,4 @@ public interface IProductMasterQueryService
     /// <summary>读取主型号详情及有效中性产品。</summary>
     Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(Guid productMasterId, CancellationToken cancellationToken = default);
 
-    /// <summary>读取最多一万行完整筛选资料及可重新导入的引用文本。</summary>
-    Task<ServiceResult<List<SwiftExport.Contracts.DTOs.Products.ProductMasters.ImportExport.ProductMasterExportRowDto>>> ExportAsync(
-        SwiftExport.Contracts.DTOs.Products.ProductMasters.ImportExport.ProductMasterExportRequest request, CancellationToken cancellationToken = default);
 }

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.ProductApis;
@@ -9,6 +10,7 @@ using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -29,6 +31,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly IWarehouseSiteApi _warehouseSiteApi;
     private readonly IProductColorApi _productColorApi;
     private readonly IProductCategoryApi _productCategoryApi;
+    private readonly IProductAttributeApi _productAttributeApi;
     private readonly ISysDicCurrencyApi _currencyApi;
     private readonly ISysDictTypeApi _dictTypeApi;
     private readonly ISysDictDataApi _dictDataApi;
@@ -41,13 +44,19 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly CacheObservableCollection<SysDicCurrencyDto> _currencies = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
+    private readonly CacheObservableCollection<ProductAttributeGroupDto> _productAttributeGroups = [];
     private readonly CacheObservableCollection<SysDictTypeDto> _dictionaryTypes = [];
     private readonly CacheObservableCollection<SysDictDataDto> _dictionaryValues = [];
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly object _ensureSync = new();
     private readonly object _warehouseEnsureSync = new();
+    private readonly object _attributeEnsureSync = new();
+    private readonly SemaphoreSlim _attributeRefreshGate = new(1, 1);
     private Task<CacheRefreshResult>? _ensureTask;
     private Task<CacheRefreshResult>? _warehouseEnsureTask;
+    private Task<CacheRefreshResult>? _attributeEnsureTask;
+    private CancellationTokenSource? _attributeRefreshCancellation;
+    private volatile bool _attributesLoaded;
     private volatile bool _colorsLoaded;
     private volatile bool _customersLoaded;
     private volatile bool _suppliersLoaded;
@@ -58,12 +67,14 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private long _sessionGeneration;
     private bool _disposed;
 
+    /// <summary>注入基础资料 API 和会话事件，维护一次登录内的只读快照；不缓存产品选择草稿。</summary>
     public ReferenceDataCacheService(
         ICustomerApi customerApi,
         ISupplierApi supplierApi,
         IWarehouseSiteApi warehouseSiteApi,
         IProductColorApi productColorApi,
         IProductCategoryApi productCategoryApi,
+        IProductAttributeApi productAttributeApi,
         ISysDicCurrencyApi currencyApi,
         ISysDictTypeApi dictTypeApi,
         ISysDictDataApi dictDataApi,
@@ -75,6 +86,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         _warehouseSiteApi = warehouseSiteApi;
         _productColorApi = productColorApi;
         _productCategoryApi = productCategoryApi;
+        _productAttributeApi = productAttributeApi;
         _currencyApi = currencyApi;
         _dictTypeApi = dictTypeApi;
         _dictDataApi = dictDataApi;
@@ -87,6 +99,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         Currencies = new ReadOnlyObservableCollection<SysDicCurrencyDto>(_currencies);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
+        ProductAttributeGroups = new ReadOnlyObservableCollection<ProductAttributeGroupDto>(_productAttributeGroups);
         DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>(_dictionaryTypes);
         DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
         _sessionService.SessionEnded += OnSessionEnded;
@@ -112,6 +125,101 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
+
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
+
+    /// <inheritdoc />
+    public bool AreProductAttributesLoaded => _attributesLoaded;
+
+    /// <inheritdoc />
+    public event EventHandler? ProductAttributesChanged;
+
+    /// <inheritdoc />
+    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId) =>
+        ProductAttributeGroups.Where(group => group.CategoryId == categoryId).ToArray();
+
+    /// <inheritdoc />
+    public IReadOnlyList<ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId) =>
+        ProductAttributeGroups.FirstOrDefault(group => group.Uid == groupId)?.Options.ToArray() ?? [];
+
+    /// <inheritdoc />
+    public Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync()
+    {
+        lock (_attributeEnsureSync)
+        {
+            if (_attributesLoaded)
+                return Task.FromResult(CacheRefreshResult.Ok("分类标签缓存已经加载。"));
+
+            if (_attributeEnsureTask is { IsCompleted: false })
+                return _attributeEnsureTask;
+
+            return _attributeEnsureTask = RefreshProductAttributesAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<CacheRefreshResult> RefreshProductAttributesAsync()
+    {
+        // 请求在排队前记录会话身份，避免旧会话的排队刷新取得新会话身份后写入。
+        var generation = Volatile.Read(ref _sessionGeneration);
+        await _attributeRefreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
+        try
+        {
+            lock (_attributeEnsureSync)
+            {
+                if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
+                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
+
+                cancellation = new CancellationTokenSource();
+                _attributeRefreshCancellation = cancellation;
+            }
+
+            var token = cancellation.Token;
+            var result = await _apiCallRunner.RunAsync(
+                () => _productAttributeApi.GetDefinitionsAsync(token), token, "加载分类标签缓存失败");
+            if (!result.Success)
+                return CacheRefreshResult.Fail(result.Message);
+
+            // 成功的空集合有效，但缺少整个响应或子集合不能被当作清空定义。
+            if (result.Data?.Groups is null || result.Data.Groups.Any(group => group is null
+                || group.Options is null || group.Options.Any(option => option is null)))
+                return CacheRefreshResult.Fail("分类标签接口没有返回完整定义，请重试。");
+
+            var groups = result.Data.Groups.Select(group =>
+            {
+                var copy = group.Adapt<ProductAttributeGroupDto>();
+                copy.Options = copy.Options.OrderBy(option => option.SortOrder).ThenBy(option => option.Uid).ToList();
+                return copy;
+            }).OrderBy(group => group.SortOrder).ThenBy(group => group.Uid).ToArray();
+            var applied = false;
+            await RunOnUiThreadAsync(() =>
+            {
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
+                    return;
+
+                // 每组与其选项已经组装完整；集合只发布一次 Reset，订阅者看不到半个快照。
+                _attributesLoaded = true;
+                _productAttributeGroups.ReplaceAll(groups);
+                applied = true;
+                ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
+            });
+            return applied
+                ? CacheRefreshResult.Ok("分类标签缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
+        }
+        finally
+        {
+            lock (_attributeEnsureSync)
+            {
+                if (ReferenceEquals(_attributeRefreshCancellation, cancellation))
+                    _attributeRefreshCancellation = null;
+            }
+            cancellation?.Dispose();
+            _attributeRefreshGate.Release();
+        }
+    }
 
     /// <inheritdoc />
     public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
@@ -143,17 +251,21 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 && _suppliersLoaded
                 && _categoriesLoaded
                 && _currenciesLoaded
-                && _dictionariesLoaded)
+                && _dictionariesLoaded
+                && _attributesLoaded)
             {
                 return Task.FromResult(CacheRefreshResult.Ok("缓存已经加载。"));
             }
 
-            return _ensureTask ??= EnsureLoadedCoreAsync();
+            if (_ensureTask is { IsCompleted: false })
+                return _ensureTask;
+
+            return _ensureTask = EnsureLoadedCoreAsync();
         }
     }
 
     /// <inheritdoc />
-    public Task<CacheRefreshResult> RefreshAllAsync() => RefreshAllCoreAsync();
+    public Task<CacheRefreshResult> RefreshAllAsync() => RefreshWithAttributesAsync(forceRefresh: true);
 
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshProductColorsAsync()
@@ -441,6 +553,12 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     public void Clear()
     {
         Interlocked.Increment(ref _sessionGeneration);
+        lock (_attributeEnsureSync)
+        {
+            _attributeRefreshCancellation?.Cancel();
+            _attributesLoaded = false;
+            _attributeEnsureTask = null;
+        }
         RunOnUiThread(() =>
         {
             _productColors.ReplaceAll([]);
@@ -452,6 +570,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             _productCategories.ReplaceAll([]);
             _dictionaryTypes.ReplaceAll([]);
             _dictionaryValues.ReplaceAll([]);
+            _productAttributeGroups.ReplaceAll([]);
+            ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
         });
 
         lock (_ensureSync)
@@ -472,6 +592,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         }
     }
 
+    /// <summary>解除会话订阅，并取消标签请求；已发出的旧响应仍受会话代际和释放状态保护。</summary>
     public void Dispose()
     {
         if (_disposed)
@@ -481,22 +602,28 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
         _disposed = true;
         _sessionService.SessionEnded -= OnSessionEnded;
+        lock (_attributeEnsureSync)
+            _attributeRefreshCancellation?.Cancel();
         _refreshGate.Dispose();
     }
 
-    private async Task<CacheRefreshResult> EnsureLoadedCoreAsync()
+    /// <summary>基础资料与标签使用独立发布边界，标签失败不能将其他资料加载结果降为失败。</summary>
+    private Task<CacheRefreshResult> EnsureLoadedCoreAsync() => RefreshWithAttributesAsync(forceRefresh: false);
+
+    /// <summary>合并首次使用入口，并在标签失败时保持基础资料的独立成功状态。</summary>
+    private async Task<CacheRefreshResult> RefreshWithAttributesAsync(bool forceRefresh)
     {
-        try
-        {
-            return await RefreshAllCoreAsync();
-        }
-        finally
-        {
-            lock (_ensureSync)
-            {
-                _ensureTask = null;
-            }
-        }
+        var attributesTask = forceRefresh ? RefreshProductAttributesAsync() : EnsureProductAttributesLoadedAsync();
+        var baseTask = !forceRefresh && _colorsLoaded && _customersLoaded && _suppliersLoaded
+            && _categoriesLoaded && _currenciesLoaded && _dictionariesLoaded
+            ? Task.FromResult(CacheRefreshResult.Ok("基础资料缓存已经加载。"))
+            : RefreshAllCoreAsync();
+        await Task.WhenAll(baseTask, attributesTask);
+        var result = await baseTask;
+        var attributes = await attributesTask;
+        return result.Success && !attributes.Success
+            ? CacheRefreshResult.Ok($"{result.Message} 分类标签缓存未更新，请在标签区域重试。")
+            : result;
     }
 
     private async Task<CacheRefreshResult> RefreshAllCoreAsync()

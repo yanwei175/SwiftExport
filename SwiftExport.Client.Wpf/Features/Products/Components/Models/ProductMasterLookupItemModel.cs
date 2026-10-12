@@ -59,8 +59,8 @@ public sealed partial class ProductMasterLookupItemModel
     /// <summary>获取产品标签。</summary>
     public string? ProductTag => Source.Data?.ProductTag;
 
-    /// <summary>获取默认每箱装率。</summary>
-    public int DefaultPcsPerPackage => Source.Data?.DefaultPcsPerPackage ?? 1;
+    /// <summary>获取默认每箱装率；来源未设置时保留空值，不生成默认装率。</summary>
+    public int? DefaultPcsPerPackage => Source.Data?.DefaultPcsPerPackage;
 
     /// <summary>获取默认每箱净重（KG）。</summary>
     public decimal? DefaultNetWeight => Source.Data?.DefaultNetWeight;

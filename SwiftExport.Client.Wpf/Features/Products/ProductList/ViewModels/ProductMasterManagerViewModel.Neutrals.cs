@@ -51,7 +51,9 @@ public sealed partial class ProductMasterManagerViewModel
     [ObservableProperty] public partial bool IsNeutralLoading { get; private set; }
 
     /// <summary>获取当前是否正在确认上下文切换。</summary>
-    [ObservableProperty] public partial bool IsSelectionPrompt { get; private set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
+    public partial bool IsSelectionPrompt { get; private set; }
 
     /// <summary>获取下表加载、保存或不可编辑原因。</summary>
     [ObservableProperty] public partial string NeutralStatusText { get; private set; } = "请选择已保存的主型号。";

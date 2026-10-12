@@ -393,6 +393,20 @@ public sealed class CustomerDictionaryColumnsTests
         public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
+        /// <inheritdoc />
+        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto> ProductAttributeGroups { get; } = new([]);
+        /// <inheritdoc />
+        public bool AreProductAttributesLoaded => true;
+        /// <inheritdoc />
+        public event EventHandler? ProductAttributesChanged { add { } remove { } }
+        /// <inheritdoc />
+        public IReadOnlyList<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId) => [];
+        /// <inheritdoc />
+        public IReadOnlyList<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId) => [];
+        /// <inheritdoc />
+        public Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync() => throw new NotSupportedException();
+        /// <inheritdoc />
+        public Task<CacheRefreshResult> RefreshProductAttributesAsync() => throw new NotSupportedException();
         public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
         public ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; }
 

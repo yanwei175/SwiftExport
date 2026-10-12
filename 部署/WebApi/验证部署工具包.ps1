@@ -16,7 +16,10 @@ try {
     $files = @(Get-ChildItem -LiteralPath $unpacked -File -Recurse)
     foreach ($file in $files) {
         $relative = $file.FullName.Substring($unpacked.Length + 1).Replace('\', '/')
-        if ($relative -match '(本机配置|appsettings\.Production|\.cer$|\.pfx$|验证.*\.ps1$|CaddyData|\.pack\.lock)') { throw "工具包包含本机或测试文件：$relative" }
+        if ($relative -match '(本机配置|appsettings\.Production|pgpass\.conf$|\.backup$|pg_globals_.*\.sql$|\.cer$|\.pfx$|验证.*\.ps1$|CaddyData|\.pack\.lock)') { throw "工具包包含本机或测试文件：$relative" }
+    }
+    foreach ($name in @('每日备份.ps1', '注册每日备份任务.ps1', '备份设置示例.json', '使用说明.md')) {
+        if (!(Test-Path -LiteralPath (Join-Path $unpacked "PostgreSQL/$name"))) { throw "工具包漏项：PostgreSQL/$name" }
     }
     foreach ($name in @('使用说明.md','工具版本.txt','WebApi/后端部署核心.ps1','WebApi/deployment-launcher.ps1','公共/证书/安装客户端根证书.ps1','公共/Caddy/bin/LICENSE','公共/Caddy/bin/README.md')) {
         if (!(Test-Path -LiteralPath (Join-Path $unpacked $name))) { throw "工具包漏项：$name" }

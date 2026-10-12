@@ -47,7 +47,7 @@ public sealed class ProductMasterLookupTextBoxTests
         Assert.AreEqual("来源新值", item.ProductTag);
     }
 
-    /// <summary>可选空值不被伪装为零价格；缺少嵌套数据安全显示，空来源明确拒绝。</summary>
+    /// <summary>可选空值保留未设置状态；缺少嵌套数据安全显示，空来源明确拒绝。</summary>
     [TestMethod]
     public void Candidate_HandlesEmptyValues()
     {
@@ -61,7 +61,7 @@ public sealed class ProductMasterLookupTextBoxTests
         Assert.IsNull(item.DefaultPurchasePriceCny);
         Assert.AreEqual(Guid.Empty, item.CategoryId);
         Assert.AreEqual(Guid.Empty, item.DefaultSupplierId);
-        Assert.AreEqual(1, item.DefaultPcsPerPackage);
+        Assert.IsNull(item.DefaultPcsPerPackage);
     }
 
     /// <summary>使用真实应用资源验证选中回填、模板、提交及清空参数，初始化绝不搜索。</summary>

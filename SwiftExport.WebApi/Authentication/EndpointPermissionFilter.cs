@@ -169,10 +169,8 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductColorController.Update"] = PermissionKeys.ProductsColorEdit,
         ["ProductColorController.Delete"] = PermissionKeys.ProductsColorDelete,
         ["ProductMasterController.GetPagedAsync"] = PermissionKeys.ProductsMasterView,
-        ["ProductMasterImportExportController.PreviewAsync"] = PermissionKeys.ProductsMasterView,
-        ["ProductMasterImportExportController.ExportAsync"] = PermissionKeys.ProductsMasterView,
+        ["ProductMasterImportController.ImportAsync"] = PermissionKeys.ProductsMasterEdit,
         // 提交仍由应用服务再次检查活动管理员；不影响普通产品维护端点。
-        ["ProductMasterImportExportController.ImportAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductMasterController.AssignCategoryAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductMasterController.GetDetailAsync"] = PermissionKeys.ProductsMasterView,
         ["ProductMasterController.SaveDetailAsync"] = PermissionKeys.ProductsMasterEdit,

@@ -6,7 +6,7 @@ using Npgsql;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
-using SwiftExport.Contracts.DTOs.Products.ProductMasters.ImportExport;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Import;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
@@ -241,10 +241,9 @@ public sealed class ProductAttributePostgreSqlTests
         Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, (await scope.Maintenance.BatchSaveAsync(batch)).Error.Code);
         Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, (await scope.Maintenance.AssignCategoryAsync(new() { TargetCategoryId = fixture.OtherCategory.Uid,
             Items = [new() { ProductMasterId = fixture.Master.Uid, ExpectedVersion = detail.ExpectedVersion }] })).Error.Code);
-        var input = new ProductMasterImportRowInput { SourceRowNumber = 2, MasterSku = fixture.Master.MasterSku, CategoryPath = fixture.OtherCategory.CategoryName };
-        var preview = await scope.Import.PreviewAsync(new() { Rows = [input] }); Assert.IsTrue(preview.Success, preview.Message);
-        var commit = ProductMasterImportExportTests.Commit([input], preview.Data);
-        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, (await scope.Import.ImportAsync(commit)).Error.Code);
+        var input = new ProductMasterImportRowDto { SourceRowNumber = 2, MasterSku = fixture.Master.MasterSku, CategoryPath = fixture.OtherCategory.CategoryName };
+        var imported = await scope.Import.ImportAsync([input]); Assert.IsTrue(imported.Success, imported.Message);
+        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, imported.Data.Items.Single().ErrorCode);
         var current = await scope.Query.GetDetailAsync(fixture.Master.Uid); Assert.AreEqual(detail.ExpectedVersion, current.Data.Version); Assert.HasCount(1, current.Data.SelectedOptionIds);
         var deletion = new ProductMasterBatchSaveRequest(); deletion.DeleteItems.Add(new() { Uid = fixture.Master.Uid, Version = detail.ExpectedVersion });
         var deleted = await scope.Maintenance.BatchSaveAsync(deletion); Assert.IsTrue(deleted.Success, deleted.Message);

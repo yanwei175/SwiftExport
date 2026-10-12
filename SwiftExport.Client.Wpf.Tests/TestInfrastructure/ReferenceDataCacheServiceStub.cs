@@ -3,6 +3,7 @@ using System.Reflection;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExportClient.Services.Caching;
@@ -16,6 +17,7 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     private readonly ObservableCollection<CustomerDto> _customers;
     private readonly ObservableCollection<SupplierDto> _suppliers;
     private readonly ObservableCollection<WarehouseSitePickerDto> _warehouseSites;
+    private readonly ObservableCollection<ProductAttributeGroupDto> _productAttributeGroups;
     private readonly CacheRefreshResult _ensureResult;
     private readonly CacheRefreshResult _supplierRefreshResult;
     private readonly CacheRefreshResult _warehouseRefreshResult;
@@ -31,12 +33,14 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         string supplierRefreshMessage = "测试供应商缓存已加载。",
         bool warehouseRefreshSuccess = true,
         string warehouseRefreshMessage = "测试仓库缓存已加载。",
-        IEnumerable<CustomerDto>? customers = null)
+        IEnumerable<CustomerDto>? customers = null,
+        IEnumerable<ProductAttributeGroupDto>? productAttributeGroups = null)
     {
         _dictionaryValues = new ObservableCollection<SysDictDataDto>(dictionaryValues ?? []);
         _customers = new ObservableCollection<CustomerDto>(customers ?? []);
         _suppliers = new ObservableCollection<SupplierDto>(suppliers ?? []);
         _warehouseSites = new ObservableCollection<WarehouseSitePickerDto>(warehouseSites ?? []);
+        _productAttributeGroups = new ObservableCollection<ProductAttributeGroupDto>(productAttributeGroups ?? []);
         _ensureResult = CreateRefreshResult(ensureSuccess, ensureMessage);
         _supplierRefreshResult = CreateRefreshResult(supplierRefreshSuccess, supplierRefreshMessage);
         _warehouseRefreshResult = CreateRefreshResult(warehouseRefreshSuccess, warehouseRefreshMessage);
@@ -47,6 +51,7 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
+        ProductAttributeGroups = new ReadOnlyObservableCollection<ProductAttributeGroupDto>(_productAttributeGroups);
         DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>([]);
         DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
     }
@@ -58,6 +63,51 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     public ReadOnlyObservableCollection<SysDicCurrencyDto> Currencies { get; }
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; }
     public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
+    /// <inheritdoc />
+    public ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
+    /// <inheritdoc />
+    public bool AreProductAttributesLoaded { get; private set; } = true;
+    /// <inheritdoc />
+    public event EventHandler? ProductAttributesChanged;
+    /// <summary>控制离线标签独立刷新是否成功，供失败保留草稿测试使用。</summary>
+    public bool ProductAttributesRefreshSuccess { get; set; } = true;
+    /// <summary>记录标签请求入口次数，验证本地选择不重复拉取网络资料。</summary>
+    public int EnsureProductAttributesLoadedCallCount { get; private set; }
+    /// <summary>记录标签独立刷新次数。</summary>
+    public int RefreshProductAttributesCallCount { get; private set; }
+    /// <inheritdoc />
+    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId) =>
+        ProductAttributeGroups.Where(group => group.CategoryId == categoryId).ToArray();
+    /// <inheritdoc />
+    public IReadOnlyList<ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId) =>
+        ProductAttributeGroups.FirstOrDefault(group => group.Uid == groupId)?.Options.ToArray() ?? [];
+    /// <inheritdoc />
+    public Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync()
+    {
+        EnsureProductAttributesLoadedCallCount++;
+        AreProductAttributesLoaded = _ensureResult.Success;
+        return Task.FromResult(_ensureResult);
+    }
+    /// <inheritdoc />
+    public Task<CacheRefreshResult> RefreshProductAttributesAsync()
+    {
+        RefreshProductAttributesCallCount++;
+        if (ProductAttributesRefreshSuccess)
+        {
+            AreProductAttributesLoaded = true;
+            ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
+        }
+        return Task.FromResult(CreateRefreshResult(ProductAttributesRefreshSuccess, "测试标签缓存刷新结果。"));
+    }
+    /// <summary>替换离线标签定义并通知订阅者，模拟服务端定义刷新且不包含产品选择状态。</summary>
+    public void SetProductAttributeGroups(IEnumerable<ProductAttributeGroupDto> groups)
+    {
+        _productAttributeGroups.Clear();
+        foreach (var group in groups)
+            _productAttributeGroups.Add(group);
+        AreProductAttributesLoaded = true;
+        ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
+    }
     public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
     public ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; }
     public int EnsureLoadedCallCount { get; private set; }
@@ -113,6 +163,9 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         _customers.Clear();
         _suppliers.Clear();
         _warehouseSites.Clear();
+        _productAttributeGroups.Clear();
+        AreProductAttributesLoaded = false;
+        ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>测试程序集通过私有构造函数创建缓存结果，避免为测试扩大生产 API。</summary>

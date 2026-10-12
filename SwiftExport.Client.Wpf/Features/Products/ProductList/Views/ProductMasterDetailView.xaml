@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
+             xmlns:productViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -61,7 +62,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Grid Grid.Column="0">
+                <Grid Grid.Column="0" IsEnabled="{Binding CanWrite}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="8"/>
@@ -135,11 +136,11 @@
                                 Text="{Binding Header.DefaultDescriptionEn, UpdateSourceTrigger=PropertyChanged}" />
 
                     
-                    <TextBlock  Grid.Column="0" Grid.Row="4" Text="每箱数量: *" VerticalAlignment="Center" />
+                    <TextBlock  Grid.Column="0" Grid.Row="4" Text="每箱数量:" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="2" Grid.Row="4" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Header.DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" />
                     
                     <TextBlock Grid.Column="4" Grid.Row="4" Text="净重:" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="6" Grid.Row="4" 
@@ -197,7 +198,9 @@
             </Grid>
         </ui:Card>
 
-        <Grid Grid.Row="4">
+        <TabControl Grid.Row="4">
+            <TabItem Header="中性产品" AutomationProperties.Name="中性产品页签">
+        <Grid Margin="0,8,0,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="8" />
@@ -220,6 +223,7 @@
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
                           RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                           AutoGenerateColumns="False" 
+                          IsReadOnly="{Binding IsReadOnly}"
                           SelectionMode="Extended" 
                           SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                           gridCore:EnterpriseGrid.IsEnabled="True" 
@@ -252,6 +256,7 @@
                             <DataTemplate>
                                 <CheckBox HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
+                                          IsEnabled="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                           IsChecked="{Binding IsMainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           Command="{Binding DataContext.SetMainImageCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                           CommandParameter="{Binding}"
@@ -334,6 +339,11 @@
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>
+            </TabItem>
+            <TabItem Header="标签属性" AutomationProperties.Name="标签属性页签">
+                <productViews:ProductMasterTagsView IsEnabled="{Binding IsNotBusy}" />
+            </TabItem>
+        </TabControl>
 
         <TextBlock Grid.Row="6" Text="{Binding ValidationSummary}" Foreground="{DynamicResource UserBusinessTextWarningBrush}"
                    Style="{StaticResource CaptionTextBlock}" />

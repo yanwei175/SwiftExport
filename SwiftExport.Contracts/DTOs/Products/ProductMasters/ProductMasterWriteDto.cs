@@ -15,8 +15,8 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters
         public string DefaultFeaturesEn { get; set; }
         /// <summary>获取或设置默认中文配置。</summary>
         public string DefaultFeaturesZh { get; set; }
-        /// <summary>获取或设置默认每箱装率。</summary>
-        public int DefaultPcsPerPackage { get; set; } = 1;
+        /// <summary>获取或设置默认每箱装率；为空表示未设置，有值时必须为正整数。</summary>
+        public int? DefaultPcsPerPackage { get; set; }
         /// <summary>获取或设置默认每箱净重，单位 KG。</summary>
         public decimal? DefaultNetWeight { get; set; }
         /// <summary>获取或设置默认每箱毛重，单位 KG。</summary>

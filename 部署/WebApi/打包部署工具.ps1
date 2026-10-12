@@ -20,7 +20,8 @@ $names = @(
     'WebApi/清理旧IIS部署.ps1','WebApi/打包部署工具.ps1','WebApi/打包后端.ps1',
     'WebApi/Caddy首次安装与日常更新.md','WebApi/可视化发布与后端部署工具使用说明.md',
     'WebApi/Windows文件夹发布配置模板.xml','WebApi/服务器配置示例.json',
-    '公共/Caddy/Caddy托管核心.ps1','公共/Caddy/获取Caddy.ps1','公共/证书/安装客户端根证书.ps1'
+    '公共/Caddy/Caddy托管核心.ps1','公共/Caddy/获取Caddy.ps1','公共/证书/安装客户端根证书.ps1',
+    'PostgreSQL/每日备份.ps1','PostgreSQL/注册每日备份任务.ps1','PostgreSQL/备份设置示例.json','PostgreSQL/使用说明.md'
 )
 foreach ($name in $names) {
     $target = Join-Path $stage $name
@@ -34,6 +35,7 @@ foreach ($name in @('LICENSE','README.md')) { Copy-Item -LiteralPath (Join-Path 
 # 使用说明导出到 ZIP 根时修正相对链接，源码中的说明仍从 WebApi 目录阅读。
 $guide = Get-Content -LiteralPath (Join-Path $PSScriptRoot '服务器工具包使用说明.md') -Raw -Encoding UTF8
 $guide = $guide.Replace('](Caddy首次安装与日常更新.md)', '](WebApi/Caddy首次安装与日常更新.md)')
+$guide = $guide.Replace('](../PostgreSQL/使用说明.md)', '](PostgreSQL/使用说明.md)')
 [IO.File]::WriteAllText((Join-Path $stage '使用说明.md'), $guide, [Text.Encoding]::UTF8)
 [IO.File]::WriteAllText((Join-Path $stage '工具版本.txt'), "Caddy 2.11.7 Windows x64`r`nEXE SHA256: $script:CaddyBinaryHash`r`n窗口入口位于 WebApi；必须保留同级公共目录。`r`n本 ZIP 不包含后端发布包、真实配置、证书包或 CA。`r`n", [Text.Encoding]::UTF8)
 [void][IO.Directory]::CreateDirectory((Split-Path $output -Parent))

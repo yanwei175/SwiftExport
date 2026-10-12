@@ -1,0 +1,12 @@
+{
+  "PgBin": "C:\\Program Files\\PostgreSQL\\18\\bin",
+  "HostName": "127.0.0.1",
+  "Port": 5432,
+  "UserName": "postgres",
+  "DatabaseName": "dv_next",
+  "BackupDirectory": "D:\\dbback",
+  "WorkDirectory": "D:\\PgBackupTools\\work",
+  "PasswordFile": "D:\\PgBackupTools\\pgpass.conf",
+  "TaskName": "PostgreSQL-dv_next-每日备份",
+  "DailyAt": "02:00"
+}

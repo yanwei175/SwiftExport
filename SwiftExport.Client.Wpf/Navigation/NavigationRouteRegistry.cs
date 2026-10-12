@@ -44,8 +44,8 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new("products", "产品", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, "Products.Product.View"),
 
         new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
-        new(SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels.ProductMasterImportExportViewModel.RouteKey,
-            "父级型号批量导入导出", "Workspace", typeof(SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels.ProductMasterImportExportViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
+        new(SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel.RouteKey,
+            "父级型号批量导入", "Workspace", typeof(SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
 
         new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", typeof(ProductNeutralManagerViewModel), NavigationModuleKeys.Products, "Products.Neutral.View"),
 

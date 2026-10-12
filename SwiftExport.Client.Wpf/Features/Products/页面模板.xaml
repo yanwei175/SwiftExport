@@ -8,9 +8,9 @@
                     xmlns:colorViewModels="clr-namespace:SwiftExportClient.Features.Products.Colors.ViewModels"
                     xmlns:bomViews="clr-namespace:SwiftExportClient.Features.Products.Bom.Views"
                     xmlns:bomViewModels="clr-namespace:SwiftExportClient.Features.Products.Bom.ViewModels"
-                    xmlns:importViews="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImportExport.Views"
-                    xmlns:importViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels">
-    <DataTemplate DataType="{x:Type importViewModels:ProductMasterImportExportViewModel}"><importViews:ProductMasterImportExportView /></DataTemplate>
+                    xmlns:importViews="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImport.Views"
+                    xmlns:importViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImport.ViewModels">
+    <DataTemplate DataType="{x:Type importViewModels:ProductMasterImportViewModel}"><importViews:ProductMasterImportView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductsViewModel}"><listViews:ProductsView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterManagerViewModel}"><listViews:ProductMasterManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductNeutralManagerViewModel}"><listViews:ProductNeutralManagerView /></DataTemplate>

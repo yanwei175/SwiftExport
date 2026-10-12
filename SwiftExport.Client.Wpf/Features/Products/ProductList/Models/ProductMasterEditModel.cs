@@ -18,8 +18,8 @@ public sealed partial class ProductMasterEditModel : BaseLineModel<ProductMaster
     [ObservableProperty] public partial string DefaultFeaturesEn { get; set; } = string.Empty;
     /// <summary>获取或设置默认中文配置。</summary>
     [ObservableProperty] public partial string DefaultFeaturesZh { get; set; } = string.Empty;
-    /// <summary>获取或设置默认装箱数。</summary>
-    [ObservableProperty] public partial int DefaultPcsPerPackage { get; set; } = 1;
+    /// <summary>获取或设置默认装箱数；新建初始为 1，空值表示未设置。</summary>
+    [ObservableProperty] public partial int? DefaultPcsPerPackage { get; set; } = 1;
     /// <summary>获取或设置默认净重。</summary>
     [ObservableProperty] public partial decimal? DefaultNetWeight { get; set; }
     /// <summary>获取或设置默认毛重。</summary>
@@ -39,10 +39,11 @@ public sealed partial class ProductMasterEditModel : BaseLineModel<ProductMaster
     /// <summary>获取或设置默认供应商显示名称。</summary>
     [ObservableProperty] public partial string DefaultSupplierName { get; set; } = string.Empty;
 
-    /// <summary>验证详情头部唯一需要在客户端阻断的必填字段。</summary>
+    /// <summary>验证主型号编码和可选默认装率；装率为空合法，有值必须为正整数。</summary>
     public override string? ValidateRow()
     {
         if (string.IsNullOrWhiteSpace(MasterSku)) return "主型号编码不能为空。";
+        if (DefaultPcsPerPackage is <= 0) return "默认每箱装率有值时必须为正整数。";
         return null;
     }
 

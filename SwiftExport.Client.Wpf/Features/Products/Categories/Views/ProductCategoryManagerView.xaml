@@ -5,10 +5,12 @@
              xmlns:dd="urn:gong-wpf-dragdrop"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:categoryModels="clr-namespace:SwiftExportClient.Features.Products.Categories.Models"
+             xmlns:categoryViews="clr-namespace:SwiftExportClient.Features.Products.Categories.Views"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:imageControls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              mc:Ignorable="d"
+             Loaded="OnLoaded" Unloaded="OnUnloaded"
              d:DesignWidth="1200"
              d:DesignHeight="800">
     <UserControl.Resources>
@@ -103,7 +105,7 @@
                     CommandParameter="{Binding CurrentCategory}"
                     MinWidth="96"
                     Margin="8,0,0,0" />
-            <ui:Button Content="保存" Appearance="Success"
+            <ui:Button Content="保存分类" Appearance="Success"
                     Command="{Binding SaveCommand}"
                     MinWidth="96"
                     Margin="8,0,0,0" />
@@ -156,6 +158,7 @@
                     </Grid>
 
                     <TreeView Grid.Row="2" HorizontalContentAlignment="Stretch"
+                              IsEnabled="{Binding IsInteractionEnabled}"
                               ItemsSource="{Binding CategoryTree}"
                               ItemTemplate="{StaticResource ProductCategoryTreeTemplate}"
                               ItemContainerStyle="{StaticResource ProductCategoryTreeViewItem}"
@@ -173,6 +176,9 @@
             
             <ui:Card Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+                <TabControl SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" IsEnabled="{Binding IsInteractionEnabled}"
+                            SelectionChanged="OnDetailsTabChanged">
+                <TabItem Header="分类资料">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -191,7 +197,7 @@
                             <TextBlock Text="类目基础属性"
                                        Style="{StaticResource BodyTextBlock}"
                                        FontWeight="SemiBold" />
-                            <TextBlock Text="修改后点击顶部保存，变更会批量提交。"
+                            <TextBlock Text="修改后点击顶部保存分类，变更会批量提交。"
                                        Style="{StaticResource CaptionTextBlock}"
                                        Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
                                        Margin="0,4,0,0" />
@@ -207,7 +213,7 @@
                         </ui:Button>
                     </Grid>
 
-                    <Grid Grid.Row="2">
+                    <Grid Grid.Row="2" IsEnabled="{Binding CanEditCategories}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="16" />
@@ -407,6 +413,12 @@
                         </Grid>
                     </Border>
                 </Grid>
+                </TabItem>
+                <TabItem Header="标签定义">
+                    <categoryViews:ProductAttributeDefinitionView x:Name="AttributeDefinitions"
+                                                                  DataContext="{Binding Attributes}" />
+                </TabItem>
+                </TabControl>
             </ui:Card>
         </Grid>
 

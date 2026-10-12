@@ -548,9 +548,11 @@ public sealed partial class ProductMasterMaintenanceService(
         throw new ProductMasterWriteException(code, string.IsNullOrWhiteSpace(result.Message) ? message : result.Message);
     }
 
+    /// <summary>校验普通列表与详情共用的主型号输入；默认装率可以未设置，有值必须为正整数。</summary>
     private static string? ValidateMaster(ProductMasterWriteDto data)
     {
         if (data is null || string.IsNullOrWhiteSpace(data.MasterSku)) return "主型号编码不能为空。";
+        if (data.DefaultPcsPerPackage is <= 0) return "默认每箱装率有值时必须为正整数。";
         return null;
     }
 

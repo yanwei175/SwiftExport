@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using SwiftExport.Contracts.DTOs.Customers;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 
@@ -48,6 +49,27 @@ public interface IReferenceDataCacheService
     /// </summary>
     ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
 
+    /// <summary>当前会话的完整分类标签定义快照，包含各组的选项；调用方不得编辑 DTO 或保存勾选状态。</summary>
+    ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
+
+    /// <summary>标签定义是否成功加载过，成功的空快照也视为已加载。</summary>
+    bool AreProductAttributesLoaded { get; }
+
+    /// <summary>完整标签快照发布或会话清空后触发；订阅者应在释放时取消订阅。</summary>
+    event EventHandler? ProductAttributesChanged;
+
+    /// <summary>按具体分类读取标签组，不继承父分类定义。</summary>
+    IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId);
+
+    /// <summary>按属性组读取本地选项，不调用 API。</summary>
+    IReadOnlyList<ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId);
+
+    /// <summary>首次使用时加载完整标签快照，合并并行请求，失败后允许重试。</summary>
+    Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync();
+
+    /// <summary>独立刷新完整标签快照；失败保留旧数据，旧会话结果不得回写。</summary>
+    Task<CacheRefreshResult> RefreshProductAttributesAsync();
+
     /// <summary>
     /// 获取全部未删除字典类型的只读缓存。
     /// </summary>
@@ -64,12 +86,12 @@ public interface IReferenceDataCacheService
     IReadOnlyList<SysDictDataDto> GetDictionaryValues(string dictCode, bool enabledOnly = true);
 
     /// <summary>
-    /// 首次使用时加载全部已接入缓存；本会话已完整加载时不会重复请求。
+    /// 首次使用时加载基础资料和标签；标签失败不阻断其他基础资料，标签状态需独立检查。
     /// </summary>
     Task<CacheRefreshResult> EnsureLoadedAsync();
 
     /// <summary>
-    /// 强制重新拉取全部已接入缓存。任一请求失败时保留原有完整快照。
+    /// 强制刷新基础资料及独立标签快照。基础资料失败保留原有完整快照，标签状态独立发布。
     /// </summary>
     Task<CacheRefreshResult> RefreshAllAsync();
 

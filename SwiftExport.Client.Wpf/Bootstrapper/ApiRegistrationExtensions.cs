@@ -92,6 +92,7 @@ public static class ApiRegistrationExtensions
         services.AddControllerApi<IDocumentNoApi>("DocumentNo");
     }
 
+    /// <summary>注册产品维护、图片、分类与标签定义 API，均沿用客户端会话认证。</summary>
     private static void AddProductApis(this IServiceCollection services)
     {
         // 图片处理包含上传、转码和磁盘发布，使用独立超时，不重试覆盖请求。
@@ -99,12 +100,13 @@ public static class ApiRegistrationExtensions
             .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromMinutes(5));
         services.AddControllerApi<IProductApi>("Product");
         services.AddControllerApi<IProductMasterApi>("ProductMaster");
-        services.AddControllerApi<IProductMasterImportExportApi>("ProductMasterImportExport");
-        services.AddTransient<Func<IProductMasterImportExportApi>>(provider => () => provider.GetRequiredService<IProductMasterImportExportApi>());
+        services.AddControllerApi<IProductMasterImportApi>("ProductMasterImport");
+        services.AddTransient<Func<IProductMasterImportApi>>(provider => () => provider.GetRequiredService<IProductMasterImportApi>());
         services.AddControllerApi<IProductNeutralApi>("ProductNeutral");
         services.AddControllerApi<IProductNeutralManagerApi>("ProductNeutralManager");
         services.AddControllerApi<IProductColorApi>("ProductColor");
         services.AddControllerApi<IProductCategoryApi>("ProductCategory");
+        services.AddControllerApi<IProductAttributeApi>("ProductAttribute");
         services.AddControllerApi<IBomApi>("Bom");
         services.AddControllerApi<IProductBomBindingApi>("Product");
     }

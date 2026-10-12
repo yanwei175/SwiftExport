@@ -26,8 +26,8 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
     [ObservableProperty] public partial string DefaultFeaturesEn { get; set; } = string.Empty;
     /// <summary>获取或设置默认中文配置。</summary>
     [ObservableProperty] public partial string DefaultFeaturesZh { get; set; } = string.Empty;
-    /// <summary>获取或设置默认装箱数。</summary>
-    [ObservableProperty] public partial int DefaultPcsPerPackage { get; set; } = 1;
+    /// <summary>获取或设置默认装箱数；新行初始为 1，空值表示未设置。</summary>
+    [ObservableProperty] public partial int? DefaultPcsPerPackage { get; set; } = 1;
     /// <summary>获取或设置默认净重。</summary>
     [ObservableProperty] public partial decimal? DefaultNetWeight { get; set; }
     /// <summary>获取或设置默认毛重。</summary>
@@ -38,6 +38,8 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
     [ObservableProperty] public partial string ProductType { get; set; } = string.Empty;
     /// <summary>获取或设置产品标签。</summary>
     [ObservableProperty] public partial string ProductTag { get; set; } = string.Empty;
+    /// <summary>实时分类标签摘要，只用于显示；与旧附加标签字符串分别维护。</summary>
+    [ObservableProperty] public partial string TagSummary { get; set; } = string.Empty;
     /// <summary>获取或设置分类标识。</summary>
     [ObservableProperty] public partial Guid CategoryId { get; set; }
     /// <summary>获取或设置分类显示名称。</summary>
@@ -53,10 +55,11 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
     /// <summary>获取默认主图中性产品的人民币采购价；该字段仅用于列表展示。</summary>
     [ObservableProperty] public partial decimal? DefaultPurchasePriceCny { get; set; }
 
-    /// <summary>验证主型号行唯一需要在客户端阻断的必填字段。</summary>
+    /// <summary>验证主型号编码和可选默认装率；装率为空合法，有值必须为正整数。</summary>
     public override string? ValidateRow()
     {
         if (string.IsNullOrWhiteSpace(MasterSku)) return "主型号编码不能为空。";
+        if (DefaultPcsPerPackage is <= 0) return "默认每箱装率有值时必须为正整数。";
         return null;
     }
 
@@ -68,4 +71,8 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
 
     /// <summary>转换为列表契约，用于基线和回滚。</summary>
     public override ProductMasterListItemDto ToDto() => this.Adapt<ProductMasterListItemDto>();
+
+    /// <summary>实时摘要不属于列表写字段，程序刷新不能使行产生修改。</summary>
+    protected override bool IsTrackingIgnoredProperty(string? propertyName) =>
+        base.IsTrackingIgnoredProperty(propertyName) || propertyName == nameof(TagSummary);
 }

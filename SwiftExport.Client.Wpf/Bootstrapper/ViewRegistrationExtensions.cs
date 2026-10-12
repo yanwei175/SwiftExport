@@ -60,8 +60,8 @@ public static class ViewRegistrationExtensions
 
         services.AddTransient<ProductsViewModel>();
         services.AddTransient<ProductMasterManagerViewModel>();
-        services.AddTransient<SwiftExportClient.Features.Products.ProductMasterImportExport.Services.ProductMasterWorkbookService>();
-        services.AddTransient<SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels.ProductMasterImportExportViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Products.ProductMasterImport.Services.ProductMasterWorkbookService>();
+        services.AddTransient<SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel>();
         services.AddTransient<ProductNeutralManagerViewModel>();
         services.AddTransient<ProductMasterDetailViewModel>();
 
@@ -71,6 +71,7 @@ public static class ViewRegistrationExtensions
 
         services.AddTransient<ProductCategoryAssignmentViewModel>();
         services.AddTransient<ProductCategoryManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Products.Categories.ViewModels.ProductAttributeDefinitionViewModel>();
 
         services.AddTransient<BomManagerViewModel>();
         services.AddTransient<IBomBindingClientService, BomBindingClientService>();

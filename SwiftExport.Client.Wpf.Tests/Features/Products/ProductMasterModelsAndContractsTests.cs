@@ -139,16 +139,16 @@ public sealed class ProductMasterModelsAndContractsTests
         Assert.IsTrue(second.IsMainImage);
     }
 
-    /// <summary>验证主型号本地校验只要求编码，分类和默认供应商允许暂不设置。</summary>
+    /// <summary>验证主型号编码必填，分类、默认供应商和默认装率允许暂不设置。</summary>
     [TestMethod]
-    public void ProductMasterValidation_ShouldOnlyRequireMasterSku()
+    public void ProductMasterValidation_ShouldAllowUnsetOptionalValues()
     {
         var line = new ProductMasterLineModel
         {
             MasterSku = "MASTER-OPTIONAL",
             CategoryId = Guid.Empty,
             DefaultSupplierId = Guid.Empty,
-            DefaultPcsPerPackage = 0,
+            DefaultPcsPerPackage = null,
             DefaultNetWeight = -1
         };
         var detail = new ProductMasterEditModel
@@ -156,7 +156,7 @@ public sealed class ProductMasterModelsAndContractsTests
             MasterSku = "MASTER-OPTIONAL",
             CategoryId = Guid.Empty,
             DefaultSupplierId = Guid.Empty,
-            DefaultPcsPerPackage = 0,
+            DefaultPcsPerPackage = null,
             DefaultGrossWeight = -1
         };
 

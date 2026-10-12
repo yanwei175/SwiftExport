@@ -49,7 +49,7 @@ public sealed class ProductCategoryTreeContextMenuTests
 
         var saveButton = document.Descendants()
             .Single(element => element.Name.LocalName == "Button"
-                && (string?)element.Attribute("Content") == "保存");
+                && (string?)element.Attribute("Content") == "保存分类");
         var commandPanel = saveButton.Ancestors(presentation + "StackPanel").First();
         var mainContent = document.Descendants(presentation + "TreeView").Single()
             .Ancestors(presentation + "Grid")

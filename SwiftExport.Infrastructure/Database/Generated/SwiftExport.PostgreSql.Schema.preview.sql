@@ -918,7 +918,7 @@ CREATE TABLE "public"."product_master" (
     "default_description_zh" varchar(2000) NULL,
     "default_features_en" varchar(500) NULL,
     "default_features_zh" varchar(500) NULL,
-    "default_pcs_per_package" integer NOT NULL,
+    "default_pcs_per_package" integer NULL,
     "default_net_weight" numeric(18,4) NULL,
     "default_gross_weight" numeric(18,4) NULL,
     "default_cbm" numeric(18,6) NULL,
@@ -2367,7 +2367,7 @@ COMMENT ON COLUMN "public"."product_master"."default_description_en" IS '英文�
 COMMENT ON COLUMN "public"."product_master"."default_description_zh" IS '中文描述。';
 COMMENT ON COLUMN "public"."product_master"."default_features_en" IS '英文默认配置。';
 COMMENT ON COLUMN "public"."product_master"."default_features_zh" IS '中文默认配置。';
-COMMENT ON COLUMN "public"."product_master"."default_pcs_per_package" IS '每箱装率(PCS/箱)，默认值为1';
+COMMENT ON COLUMN "public"."product_master"."default_pcs_per_package" IS '默认每箱装率（PCS/箱）；为空表示未设置，有值时必须为正整数。';
 COMMENT ON COLUMN "public"."product_master"."default_net_weight" IS '每箱净重(KG)';
 COMMENT ON COLUMN "public"."product_master"."default_gross_weight" IS '每箱毛重(KG)';
 COMMENT ON COLUMN "public"."product_master"."default_cbm" IS '每箱体积';

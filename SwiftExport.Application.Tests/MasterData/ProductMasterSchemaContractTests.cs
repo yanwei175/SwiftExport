@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Infrastructure.DatabaseSchema;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
@@ -7,6 +8,17 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductMasterSchemaContractTests
 {
+    /// <summary>父级默认装率在生成结构中允许为空，但实际包装装率继续必填且受正数约束保护。</summary>
+    [TestMethod]
+    public void GeneratedSchema_ShouldAllowUnsetParentPcsAndRequireActualPackagePcs()
+    {
+        var sql = new PostgreSqlSchemaGenerator().Generate(typeof(ProductMaster).Assembly);
+        StringAssert.Contains(sql, "\"default_pcs_per_package\" integer NULL");
+        StringAssert.Contains(sql, "CONSTRAINT \"ck_product_master_pcs\" CHECK (\"default_pcs_per_package\" > 0)");
+        StringAssert.Contains(sql, "\"pcs_per_package\" integer NOT NULL");
+        StringAssert.Contains(sql, "CONSTRAINT \"ck_product_package_pcs\" CHECK (\"pcs_per_package\" > 0)");
+    }
+
     /// <summary>验证已锁定的四个逻辑关系字段命名。</summary>
     [TestMethod]
     public void Entities_ShouldExposeCanonicalRelationshipNames()

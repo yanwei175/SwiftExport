@@ -4,6 +4,7 @@ using SwiftExportClient.Services.Images;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
@@ -22,9 +23,7 @@ using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using Mapster;
 using CommunityToolkit.Mvvm.Messaging;
-using SwiftExport.Contracts.DTOs.Products.ProductMasters.ImportExport;
-using SwiftExportClient.Features.Products.ProductMasterImportExport.Models;
-using SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels;
+using SwiftExportClient.Features.Products.ProductMasterImport.ViewModels;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -50,7 +49,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private ProductCategoryFilterSelection _appliedCategoryFilter = ProductCategoryFilterSelection.AllCategories;
     private bool _initialized;
     private bool _disposed;
-    private ProductMasterExportRequest? _lastAppliedExportFilter;
+    private readonly Dictionary<Guid, CancellationTokenSource> _detailRefreshes = [];
 
     /// <summary>初始化主产品管理页依赖。</summary>
     public ProductMasterManagerViewModel(
@@ -83,9 +82,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
         PropertyChanged += OnManagerStateChanged;
         RegisterBusyAwareCommand(SaveCommand);
-        RegisterBusyAwareCommand(OpenImportExportCommand);
-        WeakReferenceMessenger.Default.Register<ProductMasterManagerViewModel, ProductMasterImportCompletedMessage>(this,
-            static (recipient,message) => recipient.ImportCompleted(message));
+        RegisterBusyAwareCommand(OpenImportCommand);
+        WeakReferenceMessenger.Default.Register<ProductMasterManagerViewModel, ProductMasterDetailSavedMessage>(this,
+            static (recipient, message) => recipient.ObserveDetailSaved(message));
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(OpenDetailCommand);
         RegisterBusyAwareCommand(SyncDescriptionsCommand);
@@ -126,7 +125,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     /// <summary>获取或设置 DataGrid 是否使用格子选择模式。</summary>
     [ObservableProperty] public partial bool IsCellSelectionMode { get; set; } = false;
     /// <summary>获取当前是否正在查询。</summary>
-    [ObservableProperty] public partial bool IsQuerying { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
+    public partial bool IsQuerying { get; set; }
     /// <summary>获取当前供应商 Lookup 是否正在查询。</summary>
     [ObservableProperty] public partial bool IsSupplierLookupBusy { get; set; }
     /// <summary>获取当前结果摘要。</summary>
@@ -212,14 +213,51 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         $"product-master:new:{Guid.NewGuid():N}",
         new ProductMasterDocumentOpenRequest());
 
+    /// <summary>沿用详情入口；先处理目标行草稿，取消或保存失败时不打开，不撤销其他型号的草稿。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenDetail))]
-    private Task OpenDetailAsync(ProductMasterLineModel? line = null)
+    private async Task OpenDetailAsync(ProductMasterLineModel? line = null)
     {
-        var target = line ?? SelectedMaster!;
-        return _navigation.OpenDocumentAsync(
+        var target = line ?? SelectedMaster;
+        if (!CanOpenDetail(target) || !TryCommitPendingEdits() || target is null) return;
+        var id = target.Uid;
+        var hasNeutralDraft = _neutralMaster?.Uid == id && Neutrals.HasChanges;
+        if (target.IsDirty || hasNeutralDraft)
+        {
+            DialogResult choice;
+            IsSelectionPrompt = true;
+            try
+            {
+                choice = await _dialogs.ShowAsync(
+                    "当前主型号或其中性产品有未保存修改。保存会提交当前列表的主型号变更及当前中性产品；放弃只撤销当前型号及其中性产品，其他型号草稿保留。",
+                    new DialogOptions("打开主型号详情")
+                    {
+                        PrimaryButtonText = CanWrite ? "保存并打开" : null,
+                        SecondaryButtonText = "放弃当前修改并打开",
+                        CloseButtonText = "取消"
+                    });
+            }
+            finally { IsSelectionPrompt = false; }
+            if (_disposed || choice == DialogResult.Close) return;
+            if (choice == DialogResult.Primary)
+            {
+                if (!CanWrite) return;
+                if (Masters.HasChanges) await SaveAsync();
+                if (!_disposed && _neutralMaster?.Uid == id && Neutrals.HasChanges) await SaveNeutralsAsync();
+                if (_disposed || Masters.HasChanges) return;
+                if (_neutralMaster?.Uid == id && Neutrals.HasChanges) return;
+            }
+            else
+            {
+                target.RejectChanges();
+                if (_neutralMaster?.Uid == id && Neutrals.HasChanges) Neutrals.RejectChanges();
+                UpdateChangeState();
+            }
+        }
+        if (_disposed || !IsInteractionEnabled) return;
+        await _navigation.OpenDocumentAsync(
             ProductMasterDetailViewModel.RouteKey,
-            $"product-master:{target.Uid:N}",
-            new ProductMasterDocumentOpenRequest { ProductMasterId = target.Uid });
+            $"product-master:{id:N}",
+            new ProductMasterDocumentOpenRequest { ProductMasterId = id });
     }
 
     /// <summary>新增行直接移除；涉及已保存行时确认软删除，完成后选择剩余最后一行。</summary>
@@ -466,8 +504,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
             PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
             ResultSummary = $"共 {TotalCount} 个主型号，本页 {Masters.Items.Count} 个。";
             _appliedCategoryFilter = requestedCategoryFilter;
-            _lastAppliedExportFilter = request.Adapt<ProductMasterExportRequest>();
-            OpenImportExportCommand.NotifyCanExecuteChanged();
+            OpenImportCommand.NotifyCanExecuteChanged();
             AcceptChanges();
             UpdateChangeState();
             if (!IsCardView) await LoadNeutralsCoreAsync();
@@ -536,13 +573,13 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
         NotifySyncCommands();
-        OpenImportExportCommand.NotifyCanExecuteChanged();
+        OpenImportCommand.NotifyCanExecuteChanged();
     }
     private bool CanDeleteSelected() => IsNotBusy && CanWrite && (Masters.CheckedCount > 0 || SelectedMaster is not null);
     private bool CanOpenDetail(ProductMasterLineModel? line = null)
     {
         var target = line ?? SelectedMaster;
-        return IsNotBusy && target is not null && target.Uid != Guid.Empty;
+        return !_disposed && IsInteractionEnabled && target is not null && !target.IsDeleted && !target.IsNew && target.Uid != Guid.Empty;
     }
 
     /// <summary>取消查询并解除列表订阅。</summary>
@@ -550,7 +587,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     {
         if (_disposed) return;
         _disposed = true;
-        WeakReferenceMessenger.Default.Unregister<ProductMasterImportCompletedMessage>(this);
+        WeakReferenceMessenger.Default.Unregister<ProductMasterDetailSavedMessage>(this);
+        foreach (var pending in _detailRefreshes.Values) { pending.Cancel(); pending.Dispose(); }
+        _detailRefreshes.Clear();
         _imageAddresses.Changed -= OnImageConfigurationChanged;
         Masters.ListStateChanged -= OnListStateChanged;
         Neutrals.ListStateChanged -= OnNeutralListStateChanged;
@@ -563,14 +602,78 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         cts?.Dispose();
     }
 
-    /// <summary>每次打开独立导入批次，并冻结最近一次成功查询的筛选，不传输未保存编辑。</summary>
-    [RelayCommand(CanExecute = nameof(CanOpenImportExport))]
-    private Task OpenImportExportAsync() => _navigation.OpenDocumentAsync(ProductMasterImportExportViewModel.RouteKey,
-        $"product-master-import-export:{Guid.NewGuid():N}", new ProductMasterImportOpenRequest(_lastAppliedExportFilter!.Adapt<ProductMasterExportRequest>()));
-    private bool CanOpenImportExport() => !_disposed && IsNotBusy && _lastAppliedExportFilter is not null
+    /// <summary>打开独立导入队列，文件数据不依赖列表筛选或未保存草稿。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenImport))]
+    private Task OpenImportAsync() => _navigation.OpenDocumentAsync(ProductMasterImportViewModel.RouteKey,
+        $"product-master-import:{Guid.NewGuid():N}");
+    private bool CanOpenImport() => !_disposed && IsNotBusy
         && _currentUser?.HasPermission(PermissionKeys.ProductsMasterView) == true;
 
-    /// <summary>保留来源页未保存编辑，成功导入后只提示显式刷新，不覆盖上下两表。</summary>
-    private void ImportCompleted(ProductMasterImportCompletedMessage message)
-    { if (!_disposed && message.ChangedCount > 0) ResultSummary = $"已导入 {message.ChangedCount} 行父级资料，请刷新列表；当前未保存编辑已保留。"; }
+    /// <summary>观察详情保存后的定向查询，异步通知不抛未观察异常，不替换管理页的整张编辑集合。</summary>
+    private void ObserveDetailSaved(ProductMasterDetailSavedMessage message)
+    {
+        if (!_disposed && message.ProductMasterId != Guid.Empty) _ = RefreshSavedDetailAsync(message.ProductMasterId);
+    }
+
+    /// <summary>每个主型号只接纳最新重读，更新前提交原生缓冲并复核草稿，避免推进草稿的旧版本。</summary>
+    private async Task RefreshSavedDetailAsync(Guid masterId)
+    {
+        CancellationTokenSource? current = null;
+        try
+        {
+            var target = Masters.Items.FirstOrDefault(row => row.Uid == masterId);
+            if (target is null) return;
+            if (!TryCommitPendingEdits() || target.IsDirty)
+            {
+                ResultSummary = "主型号详情已保存；对应列表行仍有草稿，请处理草稿后刷新。";
+                return;
+            }
+            current = new CancellationTokenSource();
+            if (_detailRefreshes.Remove(masterId, out var previous)) { previous.Cancel(); previous.Dispose(); }
+            _detailRefreshes[masterId] = current;
+            var result = await _runner.RunAsync(() => _api.GetDetailAsync(masterId, current.Token), current.Token, "刷新主型号摘要失败");
+            if (_disposed || current.IsCancellationRequested || !_detailRefreshes.TryGetValue(masterId, out var owner) || !ReferenceEquals(owner, current)) return;
+            if (!result.Success || result.Data is null)
+            {
+                ResultSummary = "详情已保存，但列表行刷新失败，请稍后手动刷新。";
+                return;
+            }
+            if (!Masters.Items.Contains(target) || !TryCommitPendingEdits() || target.IsDirty)
+            {
+                ResultSummary = "详情已保存；当前列表草稿已保留，请处理后刷新。";
+                return;
+            }
+            var detail = result.Data;
+            var snapshot = detail.Adapt<ProductMasterListItemDto>();
+            snapshot.TagSummary = string.Join("；", detail.AttributeSelections.GroupBy(row => row.AttributeGroupId)
+                .OrderBy(group => group.First().GroupSortOrder).ThenBy(group => group.Key)
+                .Select(group => group.First().GroupName + "：" + string.Join("、", group.OrderBy(row => row.OptionSortOrder).ThenBy(row => row.OptionId)
+                    .Select(row => row.OptionName + (row.IsAvailable ? "" : "（已失效）")))));
+            var main = detail.Neutrals.FirstOrDefault(row => row.Data.IsMainImage)?.Data;
+            snapshot.MainImagePath = main?.ImagePath ?? string.Empty;
+            snapshot.DefaultSalesPriceUsd = main?.DefaultSalesPriceUsd;
+            snapshot.DefaultPurchasePriceCny = main?.DefaultPurchasePriceCny;
+            target.Load(snapshot);
+            if (_neutralMaster?.Uid == masterId && !Neutrals.HasChanges)
+            {
+                CancelNeutralQuery();
+                AcceptNeutrals(detail);
+            }
+            UpdateChangeState();
+        }
+        catch (OperationCanceledException) when (current?.IsCancellationRequested == true) { }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Trace.TraceError("主型号详情保存后的列表投影接纳失败：{0}", exception);
+            if (!_disposed && current?.IsCancellationRequested != true) ResultSummary = "详情已保存；列表刷新未完成，请稍后手动刷新。";
+        }
+        finally
+        {
+            if (current is not null && _detailRefreshes.TryGetValue(masterId, out var owner) && ReferenceEquals(owner, current))
+            {
+                _detailRefreshes.Remove(masterId);
+                current.Dispose();
+            }
+        }
+    }
 }

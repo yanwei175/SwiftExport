@@ -314,7 +314,13 @@ public sealed class ProductMasterSynchronizationTests
     private static ProductMasterDetailViewModel Detail(IProductMasterApi api, ProductMasterSyncDialogStub dialog)
     {
         var vm = new ProductMasterDetailViewModel(api, null!, Runner(),
-            Proxy<IReferenceDataCacheService>((_, _) => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>())),
+            Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
+            {
+                "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
+                "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>(new ObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>()),
+                "get_AreProductAttributesLoaded" => false,
+                _ => null
+            }),
             Messages(), null!, null!, dialog);
         vm.Header.Load(new ProductMasterDetailDto { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "A" } });
         return vm;

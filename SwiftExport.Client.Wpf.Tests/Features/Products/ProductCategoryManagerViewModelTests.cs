@@ -5,6 +5,8 @@ using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
@@ -31,6 +33,7 @@ public sealed class ProductCategoryManagerViewModelTests
             DispatchProxy.Create<IWarehouseSiteApi, NoCallApiProxy>(),
             new ProductColorApiStub(),
             categoryApi,
+            new ProductAttributeApiStub(),
             DispatchProxy.Create<ISysDicCurrencyApi, NoCallApiProxy>(),
             DispatchProxy.Create<ISysDictTypeApi, NoCallApiProxy>(),
             DispatchProxy.Create<ISysDictDataApi, NoCallApiProxy>(),
@@ -46,7 +49,9 @@ public sealed class ProductCategoryManagerViewModelTests
                 DispatchProxy.Create<IProductMasterApi, NoCallProductApiProxy>(),
                 runner,
                 new MessageServiceStub(),
-                new DialogServiceStub()));
+                new DialogServiceStub()),
+            new ProductAttributeDefinitionViewModel(new ProductAttributeApiStub(), runner, cache,
+                new MessageServiceStub(), new DialogServiceStub(), new CurrentUserService()));
 
         await viewModel.InitializeAsync();
         viewModel.CurrentCategory!.CategoryName = "第一次修改";
@@ -132,6 +137,17 @@ public sealed class ProductCategoryManagerViewModelTests
         public Task<ServiceResult<Guid>> CreateAsync(ProductColorDto request) => throw new NotSupportedException();
         public Task<ServiceResult<Guid>> UpdateAsync(Guid id, ProductColorDto request) => throw new NotSupportedException();
         public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => throw new NotSupportedException();
+    }
+
+    /// <summary>本回归只验证分类保存，不访问真实标签定义服务。</summary>
+    private sealed class ProductAttributeApiStub : IProductAttributeApi
+    {
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto()));
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid categoryId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto { CategoryId = categoryId }));
+        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
+            throw new AssertFailedException("分类保存不应提交标签定义。");
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner

@@ -13,8 +13,11 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
     /// <summary>初始化主型号列表。</summary>
     public ProductMasterListModel() : base(_ => new ProductMasterLineModel()) { }
 
-    /// <summary>新增一条未保存主型号。</summary>
-    public ProductMasterLineModel AddNewMaster() => AddNew(new ProductMasterListItemDto());
+    /// <summary>新增一条未保存主型号；仅在普通新建入口提供初始装率 1，持久化空值由加载映射保留。</summary>
+    public ProductMasterLineModel AddNewMaster() => AddNew(new ProductMasterListItemDto
+    {
+        Data = new ProductMasterWriteDto { DefaultPcsPerPackage = 1 }
+    });
 
     /// <summary>按行状态生成主型号新增、修改、软删除变更集；同步选项留给保存确认步骤设置。</summary>
     public ProductMasterBatchSaveRequest CreateSaveRequest()

@@ -25,6 +25,57 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductMasterDetailLockOrderTests
 {
+    /// <summary>普通列表与详情保存都应拒绝非正父级装率，并在写入前回滚事务。</summary>
+    [TestMethod]
+    [DataRow(false, 0)]
+    [DataRow(false, -1)]
+    [DataRow(true, 0)]
+    [DataRow(true, -1)]
+    public async Task NonPositiveDefaultPcs_ShouldRejectWithoutWrites(bool batch, int pcs)
+    {
+        var fixture = new Fixture();
+        var request = fixture.CreateRequest(false);
+        request.Master.DefaultPcsPerPackage = pcs;
+
+        var result = batch
+            ? (await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
+            {
+                CreateItems = [new() { Data = request.Master }]
+            })).Success
+            : (await fixture.Service.SaveDetailAsync(request)).Success;
+
+        Assert.IsFalse(result, "非正装率必须由普通维护用例阻断。");
+        fixture.AssertRollbackWithoutWrites();
+    }
+
+    /// <summary>列表新增与详情修改应原样把空装率或正整数传给仓储，并正常提交。</summary>
+    [TestMethod]
+    [DataRow(false, null)]
+    [DataRow(false, 1)]
+    [DataRow(false, 12)]
+    [DataRow(true, null)]
+    [DataRow(true, 1)]
+    [DataRow(true, 12)]
+    public async Task OptionalDefaultPcs_ShouldPreserveValueInOrdinarySaves(bool batch, int? pcs)
+    {
+        var fixture = new Fixture();
+        var request = fixture.CreateRequest(false);
+        request.Master.DefaultPcsPerPackage = pcs;
+
+        var success = batch
+            ? (await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
+            {
+                CreateItems = [new() { Data = request.Master }]
+            })).Success
+            : (await fixture.Service.SaveDetailAsync(request)).Success;
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(pcs, fixture.WrittenMasters.Single().DefaultPcsPerPackage);
+        Assert.AreEqual(1, fixture.Session.ConnectionStub.TransactionStub.CommitCount);
+        Assert.AreEqual(0, fixture.Session.ConnectionStub.TransactionStub.RollbackCount);
+        fixture.AssertTransactionReleased();
+    }
+
     /// <summary>仅保存头部或同时新增明细时，引用锁必须先于主型号和中性行锁，并正常提交。</summary>
     [TestMethod]
     [DataRow(false)]
@@ -200,6 +251,8 @@ public sealed class ProductMasterDetailLockOrderTests
         public SessionStub Session { get; } = new();
         public ProductMasterMaintenanceService Service { get; }
         public List<string> Calls { get; } = [];
+        /// <summary>记录仓储实际收到的主型号写入数据，用于核对可选装率的持久化边界。</summary>
+        public List<ProductMaster> WrittenMasters { get; } = [];
         public bool CategoryExists { get; set; } = true;
         public bool ColorExists { get; set; } = true;
         public int WriteCount { get; private set; }
@@ -318,6 +371,7 @@ public sealed class ProductMasterDetailLockOrderTests
                     var createdId = Guid.NewGuid();
                     var insertFailure = WriteFailure(createdId, null);
                     if (insertFailure is not null) return Task.FromResult(insertFailure);
+                    WrittenMasters.Add((ProductMaster)args[0]!);
                     _createdMasters.Add(createdId);
                     SuccessfulWrites++;
                     return Task.FromResult(RepositoryWriteResult.Ok(createdId, null, 1));
@@ -329,6 +383,7 @@ public sealed class ProductMasterDetailLockOrderTests
                     WriteCount++;
                     var updateFailure = WriteFailure(master.Uid, master.Version);
                     if (updateFailure is not null) return Task.FromResult(updateFailure);
+                    WrittenMasters.Add(master);
                     SuccessfulWrites++;
                     return Task.FromResult(RepositoryWriteResult.Ok(_masterId, master.Version, ++_version));
                 default:
@@ -375,7 +430,10 @@ public sealed class ProductMasterDetailLockOrderTests
         {
             Assert.AreEqual("SyncFromProductMasterAsync", method);
             Assert.IsNotNull(Session.Transaction);
-            Assert.AreEqual(_masterId, ((ProductMaster)args[0]!).Uid);
+            // 详情沿用既有标识；列表新增只允许同步仓储刚返回的持久化标识。
+            var sourceId = ((ProductMaster)args[0]!).Uid;
+            if (_createdMasters.Count > 0) Assert.IsTrue(_createdMasters.Contains(sourceId));
+            else Assert.AreEqual(_masterId, sourceId);
             Calls.Add("product.write");
             WriteCount++;
             return Task.FromResult(0);

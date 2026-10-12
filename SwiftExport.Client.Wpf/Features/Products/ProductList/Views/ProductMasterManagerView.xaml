@@ -96,7 +96,7 @@
                             <ui:DropDownButton Content="更多功能" Margin="0,0,8,0">
                                 <ui:DropDownButton.Flyout>
                                     <ContextMenu>
-                                        <MenuItem Header="批量导入导出" Command="{Binding PlacementTarget.DataContext.OpenImportExportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="批量导入" Command="{Binding PlacementTarget.DataContext.OpenImportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="从详情新建" Command="{Binding PlacementTarget.DataContext.CreateDetailCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="描述,配置,供应商,重量体积统一下发" Command="{Binding PlacementTarget.DataContext.SyncAllCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="描述下发" Command="{Binding PlacementTarget.DataContext.SyncDescriptionsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
@@ -306,7 +306,7 @@
                                                     gridColumns:GridColumn.Key="features-en" gridColumns:GridColumn.FieldPath="DefaultFeaturesEn" />
 
                             <DataGridTextColumn Header="箱容" Width="50" 
-                                                    Binding="{Binding DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus}"
+                                                    Binding="{Binding DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus, TargetNullValue=''}"
                                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
                                                     gridColumns:GridColumn.Key="pcs-per-package" 
@@ -393,6 +393,11 @@
                                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                                     gridColumns:GridColumn.Key="product-tag" gridColumns:GridColumn.FieldPath="ProductTag" />
+
+                            <DataGridTextColumn Header="分类标签" Width="240" IsReadOnly="True"
+                                                Binding="{Binding TagSummary, Mode=OneWay}"
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                                gridColumns:GridColumn.Key="category-tags" gridColumns:GridColumn.FieldPath="TagSummary" />
 
                         </DataGrid.Columns>
                     </DataGrid>

@@ -120,9 +120,14 @@ public sealed class ProductMasterSupplierEditingTests
 
     private static ProductMasterDetailViewModel CreateVm(IProductMasterApi? api = null) => new(
         api!, null!, Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke()),
-        Proxy<IReferenceDataCacheService>((method, _) => method.Name == "get_ProductCategories"
-            ? new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>())
-            : throw new AssertFailedException(method.Name)),
+        Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
+        {
+            "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
+            "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>(new ObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>()),
+            "get_AreProductAttributesLoaded" => false,
+            "add_ProductAttributesChanged" or "remove_ProductAttributesChanged" => null,
+            _ => throw new AssertFailedException(method.Name)
+        }),
         Proxy<IMessageService>((_, _) => null), null!, null!, new ProductMasterSyncDialogStub());
 
     private static T Proxy<T>(Func<MethodInfo, object?[], object?> invoke) where T : class

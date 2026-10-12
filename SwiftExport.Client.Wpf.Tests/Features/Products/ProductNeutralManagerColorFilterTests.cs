@@ -229,6 +229,20 @@ public sealed class ProductNeutralManagerColorFilterTests
         public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto> WarehouseSites { get; } = Empty<SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker.WarehouseSitePickerDto>();
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategoryTree { get; } = Empty<ProductCategoryCacheNode>();
         public ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; } = Empty<ProductCategoryCacheNode>();
+        /// <inheritdoc />
+        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto> ProductAttributeGroups { get; } = Empty<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>();
+        /// <inheritdoc />
+        public bool AreProductAttributesLoaded => true;
+        /// <inheritdoc />
+        public event EventHandler? ProductAttributesChanged { add { } remove { } }
+        /// <inheritdoc />
+        public IReadOnlyList<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId) => [];
+        /// <inheritdoc />
+        public IReadOnlyList<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId) => [];
+        /// <inheritdoc />
+        public Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync() => throw new NotSupportedException();
+        /// <inheritdoc />
+        public Task<CacheRefreshResult> RefreshProductAttributesAsync() => throw new NotSupportedException();
         public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; } = Empty<SysDictTypeDto>();
         public ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; } = Empty<SysDictDataDto>();
         public IReadOnlyList<SysDictDataDto> GetDictionaryValues(string dictCode, bool enabledOnly = true) => [];

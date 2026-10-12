@@ -19,8 +19,8 @@ public partial class ProductMaster : BaseEntity
     public string? DefaultFeaturesEn { get; set; }
     /// <summary>中文默认配置。</summary>
     public string? DefaultFeaturesZh { get; set; }
-    /// <summary>   每箱装率(PCS/箱)，默认值为1   </summary>
-    public int DefaultPcsPerPackage { get; set; } = 1;
+    /// <summary>默认每箱装率（PCS/箱）；为空表示未设置，有值时必须为正整数。</summary>
+    public int? DefaultPcsPerPackage { get; set; }
 
     /// <summary>每箱净重(KG)</summary>
     public decimal? DefaultNetWeight { get; set; }

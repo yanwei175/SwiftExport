@@ -106,48 +106,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         { Items = rows.Select(ToListItem).ToList(), TotalCount = count, PageIndex = pageIndex, PageSize = pageSize };
     }
 
-    /// <summary>一次读取上限加一行以识别溢出，不通过翻页拼接不一致快照。</summary>
-    public async Task<IReadOnlyList<ProductMaster>> GetForExportAsync(ProductMasterSearchRequest request, int maximumRows, CancellationToken cancellationToken = default)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumRows);
-        request ??= new ProductMasterSearchRequest();
-        var parameters = PostgreSqlParameters.Ids(request.CategoryIds?.Where(id => id != Guid.Empty).Distinct().ToArray() ?? []);
-        parameters.Add("EmptyGuid", Guid.Empty);
-        parameters.Add("Limit", maximumRows + 1);
-        var where = BuildFilter(request, parameters);
-        var rows = await Connection.QueryAsync<ProductMaster>(new CommandDefinition($"""
-            SELECT {EntityColumns} FROM public.product_master pm {where}
-            ORDER BY pm.master_sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,pm.uid LIMIT @Limit
-            """, parameters, Transaction, cancellationToken: cancellationToken));
-        return rows.ToList();
-    }
-
-    /// <summary>用参数化 JSON 输入保留原行号；比较、批内重复及唯一性均使用现有数据库编码排序规则。</summary>
-    public async Task<IReadOnlyList<ProductMasterImportMatch>> MatchForImportAsync(
-        IReadOnlyList<(int SourceRowNumber, string MasterSku)> inputs, CancellationToken cancellationToken = default)
-    {
-        if (inputs.Count == 0) return [];
-        var json = System.Text.Json.JsonSerializer.Serialize(inputs.Select(item => new
-        { row_number = item.SourceRowNumber, master_sku = item.MasterSku.Trim() }));
-        var rows = await Connection.QueryAsync<ImportProjection>(new CommandDefinition($"""
-            WITH raw_input AS (
-                SELECT row_number,master_sku FROM jsonb_to_recordset(CAST(@Inputs AS jsonb))
-                    AS input(row_number integer,master_sku text)
-            ), input AS (
-                SELECT row_number,master_sku,
-                    count(*) OVER (PARTITION BY rtrim(master_sku,' ') COLLATE public.erp_dictionary_ci)>1 AS duplicate_code
-                FROM raw_input
-            )
-            SELECT input.row_number AS "SourceRowNumber", input.duplicate_code AS "DuplicateCode", {EntityColumns}
-            FROM input LEFT JOIN public.product_master pm ON pm.is_deleted=FALSE
-                AND rtrim(pm.master_sku,' ') COLLATE public.erp_dictionary_ci = rtrim(input.master_sku,' ') COLLATE public.erp_dictionary_ci
-            ORDER BY input.row_number,pm.uid
-            """, new { Inputs = json }, Transaction, cancellationToken: cancellationToken));
-        return rows.Select(row => new ProductMasterImportMatch(row.SourceRowNumber, row.DuplicateCode,
-            row.Uid == Guid.Empty ? null : row)).ToList();
-    }
-
-    /// <summary>分页和导出共用筛选构造，只拼接固定 SQL，全部用户值通过参数传递。</summary>
+    /// <summary>构造分页筛选，只拼接固定 SQL，全部用户值通过参数传递。</summary>
     private static string BuildFilter(ProductMasterSearchRequest request, PostgreSqlParameters parameters)
     {
         var categoryIds = request.CategoryIds?.Where(id => id != Guid.Empty).Distinct().ToArray() ?? [];
@@ -178,15 +137,6 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
             where += " AND (pm.category_id IS NULL OR pm.category_id<>@ExcludeCategoryId)";
         }
         return where;
-    }
-
-    /// <summary>在仓储内部映射逐行匹配列，不把辅助列加入持久化实体。</summary>
-    private sealed class ImportProjection : ProductMaster
-    {
-        /// <summary>LEFT JOIN 无记录时 Dapper 跳过 NULL；覆盖自动标识，避免误判为已有型号。</summary>
-        public ImportProjection() => Uid = Guid.Empty;
-        public int SourceRowNumber { get; set; }
-        public bool DuplicateCode { get; set; }
     }
 
     /// <summary>读取实时分类供应商名称；更新锁仅作用于 pm，不对可空联表侧取锁。</summary>

@@ -38,6 +38,7 @@ public sealed class MapsterConfig : IRegister
         new SwiftExportClient.Features.Inventory.Inbounds.Mappings.InboundManagerMappings().Register(config);
         new SwiftExportClient.Features.Inventory.Outbounds.Mappings.OutboundManagerMappings().Register(config);
         new SwiftExportClient.Features.Products.Bom.Mappings.BomManagementMappings().Register(config);
+        new SwiftExportClient.Features.Products.Categories.Mappings.ProductAttributeDefinitionMappings().Register(config);
         new SwiftExportClient.Features.QualityControl.FlowManagement.Mappings.FlowMappings().Register(config);
         config.NewConfig<SourceDemandCandidateGroupDto, SourceDemandCandidateGroupModel>()
             .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)
@@ -99,6 +100,8 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<ProductMasterListItemDto, ProductMasterLineModel>()
             .IgnoreNullValues(true)
+            // 默认装率的空值是持久化事实，必须覆盖新行初始值及此前载入的装率。
+            .AfterMapping((src, dest) => dest.DefaultPcsPerPackage = src.Data.DefaultPcsPerPackage)
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
             .Map(dest => dest.MasterSku, src => src.Data.MasterSku)
             .Map(dest => dest.DefaultDescriptionEn, src => src.Data.DefaultDescriptionEn)
@@ -111,6 +114,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.DefaultCbm, src => src.Data.DefaultCbm)
             .Map(dest => dest.ProductType, src => src.Data.ProductType)
             .Map(dest => dest.ProductTag, src => src.Data.ProductTag)
+            .Map(dest => dest.TagSummary, src => src.TagSummary ?? string.Empty)
             .Map(dest => dest.CategoryId, src => src.Data.CategoryId)
             .Map(dest => dest.DefaultSupplierId, src => src.Data.DefaultSupplierId)
             .Map(dest => dest.MainImagePath, src => src.MainImagePath ?? string.Empty)
@@ -132,6 +136,8 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<ProductMasterDetailDto, ProductMasterEditModel>()
             .IgnoreNullValues(true)
+            // 头部空装率同样需要原样接纳，不能受字符串空值兼容策略影响。
+            .AfterMapping((src, dest) => dest.DefaultPcsPerPackage = src.Master.DefaultPcsPerPackage)
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
             .Map(dest => dest.MasterSku, src => src.Master.MasterSku)
             .Map(dest => dest.DefaultDescriptionEn, src => src.Master.DefaultDescriptionEn)
@@ -146,6 +152,10 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.ProductTag, src => src.Master.ProductTag)
             .Map(dest => dest.CategoryId, src => src.Master.CategoryId)
             .Map(dest => dest.DefaultSupplierId, src => src.Master.DefaultSupplierId);
+
+        // 详情保存后的单行刷新复用头部结构映射，摘要和默认主图由调用方按实时关联组装。
+        config.NewConfig<ProductMasterDetailDto, ProductMasterListItemDto>()
+            .Map(dest => dest.Data, src => src.Master);
 
         config.NewConfig<ProductMasterEditModel, ProductMasterWriteDto>();
         config.NewConfig<ProductMasterEditModel, ProductMasterDetailDto>()

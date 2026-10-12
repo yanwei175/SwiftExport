@@ -190,7 +190,7 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
             var suppliers = Services.GetRequiredService<ISupplierRepository>();
             Definitions = new(attributes, categories, user, user, context);
             Maintenance = new(masters, neutrals, categories, suppliers, Services.GetRequiredService<IProductColorRepository>(), Services.GetRequiredService<IProductRepository>(), attributes, context);
-            Query = new(masters, neutrals, categories, suppliers, user, user, attributes);
+            Query = new(masters, neutrals, attributes);
             Categories = new(categories, attributes, context);
             Import = new(masters, categories, suppliers, user, user, attributes, context);
         }

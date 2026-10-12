@@ -21,6 +21,7 @@ using SwiftExport.Contracts.DTOs.Customers.Responses;
 using SwiftExport.Contracts.DTOs.Inventory;
 using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -38,12 +39,163 @@ using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExport.Client.Wpf.Tests.Controls;
 
 namespace SwiftExport.Client.Wpf.Tests.Services;
 
+/// <summary>验证会话基础资料缓存的完整快照、请求合并、失败保留与会话隔离。</summary>
 [TestClass]
 public sealed class ReferenceDataCacheServiceTests
 {
+    /// <summary>并行首次使用合并标签请求，完整发布后所有读者获得同一组及其全部选项。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_FirstEnsure_ShouldCoalesceAndPublishCompleteSnapshot()
+    {
+        var gate = new TaskCompletionSource<ServiceResult<ProductAttributeDefinitionsDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = new AttributeApiStub(_ => gate.Task);
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()), attributeApi: api);
+        var group = AttributeGroup(Guid.NewGuid(), "安装方式", "吸顶", "挂墙");
+        var published = 0;
+        cache.ProductAttributesChanged += (_, _) =>
+        {
+            published++;
+            Assert.IsTrue(cache.AreProductAttributesLoaded);
+            Assert.HasCount(2, cache.GetProductAttributeOptions(group.Uid));
+        };
+
+        var first = cache.EnsureProductAttributesLoadedAsync();
+        var second = cache.EnsureProductAttributesLoadedAsync();
+        gate.SetResult(AttributeSnapshot(group));
+        Assert.IsTrue((await first).Success);
+        Assert.IsTrue((await second).Success);
+        Assert.IsTrue((await cache.EnsureProductAttributesLoadedAsync()).Success);
+
+        Assert.AreEqual(1, api.GetDefinitionsCallCount);
+        Assert.AreEqual(1, published);
+        Assert.AreEqual(group.Uid, cache.GetProductAttributeGroups(group.CategoryId).Single().Uid);
+        Assert.IsEmpty(cache.GetProductAttributeGroups(Guid.NewGuid()));
+        Assert.IsEmpty(cache.GetProductAttributeOptions(Guid.NewGuid()));
+    }
+
+    /// <summary>标签请求失败不阻断其他基础资料首载，后续 Ensure 只重试失败的标签。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_InitialFailure_ShouldKeepOtherReferenceDataUsableAndRetry()
+    {
+        var responses = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([
+            ServiceResult<ProductAttributeDefinitionsDto>.Fail("标签服务暂不可用"), AttributeSnapshot()]);
+        var api = new AttributeApiStub(_ => Task.FromResult(responses.Dequeue()));
+        var colors = new ProductColorApiStub(() => SuccessColors(Color("RED")));
+        using var cache = CreateCache(colors, new ProductCategoryApiStub(() => SuccessCategories()), attributeApi: api);
+
+        Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
+        Assert.HasCount(1, cache.ProductColors);
+        Assert.IsFalse(cache.AreProductAttributesLoaded);
+        Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
+        Assert.IsTrue(cache.AreProductAttributesLoaded, "成功的空快照必须区别于未加载或失败。");
+        Assert.IsEmpty(cache.ProductAttributeGroups);
+        Assert.AreEqual(2, api.GetDefinitionsCallCount);
+        Assert.AreEqual(1, colors.GetAllCallCount);
+    }
+
+    /// <summary>刷新失败保留旧组与其选项，成功刷新一次性替换两者且集合身份稳定。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_Refresh_ShouldRetainSnapshotOnFailureAndReplaceOnceOnSuccess()
+    {
+        var original = AttributeGroup(Guid.NewGuid(), "安装方式", "吸顶", "挂墙");
+        var replacement = AttributeGroup(original.CategoryId, "尺寸", "8寸", "10寸");
+        var responses = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([
+            AttributeSnapshot(original), ServiceResult<ProductAttributeDefinitionsDto>.Fail("请求失败"), AttributeSnapshot(replacement)]);
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()), attributeApi: new AttributeApiStub(_ => Task.FromResult(responses.Dequeue())));
+        var collection = cache.ProductAttributeGroups;
+        var resets = 0;
+        ((INotifyCollectionChanged)collection).CollectionChanged += (_, args) =>
+        {
+            if (args.Action == NotifyCollectionChangedAction.Reset)
+                resets++;
+        };
+
+        Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
+        var oldGroup = cache.ProductAttributeGroups.Single();
+        Assert.IsFalse((await cache.RefreshProductAttributesAsync()).Success);
+        Assert.AreSame(oldGroup, cache.ProductAttributeGroups.Single());
+        Assert.HasCount(2, cache.GetProductAttributeOptions(original.Uid));
+        Assert.IsTrue(cache.AreProductAttributesLoaded);
+        Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
+
+        Assert.AreSame(collection, cache.ProductAttributeGroups);
+        Assert.AreEqual(2, resets);
+        Assert.AreEqual(replacement.Uid, collection.Single().Uid);
+        Assert.IsEmpty(cache.GetProductAttributeOptions(original.Uid));
+        CollectionAssert.AreEquivalent(new[] { "8寸", "10寸" }, cache.GetProductAttributeOptions(replacement.Uid).Select(option => option.OptionName).ToArray());
+    }
+
+    /// <summary>响应缺少整个快照不能伪装为空成功，也不能清空已有候选。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_MissingSuccessfulPayload_ShouldRetainSnapshot()
+    {
+        var group = AttributeGroup(Guid.NewGuid(), "安装方式", "吸顶");
+        var responses = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([
+            AttributeSnapshot(group), ServiceResult<ProductAttributeDefinitionsDto>.Ok(null!)]);
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()), attributeApi: new AttributeApiStub(_ => Task.FromResult(responses.Dequeue())));
+        Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
+
+        Assert.IsFalse((await cache.RefreshProductAttributesAsync()).Success);
+        Assert.AreEqual(group.Uid, cache.ProductAttributeGroups.Single().Uid);
+        Assert.IsTrue(cache.AreProductAttributesLoaded);
+    }
+
+    /// <summary>登出取消标签请求，忽略不遵守取消的晚到响应，新会话仍能重新加载。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_SessionChange_ShouldCancelAndIgnoreLateResponse()
+    {
+        var gate = new TaskCompletionSource<ServiceResult<ProductAttributeDefinitionsDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestToken = CancellationToken.None;
+        var api = new AttributeApiStub(token =>
+        {
+            requestToken = token;
+            return gate.Task;
+        });
+        var session = new SessionServiceStub();
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()), session: session, attributeApi: api);
+        var loading = cache.EnsureProductAttributesLoadedAsync();
+
+        session.EndSession(SessionEndReason.Logout);
+        Assert.IsTrue(requestToken.IsCancellationRequested);
+        Assert.IsFalse(cache.AreProductAttributesLoaded);
+        gate.SetResult(AttributeSnapshot(AttributeGroup(Guid.NewGuid(), "旧会话标签", "旧值")));
+        Assert.IsFalse((await loading).Success);
+        Assert.IsEmpty(cache.ProductAttributeGroups);
+
+        Assert.IsTrue((await cache.EnsureProductAttributesLoadedAsync()).Success);
+        Assert.IsTrue(cache.AreProductAttributesLoaded);
+        Assert.AreEqual(2, api.GetDefinitionsCallCount);
+    }
+
+    /// <summary>手动刷新和整合首载共享候选定义，缓存副本不因原始响应被修改而失真。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_Snapshot_ShouldSortAndDetachResponseObjects()
+    {
+        var group = AttributeGroup(Guid.NewGuid(), "安装方式", "挂墙", "吸顶");
+        group.Options[0].SortOrder = 20;
+        group.Options[1].SortOrder = 10;
+        var later = AttributeGroup(group.CategoryId, "尺寸", "8寸");
+        group.SortOrder = 20;
+        later.SortOrder = 10;
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
+            new ProductCategoryApiStub(() => SuccessCategories()), attributeApi: new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot(group, later))));
+        Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
+
+        CollectionAssert.AreEqual(new[] { later.Uid, group.Uid }, cache.GetProductAttributeGroups(group.CategoryId).Select(item => item.Uid).ToArray());
+        CollectionAssert.AreEqual(new[] { "吸顶", "挂墙" }, cache.GetProductAttributeOptions(group.Uid).Select(item => item.OptionName).ToArray());
+        group.GroupName = "被修改";
+        group.Options[0].OptionName = "被修改";
+        Assert.AreEqual("安装方式", cache.ProductAttributeGroups.Single(item => item.Uid == group.Uid).GroupName);
+        CollectionAssert.AreEqual(new[] { "吸顶", "挂墙" }, cache.GetProductAttributeOptions(group.Uid).Select(item => item.OptionName).ToArray());
+    }
     [TestMethod]
     public async Task EnsureLoadedAsync_ShouldCoalesceConcurrentFirstLoad()
     {
@@ -515,11 +667,19 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.AreEqual(typeof(ReferenceDataCacheService), descriptor.ImplementationType);
     }
 
+    /// <summary>在统一的应用 Dispatcher 上验证真实输入焦点、本地筛选及弹出层内部刷新焦点。</summary>
     [TestMethod]
+    [DoNotParallelize]
     public void ProductCategoryLookup_ShouldFilterTreeAndKeepPopupOpenForRefreshFocus()
     {
-        StaTest.RunAsync(async () =>
+        DatePickerAssistTests.RunWithApplication(async () =>
         {
+            // 复用实际主题资源和长存 STA，避免其他控件测试创建 Application 后本用例仍落在另一条 UI 线程。
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
+            Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
+            foreach (var resource in new[] { "Variables.xaml", "Typography.xaml", "ListBox.xaml" })
+                Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary
+                { Source = new Uri($"pack://application:,,,/SwiftExport.Client.Wpf;component/Resources/{resource}") });
             var root = Category("ROOT", 1);
             var child = Category("CHILD", 1, root.Uid);
             using var cache = CreateCache(
@@ -553,10 +713,13 @@ public sealed class ReferenceDataCacheServiceTests
                 var input = (TextBox?)editor.FindName("InputTextBox");
                 Assert.IsNotNull(input);
                 window.Activate();
-                input.Focus();
-                Keyboard.Focus(input);
+                await Dispatcher.Yield(DispatcherPriority.Input);
+                await WaitForLookupStateAsync(() => window.IsActive, "分类 Lookup 测试窗口未激活。");
+                Assert.IsTrue(input.Focus(), "输入框必须成功取得实际键盘焦点。");
+                Assert.AreSame(input, Keyboard.Focus(input));
+                await WaitForLookupStateAsync(() => input.IsKeyboardFocusWithin, "输入框没有获得键盘焦点，不能模拟用户输入。");
                 input.Text = "CHILD";
-                await Task.Delay(360);
+                await WaitForLookupStateAsync(() => editor.IsDropDownOpen, "本地搜索完成后应打开分类弹出层。");
                 await Dispatcher.Yield(DispatcherPriority.Background);
 
                 Assert.IsTrue(editor.IsDropDownOpen);
@@ -584,8 +747,9 @@ public sealed class ReferenceDataCacheServiceTests
                 var refreshButton = buttons.Single(button => button.Command is not null);
                 Assert.IsNotNull(refreshButton);
                 Assert.IsNotNull(refreshButton.Command);
-                refreshButton.Focus();
-                Keyboard.Focus(refreshButton);
+                Assert.IsTrue(refreshButton.Focus());
+                Assert.AreSame(refreshButton, Keyboard.Focus(refreshButton));
+                await WaitForLookupStateAsync(() => refreshButton.IsKeyboardFocusWithin, "弹出层刷新按钮必须取得键盘焦点。");
                 refreshButton.Command.Execute(null);
                 await Dispatcher.Yield(DispatcherPriority.Background);
                 Assert.IsTrue(editor.IsDropDownOpen, "焦点进入 Popup 刷新按钮时不得关闭分类树。");
@@ -596,6 +760,18 @@ public sealed class ReferenceDataCacheServiceTests
                 window.Close();
             }
         });
+    }
+
+    /// <summary>等待可观察焦点或搜索结果，不用固定延时假设 Dispatcher 和防抖已完成。</summary>
+    private static async Task WaitForLookupStateAsync(Func<bool> completed, string failureMessage)
+    {
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        while (!completed() && elapsed.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(10);
+            await Dispatcher.Yield(DispatcherPriority.Background);
+        }
+        Assert.IsTrue(completed(), failureMessage);
     }
 
     [TestMethod]
@@ -627,18 +803,50 @@ public sealed class ReferenceDataCacheServiceTests
         ISysDictDataApi? dictDataApi = null,
         ICustomerApi? customerApi = null,
         ISupplierApi? supplierApi = null,
-        IWarehouseSiteApi? warehouseApi = null) =>
+        IWarehouseSiteApi? warehouseApi = null,
+        IProductAttributeApi? attributeApi = null) =>
         new(
             customerApi ?? new CustomerApiStub(request => Task.FromResult(Page<CustomerDto>(request, [], 0))),
             supplierApi ?? new SupplierApiStub(request => Task.FromResult(Page<SupplierDto>(request, [], 0))),
             warehouseApi ?? new WarehouseApiStub(request => Task.FromResult(Page<WarehouseSitePickerDto>(request, [], 0))),
             colorApi,
             categoryApi,
+            attributeApi ?? new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot())),
             currencyApi ?? new CurrencyApiStub(() => SuccessCurrencies()),
             dictTypeApi ?? new DictTypeApiStub(() => SuccessDictionaryTypes()),
             dictDataApi ?? new DictDataApiStub(() => SuccessDictionaryValues()),
             new DirectApiCallRunner(),
             session ?? new SessionServiceStub());
+
+    /// <summary>构造只有定义的候选资料，不携带产品选择状态。</summary>
+    private static ProductAttributeGroupDto AttributeGroup(Guid categoryId, string name, params string[] optionNames)
+    {
+        var group = new ProductAttributeGroupDto { Uid = Guid.NewGuid(), CategoryId = categoryId, GroupName = name, GroupCode = name, Version = 1 };
+        group.Options = optionNames.Select(optionName => new ProductAttributeOptionDto
+        {
+            Uid = Guid.NewGuid(), AttributeGroupId = group.Uid, OptionName = optionName, OptionCode = optionName, Version = 1
+        }).ToList();
+        return group;
+    }
+
+    private static ServiceResult<ProductAttributeDefinitionsDto> AttributeSnapshot(params ProductAttributeGroupDto[] groups) =>
+        ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto { Groups = groups.ToList() });
+
+    /// <summary>控制定义读取、取消信号及请求合并行为的离线 API。</summary>
+    private sealed class AttributeApiStub(Func<CancellationToken, Task<ServiceResult<ProductAttributeDefinitionsDto>>> getDefinitions) : IProductAttributeApi
+    {
+        public int GetDefinitionsCallCount { get; private set; }
+        /// <inheritdoc />
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(CancellationToken cancellationToken = default)
+        {
+            GetDefinitionsCallCount++;
+            return getDefinitions(cancellationToken);
+        }
+        /// <inheritdoc />
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid categoryId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        /// <inheritdoc />
+        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    }
 
     private static ProductColorDto Color(string code) => new()
     {
