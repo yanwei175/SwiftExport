@@ -20,6 +20,11 @@ using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
+using Mapster;
+using CommunityToolkit.Mvvm.Messaging;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.ImportExport;
+using SwiftExportClient.Features.Products.ProductMasterImportExport.Models;
+using SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -45,6 +50,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private ProductCategoryFilterSelection _appliedCategoryFilter = ProductCategoryFilterSelection.AllCategories;
     private bool _initialized;
     private bool _disposed;
+    private ProductMasterExportRequest? _lastAppliedExportFilter;
 
     /// <summary>初始化主产品管理页依赖。</summary>
     public ProductMasterManagerViewModel(
@@ -77,6 +83,9 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
         PropertyChanged += OnManagerStateChanged;
         RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(OpenImportExportCommand);
+        WeakReferenceMessenger.Default.Register<ProductMasterManagerViewModel, ProductMasterImportCompletedMessage>(this,
+            static (recipient,message) => recipient.ImportCompleted(message));
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(OpenDetailCommand);
         RegisterBusyAwareCommand(SyncDescriptionsCommand);
@@ -457,6 +466,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
             PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
             ResultSummary = $"共 {TotalCount} 个主型号，本页 {Masters.Items.Count} 个。";
             _appliedCategoryFilter = requestedCategoryFilter;
+            _lastAppliedExportFilter = request.Adapt<ProductMasterExportRequest>();
+            OpenImportExportCommand.NotifyCanExecuteChanged();
             AcceptChanges();
             UpdateChangeState();
             if (!IsCardView) await LoadNeutralsCoreAsync();
@@ -522,7 +533,11 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     }
 
     /// <summary>身份权限快照变化时立即收回或开放产品资料下发入口。</summary>
-    private void OnCurrentUserChanged(object? sender, EventArgs e) => NotifySyncCommands();
+    private void OnCurrentUserChanged(object? sender, EventArgs e)
+    {
+        NotifySyncCommands();
+        OpenImportExportCommand.NotifyCanExecuteChanged();
+    }
     private bool CanDeleteSelected() => IsNotBusy && CanWrite && (Masters.CheckedCount > 0 || SelectedMaster is not null);
     private bool CanOpenDetail(ProductMasterLineModel? line = null)
     {
@@ -535,6 +550,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     {
         if (_disposed) return;
         _disposed = true;
+        WeakReferenceMessenger.Default.Unregister<ProductMasterImportCompletedMessage>(this);
         _imageAddresses.Changed -= OnImageConfigurationChanged;
         Masters.ListStateChanged -= OnListStateChanged;
         Neutrals.ListStateChanged -= OnNeutralListStateChanged;
@@ -546,4 +562,15 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         cts?.Cancel();
         cts?.Dispose();
     }
+
+    /// <summary>每次打开独立导入批次，并冻结最近一次成功查询的筛选，不传输未保存编辑。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenImportExport))]
+    private Task OpenImportExportAsync() => _navigation.OpenDocumentAsync(ProductMasterImportExportViewModel.RouteKey,
+        $"product-master-import-export:{Guid.NewGuid():N}", new ProductMasterImportOpenRequest(_lastAppliedExportFilter!.Adapt<ProductMasterExportRequest>()));
+    private bool CanOpenImportExport() => !_disposed && IsNotBusy && _lastAppliedExportFilter is not null
+        && _currentUser?.HasPermission(PermissionKeys.ProductsMasterView) == true;
+
+    /// <summary>保留来源页未保存编辑，成功导入后只提示显式刷新，不覆盖上下两表。</summary>
+    private void ImportCompleted(ProductMasterImportCompletedMessage message)
+    { if (!_disposed && message.ChangedCount > 0) ResultSummary = $"已导入 {message.ChangedCount} 行父级资料，请刷新列表；当前未保存编辑已保留。"; }
 }

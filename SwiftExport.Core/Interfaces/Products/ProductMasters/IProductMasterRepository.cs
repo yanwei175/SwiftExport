@@ -11,6 +11,12 @@ public interface IProductMasterRepository : IRepository<ProductMaster>
     /// <summary>按关键词和分类集合分页读取主型号。</summary>
     Task<PagedResponseBase<ProductMasterListItemDto>> GetPagedAsync(ProductMasterSearchRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>一次读取有界导出资料，筛选口径与分页相同，忽略请求页码。</summary>
+    Task<IReadOnlyList<ProductMaster>> GetForExportAsync(ProductMasterSearchRequest request, int maximumRows, CancellationToken cancellationToken = default);
+
+    /// <summary>按数据库编码比较逐行匹配，并标记本批同义重复编码。</summary>
+    Task<IReadOnlyList<ProductMasterImportMatch>> MatchForImportAsync(IReadOnlyList<(int SourceRowNumber, string MasterSku)> inputs, CancellationToken cancellationToken = default);
+
     /// <summary>读取主型号详情头部及实时分类、供应商名称。</summary>
     Task<ProductMasterDetailDto?> GetDetailHeaderAsync(Guid productMasterId, bool withUpdLock = false, CancellationToken cancellationToken = default);
 

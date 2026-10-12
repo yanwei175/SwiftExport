@@ -96,6 +96,7 @@ public sealed class ProductMasterCategoryAssignmentTests
                 Proxy<ISupplierRepository>(UnexpectedCall),
                 Proxy<IProductColorRepository>(UnexpectedCall),
                 Proxy<IProductRepository>(UnexpectedCall),
+                new EmptyProductAttributeRepository(),
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 

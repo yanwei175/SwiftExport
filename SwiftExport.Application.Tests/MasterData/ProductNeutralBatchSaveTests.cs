@@ -140,6 +140,7 @@ public sealed class ProductNeutralBatchSaveTests
                     return Task.FromResult<IReadOnlyList<ProductColor>>(ColorExists ? [new ProductColor { Uid = ColorId }] : []);
                 }),
                 Proxy<IProductRepository>((_, _) => throw new AssertFailedException("独立明细不能同步物料。")),
+                new EmptyProductAttributeRepository(),
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 

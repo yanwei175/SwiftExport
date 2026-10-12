@@ -7,7 +7,10 @@
                     xmlns:colorViews="clr-namespace:SwiftExportClient.Features.Products.Colors.Views"
                     xmlns:colorViewModels="clr-namespace:SwiftExportClient.Features.Products.Colors.ViewModels"
                     xmlns:bomViews="clr-namespace:SwiftExportClient.Features.Products.Bom.Views"
-                    xmlns:bomViewModels="clr-namespace:SwiftExportClient.Features.Products.Bom.ViewModels">
+                    xmlns:bomViewModels="clr-namespace:SwiftExportClient.Features.Products.Bom.ViewModels"
+                    xmlns:importViews="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImportExport.Views"
+                    xmlns:importViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImportExport.ViewModels">
+    <DataTemplate DataType="{x:Type importViewModels:ProductMasterImportExportViewModel}"><importViews:ProductMasterImportExportView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductsViewModel}"><listViews:ProductsView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterManagerViewModel}"><listViews:ProductMasterManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductNeutralManagerViewModel}"><listViews:ProductNeutralManagerView /></DataTemplate>

@@ -14,18 +14,37 @@
 
         <TextBlock Text="{Binding UserName}" FontWeight="SemiBold" Margin="0,0,0,8" />
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" >
+        <ScrollViewer Grid.Row="1" MinHeight="200"
+                      VerticalScrollBarVisibility="Auto" 
+                      HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding UserRoleChoices}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate><DataTemplate>
                     <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                              Margin="0,4" AutomationProperties.Name="{Binding DisplayName}" />
+                              Margin="0,4,12,4" AutomationProperties.Name="{Binding DisplayName}" />
                 </DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
 
         <TextBlock Grid.Row="2" Text="有效权限（只读）" Margin="0,8,0,4" />
 
-            <ListBox Grid.Row="3" ItemsSource="{Binding EffectivePermissions}" Height="260" MinHeight="260"/>
+            <ListBox Grid.Row="3" ItemsSource="{Binding EffectivePermissions}" Height="260" MinHeight="260"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" Margin="0,4,12,4" />
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
         <StackPanel Grid.Row="4">
 

@@ -39,7 +39,10 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 新增管理员参数维护端点；继续逐项执行整个冻结权限矩阵。
-        Assert.AreEqual(241, routes.Count);
+        Assert.AreEqual(245, routes.Count);
+        Assert.AreEqual("Products.Master.View", routes["ProductMasterImportExportController.PreviewAsync"]);
+        Assert.AreEqual("Products.Master.View", routes["ProductMasterImportExportController.ExportAsync"]);
+        Assert.AreEqual("Products.Master.Edit", routes["ProductMasterImportExportController.ImportAsync"]);
         Assert.AreEqual("System.Parameters.Manage", routes["SystemParameterController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.UpdateAsync"]);
@@ -182,6 +185,8 @@ public sealed class EndpointPermissionFilterTests
         foreach (var action in new[]
         {
             "SystemParameterController.ListAsync",
+            "ProductAttributeController.GetDefinitionsAsync",
+            "ProductAttributeController.GetCategoryDefinitionsAsync",
             "ExcelReadProfileController.ListAsync",
             "ExcelReadProfileController.GetAsync"
         })

@@ -1,4 +1,5 @@
 using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Core.Interfaces.Products.Attributes;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
@@ -15,10 +16,19 @@ using SwiftExport.Core.Interfaces;
 
 namespace SwiftExport.Application.Services.Products.Categories;
 
-public partial class ProductCategoryService(IProductCategoryRepository repository, ServiceBaseContext context)
+/// <summary>产品分类维护；删除时在分类锁下检查标签定义，避免定义新增与分类删除竞争。</summary>
+public partial class ProductCategoryService(IProductCategoryRepository repository, IProductAttributeRepository attributes, ServiceBaseContext context)
     : BaseService<ProductCategory, ProductCategoryDto>(repository, context), IProductCategoryService
 {
     private readonly ILogger<ProductCategoryService> _logger = context.LoggerFactory.CreateLogger<ProductCategoryService>();
+
+    /// <summary>单项删除复用分类批量事务及校验，确保也受标签定义引用保护。</summary>
+    public override async Task<ServiceResult<SaveItemResult>> DeleteAsync(DeleteItemRequest item)
+    {
+        var result = await BatchSaveAsync(new ProductCategoryBatchSaveRequest { DeleteItems = [item] });
+        return result.Success ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single())
+            : ServiceResult<SaveItemResult>.Fail(result.Error?.Code ?? SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.BusinessBlocked, result.Message);
+    }
 
     public async Task<ServiceResult<IReadOnlyList<ProductCategoryDto>>> GetAllAsync()
     {
@@ -141,6 +151,7 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         }
     }
 
+    /// <summary>在分类父锁内校验最终树和删除引用，防止分类删除与标签定义新增竞争。</summary>
     private async Task<ProductCategoryBatchPreparation> PrepareBatchSaveAsync(
         ProductCategoryBatchSaveRequest request)
     {
@@ -204,6 +215,8 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         }
 
         var deletedIds = request.DeleteItems.Select(item => item.Uid).ToHashSet();
+        if (await attributes.HasGroupsAsync(deletedIds, CancellationToken.None))
+            return ProductCategoryBatchPreparation.Fail("分类仍有标签定义，请先删除未使用的标签组及选项后再删除分类。");
         var referencedIds = await repository.GetReferencedCategoryIdsAsync(deletedIds);
         if (referencedIds.Count > 0)
             return ProductCategoryBatchPreparation.Fail(

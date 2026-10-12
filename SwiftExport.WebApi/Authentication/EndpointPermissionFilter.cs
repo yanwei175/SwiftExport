@@ -156,6 +156,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductController.PullMasterWeightVolumeAsync"] = PermissionKeys.ProductsProductEdit,
         ["ProductController.PullMasterAllAsync"] = PermissionKeys.ProductsProductEdit,
         ["ProductCategoryController.GetPaged"] = PermissionKeys.ProductsCategoryView,
+        ["ProductAttributeController.BatchSaveAsync"] = PermissionKeys.ProductsCategoryEdit,
         ["ProductCategoryController.GetAll"] = PermissionKeys.ProductsCategoryView,
         ["ProductCategoryController.GetById"] = PermissionKeys.ProductsCategoryView,
         ["ProductCategoryController.Create"] = PermissionKeys.ProductsCategoryCreate,
@@ -168,6 +169,10 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductColorController.Update"] = PermissionKeys.ProductsColorEdit,
         ["ProductColorController.Delete"] = PermissionKeys.ProductsColorDelete,
         ["ProductMasterController.GetPagedAsync"] = PermissionKeys.ProductsMasterView,
+        ["ProductMasterImportExportController.PreviewAsync"] = PermissionKeys.ProductsMasterView,
+        ["ProductMasterImportExportController.ExportAsync"] = PermissionKeys.ProductsMasterView,
+        // 提交仍由应用服务再次检查活动管理员；不影响普通产品维护端点。
+        ["ProductMasterImportExportController.ImportAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductMasterController.AssignCategoryAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductMasterController.GetDetailAsync"] = PermissionKeys.ProductsMasterView,
         ["ProductMasterController.SaveDetailAsync"] = PermissionKeys.ProductsMasterEdit,
@@ -292,6 +297,8 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
     // 已登录用户可读取配置及无业务数据的模板；模板服务仍按文件策略实时检查活动账号。
     private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
     {
+        "ProductAttributeController.GetDefinitionsAsync",
+        "ProductAttributeController.GetCategoryDefinitionsAsync",
         "SystemParameterController.ListAsync",
         "ExportTemplatesController.ListAsync",
         "ExportTemplatesController.DownloadAsync",

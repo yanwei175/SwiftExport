@@ -99,6 +99,8 @@ public static class ApiRegistrationExtensions
             .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromMinutes(5));
         services.AddControllerApi<IProductApi>("Product");
         services.AddControllerApi<IProductMasterApi>("ProductMaster");
+        services.AddControllerApi<IProductMasterImportExportApi>("ProductMasterImportExport");
+        services.AddTransient<Func<IProductMasterImportExportApi>>(provider => () => provider.GetRequiredService<IProductMasterImportExportApi>());
         services.AddControllerApi<IProductNeutralApi>("ProductNeutral");
         services.AddControllerApi<IProductNeutralManagerApi>("ProductNeutralManager");
         services.AddControllerApi<IProductColorApi>("ProductColor");

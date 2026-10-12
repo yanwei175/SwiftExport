@@ -96,6 +96,7 @@
                             <ui:DropDownButton Content="更多功能" Margin="0,0,8,0">
                                 <ui:DropDownButton.Flyout>
                                     <ContextMenu>
+                                        <MenuItem Header="批量导入导出" Command="{Binding PlacementTarget.DataContext.OpenImportExportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="从详情新建" Command="{Binding PlacementTarget.DataContext.CreateDetailCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="描述,配置,供应商,重量体积统一下发" Command="{Binding PlacementTarget.DataContext.SyncAllCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="描述下发" Command="{Binding PlacementTarget.DataContext.SyncDescriptionsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>

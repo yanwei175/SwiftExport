@@ -193,6 +193,7 @@ public sealed class ProductMasterDetailLockOrderTests
                 Proxy<IProductColorRepository>((method, args) => ReferenceCall<ProductColor>(method, args, "color", _colorId,
                     ColorExists ? [new ProductColor { Uid = _colorId }] : [])),
                 Proxy<IProductRepository>(ProductCall),
+                new EmptyProductAttributeRepository(),
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 
@@ -302,7 +303,14 @@ public sealed class ProductMasterDetailLockOrderTests
                     Calls.Add("master.code.lock");
                     return Task.FromResult<IReadOnlyList<ProductMaster>>([]);
                 case "GetByIdListAsync":
-                    Assert.AreEqual(0, ((IEnumerable<Guid>)args[0]!).Count(), "本夹具批量场景仅新增头部。");
+                    var observedIds = ((IEnumerable<Guid>)args[0]!).ToArray();
+                    // 详情新增的锁前观察只读旧分类；不计为主型号锁，不削弱既有锁顺序断言。
+                    if (observedIds.Length > 0)
+                    {
+                        Assert.AreEqual(false, args[1]);
+                        CollectionAssert.AreEqual(new[] { _masterId }, observedIds);
+                        return Task.FromResult<IReadOnlyList<ProductMaster>>([new ProductMaster { Uid = _masterId, Version = _version, CategoryId = _categoryId }]);
+                    }
                     return Task.FromResult<IReadOnlyList<ProductMaster>>([]);
                 case "AddAsync":
                     Calls.Add("master.write");

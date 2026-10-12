@@ -65,6 +65,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         _service = new ProductMasterMaintenanceService(provider.GetRequiredService<IProductMasterRepository>(),
             provider.GetRequiredService<IProductNeutralRepository>(), provider.GetRequiredService<IProductCategoryRepository>(),
             provider.GetRequiredService<ISupplierRepository>(), provider.GetRequiredService<IProductColorRepository>(), _products,
+            provider.GetRequiredService<SwiftExport.Core.Interfaces.Products.Attributes.IProductAttributeRepository>(),
             new ServiceBaseContext(_session, NullLoggerFactory.Instance));
         _masterId = (await provider.GetRequiredService<IProductMasterRepository>().AddAsync(new ProductMaster { MasterSku = "OLD" })).Uid;
         _supplierId = (await provider.GetRequiredService<ISupplierRepository>().AddAsync(new Supplier

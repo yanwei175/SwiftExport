@@ -13,6 +13,7 @@ using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Attributes;
 using SwiftExport.Core.Interfaces.Products.Categories;
 using SwiftExport.Core.Interfaces.Products.Colors;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
@@ -23,7 +24,7 @@ using System.Text;
 
 namespace SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 
-/// <summary>编排主型号与中性产品保存，以及按显式选项同步关联物料的校验、并发及请求级事务。</summary>
+/// <summary>编排主型号、中性产品和标签选择保存，以及按显式选项同步关联物料的校验、并发及请求级事务。</summary>
 public sealed partial class ProductMasterMaintenanceService(
     IProductMasterRepository masterRepository,
     IProductNeutralRepository neutralRepository,
@@ -31,6 +32,7 @@ public sealed partial class ProductMasterMaintenanceService(
     ISupplierRepository supplierRepository,
     IProductColorRepository colorRepository,
     IProductRepository productRepository,
+    IProductAttributeRepository attributeRepository,
     ServiceBaseContext context) : IProductMasterMaintenanceService, IProductNeutralMaintenanceService
 {
     private readonly IDbSession _session = context.Session;
@@ -153,16 +155,15 @@ public sealed partial class ProductMasterMaintenanceService(
 
         return await ExecuteTransactionAsync(async () =>
         {
-            var categories = await categoryRepository.GetByIdListAsync([request.TargetCategoryId], true);
-            if (categories.Count != 1)
-                throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "目标分类不存在或已失效。");
-
-            var ids = request.Items.Select(item => item.ProductMasterId).ToArray();
+            var ids = request.Items.Select(item => item.ProductMasterId).OrderBy(id => id).ToArray();
+            var observed = await ObserveAndLockCategoriesAsync(ids, [request.TargetCategoryId], cancellationToken);
             var masters = await masterRepository.GetByIdListAsync(ids, true);
             if (masters.Count != ids.Length)
                 throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "部分主型号不存在或已被删除，请刷新后重试。");
 
             var masterMap = masters.ToDictionary(master => master.Uid);
+            EnsureObservedCategories(observed, masters);
+            var taggedIds = (await attributeRepository.GetSelectionsAsync(ids, cancellationToken)).Select(row => row.ProductMasterId).ToHashSet();
             foreach (var item in request.Items)
             {
                 var master = masterMap[item.ProductMasterId];
@@ -170,6 +171,7 @@ public sealed partial class ProductMasterMaintenanceService(
                     throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, $"主型号 {master.MasterSku} 已被其他用户修改，请刷新后重试。");
                 if (master.CategoryId == request.TargetCategoryId)
                     throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, $"主型号 {master.MasterSku} 已属于目标分类，请刷新后重试。");
+                if (taggedIds.Contains(master.Uid)) ThrowTaggedCategoryChange(master.MasterSku);
             }
 
             var response = new AssignProductMastersToCategoryResult { TargetCategoryId = request.TargetCategoryId };
@@ -232,6 +234,7 @@ public sealed partial class ProductMasterMaintenanceService(
             }
             foreach (var item in request.DeleteItems)
             {
+                await RemoveAttributeSelectionsAsync(item.Uid, cancellationToken);
                 await neutralRepository.SoftDeleteByProductMasterIdAsync(item.Uid, cancellationToken);
                 var result = await masterRepository.DeleteAsync(item.Uid, item.Version, true);
                 response.Items.Add(SaveItemResultFactory.FromDelete(item, result));
@@ -245,7 +248,7 @@ public sealed partial class ProductMasterMaintenanceService(
         }, "保存主型号列表", cancellationToken);
     }
 
-    /// <summary>在单一事务中保存头部、明细及关联物料同步，任一步失败全部回滚。</summary>
+    /// <summary>在单一事务中保存头部、标签最终选择、明细及关联物料同步，任一步失败全部回滚。</summary>
     public async Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default)
     {
         if (request?.Master is null)
@@ -257,6 +260,8 @@ public sealed partial class ProductMasterMaintenanceService(
             // 与分类删除及颜色删除保持父资料先于主型号/明细，锁后仍重验目标版本。
             var masterError = ValidateMaster(request.Master);
             if (masterError is not null) throw new ProductMasterWriteException(ServiceErrorCodes.Validation, masterError);
+            var observed = await ObserveAndLockCategoriesAsync(request.ProductMasterId == Guid.Empty ? [] : [request.ProductMasterId],
+                [request.Master.CategoryId], cancellationToken);
             await ValidateMasterReferencesAsync([request.Master], cancellationToken);
             await LockNeutralColorsAsync(NeutralChanges(request), cancellationToken);
             var existingDetail = request.ProductMasterId == Guid.Empty
@@ -266,8 +271,13 @@ public sealed partial class ProductMasterMaintenanceService(
                 throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "主型号不存在或已删除。");
             if (existingDetail is not null && existingDetail.Version != request.ExpectedVersion)
                 throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "主型号版本已变化，请刷新后重试。");
+            if (existingDetail is not null && (!observed.TryGetValue(existingDetail.Uid, out var oldCategory)
+                || oldCategory != existingDetail.Master.CategoryId))
+                throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "主型号分类已变化，请刷新后重试。");
 
             await ValidateDetailAsync(request, existingDetail, cancellationToken);
+            var selectedIds = request.SelectedOptionIds ?? existingDetail?.SelectedOptionIds ?? [];
+            await ValidateAttributeSelectionsAsync(request.Master.CategoryId, selectedIds, cancellationToken);
             Guid productMasterId;
             if (existingDetail is null)
             {
@@ -284,6 +294,7 @@ public sealed partial class ProductMasterMaintenanceService(
                 productMasterId = request.ProductMasterId;
             }
 
+            await SaveAttributeSelectionsAsync(productMasterId, selectedIds, cancellationToken);
             await SaveNeutralRowsAsync(productMasterId, NeutralChanges(request));
 
             var source = ToEntity(request.Master);
@@ -354,6 +365,7 @@ public sealed partial class ProductMasterMaintenanceService(
         foreach (var item in request.UpdateItems) Normalize(item.Data);
     }
 
+    /// <summary>校验最终批次、先锁旧新分类再锁主型号，并拒绝绕过详情的带标签分类变更。</summary>
     private async Task ValidateMasterBatchAsync(ProductMasterBatchSaveRequest request, CancellationToken cancellationToken)
     {
         var errors = new StringBuilder();
@@ -367,15 +379,26 @@ public sealed partial class ProductMasterMaintenanceService(
         var writes = request.CreateItems.Select(item => (Guid?)null).Zip(request.CreateItems.Select(item => item.Data), (id, data) => (Id: id, Data: data))
             .Concat(request.UpdateItems.Select(item => (Id: (Guid?)item.Uid, Data: item.Data))).ToArray();
         EnsureUniqueCodes(writes.Select(item => item.Data.MasterSku), "本次提交存在重复主型号编码。");
+        var targets = request.UpdateItems.Select(item => item.Uid).Concat(request.DeleteItems.Select(item => item.Uid)).Distinct().OrderBy(id => id).ToArray();
+        var observed = await ObserveAndLockCategoriesAsync(targets, writes.Select(item => item.Data.CategoryId), cancellationToken);
         await ValidateMasterReferencesAsync(writes.Select(item => item.Data), cancellationToken);
         var owners = await masterRepository.GetByMasterSkusAsync(writes.Select(item => item.Data.MasterSku), true, cancellationToken);
         if (writes.Any(write => owners.Any(owner => string.Equals(owner.MasterSku, write.Data.MasterSku, StringComparison.OrdinalIgnoreCase) && owner.Uid != write.Id)))
             throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "主型号编码已被其他记录使用。");
 
-        var targets = request.UpdateItems.Select(item => item.Uid).Concat(request.DeleteItems.Select(item => item.Uid)).Distinct().ToArray();
         var existing = await masterRepository.GetByIdListAsync(targets, true);
         if (existing.Count != targets.Length) Append(errors, "修改或删除的主型号不存在或已删除。");
         if (errors.Length > 0) throw new ProductMasterWriteException(ServiceErrorCodes.Validation, errors.ToString().Trim());
+        EnsureObservedCategories(observed, existing);
+        var versions = request.UpdateItems.Select(item => (item.Uid, item.Version)).Concat(request.DeleteItems.Select(item => (item.Uid, item.Version))).ToDictionary(item => item.Uid, item => item.Version);
+        if (existing.Any(item => item.Version != versions[item.Uid]))
+            throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "主型号版本已变化，请刷新后重试。");
+        var tagged = (await attributeRepository.GetSelectionsAsync(targets, cancellationToken)).Select(row => row.ProductMasterId).ToHashSet();
+        foreach (var item in request.UpdateItems)
+        {
+            var original = existing.Single(row => row.Uid == item.Uid);
+            if (original.CategoryId != item.Data.CategoryId && tagged.Contains(item.Uid)) ThrowTaggedCategoryChange(original.MasterSku);
+        }
     }
 
     /// <summary>父资料已先锁定后校验编码和明细状态，避免持有主从锁后反向锁父资料。</summary>
@@ -442,20 +465,13 @@ public sealed partial class ProductMasterMaintenanceService(
             throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "颜色不存在或已删除。");
     }
 
-    /// <summary>先锁本次写入引用的有效分类及供应商；可选空标识不增加锁。</summary>
+    /// <summary>分类已由锁前观察统一校验并锁定后，再校验供应商；保持父资料先于主型号的锁顺序。</summary>
     private async Task ValidateMasterReferencesAsync(IEnumerable<ProductMasterWriteDto> masters, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var values = masters.ToArray();
         // 空 Guid 表示当前未设置可选关系；只有用户实际选择后才校验引用有效性。
-        var categoryIds = values.Select(item => item.CategoryId).Where(id => id != Guid.Empty).Distinct().OrderBy(id => id).ToArray();
         var supplierIds = values.Select(item => item.DefaultSupplierId).Where(id => id != Guid.Empty).Distinct().ToArray();
-        if (categoryIds.Length > 0)
-        {
-            var categories = await categoryRepository.GetByIdListAsync(categoryIds, true);
-            if (categories.Count != categoryIds.Length)
-                throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "产品分类不存在或已删除。");
-        }
         if (supplierIds.Length > 0)
         {
             var suppliers = await supplierRepository.GetByIdListAsync(supplierIds, true);
@@ -464,11 +480,14 @@ public sealed partial class ProductMasterMaintenanceService(
         }
     }
 
+    /// <summary>读取主型号聚合及当前选择；失效选项身份仍返回，不能隐式解释为清空。</summary>
     private async Task<ProductMasterDetailDto?> LoadDetailAsync(Guid productMasterId, bool withUpdLock, CancellationToken cancellationToken)
     {
         var detail = await masterRepository.GetDetailHeaderAsync(productMasterId, withUpdLock, cancellationToken);
         if (detail is null) return null;
         detail.Neutrals = (await neutralRepository.GetByProductMasterIdAsync(productMasterId, withUpdLock, cancellationToken)).ToList();
+        detail.AttributeSelections = (await attributeRepository.GetSelectionDetailsAsync([productMasterId], cancellationToken)).ToList();
+        detail.SelectedOptionIds = detail.AttributeSelections.Select(row => row.OptionId).ToList();
         return detail;
     }
 
@@ -481,6 +500,7 @@ public sealed partial class ProductMasterMaintenanceService(
         {
             _session.Transaction = _session.Connection.BeginTransaction();
             var result = await action();
+            cancellationToken.ThrowIfCancellationRequested();
             _session.Transaction.Commit();
             return result;
         }

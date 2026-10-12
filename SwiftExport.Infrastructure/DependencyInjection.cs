@@ -131,6 +131,8 @@ public static class DependencyInjection
         services.AddScoped(typeof(IRepository<>), typeof(PostgreSqlDapperRepository<>));
         services.AddScoped<IProductRepository, PostgreSqlProductRepository>();
         services.AddScoped<IProductMasterRepository, PostgreSqlProductMasterRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.Products.Attributes.IProductAttributeRepository,
+            SwiftExport.Infrastructure.Repositories.Products.Attributes.PostgreSqlProductAttributeRepository>();
         services.AddScoped<IProductNeutralRepository, PostgreSqlProductNeutralRepository>();
         services.AddScoped<IProductNeutralManagerRepository, PostgreSqlProductNeutralManagerRepository>();
         services.AddScoped<IBomRepository, PostgreSqlBomRepository>();

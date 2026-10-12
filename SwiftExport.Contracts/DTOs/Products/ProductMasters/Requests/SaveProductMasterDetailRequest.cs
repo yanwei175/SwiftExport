@@ -17,6 +17,8 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests
         public int ExpectedVersion { get; set; }
         /// <summary>获取或设置主型号头部数据。</summary>
         public ProductMasterWriteDto Master { get; set; } = new ProductMasterWriteDto();
+        /// <summary>最终标签选项；省略或 null 保持原选择，空集合清空，非空集合替换。不能默认初始化为空集合。</summary>
+        public List<Guid> SelectedOptionIds { get; set; }
         /// <summary>获取或设置新增中性产品。</summary>
         public List<CreateItemRequest<ProductNeutralWriteDto>> CreateNeutrals { get; set; } = new List<CreateItemRequest<ProductNeutralWriteDto>>();
         /// <summary>获取或设置修改中性产品。</summary>
