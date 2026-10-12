@@ -1,6 +1,14 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls">
+    <DrawingImage x:Key="SwiftExportImagePlaceholder">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#FFE8E8E8" Geometry="M0,0 H48 V48 H0 Z" />
+                <GeometryDrawing Brush="#FF888888" Geometry="M6,38 L18,22 26,30 32,20 42,38 Z M30,10 A4,4 0 1 0 38,10 A4,4 0 1 0 30,10" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
     <ToolTip x:Key="SwiftExportCachedImageToolTip"
              x:Shared="False"
              Placement="Mouse"
@@ -14,6 +22,7 @@
             <controls:CachedImage MaxWidth="500"
                                   MaxHeight="500"
                                   DecodePixelWidth="400"
+                                  DisplayMode="Original"
                                   Stretch="Uniform"
                                   SourcePath="{Binding PlacementTarget.SourcePath, RelativeSource={RelativeSource AncestorType={x:Type ToolTip}}}" />
         </Border>
@@ -25,6 +34,7 @@
         <Setter Property="Width" Value="48" />
         <Setter Property="Height" Value="48" />
         <Setter Property="DecodePixelWidth" Value="96" />
+        <Setter Property="DisplayMode" Value="Thumbnail" />
         <Setter Property="Stretch" Value="Uniform" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="UseLayoutRounding" Value="True" />
@@ -32,6 +42,9 @@
         <Setter Property="ToolTipService.InitialShowDelay" Value="250" />
         <Setter Property="ToolTipService.ShowDuration" Value="30000" />
         <Style.Triggers>
+            <Trigger Property="LoadFailed" Value="True">
+                <Setter Property="AutomationProperties.HelpText" Value="图片暂不可用，可将鼠标停留以查看原图。" />
+            </Trigger>
             <Trigger Property="SourcePath" Value="">
                 <Setter Property="ToolTip" Value="{x:Null}" />
             </Trigger>

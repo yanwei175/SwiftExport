@@ -18,9 +18,6 @@ public sealed class ProductImageStorageOptions
     /// <summary>获取公开图片固定请求路径。</summary>
     public string RequestPath { get; init; } = "/files/ProductImages";
 
-    /// <summary>获取上传返回地址使用的部署基址。</summary>
-    public Uri? ApiBaseUri { get; init; }
-
     /// <summary>获取单文件压缩内容上限。</summary>
     public long MaxFileBytes { get; init; } = 10 * 1024 * 1024;
 

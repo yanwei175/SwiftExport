@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.Options;
+using SwiftExport.Contracts.Common;
+using SwiftExportClient.Services.Images;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Requests;
-using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
@@ -17,7 +17,6 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -34,7 +33,7 @@ public sealed partial class ProductNeutralManagerViewModel
     private readonly IReferenceDataCacheService _cache;
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
-    private readonly IOptions<ProductOptions> _productOptions;
+    private readonly IImageAddressResolver _imageAddresses;
     private CancellationTokenSource? _queryCts;
     private CancellationTokenSource? _masterLookupCts;
     private long _querySequence;
@@ -52,7 +51,7 @@ public sealed partial class ProductNeutralManagerViewModel
         IReferenceDataCacheService cache,
         IMessageService messages,
         IDialogService dialogs,
-        IOptions<ProductOptions> productOptions)
+        IImageAddressResolver imageAddresses)
     {
         _api = api;
         _productMasterApi = productMasterApi;
@@ -60,7 +59,8 @@ public sealed partial class ProductNeutralManagerViewModel
         _cache = cache;
         _messages = messages;
         _dialogs = dialogs;
-        _productOptions = productOptions;
+        _imageAddresses = imageAddresses;
+        _imageAddresses.Changed += OnImageConfigurationChanged;
         Title = "产品管理";
         Lines.ListStateChanged += OnListStateChanged;
         PropertyChanged += OnManagerPropertyChanged;
@@ -344,15 +344,15 @@ public sealed partial class ProductNeutralManagerViewModel
         EditColor = null;
     }
 
-    /// <summary>按配置的图片根目录与产品编码重建当前行图片路径，变更由页面保存命令统一提交。</summary>
+    /// <summary>按最新缓存基址与完整产品编码生成原图 URL，变更由页面保存命令统一提交。</summary>
     [RelayCommand(CanExecute = nameof(CanReBuildImagePath))]
     private void ReBuildImagePath(ProductNeutralManagerLineModel? line)
     {
         if (!CanReBuildImagePath(line)) return;
-        ApplyImagePath(line!);
+        if (_imageAddresses.TryGetProductBaseUri(out var baseUri)) ApplyImagePath(line!, baseUri);
     }
 
-    /// <summary>确认后批量重建所有勾选行的图片路径；缺少产品编码的行保持原值并计入跳过数量。</summary>
+    /// <summary>确认后以同一个基址快照重建勾选行 URL；空或不安全编码保持原值并计入跳过数量。</summary>
     [RelayCommand(CanExecute = nameof(CanReBuildCheckedImagePaths))]
     private async Task ReBuildCheckedImagePathsAsync()
     {
@@ -373,24 +373,32 @@ public sealed partial class ProductNeutralManagerViewModel
             IsSelectionPrompt = false;
         }
 
+        if (!_imageAddresses.TryGetProductBaseUri(out var baseUri)) return;
         var rebuiltCount = 0;
         foreach (var line in checkedLines)
         {
-            if (string.IsNullOrWhiteSpace(line.ProductCode)) continue;
-            ApplyImagePath(line);
-            rebuiltCount++;
+            if (ApplyImagePath(line, baseUri)) rebuiltCount++;
         }
 
         var skippedCount = checkedLines.Length - rebuiltCount;
-        var skippedMessage = skippedCount == 0 ? string.Empty : $"，另有 {skippedCount} 条因产品编码为空已跳过";
+        var skippedMessage = skippedCount == 0 ? string.Empty : $"，另有 {skippedCount} 条因产品编码为空或不能作为安全文件名已跳过";
         _messages.ShowSuccess("图片路径已重建", $"已重建 {rebuiltCount} 条中性产品图片路径{skippedMessage}，请保存变更。");
     }
 
-    /// <summary>使用与主型号页一致的命名规则生成 JPG 图片完整路径。</summary>
-    private void ApplyImagePath(ProductNeutralManagerLineModel line)
+    /// <summary>使用固定基址快照和完整编码生成 JPG 地址，保留编码内点号并转义文件名。</summary>
+    private static bool ApplyImagePath(ProductNeutralManagerLineModel line, Uri baseUri)
     {
-        var fileName = Path.ChangeExtension(line.ProductCode, ".jpg");
-        line.ImagePath = Path.Combine(_productOptions.Value.BaseImageFolder, fileName);
+        if (!ProductImageAddress.TryGetProductFileName(line.ProductCode, out var fileName)) return false;
+        line.ImagePath = ProductImageAddress.BuildUrl(baseUri, fileName);
+        return true;
+    }
+
+    /// <summary>参数保存或刷新后立即更新重建命令资格，无需重启页面。</summary>
+    private void OnImageConfigurationChanged(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+        ReBuildImagePathCommand.NotifyCanExecuteChanged();
+        ReBuildCheckedImagePathsCommand.NotifyCanExecuteChanged();
     }
 
     private Task<PageLoadOutcome> LoadPageAsync() => LoadPageCoreAsync();
@@ -510,19 +518,20 @@ public sealed partial class ProductNeutralManagerViewModel
         IsInteractionEnabled
         && CanWrite
         && line is not null
-        && !string.IsNullOrWhiteSpace(line.ProductCode)
-        && !string.IsNullOrWhiteSpace(_productOptions.Value.BaseImageFolder);
+        && ProductImageAddress.TryGetProductFileName(line.ProductCode, out _)
+        && _imageAddresses.TryGetProductBaseUri(out _);
     private bool CanReBuildCheckedImagePaths() =>
         IsInteractionEnabled
         && CanWrite
-        && Lines.CheckedItems.Any(line => !string.IsNullOrWhiteSpace(line.ProductCode))
-        && !string.IsNullOrWhiteSpace(_productOptions.Value.BaseImageFolder);
+        && Lines.CheckedItems.Any(line => ProductImageAddress.TryGetProductFileName(line.ProductCode, out _))
+        && _imageAddresses.TryGetProductBaseUri(out _);
 
     /// <summary>取消分页和主型号搜索请求并解除集合及页面状态订阅。</summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        _imageAddresses.Changed -= OnImageConfigurationChanged;
         Lines.ListStateChanged -= OnListStateChanged;
         PropertyChanged -= OnManagerPropertyChanged;
         CommitPendingEdits = null;

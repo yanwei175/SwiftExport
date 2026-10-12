@@ -6,6 +6,9 @@ using SwiftExport.Application.Interfaces.Files.ProductImages;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Files.ProductImages;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.Common;
+using SwiftExport.Contracts.DTOs.SystemDtos.SystemParameters;
+using SwiftExport.Core.Interfaces.Systems.SystemParameters;
 
 namespace SwiftExport.Application.Services.Files.ProductImages;
 
@@ -15,10 +18,10 @@ public sealed class ProductImageUploadService(
     IProductImageStorageProvider storageProvider,
     IProductImageProcessor processor,
     ProductImageTargetLockManager targetLocks,
-    ILogger<ProductImageUploadService> logger) : IProductImageUploadService
+    ILogger<ProductImageUploadService> logger,
+    ISystemParameterRepository parameters) : IProductImageUploadService
 {
     private static readonly char[] InvalidNameCharacters = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-    private static readonly HashSet<string> ReservedNames = BuildReservedNames();
 
     /// <inheritdoc />
     public async Task<ServiceResult<ProductImageBatchSession>> BeginBatchAsync(
@@ -40,7 +43,12 @@ public sealed class ProductImageUploadService(
                 "产品图片上传未启用。");
         }
 
-        return ServiceResult<ProductImageBatchSession>.Ok(new ProductImageBatchSession(storage));
+        var parameter = await parameters.FindAsync(SystemParameterKeys.ProductImagesBaseUrl, cancellationToken).ConfigureAwait(false);
+        if (!ProductImageAddress.TryNormalizeBaseUrl(parameter?.ParameterValue!, out var baseUri))
+            return ServiceResult<ProductImageBatchSession>.Fail(ServiceErrorCodes.ServiceUnavailable,
+                "产品图片基础地址尚未配置或无效，请管理员在系统参数中维护。");
+        // 一批只读取一次公开基址；缺失时在处理图片和发布文件前拒绝整个批次。
+        return ServiceResult<ProductImageBatchSession>.Ok(new ProductImageBatchSession(storage, baseUri));
     }
 
     /// <inheritdoc />
@@ -167,8 +175,8 @@ public sealed class ProductImageUploadService(
             TargetFileName = targetFileName,
             Success = true,
             Message = "上传成功。",
-            OriginalUrl = BuildPublicUrl(storage, targetFileName),
-            ThumbnailUrl = BuildPublicUrl(storage, $"Thumbnails/{targetFileName}"),
+            OriginalUrl = ProductImageAddress.BuildUrl(session.PublicBaseUri, targetFileName),
+            ThumbnailUrl = ProductImageAddress.BuildUrl(session.PublicBaseUri, targetFileName, thumbnail: true),
             OriginalSha256 = originalHash,
             ThumbnailSha256 = thumbnailHash
         };
@@ -219,10 +227,7 @@ public sealed class ProductImageUploadService(
         var extensionIndex = inputFileName.LastIndexOf('.');
         if (extensionIndex <= 0 || extensionIndex == inputFileName.Length - 1) return false;
         var baseName = inputFileName[..extensionIndex];
-        // 静态文件服务会隐藏点号开头的文件，上传时拒绝，避免发布成功却无法访问。
-        if (baseName.StartsWith('.') || baseName.EndsWith(' ') || baseName.EndsWith('.') ||
-            ReservedNames.Contains(baseName.Split('.', 2)[0]))
-            return false;
+        if (!ProductImageAddress.IsValidFileStem(baseName)) return false;
 
         targetFileName = baseName + ".jpg";
         expectedFormat = inputFileName[(extensionIndex + 1)..].ToLowerInvariant() switch
@@ -233,13 +238,6 @@ public sealed class ProductImageUploadService(
             _ => null
         };
         return true;
-    }
-
-    private static string BuildPublicUrl(ProductImageStorageContext storage, string relativePath)
-    {
-        var segments = relativePath.Split('/').Select(Uri.EscapeDataString);
-        var relative = storage.PublicRequestPath.TrimStart('/') + "/" + string.Join("/", segments);
-        return new Uri(storage.ApiBaseUri, relative).AbsoluteUri;
     }
 
     private static ProductImageUploadItemResultDto AddFailure(
@@ -263,24 +261,4 @@ public sealed class ProductImageUploadService(
         return result;
     }
 
-    private static HashSet<string> BuildReservedNames()
-    {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "CON", "PRN", "AUX", "NUL", "CLOCK$", "CONIN$", "CONOUT$"
-        };
-        for (var index = 1; index <= 9; index++)
-        {
-            names.Add($"COM{index}");
-            names.Add($"LPT{index}");
-        }
-
-        foreach (var suffix in new[] { '¹', '²', '³' })
-        {
-            names.Add($"COM{suffix}");
-            names.Add($"LPT{suffix}");
-        }
-
-        return names;
-    }
 }

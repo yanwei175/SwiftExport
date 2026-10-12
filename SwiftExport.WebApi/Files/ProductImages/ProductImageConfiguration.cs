@@ -13,7 +13,7 @@ internal static class ProductImageConfiguration
          "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"],
         StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>创建启动快照；未启用任何入口时不要求根目录或 API 基址。</summary>
+    /// <summary>创建物理目录和静态路由快照；公开回执地址由系统参数按上传批次读取。</summary>
     public static ProductImageStorageOptions Create(IConfiguration configuration)
     {
         var publicEnabled = configuration.GetValue<bool>("FileStorage:Enabled");
@@ -54,10 +54,6 @@ internal static class ProductImageConfiguration
             _ = entries.MoveNext();
         }
 
-        Uri? apiBaseUri = null;
-        if (uploadEnabled)
-            apiBaseUri = ParseApiBaseUri(configuration["FileStorage:ApiBaseUrl"]);
-
         return new ProductImageStorageOptions
         {
             PublicHostingEnabled = publicEnabled,
@@ -65,7 +61,6 @@ internal static class ProductImageConfiguration
             RootPath = fullRoot,
             DirectoryName = directoryName,
             RequestPath = requestPath,
-            ApiBaseUri = apiBaseUri,
             MaxFileBytes = maxFileBytes,
             MaxBatchBytes = maxBatchBytes,
             MaxFiles = maxFiles,
@@ -99,22 +94,6 @@ internal static class ProductImageConfiguration
         {
             throw new InvalidOperationException("FileStorage:ProductImages:RequestPath 必须是无查询和片段的固定绝对请求前缀。");
         }
-    }
-
-    internal static Uri ParseApiBaseUri(string? value)
-    {
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
-            !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query) ||
-            !string.IsNullOrEmpty(uri.Fragment))
-        {
-            throw new InvalidOperationException(
-                "FileStorage:ApiBaseUrl 必须是无凭据、查询和片段的 HTTP/HTTPS 绝对地址。");
-        }
-
-        var builder = new UriBuilder(uri);
-        if (!builder.Path.EndsWith('/')) builder.Path += "/";
-        return builder.Uri;
     }
 
     private static void RejectReparsePoint(string path)

@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.Options;
+using SwiftExportClient.Services.Images;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
@@ -10,7 +10,6 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
-using SwiftExportClient.Bootstrapper;
 using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.Services;
@@ -39,7 +38,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private readonly IProductMasterSyncDialogService _syncDialog;
     private readonly ICurrentUserService? _currentUser;
     private readonly INavigationService _navigation;
-    private readonly IOptions<ProductOptions> _productOptions;
+    private readonly IImageAddressResolver _imageAddresses;
     private CancellationTokenSource? _queryCts;
     private long _querySequence;
     private long _supplierSequence;
@@ -56,7 +55,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         IMessageService messages,
         IDialogService dialogs,
         INavigationService navigation,
-        IProductNeutralApi neutralApi, IOptions<ProductOptions> productOptions,
+        IProductNeutralApi neutralApi, IImageAddressResolver imageAddresses,
         IProductMasterSyncDialogService syncDialog,
         ICurrentUserService? currentUser = null)
     {
@@ -71,7 +70,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         _currentUser = currentUser;
         if (_currentUser is not null) _currentUser.CurrentUserChanged += OnCurrentUserChanged;
         _navigation = navigation;
-        _productOptions = productOptions;
+        _imageAddresses = imageAddresses;
+        _imageAddresses.Changed += OnImageConfigurationChanged;
         Title = "父级产品";
         Masters.ListStateChanged += OnListStateChanged;
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
@@ -535,6 +535,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     {
         if (_disposed) return;
         _disposed = true;
+        _imageAddresses.Changed -= OnImageConfigurationChanged;
         Masters.ListStateChanged -= OnListStateChanged;
         Neutrals.ListStateChanged -= OnNeutralListStateChanged;
         PropertyChanged -= OnManagerStateChanged;

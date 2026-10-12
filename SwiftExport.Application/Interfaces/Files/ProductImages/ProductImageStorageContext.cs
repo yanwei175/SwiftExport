@@ -2,7 +2,7 @@ using DvFileStorage.Abstractions;
 
 namespace SwiftExport.Application.Interfaces.Files.ProductImages;
 
-/// <summary>表示宿主验证完成的产品图片存储、公开地址和资源限制快照。</summary>
+/// <summary>表示宿主验证完成的产品图片物理存储和资源限制快照；公开地址按批次读取系统参数。</summary>
 public sealed class ProductImageStorageContext
 {
     /// <summary>获取以 FileStorage 根目录为边界的底层存储。</summary>
@@ -10,12 +10,6 @@ public sealed class ProductImageStorageContext
 
     /// <summary>获取根目录内的产品图片单目录名。</summary>
     public required string ImageDirectoryName { get; init; }
-
-    /// <summary>获取客户端可达的 API 基址。</summary>
-    public required Uri ApiBaseUri { get; init; }
-
-    /// <summary>获取公开图片入口的固定请求路径。</summary>
-    public required string PublicRequestPath { get; init; }
 
     /// <summary>获取单张上传源文件的最大字节数。</summary>
     public required long MaxFileBytes { get; init; }

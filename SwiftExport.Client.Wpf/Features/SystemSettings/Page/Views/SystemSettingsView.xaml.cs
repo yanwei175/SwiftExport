@@ -3,6 +3,7 @@ using SwiftExportClient.Features.SystemSettings.Personal.Views;
 using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
+using SwiftExportClient.Features.SystemSettings.SystemParameters.Views;
 
 namespace SwiftExportClient.Features.SystemSettings.Page.Views;
 
@@ -71,6 +72,9 @@ public partial class SystemSettingsView : UserControl
     { await Model.NavigateAsync(SettingsPage.Permissions); SynchronizeSelection(); }
     private async void OnDictionaryNavigation(object sender, RoutedEventArgs e)
     { await Model.NavigateAsync(SettingsPage.Dictionary); SynchronizeSelection(); }
+    /// <summary>参数页切换仍由页签模型检查草稿与保存状态。</summary>
+    private async void OnSystemParametersNavigation(object sender, RoutedEventArgs e)
+    { await Model.NavigateAsync(SettingsPage.SystemParameters); SynchronizeSelection(); }
 
     /// <summary>个人菜单子操作冒泡时保持当前管理页面。</summary>
     private async void OnPersonalNavigation(object sender, RoutedEventArgs e)
@@ -87,6 +91,7 @@ public partial class SystemSettingsView : UserControl
         RolesNavigation.IsActive = Model.CurrentPage == SettingsPage.Roles;
         PermissionsNavigation.IsActive = Model.CurrentPage == SettingsPage.Permissions;
         DictionaryNavigation.IsActive = Model.CurrentPage == SettingsPage.Dictionary;
+        SystemParametersNavigation.IsActive = Model.CurrentPage == SettingsPage.SystemParameters;
     }
 
     /// <summary>按页签模型呈现对应页面，权限撤销时丢弃不可读列表视图。</summary>
@@ -94,12 +99,13 @@ public partial class SystemSettingsView : UserControl
     {
         if (_attached is null) return;
         var currentUser = Model.CurrentUser;
-        ManagementNavigation.Visibility = SettingsPageViewModel.EntryPermissions.Any(currentUser.HasPermission)
+        ManagementNavigation.Visibility = currentUser.IsAdmin || SettingsPageViewModel.EntryPermissions.Any(currentUser.HasPermission)
             ? Visibility.Visible : Visibility.Collapsed;
         UsersNavigation.Visibility = CanRead(SettingsPage.Users) ? Visibility.Visible : Visibility.Collapsed;
         RolesNavigation.Visibility = CanRead(SettingsPage.Roles) ? Visibility.Visible : Visibility.Collapsed;
         PermissionsNavigation.Visibility = CanRead(SettingsPage.Permissions) ? Visibility.Visible : Visibility.Collapsed;
         DictionaryNavigation.Visibility = CanRead(SettingsPage.Dictionary) ? Visibility.Visible : Visibility.Collapsed;
+        SystemParametersNavigation.Visibility = CanRead(SettingsPage.SystemParameters) ? Visibility.Visible : Visibility.Collapsed;
         if (!CanRead(SettingsPage.Users)) { _users?.Dispose(); _users = null; }
         if (!CanRead(SettingsPage.Roles)) { _roles?.Dispose(); _roles = null; }
         if (!CanRead(SettingsPage.Permissions)) _permissions = null;
@@ -123,6 +129,8 @@ public partial class SystemSettingsView : UserControl
             case SettingsPage.Dictionary:
                 _dictionaryPage ??= new DictionaryManagementPage(Model.Dictionary!);
                 _dictionaryView = _dictionaryPage.Editor; page = _dictionaryPage; break;
+            case SettingsPage.SystemParameters:
+                page = new SystemParametersPage { DataContext = Model.SystemParameters }; break;
             default: page = new System.Windows.Controls.Page(); break;
         }
         SettingsNavigation.ReplaceContent(page, null);

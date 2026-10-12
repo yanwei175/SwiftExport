@@ -39,7 +39,7 @@ public sealed class ProductNeutralManagerColorFilterTests
             new EmptyReferenceDataCache(),
             new SilentMessageService(),
             new AcceptDialogService(),
-            Options.Create(new ProductOptions()));
+            new ImageAddressResolverStub());
         var first = new ProductColorDto { Uid = Guid.NewGuid(), ColorNameZh = "红色" };
         var second = new ProductColorDto { Uid = Guid.NewGuid(), ColorNameZh = "蓝色" };
 
@@ -60,18 +60,52 @@ public sealed class ProductNeutralManagerColorFilterTests
             "查询失败后应恢复上一次成功应用的颜色选择。");
     }
 
-    /// <summary>单行命令应沿用主型号页规则，用配置目录和产品编码生成 JPG 图片路径。</summary>
+    /// <summary>单行命令使用公开基址和完整编码，保留点号并转义特殊字符。</summary>
     [TestMethod]
-    public void ReBuildImagePath_ShouldUpdateSpecifiedLine()
+    [DataRow("NEUTRAL-001", "NEUTRAL-001.jpg")]
+    [DataRow("ABC.001", "ABC.001.jpg")]
+    [DataRow("中文 #%.001", "%E4%B8%AD%E6%96%87%20%23%25.001.jpg")]
+    public void ReBuildImagePath_ShouldUpdateSpecifiedLine(string code, string escapedFileName)
     {
-        var options = Options.Create(new ProductOptions { BaseImageFolder = @"D:\ProductImages" });
+        var options = new ImageAddressResolverStub();
         using var viewModel = CreateViewModel(new AcceptDialogService(), new SilentMessageService(), options);
         var line = viewModel.Lines.AddNewNeutral();
-        line.ProductCode = "NEUTRAL-001";
+        line.ProductCode = code;
 
         viewModel.ReBuildImagePathCommand.Execute(line);
 
-        Assert.AreEqual(Path.Combine(options.Value.BaseImageFolder, "NEUTRAL-001.jpg"), line.ImagePath);
+        Assert.AreEqual(options.BaseUrl + escapedFileName, line.ImagePath);
+    }
+
+    /// <summary>缓存尚无有效基址时禁用重建，参数更新后命令直接使用新地址。</summary>
+    [TestMethod]
+    public void ReBuild_ShouldFollowLatestConfigurationWithoutRestart()
+    {
+        var addresses = new ImageAddressResolverStub(null);
+        using var model = CreateViewModel(new AcceptDialogService(), new SilentMessageService(), addresses);
+        var line = model.Lines.AddNewNeutral();
+        line.ProductCode = "ABC.001";
+        Assert.IsFalse(model.ReBuildImagePathCommand.CanExecute(line));
+        addresses.BaseUrl = "https://example.test/new/";
+        addresses.NotifyChanged();
+        Assert.IsTrue(model.ReBuildImagePathCommand.CanExecute(line));
+        model.ReBuildImagePathCommand.Execute(line);
+        Assert.AreEqual("https://example.test/new/ABC.001.jpg", line.ImagePath);
+        Assert.IsTrue(model.HasUnsavedChanges);
+    }
+
+    /// <summary>批量重建期间的配置通知不能让同一批行混用两个基址。</summary>
+    [TestMethod]
+    public async Task ReBuildBatch_ShouldFreezeBaseUriAfterConfirmation()
+    {
+        var addresses = new ImageAddressResolverStub();
+        using var model = CreateViewModel(new AcceptDialogService(), new SilentMessageService(), addresses);
+        var first = model.Lines.AddNewNeutral(); first.ProductCode = "A.001"; first.IsChecked = true;
+        var second = model.Lines.AddNewNeutral(); second.ProductCode = "B.002"; second.IsChecked = true;
+        first.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(first.ImagePath)) addresses.BaseUrl = "https://other.test/new/"; };
+        await model.ReBuildCheckedImagePathsCommand.ExecuteAsync(null);
+        Assert.AreEqual("https://example.test/files/ProductImages/A.001.jpg", first.ImagePath);
+        Assert.AreEqual("https://example.test/files/ProductImages/B.002.jpg", second.ImagePath);
     }
 
     /// <summary>批量命令应先确认，仅修改勾选且有产品编码的行，并报告跳过数量。</summary>
@@ -80,7 +114,7 @@ public sealed class ProductNeutralManagerColorFilterTests
     {
         var dialogs = new AcceptDialogService { ConfirmResult = false };
         var messages = new SilentMessageService();
-        var options = Options.Create(new ProductOptions { BaseImageFolder = @"D:\ProductImages" });
+        var options = new ImageAddressResolverStub();
         using var viewModel = CreateViewModel(dialogs, messages, options);
         var checkedLine = viewModel.Lines.AddNewNeutral();
         checkedLine.ProductCode = "NEUTRAL-001";
@@ -100,18 +134,18 @@ public sealed class ProductNeutralManagerColorFilterTests
         dialogs.ConfirmResult = true;
         await viewModel.ReBuildCheckedImagePathsCommand.ExecuteAsync(null);
 
-        Assert.AreEqual(Path.Combine(options.Value.BaseImageFolder, "NEUTRAL-001.jpg"), checkedLine.ImagePath);
+        Assert.AreEqual(options.BaseUrl + "NEUTRAL-001.jpg", checkedLine.ImagePath);
         Assert.AreEqual("blank-original.jpg", blankCodeLine.ImagePath);
         Assert.AreEqual("unchecked-original.jpg", uncheckedLine.ImagePath);
         Assert.AreEqual(2, dialogs.ConfirmCount);
         StringAssert.Contains(messages.LastSuccessMessage, "已重建 1 条");
-        StringAssert.Contains(messages.LastSuccessMessage, "1 条因产品编码为空已跳过");
+        StringAssert.Contains(messages.LastSuccessMessage, "1 条因产品编码为空或不能作为安全文件名已跳过");
     }
 
     private static ProductNeutralManagerViewModel CreateViewModel(
         AcceptDialogService dialogs,
         SilentMessageService messages,
-        IOptions<ProductOptions> options) => new(
+        ImageAddressResolverStub options) => new(
         new RecordingNeutralManagerApi(),
         new UnusedProductMasterApi(),
         new PassThroughApiCallRunner(),

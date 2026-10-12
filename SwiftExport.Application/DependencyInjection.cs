@@ -74,6 +74,7 @@ using SwiftExport.Application.Services.QualityControl.AfterSales.Query;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Maintenance;
 using SwiftExport.Application.Services.QualityControl.AfterSales.Lifecycle;
 using SwiftExport.Application.Services.Files;
+using SwiftExport.Application.Services.Files.ExportTemplates;
 using SwiftExport.Application.Services.Files.ProductImages;
 using SwiftExport.Application.Services.Products;
 using SwiftExport.Application.Interfaces.Products.Catalog.Query;
@@ -151,6 +152,9 @@ public static class DependencyInjection
         services.AddScoped<IRbacManagementService, RbacManagementService>();
         services.AddScoped<IFileAccessPolicy, FileAccessPolicy>();
         services.AddScoped<IFileTransferService, FileTransferService>();
+        services.AddScoped<IExportTemplateCatalogService, ExportTemplateCatalogService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.Systems.SystemParameters.ISystemParameterService,
+            SwiftExport.Application.Services.Systems.SystemParameters.SystemParameterService>();
         services.AddSingleton<ProductImageTargetLockManager>();
         services.AddScoped<SwiftExport.Application.Interfaces.Files.ProductImages.IProductImageUploadService, ProductImageUploadService>();
 

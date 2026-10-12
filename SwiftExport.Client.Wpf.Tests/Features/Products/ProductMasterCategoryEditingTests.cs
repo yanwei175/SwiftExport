@@ -60,7 +60,7 @@ public sealed class ProductMasterCategoryEditingTests
         StaTest.RunAsync(async () =>
         {
             // 本场景只执行本地编辑命令，不初始化页面、不访问 API 或弹窗服务。
-            using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, null!, null!, null!, Microsoft.Extensions.Options.Options.Create(new SwiftExportClient.Bootstrapper.ProductOptions()), new ProductMasterSyncDialogStub());
+            using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, null!, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
             var originalId = Guid.NewGuid();
             vm.Masters.LoadFromDtos([new ProductMasterListItemDto
             {

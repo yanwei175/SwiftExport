@@ -12,5 +12,7 @@ public enum SettingsPage
     /// <summary>只读权限目录。</summary>
     Permissions,
     /// <summary>字典管理。</summary>
-    Dictionary
+    Dictionary,
+    /// <summary>管理员维护轻量全局系统参数。</summary>
+    SystemParameters
 }

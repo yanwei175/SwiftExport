@@ -19,6 +19,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj" />
+    <ProjectReference Include="..\SwiftExport.WebApi\SwiftExport.WebApi.csproj" />
+    <!-- 后端命名空间仅供 HTTP 夹具通过别名使用，避免影响既有 WPF Application 引用。 -->
+    <ProjectReference Include="..\SwiftExport.Application\SwiftExport.Application.csproj" Aliases="backendApplication" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <EmbeddedResource Include="..\SwiftExport.Client.Wpf\App.xaml" LogicalName="DatePickerTests.App.xaml" />
     <EmbeddedResource Include="Services\Files\**\Fixtures\*.xlsx" />
   </ItemGroup>

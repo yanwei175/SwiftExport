@@ -110,7 +110,7 @@ public sealed class ProductCategoryFilterIntegrationTests
             null!,
             new Messages(),
             new DialogStub(),
-            Options.Create(new ProductOptions()));
+            new ImageAddressResolverStub());
         var uncategorized = new ProductCategoryFilterSelection(false, true, []);
         viewModel.CategoryFilter = uncategorized;
 
@@ -142,7 +142,7 @@ public sealed class ProductCategoryFilterIntegrationTests
         dialogs ?? new DialogStub(),
         null!,
         null!,
-        Options.Create(new ProductOptions()),
+        new ImageAddressResolverStub(),
         null!);
 
     /// <summary>从测试运行目录向上定位仓库根目录。</summary>

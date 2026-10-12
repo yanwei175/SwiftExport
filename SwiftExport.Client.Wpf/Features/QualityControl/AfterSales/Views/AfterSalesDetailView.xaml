@@ -115,7 +115,7 @@
                                 BorderThickness="1" 
                                 BorderBrush="{DynamicResource UserCardStrokeColorDefaultBrush}" CornerRadius="4">
 
-                            <controls:CachedImage Margin="4" Width="140" Height="140" Stretch="Uniform"
+                            <controls:CachedImage Style="{StaticResource SwiftExportCachedImage}" Margin="4" Width="140" Height="140" Stretch="Uniform"
                                               SourcePath="{Binding Header.ImagePath}" DecodePixelWidth="96" />
                         </Border>
 
@@ -265,7 +265,7 @@
                         <DataGridTemplateColumn Header="图片" IsReadOnly="True" Width="64">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <controls:CachedImage SourcePath="{Binding ImagePath}" Width="48" Height="48" DecodePixelWidth="96"/>
+                                    <controls:CachedImage Style="{StaticResource SwiftExportCachedImage}" SourcePath="{Binding ImagePath}" Width="48" Height="48" DecodePixelWidth="96"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

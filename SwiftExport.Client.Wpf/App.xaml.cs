@@ -7,6 +7,7 @@ using SwiftExportClient.Shell;
 using SwiftExportClient.Services.Images;
 using SwiftExportClient.Updates;
 using SwiftExportClient.Resources.Controls;
+using SwiftExportClient.Services.Caching;
 
 namespace SwiftExportClient;
 
@@ -26,6 +27,8 @@ public partial class App : Application
         await _host.StartAsync();
         Resources[CachedImage.ImageCacheServiceResourceKey] =
             _host.Services.GetRequiredService<IImageCacheService>();
+        Resources[CachedImage.ImageAddressResolverResourceKey] =
+            _host.Services.GetRequiredService<IImageAddressResolver>();
 
         var versionCheck = await _host.Services.GetRequiredService<IClientVersionService>().CheckAsync();
         if (!versionCheck.CanContinue)
@@ -49,6 +52,7 @@ public partial class App : Application
         }
 
         ShowShellWindow();
+        _ = WarmSystemParametersAsync();
         // 每次进程启动检查一次；没有更新时不打断登录或工作。
         var updates = _host.Services.GetRequiredService<ClientUpdateViewModel>();
         await updates.CheckOnStartupAsync();
@@ -85,9 +89,10 @@ public partial class App : Application
         shellWindow.Show();
     }
 
+    /// <summary>回 UI 线程重建会话；新会话参数加载失败不阻断业务窗口。</summary>
     private void OnSessionEnded(object? sender, SessionEndedEventArgs e)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             if (_switchingSession)
             {
@@ -110,12 +115,25 @@ public partial class App : Application
                 }
 
                 ShowShellWindow();
+                _ = WarmSystemParametersAsync();
             }
             finally
             {
                 _switchingSession = false;
             }
         });
+    }
+
+    /// <summary>预热独立参数缓存，失败允许登录后从个人设置手动刷新。</summary>
+    private async Task WarmSystemParametersAsync()
+    {
+        if (_host is null) return;
+        var user = _host.Services.GetRequiredService<ICurrentUserService>();
+        var userId = user.CurrentUser?.UserId;
+        var result = await _host.Services.GetRequiredService<ISystemParameterCacheService>().EnsureLoadedAsync();
+        if (!result.Success && user.IsAuthenticated && user.CurrentUser?.UserId == userId)
+            _host.Services.GetRequiredService<SwiftExportClient.Services.UI.IMessageService>()
+                .ShowWarning("系统参数未加载", result.Message);
     }
 
     private void OnShellWindowClosed(object? sender, EventArgs e)

@@ -13,7 +13,9 @@ using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.Apis.Inventory;
 using SwiftExport.Contracts.Apis.MasterData;
+using SwiftExport.Contracts.Apis.Files;
 using SwiftExportClient.Services.Api;
+using SwiftExportClient.Services.Files.ServerTemplates;
 
 namespace SwiftExportClient.Bootstrapper;
 
@@ -58,6 +60,16 @@ public static class ApiRegistrationExtensions
             });
 
         services.AddSystemApis();
+        services.AddControllerApi<IExportTemplateApi>("export-templates");
+        // 下载仅缓冲响应头；正文读取的超时、容量和取消由服务器模板服务统一控制。
+        services.AddHttpClient(ServerExcelTemplateService.HttpClientName)
+            .ConfigureHttpClient((provider, client) =>
+            {
+                client.BaseAddress = new Uri(EnsureTrailingSlash(
+                    BuildControllerRoot(provider, "export-templates").AbsoluteUri), UriKind.Absolute);
+                client.Timeout = Timeout.InfiniteTimeSpan;
+            })
+            .AddHttpMessageHandler<AuthTokenHandler>();
         services.AddProductApis();
         services.AddSupplierApis();
         services.AddCustomerApis();
@@ -72,6 +84,7 @@ public static class ApiRegistrationExtensions
 
     private static void AddSystemApis(this IServiceCollection services)
     {
+        services.AddControllerApi<ISystemParameterApi>("system-parameters");
         services.AddControllerApi<ISysDictTypeApi>("SysDictType");
         services.AddControllerApi<ISysDictDataApi>("SysDictData");
         services.AddControllerApi<ISysDicCurrencyApi>("SysDicCurrency");

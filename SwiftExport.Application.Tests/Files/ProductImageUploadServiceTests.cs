@@ -98,14 +98,43 @@ public sealed class ProductImageUploadServiceTests
         Assert.IsNotNull(second);
     }
 
-    private static ProductImageUploadService CreateService(IFileStorage storage, long maxFileBytes)
+    /// <summary>缺失基址拒绝整个批次，尚未执行转码或文件发布。</summary>
+    [TestMethod]
+    [DataRow(null)]
+    [DataRow("ftp://example.test/")]
+    public async Task MissingOrInvalidParameter_ShouldRejectBeforePublication(string? value)
+    {
+        var storage = new InMemoryFileStorage();
+        var service = CreateService(storage, 10, new SystemParameterRepositoryStub(value));
+        Assert.AreEqual(ServiceErrorCodes.ServiceUnavailable, (await service.BeginBatchAsync()).Error.Code);
+        Assert.AreEqual(0, storage.Files.Count);
+    }
+
+    /// <summary>批次中途修改参数只影响下个批次，原图和缩略图回执使用相同快照。</summary>
+    [TestMethod]
+    public async Task Batch_ShouldKeepOneBaseUrlSnapshotAndPreserveDots()
+    {
+        var storage = new InMemoryFileStorage();
+        var parameters = new SystemParameterRepositoryStub();
+        var service = CreateService(storage, 10, parameters);
+        var first = (await service.BeginBatchAsync()).Data;
+        parameters.Value = "https://new.test/catalog/";
+        var result = await service.UploadItemAsync(first, 0, "中文 #%.001.png", new MemoryStream([1]));
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual("https://example.test/erp/files/ProductImages/%E4%B8%AD%E6%96%87%20%23%25.001.jpg", result.OriginalUrl);
+        Assert.AreEqual("https://example.test/erp/files/ProductImages/Thumbnails/%E4%B8%AD%E6%96%87%20%23%25.001.jpg", result.ThumbnailUrl);
+        Assert.AreEqual(1, parameters.Reads);
+        var second = (await service.BeginBatchAsync()).Data;
+        var next = await service.UploadItemAsync(second, 0, "ABC.001.jpg", new MemoryStream([2]));
+        Assert.AreEqual("https://new.test/catalog/ABC.001.jpg", next.OriginalUrl);
+    }
+
+    private static ProductImageUploadService CreateService(IFileStorage storage, long maxFileBytes, SystemParameterRepositoryStub? parameters = null)
     {
         var context = new ProductImageStorageContext
         {
             Storage = storage,
             ImageDirectoryName = "ProductImages",
-            ApiBaseUri = new Uri("https://example.test/erp/"),
-            PublicRequestPath = "/files/ProductImages",
             MaxFileBytes = maxFileBytes,
             MaxBatchBytes = 1000,
             MaxFiles = 20,
@@ -116,7 +145,8 @@ public sealed class ProductImageUploadServiceTests
             new StorageProvider(context),
             new EchoProcessor(),
             new ProductImageTargetLockManager(),
-            NullLogger<ProductImageUploadService>.Instance);
+            NullLogger<ProductImageUploadService>.Instance,
+            parameters ?? new SystemParameterRepositoryStub());
     }
 
     /// <summary>读取最终缩略图标签并确认其来源哈希等于当前最终原图。</summary>

@@ -119,7 +119,7 @@ public sealed class ProductMasterSynchronizationTests
     }
 
     private static ProductMasterManagerViewModel SyncManager(IProductMasterApi api, IDialogService dialogs, bool allowed) => new(
-        api, null!, Runner(), null!, Messages(), dialogs, null!, null!, Options.Create(new ProductOptions()),
+        api, null!, Runner(), null!, Messages(), dialogs, null!, null!, new ImageAddressResolverStub(),
         new ProductMasterSyncDialogStub(), Proxy<ICurrentUserService>((method, _) =>
             method.Name == nameof(ICurrentUserService.HasPermission) ? allowed : null));
 
@@ -249,7 +249,7 @@ public sealed class ProductMasterSynchronizationTests
         });
         using var vm = new ProductMasterManagerViewModel(api, null!, Runner(), null!,
             Proxy<IMessageService>((method, _) => { notices.Add(method.Name); return null; }),
-            null!, null!, null!, Options.Create(new ProductOptions()), new ProductMasterSyncDialogStub());
+            null!, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
         var row = vm.Masters.AddNewMaster();
         row.MasterSku = "A";
         await vm.SaveCommand.ExecuteAsync(null);
@@ -309,7 +309,7 @@ public sealed class ProductMasterSynchronizationTests
     }
 
     private static ProductMasterManagerViewModel Manager(IProductMasterApi api, ProductMasterSyncDialogStub dialog) => new(
-        api, null!, Runner(), null!, Messages(), null!, null!, null!, Options.Create(new ProductOptions()), dialog);
+        api, null!, Runner(), null!, Messages(), null!, null!, null!, new ImageAddressResolverStub(), dialog);
 
     private static ProductMasterDetailViewModel Detail(IProductMasterApi api, ProductMasterSyncDialogStub dialog)
     {

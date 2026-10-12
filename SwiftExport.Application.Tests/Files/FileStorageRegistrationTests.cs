@@ -88,7 +88,7 @@ public sealed class FileStorageRegistrationTests
         }
     }
 
-    /// <summary>产品图片上传默认关闭；显式启用后使用顶层根目录、配置上限和公开地址快照。</summary>
+    /// <summary>产品图片上传默认关闭；显式启用后使用物理目录与资源上限，公开地址不依赖启动配置。</summary>
     [TestMethod]
     public async Task ProductImageUpload_IsOptInAndUsesValidatedSnapshot()
     {
@@ -128,7 +128,7 @@ public sealed class FileStorageRegistrationTests
         Assert.IsTrue(enabledProvider.GetRequiredService<IProductImageStorageProvider>()
             .TryGetEnabledStorage(out var context));
         Assert.AreEqual("CatalogImages", context!.ImageDirectoryName);
-        Assert.AreEqual("/assets/products", context.PublicRequestPath);
+        Assert.AreEqual("/assets/products", enabledProvider.GetRequiredService<SwiftExport.WebApi.Files.ProductImages.ProductImageStorageOptions>().RequestPath);
         Assert.AreEqual(100L, context.MaxFileBytes);
         Assert.IsFalse(Directory.Exists(System.IO.Path.Combine(scope.Path, "CatalogImages", "Thumbnails")));
         Assert.IsFalse(Directory.Exists(System.IO.Path.Combine(scope.Path, ".product-image-state")));

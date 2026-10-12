@@ -146,10 +146,10 @@ public sealed class ProductImageUploadTests
     public async Task ChangedIdentity_ShouldStopRemainingFiles()
     {
         var user = new CurrentUserService();
-        user.SetCurrentUser(new MeDto { Roles = ["Admin"] });
+        user.SetCurrentUser(new MeDto { IsAdmin = true, Roles = ["Admin"] });
         var client = new UploadClient(_ =>
         {
-            user.SetCurrentUser(new MeDto { Roles = ["Admin"] });
+            user.SetCurrentUser(new MeDto { IsAdmin = true, Roles = ["Admin"] });
             return Task.FromResult(Result(true));
         });
         var vm = Create(client, user);
@@ -175,12 +175,13 @@ public sealed class ProductImageUploadTests
         CollectionAssert.AreEqual(new byte[] { 1, 2, 3 }, handler.Bytes);
     }
 
+    /// <summary>用当前服务端 IsAdmin 投影模拟管理员，不把角色名称当作授权依据。</summary>
     private static ProductImageUploadViewModel Create(UploadClient client, CurrentUserService? user = null)
     {
         if (user is null)
         {
             user = new CurrentUserService();
-            user.SetCurrentUser(new MeDto { Roles = ["Admin"] });
+            user.SetCurrentUser(new MeDto { IsAdmin = true, Roles = ["Admin"] });
         }
         return new(client, user, NullLogger<ProductImageUploadViewModel>.Instance);
     }

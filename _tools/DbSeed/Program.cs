@@ -10,6 +10,13 @@ using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Tools.DbSeed;
 
+// 参数初始化是显式维护用例，使用独立连接变量和目标核对，不复用权限账号初始化流程。
+if (args.Length > 0 && args[0] == "--initialize-product-image-parameter")
+{
+    await ProductImageParameterInitializer.RunAsync(args.Skip(1).ToArray());
+    return;
+}
+
 // 离线导出必须在任何连接/账号环境变量读取前分流；生成文件永不触发数据库访问。
 if (args.Length > 0 && args[0] == "--export-permissions-sql")
 {

@@ -23,7 +23,7 @@ public sealed class ProductMasterInteractionTests
     [TestMethod]
     public void ManagerSelection_ShouldNotifyDetailCommandAfterAddingRow()
     {
-        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, null!, null!, null!, Microsoft.Extensions.Options.Options.Create(new SwiftExportClient.Bootstrapper.ProductOptions()), new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, null!, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
         vm.Masters.LoadFromDtos([Master("已保存")]);
         var saved = vm.Masters.Items.Single();
         vm.SelectedMaster = saved;
@@ -67,7 +67,7 @@ public sealed class ProductMasterInteractionTests
     public async Task ManagerDelete_ShouldConfirmOnlyPersistedRowsAndSelectLast()
     {
         var dialogs = new TestDialogs();
-        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, dialogs, null!, null!, Microsoft.Extensions.Options.Options.Create(new SwiftExportClient.Bootstrapper.ProductOptions()), new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, dialogs, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
         vm.Masters.LoadFromDtos([Master("首行"), Master("末行")]);
         var first = vm.Masters.Items.First();
         var last = vm.Masters.Items.Last();

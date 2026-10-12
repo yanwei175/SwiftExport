@@ -30,7 +30,6 @@ public static class ServiceCollectionExtensions
         services.Configure<ApiOptions>(configuration.GetSection(ApiOptions.SectionName));
         services.Configure<ClientOptions>(configuration.GetSection(ClientOptions.SectionName));
         services.Configure<ClientUpdateOptions>(configuration.GetSection(ClientUpdateOptions.SectionName));
-        services.Configure<ProductOptions>(configuration.GetSection(ProductOptions.SectionName));
         services.Configure<ImageCacheOptions>(configuration.GetSection(ImageCacheOptions.SectionName));
         services.AddHttpClient(ImageCacheService.HttpClientName, client =>
             client.Timeout = Timeout.InfiniteTimeSpan)
@@ -59,8 +58,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ClientUpdateViewModel>();
         services.AddSingleton<ClientUpdateDialogService>();
         services.AddSingleton<IImageCacheService, ImageCacheService>();
+        services.AddSingleton<ISystemParameterCacheService, SystemParameterCacheService>();
+        services.AddSingleton<IImageAddressResolver, ImageAddressResolver>();
         services.AddSingleton<IReferenceDataCacheService, ReferenceDataCacheService>();
         services.AddClientFileServices();
+        services.AddServerExcelTemplateService();
         services.AddTransient<INetDemandDialogService, NetDemandDialogService>();
         services.AddTransient<IProcurementDialogService, ProcurementDialogService>();
         services.AddTransient<IProcurementReversalDialogService, ProcurementReversalDialogService>();

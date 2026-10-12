@@ -1403,6 +1403,20 @@ CREATE TABLE "public"."sys_user_role" (
     CONSTRAINT "pk_sys_user_role" PRIMARY KEY ("uid"),
     CONSTRAINT "ck_sys_user_role_version" CHECK ("version" >= 1)
 );
+CREATE TABLE "public"."system_parameter" (
+    "uid" uuid NOT NULL,
+    "version" integer NOT NULL DEFAULT 1,
+    "is_deleted" boolean NOT NULL DEFAULT FALSE,
+    "created_date" timestamp(6) without time zone NULL,
+    "created_by" varchar(500) NULL,
+    "updated_date" timestamp(6) without time zone NULL,
+    "updated_by" varchar(500) NULL,
+    "parameter_key" varchar(100) NOT NULL,
+    "parameter_value" varchar(2048) NOT NULL,
+    CONSTRAINT "pk_system_parameter" PRIMARY KEY ("uid"),
+    CONSTRAINT "ck_system_parameter_value" CHECK (length(btrim("parameter_value")) > 0),
+    CONSTRAINT "ck_system_parameter_version" CHECK ("version" >= 1)
+);
 CREATE TABLE "public"."warehouse_site" (
     "uid" uuid NOT NULL,
     "version" integer NOT NULL DEFAULT 1,
@@ -1543,6 +1557,7 @@ CREATE UNIQUE INDEX "ux_sys_role_permissions_role_permission" ON "public"."sys_r
 CREATE UNIQUE INDEX "ux_sys_user_user_name" ON "public"."sys_user" ((rtrim("user_name", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_sys_user_roles_role" ON "public"."sys_user_role" ("role_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_sys_user_roles_user_role" ON "public"."sys_user_role" ("user_id", "role_id") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_system_parameter_key" ON "public"."system_parameter" ("parameter_key");
 CREATE UNIQUE INDEX "ux_warehouse_site_active_supplier" ON "public"."warehouse_site" ("supplier_id", "site_type") WHERE "is_deleted" = FALSE AND "supplier_id" IS NOT NULL AND "is_active" = TRUE;
 CREATE UNIQUE INDEX "ux_warehouse_site_code" ON "public"."warehouse_site" ((rtrim("code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 COMMENT ON TABLE "public"."after_sales_header" IS '保存售后单头和实物确认事实，不持有下游进度。';
@@ -2713,6 +2728,16 @@ COMMENT ON COLUMN "public"."sys_user_role"."updated_date" IS '记录最后更新
 COMMENT ON COLUMN "public"."sys_user_role"."updated_by" IS '记录最后更新人标识。';
 COMMENT ON COLUMN "public"."sys_user_role"."user_id" IS '用户 ID（外键 → SysUser.Uid）';
 COMMENT ON COLUMN "public"."sys_user_role"."role_id" IS '角色 ID（外键 → SysRole.Uid，如有角色主表）';
+COMMENT ON TABLE "public"."system_parameter" IS '保存全局系统参数值及版本；键由代码注册，不提供删除或更名入口。';
+COMMENT ON COLUMN "public"."system_parameter"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
+COMMENT ON COLUMN "public"."system_parameter"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
+COMMENT ON COLUMN "public"."system_parameter"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
+COMMENT ON COLUMN "public"."system_parameter"."created_date" IS '记录创建时间。';
+COMMENT ON COLUMN "public"."system_parameter"."created_by" IS '记录创建人标识。';
+COMMENT ON COLUMN "public"."system_parameter"."updated_date" IS '记录最后更新时间。';
+COMMENT ON COLUMN "public"."system_parameter"."updated_by" IS '记录最后更新人标识。';
+COMMENT ON COLUMN "public"."system_parameter"."parameter_key" IS '不可变参数键，唯一约束同时防止首次配置并发覆盖。';
+COMMENT ON COLUMN "public"."system_parameter"."parameter_value" IS '经过应用层校验的非空参数值。';
 COMMENT ON TABLE "public"."warehouse_site" IS '仓库站点实体，当前用于维护供应商虚拟仓及其启用状态。';
 COMMENT ON COLUMN "public"."warehouse_site"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."warehouse_site"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';

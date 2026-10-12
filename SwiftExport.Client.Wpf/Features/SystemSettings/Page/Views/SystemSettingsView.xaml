@@ -51,6 +51,9 @@
                                            Icon="{ui:SymbolIcon Symbol=BookDatabase24}"
                                            Click="OnDictionaryNavigation"
                                            AutomationProperties.Name="字典管理" />
+                    <ui:NavigationViewItem x:Name="SystemParametersNavigation" Content="系统参数"
+                                           Icon="{ui:SymbolIcon Symbol=Settings24}"
+                                           Click="OnSystemParametersNavigation" AutomationProperties.Name="系统参数" />
 
                 </ui:NavigationViewItem.MenuItems>
             </ui:NavigationViewItem>

@@ -203,6 +203,8 @@ public static class DependencyInjection
         services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelSalesOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.PostgreSqlForExcelSalesOrderRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository, SwiftExport.Infrastructure.Repositories.ForExcel.PostgreSqlForExcelPurchaseOrderRepository>();
         // 主配置和字段共享当前请求的 DbSession，由应用层统一控制事务。
+        services.AddScoped<SwiftExport.Core.Interfaces.Systems.SystemParameters.ISystemParameterRepository,
+            SwiftExport.Infrastructure.Repositories.Systems.SystemParameters.PostgreSqlSystemParameterRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.Systems.ExcelReadProfiles.IExcelReadProfileRepository,
             SwiftExport.Infrastructure.Repositories.Systems.ExcelReadProfiles.PostgreSqlExcelReadProfileRepository>();
         return services;

@@ -249,6 +249,8 @@ public sealed class ProductImageApiIntegrationTests
             builder.Services.AddSingleton<IPermissionEvaluationService>(new PermissionProjectionStub(active, isAdmin));
             builder.Services.AddScoped<IFileAccessPolicy, FileAccessPolicy>();
             builder.Services.AddSingleton<ProductImageTargetLockManager>();
+            builder.Services.AddSingleton<SwiftExport.Core.Interfaces.Systems.SystemParameters.ISystemParameterRepository>(
+                new SystemParameterRepositoryStub("http://127.0.0.1:51234/virtual/files/ProductImages/"));
             builder.Services.AddScoped<IProductImageUploadService, ProductImageUploadService>();
             builder.Services.AddAuthentication(TestAuthenticationHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(

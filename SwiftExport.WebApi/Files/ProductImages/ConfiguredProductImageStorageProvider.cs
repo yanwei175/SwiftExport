@@ -17,8 +17,6 @@ public sealed class ConfiguredProductImageStorageProvider : IProductImageStorage
         {
             Storage = new LocalFileStorage(new LocalFileStorageOptions { RootPath = options.RootPath! }),
             ImageDirectoryName = options.DirectoryName,
-            ApiBaseUri = options.ApiBaseUri!,
-            PublicRequestPath = options.RequestPath,
             MaxFileBytes = options.MaxFileBytes,
             MaxBatchBytes = options.MaxBatchBytes,
             MaxFiles = options.MaxFiles,

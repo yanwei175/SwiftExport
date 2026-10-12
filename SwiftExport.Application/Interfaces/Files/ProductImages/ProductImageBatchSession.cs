@@ -8,7 +8,12 @@ public sealed class ProductImageBatchSession
     private readonly HashSet<string> _targets = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ProductImageUploadItemResultDto> _items = [];
 
-    internal ProductImageBatchSession(ProductImageStorageContext storage) => Storage = storage;
+    /// <summary>固定本批次的物理存储与公开原图基址，批次中途参数变化不影响回执。</summary>
+    internal ProductImageBatchSession(ProductImageStorageContext storage, Uri publicBaseUri)
+    {
+        Storage = storage;
+        PublicBaseUri = publicBaseUri;
+    }
 
     /// <summary>获取包含 multipart 协议开销的请求总字节上限。</summary>
     public long MaxBatchBytes => Storage.MaxBatchBytes;
@@ -17,6 +22,7 @@ public sealed class ProductImageBatchSession
     public int MaxFiles => Storage.MaxFiles;
 
     internal ProductImageStorageContext Storage { get; }
+    internal Uri PublicBaseUri { get; }
     internal IReadOnlyList<ProductImageUploadItemResultDto> Items => _items;
 
     internal bool TryReserveTarget(string targetFileName) => _targets.Add(targetFileName);

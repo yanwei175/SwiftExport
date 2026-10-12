@@ -4,14 +4,15 @@ using DvFileStorage.Local;
 using SwiftExport.Application.Interfaces.Files;
 using SwiftExport.Application.Interfaces.Files.ProductImages;
 using SwiftExport.WebApi.Files.ProductImages;
+using SwiftExport.WebApi.Files.ExportTemplates;
 
 namespace SwiftExport.WebApi.Files;
 
-/// <summary>把宿主 FileStorage 根目录配置转换为独立文件存储实例，不改变图片 HTTP 开关语义。</summary>
+/// <summary>把宿主 FileStorage 配置转换为图片、通用容器及模板专用存储；模板目录不暴露为可写容器。</summary>
 public static class FileStorageRegistration
 {
     /// <summary>
-    /// 当 RootPath 显式配置时校验并注册线程安全的本地存储；缺失或空值时保持未注册状态。
+    /// 按各存储开关验证目录和隔离关系；基础 RootPath 缺失时仍允许启用独立模板目录。
     /// </summary>
     public static IServiceCollection AddConfiguredFileStorage(
         this IServiceCollection services,
@@ -52,6 +53,7 @@ public static class FileStorageRegistration
             .ToArray();
         var containers = ConfiguredFileContainerFactory.Create(configuration, reservedRoots);
         services.AddSingleton<IFileContainerProvider>(containers);
+        services.AddConfiguredExportTemplates(configuration);
         return services;
     }
 }

@@ -23,6 +23,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["FlowController.CreateAsync"] = PermissionKeys.QualityControlFlowCreate,
         ["FlowController.UpdateAsync"] = PermissionKeys.QualityControlFlowEdit,
         ["FlowController.DeleteAsync"] = PermissionKeys.QualityControlFlowDelete,
+        ["SystemParameterController.UpdateAsync"] = PermissionKeys.SystemParametersManage,
         ["ExcelReadProfileController.CreateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelReadProfileController.UpdateAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
         ["ExcelReadProfileController.DeleteAsync"] = PermissionKeys.SystemExcelFieldMappingManage,
@@ -288,9 +289,12 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         "FileController.Download", "ClientVersionController.Get"
     };
 
-    // 已登录用户均可读取配置；此集合只在身份校验通过后放行。
+    // 已登录用户可读取配置及无业务数据的模板；模板服务仍按文件策略实时检查活动账号。
     private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
     {
+        "SystemParameterController.ListAsync",
+        "ExportTemplatesController.ListAsync",
+        "ExportTemplatesController.DownloadAsync",
         "ExcelReadProfileController.ListAsync",
         "ExcelReadProfileController.GetAsync"
     };

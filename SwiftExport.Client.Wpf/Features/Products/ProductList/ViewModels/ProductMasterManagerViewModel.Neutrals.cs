@@ -1,12 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
 using System.ComponentModel;
-using System.IO;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
@@ -265,19 +265,22 @@ public sealed partial class ProductMasterManagerViewModel
         if (CanEditNeutrals && line is not null) Neutrals.SetMainImage(line);
     }
 
-    /// <summary>从配置文件读取图片父文件夹,与产品代码组合生成完整图片路径。</summary>
-    [RelayCommand]
+    /// <summary>从系统参数缓存读取原图基址，以完整编码生成 URL；不自动保存行变更。</summary>
+    [RelayCommand(CanExecute = nameof(CanReBuildImagePath))]
     private void ReBuildImagePath(ProductNeutralLineModel? line)
     {
-        if (!CanEditNeutrals || line is null) return;
-
-        if (string.IsNullOrWhiteSpace(line.ProductCode)) return;
-
-        string imgFolder = _productOptions.Value.BaseImageFolder;
-        if (imgFolder == null) return;
-        string fileName = Path.ChangeExtension(line.ProductCode, ".jpg");
-        line.ImagePath = Path.Combine(imgFolder, fileName);
+        if (!CanReBuildImagePath(line) || !_imageAddresses.TryGetProductBaseUri(out var baseUri)) return;
+        if (ProductImageAddress.TryGetProductFileName(line!.ProductCode, out var fileName))
+            line.ImagePath = ProductImageAddress.BuildUrl(baseUri, fileName);
     }
+
+    /// <summary>只对可编辑行、安全编码与有效公开基址开放重建。</summary>
+    private bool CanReBuildImagePath(ProductNeutralLineModel? line) => CanEditNeutrals && line is not null
+        && ProductImageAddress.TryGetProductFileName(line.ProductCode, out _)
+        && _imageAddresses.TryGetProductBaseUri(out _);
+    /// <summary>参数变更立即刷新按钮资格，保留现有未保存行数据。</summary>
+    private void OnImageConfigurationChanged(object? sender, EventArgs e)
+    { if (!_disposed) ReBuildImagePathCommand.NotifyCanExecuteChanged(); }
 
     private bool CanAddNeutral() => CanEditNeutrals;
     private bool CanDeleteNeutral() => CanEditNeutrals && (Neutrals.CheckedCount > 0 || SelectedNeutral is not null);
@@ -308,6 +311,7 @@ public sealed partial class ProductMasterManagerViewModel
         SaveNeutralsCommand.NotifyCanExecuteChanged();
         RefreshNeutralsCommand.NotifyCanExecuteChanged();
         RejectNeutralChangesCommand.NotifyCanExecuteChanged();
+        ReBuildImagePathCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>取消在途明细查询；CTS 由所属请求 finally 释放。</summary>

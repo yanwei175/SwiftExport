@@ -158,7 +158,9 @@ public static class ViewRegistrationExtensions
                 () => ActivatorUtilities.CreateInstance<PermissionsQueryViewModel>(provider),
                 () => ActivatorUtilities.CreateInstance<DictionaryManagerViewModel>(provider),
                 provider.GetRequiredService<ICurrentUserService>(), dialogs,
-                provider.GetRequiredService<IAuthService>(), provider.GetRequiredService<IMessageService>());
+                provider.GetRequiredService<IAuthService>(), provider.GetRequiredService<IMessageService>(),
+                () => ActivatorUtilities.CreateInstance<SwiftExportClient.Features.SystemSettings.SystemParameters.ViewModels.SystemParametersViewModel>(provider),
+                provider.GetRequiredService<SwiftExportClient.Services.Caching.ISystemParameterCacheService>());
         });
         services.AddTransient<ChangePasswordViewModel>();
         services.AddTransient<UserRegistrationViewModel>();

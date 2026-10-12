@@ -20,7 +20,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <controls:CachedImage Grid.RowSpan="2"
+                <controls:CachedImage DisplayMode="Thumbnail" Grid.RowSpan="2"
                                       Width="48"
                                       Height="48"
                                       SourcePath="{Binding MainImage}"

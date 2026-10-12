@@ -29,13 +29,14 @@ internal static class AtomicTemplateFileWriter
         return fullPath;
     }
 
-    /// <summary>在发布前检查取消；发布完成后不再把后到的取消误报为失败。</summary>
+    /// <summary>在发布前检查取消；可由宿主在会话状态锁内执行最终移动，发布完成后不再把后到的取消误报为失败。</summary>
     internal static async Task WriteAsync(
         MemoryStream content,
         string fullPath,
         bool overwrite,
         IProgress<FileOperationProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<Action>? publishCommit = null)
     {
         var temporaryPath = Path.Combine(Path.GetDirectoryName(fullPath)!, $".swiftexport-{Guid.NewGuid():N}.tmp");
         try
@@ -53,8 +54,14 @@ internal static class AtomicTemplateFileWriter
 
             progress?.Report(new FileOperationProgress("PublishingOutput"));
             cancellationToken.ThrowIfCancellationRequested();
-            // 同目录单次文件系统移动是提交点；默认模式也由此处理检查后的目标竞争。
-            File.Move(temporaryPath, fullPath, overwrite);
+            // 同目录单次文件系统移动是提交点；会话型宿主在同一提交保护中再次核对身份与取消。
+            void Publish()
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                File.Move(temporaryPath, fullPath, overwrite);
+            }
+            if (publishCommit is null) Publish();
+            else publishCommit(Publish);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
