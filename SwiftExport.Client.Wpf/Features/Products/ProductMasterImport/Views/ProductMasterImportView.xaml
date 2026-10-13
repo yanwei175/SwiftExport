@@ -1,12 +1,21 @@
 <UserControl x:Class="SwiftExportClient.Features.Products.ProductMasterImport.Views.ProductMasterImportView"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    MinWidth="720">
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:Width="1920" d:Height="680"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImport.ViewModels"
+             d:DataContext="{d:DesignInstance vm:ProductMasterImportViewModel}"
+            MinWidth="720">
     <Grid Margin="16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/><RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+        
         <WrapPanel Margin="0,0,0,12">
             <Button Content="下载导入模板" Click="OnDownloadTemplate" IsEnabled="{Binding CanUseFiles}" Margin="0,0,8,0"/>
             <Button Content="加载文件" Click="OnChooseFile" IsEnabled="{Binding CanUseFiles}" Margin="0,0,8,0"/>
@@ -16,13 +25,29 @@
             <Button Content="停止" Command="{Binding StopCommand}" Margin="0,0,8,0"/>
             <Button Content="下载未成功数据及原因" Click="OnDownloadErrors" IsEnabled="{Binding CanDownloadResults}"/>
         </WrapPanel>
+        
         <StackPanel Grid.Row="1" Margin="0,0,0,12">
             <TextBlock Text="{Binding UploadPermissionHint}" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding BatchSource}" TextWrapping="Wrap" Margin="0,4,0,0"/>
             <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite"/>
         </StackPanel>
-        <ProgressBar Grid.Row="2" Minimum="0" Maximum="{Binding TotalCount}" Value="{Binding CompletedCount}" Height="6" Margin="0,0,0,12" AutomationProperties.Name="已收到保存回执的行数"/>
-        <DataGrid x:Name="ImportGrid" Grid.Row="3" ItemsSource="{Binding VisibleRows}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" EnableRowVirtualization="True" EnableColumnVirtualization="True" RowHeight="32" AutomationProperties.Name="父级型号导入队列">
+        
+        <ProgressBar Grid.Row="2" Minimum="0" 
+                     Maximum="{Binding TotalCount}" 
+                     Value="{Binding CompletedCount}" 
+                     Height="6" Margin="0,0,0,12" 
+                     AutomationProperties.Name="已收到保存回执的行数"/>
+        
+        <DataGrid x:Name="ImportGrid" Grid.Row="3" 
+                  ItemsSource="{Binding VisibleRows}" 
+                  IsReadOnly="True" 
+                  AutoGenerateColumns="False" 
+                  CanUserAddRows="False" 
+                  CanUserDeleteRows="False" 
+                  EnableRowVirtualization="True" 
+                  EnableColumnVirtualization="True" 
+                  RowHeight="32" 
+                  AutomationProperties.Name="父级型号导入队列">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="原行号" Binding="{Binding SourceRowNumber}" Width="72"/>
                 <DataGridTextColumn Header="状态" Binding="{Binding StatusText}" Width="90"/>
@@ -40,6 +65,7 @@
                 <DataGridTextColumn Header="原因" Binding="{Binding Reason}" Width="400"/>
             </DataGrid.Columns>
         </DataGrid>
+        
         <DockPanel Grid.Row="4" Margin="0,12,0,0">
             <TextBlock Text="{Binding PageSummary}" VerticalAlignment="Center"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

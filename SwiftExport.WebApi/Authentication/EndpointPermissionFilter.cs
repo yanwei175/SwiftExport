@@ -157,6 +157,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductController.PullMasterAllAsync"] = PermissionKeys.ProductsProductEdit,
         ["ProductCategoryController.GetPaged"] = PermissionKeys.ProductsCategoryView,
         ["ProductAttributeController.BatchSaveAsync"] = PermissionKeys.ProductsCategoryEdit,
+        ["ProductAttributeController.BatchSaveDefinitionsAsync"] = PermissionKeys.ProductsCategoryEdit,
         ["ProductCategoryController.GetAll"] = PermissionKeys.ProductsCategoryView,
         ["ProductCategoryController.GetById"] = PermissionKeys.ProductsCategoryView,
         ["ProductCategoryController.Create"] = PermissionKeys.ProductsCategoryCreate,

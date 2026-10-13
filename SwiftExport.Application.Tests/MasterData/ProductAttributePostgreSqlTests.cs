@@ -15,10 +15,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
-/// <summary>产品标签的真实 PostgreSQL 用例验收；只在获批复制库运行，覆盖约束、原子性和分类父锁竞争。</summary>
+/// <summary>共享标签与分类继承的真实 PostgreSQL 验收；只在获批复制库运行，覆盖约束、原子性和分类、组锁竞争。</summary>
 [TestClass]
 [DoNotParallelize]
-public sealed class ProductAttributePostgreSqlTests
+public sealed partial class ProductAttributePostgreSqlTests
 {
     /// <summary>旧请求和明确清空必须在反序列化时保持不同含义。</summary>
     [TestMethod]
@@ -40,27 +40,29 @@ public sealed class ProductAttributePostgreSqlTests
         var group = await fixture.DefineAsync(scope);
         var update = new SaveProductAttributeDefinitionsRequest();
         update.GroupChanges.UpdateItems.Add(new() { Uid = group.Uid, Version = group.Version,
-            Data = new() { GroupCode = "INSTALLATION", GroupName = "安装方法", SelectionMode = ProductAttributeSelectionMode.Single, SortOrder = 3 } });
+            Data = new() { GroupCode = fixture.CodePrefix + "_INSTALLATION", GroupName = "安装方法", SelectionMode = ProductAttributeSelectionMode.Single, SortOrder = 3 } });
         var option = group.Options[0];
         update.OptionChanges.UpdateItems.Add(new() { Uid = option.Uid, Version = option.Version,
             Data = new() { AttributeGroupId = group.Uid, OptionCode = "TOP", OptionName = "吸顶安装", SortOrder = 4 } });
-        var saved = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, update);
+        var saved = await fixture.SaveAsync(scope, update);
         Assert.IsTrue(saved.Success, saved.Message);
-        Assert.AreEqual(2, saved.Data.Definitions.Groups.Single().Version);
-        Assert.AreEqual(2, saved.Data.Definitions.Groups.Single().Options.Single(row => row.Uid == option.Uid).Version);
-        Assert.AreEqual("安装方法", saved.Data.Definitions.Groups.Single().GroupName);
+        Assert.AreEqual(2, saved.Data.Definitions.Groups.Single(row => row.Uid == group.Uid).Version);
+        Assert.AreEqual(2, saved.Data.Definitions.Groups.Single(row => row.Uid == group.Uid).Options.Single(row => row.Uid == option.Uid).Version);
+        Assert.AreEqual("安装方法", saved.Data.Definitions.Groups.Single(row => row.Uid == group.Uid).GroupName);
         var all = await scope.Definitions.GetDefinitionsAsync(null);
         Assert.IsTrue(all.Success, all.Message); Assert.IsTrue(all.Data.Groups.Any(row => row.Uid == group.Uid));
         var deletion = new SaveProductAttributeDefinitionsRequest();
         deletion.GroupChanges.DeleteItems.Add(new() { Uid = group.Uid, Version = 2 });
-        var deleted = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, deletion);
-        Assert.IsTrue(deleted.Success, deleted.Message); Assert.HasCount(0, deleted.Data.Definitions.Groups);
+        var deleted = await fixture.SaveAsync(scope, deletion);
+        Assert.IsTrue(deleted.Success, deleted.Message); Assert.IsFalse(deleted.Data.Definitions.Groups.Any(row => row.Uid == group.Uid));
+        Assert.IsFalse(deleted.Data.Definitions.CategoryRelations.Any(row => row.AttributeGroupId == group.Uid));
         Assert.AreEqual(2, await scope.Session.Connection.ExecuteScalarAsync<int>("SELECT count(*) FROM public.product_attribute_option WHERE attribute_group_id=@Id AND is_deleted=TRUE", new { Id = group.Uid }));
         // 已软删除编码可复用，组没有选项也必须出现在快照中。
         var recreate = new SaveProductAttributeDefinitionsRequest();
-        recreate.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = "INSTALLATION", GroupName = "新空组" } });
-        var recreated = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, recreate);
-        Assert.IsTrue(recreated.Success, recreated.Message); Assert.HasCount(0, recreated.Data.Definitions.Groups.Single().Options);
+        recreate.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = fixture.CodePrefix + "_INSTALLATION", GroupName = "新空组" } });
+        var recreated = await fixture.SaveAsync(scope, recreate);
+        Assert.IsTrue(recreated.Success, recreated.Message);
+        Assert.HasCount(0, recreated.Data.Definitions.Groups.Single(row => row.Uid == recreated.Data.GroupResults.Items.Single().Uid).Options);
     }
 
     /// <summary>编码校验、错误归属和版本失败不会保存前序变更；真实编码索引负责额外比较语义。</summary>
@@ -77,18 +79,23 @@ public sealed class ProductAttributePostgreSqlTests
         var scope = fixture.NewScope();
         var group = await fixture.DefineAsync(scope);
         var request = new SaveProductAttributeDefinitionsRequest();
-        request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = scenario == "DuplicateGroup" ? "install" : "SIZE", GroupName = "尺寸" } });
-        if (scenario == "DuplicateOption") request.OptionChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = group.Uid, OptionCode = "ceiling", OptionName = "重复" } });
+        request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = scenario == "DuplicateGroup" ? group.GroupCode.ToLowerInvariant() : fixture.CodePrefix + "_SIZE", GroupName = "尺寸" } });
+        if (scenario == "DuplicateOption")
+        {
+            ProductAttributePostgreSqlFixture.TouchGroup(request, group);
+            request.OptionChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = group.Uid, OptionCode = "ceiling", OptionName = "重复" } });
+        }
         if (scenario == "WrongGroup") request.OptionChanges.UpdateItems.Add(new() { Uid = group.Options[0].Uid, Version = 1,
             Data = new() { AttributeGroupId = Guid.NewGuid(), OptionCode = "TOP", OptionName = "非法迁移" } });
         if (scenario == "WrongCategory")
         {
-            var other = await fixture.DefineAsync(scope, fixture.OtherCategory.Uid);
-            request.GroupChanges.UpdateItems.Add(new() { Uid = other.Uid, Version = 1, Data = new() { GroupCode = "OTHER", GroupName = "另一分类的组" } });
+            ProductAttributePostgreSqlFixture.TouchGroup(request, group);
+            request.CategoryChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = group.Uid, CategoryId = Guid.NewGuid() } });
         }
         if (scenario == "Version") request.GroupChanges.UpdateItems.Add(new() { Uid = group.Uid, Version = 2, Data = new() { GroupCode = "INSTALL", GroupName = "旧版本" } });
-        if (scenario == "DatabaseRollback") request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = "ＩＮＳＴＡＬＬ", GroupName = "数据库比较冲突" } });
-        var result = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, request);
+        if (scenario == "DatabaseRollback") request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(),
+            GroupCode = new string(group.GroupCode.Select(character => character is >= '!' and <= '~' ? (char)(character + 0xfee0) : character).ToArray()), GroupName = "数据库比较冲突" } });
+        var result = await fixture.SaveAsync(scope, request);
         Assert.IsFalse(result.Success);
         Assert.AreEqual(scenario == "Version" ? ServiceErrorCodes.VersionConflict : ServiceErrorCodes.Validation, result.Error.Code, result.Message);
         var snapshot = await scope.Definitions.GetDefinitionsAsync(fixture.Category.Uid);
@@ -146,7 +153,8 @@ public sealed class ProductAttributePostgreSqlTests
         if (scenario == "Deleted")
         {
             var remove = new SaveProductAttributeDefinitionsRequest(); remove.OptionChanges.DeleteItems.Add(new() { Uid = group.Options[0].Uid, Version = 1 });
-            Assert.IsTrue((await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, remove)).Success);
+            ProductAttributePostgreSqlFixture.TouchGroup(remove, group);
+            Assert.IsTrue((await fixture.SaveAsync(scope, remove)).Success);
         }
         request.SelectedOptionIds = scenario switch
         {
@@ -170,20 +178,24 @@ public sealed class ProductAttributePostgreSqlTests
     {
         await using var fixture = await ProductAttributePostgreSqlFixture.CreateAsync(); var scope = fixture.NewScope();
         var request = new SaveProductAttributeDefinitionsRequest(); var installId = Guid.NewGuid(); var sizeId = Guid.NewGuid();
-        request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = installId, GroupCode = "INSTALL", GroupName = "安装方式", SelectionMode = ProductAttributeSelectionMode.Multiple } });
-        request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = sizeId, GroupCode = "SIZE", GroupName = "尺寸", SelectionMode = ProductAttributeSelectionMode.Single } });
+        request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = installId, GroupCode = fixture.CodePrefix + "_INSTALL", GroupName = "安装方式", SelectionMode = ProductAttributeSelectionMode.Multiple } });
+        request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = sizeId, GroupCode = fixture.CodePrefix + "_SIZE", GroupName = "尺寸", SelectionMode = ProductAttributeSelectionMode.Single } });
+        request.CategoryChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = installId, CategoryId = fixture.Category.Uid } });
+        request.CategoryChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = sizeId, CategoryId = fixture.Category.Uid } });
         request.OptionChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = installId, OptionCode = "TOP", OptionName = "吸顶" } });
         request.OptionChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = installId, OptionCode = "WALL", OptionName = "挂墙" } });
         request.OptionChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = sizeId, OptionCode = "8", OptionName = "8寸" } });
         request.OptionChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = sizeId, OptionCode = "10", OptionName = "10寸" } });
-        var saved = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, request);
-        Assert.IsTrue(saved.Success, saved.Message); Assert.HasCount(2, saved.Data.Definitions.Groups);
+        var saved = await fixture.SaveAsync(scope, request);
+        Assert.IsTrue(saved.Success, saved.Message); Assert.HasCount(2, saved.Data.Definitions.Groups.Where(row => fixture.GroupIds.Contains(row.Uid)).ToArray());
         Assert.AreEqual(2, saved.Data.GroupResults.SuccessCount); Assert.AreEqual(4, saved.Data.OptionResults.SuccessCount);
-        foreach (var group in saved.Data.Definitions.Groups)
+        Assert.AreEqual(2, saved.Data.CategoryResults.SuccessCount);
+        foreach (var group in saved.Data.Definitions.Groups.Where(row => fixture.GroupIds.Contains(row.Uid)))
         {
             Assert.AreNotEqual(installId, group.Uid); Assert.AreNotEqual(sizeId, group.Uid); Assert.HasCount(2, group.Options);
             Assert.IsTrue(group.Options.All(option => option.AttributeGroupId == group.Uid));
-            CollectionAssert.AreEquivalent(group.GroupCode == "INSTALL" ? new[] { "吸顶", "挂墙" } : new[] { "8寸", "10寸" }, group.Options.Select(option => option.OptionName).ToArray());
+            CollectionAssert.AreEquivalent(group.GroupCode.EndsWith("_INSTALL", StringComparison.Ordinal) ? new[] { "吸顶", "挂墙" } : new[] { "8寸", "10寸" }, group.Options.Select(option => option.OptionName).ToArray());
+            Assert.IsTrue(saved.Data.Definitions.CategoryRelations.Any(row => row.AttributeGroupId == group.Uid && row.CategoryId == fixture.Category.Uid));
         }
     }
 
@@ -209,22 +221,23 @@ public sealed class ProductAttributePostgreSqlTests
         var detail = await fixture.DetailRequestAsync(scope); detail.SelectedOptionIds = group.Options.Select(row => row.Uid).ToList();
         Assert.IsTrue((await scope.Maintenance.SaveDetailAsync(detail)).Success);
         var remove = new SaveProductAttributeDefinitionsRequest(); remove.GroupChanges.DeleteItems.Add(new() { Uid = group.Uid, Version = 1 });
-        var blockedGroup = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, remove);
+        var blockedGroup = await fixture.SaveAsync(scope, remove);
         Assert.IsFalse(blockedGroup.Success); StringAssert.Contains(blockedGroup.Message, "1 个主型号");
         var removeOption = new SaveProductAttributeDefinitionsRequest(); removeOption.OptionChanges.DeleteItems.Add(new() { Uid = group.Options[0].Uid, Version = 1 });
-        Assert.IsFalse((await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, removeOption)).Success);
+        ProductAttributePostgreSqlFixture.TouchGroup(removeOption, group);
+        Assert.IsFalse((await fixture.SaveAsync(scope, removeOption)).Success);
         var single = new SaveProductAttributeDefinitionsRequest(); single.GroupChanges.UpdateItems.Add(new() { Uid = group.Uid, Version = 1,
             Data = new() { GroupCode = group.GroupCode, GroupName = group.GroupName, SelectionMode = ProductAttributeSelectionMode.Single } });
-        Assert.IsFalse((await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, single)).Success);
+        Assert.IsFalse((await fixture.SaveAsync(scope, single)).Success);
         // 无产品引用的分类仍有定义，单项删除不能绕过标签保护。
         await fixture.DefineAsync(scope, fixture.OtherCategory.Uid);
         var category = await scope.Categories.DeleteAsync(new() { Uid = fixture.OtherCategory.Uid, Version = 1 });
-        Assert.IsFalse(category.Success); StringAssert.Contains(category.Message, "标签定义");
+        Assert.IsFalse(category.Success); StringAssert.Contains(category.Message, "标签");
         detail = await fixture.DetailRequestAsync(scope); detail.SelectedOptionIds = [];
         Assert.IsTrue((await scope.Maintenance.SaveDetailAsync(detail)).Success);
-        Assert.IsTrue((await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, single)).Success);
+        Assert.IsTrue((await fixture.SaveAsync(scope, single)).Success);
         remove.GroupChanges.DeleteItems[0].Version = 2;
-        Assert.IsTrue((await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, remove)).Success);
+        Assert.IsTrue((await fixture.SaveAsync(scope, remove)).Success);
     }
 
     /// <summary>列表、快速归类和现有导入入口保持标签；删除主型号同时软删除关系。</summary>
@@ -256,12 +269,12 @@ public sealed class ProductAttributePostgreSqlTests
     {
         await using var fixture = await ProductAttributePostgreSqlFixture.CreateAsync(); var scope = fixture.NewScope();
         fixture.User.Admin = false;
-        var request = new SaveProductAttributeDefinitionsRequest(); request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = "A", GroupName = "无权新增" } });
-        var denied = await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, request);
+        var request = new SaveProductAttributeDefinitionsRequest(); request.GroupChanges.CreateItems.Add(new() { Data = new() { ClientUid = Guid.NewGuid(), GroupCode = fixture.CodePrefix, GroupName = "无权新增" } });
+        var denied = await fixture.SaveAsync(scope, request);
         Assert.AreEqual(ServiceErrorCodes.Forbidden, denied.Error.Code); Assert.IsNull(scope.Session.Transaction);
         Assert.IsTrue((await scope.Definitions.GetDefinitionsAsync(fixture.Category.Uid)).Success);
         fixture.User.Keys = [SwiftExport.Contracts.DTOs.Auth.PermissionKeys.ProductsCategoryEdit];
-        Assert.IsTrue((await scope.Definitions.BatchSaveAsync(fixture.Category.Uid, request)).Success);
+        Assert.IsTrue((await fixture.SaveAsync(scope, request)).Success);
     }
 
     /// <summary>关系和头部已经暂存后，中性产品数据库颜色组合冲突仍撤销整个聚合。</summary>
@@ -301,12 +314,20 @@ public sealed class ProductAttributePostgreSqlTests
             new { Uid = Guid.NewGuid(), Group = group.Uid }));
         Assert.AreEqual("23505", optionConflict.SqlState); Assert.AreEqual("ux_product_attribute_option_group_code", optionConflict.ConstraintName);
         var groupConflict = await Assert.ThrowsAsync<PostgresException>(() => scope.Session.Connection.ExecuteAsync(
-            "INSERT INTO public.product_attribute_group(uid,category_id,group_code,group_name,selection_mode) VALUES(@Uid,@Category,'install','数据库重复组',1)",
-            new { Uid = Guid.NewGuid(), Category = fixture.Category.Uid }));
-        Assert.AreEqual("23505", groupConflict.SqlState); Assert.AreEqual("ux_product_attribute_group_category_code", groupConflict.ConstraintName);
+            "INSERT INTO public.product_attribute_group(uid,group_code,group_name,selection_mode) VALUES(@Uid,@Code,'数据库重复组',1)",
+            new { Uid = Guid.NewGuid(), Code = group.GroupCode.ToLowerInvariant() }));
+        Assert.AreEqual("23505", groupConflict.SqlState); Assert.AreEqual("ux_product_attribute_group_code", groupConflict.ConstraintName);
+        var relationConflict = await Assert.ThrowsAsync<PostgresException>(() => scope.Session.Connection.ExecuteAsync(
+            "INSERT INTO public.product_category_attribute_group(uid,category_id,attribute_group_id) VALUES(@Uid,@Category,@Group)",
+            new { Uid = Guid.NewGuid(), Category = fixture.Category.Uid, Group = group.Uid }));
+        Assert.AreEqual("23505", relationConflict.SqlState); Assert.AreEqual("ux_product_category_attribute_group_category_group", relationConflict.ConstraintName);
+        var identityConflict = await Assert.ThrowsAsync<PostgresException>(() => scope.Session.Connection.ExecuteAsync(
+            "UPDATE public.product_category_attribute_group SET category_id=@Other WHERE category_id=@Category AND attribute_group_id=@Group",
+            new { Other = fixture.OtherCategory.Uid, Category = fixture.Category.Uid, Group = group.Uid }));
+        Assert.AreEqual("P3101", identityConflict.SqlState);
     }
 
-    /// <summary>分类父锁把删除与新增选择串行化：先删除使选择失败，先选择使删除失败。</summary>
+    /// <summary>组共享/更新锁把删除与新增选择串行化：先删除使选择失败，先选择使删除失败。</summary>
     [TestMethod]
     [DataRow(true)]
     [DataRow(false)]
@@ -317,12 +338,12 @@ public sealed class ProductAttributePostgreSqlTests
         var remove = new SaveProductAttributeDefinitionsRequest(); remove.GroupChanges.DeleteItems.Add(new() { Uid = group.Uid, Version = 1 });
         await using var owner = new NpgsqlConnection(fixture.ConnectionString); await owner.OpenAsync();
         await using var ownerTransaction = await owner.BeginTransactionAsync();
-        await owner.ExecuteAsync("SELECT uid FROM public.product_category WHERE uid=@Id FOR UPDATE", new { Id = fixture.Category.Uid }, ownerTransaction);
+        await owner.ExecuteAsync("SELECT uid FROM public.product_attribute_group WHERE uid=@Id FOR UPDATE", new { Id = group.Uid }, ownerTransaction);
         Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> deleteTask;
         Task<ServiceResult<SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses.SaveProductMasterDetailResponse>> saveTask;
         if (deletionFirst)
         {
-            deleteTask = deleteScope.Definitions.BatchSaveAsync(fixture.Category.Uid, remove);
+            deleteTask = fixture.SaveAsync(deleteScope, remove);
             await WaitForParentLockAsync(owner, ownerTransaction, deleteScope);
             saveTask = saveScope.Maintenance.SaveDetailAsync(request);
             await WaitForParentLockAsync(owner, ownerTransaction, saveScope);
@@ -331,7 +352,7 @@ public sealed class ProductAttributePostgreSqlTests
         {
             saveTask = saveScope.Maintenance.SaveDetailAsync(request);
             await WaitForParentLockAsync(owner, ownerTransaction, saveScope);
-            deleteTask = deleteScope.Definitions.BatchSaveAsync(fixture.Category.Uid, remove);
+            deleteTask = fixture.SaveAsync(deleteScope, remove);
             await WaitForParentLockAsync(owner, ownerTransaction, deleteScope);
         }
         Assert.IsFalse(deleteTask.IsCompleted); Assert.IsFalse(saveTask.IsCompleted);
@@ -351,6 +372,6 @@ public sealed class ProductAttributePostgreSqlTests
             if (await monitor.ExecuteScalarAsync<bool>("SELECT cardinality(pg_blocking_pids(@Pid))>0", new { Pid = pid }, transaction)) return;
             await Task.Delay(20);
         }
-        Assert.Fail("请求未进入预期分类父锁等待。");
+        Assert.Fail("请求未进入预期分类或组锁等待。");
     }
 }

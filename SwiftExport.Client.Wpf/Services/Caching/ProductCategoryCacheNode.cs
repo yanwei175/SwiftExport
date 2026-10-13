@@ -37,7 +37,7 @@ public sealed class ProductCategoryCacheNode
     /// <summary>获取分类显示名称。</summary>
     public string FakeName { get; }
 
-    /// <summary>获取包含祖先名称的完整分类路径。</summary>
+    /// <summary>获取由当前分类及祖先 FakeName 拼接的完整显示路径。</summary>
     public string CategoryPath { get; private set; } = string.Empty;
 
     /// <summary>获取同级排序号。</summary>

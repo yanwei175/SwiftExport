@@ -45,17 +45,20 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
     private readonly CacheObservableCollection<ProductAttributeGroupDto> _productAttributeGroups = [];
+    private readonly CacheObservableCollection<ProductCategoryAttributeGroupDto> _productAttributeCategoryRelations = [];
+    private IReadOnlyDictionary<Guid, Guid?> _categoryParents = new Dictionary<Guid, Guid?>();
+    private ProductAttributeDefinitionsDto _attributeSnapshot = new();
     private readonly CacheObservableCollection<SysDictTypeDto> _dictionaryTypes = [];
     private readonly CacheObservableCollection<SysDictDataDto> _dictionaryValues = [];
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly object _ensureSync = new();
     private readonly object _warehouseEnsureSync = new();
     private readonly object _attributeEnsureSync = new();
-    private readonly SemaphoreSlim _attributeRefreshGate = new(1, 1);
     private Task<CacheRefreshResult>? _ensureTask;
     private Task<CacheRefreshResult>? _warehouseEnsureTask;
     private Task<CacheRefreshResult>? _attributeEnsureTask;
-    private CancellationTokenSource? _attributeRefreshCancellation;
+    // 当前共享刷新门的唯一等待 owner，覆盖标签及其他基础资料；会话结束时不等待底层 API 晚到。
+    private CancellationTokenSource? _refreshCancellation;
     private volatile bool _attributesLoaded;
     private volatile bool _colorsLoaded;
     private volatile bool _customersLoaded;
@@ -100,6 +103,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
         ProductAttributeGroups = new ReadOnlyObservableCollection<ProductAttributeGroupDto>(_productAttributeGroups);
+        ProductAttributeCategoryRelations = new ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto>(_productAttributeCategoryRelations);
         DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>(_dictionaryTypes);
         DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
         _sessionService.SessionEnded += OnSessionEnded;
@@ -130,25 +134,40 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     public ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
 
     /// <inheritdoc />
-    public bool AreProductAttributesLoaded => _attributesLoaded;
+    public ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto> ProductAttributeCategoryRelations { get; }
+
+    /// <inheritdoc />
+    public bool AreProductAttributesLoaded => _attributesLoaded && _categoriesLoaded;
 
     /// <inheritdoc />
     public event EventHandler? ProductAttributesChanged;
 
     /// <inheritdoc />
-    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId) =>
-        ProductAttributeGroups.Where(group => group.CategoryId == categoryId).ToArray();
+    public ProductAttributeResolution ResolveProductAttributes(Guid categoryId)
+    {
+        if (!AreProductAttributesLoaded)
+            return new(false, "分类层级或标签定义尚未完整加载，请刷新标签后重试。", [], []);
+        return ProductAttributeInheritance.Resolve(categoryId, _categoryParents, _attributeSnapshot.Groups, _attributeSnapshot.CategoryRelations);
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId)
+    {
+        var result = ResolveProductAttributes(categoryId);
+        return result.Success ? result.Groups : throw new InvalidOperationException(result.Message);
+    }
 
     /// <inheritdoc />
     public IReadOnlyList<ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId) =>
-        ProductAttributeGroups.FirstOrDefault(group => group.Uid == groupId)?.Options.ToArray() ?? [];
+        _attributeSnapshot.Groups.FirstOrDefault(group => group.Uid == groupId)?.Options.ToArray() ?? [];
 
     /// <inheritdoc />
     public Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync()
     {
         lock (_attributeEnsureSync)
         {
-            if (_attributesLoaded)
+            if (_disposed) return Task.FromResult(CacheRefreshResult.Fail("缓存服务已经释放。"));
+            if (AreProductAttributesLoaded)
                 return Task.FromResult(CacheRefreshResult.Ok("分类标签缓存已经加载。"));
 
             if (_attributeEnsureTask is { IsCompleted: false })
@@ -163,7 +182,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     {
         // 请求在排队前记录会话身份，避免旧会话的排队刷新取得新会话身份后写入。
         var generation = Volatile.Read(ref _sessionGeneration);
-        await _attributeRefreshGate.WaitAsync();
+        await _refreshGate.WaitAsync();
         CancellationTokenSource? cancellation = null;
         try
         {
@@ -173,35 +192,29 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                     return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
 
                 cancellation = new CancellationTokenSource();
-                _attributeRefreshCancellation = cancellation;
+                _refreshCancellation = cancellation;
             }
 
             var token = cancellation.Token;
-            var result = await _apiCallRunner.RunAsync(
+            var definitionsTask = _apiCallRunner.RunAsync(
                 () => _productAttributeApi.GetDefinitionsAsync(token), token, "加载分类标签缓存失败");
-            if (!result.Success)
-                return CacheRefreshResult.Fail(result.Message);
-
-            // 成功的空集合有效，但缺少整个响应或子集合不能被当作清空定义。
-            if (result.Data?.Groups is null || result.Data.Groups.Any(group => group is null
-                || group.Options is null || group.Options.Any(option => option is null)))
-                return CacheRefreshResult.Fail("分类标签接口没有返回完整定义，请重试。");
-
-            var groups = result.Data.Groups.Select(group =>
-            {
-                var copy = group.Adapt<ProductAttributeGroupDto>();
-                copy.Options = copy.Options.OrderBy(option => option.SortOrder).ThenBy(option => option.Uid).ToList();
-                return copy;
-            }).OrderBy(group => group.SortOrder).ThenBy(group => group.Uid).ToArray();
+            var categoriesTask = LoadCategoriesAsync();
+            await Task.WhenAll(definitionsTask, categoriesTask).WaitAsync(token);
+            var definitions = await definitionsTask;
+            var categories = await categoriesTask;
+            if (!definitions.Success || !categories.Success)
+                return CacheRefreshResult.Fail(JoinFailureMessages(definitions.Success ? null : definitions.Message,
+                    categories.Success ? null : categories.Message));
+            if (!TryPrepareProductAttributes(definitions.Data, categories.Data, out var prepared, out var error))
+                return CacheRefreshResult.Fail(error);
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
                 if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                     return;
 
-                // 每组与其选项已经组装完整；集合只发布一次 Reset，订阅者看不到半个快照。
-                _attributesLoaded = true;
-                _productAttributeGroups.ReplaceAll(groups);
+                // 分类、组、值与直接关联全部准备完毕后发布，事件订阅者看到一致的适用范围。
+                PublishCategories(prepared!.Categories, prepared.Definitions);
                 applied = true;
                 ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
@@ -209,15 +222,19 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 ? CacheRefreshResult.Ok("分类标签缓存已更新。")
                 : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
         }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        {
+            return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
+        }
         finally
         {
             lock (_attributeEnsureSync)
             {
-                if (ReferenceEquals(_attributeRefreshCancellation, cancellation))
-                    _attributeRefreshCancellation = null;
+                if (ReferenceEquals(_refreshCancellation, cancellation))
+                    _refreshCancellation = null;
             }
             cancellation?.Dispose();
-            _attributeRefreshGate.Release();
+            _refreshGate.Release();
         }
     }
 
@@ -246,6 +263,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     {
         lock (_ensureSync)
         {
+            if (_disposed) return Task.FromResult(CacheRefreshResult.Fail("缓存服务已经释放。"));
             if (_colorsLoaded
                 && _customersLoaded
                 && _suppliersLoaded
@@ -270,11 +288,16 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshProductColorsAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
-            var result = await LoadColorsAsync();
+            cancellation = BeginRefreshCancellation(generation);
+            if (cancellation is null)
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次颜色缓存结果。");
+            var token = cancellation.Token;
+            var result = await LoadColorsAsync().WaitAsync(token);
             if (!result.Success)
             {
                 return CacheRefreshResult.Fail(result.Message);
@@ -283,7 +306,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
@@ -299,20 +322,24 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
             return CacheRefreshResult.Ok("产品颜色缓存已更新。");
         }
-        finally
-        {
-            _refreshGate.Release();
-        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次颜色缓存结果。"); }
+        finally { EndRefreshCancellation(cancellation); }
     }
 
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshCustomersAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
-            var result = await LoadCustomersAsync();
+            cancellation = BeginRefreshCancellation(generation);
+            if (cancellation is null)
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次客户缓存结果。");
+            var token = cancellation.Token;
+            var result = await LoadCustomersAsync(token).WaitAsync(token);
             if (!result.Success)
             {
                 return CacheRefreshResult.Fail(result.Message);
@@ -322,7 +349,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
@@ -335,20 +362,24 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 ? CacheRefreshResult.Ok("客户缓存已更新。")
                 : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次客户缓存结果。");
         }
-        finally
-        {
-            _refreshGate.Release();
-        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次客户缓存结果。"); }
+        finally { EndRefreshCancellation(cancellation); }
     }
 
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshSuppliersAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
-            var result = await LoadSuppliersAsync();
+            cancellation = BeginRefreshCancellation(generation);
+            if (cancellation is null)
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次供应商缓存结果。");
+            var token = cancellation.Token;
+            var result = await LoadSuppliersAsync(token).WaitAsync(token);
             if (!result.Success)
             {
                 return CacheRefreshResult.Fail(result.Message);
@@ -358,7 +389,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
@@ -371,10 +402,9 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 ? CacheRefreshResult.Ok("供应商缓存已更新。")
                 : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次供应商缓存结果。");
         }
-        finally
-        {
-            _refreshGate.Release();
-        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次供应商缓存结果。"); }
+        finally { EndRefreshCancellation(cancellation); }
     }
 
     /// <inheritdoc />
@@ -395,11 +425,16 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshWarehouseSitesAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
-            var result = await LoadWarehouseSitesAsync();
+            cancellation = BeginRefreshCancellation(generation);
+            if (cancellation is null)
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次仓库缓存结果。");
+            var token = cancellation.Token;
+            var result = await LoadWarehouseSitesAsync(token).WaitAsync(token);
             if (!result.Success)
                 return CacheRefreshResult.Fail(result.Message);
 
@@ -407,7 +442,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                     return;
 
                 _warehouseSites.ReplaceAll(warehouses);
@@ -418,39 +453,46 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 ? CacheRefreshResult.Ok("活动仓库缓存已更新。")
                 : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次仓库缓存结果。");
         }
-        finally
-        {
-            _refreshGate.Release();
-        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次仓库缓存结果。"); }
+        finally { EndRefreshCancellation(cancellation); }
     }
 
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshProductCategoriesAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
-            var result = await LoadCategoriesAsync();
+            lock (_attributeEnsureSync)
+            {
+                if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
+                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类缓存结果。");
+                cancellation = new CancellationTokenSource();
+                _refreshCancellation = cancellation;
+            }
+            var token = cancellation.Token;
+            var result = await LoadCategoriesAsync().WaitAsync(token);
             if (!result.Success)
             {
                 return CacheRefreshResult.Fail(result.Message);
             }
 
-            var tree = BuildCategoryTree(result.Data ?? []);
-            var categories = FlattenCategoryTree(tree).ToArray();
+            if (!TryPrepareCategoryRows(result.Data, out var categories, out var error))
+                return CacheRefreshResult.Fail(error);
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
 
-                _productCategoryTree.ReplaceAll(tree);
-                _productCategories.ReplaceAll(categories);
-                _categoriesLoaded = true;
+                PublishCategories(categories);
                 applied = true;
+                ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
             if (!applied)
             {
@@ -459,8 +501,13 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
             return CacheRefreshResult.Ok("产品分类缓存已更新。");
         }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类缓存结果。"); }
         finally
         {
+            lock (_attributeEnsureSync)
+                if (ReferenceEquals(_refreshCancellation, cancellation)) _refreshCancellation = null;
+            cancellation?.Dispose();
             _refreshGate.Release();
         }
     }
@@ -468,11 +515,16 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshCurrenciesAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
-            var result = await LoadCurrenciesAsync();
+            cancellation = BeginRefreshCancellation(generation);
+            if (cancellation is null)
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次币种缓存结果。");
+            var token = cancellation.Token;
+            var result = await LoadCurrenciesAsync().WaitAsync(token);
             if (!result.Success)
             {
                 return CacheRefreshResult.Fail(result.Message);
@@ -482,7 +534,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
@@ -495,22 +547,26 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 ? CacheRefreshResult.Ok("币种缓存已更新。")
                 : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次币种缓存结果。");
         }
-        finally
-        {
-            _refreshGate.Release();
-        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次币种缓存结果。"); }
+        finally { EndRefreshCancellation(cancellation); }
     }
 
     /// <inheritdoc />
     public async Task<CacheRefreshResult> RefreshDictionariesAsync()
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
+            cancellation = BeginRefreshCancellation(generation);
+            if (cancellation is null)
+                return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次字典缓存结果。");
+            var token = cancellation.Token;
             var typesTask = LoadDictionaryTypesAsync();
             var valuesTask = LoadDictionaryValuesAsync();
-            await Task.WhenAll(typesTask, valuesTask);
+            await Task.WhenAll(typesTask, valuesTask).WaitAsync(token);
 
             var typesResult = await typesTask;
             var valuesResult = await valuesTask;
@@ -526,7 +582,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
@@ -543,10 +599,9 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
             return CacheRefreshResult.Ok("字典类型和字典值缓存已更新。");
         }
-        finally
-        {
-            _refreshGate.Release();
-        }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次字典缓存结果。"); }
+        finally { EndRefreshCancellation(cancellation); }
     }
 
     /// <inheritdoc />
@@ -555,12 +610,14 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         Interlocked.Increment(ref _sessionGeneration);
         lock (_attributeEnsureSync)
         {
-            _attributeRefreshCancellation?.Cancel();
+            _refreshCancellation?.Cancel();
             _attributesLoaded = false;
             _attributeEnsureTask = null;
         }
         RunOnUiThread(() =>
         {
+            _categoryParents = new Dictionary<Guid, Guid?>();
+            _attributeSnapshot = new ProductAttributeDefinitionsDto();
             _productColors.ReplaceAll([]);
             _customers.ReplaceAll([]);
             _suppliers.ReplaceAll([]);
@@ -571,6 +628,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             _dictionaryTypes.ReplaceAll([]);
             _dictionaryValues.ReplaceAll([]);
             _productAttributeGroups.ReplaceAll([]);
+            _productAttributeCategoryRelations.ReplaceAll([]);
             ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
         });
 
@@ -592,7 +650,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         }
     }
 
-    /// <summary>解除会话订阅，并取消标签请求；已发出的旧响应仍受会话代际和释放状态保护。</summary>
+    /// <summary>解除会话订阅并取消当前刷新等待；忽略取消的底层响应仍受代际与释放状态保护。</summary>
     public void Dispose()
     {
         if (_disposed)
@@ -603,42 +661,78 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         _disposed = true;
         _sessionService.SessionEnded -= OnSessionEnded;
         lock (_attributeEnsureSync)
-            _attributeRefreshCancellation?.Cancel();
-        _refreshGate.Dispose();
+            _refreshCancellation?.Cancel();
+        // 排队或忽略取消的请求仍会在 finally 释放信号量；此托管对象交给 GC，避免释放期间 Dispose 竞争。
     }
 
-    /// <summary>基础资料与标签使用独立发布边界，标签失败不能将其他资料加载结果降为失败。</summary>
+    /// <summary>当前刷新已取得共享门后登记唯一等待 owner；旧会话排队请求不发出网络调用。</summary>
+    private CancellationTokenSource? BeginRefreshCancellation(long generation)
+    {
+        lock (_attributeEnsureSync)
+        {
+            if (_disposed || generation != Volatile.Read(ref _sessionGeneration)) return null;
+            var cancellation = new CancellationTokenSource();
+            _refreshCancellation = cancellation;
+            return cancellation;
+        }
+    }
+
+    /// <summary>只清理当前请求拥有的取消源，并释放共享门；底层晚到响应不会再次进入发布流程。</summary>
+    private void EndRefreshCancellation(CancellationTokenSource? cancellation)
+    {
+        lock (_attributeEnsureSync)
+            if (ReferenceEquals(_refreshCancellation, cancellation)) _refreshCancellation = null;
+        cancellation?.Dispose();
+        _refreshGate.Release();
+    }
+
+    /// <summary>首次加载复用同轮分类请求；其他基础资料已完整加载时只重试标签。</summary>
     private Task<CacheRefreshResult> EnsureLoadedCoreAsync() => RefreshWithAttributesAsync(forceRefresh: false);
 
     /// <summary>合并首次使用入口，并在标签失败时保持基础资料的独立成功状态。</summary>
     private async Task<CacheRefreshResult> RefreshWithAttributesAsync(bool forceRefresh)
     {
-        var attributesTask = forceRefresh ? RefreshProductAttributesAsync() : EnsureProductAttributesLoadedAsync();
-        var baseTask = !forceRefresh && _colorsLoaded && _customersLoaded && _suppliersLoaded
-            && _categoriesLoaded && _currenciesLoaded && _dictionariesLoaded
-            ? Task.FromResult(CacheRefreshResult.Ok("基础资料缓存已经加载。"))
-            : RefreshAllCoreAsync();
-        await Task.WhenAll(baseTask, attributesTask);
-        var result = await baseTask;
-        var attributes = await attributesTask;
-        return result.Success && !attributes.Success
-            ? CacheRefreshResult.Ok($"{result.Message} 分类标签缓存未更新，请在标签区域重试。")
-            : result;
+        var generation = Volatile.Read(ref _sessionGeneration);
+        if (forceRefresh || !_colorsLoaded || !_customersLoaded || !_suppliersLoaded
+            || !_categoriesLoaded || !_currenciesLoaded || !_dictionariesLoaded)
+            return await RefreshAllCoreAsync(forceRefresh);
+        var attributes = await EnsureProductAttributesLoadedAsync();
+        if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
+            return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
+        return CacheRefreshResult.Ok(attributes.Success ? "基础资料和分类标签缓存已经加载。"
+            : "基础资料缓存已经加载。分类标签缓存未更新，请在标签区域重试。");
     }
 
-    private async Task<CacheRefreshResult> RefreshAllCoreAsync()
+    /// <summary>同一刷新门内并行读取网络资料；分类与标签成对发布，其他基础资料保持独立失败边界。</summary>
+    private async Task<CacheRefreshResult> RefreshAllCoreAsync(bool forceAttributes)
     {
+        var generation = Volatile.Read(ref _sessionGeneration);
         await _refreshGate.WaitAsync();
+        CancellationTokenSource? cancellation = null;
         try
         {
-            var generation = Volatile.Read(ref _sessionGeneration);
+            lock (_attributeEnsureSync)
+            {
+                if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
+                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
+                cancellation = new CancellationTokenSource();
+                _refreshCancellation = cancellation;
+            }
+            var token = cancellation.Token;
             var colorsTask = LoadColorsAsync();
-            var customersTask = LoadCustomersAsync();
-            var suppliersTask = LoadSuppliersAsync();
+            var customersTask = LoadCustomersAsync(token);
+            var suppliersTask = LoadSuppliersAsync(token);
             var categoriesTask = LoadCategoriesAsync();
             var currenciesTask = LoadCurrenciesAsync();
             var dictionaryTypesTask = LoadDictionaryTypesAsync();
             var dictionaryValuesTask = LoadDictionaryValuesAsync();
+            var definitionsTask = forceAttributes || !AreProductAttributesLoaded
+                ? _apiCallRunner.RunAsync(() => _productAttributeApi.GetDefinitionsAsync(token), token, "加载分类标签缓存失败")
+                : Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto
+                {
+                    Groups = ProductAttributeGroups.ToList(),
+                    CategoryRelations = ProductAttributeCategoryRelations.ToList()
+                }));
             await Task.WhenAll(
                 colorsTask,
                 customersTask,
@@ -646,7 +740,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 categoriesTask,
                 currenciesTask,
                 dictionaryTypesTask,
-                dictionaryValuesTask);
+                dictionaryValuesTask,
+                definitionsTask).WaitAsync(token);
 
             var colorsResult = await colorsTask;
             var customersResult = await customersTask;
@@ -655,26 +750,24 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var currenciesResult = await currenciesTask;
             var dictionaryTypesResult = await dictionaryTypesTask;
             var dictionaryValuesResult = await dictionaryValuesTask;
-            if (!colorsResult.Success
-                || !customersResult.Success
-                || !suppliersResult.Success
-                || !categoriesResult.Success
-                || !currenciesResult.Success
-                || !dictionaryTypesResult.Success
-                || !dictionaryValuesResult.Success)
-            {
+            var definitionsResult = await definitionsTask;
+            var categoriesValid = categoriesResult.Success
+                && TryPrepareCategoryRows(categoriesResult.Data, out _, out _);
+            PreparedProductAttributes? prepared = null;
+            var attributesValid = categoriesValid && definitionsResult.Success
+                && TryPrepareProductAttributes(definitionsResult.Data, categoriesResult.Data, out prepared, out _);
+            var baseValid = colorsResult.Success && customersResult.Success && suppliersResult.Success
+                && categoriesValid && currenciesResult.Success && dictionaryTypesResult.Success && dictionaryValuesResult.Success;
+            if (!baseValid && !attributesValid)
                 return CacheRefreshResult.Fail(JoinFailureMessages(
                     colorsResult.Success ? null : colorsResult.Message,
                     customersResult.Success ? null : customersResult.Message,
                     suppliersResult.Success ? null : suppliersResult.Message,
-                    categoriesResult.Success ? null : categoriesResult.Message,
+                    categoriesValid ? null : categoriesResult.Message ?? "分类接口没有返回完整快照。",
                     currenciesResult.Success ? null : currenciesResult.Message,
                     dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
-                    dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message));
-            }
-
-            var categoryTree = BuildCategoryTree(categoriesResult.Data ?? []);
-            var categories = FlattenCategoryTree(categoryTree).ToArray();
+                    dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message,
+                    definitionsResult.Success ? null : definitionsResult.Message));
             var customers = OrderCustomers(customersResult.Data ?? []).ToArray();
             var suppliers = OrderSuppliers(suppliersResult.Data ?? []).ToArray();
             var currencies = OrderCurrencies(currenciesResult.Data ?? []).ToArray();
@@ -683,39 +776,131 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
-                if (generation != Volatile.Read(ref _sessionGeneration))
+                if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                 {
                     return;
                 }
 
-                _productColors.ReplaceAll(colorsResult.Data ?? []);
-                _customers.ReplaceAll(customers);
-                _suppliers.ReplaceAll(suppliers);
-                _currencies.ReplaceAll(currencies);
-                _productCategoryTree.ReplaceAll(categoryTree);
-                _productCategories.ReplaceAll(categories);
-                _dictionaryTypes.ReplaceAll(dictionaryTypes);
-                _dictionaryValues.ReplaceAll(dictionaryValues);
-                _colorsLoaded = true;
-                _customersLoaded = true;
-                _suppliersLoaded = true;
-                _currenciesLoaded = true;
-                _categoriesLoaded = true;
-                _dictionariesLoaded = true;
+                if (baseValid)
+                {
+                    _productColors.ReplaceAll(colorsResult.Data ?? []);
+                    _customers.ReplaceAll(customers);
+                    _suppliers.ReplaceAll(suppliers);
+                    _currencies.ReplaceAll(currencies);
+                    _dictionaryTypes.ReplaceAll(dictionaryTypes);
+                    _dictionaryValues.ReplaceAll(dictionaryValues);
+                    _colorsLoaded = true;
+                    _customersLoaded = true;
+                    _suppliersLoaded = true;
+                    _currenciesLoaded = true;
+                    _dictionariesLoaded = true;
+                }
+                if (baseValid || attributesValid)
+                    PublishCategories(prepared?.Categories ?? categoriesResult.Data!.Where(row => !row.IsDeleted).Select(row => row.Adapt<ProductCategoryDto>()).ToArray(),
+                        attributesValid ? prepared!.Definitions : null);
                 applied = true;
+                ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
             if (!applied)
             {
                 return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
             }
 
-            return CacheRefreshResult.Ok("产品颜色、客户、供应商、产品分类、币种和字典缓存已更新。");
+            if (!baseValid)
+                return CacheRefreshResult.Fail(JoinFailureMessages(
+                    colorsResult.Success ? null : colorsResult.Message,
+                    customersResult.Success ? null : customersResult.Message,
+                    suppliersResult.Success ? null : suppliersResult.Message,
+                    currenciesResult.Success ? null : currenciesResult.Message,
+                    dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
+                    dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message));
+            return CacheRefreshResult.Ok(attributesValid
+                ? "产品颜色、客户、供应商、分类标签、币种和字典缓存已更新。"
+                : "基础资料缓存已更新。分类标签缓存未更新，请在标签区域重试。");
         }
+        catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
+        { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。"); }
         finally
         {
+            lock (_attributeEnsureSync)
+                if (ReferenceEquals(_refreshCancellation, cancellation)) _refreshCancellation = null;
+            cancellation?.Dispose();
             _refreshGate.Release();
         }
     }
+
+    /// <summary>响应必须完整且身份关系一致；成功空定义有效，缺失集合或孤立关联不发布。</summary>
+    private static bool TryPrepareProductAttributes(ProductAttributeDefinitionsDto? definitions, List<ProductCategoryDto>? categories,
+        out PreparedProductAttributes? prepared, out string error)
+    {
+        prepared = null;
+        error = "分类标签接口没有返回完整定义，请重试。";
+        if (!TryPrepareCategoryRows(categories, out var categoryRows, out error)) return false;
+        if (definitions is null || definitions.CategoryId != Guid.Empty || definitions.Groups is null || definitions.CategoryRelations is null
+            || definitions.Groups.Any(group => group is null || group.Uid == Guid.Empty || group.IsDeleted || group.Version <= 0 || group.Options is null)
+            || definitions.CategoryRelations.Any(row => row is null || row.Uid == Guid.Empty || row.IsDeleted || row.Version <= 0)
+            || definitions.Groups.Select(row => row.Uid).Distinct().Count() != definitions.Groups.Count)
+        {
+            error = "分类标签接口没有返回完整定义，请重试。";
+            return false;
+        }
+        var groupIds = definitions.Groups.Select(row => row.Uid).ToHashSet();
+        var categoryIds = categoryRows.Select(row => row.Uid).ToHashSet();
+        var options = definitions.Groups.SelectMany(group => group.Options).ToArray();
+        if (definitions.Groups.Any(group => group.Options.Any(option => option is null || option.Uid == Guid.Empty || option.IsDeleted
+                || option.Version <= 0 || option.AttributeGroupId != group.Uid))
+            || options.Select(row => row.Uid).Distinct().Count() != options.Length
+            || definitions.CategoryRelations.Any(row => !groupIds.Contains(row.AttributeGroupId) || !categoryIds.Contains(row.CategoryId))
+            || definitions.CategoryRelations.Select(row => row.Uid).Distinct().Count() != definitions.CategoryRelations.Count
+            || definitions.CategoryRelations.Select(row => (row.CategoryId, row.AttributeGroupId)).Distinct().Count() != definitions.CategoryRelations.Count)
+        {
+            error = "分类与标签定义的关联不完整，请刷新标签后重试。";
+            return false;
+        }
+        var copy = definitions.Adapt<ProductAttributeDefinitionsDto>();
+        copy.Groups = copy.Groups.OrderBy(group => group.SortOrder).ThenBy(group => group.Uid).ToList();
+        foreach (var group in copy.Groups)
+            group.Options = group.Options.OrderBy(option => option.SortOrder).ThenBy(option => option.Uid).ToList();
+        copy.CategoryRelations = copy.CategoryRelations.OrderBy(row => row.CategoryId).ThenBy(row => row.AttributeGroupId).ThenBy(row => row.Uid).ToList();
+        prepared = new PreparedProductAttributes(categoryRows, copy);
+        return true;
+    }
+
+    /// <summary>保留原始有效父链，视觉树仍可显示异常节点，标签解析另外明确拒绝断链和循环。</summary>
+    private static bool TryPrepareCategoryRows(List<ProductCategoryDto>? categories, out ProductCategoryDto[] rows, out string error)
+    {
+        rows = [];
+        error = "产品分类接口没有返回完整快照，请重试。";
+        if (categories is null || categories.Any(row => row is null || row.Uid == Guid.Empty)
+            || categories.Select(row => row.Uid).Distinct().Count() != categories.Count) return false;
+        rows = categories.Where(row => !row.IsDeleted).Select(row => row.Adapt<ProductCategoryDto>()).ToArray();
+        error = string.Empty;
+        return true;
+    }
+
+    /// <summary>先接纳用于解析的完整快照再发集合通知；成对刷新时任何订阅者都不会读到半套适用范围。</summary>
+    private void PublishCategories(ProductCategoryDto[] categories, ProductAttributeDefinitionsDto? definitions = null)
+    {
+        var tree = BuildCategoryTree(categories);
+        var flat = FlattenCategoryTree(tree).ToArray();
+        _categoryParents = categories.ToDictionary(row => row.Uid, row => row.ParentId);
+        _categoriesLoaded = true;
+        if (definitions is not null)
+        {
+            _attributeSnapshot = definitions;
+            _attributesLoaded = true;
+        }
+        _productCategoryTree.ReplaceAll(tree);
+        _productCategories.ReplaceAll(flat);
+        if (definitions is not null)
+        {
+            _productAttributeGroups.ReplaceAll(definitions.Groups);
+            _productAttributeCategoryRelations.ReplaceAll(definitions.CategoryRelations);
+        }
+    }
+
+    /// <summary>仅在所有网络响应通过完整性校验后交给 UI 发布，不承载编辑状态。</summary>
+    private sealed record PreparedProductAttributes(ProductCategoryDto[] Categories, ProductAttributeDefinitionsDto Definitions);
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductColorDto>>> LoadColorsAsync() =>
         _apiCallRunner.RunAsync(() => _productColorApi.GetAllAsync(), "加载产品颜色缓存失败");
@@ -723,37 +908,37 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     /// <summary>
     /// 逐页读取当前用户可见的全部客户，所有分页成功后才返回完整快照。
     /// </summary>
-    private Task<ServiceResult<IReadOnlyList<CustomerDto>>> LoadCustomersAsync() =>
+    private Task<ServiceResult<IReadOnlyList<CustomerDto>>> LoadCustomersAsync(CancellationToken cancellationToken = default) =>
         LoadAllPagesAsync(
             (pageIndex, pageSize) => _customerApi.GetPagedAsync(new CustomerSearchRequest
             {
                 PageIndex = pageIndex,
                 PageSize = pageSize,
             }),
-            "加载客户缓存失败");
+            "加载客户缓存失败", cancellationToken);
 
     /// <summary>
     /// 逐页读取当前用户可见的全部供应商，所有分页成功后才返回完整快照。
     /// </summary>
-    private Task<ServiceResult<IReadOnlyList<SupplierDto>>> LoadSuppliersAsync() =>
+    private Task<ServiceResult<IReadOnlyList<SupplierDto>>> LoadSuppliersAsync(CancellationToken cancellationToken = default) =>
         LoadAllPagesAsync(
             (pageIndex, pageSize) => _supplierApi.GetPagedAsync(new SupplierSearchRequest
             {
                 PageIndex = pageIndex,
                 PageSize = pageSize,
             }),
-            "加载供应商缓存失败");
+            "加载供应商缓存失败", cancellationToken);
 
     /// <summary>逐页读取当前用户可见的全部活动仓库，完整成功后才允许发布快照。</summary>
-    private Task<ServiceResult<IReadOnlyList<WarehouseSitePickerDto>>> LoadWarehouseSitesAsync() =>
+    private Task<ServiceResult<IReadOnlyList<WarehouseSitePickerDto>>> LoadWarehouseSitesAsync(CancellationToken cancellationToken = default) =>
         LoadAllPagesAsync(
             (pageIndex, pageSize) => _warehouseSiteApi.GetWarehousePickerPagedAsync(new PagedRequestBase
             {
                 PageIndex = pageIndex,
                 PageSize = pageSize,
                 Keyword = string.Empty
-            }),
-            "加载活动仓库缓存失败");
+            }, cancellationToken),
+            "加载活动仓库缓存失败", cancellationToken);
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductCategoryDto>>> LoadCategoriesAsync() =>
         _apiCallRunner.RunAsync(() => _productCategoryApi.GetAllAsync(), "加载产品分类缓存失败");
@@ -768,19 +953,21 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         _apiCallRunner.RunAsync(() => _dictDataApi.GetAllAsync(), "加载字典值缓存失败");
 
     /// <summary>
-    /// 按分页契约组装完整快照；服务端提前返回空页时按失败处理，避免发布残缺缓存。
+    /// 按分页契约组装完整快照；会话取消后停止后续分页，提前空页按失败处理，避免残缺缓存。
     /// </summary>
     private async Task<ServiceResult<IReadOnlyList<T>>> LoadAllPagesAsync<T>(
         Func<int, int, Task<ServiceResult<PagedResponseBase<T>>>> loadPage,
-        string failureMessage)
+        string failureMessage, CancellationToken cancellationToken = default)
     {
         var items = new List<T>();
         var pageIndex = 1;
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var result = await _apiCallRunner.RunAsync(
                 () => loadPage(pageIndex, MasterDataPageSize),
-                failureMessage);
+                cancellationToken, failureMessage);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!result.Success)
             {
                 return ServiceResult<IReadOnlyList<T>>.Fail(result.Message);
@@ -885,6 +1072,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         return roots;
     }
 
+    /// <summary>递归以 FakeName 生成完整分类显示路径，避免英文名称过长。</summary>
     private static void ApplyCategoryPaths(
         IEnumerable<ProductCategoryCacheNode> nodes,
         string parentPath)
@@ -892,8 +1080,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         foreach (var node in nodes)
         {
             var path = string.IsNullOrWhiteSpace(parentPath)
-                ? node.CategoryName
-                : $"{parentPath} / {node.CategoryName}";
+                ? node.FakeName
+                : $"{parentPath} / {node.FakeName}";
             node.SetCategoryPath(path);
             ApplyCategoryPaths(node.Children, path);
         }

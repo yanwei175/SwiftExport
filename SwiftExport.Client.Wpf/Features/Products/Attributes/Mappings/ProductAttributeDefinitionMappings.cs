@@ -1,8 +1,8 @@
 using Mapster;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
-using SwiftExportClient.Features.Products.Categories.Models;
+using SwiftExportClient.Features.Products.Attributes.Models;
 
-namespace SwiftExportClient.Features.Products.Categories.Mappings;
+namespace SwiftExportClient.Features.Products.Attributes.Mappings;
 
 /// <summary>集中定义标签维护 DTO、私有行模型和保存字段之间的结构映射。</summary>
 public sealed class ProductAttributeDefinitionMappings : IRegister

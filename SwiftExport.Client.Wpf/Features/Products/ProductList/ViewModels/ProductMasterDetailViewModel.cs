@@ -201,6 +201,15 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
                 _messages.ShowWarning("主型号未保存", "编辑权限已收回，本地草稿已保留。");
                 return;
             }
+            // 确认等待期间缓存可能更新或会话被清理；重验标签，失败快照只能发送 null 保持协议。
+            var tagError = Tags.ValidateSelection(Header.CategoryId);
+            if (tagError is not null)
+            {
+                ValidationSummary = tagError;
+                _messages.ShowWarning("主型号未保存", tagError);
+                return;
+            }
+            request.SelectedOptionIds = Tags.GetSelectedOptionIds();
             request.UpdateProductDescriptions = selection.UpdateProductDescriptions;
             request.UpdateProductDefaultSupplier = selection.UpdateProductDefaultSupplier;
             var result = await _runner.RunAsync(() => _api.SaveDetailAsync(request), "保存主型号详情失败");
@@ -241,6 +250,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         SelectedCategory = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == Header.CategoryId);
         Neutrals.RejectChanges();
         Tags.RejectChanges();
+        RefreshTagCandidates();
         SelectedNeutral = Neutrals.Items.FirstOrDefault();
         NotifyDocumentState();
     }
@@ -280,9 +290,10 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
             return;
         }
         SelectedCategory = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == Header.CategoryId);
+        RefreshTagCandidates();
     }
 
-    /// <summary>分类候选确认后处理旧标签；取消时恢复原分类与选择，确认后清空本地旧标签。</summary>
+    /// <summary>分类候选确认后保留共同适用标签，仅确认清除不再适用项；取消恢复原分类和完整选择。</summary>
     [RelayCommand(CanExecute = nameof(CanChangeCategory))]
     private async Task CommitCategoryAsync()
     {
@@ -303,16 +314,33 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         IsCategoryChangePending = true;
         try
         {
-            var confirmed = !Tags.HasSelections || await _dialogs.ConfirmAsync("更换产品分类", "更换分类将清除当前已选标签，可在新分类重新选择，整页保存后生效。是否继续？", "清除并更换");
+            var resolution = ResolveTagDefinitions(categoryId);
+            if (!resolution.Success && Tags.HasSelections)
+            {
+                SelectedCategory = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == previousId);
+                _messages.ShowWarning("无法更换产品分类", $"{resolution.Message} 当前标签已保留，请刷新标签后重试。");
+                return;
+            }
+            var inapplicableIds = resolution.Success ? Tags.GetInapplicableOptionIds(resolution) : [];
+            var confirmed = inapplicableIds.Count == 0 || await _dialogs.ConfirmAsync("更换产品分类",
+                $"有 {inapplicableIds.Count} 个已选标签在目标分类不再适用。确认后仅清除这些标签，其余标签保留，整页保存后生效。是否继续？", "清除失效标签并更换");
             if (_disposed) return;
             if (!confirmed || !CanWrite)
             {
                 SelectedCategory = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == previousId);
                 return;
             }
+            // 弹窗等待后重新解析，适用范围变化时请用户重新确认，不能扩大原来同意的清除范围。
+            var latest = ResolveTagDefinitions(categoryId);
+            if (Tags.HasSelections && (!latest.Success || !inapplicableIds.SequenceEqual(Tags.GetInapplicableOptionIds(latest))))
+            {
+                SelectedCategory = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == previousId);
+                _messages.ShowWarning("分类标签已更新", "标签适用范围在确认期间发生变化，当前分类和选择已保留，请重新选择分类并核对。");
+                return;
+            }
             Header.CategoryId = categoryId;
             Header.CategoryName = categoryName;
-            Tags.ChangeCategory(categoryId);
+            Tags.ChangeCategory(categoryId, latest);
             SelectedCategory = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == categoryId) ??
                 (SelectedCategory?.Uid == categoryId ? SelectedCategory : null);
         }
@@ -395,6 +423,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         Header.MarkAsAdded();
         Neutrals.Clear();
         Tags.Load(Header.CategoryId, [], []);
+        RefreshTagCandidates();
         AddNeutral();
         StatusText = "请维护主型号头部和中性产品。";
         NotifyDocumentState();
@@ -462,8 +491,13 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
     private void RefreshTagCandidates()
     {
         if (_cache is null) return;
-        Tags.RefreshDefinitions(_cache.ProductAttributeGroups, _cache.AreProductAttributesLoaded);
+        Tags.RefreshDefinitions(ResolveTagDefinitions(Header.CategoryId));
     }
+
+    /// <summary>未分类表示不能选标签的正常空范围；非空分类必须使用缓存的完整祖先解析。</summary>
+    private ProductAttributeResolution ResolveTagDefinitions(Guid categoryId) => categoryId == Guid.Empty
+        ? new(true, "请先选择产品分类。", [], [])
+        : _cache?.ResolveProductAttributes(categoryId) ?? new(false, "标签定义尚未加载，请刷新标签。", [], []);
     /// <summary>明细属性、增删或回滚变化时同步主图预览及文档状态。</summary>
     private void OnNeutralListStateChanged(object? sender, ListStateChangedEventArgs<ProductNeutralLineModel> e)
     {

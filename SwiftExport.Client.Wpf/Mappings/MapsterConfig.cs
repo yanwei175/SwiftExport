@@ -38,7 +38,7 @@ public sealed class MapsterConfig : IRegister
         new SwiftExportClient.Features.Inventory.Inbounds.Mappings.InboundManagerMappings().Register(config);
         new SwiftExportClient.Features.Inventory.Outbounds.Mappings.OutboundManagerMappings().Register(config);
         new SwiftExportClient.Features.Products.Bom.Mappings.BomManagementMappings().Register(config);
-        new SwiftExportClient.Features.Products.Categories.Mappings.ProductAttributeDefinitionMappings().Register(config);
+        new SwiftExportClient.Features.Products.Attributes.Mappings.ProductAttributeDefinitionMappings().Register(config);
         new SwiftExportClient.Features.QualityControl.FlowManagement.Mappings.FlowMappings().Register(config);
         config.NewConfig<SourceDemandCandidateGroupDto, SourceDemandCandidateGroupModel>()
             .Map(dest => dest.SourceType, src => src.SourceType ?? string.Empty)

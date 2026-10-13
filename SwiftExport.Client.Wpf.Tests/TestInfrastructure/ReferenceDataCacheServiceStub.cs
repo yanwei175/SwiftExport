@@ -18,6 +18,10 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     private readonly ObservableCollection<SupplierDto> _suppliers;
     private readonly ObservableCollection<WarehouseSitePickerDto> _warehouseSites;
     private readonly ObservableCollection<ProductAttributeGroupDto> _productAttributeGroups;
+    private readonly ObservableCollection<ProductCategoryAttributeGroupDto> _productAttributeCategoryRelations;
+    private readonly ObservableCollection<ProductCategoryCacheNode> _productCategories = [];
+    private readonly ObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
+    private IReadOnlyDictionary<Guid, Guid?> _categoryParents = new Dictionary<Guid, Guid?>();
     private readonly CacheRefreshResult _ensureResult;
     private readonly CacheRefreshResult _supplierRefreshResult;
     private readonly CacheRefreshResult _warehouseRefreshResult;
@@ -34,13 +38,16 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         bool warehouseRefreshSuccess = true,
         string warehouseRefreshMessage = "测试仓库缓存已加载。",
         IEnumerable<CustomerDto>? customers = null,
-        IEnumerable<ProductAttributeGroupDto>? productAttributeGroups = null)
+        IEnumerable<ProductAttributeGroupDto>? productAttributeGroups = null,
+        IEnumerable<ProductCategoryAttributeGroupDto>? productAttributeCategoryRelations = null,
+        IEnumerable<ProductCategoryDto>? productCategories = null)
     {
         _dictionaryValues = new ObservableCollection<SysDictDataDto>(dictionaryValues ?? []);
         _customers = new ObservableCollection<CustomerDto>(customers ?? []);
         _suppliers = new ObservableCollection<SupplierDto>(suppliers ?? []);
         _warehouseSites = new ObservableCollection<WarehouseSitePickerDto>(warehouseSites ?? []);
         _productAttributeGroups = new ObservableCollection<ProductAttributeGroupDto>(productAttributeGroups ?? []);
+        _productAttributeCategoryRelations = new ObservableCollection<ProductCategoryAttributeGroupDto>(productAttributeCategoryRelations ?? []);
         _ensureResult = CreateRefreshResult(ensureSuccess, ensureMessage);
         _supplierRefreshResult = CreateRefreshResult(supplierRefreshSuccess, supplierRefreshMessage);
         _warehouseRefreshResult = CreateRefreshResult(warehouseRefreshSuccess, warehouseRefreshMessage);
@@ -49,11 +56,13 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         Suppliers = new ReadOnlyObservableCollection<SupplierDto>(_suppliers);
         WarehouseSites = new ReadOnlyObservableCollection<WarehouseSitePickerDto>(_warehouseSites);
         ProductColors = new ReadOnlyObservableCollection<ProductColorDto>([]);
-        ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
-        ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>([]);
+        ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
+        ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
         ProductAttributeGroups = new ReadOnlyObservableCollection<ProductAttributeGroupDto>(_productAttributeGroups);
+        ProductAttributeCategoryRelations = new ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto>(_productAttributeCategoryRelations);
         DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>([]);
         DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
+        SetProductCategoriesCore(productCategories ?? []);
     }
 
     public ReadOnlyObservableCollection<ProductColorDto> ProductColors { get; }
@@ -66,6 +75,8 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     /// <inheritdoc />
     public ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
     /// <inheritdoc />
+    public ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto> ProductAttributeCategoryRelations { get; }
+    /// <inheritdoc />
     public bool AreProductAttributesLoaded { get; private set; } = true;
     /// <inheritdoc />
     public event EventHandler? ProductAttributesChanged;
@@ -76,8 +87,15 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     /// <summary>记录标签独立刷新次数。</summary>
     public int RefreshProductAttributesCallCount { get; private set; }
     /// <inheritdoc />
-    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId) =>
-        ProductAttributeGroups.Where(group => group.CategoryId == categoryId).ToArray();
+    public ProductAttributeResolution ResolveProductAttributes(Guid categoryId) => AreProductAttributesLoaded
+        ? ProductAttributeInheritance.Resolve(categoryId, _categoryParents, ProductAttributeGroups, ProductAttributeCategoryRelations)
+        : new ProductAttributeResolution(false, "测试标签快照尚未加载。", [], []);
+    /// <inheritdoc />
+    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId)
+    {
+        var result = ResolveProductAttributes(categoryId);
+        return result.Success ? result.Groups : throw new InvalidOperationException(result.Message);
+    }
     /// <inheritdoc />
     public IReadOnlyList<ProductAttributeOptionDto> GetProductAttributeOptions(Guid groupId) =>
         ProductAttributeGroups.FirstOrDefault(group => group.Uid == groupId)?.Options.ToArray() ?? [];
@@ -101,12 +119,45 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
     }
     /// <summary>替换离线标签定义并通知订阅者，模拟服务端定义刷新且不包含产品选择状态。</summary>
     public void SetProductAttributeGroups(IEnumerable<ProductAttributeGroupDto> groups)
+        => SetProductAttributeSnapshot(groups, ProductAttributeCategoryRelations.ToArray());
+
+    /// <summary>同时替换离线组、直接关联和可选分类链，发布后才通知消费页面。</summary>
+    public void SetProductAttributeSnapshot(IEnumerable<ProductAttributeGroupDto> groups,
+        IEnumerable<ProductCategoryAttributeGroupDto> relations, IEnumerable<ProductCategoryDto>? categories = null)
     {
+        var groupRows = groups.ToArray();
+        var relationRows = relations.ToArray();
         _productAttributeGroups.Clear();
-        foreach (var group in groups)
+        foreach (var group in groupRows)
             _productAttributeGroups.Add(group);
+        _productAttributeCategoryRelations.Clear();
+        foreach (var relation in relationRows)
+            _productAttributeCategoryRelations.Add(relation);
+        if (categories is not null) SetProductCategoriesCore(categories);
         AreProductAttributesLoaded = true;
         ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
+    }
+    /// <summary>替换测试分类原始父链并通知标签消费方，模拟分类刷新。</summary>
+    public void SetProductCategories(IEnumerable<ProductCategoryDto> categories)
+    {
+        SetProductCategoriesCore(categories);
+        ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>准备离线分类候选与原始父链；测试节点不包含编辑状态。</summary>
+    private void SetProductCategoriesCore(IEnumerable<ProductCategoryDto> categories)
+    {
+        var rows = categories.Where(row => !row.IsDeleted).ToArray();
+        _categoryParents = rows.ToDictionary(row => row.Uid, row => row.ParentId);
+        _productCategories.Clear();
+        _productCategoryTree.Clear();
+        foreach (var row in rows)
+        {
+            var node = new ProductCategoryCacheNode(row);
+            node.SetCategoryPath(row.CategoryName);
+            _productCategories.Add(node);
+            if (row.ParentId is null || row.ParentId == Guid.Empty) _productCategoryTree.Add(node);
+        }
     }
     public ReadOnlyObservableCollection<SysDictTypeDto> DictionaryTypes { get; }
     public ReadOnlyObservableCollection<SysDictDataDto> DictionaryValues { get; }
@@ -164,6 +215,10 @@ internal sealed class ReferenceDataCacheServiceStub : IReferenceDataCacheService
         _suppliers.Clear();
         _warehouseSites.Clear();
         _productAttributeGroups.Clear();
+        _productAttributeCategoryRelations.Clear();
+        _productCategories.Clear();
+        _productCategoryTree.Clear();
+        _categoryParents = new Dictionary<Guid, Guid?>();
         AreProductAttributesLoaded = false;
         ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
     }

@@ -5,7 +5,6 @@
              xmlns:dd="urn:gong-wpf-dragdrop"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:categoryModels="clr-namespace:SwiftExportClient.Features.Products.Categories.Models"
-             xmlns:categoryViews="clr-namespace:SwiftExportClient.Features.Products.Categories.Views"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:imageControls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -176,9 +175,6 @@
             
             <ui:Card Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                <TabControl SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" IsEnabled="{Binding IsInteractionEnabled}"
-                            SelectionChanged="OnDetailsTabChanged">
-                <TabItem Header="分类资料">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -231,14 +227,14 @@
                         <TextBlock Text="分类名称"
                                    Style="{StaticResource LabelTextBlock}"
                                    VerticalAlignment="Center" />
-                        <TextBox Grid.Column="1"
+                        <TextBox x:Name="CategoryNameInput" Grid.Column="1"
                                  Text="{Binding CurrentCategory.CategoryName, UpdateSourceTrigger=PropertyChanged}" />
 
                         <TextBlock Grid.Row="2"
                                    Text="假名"
                                    Style="{StaticResource LabelTextBlock}"
                                    VerticalAlignment="Center" />
-                        <TextBox Grid.Row="2"
+                        <TextBox x:Name="CategoryFakeNameInput" Grid.Row="2"
                                  Grid.Column="1"
                                  Text="{Binding CurrentCategory.FakeName, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -246,7 +242,7 @@
                                    Text="分类代码"
                                    Style="{StaticResource LabelTextBlock}"
                                    VerticalAlignment="Center" />
-                        <TextBox Grid.Row="4"
+                        <TextBox x:Name="CategoryCodeInput" Grid.Row="4"
                                  Grid.Column="1"
                                  Text="{Binding CurrentCategory.CategoryCode, UpdateSourceTrigger=PropertyChanged}" />
 
@@ -254,7 +250,7 @@
                                    Text="排序号"
                                    Style="{StaticResource LabelTextBlock}"
                                    VerticalAlignment="Center" />
-                        <ui:TextBox Grid.Row="6" MinWidth="90"
+                        <ui:TextBox x:Name="CategorySortInput" Grid.Row="6" MinWidth="90"
                                  Grid.Column="1"
                                  HorizontalAlignment="Left"
                                  Text="{Binding CurrentCategory.SortNo, UpdateSourceTrigger=PropertyChanged}" />
@@ -413,12 +409,6 @@
                         </Grid>
                     </Border>
                 </Grid>
-                </TabItem>
-                <TabItem Header="标签定义">
-                    <categoryViews:ProductAttributeDefinitionView x:Name="AttributeDefinitions"
-                                                                  DataContext="{Binding Attributes}" />
-                </TabItem>
-                </TabControl>
             </ui:Card>
         </Grid>
 

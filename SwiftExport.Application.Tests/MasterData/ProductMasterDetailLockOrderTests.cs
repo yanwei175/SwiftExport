@@ -108,7 +108,7 @@ public sealed class ProductMasterDetailLockOrderTests
 
         Assert.IsFalse(result.Success);
         Assert.AreEqual(ServiceErrorCodes.Validation, result.Error.Code);
-        CollectionAssert.AreEqual(new[] { "category" }, fixture.Calls.ToArray());
+        CollectionAssert.AreEqual(Array.Empty<string>(), fixture.Calls.ToArray());
         fixture.AssertRollbackWithoutWrites();
     }
 
@@ -237,8 +237,7 @@ public sealed class ProductMasterDetailLockOrderTests
             Service = new ProductMasterMaintenanceService(
                 Proxy<IProductMasterRepository>(MasterCall),
                 Proxy<IProductNeutralRepository>(NeutralCall),
-                Proxy<IProductCategoryRepository>((method, args) => ReferenceCall<ProductCategory>(method, args, "category", _categoryId,
-                    CategoryExists ? [new ProductCategory { Uid = _categoryId }] : [])),
+                Proxy<IProductCategoryRepository>(CategoryCall),
                 Proxy<ISupplierRepository>((method, args) => ReferenceCall(method, args, "supplier", _supplierId,
                     new[] { new Supplier { Uid = _supplierId, SupplierName = "测试供应商", SupplierCode = "S", DocRelateNo = "S", IsActive = true } })),
                 Proxy<IProductColorRepository>((method, args) => ReferenceCall<ProductColor>(method, args, "color", _colorId,
@@ -328,6 +327,18 @@ public sealed class ProductMasterDetailLockOrderTests
         }
 
         /// <summary>校验父引用使用更新锁且处于同一事务，并返回受控有效记录集。</summary>
+        private object CategoryCall(string method, object?[] args)
+        {
+            Assert.IsNotNull(Session.Transaction);
+            if (method == "GetAllAsync") return Task.FromResult<IReadOnlyList<ProductCategory>>(CategoryExists ? [new ProductCategory { Uid = _categoryId }] : []);
+            Assert.AreEqual("GetByIdAsync", method);
+            Assert.AreEqual(_categoryId, args[0]);
+            Assert.AreEqual(true, args[1]);
+            Calls.Add("category");
+            return Task.FromResult<ProductCategory?>(CategoryExists ? new ProductCategory { Uid = _categoryId } : null);
+        }
+
+        /// <summary>校验供应商及颜色引用仍使用更新锁且处于同一事务。</summary>
         private object ReferenceCall<T>(string method, object?[] args, string name, Guid id, T[] rows)
         {
             Assert.AreEqual("GetByIdListAsync", method);
@@ -352,8 +363,8 @@ public sealed class ProductMasterDetailLockOrderTests
                         Uid = _masterId, Version = _version, Master = CreateRequest(false).Master
                     });
                 case "GetByMasterSkusAsync":
-                    Assert.AreEqual(true, args[1]);
-                    Calls.Add("master.code.lock");
+                    Assert.AreEqual(Calls.Contains("master.lock"), args[1]);
+                    Calls.Add((bool)args[1]! ? "master.code.lock" : "master.code.read");
                     return Task.FromResult<IReadOnlyList<ProductMaster>>([]);
                 case "GetByIdListAsync":
                     var observedIds = ((IEnumerable<Guid>)args[0]!).ToArray();

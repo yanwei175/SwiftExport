@@ -1,0 +1,192 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.Attributes.Views.ProductAttributeManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"  
+             mc:Ignorable="d" d:Width="1920" d:Height="680"
+             xmlns:mvvm="clr-namespace:SwiftExportClient.Mvvm"
+             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.Attributes.ViewModels"
+             d:DataContext="{d:DesignInstance vm:ProductAttributeManagerViewModel}"
+             xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
+             xmlns:gridcore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
+             PreviewMouseLeftButtonDown="OnPreviewMouseDown" PreviewKeyDown="OnPreviewKeyDown"
+             PreviewLostKeyboardFocus="OnPreviewLostKeyboardFocus">
+    <UserControl.Resources>
+        <DataTemplate x:Key="DefinitionRowState">
+            <TextBlock>
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridWarpTextBlock}">
+                        <Setter Property="Text" Value="已保存" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding State}" Value="{x:Static mvvm:LineState.Added}">
+                                <Setter Property="Text" Value="新增" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding State}" Value="{x:Static mvvm:LineState.Modified}">
+                                <Setter Property="Text" Value="修改" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="220" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="产品标签" FontSize="24" FontWeight="SemiBold" />
+            <TextBlock Text="标签组和值在所有关联分类中共用；关联父分类后，其后代分类自动继承。" Margin="0,4,0,0" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding EditStateMessage}" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,16">
+            <ui:Button Content="保存全部标签" Command="{Binding SaveCommand}" Appearance="Primary" AutomationProperties.Name="保存全部标签组、值和分类关联" />
+            <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" AutomationProperties.Name="刷新产品标签和分类候选" />
+            <Button Content="撤销编辑" Command="{Binding RejectCommand}" Margin="8,0,0,0" />
+        </StackPanel>
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="450" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" MinWidth="340" />
+            </Grid.ColumnDefinitions>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="标签组" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <Button Content="新增组" Command="{Binding AddGroupCommand}" />
+                    <Button Content="删除组" Command="{Binding DeleteGroupCommand}" Margin="8,0,0,0" />
+                </StackPanel>
+
+                <DataGrid x:Name="GroupGrid" Grid.Row="1" ItemsSource="{Binding Groups.Items}"
+                          SelectedItem="{Binding SelectedGroup, Mode=TwoWay}" AutoGenerateColumns="False"
+                          Style="{StaticResource SwiftExportDataGrid}"
+                          gridcore:EnterpriseGrid.IsEnabled="True"
+                          gridcore:GridRowHeader.ShowRowNumber="True"
+                          CanUserAddRows="False" CanUserDeleteRows="False" SelectionUnit="FullRow" SelectionMode="Single"
+                          IsReadOnly="{Binding AreGridsReadOnly}" IsEnabled="{Binding IsInteractionEnabled}"
+                          EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                          AutomationProperties.Name="共享标签组定义">
+                    <DataGrid.Columns>
+
+                        <DataGridTemplateColumn Header="状态" Width="64" IsReadOnly="True" CellTemplate="{StaticResource DefinitionRowState}" />
+
+                        <DataGridTextColumn Header="编码" Width="112" Binding="{Binding GroupCode, UpdateSourceTrigger=PropertyChanged}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+
+                        <DataGridTextColumn Header="名称" Width="*" Binding="{Binding GroupName, UpdateSourceTrigger=PropertyChanged}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+
+                        <DataGridTemplateColumn Header="选择方式" Width="96">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox ItemsSource="{Binding DataContext.SelectionModes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              VerticalContentAlignment="Center"
+                                              DisplayMemberPath="Value" SelectedValuePath="Key"
+                                              SelectedValue="{Binding SelectionMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              IsEnabled="{Binding DataContext.CanEditDefinitions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                              AutomationProperties.Name="标签组选项选择方式" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        
+                        <DataGridTextColumn Header="排序" Width="64" 
+                                            Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" 
+                                            ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+            <TabControl x:Name="GroupDetailsTabs" Grid.Column="2" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+                <TabItem Header="标签值">
+                    <Grid Margin="0,12,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Content="新增选项" Command="{Binding AddOptionCommand}" />
+                            <Button Content="删除选项" Command="{Binding DeleteOptionCommand}" Margin="8,0,0,0" />
+                        </StackPanel>
+                        <DataGrid x:Name="OptionGrid" Grid.Row="1" ItemsSource="{Binding CurrentOptions}"
+                                  SelectedItem="{Binding SelectedOption, Mode=TwoWay}" 
+                                  Style="{StaticResource SwiftExportDataGrid}"
+                                  gridcore:EnterpriseGrid.IsEnabled="True"
+                                  gridcore:GridRowHeader.ShowRowNumber="True"
+                                  AutoGenerateColumns="False"
+                                  CanUserAddRows="False" CanUserDeleteRows="False" SelectionUnit="FullRow" SelectionMode="Single"
+                                  IsReadOnly="{Binding AreGridsReadOnly}" IsEnabled="{Binding IsInteractionEnabled}"
+                                  EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                  AutomationProperties.Name="当前标签组的标签值定义">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="状态" Width="64" IsReadOnly="True" CellTemplate="{StaticResource DefinitionRowState}" />
+                                
+                                <DataGridTextColumn Header="编码" Width="112" Binding="{Binding OptionCode, UpdateSourceTrigger=PropertyChanged}" 
+                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+                                
+                                <DataGridTextColumn Header="名称" Width="*" Binding="{Binding OptionName, UpdateSourceTrigger=PropertyChanged}" 
+                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
+                                
+                                <DataGridTextColumn Header="排序" Width="64" 
+                                                    Binding="{Binding SortOrder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" 
+                                                    ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
+                                                    EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                            
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <TabItem Header="关联分类">
+                    <ui:Card HorizontalAlignment="Stretch" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+                        
+                    <StackPanel>
+                        
+                        <TextBlock Text="{Binding SelectedGroup.GroupName, StringFormat=当前标签组：{0}}" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        
+                        <filter:MultiSelectLookupButton x:Name="CategoryPicker" Header="直接关联分类"
+                                                        ItemsSource="{Binding CategoryCandidates}" 
+                                                        SelectedItems="{Binding SelectedCategorySelection.SelectedCategories, Mode=OneWay}"
+                                                        DisplayMemberPath="CategoryPath" 
+                                                        FilterMemberPaths="CategoryPath" 
+                                                        SelectedValuePath="Uid"
+                                                        Placeholder="搜索分类完整路径" 
+                                                        ShowSearchBox="True" 
+                                                        IsEnabled="{Binding CanEditCurrentGroup}"
+                                                        HorizontalAlignment="Stretch" 
+                                                        AutomationProperties.Name="当前标签组直接关联的分类" />
+                        
+                        <TextBlock Text="仅勾选直接关联的分类。关联父分类会自动适用于其后代，无需逐个勾选子分类。" TextWrapping="Wrap" Margin="0,12,0,8" />
+                        
+                        <TextBlock Text="下拉框的“确定”只更新当前组草稿；请使用“保存全部标签”提交整页变更。" TextWrapping="Wrap" Margin="0,0,0,16" />
+                        
+                        <TextBlock Text="{Binding SelectedCategorySelection.SelectedPaths}" TextWrapping="Wrap" />
+                        
+                    </StackPanel>
+                    </ui:Card>
+                </TabItem>
+            </TabControl>
+        </Grid>
+        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+            <TextBlock Text="{Binding PendingChangeSummary}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" />
+        </StackPanel>
+    </Grid>
+</UserControl>
+

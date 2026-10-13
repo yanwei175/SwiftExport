@@ -49,16 +49,22 @@ public interface IReferenceDataCacheService
     /// </summary>
     ReadOnlyObservableCollection<ProductCategoryCacheNode> ProductCategories { get; }
 
-    /// <summary>当前会话的完整分类标签定义快照，包含各组的选项；调用方不得编辑 DTO 或保存勾选状态。</summary>
+    /// <summary>当前会话的全局标签定义，包含未关联分类的组及其选项；调用方不得编辑 DTO 或保存勾选状态。</summary>
     ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
 
-    /// <summary>标签定义是否成功加载过，成功的空快照也视为已加载。</summary>
+    /// <summary>有效分类与组的直接关联，不复制子分类继承关系；调用方不得修改 DTO。</summary>
+    ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto> ProductAttributeCategoryRelations { get; }
+
+    /// <summary>分类层级与全局标签是否均已完整加载；成功的空快照也视为已加载。</summary>
     bool AreProductAttributesLoaded { get; }
 
     /// <summary>完整标签快照发布或会话清空后触发；订阅者应在释放时取消订阅。</summary>
     event EventHandler? ProductAttributesChanged;
 
-    /// <summary>按具体分类读取标签组，不继承父分类定义。</summary>
+    /// <summary>按原始分类父链解析自身与祖先可用组及来源，缺失、循环、未完整加载均显式失败。</summary>
+    ProductAttributeResolution ResolveProductAttributes(Guid categoryId);
+
+    /// <summary>读取分类继承后的标签组；解析失败抛异常，须保留选择的编辑页应使用显式解析结果。</summary>
     IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId);
 
     /// <summary>按属性组读取本地选项，不调用 API。</summary>
@@ -67,7 +73,7 @@ public interface IReferenceDataCacheService
     /// <summary>首次使用时加载完整标签快照，合并并行请求，失败后允许重试。</summary>
     Task<CacheRefreshResult> EnsureProductAttributesLoadedAsync();
 
-    /// <summary>独立刷新完整标签快照；失败保留旧数据，旧会话结果不得回写。</summary>
+    /// <summary>同时刷新分类层级与完整标签快照；任一失败保留两者旧数据，旧会话结果不得回写。</summary>
     Task<CacheRefreshResult> RefreshProductAttributesAsync();
 
     /// <summary>

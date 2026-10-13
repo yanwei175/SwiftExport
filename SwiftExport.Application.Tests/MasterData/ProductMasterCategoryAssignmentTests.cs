@@ -132,12 +132,15 @@ public sealed class ProductMasterCategoryAssignmentTests
             }
         }
 
-        private object CategoryCall(string method, object?[] _)
+        private object CategoryCall(string method, object?[] args)
         {
-            Assert.AreEqual("GetByIdListAsync", method);
             Assert.IsNotNull(Session.Transaction);
-            return Task.FromResult<IReadOnlyList<ProductCategory>>(
-                CategoryExists ? [new ProductCategory { Uid = TargetCategoryId }] : []);
+            var rows = Masters.Select(row => row.CategoryId).Distinct().Select(id => new ProductCategory { Uid = id }).ToList();
+            if (CategoryExists) rows.Add(new ProductCategory { Uid = TargetCategoryId });
+            if (method == "GetAllAsync") return Task.FromResult<IReadOnlyList<ProductCategory>>(rows);
+            Assert.AreEqual("GetByIdAsync", method);
+            Assert.AreEqual(true, args[1]);
+            return Task.FromResult(rows.SingleOrDefault(row => row.Uid == (Guid)args[0]!));
         }
 
         private object MasterCall(string method, object?[] args)
@@ -145,6 +148,11 @@ public sealed class ProductMasterCategoryAssignmentTests
             Assert.IsNotNull(Session.Transaction);
             if (method == "GetByIdListAsync")
                 return Task.FromResult<IReadOnlyList<ProductMaster>>(Masters.Select(Clone).ToList());
+            if (method == "GetByIdAsync")
+            {
+                Assert.AreEqual(true, args[1]);
+                return Task.FromResult(Masters.Where(row => row.Uid == (Guid)args[0]!).Select(Clone).SingleOrDefault());
+            }
             Assert.AreEqual("AssignCategoryAsync", method);
             WriteCount++;
             if (WriteCount == FailWriteNumber)

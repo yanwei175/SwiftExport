@@ -4,7 +4,7 @@ using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>分类标签组中的受控选项，名称可以维护，归属组保持不变。</summary>
+/// <summary>共享标签组中的受控选项，名称可以维护，归属组保持不变。</summary>
 [Table("product_attribute_option")]
 [DbCheck("CK_ProductAttributeOption_Text", "length(btrim(\"option_code\")) > 0 AND length(btrim(\"option_name\")) > 0")]
 [DbIndex("UX_ProductAttributeOption_Group_Code", nameof(AttributeGroupId), nameof(OptionCode), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
@@ -12,7 +12,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 [LogicalReference(nameof(AttributeGroupId), typeof(ProductAttributeGroup), IsRequired = true)]
 public sealed class ProductAttributeOption : BaseEntity
 {
-    /// <summary>所属标签组的稳定身份，支持创建后通过关联取得分类。</summary>
+    /// <summary>所属标签组的稳定身份；分类适用范围由组与分类的直接关联及继承决定。</summary>
     public Guid AttributeGroupId { get; set; }
     /// <summary>组内唯一的选项编码。</summary>
     [DbColumn(StoreType = "varchar(100)")]

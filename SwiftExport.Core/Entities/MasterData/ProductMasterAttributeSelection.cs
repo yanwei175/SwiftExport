@@ -4,7 +4,7 @@ using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>主型号实际选中的标签值；分类和组均由选项关联取得。</summary>
+/// <summary>主型号实际选中的标签值；组由选项取得，分类以主型号当前归属为准。</summary>
 [Table("product_master_attribute_selection")]
 [DbIndex("UX_ProductMasterAttributeSelection_Master_Option", nameof(ProductMasterId), nameof(OptionId), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
 [DbIndex("IX_ProductMasterAttributeSelection_Option", nameof(OptionId), Filter = "\"is_deleted\" = FALSE")]

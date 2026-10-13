@@ -935,7 +935,7 @@ namespace SwiftExport.Client.VSTO.Services.Caching
             return roots;
         }
 
-        /// <summary>递归生成分类显示路径。</summary>
+        /// <summary>递归以 FakeName 生成完整分类显示路径，避免英文名称过长。</summary>
         private static void ApplyCategoryPaths(
             IEnumerable<ProductCategoryCacheNode> nodes,
             string parentPath)
@@ -943,8 +943,8 @@ namespace SwiftExport.Client.VSTO.Services.Caching
             foreach (var node in nodes)
             {
                 var path = string.IsNullOrWhiteSpace(parentPath)
-                    ? node.CategoryName
-                    : $"{parentPath} / {node.CategoryName}";
+                    ? node.FakeName
+                    : $"{parentPath} / {node.FakeName}";
                 node.SetCategoryPath(path);
                 ApplyCategoryPaths(node.Children, path);
             }

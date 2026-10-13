@@ -319,6 +319,7 @@ public sealed class ProductMasterSynchronizationTests
                 "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
                 "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>(new ObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>()),
                 "get_AreProductAttributesLoaded" => false,
+                nameof(IReferenceDataCacheService.ResolveProductAttributes) => new ProductAttributeResolution(true, string.Empty, [], []),
                 _ => null
             }),
             Messages(), null!, null!, dialog);

@@ -33,8 +33,8 @@ public sealed class ProductMasterTagControlsTests
         LoadResources();
         var definition = ProductMasterTagSelectionTests.Definition();
         using var model = new ProductMasterTagSelectionModel();
-        model.RefreshDefinitions([definition], true);
-        model.Load(definition.CategoryId, [definition.Options[0].Uid], []);
+        model.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
+        model.Load(ProductMasterTagSelectionTests.FixtureCategoryId, [definition.Options[0].Uid], []);
         var group = model.Groups.Single();
         var control = new MultiSelectLookupButton
         {
@@ -119,8 +119,9 @@ public sealed class ProductMasterTagControlsTests
         LoadResources();
         var definition = ProductMasterTagSelectionTests.Definition();
         using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
-        vm.Tags.RefreshDefinitions([definition], true);
-        vm.Tags.Load(definition.CategoryId, [definition.Options[0].Uid], []);
+        vm.Header.CategoryId = ProductMasterTagSelectionTests.FixtureCategoryId;
+        vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
+        vm.Tags.Load(ProductMasterTagSelectionTests.FixtureCategoryId, [definition.Options[0].Uid], []);
         var view = new ProductMasterTagsView { DataContext = vm };
         var window = new Window { Content = view, Width = 760, Height = 400, ShowInTaskbar = false };
         Popup? popup = null;
@@ -134,9 +135,9 @@ public sealed class ProductMasterTagControlsTests
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             Assert.IsTrue(vm.Tags.IsPopupOpen);
             var group = vm.Tags.Groups.Single();
-            var refreshed = ProductMasterTagSelectionTests.Definition(definition.CategoryId, definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
+            var refreshed = ProductMasterTagSelectionTests.Definition(definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
             refreshed.SelectionMode = ProductAttributeSelectionMode.Single;
-            vm.Tags.RefreshDefinitions([refreshed], true);
+            vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([refreshed], true));
             Assert.AreSame(group, vm.Tags.Groups.Single());
             await ClosePopupAsync(popup, () => popup.IsOpen = false);
             Assert.IsFalse(vm.Tags.IsPopupOpen);
@@ -172,6 +173,7 @@ public sealed class ProductMasterTagControlsTests
         {
             "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<ProductAttributeGroupDto>(new ObservableCollection<ProductAttributeGroupDto>()),
             "get_AreProductAttributesLoaded" => true,
+            nameof(IReferenceDataCacheService.ResolveProductAttributes) => ProductMasterTagSelectionTests.Resolution([]),
             "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
             nameof(IReferenceDataCacheService.RefreshProductAttributesAsync) => completion.Task,
             _ => null
@@ -181,7 +183,7 @@ public sealed class ProductMasterTagControlsTests
         var category = Guid.NewGuid();
         vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", CategoryId = category } });
         vm.Tags.Load(category, [Guid.NewGuid()], []);
-        vm.Tags.RefreshDefinitions([], true);
+        vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([], true));
         var view = new ProductMasterTagsView { DataContext = vm };
         var window = new Window { Content = view, Width = 760, Height = 300, ShowInTaskbar = false };
         try
@@ -213,7 +215,7 @@ public sealed class ProductMasterTagControlsTests
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             Assert.IsTrue(remove.IsEnabled);
             Assert.AreEqual(1, vm.Tags.GetSelectedOptionIds()!.Count);
-            vm.Tags.RefreshDefinitions([], false);
+            vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([], false));
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             Assert.IsFalse(vm.CanEditTags);
         }

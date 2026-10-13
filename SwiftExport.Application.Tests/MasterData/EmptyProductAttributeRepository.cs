@@ -9,9 +9,22 @@ namespace SwiftExport.Application.Tests.MasterData;
 internal sealed class EmptyProductAttributeRepository : IProductAttributeRepository
 {
     /// <inheritdoc />
+    public Task<ProductAttributeDefinitionsDto> GetSnapshotAsync(Guid? categoryId, CancellationToken cancellationToken) =>
+        Task.FromResult(new ProductAttributeDefinitionsDto { CategoryId = categoryId ?? Guid.Empty });
+    /// <inheritdoc />
     public Task<IReadOnlyList<ProductAttributeGroupDto>> GetDefinitionsAsync(Guid? categoryId, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductAttributeGroupDto>>([]);
     /// <inheritdoc />
     public Task<IReadOnlyList<ProductAttributeGroup>> GetGroupsAsync(Guid? categoryId, bool forUpdate, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductAttributeGroup>>([]);
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ProductAttributeGroup>> LockGroupsForUpdateAsync(IEnumerable<Guid> groupIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductAttributeGroup>>([]);
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ProductAttributeGroup>> LockGroupsForSelectionAsync(IEnumerable<Guid> groupIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductAttributeGroup>>([]);
+    /// <inheritdoc />
+    public Task<IReadOnlyList<Guid>> GetGroupIdsForOptionsAsync(IEnumerable<Guid> optionIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ProductCategoryAttributeGroup>> GetRelationsAsync(IEnumerable<Guid>? groupIds, bool forUpdate, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductCategoryAttributeGroup>>([]);
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ProductMasterAttributeSelectionDto>> GetSelectedReferencesAsync(IEnumerable<Guid>? groupIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductMasterAttributeSelectionDto>>([]);
     /// <inheritdoc />
     public Task<IReadOnlyList<ProductAttributeOption>> GetOptionsAsync(IEnumerable<Guid> groupIds, bool forUpdate, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<ProductAttributeOption>>([]);
     /// <inheritdoc />
@@ -36,6 +49,10 @@ internal sealed class EmptyProductAttributeRepository : IProductAttributeReposit
     public Task<RepositoryWriteResult> UpdateOptionAsync(ProductAttributeOption entity) => throw new InvalidOperationException("无标签夹具不允许写选项。");
     /// <inheritdoc />
     public Task<RepositoryWriteResult> DeleteOptionAsync(Guid uid, int version) => throw new InvalidOperationException("无标签夹具不允许删选项。");
+    /// <inheritdoc />
+    public Task<RepositoryWriteResult> AddRelationAsync(ProductCategoryAttributeGroup entity) => throw new InvalidOperationException("无标签夹具不允许新增分类关联。");
+    /// <inheritdoc />
+    public Task<RepositoryWriteResult> DeleteRelationAsync(Guid uid, int version) => throw new InvalidOperationException("无标签夹具不允许删除分类关联。");
     /// <inheritdoc />
     public Task<RepositoryWriteResult> AddSelectionAsync(ProductMasterAttributeSelection entity) => throw new InvalidOperationException("无标签夹具不允许新增选择。");
     /// <inheritdoc />

@@ -15,7 +15,7 @@ namespace SwiftExport.Contracts.DTOs.Products.Attributes
         public Guid OptionId { get; set; }
         /// <summary>选项所属组。</summary>
         public Guid AttributeGroupId { get; set; }
-        /// <summary>选项所属分类。</summary>
+        /// <summary>主型号当前所属分类；共享标签组本身没有所属分类。</summary>
         public Guid CategoryId { get; set; }
         /// <summary>当前组名称。</summary>
         public string GroupName { get; set; }

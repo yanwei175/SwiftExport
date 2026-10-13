@@ -174,7 +174,14 @@ public sealed class ProductMasterBatchImportTests
                     _ => throw new AssertFailedException(name)
                 };
             });
-            Service = new(masters, categories, suppliers, this, this, Proxy<SwiftExport.Core.Interfaces.Products.Attributes.IProductAttributeRepository>((name, _) => name == "GetSelectionsAsync" ? Task.FromResult<IReadOnlyList<ProductMasterAttributeSelection>>(Tagged ? [new() { ProductMasterId = Masters[0].Uid }] : []) : throw new AssertFailedException(name)), new ServiceBaseContext(Session, NullLoggerFactory.Instance));
+            Service = new(masters, categories, suppliers, this, this,
+                Proxy<SwiftExport.Core.Interfaces.Products.Attributes.IProductAttributeRepository>((name, _) => name switch
+                {
+                    "GetSelectionsAsync" => Task.FromResult<IReadOnlyList<ProductMasterAttributeSelection>>(Tagged ? [new() { ProductMasterId = Masters[0].Uid, OptionId = Guid.NewGuid() }] : []),
+                    "GetGroupIdsForOptionsAsync" => Task.FromResult<IReadOnlyList<Guid>>([]),
+                    "LockGroupsForSelectionAsync" => Task.FromResult<IReadOnlyList<ProductAttributeGroup>>([]),
+                    _ => throw new AssertFailedException(name)
+                }), new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 
         /// <summary>处理新导入路径允许的根仓储操作，并模拟数据库编码大小写规则。</summary>
@@ -185,7 +192,8 @@ public sealed class ProductMasterBatchImportTests
             {
                 case "GetByMasterSkusAsync":
                     Assert.IsNotNull(Session.Transaction);
-                    Assert.AreEqual(true, args[1]);
+                    // 每行先只读观察标签锁范围，再取主型号锁；两次均使用相同编码且处于本行事务。
+                    Assert.IsInstanceOfType<bool>(args[1]);
                     return Task.FromResult<IReadOnlyList<ProductMaster>>(Masters.Where(m => ((IEnumerable<string>)args[0]!).Contains(m.MasterSku, StringComparer.OrdinalIgnoreCase)).Select(m => m.Adapt<ProductMaster>()).ToArray());
                 case "GetByIdListAsync":
                     return Task.FromResult<IReadOnlyList<ProductMaster>>(Masters.Where(m => ((IEnumerable<Guid>)args[0]!).Contains(m.Uid)).Select(m => m.Adapt<ProductMaster>()).ToArray());

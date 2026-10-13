@@ -6,10 +6,10 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Products.Attributes
 {
-    /// <summary>标签组的可维护字段；分类由路由决定。</summary>
+    /// <summary>全局标签组的可维护字段；分类适用范围由独立关联维护。</summary>
     public class ProductAttributeGroupWriteDto
     {
-        /// <summary>新增组的临时身份，只用于同批新增选项映射。</summary>
+        /// <summary>新增组的临时身份，用于同批新增选项及分类关联映射。</summary>
         public Guid ClientUid { get; set; }
         /// <summary>组编码。</summary>
         public string GroupCode { get; set; }

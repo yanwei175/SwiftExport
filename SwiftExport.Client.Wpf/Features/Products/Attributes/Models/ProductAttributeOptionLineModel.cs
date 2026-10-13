@@ -3,7 +3,7 @@ using Mapster;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExportClient.Mvvm;
 
-namespace SwiftExportClient.Features.Products.Categories.Models;
+namespace SwiftExportClient.Features.Products.Attributes.Models;
 
 /// <summary>维护标签组选项草稿，以组 Uid 关联持久记录或同批新增的临时组。</summary>
 public sealed partial class ProductAttributeOptionLineModel : BaseLineModel<ProductAttributeOptionDto>

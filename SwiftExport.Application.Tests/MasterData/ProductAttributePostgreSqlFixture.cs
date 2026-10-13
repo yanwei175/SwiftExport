@@ -40,7 +40,9 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     internal readonly List<Guid> CategoryIds = [];
     internal readonly List<Guid> MasterIds = [];
     internal readonly List<Guid> ColorIds = [];
+    internal readonly List<Guid> GroupIds = [];
     internal readonly List<Scope> Scopes = [];
+    internal readonly string CodePrefix = "TAG_" + Guid.NewGuid().ToString("N");
     internal ProductCategory Category = null!, OtherCategory = null!;
     internal ProductMaster Master = null!;
 
@@ -70,9 +72,18 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
         try
         {
             var scope = fixture.NewScope();
+            Assert.AreEqual("dv_next_product_attribute_tests_20261012", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT current_database()"));
+            Assert.AreEqual("192.168.3.12", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT host(inet_server_addr())"));
+            Assert.AreEqual("5432", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT current_setting('port')"));
+            Assert.IsTrue(await scope.Session.Connection.ExecuteScalarAsync<bool>("""
+                SELECT to_regclass('public.product_category_attribute_group') IS NOT NULL
+                  AND NOT EXISTS(SELECT 1 FROM information_schema.columns
+                    WHERE table_schema='public' AND table_name='product_attribute_group' AND column_name='category_id')
+                """), "专用库尚未执行共享标签增量迁移；测试不自动初始化或升级结构。");
             fixture.Category = await fixture.AddCategoryAsync(scope, "顶喷");
             fixture.OtherCategory = await fixture.AddCategoryAsync(scope, "另一分类");
-            fixture.Master = new ProductMaster { MasterSku = "TAG-" + Guid.NewGuid().ToString("N"), CategoryId = fixture.Category.Uid,
+            // 复制库装箱数列仍为 NOT NULL；显式提供夹具值，不为标签测试修改无关运行结构。
+            fixture.Master = new ProductMaster { MasterSku = "TAG-" + Guid.NewGuid().ToString("N"), CategoryId = fixture.Category.Uid, DefaultPcsPerPackage = 1,
                 ProductType = "保留旧类型", ProductTag = "保留旧标签" };
             var write = await scope.Services.GetRequiredService<IProductMasterRepository>().AddAsync(fixture.Master);
             Assert.IsTrue(write.Success);
@@ -91,9 +102,9 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     }
 
     /// <summary>记录仅属于本测试的分类身份，名称唯一以免依赖复制数据。</summary>
-    private async Task<ProductCategory> AddCategoryAsync(Scope scope, string name)
+    internal async Task<ProductCategory> AddCategoryAsync(Scope scope, string name, Guid? parentId = null)
     {
-        var category = new ProductCategory { CategoryName = name + Guid.NewGuid().ToString("N"), CategoryCode = Guid.NewGuid().ToString("N") };
+        var category = new ProductCategory { CategoryName = name + Guid.NewGuid().ToString("N"), CategoryCode = Guid.NewGuid().ToString("N"), ParentId = parentId };
         var write = await scope.Services.GetRequiredService<IProductCategoryRepository>().AddAsync(category);
         Assert.IsTrue(write.Success);
         CategoryIds.Add(write.Uid);
@@ -106,17 +117,38 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     {
         var temporaryId = Guid.NewGuid();
         var request = new SaveProductAttributeDefinitionsRequest();
-        request.GroupChanges.CreateItems.Add(new() { RowIndex = 1, Data = new() { ClientUid = temporaryId, GroupCode = "INSTALL", GroupName = "安装方式", SelectionMode = mode } });
+        request.GroupChanges.CreateItems.Add(new() { RowIndex = 1, Data = new() { ClientUid = temporaryId, GroupCode = CodePrefix + "_" + Guid.NewGuid().ToString("N"), GroupName = "安装方式", SelectionMode = mode } });
         request.OptionChanges.CreateItems.Add(new() { RowIndex = 1, Data = new() { AttributeGroupId = temporaryId, OptionCode = "CEILING", OptionName = "吸顶" } });
         request.OptionChanges.CreateItems.Add(new() { RowIndex = 2, Data = new() { AttributeGroupId = temporaryId, OptionCode = "WALL", OptionName = "挂墙", SortOrder = 1 } });
-        var result = await scope.Definitions.BatchSaveAsync(categoryId ?? Category.Uid, request);
+        request.CategoryChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = temporaryId, CategoryId = categoryId ?? Category.Uid } });
+        var result = await SaveAsync(scope, request);
         Assert.IsTrue(result.Success, result.Message);
         Assert.AreEqual(1, result.Data.GroupResults.SuccessCount);
         Assert.AreEqual(2, result.Data.OptionResults.SuccessCount);
-        var group = result.Data.Definitions.Groups.Single();
+        Assert.AreEqual(1, result.Data.CategoryResults.SuccessCount);
+        var persistedId = result.Data.GroupResults.Items.Single().Uid!.Value;
+        var group = result.Data.Definitions.Groups.Single(row => row.Uid == persistedId);
         Assert.AreNotEqual(temporaryId, group.Uid);
         Assert.IsTrue(group.Options.All(option => option.AttributeGroupId == group.Uid));
         return group;
+    }
+
+    /// <summary>调用全局原子维护并捕获本夹具创建的组身份，清理不依赖旧分类归属列。</summary>
+    internal async Task<SwiftExport.Contracts.Wrappers.ServiceResult<SaveProductAttributeDefinitionsResponse>> SaveAsync(
+        Scope scope, SaveProductAttributeDefinitionsRequest request)
+    {
+        var result = await scope.Definitions.BatchSaveDefinitionsAsync(request);
+        if (result.Success)
+            foreach (var item in result.Data.GroupResults.Items.Where(row => row.Success && row.Operation == SwiftExport.Contracts.SysEnums.StaticEnums.SaveOperation.Create))
+                if (item.Uid.HasValue && !GroupIds.Contains(item.Uid.Value)) GroupIds.Add(item.Uid.Value);
+        return result;
+    }
+
+    /// <summary>选项和分类关联的变更也必须提交组聚合的预期版本，不能绕过组版本保护。</summary>
+    internal static void TouchGroup(SaveProductAttributeDefinitionsRequest request, ProductAttributeGroupDto group)
+    {
+        request.GroupChanges.UpdateItems.Add(new() { Uid = group.Uid, Version = group.Version,
+            Data = new() { GroupCode = group.GroupCode, GroupName = group.GroupName, SelectionMode = group.SelectionMode, SortOrder = group.SortOrder } });
     }
 
     /// <summary>从服务器当前头部复制详情请求；默认不改变旧标签。</summary>
@@ -131,19 +163,26 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         foreach (var scope in Scopes) scope.Dispose();
+        if (CategoryIds.Count == 0 && MasterIds.Count == 0 && ColorIds.Count == 0 && GroupIds.Count == 0)
+        {
+            // 目标或结构守卫失败时没有夹具写入，不进入任何清理 SQL，保留原始拒绝证据。
+            await Provider.DisposeAsync();
+            return;
+        }
         await using var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
         await connection.ExecuteAsync("""
             DELETE FROM public.product_master_attribute_selection WHERE product_master_id=ANY(@Masters)
-               OR option_id IN (SELECT o.uid FROM public.product_attribute_option o JOIN public.product_attribute_group g ON g.uid=o.attribute_group_id WHERE g.category_id=ANY(@Categories));
-            DELETE FROM public.product_attribute_option WHERE attribute_group_id IN (SELECT uid FROM public.product_attribute_group WHERE category_id=ANY(@Categories));
-            DELETE FROM public.product_attribute_group WHERE category_id=ANY(@Categories);
+               OR option_id IN (SELECT uid FROM public.product_attribute_option WHERE attribute_group_id=ANY(@Groups));
+            DELETE FROM public.product_category_attribute_group WHERE category_id=ANY(@Categories) OR attribute_group_id=ANY(@Groups);
+            DELETE FROM public.product_attribute_option WHERE attribute_group_id=ANY(@Groups);
+            DELETE FROM public.product_attribute_group WHERE uid=ANY(@Groups);
             DELETE FROM public.product_neutral WHERE product_master_id=ANY(@Masters);
             DELETE FROM public.product_master WHERE uid=ANY(@Masters);
             DELETE FROM public.product_color WHERE uid=ANY(@Colors);
             DELETE FROM public.product_category WHERE uid=ANY(@Categories);
-            """, new { Masters = MasterIds.ToArray(), Categories = CategoryIds.ToArray(), Colors = ColorIds.ToArray() }, transaction);
+            """, new { Masters = MasterIds.ToArray(), Categories = CategoryIds.ToArray(), Colors = ColorIds.ToArray(), Groups = GroupIds.ToArray() }, transaction);
         await transaction.CommitAsync();
         await Provider.DisposeAsync();
     }

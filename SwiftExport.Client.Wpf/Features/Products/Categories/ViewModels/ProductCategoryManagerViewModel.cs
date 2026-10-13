@@ -19,7 +19,7 @@ using System.Windows;
 
 namespace SwiftExportClient.Features.Products.Categories.ViewModels;
 
-/// <summary>维护分类树，并协调分类资料与独立标签工作区的保存、选择及离开门禁。</summary>
+/// <summary>维护分类树、基础资料和快速归类，统一保存、选择及离开门禁。</summary>
 public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDropTarget, IDocumentTabViewModel, IDisposable
 {
     private readonly IProductCategoryApi _categoryApi;
@@ -37,15 +37,14 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
     private long _loadGeneration;
     private IReadOnlyList<ProductCategoryDto> _baseline = [];
 
-    /// <summary>注入分类 API、快速归类及标签定义子工作区，共同管理页面生命周期。</summary>
+    /// <summary>注入分类 API 和快速归类工作区，管理分类页面生命周期。</summary>
     public ProductCategoryManagerViewModel(
         IProductCategoryApi categoryApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
         IReferenceDataCacheService referenceDataCache,
-        ProductCategoryAssignmentViewModel assignment,
-        ProductAttributeDefinitionViewModel attributes)
+        ProductCategoryAssignmentViewModel assignment)
     {
         _categoryApi = categoryApi;
         _apiCallRunner = apiCallRunner;
@@ -53,8 +52,6 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         _dialogService = dialogService;
         _referenceDataCache = referenceDataCache;
         Assignment = assignment;
-        Attributes = attributes;
-        Attributes.PropertyChanged += OnAttributeStateChanged;
         Assignment.PropertyChanged += OnAssignmentStateChanged;
         PropertyChanged += OnOwnStateChanged;
 
@@ -73,23 +70,20 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
     /// <summary>原有主型号快速归类工作区。</summary>
     public ProductCategoryAssignmentViewModel Assignment { get; }
 
-    /// <summary>两张标签定义表的独立编辑及保存工作区。</summary>
-    public ProductAttributeDefinitionViewModel Attributes { get; }
-    /// <summary>宿主关闭或刷新前由视觉层提交定义表的未提交编辑，转换错误时阻止离开。</summary>
+    /// <summary>关闭、刷新或切换前由视觉层提交分类表单输入，转换错误时阻止离开。</summary>
     public Func<bool>? CommitPendingEdits { get; set; }
 
     [ObservableProperty] public partial ProductCategoryTreeItemModel? CurrentCategory { get; set; }
     [ObservableProperty] public partial string StatusMessage { get; private set; } = "尚未加载产品分类。";
-    [ObservableProperty] public partial int SelectedTabIndex { get; set; }
 
     /// <summary>分类树与删除池是否包含草稿。</summary>
     public bool HasChanges => CategoryTree.Any(HasChangedNode) || _deletedNodes.Count > 0;
     /// <inheritdoc/>
-    public bool HasUnsavedChanges => HasChanges || Attributes.HasUnsavedChanges;
+    public bool HasUnsavedChanges => HasChanges;
     /// <inheritdoc/>
     public string DocumentTitle => Title;
     /// <summary>宿主及子页共同冻结交互，阻止写入期间切换或穿透修改。</summary>
-    public bool IsInteractionEnabled => !_disposed && !_isSelecting && IsNotBusy && !Attributes.IsBusy && !Assignment.IsBusy;
+    public bool IsInteractionEnabled => !_disposed && !_isSelecting && IsNotBusy && !Assignment.IsBusy;
     /// <summary>分类字段编辑能力，包括共同 Busy 与页面写入状态。</summary>
     public bool CanEditCategories => IsInteractionEnabled && CanWrite;
 
@@ -105,7 +99,7 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         _isInitialized = _baseline.Count > 0 || string.IsNullOrWhiteSpace(ValidationSummary);
     }
 
-    /// <summary>树选择变化先处理旧标签草稿；取消或失败恢复旧节点及视觉选中。</summary>
+    /// <summary>树选择保留分类草稿；快速归类切换失败时恢复旧节点及视觉选中。</summary>
     public async Task SelectCurrentCategoryAsync(ProductCategoryTreeItemModel? category)
     {
         if (_isBuildingTree || ReferenceEquals(CurrentCategory, category)) return;
@@ -116,10 +110,8 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         UpdateHostState();
         try
         {
-        if (!await Attributes.ResolveUnsavedChangesAsync())
-        { RestoreSelection(category, previous); return; }
         CurrentCategory = category;
-        await Assignment.ChangeTargetAsync(category, HasChanges, CanWrite && !Attributes.IsBusy);
+        await Assignment.ChangeTargetAsync(category, HasChanges, CanWrite);
         }
         catch (OperationCanceledException) when (_disposed) { return; }
         catch (Exception exception)
@@ -129,11 +121,7 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
             ReportInteractionFailure("切换分类", exception);
         }
         finally { _isSelecting = false; UpdateHostState(); }
-        if (SelectedTabIndex == 1) await Attributes.EnsureLoadedAsync();
     }
-
-    /// <summary>标签页按需加载最新定义，不在属性变更 hook 内发起 API。</summary>
-    public Task ActivateSelectedTabAsync() => SelectedTabIndex == 1 ? Attributes.EnsureLoadedAsync() : Task.CompletedTask;
 
     /// <summary>观察视觉事件桥接的意外失败，向用户提供稳定反馈并仅记录必要的异常类别。</summary>
     public void ReportInteractionFailure(string action, Exception exception)
@@ -148,7 +136,6 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
     {
         if (!IsInteractionEnabled || !await ResolvePageChangesAsync()) return;
         await LoadAsync();
-        if (SelectedTabIndex == 1) await Attributes.EnsureLoadedAsync();
     }
 
     private Task LoadAsync()
@@ -189,7 +176,7 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
     [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private void AddRoot()
     {
-        if (!CanWriteCommand() || Attributes.HasUnsavedChanges) return;
+        if (!CanWriteCommand()) return;
         var node = CreateNewNode(null, CategoryTree, "新建一级分类");
         CategoryTree.Add(node);
         SelectNode(node);
@@ -247,7 +234,6 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
             return;
         }
 
-        if (!await Attributes.ResolveUnsavedChangesAsync()) return;
         CollectDeletedNodes(node);
         var parent = GetParentCollection(CategoryTree, node);
         parent?.Remove(node);
@@ -266,7 +252,7 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        if (!CanSave()) return;
+        if (!CanSave() || CommitPendingEdits?.Invoke() == false) return;
         await RunWriteAsync(async () =>
         {
             var allNodes = FlattenTree(CategoryTree).ToList();
@@ -379,7 +365,6 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
                     cacheResult.Message);
             }
         }, "正在保存产品分类...");
-        if (SelectedTabIndex == 1 && !HasChanges) await Attributes.EnsureLoadedAsync();
     }
 
     private ProductCategoryTreeItemModel CreateNewNode(
@@ -536,10 +521,10 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         return dropInfo.InsertPosition;
     }
 
-    /// <summary>共同写入门禁和标签草稿检查通过后，才允许分类层次及排序拖动。</summary>
+    /// <summary>分类写入与快速归类门禁通过后，才允许分类层次及排序拖动。</summary>
     public void DragOver(IDropInfo dropInfo)
     {
-        if (!CanWriteCommand() || Attributes.HasUnsavedChanges) { dropInfo.Effects = DragDropEffects.None; return; }
+        if (!CanWriteCommand()) { dropInfo.Effects = DragDropEffects.None; return; }
         var sourceItem = dropInfo.Data as ProductCategoryTreeItemModel;
         var targetItem = dropInfo.TargetItem as ProductCategoryTreeItemModel;
 
@@ -570,7 +555,7 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
     /// <summary>仅调整本地分类树与排序草稿，持久化仍由保存分类命令完成。</summary>
     public void Drop(IDropInfo dropInfo)
     {
-        if (!CanWriteCommand() || Attributes.HasUnsavedChanges) return;
+        if (!CanWriteCommand()) return;
         var sourceItem = dropInfo.Data as ProductCategoryTreeItemModel;
         var targetItem = dropInfo.TargetItem as ProductCategoryTreeItemModel;
 
@@ -714,12 +699,12 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
 
     private bool CanWriteCommand()
     {
-        return CanEditCategories && !Attributes.HasUnsavedChanges;
+        return CanEditCategories;
     }
 
     private bool CanWriteNode(ProductCategoryTreeItemModel? node)
     {
-        return CanEditCategories && !Attributes.HasUnsavedChanges && node is not null;
+        return CanEditCategories && node is not null;
     }
 
     private bool CanDelete(ProductCategoryTreeItemModel? node)
@@ -749,26 +734,14 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         if (args.PropertyName == nameof(IsBusy)) UpdateHostState();
     }
 
-    private void OnAttributeStateChanged(object? sender, PropertyChangedEventArgs args)
-    {
-        if (args.PropertyName is nameof(IsBusy) or nameof(Attributes.HasUnsavedChanges))
-        {
-            IsDirty = HasUnsavedChanges;
-            OnPropertyChanged(nameof(HasUnsavedChanges));
-            UpdateHostState();
-        }
-    }
-
-    /// <summary>宿主向两个子工作区传递窄状态，统一冻结分类树、表单和定义表。</summary>
+    /// <summary>宿主向快速归类工作区传递窄状态，写入期间统一冻结分类树和表单。</summary>
     private void UpdateHostState()
     {
         if (_isUpdatingHostState) return;
         _isUpdatingHostState = true;
         try
         {
-        Attributes.SetHostState(CurrentCategory?.Uid ?? Guid.Empty, CurrentCategory?.CategoryName ?? string.Empty,
-            CurrentCategory is { State: not ProductCategoryNodeState.Added }, HasChanges, CanWrite, IsBusy || Assignment.IsBusy);
-        Assignment.SetHostState(CurrentCategory, HasChanges, CanWrite && IsNotBusy && !Attributes.IsBusy);
+        Assignment.SetHostState(CurrentCategory, HasChanges, CanWrite && IsNotBusy);
         OnPropertyChanged(nameof(IsInteractionEnabled)); OnPropertyChanged(nameof(CanEditCategories));
         OnPropertyChanged(nameof(HasUnsavedChanges));
         AddRootCommand.NotifyCanExecuteChanged(); AddSiblingCommand.NotifyCanExecuteChanged(); AddChildCommand.NotifyCanExecuteChanged();
@@ -784,11 +757,11 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         if (previous is not null) previous.IsSelected = true;
     }
 
-    /// <summary>刷新或关闭前分别处理定义、分类草稿，取消和保存失败都保留页面。</summary>
+    /// <summary>刷新或关闭前处理分类草稿，取消和保存失败都保留页面。</summary>
     private async Task<bool> ResolvePageChangesAsync(CancellationToken cancellationToken = default)
     {
         if (CommitPendingEdits?.Invoke() == false) return false;
-        if (!IsInteractionEnabled || !await Attributes.ResolveUnsavedChangesAsync(cancellationToken)) return false;
+        if (!IsInteractionEnabled) return false;
         if (!HasChanges) return true;
         var decision = await _dialogService.ShowAsync("分类结构有未保存修改。",
             new DialogOptions("分类未保存") { PrimaryButtonText = "保存", SecondaryButtonText = "放弃", CloseButtonText = "取消" },
@@ -814,15 +787,15 @@ public sealed partial class ProductCategoryManagerViewModel : ViewModelBaseEx, I
         node.Children.CollectionChanged -= OnChildrenCollectionChanged;
     }
 
-    /// <summary>取消分类读取、释放标签子页并解除树和状态事件，旧请求不得重新写回页面。</summary>
+    /// <summary>取消分类读取并解除树和快速归类状态事件，旧请求不得重新写回页面。</summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true; _loadGeneration++; _loadCts?.Cancel(); _loadCts?.Dispose(); _loadCts = null;
         foreach (var node in FlattenTree(CategoryTree).Concat(_deletedNodes).Distinct()) UnsubscribeNode(node);
-        PropertyChanged -= OnOwnStateChanged; Attributes.PropertyChanged -= OnAttributeStateChanged;
-        Assignment.PropertyChanged -= OnAssignmentStateChanged; Attributes.Dispose();
-        CommitPendingEdits = null; Attributes.CommitPendingEdits = null;
+        PropertyChanged -= OnOwnStateChanged;
+        Assignment.PropertyChanged -= OnAssignmentStateChanged;
+        CommitPendingEdits = null;
         Assignment.CloseAssignmentPanelCommand.Execute(null);
     }
 }

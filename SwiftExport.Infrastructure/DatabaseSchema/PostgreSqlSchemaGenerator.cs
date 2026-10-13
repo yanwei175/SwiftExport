@@ -130,9 +130,9 @@ END $$;
                 && index.Name == "UX_ProductColor_ColorCodeUnique" && property == "ColorCodeUnique"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductMaster)
                 && index.Name == "UX_ProductMaster_MasterSku" && property == "MasterSku"
-            // 标签编码只在所属分类/组内唯一，沿用主数据编码的大小写比较基线。
+            // 标签组编码全局唯一，选项编码在组内唯一，沿用主数据编码大小写比较基线。
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductAttributeGroup)
-                && index.Name == "UX_ProductAttributeGroup_Category_Code" && property == "GroupCode"
+                && index.Name == "UX_ProductAttributeGroup_Code" && property == "GroupCode"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductAttributeOption)
                 && index.Name == "UX_ProductAttributeOption_Group_Code" && property == "OptionCode"
             || entity == typeof(SwiftExport.Core.Entities.MasterData.ProductNeutral)

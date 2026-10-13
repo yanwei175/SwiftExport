@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Authentication;
@@ -23,7 +23,7 @@ public sealed class NavigationAuthorizationTests
             null,
             "Shipping.PackingList.View", "Shipping.PackingList.View",
             "Products.Product.View", "Products.Master.View", "Products.Master.View", "Products.Neutral.View", "Products.Master.View",
-            "Products.Category.View", "Products.Color.View", "Products.Bom.View",
+            "Products.Category.View", "Products.Category.View", "Products.Color.View", "Products.Bom.View",
             "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",
             "Suppliers.Supplier.View", "Suppliers.Products.View",
             "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
@@ -48,6 +48,28 @@ public sealed class NavigationAuthorizationTests
             if (route.RequiredPermission is not null)
                 Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
         }
+    }
+
+    /// <summary>产品标签使用既有分类查看权限，重复打开激活原工作区且保留未保存内容。</summary>
+    [TestMethod]
+    public async Task ProductAttributes_ReuseSingleWorkspaceWithExistingCategoryPermission()
+    {
+        var registry = new NavigationRouteRegistry();
+        var key = SwiftExportClient.Features.Products.Attributes.ViewModels.ProductAttributeManagerViewModel.RouteKey;
+        Assert.IsTrue(registry.TryGetRoute(key, out var route));
+        Assert.AreEqual(PermissionKeys.ProductsCategoryView, route.RequiredPermission);
+        Assert.AreEqual(NavigationModuleKeys.Products, route.ModuleKey);
+        var context = CreateContext([route with { ViewModelType = typeof(DirtyPage) }], PermissionKeys.ProductsCategoryView);
+        await context.Navigation.OpenAsync(key);
+        var original = context.Navigation.SelectedTab;
+        await context.Navigation.OpenAsync(key);
+        Assert.AreSame(original, context.Navigation.SelectedTab);
+        Assert.AreEqual(1, context.Navigation.OpenTabs.Count);
+        Assert.AreEqual(1, context.Provider.CreatedCount);
+        Assert.IsTrue(((DirtyPage)original!.ContentViewModel!).HasUnsavedChanges);
+        await context.Navigation.CloseAsync(original);
+        Assert.IsTrue(context.Navigation.OpenTabs.Contains(original));
+        Assert.IsFalse(((DirtyPage)original.ContentViewModel!).IsDisposed);
     }
 
     /// <summary>任一系统读取权限可以进入；无权限或匿名不能进入。</summary>

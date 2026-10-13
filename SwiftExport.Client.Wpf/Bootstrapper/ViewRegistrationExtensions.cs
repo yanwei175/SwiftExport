@@ -71,7 +71,7 @@ public static class ViewRegistrationExtensions
 
         services.AddTransient<ProductCategoryAssignmentViewModel>();
         services.AddTransient<ProductCategoryManagerViewModel>();
-        services.AddTransient<SwiftExportClient.Features.Products.Categories.ViewModels.ProductAttributeDefinitionViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Products.Attributes.ViewModels.ProductAttributeManagerViewModel>();
 
         services.AddTransient<BomManagerViewModel>();
         services.AddTransient<IBomBindingClientService, BomBindingClientService>();

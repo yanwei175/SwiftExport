@@ -301,7 +301,7 @@ namespace SwiftExport.Client.VSTO.Tests
             }
         }
 
-        /// <summary>分类树修复孤立和循环父链，扁平列表共享节点并保留路径。</summary>
+        /// <summary>分类树修复孤立和循环父链，扁平列表共享节点并以显示名称生成路径。</summary>
         [TestMethod, Timeout(10000)]
         public async Task CategoriesPreserveTreeAndRepairCycles()
         {
@@ -311,16 +311,17 @@ namespace SwiftExport.Client.VSTO.Tests
                 var a = Guid.NewGuid(); var b = Guid.NewGuid(); var orphan = Guid.NewGuid();
                 f.Transport.Override = (p, r) => Task.FromResult(Ok(new[]
                 {
-                    new { uid = root, parentId = (Guid?)null, categoryName = "ROOT", sortNo = 1 },
-                    new { uid = child, parentId = (Guid?)root, categoryName = "CHILD", sortNo = 2 },
-                    new { uid = a, parentId = (Guid?)b, categoryName = "A", sortNo = 3 },
-                    new { uid = b, parentId = (Guid?)a, categoryName = "B", sortNo = 4 },
-                    new { uid = orphan, parentId = (Guid?)Guid.NewGuid(), categoryName = "ORPHAN", sortNo = 5 }
+                    new { uid = root, parentId = (Guid?)null, categoryName = "ROOT", fakeName = "根分类", sortNo = 1 },
+                    new { uid = child, parentId = (Guid?)root, categoryName = "CHILD", fakeName = "子分类", sortNo = 2 },
+                    new { uid = a, parentId = (Guid?)b, categoryName = "A", fakeName = "循环甲", sortNo = 3 },
+                    new { uid = b, parentId = (Guid?)a, categoryName = "B", fakeName = "循环乙", sortNo = 4 },
+                    new { uid = orphan, parentId = (Guid?)Guid.NewGuid(), categoryName = "ORPHAN", fakeName = "孤立分类", sortNo = 5 }
                 }));
                 Assert.IsTrue((await f.Cache.RefreshProductCategoriesAsync()).Success);
                 Assert.AreEqual(4, f.Cache.ProductCategoryTree.Count);
                 Assert.AreEqual(5, f.Cache.ProductCategories.Count);
-                Assert.AreEqual("ROOT / CHILD", f.Cache.ProductCategories.Single(x => x.Uid == child).CategoryPath);
+                Assert.AreEqual("根分类", f.Cache.ProductCategoryTree[0].CategoryPath);
+                Assert.AreEqual("根分类 / 子分类", f.Cache.ProductCategories.Single(x => x.Uid == child).CategoryPath);
                 Assert.AreSame(f.Cache.ProductCategoryTree[0].Children[0], f.Cache.ProductCategories[1]);
             }
         }

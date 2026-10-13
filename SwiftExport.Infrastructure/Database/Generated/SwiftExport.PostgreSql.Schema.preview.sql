@@ -828,7 +828,6 @@ CREATE TABLE "public"."product_attribute_group" (
     "created_by" varchar(500) NULL,
     "updated_date" timestamp(6) without time zone NULL,
     "updated_by" varchar(500) NULL,
-    "category_id" uuid NOT NULL,
     "group_code" varchar(100) NOT NULL,
     "group_name" varchar(200) NOT NULL,
     "selection_mode" integer NOT NULL,
@@ -869,6 +868,19 @@ CREATE TABLE "public"."product_category" (
     "sort_no" integer NOT NULL,
     CONSTRAINT "pk_product_category" PRIMARY KEY ("uid"),
     CONSTRAINT "ck_product_category_version" CHECK ("version" >= 1)
+);
+CREATE TABLE "public"."product_category_attribute_group" (
+    "uid" uuid NOT NULL,
+    "version" integer NOT NULL DEFAULT 1,
+    "is_deleted" boolean NOT NULL DEFAULT FALSE,
+    "created_date" timestamp(6) without time zone NULL,
+    "created_by" varchar(500) NULL,
+    "updated_date" timestamp(6) without time zone NULL,
+    "updated_by" varchar(500) NULL,
+    "category_id" uuid NOT NULL,
+    "attribute_group_id" uuid NOT NULL,
+    CONSTRAINT "pk_product_category_attribute_group" PRIMARY KEY ("uid"),
+    CONSTRAINT "ck_product_category_attribute_group_version" CHECK ("version" >= 1)
 );
 CREATE TABLE "public"."product_color" (
     "uid" uuid NOT NULL,
@@ -1558,11 +1570,15 @@ CREATE UNIQUE INDEX "ux_product_sku" ON "public"."product" ("sku") WHERE "is_del
 -- 评审限制：引用冻结只检查当前可见事实；并发新增引用的锁协议尚待仓储适配，不能用于正式部署。
 CREATE FUNCTION public."fn_product_unit_frozen_on_reference"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW."unit" IS DISTINCT FROM OLD."unit" AND (EXISTS (SELECT 1 FROM "public"."inventory_ledger_entry" r WHERE r."product_id" = OLD."uid") OR EXISTS (SELECT 1 FROM "public"."purchase_order_line" r WHERE r."product_id" = OLD."uid")) THEN RAISE EXCEPTION USING ERRCODE = 'P3102', MESSAGE = '已被事实引用的字段禁止修改'; END IF; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_product_unit_frozen_on_reference" BEFORE UPDATE ON "public"."product" FOR EACH ROW EXECUTE FUNCTION public."fn_product_unit_frozen_on_reference"();
-CREATE INDEX "ix_product_attribute_group_category_order" ON "public"."product_attribute_group" ("category_id", "sort_order") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_product_attribute_group_category_code" ON "public"."product_attribute_group" ("category_id", (rtrim("group_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
+CREATE INDEX "ix_product_attribute_group_order" ON "public"."product_attribute_group" ("sort_order") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_product_attribute_group_code" ON "public"."product_attribute_group" ((rtrim("group_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_attribute_option_group_order" ON "public"."product_attribute_option" ("attribute_group_id", "sort_order") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_attribute_option_group_code" ON "public"."product_attribute_option" ("attribute_group_id", (rtrim("option_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_category_category_code" ON "public"."product_category" ((rtrim("category_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE AND "category_code" IS NOT NULL;
+CREATE INDEX "ix_product_category_attribute_group_group" ON "public"."product_category_attribute_group" ("attribute_group_id") WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_product_category_attribute_group_category_group" ON "public"."product_category_attribute_group" ("category_id", "attribute_group_id") WHERE "is_deleted" = FALSE;
+CREATE FUNCTION public."fn_product_category_attribute_group_immutable_identity"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW."category_id" IS DISTINCT FROM OLD."category_id" OR NEW."attribute_group_id" IS DISTINCT FROM OLD."attribute_group_id" THEN RAISE EXCEPTION USING ERRCODE = 'P3101', MESSAGE = '成立身份不可修改'; END IF; RETURN NEW; END; $body$;
+CREATE TRIGGER "tr_product_category_attribute_group_immutable_identity" BEFORE UPDATE ON "public"."product_category_attribute_group" FOR EACH ROW EXECUTE FUNCTION public."fn_product_category_attribute_group_immutable_identity"();
 CREATE UNIQUE INDEX "ux_product_color_color_code_unique" ON "public"."product_color" ((rtrim("color_code_unique", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_details_product_id" ON "public"."product_detail" ("product_id") WHERE "is_deleted" = FALSE AND "product_id" IS NOT NULL;
 CREATE INDEX "ix_product_details_product_sku" ON "public"."product_detail" ("product_sku") WHERE "is_deleted" = FALSE;
@@ -2287,7 +2303,7 @@ COMMENT ON COLUMN "public"."product"."default_supplier_id" IS '默认供应商�
 COMMENT ON COLUMN "public"."product"."default_warehouse_site_id" IS '产品建议使用的仓库标识；仅作当前参考，不决定单据实际仓库。';
 COMMENT ON COLUMN "public"."product"."manufacturer_id" IS '实际制造商标识，独立于默认采购供应商。';
 COMMENT ON COLUMN "public"."product"."manufacturer_model" IS '制造商型号；允许不选择制造商时独立记录。';
-COMMENT ON TABLE "public"."product_attribute_group" IS '某个产品分类下的标签组，定义可选值的分组与单多选规则。';
+COMMENT ON TABLE "public"."product_attribute_group" IS '可由多个产品分类共享的标签组，统一定义选项与单多选规则。';
 COMMENT ON COLUMN "public"."product_attribute_group"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_attribute_group"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
 COMMENT ON COLUMN "public"."product_attribute_group"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
@@ -2295,12 +2311,11 @@ COMMENT ON COLUMN "public"."product_attribute_group"."created_date" IS '记录�
 COMMENT ON COLUMN "public"."product_attribute_group"."created_by" IS '记录创建人标识。';
 COMMENT ON COLUMN "public"."product_attribute_group"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."product_attribute_group"."updated_by" IS '记录最后更新人标识。';
-COMMENT ON COLUMN "public"."product_attribute_group"."category_id" IS '所属分类的稳定身份；创建后不迁移到另一分类。';
-COMMENT ON COLUMN "public"."product_attribute_group"."group_code" IS '分类内唯一的组编码，保存时规范首尾空白。';
+COMMENT ON COLUMN "public"."product_attribute_group"."group_code" IS '有效标签组中全局唯一的编码，保存时规范首尾空白。';
 COMMENT ON COLUMN "public"."product_attribute_group"."group_name" IS '用于标签维护与产品展示的组名称。';
 COMMENT ON COLUMN "public"."product_attribute_group"."selection_mode" IS '本组的单选或多选规则。';
 COMMENT ON COLUMN "public"."product_attribute_group"."sort_order" IS '组的显示顺序，同序时按 Uid 保持稳定。';
-COMMENT ON TABLE "public"."product_attribute_option" IS '分类标签组中的受控选项，名称可以维护，归属组保持不变。';
+COMMENT ON TABLE "public"."product_attribute_option" IS '共享标签组中的受控选项，名称可以维护，归属组保持不变。';
 COMMENT ON COLUMN "public"."product_attribute_option"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_attribute_option"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
 COMMENT ON COLUMN "public"."product_attribute_option"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
@@ -2308,7 +2323,7 @@ COMMENT ON COLUMN "public"."product_attribute_option"."created_date" IS '记录�
 COMMENT ON COLUMN "public"."product_attribute_option"."created_by" IS '记录创建人标识。';
 COMMENT ON COLUMN "public"."product_attribute_option"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."product_attribute_option"."updated_by" IS '记录最后更新人标识。';
-COMMENT ON COLUMN "public"."product_attribute_option"."attribute_group_id" IS '所属标签组的稳定身份，支持创建后通过关联取得分类。';
+COMMENT ON COLUMN "public"."product_attribute_option"."attribute_group_id" IS '所属标签组的稳定身份；分类适用范围由组与分类的直接关联及继承决定。';
 COMMENT ON COLUMN "public"."product_attribute_option"."option_code" IS '组内唯一的选项编码。';
 COMMENT ON COLUMN "public"."product_attribute_option"."option_name" IS '用于选择与展示的选项名称。';
 COMMENT ON COLUMN "public"."product_attribute_option"."sort_order" IS '选项显示顺序，同序时按 Uid 保持稳定。';
@@ -2325,6 +2340,16 @@ COMMENT ON COLUMN "public"."product_category"."parent_id" IS '关联的上级记
 COMMENT ON COLUMN "public"."product_category"."fake_name" IS '该实体保存的分类显示别名。';
 COMMENT ON COLUMN "public"."product_category"."category_code" IS '该实体保存的分类编码。';
 COMMENT ON COLUMN "public"."product_category"."sort_no" IS '该实体保存的分类显示顺序。';
+COMMENT ON TABLE "public"."product_category_attribute_group" IS '分类直接关联的共享标签组；后代继承通过分类树计算，不复制关系。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."created_date" IS '记录创建时间。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."created_by" IS '记录创建人标识。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."updated_date" IS '记录最后更新时间。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."updated_by" IS '记录最后更新人标识。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."category_id" IS '直接适用的分类身份，创建后不可修改。';
+COMMENT ON COLUMN "public"."product_category_attribute_group"."attribute_group_id" IS '共享标签组身份，创建后不可修改。';
 COMMENT ON TABLE "public"."product_color" IS '产品颜色主数据实体，保存稳定颜色编码及中英文名称。';
 COMMENT ON COLUMN "public"."product_color"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_color"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
@@ -2375,7 +2400,7 @@ COMMENT ON COLUMN "public"."product_master"."product_type" IS '类型。';
 COMMENT ON COLUMN "public"."product_master"."product_tag" IS '标签属性用来归类。';
 COMMENT ON COLUMN "public"."product_master"."category_id" IS '分类唯一标识。';
 COMMENT ON COLUMN "public"."product_master"."default_supplier_id" IS '默认供应商标识；使用逻辑外键，由应用服务校验。';
-COMMENT ON TABLE "public"."product_master_attribute_selection" IS '主型号实际选中的标签值；分类和组均由选项关联取得。';
+COMMENT ON TABLE "public"."product_master_attribute_selection" IS '主型号实际选中的标签值；组由选项取得，分类以主型号当前归属为准。';
 COMMENT ON COLUMN "public"."product_master_attribute_selection"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_master_attribute_selection"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
 COMMENT ON COLUMN "public"."product_master_attribute_selection"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';

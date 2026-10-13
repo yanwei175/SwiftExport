@@ -4,12 +4,11 @@ using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Mvvm;
 
-namespace SwiftExportClient.Features.Products.Categories.Models;
+namespace SwiftExportClient.Features.Products.Attributes.Models;
 
-/// <summary>维护当前分类的标签组草稿；所属分类在创建后保持不变。</summary>
+/// <summary>维护全局共享标签组草稿；分类适用范围由独立关联草稿维护。</summary>
 public sealed partial class ProductAttributeGroupLineModel : BaseLineModel<ProductAttributeGroupDto>
 {
-    [ObservableProperty] public partial Guid CategoryId { get; set; }
     [ObservableProperty] public partial string GroupCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string GroupName { get; set; } = string.Empty;
     [ObservableProperty] public partial ProductAttributeSelectionMode SelectionMode { get; set; }

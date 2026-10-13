@@ -9,8 +9,6 @@ namespace SwiftExport.Contracts.DTOs.Products.Attributes
     /// <summary>标签组及其完整有效选项，用于只读定义快照。</summary>
     public class ProductAttributeGroupDto : BaseDto
     {
-        /// <summary>所属分类。</summary>
-        public Guid CategoryId { get; set; }
         /// <summary>组编码。</summary>
         public string GroupCode { get; set; }
         /// <summary>组名称。</summary>

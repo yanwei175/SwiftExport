@@ -21,8 +21,10 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
 /// <summary>验证主型号标签身份、基线、缓存重匹配、模式冲突及详情聚合提交，不访问网络。</summary>
 [TestClass]
-public sealed class ProductMasterTagSelectionTests
+public sealed partial class ProductMasterTagSelectionTests
 {
+    /// <summary>本地夹具分类身份，与标签组 DTO 分开维护，组本身没有所属分类字段。</summary>
+    internal static readonly Guid FixtureCategoryId = new("19000000-0000-0000-0000-000000000001");
     /// <summary>多选的临时集合只有确定后成为可保存选择；重排和候选改名不产生假脏状态。</summary>
     [TestMethod]
     public void Multiple_CommitAndIdentityRefresh_ShouldKeepDraftAndBaseline()
@@ -35,9 +37,9 @@ public sealed class ProductMasterTagSelectionTests
         CollectionAssert.AreEquivalent(new[] { definition.Options[0].Uid }, model.GetSelectedOptionIds()!);
         group.CommitMultipleSelectionCommand.Execute(null);
         Assert.IsTrue(model.IsDirty);
-        var refreshed = Definition(definition.CategoryId, definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
+        var refreshed = Definition(definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
         refreshed.Options[1].OptionName = "挂墙新名称";
-        model.RefreshDefinitions([refreshed], true);
+        model.RefreshDefinitions(Resolution([refreshed], true));
         Assert.IsTrue(model.IsDirty);
         Assert.AreSame(refreshed.Options[1], model.Groups.Single().SelectedItems[1]);
         Assert.IsTrue(model.Groups.Single().SelectionSummary.Contains("挂墙新名称"));
@@ -53,18 +55,18 @@ public sealed class ProductMasterTagSelectionTests
         var definition = Definition();
         var id = definition.Options[0].Uid;
         using var model = Workspace(definition, id);
-        model.RefreshDefinitions([], false);
+        model.RefreshDefinitions(Resolution([], false));
         Assert.IsNull(model.GetSelectedOptionIds());
         Assert.IsFalse(model.IsDirty);
-        model.RefreshDefinitions([], true);
+        model.RefreshDefinitions(Resolution([], true));
         CollectionAssert.AreEqual(new[] { id }, model.GetSelectedOptionIds()!);
         Assert.IsFalse(model.IsDirty);
-        Assert.IsNotNull(model.ValidateSelection(definition.CategoryId));
+        Assert.IsNotNull(model.ValidateSelection(FixtureCategoryId));
         Assert.IsTrue(model.MissingSelections.Single().DisplayText.Contains("吸顶"));
         model.RemoveMissingSelectionCommand.Execute(model.MissingSelections.Single());
         Assert.IsTrue(model.IsDirty);
         Assert.AreEqual(0, model.GetSelectedOptionIds()!.Count);
-        Assert.IsNull(model.ValidateSelection(definition.CategoryId));
+        Assert.IsNull(model.ValidateSelection(FixtureCategoryId));
     }
 
     /// <summary>多选改为单选保留旧多值并阻止保存，明确清除才修改最终身份集合。</summary>
@@ -73,17 +75,17 @@ public sealed class ProductMasterTagSelectionTests
     {
         var definition = Definition();
         using var model = Workspace(definition, definition.Options.Select(item => item.Uid).ToArray());
-        var single = Definition(definition.CategoryId, definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
+        var single = Definition(definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
         single.SelectionMode = ProductAttributeSelectionMode.Single;
-        model.RefreshDefinitions([single], true);
+        model.RefreshDefinitions(Resolution([single], true));
         Assert.IsFalse(model.IsDirty);
         Assert.AreEqual(2, model.GetSelectedOptionIds()!.Count);
         Assert.IsTrue(model.Groups.Single().HasSingleSelectionConflict);
-        Assert.IsNotNull(model.ValidateSelection(definition.CategoryId));
+        Assert.IsNotNull(model.ValidateSelection(FixtureCategoryId));
         model.Groups.Single().ClearSingleSelectionCommand.Execute(null);
         Assert.AreEqual(0, model.GetSelectedOptionIds()!.Count);
         Assert.IsTrue(model.IsDirty);
-        Assert.IsNull(model.ValidateSelection(definition.CategoryId));
+        Assert.IsNull(model.ValidateSelection(FixtureCategoryId));
     }
 
     /// <summary>弹出层打开时缓存更新延迟到关闭，避免替换临时勾选，已确认身份保留。</summary>
@@ -94,9 +96,9 @@ public sealed class ProductMasterTagSelectionTests
         using var model = Workspace(definition, definition.Options[0].Uid);
         var group = model.Groups.Single();
         model.BeginPopupEdit();
-        var next = Definition(definition.CategoryId, definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
+        var next = Definition(definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
         next.GroupName = "新组名";
-        model.RefreshDefinitions([next], true);
+        model.RefreshDefinitions(Resolution([next], true));
         Assert.AreSame(group, model.Groups.Single());
         group.SelectedItems.Add(definition.Options[1]);
         group.CommitMultipleSelectionCommand.Execute(null);
@@ -116,7 +118,7 @@ public sealed class ProductMasterTagSelectionTests
         var notified = false;
         model.StateChanged += (_, _) => notified = true;
         model.BeginPopupEdit();
-        model.RefreshDefinitions([], false);
+        model.RefreshDefinitions(Resolution([], false));
         Assert.IsTrue(notified);
         Assert.IsFalse(model.AreDefinitionsLoaded);
         Assert.IsFalse(model.CanEdit);
@@ -131,7 +133,7 @@ public sealed class ProductMasterTagSelectionTests
         Assert.IsFalse(model.IsDirty);
         model.EndPopupEdit();
         Assert.AreEqual(0, model.Groups.Count);
-        model.RefreshDefinitions([definition], true);
+        model.RefreshDefinitions(Resolution([definition], true));
         CollectionAssert.AreEqual(new[] { definition.Options[0].Uid }, model.GetSelectedOptionIds()!);
         Assert.IsFalse(model.IsDirty);
     }
@@ -143,15 +145,15 @@ public sealed class ProductMasterTagSelectionTests
         var definition = Definition();
         using var model = Workspace(definition, definition.Options[0].Uid);
         var newCategory = Guid.NewGuid();
-        model.ChangeCategory(newCategory);
-        Assert.AreEqual(0, model.Groups.Count, "不能继承其他分类定义。");
+        model.ChangeCategory(newCategory, Resolution([]));
+        Assert.AreEqual(0, model.Groups.Count, "目标分类解析结果没有任何适用组。");
         Assert.AreEqual(0, model.GetSelectedOptionIds()!.Count);
         Assert.IsTrue(model.IsDirty);
-        model.RefreshDefinitions([], false);
+        model.RefreshDefinitions(Resolution([], false));
         Assert.IsNotNull(model.ValidateSelection(newCategory));
         model.RejectChanges();
-        model.RefreshDefinitions([definition], true);
-        Assert.AreEqual(definition.CategoryId, model.CategoryId);
+        model.RefreshDefinitions(Resolution([definition], true));
+        Assert.AreEqual(FixtureCategoryId, model.CategoryId);
         Assert.IsFalse(model.IsDirty);
         CollectionAssert.AreEqual(new[] { definition.Options[0].Uid }, model.GetSelectedOptionIds()!);
     }
@@ -176,9 +178,9 @@ public sealed class ProductMasterTagSelectionTests
         var cache = Cache(definition);
         using var vm = new ProductMasterDetailViewModel(api, null!, Runner(), cache, Proxy<IMessageService>((_, _) => null),
             null!, null!, new ProductMasterSyncDialogStub());
-        vm.Header.Load(new() { Uid = masterId, Version = 1, Master = new() { MasterSku = "MASTER", CategoryId = definition.CategoryId } });
-        vm.Tags.Load(definition.CategoryId, [], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Header.Load(new() { Uid = masterId, Version = 1, Master = new() { MasterSku = "MASTER", CategoryId = FixtureCategoryId } });
+        vm.Tags.Load(FixtureCategoryId, [], []);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         Assert.IsFalse(vm.HasUnsavedChanges);
         var group = vm.Tags.Groups.Single();
         group.SelectedItems.Add(definition.Options[0]);
@@ -198,7 +200,7 @@ public sealed class ProductMasterTagSelectionTests
     public async Task DetailCategoryConfirmation_ShouldRestoreOrClearTags()
     {
         var definition = Definition();
-        var first = Category(definition.CategoryId, "原分类");
+        var first = Category(FixtureCategoryId, "原分类");
         var next = Category(Guid.NewGuid(), "新分类");
         var confirmed = false;
         var cache = Cache(definition, first, next);
@@ -206,7 +208,7 @@ public sealed class ProductMasterTagSelectionTests
         using var vm = new ProductMasterDetailViewModel(null!, null!, null!, cache, null!, dialogs, null!, new ProductMasterSyncDialogStub());
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", CategoryId = first.Uid }, CategoryName = first.CategoryName });
         vm.Tags.Load(first.Uid, [definition.Options[0].Uid], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         vm.SelectedCategory = next;
         await vm.CommitCategoryCommand.ExecuteAsync(null);
         Assert.AreEqual(first.Uid, vm.Header.CategoryId);
@@ -246,13 +248,13 @@ public sealed class ProductMasterTagSelectionTests
         });
         using var vm = new ProductMasterDetailViewModel(api, null!, Runner(), Cache(definition), Proxy<IMessageService>((_, _) => null),
             null!, navigation, new ProductMasterSyncDialogStub());
-        vm.Header.Load(new() { Master = new() { MasterSku = "NEW-MASTER", CategoryId = definition.CategoryId } });
+        vm.Header.Load(new() { Master = new() { MasterSku = "NEW-MASTER", CategoryId = FixtureCategoryId } });
         vm.Header.MarkAsAdded();
         var neutral = vm.Neutrals.AddNewNeutral(Guid.Empty);
         neutral.ProductCode = "NEW-NEUTRAL";
         neutral.ColorId = Guid.NewGuid();
-        vm.Tags.Load(definition.CategoryId, [], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Tags.Load(FixtureCategoryId, [], []);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         vm.Tags.Groups.Single().SelectedItems.Add(definition.Options[0]);
         vm.Tags.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
         await vm.SaveCommand.ExecuteAsync(null);
@@ -298,7 +300,7 @@ public sealed class ProductMasterTagSelectionTests
     {
         var definition = Definition();
         var current = definition;
-        var next = Definition(definition.CategoryId, definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
+        var next = Definition(definition.Uid, definition.Options.Select(item => item.Uid).ToArray());
         next.Options[0].OptionName = "吸顶新名称";
         var completion = new TaskCompletionSource<CacheRefreshResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var calls = 0;
@@ -306,14 +308,16 @@ public sealed class ProductMasterTagSelectionTests
         {
             "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<ProductAttributeGroupDto>(new ObservableCollection<ProductAttributeGroupDto>([current])),
             "get_AreProductAttributesLoaded" => true,
+            nameof(IReferenceDataCacheService.ResolveProductAttributes) => Resolution([current]),
             nameof(IReferenceDataCacheService.RefreshProductAttributesAsync) => Refresh(),
             _ => null
         });
         Task<CacheRefreshResult> Refresh() { calls++; return completion.Task; }
         using var vm = new ProductMasterDetailViewModel(null!, null!, null!, cache, Proxy<IMessageService>((_, _) => null),
             null!, null!, new ProductMasterSyncDialogStub());
-        vm.Tags.Load(definition.CategoryId, [], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", CategoryId = FixtureCategoryId } });
+        vm.Tags.Load(FixtureCategoryId, [], []);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         vm.Header.ProductTag = "旧附加标签草稿";
         vm.Neutrals.AddNewNeutral(Guid.Empty).ProductCode = "中性产品草稿";
         vm.Tags.Groups.Single().SelectedItems.Add(definition.Options[0]);
@@ -346,9 +350,9 @@ public sealed class ProductMasterTagSelectionTests
         var api = Proxy<IProductMasterApi>((_, _) => { calls++; throw new AssertFailedException("只读用户不能发送保存。"); });
         using var vm = new ProductMasterDetailViewModel(api, null!, Runner(), Cache(definition), Proxy<IMessageService>((_, _) => null),
             null!, null!, new ProductMasterSyncDialogStub(), user);
-        vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", CategoryId = definition.CategoryId } });
-        vm.Tags.Load(definition.CategoryId, [definition.Options[0].Uid], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", CategoryId = FixtureCategoryId } });
+        vm.Tags.Load(FixtureCategoryId, [definition.Options[0].Uid], []);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         Assert.IsTrue(vm.IsReadOnly);
         Assert.IsFalse(vm.CanEditTags);
         Assert.AreEqual("吸顶", vm.Tags.Groups.Single().SelectionSummary);
@@ -370,9 +374,9 @@ public sealed class ProductMasterTagSelectionTests
         user.SetCurrentUser(new() { Permissions = [PermissionKeys.ProductsMasterEdit] });
         var definition = Definition();
         using var vm = new ProductMasterDetailViewModel(null!, null!, null!, Cache(definition), null!, null!, null!, new ProductMasterSyncDialogStub(), user);
-        vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", CategoryId = definition.CategoryId } });
-        vm.Tags.Load(definition.CategoryId, [], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", CategoryId = FixtureCategoryId } });
+        vm.Tags.Load(FixtureCategoryId, [], []);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         vm.Tags.Groups.Single().SelectedItems.Add(definition.Options[0]);
         vm.Tags.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
         Assert.IsTrue(vm.CanEditTags);
@@ -402,14 +406,14 @@ public sealed class ProductMasterTagSelectionTests
         var user = new CurrentUserService();
         user.SetCurrentUser(new() { Permissions = [PermissionKeys.ProductsMasterEdit] });
         var definition = Definition();
-        var first = Category(definition.CategoryId, "原分类");
+        var first = Category(FixtureCategoryId, "原分类");
         var next = Category(Guid.NewGuid(), "新分类");
         var confirmation = new TaskCompletionSource<bool>();
         using var vm = new ProductMasterDetailViewModel(null!, null!, null!, Cache(definition, first, next), null!,
             Proxy<IDialogService>((_, _) => confirmation.Task), null!, new ProductMasterSyncDialogStub(), user);
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", CategoryId = first.Uid }, CategoryName = first.CategoryName });
         vm.Tags.Load(first.Uid, [definition.Options[0].Uid], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         vm.SelectedCategory = next;
         var pending = vm.CommitCategoryCommand.ExecuteAsync(null);
         user.Clear();
@@ -434,9 +438,9 @@ public sealed class ProductMasterTagSelectionTests
         var api = Proxy<IProductMasterApi>((_, _) => { calls++; throw new AssertFailedException("权限已收回不能发送请求。"); });
         using var vm = new ProductMasterDetailViewModel(api, null!, Runner(), Cache(definition), Proxy<IMessageService>((_, _) => null),
             null!, null!, new ProductMasterSyncDialogStub { Respond = () => confirmation.Task }, user);
-        vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", CategoryId = definition.CategoryId } });
-        vm.Tags.Load(definition.CategoryId, [], []);
-        vm.Tags.RefreshDefinitions([definition], true);
+        vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", CategoryId = FixtureCategoryId } });
+        vm.Tags.Load(FixtureCategoryId, [], []);
+        vm.Tags.RefreshDefinitions(Resolution([definition], true));
         vm.Tags.Groups.Single().SelectedItems.Add(definition.Options[0]);
         vm.Tags.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
         var pending = vm.SaveCommand.ExecuteAsync(null);
@@ -450,18 +454,24 @@ public sealed class ProductMasterTagSelectionTests
         Assert.IsFalse(vm.CanEditTags);
     }
 
-    internal static ProductAttributeGroupDto Definition(Guid? category = null, Guid? group = null, Guid[]? ids = null) => new()
+    /// <summary>建立全局组及组内选项；分类适用范围由 Resolution/Cache 夹具的关联独立给出。</summary>
+    internal static ProductAttributeGroupDto Definition(Guid? group = null, Guid[]? ids = null)
     {
-        Uid = group ?? Guid.NewGuid(), CategoryId = category ?? Guid.NewGuid(), GroupName = "安装方式", SelectionMode = ProductAttributeSelectionMode.Multiple,
-        Options = new[] { "吸顶", "挂墙" }.Select((name, index) => new ProductAttributeOptionDto
-        { Uid = ids?[index] ?? Guid.NewGuid(), OptionName = name, OptionCode = index == 0 ? "CEILING" : "WALL", SortOrder = index }).ToList()
-    };
+        var groupId = group ?? Guid.NewGuid();
+        return new() { Uid = groupId, GroupName = "安装方式", SelectionMode = ProductAttributeSelectionMode.Multiple,
+            Options = new[] { "吸顶", "挂墙" }.Select((name, index) => new ProductAttributeOptionDto
+            { Uid = ids?[index] ?? Guid.NewGuid(), AttributeGroupId = groupId, OptionName = name, OptionCode = index == 0 ? "CEILING" : "WALL", SortOrder = index }).ToList() };
+    }
+
+    /// <summary>定义解析替身用于选择工作区，失败与正常空候选保持明确区分。</summary>
+    internal static ProductAttributeResolution Resolution(IEnumerable<ProductAttributeGroupDto> definitions, bool loaded = true) =>
+        new(loaded, loaded ? "标签选择随整页保存。" : "标签定义尚未加载。", definitions.ToArray(), []);
 
     private static ProductMasterTagSelectionModel Workspace(ProductAttributeGroupDto definition, params Guid[] ids)
     {
         var model = new ProductMasterTagSelectionModel();
-        model.RefreshDefinitions([definition], true);
-        model.Load(definition.CategoryId, ids, []);
+        model.RefreshDefinitions(Resolution([definition], true));
+        model.Load(FixtureCategoryId, ids, []);
         return model;
     }
 
@@ -469,11 +479,12 @@ public sealed class ProductMasterTagSelectionTests
         BindingFlags.Instance | BindingFlags.NonPublic, null, [new SwiftExport.Contracts.DTOs.Products.ProductCategoryDto { Uid = id, CategoryName = name }], null)!;
 
     private static IReferenceDataCacheService Cache(ProductAttributeGroupDto definition, params ProductCategoryCacheNode[] categories) =>
-        Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
+        Proxy<IReferenceDataCacheService>((method, args) => method.Name switch
         {
             "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<ProductAttributeGroupDto>(new ObservableCollection<ProductAttributeGroupDto>([definition])),
             "get_AreProductAttributesLoaded" => true,
             "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>(categories)),
+            nameof(IReferenceDataCacheService.ResolveProductAttributes) => Resolution((Guid)args[0]! == FixtureCategoryId ? [definition] : []),
             _ => null
         });
 

@@ -19,6 +19,7 @@ using System.Reflection;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
+/// <summary>验证分类保存回执接纳和移出标签定义后的原生表单保护。</summary>
 [TestClass]
 public sealed class ProductCategoryManagerViewModelTests
 {
@@ -49,9 +50,7 @@ public sealed class ProductCategoryManagerViewModelTests
                 DispatchProxy.Create<IProductMasterApi, NoCallProductApiProxy>(),
                 runner,
                 new MessageServiceStub(),
-                new DialogServiceStub()),
-            new ProductAttributeDefinitionViewModel(new ProductAttributeApiStub(), runner, cache,
-                new MessageServiceStub(), new DialogServiceStub(), new CurrentUserService()));
+                new DialogServiceStub()));
 
         await viewModel.InitializeAsync();
         viewModel.CurrentCategory!.CategoryName = "第一次修改";
@@ -68,6 +67,36 @@ public sealed class ProductCategoryManagerViewModelTests
         Assert.AreEqual("第二次修改", viewModel.CurrentCategory.CategoryName);
         Assert.IsTrue(categoryApi.GetAllCallCount >= 3, "保存后应绕过嵌套 Busy 限制并重新读取服务端模型。");
     }
+
+    /// <summary>无效排序输入尚未进入模型时也必须阻止关闭，修正后正常形成分类草稿。</summary>
+    [TestMethod]
+    public void InvalidCategoryFormInput_BlocksCloseBeforeModelChange() => SwiftExport.Client.Wpf.Tests.Controls.DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        SwiftExport.Client.Wpf.Tests.TestInfrastructure.ApplicationResourceLoader.Load();
+        var runner = new DirectApiCallRunner();
+        using var viewModel = new ProductCategoryManagerViewModel(new ProductCategoryApiStub(), runner,
+            new MessageServiceStub(), new DialogServiceStub(), new SwiftExport.Client.Wpf.Tests.TestInfrastructure.ReferenceDataCacheServiceStub(),
+            new ProductCategoryAssignmentViewModel(DispatchProxy.Create<IProductMasterApi, NoCallProductApiProxy>(),
+                runner, new MessageServiceStub(), new DialogServiceStub()));
+        await viewModel.InitializeAsync();
+        var view = new SwiftExportClient.Features.Products.Categories.Views.ProductCategoryManagerView { DataContext = viewModel };
+        var window = new System.Windows.Window { Content = view, Width = 1240, Height = 820, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var input = (System.Windows.Controls.TextBox)view.FindName("CategorySortInput");
+            input.Text = "非法排序"; input.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)!.UpdateSource();
+            Assert.IsTrue(System.Windows.Controls.Validation.GetHasError(input));
+            Assert.IsFalse(viewModel.HasUnsavedChanges, "转换错误不能伪造已写入模型的值。");
+            Assert.IsFalse(await viewModel.CanCloseAsync(default));
+            input.Text = "15"; input.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)!.UpdateSource();
+            Assert.IsTrue(view.CommitPendingEdits());
+            Assert.AreEqual(15, viewModel.CurrentCategory!.SortNo);
+            Assert.IsTrue(viewModel.HasUnsavedChanges);
+        }
+        finally { window.Close(); await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle); }
+        Assert.IsNull(viewModel.CommitPendingEdits);
+    });
 
     private sealed class ProductCategoryApiStub : IProductCategoryApi
     {
@@ -146,6 +175,10 @@ public sealed class ProductCategoryManagerViewModelTests
             Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto()));
         public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid categoryId, CancellationToken cancellationToken = default) =>
             Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto { CategoryId = categoryId }));
+        /// <summary>分类页不发起标签维护写入。</summary>
+        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync(SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
             throw new AssertFailedException("分类保存不应提交标签定义。");
     }

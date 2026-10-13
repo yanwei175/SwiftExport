@@ -2,6 +2,8 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:listViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
                     xmlns:listViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
+                    xmlns:attributeViews="clr-namespace:SwiftExportClient.Features.Products.Attributes.Views"
+                    xmlns:attributeViewModels="clr-namespace:SwiftExportClient.Features.Products.Attributes.ViewModels"
                     xmlns:categoryViews="clr-namespace:SwiftExportClient.Features.Products.Categories.Views"
                     xmlns:categoryViewModels="clr-namespace:SwiftExportClient.Features.Products.Categories.ViewModels"
                     xmlns:colorViews="clr-namespace:SwiftExportClient.Features.Products.Colors.Views"
@@ -16,6 +18,7 @@
     <DataTemplate DataType="{x:Type listViewModels:ProductNeutralManagerViewModel}"><listViews:ProductNeutralManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterDetailViewModel}"><listViews:ProductMasterDetailView /></DataTemplate>
     <DataTemplate DataType="{x:Type categoryViewModels:ProductCategoryManagerViewModel}"><categoryViews:ProductCategoryManagerView /></DataTemplate>
+    <DataTemplate DataType="{x:Type attributeViewModels:ProductAttributeManagerViewModel}"><attributeViews:ProductAttributeManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type colorViewModels:ProductColorsViewModel}"><colorViews:ProductColorsView /></DataTemplate>
     <DataTemplate DataType="{x:Type bomViewModels:BomManagerViewModel}"><bomViews:BomManagerView /></DataTemplate>
 </ResourceDictionary>

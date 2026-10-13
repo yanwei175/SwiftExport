@@ -125,6 +125,7 @@ public sealed class ProductMasterSupplierEditingTests
             "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
             "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>(new ObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>()),
             "get_AreProductAttributesLoaded" => false,
+                nameof(IReferenceDataCacheService.ResolveProductAttributes) => new ProductAttributeResolution(true, string.Empty, [], []),
             "add_ProductAttributesChanged" or "remove_ProductAttributesChanged" => null,
             _ => throw new AssertFailedException(method.Name)
         }),
