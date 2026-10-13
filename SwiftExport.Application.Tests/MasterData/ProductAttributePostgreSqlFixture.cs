@@ -84,7 +84,7 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
             fixture.OtherCategory = await fixture.AddCategoryAsync(scope, "另一分类");
             // 复制库装箱数列仍为 NOT NULL；显式提供夹具值，不为标签测试修改无关运行结构。
             fixture.Master = new ProductMaster { MasterSku = "TAG-" + Guid.NewGuid().ToString("N"), CategoryId = fixture.Category.Uid, DefaultPcsPerPackage = 1,
-                ProductType = "保留旧类型", ProductTag = "保留旧标签" };
+                ProductType = "保留旧类型", ProductSeries = "保留系列" };
             var write = await scope.Services.GetRequiredService<IProductMasterRepository>().AddAsync(fixture.Master);
             Assert.IsTrue(write.Success);
             fixture.MasterIds.Add(write.Uid);
@@ -151,7 +151,7 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
             Data = new() { GroupCode = group.GroupCode, GroupName = group.GroupName, SelectionMode = group.SelectionMode, SortOrder = group.SortOrder } });
     }
 
-    /// <summary>从服务器当前头部复制详情请求；默认不改变旧标签。</summary>
+    /// <summary>从服务器当前头部复制详情请求；默认不改变旧系列。</summary>
     internal async Task<SaveProductMasterDetailRequest> DetailRequestAsync(Scope scope)
     {
         var detail = await scope.Query.GetDetailAsync(Master.Uid);

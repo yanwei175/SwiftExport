@@ -35,7 +35,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         pm."default_gross_weight" AS "DefaultGrossWeight",
         pm."default_cbm" AS "DefaultCbm",
         pm."product_type" AS "ProductType",
-        pm."product_tag" AS "ProductTag",
+        pm."product_series" AS "ProductSeries",
         pm."category_id" AS "CategoryId",
         pm."default_supplier_id" AS "DefaultSupplierId"
     """;
@@ -119,7 +119,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
                     OR pm.default_description_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR pm.default_description_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR pm.product_type COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
-                    OR pm.product_tag COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                    OR pm.product_series COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR EXISTS (SELECT 1 FROM public.product_neutral pn WHERE pn.product_master_id=pm.uid
                         AND pn.is_deleted=FALSE AND pn.product_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'))
                 """;
@@ -244,7 +244,7 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         DefaultGrossWeight = row.DefaultGrossWeight,
         DefaultCbm = row.DefaultCbm,
         ProductType = row.ProductType,
-        ProductTag = row.ProductTag,
+        ProductSeries = row.ProductSeries,
         CategoryId = row.CategoryId,
         DefaultSupplierId = row.DefaultSupplierId
     };

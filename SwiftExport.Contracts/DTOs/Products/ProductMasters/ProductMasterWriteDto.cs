@@ -25,8 +25,8 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters
         public decimal? DefaultCbm { get; set; }
         /// <summary>获取或设置产品类型。</summary>
         public string ProductType { get; set; }
-        /// <summary>获取或设置产品标签。</summary>
-        public string ProductTag { get; set; }
+        /// <summary>获取或设置产品系列名；为空表示未设置。</summary>
+        public string ProductSeries { get; set; }
         /// <summary>获取或设置分类标识。</summary>
         public Guid CategoryId { get; set; }
         /// <summary>获取或设置默认供应商标识。</summary>

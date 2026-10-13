@@ -147,7 +147,7 @@ public sealed class ProductMasterSynchronizationTests
         if (detail)
         {
             using var vm = Detail(api, dialog);
-            vm.Header.ProductTag = "修改";
+            vm.Header.ProductSeries = "修改";
             await vm.SaveCommand.ExecuteAsync(null);
             var request = (SaveProductMasterDetailRequest)sent!;
             Assert.AreEqual(descriptions, request.UpdateProductDescriptions);
@@ -181,7 +181,7 @@ public sealed class ProductMasterSynchronizationTests
         using var manager = Manager(api, dialog);
         using var editor = Detail(api, dialog);
         manager.Masters.AddNewMaster().MasterSku = "A";
-        editor.Header.ProductTag = "修改";
+        editor.Header.ProductSeries = "修改";
         var command = detail ? editor.SaveCommand : manager.SaveCommand;
         var pending = command.ExecuteAsync(null);
         Assert.AreEqual(1, dialog.Calls);

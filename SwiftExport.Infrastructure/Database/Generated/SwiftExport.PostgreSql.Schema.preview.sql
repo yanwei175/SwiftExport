@@ -935,7 +935,7 @@ CREATE TABLE "public"."product_master" (
     "default_gross_weight" numeric(18,4) NULL,
     "default_cbm" numeric(18,6) NULL,
     "product_type" varchar(300) NULL,
-    "product_tag" varchar(500) NULL,
+    "product_series" varchar(500) NULL,
     "category_id" uuid NOT NULL,
     "default_supplier_id" uuid NOT NULL,
     CONSTRAINT "pk_product_master" PRIMARY KEY ("uid"),
@@ -2379,7 +2379,7 @@ COMMENT ON COLUMN "public"."product_detail"."linedrawing_path" IS '该实体保�
 COMMENT ON COLUMN "public"."product_detail"."spec_sheet_path" IS '该实体保存的产品规格书文件路径。';
 COMMENT ON COLUMN "public"."product_detail"."barcode1_path" IS '该实体保存的第一条码文件路径。';
 COMMENT ON COLUMN "public"."product_detail"."barcode2_path" IS '该实体保存的第二条码文件路径。';
-COMMENT ON TABLE "public"."product_master" IS '产品主型号实体，保存主型号层级的默认描述、分类和标签。';
+COMMENT ON TABLE "public"."product_master" IS '产品主型号实体，保存主型号层级的默认描述、分类和系列名。';
 COMMENT ON COLUMN "public"."product_master"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_master"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
 COMMENT ON COLUMN "public"."product_master"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
@@ -2397,7 +2397,7 @@ COMMENT ON COLUMN "public"."product_master"."default_net_weight" IS '每箱净�
 COMMENT ON COLUMN "public"."product_master"."default_gross_weight" IS '每箱毛重(KG)';
 COMMENT ON COLUMN "public"."product_master"."default_cbm" IS '每箱体积';
 COMMENT ON COLUMN "public"."product_master"."product_type" IS '类型。';
-COMMENT ON COLUMN "public"."product_master"."product_tag" IS '标签属性用来归类。';
+COMMENT ON COLUMN "public"."product_master"."product_series" IS '产品系列名；为空表示未设置，不参与标签选择。';
 COMMENT ON COLUMN "public"."product_master"."category_id" IS '分类唯一标识。';
 COMMENT ON COLUMN "public"."product_master"."default_supplier_id" IS '默认供应商标识；使用逻辑外键，由应用服务校验。';
 COMMENT ON TABLE "public"."product_master_attribute_selection" IS '主型号实际选中的标签值；组由选项取得，分类以主型号当前归属为准。';

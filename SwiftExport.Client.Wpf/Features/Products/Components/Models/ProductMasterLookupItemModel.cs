@@ -56,8 +56,8 @@ public sealed partial class ProductMasterLookupItemModel
     /// <summary>获取产品类型。</summary>
     public string? ProductType => Source.Data?.ProductType;
 
-    /// <summary>获取产品标签。</summary>
-    public string? ProductTag => Source.Data?.ProductTag;
+    /// <summary>获取产品系列名；为空表示未设置。</summary>
+    public string? ProductSeries => Source.Data?.ProductSeries;
 
     /// <summary>获取默认每箱装率；来源未设置时保留空值，不生成默认装率。</summary>
     public int? DefaultPcsPerPackage => Source.Data?.DefaultPcsPerPackage;

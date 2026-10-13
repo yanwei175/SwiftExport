@@ -36,9 +36,9 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
     [ObservableProperty] public partial decimal? DefaultCbm { get; set; }
     /// <summary>获取或设置产品类型。</summary>
     [ObservableProperty] public partial string ProductType { get; set; } = string.Empty;
-    /// <summary>获取或设置产品标签。</summary>
-    [ObservableProperty] public partial string ProductTag { get; set; } = string.Empty;
-    /// <summary>实时分类标签摘要，只用于显示；与旧附加标签字符串分别维护。</summary>
+    /// <summary>获取或设置产品系列名；为空表示未设置。</summary>
+    [ObservableProperty] public partial string ProductSeries { get; set; } = string.Empty;
+    /// <summary>实时分类标签摘要，只用于显示；与产品系列名分别维护。</summary>
     [ObservableProperty] public partial string TagSummary { get; set; } = string.Empty;
     /// <summary>获取或设置分类标识。</summary>
     [ObservableProperty] public partial Guid CategoryId { get; set; }

@@ -389,10 +389,10 @@
                                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                                     gridColumns:GridColumn.Key="product-type" gridColumns:GridColumn.FieldPath="ProductType" />
 
-                            <DataGridTextColumn Header="附加标签" Width="110" Binding="{Binding ProductTag, UpdateSourceTrigger=PropertyChanged}"
+                            <DataGridTextColumn Header="产品系列" Width="110" Binding="{Binding ProductSeries, UpdateSourceTrigger=PropertyChanged}"
                                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                                    gridColumns:GridColumn.Key="product-tag" gridColumns:GridColumn.FieldPath="ProductTag" />
+                                                    gridColumns:GridColumn.Key="product-series" gridColumns:GridColumn.FieldPath="ProductSeries" />
 
                             <DataGridTextColumn Header="分类标签" Width="240" IsReadOnly="True"
                                                 Binding="{Binding TagSummary, Mode=OneWay}"

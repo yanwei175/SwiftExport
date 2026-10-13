@@ -17,7 +17,7 @@ public sealed class ProductMasterQueryService(IProductMasterRepository masterRep
     public async Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(ProductMasterSearchRequest request, CancellationToken cancellationToken = default)
     {
         var page = await masterRepository.GetPagedAsync(request ?? new ProductMasterSearchRequest(), cancellationToken);
-        // 当前页一次读取选择，不为每一行单独查询，也不把摘要回写旧字符串字段。
+        // 当前页一次读取选择，不为每一行单独查询，也不把标签摘要回写产品类型或系列名。
         var selected = (await attributes.GetSelectionDetailsAsync(page.Items.Select(row => row.Uid), cancellationToken)).ToLookup(row => row.ProductMasterId);
         foreach (var row in page.Items)
             row.TagSummary = string.Join("；", selected[row.Uid].GroupBy(value => value.AttributeGroupId)

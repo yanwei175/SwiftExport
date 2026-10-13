@@ -87,7 +87,7 @@ public sealed class ProductCategoryFilterIntegrationTests
             Version = 1,
             Data = new ProductMasterWriteDto { MasterSku = "MASTER-1" }
         }]);
-        viewModel.Masters.Items[0].ProductTag = "本地修改";
+        viewModel.Masters.Items[0].ProductSeries = "本地修改";
         var requested = new ProductCategoryFilterSelection(false, false, [Guid.NewGuid()]);
         viewModel.CategoryFilter = requested;
 

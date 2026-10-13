@@ -111,7 +111,7 @@ public sealed class PostgreSqlProductMasterMigrationIntegrationTests
     {
         var repository = new PostgreSqlProductMasterRepository(context);
         var master = Master(Prefix());
-        master.ProductTag = "保留标签";
+        master.ProductSeries = "保留系列";
         Assert.IsTrue((await repository.AddAsync(master)).Success);
         master.DefaultDescriptionZh = "修改描述";
         Assert.IsTrue((await repository.UpdateAsync(master)).Success);
@@ -123,7 +123,7 @@ public sealed class PostgreSqlProductMasterMigrationIntegrationTests
         Assert.AreEqual(3, saved!.Version);
         Assert.AreEqual(category.Uid, saved.CategoryId);
         Assert.AreEqual(master.MasterSku, saved.MasterSku);
-        Assert.AreEqual("保留标签", saved.ProductTag);
+        Assert.AreEqual("保留系列", saved.ProductSeries);
         Assert.AreEqual("修改描述", saved.DefaultDescriptionZh);
         Assert.AreEqual("__pgtest_master__", saved.UpdatedBy);
         Assert.AreEqual("CONCURRENCY_CONFLICT", (await repository.AssignCategoryAsync(master.Uid, 3, category.Uid)).ErrorCode);

@@ -28,7 +28,7 @@ public sealed class ProductMasterSupplierEditingTests
         vm.Header.Load(original);
         vm.RejectDetailChangesCommand.Execute(null);
         Assert.AreEqual(original.Master.DefaultSupplierId, vm.SelectedSupplier!.Uid);
-        vm.Header.ProductTag = "未保存标签";
+        vm.Header.ProductSeries = "未保存系列";
         var selected = new SupplierDto { Uid = Guid.NewGuid(), SupplierName = "新供应商" };
         vm.SelectedSupplier = selected;
         Assert.AreEqual(original.Master.DefaultSupplierId, vm.Header.DefaultSupplierId);
@@ -39,7 +39,7 @@ public sealed class ProductMasterSupplierEditingTests
         Assert.AreEqual(Guid.Empty, vm.Header.DefaultSupplierId);
         Assert.AreEqual(string.Empty, vm.Header.DefaultSupplierName);
         Assert.IsNull(vm.SelectedSupplier);
-        Assert.AreEqual("未保存标签", vm.Header.ProductTag);
+        Assert.AreEqual("未保存系列", vm.Header.ProductSeries);
         Assert.IsNull(vm.Header.ValidateRow(), "供应商仍是可选资料。");
         Assert.IsTrue(vm.HasUnsavedChanges);
         vm.RejectDetailChangesCommand.Execute(null);

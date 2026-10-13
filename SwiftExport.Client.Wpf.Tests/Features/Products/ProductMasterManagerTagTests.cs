@@ -23,15 +23,15 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductMasterManagerTagTests
 {
-    /// <summary>摘要独立于旧字符串，不进入主型号写入或行脏状态。</summary>
+    /// <summary>摘要独立于系列名，不进入主型号写入或行脏状态。</summary>
     [TestMethod]
-    public void Summary_IsReadOnlyProjectionAndDoesNotChangeLegacyTag()
+    public void Summary_IsReadOnlyProjectionAndDoesNotChangeSeries()
     {
         var row = new ProductMasterLineModel();
-        row.Load(new() { Uid = Guid.NewGuid(), Version = 4, TagSummary = "尺寸：8寸", Data = new() { MasterSku = "A", ProductTag = "原字符串" } });
+        row.Load(new() { Uid = Guid.NewGuid(), Version = 4, TagSummary = "尺寸：8寸", Data = new() { MasterSku = "A", ProductSeries = "原系列" } });
         Assert.AreEqual("尺寸：8寸", row.TagSummary); Assert.IsFalse(row.IsDirty);
         row.TagSummary = "尺寸：10寸";
-        Assert.IsFalse(row.IsDirty); Assert.AreEqual("原字符串", row.ToWriteDto().ProductTag);
+        Assert.IsFalse(row.IsDirty); Assert.AreEqual("原系列", row.ToWriteDto().ProductSeries);
         Assert.AreEqual("尺寸：10寸", row.ToDto().TagSummary);
     }
 
@@ -143,7 +143,7 @@ public sealed class ProductMasterManagerTagTests
     /// <summary>提供服务端标签展示数据，避免测试复制生产摘要算法。</summary>
     private static ProductMasterDetailDto Detail(Guid id, int version) => new()
     {
-        Uid = id, Version = version, Master = new() { MasterSku = "A", DefaultDescriptionZh = "服务端新描述", ProductTag = "旧标签" },
+        Uid = id, Version = version, Master = new() { MasterSku = "A", DefaultDescriptionZh = "服务端新描述", ProductSeries = "旧系列" },
         AttributeSelections = [new ProductMasterAttributeSelectionDto { ProductMasterId = id, OptionId = Guid.NewGuid(), AttributeGroupId = Guid.NewGuid(), GroupName = "安装方式", OptionName = "吸顶", IsAvailable = true }]
     };
 

@@ -318,7 +318,7 @@ public sealed partial class ProductMasterTagSelectionTests
         vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", CategoryId = FixtureCategoryId } });
         vm.Tags.Load(FixtureCategoryId, [], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
-        vm.Header.ProductTag = "旧附加标签草稿";
+        vm.Header.ProductSeries = "未保存系列草稿";
         vm.Neutrals.AddNewNeutral(Guid.Empty).ProductCode = "中性产品草稿";
         vm.Tags.Groups.Single().SelectedItems.Add(definition.Options[0]);
         vm.Tags.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
@@ -332,7 +332,7 @@ public sealed partial class ProductMasterTagSelectionTests
             null, [succeed, succeed ? "完成" : "测试失败"], null)!);
         await pending;
         Assert.IsFalse(vm.IsBusy);
-        Assert.AreEqual("旧附加标签草稿", vm.Header.ProductTag);
+        Assert.AreEqual("未保存系列草稿", vm.Header.ProductSeries);
         Assert.AreEqual("中性产品草稿", vm.Neutrals.Items.Single().ProductCode);
         Assert.IsTrue(vm.Tags.IsDirty);
         Assert.AreEqual(succeed ? "吸顶新名称" : "吸顶", vm.Tags.Groups.Single().SelectedItems.Single().OptionName);

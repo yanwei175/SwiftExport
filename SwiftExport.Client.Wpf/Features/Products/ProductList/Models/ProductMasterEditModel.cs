@@ -28,8 +28,8 @@ public sealed partial class ProductMasterEditModel : BaseLineModel<ProductMaster
     [ObservableProperty] public partial decimal? DefaultCbm { get; set; }
     /// <summary>获取或设置产品类型。</summary>
     [ObservableProperty] public partial string ProductType { get; set; } = string.Empty;
-    /// <summary>获取或设置产品标签。</summary>
-    [ObservableProperty] public partial string ProductTag { get; set; } = string.Empty;
+    /// <summary>获取或设置产品系列名；为空表示未设置。</summary>
+    [ObservableProperty] public partial string ProductSeries { get; set; } = string.Empty;
     /// <summary>获取或设置分类标识。</summary>
     [ObservableProperty] public partial Guid CategoryId { get; set; }
     /// <summary>获取或设置分类显示名称。</summary>

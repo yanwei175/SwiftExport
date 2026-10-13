@@ -104,7 +104,7 @@ public sealed partial class ProductAttributePostgreSqlTests
         Assert.IsNull(scope.Session.Transaction);
     }
 
-    /// <summary>最终选择按 null 保持、空集清空、跨分类替换处理；标签也递增头部版本并保持旧字符串。</summary>
+    /// <summary>最终选择按 null 保持、空集清空、跨分类替换处理；标签也递增头部版本并保持系列名。</summary>
     [TestMethod]
     public async Task Detail_PreserveClearReplaceAndVersion()
     {
@@ -119,7 +119,7 @@ public sealed partial class ProductAttributePostgreSqlTests
         Assert.AreEqual("安装方式：吸顶、挂墙", page.Data.Items.Single().TagSummary);
         var preserved = await scope.Maintenance.SaveDetailAsync(await fixture.DetailRequestAsync(scope));
         Assert.IsTrue(preserved.Success, preserved.Message); Assert.HasCount(2, preserved.Data.Detail.SelectedOptionIds);
-        Assert.AreEqual("保留旧标签", preserved.Data.Detail.Master.ProductTag);
+        Assert.AreEqual("保留系列", preserved.Data.Detail.Master.ProductSeries);
         Assert.AreEqual("保留旧类型", preserved.Data.Detail.Master.ProductType);
         var other = await fixture.DefineAsync(scope, fixture.OtherCategory.Uid, ProductAttributeSelectionMode.Single);
         var wrong = await fixture.DetailRequestAsync(scope);

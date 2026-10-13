@@ -13,7 +13,7 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters
         public string DefaultSupplierName { get; set; }
         /// <summary>获取或设置中性产品标记为主图的只读图片路径。</summary>
         public string MainImagePath { get; set; }
-        /// <summary>只读标签摘要，例如“安装方式：吸顶、挂墙；尺寸：8寸”；不用于写入旧 ProductTag。</summary>
+        /// <summary>只读标签摘要，例如“安装方式：吸顶、挂墙；尺寸：8寸”；不用于写入产品系列名。</summary>
         public string TagSummary { get; set; } = string.Empty;
         /// <summary>获取或设置默认主图中性产品的美元销售价。</summary>
         public decimal? DefaultSalesPriceUsd { get; set; }

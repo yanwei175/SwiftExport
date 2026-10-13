@@ -2,7 +2,6 @@ using Dapper;
 using SwiftExport.Core.Entities.Systems.SystemParameters;
 using SwiftExport.Core.Interfaces.Systems.SystemParameters;
 using SwiftExport.Infrastructure.Contexts;
-using SwiftExport.Infrastructure.DatabaseSchema;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Systems.SystemParameters;

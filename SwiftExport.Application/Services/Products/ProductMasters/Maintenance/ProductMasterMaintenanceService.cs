@@ -580,7 +580,7 @@ public sealed partial class ProductMasterMaintenanceService(
         DefaultGrossWeight = data.DefaultGrossWeight,
         DefaultCbm = data.DefaultCbm,
         ProductType = Normalize(data.ProductType),
-        ProductTag = Normalize(data.ProductTag),
+        ProductSeries = Normalize(data.ProductSeries),
         CategoryId = data.CategoryId,
         DefaultSupplierId = data.DefaultSupplierId
     };

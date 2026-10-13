@@ -55,14 +55,15 @@ public sealed class ProductMasterModelsAndContractsTests
         }]);
         var line = list.Items.Single();
         Assert.AreEqual(LineState.Unchanged, line.State);
-        line.ProductTag = "新品";
+        line.ProductSeries = "极简系列";
         Assert.AreEqual(LineState.Modified, line.State);
         var request = list.CreateSaveRequest();
         Assert.AreEqual("MASTER-1", request.UpdateItems.Single().Data.MasterSku);
+        Assert.AreEqual("极简系列", request.UpdateItems.Single().Data.ProductSeries);
         Assert.AreEqual(categoryId, request.UpdateItems.Single().Data.CategoryId);
         line.RejectChanges();
         Assert.AreEqual(LineState.Unchanged, line.State);
-        Assert.AreEqual(string.Empty, line.ProductTag);
+        Assert.AreEqual(string.Empty, line.ProductSeries);
     }
 
     /// <summary>验证保存成功但刷新失败时仍保留服务端主键和版本。</summary>

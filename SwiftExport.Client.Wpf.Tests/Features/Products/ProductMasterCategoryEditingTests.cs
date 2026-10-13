@@ -35,7 +35,7 @@ public sealed class ProductMasterCategoryEditingTests
         var category = (ProductCategoryCacheNode)Activator.CreateInstance(typeof(ProductCategoryCacheNode),
             BindingFlags.Instance | BindingFlags.NonPublic, null,
             new object[] { new ProductCategoryDto { Uid = Guid.NewGuid(), CategoryName = "子分类" } }, null)!;
-        vm.Header.ProductTag = "未保存标签";
+        vm.Header.ProductSeries = "未保存系列";
         vm.SelectedCategory = category;
         Assert.AreEqual(originalId, vm.Header.CategoryId);
 
@@ -46,7 +46,7 @@ public sealed class ProductMasterCategoryEditingTests
         Assert.AreEqual(Guid.Empty, vm.Header.ToWriteDto().CategoryId);
         Assert.AreEqual(string.Empty, vm.Header.CategoryName);
         Assert.IsNull(vm.SelectedCategory);
-        Assert.AreEqual("未保存标签", vm.Header.ProductTag);
+        Assert.AreEqual("未保存系列", vm.Header.ProductSeries);
         Assert.IsTrue(vm.HasUnsavedChanges);
         vm.Header.RejectChanges();
         Assert.AreEqual(originalId, vm.Header.CategoryId);

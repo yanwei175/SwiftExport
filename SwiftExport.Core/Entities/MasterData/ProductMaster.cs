@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>产品主型号实体，保存主型号层级的默认描述、分类和标签。</summary>
+/// <summary>产品主型号实体，保存主型号层级的默认描述、分类和系列名。</summary>
 [Table("product_master")]
 public partial class ProductMaster : BaseEntity
 {
@@ -34,8 +34,8 @@ public partial class ProductMaster : BaseEntity
     /// <summary>类型。</summary>
     public string? ProductType { get; set; }
 
-    /// <summary>标签属性用来归类。</summary>
-    public string? ProductTag { get; set; }
+    /// <summary>产品系列名；为空表示未设置，不参与标签选择。</summary>
+    public string? ProductSeries { get; set; }
 
     /// <summary>分类唯一标识。</summary>
     public Guid CategoryId { get; set; }

@@ -26,7 +26,7 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductMasterBatchImportTests
 {
-    /// <summary>空白清空可空字段，保留旧类型标签、编码和审计，只更新父级。</summary>
+    /// <summary>空白清空可空字段，保留类型与系列、编码和审计，只更新父级。</summary>
     [TestMethod]
     public async Task BlankFieldsClearAndUnrelatedFieldsRemain()
     {
@@ -42,7 +42,7 @@ public sealed class ProductMasterBatchImportTests
         Assert.AreEqual(Guid.Empty, master.CategoryId);
         Assert.AreEqual(Guid.Empty, master.DefaultSupplierId);
         Assert.AreEqual("旧类型", master.ProductType);
-        Assert.AreEqual("旧标签", master.ProductTag);
+        Assert.AreEqual("旧系列", master.ProductSeries);
         Assert.AreEqual("original", master.CreatedBy);
         Assert.AreEqual(5, master.Version);
         Assert.AreEqual(1, fixture.Connection.Commits);
@@ -139,7 +139,7 @@ public sealed class ProductMasterBatchImportTests
     /// <summary>模拟有事务快照的父级仓储；任何未明确允许的调用都会使测试失败。</summary>
     internal sealed class Fixture : ICurrentUser, IPermissionEvaluationService
     {
-        internal List<ProductMaster> Masters = [new() { MasterSku = "M-1", Version = 4, DefaultDescriptionZh = "旧描述", DefaultPcsPerPackage = 12, ProductType = "旧类型", ProductTag = "旧标签", CreatedBy = "original" }];
+        internal List<ProductMaster> Masters = [new() { MasterSku = "M-1", Version = 4, DefaultDescriptionZh = "旧描述", DefaultPcsPerPackage = 12, ProductType = "旧类型", ProductSeries = "旧系列", CreatedBy = "original" }];
         internal List<Supplier> Suppliers = [new() { SupplierCode = "SUP-1", SupplierName = "测试供应商", DocRelateNo = "S" }];
         internal ProductCategory RootCategory = new() { CategoryName = "工具" };
         internal ProductCategory ChildCategory = new() { CategoryName = "夹具" };

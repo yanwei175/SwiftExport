@@ -1,4 +1,3 @@
-using System.Data;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
@@ -10,6 +9,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems.SystemParameters;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Systems.SystemParameters;
+using System.Data;
 
 namespace SwiftExport.Application.Services.Systems.SystemParameters;
 
@@ -111,8 +111,12 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
     /// <summary>从代码定义与当前数据库值构造公开参数，未配置时版本为 0。</summary>
     private static SystemParameterDto ToDto(ParameterDefinition definition, SystemParameter? parameter, string fallback = "") => new()
     {
-        Key = definition.Key, DisplayName = definition.DisplayName, Description = definition.Description,
-        Value = parameter?.ParameterValue ?? fallback, Version = parameter?.Version ?? 0, IsConfigured = parameter is not null
+        Key = definition.Key,
+        DisplayName = definition.DisplayName,
+        Description = definition.Description,
+        Value = parameter?.ParameterValue ?? fallback,
+        Version = parameter?.Version ?? 0,
+        IsConfigured = parameter is not null
     };
 
     /// <summary>上传地址始终规范为公开网络目录，不接受重建用的本地目录。</summary>

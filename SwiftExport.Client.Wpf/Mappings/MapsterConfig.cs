@@ -113,7 +113,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.DefaultGrossWeight, src => src.Data.DefaultGrossWeight)
             .Map(dest => dest.DefaultCbm, src => src.Data.DefaultCbm)
             .Map(dest => dest.ProductType, src => src.Data.ProductType)
-            .Map(dest => dest.ProductTag, src => src.Data.ProductTag)
+            .Map(dest => dest.ProductSeries, src => src.Data.ProductSeries)
             .Map(dest => dest.TagSummary, src => src.TagSummary ?? string.Empty)
             .Map(dest => dest.CategoryId, src => src.Data.CategoryId)
             .Map(dest => dest.DefaultSupplierId, src => src.Data.DefaultSupplierId)
@@ -149,7 +149,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.DefaultGrossWeight, src => src.Master.DefaultGrossWeight)
             .Map(dest => dest.DefaultCbm, src => src.Master.DefaultCbm)
             .Map(dest => dest.ProductType, src => src.Master.ProductType)
-            .Map(dest => dest.ProductTag, src => src.Master.ProductTag)
+            .Map(dest => dest.ProductSeries, src => src.Master.ProductSeries)
             .Map(dest => dest.CategoryId, src => src.Master.CategoryId)
             .Map(dest => dest.DefaultSupplierId, src => src.Master.DefaultSupplierId);
 
