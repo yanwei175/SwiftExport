@@ -82,11 +82,14 @@ public sealed class SystemSettingsServiceValidationTests
         CollectionAssert.AreEqual(new[] { protectedId }, protectedDeletes);
     }
 
+    /// <summary>核对当前十一类系统字典编码，条款建议、属性模板及系列纳入清单，独立币种及产品分类仍不属于通用字典。</summary>
     [TestMethod]
     public void DictCodes_ExposeSupportedGenericSystemDictionaries()
     {
         CollectionAssert.AreEqual(
-            new[] { DictCodes.CustomerType, DictCodes.Incoterm, DictCodes.PaymentMethod, DictCodes.ShippedBy, DictCodes.Unit },
+            new[] { DictCodes.CustomerType, DictCodes.Incoterm, DictCodes.PaymentMethod, DictCodes.ShippedBy, DictCodes.Unit,
+                DictCodes.FlowTestFunction, DictCodes.FlowLimiterSpecification, DictCodes.IncotermLocation, DictCodes.IncotermSortRemark,
+                DictCodes.ProductAttributeProfile, DictCodes.ProductSeries },
             DictCodes.DictCodeList);
         Assert.IsNull(typeof(DictCodes).GetField("Currency"));
         Assert.IsNull(typeof(DictCodes).GetField("ProductCategory"));

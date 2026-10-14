@@ -5,6 +5,7 @@ using Npgsql;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Infrastructure.Contexts;
@@ -34,19 +35,27 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         pm."default_net_weight" AS "DefaultNetWeight",
         pm."default_gross_weight" AS "DefaultGrossWeight",
         pm."default_cbm" AS "DefaultCbm",
-        pm."product_type" AS "ProductType",
-        pm."product_series" AS "ProductSeries",
+        pm."product_attribute_profile_id" AS "ProductAttributeProfileId",
+        pm."product_series_id" AS "ProductSeriesId",
         pm."category_id" AS "CategoryId",
         pm."default_supplier_id" AS "DefaultSupplierId"
     """;
     private const string Joins = """
         LEFT JOIN public.product_category pc ON pc.uid=pm.category_id AND pc.is_deleted=FALSE
         LEFT JOIN public.supplier s ON s.uid=pm.default_supplier_id AND s.is_deleted=FALSE
+        LEFT JOIN public.sys_dict_data profile ON profile.uid=pm.product_attribute_profile_id AND profile.is_deleted=FALSE
+            AND profile.is_enabled=TRUE AND profile.dict_code COLLATE public.erp_dictionary_ci=@ProfileDictCode COLLATE public.erp_dictionary_ci
+        LEFT JOIN public.sys_dict_data series ON series.uid=pm.product_series_id AND series.is_deleted=FALSE
+            AND series.is_enabled=TRUE AND series.dict_code COLLATE public.erp_dictionary_ci=@SeriesDictCode COLLATE public.erp_dictionary_ci
         """;
     private const string DisplayColumns = """
         CASE WHEN pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'
              ELSE COALESCE(pc.category_name,'分类已失效') END AS "CategoryName",
-        s.supplier_name AS "DefaultSupplierName"
+        s.supplier_name AS "DefaultSupplierName",
+        CASE WHEN pm.product_attribute_profile_id IS NULL THEN NULL
+             ELSE COALESCE(NULLIF(btrim(profile.data_name_zh),''),profile.data_name_en,'模板已失效') END AS "ProductAttributeProfileName",
+        CASE WHEN pm.product_series_id IS NULL THEN NULL
+             ELSE COALESCE(NULLIF(btrim(series.data_name_zh),''),series.data_name_en,'系列已失效') END AS "ProductSeriesName"
         """;
 
     /// <summary>新增委托通用仓储，仅把 public 主型号编码索引的唯一冲突转换为固定业务回执。</summary>
@@ -85,6 +94,8 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         var categoryIds = request.CategoryIds?.Where(id => id != Guid.Empty).Distinct().ToArray() ?? [];
         var parameters = PostgreSqlParameters.Ids(categoryIds);
         parameters.Add("EmptyGuid", Guid.Empty);
+        parameters.Add("ProfileDictCode", DictCodes.ProductAttributeProfile);
+        parameters.Add("SeriesDictCode", DictCodes.ProductSeries);
         parameters.Add("Offset", (pageIndex - 1) * pageSize);
         parameters.Add("Limit", pageSize);
         var where = BuildFilter(request, parameters);
@@ -118,8 +129,16 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
                  AND (pm.master_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR pm.default_description_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR pm.default_description_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
-                    OR pm.product_type COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
-                    OR pm.product_series COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                    OR EXISTS (SELECT 1 FROM public.sys_dict_data profile
+                        WHERE profile.uid=pm.product_attribute_profile_id AND profile.is_deleted=FALSE AND profile.is_enabled=TRUE
+                            AND profile.dict_code COLLATE public.erp_dictionary_ci=@ProfileDictCode COLLATE public.erp_dictionary_ci
+                            AND (profile.data_name_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                                OR profile.data_name_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'))
+                    OR EXISTS (SELECT 1 FROM public.sys_dict_data series
+                        WHERE series.uid=pm.product_series_id AND series.is_deleted=FALSE AND series.is_enabled=TRUE
+                            AND series.dict_code COLLATE public.erp_dictionary_ci=@SeriesDictCode COLLATE public.erp_dictionary_ci
+                            AND (series.data_name_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                                OR series.data_name_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'))
                     OR EXISTS (SELECT 1 FROM public.product_neutral pn WHERE pn.product_master_id=pm.uid
                         AND pn.is_deleted=FALSE AND pn.product_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'))
                 """;
@@ -146,7 +165,8 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         var row = await Connection.QuerySingleOrDefaultAsync<ProductMasterProjection>(new CommandDefinition($"""
             SELECT {EntityColumns},{DisplayColumns} FROM public.product_master pm {Joins}
             WHERE pm.uid=@ProductMasterId AND pm.is_deleted=FALSE{lockClause}
-            """, new { ProductMasterId = productMasterId, EmptyGuid = Guid.Empty }, Transaction, cancellationToken: cancellationToken));
+            """, new { ProductMasterId = productMasterId, EmptyGuid = Guid.Empty, ProfileDictCode = DictCodes.ProductAttributeProfile,
+                SeriesDictCode = DictCodes.ProductSeries }, Transaction, cancellationToken: cancellationToken));
         return row is null ? null : ToDetail(row);
     }
 
@@ -210,6 +230,8 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         UpdatedBy = row.UpdatedBy,
         CategoryName = row.CategoryName,
         DefaultSupplierName = row.DefaultSupplierName,
+        ProductAttributeProfileName = row.ProductAttributeProfileName,
+        ProductSeriesName = row.ProductSeriesName,
         MainImagePath = row.MainImagePath,
         DefaultSalesPriceUsd = row.DefaultSalesPriceUsd,
         DefaultPurchasePriceCny = row.DefaultPurchasePriceCny,
@@ -228,6 +250,8 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         UpdatedBy = row.UpdatedBy,
         CategoryName = row.CategoryName,
         DefaultSupplierName = row.DefaultSupplierName,
+        ProductAttributeProfileName = row.ProductAttributeProfileName,
+        ProductSeriesName = row.ProductSeriesName,
         Master = ToWriteDto(row)
     };
 
@@ -243,8 +267,8 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
         DefaultNetWeight = row.DefaultNetWeight,
         DefaultGrossWeight = row.DefaultGrossWeight,
         DefaultCbm = row.DefaultCbm,
-        ProductType = row.ProductType,
-        ProductSeries = row.ProductSeries,
+        ProductAttributeProfileId = row.ProductAttributeProfileId,
+        ProductSeriesId = row.ProductSeriesId,
         CategoryId = row.CategoryId,
         DefaultSupplierId = row.DefaultSupplierId
     };
@@ -254,6 +278,8 @@ public sealed class PostgreSqlProductMasterRepository(RepositoryBaseContext cont
     {
         public string? CategoryName { get; set; }
         public string? DefaultSupplierName { get; set; }
+        public string? ProductAttributeProfileName { get; set; }
+        public string? ProductSeriesName { get; set; }
         public string? MainImagePath { get; set; }
         public decimal? DefaultSalesPriceUsd { get; set; }
         public decimal? DefaultPurchasePriceCny { get; set; }

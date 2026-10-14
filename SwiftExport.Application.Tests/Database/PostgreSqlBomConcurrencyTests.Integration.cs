@@ -211,7 +211,11 @@ public sealed class PostgreSqlBomConcurrencyIntegrationTests
             var context = Context(session);
             return new(new PostgreSqlProductRepository(context), new ServiceBaseContext(session, NullLoggerFactory.Instance),
                 new PostgreSqlProductColorRepository(context), new PostgreSqlSupplierRepository(context),
-                new PostgreSqlWarehouseQueryRepository(context), Repository(context, gate), new PostgreSqlSysDictDataRepository(context));
+                new PostgreSqlWarehouseQueryRepository(context), Repository(context, gate), new PostgreSqlSysDictDataRepository(context),
+                new SwiftExport.Infrastructure.Repositories.Products.Attributes.PostgreSqlProductAttributeRepository(context,
+                    new PostgreSqlDapperRepository<ProductAttributeGroup>(context), new PostgreSqlDapperRepository<ProductAttributeOption>(context),
+                    new PostgreSqlDapperRepository<ProductAttributeSelection>(context), new PostgreSqlDapperRepository<ProductAttributeProfileGroup>(context)),
+                new SwiftExport.Infrastructure.Repositories.Products.ProductMasters.PostgreSqlProductMasterRepository(context));
         }
         /// <summary>生产查询与写入保持原样，仅可选包裹一次读取屏障。</summary>
         private static IBomRepository Repository(RepositoryBaseContext context, ReadGate? gate)

@@ -1,5 +1,7 @@
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Attributes;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Products.Colors;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
 using SwiftExport.Core.Interfaces.Inventory.Warehouses;
@@ -32,7 +34,9 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
     ISupplierRepository supplierRepository,
     IWarehouseQueryRepository warehouseRepository,
     IBomRepository bomRepository,
-    ISysDictDataRepository dictDataRepository)
+    ISysDictDataRepository dictDataRepository,
+    IProductAttributeRepository attributeRepository,
+    IProductMasterRepository masterRepository)
     : BaseService<Product, ProductDto>(productRepository, context), IProductMaintenanceService
 {
     private readonly ILogger<ProductMaintenanceService> _logger = context.LoggerFactory.CreateLogger<ProductMaintenanceService>();
@@ -204,29 +208,7 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
                     ? validationError : validationError + "事务回滚未能确认，请先核实结果。");
             }
 
-            foreach (var item in batchReq.CreateItems)
-            {
-                var writeResult = await _repository.AddAsync(item.Data.Adapt<Product>());
-                response.Items.Add(SaveItemResultFactory.FromCreate(item, writeResult));
-                EnsureWriteSucceeded(writeResult, "新增产品失败。");
-            }
-
-            foreach (var item in batchReq.UpdateItems)
-            {
-                var entity = item.Data.Adapt<Product>();
-                entity.Uid = item.Uid;
-                entity.Version = item.Version;
-                var writeResult = await _repository.UpdateAsync(entity);
-                response.Items.Add(SaveItemResultFactory.FromUpdate(item, writeResult));
-                EnsureWriteSucceeded(writeResult, "更新产品失败。");
-            }
-
-            foreach (var item in batchReq.DeleteItems)
-            {
-                var writeResult = await _repository.DeleteAsync(item.Uid, item.Version, item.IsSoftDelete);
-                response.Items.Add(SaveItemResultFactory.FromDelete(item, writeResult));
-                EnsureWriteSucceeded(writeResult, "删除产品失败。");
-            }
+            await WriteBatchInCurrentTransactionAsync(batchReq, response);
 
             // 明确序列化失败表示事务未提交；其他提交异常不能据回滚尝试推断结果，更不能自动重写。
             try { transaction.Commit(); }

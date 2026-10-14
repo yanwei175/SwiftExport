@@ -25,6 +25,30 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductMasterDetailLockOrderTests
 {
+    /// <summary>旧客户端或省略写协议版本不得误把未知字符串忽略后清空系列身份，拒绝路径不开事务。</summary>
+    [TestMethod]
+    [DataRow(0)]
+    [DataRow(2)]
+    public async Task OldSeriesWriteContract_IsRejectedBeforeTransaction(int contractVersion)
+    {
+        var fixture = new Fixture();
+        var request = fixture.CreateRequest(false);
+        request.ContractVersion = contractVersion;
+        var detail = await fixture.Service.SaveDetailAsync(request);
+        var batch = await fixture.Service.BatchSaveAsync(new()
+        {
+            ContractVersion = contractVersion,
+            CreateItems = [new() { Data = request.Master }]
+        });
+        Assert.IsFalse(detail.Success);
+        Assert.IsFalse(batch.Success);
+        Assert.AreEqual(ServiceErrorCodes.Validation, detail.Error.Code);
+        Assert.AreEqual(ServiceErrorCodes.Validation, batch.Error.Code);
+        Assert.AreEqual(0, fixture.Calls.Count);
+        Assert.AreEqual(0, fixture.WriteCount);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
     /// <summary>普通列表与详情保存都应拒绝非正父级装率，并在写入前回滚事务。</summary>
     [TestMethod]
     [DataRow(false, 0)]
@@ -40,6 +64,7 @@ public sealed class ProductMasterDetailLockOrderTests
         var result = batch
             ? (await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
             {
+                ContractVersion = 3,
                 CreateItems = [new() { Data = request.Master }]
             })).Success
             : (await fixture.Service.SaveDetailAsync(request)).Success;
@@ -65,6 +90,7 @@ public sealed class ProductMasterDetailLockOrderTests
         var success = batch
             ? (await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
             {
+                ContractVersion = 3,
                 CreateItems = [new() { Data = request.Master }]
             })).Success
             : (await fixture.Service.SaveDetailAsync(request)).Success;
@@ -108,7 +134,7 @@ public sealed class ProductMasterDetailLockOrderTests
 
         Assert.IsFalse(result.Success);
         Assert.AreEqual(ServiceErrorCodes.Validation, result.Error.Code);
-        CollectionAssert.AreEqual(Array.Empty<string>(), fixture.Calls.ToArray());
+        CollectionAssert.AreEqual(new[] { "category" }, fixture.Calls.ToArray());
         fixture.AssertRollbackWithoutWrites();
     }
 
@@ -159,6 +185,7 @@ public sealed class ProductMasterDetailLockOrderTests
 
         var result = await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
         {
+            ContractVersion = 3,
             CreateItems = [new() { Data = first }, new() { Data = second }]
         });
 
@@ -264,6 +291,7 @@ public sealed class ProductMasterDetailLockOrderTests
         /// <summary>创建使用有效父引用的头部请求，可附带一条新增中性明细。</summary>
         public SaveProductMasterDetailRequest CreateRequest(bool withNeutral) => new()
         {
+            ContractVersion = 3,
             ProductMasterId = _masterId,
             ExpectedVersion = 3,
             Master = new ProductMasterWriteDto
@@ -363,7 +391,7 @@ public sealed class ProductMasterDetailLockOrderTests
                         Uid = _masterId, Version = _version, Master = CreateRequest(false).Master
                     });
                 case "GetByMasterSkusAsync":
-                    Assert.AreEqual(Calls.Contains("master.lock"), args[1]);
+                    Assert.AreEqual(false, args[1], "编码占用查询不得在自身主型号锁后反向锁定其他主型号。");
                     Calls.Add((bool)args[1]! ? "master.code.lock" : "master.code.read");
                     return Task.FromResult<IReadOnlyList<ProductMaster>>([]);
                 case "GetByIdListAsync":
@@ -439,6 +467,7 @@ public sealed class ProductMasterDetailLockOrderTests
         /// <summary>把物料同步也计为写入，防止失败路径漏检这项业务副作用。</summary>
         private object ProductCall(string method, object?[] args)
         {
+            if (method == "GetIdsByProductMasterIdsAsync") return Task.FromResult<IReadOnlyList<Guid>>([]);
             Assert.AreEqual("SyncFromProductMasterAsync", method);
             Assert.IsNotNull(Session.Transaction);
             // 详情沿用既有标识；列表新增只允许同步仓储刚返回的持久化标识。

@@ -13,36 +13,29 @@ using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Core.Interfaces.Products.Attributes;
-using SwiftExport.Core.Interfaces.Products.Categories;
+using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Application.Services.Products.Attributes;
 
-/// <summary>维护全局标签定义及分类直接关联；聚合组版本和稳定父锁保护产品选择适用性。</summary>
+/// <summary>维护全局标签定义及属性模板直接关联；聚合组版本和稳定父锁保护产品选择适用性。</summary>
 public sealed class ProductAttributeDefinitionService(IProductAttributeRepository repository,
-    IProductCategoryRepository categories, ICurrentUser currentUser, IPermissionEvaluationService permissions,
+    ICurrentUser currentUser, IPermissionEvaluationService permissions,
     ServiceBaseContext context) : IProductAttributeDefinitionService
 {
     private readonly ILogger _logger = context.LoggerFactory.CreateLogger<ProductAttributeDefinitionService>();
 
     /// <inheritdoc />
-    public async Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(Guid? categoryId, CancellationToken cancellationToken = default)
+    public async Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(Guid? profileId, CancellationToken cancellationToken = default)
     {
-        if (categoryId.HasValue)
+        if (profileId.HasValue)
         {
-            var parents = (await categories.GetAllAsync()).Where(row => !row.IsDeleted).ToDictionary(row => row.Uid, row => row.ParentId);
-            try { ProductAttributeApplicability.GetAncestorIds(categoryId.Value, parents); }
-            catch (InvalidOperationException failure) { return ServiceResult<ProductAttributeDefinitionsDto>.Fail(ServiceErrorCodes.Validation, failure.Message); }
+            var profile = (await repository.GetProfilesAsync([profileId.Value], false, cancellationToken)).SingleOrDefault();
+            if (profile is null || profile.IsDeleted || !profile.IsEnabled
+                || !string.Equals(profile.DictCode?.Trim(), DictCodes.ProductAttributeProfile, StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<ProductAttributeDefinitionsDto>.Fail(ServiceErrorCodes.Validation, "属性模板不存在、已停用或属于其他字典类型。");
         }
-        try { return ServiceResult<ProductAttributeDefinitionsDto>.Ok(await repository.GetSnapshotAsync(categoryId, cancellationToken)); }
-        catch (InvalidOperationException failure) when (categoryId.HasValue)
-        { return ServiceResult<ProductAttributeDefinitionsDto>.Fail(ServiceErrorCodes.Validation, failure.Message); }
+        return ServiceResult<ProductAttributeDefinitionsDto>.Ok(await repository.GetSnapshotAsync(profileId, cancellationToken));
     }
-
-    /// <inheritdoc />
-    public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId,
-        SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
-        Task.FromResult(ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.BusinessBlocked,
-            "产品标签已改为共享定义及分类继承，请升级客户端后在产品标签页面维护。"));
 
     /// <inheritdoc />
     public async Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync(
@@ -53,28 +46,34 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
             ? await permissions.GetProjectionAsync(userId, cancellationToken) : null;
         if (projection is null) return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Unauthenticated, "登录状态无效。");
         if (!projection.IsAdmin && !projection.Permissions.Contains(PermissionKeys.ProductsCategoryEdit, StringComparer.Ordinal))
-            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Forbidden, "缺少产品分类编辑权限。");
+            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Forbidden, "缺少产品标签维护权限。");
         if (request is null) return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Validation, "请提交标签定义变更。");
+        if (request.ContractVersion != 2)
+            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Validation, "标签保存请求契约版本无效。");
         if (context.Session.Transaction is not null)
             return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.BusinessBlocked, "当前请求已有未完成事务。");
         try
         {
             Normalize(request);
-            if (!request.GroupChanges.HasChanges && !request.OptionChanges.HasChanges && !request.CategoryChanges.HasChanges)
+            if (!request.GroupChanges.HasChanges && !request.OptionChanges.HasChanges && !request.ProfileChanges.HasChanges)
                 throw new DefinitionFailure(ServiceErrorCodes.Validation, "没有需要保存的标签定义变更。");
             cancellationToken.ThrowIfCancellationRequested();
             context.Session.Transaction = context.Session.Connection.BeginTransaction();
-            // 只读定位父身份；关联变化先分类再组，纯定义不反向取分类锁。
+            // 只读定位父身份；关联变化先模板明细再组，纯定义不反向取得模板锁。
             var initialGroups = (await repository.GetGroupsAsync(null, false, cancellationToken)).ToDictionary(row => row.Uid);
             var initialOptions = (await repository.GetOptionsAsync(initialGroups.Keys, false, cancellationToken)).ToDictionary(row => row.Uid);
             var initialRelations = (await repository.GetRelationsAsync(null, false, cancellationToken)).ToDictionary(row => row.Uid);
-            var parents = await LockRelationCategoriesAsync(request, initialRelations, cancellationToken);
             var groupIds = GetTouchedGroupIds(request, initialOptions, initialRelations);
+            var lockedProfiles = await LockRelationProfilesAsync(request, initialRelations, cancellationToken);
             await repository.LockGroupsForUpdateAsync(groupIds, cancellationToken);
             var allGroups = (await repository.GetGroupsAsync(null, false, cancellationToken)).ToDictionary(row => row.Uid);
             var options = (await repository.GetOptionsAsync(groupIds, true, cancellationToken)).ToDictionary(row => row.Uid);
             var relations = (await repository.GetRelationsAsync(groupIds, true, cancellationToken)).ToDictionary(row => row.Uid);
-            var prepared = await PrepareAsync(request, allGroups, options, relations, parents, cancellationToken);
+            // 组锁等待期间若级联关联来源增加，拒绝本批；不能再逆序申请模板锁。
+            var deletedGroups = request.GroupChanges.DeleteItems.Select(row => row.Uid).ToHashSet();
+            if (relations.Values.Any(row => deletedGroups.Contains(row.AttributeGroupId) && !lockedProfiles.Contains(row.ProductAttributeProfileId)))
+                throw new DefinitionFailure(ServiceErrorCodes.VersionConflict, "标签组的模板关联已变化，请刷新后重试。");
+            var prepared = await PrepareAsync(request, allGroups, options, relations, cancellationToken);
             var response = await WriteAsync(request, prepared, cancellationToken);
             response.Definitions = await repository.GetSnapshotAsync(null, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
@@ -86,12 +85,12 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
         catch (Exception exception) when (context.Session.Errors.Classify(exception) == DatabaseFailureKind.UniqueConflict)
         {
             Rollback();
-            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Validation, "组编码、组内选项编码或分类关联重复，请刷新后检查。");
+            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.Validation, "组编码、组内选项编码或属性模板关联重复，请刷新后检查。");
         }
         catch (Exception exception) when (context.Session.Errors.Classify(exception) == DatabaseFailureKind.SerializationFailure)
         {
             Rollback();
-            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.VersionConflict, "分类或标签定义正在被其他用户修改，请刷新后重试。");
+            return ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail(ServiceErrorCodes.VersionConflict, "属性模板或标签定义正在被其他用户修改，请刷新后重试。");
         }
         catch (Exception exception)
         {
@@ -102,40 +101,27 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
         finally { context.Session.Transaction?.Dispose(); context.Session.Transaction = null; }
     }
 
-    /// <summary>关联先锁来源分类；与分类移动全树锁及产品祖先路径锁形成一致串行边界。</summary>
-    private async Task<IReadOnlyDictionary<Guid, Guid?>> LockRelationCategoriesAsync(SaveProductAttributeDefinitionsRequest request,
-        IReadOnlyDictionary<Guid, ProductCategoryAttributeGroup> initialRelations, CancellationToken cancellationToken)
+    /// <summary>关联修改及组级联删除先共享锁定模板明细；字典删除等待后必须重新检查业务引用。</summary>
+    private async Task<IReadOnlySet<Guid>> LockRelationProfilesAsync(SaveProductAttributeDefinitionsRequest request,
+        IReadOnlyDictionary<Guid, ProductAttributeProfileGroup> initialRelations, CancellationToken cancellationToken)
     {
-        if (!request.CategoryChanges.HasChanges) return new Dictionary<Guid, Guid?>();
-        ValidateTargets(request.CategoryChanges, initialRelations.ToDictionary(row => row.Key, row => row.Value.Version));
-        var ids = request.CategoryChanges.CreateItems.Select(row => row.Data.CategoryId)
-            .Concat(request.CategoryChanges.DeleteItems.Select(row => initialRelations[row.Uid].CategoryId)).Distinct().OrderBy(id => id).ToArray();
-        if (ids.Contains(Guid.Empty)) throw new DefinitionFailure(ServiceErrorCodes.Validation, "关联分类身份不能为空。");
-        var before = (await categories.GetAllAsync()).Where(row => !row.IsDeleted).ToDictionary(row => row.Uid, row => row.ParentId);
-        try { foreach (var id in ids) ProductAttributeApplicability.GetAncestorIds(id, before); }
-        catch (InvalidOperationException failure) { throw new DefinitionFailure(ServiceErrorCodes.Validation, failure.Message); }
-        cancellationToken.ThrowIfCancellationRequested();
-        // 通用批量读取没有 ORDER BY，逐个取得已排序身份保证实际取锁顺序。
-        foreach (var id in ids)
-            if (await categories.GetByIdAsync(id, true) is not { IsDeleted: false })
-                throw new DefinitionFailure(ServiceErrorCodes.VersionConflict, "关联分类已变化，请刷新后重试。");
-        var after = (await categories.GetAllAsync()).Where(row => !row.IsDeleted).ToDictionary(row => row.Uid, row => row.ParentId);
-        // 等待期间层级变化时拒绝过期来源，不能再追加逆序父锁。
-        foreach (var id in ids)
-        {
-            try
-            {
-                if (!ProductAttributeApplicability.GetAncestorIds(id, before).SequenceEqual(ProductAttributeApplicability.GetAncestorIds(id, after)))
-                    throw new DefinitionFailure(ServiceErrorCodes.VersionConflict, "分类层级已变化，请刷新后重试。");
-            }
-            catch (InvalidOperationException failure) { throw new DefinitionFailure(ServiceErrorCodes.VersionConflict, failure.Message); }
-        }
-        return after;
+        ValidateTargets(request.ProfileChanges, initialRelations.ToDictionary(row => row.Key, row => row.Value.Version));
+        var removedGroups = request.GroupChanges.DeleteItems.Select(row => row.Uid).ToHashSet();
+        var createdIds = request.ProfileChanges.CreateItems.Select(row => row.Data.ProductAttributeProfileId).ToHashSet();
+        var ids = createdIds.Concat(request.ProfileChanges.DeleteItems.Select(row => initialRelations[row.Uid].ProductAttributeProfileId))
+            .Concat(initialRelations.Values.Where(row => removedGroups.Contains(row.AttributeGroupId)).Select(row => row.ProductAttributeProfileId))
+            .ToHashSet();
+        if (ids.Contains(Guid.Empty)) throw new DefinitionFailure(ServiceErrorCodes.Validation, "关联属性模板身份不能为空。");
+        var profiles = (await repository.GetProfilesAsync(ids, true, cancellationToken)).ToDictionary(row => row.Uid);
+        if (createdIds.Any(id => !profiles.TryGetValue(id, out var profile) || profile.IsDeleted || !profile.IsEnabled
+            || !string.Equals(profile.DictCode?.Trim(), DictCodes.ProductAttributeProfile, StringComparison.OrdinalIgnoreCase)))
+            throw new DefinitionFailure(ServiceErrorCodes.Validation, "关联属性模板不存在、已停用或属于其他字典类型。");
+        return ids;
     }
 
     /// <summary>从子项定位聚合父组；缺失子项不能以空组锁绕过验证。</summary>
     private static IReadOnlyList<Guid> GetTouchedGroupIds(SaveProductAttributeDefinitionsRequest request,
-        IReadOnlyDictionary<Guid, ProductAttributeOption> options, IReadOnlyDictionary<Guid, ProductCategoryAttributeGroup> relations)
+        IReadOnlyDictionary<Guid, ProductAttributeOption> options, IReadOnlyDictionary<Guid, ProductAttributeProfileGroup> relations)
     {
         var ids = request.GroupChanges.UpdateItems.Select(row => row.Uid).Concat(request.GroupChanges.DeleteItems.Select(row => row.Uid)).ToHashSet();
         foreach (var item in request.OptionChanges.CreateItems) ids.Add(item.Data.AttributeGroupId);
@@ -144,10 +130,10 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
             if (!options.TryGetValue(id, out var option)) throw new DefinitionFailure(ServiceErrorCodes.Validation, "修改或删除的选项不存在或已删除。");
             ids.Add(option.AttributeGroupId);
         }
-        foreach (var item in request.CategoryChanges.CreateItems) ids.Add(item.Data.AttributeGroupId);
-        foreach (var item in request.CategoryChanges.DeleteItems)
+        foreach (var item in request.ProfileChanges.CreateItems) ids.Add(item.Data.AttributeGroupId);
+        foreach (var item in request.ProfileChanges.DeleteItems)
         {
-            if (!relations.TryGetValue(item.Uid, out var relation)) throw new DefinitionFailure(ServiceErrorCodes.Validation, "删除的分类关联不存在或已删除。");
+            if (!relations.TryGetValue(item.Uid, out var relation)) throw new DefinitionFailure(ServiceErrorCodes.Validation, "删除的属性模板关联不存在或已删除。");
             ids.Add(relation.AttributeGroupId);
         }
         ids.ExceptWith(request.GroupChanges.CreateItems.Select(row => row.Data.ClientUid));
@@ -157,25 +143,25 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
     /// <summary>在稳定组锁内构建最终图，统一检查聚合版本、编码、引用及选择适用性。</summary>
     private async Task<PreparedDefinitions> PrepareAsync(SaveProductAttributeDefinitionsRequest request,
         Dictionary<Guid, ProductAttributeGroup> existingGroups, Dictionary<Guid, ProductAttributeOption> existingOptions,
-        Dictionary<Guid, ProductCategoryAttributeGroup> existingRelations, IReadOnlyDictionary<Guid, Guid?> parents, CancellationToken cancellationToken)
+        Dictionary<Guid, ProductAttributeProfileGroup> existingRelations, CancellationToken cancellationToken)
     {
         ValidateTargets(request.GroupChanges, existingGroups.ToDictionary(row => row.Key, row => row.Value.Version));
         ValidateTargets(request.OptionChanges, existingOptions.ToDictionary(row => row.Key, row => row.Value.Version));
-        ValidateTargets(request.CategoryChanges, existingRelations.ToDictionary(row => row.Key, row => row.Value.Version));
+        ValidateTargets(request.ProfileChanges, existingRelations.ToDictionary(row => row.Key, row => row.Value.Version));
         var touched = GetTouchedGroupIds(request, existingOptions, existingRelations);
         var updatedOrDeleted = request.GroupChanges.UpdateItems.Select(row => row.Uid).Concat(request.GroupChanges.DeleteItems.Select(row => row.Uid)).ToHashSet();
         if (touched.Any(id => !updatedOrDeleted.Contains(id)))
-            throw new DefinitionFailure(ServiceErrorCodes.Validation, "修改选项或分类关联必须同时提交所属标签组的当前版本。");
+            throw new DefinitionFailure(ServiceErrorCodes.Validation, "修改选项或属性模板关联必须同时提交所属标签组的当前版本。");
         var groups = existingGroups.ToDictionary(row => row.Key, row => row.Value.Adapt<ProductAttributeGroup>());
         var options = existingOptions.ToDictionary(row => row.Key, row => row.Value.Adapt<ProductAttributeOption>());
-        var relations = existingRelations.ToDictionary(row => row.Key, row => row.Value.Adapt<ProductCategoryAttributeGroup>());
+        var relations = existingRelations.ToDictionary(row => row.Key, row => row.Value.Adapt<ProductAttributeProfileGroup>());
         var removedGroups = request.GroupChanges.DeleteItems.Select(row => row.Uid).ToHashSet();
         var removedOptions = request.OptionChanges.DeleteItems.Select(row => row.Uid)
             .Concat(existingOptions.Values.Where(row => removedGroups.Contains(row.AttributeGroupId)).Select(row => row.Uid)).ToHashSet();
-        var removedRelations = request.CategoryChanges.DeleteItems.Select(row => row.Uid)
+        var removedRelations = request.ProfileChanges.DeleteItems.Select(row => row.Uid)
             .Concat(existingRelations.Values.Where(row => removedGroups.Contains(row.AttributeGroupId)).Select(row => row.Uid)).ToHashSet();
-        var referenced = await repository.CountReferencedMastersAsync(removedOptions, cancellationToken);
-        if (referenced > 0) throw new DefinitionFailure(ServiceErrorCodes.BusinessBlocked, $"删除失败：标签仍被 {referenced} 个主型号使用，请先在详情中解除选择。");
+        var referenced = await repository.CountReferencedOwnersAsync(removedOptions, cancellationToken);
+        if (referenced > 0) throw new DefinitionFailure(ServiceErrorCodes.BusinessBlocked, $"删除失败：标签仍被 {referenced} 个产品对象使用，请先在详情中解除选择。");
         foreach (var id in removedGroups) groups.Remove(id);
         foreach (var id in removedOptions) options.Remove(id);
         foreach (var id in removedRelations) relations.Remove(id);
@@ -192,7 +178,7 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
             var group = groups[item.Uid];
             item.Data.Adapt(group);
             if (group.SelectionMode == ProductAttributeSelectionMode.Single && await repository.CountMultipleSelectionsAsync(group.Uid, cancellationToken) > 0)
-                throw new DefinitionFailure(ServiceErrorCodes.BusinessBlocked, "该组仍有主型号选择了多个值，请先调整产品选择再改为单选。");
+                throw new DefinitionFailure(ServiceErrorCodes.BusinessBlocked, "该组仍有产品对象选择了多个值，请先调整产品选择再改为单选。");
         }
         foreach (var item in request.OptionChanges.UpdateItems)
         {
@@ -204,23 +190,23 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
         var createdOptions = request.OptionChanges.CreateItems.Select(row => row.Data.Adapt<ProductAttributeOption>()).ToArray();
         if (createdOptions.Any(row => !groups.ContainsKey(row.AttributeGroupId)))
             throw new DefinitionFailure(ServiceErrorCodes.Validation, "新增选项的组不存在或已删除。");
-        var createdRelations = request.CategoryChanges.CreateItems.Select(row => row.Data.Adapt<ProductCategoryAttributeGroup>()).ToArray();
+        var createdRelations = request.ProfileChanges.CreateItems.Select(row => row.Data.Adapt<ProductAttributeProfileGroup>()).ToArray();
         if (createdRelations.Any(row => !groups.ContainsKey(row.AttributeGroupId)))
             throw new DefinitionFailure(ServiceErrorCodes.Validation, "关联的标签组不存在或已删除。");
         if (groups.Values.GroupBy(row => row.GroupCode, StringComparer.OrdinalIgnoreCase).Any(group => group.Count() > 1)
             || options.Values.Concat(createdOptions).GroupBy(row => row.AttributeGroupId)
                 .Any(group => group.GroupBy(row => row.OptionCode, StringComparer.OrdinalIgnoreCase).Any(code => code.Count() > 1)))
             throw new DefinitionFailure(ServiceErrorCodes.Validation, "全局组编码或同一组的选项编码重复。");
-        if (relations.Values.Concat(createdRelations).GroupBy(row => (row.CategoryId, row.AttributeGroupId)).Any(group => group.Count() > 1))
-            throw new DefinitionFailure(ServiceErrorCodes.Validation, "同一分类不能重复关联同一标签组。");
-        if (request.CategoryChanges.HasChanges)
+        if (relations.Values.Concat(createdRelations).GroupBy(row => (row.ProductAttributeProfileId, row.AttributeGroupId)).Any(group => group.Count() > 1))
+            throw new DefinitionFailure(ServiceErrorCodes.Validation, "同一属性模板不能重复关联同一标签组。");
+        if (request.ProfileChanges.HasChanges)
         {
-            var remaining = relations.Values.Concat(createdRelations).Adapt<List<ProductCategoryAttributeGroupDto>>();
-            var relationGroupIds = request.CategoryChanges.DeleteItems.Select(row => existingRelations[row.Uid].AttributeGroupId).Distinct().ToArray();
+            var remaining = relations.Values.Concat(createdRelations).Adapt<List<ProductAttributeProfileGroupDto>>();
+            var relationGroupIds = request.ProfileChanges.DeleteItems.Select(row => existingRelations[row.Uid].AttributeGroupId).Distinct().ToArray();
             var references = await repository.GetSelectedReferencesAsync(relationGroupIds, cancellationToken);
-            var invalid = ProductAttributeApplicability.CountUnavailableMasters(parents, remaining, references);
+            var invalid = ProductAttributeApplicability.CountUnavailableOwners(remaining, references);
             if (invalid > 0) throw new DefinitionFailure(ServiceErrorCodes.BusinessBlocked,
-                $"分类关联调整会使 {invalid} 个主型号的已有标签失去适用性，请先在产品详情处理这些选择。");
+                $"属性模板关联调整会使 {invalid} 个产品对象的已有标签失去适用性，请先在产品详情处理这些选择。");
         }
         return new(groups, options, existingOptions.Values.Where(row => removedOptions.Contains(row.Uid)).ToArray(),
             existingRelations.Values.Where(row => removedRelations.Contains(row.Uid)).ToArray());
@@ -236,8 +222,8 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
         {
             var write = await repository.DeleteRelationAsync(relation.Uid, relation.Version);
             RequireWrite(write);
-            var item = request.CategoryChanges.DeleteItems.FirstOrDefault(row => row.Uid == relation.Uid);
-            if (item is not null) response.CategoryResults.Items.Add(SaveItemResultFactory.FromDelete(item, write));
+            var item = request.ProfileChanges.DeleteItems.FirstOrDefault(row => row.Uid == relation.Uid);
+            if (item is not null) response.ProfileResults.Items.Add(SaveItemResultFactory.FromDelete(item, write));
         }
         foreach (var option in prepared.DeletedOptions.OrderBy(row => row.Uid))
         {
@@ -284,18 +270,18 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
             RequireWrite(write);
             response.OptionResults.Items.Add(SaveItemResultFactory.FromCreate(item, write));
         }
-        foreach (var item in request.CategoryChanges.CreateItems)
+        foreach (var item in request.ProfileChanges.CreateItems)
         {
-            var entity = item.Data.Adapt<ProductCategoryAttributeGroup>();
+            var entity = item.Data.Adapt<ProductAttributeProfileGroup>();
             if (groupMap.TryGetValue(entity.AttributeGroupId, out var actualId)) entity.AttributeGroupId = actualId;
             var write = await repository.AddRelationAsync(entity);
             RequireWrite(write);
-            response.CategoryResults.Items.Add(SaveItemResultFactory.FromCreate(item, write));
+            response.ProfileResults.Items.Add(SaveItemResultFactory.FromCreate(item, write));
         }
         cancellationToken.ThrowIfCancellationRequested();
         response.GroupResults.TotalCount = request.GroupChanges.TotalCount;
         response.OptionResults.TotalCount = request.OptionChanges.TotalCount;
-        response.CategoryResults.TotalCount = request.CategoryChanges.TotalCount;
+        response.ProfileResults.TotalCount = request.ProfileChanges.TotalCount;
         return response;
     }
 
@@ -315,9 +301,9 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
     /// <summary>规范化包装并检查文本、枚举及不可变关联；不参与产品选择清空协议。</summary>
     private static void Normalize(SaveProductAttributeDefinitionsRequest request)
     {
-        request.GroupChanges ??= new(); request.OptionChanges ??= new(); request.CategoryChanges ??= new();
-        NormalizeItems(request.GroupChanges); NormalizeItems(request.OptionChanges); NormalizeItems(request.CategoryChanges);
-        if (request.CategoryChanges.UpdateItems.Count > 0) throw new DefinitionFailure(ServiceErrorCodes.Validation, "分类关联不能修改身份，请使用新增或删除。");
+        request.GroupChanges ??= new(); request.OptionChanges ??= new(); request.ProfileChanges ??= new();
+        NormalizeItems(request.GroupChanges); NormalizeItems(request.OptionChanges); NormalizeItems(request.ProfileChanges);
+        if (request.ProfileChanges.UpdateItems.Count > 0) throw new DefinitionFailure(ServiceErrorCodes.Validation, "属性模板关联不能修改身份，请使用新增或删除。");
         foreach (var data in request.GroupChanges.CreateItems.Select(row => row.Data).Concat(request.GroupChanges.UpdateItems.Select(row => row.Data)))
         {
             data.GroupCode = Text(data.GroupCode, 100, "组编码"); data.GroupName = Text(data.GroupName, 200, "组名称");
@@ -358,7 +344,7 @@ public sealed class ProductAttributeDefinitionService(IProductAttributeRepositor
     /// <summary>验证完成的最终实体图与隐式级联删除池。</summary>
     private sealed record PreparedDefinitions(Dictionary<Guid, ProductAttributeGroup> Groups,
         Dictionary<Guid, ProductAttributeOption> Options, IReadOnlyList<ProductAttributeOption> DeletedOptions,
-        IReadOnlyList<ProductCategoryAttributeGroup> DeletedRelations);
+        IReadOnlyList<ProductAttributeProfileGroup> DeletedRelations);
     /// <summary>定义用例内部的可控失败，不承载存储异常。</summary>
     private sealed class DefinitionFailure(string code, string message) : Exception(message)
     { internal string Code { get; } = code; }

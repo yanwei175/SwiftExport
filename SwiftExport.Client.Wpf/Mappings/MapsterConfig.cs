@@ -31,6 +31,7 @@ namespace SwiftExportClient.Mappings;
 /// <summary>集中注册客户端 DTO 与页面模型之间的结构映射。</summary>
 public sealed class MapsterConfig : IRegister
 {
+    /// <summary>集中登记各业务 DTO 与私有页面模型映射，保留每个用例的身份和空值语义。</summary>
     public void Register(TypeAdapterConfig config)
     {
         config.NewConfig<SystemParameterDto, SystemParameterLineModel>().Ignore(dest => dest.Status);
@@ -87,9 +88,90 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.FakeName, src => src.FakeName.Trim())
             .Map(dest => dest.CategoryCode, src => src.CategoryCode.Trim());
 
-        config.NewConfig<ProductDto, ProductLineModel>()
-            .IgnoreNullValues(true)
+        // 物料详情以嵌套可写数据采集草稿，空值必须接纳，不能沿用列表的忽略空值策略。
+        config.NewConfig<ProductDetailDto, ProductEditModel>()
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.Finish, src => src.Finish ?? string.Empty)
+            .Map(dest => dest.DefaultSupplierCode, src => src.DefaultSupplierCode ?? string.Empty)
+            .Map(dest => dest.SupplierName, src => src.SupplierName ?? string.Empty)
+            .Map(dest => dest.ManufacturerCode, src => src.ManufacturerCode ?? string.Empty)
+            .Map(dest => dest.ManufacturerName, src => src.ManufacturerName ?? string.Empty)
+            .Map(dest => dest.DefaultWarehouseCode, src => src.DefaultWarehouseCode ?? string.Empty)
+            .Map(dest => dest.DefaultWarehouseName, src => src.DefaultWarehouseName ?? string.Empty)
+            .Map(dest => dest.Sku, src => src.Data.Sku ?? string.Empty)
+            .Map(dest => dest.LinkSku, src => src.Data.LinkSku ?? string.Empty)
+            .Map(dest => dest.DescriptionEn, src => src.Data.DescriptionEn ?? string.Empty)
+            .Map(dest => dest.DescriptionZh, src => src.Data.DescriptionZh ?? string.Empty)
+            .Map(dest => dest.FeaturesEn, src => src.Data.FeaturesEn ?? string.Empty)
+            .Map(dest => dest.FeaturesZh, src => src.Data.FeaturesZh ?? string.Empty)
+            .Map(dest => dest.ColorId, src => src.Data.ColorId)
+            .Map(dest => dest.MaterialType, src => src.Data.MaterialType ?? string.Empty)
+            .Map(dest => dest.SupplyType, src => src.Data.SupplyType ?? string.Empty)
+            .Map(dest => dest.Unit, src => src.Data.Unit ?? string.Empty)
+            .Map(dest => dest.CnyPrice, src => src.Data.CNYPrice)
+            .Map(dest => dest.UsdPrice, src => src.Data.USDPrice)
+            .Map(dest => dest.UnitWeight, src => src.Data.UnitWeight)
+            .Map(dest => dest.UnitCbm, src => src.Data.UnitCBM)
+            .Map(dest => dest.DefaultSupplierId, src => src.Data.DefaultSupplierId)
+            .Map(dest => dest.ManufacturerId, src => src.Data.ManufacturerId)
+            .Map(dest => dest.ManufacturerModel, src => src.Data.ManufacturerModel ?? string.Empty)
+            .Map(dest => dest.DefaultWarehouseSiteId, src => src.Data.DefaultWarehouseSiteId)
+            .Map(dest => dest.MainImage, src => src.Data.MainImage ?? string.Empty)
+            .Map(dest => dest.Note, src => src.Data.Note ?? string.Empty);
+        config.NewConfig<ProductEditModel, ProductDetailWriteDto>()
+            .Map(dest => dest.CNYPrice, src => src.CnyPrice)
+            .Map(dest => dest.USDPrice, src => src.UsdPrice)
+            .Map(dest => dest.UnitCBM, src => src.UnitCbm);
+        config.NewConfig<ProductEditModel, ProductDetailDto>()
+            .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
+            .Map(dest => dest.Data, src => src);
+
+        // 详情保存后的列表投影保留外层审计、包装、BOM和来源资料，旧列表价格与颜色按其契约空值规则转换。
+        config.NewConfig<ProductDetailDto, ProductDto>()
+            .Map(dest => dest.Sku, src => src.Data.Sku)
+            .Map(dest => dest.LinkSku, src => src.Data.LinkSku)
+            .Map(dest => dest.DescriptionEn, src => src.Data.DescriptionEn)
+            .Map(dest => dest.DescriptionZh, src => src.Data.DescriptionZh)
+            .Map(dest => dest.FeaturesEn, src => src.Data.FeaturesEn)
+            .Map(dest => dest.FeaturesZh, src => src.Data.FeaturesZh)
+            .Map(dest => dest.ColorId, src => src.Data.ColorId ?? Guid.Empty)
+            .Map(dest => dest.MaterialType, src => src.Data.MaterialType)
+            .Map(dest => dest.SupplyType, src => src.Data.SupplyType)
+            .Map(dest => dest.Unit, src => src.Data.Unit)
+            .Map(dest => dest.CNYPrice, src => src.Data.CNYPrice ?? 0)
+            .Map(dest => dest.USDPrice, src => src.Data.USDPrice ?? 0)
+            .Map(dest => dest.DefaultSupplierId, src => src.Data.DefaultSupplierId)
+            .Map(dest => dest.ManufacturerId, src => src.Data.ManufacturerId)
+            .Map(dest => dest.ManufacturerModel, src => src.Data.ManufacturerModel)
+            .Map(dest => dest.DefaultWarehouseSiteId, src => src.Data.DefaultWarehouseSiteId)
+            .Map(dest => dest.MainImage, src => src.Data.MainImage)
+            .Map(dest => dest.Note, src => src.Data.Note);
+
+
+        config.NewConfig<ProductDto, ProductLineModel>()
+            .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.Sku, src => src.Sku ?? string.Empty)
+            .Map(dest => dest.MasterSku, src => src.MasterSku ?? string.Empty)
+            .Map(dest => dest.DescriptionEn, src => src.DescriptionEn ?? string.Empty)
+            .Map(dest => dest.DescriptionZh, src => src.DescriptionZh ?? string.Empty)
+            .Map(dest => dest.FeaturesEn, src => src.FeaturesEn ?? string.Empty)
+            .Map(dest => dest.FeaturesZh, src => src.FeaturesZh ?? string.Empty)
+            .Map(dest => dest.Finish, src => src.Finish ?? string.Empty)
+            .Map(dest => dest.MaterialType, src => src.MaterialType ?? string.Empty)
+            .Map(dest => dest.Unit, src => src.Unit ?? string.Empty)
+            .Map(dest => dest.SupplyType, src => src.SupplyType ?? string.Empty)
+            .Map(dest => dest.BomNo, src => src.BomNo ?? string.Empty)
+            .Map(dest => dest.Note, src => src.Note ?? string.Empty)
+            .Map(dest => dest.LinkSku, src => src.LinkSku ?? string.Empty)
+            .Map(dest => dest.CategoryName, src => src.CategoryName ?? string.Empty)
+            .Map(dest => dest.SupplierName, src => src.SupplierName ?? string.Empty)
+            .Map(dest => dest.DefaultWarehouseCode, src => src.DefaultWarehouseCode ?? string.Empty)
+            .Map(dest => dest.DefaultWarehouseName, src => src.DefaultWarehouseName ?? string.Empty)
+            .Map(dest => dest.ManufacturerCode, src => src.ManufacturerCode ?? string.Empty)
+            .Map(dest => dest.ManufacturerName, src => src.ManufacturerName ?? string.Empty)
+            .Map(dest => dest.ManufacturerModel, src => src.ManufacturerModel ?? string.Empty)
+            .Map(dest => dest.DefaultSupplierCode, src => src.DefaultSupplierCode ?? string.Empty)
+            .Map(dest => dest.MainImage, src => src.MainImage ?? string.Empty)
             .Map(dest => dest.CnyPrice, src => src.CNYPrice)
             .Map(dest => dest.UsdPrice, src => src.USDPrice);
 
@@ -100,8 +182,8 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<ProductMasterListItemDto, ProductMasterLineModel>()
             .IgnoreNullValues(true)
-            // 默认装率的空值是持久化事实，必须覆盖新行初始值及此前载入的装率。
-            .AfterMapping((src, dest) => dest.DefaultPcsPerPackage = src.Data.DefaultPcsPerPackage)
+            // 装率、模板及系列空值是持久化事实，必须覆盖初始值与此前载入的数据。
+            .AfterMapping((src, dest) => { dest.DefaultPcsPerPackage = src.Data.DefaultPcsPerPackage; dest.ProductAttributeProfileId = src.Data.ProductAttributeProfileId; dest.ProductSeriesId = src.Data.ProductSeriesId; })
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
             .Map(dest => dest.MasterSku, src => src.Data.MasterSku)
             .Map(dest => dest.DefaultDescriptionEn, src => src.Data.DefaultDescriptionEn)
@@ -112,8 +194,10 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.DefaultNetWeight, src => src.Data.DefaultNetWeight)
             .Map(dest => dest.DefaultGrossWeight, src => src.Data.DefaultGrossWeight)
             .Map(dest => dest.DefaultCbm, src => src.Data.DefaultCbm)
-            .Map(dest => dest.ProductType, src => src.Data.ProductType)
-            .Map(dest => dest.ProductSeries, src => src.Data.ProductSeries)
+            .Map(dest => dest.ProductAttributeProfileId, src => src.Data.ProductAttributeProfileId)
+            .Map(dest => dest.ProductAttributeProfileName, src => src.ProductAttributeProfileName ?? string.Empty)
+            .Map(dest => dest.ProductSeriesId, src => src.Data.ProductSeriesId)
+            .Map(dest => dest.ProductSeriesName, src => src.ProductSeriesName ?? string.Empty)
             .Map(dest => dest.TagSummary, src => src.TagSummary ?? string.Empty)
             .Map(dest => dest.CategoryId, src => src.Data.CategoryId)
             .Map(dest => dest.DefaultSupplierId, src => src.Data.DefaultSupplierId)
@@ -136,8 +220,8 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<ProductMasterDetailDto, ProductMasterEditModel>()
             .IgnoreNullValues(true)
-            // 头部空装率同样需要原样接纳，不能受字符串空值兼容策略影响。
-            .AfterMapping((src, dest) => dest.DefaultPcsPerPackage = src.Master.DefaultPcsPerPackage)
+            // 头部空装率、空模板及空系列同样原样接纳，不能受字符串空值兼容策略影响。
+            .AfterMapping((src, dest) => { dest.DefaultPcsPerPackage = src.Master.DefaultPcsPerPackage; dest.ProductAttributeProfileId = src.Master.ProductAttributeProfileId; dest.ProductSeriesId = src.Master.ProductSeriesId; })
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
             .Map(dest => dest.MasterSku, src => src.Master.MasterSku)
             .Map(dest => dest.DefaultDescriptionEn, src => src.Master.DefaultDescriptionEn)
@@ -148,8 +232,10 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.DefaultNetWeight, src => src.Master.DefaultNetWeight)
             .Map(dest => dest.DefaultGrossWeight, src => src.Master.DefaultGrossWeight)
             .Map(dest => dest.DefaultCbm, src => src.Master.DefaultCbm)
-            .Map(dest => dest.ProductType, src => src.Master.ProductType)
-            .Map(dest => dest.ProductSeries, src => src.Master.ProductSeries)
+            .Map(dest => dest.ProductAttributeProfileId, src => src.Master.ProductAttributeProfileId)
+            .Map(dest => dest.ProductAttributeProfileName, src => src.ProductAttributeProfileName ?? string.Empty)
+            .Map(dest => dest.ProductSeriesId, src => src.Master.ProductSeriesId)
+            .Map(dest => dest.ProductSeriesName, src => src.ProductSeriesName ?? string.Empty)
             .Map(dest => dest.CategoryId, src => src.Master.CategoryId)
             .Map(dest => dest.DefaultSupplierId, src => src.Master.DefaultSupplierId);
 

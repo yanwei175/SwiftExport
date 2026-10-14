@@ -232,7 +232,7 @@ public sealed class ProductNeutralManagerColorFilterTests
         /// <inheritdoc />
         public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto> ProductAttributeGroups { get; } = Empty<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>();
         /// <inheritdoc />
-        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductCategoryAttributeGroupDto> ProductAttributeCategoryRelations { get; } = Empty<SwiftExport.Contracts.DTOs.Products.Attributes.ProductCategoryAttributeGroupDto>();
+        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeProfileGroupDto> ProductAttributeProfileRelations { get; } = Empty<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeProfileGroupDto>();
         /// <inheritdoc />
         public ProductAttributeResolution ResolveProductAttributes(Guid categoryId) => new(false, "测试未提供标签定义。", [], []);
         /// <inheritdoc />

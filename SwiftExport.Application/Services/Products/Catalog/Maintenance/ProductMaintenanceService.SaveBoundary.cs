@@ -12,6 +12,55 @@ namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 /// <summary>统一普通产品写入入口，并保护产品资料变化直接影响的当前 BOM 组成。</summary>
 public partial class ProductMaintenanceService
 {
+    /// <summary>只在调用方已取得的事务中执行写入；旧列表 DTO 缺少的归属、单品尺寸和启停字段保留数据库值。</summary>
+    private async Task WriteBatchInCurrentTransactionAsync(ProductBatchSaveRequest request,
+        ProductBatchSaveResponse response, IReadOnlyDictionary<Guid, Product>? detailCandidates = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (_session.Transaction is null) throw new InvalidOperationException("产品写入缺少调用方事务。");
+        foreach (var item in request.CreateItems)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await _repository.AddAsync(item.Data.Adapt<Product>());
+            response.Items.Add(SwiftExport.Contracts.Common.SaveItemResultFactory.FromCreate(item, result));
+            EnsureWriteSucceeded(result, "新增产品失败。");
+        }
+        foreach (var item in request.UpdateItems)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Product entity;
+            if (detailCandidates is not null && detailCandidates.TryGetValue(item.Uid, out var candidate))
+            {
+                // 详情候选保留可空价格、颜色和单品尺寸，公共校验规范化后的字符串则回填候选。
+                entity = candidate;
+                entity.Sku = item.Data.Sku;
+                entity.Unit = item.Data.Unit;
+                entity.ManufacturerModel = item.Data.ManufacturerModel;
+                entity.LinkSku = item.Data.LinkSku;
+            }
+            else
+            {
+                entity = await _repository.GetByIdAsync(item.Uid)
+                    ?? throw new ProductBatchWriteException("产品不存在或已删除。");
+                item.Data.Adapt(entity);
+            }
+            entity.Uid = item.Uid;
+            entity.Version = item.Version;
+            var result = await _repository.UpdateAsync(entity);
+            response.Items.Add(SwiftExport.Contracts.Common.SaveItemResultFactory.FromUpdate(item, result));
+            EnsureWriteSucceeded(result, "更新产品失败。");
+            if (entity.IsDeleted) await RemoveProductSelectionsAsync(item.Uid, cancellationToken);
+        }
+        foreach (var item in request.DeleteItems)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var result = await _repository.DeleteAsync(item.Uid, item.Version, item.IsSoftDelete);
+            response.Items.Add(SwiftExport.Contracts.Common.SaveItemResultFactory.FromDelete(item, result));
+            EnsureWriteSucceeded(result, "删除产品失败。");
+            await RemoveProductSelectionsAsync(item.Uid, cancellationToken);
+        }
+    }
+
     /// <summary>保留新增请求和行标识，通过批量保存内核执行资料校验及自有事务。</summary>
     public override async Task<ServiceResult<SaveItemResult>> AddAsync(CreateItemRequest<ProductDto> item)
         => ToSingleSaveResult(await BatchSaveAsync(new ProductBatchSaveRequest { CreateItems = [item] }));

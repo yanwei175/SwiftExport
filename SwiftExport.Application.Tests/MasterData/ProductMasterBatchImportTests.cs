@@ -26,11 +26,12 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductMasterBatchImportTests
 {
-    /// <summary>空白清空可空字段，保留类型与系列、编码和审计，只更新父级。</summary>
+    /// <summary>空白清空可空字段，保留模板与系列、编码和审计，只更新父级。</summary>
     [TestMethod]
     public async Task BlankFieldsClearAndUnrelatedFieldsRemain()
     {
         var fixture = new Fixture();
+        var profileId = fixture.Masters.Single().ProductAttributeProfileId;
         var receipt = await fixture.Service.ImportAsync([new() { SourceRowNumber = 2, MasterSku = " m-1 " }]);
         Assert.IsTrue(receipt.Success, receipt.Message);
         Assert.IsTrue(receipt.Data.Items.Single().Success);
@@ -41,8 +42,8 @@ public sealed class ProductMasterBatchImportTests
         Assert.IsNull(master.DefaultNetWeight);
         Assert.AreEqual(Guid.Empty, master.CategoryId);
         Assert.AreEqual(Guid.Empty, master.DefaultSupplierId);
-        Assert.AreEqual("旧类型", master.ProductType);
-        Assert.AreEqual("旧系列", master.ProductSeries);
+        Assert.AreEqual(profileId, master.ProductAttributeProfileId);
+        Assert.AreEqual(fixture.OriginalSeriesId, master.ProductSeriesId);
         Assert.AreEqual("original", master.CreatedBy);
         Assert.AreEqual(5, master.Version);
         Assert.AreEqual(1, fixture.Connection.Commits);
@@ -112,14 +113,17 @@ public sealed class ProductMasterBatchImportTests
         Assert.IsNull(fixture.Session.Transaction);
     }
 
-    /// <summary>分类标签存在时不能用空白或另一条分类绕过详情处理。</summary>
+    /// <summary>分类清空不再影响模板；导入不能改写未包含在模板中的属性模板字段。</summary>
     [TestMethod]
-    public async Task TaggedMasterCannotClearCategory()
+    public async Task ImportCanClearCategoryWithoutChangingProfile()
     {
-        var fixture = new Fixture { Tagged = true }; fixture.Masters[0].CategoryId=fixture.ChildCategory.Uid;
+        var fixture = new Fixture(); fixture.Masters[0].CategoryId=fixture.ChildCategory.Uid;
+        var profileId = fixture.Masters[0].ProductAttributeProfileId;
         var saved = await fixture.Service.ImportAsync([new() { SourceRowNumber=2,MasterSku="M-1" }]);
-        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked,saved.Data.Items.Single().ErrorCode);
-        Assert.AreEqual(fixture.ChildCategory.Uid,fixture.Masters[0].CategoryId); Assert.AreEqual(0,fixture.Writes);
+        Assert.IsTrue(saved.Data.Items.Single().Success);
+        Assert.AreEqual(Guid.Empty,fixture.Masters[0].CategoryId);
+        Assert.AreEqual(profileId,fixture.Masters[0].ProductAttributeProfileId);
+        Assert.AreEqual(1,fixture.Writes);
     }
 
     /// <summary>取消发生在第二行写入后时只撤销该行，已提交的第一行保持有效。</summary>
@@ -139,18 +143,20 @@ public sealed class ProductMasterBatchImportTests
     /// <summary>模拟有事务快照的父级仓储；任何未明确允许的调用都会使测试失败。</summary>
     internal sealed class Fixture : ICurrentUser, IPermissionEvaluationService
     {
-        internal List<ProductMaster> Masters = [new() { MasterSku = "M-1", Version = 4, DefaultDescriptionZh = "旧描述", DefaultPcsPerPackage = 12, ProductType = "旧类型", ProductSeries = "旧系列", CreatedBy = "original" }];
+        internal readonly Guid OriginalSeriesId = Guid.NewGuid();
+        internal List<ProductMaster> Masters = [new() { MasterSku = "M-1", Version = 4, DefaultDescriptionZh = "旧描述", DefaultPcsPerPackage = 12, ProductAttributeProfileId = Guid.NewGuid(), CreatedBy = "original" }];
         internal List<Supplier> Suppliers = [new() { SupplierCode = "SUP-1", SupplierName = "测试供应商", DocRelateNo = "S" }];
         internal ProductCategory RootCategory = new() { CategoryName = "工具" };
         internal ProductCategory ChildCategory = new() { CategoryName = "夹具" };
         internal readonly SessionStub Session;
         internal readonly ConnectionStub Connection;
         internal readonly ProductMasterImportService Service;
-        internal bool Admin = true, Active = true, Tagged;
+        internal bool Admin = true, Active = true;
         internal int Writes, Reads, FailWrite, TechnicalFailWrite;
         internal Action? AfterWrite;
         internal Fixture()
         {
+            Masters[0].ProductSeriesId = OriginalSeriesId;
             ChildCategory.ParentId = RootCategory.Uid;
             List<ProductMaster> snapshot = [];
             Connection = new ConnectionStub(() => snapshot = Masters.Select(m => m.Adapt<ProductMaster>()).ToList(),
@@ -175,13 +181,7 @@ public sealed class ProductMasterBatchImportTests
                 };
             });
             Service = new(masters, categories, suppliers, this, this,
-                Proxy<SwiftExport.Core.Interfaces.Products.Attributes.IProductAttributeRepository>((name, _) => name switch
-                {
-                    "GetSelectionsAsync" => Task.FromResult<IReadOnlyList<ProductMasterAttributeSelection>>(Tagged ? [new() { ProductMasterId = Masters[0].Uid, OptionId = Guid.NewGuid() }] : []),
-                    "GetGroupIdsForOptionsAsync" => Task.FromResult<IReadOnlyList<Guid>>([]),
-                    "LockGroupsForSelectionAsync" => Task.FromResult<IReadOnlyList<ProductAttributeGroup>>([]),
-                    _ => throw new AssertFailedException(name)
-                }), new ServiceBaseContext(Session, NullLoggerFactory.Instance));
+                new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 
         /// <summary>处理新导入路径允许的根仓储操作，并模拟数据库编码大小写规则。</summary>
@@ -192,7 +192,7 @@ public sealed class ProductMasterBatchImportTests
             {
                 case "GetByMasterSkusAsync":
                     Assert.IsNotNull(Session.Transaction);
-                    // 每行先只读观察标签锁范围，再取主型号锁；两次均使用相同编码且处于本行事务。
+                    // 每行先观察编码身份再取主型号锁，避免锁前后占用者变化；不再读取标签仓储。
                     Assert.IsInstanceOfType<bool>(args[1]);
                     return Task.FromResult<IReadOnlyList<ProductMaster>>(Masters.Where(m => ((IEnumerable<string>)args[0]!).Contains(m.MasterSku, StringComparer.OrdinalIgnoreCase)).Select(m => m.Adapt<ProductMaster>()).ToArray());
                 case "GetByIdListAsync":

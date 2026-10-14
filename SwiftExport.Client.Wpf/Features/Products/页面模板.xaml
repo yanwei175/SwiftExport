@@ -17,6 +17,7 @@
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterManagerViewModel}"><listViews:ProductMasterManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductNeutralManagerViewModel}"><listViews:ProductNeutralManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterDetailViewModel}"><listViews:ProductMasterDetailView /></DataTemplate>
+    <DataTemplate DataType="{x:Type listViewModels:ProductDetailViewModel}"><listViews:ProductDetailView /></DataTemplate>
     <DataTemplate DataType="{x:Type categoryViewModels:ProductCategoryManagerViewModel}"><categoryViews:ProductCategoryManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type attributeViewModels:ProductAttributeManagerViewModel}"><attributeViews:ProductAttributeManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type colorViewModels:ProductColorsViewModel}"><colorViews:ProductColorsView /></DataTemplate>

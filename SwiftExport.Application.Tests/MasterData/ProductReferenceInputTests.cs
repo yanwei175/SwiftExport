@@ -11,6 +11,7 @@ using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 
@@ -139,7 +140,8 @@ public sealed class ProductReferenceInputTests
             new ServiceBaseContext(null!, NullLoggerFactory.Instance),
             DispatchProxy.Create<IProductColorRepository, RejectProxy>(), supplierRepository,
             warehouseRepository, DispatchProxy.Create<IBomRepository, RejectProxy>(),
-            DispatchProxy.Create<ISysDictDataRepository, RejectProxy>());
+            DispatchProxy.Create<ISysDictDataRepository, RejectProxy>(), new EmptyProductAttributeRepository(),
+            DispatchProxy.Create<IProductMasterRepository, RejectProxy>());
         var method = typeof(ProductMaintenanceService).GetMethod("ValidateMasterDataReferencesAsync",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
         return await (Task<string?>)method.Invoke(service,

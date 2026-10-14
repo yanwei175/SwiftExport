@@ -24,7 +24,7 @@ public sealed class ProductMasterCategoryEditingTests
     [TestMethod]
     public void DetailCategory_ShouldCommitAndClearWithoutAcceptingOtherChanges()
     {
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
         var originalId = Guid.NewGuid();
         vm.Header.Load(new ProductMasterDetailDto
         {
@@ -35,7 +35,8 @@ public sealed class ProductMasterCategoryEditingTests
         var category = (ProductCategoryCacheNode)Activator.CreateInstance(typeof(ProductCategoryCacheNode),
             BindingFlags.Instance | BindingFlags.NonPublic, null,
             new object[] { new ProductCategoryDto { Uid = Guid.NewGuid(), CategoryName = "子分类" } }, null)!;
-        vm.Header.ProductSeries = "未保存系列";
+        var unsavedSeriesId = Guid.NewGuid();
+        vm.Header.ProductSeriesId = unsavedSeriesId;
         vm.SelectedCategory = category;
         Assert.AreEqual(originalId, vm.Header.CategoryId);
 
@@ -46,7 +47,7 @@ public sealed class ProductMasterCategoryEditingTests
         Assert.AreEqual(Guid.Empty, vm.Header.ToWriteDto().CategoryId);
         Assert.AreEqual(string.Empty, vm.Header.CategoryName);
         Assert.IsNull(vm.SelectedCategory);
-        Assert.AreEqual("未保存系列", vm.Header.ProductSeries);
+        Assert.AreEqual(unsavedSeriesId, vm.Header.ProductSeriesId);
         Assert.IsTrue(vm.HasUnsavedChanges);
         vm.Header.RejectChanges();
         Assert.AreEqual(originalId, vm.Header.CategoryId);

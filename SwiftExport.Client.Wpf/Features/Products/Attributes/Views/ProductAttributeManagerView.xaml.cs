@@ -12,21 +12,23 @@ namespace SwiftExportClient.Features.Products.Attributes.Views;
 public partial class ProductAttributeManagerView : UserControl
 {
     private readonly Func<bool> _commitCallback;
+    private readonly Func<bool> _popupOpenCallback;
     private ProductAttributeManagerViewModel? _viewModel;
+    private Popup? _profilePopup;
     /// <summary>初始化独立维护页，数据上下文由工作区导航提供。</summary>
     public ProductAttributeManagerView()
-    { InitializeComponent(); _commitCallback = CommitPendingEdits; }
+    { InitializeComponent(); _commitCallback = CommitPendingEdits; _popupOpenCallback = IsProfilePopupOpen; }
 
     /// <summary>提交两张表当前编辑；转换错误时保留编辑并阻止触发替换上下文或保存。</summary>
     public bool CommitPendingEdits()
     {
         if (!CommitGrid(GroupGrid) || !CommitGrid(OptionGrid)) return false;
-        CloseCategoryPopup();
+        CloseProfilePopup();
         return true;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs args) => AttachViewModel();
-    private void OnUnloaded(object sender, RoutedEventArgs args) { CloseCategoryPopup(); DetachViewModel(); }
+    private void OnUnloaded(object sender, RoutedEventArgs args) { CloseProfilePopup(); DetachViewModel(); }
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs args)
     { DetachViewModel(); if (IsLoaded) AttachViewModel(); }
 
@@ -36,13 +38,19 @@ public partial class ProductAttributeManagerView : UserControl
         if (DataContext is not ProductAttributeManagerViewModel viewModel || ReferenceEquals(_viewModel, viewModel)) return;
         DetachViewModel(); _viewModel = viewModel;
         viewModel.CommitPendingEdits = _commitCallback;
+        viewModel.IsProfilePopupOpen = _popupOpenCallback;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _profilePopup = ProfilePicker.FindName("PART_Popup") as Popup;
+        if (_profilePopup is not null) _profilePopup.Closed += OnProfilePopupClosed;
     }
 
     private void DetachViewModel()
     {
         if (_viewModel is not { } viewModel) return;
         if (ReferenceEquals(viewModel.CommitPendingEdits, _commitCallback)) viewModel.CommitPendingEdits = null;
+        if (ReferenceEquals(viewModel.IsProfilePopupOpen, _popupOpenCallback)) viewModel.IsProfilePopupOpen = null;
+        if (_profilePopup is not null) _profilePopup.Closed -= OnProfilePopupClosed;
+        _profilePopup = null;
         viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel = null;
     }
@@ -52,11 +60,13 @@ public partial class ProductAttributeManagerView : UserControl
     {
         if (args.PropertyName == nameof(ProductAttributeManagerViewModel.SelectedGroup)
             || args.PropertyName == nameof(ProductAttributeManagerViewModel.CanEditCurrentGroup) && _viewModel?.CanEditCurrentGroup != true)
-            CloseCategoryPopup();
+            CloseProfilePopup();
     }
 
-    private void CloseCategoryPopup()
-    { if (CategoryPicker.FindName("PART_Popup") is Popup popup) popup.IsOpen = false; }
+    private void CloseProfilePopup()
+    { if (ProfilePicker.FindName("PART_Popup") is Popup popup) popup.IsOpen = false; }
+    private bool IsProfilePopupOpen() => _profilePopup?.IsOpen == true;
+    private void OnProfilePopupClosed(object? sender, EventArgs args) => _viewModel?.ApplyPendingProfileRefresh();
 
     private void OnPreviewMouseDown(object sender, MouseButtonEventArgs args)
     {
@@ -92,7 +102,7 @@ public partial class ProductAttributeManagerView : UserControl
         {
             GroupGrid.CancelEdit(DataGridEditingUnit.Cell); GroupGrid.CancelEdit(DataGridEditingUnit.Row);
             OptionGrid.CancelEdit(DataGridEditingUnit.Cell); OptionGrid.CancelEdit(DataGridEditingUnit.Row);
-            CloseCategoryPopup();
+            CloseProfilePopup();
             return true;
         }
         return CommitPendingEdits();

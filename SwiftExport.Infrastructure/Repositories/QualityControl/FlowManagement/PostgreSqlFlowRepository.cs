@@ -82,7 +82,7 @@ public sealed class PostgreSqlFlowRepository(RepositoryBaseContext context) : IF
             new { Id = id }, Transaction, cancellationToken: token));
     }
 
-    /// <summary>先按身份锁分类再锁明细，与现有字典维护的分类先行顺序一致，快照采用期间禁止资料被修改。</summary>
+    /// <summary>先锁现存分类再锁明细及两个内置业务键；分类缺失仍能读取明细，软删除默认项交给应用目录判定。</summary>
     public async Task<IReadOnlyList<SysDictData>> ReadDictionaryItemsAsync(IEnumerable<Guid> ids, CancellationToken token)
     {
         RequireTransaction();
@@ -94,11 +94,19 @@ public sealed class PostgreSqlFlowRepository(RepositoryBaseContext context) : IF
             "AND rtrim(t.dict_code,' ')=ANY(@Codes) ORDER BY t.uid FOR SHARE",
             new { Codes = new[] { DictCodes.FlowTestFunction, DictCodes.FlowLimiterSpecification } },
             Transaction, cancellationToken: token));
+        var parameters = PostgreSqlParameters.Ids(values);
+        parameters.Add("FunctionCode", DictCodes.FlowTestFunction);
+        parameters.Add("DefaultCode", "Default");
+        parameters.Add("LimiterCode", DictCodes.FlowLimiterSpecification);
+        parameters.Add("UnlimitedCode", "Unlimited");
+        // 同时读取内置业务键，才能保留已有库的旧 Guid，拒绝客户端采用已经过期的代码默认 Guid。
         return (await Connection.QueryAsync<SysDictData>(new CommandDefinition(
             $"SELECT {Projection<SysDictData>("d")} FROM public.sys_dict_data d " +
-            "JOIN public.sys_dict_type t ON t.dict_code=d.dict_code AND t.is_deleted=FALSE " +
-            "WHERE d.uid=ANY(@Uids) AND d.is_deleted=FALSE ORDER BY d.uid FOR SHARE OF d",
-            PostgreSqlParameters.Ids(values), Transaction, cancellationToken: token))).ToArray();
+            "WHERE d.uid=ANY(@Uids) " +
+            "OR (btrim(d.dict_code,' ')=@FunctionCode AND btrim(d.data_name_en,' ')=@DefaultCode) " +
+            "OR (btrim(d.dict_code,' ')=@LimiterCode AND btrim(d.data_name_en,' ')=@UnlimitedCode) " +
+            "ORDER BY d.uid FOR SHARE OF d",
+            parameters, Transaction, cancellationToken: token))).ToArray();
     }
 
     /// <summary>新增流量头并生成审计及身份。</summary>

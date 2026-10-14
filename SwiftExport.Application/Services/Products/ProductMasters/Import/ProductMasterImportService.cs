@@ -11,7 +11,6 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Auth;
-using SwiftExport.Core.Interfaces.Products.Attributes;
 using SwiftExport.Core.Interfaces.Products.Categories;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
@@ -21,7 +20,7 @@ namespace SwiftExport.Application.Services.Products.ProductMasters.Import;
 /// <summary>一百行批次的父级保存用例；每行重读加锁，空白清空，不进入子产品同步链。</summary>
 public sealed class ProductMasterImportService(IProductMasterRepository masters, IProductCategoryRepository categories,
     ISupplierRepository suppliers, ICurrentUser user, IPermissionEvaluationService permissions,
-    IProductAttributeRepository attributes, ServiceBaseContext context) : IProductMasterImportService
+    ServiceBaseContext context) : IProductMasterImportService
 {
     private readonly ILogger _logger = context.LoggerFactory.CreateLogger<ProductMasterImportService>();
 
@@ -71,16 +70,10 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
             var tree = await categories.GetAllForUpdateAsync();
             var path = Text(row.CategoryPath);
             data.CategoryId = path is null ? Guid.Empty : ResolveCategory(tree, path);
-            // 全树分类锁后，先观察已有选择并对其组取共享锁，再进入供应商与主型号锁。
+            // 导入不修改模板或选择；先观察主型号身份，锁后重验，避免覆盖期间新增或更换的记录。
             var observedMatches = await masters.GetByMasterSkusAsync([data.MasterSku], false, token);
             if (observedMatches.Count > 1) throw new RowFailure(ServiceErrorCodes.Validation, "主型号编码匹配不唯一。");
             var observed = observedMatches.SingleOrDefault();
-            var selectedIds = observed is null ? [] : (await attributes.GetSelectionsAsync([observed.Uid], token)).Select(item => item.OptionId).ToArray();
-            if (selectedIds.Length > 0)
-            {
-                var groupIds = await attributes.GetGroupIdsForOptionsAsync(selectedIds, token);
-                await attributes.LockGroupsForSelectionAsync(groupIds, token);
-            }
             var supplierCode = Text(row.DefaultSupplierCode);
             if (supplierCode is not null)
             {
@@ -99,16 +92,7 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
             receipt.Operation = existing is null ? SaveOperation.Create : SaveOperation.Update;
             receipt.Uid = existing?.Uid;
             receipt.OldVersion = existing?.Version;
-            if (existing is not null && existing.CategoryId != data.CategoryId && selectedIds.Length > 0)
-            {
-                var definitions = data.CategoryId == Guid.Empty ? [] : await attributes.GetDefinitionsAsync(data.CategoryId, token);
-                var choices = definitions.SelectMany(group => group.Options.Select(option => (Group: group, Option: option)))
-                    .Where(choice => selectedIds.Contains(choice.Option.Uid)).ToArray();
-                if (choices.Length != selectedIds.Length || choices.GroupBy(choice => choice.Group.Uid)
-                    .Any(group => group.First().Group.SelectionMode == ProductAttributeSelectionMode.Single && group.Count() > 1))
-                    throw new RowFailure(ServiceErrorCodes.BusinessBlocked, "主型号的部分标签在目标分类不适用，请到详情调整分类并明确处理标签。");
-            }
-            // 只覆盖十一字段，保留原编码、审计、旧类型标签和其他非导入字段。
+            // 只覆盖十一字段，保留当前模板、独立标签选择、系列字典身份及其他非导入字段。
             var entity = existing?.Adapt<ProductMaster>() ?? new ProductMaster();
             entity.MasterSku = existing?.MasterSku ?? data.MasterSku;
             entity.DefaultDescriptionZh = data.DefaultDescriptionZh;

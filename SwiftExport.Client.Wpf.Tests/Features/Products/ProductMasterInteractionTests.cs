@@ -41,7 +41,7 @@ public sealed class ProductMasterInteractionTests
     [TestMethod]
     public void DetailPreview_ShouldFollowMainImageAndListChanges()
     {
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
         vm.Neutrals.LoadFromDtos([Neutral("首行", true), Neutral("末行")]);
         var first = vm.Neutrals.Items.First();
         var last = vm.Neutrals.Items.Last();
@@ -96,7 +96,7 @@ public sealed class ProductMasterInteractionTests
     public async Task DetailDelete_ShouldSelectLastAndKeepRowsWhenCancelled()
     {
         var dialogs = new TestDialogs();
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, dialogs, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, dialogs, null!, new ProductMasterSyncDialogStub());
         vm.Neutrals.LoadFromDtos([Neutral("首行"), Neutral("末行")]);
         var first = vm.Neutrals.Items.First();
         var last = vm.Neutrals.Items.Last();

@@ -8,6 +8,10 @@ namespace SwiftExport.Core.Interfaces.Products.Catalog;
 /// <summary>提供物料资料读写及专用字段更新能力；业务授权、引用校验和跨仓储事务由应用服务负责。</summary>
 public interface IProductRepository : IRepository<Product>
 {
+    /// <summary>读取物料详情完整资料和实时来源投影；标签选择由应用服务在同一读事务组装。</summary>
+    Task<ProductDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
+    /// <summary>按来源主型号取得有效物料身份，供上游模板及删除引用保护使用。</summary>
+    Task<IReadOnlyList<Guid>> GetIdsByProductMasterIdsAsync(IEnumerable<Guid> masterIds, CancellationToken cancellationToken = default);
     /// <summary>可取消地读取完整产品事实，供 BOM 绑定与校验使用。</summary>
     Task<Product?> GetByIdAsync(Guid uid, CancellationToken cancellationToken) => GetByIdAsync(uid);
     /// <summary>可取消地读取共享图引用的完整子产品，不扩展通用仓储职责。</summary>

@@ -103,6 +103,18 @@ public sealed class FlowRepositoryTests
         StringAssert.Contains(f.Connection.Text, "d.uid=ANY(@Uids)");
         StringAssert.Contains(f.Connection.Text, "FOR SHARE OF d");
         CollectionAssert.AreEquivalent(ids, (Guid[])f.Connection.Values["Uids"]!);
+        Assert.IsFalse(f.Connection.Text.Contains("JOIN public.sys_dict_type", StringComparison.Ordinal));
+        Assert.IsFalse(f.Connection.Text.Contains("d.is_deleted=FALSE", StringComparison.Ordinal));
+        StringAssert.Contains(f.Connection.Text, "OR (btrim(d.dict_code,' ')=@FunctionCode");
+        StringAssert.Contains(f.Connection.Text, "OR (btrim(d.dict_code,' ')=@LimiterCode");
+        Assert.AreEqual("Default", f.Connection.Values["DefaultCode"]);
+        Assert.AreEqual("Unlimited", f.Connection.Values["UnlimitedCode"]);
+        var dictionaryCommands = f.Connection.History.TakeLast(2).ToArray();
+        StringAssert.Contains(dictionaryCommands[0], "FROM public.sys_dict_type");
+        StringAssert.Contains(dictionaryCommands[0], "ORDER BY t.uid FOR SHARE");
+        StringAssert.Contains(dictionaryCommands[1], "FROM public.sys_dict_data");
+        Assert.AreSame(transaction, f.Connection.LastTransaction);
+        Assert.AreEqual(token.Token, f.Connection.LastToken);
     }
 
     /// <summary>真实分页执行两个结果集，稳定排序和分页参数不会因日期或 SKU 条件失效。</summary>
@@ -194,6 +206,7 @@ public sealed class FlowRepositoryTests
         public CancellationToken LastToken;
         public DataTable[] Results = [VersionTable(1)];
         public int Commands;
+        public List<string> History = [];
         [AllowNull] public override string ConnectionString { get; set; } = "";
         public override string Database => "flow-offline";
         public override string DataSource => "none";
@@ -242,6 +255,7 @@ public sealed class FlowRepositoryTests
             private void Capture()
             {
                 connection.Commands++;
+                connection.History.Add(CommandText);
                 connection.Text = CommandText;
                 connection.LastTransaction = DbTransaction;
                 connection.Values = _parameters.Parameters.Cast<NpgsqlParameter>().ToDictionary(x => x.ParameterName, x => (object?)x.Value);

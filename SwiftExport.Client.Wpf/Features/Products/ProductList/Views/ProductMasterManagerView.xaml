@@ -224,7 +224,8 @@
                     </Grid.RowDefinitions>
 
 
-                    <DataGrid x:Name="MasterGrid" ItemsSource="{Binding Masters.Items}"
+                    <DataGrid x:Name="MasterGrid" 
+                              ItemsSource="{Binding Masters.Items}"
                               RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                               RowHeight="{StaticResource DataGridRowHeightMedium}"
                               FontSize="{StaticResource SwiftExportDefaltFontSize}"
@@ -383,21 +384,57 @@
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="类型" Width="110" 
-                                                    Binding="{Binding ProductType, UpdateSourceTrigger=PropertyChanged}"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                                    gridColumns:GridColumn.Key="product-type" gridColumns:GridColumn.FieldPath="ProductType" />
+                            <DataGridTemplateColumn Header="属性模板" Width="150" SortMemberPath="ProductAttributeProfileName"
+                                                    gridColumns:GridColumn.Key="attribute-profile"
+                                                    gridColumns:GridColumn.FieldPath="ProductAttributeProfileName"
+                                                    gridColumns:GridColumn.FillDownFieldPaths="ProductAttributeProfileId,ProductAttributeProfileName">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ProductAttributeProfileName}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <productComponents:ProductAttributeProfileLookupTextBox 
+                                            Text="{Binding ProductAttributeProfileName, Mode=OneWay}"
+                                            ItemsSource="{Binding DataContext.ProfileCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectedProfile="{Binding DataContext.EditProfile, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                            SelectionCommittedCommand="{Binding DataContext.CommitProfileCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionCommittedCommandParameter="{Binding}"
+                                            SelectionClearedCommand="{Binding DataContext.ClearProfileCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionClearedCommandParameter="{Binding}"
+                                            AutomationProperties.Name="当前主型号属性模板" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="产品系列" Width="110" Binding="{Binding ProductSeries, UpdateSourceTrigger=PropertyChanged}"
-                                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                                    gridColumns:GridColumn.Key="product-series" gridColumns:GridColumn.FieldPath="ProductSeries" />
+                            <DataGridTemplateColumn Header="产品系列" Width="140" SortMemberPath="ProductSeriesName"
+                                                    gridColumns:GridColumn.Key="product-series"
+                                                    gridColumns:GridColumn.FieldPath="ProductSeriesName"
+                                                    gridColumns:GridColumn.FillDownFieldPaths="ProductSeriesId,ProductSeriesName">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ProductSeriesName}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <productComponents:ProductSeriesAutoSuggestComboBox Text="{Binding ProductSeriesName, Mode=OneWay}"
+                                            ItemsSource="{Binding DataContext.SeriesCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectedSeries="{Binding DataContext.EditSeries, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                            SelectionCommittedCommand="{Binding DataContext.CommitSeriesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionCommittedCommandParameter="{Binding}"
+                                            SelectionClearedCommand="{Binding DataContext.ClearSeriesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                            SelectionClearedCommandParameter="{Binding}"
+                                            Placeholder="产品系列（可空）" AutomationProperties.Name="当前主型号产品系列" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="分类标签" Width="240" IsReadOnly="True"
+                            <DataGridTextColumn Header="标签" Width="240" IsReadOnly="True"
                                                 Binding="{Binding TagSummary, Mode=OneWay}"
                                                 ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="category-tags" gridColumns:GridColumn.FieldPath="TagSummary" />
+                                                gridColumns:GridColumn.Key="attribute-tags" gridColumns:GridColumn.FieldPath="TagSummary" />
 
                         </DataGrid.Columns>
                     </DataGrid>

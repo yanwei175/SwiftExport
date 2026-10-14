@@ -1,4 +1,5 @@
 using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels;
@@ -43,6 +44,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PackingListDetailViewModel.RouteKey, "PackingList详情", "Detail", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, "Shipping.PackingList.View"),
 
         new("products", "产品", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, "Products.Product.View"),
+        new(ProductDetailViewModel.RouteKey, "物料详情", "Detail", typeof(ProductDetailViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsProductView),
 
         new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
         new(SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel.RouteKey,
@@ -54,6 +56,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new("product-category-manager", "产品分类管理", "Workspace", typeof(ProductCategoryManagerViewModel), NavigationModuleKeys.Products, "Products.Category.View"),
         new(ProductAttributeManagerViewModel.RouteKey, "产品标签", "Workspace", typeof(ProductAttributeManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsCategoryView),
+        new(DictionaryDataManagerViewModel.RouteKey, "字典明细", "Workspace", typeof(DictionaryDataManagerViewModel), NavigationModuleKeys.SystemSettings, "System.Dictionary.View", DiscardOnAccessRevoked: true),
 
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel), NavigationModuleKeys.Products, "Products.Color.View"),
 

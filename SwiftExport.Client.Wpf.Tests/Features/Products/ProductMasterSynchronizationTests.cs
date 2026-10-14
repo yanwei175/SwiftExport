@@ -147,7 +147,7 @@ public sealed class ProductMasterSynchronizationTests
         if (detail)
         {
             using var vm = Detail(api, dialog);
-            vm.Header.ProductSeries = "修改";
+            vm.Header.ProductSeriesId = Guid.NewGuid();
             await vm.SaveCommand.ExecuteAsync(null);
             var request = (SaveProductMasterDetailRequest)sent!;
             Assert.AreEqual(descriptions, request.UpdateProductDescriptions);
@@ -181,7 +181,7 @@ public sealed class ProductMasterSynchronizationTests
         using var manager = Manager(api, dialog);
         using var editor = Detail(api, dialog);
         manager.Masters.AddNewMaster().MasterSku = "A";
-        editor.Header.ProductSeries = "修改";
+        editor.Header.ProductSeriesId = Guid.NewGuid();
         var command = detail ? editor.SaveCommand : manager.SaveCommand;
         var pending = command.ExecuteAsync(null);
         Assert.AreEqual(1, dialog.Calls);
@@ -313,7 +313,7 @@ public sealed class ProductMasterSynchronizationTests
 
     private static ProductMasterDetailViewModel Detail(IProductMasterApi api, ProductMasterSyncDialogStub dialog)
     {
-        var vm = new ProductMasterDetailViewModel(api, null!, Runner(),
+        var vm = new ProductMasterDetailViewModel(api, Runner(),
             Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
             {
                 "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),

@@ -1,12 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Mapster;
 using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Mvvm;
 using System.ComponentModel;
 
 namespace SwiftExportClient.Features.SystemSettings.Dictionaries.Models;
 
+/// <summary>编辑自定义字典类型，按服务端内置或旧系统身份决定只读，不自行推断内置目录。</summary>
 public sealed partial class DictionaryTypeEditModel : BaseLineModel<SysDictTypeDto>, IDataErrorInfo
 {
     private bool _isProtected;
@@ -19,6 +19,10 @@ public sealed partial class DictionaryTypeEditModel : BaseLineModel<SysDictTypeD
 
     [ObservableProperty]
     public partial bool IsSystem { get; set; }
+
+    /// <summary>服务端内置事实，随快照装载并供只读门禁使用。</summary>
+    [ObservableProperty]
+    public partial bool IsBuiltIn { get; set; }
 
     [ObservableProperty]
     public partial string Remark { get; set; } = string.Empty;
@@ -35,6 +39,7 @@ public sealed partial class DictionaryTypeEditModel : BaseLineModel<SysDictTypeD
     [ObservableProperty]
     public partial string GroupName { get; set; } = string.Empty;
 
+    /// <summary>记录装载时的保护身份，避免修改客户端标记绕过只读门禁。</summary>
     public bool IsProtected => _isProtected;
 
     public string Error => string.Empty;
@@ -46,6 +51,7 @@ public sealed partial class DictionaryTypeEditModel : BaseLineModel<SysDictTypeD
         _ => string.Empty
     };
 
+    /// <summary>检查自定义类型编码和名称必填，业务唯一性与树关系由服务端验证。</summary>
     public override string? ValidateRow()
     {
         if (string.IsNullOrWhiteSpace(DictCode))
@@ -61,18 +67,20 @@ public sealed partial class DictionaryTypeEditModel : BaseLineModel<SysDictTypeD
         return null;
     }
 
+    /// <summary>系统保护事实属于服务器快照，不作为需要保存的用户变更。</summary>
     protected override bool IsTrackingIgnoredProperty(string? propertyName)
     {
         return base.IsTrackingIgnoredProperty(propertyName)
-            || propertyName == nameof(IsProtected);
+            || propertyName is nameof(IsProtected) or nameof(IsBuiltIn);
     }
 
+    /// <summary>装载类型快照与服务端保护事实；零版本内置类型无需初始化后才能维护明细。</summary>
     protected override void LoadFromDto(SysDictTypeDto dto)
     {
         dto.Adapt(this);
-        _isProtected = dto.IsSystem
-            || DictCodes.DictCodeList.Contains(dto.DictCode, StringComparer.OrdinalIgnoreCase);
+        _isProtected = dto.IsBuiltIn || dto.IsSystem;
     }
 
+    /// <summary>输出自定义类型的当前字段，保留基类管理的身份和版本。</summary>
     public override SysDictTypeDto ToDto() => this.Adapt<SysDictTypeDto>();
 }

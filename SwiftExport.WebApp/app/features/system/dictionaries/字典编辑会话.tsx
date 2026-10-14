@@ -35,6 +35,8 @@ import {
   createDictionaryItemRow,
   createDictionaryItemRows,
   discardDictionaryItemRows,
+  isDictionaryItemFieldEditable,
+  isProtectedDictionaryItem,
   isProtectedDictionaryType,
   parseDictionarySortOrder,
   removeDictionaryItemRows,
@@ -498,13 +500,19 @@ export function useDictionaryEditor({
     dataLoadedRef.current = false;
     publish();
   }
-  function rowCanEdit(row: DictionaryItemRow): boolean {
+  /** 行权限沿用原入口，列限制只作用于内置项的业务身份和启用状态。 */
+  function rowCanEdit(row: DictionaryItemRow, columnKey?: string): boolean {
     return (
       access(row.origin === "created" ? "create" : "edit") &&
       !typeDirty() &&
       !newTypeRef.current &&
       dataLoadedRef.current &&
-      phaseRef.current === "idle"
+      phaseRef.current === "idle" &&
+      (columnKey === undefined ||
+        isDictionaryItemFieldEditable(
+          row.source,
+          columnKey as keyof DictionaryItemValues,
+        ))
     );
   }
   function cellText(row: DictionaryItemRow, field: ItemField): string {
@@ -522,7 +530,7 @@ export function useDictionaryEditor({
     const latest = rowsRef.current.find(
       (item) => item.clientKey === row.clientKey,
     );
-    if (!latest || latest.deleted || !rowCanEdit(latest)) return;
+    if (!latest || latest.deleted || !rowCanEdit(latest, field)) return;
     const key = `${row.clientKey}:${field}`;
     const buffer: ItemBuffer = {
       clientKey: row.clientKey,
@@ -582,7 +590,8 @@ export function useDictionaryEditor({
           changes.deleted.every((row) =>
             rows.some(
               (item) =>
-                item.clientKey === row.clientKey && !item.source.isSystem,
+                item.clientKey === row.clientKey &&
+                !isProtectedDictionaryItem(item.source),
             ),
           )))
     );
@@ -835,7 +844,7 @@ export function useDictionaryEditor({
   }
   function canDeleteRow(row: DictionaryItemRow): boolean {
     return (
-      !row.source.isSystem &&
+      !isProtectedDictionaryItem(row.source) &&
       (row.origin === "created" ? access() : access("delete"))
     );
   }
@@ -882,7 +891,7 @@ export function useDictionaryEditor({
       const source = rowsRef.current.find(
         (row) => row.clientKey === column.source.clientKey && !row.deleted,
       );
-      if (!source || !rowCanEdit(source)) return;
+      if (!source || !rowCanEdit(source, field)) return;
       const raw = cellText(source, field);
       if (
         !parseItem(field, raw).valid ||
@@ -895,7 +904,7 @@ export function useDictionaryEditor({
         const row = rowsRef.current.find(
           (item) => item.clientKey === target.clientKey && !item.deleted,
         );
-        if (!row || !rowCanEdit(row)) return;
+        if (!row || !rowCanEdit(row, field)) return;
         patches.push({ row, field, raw });
       }
     }
@@ -1103,7 +1112,7 @@ export function useDictionaryEditor({
     title: "系统项",
     width: 90,
     readOnly: true,
-    render: (row) => (row.source.isSystem ? "是" : "否"),
+    render: (row) => (isProtectedDictionaryItem(row.source) ? "是" : "否"),
   });
   return {
     tabId: descriptor.tabId,

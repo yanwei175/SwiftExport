@@ -3,6 +3,7 @@ using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
+using SwiftExport.Application.Services.Systems.Dictionaries;
 using SwiftExport.Application.Interfaces.QualityControl.FlowManagement;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
@@ -179,7 +180,9 @@ public sealed class FlowService(IFlowRepository repository, ServiceBaseContext c
             if (old?.FunctionId != input.FunctionId) requirements.Add((input.FunctionId, DictCodes.FlowTestFunction));
             if (old?.LimiterSpecificationId != input.LimiterSpecificationId) requirements.Add((input.LimiterSpecificationId, DictCodes.FlowLimiterSpecification));
         }
-        var dictionary = (await repository.ReadDictionaryItemsAsync(requirements.Select(x => x.Id), token)).ToDictionary(x => x.Uid);
+        var stored = await repository.ReadDictionaryItemsAsync(requirements.Select(x => x.Id), token);
+        // 只补齐缺失内置项；原准入校验仍按提交 Guid 检查，旧业务键的数据库身份优先，不改历史快照。
+        var dictionary = BuiltInDictionaryCatalog.MergeData(stored).ToDictionary(x => x.Uid);
         foreach (var (id, code) in requirements)
             if (!dictionary.TryGetValue(id, out var item) || item.IsDeleted || !item.IsEnabled ||
                 !string.Equals(item.DictCode?.Trim(), code, StringComparison.OrdinalIgnoreCase) ||

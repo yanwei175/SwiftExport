@@ -1,0 +1,18 @@
+<UserControl x:Class="SwiftExportClient.Features.SystemSettings.Dictionaries.Views.DictionaryDataManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:components="clr-namespace:SwiftExportClient.Features.SystemSettings.Dictionaries.Components">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="{Binding DocumentTitle}" Style="{StaticResource SubtitleTextBlock}" />
+            <TextBlock Text="{Binding Description}"
+                       Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+        <components:DictionaryDataEditor Grid.Row="2" DataContext="{Binding Values}" />
+    </Grid>
+</UserControl>

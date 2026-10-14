@@ -11,6 +11,10 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters
         public string CategoryName { get; set; }
         /// <summary>获取或设置实时默认供应商名称。</summary>
         public string DefaultSupplierName { get; set; }
+        /// <summary>属性模板的实时显示名称。</summary>
+        public string ProductAttributeProfileName { get; set; }
+        /// <summary>产品系列的实时字典显示名称；保存使用 Data.ProductSeriesId。</summary>
+        public string ProductSeriesName { get; set; }
         /// <summary>获取或设置中性产品标记为主图的只读图片路径。</summary>
         public string MainImagePath { get; set; }
         /// <summary>只读标签摘要，例如“安装方式：吸顶、挂墙；尺寸：8寸”；不用于写入产品系列名。</summary>

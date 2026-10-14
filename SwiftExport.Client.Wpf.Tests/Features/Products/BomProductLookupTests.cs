@@ -130,6 +130,10 @@ public sealed class BomProductLookupTests
             ?? Task.FromResult(ServiceResult<List<ProductLookupDto>>.Ok([]));
 
         public Task<ServiceResult<ProductDto>> GetByIdAsync(Guid id) => NotSupported<ProductDto>();
+        /// <summary>此 BOM 查询夹具不提供物料详情读取。</summary>
+        public Task<ServiceResult<ProductDetailDto>> GetDetailAsync(Guid id, CancellationToken cancellationToken = default) => NotSupported<ProductDetailDto>();
+        /// <summary>此 BOM 查询夹具不提供物料详情写入。</summary>
+        public Task<ServiceResult<SaveProductDetailResponse>> SaveDetailAsync(Guid id, SaveProductDetailRequest request, CancellationToken cancellationToken = default) => NotSupported<SaveProductDetailResponse>();
         public Task<ServiceResult<Guid>> CreateAsync(ProductDto request) => NotSupported<Guid>();
         public Task<ServiceResult<Guid>> UpdateAsync(Guid id, ProductDto request) => NotSupported<Guid>();
         public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => NotSupported<Guid>();

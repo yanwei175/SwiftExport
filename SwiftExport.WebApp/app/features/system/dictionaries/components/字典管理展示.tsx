@@ -375,7 +375,9 @@ export function DictionaryManagementView({
                   getRowKey={(row) => row.clientKey}
                   columns={editor.columns}
                   readOnly={editor.itemsReadOnly}
-                  canEdit={(row) => editor.rowCanEdit(row)}
+                  canEdit={(row, columnKey) =>
+                    editor.rowCanEdit(row, columnKey)
+                  }
                   selectedKeys={editor.selectedKeys}
                   onSelectionChange={editor.onSelectionChange}
                   onFillDown={editor.fillDown}

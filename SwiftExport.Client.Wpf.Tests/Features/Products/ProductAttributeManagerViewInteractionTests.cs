@@ -13,6 +13,8 @@ using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
@@ -24,7 +26,7 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>通过真实主题、原生 Grid 与分类多选弹出层验证独立标签页，不访问生产 API。</summary>
+/// <summary>通过真实主题、原生 Grid 与属性模板多选弹出层验证独立标签页，不访问生产 API。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class ProductAttributeManagerViewInteractionTests
@@ -71,7 +73,7 @@ public sealed class ProductAttributeManagerViewInteractionTests
 
     /// <summary>完整路径搜索只产生直接关联草稿，取消不接纳勾选，确定及清空更新整页变更集。</summary>
     [TestMethod]
-    public void CategoryPicker_SearchCancelConfirmAndClearUseDirectRelations() => DatePickerAssistTests.RunWithApplication(async () =>
+    public void ProfilePicker_SearchCancelConfirmAndClearUseDirectRelations() => DatePickerAssistTests.RunWithApplication(async () =>
     {
         ApplicationResourceLoader.Load();
         using var fixture = new Fixture();
@@ -83,24 +85,24 @@ public sealed class ProductAttributeManagerViewInteractionTests
             window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             var tabs = (TabControl)view.FindName("GroupDetailsTabs"); tabs.SelectedIndex = 1;
             await Dispatcher.Yield(DispatcherPriority.Loaded);
-            var picker = (MultiSelectLookupButton)view.FindName("CategoryPicker");
+            var picker = (MultiSelectLookupButton)view.FindName("ProfilePicker");
             var popup = (Popup)picker.FindName("PART_Popup");
-            CollectionAssert.AreEqual(new[] { fixture.RootId }, fixture.ViewModel.SelectedCategorySelection!.SelectedCategories.Select(row => row.Uid).ToArray());
+            CollectionAssert.AreEqual(new[] { fixture.RootId }, fixture.ViewModel.SelectedProfileSelection!.SelectedProfiles.Select(row => row.Uid).ToArray());
             popup.IsOpen = true; await Dispatcher.Yield(DispatcherPriority.Loaded);
-            var search = (TextBox)picker.FindName("PART_SearchBox"); search.Text = "顶喷 / 圆形";
+            var search = (TextBox)picker.FindName("PART_SearchBox"); search.Text = "ROUND";
             await Dispatcher.Yield(DispatcherPriority.Background);
             var list = (ListBox)picker.FindName("PART_ListBox");
             Assert.AreEqual(1, list.Items.Count);
             list.UpdateLayout();
             var row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
             var check = Descendants(row).OfType<CheckBox>().Single();
-            Assert.AreNotEqual(true, check.IsChecked, "继承得到的子分类不能冒充直接关联。");
+            Assert.AreNotEqual(true, check.IsChecked, "未勾选的模板不能冒充直接关联。");
             check.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             popup.IsOpen = false; await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             Assert.IsFalse(fixture.ViewModel.HasUnsavedChanges);
             popup.IsOpen = true; await Dispatcher.Yield(DispatcherPriority.Loaded);
-            search.Text = "顶喷 / 圆形"; await Dispatcher.Yield(DispatcherPriority.Background);
+            search.Text = "ROUND"; await Dispatcher.Yield(DispatcherPriority.Background);
             list.UpdateLayout(); row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
             Descendants(row).OfType<CheckBox>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
@@ -108,13 +110,13 @@ public sealed class ProductAttributeManagerViewInteractionTests
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             Assert.IsFalse(popup.IsOpen);
             var request = fixture.ViewModel.BuildRequest();
-            Assert.AreEqual(fixture.ChildId, request.CategoryChanges.CreateItems.Single().Data.CategoryId);
+            Assert.AreEqual(fixture.ChildId, request.ProfileChanges.CreateItems.Single().Data.ProductAttributeProfileId);
             Assert.AreEqual(1, request.GroupChanges.UpdateItems.Single().Version);
-            Assert.AreEqual(fixture.GroupId, request.CategoryChanges.CreateItems.Single().Data.AttributeGroupId);
+            Assert.AreEqual(fixture.GroupId, request.ProfileChanges.CreateItems.Single().Data.AttributeGroupId);
             Assert.IsTrue(fixture.ViewModel.SaveCommand.CanExecute(null));
             var saveButton = Descendants(view).OfType<Button>().Single(button => Equals(button.Content, "保存全部标签"));
             Assert.IsTrue(saveButton.IsEnabled);
-            SavePreview(window, "产品标签关联分类.png");
+            SavePreview(window, "产品标签关联属性模板.png");
             tabs.SelectedIndex = 0;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             SavePreview(window, "产品标签标签值.png");
@@ -125,14 +127,14 @@ public sealed class ProductAttributeManagerViewInteractionTests
             PopupButton(popup, "确定").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             var cleared = fixture.ViewModel.BuildRequest();
-            Assert.HasCount(0, cleared.CategoryChanges.CreateItems);
-            Assert.AreEqual(fixture.RelationId, cleared.CategoryChanges.DeleteItems.Single().Uid);
+            Assert.HasCount(0, cleared.ProfileChanges.CreateItems);
+            Assert.AreEqual(fixture.RelationId, cleared.ProfileChanges.DeleteItems.Single().Uid);
             Assert.AreEqual(0, fixture.WriteCount);
         }
         finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
     });
 
-    /// <summary>把实际页面渲染成任务工作区预览，供人工检查两栏和分类说明；不读取其他应用屏幕。</summary>
+    /// <summary>把实际页面渲染成任务工作区预览，供人工检查两栏和属性模板说明；不读取其他应用屏幕。</summary>
     private static void SavePreview(FrameworkElement view, string fileName)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
@@ -168,11 +170,11 @@ public sealed class ProductAttributeManagerViewInteractionTests
         {
             var group = new ProductAttributeGroupDto { Uid = GroupId, Version = 1, GroupCode = "INSTALL", GroupName = "安装方式", SelectionMode = ProductAttributeSelectionMode.Multiple };
             group.Options.Add(new() { Uid = Guid.NewGuid(), Version = 1, AttributeGroupId = GroupId, OptionCode = "WALL", OptionName = "挂墙" });
-            var relation = new ProductCategoryAttributeGroupDto { Uid = RelationId, Version = 1, CategoryId = RootId, AttributeGroupId = GroupId };
-            var snapshot = new ProductAttributeDefinitionsDto { Groups = [group], CategoryRelations = [relation] };
-            var cache = new ReferenceDataCacheServiceStub(productAttributeGroups: [group], productAttributeCategoryRelations: [relation],
-                productCategories: [new ProductCategoryDto { Uid = RootId, CategoryName = "顶喷" }, new ProductCategoryDto { Uid = ChildId, ParentId = RootId, CategoryName = "圆形" }]);
-            cache.ProductCategories.Single(row => row.Uid == ChildId).SetCategoryPath("顶喷 / 圆形");
+            var relation = new ProductAttributeProfileGroupDto { Uid = RelationId, Version = 1, ProductAttributeProfileId = RootId, AttributeGroupId = GroupId };
+            var snapshot = new ProductAttributeDefinitionsDto { Groups = [group], ProfileRelations = [relation] };
+            var cache = new ReferenceDataCacheServiceStub(productAttributeGroups: [group], productAttributeProfileRelations: [relation],
+                dictionaryValues: [new SysDictDataDto { Uid = RootId, DictCode = DictCodes.ProductAttributeProfile, DataNameZh = "顶喷", IsEnabled = true },
+                    new SysDictDataDto { Uid = ChildId, DictCode = DictCodes.ProductAttributeProfile, DataNameZh = "圆形顶喷", DataNameEn = "ROUND", IsEnabled = true }]);
             var user = new CurrentUserService(); user.SetCurrentUser(new MeDto { UserId = "tag-sta", Permissions = [PermissionKeys.ProductsCategoryView, PermissionKeys.ProductsCategoryEdit] });
             ViewModel = new(Proxy<IProductAttributeApi>((method, _) =>
             {
@@ -180,7 +182,8 @@ public sealed class ProductAttributeManagerViewInteractionTests
                 WriteCount++; throw new AssertFailedException("本交互测试不应请求写入。");
             }), Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke()), cache,
                 Proxy<IMessageService>((_, _) => null), Proxy<IDialogService>((method, _) => method == nameof(IDialogService.ShowAsync)
-                    ? Task.FromResult(DialogResult.Close) : Task.FromResult(false)), user);
+                    ? Task.FromResult(DialogResult.Close) : Task.FromResult(false)), user,
+                Proxy<SwiftExportClient.Navigation.INavigationService>((_, _) => throw new AssertFailedException("本交互测试不应请求页面导航。")));
         }
         public void Dispose() => ViewModel.Dispose();
     }

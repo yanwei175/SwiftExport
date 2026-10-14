@@ -1,5 +1,4 @@
 using SwiftExport.Core.Interfaces.Products.Categories;
-using SwiftExport.Core.Interfaces.Products.Attributes;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
@@ -13,13 +12,11 @@ using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
-using SwiftExport.Application.Services.Products.Attributes;
-using SwiftExport.Contracts.DTOs.Products.Attributes;
 
 namespace SwiftExport.Application.Services.Products.Categories;
 
-/// <summary>产品分类维护；在全树锁下校验最终层级与共享标签适用性，单项及批量入口使用同一事务。</summary>
-public partial class ProductCategoryService(IProductCategoryRepository repository, IProductAttributeRepository attributes, ServiceBaseContext context)
+/// <summary>产品分类维护；在全树锁下校验最终层级及产品引用，单项及批量入口使用同一事务。</summary>
+public partial class ProductCategoryService(IProductCategoryRepository repository, ServiceBaseContext context)
     : BaseService<ProductCategory, ProductCategoryDto>(repository, context), IProductCategoryService
 {
     private readonly ILogger<ProductCategoryService> _logger = context.LoggerFactory.CreateLogger<ProductCategoryService>();
@@ -32,7 +29,7 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
             : ServiceResult<SaveItemResult>.Fail(result.Error?.Code ?? SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.BusinessBlocked, result.Message);
     }
 
-    /// <summary>单项修改复用最终树及标签引用校验，移动分类不能使已有产品选择失去适用性。</summary>
+    /// <summary>单项修改复用最终树校验，防止移动后形成断链或循环。</summary>
     public override async Task<ServiceResult<SaveItemResult>> UpdateAsync(UpdateItemRequest<ProductCategoryDto> item)
     {
         var result = await BatchSaveAsync(new ProductCategoryBatchSaveRequest { UpdateItems = [item] });
@@ -40,7 +37,7 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
             : ServiceResult<SaveItemResult>.Fail(result.Error?.Code ?? SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.BusinessBlocked, result.Message);
     }
 
-    /// <summary>单项删除复用分类批量事务及校验，确保也受标签定义引用保护。</summary>
+    /// <summary>单项删除复用分类批量事务及产品引用校验。</summary>
     public override async Task<ServiceResult<SaveItemResult>> DeleteAsync(DeleteItemRequest item)
     {
         var result = await BatchSaveAsync(new ProductCategoryBatchSaveRequest { DeleteItems = [item] });
@@ -169,7 +166,7 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         }
     }
 
-    /// <summary>在分类父锁内校验最终树和删除引用，防止分类删除与标签定义新增竞争。</summary>
+    /// <summary>在分类锁内校验最终树和删除引用，防止分类删除与产品归类竞争。</summary>
     private async Task<ProductCategoryBatchPreparation> PrepareBatchSaveAsync(
         ProductCategoryBatchSaveRequest request)
     {
@@ -233,8 +230,6 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         }
 
         var deletedIds = request.DeleteItems.Select(item => item.Uid).ToHashSet();
-        if (await attributes.HasGroupsAsync(deletedIds, CancellationToken.None))
-            return ProductCategoryBatchPreparation.Fail("分类仍有直接标签关联，请先解除关联后再删除分类；共享标签组无需删除。");
         var referencedIds = await repository.GetReferencedCategoryIdsAsync(deletedIds);
         if (referencedIds.Count > 0)
             return ProductCategoryBatchPreparation.Fail(
@@ -253,21 +248,6 @@ public partial class ProductCategoryService(IProductCategoryRepository repositor
         var graphError = ValidateFinalGraph(finalNodes);
         if (graphError is not null) return ProductCategoryBatchPreparation.Fail(graphError);
 
-        // 普通名称及排序修改不影响继承范围；移动或删除必须对最终树验证，不自动清空已有选择。
-        if (deletedIds.Count > 0 || request.UpdateItems.Any(item => existingById[item.Uid].ParentId != item.Data.ParentId))
-        {
-            var references = await attributes.GetSelectedReferencesAsync(null, CancellationToken.None);
-            if (references.Count > 0)
-            {
-                var groupIds = references.Select(row => row.AttributeGroupId).Distinct().OrderBy(id => id).ToArray();
-                await attributes.LockGroupsForSelectionAsync(groupIds, CancellationToken.None);
-                var relations = (await attributes.GetRelationsAsync(groupIds, false, CancellationToken.None))
-                    .Adapt<List<ProductCategoryAttributeGroupDto>>();
-                var affected = ProductAttributeApplicability.CountUnavailableMasters(
-                    finalNodes.ToDictionary(pair => pair.Key, pair => pair.Value.ParentId), relations, references);
-                if (affected > 0) return ProductCategoryBatchPreparation.Fail($"分类层级变更会使 {affected} 个主型号的标签失去适用性，请先处理其标签选择。");
-            }
-        }
 
         var orderedCreates = OrderCreatesByParent(preparedCreates);
         var orderedDeletes = request.DeleteItems

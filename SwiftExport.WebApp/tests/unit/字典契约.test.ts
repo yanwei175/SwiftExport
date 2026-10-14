@@ -6,6 +6,7 @@ import {
   removeDictionaryItemRows,
   restoreDictionaryItemRows,
   discardDictionaryItemRows,
+  isDictionaryItemFieldEditable,
   isProtectedDictionaryType,
   isVisibleDictionaryType,
   parseDictionarySortOrder,
@@ -96,7 +97,10 @@ function successBody(
       operation: "Update",
       uid: item.uid,
       success: true,
-      oldVersion: item.version! + 1,
+      oldVersion:
+        item.version === 0 && item.data?.isBuiltIn === true
+          ? 0
+          : item.version! + 1,
       newVersion: item.version! + 1,
       errorCode: null,
       message: "更新成功",
@@ -239,7 +243,7 @@ describe("字典冻结与编辑集合", () => {
     expect(rows[0]?.source.cssClass).toBe("kept-css");
   });
 
-  it("七个系统编码不依赖旧IsSystem标记，旧品质字典不会回到维护入口", () => {
+  it("内置类型由服务端事实保护，旧系统和品质入口保持原维护边界", () => {
     for (const dictCode of [
       "CustomerType",
       "Incoterm",
@@ -251,7 +255,8 @@ describe("字典冻结与编辑集合", () => {
     ])
       expect(
         isProtectedDictionaryType({
-          dictCode: dictCode.toLowerCase(),
+          dictCode,
+          isBuiltIn: true,
           isSystem: false,
         }),
       ).toBe(true);
@@ -259,16 +264,152 @@ describe("字典冻结与编辑集合", () => {
       isProtectedDictionaryType({ dictCode: "Custom", isSystem: false }),
     ).toBe(false);
     expect(
+      isProtectedDictionaryType({ dictCode: "Unit", isBuiltIn: false }),
+    ).toBe(false);
+    expect(
+      isProtectedDictionaryType({ dictCode: "Legacy", isSystem: true }),
+    ).toBe(true);
+    expect(
       isVisibleDictionaryType({ dictCode: "AfterSalesQualityCategory " }),
     ).toBe(false);
     expect(() =>
       freezeDictionaryType({
         operation: "delete",
         clientKey: "protected",
-        current: { ...typeDto(), dictCode: "Unit" },
-        baseline: { ...typeDto(), dictCode: "Unit" },
+        current: { ...typeDto(), dictCode: "Unit", isBuiltIn: true },
+        baseline: { ...typeDto(), dictCode: "Unit", isBuiltIn: true },
       }),
     ).toThrow("不能删除");
+  });
+
+  it("未落库内置项加载为干净基线，首次修改按零版本Update保留稳定Uid", () => {
+    const builtIn: DictionaryItem = {
+      ...itemDto(),
+      version: 0,
+      dictCode: "FlowTestFunction",
+      dataNameEn: "Default",
+      isEnabled: true,
+      isBuiltIn: true,
+    };
+    let rows = createDictionaryItemRows([builtIn]);
+    expect(getEditableChanges(rows)).toEqual({
+      created: [],
+      updated: [],
+      deleted: [],
+    });
+    rows = updateDictionaryItemRows(rows, firstUid, { dataNameZh: "默认功能" });
+    const frozen = freezeDictionaryItems(rows);
+    expect(frozen.request.createItems).toHaveLength(0);
+    expect(frozen.request.updateItems?.[0]).toMatchObject({
+      uid: firstUid,
+      version: 0,
+      data: {
+        uid: firstUid,
+        version: 0,
+        isBuiltIn: true,
+        dataNameEn: "Default",
+      },
+    });
+    const accepted = acceptDictionaryItemsBatch(
+      frozen,
+      successBody(frozen.request),
+    );
+    expect(accepted[0]).toMatchObject({
+      uid: firstUid,
+      version: 1,
+      source: { isBuiltIn: true, dataNameZh: "默认功能" },
+    });
+    expect(getEditableChanges(accepted).updated).toHaveLength(0);
+    expect(rows[0]?.baseline.dataNameZh).toBe("原值");
+  });
+
+  it("内置明细保护英文代码、所属类型和启用状态，显示字段允许修改", () => {
+    const rows = createDictionaryItemRows([{ ...itemDto(), isBuiltIn: true }]);
+    const item = rows[0]!.source;
+    for (const field of ["dictCode", "dataNameEn", "isEnabled"] as const) {
+      expect(isDictionaryItemFieldEditable(item, field)).toBe(false);
+      const patch =
+        field === "isEnabled" ? { isEnabled: true } : { [field]: "Other" };
+      expect(() => updateDictionaryItemRows(rows, firstUid, patch)).toThrow(
+        "不能修改",
+      );
+      const bypass = structuredClone(rows);
+      Object.assign(bypass[0]!.current, patch);
+      expect(() => freezeDictionaryItems(bypass)).toThrow("不能修改");
+    }
+    for (const field of [
+      "dataNameZh",
+      "sortOrder",
+      "remark",
+      "cssClass",
+    ] as const)
+      expect(isDictionaryItemFieldEditable(item, field)).toBe(true);
+    expect(() => removeDictionaryItemRows(rows, firstUid)).toThrow("不能删除");
+    const markedDeleted = [{ ...rows[0]!, deleted: true }];
+    expect(() => freezeDictionaryItems(markedDeleted)).toThrow("不能删除");
+  });
+
+  it("普通项不能使用零版本修改，内置零版本也不能伪装成删除", () => {
+    expect(() =>
+      createDictionaryItemRows([{ ...itemDto(), version: 0 }]),
+    ).toThrow("基线版本");
+    const rows = updateDictionaryItemRows(
+      createDictionaryItemRows([itemDto()]),
+      firstUid,
+      { remark: "修改" },
+    );
+    const invalid = [{ ...rows[0]!, version: 0 }];
+    expect(() => freezeDictionaryItems(invalid)).toThrow("基线版本");
+    const builtin = createDictionaryItemRows([
+      { ...itemDto(), version: 0, isBuiltIn: true },
+    ]);
+    expect(() =>
+      freezeDictionaryItems([{ ...builtin[0]!, deleted: true }]),
+    ).toThrow("基线版本");
+  });
+
+  it("旧EXW系统标记仅继续保护删除，不锁英文名称或启用状态", () => {
+    let rows = createDictionaryItemRows([
+      {
+        ...itemDto(),
+        dictCode: "Incoterm",
+        dataNameEn: "EXW",
+        isSystem: true,
+        isBuiltIn: false,
+      },
+    ]);
+    rows = updateDictionaryItemRows(rows, firstUid, {
+      dataNameEn: "EXW-Test",
+      isEnabled: true,
+    });
+    expect(
+      freezeDictionaryItems(rows).request.updateItems?.[0]?.data,
+    ).toMatchObject({
+      dataNameEn: "EXW-Test",
+      isEnabled: true,
+      isBuiltIn: false,
+    });
+    expect(() => removeDictionaryItemRows(rows, firstUid)).toThrow("不能删除");
+  });
+
+  it("内置类型正版本和零版本均只读，新增类型不能伪装内置身份", () => {
+    for (const version of [0, 4]) {
+      const baseline = { ...typeDto(), version, isBuiltIn: true };
+      expect(() =>
+        freezeDictionaryType({
+          operation: "update",
+          clientKey: "built-in-type",
+          current: { ...baseline, dictName: "修改" },
+          baseline,
+        }),
+      ).toThrow("只读");
+    }
+    const created = freezeDictionaryType({
+      operation: "create",
+      clientKey: "new-type",
+      current: { ...typeDto(), isBuiltIn: true },
+    });
+    expect(created.request.createItems?.[0]?.data?.isBuiltIn).toBe(false);
   });
 
   it("无效/未完成排序不强制变零，类型非空排序和可空项排序区分", () => {
@@ -287,6 +428,27 @@ describe("字典冻结与编辑集合", () => {
 });
 
 describe("完整字典回执", () => {
+  it.each([
+    "wrong-old-version",
+    "wrong-new-version",
+    "wrong-uid",
+    "create-operation",
+  ])("首次内置保存%s不能接纳，冻结输入保持修改状态", (scenario) => {
+    const rows = updateDictionaryItemRows(
+      createDictionaryItemRows([{ ...itemDto(), version: 0, isBuiltIn: true }]),
+      firstUid,
+      { dataNameZh: "修改默认名称" },
+    );
+    const frozen = freezeDictionaryItems(rows);
+    const body = successBody(frozen.request);
+    if (scenario === "wrong-old-version") body.data.items[0]!.oldVersion = 1;
+    if (scenario === "wrong-new-version") body.data.items[0]!.newVersion = 2;
+    if (scenario === "wrong-uid") body.data.items[0]!.uid = serverUid;
+    if (scenario === "create-operation")
+      body.data.items[0]!.operation = "Create";
+    expect(() => acceptDictionaryItemsBatch(frozen, body)).toThrow();
+    expect(getEditableChanges(rows).updated).toHaveLength(1);
+  });
   it.each([
     "missing",
     "duplicate",
@@ -486,6 +648,38 @@ describe("真实生成链上的提交分类", () => {
 });
 
 describe("字典读取快照", () => {
+  it("服务端内置零版本类型和明细可读取，自定义项不能借零版本进入会话", async () => {
+    respond({
+      success: true,
+      error: null,
+      data: [{ ...typeDto(), version: 0, isBuiltIn: true }],
+    });
+    expect((await fetchDictionaryTypes())[0]).toMatchObject({
+      version: 0,
+      isBuiltIn: true,
+    });
+    respond({
+      success: true,
+      error: null,
+      data: [{ ...itemDto(), version: 0, isBuiltIn: true }],
+    });
+    expect((await fetchDictionaryItems("Custom"))[0]).toMatchObject({
+      version: 0,
+      isBuiltIn: true,
+    });
+    respond({
+      success: true,
+      error: null,
+      data: [{ ...itemDto(), version: 0, isBuiltIn: false }],
+    });
+    await expect(fetchDictionaryItems("Custom")).rejects.toThrow("完整基线");
+    respond({
+      success: true,
+      error: null,
+      data: [{ ...itemDto(), version: -1, isBuiltIn: true }],
+    });
+    await expect(fetchDictionaryItems("Custom")).rejects.toThrow("完整基线");
+  });
   it("类型读取保留真实DTO并排除旧品质入口，项读取保留禁用项", async () => {
     respond({
       success: true,

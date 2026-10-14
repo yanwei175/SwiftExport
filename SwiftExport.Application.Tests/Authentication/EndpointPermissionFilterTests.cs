@@ -39,9 +39,9 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 全局共享标签新增保存端点，沿用分类编辑键；继续逐项执行完整权限矩阵。
-        Assert.AreEqual(244, routes.Count);
+        Assert.AreEqual(245, routes.Count);
         Assert.AreEqual("Products.Category.Edit", routes["ProductAttributeController.BatchSaveDefinitionsAsync"]);
-        Assert.AreEqual("Products.Category.Edit", routes["ProductAttributeController.BatchSaveAsync"]);
+        Assert.IsFalse(routes.ContainsKey("ProductAttributeController.BatchSaveAsync"));
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterImportController.ImportAsync"]);
         Assert.AreEqual("System.Parameters.Manage", routes["SystemParameterController.UpdateAsync"]);
         Assert.AreEqual("System.ExcelFieldMapping.Manage", routes["ExcelReadProfileController.CreateAsync"]);
@@ -186,7 +186,7 @@ public sealed class EndpointPermissionFilterTests
         {
             "SystemParameterController.ListAsync",
             "ProductAttributeController.GetDefinitionsAsync",
-            "ProductAttributeController.GetCategoryDefinitionsAsync",
+            "ProductAttributeController.GetProfileDefinitionsAsync",
             "ExcelReadProfileController.ListAsync",
             "ExcelReadProfileController.GetAsync"
         })

@@ -23,10 +23,10 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters
         public decimal? DefaultGrossWeight { get; set; }
         /// <summary>获取或设置默认每箱体积，单位 CBM。</summary>
         public decimal? DefaultCbm { get; set; }
-        /// <summary>获取或设置产品类型。</summary>
-        public string ProductType { get; set; }
-        /// <summary>获取或设置产品系列名；为空表示未设置。</summary>
-        public string ProductSeries { get; set; }
+        /// <summary>产品属性模板字典明细身份；为空表示不采用模板。</summary>
+        public Guid? ProductAttributeProfileId { get; set; }
+        /// <summary>获取或设置产品系列字典明细身份；为空表示未设置。</summary>
+        public Guid? ProductSeriesId { get; set; }
         /// <summary>获取或设置分类标识。</summary>
         public Guid CategoryId { get; set; }
         /// <summary>获取或设置默认供应商标识。</summary>

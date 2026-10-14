@@ -13,14 +13,11 @@ namespace SwiftExport.Contracts.Apis.ProductApis
         /// <summary>读取全部有效定义，供登录会话内缓存使用。</summary>
         [Get("/definitions")]
         Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(CancellationToken cancellationToken = default(CancellationToken));
-        /// <summary>读取一个分类及祖先提供的定义、版本和直接关联来源。</summary>
-        [Get("/definitions/{categoryId}")]
-        Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid categoryId, CancellationToken cancellationToken = default(CancellationToken));
-        /// <summary>原子保存全局组、选项与分类直接关联变更。</summary>
+        /// <summary>读取一个属性模板直接提供的定义、版本及组关联。</summary>
+        [Get("/definitions/profiles/{profileId}")]
+        Task<ServiceResult<ProductAttributeDefinitionsDto>> GetProfileDefinitionsAsync(Guid profileId, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>原子保存全局组、选项与模板直接关联变更。</summary>
         [Post("/definitions/batch-save")]
         Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync([Body] SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default(CancellationToken));
-        /// <summary>旧分类维护入口，仅保留升级提示契约，不再接受定义修改。</summary>
-        [Post("/definitions/{categoryId}/batch-save")]
-        Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, [Body] SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

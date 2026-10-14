@@ -15,6 +15,7 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Services.Api;
 
@@ -45,8 +46,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategoryTree = [];
     private readonly CacheObservableCollection<ProductCategoryCacheNode> _productCategories = [];
     private readonly CacheObservableCollection<ProductAttributeGroupDto> _productAttributeGroups = [];
-    private readonly CacheObservableCollection<ProductCategoryAttributeGroupDto> _productAttributeCategoryRelations = [];
-    private IReadOnlyDictionary<Guid, Guid?> _categoryParents = new Dictionary<Guid, Guid?>();
+    private readonly CacheObservableCollection<ProductAttributeProfileGroupDto> _productAttributeProfileRelations = [];
+    private IReadOnlyList<SysDictDataDto> _profileSnapshot = [];
     private ProductAttributeDefinitionsDto _attributeSnapshot = new();
     private readonly CacheObservableCollection<SysDictTypeDto> _dictionaryTypes = [];
     private readonly CacheObservableCollection<SysDictDataDto> _dictionaryValues = [];
@@ -103,7 +104,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         ProductCategoryTree = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategoryTree);
         ProductCategories = new ReadOnlyObservableCollection<ProductCategoryCacheNode>(_productCategories);
         ProductAttributeGroups = new ReadOnlyObservableCollection<ProductAttributeGroupDto>(_productAttributeGroups);
-        ProductAttributeCategoryRelations = new ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto>(_productAttributeCategoryRelations);
+        ProductAttributeProfileRelations = new ReadOnlyObservableCollection<ProductAttributeProfileGroupDto>(_productAttributeProfileRelations);
         DictionaryTypes = new ReadOnlyObservableCollection<SysDictTypeDto>(_dictionaryTypes);
         DictionaryValues = new ReadOnlyObservableCollection<SysDictDataDto>(_dictionaryValues);
         _sessionService.SessionEnded += OnSessionEnded;
@@ -134,26 +135,26 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
     public ReadOnlyObservableCollection<ProductAttributeGroupDto> ProductAttributeGroups { get; }
 
     /// <inheritdoc />
-    public ReadOnlyObservableCollection<ProductCategoryAttributeGroupDto> ProductAttributeCategoryRelations { get; }
+    public ReadOnlyObservableCollection<ProductAttributeProfileGroupDto> ProductAttributeProfileRelations { get; }
 
     /// <inheritdoc />
-    public bool AreProductAttributesLoaded => _attributesLoaded && _categoriesLoaded;
+    public bool AreProductAttributesLoaded => _attributesLoaded && _dictionariesLoaded;
 
     /// <inheritdoc />
     public event EventHandler? ProductAttributesChanged;
 
     /// <inheritdoc />
-    public ProductAttributeResolution ResolveProductAttributes(Guid categoryId)
+    public ProductAttributeResolution ResolveProductAttributes(Guid profileId)
     {
         if (!AreProductAttributesLoaded)
-            return new(false, "分类层级或标签定义尚未完整加载，请刷新标签后重试。", [], []);
-        return ProductAttributeInheritance.Resolve(categoryId, _categoryParents, _attributeSnapshot.Groups, _attributeSnapshot.CategoryRelations);
+            return new(false, "属性模板字典或标签定义尚未完整加载，请刷新标签后重试。", [], []);
+        return ProductAttributeProfileResolver.Resolve(profileId, _profileSnapshot, _attributeSnapshot.Groups, _attributeSnapshot.ProfileRelations);
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid categoryId)
+    public IReadOnlyList<ProductAttributeGroupDto> GetProductAttributeGroups(Guid profileId)
     {
-        var result = ResolveProductAttributes(categoryId);
+        var result = ResolveProductAttributes(profileId);
         return result.Success ? result.Groups : throw new InvalidOperationException(result.Message);
     }
 
@@ -168,7 +169,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         {
             if (_disposed) return Task.FromResult(CacheRefreshResult.Fail("缓存服务已经释放。"));
             if (AreProductAttributesLoaded)
-                return Task.FromResult(CacheRefreshResult.Ok("分类标签缓存已经加载。"));
+                return Task.FromResult(CacheRefreshResult.Ok("产品标签缓存已经加载。"));
 
             if (_attributeEnsureTask is { IsCompleted: false })
                 return _attributeEnsureTask;
@@ -189,7 +190,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             lock (_attributeEnsureSync)
             {
                 if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
-                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
+                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品标签缓存结果。");
 
                 cancellation = new CancellationTokenSource();
                 _refreshCancellation = cancellation;
@@ -197,15 +198,17 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
             var token = cancellation.Token;
             var definitionsTask = _apiCallRunner.RunAsync(
-                () => _productAttributeApi.GetDefinitionsAsync(token), token, "加载分类标签缓存失败");
-            var categoriesTask = LoadCategoriesAsync();
-            await Task.WhenAll(definitionsTask, categoriesTask).WaitAsync(token);
+                () => _productAttributeApi.GetDefinitionsAsync(token), token, "加载产品标签缓存失败");
+            var typesTask = LoadDictionaryTypesAsync();
+            var valuesTask = LoadDictionaryValuesAsync();
+            await Task.WhenAll(definitionsTask, typesTask, valuesTask).WaitAsync(token);
             var definitions = await definitionsTask;
-            var categories = await categoriesTask;
-            if (!definitions.Success || !categories.Success)
+            var types = await typesTask;
+            var values = await valuesTask;
+            if (!definitions.Success || !types.Success || !values.Success)
                 return CacheRefreshResult.Fail(JoinFailureMessages(definitions.Success ? null : definitions.Message,
-                    categories.Success ? null : categories.Message));
-            if (!TryPrepareProductAttributes(definitions.Data, categories.Data, out var prepared, out var error))
+                    types.Success ? null : types.Message, values.Success ? null : values.Message));
+            if (!TryPrepareProductAttributes(definitions.Data, types.Data, values.Data, out var prepared, out var error))
                 return CacheRefreshResult.Fail(error);
             var applied = false;
             await RunOnUiThreadAsync(() =>
@@ -213,18 +216,18 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 if (_disposed || token.IsCancellationRequested || generation != Volatile.Read(ref _sessionGeneration))
                     return;
 
-                // 分类、组、值与直接关联全部准备完毕后发布，事件订阅者看到一致的适用范围。
-                PublishCategories(prepared!.Categories, prepared.Definitions);
+                // 字典、组、值与模板关联全部准备完毕后发布，订阅者看到一致的适用范围。
+                PublishProductAttributes(prepared!);
                 applied = true;
                 ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
             return applied
-                ? CacheRefreshResult.Ok("分类标签缓存已更新。")
-                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
+                ? CacheRefreshResult.Ok("产品标签缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品标签缓存结果。");
         }
         catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
         {
-            return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次分类标签缓存结果。");
+            return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品标签缓存结果。");
         }
         finally
         {
@@ -492,7 +495,6 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
                 PublishCategories(categories);
                 applied = true;
-                ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
             if (!applied)
             {
@@ -577,8 +579,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                     valuesResult.Success ? null : valuesResult.Message));
             }
 
-            var types = OrderDictionaryTypes(typesResult.Data ?? []).ToArray();
-            var values = OrderDictionaryValues(valuesResult.Data ?? []).ToArray();
+            if (!TryPrepareDictionaryRows(typesResult.Data, valuesResult.Data, out var types, out var values))
+                return CacheRefreshResult.Fail("字典接口没有返回完整快照，旧数据已保留。");
             var applied = false;
             await RunOnUiThreadAsync(() =>
             {
@@ -589,8 +591,10 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
                 _dictionaryTypes.ReplaceAll(types);
                 _dictionaryValues.ReplaceAll(values);
+                _profileSnapshot = values.Where(IsProductAttributeProfile).Select(row => row.Adapt<SysDictDataDto>()).ToArray();
                 _dictionariesLoaded = true;
                 applied = true;
+                ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
             if (!applied)
             {
@@ -616,7 +620,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         }
         RunOnUiThread(() =>
         {
-            _categoryParents = new Dictionary<Guid, Guid?>();
+            _profileSnapshot = [];
             _attributeSnapshot = new ProductAttributeDefinitionsDto();
             _productColors.ReplaceAll([]);
             _customers.ReplaceAll([]);
@@ -628,7 +632,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             _dictionaryTypes.ReplaceAll([]);
             _dictionaryValues.ReplaceAll([]);
             _productAttributeGroups.ReplaceAll([]);
-            _productAttributeCategoryRelations.ReplaceAll([]);
+            _productAttributeProfileRelations.ReplaceAll([]);
             ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
         });
 
@@ -686,7 +690,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         _refreshGate.Release();
     }
 
-    /// <summary>首次加载复用同轮分类请求；其他基础资料已完整加载时只重试标签。</summary>
+    /// <summary>首次加载复用同轮字典请求；其他基础资料已完整加载时只重试标签。</summary>
     private Task<CacheRefreshResult> EnsureLoadedCoreAsync() => RefreshWithAttributesAsync(forceRefresh: false);
 
     /// <summary>合并首次使用入口，并在标签失败时保持基础资料的独立成功状态。</summary>
@@ -699,11 +703,11 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         var attributes = await EnsureProductAttributesLoadedAsync();
         if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
             return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
-        return CacheRefreshResult.Ok(attributes.Success ? "基础资料和分类标签缓存已经加载。"
-            : "基础资料缓存已经加载。分类标签缓存未更新，请在标签区域重试。");
+        return CacheRefreshResult.Ok(attributes.Success ? "基础资料和产品标签缓存已经加载。"
+            : "基础资料缓存已经加载。产品标签缓存未更新，请在标签区域重试。");
     }
 
-    /// <summary>同一刷新门内并行读取网络资料；分类与标签成对发布，其他基础资料保持独立失败边界。</summary>
+    /// <summary>同一刷新门内并行读取网络资料；字典模板与标签成对发布，其他基础资料保持独立失败边界。</summary>
     private async Task<CacheRefreshResult> RefreshAllCoreAsync(bool forceAttributes)
     {
         var generation = Volatile.Read(ref _sessionGeneration);
@@ -727,11 +731,11 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var dictionaryTypesTask = LoadDictionaryTypesAsync();
             var dictionaryValuesTask = LoadDictionaryValuesAsync();
             var definitionsTask = forceAttributes || !AreProductAttributesLoaded
-                ? _apiCallRunner.RunAsync(() => _productAttributeApi.GetDefinitionsAsync(token), token, "加载分类标签缓存失败")
+                ? _apiCallRunner.RunAsync(() => _productAttributeApi.GetDefinitionsAsync(token), token, "加载产品标签缓存失败")
                 : Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto
                 {
                     Groups = ProductAttributeGroups.ToList(),
-                    CategoryRelations = ProductAttributeCategoryRelations.ToList()
+                    ProfileRelations = ProductAttributeProfileRelations.ToList()
                 }));
             await Task.WhenAll(
                 colorsTask,
@@ -753,11 +757,13 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var definitionsResult = await definitionsTask;
             var categoriesValid = categoriesResult.Success
                 && TryPrepareCategoryRows(categoriesResult.Data, out _, out _);
+            var dictionariesValid = dictionaryTypesResult.Success && dictionaryValuesResult.Success
+                && TryPrepareDictionaryRows(dictionaryTypesResult.Data, dictionaryValuesResult.Data, out _, out _);
             PreparedProductAttributes? prepared = null;
-            var attributesValid = categoriesValid && definitionsResult.Success
-                && TryPrepareProductAttributes(definitionsResult.Data, categoriesResult.Data, out prepared, out _);
+            var attributesValid = dictionariesValid && definitionsResult.Success
+                && TryPrepareProductAttributes(definitionsResult.Data, dictionaryTypesResult.Data, dictionaryValuesResult.Data, out prepared, out _);
             var baseValid = colorsResult.Success && customersResult.Success && suppliersResult.Success
-                && categoriesValid && currenciesResult.Success && dictionaryTypesResult.Success && dictionaryValuesResult.Success;
+                && categoriesValid && currenciesResult.Success && dictionariesValid;
             if (!baseValid && !attributesValid)
                 return CacheRefreshResult.Fail(JoinFailureMessages(
                     colorsResult.Success ? null : colorsResult.Message,
@@ -787,17 +793,22 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                     _customers.ReplaceAll(customers);
                     _suppliers.ReplaceAll(suppliers);
                     _currencies.ReplaceAll(currencies);
-                    _dictionaryTypes.ReplaceAll(dictionaryTypes);
-                    _dictionaryValues.ReplaceAll(dictionaryValues);
+                    // 标签有效时由成对发布方法一次替换字典，避免集合通知提前暴露半套范围。
+                    if (!attributesValid)
+                    {
+                        _dictionaryTypes.ReplaceAll(dictionaryTypes);
+                        _dictionaryValues.ReplaceAll(dictionaryValues);
+                    }
                     _colorsLoaded = true;
                     _customersLoaded = true;
                     _suppliersLoaded = true;
                     _currenciesLoaded = true;
                     _dictionariesLoaded = true;
                 }
-                if (baseValid || attributesValid)
-                    PublishCategories(prepared?.Categories ?? categoriesResult.Data!.Where(row => !row.IsDeleted).Select(row => row.Adapt<ProductCategoryDto>()).ToArray(),
-                        attributesValid ? prepared!.Definitions : null);
+                if (baseValid)
+                    PublishCategories(categoriesResult.Data!.Where(row => !row.IsDeleted).Select(row => row.Adapt<ProductCategoryDto>()).ToArray());
+                if (attributesValid)
+                    PublishProductAttributes(prepared!);
                 applied = true;
                 ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
@@ -815,8 +826,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                     dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
                     dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message));
             return CacheRefreshResult.Ok(attributesValid
-                ? "产品颜色、客户、供应商、分类标签、币种和字典缓存已更新。"
-                : "基础资料缓存已更新。分类标签缓存未更新，请在标签区域重试。");
+                ? "产品颜色、客户、供应商、产品标签、币种和字典缓存已更新。"
+                : "基础资料缓存已更新。产品标签缓存未更新，请在标签区域重试。");
         }
         catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
         { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。"); }
@@ -829,44 +840,60 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         }
     }
 
-    /// <summary>响应必须完整且身份关系一致；成功空定义有效，缺失集合或孤立关联不发布。</summary>
-    private static bool TryPrepareProductAttributes(ProductAttributeDefinitionsDto? definitions, List<ProductCategoryDto>? categories,
+    /// <summary>字典和定义必须完整且身份关系一致，缺失集合或孤立关联不得发布为正常空数据。</summary>
+    private static bool TryPrepareProductAttributes(ProductAttributeDefinitionsDto? definitions,
+        IReadOnlyList<SysDictTypeDto>? types, IReadOnlyList<SysDictDataDto>? values,
         out PreparedProductAttributes? prepared, out string error)
     {
         prepared = null;
-        error = "分类标签接口没有返回完整定义，请重试。";
-        if (!TryPrepareCategoryRows(categories, out var categoryRows, out error)) return false;
-        if (definitions is null || definitions.CategoryId != Guid.Empty || definitions.Groups is null || definitions.CategoryRelations is null
+        error = "属性模板与标签接口没有返回完整定义，请重试。";
+        if (!TryPrepareDictionaryRows(types, values, out var typeRows, out var valueRows)
+            || definitions is null || definitions.ProfileId != Guid.Empty || definitions.Groups is null || definitions.ProfileRelations is null
             || definitions.Groups.Any(group => group is null || group.Uid == Guid.Empty || group.IsDeleted || group.Version <= 0 || group.Options is null)
-            || definitions.CategoryRelations.Any(row => row is null || row.Uid == Guid.Empty || row.IsDeleted || row.Version <= 0)
-            || definitions.Groups.Select(row => row.Uid).Distinct().Count() != definitions.Groups.Count)
-        {
-            error = "分类标签接口没有返回完整定义，请重试。";
-            return false;
-        }
+            || definitions.ProfileRelations.Any(row => row is null || row.Uid == Guid.Empty || row.IsDeleted || row.Version <= 0)
+            || definitions.Groups.Select(row => row.Uid).Distinct().Count() != definitions.Groups.Count) return false;
         var groupIds = definitions.Groups.Select(row => row.Uid).ToHashSet();
-        var categoryIds = categoryRows.Select(row => row.Uid).ToHashSet();
+        var profileIds = valueRows.Where(IsProductAttributeProfile).Where(row => row.IsEnabled).Select(row => row.Uid).ToHashSet();
         var options = definitions.Groups.SelectMany(group => group.Options).ToArray();
         if (definitions.Groups.Any(group => group.Options.Any(option => option is null || option.Uid == Guid.Empty || option.IsDeleted
                 || option.Version <= 0 || option.AttributeGroupId != group.Uid))
             || options.Select(row => row.Uid).Distinct().Count() != options.Length
-            || definitions.CategoryRelations.Any(row => !groupIds.Contains(row.AttributeGroupId) || !categoryIds.Contains(row.CategoryId))
-            || definitions.CategoryRelations.Select(row => row.Uid).Distinct().Count() != definitions.CategoryRelations.Count
-            || definitions.CategoryRelations.Select(row => (row.CategoryId, row.AttributeGroupId)).Distinct().Count() != definitions.CategoryRelations.Count)
+            || definitions.ProfileRelations.Any(row => !groupIds.Contains(row.AttributeGroupId) || !profileIds.Contains(row.ProductAttributeProfileId))
+            || definitions.ProfileRelations.Select(row => row.Uid).Distinct().Count() != definitions.ProfileRelations.Count
+            || definitions.ProfileRelations.Select(row => (row.ProductAttributeProfileId, row.AttributeGroupId)).Distinct().Count() != definitions.ProfileRelations.Count)
         {
-            error = "分类与标签定义的关联不完整，请刷新标签后重试。";
+            error = "属性模板与标签定义的关联不完整，请刷新标签后重试。";
             return false;
         }
         var copy = definitions.Adapt<ProductAttributeDefinitionsDto>();
         copy.Groups = copy.Groups.OrderBy(group => group.SortOrder).ThenBy(group => group.Uid).ToList();
         foreach (var group in copy.Groups)
             group.Options = group.Options.OrderBy(option => option.SortOrder).ThenBy(option => option.Uid).ToList();
-        copy.CategoryRelations = copy.CategoryRelations.OrderBy(row => row.CategoryId).ThenBy(row => row.AttributeGroupId).ThenBy(row => row.Uid).ToList();
-        prepared = new PreparedProductAttributes(categoryRows, copy);
+        copy.ProfileRelations = copy.ProfileRelations.OrderBy(row => row.ProductAttributeProfileId).ThenBy(row => row.AttributeGroupId).ThenBy(row => row.Uid).ToList();
+        prepared = new(typeRows, valueRows, copy);
+        error = string.Empty;
         return true;
     }
 
-    /// <summary>保留原始有效父链，视觉树仍可显示异常节点，标签解析另外明确拒绝断链和循环。</summary>
+    /// <summary>复制完整字典快照；内置尚未落库的定义版本可为零，不把读取变成初始化写入。</summary>
+    private static bool TryPrepareDictionaryRows(IReadOnlyList<SysDictTypeDto>? types, IReadOnlyList<SysDictDataDto>? values,
+        out SysDictTypeDto[] typeRows, out SysDictDataDto[] valueRows)
+    {
+        typeRows = []; valueRows = [];
+        if (types is null || values is null || types.Any(row => row is null || row.Uid == Guid.Empty)
+            || values.Any(row => row is null || row.Uid == Guid.Empty)
+            || types.Select(row => row.Uid).Distinct().Count() != types.Count
+            || values.Select(row => row.Uid).Distinct().Count() != values.Count) return false;
+        typeRows = OrderDictionaryTypes(types.Where(row => !row.IsDeleted)).Select(row => row.Adapt<SysDictTypeDto>()).ToArray();
+        valueRows = OrderDictionaryValues(values.Where(row => !row.IsDeleted)).Select(row => row.Adapt<SysDictDataDto>()).ToArray();
+        return true;
+    }
+
+    /// <summary>识别具体模板字典明细，分类和旧类型字符串不参与标签适用性。</summary>
+    private static bool IsProductAttributeProfile(SysDictDataDto row) => !row.IsDeleted
+        && string.Equals(row.DictCode, DictCodes.ProductAttributeProfile, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>分类刷新只维护分类树展示，不重算标签范围。</summary>
     private static bool TryPrepareCategoryRows(List<ProductCategoryDto>? categories, out ProductCategoryDto[] rows, out string error)
     {
         rows = [];
@@ -878,29 +905,31 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         return true;
     }
 
-    /// <summary>先接纳用于解析的完整快照再发集合通知；成对刷新时任何订阅者都不会读到半套适用范围。</summary>
-    private void PublishCategories(ProductCategoryDto[] categories, ProductAttributeDefinitionsDto? definitions = null)
+    /// <summary>接纳完整分类视觉树，与产品标签的模板来源保持独立。</summary>
+    private void PublishCategories(ProductCategoryDto[] categories)
     {
         var tree = BuildCategoryTree(categories);
         var flat = FlattenCategoryTree(tree).ToArray();
-        _categoryParents = categories.ToDictionary(row => row.Uid, row => row.ParentId);
         _categoriesLoaded = true;
-        if (definitions is not null)
-        {
-            _attributeSnapshot = definitions;
-            _attributesLoaded = true;
-        }
         _productCategoryTree.ReplaceAll(tree);
         _productCategories.ReplaceAll(flat);
-        if (definitions is not null)
-        {
-            _productAttributeGroups.ReplaceAll(definitions.Groups);
-            _productAttributeCategoryRelations.ReplaceAll(definitions.CategoryRelations);
-        }
     }
 
-    /// <summary>仅在所有网络响应通过完整性校验后交给 UI 发布，不承载编辑状态。</summary>
-    private sealed record PreparedProductAttributes(ProductCategoryDto[] Categories, ProductAttributeDefinitionsDto Definitions);
+    /// <summary>先替换解析快照，再发布字典与标签集合，订阅者读取同一次完整结果。</summary>
+    private void PublishProductAttributes(PreparedProductAttributes prepared)
+    {
+        _attributeSnapshot = prepared.Definitions;
+        _profileSnapshot = prepared.DictionaryValues.Where(IsProductAttributeProfile).Select(row => row.Adapt<SysDictDataDto>()).ToArray();
+        _attributesLoaded = _dictionariesLoaded = true;
+        _dictionaryTypes.ReplaceAll(prepared.DictionaryTypes);
+        _dictionaryValues.ReplaceAll(prepared.DictionaryValues);
+        _productAttributeGroups.ReplaceAll(prepared.Definitions.Groups);
+        _productAttributeProfileRelations.ReplaceAll(prepared.Definitions.ProfileRelations);
+    }
+
+    /// <summary>仅在网络响应通过完整性校验后交给 UI 发布，不承载编辑状态。</summary>
+    private sealed record PreparedProductAttributes(SysDictTypeDto[] DictionaryTypes, SysDictDataDto[] DictionaryValues,
+        ProductAttributeDefinitionsDto Definitions);
 
     private Task<SwiftExport.Contracts.Wrappers.ServiceResult<List<ProductColorDto>>> LoadColorsAsync() =>
         _apiCallRunner.RunAsync(() => _productColorApi.GetAllAsync(), "加载产品颜色缓存失败");

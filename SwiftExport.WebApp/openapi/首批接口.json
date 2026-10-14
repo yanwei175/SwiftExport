@@ -3540,6 +3540,9 @@
           "isSystem": {
             "type": "boolean"
           },
+          "isBuiltIn": {
+            "type": "boolean"
+          },
           "isEnabled": {
             "type": "boolean"
           },
@@ -3615,6 +3618,9 @@
             "nullable": true
           },
           "isSystem": {
+            "type": "boolean"
+          },
+          "isBuiltIn": {
             "type": "boolean"
           },
           "remark": {

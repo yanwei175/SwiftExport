@@ -28,10 +28,12 @@ public sealed class ProductMasterManagerTagTests
     public void Summary_IsReadOnlyProjectionAndDoesNotChangeSeries()
     {
         var row = new ProductMasterLineModel();
-        row.Load(new() { Uid = Guid.NewGuid(), Version = 4, TagSummary = "尺寸：8寸", Data = new() { MasterSku = "A", ProductSeries = "原系列" } });
+        var seriesId = Guid.NewGuid();
+        row.Load(new() { Uid = Guid.NewGuid(), Version = 4, TagSummary = "尺寸：8寸", ProductSeriesName = "原系列", Data = new() { MasterSku = "A", ProductSeriesId = seriesId } });
         Assert.AreEqual("尺寸：8寸", row.TagSummary); Assert.IsFalse(row.IsDirty);
         row.TagSummary = "尺寸：10寸";
-        Assert.IsFalse(row.IsDirty); Assert.AreEqual("原系列", row.ToWriteDto().ProductSeries);
+        Assert.IsFalse(row.IsDirty); Assert.AreEqual(seriesId, row.ToWriteDto().ProductSeriesId);
+        Assert.AreEqual("原系列", row.ProductSeriesName);
         Assert.AreEqual("尺寸：10寸", row.ToDto().TagSummary);
     }
 
@@ -143,8 +145,8 @@ public sealed class ProductMasterManagerTagTests
     /// <summary>提供服务端标签展示数据，避免测试复制生产摘要算法。</summary>
     private static ProductMasterDetailDto Detail(Guid id, int version) => new()
     {
-        Uid = id, Version = version, Master = new() { MasterSku = "A", DefaultDescriptionZh = "服务端新描述", ProductSeries = "旧系列" },
-        AttributeSelections = [new ProductMasterAttributeSelectionDto { ProductMasterId = id, OptionId = Guid.NewGuid(), AttributeGroupId = Guid.NewGuid(), GroupName = "安装方式", OptionName = "吸顶", IsAvailable = true }]
+        Uid = id, Version = version, ProductSeriesName = "旧系列", Master = new() { MasterSku = "A", DefaultDescriptionZh = "服务端新描述", ProductSeriesId = Guid.NewGuid() },
+        AttributeSelections = [new ProductAttributeSelectionDto { OwnerType = SwiftExport.Contracts.SysEnums.StaticEnums.ProductAttributeOwnerType.ProductMaster, OwnerId = id, OptionId = Guid.NewGuid(), AttributeGroupId = Guid.NewGuid(), GroupName = "安装方式", OptionName = "吸顶", IsAvailable = true }]
     };
 
     /// <summary>等待可观察状态，不使用私有字段或固定延时冒充查询完成。</summary>

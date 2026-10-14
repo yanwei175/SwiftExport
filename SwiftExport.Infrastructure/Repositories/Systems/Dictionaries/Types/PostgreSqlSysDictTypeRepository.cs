@@ -11,7 +11,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Types;
 
-/// <summary>PostgreSQL字典类型仓储；使用目标字典列排序规则，不替换SQL Server默认注册。</summary>
+/// <summary>读取和保存 PostgreSQL 字典类型持久事实，复用当前请求会话和事务。</summary>
 public sealed class PostgreSqlSysDictTypeRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<SysDictType>(context), ISysDictTypeRepository
 {
@@ -33,7 +33,16 @@ public sealed class PostgreSqlSysDictTypeRepository(RepositoryBaseContext contex
         "group_name" AS "GroupName"
     """;
 
-    /// <summary>在共享会话内执行PostgreSQL字典查询，保持分页、软删除及调用方事务边界。</summary>
+    /// <summary>读取全部持久候选，供应用层保留软删除内置类型的身份；查询不修改原记录。</summary>
+    public async Task<IReadOnlyList<SysDictType>> GetAllIncludingDeletedAsync(bool withUpdLock = false)
+    {
+        var lockHint = GetLockHint(withUpdLock);
+        var rows = await Connection.QueryAsync<SysDictType>(
+            $"SELECT {Columns} FROM public.sys_dict_type ORDER BY uid{lockHint}", transaction: Transaction);
+        return rows.AsList();
+    }
+
+    /// <summary>在共享会话内查询数据库活动类型分页；内置合并由应用层处理。</summary>
     public async Task<PagedResponseBase<SysDictTypeDto>> GetPagedAsync(SysDictTypeSearchRequest request)
     {
         request ??= new SysDictTypeSearchRequest();

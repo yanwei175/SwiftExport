@@ -8,6 +8,8 @@ using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
+using SwiftExport.Contracts.DTOs.Errors;
+
 
 namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
 {
@@ -105,6 +107,88 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
                 CodeParameters(codes), Transaction);
             return rows.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
+
+        /// <summary>保留软删除事实供目录判定内置身份；读取不修复数据，维护锁按 Uid 稳定排序。</summary>
+        public async Task<IReadOnlyList<SysDictData>> GetForBuiltInMergeAsync(string? dictCode = null, bool withUpdLock = false)
+        {
+            var lockHint = GetLockHint(withUpdLock);
+            var where = string.IsNullOrWhiteSpace(dictCode) ? "" : "WHERE btrim(dict_code, ' ') = @DictCode";
+            var rows = await Connection.QueryAsync<SysDictData>($"""
+                SELECT {Columns} FROM public.sys_dict_data
+                {where} ORDER BY uid{lockHint};
+                """, new { DictCode = dictCode?.Trim() }, Transaction);
+            return rows.AsList();
+        }
+
+        /// <summary>按 Uid 稳定锁定目标明细，包括已删除事实；调用方必须先取得类型锁并拥有外层事务。</summary>
+        public async Task<IReadOnlyList<SysDictData>> GetByIdsForUpdateAsync(IEnumerable<Guid> ids)
+        {
+            var lockHint = GetLockHint(true);
+            var values = ids.Distinct().ToArray();
+            if (values.Length == 0) return [];
+            var rows = await Connection.QueryAsync<SysDictData>($"""
+                SELECT {Columns} FROM public.sys_dict_data
+                WHERE uid = ANY(@Uids) ORDER BY uid{lockHint};
+                """, PostgreSqlParameters.Ids(values), Transaction);
+            return rows.AsList();
+        }
+
+        /// <summary>仅保存目录认可的内置覆盖，不重建 Guid 或创建审计；写入和首次保存竞争由外层用例统一回滚。</summary>
+        public async Task<RepositoryWriteResult> SaveBuiltInOverrideAsync(SysDictData entity, int expectedVersion)
+        {
+            ArgumentNullException.ThrowIfNull(entity);
+            if (Transaction is null) throw new InvalidOperationException("内置字典覆盖必须位于应用层事务中。");
+            if (entity.Uid == Guid.Empty || expectedVersion < 0)
+                throw new ArgumentException("内置字典身份或预期版本无效。");
+            entity.IsDeleted = false;
+            entity.IsEnabled = true;
+            entity.IsSystem = true;
+            if (expectedVersion == 0)
+            {
+                entity.Version = 1;
+                AuditStamp.StampForInsert(entity);
+                // 给定身份的主键处理首次保存竞争；同业务键已有旧身份时也拒绝新建，避免断开旧业务引用。
+                var rows = await Connection.ExecuteAsync("""
+                    INSERT INTO public.sys_dict_data
+                        (uid, version, is_deleted, created_date, created_by, updated_date, updated_by,
+                         dict_code, data_name_en, data_name_zh, remark, sort_order, css_class, is_system, is_enabled)
+                    SELECT @Uid, @Version, @IsDeleted, @CreatedDate, @CreatedBy, @UpdatedDate, @UpdatedBy,
+                           @DictCode, @DataNameEn, @DataNameZh, @Remark, @SortOrder, @CssClass, @IsSystem, @IsEnabled
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM public.sys_dict_data
+                        WHERE btrim(dict_code, ' ') = btrim(@DictCode, ' ')
+                          AND btrim(data_name_en, ' ') = btrim(@DataNameEn, ' '))
+                    ON CONFLICT DO NOTHING;
+                    """, PostgreSqlParameters.Entity(entity, Metadata), Transaction);
+                return rows == 1
+                    ? RepositoryWriteResult.Ok(entity.Uid, 0, 1, "内置字典覆盖保存成功。")
+                    : RepositoryWriteResult.Fail(entity.Uid, 0, ServiceErrorCodes.ConcurrencyConflict, "内置字典已被保存，请刷新后重试。");
+            }
+
+            AuditStamp.StampForUpdate(entity);
+            var parameters = PostgreSqlParameters.Entity(entity, Metadata);
+            parameters.Add("ExpectedVersion", expectedVersion);
+            // 创建审计与业务键不进入 SET；旧内置记录的异常标记仅在用户显式保存时恢复。
+            var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>("""
+                UPDATE public.sys_dict_data SET data_name_zh=@DataNameZh, remark=@Remark,
+                    sort_order=@SortOrder, css_class=@CssClass, is_deleted=FALSE, is_system=TRUE, is_enabled=TRUE,
+                    updated_date=@UpdatedDate, updated_by=@UpdatedBy, version=version+1
+                WHERE uid=@Uid AND version=@ExpectedVersion RETURNING version;
+                """, parameters, Transaction);
+            if (newVersion is null)
+                return RepositoryWriteResult.Fail(entity.Uid, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "内置字典已被修改，请刷新后重试。");
+            entity.Version = newVersion.Value;
+            // 正版本回执沿用现有 PG 仓储口径；零版本首次保存单独返回 0→1。
+            return RepositoryWriteResult.Ok(entity.Uid, newVersion.Value, newVersion.Value, "内置字典覆盖更新成功。");
+        }
+
+
+        /// <inheritdoc />
+        public Task<int> CountProductSeriesReferencesAsync(Guid seriesId) => Connection.ExecuteScalarAsync<int>("""
+            SELECT count(*) FROM public.product_master
+            WHERE is_deleted=FALSE AND product_series_id=@SeriesId
+            """, new { SeriesId = seriesId }, Transaction);
+
         /// <summary>绑定编码集合，避免Dapper把文本数组展开为SQL Server形式的IN参数。</summary>
         private static PostgreSqlParameters CodeParameters(IEnumerable<string> codes)
         {

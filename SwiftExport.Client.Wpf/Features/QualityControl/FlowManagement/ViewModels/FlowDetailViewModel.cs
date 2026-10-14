@@ -215,7 +215,8 @@ public sealed partial class FlowDetailViewModel : ViewModelBaseEx, IDocumentTabV
     {
         if (_disposed || !HasAccess) return;
         var function = _cache.GetDictionaryValues(DictCodes.FlowTestFunction).FirstOrDefault(x => x.DataNameEn == "Default");
-        var limiter = _cache.GetDictionaryValues(DictCodes.FlowLimiterSpecification).FirstOrDefault(x => x.DataNameEn == "Unlimited" || x.DataNameZh == "不限流");
+        // 英文代码标识默认身份；中文名称允许修改，不能用显示文本决定默认选项。
+        var limiter = _cache.GetDictionaryValues(DictCodes.FlowLimiterSpecification).FirstOrDefault(x => x.DataNameEn == "Unlimited");
         var line = LineList.AddNew(new FlowLineDto { Uid = GuidSequentialGenerator.NewGuid(), Version = 0,
             FunctionId = function?.Uid ?? Guid.Empty, FunctionNameSnapshot = Name(function),
             LimiterSpecificationId = limiter?.Uid ?? Guid.Empty, LimiterSpecificationNameSnapshot = Name(limiter),

@@ -53,11 +53,15 @@ public sealed partial class ProductMasterLookupItemModel
     /// <summary>获取默认中文配置。</summary>
     public string? DefaultFeaturesZh => Source.Data?.DefaultFeaturesZh;
 
-    /// <summary>获取产品类型。</summary>
-    public string? ProductType => Source.Data?.ProductType;
+    /// <summary>获取属性模板字典明细身份。</summary>
+    public Guid? ProductAttributeProfileId => Source.Data?.ProductAttributeProfileId;
+    /// <summary>获取属性模板显示名称。</summary>
+    public string? ProductAttributeProfileName => Source.ProductAttributeProfileName;
 
-    /// <summary>获取产品系列名；为空表示未设置。</summary>
-    public string? ProductSeries => Source.Data?.ProductSeries;
+    /// <summary>获取产品系列字典明细身份；为空表示未设置。</summary>
+    public Guid? ProductSeriesId => Source.Data?.ProductSeriesId;
+    /// <summary>获取系列字典的实时名称，不以名称承担引用身份。</summary>
+    public string? ProductSeriesName => Source.ProductSeriesName;
 
     /// <summary>获取默认每箱装率；来源未设置时保留空值，不生成默认装率。</summary>
     public int? DefaultPcsPerPackage => Source.Data?.DefaultPcsPerPackage;

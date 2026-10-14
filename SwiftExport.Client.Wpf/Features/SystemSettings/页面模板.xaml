@@ -1,4 +1,8 @@
 <ResourceDictionary xmlns:workspace="clr-namespace:SwiftExportClient.Features.SystemSettings.Page.Views"
- xmlns:workspaceModels="clr-namespace:SwiftExportClient.Features.SystemSettings.Page.ViewModels" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ xmlns:workspaceModels="clr-namespace:SwiftExportClient.Features.SystemSettings.Page.ViewModels"
+ xmlns:dictionaryViews="clr-namespace:SwiftExportClient.Features.SystemSettings.Dictionaries.Views"
+ xmlns:dictionaryModels="clr-namespace:SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DataTemplate DataType="{x:Type workspaceModels:SettingsPageViewModel}"><workspace:SystemSettingsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type dictionaryModels:DictionaryDataManagerViewModel}"><dictionaryViews:DictionaryDataManagerView /></DataTemplate>
 </ResourceDictionary>

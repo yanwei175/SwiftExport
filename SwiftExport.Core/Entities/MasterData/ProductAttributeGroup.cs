@@ -5,7 +5,7 @@ using SwiftExport.Core.DatabaseSchema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>可由多个产品分类共享的标签组，统一定义选项与单多选规则。</summary>
+/// <summary>可由多个属性模板共享的标签组，统一定义选项与单多选规则。</summary>
 [Table("product_attribute_group")]
 [DbCheck("CK_ProductAttributeGroup_Text", "length(btrim(\"group_code\")) > 0 AND length(btrim(\"group_name\")) > 0")]
 [DbCheck("CK_ProductAttributeGroup_Mode", "\"selection_mode\" IN (0,1)")]

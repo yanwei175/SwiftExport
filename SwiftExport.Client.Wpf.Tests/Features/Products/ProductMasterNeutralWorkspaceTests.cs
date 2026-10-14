@@ -77,7 +77,8 @@ public sealed class ProductMasterNeutralWorkspaceTests
         using var vm = CreateVm(api);
         var master = vm.Masters.Items.First();
         await vm.SelectMasterAsync(master);
-        master.ProductSeries = "UNSAVED";
+        var unsavedSeriesId = Guid.NewGuid();
+        master.ProductSeriesId = unsavedSeriesId;
         var line = vm.Neutrals.Items.Single();
         line.ImagePath = "new.jpg";
         line.IsMainImage = true;
@@ -94,12 +95,12 @@ public sealed class ProductMasterNeutralWorkspaceTests
         await vm.SaveNeutralsCommand.ExecuteAsync(null);
         Assert.IsFalse(vm.Neutrals.HasChanges);
         Assert.AreEqual(2, vm.Neutrals.Items.Single().Version);
-        Assert.AreEqual("UNSAVED", master.ProductSeries);
+        Assert.AreEqual(unsavedSeriesId, master.ProductSeriesId);
         Assert.AreEqual(LineState.Modified, master.State);
         Assert.AreEqual("new.jpg", master.MainImagePath);
         Assert.AreEqual(18m, master.DefaultSalesPriceUsd);
         master.RejectChanges();
-        Assert.AreEqual(string.Empty, master.ProductSeries);
+        Assert.IsNull(master.ProductSeriesId);
         Assert.AreEqual("new.jpg", master.MainImagePath);
     }
 
@@ -137,7 +138,7 @@ public sealed class ProductMasterNeutralWorkspaceTests
         using var vm = CreateVm(api);
         var master = vm.Masters.Items.First();
         await vm.SelectMasterAsync(master);
-        master.ProductSeries = "MASTER-EDIT";
+        master.ProductSeriesId = Guid.NewGuid();
         var row = vm.Neutrals.Items.Single();
         row.ProductCode = "NEUTRAL-EDIT";
         await vm.SaveCommand.ExecuteAsync(null);

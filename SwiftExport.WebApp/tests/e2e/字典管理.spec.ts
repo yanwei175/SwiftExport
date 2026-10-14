@@ -310,7 +310,10 @@ async function respondToSave(
       operation: "Update",
       uid: entry.uid,
       success: true,
-      oldVersion: entry.version! + 1,
+      oldVersion:
+        entry.version === 0 && entry.data?.isBuiltIn === true
+          ? 0
+          : entry.version! + 1,
       newVersion: entry.version! + 1,
     })),
     ...remove.map((entry) => ({
@@ -994,6 +997,107 @@ test("系统类型禁止改删，系统项保留独立的可编辑及不可删�
     pane(page).getByRole("button", { name: "删除选中项", exact: true }),
   ).toBeDisabled();
   expect(fixture.writes).toEqual([]);
+});
+
+test("零版本内置字典加载干净，固定字段只读且首次保存保持身份", async ({
+  page,
+}) => {
+  const fixture = await initialize(page);
+  // 模拟服务端目录的缺失记录回退，类型及明细无需先落库即可参与现有维护页。
+  fixture.types.push({
+    uid: uid(4),
+    version: 0,
+    dictCode: "FlowTestFunction",
+    dictName: "流量测试功能",
+    sortOrder: 4,
+    isBuiltIn: true,
+    isSystem: true,
+  });
+  fixture.items.FlowTestFunction = [
+    {
+      uid: uid(14),
+      version: 0,
+      dictCode: "FlowTestFunction",
+      dataNameEn: "Default",
+      dataNameZh: "默认",
+      sortOrder: 1,
+      isEnabled: true,
+      isBuiltIn: true,
+      isSystem: true,
+    },
+  ];
+  await pane(page)
+    .getByRole("button", { name: "刷新字典", exact: true })
+    .click();
+  await pane(page)
+    .getByLabel("选择字典FlowTestFunction", { exact: true })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "字典管理", exact: true }),
+  ).toBeVisible();
+  await expect(
+    pane(page).getByLabel("字典名称", { exact: true }),
+  ).toBeDisabled();
+  await expect(
+    pane(page).getByLabel("字典项1英文名称", { exact: true }),
+  ).not.toBeEditable();
+  await expect(
+    pane(page).getByLabel("字典项1启用", { exact: true }),
+  ).toBeDisabled();
+  await expect(
+    pane(page).getByLabel("字典项1中文名称", { exact: true }),
+  ).toBeEditable();
+  await expect(
+    pane(page).getByRole("button", { name: "保存字典项", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    pane(page).getByRole("button", { name: "新增字典项", exact: true }),
+  ).toBeEnabled();
+  expect(fixture.writes).toEqual([]);
+  await pane(page)
+    .locator("tr.ant-table-row")
+    .first()
+    .getByRole("checkbox")
+    .first()
+    .check();
+  await expect(
+    pane(page).getByRole("button", { name: "删除选中项", exact: true }),
+  ).toBeDisabled();
+  await pane(page)
+    .getByLabel("字典项1中文名称", { exact: true })
+    .fill("默认功能");
+  await pane(page)
+    .getByRole("button", { name: "保存字典项", exact: true })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "字典管理", exact: true }),
+  ).toBeVisible();
+  expect(fixture.writes).toHaveLength(1);
+  expect(fixture.writes[0]!.body.createItems).toEqual([]);
+  expect(fixture.writes[0]!.body.updateItems![0]).toMatchObject({
+    uid: uid(14),
+    version: 0,
+    data: {
+      isBuiltIn: true,
+      dataNameEn: "Default",
+      dataNameZh: "默认功能",
+      isEnabled: true,
+    },
+  });
+  // 首次回执建立版本1基线；再次编辑仍使用同一个稳定身份和普通更新协议。
+  await pane(page)
+    .getByLabel("字典项1中文名称", { exact: true })
+    .fill("默认功能二");
+  await pane(page)
+    .getByRole("button", { name: "保存字典项", exact: true })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "字典管理", exact: true }),
+  ).toBeVisible();
+  expect(fixture.writes[1]!.body.updateItems![0]).toMatchObject({
+    uid: uid(14),
+    version: 1,
+  });
 });
 
 test("已验证重复请求短路解除锁并保留草稿，用户明确再次保存才派发", async ({

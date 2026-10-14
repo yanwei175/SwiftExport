@@ -25,6 +25,7 @@ using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.DTOs.Suppliers;
@@ -53,9 +54,9 @@ public sealed class ReferenceDataCacheServiceTests
     {
         var gate = new TaskCompletionSource<ServiceResult<ProductAttributeDefinitionsDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var api = new AttributeApiStub(_ => gate.Task);
-        var category = Category("顶喷", 1);
+        var category = Profile("顶喷");
         using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(category)), attributeApi: api);
+            new ProductCategoryApiStub(() => SuccessCategories()), profiles: [category], attributeApi: api);
         var group = AttributeGroup("安装方式", "吸顶", "挂墙");
         var published = 0;
         cache.ProductAttributesChanged += (_, _) =>
@@ -103,13 +104,13 @@ public sealed class ReferenceDataCacheServiceTests
     [TestMethod]
     public async Task ProductAttributes_Refresh_ShouldRetainSnapshotOnFailureAndReplaceOnceOnSuccess()
     {
-        var category = Category("顶喷", 1);
+        var category = Profile("顶喷");
         var original = AttributeGroup("安装方式", "吸顶", "挂墙");
         var replacement = AttributeGroup("尺寸", "8寸", "10寸");
         var responses = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([
             AttributeSnapshot(category, original), ServiceResult<ProductAttributeDefinitionsDto>.Fail("请求失败"), AttributeSnapshot(category, replacement)]);
         using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(category)), attributeApi: new AttributeApiStub(_ => Task.FromResult(responses.Dequeue())));
+            new ProductCategoryApiStub(() => SuccessCategories()), profiles: [category], attributeApi: new AttributeApiStub(_ => Task.FromResult(responses.Dequeue())));
         var collection = cache.ProductAttributeGroups;
         var resets = 0;
         ((INotifyCollectionChanged)collection).CollectionChanged += (_, args) =>
@@ -181,7 +182,7 @@ public sealed class ReferenceDataCacheServiceTests
     [TestMethod]
     public async Task ProductAttributes_Snapshot_ShouldSortAndDetachResponseObjects()
     {
-        var category = Category("顶喷", 1);
+        var category = Profile("顶喷");
         var group = AttributeGroup("安装方式", "挂墙", "吸顶");
         group.Options[0].SortOrder = 20;
         group.Options[1].SortOrder = 10;
@@ -189,7 +190,7 @@ public sealed class ReferenceDataCacheServiceTests
         group.SortOrder = 20;
         later.SortOrder = 10;
         using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(category)), attributeApi: new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot(category, group, later))));
+            new ProductCategoryApiStub(() => SuccessCategories()), profiles: [category], attributeApi: new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot(category, group, later))));
         Assert.IsTrue((await cache.EnsureLoadedAsync()).Success);
 
         CollectionAssert.AreEqual(new[] { later.Uid, group.Uid }, cache.GetProductAttributeGroups(category.Uid).Select(item => item.Uid).ToArray());
@@ -199,93 +200,54 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.AreEqual("安装方式", cache.ProductAttributeGroups.Single(item => item.Uid == group.Uid).GroupName);
         CollectionAssert.AreEqual(new[] { "吸顶", "挂墙" }, cache.GetProductAttributeOptions(group.Uid).Select(item => item.OptionName).ToArray());
     }
-    /// <summary>父子重复直接关联只显示一组，保留全部来源，并允许不同分类共用同一身份。</summary>
+    /// <summary>同一组供多个模板共享，只取直接关联，未关联模板是正常空范围。</summary>
     [TestMethod]
-    public async Task ProductAttributes_Inheritance_ShouldDeduplicateGroupsAndKeepSources()
+    public async Task ProductAttributes_SharedProfiles_ShouldUseDirectRelations()
     {
-        var root = Category("花洒", 1);
-        var child = Category("顶喷", 1, root.Uid);
-        var grandchild = Category("圆形顶喷", 1, child.Uid);
-        var sibling = Category("手持花洒", 2, root.Uid);
-        var mounting = AttributeGroup("安装方式", "吸顶", "挂墙");
-        var size = AttributeGroup("尺寸", "8寸", "10寸");
-        var unattached = AttributeGroup("尚未关联", "值");
-        mounting.SortOrder = 1;
-        size.SortOrder = 2;
-        var snapshot = AttributeSnapshot(mounting, size, unattached).Data;
-        snapshot.CategoryRelations = [Relation(root.Uid, mounting.Uid), Relation(child.Uid, mounting.Uid),
-            Relation(child.Uid, size.Uid), Relation(sibling.Uid, size.Uid)];
-        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(root, child, grandchild, sibling)),
-            attributeApi: new AttributeApiStub(_ => Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(snapshot))));
-
+        var first = Profile("顶喷"); var second = Profile("手持花洒"); var empty = Profile("未关联模板");
+        var mounting = AttributeGroup("安装方式", "挂墙"); var size = AttributeGroup("尺寸", "8寸"); var unused = AttributeGroup("未关联组", "值");
+        var snapshot = AttributeSnapshot(mounting, size, unused).Data;
+        snapshot.ProfileRelations = [Relation(first.Uid, mounting.Uid), Relation(first.Uid, size.Uid), Relation(second.Uid, mounting.Uid)];
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()), new ProductCategoryApiStub(() => SuccessCategories()),
+            profiles: [first, second, empty], attributeApi: new AttributeApiStub(_ => Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(snapshot))));
         Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
-        var result = cache.ResolveProductAttributes(grandchild.Uid);
-        Assert.IsTrue(result.Success);
-        CollectionAssert.AreEqual(new[] { mounting.Uid, size.Uid }, result.Groups.Select(row => row.Uid).ToArray());
-        Assert.HasCount(3, result.CategoryRelations);
-        Assert.HasCount(3, cache.ProductAttributeGroups, "全局候选保留尚未关联分类的组。");
-        CollectionAssert.AreEqual(new[] { mounting.Uid, size.Uid },
-            cache.ResolveProductAttributes(sibling.Uid).Groups.Select(row => row.Uid).ToArray());
-        CollectionAssert.AreEqual(new[] { mounting.Uid }, cache.ResolveProductAttributes(root.Uid).Groups.Select(row => row.Uid).ToArray());
-        snapshot.CategoryRelations[0].CategoryId = Guid.NewGuid();
-        root.ParentId = child.Uid;
-        Assert.IsTrue(cache.ResolveProductAttributes(root.Uid).Success, "缓存必须脱离原始响应对象。");
-        Assert.HasCount(1, cache.ResolveProductAttributes(root.Uid).CategoryRelations);
+        CollectionAssert.AreEquivalent(new[] { mounting.Uid, size.Uid }, cache.GetProductAttributeGroups(first.Uid).Select(row => row.Uid).ToArray());
+        Assert.AreEqual(mounting.Uid, cache.GetProductAttributeGroups(second.Uid).Single().Uid); Assert.IsEmpty(cache.GetProductAttributeGroups(empty.Uid));
+        Assert.HasCount(3, cache.ProductAttributeGroups); Assert.HasCount(2, cache.ResolveProductAttributes(first.Uid).ProfileRelations);
+        snapshot.ProfileRelations[0].ProductAttributeProfileId = Guid.NewGuid();
+        Assert.HasCount(2, cache.ResolveProductAttributes(first.Uid).ProfileRelations, "缓存应与响应对象分离。");
     }
 
-    /// <summary>视觉树可显示异常节点，但标签解析必须显式拒绝断链和循环，正常无定义分类仍成功。</summary>
+    /// <summary>停用和缺失模板不能解释为空选择；有效无关联模板和未设置模板正常返回空范围。</summary>
     [TestMethod]
-    public async Task ProductAttributes_InvalidHierarchy_ShouldFailInsteadOfReturningNormalEmptyGroups()
+    public async Task ProductAttributes_InvalidProfile_ShouldFailClearly()
     {
-        var valid = Category("正常", 1);
-        var orphan = Category("断链", 2, Guid.NewGuid());
-        var cycleA = Category("环A", 3);
-        var cycleB = Category("环B", 4, cycleA.Uid);
-        cycleA.ParentId = cycleB.Uid;
-        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(valid, orphan, cycleA, cycleB)));
-        Assert.IsFalse(cache.ResolveProductAttributes(valid.Uid).Success);
-        Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
-        Assert.IsTrue(cache.AreProductAttributesLoaded);
-        Assert.IsTrue(cache.ResolveProductAttributes(valid.Uid).Success);
-        Assert.IsEmpty(cache.ResolveProductAttributes(valid.Uid).Groups);
-        foreach (var id in new[] { Guid.Empty, Guid.NewGuid(), orphan.Uid, cycleA.Uid, cycleB.Uid })
-        {
-            var resolution = cache.ResolveProductAttributes(id);
-            Assert.IsFalse(resolution.Success);
-            Assert.IsFalse(string.IsNullOrWhiteSpace(resolution.Message));
-            Assert.ThrowsExactly<InvalidOperationException>(() => cache.GetProductAttributeGroups(id));
-        }
+        var valid = Profile("顶喷"); var disabled = Profile("停用模板"); disabled.IsEnabled = false;
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()), new ProductCategoryApiStub(() => SuccessCategories()), profiles: [valid, disabled]);
+        Assert.IsFalse(cache.ResolveProductAttributes(valid.Uid).Success); Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
+        Assert.IsEmpty(cache.GetProductAttributeGroups(valid.Uid)); Assert.IsTrue(cache.ResolveProductAttributes(Guid.Empty).Success);
+        foreach (var id in new[] { disabled.Uid, Guid.NewGuid() })
+        { Assert.IsFalse(cache.ResolveProductAttributes(id).Success); Assert.ThrowsExactly<InvalidOperationException>(() => cache.GetProductAttributeGroups(id)); }
     }
 
-    /// <summary>分类与标签成对刷新，任一接口失败都保留此前完整的两套资料。</summary>
+    /// <summary>字典和标签任一读取失败保留旧完整快照，不发布半套候选。</summary>
     [TestMethod]
     [DataRow(true)]
     [DataRow(false)]
-    public async Task ProductAttributes_PairedRefreshFailure_ShouldKeepCategoriesAndDefinitions(bool categoryFails)
+    public async Task ProductAttributes_PairedRefreshFailure_ShouldKeepDictionariesAndDefinitions(bool dictionaryFails)
     {
-        var original = Category("原分类", 1);
-        var replacement = Category("新分类", 1);
-        var originalGroup = AttributeGroup("原组", "原值");
-        var newGroup = AttributeGroup("新组", "新值");
-        var categories = new Queue<ServiceResult<List<ProductCategoryDto>>>([
-            ServiceResult<List<ProductCategoryDto>>.Ok([original]),
-            categoryFails ? ServiceResult<List<ProductCategoryDto>>.Fail("分类失败") : ServiceResult<List<ProductCategoryDto>>.Ok([replacement])]);
-        var definitions = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([
-            AttributeSnapshot(original, originalGroup),
-            categoryFails ? AttributeSnapshot(replacement, newGroup) : ServiceResult<ProductAttributeDefinitionsDto>.Fail("标签失败")]);
-        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => Task.FromResult(categories.Dequeue())),
-            attributeApi: new AttributeApiStub(_ => Task.FromResult(definitions.Dequeue())));
+        var original = Profile("原模板"); var replacement = Profile("新模板"); var oldGroup = AttributeGroup("原组", "原值"); var newGroup = AttributeGroup("新组", "新值");
+        var values = new Queue<ServiceResult<IReadOnlyList<SysDictDataDto>>>([ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([original]),
+            dictionaryFails ? ServiceResult<IReadOnlyList<SysDictDataDto>>.Fail("字典失败") : ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([replacement])]);
+        var definitions = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([AttributeSnapshot(original, oldGroup),
+            dictionaryFails ? AttributeSnapshot(replacement, newGroup) : ServiceResult<ProductAttributeDefinitionsDto>.Fail("标签失败")]);
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()), new ProductCategoryApiStub(() => SuccessCategories()),
+            dictDataApi: new DictDataApiStub(() => Task.FromResult(values.Dequeue())), attributeApi: new AttributeApiStub(_ => Task.FromResult(definitions.Dequeue())));
         Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
-        var oldGroup = cache.ProductAttributeGroups.Single();
-        var oldCategory = cache.ProductCategories.Single();
+        var oldDefinition = cache.ProductAttributeGroups.Single(); var oldProfile = cache.DictionaryValues.Single();
         Assert.IsFalse((await cache.RefreshProductAttributesAsync()).Success);
-        Assert.AreSame(oldGroup, cache.ProductAttributeGroups.Single());
-        Assert.AreSame(oldCategory, cache.ProductCategories.Single());
-        Assert.IsTrue(cache.ResolveProductAttributes(original.Uid).Success);
-        Assert.AreEqual(originalGroup.Uid, cache.ResolveProductAttributes(original.Uid).Groups.Single().Uid);
+        Assert.AreSame(oldDefinition, cache.ProductAttributeGroups.Single()); Assert.AreSame(oldProfile, cache.DictionaryValues.Single());
+        Assert.AreEqual(oldGroup.Uid, cache.GetProductAttributeGroups(original.Uid).Single().Uid);
     }
 
     /// <summary>缺少关联集合或返回孤立关联属于不完整快照，不能覆盖之前的定义。</summary>
@@ -294,15 +256,15 @@ public sealed class ReferenceDataCacheServiceTests
     [DataRow(false)]
     public async Task ProductAttributes_MalformedRelations_ShouldRetainCompleteSnapshot(bool missingRelations)
     {
-        var category = Category("顶喷", 1);
+        var category = Profile("顶喷");
         var group = AttributeGroup("安装方式", "挂墙");
         var malformed = AttributeSnapshot(category, group).Data;
-        if (missingRelations) malformed.CategoryRelations = null!;
-        else malformed.CategoryRelations[0].CategoryId = Guid.NewGuid();
+        if (missingRelations) malformed.ProfileRelations = null!;
+        else malformed.ProfileRelations[0].ProductAttributeProfileId = Guid.NewGuid();
         var definitions = new Queue<ServiceResult<ProductAttributeDefinitionsDto>>([
             AttributeSnapshot(category, group), ServiceResult<ProductAttributeDefinitionsDto>.Ok(malformed)]);
         using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(category)),
+            new ProductCategoryApiStub(() => SuccessCategories()), profiles: [category],
             attributeApi: new AttributeApiStub(_ => Task.FromResult(definitions.Dequeue())));
         Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
         var old = cache.ProductAttributeGroups.Single();
@@ -311,36 +273,27 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsTrue(cache.ResolveProductAttributes(category.Uid).Success);
     }
 
-    /// <summary>独立分类刷新通知标签重算，直接关系不变也会因祖先变化改变适用组。</summary>
+    /// <summary>分类树变化与标签无关，独立字典刷新才通知模板解析重匹配。</summary>
     [TestMethod]
-    public async Task ProductAttributes_CategoryRefresh_ShouldNotifyAndRecomputeInheritance()
+    public async Task ProductAttributes_CategoryRefresh_ShouldNotChangeProfileResolution()
     {
-        var root = Category("花洒", 1);
-        var child = Category("顶喷", 1, root.Uid);
-        var group = AttributeGroup("安装方式", "挂墙");
-        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(root, child)),
-            attributeApi: new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot(root, group))));
-        Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success);
-        var cachedGroup = cache.ProductAttributeGroups.Single();
-        Assert.HasCount(1, cache.ResolveProductAttributes(child.Uid).Groups);
-        var notifications = 0;
-        cache.ProductAttributesChanged += (_, _) => notifications++;
-        child.ParentId = Guid.Empty;
-        Assert.IsTrue((await cache.RefreshProductCategoriesAsync()).Success);
-        Assert.AreEqual(1, notifications);
-        Assert.AreSame(cachedGroup, cache.ProductAttributeGroups.Single());
-        Assert.IsTrue(cache.ResolveProductAttributes(child.Uid).Success);
-        Assert.IsEmpty(cache.ResolveProductAttributes(child.Uid).Groups);
-        Assert.HasCount(1, cache.ResolveProductAttributes(root.Uid).Groups);
+        var profile = Profile("顶喷"); var root = Category("花洒", 1); var child = Category("顶喷", 1, root.Uid); var group = AttributeGroup("安装方式", "挂墙");
+        using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()), new ProductCategoryApiStub(() => SuccessCategories(root, child)),
+            profiles: [profile], attributeApi: new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot(profile, group))));
+        Assert.IsTrue((await cache.RefreshProductAttributesAsync()).Success); var old = cache.ProductAttributeGroups.Single(); var notifications = 0;
+        cache.ProductAttributesChanged += (_, _) => notifications++; child.ParentId = Guid.Empty;
+        Assert.IsTrue((await cache.RefreshProductCategoriesAsync()).Success); Assert.AreEqual(0, notifications);
+        Assert.AreSame(old, cache.GetProductAttributeGroups(profile.Uid).Single());
+        Assert.IsTrue((await cache.RefreshDictionariesAsync()).Success); Assert.AreEqual(1, notifications);
+        Assert.AreSame(old, cache.GetProductAttributeGroups(profile.Uid).Single());
     }
 
     /// <summary>旧会话排队请求不发出网络调用，忽略取消的旧响应也不能阻塞新会话完整加载。</summary>
     [TestMethod]
     public async Task ProductAttributes_QueuedOldSession_ShouldNotOverwriteOrBlockNewSession()
     {
-        var oldCategory = Category("旧分类", 1);
-        var newCategory = Category("新分类", 1);
+        var oldCategory = Profile("旧模板");
+        var newCategory = Profile("新模板");
         var oldGroup = AttributeGroup("旧组", "旧值");
         var newGroup = AttributeGroup("新组", "新值");
         var oldResponse = new TaskCompletionSource<ServiceResult<ProductAttributeDefinitionsDto>>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -348,7 +301,7 @@ public sealed class ReferenceDataCacheServiceTests
         var calls = 0;
         var api = new AttributeApiStub(_ => ++calls == 1 ? oldResponse.Task : Task.FromResult(AttributeSnapshot(newCategory, newGroup)));
         using var cache = CreateCache(new ProductColorApiStub(() => SuccessColors()),
-            new ProductCategoryApiStub(() => SuccessCategories(useNewSession ? newCategory : oldCategory)), attributeApi: api);
+            new ProductCategoryApiStub(() => SuccessCategories()), dictDataApi: new DictDataApiStub(() => SuccessDictionaryValues(useNewSession ? newCategory : oldCategory)), attributeApi: api);
         var first = cache.RefreshProductAttributesAsync();
         var queued = cache.RefreshProductAttributesAsync();
         cache.Clear();
@@ -376,7 +329,7 @@ public sealed class ReferenceDataCacheServiceTests
     [DataRow("Dictionaries")]
     public async Task ProductAttributes_PreviousReferenceRefresh_ShouldNotBlockNewSession(string owner)
     {
-        var category = Category("新会话分类", 1);
+        var category = Profile("新会话分类");
         var group = AttributeGroup("新会话组", "新值");
         var fixture = CreateBlockedReferenceRefresh(owner, category, group);
         using var cache = fixture.Cache;
@@ -393,7 +346,7 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsTrue(results[2].Success);
         Assert.IsFalse(fixture.Release.Task.IsCompleted, "新会话必须在旧 API 尚未完成时恢复。");
         Assert.AreEqual(group.Uid, cache.ResolveProductAttributes(category.Uid).Groups.Single().Uid);
-        Assert.HasCount(1, cache.ProductAttributeCategoryRelations);
+        Assert.HasCount(1, cache.ProductAttributeProfileRelations);
 
         fixture.Release.SetResult(true);
         await Task.WhenAll(fixture.PendingRequests).WaitAsync(TimeSpan.FromSeconds(3));
@@ -404,9 +357,9 @@ public sealed class ReferenceDataCacheServiceTests
         Assert.IsEmpty(cache.WarehouseSites);
         Assert.IsEmpty(cache.Currencies);
         Assert.IsEmpty(cache.DictionaryTypes);
-        Assert.IsEmpty(cache.DictionaryValues);
+        Assert.AreEqual(category.Uid, cache.DictionaryValues.Single().Uid);
         Assert.AreEqual(group.Uid, cache.ResolveProductAttributes(category.Uid).Groups.Single().Uid);
-        Assert.AreEqual(category.Uid, cache.ProductAttributeCategoryRelations.Single().CategoryId);
+        Assert.AreEqual(category.Uid, cache.ProductAttributeProfileRelations.Single().ProductAttributeProfileId);
     }
 
     /// <summary>释放服务同样取消所有共享门 owner，排队请求和晚到旧响应不得发布或抛信号量释放异常。</summary>
@@ -419,7 +372,7 @@ public sealed class ReferenceDataCacheServiceTests
     [DataRow("Dictionaries")]
     public async Task ReferenceRefresh_Dispose_ShouldCancelOwnerAndQueuedTags(string owner)
     {
-        var category = Category("分类", 1);
+        var category = Profile("分类");
         var group = AttributeGroup("组", "值");
         var fixture = CreateBlockedReferenceRefresh(owner, category, group);
         using var cache = fixture.Cache;
@@ -1057,7 +1010,8 @@ public sealed class ReferenceDataCacheServiceTests
         ICustomerApi? customerApi = null,
         ISupplierApi? supplierApi = null,
         IWarehouseSiteApi? warehouseApi = null,
-        IProductAttributeApi? attributeApi = null) =>
+        IProductAttributeApi? attributeApi = null,
+        IReadOnlyList<SysDictDataDto>? profiles = null) =>
         new(
             customerApi ?? new CustomerApiStub(request => Task.FromResult(Page<CustomerDto>(request, [], 0))),
             supplierApi ?? new SupplierApiStub(request => Task.FromResult(Page<SupplierDto>(request, [], 0))),
@@ -1067,25 +1021,26 @@ public sealed class ReferenceDataCacheServiceTests
             attributeApi ?? new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot())),
             currencyApi ?? new CurrencyApiStub(() => SuccessCurrencies()),
             dictTypeApi ?? new DictTypeApiStub(() => SuccessDictionaryTypes()),
-            dictDataApi ?? new DictDataApiStub(() => SuccessDictionaryValues()),
+            dictDataApi ?? new DictDataApiStub(() => SuccessDictionaryValues((profiles ?? []).ToArray())),
             new DirectApiCallRunner(),
             session ?? new SessionServiceStub());
 
     /// <summary>阻塞一个真实缓存入口的底层离线 API；释放外层等待后仍可独立完成旧响应，验证晚到隔离。</summary>
     private static (ReferenceDataCacheService Cache, TaskCompletionSource<bool> Release, List<Task> PendingRequests,
-        Func<Task<CacheRefreshResult>> Refresh) CreateBlockedReferenceRefresh(string owner, ProductCategoryDto category, ProductAttributeGroupDto group)
+        Func<Task<CacheRefreshResult>> Refresh) CreateBlockedReferenceRefresh(string owner, SysDictDataDto category, ProductAttributeGroupDto group)
     {
         var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var requests = new List<Task>();
+        var typeCalls = 0; var valueCalls = 0;
         var cache = CreateCache(
             new ProductColorApiStub(() => Hold(ServiceResult<List<ProductColorDto>>.Ok([Color("OLD")]))),
-            new ProductCategoryApiStub(() => SuccessCategories(category)),
+            new ProductCategoryApiStub(() => SuccessCategories()),
             customerApi: new CustomerApiStub(request => Hold(Page(request, new[] { Customer("OLD") }, 1))),
             supplierApi: new SupplierApiStub(request => Hold(Page(request, new[] { Supplier("OLD") }, 1))),
             warehouseApi: new WarehouseApiStub(request => Hold(Page(request, new[] { Warehouse("OLD") }, 1))),
             currencyApi: new CurrencyApiStub(() => Hold(ServiceResult<IReadOnlyList<SysDicCurrencyDto>>.Ok([Currency("OLD")]))),
-            dictTypeApi: new DictTypeApiStub(() => Hold(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([new SysDictTypeDto { Uid = Guid.NewGuid(), DictCode = "OLD" }]))),
-            dictDataApi: new DictDataApiStub(() => Hold(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([new SysDictDataDto { Uid = Guid.NewGuid(), DictCode = "OLD" }]))),
+            dictTypeApi: new DictTypeApiStub(() => ++typeCalls == 1 && owner == "Dictionaries" ? Hold(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([new SysDictTypeDto { Uid = Guid.NewGuid(), DictCode = "OLD" }])) : SuccessDictionaryTypes()),
+            dictDataApi: new DictDataApiStub(() => ++valueCalls == 1 && owner == "Dictionaries" ? Hold(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([new SysDictDataDto { Uid = Guid.NewGuid(), DictCode = "OLD" }])) : SuccessDictionaryValues(category)),
             attributeApi: new AttributeApiStub(_ => Task.FromResult(AttributeSnapshot(category, group))));
         Func<Task<CacheRefreshResult>> refresh = owner switch
         {
@@ -1123,19 +1078,23 @@ public sealed class ReferenceDataCacheServiceTests
         return group;
     }
 
+    /// <summary>构造启用模板字典明细，不复用产品分类层级。</summary>
+    private static SysDictDataDto Profile(string name) => new()
+    { Uid = Guid.NewGuid(), DictCode = DictCodes.ProductAttributeProfile, DataNameZh = name, DataNameEn = name, IsEnabled = true, Version = 1 };
+
     private static ServiceResult<ProductAttributeDefinitionsDto> AttributeSnapshot(params ProductAttributeGroupDto[] groups) =>
         ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto { Groups = groups.ToList() });
 
     /// <summary>建立分类直接关联，继承由被测缓存解析。</summary>
-    private static ServiceResult<ProductAttributeDefinitionsDto> AttributeSnapshot(ProductCategoryDto category, params ProductAttributeGroupDto[] groups) =>
+    private static ServiceResult<ProductAttributeDefinitionsDto> AttributeSnapshot(SysDictDataDto category, params ProductAttributeGroupDto[] groups) =>
         ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto
         {
-            Groups = groups.ToList(), CategoryRelations = groups.Select(group => Relation(category.Uid, group.Uid)).ToList()
+            Groups = groups.ToList(), ProfileRelations = groups.Select(group => Relation(category.Uid, group.Uid)).ToList()
         });
 
     /// <summary>构造有效直接关联，不复制任何祖先或产品选择。</summary>
-    private static ProductCategoryAttributeGroupDto Relation(Guid categoryId, Guid groupId) =>
-        new() { Uid = Guid.NewGuid(), Version = 1, CategoryId = categoryId, AttributeGroupId = groupId };
+    private static ProductAttributeProfileGroupDto Relation(Guid categoryId, Guid groupId) =>
+        new() { Uid = Guid.NewGuid(), Version = 1, ProductAttributeProfileId = categoryId, AttributeGroupId = groupId };
 
     /// <summary>控制定义读取、取消信号及请求合并行为的离线 API。</summary>
     private sealed class AttributeApiStub(Func<CancellationToken, Task<ServiceResult<ProductAttributeDefinitionsDto>>> getDefinitions) : IProductAttributeApi
@@ -1148,9 +1107,7 @@ public sealed class ReferenceDataCacheServiceTests
             return getDefinitions(cancellationToken);
         }
         /// <inheritdoc />
-        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid categoryId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        /// <inheritdoc />
-        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetProfileDefinitionsAsync(Guid profileId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         /// <inheritdoc />
         public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync(SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }

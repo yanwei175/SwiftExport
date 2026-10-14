@@ -17,6 +17,7 @@ using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Products.Attributes;
@@ -38,13 +39,16 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     internal readonly ServiceProvider Provider;
     internal readonly TestUser User = new();
     internal readonly List<Guid> CategoryIds = [];
+    internal readonly List<Guid> ProfileIds = [];
     internal readonly List<Guid> MasterIds = [];
+    internal readonly List<Guid> CustomerProductIds = [];
     internal readonly List<Guid> ColorIds = [];
     internal readonly List<Guid> GroupIds = [];
     internal readonly List<Scope> Scopes = [];
     internal readonly string CodePrefix = "TAG_" + Guid.NewGuid().ToString("N");
     internal ProductCategory Category = null!, OtherCategory = null!;
     internal ProductMaster Master = null!;
+    internal SysDictData Profile = null!, OtherProfile = null!, Series = null!;
 
     private ProductAttributePostgreSqlFixture(string connection)
     {
@@ -76,15 +80,22 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
             Assert.AreEqual("192.168.3.12", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT host(inet_server_addr())"));
             Assert.AreEqual("5432", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT current_setting('port')"));
             Assert.IsTrue(await scope.Session.Connection.ExecuteScalarAsync<bool>("""
-                SELECT to_regclass('public.product_category_attribute_group') IS NOT NULL
+                SELECT to_regclass('public.product_attribute_profile_group') IS NOT NULL
+                  AND to_regclass('public.product_attribute_selection') IS NOT NULL
+                  AND to_regclass('public.product_master_attribute_selection') IS NULL
                   AND NOT EXISTS(SELECT 1 FROM information_schema.columns
-                    WHERE table_schema='public' AND table_name='product_attribute_group' AND column_name='category_id')
-                """), "专用库尚未执行共享标签增量迁移；测试不自动初始化或升级结构。");
+                    WHERE table_schema='public' AND table_name='product_master' AND column_name='product_type')
+                  AND EXISTS(SELECT 1 FROM information_schema.columns
+                    WHERE table_schema='public' AND table_name='product_master' AND column_name='product_series_id' AND data_type='uuid')
+                """), "专用库尚未执行属性模板及统一选择增量迁移；测试不自动初始化或升级结构。");
             fixture.Category = await fixture.AddCategoryAsync(scope, "顶喷");
             fixture.OtherCategory = await fixture.AddCategoryAsync(scope, "另一分类");
+            fixture.Profile = await fixture.AddProfileAsync(scope, "顶喷");
+            fixture.OtherProfile = await fixture.AddProfileAsync(scope, "另一模板");
+            fixture.Series = await fixture.AddProfileAsync(scope, "保留系列", "ProductSeries");
             // 复制库装箱数列仍为 NOT NULL；显式提供夹具值，不为标签测试修改无关运行结构。
             fixture.Master = new ProductMaster { MasterSku = "TAG-" + Guid.NewGuid().ToString("N"), CategoryId = fixture.Category.Uid, DefaultPcsPerPackage = 1,
-                ProductType = "保留旧类型", ProductSeries = "保留系列" };
+                ProductAttributeProfileId = fixture.Profile.Uid, ProductSeriesId = fixture.Series.Uid };
             var write = await scope.Services.GetRequiredService<IProductMasterRepository>().AddAsync(fixture.Master);
             Assert.IsTrue(write.Success);
             fixture.MasterIds.Add(write.Uid);
@@ -111,21 +122,32 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
         return category;
     }
 
-    /// <summary>用真实定义用例同批创建组及两个选项，返回服务端回执快照。</summary>
-    internal async Task<ProductAttributeGroupDto> DefineAsync(Scope scope, Guid? categoryId = null,
+    /// <summary>创建夹具专属的持久模板或系列字典项，不依赖虚拟内置身份或复制库现有明细。</summary>
+    internal async Task<SysDictData> AddProfileAsync(Scope scope, string name, string dictCode = "ProductAttributeProfile")
+    {
+        var profile = new SysDictData { DictCode = dictCode, DataNameEn = CodePrefix + "_" + Guid.NewGuid().ToString("N"),
+            DataNameZh = name, IsEnabled = true, IsSystem = false };
+        var write = await scope.Services.GetRequiredService<IRepository<SysDictData>>().AddAsync(profile);
+        Assert.IsTrue(write.Success);
+        ProfileIds.Add(write.Uid);
+        return profile;
+    }
+
+    /// <summary>用真实定义用例同批创建组、两个选项及模板关联，返回服务端回执快照。</summary>
+    internal async Task<ProductAttributeGroupDto> DefineAsync(Scope scope, Guid? profileId = null,
         ProductAttributeSelectionMode mode = ProductAttributeSelectionMode.Multiple)
     {
         var temporaryId = Guid.NewGuid();
-        var request = new SaveProductAttributeDefinitionsRequest();
+        var request = new SaveProductAttributeDefinitionsRequest { ContractVersion = 2 };
         request.GroupChanges.CreateItems.Add(new() { RowIndex = 1, Data = new() { ClientUid = temporaryId, GroupCode = CodePrefix + "_" + Guid.NewGuid().ToString("N"), GroupName = "安装方式", SelectionMode = mode } });
         request.OptionChanges.CreateItems.Add(new() { RowIndex = 1, Data = new() { AttributeGroupId = temporaryId, OptionCode = "CEILING", OptionName = "吸顶" } });
         request.OptionChanges.CreateItems.Add(new() { RowIndex = 2, Data = new() { AttributeGroupId = temporaryId, OptionCode = "WALL", OptionName = "挂墙", SortOrder = 1 } });
-        request.CategoryChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = temporaryId, CategoryId = categoryId ?? Category.Uid } });
+        request.ProfileChanges.CreateItems.Add(new() { Data = new() { AttributeGroupId = temporaryId, ProductAttributeProfileId = profileId ?? Profile.Uid } });
         var result = await SaveAsync(scope, request);
         Assert.IsTrue(result.Success, result.Message);
         Assert.AreEqual(1, result.Data.GroupResults.SuccessCount);
         Assert.AreEqual(2, result.Data.OptionResults.SuccessCount);
-        Assert.AreEqual(1, result.Data.CategoryResults.SuccessCount);
+        Assert.AreEqual(1, result.Data.ProfileResults.SuccessCount);
         var persistedId = result.Data.GroupResults.Items.Single().Uid!.Value;
         var group = result.Data.Definitions.Groups.Single(row => row.Uid == persistedId);
         Assert.AreNotEqual(temporaryId, group.Uid);
@@ -144,7 +166,7 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
         return result;
     }
 
-    /// <summary>选项和分类关联的变更也必须提交组聚合的预期版本，不能绕过组版本保护。</summary>
+    /// <summary>选项和模板关联的变更也必须提交组聚合的预期版本，不能绕过组版本保护。</summary>
     internal static void TouchGroup(SaveProductAttributeDefinitionsRequest request, ProductAttributeGroupDto group)
     {
         request.GroupChanges.UpdateItems.Add(new() { Uid = group.Uid, Version = group.Version,
@@ -156,14 +178,14 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     {
         var detail = await scope.Query.GetDetailAsync(Master.Uid);
         Assert.IsTrue(detail.Success, detail.Message);
-        return new() { ProductMasterId = Master.Uid, ExpectedVersion = detail.Data.Version, Master = detail.Data.Master.Adapt<SwiftExport.Contracts.DTOs.Products.ProductMasters.ProductMasterWriteDto>() };
+        return new() { ContractVersion = 3, ProductMasterId = Master.Uid, ExpectedVersion = detail.Data.Version, Master = detail.Data.Master.Adapt<SwiftExport.Contracts.DTOs.Products.ProductMasters.ProductMasterWriteDto>() };
     }
 
     /// <summary>只移除捕获的测试分类、主型号及其自建标签；保留复制库的其他数据和结构。</summary>
     public async ValueTask DisposeAsync()
     {
         foreach (var scope in Scopes) scope.Dispose();
-        if (CategoryIds.Count == 0 && MasterIds.Count == 0 && ColorIds.Count == 0 && GroupIds.Count == 0)
+        if (CategoryIds.Count == 0 && ProfileIds.Count == 0 && MasterIds.Count == 0 && CustomerProductIds.Count == 0 && ColorIds.Count == 0 && GroupIds.Count == 0)
         {
             // 目标或结构守卫失败时没有夹具写入，不进入任何清理 SQL，保留原始拒绝证据。
             await Provider.DisposeAsync();
@@ -173,16 +195,18 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
         await connection.OpenAsync();
         await using var transaction = await connection.BeginTransactionAsync();
         await connection.ExecuteAsync("""
-            DELETE FROM public.product_master_attribute_selection WHERE product_master_id=ANY(@Masters)
+            DELETE FROM public.product_attribute_selection WHERE (owner_type=1 AND owner_id=ANY(@Masters))
                OR option_id IN (SELECT uid FROM public.product_attribute_option WHERE attribute_group_id=ANY(@Groups));
-            DELETE FROM public.product_category_attribute_group WHERE category_id=ANY(@Categories) OR attribute_group_id=ANY(@Groups);
+            DELETE FROM public.product_attribute_profile_group WHERE product_attribute_profile_id=ANY(@Profiles) OR attribute_group_id=ANY(@Groups);
             DELETE FROM public.product_attribute_option WHERE attribute_group_id=ANY(@Groups);
             DELETE FROM public.product_attribute_group WHERE uid=ANY(@Groups);
+            DELETE FROM public.customer_product WHERE uid=ANY(@CustomerProducts);
             DELETE FROM public.product_neutral WHERE product_master_id=ANY(@Masters);
             DELETE FROM public.product_master WHERE uid=ANY(@Masters);
             DELETE FROM public.product_color WHERE uid=ANY(@Colors);
+            DELETE FROM public.sys_dict_data WHERE uid=ANY(@Profiles);
             DELETE FROM public.product_category WHERE uid=ANY(@Categories);
-            """, new { Masters = MasterIds.ToArray(), Categories = CategoryIds.ToArray(), Colors = ColorIds.ToArray(), Groups = GroupIds.ToArray() }, transaction);
+            """, new { Masters = MasterIds.ToArray(), CustomerProducts = CustomerProductIds.ToArray(), Categories = CategoryIds.ToArray(), Profiles = ProfileIds.ToArray(), Colors = ColorIds.ToArray(), Groups = GroupIds.ToArray() }, transaction);
         await transaction.CommitAsync();
         await Provider.DisposeAsync();
     }
@@ -227,11 +251,11 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
             var masters = Services.GetRequiredService<IProductMasterRepository>();
             var neutrals = Services.GetRequiredService<IProductNeutralRepository>();
             var suppliers = Services.GetRequiredService<ISupplierRepository>();
-            Definitions = new(attributes, categories, user, user, context);
+            Definitions = new(attributes, user, user, context);
             Maintenance = new(masters, neutrals, categories, suppliers, Services.GetRequiredService<IProductColorRepository>(), Services.GetRequiredService<IProductRepository>(), attributes, context);
             Query = new(masters, neutrals, attributes);
-            Categories = new(categories, attributes, context);
-            Import = new(masters, categories, suppliers, user, user, attributes, context);
+            Categories = new(categories, context);
+            Import = new(masters, categories, suppliers, user, user, context);
         }
         /// <summary>释放请求事务和连接。</summary>
         public void Dispose() => _scope.Dispose();

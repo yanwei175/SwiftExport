@@ -1,222 +1,98 @@
-﻿<UserControl x:Class="SwiftExportClient.Features.Products.ProductList.Views.ProductDetailView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
-             xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
-             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:ProductDetailViewModel}"
-             d:DesignHeight="800" d:DesignWidth="1280">
-    <Grid Margin="12,8">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="8" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="8" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="8" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <Grid HorizontalAlignment="Stretch">
-            <StackPanel  DockPanel.Dock="Left" Orientation="Horizontal" 
-                         VerticalAlignment="Center">
-                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}"  Margin="0,0,4,0" />
-                <ui:Button Content="放弃" Command="{Binding RejectDetailChangesCommand}"  Margin="0,0,4,0" />
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" />
-            </StackPanel>
-
-            <StackPanel Panel.ZIndex="999" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Vertical">
-                <TextBlock Text="{Binding DocumentTitle}" 
-                           TextAlignment="Center"
-                           Style="{StaticResource SubtitleTextBlock}" 
-                           Foreground="{DynamicResource UserSystemAccentColorPrimaryBrush}"
-                           Margin="0,0,0,12"/>
-                <TextBlock Text="{Binding StatusText}" 
-                           TextAlignment="Center"
-                           Style="{StaticResource SecondaryTextBlock}" />
-            </StackPanel>
-
-            <StackPanel HorizontalAlignment="Right">
-                <ui:Button Content="关闭页签" 
-                           Appearance="Primary" 
-                           Command="{Binding CloseDocumentCommand}" />
-            </StackPanel>
-
-        </Grid>
-
-        <Border Grid.Row="2" 
-                BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" 
-                BorderThickness="1"
-                CornerRadius="{StaticResource SwiftExportCornerRadius}" 
-                Padding="16">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <Grid Grid.Column="0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="1*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="1*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="35"/>
-                        <RowDefinition Height="35"/>
-                        <RowDefinition Height="35"/>
-                        <RowDefinition Height="35"/>
-                        <RowDefinition Height="35"/>
-                    </Grid.RowDefinitions>
-
-
-                    <TextBlock Grid.Column="0" Grid.Row="0" Text="物料编号: *" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="1" Grid.Row="0"
-                                    Text="{Binding Product.Sku, UpdateSourceTrigger=PropertyChanged}" />
-                    
-                    <TextBlock Grid.Column="2" Grid.Row="0" Text="关联主型号:" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="3" Grid.Row="0"
-                                    Text="{Binding Product.MasterSku, UpdateSourceTrigger=PropertyChanged}" />
-                    
-                    <TextBlock Grid.Column="4" Grid.Row="0" Text="关联产品型号:" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="5" Grid.Row="0"
-                                    Text="{Binding Product.LinkSku, UpdateSourceTrigger=PropertyChanged}" />
-                    
-                    
-                    <TextBlock Grid.Column="6" Grid.Row="0" Text="关联客户:" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="7" Grid.Row="0"
-                                    Text="{Binding Product.LinkSku, UpdateSourceTrigger=PropertyChanged}" />
-                    
-                    
-                    
-                    
-                    
-                    <TextBlock Grid.Column="6" Grid.Row="0" Text="物料分类:" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="7" Grid.Row="0" PlaceholderText="产品分类:"
-                                    Text="{Binding Product.CategoryId, UpdateSourceTrigger=PropertyChanged}" />                    
-                    
-                    <TextBlock Grid.Column="0" Grid.Row="1" Text="物料颜色:" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="1" Grid.Row="1" PlaceholderText="改为自定义控件:"
-                                    Text="{Binding Product.ColorId, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <TextBlock Grid.Column="2" Grid.Row="1" Text="物料类型:" VerticalAlignment="Center" />
-                    <ui:TextBox  Grid.Column="3" Grid.Row="1"  Text="{Binding Product.MaterialType, UpdateSourceTrigger=PropertyChanged}" />
-                    
-                    <TextBlock Grid.Column="4" Grid.Row="1" Text="供货类型:" VerticalAlignment="Center" />
-                    <ui:TextBox  Grid.Column="5" Grid.Row="1"  Text="{Binding Product.SupplyType, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <TextBlock Grid.Column="6" Grid.Row="1" Text="单位:" VerticalAlignment="Center" />
-                    <ui:TextBox  Grid.Column="7" Grid.Row="1"  Text="{Binding Product.Unit, UpdateSourceTrigger=PropertyChanged}" />
-                    
-                    <TextBlock Grid.Column="0" Grid.Row="2" Text="是否有BOM:" VerticalAlignment="Center" />
-                    <CheckBox  Grid.Column="1" Grid.Row="2"  IsChecked="{Binding Product.BomVersion,Mode=TwoWay}" />
-                    
-                    <TextBlock Grid.Column="2" Grid.Row="2" Text="BOM号:" VerticalAlignment="Center" />
-                    <ui:TextBox  Grid.Column="3" Grid.Row="2"  Text="{Binding Product.BomVersion, UpdateSourceTrigger=PropertyChanged}" />
-
-
-                    <TextBlock Grid.Column="4" Grid.Row="2" Text="供应商:" VerticalAlignment="Center" />
-                    
-                    
-                    <TextBlock Grid.Column="6" Grid.Row="2" Text="仓库:" VerticalAlignment="Center" />
-                    
-                    
-                    <TextBlock Grid.Column="0" Grid.Row="3" Text="制造商:" VerticalAlignment="Center" />
-                    
-                    
-                    <TextBlock Grid.Column="2" Grid.Row="3" Text="制造商型号:" VerticalAlignment="Center" />
-
-
-
-
-
-
-                    <TextBlock Grid.Column="4" Grid.Row="0" Text="中文描述:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="6" Grid.Row="0" Grid.ColumnSpan="5"
-                                    Text="{Binding Product.DescriptionZh, UpdateSourceTrigger=PropertyChanged}" />
-
-                    <TextBlock Grid.Column="12" Grid.Row="0" 
-                               Text="产品分类:" VerticalAlignment="Center" />
-
-
-
-
-
-
-
-                    <TextBlock Grid.Column="4" Grid.Row="2" Text="英文描述:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="6" Grid.Row="2" Grid.ColumnSpan="5"
-                                Text="{Binding Product.DescriptionEn, UpdateSourceTrigger=PropertyChanged}" />
-
-
-                    <TextBlock  Grid.Column="0" Grid.Row="4" Text="每箱数量: *" VerticalAlignment="Center" />
-                    <ui:NumberBox Grid.Column="2" Grid.Row="4" 
-                                  ClearButtonEnabled="False"
-                                  SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Product.PcsOfCarton, UpdateSourceTrigger=LostFocus}" />
-
-                    <TextBlock Grid.Column="4" Grid.Row="4" Text="净重:" VerticalAlignment="Center" />
-                    <ui:NumberBox Grid.Column="6" Grid.Row="4" 
-                                  ClearButtonEnabled="False"
-                                  SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Product.NwOfCarton, UpdateSourceTrigger=LostFocus}" />
-
-                    <TextBlock Grid.Column="8" Grid.Row="4" Text="中文配置:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="10" Grid.Row="4" Grid.RowSpan="6"
-                                FontSize="12"
-                                Text="{Binding Product.FeaturesZh, UpdateSourceTrigger=PropertyChanged}"                                     
-                                TextWrapping="Wrap" AcceptsReturn="True"/>
-
-                    <TextBlock Grid.Column="12" Grid.Row="4" Text="英文配置:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="14" Grid.Row="4" Grid.RowSpan="5"
-                                FontSize="12"
-                                Text="{Binding Product.FeaturesEn, UpdateSourceTrigger=PropertyChanged}"                                    
-                                TextWrapping="Wrap" AcceptsReturn="True"/>
-
-                    <TextBlock Grid.Column="0" Grid.Row="6" Text="毛重:" VerticalAlignment="Center" />
-                    <ui:NumberBox Grid.Column="2" Grid.Row="6" 
-                                  ClearButtonEnabled="False"
-                                  SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Product.GwOfCarton, UpdateSourceTrigger=LostFocus}" />
-
-                    <TextBlock  Grid.Column="4" Grid.Row="6" Text="体积:" VerticalAlignment="Center" />
-                    <ui:NumberBox Grid.Column="6" Grid.Row="6" 
-                                  ClearButtonEnabled="False"
-                                  SpinButtonPlacementMode="Compact"
-                                  PlaceholderText="0.000"
-                                  Text="{Binding Product.CbmOfCarton, UpdateSourceTrigger=LostFocus}" />
-                </Grid>
-
-                <Grid Grid.Column="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="240"/>
-                    </Grid.RowDefinitions>
-
-                    <Border Background="White" Width="240" MinHeight="240"
-                            CornerRadius="4"
-                            Padding="8">
-                        <controls:CachedImage Style="{StaticResource SwiftExportCachedImage}"
-                                          Width="Auto"
-                                          Height="Auto"
-                                          DecodePixelWidth="800"
-                                          SourcePath="{Binding MainImagePath}"
-                                          Stretch="Uniform" />
-                    </Border>
-
-                </Grid>
-            </Grid>
-        </Border>
-
-        <TextBlock Grid.Row="6" Text="{Binding ValidationSummary}" Foreground="{DynamicResource UserBusinessTextWarningBrush}"
-                   Style="{StaticResource CaptionTextBlock}" />
-    </Grid>
+<UserControl x:Class="SwiftExportClient.Features.Products.ProductList.Views.ProductDetailView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+ xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+ xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
+ xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+ xmlns:warehouseComponents="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Components"
+ Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
+ <Grid Margin="12,8">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="*"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <DockPanel>
+   <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+    <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,8,0" AutomationProperties.Name="保存物料详情"/>
+    <ui:Button Content="放弃" Command="{Binding RejectDetailChangesCommand}" Margin="0,0,8,0"/>
+    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
+   </StackPanel>
+   <ui:Button DockPanel.Dock="Right" Content="关闭" Command="{Binding CloseDocumentCommand}" HorizontalAlignment="Right"/>
+   <TextBlock Text="{Binding DocumentTitle}" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+  </DockPanel>
+  <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <StackPanel>
+    <ui:Card>
+     <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="224"/></Grid.ColumnDefinitions>
+      <Grid IsEnabled="{Binding CanEditHeader}" x:Name="EditableFields">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <TextBlock Grid.Row="0" Grid.Column="0" Text="物料编号 *" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="物料编号 *" Text="{Binding Header.Sku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="0" Grid.Column="2" Text="产品型号" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="0" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="产品型号" Text="{Binding Header.LinkSku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="0" Grid.Column="4" Text="颜色" VerticalAlignment="Center" Margin="0,0,8,8" />
+<productComponents:ProductColorLookupTextBox Grid.Row="0" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="颜色" Text="{Binding Header.Finish, Mode=OneWay}" ItemsSource="{Binding ReferenceDataCache.ProductColors}" SelectedColor="{Binding SelectedColor, Mode=TwoWay}" SelectionCommittedCommand="{Binding CommitColorCommand}" SelectionClearedCommand="{Binding ClearColorCommand}" />
+<TextBlock Grid.Row="1" Grid.Column="0" Text="物料类型" VerticalAlignment="Center" Margin="0,0,8,8" />
+<ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="物料类型" ItemsSource="{Binding MaterialTypes}" SelectedItem="{Binding Header.MaterialType, Mode=TwoWay}" />
+<TextBlock Grid.Row="1" Grid.Column="2" Text="供货方式" VerticalAlignment="Center" Margin="0,0,8,8" />
+<ComboBox Grid.Row="1" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="供货方式" ItemsSource="{Binding SupplyTypes}" SelectedItem="{Binding Header.SupplyType, Mode=TwoWay}" />
+<TextBlock Grid.Row="1" Grid.Column="4" Text="单位" VerticalAlignment="Center" Margin="0,0,8,8" />
+<controls:LookupTextBox Grid.Row="1" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="单位" ItemsSource="{Binding UnitCandidates}" Text="{Binding Header.Unit, Mode=OneWay}" SelectedItem="{Binding SelectedUnit, Mode=TwoWay}" DisplayMemberPath="DataNameEn" FilterMemberPaths="DataNameEn,DataNameZh" SearchMode="Local" RequireItemMatch="True" ClearSelectionOnEdit="False" SelectionCommittedCommand="{Binding CommitUnitCommand}" SelectionClearedCommand="{Binding ClearUnitCommand}" />
+<TextBlock Grid.Row="2" Grid.Column="0" Text="人民币参考价" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="人民币参考价" Text="{Binding Header.CnyPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue='', ValidatesOnExceptions=True}"  />
+<TextBlock Grid.Row="2" Grid.Column="2" Text="美元参考价" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="2" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="美元参考价" Text="{Binding Header.UsdPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue='', ValidatesOnExceptions=True}"  />
+<TextBlock Grid.Row="2" Grid.Column="4" Text="单品重量 (KG)" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="2" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="单品重量 (KG)" Text="{Binding Header.UnitWeight, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue='', ValidatesOnExceptions=True}"  />
+<TextBlock Grid.Row="3" Grid.Column="0" Text="单品体积 (CBM)" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="单品体积 (CBM)" Text="{Binding Header.UnitCbm, Mode=TwoWay, UpdateSourceTrigger=LostFocus, TargetNullValue='', ValidatesOnExceptions=True}"  />
+<TextBlock Grid.Row="3" Grid.Column="2" Text="默认供应商" VerticalAlignment="Center" Margin="0,0,8,8" />
+<supplierComponents:SupplierLookupTextBox Grid.Row="3" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="默认供应商" Text="{Binding Header.SupplierName, Mode=OneWay}" ItemsSource="{Binding SupplierCandidates}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}" IsBusy="{Binding IsSupplierLookupBusy}" SearchCommand="{Binding SearchSuppliersCommand}" SelectionCommittedCommand="{Binding CommitSupplierCommand}" SelectionClearedCommand="{Binding ClearSupplierCommand}" />
+<TextBlock Grid.Row="3" Grid.Column="4" Text="制造商" VerticalAlignment="Center" Margin="0,0,8,8" />
+<supplierComponents:SupplierLookupTextBox Grid.Row="3" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="制造商" Text="{Binding Header.ManufacturerName, Mode=OneWay}" ItemsSource="{Binding ManufacturerCandidates}" SelectedSupplier="{Binding SelectedManufacturer, Mode=TwoWay}" IsBusy="{Binding IsManufacturerLookupBusy}" SearchCommand="{Binding SearchManufacturersCommand}" SelectionCommittedCommand="{Binding CommitManufacturerCommand}" SelectionClearedCommand="{Binding ClearManufacturerCommand}" />
+<TextBlock Grid.Row="4" Grid.Column="0" Text="制造商型号" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="4" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="制造商型号" Text="{Binding Header.ManufacturerModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="4" Grid.Column="2" Text="参考仓库" VerticalAlignment="Center" Margin="0,0,8,8" />
+<warehouseComponents:WarehouseAutoSuggestComboBox Grid.Row="4" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="参考仓库" Text="{Binding Header.DefaultWarehouseCode, Mode=OneWay}" ItemsSource="{Binding WarehouseCandidates}" SelectedWarehouse="{Binding SelectedWarehouse, Mode=TwoWay}" SelectionCommittedCommand="{Binding CommitWarehouseCommand}" SelectionClearedCommand="{Binding ClearWarehouseCommand}" />
+<TextBlock Grid.Row="4" Grid.Column="4" Text="图片地址" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="4" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="图片地址" Text="{Binding Header.MainImage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="5" Grid.Column="0" Text="中文描述" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="5" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="中文描述" Text="{Binding Header.DescriptionZh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="5" Grid.Column="2" Text="英文描述" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="5" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="英文描述" Text="{Binding Header.DescriptionEn, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="5" Grid.Column="4" Text="备注" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="5" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="备注" Text="{Binding Header.Note, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<TextBlock Grid.Row="6" Grid.Column="0" Text="中文配置" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="6" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="中文配置" Text="{Binding Header.FeaturesZh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+<TextBlock Grid.Row="6" Grid.Column="2" Text="英文配置" VerticalAlignment="Center" Margin="0,0,8,8" />
+<TextBox Grid.Row="6" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="英文配置" Text="{Binding Header.FeaturesEn, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+      </Grid>
+      <Border Grid.Column="2" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" Padding="8" VerticalAlignment="Top">
+       <controls:CachedImage Width="208" Height="208" Style="{StaticResource SwiftExportCachedImage}" SourcePath="{Binding Header.MainImage}" DecodePixelWidth="800" Stretch="Uniform" AutomationProperties.Name="物料图片预览"/>
+      </Border>
+     </Grid>
+    </ui:Card>
+    <ui:Card Margin="0,8,0,0">
+     <StackPanel>
+      <TextBlock Text="来源与包装参考" FontWeight="SemiBold" Margin="0,0,0,8"/>
+      <WrapPanel>
+       <StackPanel Margin="0,0,32,8"><TextBlock Text="来源主型号" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding Source.MasterSku, TargetNullValue=未关联}" AutomationProperties.Name="只读来源主型号"/></StackPanel>
+       <StackPanel Margin="0,0,32,8"><TextBlock Text="分类" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding Source.CategoryName}"/></StackPanel>
+       <StackPanel Margin="0,0,32,8"><TextBlock Text="属性模板（来自主型号）" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding TemplateStatus}" AutomationProperties.Name="只读物料属性模板"/></StackPanel>
+       <StackPanel Margin="0,0,32,8"><TextBlock Text="状态" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding SourceStatus}"/></StackPanel>
+      </WrapPanel>
+      <WrapPanel>
+       <TextBlock Text="每箱数量：" /><TextBlock Text="{Binding Source.PcsOfCarton, TargetNullValue=未设置}" Margin="0,0,24,0"/>
+       <TextBlock Text="箱净重 (KG)：" /><TextBlock Text="{Binding Source.NwOfCarton, TargetNullValue=未设置}" Margin="0,0,24,0"/>
+       <TextBlock Text="箱毛重 (KG)：" /><TextBlock Text="{Binding Source.GwOfCarton, TargetNullValue=未设置}" Margin="0,0,24,0"/>
+       <TextBlock Text="箱体积 (CBM)：" /><TextBlock Text="{Binding Source.CbmOfCarton, TargetNullValue=未设置}"/>
+      </WrapPanel>
+     </StackPanel>
+    </ui:Card>
+    <TextBlock Text="标签属性" FontWeight="SemiBold" Margin="0,16,0,0"/>
+    <productComponents:ProductAttributeEditor Workspace="{Binding Tags}" CanEdit="{Binding CanEditTags}" RefreshCommand="{Binding RefreshProductAttributesCommand}" Height="320" AutomationProperties.Name="物料独立标签值编辑"/>
+   </StackPanel>
+  </ScrollViewer>
+  <StackPanel Grid.Row="4"><TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource UserBusinessTextWarningBrush}"/></StackPanel>
+ </Grid>
 </UserControl>

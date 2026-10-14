@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -22,7 +22,6 @@ public sealed partial class DictionaryManagerViewModel
     : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
     private readonly ISysDictTypeApi _dictTypeApi;
-    private readonly ISysDictDataApi _dictDataApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
@@ -34,10 +33,13 @@ public sealed partial class DictionaryManagerViewModel
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private CancellationTokenSource? _queryCancellation;
     private string? _selectionBeforeNew;
+    private readonly string? _sessionUserId;
+    private bool _sessionEnded;
 
+    /// <summary>类型编辑由父页面负责，明细编辑交给独立子工作区。</summary>
     public DictionaryManagerViewModel(
         ISysDictTypeApi dictTypeApi,
-        ISysDictDataApi dictDataApi,
+        DictionaryDataEditorViewModel values,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
@@ -45,28 +47,25 @@ public sealed partial class DictionaryManagerViewModel
         ICurrentUserService currentUser)
     {
         _dictTypeApi = dictTypeApi;
-        _dictDataApi = dictDataApi;
+        Values = values;
+        Values.PropertyChanged += OnValuesChanged;
+        PropertyChanged += OnOwnStateChanged;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
         _referenceDataCache = referenceDataCache;
         _currentUser = currentUser;
+        _sessionUserId = currentUser.CurrentUser?.UserId;
         _currentUser.CurrentUserChanged += OnCurrentUserChanged;
 
         Title = "字典管理";
-        Lines = new BaseListModel<DictionaryDataLineModel, SysDictDataDto>(
-            _ => new DictionaryDataLineModel());
-        Lines.PropertyChanged += OnLinesPropertyChanged;
+
 
         RegisterBusyAwareCommand(SelectDictionaryCommand);
         RegisterBusyAwareCommand(AddDictionaryTypeCommand);
         RegisterBusyAwareCommand(SaveDictionaryTypeCommand);
         RegisterBusyAwareCommand(DeleteDictionaryTypeCommand);
         RegisterBusyAwareCommand(RejectDictionaryTypeChangesCommand);
-        RegisterBusyAwareCommand(AddRowCommand);
-        RegisterBusyAwareCommand(DeleteSelectedCommand);
-        RegisterBusyAwareCommand(SaveCommand);
-        RegisterBusyAwareCommand(RejectAllChangesCommand);
         RegisterBusyAwareCommand(RefreshCommand);
     }
 
@@ -74,7 +73,18 @@ public sealed partial class DictionaryManagerViewModel
     public ObservableCollection<DictionaryTypeItemModel> Dictionaries { get; } = [];
 
     /// <summary>获取当前字典的可编辑值列表。</summary>
-    public BaseListModel<DictionaryDataLineModel, SysDictDataDto> Lines { get; }
+    public BaseListModel<DictionaryDataLineModel, SysDictDataDto> Lines => Values.Lines;
+
+    /// <summary>独立明细编辑工作区，固定类型页面也使用同一实现。</summary>
+    public DictionaryDataEditorViewModel Values { get; }
+    /// <summary>明细新增交由子工作区维护。</summary>
+    public IRelayCommand AddRowCommand => Values.AddRowCommand;
+    /// <summary>明细删除交由子工作区维护删除池。</summary>
+    public IAsyncRelayCommand DeleteSelectedCommand => Values.DeleteSelectedCommand;
+    /// <summary>明细保存交由子工作区核对回执。</summary>
+    public IAsyncRelayCommand SaveCommand => Values.SaveCommand;
+    /// <summary>明细撤销不影响类型编辑。</summary>
+    public IRelayCommand RejectAllChangesCommand => Values.RejectCommand;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddRowCommand))]
@@ -89,9 +99,8 @@ public sealed partial class DictionaryManagerViewModel
     [NotifyPropertyChangedFor(nameof(IsTypeEditorReadOnly))]
     public partial DictionaryTypeEditModel? TypeEditor { get; private set; }
 
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
-    public partial DictionaryDataLineModel? SelectedLine { get; set; }
+    /// <summary>保留宿主当前明细选择入口，编辑状态由子工作区持有。</summary>
+    public DictionaryDataLineModel? SelectedLine { get => Values.SelectedLine; set => Values.SelectedLine = value; }
 
     [ObservableProperty]
     public partial string ResultSummary { get; set; } = "尚未加载字典。";
@@ -100,13 +109,15 @@ public sealed partial class DictionaryManagerViewModel
 
     public bool HasUnsavedChanges => Lines.HasChanges || TypeEditor?.IsDirty == true;
 
-    public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationSummary);
+    /// <summary>明细反馈在共享组件内展示，父页面仅显示类型反馈。</summary>
+    public bool HasValidationError => !string.IsNullOrWhiteSpace(ValidationSummary) && !Values.HasValidationError;
 
     public bool HasTypeEditor => TypeEditor is not null;
 
     public bool IsTypeEditorReadOnly => TypeEditor?.IsProtected != false;
 
-    public bool CanEditValues => SelectedDictionary?.IsConfigured == true
+    /// <summary>服务端有效类型无需先落库，已有干净类型快照即可维护其明细。</summary>
+    public bool CanEditValues => SelectedDictionary is not null
         && TypeEditor is { IsNew: false, IsDirty: false };
 
     public bool IsValueEditorReadOnly => !CanEditValues
@@ -116,7 +127,10 @@ public sealed partial class DictionaryManagerViewModel
 
     /// <summary>指示字典写入是否正在执行；执行期间独立窗口不能关闭。</summary>
     [ObservableProperty]
-    public partial bool IsWriting { get; private set; }
+    public partial bool IsTypeWriting { get; private set; }
+
+    /// <summary>类型和明细写入任一执行时，宿主均不得关闭。</summary>
+    public bool IsWriting => IsTypeWriting || Values.IsWriting;
 
     /// <summary>首次显示时加载字典类型和默认字典值；重复调用不会重复加载。</summary>
     public async Task InitializeAsync()
@@ -133,6 +147,7 @@ public sealed partial class DictionaryManagerViewModel
     /// <summary>检查是否可以关闭宿主；存在未保存变更时向用户确认放弃。</summary>
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
+        if (IsBusy || Values.IsWorking || Values.CommitPendingEdits?.Invoke() == false) return false;
         if (!HasUnsavedChanges)
         {
             return true;
@@ -148,6 +163,7 @@ public sealed partial class DictionaryManagerViewModel
     /// <summary>离开缓存字典页时，确认后恢复已加载快照，避免返回页面再保存已放弃的修改。</summary>
     public async Task<bool> CanLeavePageAsync(CancellationToken cancellationToken)
     {
+        if (IsBusy || Values.IsWorking || Values.CommitPendingEdits?.Invoke() == false) return false;
         if (!HasUnsavedChanges) return true;
         if (!await _dialogService.ConfirmAsync("放弃未保存变更",
                 "字典类型或字典值有未保存的修改，确定离开页面吗？", "放弃并离开",
@@ -156,7 +172,7 @@ public sealed partial class DictionaryManagerViewModel
         if (TypeEditor?.IsNew == true)
         {
             SetTypeEditor(null);
-            Lines.Clear();
+            Values.ClearContext();
             SelectedLine = null;
             _isInitialized = false;
         }
@@ -198,7 +214,7 @@ public sealed partial class DictionaryManagerViewModel
 
         _selectionBeforeNew = SelectedDictionary?.Code;
         SetSelectedDictionary(null);
-        Lines.Clear();
+        Values.ClearContext();
         SelectedLine = null;
 
         var editor = new DictionaryTypeEditModel();
@@ -224,6 +240,7 @@ public sealed partial class DictionaryManagerViewModel
     [RelayCommand(CanExecute = nameof(CanSaveDictionaryType))]
     private async Task SaveDictionaryTypeAsync()
     {
+        if (!CanSaveDictionaryType() || Values.CommitPendingEdits?.Invoke() == false) return;
         var editor = TypeEditor;
         if (editor is null || editor.IsProtected)
         {
@@ -274,6 +291,7 @@ public sealed partial class DictionaryManagerViewModel
             var result = await _apiCallRunner.RunAsync(
                 () => _dictTypeApi.BatchSaveAsync(request),
                 "保存字典类型失败");
+            if (!IsCurrentSession) return;
             if (!result.Success)
             {
                 SetValidationFeedback(result.Message);
@@ -291,6 +309,7 @@ public sealed partial class DictionaryManagerViewModel
     [RelayCommand(CanExecute = nameof(CanDeleteDictionaryType))]
     private async Task DeleteDictionaryTypeAsync()
     {
+        if (!CanDeleteDictionaryType() || Values.CommitPendingEdits?.Invoke() == false) return;
         var editor = TypeEditor;
         if (editor is null || editor.IsProtected)
         {
@@ -337,6 +356,7 @@ public sealed partial class DictionaryManagerViewModel
             var result = await _apiCallRunner.RunAsync(
                 () => _dictTypeApi.BatchSaveAsync(request),
                 "删除字典类型失败");
+            if (!IsCurrentSession) return;
             if (!result.Success)
             {
                 SetValidationFeedback(result.Message);
@@ -370,140 +390,6 @@ public sealed partial class DictionaryManagerViewModel
         UpdateChangeState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanAddDictionaryValue))]
-    private void AddRow()
-    {
-        var dictionary = SelectedDictionary;
-        if (dictionary is null)
-        {
-            return;
-        }
-
-        var line = Lines.AddNew(new SysDictDataDto
-        {
-            Uid = Guid.Empty,
-            DictCode = dictionary.Code,
-            DataNameEn = string.Empty,
-            DataNameZh = string.Empty,
-            SortOrder = (Lines.Items.Max(x => x.SortOrder) ?? 0) + 10,
-            IsEnabled = true,
-            IsSystem = false
-        });
-
-        SelectedLine = line;
-        UpdateChangeState();
-    }
-
-    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
-    private async Task DeleteSelectedAsync()
-    {
-        var line = SelectedLine;
-        if (line is null || line.IsSystem)
-        {
-            return;
-        }
-
-        var displayName = string.IsNullOrWhiteSpace(line.DataNameZh)
-            ? line.DataNameEn
-            : line.DataNameZh;
-        var confirmed = await _dialogService.ConfirmAsync(
-            "删除字典值",
-            $"确定删除“{displayName}”吗？保存前可以撤销。",
-            "删除");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        Lines.Remove(line);
-        SelectedLine = Lines.Items.FirstOrDefault();
-        UpdateChangeState();
-    }
-
-    [RelayCommand(CanExecute = nameof(CanSaveValues))]
-    private async Task SaveAsync()
-    {
-        await RunDictionaryWriteAsync(async () =>
-        {
-            var dictionary = SelectedDictionary;
-            if (dictionary is null || !CanEditValues)
-            {
-                return;
-            }
-
-            var validationError = await Lines.ValidateAllAsync();
-            if (!string.IsNullOrWhiteSpace(validationError))
-            {
-                SetValidationFeedback(validationError);
-                _messageService.ShowWarning("字典值未保存", validationError);
-                return;
-            }
-
-            var request = new SysDictDataBatchSaveRequest
-            {
-                CreateItems = Lines.AddedItems.Select(line =>
-                {
-                    var dto = line.ToDto();
-                    dto.DictCode = dictionary.Code;
-                    return new CreateItemRequest<SysDictDataDto>
-                    {
-                        ClientKey = $"new-{line.RowIndex}-{Guid.NewGuid():N}",
-                        RowIndex = line.RowIndex,
-                        Data = dto
-                    };
-                }).ToList(),
-                UpdateItems = Lines.ModifiedItems.Select(line =>
-                {
-                    var dto = line.ToDto();
-                    dto.DictCode = dictionary.Code;
-                    return new UpdateItemRequest<SysDictDataDto>
-                    {
-                        ClientKey = line.Uid.ToString("N"),
-                        RowIndex = line.RowIndex,
-                        Uid = line.Uid,
-                        Version = line.Version,
-                        Data = dto
-                    };
-                }).ToList(),
-                DeleteItems = Lines.DeletedItems
-                    .Where(line => line.Uid != Guid.Empty)
-                    .Select(line => new DeleteItemRequest
-                    {
-                        ClientKey = line.Uid.ToString("N"),
-                        RowIndex = line.RowIndex,
-                        Uid = line.Uid,
-                        Version = line.Version,
-                        IsSoftDelete = true
-                    }).ToList()
-            };
-
-            var result = await _apiCallRunner.RunAsync(
-                () => _dictDataApi.BatchSaveAsync(request),
-                "保存字典值失败");
-            if (!result.Success)
-            {
-                SetValidationFeedback(result.Message);
-                _messageService.ShowError("保存字典值失败", result.Message);
-                return;
-            }
-
-            _messageService.ShowSuccess(
-                "字典值已保存",
-                $"已提交 {result.Data?.SuccessCount ?? 0} 条变更。");
-            await LoadDictionaryDataAsync(dictionary);
-            await RefreshDictionaryCacheAfterSaveAsync("字典值已保存，但缓存刷新失败");
-        }, "正在保存字典值...");
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRejectValueChanges))]
-    private void RejectAllChanges()
-    {
-        Lines.RejectChanges();
-        SelectedLine = Lines.Items.FirstOrDefault();
-        SetValidationFeedback(null);
-        UpdateChangeState();
-    }
-
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
@@ -516,6 +402,7 @@ public sealed partial class DictionaryManagerViewModel
         await RunBusyAsync(() => LoadDictionaryTypesAsync(selectedCode), "正在刷新字典...");
     }
 
+    /// <summary>使用服务端完整类型清单；内置类型的名称、身份和缺失回退均由服务端提供。</summary>
     private async Task LoadDictionaryTypesAsync(string? preferredCode = null)
     {
         var (version, cancellationToken) = BeginQuery();
@@ -539,29 +426,20 @@ public sealed partial class DictionaryManagerViewModel
         var allTypes = result.Data ?? [];
         Dictionaries.Clear();
 
-        foreach (var code in DictCodes.DictCodeList)
-        {
-            var type = allTypes.FirstOrDefault(item =>
-                string.Equals(item.DictCode, code, StringComparison.OrdinalIgnoreCase));
-            Dictionaries.Add(new DictionaryTypeItemModel(code, GetFallbackName(code), type));
-        }
-
-        var additionalTypes = allTypes
-            .Where(type => !DictCodes.DictCodeList.Contains(type.DictCode, StringComparer.OrdinalIgnoreCase))
+        var visibleTypes = allTypes
             // 旧品质分类数据保留供迁移追溯，维护入口已由独立分类树接管，不能从附加类型重新出现。
             .Where(type => !string.Equals(type.DictCode?.TrimEnd(' '), DictCodes.AfterSalesQualityCategory,
                 StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(type => type.IsSystem)
-            .ThenBy(type => type.DictName, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(type => type.IsBuiltIn)
+            .ThenBy(type => type.SortOrder)
             .ThenBy(type => type.DictCode, StringComparer.OrdinalIgnoreCase);
-        foreach (var type in additionalTypes)
+        foreach (var type in visibleTypes)
         {
-            Dictionaries.Add(new DictionaryTypeItemModel(type.DictCode, type.DictName, type));
+            Dictionaries.Add(new DictionaryTypeItemModel(type));
         }
 
         var selected = Dictionaries.FirstOrDefault(item =>
                 string.Equals(item.Code, preferredCode, StringComparison.OrdinalIgnoreCase))
-            ?? Dictionaries.FirstOrDefault(item => item.IsConfigured)
             ?? Dictionaries.FirstOrDefault();
         if (selected is not null)
         {
@@ -571,61 +449,30 @@ public sealed partial class DictionaryManagerViewModel
         {
             SetSelectedDictionary(null);
             SetTypeEditor(null);
-            Lines.Clear();
+            Values.ClearContext();
             ResultSummary = "暂无字典类型。";
             UpdateChangeState();
         }
     }
 
+    /// <summary>选择有效类型并加载明细；不因类型尚无数据库记录而阻断维护。</summary>
     private async Task ActivateDictionaryAsync(DictionaryTypeItemModel item)
     {
         SetSelectedDictionary(item);
-        Lines.Clear();
+        Values.ClearContext();
         SelectedLine = null;
 
-        if (!item.IsConfigured)
-        {
-            SetTypeEditor(null);
-            SetValidationFeedback($"系统字典类型 {item.Code} 尚未配置，请联系管理员处理。");
-            ResultSummary = "字典类型未配置。";
-            UpdateChangeState();
-            return;
-        }
-
         var editor = new DictionaryTypeEditModel();
-        editor.Load(item.Data!);
+        editor.Load(item.Data);
         SetTypeEditor(editor);
         await LoadDictionaryDataAsync(item);
     }
 
+    /// <summary>激活独立明细工作区，不复制 API、保存或删除池逻辑。</summary>
     private async Task LoadDictionaryDataAsync(DictionaryTypeItemModel item)
     {
-        var (version, cancellationToken) = BeginQuery();
-        var result = await _apiCallRunner.RunAsync(
-            () => _dictDataApi.GetByCodeAsync(item.Code).WaitAsync(cancellationToken),
-            cancellationToken,
-            "加载字典值失败");
-        if (!CanAcceptQuery(version, cancellationToken))
-        {
-            return;
-        }
-
-        if (!result.Success)
-        {
-            Lines.Clear();
-            SelectedLine = null;
-            SetValidationFeedback(result.Message);
-            ResultSummary = $"{item.Name}加载失败。";
-            _messageService.ShowError("加载字典值失败", result.Message);
-            UpdateChangeState();
-            return;
-        }
-
-        Lines.LoadFromDtos(result.Data ?? []);
-        SelectedLine = Lines.Items.FirstOrDefault();
-        SetValidationFeedback(null);
-        ResultSummary = $"{item.Name}共 {Lines.Items.Count} 个字典值。";
-        AcceptChanges();
+        await Values.ActivateAsync(item.Code, item.Name);
+        ResultSummary = Values.StatusMessage;
         UpdateChangeState();
     }
 
@@ -647,6 +494,7 @@ public sealed partial class DictionaryManagerViewModel
 
     private async Task<bool> EnsureCanDiscardAllChangesAsync(string message)
     {
+        if (IsBusy || Values.IsWorking || Values.CommitPendingEdits?.Invoke() == false) return false;
         if (!HasUnsavedChanges)
         {
             return true;
@@ -660,6 +508,7 @@ public sealed partial class DictionaryManagerViewModel
 
     private async Task<bool> EnsureCanDiscardValueChangesAsync(string message)
     {
+        if (IsBusy || Values.IsWorking || Values.CommitPendingEdits?.Invoke() == false) return false;
         if (!Lines.HasChanges)
         {
             return true;
@@ -703,12 +552,16 @@ public sealed partial class DictionaryManagerViewModel
 
     private void UpdateChangeState()
     {
+        Values.ContextEditable = CanEditValues;
+        Values.HostBusy = IsBusy || IsTypeWriting;
         IsDirty = HasUnsavedChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(CanEditValues));
         OnPropertyChanged(nameof(IsValueEditorReadOnly));
         OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(IsWriting));
         AddDictionaryTypeCommand.NotifyCanExecuteChanged();
+        SelectDictionaryCommand.NotifyCanExecuteChanged();
         SaveDictionaryTypeCommand.NotifyCanExecuteChanged();
         DeleteDictionaryTypeCommand.NotifyCanExecuteChanged();
         RejectDictionaryTypeChangesCommand.NotifyCanExecuteChanged();
@@ -716,16 +569,20 @@ public sealed partial class DictionaryManagerViewModel
         SaveCommand.NotifyCanExecuteChanged();
         RejectAllChangesCommand.NotifyCanExecuteChanged();
         DeleteSelectedCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
     }
 
-    private void OnLinesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnValuesChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (e.PropertyName is nameof(BaseListModel<DictionaryDataLineModel, SysDictDataDto>.HasChanges)
-            or nameof(BaseListModel<DictionaryDataLineModel, SysDictDataDto>.CheckedCount))
-        {
-            UpdateChangeState();
-        }
+        if (args.PropertyName == nameof(DictionaryDataEditorViewModel.ValidationSummary))
+            SetValidationFeedback(Values.ValidationSummary);
+        if (args.PropertyName == nameof(DictionaryDataEditorViewModel.StatusMessage)) ResultSummary = Values.StatusMessage;
+        if (args.PropertyName is nameof(DictionaryDataEditorViewModel.HasUnsavedChanges) or nameof(DictionaryDataEditorViewModel.IsWorking)
+            or nameof(DictionaryDataEditorViewModel.IsWriting)) UpdateChangeState();
     }
+
+    private void OnOwnStateChanged(object? sender, PropertyChangedEventArgs args)
+    { if (args.PropertyName is nameof(IsBusy) or nameof(IsTypeWriting)) UpdateChangeState(); }
 
     private void OnTypeEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -741,48 +598,36 @@ public sealed partial class DictionaryManagerViewModel
         }
     }
 
-    partial void OnSelectedLineChanged(DictionaryDataLineModel? value)
-    {
-        DeleteSelectedCommand.NotifyCanExecuteChanged();
-    }
+    private bool CanSelectDictionary(DictionaryTypeItemModel? item) => item is not null && IsNotBusy && !Values.IsWorking && IsCurrentSession;
 
-    private bool CanSelectDictionary(DictionaryTypeItemModel? item) => item is not null && IsNotBusy;
-
-    private bool CanAddDictionaryType() => CanWrite && IsNotBusy && HasDictionaryPermission("Create");
+    private bool CanAddDictionaryType() => CanWrite && IsNotBusy && !Values.IsWorking && HasDictionaryPermission("Create");
 
     private bool CanSaveDictionaryType() => CanWrite
-        && IsNotBusy
+        && IsNotBusy && !Values.IsWorking
         && TypeEditor is { IsDirty: true, IsProtected: false } editor
         && HasDictionaryPermission(editor.IsNew ? "Create" : "Edit");
 
     private bool CanDeleteDictionaryType() => CanWrite
-        && IsNotBusy
+        && IsNotBusy && !Values.IsWorking
         && TypeEditor is { IsProtected: false } editor
         && (editor.IsNew || HasDictionaryPermission("Delete"));
 
-    private bool CanRejectDictionaryTypeChanges() => IsNotBusy && TypeEditor?.IsDirty == true;
-
-    private bool CanWriteDictionaryValues() => CanWrite && IsNotBusy && CanEditValues;
-
-    /// <summary>字典值新建只要求创建能力，避免将读取或编辑误当新增权限。</summary>
-    private bool CanAddDictionaryValue() => CanWriteDictionaryValues() && HasDictionaryPermission("Create");
-
-    private bool CanDeleteSelected() => CanWriteDictionaryValues() && HasDictionaryPermission("Delete")
-        && SelectedLine is { IsSystem: false };
-
-    private bool CanSaveValues() => CanWriteDictionaryValues() && Lines.HasChanges
-        && (!Lines.AddedItems.Any() || HasDictionaryPermission("Create"))
-        && (!Lines.ModifiedItems.Any() || HasDictionaryPermission("Edit"))
-        && (!Lines.DeletedItems.Any(item => item.Uid != Guid.Empty) || HasDictionaryPermission("Delete"));
+    private bool CanRejectDictionaryTypeChanges() => IsNotBusy && !Values.IsWorking && TypeEditor?.IsDirty == true;
 
     /// <summary>以当前 me 快照控制字典写按钮；后端仍逐操作重验授权。</summary>
-    private bool HasDictionaryPermission(string operation) => _currentUser.HasPermission($"System.Dictionary.{operation}");
+    private bool HasDictionaryPermission(string operation) => IsCurrentSession && _currentUser.HasPermission($"System.Dictionary.{operation}");
 
-    private void OnCurrentUserChanged(object? sender, EventArgs e) => UpdateChangeState();
+    private bool IsCurrentSession => !_isDisposed && !_sessionEnded && _currentUser.IsAuthenticated
+        && _currentUser.CurrentUser?.UserId == _sessionUserId && _currentUser.HasPermission("System.Dictionary.View");
 
-    private bool CanRejectValueChanges() => IsNotBusy && Lines.HasChanges;
+    private void OnCurrentUserChanged(object? sender, EventArgs e)
+    {
+        if (!_currentUser.IsAuthenticated || _currentUser.CurrentUser?.UserId != _sessionUserId) _sessionEnded = true;
+        if (!IsCurrentSession) { _queryCancellation?.Cancel(); Interlocked.Increment(ref _queryVersion); }
+        UpdateChangeState();
+    }
 
-    private bool CanRefresh() => IsNotBusy;
+    private bool CanRefresh() => IsNotBusy && !Values.IsWorking && IsCurrentSession;
 
     private async Task RunDictionaryWriteAsync(Func<Task> action, string busyMessage)
     {
@@ -791,14 +636,14 @@ public sealed partial class DictionaryManagerViewModel
             return;
         }
 
-        IsWriting = true;
+        IsTypeWriting = true;
         try
         {
             await RunWriteAsync(action, busyMessage);
         }
         finally
         {
-            IsWriting = false;
+            IsTypeWriting = false;
         }
     }
 
@@ -814,7 +659,7 @@ public sealed partial class DictionaryManagerViewModel
 
     private bool CanAcceptQuery(long version, CancellationToken token)
     {
-        return !_isDisposed
+        return IsCurrentSession
             && !token.IsCancellationRequested
             && version == Volatile.Read(ref _queryVersion);
     }
@@ -834,20 +679,13 @@ public sealed partial class DictionaryManagerViewModel
         _queryCancellation?.Dispose();
         _queryCancellation = null;
         _lifetimeCancellation.Dispose();
-        Lines.PropertyChanged -= OnLinesPropertyChanged;
+        Values.PropertyChanged -= OnValuesChanged;
+        Values.Dispose();
+        PropertyChanged -= OnOwnStateChanged;
         if (TypeEditor is not null)
         {
             TypeEditor.PropertyChanged -= OnTypeEditorPropertyChanged;
         }
     }
 
-    private static string GetFallbackName(string code) => code switch
-    {
-        DictCodes.CustomerType => "客户类型",
-        DictCodes.Incoterm => "国际贸易术语",
-        DictCodes.PaymentMethod => "付款方式",
-        DictCodes.ShippedBy => "运输方式",
-        DictCodes.Unit => "计量单位",
-        _ => code
-    };
 }

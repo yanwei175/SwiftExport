@@ -173,14 +173,12 @@ public sealed class ProductCategoryManagerViewModelTests
     {
         public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto()));
-        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid categoryId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto { CategoryId = categoryId }));
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetProfileDefinitionsAsync(Guid profileId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto { ProfileId = profileId }));
         /// <summary>分类页不发起标签维护写入。</summary>
         public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync(SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
-            throw new AssertFailedException("分类保存不应提交标签定义。");
     }
 
     private sealed class DirectApiCallRunner : IApiCallRunner

@@ -35,21 +35,9 @@ export type DictionaryItemRow = EditableRow<DictionaryItemValues> & {
   readonly source: DictionaryItem;
 };
 
-const protectedCodes = new Set(
-  [
-    "CustomerType",
-    "Incoterm",
-    "PaymentMethod",
-    "ShippedBy",
-    "Unit",
-    "FlowTestFunction",
-    "FlowLimiterSpecification",
-  ].map((code) => code.toLowerCase()),
-);
-
-/** 对齐当前后端系统字典保护；不能因历史 IsSystem 标记错误而允许删改系统编码。 */
+/** 内置身份由服务端目录给出，旧系统标记继续保护历史类型，不在页面复制编码目录。 */
 export function isProtectedDictionaryType(type: DictionaryType): boolean {
-  return type.isSystem === true || isSystemDictionaryCode(type.dictCode);
+  return type.isBuiltIn === true || type.isSystem === true;
 }
 
 /** 旧品质字典仅供迁移追溯；沿用现有 WPF 维护入口的排除范围。 */
@@ -57,14 +45,23 @@ export function isVisibleDictionaryType(type: DictionaryType): boolean {
   return type.dictCode?.trimEnd().toLowerCase() !== "aftersalesqualitycategory";
 }
 
-/** 当前后端稳定编码集的精确匹配，只用于字典业务保护，不推测权限。 */
-export function isSystemDictionaryCode(
-  code: string | null | undefined,
-): boolean {
-  return protectedCodes.has(code?.trim().toLowerCase() ?? "");
+/** 内置明细和历史系统明细均不能删除；EXW 等历史项不因此被当作内置项。 */
+export function isProtectedDictionaryItem(item: DictionaryItem): boolean {
+  return item.isBuiltIn === true || item.isSystem === true;
 }
 
-/** 从服务器快照提取全部可写字段；Uid、Version、IsSystem 和审计字段不参与编辑。 */
+/** 仅内置明细固定业务身份及启用状态，显示字段与普通自定义明细仍可维护。 */
+export function isDictionaryItemFieldEditable(
+  item: DictionaryItem,
+  field: keyof DictionaryItemValues,
+): boolean {
+  return (
+    item.isBuiltIn !== true ||
+    !["dictCode", "dataNameEn", "isEnabled"].includes(field)
+  );
+}
+
+/** 从服务器快照提取字段当前值；身份、内置标记及审计字段不参与编辑。 */
 export function projectDictionaryItemValues(
   item: DictionaryItem,
 ): DictionaryItemValues {
@@ -79,7 +76,7 @@ export function projectDictionaryItemValues(
   };
 }
 
-/** 把读取快照变成独立编辑基线；拒绝无身份、无版本或重复身份的残缺响应。 */
+/** 内置零版本也建立干净的既有基线；首次编辑仍派生修改，不转成本地新增。 */
 export function createDictionaryItemRows(
   items: readonly DictionaryItem[],
 ): DictionaryItemRow[] {
@@ -87,7 +84,7 @@ export function createDictionaryItemRows(
   return items.map((item) => {
     if (
       !isDictionaryUid(item.uid) ||
-      !isDictionaryVersion(item.version) ||
+      !isDictionarySnapshotVersion(item.version, item.isBuiltIn) ||
       seen.has(item.uid.toLowerCase())
     )
       throw new Error("字典项快照缺少唯一身份或有效基线版本。");
@@ -116,12 +113,21 @@ export function createDictionaryItemRow(
   };
 }
 
-/** 复用公共修改算法并保留额外的只读 DTO 快照，不另造增改删状态机。 */
+/** 修改前核对内置固定字段，随后复用公共集合并保留只读 DTO，不另造状态机。 */
 export function updateDictionaryItemRows(
   rows: readonly DictionaryItemRow[],
   clientKey: string,
   patch: Partial<DictionaryItemValues>,
 ): DictionaryItemRow[] {
+  const target = rows.find((row) => row.clientKey === clientKey);
+  for (const field of ["dictCode", "dataNameEn", "isEnabled"] as const)
+    if (
+      target &&
+      Object.hasOwn(patch, field) &&
+      !isDictionaryItemFieldEditable(target.source, field) &&
+      patch[field] !== target.baseline[field]
+    )
+      throw new Error("内置字典项的英文代码、所属类型和启用状态不能修改。");
   return preserveSources(updateEditableRow(rows, clientKey, patch), rows);
 }
 
@@ -131,7 +137,11 @@ export function removeDictionaryItemRows(
   clientKey: string,
 ): DictionaryItemRow[] {
   const target = rows.find((row) => row.clientKey === clientKey);
-  if (target?.origin !== "created" && target?.source.isSystem === true)
+  if (
+    target &&
+    target.origin !== "created" &&
+    isProtectedDictionaryItem(target.source)
+  )
     throw new Error("系统字典项不能删除。");
   return preserveSources(removeEditableRow(rows, clientKey), rows);
 }
@@ -204,6 +214,14 @@ export function isDictionaryUid(value: unknown): value is string {
 /** Version 为服务端正 Int32 并发凭据，前端不从显示状态推算。 */
 export function isDictionaryVersion(value: unknown): value is number {
   return typeof value === "number" && isInt32(value) && value > 0;
+}
+
+/** 零版本只表示服务端识别的未落库内置项；普通字典仍须提供正并发版本。 */
+export function isDictionarySnapshotVersion(
+  value: unknown,
+  isBuiltIn: boolean | undefined,
+): value is number {
+  return isDictionaryVersion(value) || (value === 0 && isBuiltIn === true);
 }
 
 /** 系统 DTO 使用 Int32，不能仅以 JavaScript safe integer 作为合法传输条件。 */

@@ -10,9 +10,10 @@ import {
 import type { RequestFacts } from "../../../../shared/api/请求执行";
 import {
   isDictionaryUid,
-  isDictionaryVersion,
+  isDictionarySnapshotVersion,
+  isDictionaryItemFieldEditable,
+  isProtectedDictionaryItem,
   isProtectedDictionaryType,
-  isSystemDictionaryCode,
   projectDictionaryItemValues,
   validateDictionaryType,
   validateDictionaryItemValues,
@@ -106,25 +107,24 @@ export function freezeDictionaryType(input: {
       : crypto.randomUUID();
     current.version = 0;
     current.isSystem = false;
+    current.isBuiltIn = false;
   } else {
     if (
       !baseline ||
       !isDictionaryUid(baseline.uid) ||
-      !isDictionaryVersion(baseline.version)
+      !isDictionarySnapshotVersion(baseline.version, baseline.isBuiltIn)
     )
       throw new Error("类型修改或删除缺少原服务器身份和版本。");
     current.uid = baseline.uid;
     current.version = baseline.version;
     current.isSystem = baseline.isSystem;
-    if (input.operation === "delete" && isProtectedDictionaryType(baseline))
-      throw new Error("系统字典类型不能删除。");
-    if (
-      input.operation === "update" &&
-      isSystemDictionaryCode(baseline.dictCode) &&
-      current.dictCode?.toLowerCase() !==
-        baseline.dictCode?.trim().toLowerCase()
-    )
-      throw new Error("系统字典编码不能修改。");
+    current.isBuiltIn = baseline.isBuiltIn;
+    if (isProtectedDictionaryType(baseline))
+      throw new Error(
+        input.operation === "delete"
+          ? "系统字典类型不能删除。"
+          : "系统字典类型只读，不能修改。",
+      );
   }
   if (input.operation !== "delete") {
     const error = validateDictionaryType(current);
@@ -187,18 +187,20 @@ export function freezeDictionaryItems(
       data: projectSubmittedItem(byKey.get(row.clientKey)!, true),
     })),
     updateItems: changes.updated.map((row) => {
-      requireExistingIdentity(row.uid, row.version);
+      const source = byKey.get(row.clientKey)!;
+      // 未落库内置项使用原稳定身份和零版本提交 Update，不能改走 Create。
+      requireExistingIdentity(row.uid, row.version, source.source.isBuiltIn);
       return {
         clientKey: row.clientKey,
         rowIndex: rows.indexOf(byKey.get(row.clientKey)!) + 1,
         uid: row.uid,
         version: row.version,
-        data: projectSubmittedItem(byKey.get(row.clientKey)!, false),
+        data: projectSubmittedItem(source, false),
       };
     }),
     deleteItems: changes.deleted.map((row) => {
       requireExistingIdentity(row.uid, row.version);
-      if (byKey.get(row.clientKey)!.source.isSystem === true)
+      if (isProtectedDictionaryItem(byKey.get(row.clientKey)!.source))
         throw new Error("系统字典项不能删除。");
       return {
         clientKey: row.clientKey,
@@ -235,9 +237,7 @@ export function acceptDictionaryTypeBatch(
     ...structuredClone(frozen.current),
     uid: receipt.uid!,
     version: receipt.newVersion!,
-    isSystem:
-      frozen.current.isSystem === true ||
-      isSystemDictionaryCode(frozen.current.dictCode),
+    isSystem: frozen.current.isSystem === true,
     isDeleted: false,
   };
 }
@@ -337,6 +337,13 @@ function projectSubmittedItem(
 ): DictionaryItem {
   const error = validateDictionaryItemValues(row.current);
   if (error) throw new Error(error);
+  // 冻结前复核保护字段，防止其他编辑入口绕过表格的逐列只读限制。
+  for (const field of ["dictCode", "dataNameEn", "isEnabled"] as const)
+    if (
+      !isDictionaryItemFieldEditable(row.source, field) &&
+      row.current[field] !== row.baseline[field]
+    )
+      throw new Error("内置字典项的英文代码、所属类型和启用状态不能修改。");
   const values: DictionaryItemValues = {
     ...row.current,
     dictCode: row.current.dictCode.trim(),
@@ -351,12 +358,17 @@ function projectSubmittedItem(
     uid: created ? "00000000-0000-0000-0000-000000000000" : row.uid,
     version: created ? 0 : row.version,
     isSystem: created ? false : row.source.isSystem === true,
+    isBuiltIn: created ? false : row.source.isBuiltIn === true,
   };
 }
 
-/** 修改和软删除必须使用既有基线身份；Version 不足以由本地补成 1。 */
-function requireExistingIdentity(uid: string, version: number): void {
-  if (!isDictionaryUid(uid) || !isDictionaryVersion(version))
+/** 仅内置修改接受服务端零版本；删除和普通修改仍需要真实正版本，不能在本地补成 1。 */
+function requireExistingIdentity(
+  uid: string,
+  version: number,
+  isBuiltIn = false,
+): void {
+  if (!isDictionaryUid(uid) || !isDictionarySnapshotVersion(version, isBuiltIn))
     throw new Error("字典项缺少有效的服务器身份或基线版本。");
 }
 
@@ -442,9 +454,16 @@ function requireCompleteReceipt(
       // 当前 PG UpdateAsync 先提高实体 Version，再把它写入 OldVersion；不能假定它等于请求版本。
       const expectedVersion =
         submitted.operation === "Update" ? version + 1 : version;
+      // 首次内置保存实际新增覆盖记录，但业务回执保持 Update 与原 Uid，旧版本明确为零。
+      const firstBuiltInSave =
+        submitted.operation === "Update" &&
+        version === 0 &&
+        "data" in submitted &&
+        isRecord(submitted.data) &&
+        submitted.data.isBuiltIn === true;
       if (
         value.newVersion !== expectedVersion ||
-        value.oldVersion !== expectedVersion
+        value.oldVersion !== (firstBuiltInSave ? 0 : expectedVersion)
       )
         throw new Error("字典保存回执版本与当前端点契约不匹配。");
     }
@@ -479,6 +498,7 @@ function exportRequest(
     return {
       uid: value.uid,
       version: value.version,
+      isBuiltIn: value.isBuiltIn,
       dictCode: value.dictCode,
       dictName: fields.dictName,
       parentId: fields.parentId,

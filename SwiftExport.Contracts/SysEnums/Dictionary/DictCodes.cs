@@ -22,11 +22,18 @@ namespace SwiftExport.Contracts.SysEnums
         /// <summary>流量测试限流器规格字典编码；包含明确的不限流选项。</summary>
         public const string FlowLimiterSpecification = "FlowLimiterSpecification";
 
-        // 以下业务字段不属于通用字典值，只保留仍被运行时查询使用的稳定编码。
-        public const string ProductType = "ProductType"; // 当前使用固定物料类型枚举。
-        public const string IncotermSortRemark = "IncotermSortRemark"; // 业务自由文本。
-        public const string IncotermLocation = "IncotermLocation"; // 业务自由文本。
+        /// <summary>产品属性模板的内置类型编码；模板明细由用户在字典中维护，不预置具体模板。</summary>
+        public const string ProductAttributeProfile = "ProductAttributeProfile";
 
+        /// <summary>产品系列的内置类型编码；系列明细由用户维护，不预置具体系列。</summary>
+        public const string ProductSeries = "ProductSeries";
+
+        /// <summary>条款备注建议的内置类型编码；业务字段保存自由文本，不要求命中字典明细。</summary>
+        public const string IncotermSortRemark = "IncotermSortRemark";
+        /// <summary>条款地点建议的内置类型编码；业务字段保存自由文本，不要求命中字典明细。</summary>
+        public const string IncotermLocation = "IncotermLocation";
+
+        /// <summary>当前支持的系统字典类型编码，包含可由用户维护明细的建议类型。</summary>
         public static List<string> DictCodeList => new List<string>
         {
             CustomerType,
@@ -35,7 +42,11 @@ namespace SwiftExport.Contracts.SysEnums
             ShippedBy,
             Unit,
             FlowTestFunction,
-            FlowLimiterSpecification
+            FlowLimiterSpecification,
+            IncotermLocation,
+            IncotermSortRemark,
+            ProductAttributeProfile,
+            ProductSeries
         };
     }
 }

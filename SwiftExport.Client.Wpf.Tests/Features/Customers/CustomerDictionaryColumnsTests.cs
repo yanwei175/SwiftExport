@@ -396,7 +396,7 @@ public sealed class CustomerDictionaryColumnsTests
         /// <inheritdoc />
         public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto> ProductAttributeGroups { get; } = new([]);
         /// <inheritdoc />
-        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductCategoryAttributeGroupDto> ProductAttributeCategoryRelations { get; } = new([]);
+        public ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeProfileGroupDto> ProductAttributeProfileRelations { get; } = new([]);
         /// <inheritdoc />
         public ProductAttributeResolution ResolveProductAttributes(Guid categoryId) => new(false, "测试未提供标签定义。", [], []);
         /// <inheritdoc />

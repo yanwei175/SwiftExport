@@ -1,22 +1,30 @@
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Reflection;
-using System.Xml.Linq;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
 using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Suppliers.Components;
+using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证详情页供应商选择、显式清空和撤销同步；控件焦点行为由 Lookup 专项测试验证。</summary>
+/// <summary>验证详情供应商缓存身份恢复、显式提交、清空及真实本地选择控件接线。</summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class ProductMasterSupplierEditingTests
 {
     /// <summary>新候选只在提交后改头部，清空不接纳其他草稿，撤销恢复原选择。</summary>
@@ -28,7 +36,8 @@ public sealed class ProductMasterSupplierEditingTests
         vm.Header.Load(original);
         vm.RejectDetailChangesCommand.Execute(null);
         Assert.AreEqual(original.Master.DefaultSupplierId, vm.SelectedSupplier!.Uid);
-        vm.Header.ProductSeries = "未保存系列";
+        var unsavedSeriesId = Guid.NewGuid();
+        vm.Header.ProductSeriesId = unsavedSeriesId;
         var selected = new SupplierDto { Uid = Guid.NewGuid(), SupplierName = "新供应商" };
         vm.SelectedSupplier = selected;
         Assert.AreEqual(original.Master.DefaultSupplierId, vm.Header.DefaultSupplierId);
@@ -39,7 +48,7 @@ public sealed class ProductMasterSupplierEditingTests
         Assert.AreEqual(Guid.Empty, vm.Header.DefaultSupplierId);
         Assert.AreEqual(string.Empty, vm.Header.DefaultSupplierName);
         Assert.IsNull(vm.SelectedSupplier);
-        Assert.AreEqual("未保存系列", vm.Header.ProductSeries);
+        Assert.AreEqual(unsavedSeriesId, vm.Header.ProductSeriesId);
         Assert.IsNull(vm.Header.ValidateRow(), "供应商仍是可选资料。");
         Assert.IsTrue(vm.HasUnsavedChanges);
         vm.RejectDetailChangesCommand.Execute(null);
@@ -95,21 +104,62 @@ public sealed class ProductMasterSupplierEditingTests
         Assert.IsFalse(vm.HasUnsavedChanges);
     }
 
-    /// <summary>页面仍用通用控件并显式启用保留选择、名称展示和清空命令。</summary>
+    /// <summary>真实供应商控件绑定完整缓存，搜索不写业务字段，键盘确认和清空写回原供应商字段。</summary>
     [TestMethod]
-    public void View_ShouldPreserveSelectionAndWireExplicitClear()
+    public void CachedSupplierEditor_ShouldSearchLocallyAndCommitOnlyConfirmedCandidate()
     {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "AGENTS.md"))) root = root.Parent;
-        Assert.IsNotNull(root);
-        var view = XDocument.Load(Path.Combine(root.FullName, "SwiftExport.Client.Wpf", "Features", "Products", "ProductList", "Views", "ProductMasterDetailView.xaml"));
-        var lookup = view.Descendants().Single(node => node.Name.LocalName == "LookupTextBox"
-            && (string?)node.Attribute("SelectedItem") == "{Binding SelectedSupplier, Mode=TwoWay}");
-        Assert.AreEqual("False", (string?)lookup.Attribute("ClearSelectionOnEdit"));
-        Assert.AreEqual("SupplierName", (string?)lookup.Attribute("DisplayMemberPath"));
-        Assert.AreEqual("{Binding Header.DefaultSupplierName, Mode=OneWay}", (string?)lookup.Attribute("Text"));
-        Assert.AreEqual("{Binding ClearSupplierCommand}", (string?)lookup.Attribute("SelectionClearedCommand"));
-        Assert.AreEqual("{Binding CommitSupplierCommand}", (string?)lookup.Attribute("SelectionCommittedCommand"));
+        StaTest.RunAsync(async () =>
+        {
+            var original = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "SUP-001", SupplierName = "原供应商" };
+            var next = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "SUP-002", SupplierName = "新供应商" };
+            using var vm = CreateVm(suppliers: [original, next]);
+            vm.Header.Load(new ProductMasterDetailDto { Uid = Guid.NewGuid(), Version = 1,
+                DefaultSupplierName = original.SupplierName, Master = new() { MasterSku = "M", DefaultSupplierId = original.Uid } });
+            vm.RejectDetailChangesCommand.Execute(null);
+            Assert.AreSame(original, vm.SelectedSupplier, "回填按 Uid 匹配完整缓存对象，供应商编码不能丢失。");
+            var lookup = new SupplierAutoSuggestComboBox { DataContext = vm };
+            lookup.SetBinding(SupplierAutoSuggestComboBox.ItemsSourceProperty, new Binding(nameof(vm.SupplierOptions)));
+            lookup.SetBinding(SupplierAutoSuggestComboBox.SelectedSupplierProperty,
+                new Binding(nameof(vm.SelectedSupplier)) { Mode = BindingMode.TwoWay });
+            lookup.SetBinding(SupplierAutoSuggestComboBox.SelectionCommittedCommandProperty, new Binding(nameof(vm.CommitSupplierCommand)));
+            lookup.SetBinding(SupplierAutoSuggestComboBox.SelectionClearedCommandProperty, new Binding(nameof(vm.ClearSupplierCommand)));
+            var window = new Window { Content = lookup, Width = 460, Height = 180, ShowInTaskbar = false, WindowStyle = WindowStyle.None };
+            try
+            {
+                window.Show(); window.Activate();
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                var editor = (LookupTextBox)lookup.FindName("LookupEditor");
+                Assert.AreEqual(LookupTextBoxSearchMode.Local, editor.SearchMode);
+                Assert.IsTrue(editor.ShowDropDownButton);
+                Assert.IsTrue(editor.RequireItemMatch);
+                Assert.AreSame(original, editor.SelectedItem);
+                editor.SearchDelay = TimeSpan.FromMilliseconds(20);
+                editor.FocusEditor();
+                await Dispatcher.Yield(DispatcherPriority.Input);
+                var input = (TextBox)editor.FindName("InputTextBox");
+                input.Text = "SUP-002";
+                await Task.Delay(80);
+                var list = (ListBox)editor.FindName("ResultList");
+                Assert.AreEqual(1, list.Items.Count);
+                Assert.AreSame(next, list.Items[0]);
+                Assert.AreEqual(original.Uid, vm.Header.DefaultSupplierId);
+                Assert.IsFalse(vm.HasUnsavedChanges);
+                list.SelectedItem = next;
+                input.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(input)!,
+                    Environment.TickCount, Key.Enter) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+                Assert.AreSame(next, vm.SelectedSupplier);
+                Assert.AreEqual(next.Uid, vm.Header.ToWriteDto().DefaultSupplierId);
+                Assert.AreEqual(next.SupplierName, vm.Header.DefaultSupplierName);
+                ((Button)editor.FindName("BtnClear")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.AreEqual(Guid.Empty, vm.Header.DefaultSupplierId);
+                Assert.IsNull(vm.SelectedSupplier);
+                vm.RejectDetailChangesCommand.Execute(null);
+                await Dispatcher.Yield(DispatcherPriority.DataBind);
+                Assert.AreSame(original, editor.SelectedItem);
+                Assert.IsFalse(vm.HasUnsavedChanges);
+            }
+            finally { window.Close(); }
+        });
     }
 
     private static ProductMasterDetailDto Detail() => new()
@@ -118,11 +168,17 @@ public sealed class ProductMasterSupplierEditingTests
         Master = new() { MasterSku = "M", DefaultSupplierId = Guid.NewGuid() }
     };
 
-    private static ProductMasterDetailViewModel CreateVm(IProductMasterApi? api = null) => new(
-        api!, null!, Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke()),
+    /// <summary>提供稳定的只读供应商集合，允许详情订阅与释放缓存变化，不请求远程供应商接口。</summary>
+    private static ProductMasterDetailViewModel CreateVm(IProductMasterApi? api = null, SupplierDto[]? suppliers = null)
+    {
+        var supplierCache = new ReadOnlyObservableCollection<SupplierDto>(new ObservableCollection<SupplierDto>(suppliers ?? []));
+        return new(
+        api!, Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke()),
         Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
         {
             "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
+            "get_Suppliers" => supplierCache,
+            nameof(IReferenceDataCacheService.GetDictionaryValues) => Array.Empty<SysDictDataDto>(),
             "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>(new ObservableCollection<SwiftExport.Contracts.DTOs.Products.Attributes.ProductAttributeGroupDto>()),
             "get_AreProductAttributesLoaded" => false,
                 nameof(IReferenceDataCacheService.ResolveProductAttributes) => new ProductAttributeResolution(true, string.Empty, [], []),
@@ -130,6 +186,7 @@ public sealed class ProductMasterSupplierEditingTests
             _ => throw new AssertFailedException(method.Name)
         }),
         Proxy<IMessageService>((_, _) => null), null!, null!, new ProductMasterSyncDialogStub());
+    }
 
     private static T Proxy<T>(Func<MethodInfo, object?[], object?> invoke) where T : class
     {

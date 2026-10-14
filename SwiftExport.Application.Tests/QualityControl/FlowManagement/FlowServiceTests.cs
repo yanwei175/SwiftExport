@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Services.QualityControl.FlowManagement;
+using SwiftExport.Application.Services.Systems.Dictionaries;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.QualityControl.FlowManagement;
@@ -26,6 +27,78 @@ namespace SwiftExport.Application.Tests.QualityControl.FlowManagement;
 [TestClass]
 public sealed class FlowServiceTests
 {
+    /// <summary>空字典存储直接采用代码默认项；流量保存只写头行，不要求先插入类型或明细。</summary>
+    [TestMethod]
+    public async Task EmptyDictionaryUsesBuiltInDefaultsWithoutInitializingStorage()
+    {
+        var f = new Fixture();
+        f.Dictionary.Clear();
+        var function = BuiltInDictionaryCatalog.Data.Single(x => x.DictCode == DictCodes.FlowTestFunction);
+        var limiter = BuiltInDictionaryCatalog.Data.Single(x => x.DictCode == DictCodes.FlowLimiterSpecification);
+        var dto = f.Edit();
+        dto.Lines = [f.Line(function.Uid, limiter.Uid)];
+        var result = await f.Service.CreateAsync(new() { Data = dto });
+        Assert.IsTrue(result.Success, result.Message);
+        var line = result.Data.Detail.Lines.Single();
+        Assert.AreEqual(function.Uid, line.FunctionId);
+        Assert.AreEqual(limiter.Uid, line.LimiterSpecificationId);
+        Assert.AreEqual("Default", line.FunctionNameSnapshot);
+        Assert.AreEqual("不限流", line.LimiterSpecificationNameSnapshot);
+        Assert.HasCount(0, f.Dictionary);
+        Assert.AreEqual(2, f.Writes);
+        Assert.AreEqual(1, f.Commits);
+    }
+
+    /// <summary>内置业务键存在旧 Guid 时保留原身份和显示配置，过期代码默认 Guid 必须拒绝，不能静默改关联。</summary>
+    [TestMethod]
+    [DataRow(false)] [DataRow(true)]
+    public async Task StoredBuiltInIdentityWinsAndStaleDefaultIdentityIsRejected(bool stale)
+    {
+        var f = new Fixture();
+        f.Dictionary[f.Function].DataNameZh = "现存默认功能";
+        f.Dictionary[f.Limiter].DataNameEn = "Unlimited";
+        f.Dictionary[f.Limiter].DataNameZh = "现存不限流规格";
+        var dto = f.Edit();
+        if (stale)
+            dto.Lines[0].FunctionId = BuiltInDictionaryCatalog.Data.Single(x => x.DictCode == DictCodes.FlowTestFunction).Uid;
+        var result = await f.Service.CreateAsync(new() { Data = dto });
+        Assert.AreEqual(!stale, result.Success, result.Message);
+        if (stale)
+        {
+            Assert.AreEqual(ServiceErrorCodes.Validation, result.Error.Code);
+            Assert.AreEqual(0, f.Writes);
+            return;
+        }
+        var line = result.Data.Detail.Lines.Single();
+        Assert.AreEqual(f.Function, line.FunctionId);
+        Assert.AreEqual(f.Limiter, line.LimiterSpecificationId);
+        Assert.AreEqual("现存默认功能", line.FunctionNameSnapshot);
+        Assert.AreEqual("现存不限流规格", line.LimiterSpecificationNameSnapshot);
+    }
+
+    /// <summary>停用或软删除的内置记录通过目录回退供采用，保留旧身份；读取不恢复数据库标记。</summary>
+    [TestMethod]
+    [DataRow(false)] [DataRow(true)]
+    public async Task InvalidStoredBuiltInFlagsUseDefaultsWithoutMutatingStorage(bool deleted)
+    {
+        var f = new Fixture();
+        f.Dictionary[f.Function].IsDeleted = deleted;
+        f.Dictionary[f.Function].IsEnabled = false;
+        f.Dictionary[f.Function].DataNameZh = "旧异常配置";
+        f.Dictionary[f.Limiter].DataNameEn = "Unlimited";
+        f.Dictionary[f.Limiter].IsEnabled = false;
+        var result = await f.Service.CreateAsync(new() { Data = f.Edit() });
+        Assert.IsTrue(result.Success, result.Message);
+        var line = result.Data.Detail.Lines.Single();
+        Assert.AreEqual(f.Function, line.FunctionId);
+        Assert.AreEqual(f.Limiter, line.LimiterSpecificationId);
+        Assert.AreEqual("Default", line.FunctionNameSnapshot);
+        Assert.AreEqual("不限流", line.LimiterSpecificationNameSnapshot);
+        Assert.AreEqual(deleted, f.Dictionary[f.Function].IsDeleted);
+        Assert.IsFalse(f.Dictionary[f.Function].IsEnabled);
+        Assert.AreEqual("旧异常配置", f.Dictionary[f.Function].DataNameZh);
+    }
+
     /// <summary>同物料允许多组，组内不同功能可选不同限流器，两套压力列与零值都准确保留。</summary>
     [TestMethod]
     public async Task MultipleGroupsAndBothPressureFamilies()
@@ -440,8 +513,9 @@ public sealed class FlowServiceTests
             return name switch
             {
                 "ReadMaterialAsync" => Task.FromResult((Guid)args[0]! == Material.Uid && !Material.IsDeleted ? Clone(Material) : null),
-                "ReadDictionaryItemsAsync" => Task.FromResult<IReadOnlyList<SysDictData>>(((IEnumerable<Guid>)args[0]!).Distinct()
-                    .Where(id => Dictionary.ContainsKey(id) && !Dictionary[id].IsDeleted).Select(id => Clone(Dictionary[id])).ToArray()),
+                "ReadDictionaryItemsAsync" => Task.FromResult<IReadOnlyList<SysDictData>>(Dictionary.Values
+                    .Where(item => ((IEnumerable<Guid>)args[0]!).Contains(item.Uid)
+                        || BuiltInDictionaryCatalog.IsBuiltIn(item)).Select(Clone).ToArray()),
                 "ReadHeaderAsync" => Task.FromResult(Clone(Headers.SingleOrDefault(x => x.Uid == (Guid)args[0]! && !x.IsDeleted))),
                 "ReadLinesAsync" => Task.FromResult<IReadOnlyList<FlowLine>>(Clone(Lines.Where(x => x.HeaderId == (Guid)args[0]! && !x.IsDeleted).OrderBy(x => x.Uid).ToArray())),
                 "GetDetailAsync" => Task.FromResult(ReadDetail((Guid)args[0]!)),

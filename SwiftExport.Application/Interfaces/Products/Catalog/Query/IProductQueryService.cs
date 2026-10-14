@@ -7,6 +7,8 @@ namespace SwiftExport.Application.Interfaces.Products.Catalog.Query;
 /// <summary>提供产品详情、SKU、分页和选择器的只读查询。</summary>
 public interface IProductQueryService
 {
+    /// <summary>读取可编辑物料详情、只读来源和本物料的标签选择。</summary>
+    Task<ServiceResult<ProductDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default);
     /// <summary>读取指定产品；缺失返回原有未找到契约。</summary>
     Task<ServiceResult<ProductDto>> GetByIdAsync(Guid uid);
     /// <summary>读取产品分页投影。</summary>

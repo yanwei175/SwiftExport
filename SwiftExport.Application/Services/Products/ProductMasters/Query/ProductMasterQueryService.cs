@@ -1,3 +1,4 @@
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Products.ProductNeutrals;
 using SwiftExport.Application.Interfaces.Products.ProductMasters.Query;
@@ -18,7 +19,7 @@ public sealed class ProductMasterQueryService(IProductMasterRepository masterRep
     {
         var page = await masterRepository.GetPagedAsync(request ?? new ProductMasterSearchRequest(), cancellationToken);
         // 当前页一次读取选择，不为每一行单独查询，也不把标签摘要回写产品类型或系列名。
-        var selected = (await attributes.GetSelectionDetailsAsync(page.Items.Select(row => row.Uid), cancellationToken)).ToLookup(row => row.ProductMasterId);
+        var selected = (await attributes.GetSelectionDetailsAsync(ProductAttributeOwnerType.ProductMaster, page.Items.Select(row => row.Uid), cancellationToken)).ToLookup(row => row.OwnerId);
         foreach (var row in page.Items)
             row.TagSummary = string.Join("；", selected[row.Uid].GroupBy(value => value.AttributeGroupId)
                 .OrderBy(group => group.First().GroupSortOrder).ThenBy(group => group.Key)
@@ -36,7 +37,7 @@ public sealed class ProductMasterQueryService(IProductMasterRepository masterRep
         if (detail is null)
             return ServiceResult<ProductMasterDetailDto>.Fail(ServiceErrorCodes.BusinessBlocked, "主型号不存在或已删除。");
         detail.Neutrals = (await neutralRepository.GetByProductMasterIdAsync(productMasterId, false, cancellationToken)).ToList();
-        detail.AttributeSelections = (await attributes.GetSelectionDetailsAsync([productMasterId], cancellationToken)).ToList();
+        detail.AttributeSelections = (await attributes.GetSelectionDetailsAsync(ProductAttributeOwnerType.ProductMaster, [productMasterId], cancellationToken)).ToList();
         detail.SelectedOptionIds = detail.AttributeSelections.Select(row => row.OptionId).ToList();
         return ServiceResult<ProductMasterDetailDto>.Ok(detail);
     }

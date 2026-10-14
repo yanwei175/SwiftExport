@@ -19,6 +19,7 @@
              xmlns:staticEnums="clr-namespace:SwiftExport.Contracts.SysEnums.StaticEnums;assembly=SwiftExport.Contracts"
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
              PreviewKeyDown="Root_PreviewKeyDown"
+             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:ProductsViewModel}"
              d:Height="800" d:Width="1300">
@@ -92,6 +93,10 @@
                                    Content="新增"
                                    ToolTip="新增产品">
                         </ui:Button>
+
+                        <ui:Button Margin="0,0,8,0" MinWidth="70" Content="编辑"
+                                   Command="{Binding OpenDetailCommand}"
+                                   ToolTip="打开当前物料详情" AutomationProperties.Name="编辑当前物料详情" />
 
                         <ui:Button Margin="0,0,8,0" MinWidth="70"
                                    Appearance="Success"
@@ -216,6 +221,8 @@
             <controls:RightDrawerHost.MainContent>
                 <Grid>
                     <DataGrid ItemsSource="{Binding Products.Items}"
+                          Loaded="OnProductGridLoaded" Unloaded="OnProductGridUnloaded"
+                          IsEnabled="{Binding IsNotBusy}"
                           Style="{StaticResource SwiftExportDataGrid}"
                           RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"

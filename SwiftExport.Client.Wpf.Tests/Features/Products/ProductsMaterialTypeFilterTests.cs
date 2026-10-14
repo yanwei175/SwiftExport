@@ -126,6 +126,10 @@ public sealed class ProductsMaterialTypeFilterTests
 
 
         public Task<ServiceResult<ProductDto>> GetByIdAsync(Guid id) => NotSupported<ProductDto>();
+        /// <summary>此列表筛选夹具不提供物料详情读取。</summary>
+        public Task<ServiceResult<ProductDetailDto>> GetDetailAsync(Guid id, CancellationToken cancellationToken = default) => NotSupported<ProductDetailDto>();
+        /// <summary>此列表筛选夹具不提供物料详情写入。</summary>
+        public Task<ServiceResult<SaveProductDetailResponse>> SaveDetailAsync(Guid id, SaveProductDetailRequest request, CancellationToken cancellationToken = default) => NotSupported<SaveProductDetailResponse>();
 
         public Task<ServiceResult<Guid>> CreateAsync(ProductDto request) => NotSupported<Guid>();
 

@@ -20,6 +20,10 @@ using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Core.Interfaces.Inventory.Warehouses;
 using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.Core.Interfaces.Products.Colors;
+using SwiftExport.Core.Interfaces.Products.Attributes;
+using SwiftExport.Core.Interfaces.Products.ProductMasters;
+using SwiftExport.Contracts.DTOs.Products.Attributes;
+using Mapster;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
 using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 
@@ -27,7 +31,7 @@ namespace SwiftExport.Application.Tests.MasterData;
 
 /// <summary>通过真实产品服务验证单项及批量保存的 BOM 边界；局部事务仅验证编排，不代替实库并发验收。</summary>
 [TestClass]
-public sealed class ProductBomSaveBoundaryTests
+public sealed partial class ProductBomSaveBoundaryTests
 {
     /// <summary>无 BOM 产品可绑定合法共享组成，或准备全新空编号；只保存产品，不复制或改写组成。</summary>
     [TestMethod]
@@ -597,10 +601,16 @@ public sealed class ProductBomSaveBoundaryTests
     private static T Clone<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;
 
     /// <summary>局部 fake 只提供实际保存所需仓储读写，事务会恢复完整产品及 BOM 快照。</summary>
-    private sealed class Fixture
+    private sealed partial class Fixture
     {
         public Dictionary<Guid, Product> Products { get; } = [];
         public Dictionary<Guid, Bom> Boms { get; } = [];
+        public Dictionary<Guid, ProductAttributeSelection> Selections { get; } = [];
+        public Dictionary<Guid, ProductMaster> Masters { get; } = [];
+        public Dictionary<Guid, SysDictData> Profiles { get; } = [];
+        public List<ProductAttributeGroupDto> Groups { get; } = [];
+        public List<string> DetailLockTrace { get; } = [];
+        public bool FailSelectionWrite { get; set; }
         public HashSet<Guid> DatabaseMatchedCurrentLineIds { get; } = [];
         public List<(string Operation, Product Row)> Writes { get; } = [];
         public SessionStub Session { get; }
@@ -619,7 +629,7 @@ public sealed class ProductBomSaveBoundaryTests
         /// <summary>所有仓储共享同一会话；没有引用资料时任何额外颜色、供应商、仓库查询均视为越界。</summary>
         public Fixture()
         {
-            Session = new(Products, Boms);
+            Session = new(Products, Boms, Selections);
             Service = new(Proxy<IProductRepository>(ProductCall), new ServiceBaseContext(Session, new FaultLoggerFactory(_logger)),
                 Proxy<IProductColorRepository>(Unexpected), Proxy<ISupplierRepository>(Unexpected),
                 Proxy<IWarehouseQueryRepository>(Unexpected), Proxy<IBomRepository>(BomCall),
@@ -628,7 +638,7 @@ public sealed class ProductBomSaveBoundaryTests
                     Record();
                     Assert.AreEqual(nameof(ISysDictDataRepository.GetByCodeAsync), name);
                     return Task.FromResult<IReadOnlyList<SysDictData>>([]);
-                }));
+                }), Proxy<IProductAttributeRepository>(AttributeCall), Proxy<IProductMasterRepository>(MasterCall));
         }
 
         /// <summary>建立可选当前 BOM 身份；默认版本五用于区别 wrapper 与 DTO 伪造版本。</summary>
@@ -699,7 +709,18 @@ public sealed class ProductBomSaveBoundaryTests
                     return Task.FromResult<IReadOnlyList<Product>>(Products.Values.Where(x => ids.Contains(x.Uid) && !x.IsDeleted).Select(Clone).ToArray());
                 case nameof(IProductRepository.GetByIdAsync):
                     var product = Products.GetValueOrDefault((Guid)args[0]!);
+                    if (args.Length > 1 && args[1] is true) DetailLockTrace.Add("product");
                     return Task.FromResult(product is null || product.IsDeleted ? null : Clone(product));
+                case nameof(IProductRepository.GetDetailAsync):
+                    var detailProduct = Products[(Guid)args[0]!];
+                    var master = detailProduct.ProductMasterId.HasValue ? Masters.GetValueOrDefault(detailProduct.ProductMasterId.Value) : null;
+                    return Task.FromResult<ProductDetailDto?>(new ProductDetailDto
+                    {
+                        Uid = detailProduct.Uid, Version = detailProduct.Version, Data = detailProduct.Adapt<ProductDetailWriteDto>(),
+                        ProductMasterId = detailProduct.ProductMasterId, MasterSku = detailProduct.MasterSku,
+                        IsActive = detailProduct.IsActive, BomNo = detailProduct.BomNo, BomVersion = detailProduct.BomVersion,
+                        ProductAttributeProfileId = master?.ProductAttributeProfileId
+                    });
                 case nameof(IProductRepository.GetBySkuListAsync):
                     var skus = ((IEnumerable<string>)args[0]!).ToHashSet(StringComparer.OrdinalIgnoreCase);
                     return Task.FromResult<IReadOnlyList<Product>>(Products.Values.Where(x => !x.IsDeleted && skus.Contains(x.Sku)).Select(Clone).ToArray());
@@ -812,9 +833,10 @@ public sealed class ProductBomSaveBoundaryTests
     }
 
     /// <summary>共享请求会话，仅用于记录事务，不提供数据库或异常重试。</summary>
-    private sealed class SessionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms) : IDbSession, IDatabaseExceptionClassifier
+    private sealed class SessionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms,
+        Dictionary<Guid, ProductAttributeSelection> selections) : IDbSession, IDatabaseExceptionClassifier
     {
-        public ConnectionStub ConnectionStub { get; } = new(products, boms);
+        public ConnectionStub ConnectionStub { get; } = new(products, boms, selections);
         public IDbConnection Connection => ConnectionStub;
         public IDbTransaction? Transaction { get; set; }
         public IDatabaseExceptionClassifier Errors => this;
@@ -824,7 +846,8 @@ public sealed class ProductBomSaveBoundaryTests
     }
 
     /// <summary>只提供记录型事务，禁止执行 SQL；每次开始捕获全部持久事实。</summary>
-    private sealed class ConnectionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms) : IDbConnection
+    private sealed class ConnectionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms,
+        Dictionary<Guid, ProductAttributeSelection> selections) : IDbConnection
     {
         public int Begins;
         public TransactionStub? Last;
@@ -841,7 +864,7 @@ public sealed class ProductBomSaveBoundaryTests
         {
             Begins++;
             if (FailBegin) throw new InvalidOperationException("受控事务创建失败");
-            return Last = new(products, boms, this);
+            return Last = new(products, boms, selections, this);
         }
         /// <summary>显式隔离重载仍只记录生命周期，不声称验证数据库隔离。</summary>
         public IDbTransaction BeginTransaction(IsolationLevel isolationLevel)
@@ -867,10 +890,12 @@ public sealed class ProductBomSaveBoundaryTests
     }
 
     /// <summary>提交只记录计数，回滚恢复全部字段；不模拟 SQL 锁或实库并发。</summary>
-    private sealed class TransactionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms, ConnectionStub connection) : IDbTransaction
+    private sealed class TransactionStub(Dictionary<Guid, Product> products, Dictionary<Guid, Bom> boms,
+        Dictionary<Guid, ProductAttributeSelection> selections, ConnectionStub connection) : IDbTransaction
     {
         private readonly Dictionary<Guid, Product> _products = products.ToDictionary(x => x.Key, x => Clone(x.Value));
         private readonly Dictionary<Guid, Bom> _boms = boms.ToDictionary(x => x.Key, x => Clone(x.Value));
+        private readonly Dictionary<Guid, ProductAttributeSelection> _selections = selections.ToDictionary(x => x.Key, x => Clone(x.Value));
         public int Commits;
         public int Rollbacks;
         public int Disposals;
@@ -895,8 +920,10 @@ public sealed class ProductBomSaveBoundaryTests
             if (IsCommitted) return;
             products.Clear();
             boms.Clear();
+            selections.Clear();
             foreach (var pair in _products) products.Add(pair.Key, Clone(pair.Value));
             foreach (var pair in _boms) boms.Add(pair.Key, Clone(pair.Value));
+            foreach (var pair in _selections) selections.Add(pair.Key, Clone(pair.Value));
         }
         /// <summary>记录释放，用于核对保存入口未接管外层事务。</summary>
         public void Dispose()

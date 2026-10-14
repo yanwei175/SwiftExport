@@ -19,6 +19,10 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters
         /// <summary>当前保存的标签选项身份；失效引用仍保留，供详情编辑明确处理。</summary>
         public List<Guid> SelectedOptionIds { get; set; } = new List<Guid>();
         /// <summary>当前标签关系的实时名称、排序和有效状态。</summary>
-        public List<ProductMasterAttributeSelectionDto> AttributeSelections { get; set; } = new List<ProductMasterAttributeSelectionDto>();
+        public List<ProductAttributeSelectionDto> AttributeSelections { get; set; } = new List<ProductAttributeSelectionDto>();
+        /// <summary>属性模板的实时显示名称。</summary>
+        public string ProductAttributeProfileName { get; set; }
+        /// <summary>产品系列的实时字典显示名称；保存使用 Master.ProductSeriesId。</summary>
+        public string ProductSeriesName { get; set; }
     }
 }

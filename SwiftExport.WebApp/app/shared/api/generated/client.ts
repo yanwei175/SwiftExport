@@ -336,6 +336,7 @@ export interface SwiftExportContractsDTOsSystemDtosSysDictDataDto {
   /** @nullable */
   cssClass?: string | null;
   isSystem?: boolean;
+  isBuiltIn?: boolean;
   isEnabled?: boolean;
   uid?: string;
   version?: number;
@@ -365,6 +366,7 @@ export interface SwiftExportContractsDTOsSystemDtosSysDictTypeDto {
   /** @nullable */
   dictName?: string | null;
   isSystem?: boolean;
+  isBuiltIn?: boolean;
   /** @nullable */
   remark?: string | null;
   /** @nullable */

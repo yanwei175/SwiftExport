@@ -19,6 +19,19 @@ namespace SwiftExport.WebApi.Controllers.Products.Catalog;
 public sealed class ProductController(IProductQueryService query, IProductMaintenanceService maintenance,
     IProductMasterMaintenanceService masterMaintenance) : ControllerBase
 {
+    /// <summary>读取物料编辑详情与自身标签，来源模板由服务端解析。</summary>
+    [HttpGet("{id}/detail")]
+    public Task<ServiceResult<ProductDetailDto>> GetDetail(Guid id, CancellationToken cancellationToken) => query.GetDetailAsync(id, cancellationToken);
+
+    /// <summary>按物料预期版本保存可写资料和自身标签；路径与请求身份必须一致。</summary>
+    [HttpPost("{id}/detail")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<SaveProductDetailResponse>> SaveDetail(Guid id, [FromBody] SaveProductDetailRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null || id != request.ProductId)
+            return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail(ServiceErrorCodes.Validation, "路径 Id 与请求物料身份不一致。", "ProductId"));
+        return maintenance.SaveDetailAsync(request, cancellationToken);
+    }
     /// <summary>保留基础详情路由。</summary>
     [HttpGet("{id}")]
     public Task<ServiceResult<ProductDto>> GetById(Guid id) => query.GetByIdAsync(id);

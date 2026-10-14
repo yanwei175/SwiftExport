@@ -12,7 +12,7 @@ import { useSession } from "../../../shared/session/会话上下文";
 import { useDictionaryPermissions } from "./permissions";
 import {
   isDictionaryUid,
-  isDictionaryVersion,
+  isDictionarySnapshotVersion,
   isVisibleDictionaryType,
 } from "./model/字典模型";
 import type { DictionaryType, DictionaryItem } from "./model/字典模型";
@@ -32,7 +32,7 @@ export async function fetchDictionaryTypes(
   for (const item of response.data.data) {
     if (
       !isDictionaryUid(item.uid) ||
-      !isDictionaryVersion(item.version) ||
+      !isDictionarySnapshotVersion(item.version, item.isBuiltIn) ||
       !item.dictCode?.trim() ||
       !item.dictName?.trim() ||
       seen.has(item.uid.toLowerCase())
@@ -64,7 +64,7 @@ export async function fetchDictionaryItems(
   for (const item of response.data.data) {
     if (
       !isDictionaryUid(item.uid) ||
-      !isDictionaryVersion(item.version) ||
+      !isDictionarySnapshotVersion(item.version, item.isBuiltIn) ||
       item.dictCode?.trim().toLowerCase() !== code.toLowerCase() ||
       !item.dataNameEn?.trim() ||
       !item.dataNameZh?.trim() ||

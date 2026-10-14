@@ -11,6 +11,14 @@ namespace SwiftExport.Contracts.Apis.ProductApis
 {
     public interface IProductApi : IGenericApi<ProductDto>
     {
+        /// <summary>读取物料编辑详情和自身标签，不修改资料。</summary>
+        [Get("/{id}/detail")]
+        Task<ServiceResult<ProductDetailDto>> GetDetailAsync(System.Guid id, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>按物料版本原子保存可写资料与自身标签。</summary>
+        [Post("/{id}/detail")]
+        Task<ServiceResult<SaveProductDetailResponse>> SaveDetailAsync(System.Guid id, [Body] SaveProductDetailRequest request, CancellationToken cancellationToken = default(CancellationToken));
+
         // 1. 获取分类树
         [Get("/product-categories/tree")]
         Task<ServiceResult<List<ProductCategoryDto>>> GetCategoryTreeAsync();

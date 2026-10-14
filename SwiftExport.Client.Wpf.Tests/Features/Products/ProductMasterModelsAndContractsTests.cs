@@ -19,6 +19,62 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class ProductMasterModelsAndContractsTests
 {
+    /// <summary>清空可选模板必须跨写入、读取和撤销保留 null，且新版客户端明确提交契约版本。</summary>
+    [TestMethod]
+    public void AttributeProfile_ClearAndReject_ShouldPreserveNullableIdentityAndVersion()
+    {
+        var profileId = Guid.NewGuid();
+        var list = new ProductMasterListModel();
+        list.LoadFromDtos([new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1,
+            ProductAttributeProfileName = "顶喷", Data = new ProductMasterWriteDto { MasterSku = "M", ProductAttributeProfileId = profileId } }]);
+        var line = list.Items.Single();
+        line.ProductAttributeProfileId = null; line.ProductAttributeProfileName = string.Empty;
+        var request = list.CreateSaveRequest();
+        Assert.AreEqual(3, request.ContractVersion);
+        Assert.IsNull(request.UpdateItems.Single().Data.ProductAttributeProfileId);
+        list.RejectChanges(); Assert.AreEqual(profileId, line.ProductAttributeProfileId);
+        line.Load(new ProductMasterListItemDto { Uid = line.Uid, Version = 2, Data = new ProductMasterWriteDto { MasterSku = "M" } });
+        Assert.IsNull(line.ProductAttributeProfileId);
+    }
+
+    /// <summary>系列身份参与保存和撤销，联表名称只作显示；空身份加载必须清除上一条记录的身份。</summary>
+    [TestMethod]
+    public void ProductSeries_ShouldKeepNullableIdentityAndIgnoreDisplayNameChanges()
+    {
+        var id = Guid.NewGuid();
+        var seriesId = Guid.NewGuid();
+        var line = new ProductMasterLineModel();
+        line.Load(new ProductMasterListItemDto { Uid = id, Version = 1, ProductSeriesName = "原系列",
+            Data = new ProductMasterWriteDto { MasterSku = "M", ProductSeriesId = seriesId } });
+        var detail = new ProductMasterEditModel();
+        detail.Load(new ProductMasterDetailDto { Uid = id, Version = 1, ProductSeriesName = "原系列",
+            Master = new ProductMasterWriteDto { MasterSku = "M", ProductSeriesId = seriesId } });
+        line.ProductSeriesName = "系列更名";
+        detail.ProductSeriesName = "系列更名";
+        Assert.IsFalse(line.IsDirty);
+        Assert.IsFalse(detail.IsDirty);
+        Assert.AreEqual(seriesId, line.ToWriteDto().ProductSeriesId);
+        Assert.AreEqual(seriesId, detail.ToWriteDto().ProductSeriesId);
+        line.ProductSeriesId = null;
+        detail.ProductSeriesId = null;
+        Assert.IsTrue(line.IsDirty);
+        Assert.IsTrue(detail.IsDirty);
+        Assert.IsNull(line.ToWriteDto().ProductSeriesId);
+        Assert.IsNull(detail.ToWriteDto().ProductSeriesId);
+        line.RejectChanges();
+        detail.RejectChanges();
+        Assert.AreEqual(seriesId, line.ProductSeriesId);
+        Assert.AreEqual(seriesId, detail.ProductSeriesId);
+        line.Load(new ProductMasterListItemDto { Uid = id, Version = 2, Data = new ProductMasterWriteDto { MasterSku = "M" } });
+        detail.Load(new ProductMasterDetailDto { Uid = id, Version = 2, Master = new ProductMasterWriteDto { MasterSku = "M" } });
+        Assert.IsNull(line.ProductSeriesId);
+        Assert.IsNull(detail.ProductSeriesId);
+        Assert.AreEqual(string.Empty, line.ProductSeriesName);
+        Assert.AreEqual(string.Empty, detail.ProductSeriesName);
+        Assert.IsFalse(line.IsDirty);
+        Assert.IsFalse(detail.IsDirty);
+    }
+
     /// <summary>验证 Refit 路由及每个异步接口都保留取消参数。</summary>
     [TestMethod]
     public void ProductMasterApi_ShouldMatchControllerRoutesAndExposeCancellation()
@@ -55,15 +111,17 @@ public sealed class ProductMasterModelsAndContractsTests
         }]);
         var line = list.Items.Single();
         Assert.AreEqual(LineState.Unchanged, line.State);
-        line.ProductSeries = "极简系列";
+        var seriesId = Guid.NewGuid();
+        line.ProductSeriesId = seriesId;
+        line.ProductSeriesName = "极简系列";
         Assert.AreEqual(LineState.Modified, line.State);
         var request = list.CreateSaveRequest();
         Assert.AreEqual("MASTER-1", request.UpdateItems.Single().Data.MasterSku);
-        Assert.AreEqual("极简系列", request.UpdateItems.Single().Data.ProductSeries);
+        Assert.AreEqual(seriesId, request.UpdateItems.Single().Data.ProductSeriesId);
         Assert.AreEqual(categoryId, request.UpdateItems.Single().Data.CategoryId);
         line.RejectChanges();
         Assert.AreEqual(LineState.Unchanged, line.State);
-        Assert.AreEqual(string.Empty, line.ProductSeries);
+        Assert.IsNull(line.ProductSeriesId);
     }
 
     /// <summary>验证保存成功但刷新失败时仍保留服务端主键和版本。</summary>

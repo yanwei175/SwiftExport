@@ -111,6 +111,7 @@ export const permissionKeys = [
   "System.ExchangeRate.View",
   "System.Files.Manage",
   "System.Numbering.Issue",
+  "System.Parameters.Manage",
   "System.Permissions.View",
   "System.Roles.Manage",
   "System.Roles.View",

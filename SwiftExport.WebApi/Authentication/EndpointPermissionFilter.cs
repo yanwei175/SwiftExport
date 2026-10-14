@@ -141,6 +141,8 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["BomController.Update"] = PermissionKeys.ProductsBomEdit,
         ["BomController.Delete"] = PermissionKeys.ProductsBomDelete,
         ["ProductController.GetById"] = PermissionKeys.ProductsProductView,
+        ["ProductController.GetDetail"] = PermissionKeys.ProductsProductView,
+        ["ProductController.SaveDetail"] = PermissionKeys.ProductsProductEdit,
         ["ProductController.Create"] = PermissionKeys.ProductsProductCreate,
         ["ProductController.Update"] = PermissionKeys.ProductsProductEdit,
         ["ProductController.Delete"] = PermissionKeys.ProductsProductDelete,
@@ -156,7 +158,6 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductController.PullMasterWeightVolumeAsync"] = PermissionKeys.ProductsProductEdit,
         ["ProductController.PullMasterAllAsync"] = PermissionKeys.ProductsProductEdit,
         ["ProductCategoryController.GetPaged"] = PermissionKeys.ProductsCategoryView,
-        ["ProductAttributeController.BatchSaveAsync"] = PermissionKeys.ProductsCategoryEdit,
         ["ProductAttributeController.BatchSaveDefinitionsAsync"] = PermissionKeys.ProductsCategoryEdit,
         ["ProductCategoryController.GetAll"] = PermissionKeys.ProductsCategoryView,
         ["ProductCategoryController.GetById"] = PermissionKeys.ProductsCategoryView,
@@ -297,7 +298,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
     private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
     {
         "ProductAttributeController.GetDefinitionsAsync",
-        "ProductAttributeController.GetCategoryDefinitionsAsync",
+        "ProductAttributeController.GetProfileDefinitionsAsync",
         "SystemParameterController.ListAsync",
         "ExportTemplatesController.ListAsync",
         "ExportTemplatesController.DownloadAsync",

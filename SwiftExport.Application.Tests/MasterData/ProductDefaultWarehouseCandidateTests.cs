@@ -32,7 +32,7 @@ public sealed class ProductDefaultWarehouseCandidateTests
         var permissions = new PermissionStub();
         var service = new ProductQueryService(
             DispatchProxy.Create<IProductRepository, RejectProxy>(), warehouses,
-            currentUser, permissions, new ServiceBaseContext(null!, NullLoggerFactory.Instance));
+            currentUser, permissions, new ServiceBaseContext(null!, NullLoggerFactory.Instance), new EmptyProductAttributeRepository());
         var request = new PagedRequestBase { PageIndex = 1, PageSize = 20 };
 
         currentUser.Authenticated = false;

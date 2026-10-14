@@ -12,7 +12,7 @@ namespace SwiftExport.Core.Entities.MasterData;
 [LogicalReference(nameof(AttributeGroupId), typeof(ProductAttributeGroup), IsRequired = true)]
 public sealed class ProductAttributeOption : BaseEntity
 {
-    /// <summary>所属标签组的稳定身份；分类适用范围由组与分类的直接关联及继承决定。</summary>
+    /// <summary>所属标签组的稳定身份；适用范围由组与属性模板的直接关联决定。</summary>
     public Guid AttributeGroupId { get; set; }
     /// <summary>组内唯一的选项编码。</summary>
     [DbColumn(StoreType = "varchar(100)")]

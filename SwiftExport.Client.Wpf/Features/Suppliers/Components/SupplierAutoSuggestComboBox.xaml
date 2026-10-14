@@ -35,8 +35,12 @@
                             SelectionClearedCommandParameter="{Binding SelectionClearedCommandParameter, ElementName=Root}"
                             Placeholder="{Binding Placeholder, ElementName=Root}"
                             FontSize="{Binding FontSize, ElementName=Root}"
-                            SearchMode="Local" DisplayMemberPath="SupplierCode" FilterMemberPaths="SupplierCode"
-                            SelectedValuePath="Uid" RequireItemMatch="True" ClearSelectionOnEdit="False"
+                            SearchMode="Local" 
+                            DisplayMemberPath="SupplierName" 
+                            FilterMemberPaths="SupplierCode,SupplierName"
+                            SelectedValuePath="Uid" 
+                            RequireItemMatch="True" 
+                            ClearSelectionOnEdit="False"
                             ShowDropDownButton="True" MatchSuggestionFontSize="True"
                             ItemTemplate="{StaticResource SupplierItemTemplate}" />
 </UserControl>

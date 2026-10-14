@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,14 +11,19 @@ using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.Attributes.ViewModels;
 using SwiftExportClient.Features.Products.Attributes.Views;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.Models;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Navigation;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
@@ -36,18 +41,18 @@ public sealed class ProductAttributeDefinitionViewModelTests
         group.GroupCode = "MOUNT"; group.GroupName = "安装方式";
         fixture.Attributes.AddOptionCommand.Execute(null);
         fixture.Attributes.SelectedOption!.OptionCode = "CEILING"; fixture.Attributes.SelectedOption.OptionName = "吸顶";
-        fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Add(fixture.Attributes.CategoryCandidates.First());
+        fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.First());
         var temporary = group.Uid;
         Assert.IsTrue(await fixture.Attributes.TrySaveAsync());
         var request = fixture.Api.LastRequest!;
         Assert.AreEqual(temporary, request.GroupChanges.CreateItems.Single().Data.ClientUid);
         Assert.AreEqual(temporary, request.OptionChanges.CreateItems.Single().Data.AttributeGroupId);
-        Assert.AreEqual(temporary, request.CategoryChanges.CreateItems.Single().Data.AttributeGroupId);
-        Assert.AreEqual(fixture.FirstCategoryId, request.CategoryChanges.CreateItems.Single().Data.CategoryId);
+        Assert.AreEqual(temporary, request.ProfileChanges.CreateItems.Single().Data.AttributeGroupId);
+        Assert.AreEqual(fixture.FirstProfileId, request.ProfileChanges.CreateItems.Single().Data.ProductAttributeProfileId);
         Assert.AreNotEqual(temporary, fixture.Attributes.SelectedGroup!.Uid);
         Assert.AreEqual(fixture.Attributes.SelectedGroup.Uid, fixture.Attributes.Options.Items.Single().AttributeGroupId);
         Assert.AreEqual(1, fixture.Attributes.SelectedGroup.Version);
-        Assert.AreEqual(fixture.FirstCategoryId, fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Single().Uid);
+        Assert.AreEqual(fixture.FirstProfileId, fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Single().Uid);
         Assert.IsFalse(fixture.Attributes.HasUnsavedChanges);
         Assert.AreEqual(1, fixture.Cache.RefreshAttributeCalls);
         Assert.IsTrue(fixture.Messages.Warnings.Any(message => message.Contains("缓存")));
@@ -61,7 +66,7 @@ public sealed class ProductAttributeDefinitionViewModelTests
         await fixture.Attributes.DeleteGroupCommand.ExecuteAsync(null);
         var request = fixture.Attributes.BuildRequest();
         Assert.AreEqual(1, request.GroupChanges.DeleteItems.Count);
-        Assert.AreEqual(0, request.OptionChanges.DeleteItems.Count); Assert.AreEqual(0, request.CategoryChanges.DeleteItems.Count);
+        Assert.AreEqual(0, request.OptionChanges.DeleteItems.Count); Assert.AreEqual(0, request.ProfileChanges.DeleteItems.Count);
         Assert.AreEqual(1, fixture.Attributes.Options.DeletedItems.Count);
         fixture.Api.FailSave = true;
         Assert.IsFalse(await fixture.Attributes.TrySaveAsync()); Assert.IsTrue(fixture.Attributes.HasUnsavedChanges);
@@ -69,7 +74,7 @@ public sealed class ProductAttributeDefinitionViewModelTests
         fixture.Attributes.RejectCommand.Execute(null);
         Assert.AreEqual(1, fixture.Attributes.Groups.Items.Count);
         Assert.AreEqual(1, fixture.Attributes.CurrentOptions.Cast<object>().Count());
-        Assert.AreEqual(fixture.FirstCategoryId, fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Single().Uid);
+        Assert.AreEqual(fixture.FirstProfileId, fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Single().Uid);
         Assert.IsFalse(fixture.Attributes.HasUnsavedChanges);
     });
 
@@ -80,22 +85,22 @@ public sealed class ProductAttributeDefinitionViewModelTests
         using var fixture = new Fixture(withDefinition: true); await fixture.LoadAsync();
         var first = fixture.Attributes.SelectedGroup!;
         fixture.Attributes.SelectedOption!.OptionName = "挂墙";
-        fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Add(fixture.Attributes.CategoryCandidates.Last());
+        fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.Last());
         fixture.Attributes.AddGroupCommand.Execute(null);
         var second = fixture.Attributes.SelectedGroup!; second.GroupCode = "SIZE"; second.GroupName = "尺寸";
         fixture.Attributes.AddOptionCommand.Execute(null);
         fixture.Attributes.SelectedOption!.OptionCode = "8"; fixture.Attributes.SelectedOption.OptionName = "8寸";
-        fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Add(fixture.Attributes.CategoryCandidates.Last());
+        fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.Last());
         fixture.Attributes.SelectedGroup = first;
         Assert.AreEqual("挂墙", fixture.Attributes.SelectedOption!.OptionName);
-        Assert.AreEqual(2, fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Count);
+        Assert.AreEqual(2, fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Count);
         var request = fixture.Attributes.BuildRequest();
         Assert.AreEqual(1, request.OptionChanges.UpdateItems.Count); Assert.AreEqual(1, request.OptionChanges.CreateItems.Count);
-        Assert.AreEqual(2, request.CategoryChanges.CreateItems.Count);
+        Assert.AreEqual(2, request.ProfileChanges.CreateItems.Count);
         Assert.AreEqual(first.Uid, request.GroupChanges.UpdateItems.Single().Uid);
         Assert.AreEqual(first.Version, request.GroupChanges.UpdateItems.Single().Version);
         fixture.Attributes.SelectedGroup = second;
-        Assert.AreEqual(1, fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Count);
+        Assert.AreEqual(1, fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Count);
         Assert.AreEqual("8寸", fixture.Attributes.SelectedOption!.OptionName);
     });
 
@@ -137,29 +142,29 @@ public sealed class ProductAttributeDefinitionViewModelTests
     {
         using var fixture = new Fixture(withDefinition: true, groupVersion: 7); await fixture.LoadAsync();
         var group = fixture.Attributes.SelectedGroup!;
-        fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Clear();
-        fixture.Attributes.SelectedCategorySelection.SelectedCategories.Add(fixture.Attributes.CategoryCandidates.Last());
+        fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Clear();
+        fixture.Attributes.SelectedProfileSelection.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.Last());
         var request = fixture.Attributes.BuildRequest();
         Assert.AreEqual(1, request.GroupChanges.UpdateItems.Count); Assert.AreEqual(7, request.GroupChanges.UpdateItems.Single().Version);
         Assert.AreEqual(0, request.OptionChanges.TotalCount);
-        Assert.AreEqual(1, request.CategoryChanges.CreateItems.Count); Assert.AreEqual(3, request.CategoryChanges.DeleteItems.Single().Version);
+        Assert.AreEqual(1, request.ProfileChanges.CreateItems.Count); Assert.AreEqual(3, request.ProfileChanges.DeleteItems.Single().Version);
         Assert.AreEqual(0, fixture.Attributes.Groups.ModifiedItems.Count);
         Assert.IsTrue(await fixture.Attributes.TrySaveAsync());
         Assert.AreEqual(8, fixture.Attributes.SelectedGroup!.Version);
-        Assert.AreEqual(fixture.OtherCategoryId, fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Single().Uid);
+        Assert.AreEqual(fixture.OtherProfileId, fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Single().Uid);
         Assert.IsFalse(fixture.Attributes.HasUnsavedChanges);
     });
 
-    /// <summary>未关联分类的组可以保存，分类关系不是新增组的必填项。</summary>
+    /// <summary>未关联属性模板的组可以保存，属性模板关系不是新增组的必填项。</summary>
     [TestMethod]
-    public void UnassignedGroup_CanSaveWithoutCategoryChanges() => StaTest.RunAsync(async () =>
+    public void UnassignedGroup_CanSaveWithoutProfileChanges() => StaTest.RunAsync(async () =>
     {
         using var fixture = new Fixture(); await fixture.LoadAsync();
         fixture.Attributes.AddGroupCommand.Execute(null);
         fixture.Attributes.SelectedGroup!.GroupCode = "EMPTY"; fixture.Attributes.SelectedGroup.GroupName = "未关联";
         Assert.IsTrue(await fixture.Attributes.TrySaveAsync());
-        Assert.AreEqual(0, fixture.Api.LastRequest!.CategoryChanges.TotalCount); Assert.AreEqual(1, fixture.Attributes.Groups.Items.Count);
-        Assert.AreEqual(0, fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Count);
+        Assert.AreEqual(0, fixture.Api.LastRequest!.ProfileChanges.TotalCount); Assert.AreEqual(1, fixture.Attributes.Groups.Items.Count);
+        Assert.AreEqual(0, fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Count);
     });
 
     /// <summary>取消刷新或关闭保持组选中和所有草稿，刷新没有发出替换读取。</summary>
@@ -168,12 +173,12 @@ public sealed class ProductAttributeDefinitionViewModelTests
     {
         using var fixture = new Fixture(withDefinition: true); await fixture.LoadAsync();
         var group = fixture.Attributes.SelectedGroup!;
-        group.GroupName = "待保存"; fixture.Attributes.SelectedCategorySelection!.SelectedCategories.Add(fixture.Attributes.CategoryCandidates.Last());
+        group.GroupName = "待保存"; fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.Last());
         fixture.Dialogs.NextDecision = DialogResult.Close;
         await fixture.Attributes.RefreshCommand.ExecuteAsync(null);
         Assert.IsFalse(await fixture.Attributes.CanCloseAsync(default));
         Assert.AreSame(group, fixture.Attributes.SelectedGroup); Assert.AreEqual("待保存", group.GroupName);
-        Assert.AreEqual(2, fixture.Attributes.SelectedCategorySelection.SelectedCategories.Count); Assert.AreEqual(1, fixture.Api.ReadCalls);
+        Assert.AreEqual(2, fixture.Attributes.SelectedProfileSelection.SelectedProfiles.Count); Assert.AreEqual(1, fixture.Api.ReadCalls);
     });
 
     /// <summary>写入期间整页冻结且禁止关闭和重复保存；明确回执后恢复交互。</summary>
@@ -254,26 +259,84 @@ public sealed class ProductAttributeDefinitionViewModelTests
         finally { window.Close(); }
     });
 
-    /// <summary>离线私有页面夹具，不依赖分类管理宿主或实际网络。</summary>
+    /// <summary>管理属性模板入口先提交原生编辑，再打开路由并保留标签工作区全部草稿。</summary>
+    [TestMethod]
+    public void ManageProfiles_OpensRouteAndPreservesAllDefinitionDrafts() => StaTest.RunAsync(async () =>
+    {
+        using var fixture = new Fixture(withDefinition: true); await fixture.LoadAsync();
+        var group = fixture.Attributes.SelectedGroup!; group.GroupName = "未保存组名";
+        fixture.Attributes.Options.Items.Single().OptionName = "未保存值";
+        fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.Last());
+        fixture.Attributes.CommitPendingEdits = () => false;
+        await fixture.Attributes.ManageAttributeProfilesCommand.ExecuteAsync(null);
+        Assert.IsNull(fixture.Navigation.LastRoute);
+        fixture.Attributes.CommitPendingEdits = () => true;
+        await fixture.Attributes.ManageAttributeProfilesCommand.ExecuteAsync(null);
+        Assert.AreEqual(DictionaryDataManagerViewModel.RouteKey, fixture.Navigation.LastRoute);
+        var request = (DictionaryDataDocumentOpenRequest)fixture.Navigation.LastParameter!;
+        Assert.AreEqual(DictCodes.ProductAttributeProfile, request.DictCode);
+        Assert.AreEqual(request.DocumentKey, fixture.Navigation.LastDocumentKey);
+        Assert.AreSame(group, fixture.Attributes.SelectedGroup);
+        Assert.AreEqual("未保存组名", group.GroupName);
+        Assert.AreEqual("未保存值", fixture.Attributes.Options.Items.Single().OptionName);
+        Assert.IsTrue(fixture.Attributes.SelectedProfileSelection.HasChanges);
+        Assert.AreEqual(0, fixture.Api.SaveCalls);
+    });
+
+    /// <summary>模板缓存改名或缺失只重配候选，不能覆盖标签定义和关系身份草稿。</summary>
+    [TestMethod]
+    public void ProfileCacheChange_PreservesDraftIdsAndOriginalRelationBaseline() => StaTest.RunAsync(async () =>
+    {
+        using var fixture = new Fixture(withDefinition: true); await fixture.LoadAsync();
+        var group = fixture.Attributes.SelectedGroup!; group.GroupName = "保留草稿";
+        var selection = fixture.Attributes.SelectedProfileSelection!;
+        selection.SelectedProfiles.Add(fixture.Attributes.ProfileCandidates.Last());
+        fixture.Cache.Profiles = [new() { Uid = fixture.FirstProfileId, DictCode = DictCodes.ProductAttributeProfile, DataNameZh = "新模板名", IsEnabled = true }];
+        fixture.Cache.RaiseChanged();
+        Assert.AreSame(group, fixture.Attributes.SelectedGroup);
+        Assert.AreEqual("保留草稿", group.GroupName);
+        Assert.IsTrue(selection.HasChanges);
+        Assert.AreEqual(2, selection.SelectedProfiles.Count);
+        Assert.AreEqual("新模板名", selection.SelectedProfiles.Single(item => item.Uid == fixture.FirstProfileId).ProfileName);
+        Assert.IsFalse(selection.SelectedProfiles.Single(item => item.Uid == fixture.OtherProfileId).IsAvailable);
+        selection.SelectedProfiles.Remove(selection.SelectedProfiles.Single(item => item.Uid == fixture.OtherProfileId));
+        Assert.IsFalse(selection.HasChanges, "重新匹配显示对象不得改变原关系身份基线。");
+    });
+
+    /// <summary>正在打开的多选弹出层延迟候选更新，关闭后保留已确认身份并显示新名称。</summary>
+    [TestMethod]
+    public void ProfileCacheChange_DefersWhilePopupIsOpen() => StaTest.RunAsync(async () =>
+    {
+        using var fixture = new Fixture(withDefinition: true); await fixture.LoadAsync();
+        var open = true; fixture.Attributes.IsProfilePopupOpen = () => open;
+        fixture.Cache.Profiles = [new() { Uid = fixture.FirstProfileId, DataNameZh = "关闭后显示", DictCode = DictCodes.ProductAttributeProfile, IsEnabled = true }];
+        fixture.Cache.RaiseChanged();
+        Assert.AreEqual("顶喷", fixture.Attributes.SelectedProfileSelection!.SelectedProfiles.Single().ProfileName);
+        open = false; fixture.Attributes.ApplyPendingProfileRefresh();
+        Assert.AreEqual("关闭后显示", fixture.Attributes.SelectedProfileSelection.SelectedProfiles.Single().ProfileName);
+        Assert.IsFalse(fixture.Attributes.SelectedProfileSelection.HasChanges);
+    });
+
+    /// <summary>离线私有页面夹具，不依赖属性模板管理宿主或实际网络。</summary>
     private sealed class Fixture : IDisposable
     {
-        /// <summary>创建一个登录会话、完整分类候选及标签 API，数据只归当前测试。</summary>
+        /// <summary>创建一个登录会话、完整属性模板候选及标签 API，数据只归当前测试。</summary>
         public Fixture(bool withDefinition = false, bool canEdit = true, int groupVersion = 1)
         {
-            User.SetCurrentUser(new MeDto { UserId = "u", UserName = "test", Permissions = canEdit ? [PermissionKeys.ProductsCategoryEdit] : [] });
+            User.SetCurrentUser(new MeDto { UserId = "u", UserName = "test", Permissions = canEdit ? [PermissionKeys.ProductsCategoryEdit, PermissionKeys.SystemDictionaryView] : [] });
             var service = DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(); Cache = (CacheProxy)(object)service;
-            var first = new ProductCategoryCacheNode(new ProductCategoryDto { Uid = FirstCategoryId, CategoryName = "顶喷" });
-            first.SetCategoryPath("花洒 / 顶喷");
-            var second = new ProductCategoryCacheNode(new ProductCategoryDto { Uid = OtherCategoryId, CategoryName = "手持花洒" });
-            second.SetCategoryPath("花洒 / 手持花洒"); Cache.Categories = new(new ObservableCollection<ProductCategoryCacheNode>([first, second]));
-            Api = new AttributeApi(FirstCategoryId, withDefinition, groupVersion);
-            Attributes = new(Api, new Runner(), service, Messages, Dialogs, User);
+            Cache.Profiles = [new SysDictDataDto { Uid = FirstProfileId, DictCode = DictCodes.ProductAttributeProfile, DataNameZh = "顶喷", IsEnabled = true },
+                new SysDictDataDto { Uid = OtherProfileId, DictCode = DictCodes.ProductAttributeProfile, DataNameZh = "手持花洒", IsEnabled = true }];
+            Api = new AttributeApi(FirstProfileId, withDefinition, groupVersion);
+            var navigation = DispatchProxy.Create<INavigationService, NavigationProxy>(); Navigation = (NavigationProxy)(object)navigation;
+            Attributes = new(Api, new Runner(), service, Messages, Dialogs, User, navigation);
         }
-        public Guid FirstCategoryId { get; } = Guid.NewGuid();
-        public Guid OtherCategoryId { get; } = Guid.NewGuid();
+        public Guid FirstProfileId { get; } = Guid.NewGuid();
+        public Guid OtherProfileId { get; } = Guid.NewGuid();
         public CurrentUserService User { get; } = new();
         public AttributeApi Api { get; }
         public CacheProxy Cache { get; }
+        public NavigationProxy Navigation { get; }
         public Messages Messages { get; } = new();
         public Dialogs Dialogs { get; } = new();
         public ProductAttributeManagerViewModel Attributes { get; }
@@ -293,7 +356,7 @@ public sealed class ProductAttributeDefinitionViewModelTests
             if (!withDefinition) return;
             var group = new ProductAttributeGroupDto { Uid = Guid.NewGuid(), Version = groupVersion, GroupCode = "MOUNT", GroupName = "安装方式" };
             group.Options.Add(new() { Uid = Guid.NewGuid(), Version = 1, AttributeGroupId = group.Uid, OptionCode = "CEILING", OptionName = "吸顶" });
-            _data.Groups.Add(group); _data.CategoryRelations.Add(new() { Uid = Guid.NewGuid(), Version = 3, CategoryId = categoryId, AttributeGroupId = group.Uid });
+            _data.Groups.Add(group); _data.ProfileRelations.Add(new() { Uid = Guid.NewGuid(), Version = 3, ProductAttributeProfileId = categoryId, AttributeGroupId = group.Uid });
         }
         public SaveProductAttributeDefinitionsRequest? LastRequest { get; private set; }
         public int SaveCalls { get; private set; }
@@ -306,11 +369,8 @@ public sealed class ProductAttributeDefinitionViewModelTests
         public async Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(CancellationToken cancellationToken = default)
         { ReadCalls++; if (PauseRead is not null) await PauseRead.Task; return ServiceResult<ProductAttributeDefinitionsDto>.Ok(_data.Adapt<ProductAttributeDefinitionsDto>()); }
         /// <inheritdoc />
-        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetCategoryDefinitionsAsync(Guid id, CancellationToken cancellationToken = default) =>
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetProfileDefinitionsAsync(Guid id, CancellationToken cancellationToken = default) =>
             throw new AssertFailedException("独立标签页必须读取全局定义。");
-        /// <inheritdoc />
-        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid id, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default) =>
-            throw new AssertFailedException("独立标签页不能调用旧分类维护接口。");
         /// <inheritdoc />
         public async Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync(SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default)
         {
@@ -320,7 +380,7 @@ public sealed class ProductAttributeDefinitionViewModelTests
             var response = new SaveProductAttributeDefinitionsResponse(); var map = new Dictionary<Guid, Guid>();
             foreach (var item in request.GroupChanges.DeleteItems)
             {
-                _data.Groups.RemoveAll(group => group.Uid == item.Uid); _data.CategoryRelations.RemoveAll(relation => relation.AttributeGroupId == item.Uid);
+                _data.Groups.RemoveAll(group => group.Uid == item.Uid); _data.ProfileRelations.RemoveAll(relation => relation.AttributeGroupId == item.Uid);
                 response.GroupResults.Items.Add(Receipt(item, item.Uid, SaveOperation.Delete, item.Version, item.Version));
             }
             foreach (var item in request.GroupChanges.UpdateItems)
@@ -349,13 +409,13 @@ public sealed class ProductAttributeDefinitionViewModelTests
                 _data.Groups.Single(group => group.Uid == option.AttributeGroupId).Options.Add(option);
                 response.OptionResults.Items.Add(Receipt(item, option.Uid, SaveOperation.Create, null, 1));
             }
-            foreach (var item in request.CategoryChanges.DeleteItems)
-            { _data.CategoryRelations.RemoveAll(relation => relation.Uid == item.Uid); response.CategoryResults.Items.Add(Receipt(item, item.Uid, SaveOperation.Delete, item.Version, item.Version)); }
-            foreach (var item in request.CategoryChanges.CreateItems)
+            foreach (var item in request.ProfileChanges.DeleteItems)
+            { _data.ProfileRelations.RemoveAll(relation => relation.Uid == item.Uid); response.ProfileResults.Items.Add(Receipt(item, item.Uid, SaveOperation.Delete, item.Version, item.Version)); }
+            foreach (var item in request.ProfileChanges.CreateItems)
             {
-                var relation = item.Data.Adapt<ProductCategoryAttributeGroupDto>(); relation.Uid = Guid.NewGuid(); relation.Version = 1;
+                var relation = item.Data.Adapt<ProductAttributeProfileGroupDto>(); relation.Uid = Guid.NewGuid(); relation.Version = 1;
                 if (map.TryGetValue(relation.AttributeGroupId, out var realId)) relation.AttributeGroupId = realId;
-                _data.CategoryRelations.Add(relation); response.CategoryResults.Items.Add(Receipt(item, relation.Uid, SaveOperation.Create, null, 1));
+                _data.ProfileRelations.Add(relation); response.ProfileResults.Items.Add(Receipt(item, relation.Uid, SaveOperation.Create, null, 1));
             }
             response.Definitions = IncompleteSnapshot ? new() : _data.Adapt<ProductAttributeDefinitionsDto>();
             return ServiceResult<SaveProductAttributeDefinitionsResponse>.Ok(response);
@@ -364,22 +424,43 @@ public sealed class ProductAttributeDefinitionViewModelTests
             new() { ClientKey = item.ClientKey, Success = true, Uid = uid, OldVersion = oldVersion, NewVersion = version, Operation = operation };
     }
 
-    /// <summary>只响应页面需要的缓存入口和只读分类候选，失败仅影响后续共享缓存。</summary>
+    /// <summary>只响应页面需要的缓存入口和只读属性模板候选，失败仅影响后续共享缓存。</summary>
     private class CacheProxy : DispatchProxy
     {
-        public ReadOnlyObservableCollection<ProductCategoryCacheNode> Categories { get; set; } = new([]);
+        public IReadOnlyList<SysDictDataDto> Profiles { get; set; } = [];
         public bool RefreshSuccess { get; set; } = true;
         public int RefreshAttributeCalls { get; private set; }
+        private EventHandler? _changed;
+        /// <summary>模拟共享缓存完成一次字典快照替换。</summary>
+        public void RaiseChanged() => _changed?.Invoke(this, EventArgs.Empty);
         /// <summary>显式提供页面依赖，未授权的其他缓存调用直接使测试失败。</summary>
         protected override object? Invoke(MethodInfo? method, object?[]? args)
         {
-            if (method?.Name == "get_ProductCategories") return Categories;
+            if (method?.Name == "add_ProductAttributesChanged") { _changed += (EventHandler)args![0]!; return null; }
+            if (method?.Name == "remove_ProductAttributesChanged") { _changed -= (EventHandler)args![0]!; return null; }
+            if (method?.Name == nameof(IReferenceDataCacheService.GetDictionaryValues)) return Profiles;
             if (method?.Name == nameof(IReferenceDataCacheService.EnsureProductAttributesLoadedAsync)) return Task.FromResult(CacheRefreshResult.Ok());
             if (method?.Name == nameof(IReferenceDataCacheService.RefreshProductAttributesAsync))
             { RefreshAttributeCalls++; return Task.FromResult(RefreshSuccess ? CacheRefreshResult.Ok() : CacheRefreshResult.Fail("离线缓存读取失败。")); }
             throw new AssertFailedException("标签页不应读取其他缓存状态：" + method?.Name);
         }
     }
+    /// <summary>只允许模板维护入口使用普通路由，避免误建主型号详情身份。</summary>
+    private class NavigationProxy : DispatchProxy
+    {
+        public string? LastRoute { get; private set; }
+        public string? LastDocumentKey { get; private set; }
+        public object? LastParameter { get; private set; }
+        protected override object? Invoke(MethodInfo? method, object?[]? args)
+        {
+            if (method?.Name != nameof(INavigationService.OpenDocumentAsync)) throw new AssertFailedException(method?.Name);
+            LastRoute = (string)args![0]!;
+            LastDocumentKey = (string)args[1]!;
+            LastParameter = args[2];
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class Runner : IApiCallRunner
     {
         /// <inheritdoc />

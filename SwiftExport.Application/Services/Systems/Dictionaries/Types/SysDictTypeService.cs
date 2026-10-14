@@ -11,15 +11,13 @@ using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
-using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Systems.Dictionaries.Types;
 using SwiftExport.Core.Interfaces;
 namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
 {
     /// <summary>
-    /// 系统字典类型服务实现
-    /// 支持标准 CRUD 操作和分组树查询
+    /// 合并内置类型与数据库自定义类型，并在全部保存入口执行相同的类型保护和树校验。
     /// </summary>
     public partial class SysDictTypeService(
         ISysDictTypeRepository repository,
@@ -33,7 +31,7 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
         /// 获取字典类型分组树
         /// 
         /// 算法：
-        /// 1. 获取所有字典类型（未删除的）
+        /// 1. 获取有效字典类型（持久记录与内置缺失回退）
         /// 2. 按 GroupCode 分组
         /// 3. 构建分组树（分组节点 + 字典类型子节点）
         /// 4. 按 SortOrder 排序
@@ -42,22 +40,9 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
         {
             try
             {
-                // 1. 获取所有字典类型（仅用泛型 Repository 的 GetAllAsync）
-                // 防御性处理：确保不会将可能为 null 的返回值赋给不可为 null 的变量，避免 CS8600
-                var allDictTypesReadOnly = (await repository.GetAllAsync()) ?? Enumerable.Empty<SysDictType>();
-
-                // GetAllAsync 返回值不可为 null，无需 null 判断，直接检查是否为空集合
-                if (!allDictTypesReadOnly.Any())
-                {
-                    _logger.LogInformation("没有可用的字典类型数据");
-                    return ServiceResult<List<DictTypeGroupTreeDto>>.Ok(new List<DictTypeGroupTreeDto>());
-                }
-
-                // 转换为 List
-                var allDictTypes = allDictTypesReadOnly.ToList();
-
-                // 2. 按 GroupCode 分组，组织树形结构
-                var groupedTree = BuildGroupedTree(allDictTypes);
+                // 类型表为空时同样返回内置清单；保留软删除候选的旧身份，读取不初始化数据库。
+                var allDictTypes = BuiltInDictionaryCatalog.TypeDtos(await repository.GetAllIncludingDeletedAsync());
+                var groupedTree = BuildGroupedTree(allDictTypes.ToList());
 
                 _logger.LogInformation("成功构建字典类型分组树，共 {GroupCount} 个分组", groupedTree.Count);
                 return ServiceResult<List<DictTypeGroupTreeDto>>.Ok(groupedTree);
@@ -91,12 +76,8 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
         /// Group2
         ///   └─ ...
         /// </summary>
-        private static List<DictTypeGroupTreeDto> BuildGroupedTree(List<SysDictType> allDictTypes)
+        private static List<DictTypeGroupTreeDto> BuildGroupedTree(List<SysDictTypeDto> dictTypeDtos)
         {
-            // 1. 使用 Mapster 将 Entity 转换为 DTO
-            // Adapt 可能返回 null（取决于 Mapster 配置），使用空列表替代以避免 CS8600
-            var dictTypeDtos = allDictTypes.Adapt<List<SysDictTypeDto>>() ?? new List<SysDictTypeDto>();
-
             // 2. 按 GroupCode 分组（第一层级聚合）
             // 防止列表中出现 null 元素，先过滤 null
             var groupedByCode = dictTypeDtos
@@ -200,6 +181,8 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                     DictCode = dictType.DictCode,
                     DictName = dictType.DictName,
                     IsSystem = dictType.IsSystem,
+                    IsBuiltIn = dictType.IsBuiltIn,
+                    Version = dictType.Version,
                     Remark = dictType.Remark,
                     ParentId = dictType.ParentId,
                     SortOrder = dictType.SortOrder,
@@ -238,17 +221,13 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
 
             return rootNodes.OrderBy(x => x.SortOrder).ToList();
         }
-
-
-
+        /// <summary>返回有效类型清单；内置类型缺少持久记录时仍可选择，读取不会写入数据库。</summary>
         public async Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>> GetAllAsync()
         {
             try
             {
-                var entities = await repository.GetAllAsync();
-                return entities.Any()
-                    ? ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok(entities.Adapt<IReadOnlyList<SysDictTypeDto>>())
-                    : ServiceResult<IReadOnlyList<SysDictTypeDto>>.Fail("未找到数据");
+                var entities = await repository.GetAllIncludingDeletedAsync();
+                return ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok(BuiltInDictionaryCatalog.TypeDtos(entities));
             }
             catch (Exception ex)
             {
@@ -258,12 +237,32 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             }
         }
 
+        /// <summary>先合并内置类型，再筛选和分页，确保总数、树查询和列表使用同一有效清单。</summary>
         public async Task<ServiceResult<PagedResponseBase<SysDictTypeDto>>> GetPagedAsync(SysDictTypeSearchRequest request)
         {
             try
             {
-                return ServiceResult<PagedResponseBase<SysDictTypeDto>>.Ok(
-                    await repository.GetPagedAsync(request ?? new SysDictTypeSearchRequest()));
+                request ??= new SysDictTypeSearchRequest();
+                var pageIndex = Math.Max(1, request.PageIndex);
+                var pageSize = Math.Clamp(request.PageSize <= 0 ? 20 : request.PageSize, 1, 200);
+                IEnumerable<SysDictTypeDto> items = BuiltInDictionaryCatalog.TypeDtos(await repository.GetAllIncludingDeletedAsync());
+                if (!string.IsNullOrWhiteSpace(request.Keyword))
+                {
+                    var keyword = request.Keyword.Trim();
+                    items = items.Where(item => new[] { item.DictCode, item.DictName, item.GroupCode, item.GroupName }
+                        .Any(value => value?.Contains(keyword, StringComparison.OrdinalIgnoreCase) == true));
+                }
+                var codes = request.BatchKeywords?.Where(code => !string.IsNullOrWhiteSpace(code))
+                    .Select(code => code.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (codes?.Count > 0) items = items.Where(item => codes.Contains(item.DictCode.Trim()));
+                var filtered = items.OrderBy(item => item.GroupCode, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(item => item.SortOrder).ThenBy(item => item.DictCode, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(item => item.Uid).ToArray();
+                return ServiceResult<PagedResponseBase<SysDictTypeDto>>.Ok(new()
+                {
+                    Items = filtered.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList(),
+                    TotalCount = filtered.Length, PageIndex = pageIndex, PageSize = pageSize
+                });
             }
             catch (Exception exception)
             {
@@ -273,6 +272,42 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             }
         }
 
+        /// <summary>按有效清单读取身份；已有同编码记录优先，不能把默认 Guid 再映射到其他身份。</summary>
+        public override async Task<ServiceResult<SysDictTypeDto>> GetByIdAsync(Guid uid)
+        {
+            var result = await GetAllAsync();
+            if (!result.Success) return ServiceResult<SysDictTypeDto>.Fail(result.Error.Code, result.Message);
+            var item = result.Data.FirstOrDefault(type => type.Uid == uid);
+            return item is null
+                ? ServiceResult<SysDictTypeDto>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.NotFound, "未找到数据")
+                : ServiceResult<SysDictTypeDto>.Ok(item);
+        }
+
+        /// <summary>单条新增使用批量用例的保留编码、树关系和事务校验，避免绕过保护。</summary>
+        public override async Task<ServiceResult<SaveItemResult>> AddAsync(CreateItemRequest<SysDictTypeDto> item)
+        {
+            var result = await BatchSaveAsync(new() { CreateItems = [item] });
+            return result.Success ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
+                : ServiceResult<SaveItemResult>.Fail(result.Error.Code, result.Message);
+        }
+
+        /// <summary>单条修改采用相同类型保护，不通过通用 CRUD 改写内置定义。</summary>
+        public override async Task<ServiceResult<SaveItemResult>> UpdateAsync(UpdateItemRequest<SysDictTypeDto> item)
+        {
+            var result = await BatchSaveAsync(new() { UpdateItems = [item] });
+            return result.Success ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
+                : ServiceResult<SaveItemResult>.Fail(result.Error.Code, result.Message);
+        }
+
+        /// <summary>单条删除采用相同系统保护、引用校验和树校验，失败保持整批回滚。</summary>
+        public override async Task<ServiceResult<SaveItemResult>> DeleteAsync(DeleteItemRequest item)
+        {
+            var result = await BatchSaveAsync(new() { DeleteItems = [item] });
+            return result.Success ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
+                : ServiceResult<SaveItemResult>.Fail(result.Error.Code, result.Message);
+        }
+
+        /// <summary>保存自定义类型；内置类型只读，旧系统标记仍保留原删除保护。</summary>
         public async Task<ServiceResult<SysDictTypeBatchSaveResponse>> BatchSaveAsync(SysDictTypeBatchSaveRequest batchReq)
         {
             var requestError = SystemBatchSaveSupport.ValidateRequest(batchReq);
@@ -295,9 +330,8 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                 foreach (var item in preparation.OrderedCreates)
                 {
                     var entity = item.Data.Adapt<SysDictType>();
-                    entity.IsSystem = DictCodes.DictCodeList.Contains(
-                        entity.DictCode,
-                        StringComparer.OrdinalIgnoreCase);
+                    // 客户端提交的 IsSystem 不授予系统身份，自定义新增始终由用户维护。
+                    entity.IsSystem = false;
                     entity.ParentId = ResolveParentId(item.Data.ParentId, persistedByLogicalId);
                     var writeResult = await repository.AddAsync(entity);
                     response.Items.Add(SaveItemResultFactory.FromCreate(item, writeResult));
@@ -307,9 +341,7 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                 foreach (var item in batchReq.UpdateItems)
                 {
                     var entity = preparation.Existing[item.Uid];
-                    var isSystem = entity.IsSystem
-                        || DictCodes.DictCodeList.Contains(entity.DictCode, StringComparer.OrdinalIgnoreCase)
-                        || DictCodes.DictCodeList.Contains(item.Data.DictCode, StringComparer.OrdinalIgnoreCase);
+                    var isSystem = entity.IsSystem;
                     SystemBatchSaveSupport.AdaptPreservingServerFields(item.Data, entity);
                     entity.IsSystem = isSystem;
                     entity.ParentId = ResolveParentId(item.Data.ParentId, persistedByLogicalId);
@@ -346,12 +378,15 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             }
         }
 
+        /// <summary>在稳定类型锁内核对最终树，允许虚拟内置类型作为父节点，但不将其初始化落库。</summary>
         private async Task<DictTypeBatchPreparation> PrepareBatchSaveAsync(SysDictTypeBatchSaveRequest request)
         {
             foreach (var item in request.CreateItems)
             {
                 var error = NormalizeAndValidate(item.Data, item.RowIndex, "新增");
                 if (error is not null) return DictTypeBatchPreparation.Fail(error);
+                if (BuiltInDictionaryCatalog.FindType(item.Data.DictCode) is not null)
+                    return DictTypeBatchPreparation.Fail("系统字典编码为保留编码，不能用于新增字典类型。");
                 if (item.Data.Uid == Guid.Empty) item.Data.Uid = Guid.NewGuid();
             }
             foreach (var item in request.UpdateItems)
@@ -360,7 +395,8 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                 if (error is not null) return DictTypeBatchPreparation.Fail(error);
             }
 
-            var all = await repository.GetAllForUpdateAsync();
+            // 已有类型先按仓储锁序读取；目录只补读取身份，不创建或锁定虚构数据库行。
+            var all = BuiltInDictionaryCatalog.MergeTypes(await repository.GetAllIncludingDeletedAsync(withUpdLock: true));
             var existing = all.ToDictionary(x => x.Uid);
             var targetIds = request.UpdateItems.Select(x => x.Uid).Concat(request.DeleteItems.Select(x => x.Uid)).Distinct().ToArray();
             var missing = targetIds.Where(uid => !existing.ContainsKey(uid)).ToArray();
@@ -405,6 +441,7 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                 : DictTypeBatchPreparation.Fail(orderedCreates.Error);
         }
 
+        /// <summary>校验最终类型编码唯一、父节点存在且无循环；新增、修改和删除使用同一图。</summary>
         internal static string? ValidateFinalGraph(IReadOnlyDictionary<Guid, DictTypeNode> nodes)
         {
             var duplicate = nodes.Values.GroupBy(x => x.DictCode, StringComparer.OrdinalIgnoreCase).FirstOrDefault(group => group.Count() > 1);
@@ -428,6 +465,7 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             return null;
         }
 
+        /// <summary>内置类型只读；旧数据库系统类型保留删除保护，客户端标记不参与身份判定。</summary>
         internal static string? ValidateSystemDictionaryProtection(
             SysDictTypeBatchSaveRequest request,
             IReadOnlyDictionary<Guid, SysDictType> existing)
@@ -436,21 +474,26 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
                 request.DeleteItems,
                 existing,
                 entity => entity.IsSystem
-                    || DictCodes.DictCodeList.Contains(entity.DictCode, StringComparer.OrdinalIgnoreCase));
+                    || BuiltInDictionaryCatalog.FindType(entity.DictCode) is not null);
             if (protectedItems.Length > 0)
                 return "系统字典类型不能删除：" + string.Join(", ", protectedItems);
 
             var renamedSystemCodes = request.UpdateItems
-                .Where(item => DictCodes.DictCodeList.Contains(existing[item.Uid].DictCode, StringComparer.OrdinalIgnoreCase)
+                .Where(item => BuiltInDictionaryCatalog.FindType(existing[item.Uid].DictCode) is not null
                     && !string.Equals(existing[item.Uid].DictCode, item.Data.DictCode, StringComparison.OrdinalIgnoreCase))
                 .Select(item => existing[item.Uid].DictCode)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            return renamedSystemCodes.Length > 0
-                ? "系统字典编码不能修改：" + string.Join(", ", renamedSystemCodes)
-                : null;
+            if (renamedSystemCodes.Length > 0)
+                return "系统字典编码不能修改：" + string.Join(", ", renamedSystemCodes);
+            if (request.UpdateItems.Any(item => BuiltInDictionaryCatalog.FindType(existing[item.Uid].DictCode) is not null))
+                return "内置字典类型只读，不能修改。";
+            if (request.UpdateItems.Any(item => BuiltInDictionaryCatalog.FindType(item.Data.DictCode) is not null))
+                return "系统字典编码为保留编码，不能用于自定义字典类型。";
+            return null;
         }
 
+        /// <summary>将新增类型按父节点先于子节点排列，并保持请求内逻辑身份到真实身份的映射。</summary>
         private static (string? Error, List<CreateItemRequest<SysDictTypeDto>> Items) OrderCreates(
             List<CreateItemRequest<SysDictTypeDto>> creates,
             HashSet<Guid> persistedIds)
@@ -477,6 +520,7 @@ namespace SwiftExport.Application.Services.Systems.Dictionaries.Types
             return persistedByLogicalId.TryGetValue(parentId.Value, out var persisted) ? persisted : parentId;
         }
 
+        /// <summary>归一化用户输入并检查必填字段；不从客户端接纳系统身份。</summary>
         private static string? NormalizeAndValidate(SysDictTypeDto? dto, int? rowIndex, string operation)
         {
             var row = SystemBatchSaveSupport.FormatRow(rowIndex);

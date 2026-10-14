@@ -1,10 +1,16 @@
 using SwiftExport.Core.Common;
+using SwiftExport.Core.DatabaseSchema;
+using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>产品主型号实体，保存主型号层级的默认描述、分类和系列名。</summary>
+/// <summary>产品主型号实体，保存默认描述、分类、属性模板及产品系列身份。</summary>
 [Table("product_master")]
+[DbIndex("IX_ProductMaster_AttributeProfile", nameof(ProductAttributeProfileId), Filter = "\"is_deleted\" = FALSE AND \"product_attribute_profile_id\" IS NOT NULL")]
+[LogicalReference(nameof(ProductAttributeProfileId), typeof(SysDictData))]
+[DbIndex("IX_ProductMaster_Series", nameof(ProductSeriesId), Filter = "\"is_deleted\" = FALSE AND \"product_series_id\" IS NOT NULL")]
+[LogicalReference(nameof(ProductSeriesId), typeof(SysDictData))]
 public partial class ProductMaster : BaseEntity
 {
     /// <summary>主型号业务编码；未删除记录内唯一。</summary>
@@ -31,11 +37,11 @@ public partial class ProductMaster : BaseEntity
     /// <summary>每箱体积</summary>
     public decimal? DefaultCbm { get; set; }
 
-    /// <summary>类型。</summary>
-    public string? ProductType { get; set; }
+    /// <summary>产品属性模板的字典明细身份；为空时不提供标签候选。</summary>
+    public Guid? ProductAttributeProfileId { get; set; }
 
-    /// <summary>产品系列名；为空表示未设置，不参与标签选择。</summary>
-    public string? ProductSeries { get; set; }
+    /// <summary>产品系列字典明细身份；为空表示未设置，改名保持引用，不参与标签选择。</summary>
+    public Guid? ProductSeriesId { get; set; }
 
     /// <summary>分类唯一标识。</summary>
     public Guid CategoryId { get; set; }

@@ -1,10 +1,13 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExportClient.Features.Products.Components;
+using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
-using SwiftExportClient.Features.Products.ProductList.Views;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
@@ -16,6 +19,7 @@ using SwiftExportClient.Resources.Controls.Filter;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -32,9 +36,9 @@ public sealed class ProductMasterTagControlsTests
     {
         LoadResources();
         var definition = ProductMasterTagSelectionTests.Definition();
-        using var model = new ProductMasterTagSelectionModel();
+        using var model = new ProductAttributeSelectionModel();
         model.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
-        model.Load(ProductMasterTagSelectionTests.FixtureCategoryId, [definition.Options[0].Uid], []);
+        model.Load(ProductMasterTagSelectionTests.FixtureProfileId, [definition.Options[0].Uid], []);
         var group = model.Groups.Single();
         var control = new MultiSelectLookupButton
         {
@@ -118,11 +122,11 @@ public sealed class ProductMasterTagControlsTests
     {
         LoadResources();
         var definition = ProductMasterTagSelectionTests.Definition();
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
-        vm.Header.CategoryId = ProductMasterTagSelectionTests.FixtureCategoryId;
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
+        vm.Header.ProductAttributeProfileId = ProductMasterTagSelectionTests.FixtureProfileId;
         vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
-        vm.Tags.Load(ProductMasterTagSelectionTests.FixtureCategoryId, [definition.Options[0].Uid], []);
-        var view = new ProductMasterTagsView { DataContext = vm };
+        vm.Tags.Load(ProductMasterTagSelectionTests.FixtureProfileId, [definition.Options[0].Uid], []);
+        var view = CreateEditor(vm);
         var window = new Window { Content = view, Width = 760, Height = 400, ShowInTaskbar = false };
         Popup? popup = null;
         try
@@ -162,7 +166,7 @@ public sealed class ProductMasterTagControlsTests
         }
     });
 
-    /// <summary>实际失效标签按钮服从 Busy、分类确认和定义可用性，等待期间不能修改选择。</summary>
+    /// <summary>实际失效标签按钮服从 Busy、属性模板确认和定义可用性，等待期间不能修改选择。</summary>
     [TestMethod]
     public void MissingSelectionButton_ShouldBeDisabledWhileBusyOrConfirming() => DatePickerAssistTests.RunWithApplication(async () =>
     {
@@ -174,17 +178,17 @@ public sealed class ProductMasterTagControlsTests
             "get_ProductAttributeGroups" => new ReadOnlyObservableCollection<ProductAttributeGroupDto>(new ObservableCollection<ProductAttributeGroupDto>()),
             "get_AreProductAttributesLoaded" => true,
             nameof(IReferenceDataCacheService.ResolveProductAttributes) => ProductMasterTagSelectionTests.Resolution([]),
-            "get_ProductCategories" => new ReadOnlyObservableCollection<ProductCategoryCacheNode>(new ObservableCollection<ProductCategoryCacheNode>()),
+            nameof(IReferenceDataCacheService.GetDictionaryValues) => Array.Empty<SysDictDataDto>(),
             nameof(IReferenceDataCacheService.RefreshProductAttributesAsync) => completion.Task,
             _ => null
         });
         var dialogs = Proxy<IDialogService>((method, _) => method.Name == nameof(IDialogService.ConfirmAsync) ? confirmation.Task : null);
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, cache, Proxy<IMessageService>((_, _) => null), dialogs, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, cache, Proxy<IMessageService>((_, _) => null), dialogs, null!, new ProductMasterSyncDialogStub());
         var category = Guid.NewGuid();
-        vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", CategoryId = category } });
+        vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = category } });
         vm.Tags.Load(category, [Guid.NewGuid()], []);
         vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([], true));
-        var view = new ProductMasterTagsView { DataContext = vm };
+        var view = CreateEditor(vm);
         var window = new Window { Content = view, Width = 760, Height = 300, ShowInTaskbar = false };
         try
         {
@@ -203,11 +207,10 @@ public sealed class ProductMasterTagControlsTests
             remove = Descendants(view).OfType<Button>().Single(button => Equals(button.Content, "移除失效标签"));
             Assert.IsTrue(remove.IsEnabled);
 
-            vm.SelectedCategory = (ProductCategoryCacheNode)Activator.CreateInstance(typeof(ProductCategoryCacheNode),
-                BindingFlags.Instance | BindingFlags.NonPublic, null, [new ProductCategoryDto { Uid = Guid.NewGuid(), CategoryName = "新分类" }], null)!;
-            var changing = vm.CommitCategoryCommand.ExecuteAsync(null);
+            vm.SelectedProfile = new SysDictDataDto { Uid = Guid.NewGuid(), DictCode = DictCodes.ProductAttributeProfile, DataNameZh = "新模板", IsEnabled = true };
+            var changing = vm.CommitProfileCommand.ExecuteAsync(null);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
-            Assert.IsTrue(vm.IsCategoryChangePending);
+            Assert.IsTrue(vm.IsProfileChangePending);
             Assert.IsFalse(remove.IsEnabled);
             Assert.IsFalse(await vm.CanCloseAsync(default));
             confirmation.SetResult(false);
@@ -220,6 +223,91 @@ public sealed class ProductMasterTagControlsTests
             Assert.IsFalse(vm.CanEditTags);
         }
         finally { window.Close(); }
+    });
+
+    /// <summary>以依赖属性接线宿主的状态；控件不需要识别主型号 ViewModel。</summary>
+    private static ProductAttributeEditor CreateEditor(ProductMasterDetailViewModel vm)
+    {
+        var view = new ProductAttributeEditor { Workspace = vm.Tags, DataContext = vm };
+        view.SetBinding(ProductAttributeEditor.CanEditProperty, new Binding(nameof(vm.CanEditTags)));
+        view.SetBinding(ProductAttributeEditor.RefreshCommandProperty, new Binding(nameof(vm.RefreshProductAttributesCommand)));
+        return view;
+    }
+
+    /// <summary>不同产品详情可以共享候选，已确认值与回滚基线始终各自独立。</summary>
+    [TestMethod]
+    public void SharedDefinitions_ShouldKeepEachOwnerDraftIndependent()
+    {
+        var definition = ProductMasterTagSelectionTests.Definition();
+        using var first = new ProductAttributeSelectionModel();
+        using var second = new ProductAttributeSelectionModel();
+        foreach (var workspace in new[] { first, second })
+        {
+            workspace.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
+            workspace.Load(ProductMasterTagSelectionTests.FixtureProfileId, [definition.Options[0].Uid], []);
+        }
+        first.Groups.Single().SelectedItems.Add(definition.Options[1]);
+        first.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
+        Assert.IsTrue(first.IsDirty);
+        Assert.IsFalse(second.IsDirty);
+        CollectionAssert.AreEqual(new[] { definition.Options[0].Uid }, second.GetSelectedOptionIds()!);
+        second.Groups.Single().SelectedItems.Clear();
+        second.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
+        Assert.AreEqual(2, first.GetSelectedOptionIds()!.Count);
+        second.RejectChanges();
+        Assert.IsFalse(second.IsDirty);
+        Assert.IsTrue(first.IsDirty);
+    }
+
+    /// <summary>控件不依赖宿主类型，切换对象取消旧弹出层并把刷新阻塞释放给打开时的工作区。</summary>
+    [TestMethod]
+    public void Editor_ShouldCancelPopupWhenWorkspaceOrPermissionChanges() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        LoadResources();
+        var definition = ProductMasterTagSelectionTests.Definition();
+        using var first = new ProductAttributeSelectionModel();
+        using var second = new ProductAttributeSelectionModel();
+        foreach (var workspace in new[] { first, second })
+        {
+            workspace.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
+            workspace.Load(ProductMasterTagSelectionTests.FixtureProfileId, [definition.Options[0].Uid], []);
+        }
+        var view = new ProductAttributeEditor { Workspace = first, CanEdit = true, DataContext = new object() };
+        var window = new Window { Content = view, Width = 760, Height = 360, ShowInTaskbar = false };
+        try
+        {
+            window.Show();
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            var multi = Descendants(view).OfType<MultiSelectLookupButton>().Single();
+            var popup = (Popup)multi.FindName("PART_Popup");
+            popup.IsOpen = true;
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            Assert.IsTrue(first.IsPopupOpen);
+            first.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
+            await ClosePopupAsync(popup, () => view.Workspace = second);
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            Assert.IsFalse(first.IsPopupOpen);
+            Assert.IsFalse(second.IsPopupOpen);
+            Assert.IsFalse(first.IsDirty);
+            CollectionAssert.AreEqual(new[] { definition.Options[0].Uid }, first.GetSelectedOptionIds()!);
+
+            multi = Descendants(view).OfType<MultiSelectLookupButton>().Single();
+            popup = (Popup)multi.FindName("PART_Popup");
+            popup.IsOpen = true;
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            Assert.IsTrue(second.IsPopupOpen);
+            await ClosePopupAsync(popup, () => view.CanEdit = false);
+            Assert.IsFalse(second.IsPopupOpen);
+            Assert.IsFalse(multi.IsEnabled);
+            Assert.IsFalse(second.IsDirty);
+        }
+        finally
+        {
+            window.Close();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsFalse(first.IsPopupOpen);
+            Assert.IsFalse(second.IsPopupOpen);
+        }
     });
 
     /// <summary>加载实际业务主题与文本/ListBox资源，确保测试使用产品控件样式。</summary>

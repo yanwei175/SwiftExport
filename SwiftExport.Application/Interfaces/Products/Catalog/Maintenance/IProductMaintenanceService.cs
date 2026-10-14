@@ -16,4 +16,7 @@ public interface IProductMaintenanceService
     Task<ServiceResult<SaveItemResult>> DeleteAsync(DeleteItemRequest item);
     /// <summary>原子保存产品变更集。</summary>
     Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest request);
+    /// <summary>按物料版本原子保存详情可写资料和独立标签值，不变更 BOM、归属或包装参考。</summary>
+    Task<ServiceResult<SaveProductDetailResponse>> SaveDetailAsync(SaveProductDetailRequest request,
+        CancellationToken cancellationToken = default);
 }

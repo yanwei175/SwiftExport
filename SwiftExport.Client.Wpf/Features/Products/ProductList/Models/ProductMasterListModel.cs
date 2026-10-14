@@ -24,6 +24,7 @@ public sealed class ProductMasterListModel : BaseListModel<ProductMasterLineMode
     {
         return new ProductMasterBatchSaveRequest
         {
+            ContractVersion = 3,
             CreateItems = AddedItems.Select(line => new CreateItemRequest<ProductMasterWriteDto>
             {
                 ClientKey = line.ClientKey,

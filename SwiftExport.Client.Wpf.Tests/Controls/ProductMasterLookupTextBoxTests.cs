@@ -23,28 +23,30 @@ public sealed class ProductMasterLookupTextBoxTests
         var uid = Guid.NewGuid();
         var category = Guid.NewGuid();
         var supplier = Guid.NewGuid();
+        var profile = Guid.NewGuid();
+        var series = Guid.NewGuid();
         var created = new DateTime(2026, 1, 1);
         var updated = created.AddDays(1);
         var dto = new ProductMasterListItemDto
         {
             Uid = uid, Version = 7, IsDeleted = true, CreatedDate = created, CreatedBy = "创建人", UpdatedDate = updated, UpdatedBy = "更新人",
-            CategoryName = "分类", DefaultSupplierName = "供应商", MainImagePath = "image.png", DefaultSalesPriceUsd = 12m, DefaultPurchasePriceCny = 50m,
+            CategoryName = "分类", DefaultSupplierName = "供应商", ProductSeriesName = "系列", MainImagePath = "image.png", DefaultSalesPriceUsd = 12m, DefaultPurchasePriceCny = 50m,
             Data = new() { MasterSku = "MASTER", DefaultDescriptionEn = "English", DefaultDescriptionZh = "中文",
                 DefaultFeaturesEn = "Features", DefaultFeaturesZh = "配置", DefaultPcsPerPackage = 6,
-                DefaultNetWeight = 2m, DefaultGrossWeight = 3m, DefaultCbm = 0.1m, ProductType = "类型", ProductSeries = "系列",
+                DefaultNetWeight = 2m, DefaultGrossWeight = 3m, DefaultCbm = 0.1m, ProductAttributeProfileId = profile, ProductSeriesId = series,
                 CategoryId = category, DefaultSupplierId = supplier }
         };
         var item = new ProductMasterLookupItemModel(dto);
         Assert.AreSame(dto, item.Source);
         CollectionAssert.AreEqual(new object?[] { uid, 7, true, created, "创建人", updated, "更新人", "MASTER", "English", "中文", "Features", "配置",
-            6, 2m, 3m, 0.1m, "类型", "系列", category, "分类", supplier, "供应商", "image.png", 12m, 50m },
+            6, 2m, 3m, 0.1m, profile, series, "系列", category, "分类", supplier, "供应商", "image.png", 12m, 50m },
             new object?[] { item.Uid, item.Version, item.IsDeleted, item.CreatedDate, item.CreatedBy, item.UpdatedDate, item.UpdatedBy,
                 item.MasterSku, item.DefaultDescriptionEn, item.DefaultDescriptionZh, item.DefaultFeaturesEn, item.DefaultFeaturesZh,
-                item.DefaultPcsPerPackage, item.DefaultNetWeight, item.DefaultGrossWeight, item.DefaultCbm, item.ProductType, item.ProductSeries,
+                item.DefaultPcsPerPackage, item.DefaultNetWeight, item.DefaultGrossWeight, item.DefaultCbm, item.ProductAttributeProfileId, item.ProductSeriesId, item.ProductSeriesName,
                 item.CategoryId, item.CategoryName, item.DefaultSupplierId, item.DefaultSupplierName, item.MainImagePath,
                 item.DefaultSalesPriceUsd, item.DefaultPurchasePriceCny });
-        dto.Data.ProductSeries = "来源新值";
-        Assert.AreEqual("来源新值", item.ProductSeries);
+        dto.ProductSeriesName = "来源新值";
+        Assert.AreEqual("来源新值", item.ProductSeriesName);
     }
 
     /// <summary>可选空值保留未设置状态；缺少嵌套数据安全显示，空来源明确拒绝。</summary>
@@ -55,7 +57,8 @@ public sealed class ProductMasterLookupTextBoxTests
         var item = new ProductMasterLookupItemModel(new() { Data = null! });
         Assert.IsNull(item.MasterSku);
         Assert.IsNull(item.DefaultDescriptionZh);
-        Assert.IsNull(item.ProductSeries);
+        Assert.IsNull(item.ProductSeriesId);
+        Assert.IsNull(item.ProductSeriesName);
         Assert.IsNull(item.MainImagePath);
         Assert.IsNull(item.DefaultNetWeight);
         Assert.IsNull(item.DefaultSalesPriceUsd);

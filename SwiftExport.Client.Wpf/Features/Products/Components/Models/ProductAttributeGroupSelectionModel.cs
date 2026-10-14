@@ -4,7 +4,7 @@ using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using System.Collections.ObjectModel;
 
-namespace SwiftExportClient.Features.Products.ProductList.Models;
+namespace SwiftExportClient.Features.Products.Components.Models;
 
 /// <summary>详情页一个属性组的私有选择草稿；候选只读，弹出层确定后才发布选择。</summary>
 public sealed partial class ProductAttributeGroupSelectionModel : ObservableObject
@@ -38,7 +38,7 @@ public sealed partial class ProductAttributeGroupSelectionModel : ObservableObje
     public bool IsSingle => !IsMultiple;
     /// <summary>获取本组只读候选；不在候选 DTO 上保存勾选状态。</summary>
     public IReadOnlyList<ProductAttributeOptionDto> Options { get; }
-    /// <summary>获取本详情独占的已确认多选集合，供公共控件写入。</summary>
+    /// <summary>获取当前对象详情独占的已确认多选集合，供公共控件在确定后写入。</summary>
     public ObservableCollection<ProductAttributeOptionDto> SelectedItems { get; } = [];
     /// <summary>获取或设置单选候选；显式改变时替换本组最终选择。</summary>
     [ObservableProperty] public partial ProductAttributeOptionDto? SelectedOption { get; set; }
@@ -70,12 +70,14 @@ public sealed partial class ProductAttributeGroupSelectionModel : ObservableObje
         PublishSelection();
     }
 
+    /// <summary>同步可读摘要并发布当前组的最终选择，不负责对象保存。</summary>
     private void PublishSelection()
     {
         UpdateSummary();
         SelectionCommitted?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>按已确认值生成摘要，并提示多选转单选后的遗留冲突。</summary>
     private void UpdateSummary()
     {
         SelectionSummary = SelectedItems.Count == 0 ? "未选择" : string.Join("、", SelectedItems.Select(item => item.OptionName));

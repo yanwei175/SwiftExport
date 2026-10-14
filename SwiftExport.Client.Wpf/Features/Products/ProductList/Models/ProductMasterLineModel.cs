@@ -34,11 +34,15 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
     [ObservableProperty] public partial decimal? DefaultGrossWeight { get; set; }
     /// <summary>获取或设置默认体积。</summary>
     [ObservableProperty] public partial decimal? DefaultCbm { get; set; }
-    /// <summary>获取或设置产品类型。</summary>
-    [ObservableProperty] public partial string ProductType { get; set; } = string.Empty;
-    /// <summary>获取或设置产品系列名；为空表示未设置。</summary>
-    [ObservableProperty] public partial string ProductSeries { get; set; } = string.Empty;
-    /// <summary>实时分类标签摘要，只用于显示；与产品系列名分别维护。</summary>
+    /// <summary>获取或设置属性模板字典明细身份；空值表示未设置模板。</summary>
+    [ObservableProperty] public partial Guid? ProductAttributeProfileId { get; set; }
+    /// <summary>获取或设置模板显示名称，不作为持久化身份。</summary>
+    [ObservableProperty] public partial string ProductAttributeProfileName { get; set; } = string.Empty;
+    /// <summary>获取或设置产品系列字典明细身份；为空表示未设置。</summary>
+    [ObservableProperty] public partial Guid? ProductSeriesId { get; set; }
+    /// <summary>系列的实时显示名称，不作为写入身份。</summary>
+    [ObservableProperty] public partial string ProductSeriesName { get; set; } = string.Empty;
+    /// <summary>实时标签摘要，只用于显示；与产品系列名分别维护。</summary>
     [ObservableProperty] public partial string TagSummary { get; set; } = string.Empty;
     /// <summary>获取或设置分类标识。</summary>
     [ObservableProperty] public partial Guid CategoryId { get; set; }
@@ -74,5 +78,5 @@ public sealed partial class ProductMasterLineModel : BaseLineModel<ProductMaster
 
     /// <summary>实时摘要不属于列表写字段，程序刷新不能使行产生修改。</summary>
     protected override bool IsTrackingIgnoredProperty(string? propertyName) =>
-        base.IsTrackingIgnoredProperty(propertyName) || propertyName == nameof(TagSummary);
+        base.IsTrackingIgnoredProperty(propertyName) || propertyName is nameof(TagSummary) or nameof(ProductSeriesName);
 }

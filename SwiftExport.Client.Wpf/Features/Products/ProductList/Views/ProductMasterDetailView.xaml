@@ -5,7 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
-             xmlns:productViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
+             xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -62,7 +62,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Grid Grid.Column="0" IsEnabled="{Binding CanWrite}">
+                <Grid Grid.Column="0" IsEnabled="{Binding CanEditHeader}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="8"/>
@@ -81,58 +81,58 @@
                         <ColumnDefinition Width="1*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="35"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="12"/>
-                        <RowDefinition Height="35"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="12"/>
-                        <RowDefinition Height="35"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="12"/>
-                        <RowDefinition Height="35"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="12"/>
-                        <RowDefinition Height="35"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
 
                     <TextBlock Grid.Column="0" Grid.Row="0" Text="主型号编码: *" VerticalAlignment="Center"  />
-                    <ui:TextBox Grid.Column="2" Grid.Row="0"
+                    <ui:TextBox Grid.Column="2" Grid.Row="0" 
                                     Text="{Binding Header.MasterSku, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Column="4" Grid.Row="0" Text="中文描述:" VerticalAlignment="Center" />
-                        <ui:TextBox Grid.Column="6" Grid.Row="0" Grid.ColumnSpan="5"
+                    <ui:TextBox Grid.Column="6" Grid.Row="0" Grid.ColumnSpan="5" 
                                     Text="{Binding Header.DefaultDescriptionZh, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Grid.Column="12" Grid.Row="0" 
                                Text="产品分类:" VerticalAlignment="Center" />
-                    <productComponents:ProductCategoryLookupTextBox Grid.Column="14" Grid.Row="0" FontSize="14"
-                                        Placeholder="产品分类"
-                                        Text="{Binding Header.CategoryName, Mode=OneWay}"
-                                        ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
-                                        SelectedCategory="{Binding SelectedCategory, Mode=TwoWay}"
-                                        RefreshCommand="{Binding RefreshProductCategoriesCommand}"
-                                        IsRefreshing="{Binding RefreshProductCategoriesCommand.IsRunning, Mode=OneWay}"
-                                        SelectionCommittedCommand="{Binding CommitCategoryCommand}"
-                                        SelectionClearedCommand="{Binding ClearCategoryCommand}" />
+                    <productComponents:ProductCategoryLookupTextBox Grid.Column="14" Grid.Row="0"
+                                                                    Placeholder="产品分类"
+                                                                    Text="{Binding Header.CategoryName, Mode=OneWay}"
+                                                                    ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
+                                                                    SelectedCategory="{Binding SelectedCategory, Mode=TwoWay}"
+                                                                    RefreshCommand="{Binding RefreshProductCategoriesCommand}"
+                                                                    IsRefreshing="{Binding RefreshProductCategoriesCommand.IsRunning, Mode=OneWay}"
+                                                                    SelectionCommittedCommand="{Binding CommitCategoryCommand}"
+                                                                    SelectionClearedCommand="{Binding ClearCategoryCommand}" />
 
-                    <TextBlock Grid.Column="12" Grid.Row="2" Text="产品类型:" VerticalAlignment="Center" />
-                    <ui:TextBox  Grid.Column="14" Grid.Row="2"  Text="{Binding Header.ProductType, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBlock Grid.Column="12" Grid.Row="2" Text="属性模板:" VerticalAlignment="Center" />
+                    <productComponents:ProductAttributeProfileLookupTextBox Grid.Column="14" Grid.Row="2"
+                                            Text="{Binding Header.ProductAttributeProfileName, Mode=OneWay}"
+                                            ItemsSource="{Binding ProfileCandidates}" SelectedProfile="{Binding SelectedProfile, Mode=TwoWay}"
+                                            SelectionCommittedCommand="{Binding CommitProfileCommand}"
+                                            SelectionClearedCommand="{Binding ClearProfileCommand}"
+                                            AutomationProperties.Name="主型号属性模板" />
 
                     <TextBlock Grid.Column="0" Grid.Row="2" Text="默认供应商:" VerticalAlignment="Center" />
-                    <controls:LookupTextBox Grid.Column="2" Grid.Row="2" StretchToHost="True"
-                                            Text="{Binding Header.DefaultSupplierName, Mode=OneWay}"
-                                            SearchMode="Remote" 
-                                            ItemsSource="{Binding SupplierCandidates}"
-                                            IsBusy="{Binding IsSupplierLookupBusy}" 
-                                            SearchCommand="{Binding SearchSuppliersCommand}"
-                                            SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}"
-                                            DisplayMemberPath="SupplierName" 
-                                            FilterMemberPaths="SupplierName"
-                                            SelectionCommittedCommand="{Binding CommitSupplierCommand}" 
+                    <supplierComponents:SupplierAutoSuggestComboBox Grid.Column="2" Grid.Row="2" StretchToHost="True"
+                                            ItemsSource="{Binding SupplierOptions}" 
+                                            SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"
+                                            SelectionCommittedCommand="{Binding CommitSupplierCommand}"
                                             SelectionClearedCommand="{Binding ClearSupplierCommand}"
-                                            ClearSelectionOnEdit="False"
-                                            RequireItemMatch="True"/>
+                                            Placeholder="{Binding SupplierPlaceholder}"
+                                            ToolTip="{Binding Header.DefaultSupplierName}"
+                                            AutomationProperties.Name="默认供应商" />
  
                     <TextBlock Grid.Column="4" Grid.Row="2" Text="英文描述:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="6" Grid.Row="2" Grid.ColumnSpan="5"
+                    <ui:TextBox Grid.Column="6" Grid.Row="2" Grid.ColumnSpan="5" 
                                 Text="{Binding Header.DefaultDescriptionEn, UpdateSourceTrigger=PropertyChanged}" />
 
                     
@@ -140,13 +140,13 @@
                     <ui:NumberBox Grid.Column="2" Grid.Row="4" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus, TargetNullValue=''}" />
+                                  Text="{Binding Header.DefaultPcsPerPackage, UpdateSourceTrigger=LostFocus, TargetNullValue='', StringFormat=N0}" />
                     
                     <TextBlock Grid.Column="4" Grid.Row="4" Text="净重:" VerticalAlignment="Center" />
-                    <ui:NumberBox Grid.Column="6" Grid.Row="4" 
+                    <ui:NumberBox Grid.Column="6" Grid.Row="4"
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultNetWeight, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Header.DefaultNetWeight, UpdateSourceTrigger=LostFocus, StringFormat=N2}" />
                     
                     <TextBlock Grid.Column="8" Grid.Row="4" Text="中文配置:" VerticalAlignment="Center" />
                     <ui:TextBox Grid.Column="10" Grid.Row="4" Grid.RowSpan="6"
@@ -164,19 +164,31 @@
                     <ui:NumberBox Grid.Column="2" Grid.Row="6" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
-                                  Text="{Binding Header.DefaultGrossWeight, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Header.DefaultGrossWeight, UpdateSourceTrigger=LostFocus, StringFormat=N2}" />
                     
                     <TextBlock  Grid.Column="4" Grid.Row="6" Text="体积:" VerticalAlignment="Center" />
                     <ui:NumberBox Grid.Column="6" Grid.Row="6" 
                                   ClearButtonEnabled="False"
                                   SpinButtonPlacementMode="Compact"
                                   PlaceholderText="0.000"
-                                  Text="{Binding Header.DefaultCbm, UpdateSourceTrigger=LostFocus}" />
+                                  Text="{Binding Header.DefaultCbm, UpdateSourceTrigger=LostFocus, StringFormat=N3}" />
 
                     <TextBlock Grid.Column="0" Grid.Row="8" Text="产品系列:" VerticalAlignment="Center" />
-                    <ui:TextBox Grid.Column="2" Grid.Row="8"
-                                PlaceholderText="产品系列名（可空）"
-                                Text="{Binding Header.ProductSeries, UpdateSourceTrigger=PropertyChanged}" />
+                    
+                    <Grid Grid.Column="2" Grid.Row="8" ColumnDefinitions="*,Auto">
+                        <productComponents:ProductSeriesAutoSuggestComboBox 
+                                            Text="{Binding Header.ProductSeriesName, Mode=OneWay}"
+                                            ItemsSource="{Binding SeriesCandidates}"
+                                            SelectedSeries="{Binding SelectedSeries, Mode=TwoWay}"
+                                            SelectionCommittedCommand="{Binding CommitSeriesCommand}"
+                                            SelectionClearedCommand="{Binding ClearSeriesCommand}"
+                                            Placeholder="产品系列（可空）"
+                                            AutomationProperties.Name="主型号产品系列" />
+                        
+                        <ui:Button x:Name="管理系列" Grid.Column="1" Icon="{ui:SymbolIcon Symbol=Settings24}" Margin="4,0,0,0"
+                                   Command="{Binding ManageSeriesCommand}" ToolTip="管理产品系列"
+                                   AutomationProperties.Name="管理产品系列" VerticalAlignment="Stretch"/>
+                    </Grid>
                 </Grid>
 
                 <Grid Grid.Column="2">
@@ -341,7 +353,9 @@
         </Grid>
             </TabItem>
             <TabItem Header="标签属性" AutomationProperties.Name="标签属性页签">
-                <productViews:ProductMasterTagsView IsEnabled="{Binding IsNotBusy}" />
+                <productComponents:ProductAttributeEditor Workspace="{Binding Tags}" CanEdit="{Binding CanEditTags}"
+                                                          RefreshCommand="{Binding RefreshProductAttributesCommand}"
+                                                          IsEnabled="{Binding IsNotBusy}" />
             </TabItem>
         </TabControl>
 

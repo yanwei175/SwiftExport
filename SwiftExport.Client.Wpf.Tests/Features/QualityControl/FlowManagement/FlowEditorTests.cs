@@ -14,6 +14,25 @@ namespace SwiftExport.Client.Wpf.Tests.Features.QualityControl.FlowManagement;
 [TestClass]
 public sealed class FlowEditorTests
 {
+    /// <summary>默认限流器按固定英文代码识别，中文改名或其他同名选项都不改变所选身份。</summary>
+    [TestMethod]
+    public async Task NewRows_SelectUnlimitedByCodeAfterDisplayRename()
+    {
+        var values = FlowTestHost.Dictionaries().ToList();
+        values[2].DataNameZh = "无节流器";
+        values.Insert(0, new SwiftExport.Contracts.DTOs.SystemDtos.SysDictDataDto
+        {
+            Uid = Guid.NewGuid(), DictCode = SwiftExport.Contracts.SysEnums.DictCodes.FlowLimiterSpecification,
+            DataNameEn = "CustomLimiter", DataNameZh = "不限流", IsEnabled = true
+        });
+        var host = new FlowTestHost(values);
+        using var model = host.Editor();
+        await model.InitializeDocumentAsync(new FlowOpenRequest(), default);
+
+        Assert.AreEqual(FlowTestHost.LimiterId, model.Lines[0].LimiterSpecificationId);
+        Assert.AreEqual("无节流器", model.Lines[0].LimiterDisplayName);
+    }
+
     /// <summary>完整新增保留两套测量、空值和零值，接纳服务器身份与版本。</summary>
     [TestMethod]
     public async Task CreateKeepsNullZeroAndAcceptsIdentity()

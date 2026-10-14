@@ -1,8 +1,10 @@
-<UserControl x:Class="SwiftExportClient.Features.Products.ProductList.Views.ProductMasterTagsView"
+<UserControl x:Class="SwiftExportClient.Features.Products.Components.ProductAttributeEditor"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter">
+             xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
+             xmlns:components="clr-namespace:SwiftExportClient.Features.Products.Components"
+             x:Name="Root">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="TagBooleanVisibility" />
     </UserControl.Resources>
@@ -14,15 +16,15 @@
         </Grid.RowDefinitions>
         
         <DockPanel LastChildFill="True">
-            <Button DockPanel.Dock="Right" Content="刷新标签" Command="{Binding RefreshProductAttributesCommand}"
-                    AutomationProperties.Name="刷新分类标签定义" Margin="8,0,0,0" />
-            <TextBlock Text="{Binding Tags.StatusText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Right" Content="刷新标签" Command="{Binding RefreshCommand, ElementName=Root}"
+                    AutomationProperties.Name="刷新属性模板标签定义" Margin="8,0,0,0" />
+            <TextBlock Text="{Binding Workspace.StatusText, ElementName=Root}" TextWrapping="Wrap" VerticalAlignment="Center" />
         </DockPanel>
         
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 
-                <ItemsControl ItemsSource="{Binding Tags.Groups}" IsEnabled="{Binding CanEditTags}">
+                <ItemsControl ItemsSource="{Binding Workspace.Groups, ElementName=Root}" IsEnabled="{Binding CanEdit, ElementName=Root}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <ui:Card>                                
@@ -80,7 +82,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 
-                <ItemsControl ItemsSource="{Binding Tags.MissingSelections}" IsEnabled="{Binding CanEditTags}">
+                <ItemsControl ItemsSource="{Binding Workspace.MissingSelections, ElementName=Root}" IsEnabled="{Binding CanEdit, ElementName=Root}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <ui:Card>
@@ -88,7 +90,7 @@
                                     <TextBlock Text="{Binding DisplayText}" VerticalAlignment="Center" Margin="0,0,8,0"
                                                Foreground="{DynamicResource UserBusinessTextWarningBrush}" />
                                     <Button Content="移除失效标签" CommandParameter="{Binding}"
-                                            Command="{Binding DataContext.Tags.RemoveMissingSelectionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Command="{Binding Workspace.RemoveMissingSelectionCommand, RelativeSource={RelativeSource AncestorType={x:Type components:ProductAttributeEditor}}}"
                                             AutomationProperties.Name="移除当前失效标签" />
                                 </StackPanel>
                             </ui:Card>

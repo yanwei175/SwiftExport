@@ -11,6 +11,9 @@ using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces;
+using SwiftExport.Core.Interfaces.Products.Attributes;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
+using System.Data;
 
 namespace SwiftExport.Application.Services.Products.Catalog.Query;
 
@@ -18,9 +21,46 @@ namespace SwiftExport.Application.Services.Products.Catalog.Query;
 public sealed class ProductQueryService(
     IProductRepository repository, IWarehouseQueryRepository warehouses,
     ICurrentUser currentUser, IPermissionEvaluationService permissions,
-    ServiceBaseContext context) : IProductQueryService
+    ServiceBaseContext context, IProductAttributeRepository attributeRepository) : IProductQueryService
 {
     private readonly ILogger<ProductQueryService> _logger = context.LoggerFactory.CreateLogger<ProductQueryService>();
+
+    /// <inheritdoc />
+    public async Task<ServiceResult<ProductDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
+    {
+        if (uid == Guid.Empty) return ServiceResult<ProductDetailDto>.Fail(ServiceErrorCodes.Validation, "物料身份无效。");
+        IDbTransaction? read = null;
+        try
+        {
+            // 三类读取共享一致快照，避免把上游旧模板和物料新选择拼成同一详情；参加调用方事务时不持有提交权。
+            if (context.Session.Transaction is null)
+            {
+                read = context.Session.Connection.BeginTransaction(IsolationLevel.RepeatableRead);
+                context.Session.Transaction = read;
+            }
+            var detail = await repository.GetDetailAsync(uid, cancellationToken);
+            if (detail is null) return ServiceResult<ProductDetailDto>.Fail(ServiceErrorCodes.NotFound, "物料不存在或已删除。");
+            detail.SelectedOptionIds = (await attributeRepository.GetSelectionsAsync(ProductAttributeOwnerType.Product, [uid], cancellationToken))
+                .Select(row => row.OptionId).OrderBy(id => id).ToList();
+            detail.AttributeSelections = (await attributeRepository.GetSelectionDetailsAsync(ProductAttributeOwnerType.Product, [uid], cancellationToken)).ToList();
+            read?.Commit();
+            return ServiceResult<ProductDetailDto>.Ok(detail);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "读取物料编辑详情失败。");
+            return ServiceResult<ProductDetailDto>.Fail(ServiceErrorCodes.Unexpected, "读取物料详情失败，请稍后重试。");
+        }
+        finally
+        {
+            if (read is not null)
+            {
+                try { read.Dispose(); }
+                finally { context.Session.Transaction = null; }
+            }
+        }
+    }
 
     /// <inheritdoc />
     public async Task<ServiceResult<ProductDto>> GetByIdAsync(Guid uid)

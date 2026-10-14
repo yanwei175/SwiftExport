@@ -12,88 +12,86 @@ using SwiftExport.WebApi.Controllers.Products.Attributes;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
-/// <summary>验证标签 Refit 的真实请求路径、变更包装和控制器路由契约，不需要数据库。</summary>
+/// <summary>验证模板标签 Refit 的实际请求路径、变更包装和 MVC 路由，不需要数据库。</summary>
 [TestClass]
 public sealed class ProductAttributeApiContractTests
 {
-    /// <summary>全局保存与旧兼容端点分别对齐 MVC 路由，临时父身份和关联逐项版本跨 HTTP 保持。</summary>
+    /// <summary>模板读取及全局保存对齐路由，临时父身份、关联版本和契约版本跨 HTTP 保持。</summary>
     [TestMethod]
     public async Task RefitAndMvc_RoutesAndDefinitionPayloadAgree()
     {
-        var category = Guid.NewGuid(); var temporary = Guid.NewGuid();
+        var profile = Guid.NewGuid(); var temporary = Guid.NewGuid();
         var handler = new CaptureHandler();
         using var client = new HttpClient(handler) { BaseAddress = new Uri("https://contract.invalid/api/ProductAttribute") };
         var api = RestService.For<IProductAttributeApi>(client);
         Assert.IsTrue((await api.GetDefinitionsAsync()).Success);
-        Assert.IsTrue((await api.GetCategoryDefinitionsAsync(category)).Success);
-        var request = new SaveProductAttributeDefinitionsRequest();
+        Assert.IsTrue((await api.GetProfileDefinitionsAsync(profile)).Success);
+        var request = new SaveProductAttributeDefinitionsRequest { ContractVersion = 2 };
         request.GroupChanges.CreateItems.Add(new() { RowIndex = 3, Data = new() { ClientUid = temporary, GroupCode = "SIZE", GroupName = "尺寸" } });
         request.OptionChanges.CreateItems.Add(new() { RowIndex = 4, Data = new() { AttributeGroupId = temporary, OptionCode = "8", OptionName = "8寸" } });
-        request.CategoryChanges.CreateItems.Add(new() { RowIndex = 5, Data = new() { CategoryId = category, AttributeGroupId = temporary } });
-        request.CategoryChanges.DeleteItems.Add(new() { Uid = Guid.NewGuid(), Version = 2 });
+        request.ProfileChanges.CreateItems.Add(new() { RowIndex = 5, Data = new() { ProductAttributeProfileId = profile, AttributeGroupId = temporary } });
+        request.ProfileChanges.DeleteItems.Add(new() { Uid = Guid.NewGuid(), Version = 2 });
         request.GroupChanges.DeleteItems.Add(new() { Uid = Guid.NewGuid(), Version = 7 });
         Assert.IsTrue((await api.BatchSaveDefinitionsAsync(request)).Success);
-        var globalBody = handler.Body;
-        Assert.IsTrue((await api.BatchSaveAsync(category, request)).Success);
-        CollectionAssert.AreEqual(new[] { "/api/ProductAttribute/definitions", $"/api/ProductAttribute/definitions/{category}", "/api/ProductAttribute/definitions/batch-save", $"/api/ProductAttribute/definitions/{category}/batch-save" }, handler.Paths);
-        CollectionAssert.AreEqual(new[] { "GET", "GET", "POST", "POST" }, handler.Methods);
-        var received = JsonConvert.DeserializeObject<SaveProductAttributeDefinitionsRequest>(globalBody)!;
+        CollectionAssert.AreEqual(new[] { "/api/ProductAttribute/definitions", $"/api/ProductAttribute/definitions/profiles/{profile}", "/api/ProductAttribute/definitions/batch-save" }, handler.Paths);
+        CollectionAssert.AreEqual(new[] { "GET", "GET", "POST" }, handler.Methods);
+        var received = JsonConvert.DeserializeObject<SaveProductAttributeDefinitionsRequest>(handler.Body)!;
+        Assert.AreEqual(2, received.ContractVersion);
         Assert.AreEqual(temporary, received.GroupChanges.CreateItems.Single().Data.ClientUid);
         Assert.AreEqual(temporary, received.OptionChanges.CreateItems.Single().Data.AttributeGroupId);
         Assert.AreEqual(7, received.GroupChanges.DeleteItems.Single().Version);
-        Assert.AreEqual(temporary, received.CategoryChanges.CreateItems.Single().Data.AttributeGroupId);
-        Assert.AreEqual(category, received.CategoryChanges.CreateItems.Single().Data.CategoryId);
-        Assert.AreEqual(2, received.CategoryChanges.DeleteItems.Single().Version);
+        Assert.AreEqual(temporary, received.ProfileChanges.CreateItems.Single().Data.AttributeGroupId);
+        Assert.AreEqual(profile, received.ProfileChanges.CreateItems.Single().Data.ProductAttributeProfileId);
+        Assert.AreEqual(2, received.ProfileChanges.DeleteItems.Single().Version);
         Assert.AreEqual("api/[controller]", typeof(ProductAttributeController).GetCustomAttributes(typeof(RouteAttribute), true).Cast<RouteAttribute>().Single().Template);
         Assert.AreEqual("definitions", Route<HttpGetAttribute>(nameof(ProductAttributeController.GetDefinitionsAsync)));
-        Assert.AreEqual("definitions/{categoryId:guid}", Route<HttpGetAttribute>(nameof(ProductAttributeController.GetCategoryDefinitionsAsync)));
+        Assert.AreEqual("definitions/profiles/{profileId:guid}", Route<HttpGetAttribute>(nameof(ProductAttributeController.GetProfileDefinitionsAsync)));
         Assert.AreEqual("definitions/batch-save", Route<HttpPostAttribute>(nameof(ProductAttributeController.BatchSaveDefinitionsAsync)));
-        Assert.AreEqual("definitions/{categoryId:guid}/batch-save", Route<HttpPostAttribute>(nameof(ProductAttributeController.BatchSaveAsync)));
+        Assert.IsNull(typeof(ProductAttributeController).GetMethod("GetCategoryDefinitionsAsync"));
+        Assert.IsNull(typeof(ProductAttributeController).GetMethod("BatchSaveAsync"));
+        Assert.IsNull(typeof(IProductAttributeApi).GetMethod("GetCategoryDefinitionsAsync"));
     }
 
-    /// <summary>控制器分别转发新全局与旧兼容调用，并完整透传请求取消令牌。</summary>
+    /// <summary>控制器完整转发模板身份、全局请求及取消令牌，不保留分类写入兼容入口。</summary>
     [TestMethod]
-    public async Task Controller_KeepsGlobalAndLegacySaveSeparate()
+    public async Task Controller_ForwardsProfileAndGlobalSave()
     {
         var stub = new DefinitionServiceStub();
         var controller = new ProductAttributeController(stub);
-        var request = new SaveProductAttributeDefinitionsRequest();
+        var request = new SaveProductAttributeDefinitionsRequest { ContractVersion = 2 };
         using var cancellation = new CancellationTokenSource();
-        var categoryId = Guid.NewGuid();
+        var profile = Guid.NewGuid();
+        Assert.IsTrue((await controller.GetProfileDefinitionsAsync(profile, cancellation.Token)).Success);
+        Assert.AreEqual(profile, stub.ProfileId);
         Assert.IsTrue((await controller.BatchSaveDefinitionsAsync(request, cancellation.Token)).Success);
-        Assert.IsFalse((await controller.BatchSaveAsync(categoryId, request, cancellation.Token)).Success);
-        Assert.AreSame(request, stub.GlobalRequest);
-        Assert.AreEqual(categoryId, stub.LegacyCategoryId);
+        Assert.AreSame(request, stub.Request);
         Assert.AreEqual(cancellation.Token, stub.Token);
     }
 
-    /// <summary>区分兼容端点与全局写入口，不借助数据库测试控制器转发。</summary>
+    /// <summary>只模拟当前定义用例，记录控制器输入以验证转发。</summary>
     private sealed class DefinitionServiceStub : IProductAttributeDefinitionService
     {
-        internal SaveProductAttributeDefinitionsRequest? GlobalRequest;
-        internal Guid LegacyCategoryId;
+        internal SaveProductAttributeDefinitionsRequest? Request;
+        internal Guid? ProfileId;
         internal CancellationToken Token;
         /// <inheritdoc />
-        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(Guid? categoryId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new()));
+        public Task<ServiceResult<ProductAttributeDefinitionsDto>> GetDefinitionsAsync(Guid? profileId, CancellationToken cancellationToken = default)
+        { ProfileId = profileId; Token = cancellationToken; return Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new())); }
         /// <inheritdoc />
         public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveDefinitionsAsync(SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default)
-        { GlobalRequest = request; Token = cancellationToken; return Task.FromResult(ServiceResult<SaveProductAttributeDefinitionsResponse>.Ok(new())); }
-        /// <inheritdoc />
-        public Task<ServiceResult<SaveProductAttributeDefinitionsResponse>> BatchSaveAsync(Guid categoryId, SaveProductAttributeDefinitionsRequest request, CancellationToken cancellationToken = default)
-        { LegacyCategoryId = categoryId; Token = cancellationToken; return Task.FromResult(ServiceResult<SaveProductAttributeDefinitionsResponse>.Fail("BUSINESS_BLOCKED", "请升级客户端。")); }
+        { Request = request; Token = cancellationToken; return Task.FromResult(ServiceResult<SaveProductAttributeDefinitionsResponse>.Ok(new())); }
     }
 
-    /// <summary>读取 MVC 实际方法路由，避免仅验证契约自己的声明。</summary>
+    /// <summary>读取 MVC 实际方法路由，避免只验证契约自己的声明。</summary>
     private static string? Route<T>(string method) where T : Microsoft.AspNetCore.Mvc.Routing.HttpMethodAttribute =>
         typeof(ProductAttributeController).GetMethod(method)!.GetCustomAttributes(typeof(T), true).Cast<T>().Single().Template;
 
-    /// <summary>捕获 Refit 产生的 HTTP 请求，同时返回可解析的成功空快照。</summary>
+    /// <summary>捕获 Refit 实际 HTTP 请求，并返回可解析的成功空快照。</summary>
     private sealed class CaptureHandler : HttpMessageHandler
     {
         internal readonly List<string> Paths = [], Methods = [];
         internal string Body = string.Empty;
-        /// <summary>记录实际路径和请求体，模拟服务端使用共享包装返回响应。</summary>
+        /// <summary>记录路径、方法和请求体，模拟服务端共享包装响应。</summary>
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Paths.Add(request.RequestUri!.AbsolutePath); Methods.Add(request.Method.Method);

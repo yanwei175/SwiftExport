@@ -6,7 +6,7 @@ using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Products.Attributes.Models;
 
-/// <summary>维护全局共享标签组草稿；分类适用范围由独立关联草稿维护。</summary>
+/// <summary>维护全局共享标签组草稿；属性模板适用范围由独立关联草稿维护。</summary>
 public sealed partial class ProductAttributeGroupLineModel : BaseLineModel<ProductAttributeGroupDto>
 {
     [ObservableProperty] public partial string GroupCode { get; set; } = string.Empty;

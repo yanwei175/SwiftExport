@@ -13,8 +13,8 @@ namespace SwiftExport.Contracts.DTOs.Products.Attributes
         public BatchSaveResponseBase GroupResults { get; set; } = new BatchSaveResponseBase();
         /// <summary>选项逐项保存回执。</summary>
         public BatchSaveResponseBase OptionResults { get; set; } = new BatchSaveResponseBase();
-        /// <summary>分类直接关联逐项保存回执。</summary>
-        public BatchSaveResponseBase CategoryResults { get; set; } = new BatchSaveResponseBase();
+        /// <summary>模板直接关联逐项保存回执。</summary>
+        public BatchSaveResponseBase ProfileResults { get; set; } = new BatchSaveResponseBase();
         /// <summary>提交后的完整定义快照。</summary>
         public ProductAttributeDefinitionsDto Definitions { get; set; } = new ProductAttributeDefinitionsDto();
     }

@@ -1,22 +1,28 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.Extensions.DependencyInjection;
 using SwiftExport.Contracts.Apis.SystemApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
+using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.Models;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.Views;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.Components;
 using SwiftExportClient.Features.SystemSettings.Page.Views;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Mvvm;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Windows.Controls;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 
@@ -27,6 +33,149 @@ namespace SwiftExport.Client.Wpf.Tests.Features.SystemSettings;
 [DoNotParallelize]
 public sealed class DictionaryManagerLifecycleTests
 {
+    /// <summary>空存储对应的服务端内置类型可维护明细；零版本默认项加载干净，首次保存仍按 Update 提交。</summary>
+    [TestMethod]
+    public async Task BuiltInDefaults_LoadCleanAndSaveAsZeroVersionUpdate()
+    {
+        var uid = Guid.NewGuid();
+        var type = new SysDictTypeDto { Uid = Guid.NewGuid(), DictCode = "FlowTestFunction",
+            DictName = "服务端功能类型", IsBuiltIn = true, IsSystem = true };
+        var data = new SysDictDataDto { Uid = uid, Version = 0, DictCode = type.DictCode,
+            DataNameEn = "Default", DataNameZh = "原默认名称", IsBuiltIn = true, IsSystem = true, IsEnabled = true };
+        SysDictDataBatchSaveRequest? saved = null;
+        var typeApi = CreateProxy<ISysDictTypeApi>((method, _) => method.Name switch
+        {
+            nameof(ISysDictTypeApi.GetAllAsync) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([type])),
+            _ => throw new NotSupportedException(method.Name)
+        });
+        var dataApi = CreateProxy<ISysDictDataApi>((method, args) =>
+        {
+            if (method.Name == nameof(ISysDictDataApi.GetByCodeAsync))
+                return Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([data]));
+            if (method.Name != nameof(ISysDictDataApi.BatchSaveAsync)) throw new NotSupportedException(method.Name);
+            saved = (SysDictDataBatchSaveRequest)args![0]!;
+            data.Version = 1; data.DataNameZh = saved.UpdateItems.Single().Data.DataNameZh;
+            return Task.FromResult(ServiceResult<SysDictDataBatchSaveResponse>.Ok(new()
+            {
+                Items = [new SaveItemResult { ClientKey = saved.UpdateItems.Single().ClientKey, Success = true, Uid = uid, OldVersion = 0, NewVersion = 1,
+                    Operation = SwiftExport.Contracts.SysEnums.StaticEnums.SaveOperation.Update }]
+            }));
+        });
+        using var model = CreateViewModel(typeApi, dataApi, new FakeDialogService(true),
+            cache: new ReferenceDataCacheServiceStub());
+
+        await model.InitializeAsync();
+        Assert.HasCount(1, model.Dictionaries, "客户端只能消费服务端清单，不能再补自己的类型列表。");
+        Assert.AreEqual(type.DictName, model.SelectedDictionary!.Name);
+        Assert.IsTrue(model.CanEditValues);
+        Assert.IsTrue(model.IsTypeEditorReadOnly);
+        Assert.IsFalse(model.HasUnsavedChanges);
+        var line = model.Lines.Items.Single();
+        Assert.AreEqual(LineState.Unchanged, line.State);
+        Assert.IsFalse(line.IsNew);
+        Assert.IsFalse(model.DeleteSelectedCommand.CanExecute(null));
+        line.DataNameZh = "显示名称覆盖";
+        Assert.AreEqual(LineState.Modified, line.State);
+        await model.SaveCommand.ExecuteAsync(null);
+
+        Assert.IsNotNull(saved);
+        Assert.HasCount(0, saved.CreateItems);
+        Assert.HasCount(1, saved.UpdateItems);
+        Assert.AreEqual(uid, saved.UpdateItems[0].Uid);
+        Assert.AreEqual(0, saved.UpdateItems[0].Version);
+        Assert.AreEqual(1, model.Lines.Items.Single().Version);
+        Assert.IsFalse(model.HasUnsavedChanges);
+    }
+
+    /// <summary>首次保存版本冲突不刷新掉零版本内置项的用户输入，供用户决定刷新或保留。</summary>
+    [TestMethod]
+    public async Task BuiltInFirstSaveConflict_KeepsInputAndBaseline()
+    {
+        var type = new SysDictTypeDto { Uid = Guid.NewGuid(), DictCode = "FlowTestFunction",
+            DictName = "功能", IsBuiltIn = true, IsSystem = true };
+        var data = new SysDictDataDto { Uid = Guid.NewGuid(), DictCode = type.DictCode,
+            DataNameEn = "Default", DataNameZh = "默认", IsBuiltIn = true, IsSystem = true, IsEnabled = true };
+        var reads = 0;
+        var typeApi = CreateProxy<ISysDictTypeApi>((method, _) => method.Name switch
+        {
+            nameof(ISysDictTypeApi.GetAllAsync) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok([type])),
+            _ => throw new NotSupportedException(method.Name)
+        });
+        var dataApi = CreateProxy<ISysDictDataApi>((method, _) =>
+        {
+            if (method.Name == nameof(ISysDictDataApi.GetByCodeAsync))
+            {
+                reads++;
+                return Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([data]));
+            }
+            if (method.Name == nameof(ISysDictDataApi.BatchSaveAsync))
+                return Task.FromResult(ServiceResult<SysDictDataBatchSaveResponse>.Fail(
+                    SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.ConcurrencyConflict, "版本冲突"));
+            throw new NotSupportedException(method.Name);
+        });
+        using var model = CreateViewModel(typeApi, dataApi, new FakeDialogService(true));
+        await model.InitializeAsync();
+        var line = model.Lines.Items.Single();
+        line.DataNameZh = "待保存中文";
+        await model.SaveCommand.ExecuteAsync(null);
+
+        Assert.AreEqual(1, reads);
+        Assert.AreSame(line, model.Lines.Items.Single());
+        Assert.AreEqual("待保存中文", line.DataNameZh);
+        Assert.AreEqual(0, line.Version);
+        Assert.IsTrue(model.HasUnsavedChanges);
+        Assert.AreEqual("版本冲突", model.ValidationSummary);
+    }
+
+    /// <summary>原生表格编辑保护内置代码和启用状态，同时保留显示字段及自定义代码的编辑能力。</summary>
+    [TestMethod]
+    public void BuiltInGrid_ProtectsOnlyIdentityFields()
+    {
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            var typeApi = CreateProxy<ISysDictTypeApi>((method, _) => method.Name switch
+            {
+                nameof(ISysDictTypeApi.GetAllAsync) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok(
+                    [new() { Uid = Guid.NewGuid(), DictCode = "FlowTestFunction", DictName = "功能", IsBuiltIn = true }])),
+                _ => throw new NotSupportedException(method.Name)
+            });
+            var dataApi = CreateProxy<ISysDictDataApi>((method, _) => method.Name switch
+            {
+                nameof(ISysDictDataApi.GetByCodeAsync) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok(
+                    [new() { Uid = Guid.NewGuid(), DictCode = "FlowTestFunction", DataNameEn = "Default", DataNameZh = "默认",
+                        IsBuiltIn = true, IsSystem = true, IsEnabled = true },
+                     new() { Uid = Guid.NewGuid(), Version = 1, DictCode = "FlowTestFunction", DataNameEn = "Custom", DataNameZh = "自定义" }])),
+                _ => throw new NotSupportedException(method.Name)
+            });
+            using var model = CreateViewModel(typeApi, dataApi, new FakeDialogService(true));
+            await model.InitializeAsync();
+            var view = new DictionaryManagerView { DataContext = model };
+            var window = new Window { Width = 1280, Height = 800, ShowInTaskbar = false, Content = view };
+            try
+            {
+                window.Show();
+                await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+                var grid = (System.Windows.Controls.DataGrid)((DictionaryDataEditor)view.FindName("ValueEditor")).FindName("DictionaryGrid");
+                var line = model.Lines.Items[0];
+                grid.SelectedItem = line;
+                grid.CurrentCell = new DataGridCellInfo(line, grid.Columns[0]);
+                Assert.IsFalse(grid.BeginEdit(), "内置英文代码不能通过 F2 或原生编辑入口修改。");
+                grid.CurrentCell = new DataGridCellInfo(line, grid.Columns[3]);
+                Assert.IsFalse(grid.BeginEdit(), "内置启用状态不能进入编辑。");
+                grid.CurrentCell = new DataGridCellInfo(line, grid.Columns[1]);
+                Assert.IsTrue(grid.BeginEdit(), "中文显示名应继续允许编辑。");
+                grid.CancelEdit(); grid.CancelEdit(DataGridEditingUnit.Row);
+                var custom = model.Lines.Items[1];
+                grid.SelectedItem = custom;
+                grid.CurrentCell = new DataGridCellInfo(custom, grid.Columns[0]);
+                Assert.IsTrue(grid.BeginEdit(), "用户自定义英文名称仍可维护。");
+                grid.CancelEdit(); grid.CancelEdit(DataGridEditingUnit.Row);
+            }
+            finally { window.Close(); }
+        });
+    }
+
     /// <summary>品质分类接管后，旧类型不应从固定清单或附加类型重现；其他自定义字典仍可维护。</summary>
     [TestMethod]
     public async Task QualityCategoryTree_DoesNotReappearAsGenericDictionary()
@@ -65,10 +214,8 @@ public sealed class DictionaryManagerLifecycleTests
         var currentUser = new CurrentUserService();
         currentUser.SetCurrentUser(new MeDto { UserId = Guid.NewGuid().ToString(),
             Permissions = ["System.Dictionary.View"] });
-        using var model = new DictionaryManagerViewModel(CreateThrowingProxy<ISysDictTypeApi>(),
-            CreateThrowingProxy<ISysDictDataApi>(), new PassThroughApiCallRunner(),
-            new NullMessageService(), new FakeDialogService(true),
-            CreateThrowingProxy<IReferenceDataCacheService>(), currentUser);
+        using var model = CreateViewModel(CreateThrowingProxy<ISysDictTypeApi>(),
+            CreateThrowingProxy<ISysDictDataApi>(), new FakeDialogService(true), currentUser);
         Assert.IsFalse(model.AddDictionaryTypeCommand.CanExecute(null));
 
         currentUser.SetCurrentUser(new MeDto { UserId = currentUser.CurrentUser!.UserId,
@@ -218,7 +365,7 @@ public sealed class DictionaryManagerLifecycleTests
                 window.Show();
                 await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
                 var view = FindVisualDescendants<DictionaryManagerView>(window).Single();
-                var grid = (System.Windows.Controls.DataGrid)view.FindName("DictionaryGrid");
+                var grid = (System.Windows.Controls.DataGrid)((DictionaryDataEditor)view.FindName("ValueEditor")).FindName("DictionaryGrid");
                 Assert.AreEqual(1, grid.Items.Count);
                 Assert.IsFalse(grid.IsReadOnly);
                 var item = grid.Items[0];
@@ -368,19 +515,199 @@ public sealed class DictionaryManagerLifecycleTests
         });
     }
 
+    /// <summary>独立字典明细页按打开参数读取类型，重复初始化不重载已有草稿。</summary>
+    [TestMethod]
+    [DataRow("ProductAttributeProfile", "产品属性模板")]
+    [DataRow("ProductSeries", "产品系列")]
+    public async Task DictionaryDataPage_UsesRequestedCodeAndKeepsDraftOnRepeatedInitialization(string dictCode, string dictionaryName)
+    {
+        var reads = 0; string? requestedCode = null;
+        var api = CreateProxy<ISysDictDataApi>((method, args) =>
+        {
+            Assert.AreEqual(nameof(ISysDictDataApi.GetByCodeAsync), method.Name);
+            reads++; requestedCode = (string)args![0]!;
+            return Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([]));
+        });
+        var user = CreateDictionaryUser();
+        using var values = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(false), new ReferenceDataCacheServiceStub(), user);
+        using var page = new DictionaryDataManagerViewModel(values);
+        var request = new DictionaryDataDocumentOpenRequest(dictCode, dictionaryName);
+        await page.InitializeDocumentAsync(request, CancellationToken.None);
+        values.AddRowCommand.Execute(null); values.SelectedLine!.DataNameZh = "私有字典草稿";
+        await page.InitializeDocumentAsync(request, CancellationToken.None);
+        Assert.AreEqual(dictCode, requestedCode);
+        Assert.AreEqual(dictionaryName, page.DocumentTitle);
+        Assert.AreEqual(dictionaryName, values.DictionaryName);
+        Assert.AreEqual(1, reads);
+        Assert.IsTrue(page.HasUnsavedChanges);
+        Assert.AreEqual("私有字典草稿", values.Lines.Items.Single().DataNameZh);
+        Assert.IsFalse(await page.CanCloseAsync(default));
+    }
+
+    /// <summary>模板和系列明细页分别拥有私有工作区，一个页签撤销不会清除另一个页签的草稿。</summary>
+    [TestMethod]
+    public async Task DictionaryDataPages_KeepProfileAndSeriesDraftsIndependent()
+    {
+        var requestedCodes = new List<string>();
+        var api = CreateProxy<ISysDictDataApi>((method, args) =>
+        {
+            Assert.AreEqual(nameof(ISysDictDataApi.GetByCodeAsync), method.Name);
+            requestedCodes.Add((string)args![0]!);
+            return Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([]));
+        });
+        var user = CreateDictionaryUser();
+        using var profileValues = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(true), new ReferenceDataCacheServiceStub(), user);
+        using var seriesValues = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(true), new ReferenceDataCacheServiceStub(), user);
+        using var profilePage = new DictionaryDataManagerViewModel(profileValues);
+        using var seriesPage = new DictionaryDataManagerViewModel(seriesValues);
+        var profileRequest = new DictionaryDataDocumentOpenRequest(SwiftExport.Contracts.SysEnums.DictCodes.ProductAttributeProfile, "产品属性模板");
+        var seriesRequest = new DictionaryDataDocumentOpenRequest(SwiftExport.Contracts.SysEnums.DictCodes.ProductSeries, "产品系列");
+        await profilePage.InitializeDocumentAsync(profileRequest, CancellationToken.None);
+        profileValues.AddRowCommand.Execute(null); profileValues.SelectedLine!.DataNameZh = "模板草稿";
+        await seriesPage.InitializeDocumentAsync(seriesRequest, CancellationToken.None);
+        seriesValues.AddRowCommand.Execute(null); seriesValues.SelectedLine!.DataNameZh = "系列草稿";
+
+        Assert.AreNotEqual(profileRequest.DocumentKey, seriesRequest.DocumentKey);
+        Assert.HasCount(2, requestedCodes);
+        CollectionAssert.AreEquivalent(new[] { profileRequest.DictCode, seriesRequest.DictCode }, requestedCodes);
+        Assert.AreNotSame(profilePage.Values, seriesPage.Values);
+        Assert.IsTrue(profilePage.HasUnsavedChanges);
+        Assert.IsTrue(seriesPage.HasUnsavedChanges);
+        seriesValues.RejectCommand.Execute(null);
+        Assert.IsFalse(seriesPage.HasUnsavedChanges);
+        Assert.HasCount(0, seriesValues.Lines.Items);
+        Assert.IsTrue(profilePage.HasUnsavedChanges);
+        Assert.AreEqual("模板草稿", profileValues.Lines.Items.Single().DataNameZh);
+    }
+
+    /// <summary>已经确定类型的页签拒绝改用其他类型，不发起读取也不替换当前草稿。</summary>
+    [TestMethod]
+    public async Task DictionaryDataPage_RejectsDifferentTypeAfterInitialization()
+    {
+        var reads = 0;
+        var api = CreateProxy<ISysDictDataApi>((method, _) =>
+        {
+            Assert.AreEqual(nameof(ISysDictDataApi.GetByCodeAsync), method.Name); reads++;
+            return Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([]));
+        });
+        using var values = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(false), new ReferenceDataCacheServiceStub(), CreateDictionaryUser());
+        using var page = new DictionaryDataManagerViewModel(values);
+        await page.InitializeDocumentAsync(new DictionaryDataDocumentOpenRequest(SwiftExport.Contracts.SysEnums.DictCodes.ProductSeries, "产品系列"), CancellationToken.None);
+        values.AddRowCommand.Execute(null); var draft = values.SelectedLine!; draft.DataNameZh = "系列私有草稿";
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => page.InitializeDocumentAsync(
+            new DictionaryDataDocumentOpenRequest(SwiftExport.Contracts.SysEnums.DictCodes.ProductAttributeProfile, "产品属性模板"), CancellationToken.None));
+
+        Assert.AreEqual(1, reads);
+        Assert.AreEqual(SwiftExport.Contracts.SysEnums.DictCodes.ProductSeries, values.DictCode);
+        Assert.AreEqual("产品系列", page.DocumentTitle);
+        Assert.AreSame(draft, values.Lines.Items.Single());
+        Assert.AreEqual("系列私有草稿", draft.DataNameZh);
+        Assert.IsTrue(page.HasUnsavedChanges);
+    }
+
+    /// <summary>新增回执接纳真实身份和版本；缓存失败不会使已提交的模板再次作为新增保存。</summary>
+    [TestMethod]
+    public async Task ProfileSave_AcceptsReceiptBeforeCacheRefreshFailure()
+    {
+        var uid = Guid.NewGuid(); var writes = 0;
+        var api = CreateProxy<ISysDictDataApi>((method, args) =>
+        {
+            if (method.Name == nameof(ISysDictDataApi.GetByCodeAsync))
+                return Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([]));
+            Assert.AreEqual(nameof(ISysDictDataApi.BatchSaveAsync), method.Name); writes++;
+            var request = (SysDictDataBatchSaveRequest)args![0]!;
+            return Task.FromResult(ServiceResult<SysDictDataBatchSaveResponse>.Ok(new()
+            { Items = [new() { ClientKey = request.CreateItems.Single().ClientKey, Success = true,
+                Operation = SwiftExport.Contracts.SysEnums.StaticEnums.SaveOperation.Create, Uid = uid, NewVersion = 1 }] }));
+        });
+        var cache = CreateProxy<IReferenceDataCacheService>((method, _) =>
+        {
+            Assert.AreEqual(nameof(IReferenceDataCacheService.RefreshDictionariesAsync), method.Name);
+            return Task.FromResult(CacheRefreshResult.Fail("离线"));
+        });
+        using var values = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(true), cache, CreateDictionaryUser()) { ContextEditable = true };
+        await values.ActivateAsync("ProductAttributeProfile", "属性模板"); values.AddRowCommand.Execute(null);
+        var line = values.SelectedLine!; line.DataNameEn = "Tap"; line.DataNameZh = "龙头";
+        Assert.IsTrue(await values.TrySaveAsync());
+        Assert.AreEqual(uid, line.Uid); Assert.AreEqual(1, line.Version);
+        Assert.IsFalse(values.HasUnsavedChanges);
+        Assert.IsFalse(await values.TrySaveAsync()); Assert.AreEqual(1, writes);
+    }
+
+    /// <summary>不完整成功回执保留草稿并禁止重复提交，必须显式刷新核对。</summary>
+    [TestMethod]
+    public async Task ProfileSave_IncompleteReceiptKeepsDraftAndRequiresReload()
+    {
+        var api = CreateProxy<ISysDictDataApi>((method, _) => method.Name switch
+        {
+            nameof(ISysDictDataApi.GetByCodeAsync) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([])),
+            nameof(ISysDictDataApi.BatchSaveAsync) => Task.FromResult(ServiceResult<SysDictDataBatchSaveResponse>.Ok(new())),
+            _ => throw new AssertFailedException(method.Name)
+        });
+        using var values = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(true), new ReferenceDataCacheServiceStub(), CreateDictionaryUser()) { ContextEditable = true };
+        await values.ActivateAsync("ProductAttributeProfile", "模板"); values.AddRowCommand.Execute(null);
+        values.SelectedLine!.DataNameEn = "Tap"; values.SelectedLine.DataNameZh = "龙头";
+        Assert.IsFalse(await values.TrySaveAsync()); Assert.IsTrue(values.RequiresReload);
+        Assert.IsTrue(values.HasUnsavedChanges); Assert.AreEqual("龙头", values.Lines.Items.Single().DataNameZh);
+        Assert.IsFalse(values.SaveCommand.CanExecute(null));
+    }
+
+    /// <summary>字典切换尊重子工作区草稿取消和原生编辑转换失败，不替换当前明细。</summary>
+    [TestMethod]
+    public async Task DictionarySwitch_ProtectsExtractedValueDraftAndNativeEdit()
+    {
+        var typeApi = CreateProxy<ISysDictTypeApi>((method, _) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictTypeDto>>.Ok(
+            [new() { Uid = Guid.NewGuid(), DictCode = "A", DictName = "A" }, new() { Uid = Guid.NewGuid(), DictCode = "B", DictName = "B" }])));
+        var dataApi = CreateProxy<ISysDictDataApi>((method, _) => Task.FromResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([])));
+        using var model = CreateViewModel(typeApi, dataApi, new FakeDialogService(false)); await model.InitializeAsync();
+        model.AddRowCommand.Execute(null); model.SelectedLine!.DataNameZh = "保留草稿";
+        var selected = model.SelectedDictionary; var target = model.Dictionaries.Single(item => item != selected);
+        await model.SelectDictionaryCommand.ExecuteAsync(target);
+        Assert.AreSame(selected, model.SelectedDictionary); Assert.AreEqual("保留草稿", model.Lines.Items.Single().DataNameZh);
+        model.Values.CommitPendingEdits = () => false;
+        Assert.IsFalse(await model.CanCloseAsync(default));
+        await model.SelectDictionaryCommand.ExecuteAsync(target);
+        Assert.AreSame(selected, model.SelectedDictionary);
+    }
+
+    /// <summary>固定类型查询在注销后不得回写，即使随后同一用户重新登录。</summary>
+    [TestMethod]
+    public async Task ProfileRead_RejectsLateOldSessionResponse()
+    {
+        var response = new TaskCompletionSource<ServiceResult<IReadOnlyList<SysDictDataDto>>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = CreateProxy<ISysDictDataApi>((method, _) => response.Task);
+        var user = CreateDictionaryUser(); var id = user.CurrentUser!.UserId;
+        using var values = new DictionaryDataEditorViewModel(api, new PassThroughApiCallRunner(), new NullMessageService(),
+            new FakeDialogService(true), new ReferenceDataCacheServiceStub(), user) { ContextEditable = true };
+        var loading = values.ActivateAsync("ProductAttributeProfile", "模板");
+        user.Clear(); user.SetCurrentUser(new() { UserId = id, Permissions = ["System.Dictionary.View", "System.Dictionary.Edit"] });
+        await loading;
+        response.SetResult(ServiceResult<IReadOnlyList<SysDictDataDto>>.Ok([new() { Uid = Guid.NewGuid(), DataNameZh = "迟到" }]));
+        await Task.Yield();
+        Assert.HasCount(0, values.Lines.Items); Assert.IsFalse(values.IsLoaded); Assert.IsTrue(values.IsValueEditorReadOnly);
+    }
+
     private static DictionaryManagerViewModel CreateViewModel(
         ISysDictTypeApi typeApi,
         ISysDictDataApi dataApi,
         IDialogService dialogService,
-        CurrentUserService? currentUser = null)
-        => new(
-            typeApi,
-            dataApi,
-            new PassThroughApiCallRunner(),
-            new NullMessageService(),
-            dialogService,
-            CreateThrowingProxy<IReferenceDataCacheService>(),
-            currentUser ?? CreateDictionaryUser());
+        CurrentUserService? currentUser = null,
+        IReferenceDataCacheService? cache = null)
+    {
+        currentUser ??= CreateDictionaryUser();
+        cache ??= CreateThrowingProxy<IReferenceDataCacheService>();
+        var runner = new PassThroughApiCallRunner();
+        var messages = new NullMessageService();
+        var values = new DictionaryDataEditorViewModel(dataApi, runner, messages, dialogService, cache, currentUser);
+        return new(typeApi, values, runner, messages, dialogService, cache, currentUser);
+    }
 
     /// <summary>界面生命周期测试使用具备全部字典操作的测试会话。</summary>
     private static CurrentUserService CreateDictionaryUser()

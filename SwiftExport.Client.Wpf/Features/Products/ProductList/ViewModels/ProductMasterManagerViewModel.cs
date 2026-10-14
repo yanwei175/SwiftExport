@@ -10,6 +10,8 @@ using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.DTOs.Suppliers;
+using SwiftExport.Contracts.DTOs.SystemDtos;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.ProductList.Models;
@@ -69,6 +71,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         _supplierApi = supplierApi;
         _runner = runner;
         _cache = cache;
+        if (_cache is not null) _cache.ProductAttributesChanged += OnAttributeCandidatesChanged;
         _messages = messages;
         _dialogs = dialogs;
         _syncDialog = syncDialog;
@@ -98,6 +101,10 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     public ProductMasterListModel Masters { get; } = new();
     /// <summary>获取基础资料缓存。</summary>
     public IReferenceDataCacheService ReferenceDataCache => _cache;
+    /// <summary>获取当前会话启用的属性模板候选，供列表内本地选择。</summary>
+    public IReadOnlyList<SysDictDataDto> ProfileCandidates => _cache?.GetDictionaryValues(DictCodes.ProductAttributeProfile) ?? [];
+    /// <summary>当前会话启用的系列字典候选，列表编辑使用本地搜索。</summary>
+    public IReadOnlyList<SysDictDataDto> SeriesCandidates => _cache?.GetDictionaryValues(DictCodes.ProductSeries) ?? [];
     /// <summary>获取供应商搜索候选。</summary>
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     /// <summary>获取分页总页数。</summary>
@@ -449,6 +456,65 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         EditCategory = null;
     }
 
+    /// <summary>仅确认字典候选时修改当前行模板，引用失效由后端拒绝并引导详情处理。</summary>
+    [RelayCommand]
+    private void CommitProfile(ProductMasterLineModel? line)
+    {
+        if (line is null || EditProfile is null || !CanWrite || IsBusy) return;
+        line.ProductAttributeProfileId = EditProfile.Uid;
+        line.ProductAttributeProfileName = EditProfile.DataNameZh ?? EditProfile.DataNameEn ?? string.Empty;
+        EditProfile = null;
+    }
+
+    /// <summary>明确清空可选模板，保存时不自动清空已有标签选择。</summary>
+    [RelayCommand]
+    private void ClearProfile(ProductMasterLineModel? line)
+    {
+        if (line is null || !CanWrite || IsBusy) return;
+        line.ProductAttributeProfileId = null;
+        line.ProductAttributeProfileName = string.Empty;
+        EditProfile = null;
+    }
+
+    /// <summary>获取或设置列表模板编辑器的临时候选，不保存控件搜索文字。</summary>
+    [ObservableProperty] public partial SysDictDataDto? EditProfile { get; set; }
+
+    /// <summary>获取或设置系列编辑器的临时候选，输入文本不参与持久化。</summary>
+    [ObservableProperty] public partial SysDictDataDto? EditSeries { get; set; }
+
+    /// <summary>确认有效系列候选后只修改目标行，其他行草稿保持不变。</summary>
+    [RelayCommand]
+    private void CommitSeries(ProductMasterLineModel? line)
+    {
+        if (line is null || EditSeries is null || !CanWrite || IsBusy
+            || !SeriesCandidates.Any(item => item.Uid == EditSeries.Uid)) return;
+        line.ProductSeriesId = EditSeries.Uid;
+        line.ProductSeriesName = EditSeries.DataNameZh ?? EditSeries.DataNameEn ?? string.Empty;
+        EditSeries = null;
+    }
+
+    /// <summary>明确清空可选系列身份和展示名称，不自动提交列表。</summary>
+    [RelayCommand]
+    private void ClearSeries(ProductMasterLineModel? line)
+    {
+        if (line is null || !CanWrite || IsBusy) return;
+        line.ProductSeriesId = null;
+        line.ProductSeriesName = string.Empty;
+        EditSeries = null;
+    }
+
+    /// <summary>字典或标签快照变化只更新候选，不接纳列表草稿。</summary>
+    private void OnAttributeCandidatesChanged(object? sender, EventArgs args)
+    {
+        if (_disposed) return;
+        OnPropertyChanged(nameof(ProfileCandidates));
+        OnPropertyChanged(nameof(SeriesCandidates));
+        // 显示资料随字典更新，身份和当前列表的编辑基线不变。
+        foreach (var line in Masters.Items)
+            if (line.ProductSeriesId is { } id && SeriesCandidates.FirstOrDefault(item => item.Uid == id) is { } series)
+                line.ProductSeriesName = series.DataNameZh ?? series.DataNameEn ?? string.Empty;
+    }
+
     [RelayCommand]
     private void CommitSupplier(ProductMasterLineModel? line)
     {
@@ -591,6 +657,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         foreach (var pending in _detailRefreshes.Values) { pending.Cancel(); pending.Dispose(); }
         _detailRefreshes.Clear();
         _imageAddresses.Changed -= OnImageConfigurationChanged;
+        if (_cache is not null) _cache.ProductAttributesChanged -= OnAttributeCandidatesChanged;
         Masters.ListStateChanged -= OnListStateChanged;
         Neutrals.ListStateChanged -= OnNeutralListStateChanged;
         PropertyChanged -= OnManagerStateChanged;

@@ -19,7 +19,7 @@ var page = await api.GetPagedAsync(new ProductMasterSearchRequest
 var candidates = page.Data.Items.Select(dto => new ProductMasterLookupItemModel(dto)).ToArray();
 ```
 
-候选模型的 `Source` 保留完整 `ProductMasterListItemDto`。顶层只读属性包含全部现有字段：身份/版本/审计、MasterSku、DefaultDescriptionEn/Zh、DefaultFeaturesEn/Zh、DefaultPcsPerPackage、DefaultNetWeight/GrossWeight/Cbm、ProductType/Tag、分类、默认供应商、主图和默认主图 Neutral 的两种价格。
+候选模型的 `Source` 保留完整 `ProductMasterListItemDto`。顶层只读属性包含全部现有字段：身份/版本/审计、MasterSku、DefaultDescriptionEn/Zh、DefaultFeaturesEn/Zh、DefaultPcsPerPackage、DefaultNetWeight/GrossWeight/Cbm、ProductAttributeProfileId/ProductAttributeProfileName/ProductSeries、分类、默认供应商、主图和默认主图 Neutral 的两种价格。
 
 这些属性直接读 Source，不是第二份 DTO，也不支持编辑状态或属性变更通知；将其作为查询快照使用，刷新时创建新候选。字符串及价格保留 null；异常响应中的 Data=null 安全显示空内容，装率回退为契约默认值 1，关系 ID 回退为空 Guid。不包含供应商代码、颜色、汇率或完整 Neutral 集合。未来新增字段可先通过 Source 访问。
 
