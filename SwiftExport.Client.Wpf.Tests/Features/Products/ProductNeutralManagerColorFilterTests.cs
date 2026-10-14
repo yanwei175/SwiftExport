@@ -20,13 +20,108 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.IO;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExportClient.Features.Products.Components.Models;
+using SwiftExportClient.Features.Products.Components;
+using SwiftExportClient.Mvvm;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证 NeutralManager 工具栏颜色筛选快照及图片路径重建命令。</summary>
+/// <summary>验证中性产品工具栏筛选快照、中文分类显示及图片路径重建命令。</summary>
 [TestClass]
 public sealed class ProductNeutralManagerColorFilterTests
 {
+    /// <summary>父分类包含后代且重复勾选去重；失败恢复已应用集合，清空恢复全部分类。</summary>
+    [TestMethod]
+    public async Task Categories_ShouldExpandDescendantsAndRestoreAfterFailure()
+    {
+        var rootId = Guid.NewGuid(); var childId = Guid.NewGuid(); var otherId = Guid.NewGuid();
+        var cache = new ReferenceDataCacheServiceStub(productCategories:
+        [
+            new() { Uid = rootId, CategoryName = "ROOT", FakeName = "卫浴" },
+            new() { Uid = childId, ParentId = rootId, CategoryName = "SHOWER", FakeName = "花洒" },
+            new() { Uid = otherId, CategoryName = "PARTS", FakeName = "配件" }
+        ]);
+        var api = new RecordingNeutralManagerApi();
+        using var model = new ProductNeutralManagerViewModel(api, new UnusedProductMasterApi(), new PassThroughApiCallRunner(),
+            cache, new SilentMessageService(), new AcceptDialogService(), new ImageAddressResolverStub());
+        var root = cache.ProductCategories.Single(item => item.Uid == rootId);
+        var child = cache.ProductCategories.Single(item => item.Uid == childId);
+        root.AddChild(child);
+        model.FilterCategories.Add(root);
+        Assert.IsEmpty(api.Requests, "临时修改集合不能提前查询。");
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        CollectionAssert.AreEquivalent(new[] { rootId, childId }, api.Requests.Single().CategoryIds);
+        model.FilterCategories.Add(child);
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        Assert.HasCount(1, api.Requests, "父子重复勾选不应改变查询范围或重复请求。");
+
+        model.FilterCategories.Clear(); model.FilterCategories.Add(cache.ProductCategories.Single(item => item.Uid == otherId));
+        await model.RefreshCommand.ExecuteAsync(null);
+        CollectionAssert.AreEquivalent(new[] { rootId, childId }, api.Requests.Last().CategoryIds,
+            "刷新只使用上一次成功应用的分类条件。");
+        api.FailNext = true;
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        CollectionAssert.AreEqual(new[] { root, child }, model.FilterCategories.ToArray());
+        model.FilterCategories.Clear(); model.FilterCategories.Add(ProductCategoryFilterSelection.UncategorizedOption);
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        Assert.IsEmpty(api.Requests.Last().CategoryIds);
+        Assert.IsTrue(api.Requests.Last().IncludeUncategorized, "单独勾选应保留仅未分类查询。");
+        model.FilterCategories.Clear();
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        Assert.IsEmpty(api.Requests.Last().CategoryIds);
+        Assert.IsFalse(api.Requests.Last().IncludeUncategorized);
+    }
+
+    /// <summary>取消放弃编辑时保留草稿并恢复分类和未分类选择，不发出新分页请求。</summary>
+    [TestMethod]
+    public async Task Categories_ShouldPreserveDraftWhenDiscardIsCancelled()
+    {
+        var id = Guid.NewGuid();
+        var cache = new ReferenceDataCacheServiceStub(productCategories: [new() { Uid = id, FakeName = "花洒" }]);
+        var api = new RecordingNeutralManagerApi();
+        var dialogs = new AcceptDialogService { ConfirmResult = false };
+        using var model = new ProductNeutralManagerViewModel(api, new UnusedProductMasterApi(), new PassThroughApiCallRunner(),
+            cache, new SilentMessageService(), dialogs, new ImageAddressResolverStub());
+        model.FilterCategories.Add(cache.ProductCategories.Single());
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        var draft = model.Lines.AddNewNeutral(); draft.ProductCode = "DRAFT";
+        model.FilterCategories.Clear(); model.FilterCategories.Add(ProductCategoryFilterSelection.UncategorizedOption);
+        await model.ApplySelectedCategoriesCommand.ExecuteAsync(null);
+        Assert.HasCount(1, api.Requests);
+        Assert.AreEqual(id, model.FilterCategories.Single().Uid);
+        Assert.IsFalse(model.IncludeUncategorized);
+        Assert.AreSame(draft, model.Lines.Items.Single());
+        Assert.IsTrue(model.HasUnsavedChanges);
+    }
+
+    /// <summary>分页及主型号重新归属优先显示中文分类，展示回填不制造脏状态，撤销仍保持中文基线。</summary>
+    [TestMethod]
+    public async Task CategoryDisplay_ShouldUseChineseCacheOnLoadAndReassignment()
+    {
+        var id = Guid.NewGuid();
+        var cache = new ReferenceDataCacheServiceStub(productCategories: [new() { Uid = id, CategoryName = "SHOWER", FakeName = "花洒" }]);
+        var api = new RecordingNeutralManagerApi
+        {
+            Items = [new() { Uid = Guid.NewGuid(), Version = 1, CategoryId = id, CategoryName = "SHOWER",
+                Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "N-001", ColorId = Guid.NewGuid() } }]
+        };
+        using var model = new ProductNeutralManagerViewModel(api, new UnusedProductMasterApi(), new PassThroughApiCallRunner(),
+            cache, new SilentMessageService(), new AcceptDialogService(), new ImageAddressResolverStub());
+        await model.SearchCommand.ExecuteAsync(null);
+        var line = model.Lines.Items.Single();
+        Assert.AreEqual("花洒", line.CategoryName);
+        Assert.AreEqual(LineState.Unchanged, line.State);
+        model.EditProductMaster = new ProductMasterLookupItemModel(new() { Uid = Guid.NewGuid(), CategoryName = "SHOWER",
+            Data = new() { MasterSku = "NEW", CategoryId = id } });
+        model.CommitProductMasterCommand.Execute(line);
+        Assert.AreEqual("花洒", line.CategoryName);
+        Assert.AreEqual(LineState.Modified, line.State);
+        model.RejectListChangesCommand.Execute(null);
+        Assert.AreEqual("花洒", line.CategoryName);
+        Assert.AreEqual(LineState.Unchanged, line.State);
+    }
+
     /// <summary>临时选择不影响刷新；显式查询成功后才成为已应用筛选，失败时恢复旧选择。</summary>
     [TestMethod]
     public async Task Search_ShouldApplyColorSelectionOnlyAfterSuccess()
@@ -169,6 +264,7 @@ public sealed class ProductNeutralManagerColorFilterTests
         dialogs,
         options);
 
+    /// <summary>记录页面查询并提供可控空页或分类显示数据，禁止访问真实 API。</summary>
     private sealed class RecordingNeutralManagerApi : IProductNeutralManagerApi
     {
         /// <inheritdoc />
@@ -176,6 +272,7 @@ public sealed class ProductNeutralManagerColorFilterTests
             CancellationToken cancellationToken = default) => throw new AssertFailedException("颜色筛选不应提交导入。");
         public List<ProductNeutralManagerSearchRequest> Requests { get; } = [];
         public bool FailNext { get; set; }
+        public List<ProductNeutralManagerListItemDto> Items { get; set; } = [];
 
         public Task<ServiceResult<PagedResponseBase<ProductNeutralManagerListItemDto>>> GetPagedAsync(
             ProductNeutralManagerSearchRequest request,
@@ -192,8 +289,8 @@ public sealed class ProductNeutralManagerColorFilterTests
             {
                 PageIndex = request.PageIndex,
                 PageSize = request.PageSize,
-                TotalCount = 0,
-                Items = [],
+                TotalCount = Items.Count,
+                Items = Items,
             }));
         }
 

@@ -194,7 +194,8 @@
                                           IsHitTestVisible="False" Focusable="False"
                                           AutomationProperties.Name="{Binding DisplayText}">
                                     <ContentPresenter Content="{Binding DisplayContent}"
-                                                      ContentTemplate="{Binding ContentTemplate}" />
+                                                      ContentTemplate="{Binding DataContext.ContentTemplate,
+                                                          RelativeSource={RelativeSource AncestorType=CheckBox}}" />
                                 </CheckBox>
                             </HierarchicalDataTemplate>
                         </TreeView.ItemTemplate>

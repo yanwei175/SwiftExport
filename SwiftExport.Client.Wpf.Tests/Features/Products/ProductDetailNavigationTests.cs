@@ -18,6 +18,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
 using SwiftExportClient.Features.Products.Components.Models;
+using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Views;
@@ -80,6 +81,74 @@ public sealed class ProductDetailNavigationTests
         Assert.AreEqual(string.Empty, line.ToDto().LinkSku);
         Assert.IsTrue(line.IsDirty);
     }
+
+    /// <summary>多分类筛选合并父级后代并去重；确定后回到第一页，重置恢复不限制分类。</summary>
+    [TestMethod]
+    public async Task CategoryFilters_MergeDescendantsAndResetRequest()
+    {
+        var parent = Guid.NewGuid(); var child = Guid.NewGuid(); var grandchild = Guid.NewGuid(); var other = Guid.NewGuid();
+        var cache = new ReferenceDataCacheServiceStub(productCategories:
+        [new() { Uid = parent, CategoryName = "English Parent", FakeName = "父分类" },
+            new() { Uid = child, ParentId = parent, CategoryName = "English Child", FakeName = "子分类" },
+            new() { Uid = grandchild, ParentId = child, CategoryName = "English Grandchild", FakeName = "孙分类" },
+            new() { Uid = other, CategoryName = "English Other", FakeName = "其他分类" }]);
+        // 此离线缓存只建立平面候选；按真实缓存关系补齐树边后再验证后代筛选。
+        var childNode = cache.ProductCategories.Single(node => node.Uid == child);
+        cache.ProductCategories.Single(node => node.Uid == parent).AddChild(childNode);
+        childNode.AddChild(cache.ProductCategories.Single(node => node.Uid == grandchild));
+        using var fixture = new Fixture(cache);
+        var vm = fixture.ViewModel;
+        foreach (var node in cache.ProductCategories.Where(node => node.Uid != grandchild)) vm.FilterCategories.Add(node);
+        vm.PageIndex = 3;
+        await vm.SearchCommand.ExecuteAsync(null);
+        Assert.IsNotNull(fixture.LastSearch);
+        Assert.AreEqual(Guid.Empty, fixture.LastSearch.CategoryId);
+        CollectionAssert.AreEquivalent(new[] { parent, child, grandchild, other }, fixture.LastSearch.CategoryIds);
+        Assert.AreEqual(1, fixture.LastSearch.PageIndex);
+        await vm.ResetFiltersCommand.ExecuteAsync(null);
+        Assert.IsEmpty(vm.FilterCategories);
+        Assert.IsEmpty(fixture.LastSearch!.CategoryIds);
+    }
+
+    /// <summary>实际产品页面绑定公共多选分类器；确定触发查询，关闭弹层不提交分类草稿。</summary>
+    [TestMethod]
+    public void CategoryFilters_ViewUsesSharedPickerAndSearchCommand() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        using var fixture = new Fixture(new(productCategories:
+            [new() { Uid = Guid.NewGuid(), CategoryName = "English Category", FakeName = "中文分类" }]));
+        var view = new ProductsView { DataContext = fixture.ViewModel };
+        var window = new Window { Content = view, Width = 1300, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var picker = Descendants(view).OfType<ProductCategoryMutiSelectButton>().Single();
+            Assert.AreSame(fixture.ViewModel.ReferenceDataCache.ProductCategoryTree, picker.ItemsSource);
+            Assert.AreSame(fixture.ViewModel.FilterCategories, picker.SelectedItems);
+            Assert.AreSame(fixture.ViewModel.SearchCommand, picker.SelectionCommittedCommand);
+            var inner = (SwiftExportClient.Resources.Controls.Filter.MultiSelectLookupButton)picker.FindName("CategoryPicker");
+            var popup = (System.Windows.Controls.Primitives.Popup)inner.FindName("PART_Popup");
+            popup.IsOpen = true;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            popup.IsOpen = false;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(0, fixture.PageReads);
+            Assert.IsEmpty(fixture.ViewModel.FilterCategories);
+            popup.IsOpen = true;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var check = Descendants(popup.Child).OfType<CheckBox>().Single();
+            check.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
+            var apply = Descendants(popup.Child).OfType<Button>().Single(button => Equals(button.Content, "确定"));
+            apply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => fixture.PageReads == 1);
+            Assert.HasCount(1, fixture.ViewModel.FilterCategories);
+            CollectionAssert.AreEqual(new[] { fixture.ViewModel.ReferenceDataCache.ProductCategories.Single().Uid }, fixture.LastSearch!.CategoryIds);
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        }
+        finally { window.Close(); }
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+    });
 
     /// <summary>取消与放弃仅影响目标物料，其他物料和 BOM 组成草稿始终保留。</summary>
     [TestMethod]
@@ -382,13 +451,14 @@ public sealed class ProductDetailNavigationTests
         internal Task<DialogResult>? Confirmation;
         internal DialogOptions? LastDialog;
         internal ProductBatchSaveRequest? LastSave;
+        internal ProductSearchRequest? LastSearch;
         internal readonly List<(string Key, object? Parameter)> Opened = [];
         internal readonly List<ProductDto> Server = [new() { Uid = Guid.NewGuid(), Version = 1, Sku = "A", DescriptionZh = "原描述" },
             new() { Uid = Guid.NewGuid(), Version = 1, Sku = "B", DescriptionZh = "原描述" }];
         internal Func<Guid, CancellationToken, Task<ServiceResult<ProductDetailDto>>> DetailResponse;
         internal readonly ProductsViewModel ViewModel;
 
-        internal Fixture()
+        internal Fixture(ReferenceDataCacheServiceStub? cache = null)
         {
             DetailResponse = (id, _) => Task.FromResult(ServiceResult<ProductDetailDto>.Ok(Detail(id, Server.Single(item => item.Uid == id).Version)));
             var api = Proxy<IProductApi>((method, args) =>
@@ -401,6 +471,7 @@ public sealed class ProductDetailNavigationTests
                 if (method.Name == nameof(IProductApi.GetPagedAsync))
                 {
                     PageReads++;
+                    LastSearch = (ProductSearchRequest)args[0]!;
                     return Task.FromResult(ServiceResult<PagedResponseBase<ProductDto>>.Ok(new() { Items = Server.Adapt<List<ProductDto>>() }));
                 }
                 Assert.AreEqual(nameof(IProductApi.BatchSaveAsync), method.Name);
@@ -440,7 +511,7 @@ public sealed class ProductDetailNavigationTests
                 ? (string)args[0]! == PermissionKeys.ProductsProductView || AllowEdit && (string)args[0]! == PermissionKeys.ProductsProductEdit : null);
             var messages = Proxy<IMessageService>((_, _) => null);
             var bom = new BomDrawerViewModel(null!, api, runner, messages, dialogs);
-            ViewModel = new ProductsViewModel(api, null!, null!, runner, new ReferenceDataCacheServiceStub(), messages,
+            ViewModel = new ProductsViewModel(api, null!, null!, runner, cache ?? new ReferenceDataCacheServiceStub(), messages,
                 dialogs, bom, null!, user, navigation);
             ViewModel.Products.LoadFromDtos(Server.Adapt<List<ProductDto>>());
             ViewModel.SelectedLine = ViewModel.Products.Items[0];

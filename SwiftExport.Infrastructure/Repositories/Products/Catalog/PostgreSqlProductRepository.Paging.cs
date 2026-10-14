@@ -9,7 +9,15 @@ namespace SwiftExport.Infrastructure.Repositories.Products.Catalog;
 /// <summary>产品分页投影当前分类、供应商、仓库和包装；客户条件独立 AND，不产生关系重复行。</summary>
 public partial class PostgreSqlProductRepository
 {
-    /// <summary>保留原筛选与二十条默认、五百条上限；普通查询不锁行，包装保持全部类型的原优先级。</summary>
+    // 产品管理分页使用分类中文显示名；其他读取入口保留各自既有名称契约。
+    private const string CatalogPagedClassificationColumns = """
+        COALESCE(pm.category_id,@EmptyGuid) AS "CategoryId",
+        CASE WHEN pm.uid IS NULL OR pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'
+             WHEN pat.uid IS NULL THEN '分类已失效'
+             ELSE COALESCE(pat.fake_name,'') END AS "CategoryName"
+        """;
+
+    /// <summary>保留原筛选与分页上限；分类显示取 FakeName，普通查询不锁行，包装保持原优先级。</summary>
     public async Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request)
     {
         request ??= new ProductSearchRequest();
@@ -89,7 +97,7 @@ public partial class PostgreSqlProductRepository
         // 分开计数和取页，沿用同一连接事务和筛选；不通过一对多客户 JOIN 放大计数。
         var count = await Connection.ExecuteScalarAsync<int>($"SELECT count(*) {from} {where}", parameters, Transaction);
         var rows = await Connection.QueryAsync<ProductDto>($"""
-            SELECT {CatalogDtoColumns},{CatalogClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish",
+            SELECT {CatalogDtoColumns},{CatalogPagedClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish",
                 pat.fake_name AS "FakeName",pc.color_code_unique AS "ColorCodeUnique",pc.color_code AS "ColorCode",pc.color_name_en AS "ColorNameEn",
                 pkg.pcs_per_package AS "PcsOfCarton",pkg.nw_kg AS "NwOfCarton",pkg.gw_kg AS "GwOfCarton",pkg.cbm AS "CbmOfCarton"
             {from}

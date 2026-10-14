@@ -44,6 +44,7 @@ public sealed partial class ProductNeutralManagerViewModel
     private long _querySequence;
     private long _masterLookupSequence;
     private ProductCategoryFilterSelection _appliedCategoryFilter = ProductCategoryFilterSelection.AllCategories;
+    private IReadOnlyList<ProductCategoryCacheNode> _appliedSelectedCategories = [];
     private IReadOnlyList<ProductColorDto> _appliedColorFilter = [];
     private bool _initialized;
     private bool _disposed;
@@ -103,8 +104,12 @@ public sealed partial class ProductNeutralManagerViewModel
 
     /// <summary>获取或设置搜索关键词。</summary>
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    /// <summary>获取或设置共享分类筛选组件发布的选择快照。</summary>
+    /// <summary>获取或设置已展开后代的分类查询快照；顶部控件只保存独立勾选的分类对象。</summary>
     [ObservableProperty] public partial ProductCategoryFilterSelection CategoryFilter { get; set; } = ProductCategoryFilterSelection.AllCategories;
+    /// <summary>获取顶部多选确定的分类和本地未分类选项；空集合表示全部，不修改共享缓存。</summary>
+    public ObservableCollection<ProductCategoryCacheNode> FilterCategories { get; } = [];
+    /// <summary>获取多选集合是否含本地未分类选项；单独勾选表示仅查询未分类。</summary>
+    public bool IncludeUncategorized => FilterCategories.Any(category => category.Uid == Guid.Empty);
     /// <summary>获取工具栏颜色多选筛选的已提交对象集合；空集合表示全部颜色。</summary>
     public ObservableCollection<ProductColorDto> FilterColorList { get; } = [];
 
@@ -151,7 +156,35 @@ public sealed partial class ProductNeutralManagerViewModel
         await LoadPageAsync();
     }
 
-    /// <summary>应用共享分类筛选快照；取消丢弃或查询失败时恢复最后一次成功应用的选择。</summary>
+    /// <summary>展开已勾选分类及其后代，再应用查询；取消或失败时恢复控件上一次成功应用的选择。</summary>
+    [RelayCommand]
+    private async Task ApplySelectedCategoriesAsync()
+    {
+        var selected = FilterCategories.DistinctBy(category => category.Uid).ToArray();
+        var ids = selected.Where(category => category.Uid != Guid.Empty).SelectMany(category => GetCategoryIds(
+            _cache.ProductCategories.FirstOrDefault(current => current.Uid == category.Uid) ?? category)).Distinct().ToArray();
+        var requested = selected.Length == 0
+            ? ProductCategoryFilterSelection.AllCategories : new(false, IncludeUncategorized, ids);
+        await ApplyCategoryFilterAsync(requested);
+        if (_disposed) return;
+        if (AreCategoryFiltersEquivalent(requested, _appliedCategoryFilter))
+            _appliedSelectedCategories = selected;
+        else
+        {
+            FilterCategories.Clear();
+            foreach (var category in _appliedSelectedCategories) FilterCategories.Add(category);
+        }
+    }
+
+    /// <summary>枚举分类及全部后代身份；父子同时勾选由查询快照统一去重。</summary>
+    private static IEnumerable<Guid> GetCategoryIds(ProductCategoryCacheNode category)
+    {
+        if (category.Uid != Guid.Empty) yield return category.Uid;
+        foreach (var child in category.Children)
+            foreach (var id in GetCategoryIds(child)) yield return id;
+    }
+
+    /// <summary>应用分类查询快照；取消丢弃或查询失败时恢复最后一次成功应用的条件。</summary>
     [RelayCommand]
     private async Task ApplyCategoryFilterAsync(ProductCategoryFilterSelection? selection)
     {
@@ -255,6 +288,7 @@ public sealed partial class ProductNeutralManagerViewModel
                 return;
             }
             Lines.ApplySaveResponse(result.Data);
+            RefreshCategoryDisplayNames();
             UpdateChangeState();
             _messages.ShowSuccess("中性产品已保存", $"已提交 {result.Data.SuccessCount} 条变更。");
             if (await LoadPageCoreAsync() == PageLoadOutcome.Failed)
@@ -318,7 +352,7 @@ public sealed partial class ProductNeutralManagerViewModel
         line.MasterSku = EditProductMaster.MasterSku ?? string.Empty;
         line.ProductMasterDescriptionZh = EditProductMaster.DefaultDescriptionZh ?? string.Empty;
         line.CategoryId = EditProductMaster.CategoryId;
-        line.CategoryName = EditProductMaster.CategoryName ?? string.Empty;
+        line.CategoryName = GetCategoryDisplayName(line.CategoryId, EditProductMaster.CategoryName ?? string.Empty);
         EditProductMaster = null;
     }
 
@@ -457,6 +491,7 @@ public sealed partial class ProductNeutralManagerViewModel
             }
             var page = result.Data;
             Lines.LoadFromDtos(page?.Items ?? []);
+            RefreshCategoryDisplayNames();
             SelectedLine = Lines.Items.FirstOrDefault(line => line.Uid == selectedId) ?? Lines.Items.FirstOrDefault();
             TotalCount = page?.TotalCount ?? 0;
             PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
@@ -481,6 +516,21 @@ public sealed partial class ProductNeutralManagerViewModel
         left.IsAll == right.IsAll
         && left.IncludeUncategorized == right.IncludeUncategorized
         && left.CategoryIds.SequenceEqual(right.CategoryIds);
+
+    /// <summary>按稳定分类身份优先读取中文 FakeName；缓存缺失或未维护中文名时保留已有名称。</summary>
+    private string GetCategoryDisplayName(Guid categoryId, string fallback)
+    {
+        var category = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == categoryId);
+        return string.IsNullOrWhiteSpace(category?.FakeName) ? fallback : category.FakeName;
+    }
+
+    /// <summary>载入或保存回填后接纳中文分类展示基线；不改变关联身份或其他未保存字段。</summary>
+    private void RefreshCategoryDisplayNames()
+    {
+        foreach (var line in Lines.Items)
+            using (line.SuppressChangeTracking())
+                line.CategoryName = GetCategoryDisplayName(line.CategoryId, line.CategoryName);
+    }
 
     /// <summary>把工具栏颜色选择恢复为最后一次成功查询的快照，避免取消或失败后显示未应用条件。</summary>
     private void RestoreAppliedColorFilter()

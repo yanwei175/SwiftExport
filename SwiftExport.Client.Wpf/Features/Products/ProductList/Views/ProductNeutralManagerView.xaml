@@ -76,6 +76,14 @@
                                 Command="{Binding RejectListChangesCommand}" 
                                 ToolTip="放弃产品修改"/>
 
+                        <productComponents:ProductCategoryMutiSelectButton x:Name="CategoryFilterPicker"
+                                                        Width="120" Margin="0,0,8,0" Header="分类"
+                                                        ShowUncategorizedOption="True"
+                                                        ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
+                                                        SelectedItems="{Binding FilterCategories, Mode=OneWay}"
+                                                        SelectionCommittedCommand="{Binding ApplySelectedCategoriesCommand}"
+                                                        AutomationProperties.Name="中性产品分类多选筛选" />
+
                         <filter:MultiSelectLookupButton Width="120" Margin="0,0,8,0" Header="颜色"
                                                         ShowSearchBox="True"
                                                         ItemsSource="{Binding ReferenceDataCache.ProductColors}"
@@ -132,33 +140,7 @@
         </Grid>
 
         <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1*" MinWidth="280" MaxWidth="480" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="9*" />
-            </Grid.ColumnDefinitions>
-
-            <ui:Card HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                     HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="8" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="产品分类" Grid.Row="0" Style="{StaticResource BodyStrongTextBlock}"/>
-                    
-                    <productComponents:ProductCategoryFilterTreeView Grid.Row="2"
-                                        Categories="{Binding ReferenceDataCache.ProductCategoryTree}"
-                                        Selection="{Binding CategoryFilter, Mode=TwoWay}"
-                                        SelectionChangedCommand="{Binding ApplyCategoryFilterCommand}"
-                                        AutomationProperties.Name="中性产品分类筛选" />
-                </Grid>
-            </ui:Card>
-
-            <GridSplitter Grid.Column="1" Width="4" Background="Transparent" HorizontalAlignment="Stretch" />
-
-            <DataGrid x:Name="NeutralGrid" Grid.Column="2"
+            <DataGrid x:Name="NeutralGrid"
                       ItemsSource="{Binding Lines.Items}"
                       Background="{DynamicResource UserLayerOnMicaBaseAltFillColorDefaultBrush}"
                       Style="{StaticResource SwiftExportDataGrid}"

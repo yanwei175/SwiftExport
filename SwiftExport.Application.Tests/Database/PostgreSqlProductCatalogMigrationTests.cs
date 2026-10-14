@@ -161,6 +161,8 @@ public sealed partial class PostgreSqlRepositoryTests
         }
         StringAssert.Contains(fixture.Connection.Text, "LEFT JOIN LATERAL");
         StringAssert.Contains(fixture.Connection.Text, "pat.fake_name AS \"FakeName\"");
+        StringAssert.Contains(fixture.Connection.Text, "ELSE COALESCE(pat.fake_name,'') END AS \"CategoryName\"");
+        StringAssert.Contains(fixture.Connection.Text, "WHEN pat.uid IS NULL THEN '分类已失效'");
         StringAssert.Contains(fixture.Connection.Text, "pc.color_code_unique AS \"ColorCodeUnique\"");
         StringAssert.Contains(fixture.Connection.Text, "pc.color_code AS \"ColorCode\"");
         StringAssert.Contains(fixture.Connection.Text, "pc.color_name_en AS \"ColorNameEn\"");

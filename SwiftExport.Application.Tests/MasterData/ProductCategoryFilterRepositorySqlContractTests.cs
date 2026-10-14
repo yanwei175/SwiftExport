@@ -39,7 +39,8 @@ public sealed class ProductCategoryFilterRepositorySqlContractTests
         StringAssert.Contains(paging, "pm.category_id=@CategoryId");
         StringAssert.Contains(paging, "pm.category_id=ANY(@CategoryIds)");
         StringAssert.Contains(paging, "parameters.AddIds(\"CategoryIds\", categoryIds)");
-        StringAssert.Contains(paging, "{CatalogClassificationColumns}");
+        StringAssert.Contains(paging, "{CatalogPagedClassificationColumns}");
+        StringAssert.Contains(paging, "ELSE COALESCE(pat.fake_name,'') END AS \"CategoryName\"");
         StringAssert.Contains(paging, "{CatalogQueryJoins}");
         foreach (var source in new[]
                  {

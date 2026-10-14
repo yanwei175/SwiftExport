@@ -131,12 +131,10 @@
                                                         SelectionCommittedCommand="{Binding SearchCommand}"
                                                         SelectedValuePath="Uid" SelectedItems="{Binding FilterColorList}"/>
 
-                        <productComponents:ProductCategoryLookupTextBox Width="120" Margin="0,0,8,0"
-                                            Placeholder="产品分类"
+                        <productComponents:ProductCategoryMutiSelectButton Width="120" Margin="0,0,8,0" Header="分类"
                                             ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
-                                            SelectedCategory="{Binding FilterCategory, Mode=TwoWay}"
-                                            RefreshCommand="{Binding RefreshProductCategoriesCommand}"                                                                        
-                                            IsRefreshing="{Binding IsCategoryCacheRefreshing}" />
+                                            SelectedItems="{Binding FilterCategories, Mode=OneWay}"
+                                            SelectionCommittedCommand="{Binding SearchCommand}" />
 
                         <controls:DropDownCheckBox  Width="120" Margin="0,0,8,0"
                                        ShowClearOption="True"

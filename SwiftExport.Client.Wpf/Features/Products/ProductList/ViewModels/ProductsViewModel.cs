@@ -228,8 +228,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     public ObservableCollection<ProductColorDto> FilterColorList { get; set; } = new();
 
-    [ObservableProperty]
-    public partial ProductCategoryCacheNode? FilterCategory { get; set; }
+    /// <summary>分类多选筛选草稿，由控件确定后更新；节点来自共享只读缓存。</summary>
+    public ObservableCollection<ProductCategoryCacheNode> FilterCategories { get; } = [];
 
 
     [ObservableProperty]
@@ -247,8 +247,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [ObservableProperty] public partial SupplierDto? EditManufacturer { get; set; }
     [ObservableProperty] public partial WarehouseSitePickerDto? EditWarehouse { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsCategoryCacheRefreshing { get; set; }
     [ObservableProperty]
     public partial bool IsSupplierLookupBusy { get; set; }
 
@@ -533,7 +531,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         Keyword = string.Empty;
         FilterCustomerList.Clear();
         FilterColorList.Clear();
-        FilterCategory = null;
+        FilterCategories.Clear();
         FilterMaterialTypes.Clear();
         PageIndex = 1;
         await LoadPageAsync(false);
@@ -621,29 +619,6 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         if (_disposed || !CanWrite || IsBusy || line is null) return;
         line.LinkSku = string.Empty; EditProductNeutral = null;
-    }
-
-    [RelayCommand]
-    private async Task RefreshProductCategoriesAsync()
-    {
-        if (IsCategoryCacheRefreshing)
-        {
-            return;
-        }
-
-        IsCategoryCacheRefreshing = true;
-        try
-        {
-            var result = await _referenceDataCache.RefreshProductCategoriesAsync();
-            if (!result.Success)
-            {
-                _messageService.ShowError("刷新产品分类失败", result.Message);
-            }
-        }
-        finally
-        {
-            IsCategoryCacheRefreshing = false;
-        }
     }
 
     [RelayCommand]
@@ -770,7 +745,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
             Keyword = NullIfWhiteSpace(Keyword),
             CustomerIds = FilterCustomerList is null ? [] : FilterCustomerList.Select(x => x.Uid).ToList(),
             CategoryId = Guid.Empty,
-            CategoryIds = FilterCategory is null ? [] : GetCategoryIds(FilterCategory).ToList(),
+            CategoryIds = FilterCategories.SelectMany(selected =>
+                    GetCategoryIds(_referenceDataCache.ProductCategories.FirstOrDefault(node => node.Uid == selected.Uid) ?? selected))
+                .Where(id => id != Guid.Empty).Distinct().ToList(),
             ColorIds = FilterColorList is null ? [] : FilterColorList.Select(x => x.Uid).ToList(),
             MaterialTypeList = FilterMaterialTypes.ToList(),
             PageIndex = PageIndex,
@@ -817,6 +794,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private async Task<bool> EnsureCanDiscardChangesAsync() =>
         !Products.HasChanges || await _dialogService.ConfirmAsync("放弃未保存变更", "当前产品列表有未保存修改，继续将放弃这些修改。", "继续");
 
+    /// <summary>保留原分类筛选的后代范围；调用方合并多项并去重，父子重复勾选不重复提交。</summary>
     private static IEnumerable<Guid> GetCategoryIds(ProductCategoryCacheNode node)
     {
         yield return node.Uid;

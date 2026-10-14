@@ -1,7 +1,10 @@
+using SwiftExport.Contracts.DTOs.Products;
+using SwiftExportClient.Services.Caching;
+
 namespace SwiftExportClient.Features.Products.Components;
 
 /// <summary>
-/// 表示产品分类筛选树的一次不可变选择快照。
+/// 表示产品分类筛选的一次不可变选择快照，并提供仅用于本地选择的未分类选项。
 /// </summary>
 public sealed record ProductCategoryFilterSelection
 {
@@ -19,6 +22,13 @@ public sealed record ProductCategoryFilterSelection
     /// <summary>获取表示“不限制产品分类”的默认选择。</summary>
     public static ProductCategoryFilterSelection AllCategories { get; } =
         new(true, false, Array.Empty<Guid>());
+
+    /// <summary>未分类的只读本地选项；空身份仅表示筛选语义，不写入共享缓存或作为真实分类 ID 发往 API。</summary>
+    public static ProductCategoryCacheNode UncategorizedOption { get; } = new(new ProductCategoryDto
+    {
+        Uid = Guid.Empty,
+        FakeName = "未分类"
+    });
 
     /// <summary>获取是否不限制产品分类。</summary>
     public bool IsAll { get; }

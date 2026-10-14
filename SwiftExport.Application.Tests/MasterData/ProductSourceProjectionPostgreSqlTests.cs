@@ -62,14 +62,19 @@ public sealed class ProductSourceProjectionPostgreSqlTests
             var neutrals = new PostgreSqlDapperRepository<ProductNeutral>(context);
             var products = new PostgreSqlProductRepository(context);
             var prefix = "SOURCE_" + Guid.NewGuid().ToString("N");
+            var categories = new PostgreSqlDapperRepository<ProductCategory>(context);
+            var categoryA = new ProductCategory { CategoryName = "English A", FakeName = "中文分类甲", CategoryCode = prefix + "_CA" };
+            var categoryB = new ProductCategory { CategoryName = "English B", FakeName = "中文分类乙", CategoryCode = prefix + "_CB" };
+            Assert.IsTrue((await categories.AddAsync(categoryA)).Success);
+            Assert.IsTrue((await categories.AddAsync(categoryB)).Success);
             var masterA = new ProductMaster
             {
-                MasterSku = prefix + "_A", CategoryId = Guid.NewGuid(), DefaultPcsPerPackage = 1,
+                MasterSku = prefix + "_A", CategoryId = categoryA.Uid, DefaultPcsPerPackage = 1,
                 ProductAttributeProfileId = Guid.NewGuid()
             };
             var masterB = new ProductMaster
             {
-                MasterSku = prefix + "_B", CategoryId = Guid.NewGuid(), DefaultPcsPerPackage = 1,
+                MasterSku = prefix + "_B", CategoryId = categoryB.Uid, DefaultPcsPerPackage = 1,
                 ProductAttributeProfileId = Guid.NewGuid()
             };
             Assert.IsTrue((await masters.AddAsync(masterA)).Success);
@@ -87,6 +92,20 @@ public sealed class ProductSourceProjectionPostgreSqlTests
                 BomNo = prefix + "_BOM", BomVersion = 1, Note = "来源变更保留其他资料"
             };
             Assert.IsTrue((await products.AddAsync(product)).Success);
+
+            // 分页分类多选是并集，中文显示名仅属于本分页契约，不改其他读取入口的名称口径。
+            var secondProduct = new Product { Sku = prefix + "_OTHER", ProductMasterId = masterB.Uid,
+                LinkSku = prefix + "_SIDE", SupplyType = "采购", MaterialType = "成品", Unit = "PCS" };
+            Assert.IsTrue((await products.AddAsync(secondProduct)).Success);
+            var categoryPage = await products.GetPagedAsync(new ProductSearchRequest
+            { Keyword = prefix, CategoryIds = [categoryA.Uid, categoryB.Uid, categoryA.Uid, Guid.Empty] });
+            Assert.AreEqual(2, categoryPage.TotalCount);
+            Assert.AreEqual(categoryA.FakeName, categoryPage.Items.Single(row => row.Uid == product.Uid).CategoryName);
+            Assert.AreEqual(categoryB.FakeName, categoryPage.Items.Single(row => row.Uid == secondProduct.Uid).CategoryName);
+            var singleCategory = await products.GetPagedAsync(new ProductSearchRequest
+            { Keyword = prefix, CategoryIds = [categoryB.Uid] });
+            Assert.AreEqual(secondProduct.Uid, singleCategory.Items.Single().Uid);
+            Assert.AreEqual(categoryA.CategoryName, (await products.GetDtoByIdAsync(product.Uid))!.CategoryName);
 
             // 自由型号没有中性产品匹配也能读写和检索；模板始终取物料独立关联的主型号 A。
             await AssertReadsAsync(products, product, masterA.MasterSku, product.LinkSku,

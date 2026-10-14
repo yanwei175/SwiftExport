@@ -5,7 +5,6 @@
              x:Name="Root" MinHeight="30">
     <filter:MultiSelectLookupButton x:Name="CategoryPicker"
                                    Header="{Binding Header, ElementName=Root}"
-                                   ItemsSource="{Binding ItemsSource, ElementName=Root}"
                                    SelectedItems="{Binding SelectedItems, ElementName=Root, Mode=TwoWay}"
                                    SelectionCommittedCommand="{Binding SelectionCommittedCommand, ElementName=Root}"
                                    SelectionCommittedCommandParameter="{Binding SelectionCommittedCommandParameter, ElementName=Root}"

@@ -19,6 +19,7 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using Mapster;
 using CommunityToolkit.Mvvm.Messaging;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using SwiftExportClient.Features.Products.ProductMasterImport.ViewModels;
 
@@ -90,6 +91,8 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     public ProductMasterListModel Masters { get; } = new();
     /// <summary>获取基础资料缓存。</summary>
     public IReferenceDataCacheService ReferenceDataCache => _cache;
+    /// <summary>获取本页直接勾选的分类和本地未分类选项；查询时展开真实分类后代，不修改共享缓存。</summary>
+    public ObservableCollection<ProductCategoryCacheNode> FilterCategories { get; } = [];
     /// <summary>获取当前会话启用的属性模板候选，供列表内本地选择。</summary>
     public IReadOnlyList<SysDictDataDto> ProfileCandidates => _cache?.GetDictionaryValues(DictCodes.ProductAttributeProfile) ?? [];
     /// <summary>当前会话启用的系列字典候选，列表编辑使用本地搜索。</summary>
@@ -107,8 +110,10 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
 
     /// <summary>获取或设置搜索关键词。</summary>
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    /// <summary>获取或设置共享分类筛选组件发布的选择快照。</summary>
+    /// <summary>获取或设置直接勾选分类的筛选快照；查询失败时恢复最后成功的条件。</summary>
     [ObservableProperty] public partial ProductCategoryFilterSelection CategoryFilter { get; set; } = ProductCategoryFilterSelection.AllCategories;
+    /// <summary>获取多选集合是否含本地未分类选项；特殊空身份只转换为请求布尔条件。</summary>
+    public bool IncludeUncategorized => FilterCategories.Any(category => category.Uid == Guid.Empty);
     /// <summary>获取或设置当前主型号行。</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
@@ -149,7 +154,21 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         await LoadPageAsync();
     }
 
-    /// <summary>应用共享分类筛选快照；取消丢弃或查询失败时恢复最后一次成功应用的选择。</summary>
+    /// <summary>多选确定后提交直接勾选身份；未勾选分类和未分类时表示全部。</summary>
+    [RelayCommand]
+    private Task ApplySelectedCategoriesAsync()
+    {
+        var ids = FilterCategories.Select(category => category.Uid).Where(id => id != Guid.Empty).Distinct().ToArray();
+        var selection = ids.Length == 0 && !IncludeUncategorized
+            ? ProductCategoryFilterSelection.AllCategories
+            : new ProductCategoryFilterSelection(false, IncludeUncategorized, ids);
+        return ApplyCategoryFilterAsync(selection);
+    }
+
+    /// <summary>筛选快照变化只同步本页编辑器，不在属性回调中发送查询。</summary>
+    partial void OnCategoryFilterChanged(ProductCategoryFilterSelection value) => RestoreCategoryFilterEditor(value);
+
+    /// <summary>应用分类筛选快照；取消丢弃或查询失败时恢复最后一次成功的直接勾选。</summary>
     [RelayCommand]
     private async Task ApplyCategoryFilterAsync(ProductCategoryFilterSelection? selection)
     {
@@ -157,18 +176,57 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         if (AreCategoryFiltersEquivalent(requestedFilter, _appliedCategoryFilter))
         {
             CategoryFilter = _appliedCategoryFilter;
+            RestoreCategoryFilterEditor(_appliedCategoryFilter);
             return;
         }
 
         if (!await EnsureCanDiscardChangesAsync())
         {
             CategoryFilter = _appliedCategoryFilter;
+            RestoreCategoryFilterEditor(_appliedCategoryFilter);
             return;
         }
 
         CategoryFilter = requestedFilter;
         PageIndex = 1;
-        if (!await LoadPageAsync()) CategoryFilter = _appliedCategoryFilter;
+        if (!await LoadPageAsync())
+        {
+            CategoryFilter = _appliedCategoryFilter;
+            RestoreCategoryFilterEditor(_appliedCategoryFilter);
+        }
+    }
+
+    /// <summary>按身份恢复筛选控件；缓存暂缺时保留已有候选，避免静默丢失勾选。</summary>
+    private void RestoreCategoryFilterEditor(ProductCategoryFilterSelection selection)
+    {
+        var previous = FilterCategories.DistinctBy(category => category.Uid).ToDictionary(category => category.Uid);
+        FilterCategories.Clear();
+        if (!selection.IsAll)
+        {
+            foreach (var id in selection.CategoryIds.Where(id => id != Guid.Empty).Distinct())
+            {
+                var category = _cache?.ProductCategories.FirstOrDefault(item => item.Uid == id)
+                    ?? previous.GetValueOrDefault(id);
+                if (category is not null) FilterCategories.Add(category);
+            }
+        }
+        if (!selection.IsAll && selection.IncludeUncategorized)
+            FilterCategories.Add(ProductCategoryFilterSelection.UncategorizedOption);
+    }
+
+    /// <summary>按最新分类树展开全部后代并去重；缺失分类保留请求身份，不将其误解为全部。</summary>
+    private List<Guid> ExpandCategoryFilter(ProductCategoryFilterSelection selection) => selection.CategoryIds
+        .Where(id => id != Guid.Empty)
+        .SelectMany(id => _cache?.ProductCategories.FirstOrDefault(category => category.Uid == id) is { } category
+            ? GetCategoryIds(category) : [id])
+        .Distinct().ToList();
+
+    /// <summary>枚举分类自身及全部后代；父子同时勾选由请求构建统一去重。</summary>
+    private static IEnumerable<Guid> GetCategoryIds(ProductCategoryCacheNode category)
+    {
+        if (category.Uid != Guid.Empty) yield return category.Uid;
+        foreach (var child in category.Children)
+            foreach (var id in GetCategoryIds(child)) yield return id;
     }
 
     /// <summary>关闭页面前检查未保存变更。</summary>
@@ -502,7 +560,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
                 Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
                 CategoryIds = requestedCategoryFilter.IsAll
                     ? []
-                    : requestedCategoryFilter.CategoryIds.Where(id => id != Guid.Empty).Distinct().ToList(),
+                    : ExpandCategoryFilter(requestedCategoryFilter),
                 IncludeUncategorized = !requestedCategoryFilter.IsAll && requestedCategoryFilter.IncludeUncategorized,
                 PageIndex = PageIndex,
                 PageSize = PageSize

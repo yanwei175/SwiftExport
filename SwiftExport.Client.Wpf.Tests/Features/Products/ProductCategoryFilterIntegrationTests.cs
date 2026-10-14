@@ -14,32 +14,114 @@ using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Automation;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using SwiftExport.Client.Wpf.Tests.Controls;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExportClient.Features.Products.ProductList.Views;
+using SwiftExportClient.Resources.Controls.Filter;
+using SwiftExportClient.Services.Caching;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证共享分类筛选树在主型号和中性产品页面中的查询语义与取消恢复边界。</summary>
+/// <summary>验证顶部分类多选在主型号和中性产品页面中的真实绑定、查询语义与取消恢复边界。</summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class ProductCategoryFilterIntegrationTests
 {
-    /// <summary>两个管理页必须使用共享分类筛选控件，不再保留页面级 TreeView 选择桥接。</summary>
+    /// <summary>两个管理页顶部多选确定后查询父分类及后代，列表使用整页宽度；关闭取消不提前查询。</summary>
     [TestMethod]
     [DataRow("ProductMasterManagerView.xaml")]
     [DataRow("ProductNeutralManagerView.xaml")]
-    public void Views_ShouldUseSharedCategoryFilterTree(string fileName)
+    public void Views_ShouldApplyTopCategoryPickerAndUseFullWidthGrid(string fileName) => DatePickerAssistTests.RunWithApplication(async () =>
     {
-        var source = File.ReadAllText(Path.Combine(
-            FindRepositoryRoot(),
-            "SwiftExport.Client.Wpf",
-            "Features",
-            "Products",
-            "ProductList",
-            "Views",
-            fileName));
+        ApplicationResourceLoader.Load();
+        var rootId = Guid.NewGuid(); var childId = Guid.NewGuid();
+        var cache = new ReferenceDataCacheServiceStub(productCategories:
+        [new() { Uid = rootId, CategoryName = "ROOT", FakeName = "卫浴" },
+         new() { Uid = childId, ParentId = rootId, CategoryName = "SHOWER", FakeName = "花洒" }]);
+        cache.ProductCategories.Single(item => item.Uid == rootId).AddChild(cache.ProductCategories.Single(item => item.Uid == childId));
+        var masterApi = new ProductMasterApiStub(); var neutralApi = new ProductNeutralApiStub();
+        using var master = CreateProductMasterViewModel(masterApi, cache: cache);
+        using var neutral = new ProductNeutralManagerViewModel(neutralApi, masterApi, new Runner(), cache,
+            new Messages(), new DialogStub(), new ImageAddressResolverStub());
+        var isNeutral = fileName == "ProductNeutralManagerView.xaml";
+        if (isNeutral)
+            neutralApi.Items.Add(new() { Uid = Guid.NewGuid(), Version = 1, CategoryId = childId, CategoryName = "SHOWER",
+                Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "N-001", ColorId = Guid.NewGuid() } });
+        UserControl view = isNeutral ? new ProductNeutralManagerView { DataContext = neutral }
+            : new ProductMasterManagerView { DataContext = master };
+        var window = new Window { Content = view, Width = 1280, Height = 760, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var category = Descendants(view).OfType<ProductCategoryMutiSelectButton>().Single();
+            var grid = (DataGrid)view.FindName(isNeutral ? "NeutralGrid" : "MasterGrid");
+            Assert.IsNotNull(grid);
+            Assert.IsTrue(category.TransformToAncestor(view).Transform(new Point()).Y < grid.TransformToAncestor(view).Transform(new Point()).Y);
+            Assert.IsTrue(grid.ActualWidth > view.ActualWidth * 0.8, "移除左侧筛选后主列表应使用整页宽度。");
+            Assert.IsEmpty(Descendants(view).OfType<ProductCategoryFilterTreeView>().ToArray());
+            Assert.IsEmpty(Descendants(view).OfType<CheckBox>().Where(check => Equals(check.Content, "未分类")).ToArray(),
+                "未分类只能放在分类弹层内，不再占用顶部独立位置。");
+            var picker = (MultiSelectLookupButton)category.FindName("CategoryPicker");
+            var popup = (Popup)picker.FindName("PART_Popup");
+            popup.IsOpen = true; await Dispatcher.Yield(DispatcherPriority.Loaded);
+            var tree = (TreeView)picker.FindName("PART_TreeView"); tree.UpdateLayout();
+            CategoryCheck(tree, "未分类").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+            popup.IsOpen = false; await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsEmpty(isNeutral ? neutralApi.Requests.Cast<object>().ToArray() : masterApi.Requests.Cast<object>().ToArray());
+            popup.IsOpen = true; await Dispatcher.Yield(DispatcherPriority.Loaded); tree.UpdateLayout();
+            Assert.AreEqual(false, CategoryCheck(tree, "未分类").IsChecked);
+            CategoryCheck(tree, "卫浴").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+            CategoryCheck(tree, "未分类").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+            Descendants(popup.Child).OfType<Button>().Single(button => Equals(button.Content, "确定"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var ids = isNeutral ? neutralApi.Requests.Single().CategoryIds : masterApi.Requests.Single().CategoryIds;
+            CollectionAssert.AreEquivalent(new[] { rootId, childId }, ids);
+            Assert.IsTrue(isNeutral ? neutralApi.Requests.Single().IncludeUncategorized : masterApi.Requests.Single().IncludeUncategorized);
+            Assert.AreEqual("分类(2)", picker.DisplayText);
+            Assert.IsFalse(popup.IsOpen);
+            if (isNeutral)
+            {
+                var column = grid.Columns.OfType<DataGridTextColumn>().Single(item => Equals(item.Header, "产品分类"));
+                grid.ScrollIntoView(neutral.Lines.Items.Single(), column); grid.UpdateLayout();
+                Assert.AreEqual("花洒", ((TextBlock)column.GetCellContent(neutral.Lines.Items.Single())).Text,
+                    "真实分类列应显示缓存中文名称。");
+            }
+            SavePreview(window, isNeutral ? "中性产品顶部分类筛选.png" : "主产品顶部分类筛选.png");
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
 
-        StringAssert.Contains(source, "<productComponents:ProductCategoryFilterTreeView");
-        StringAssert.Contains(source, "Selection=\"{Binding CategoryFilter, Mode=TwoWay}\"");
-        StringAssert.Contains(source, "SelectionChangedCommand=\"{Binding ApplyCategoryFilterCommand}\"");
-        Assert.IsFalse(source.Contains("SelectedItemChanged=", StringComparison.Ordinal));
+    /// <summary>通过弹层选项的可访问名称执行分类勾选，不依赖内部索引。</summary>
+    private static CheckBox CategoryCheck(TreeView tree, string name) => Descendants(tree).OfType<CheckBox>()
+        .Single(check => AutomationProperties.GetName(check) == name);
+
+    /// <summary>仅测试遍历实际控件以操作弹层，产品代码不缓存视觉容器。</summary>
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, index); yield return child;
+            foreach (var nested in Descendants(child)) yield return nested;
+        }
+    }
+
+    /// <summary>保存真实测试页面渲染，供检查顶部筛选和表格宽度，不读取其他应用屏幕。</summary>
+    private static void SavePreview(FrameworkElement view, string fileName)
+    {
+        var directory = Path.Combine(FindRepositoryRoot(), ".tmp", "product-category-toolbar");
+        Directory.CreateDirectory(directory);
+        var bitmap = new RenderTargetBitmap((int)view.ActualWidth, (int)view.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(view);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var output = File.Create(Path.Combine(directory, fileName)); encoder.Save(output);
     }
 
     /// <summary>主型号默认不限制分类，组合筛选只发送有效且去重后的分类标识。</summary>
@@ -133,10 +215,11 @@ public sealed class ProductCategoryFilterIntegrationTests
 
     private static ProductMasterManagerViewModel CreateProductMasterViewModel(
         IProductMasterApi api,
-        IDialogService? dialogs = null) => new(
+        IDialogService? dialogs = null,
+        IReferenceDataCacheService? cache = null) => new(
         api,
         new Runner(),
-        null!,
+        cache!,
         new Messages(),
         dialogs ?? new DialogStub(),
         null!,
@@ -194,13 +277,15 @@ public sealed class ProductCategoryFilterIntegrationTests
         public Task<ServiceResult<BatchSaveResponseBase>> ImportAsync(List<SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Import.ProductNeutralImportRowDto> rows,
             CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应提交导入。");
         public List<ProductNeutralManagerSearchRequest> Requests { get; } = [];
+        public List<ProductNeutralManagerListItemDto> Items { get; } = [];
 
         public Task<ServiceResult<PagedResponseBase<ProductNeutralManagerListItemDto>>> GetPagedAsync(
             ProductNeutralManagerSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             Requests.Add(request);
-            return Task.FromResult(ServiceResult<PagedResponseBase<ProductNeutralManagerListItemDto>>.Ok(new()));
+            return Task.FromResult(ServiceResult<PagedResponseBase<ProductNeutralManagerListItemDto>>.Ok(new()
+            { Items = Items, TotalCount = Items.Count, PageIndex = request.PageIndex, PageSize = request.PageSize }));
         }
 
         public Task<ServiceResult<ProductNeutralManagerBatchSaveResponse>> BatchSaveAsync(

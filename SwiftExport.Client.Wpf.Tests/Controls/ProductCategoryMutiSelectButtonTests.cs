@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.Input;
@@ -21,6 +24,105 @@ namespace SwiftExport.Client.Wpf.Tests.Controls;
 [DoNotParallelize]
 public sealed class ProductCategoryMutiSelectButtonTests
 {
+    /// <summary>未分类与分类在同一弹层暂存，搜索可找到特殊项，取消和清除仍遵循确定后提交。</summary>
+    [TestMethod]
+    public void Uncategorized_ShouldShareSearchConfirmCancelAndClearTransaction() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        await using var fixture = new Fixture(showUncategorized: true);
+        await fixture.OpenAsync();
+        OptionCheck(fixture.Tree, "未分类").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+        Assert.AreEqual(0, fixture.Selected.Count);
+        await fixture.CloseAsync(() => fixture.Popup.IsOpen = false);
+        Assert.AreEqual(0, fixture.Selected.Count);
+        await fixture.OpenAsync();
+        Assert.AreEqual(false, OptionCheck(fixture.Tree, "未分类").IsChecked);
+        OptionCheck(fixture.Tree, "未分类").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+        OptionCheck(fixture.Tree, "卫浴").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+        fixture.Search.Text = "未分类"; await Dispatcher.Yield(DispatcherPriority.DataBind);
+        Assert.AreEqual(1, fixture.Tree.Items.Count);
+        await fixture.CloseAsync(() => fixture.Button("确定").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        CollectionAssert.AreEqual(new[] { Guid.Empty, fixture.Root.Uid }, fixture.Selected.Select(item => item.Uid).ToArray());
+        Assert.AreEqual("分类(2)", fixture.Picker.DisplayText);
+        Assert.IsTrue(fixture.Roots.All(item => item.Uid != Guid.Empty), "特殊项不能写入缓存来源。");
+        await fixture.OpenAsync();
+        fixture.Button("清除").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.AreEqual(2, fixture.Selected.Count);
+        await fixture.CloseAsync(() => fixture.Popup.IsOpen = false);
+        Assert.AreEqual(2, fixture.Selected.Count);
+        await fixture.OpenAsync();
+        fixture.Button("清除").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await fixture.CloseAsync(() => fixture.Button("确定").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        Assert.AreEqual(0, fixture.Selected.Count);
+    });
+
+    /// <summary>候选刷新保留未分类草稿，卸载后不继续订阅，重新加载仍只提供一个特殊项。</summary>
+    [TestMethod]
+    public void Uncategorized_ShouldSurviveSourceRefreshAndReload() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        await using var fixture = new Fixture(showUncategorized: true);
+        await fixture.OpenAsync();
+        OptionCheck(fixture.Tree, "未分类").SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+        fixture.Roots.Add(Category("新增分类", "NEW"));
+        await Dispatcher.Yield(DispatcherPriority.DataBind); fixture.Tree.UpdateLayout();
+        Assert.AreEqual(true, OptionCheck(fixture.Tree, "未分类").IsChecked);
+        await fixture.CloseAsync(() => fixture.Button("确定").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+        Assert.AreEqual(Guid.Empty, fixture.Selected.Single().Uid);
+        await fixture.OpenAsync();
+        await fixture.CloseAsync(() => fixture.Window.Content = null);
+        fixture.Roots.Clear(); fixture.Window.Content = fixture.Control;
+        await fixture.OpenAsync();
+        Assert.AreEqual(1, fixture.Tree.Items.Count);
+        Assert.AreEqual(true, OptionCheck(fixture.Tree, "未分类").IsChecked);
+    });
+
+    /// <summary>按可访问中文名称定位真实选项，避免把后代勾选框当作当前节点。</summary>
+    private static CheckBox OptionCheck(TreeView tree, string name) => Descendants(tree).OfType<CheckBox>()
+        .Single(check => AutomationProperties.GetName(check) == name);
+
+    /// <summary>真实树节点显示字符串或业务模板时，从包装项读取模板且不产生 ContentTemplate 路径错误。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void ShouldResolveContentTemplateWithoutBindingErrors(bool useTemplate) => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        using var output = new StringWriter();
+        using var listener = new TextWriterTraceListener(output);
+        var trace = PresentationTraceSources.DataBindingSource;
+        var previousLevel = trace.Switch.Level;
+        trace.Switch.Level = SourceLevels.Error;
+        trace.Listeners.Add(listener);
+        try
+        {
+            await using var fixture = new Fixture();
+            if (useTemplate)
+                fixture.Picker.ItemTemplate = (DataTemplate)XamlReader.Parse("""
+                    <DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+                        <TextBlock Text="{Binding CategoryCode}" />
+                    </DataTemplate>
+                    """);
+            await fixture.OpenAsync();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            // Trace 开关可能被测试宿主延迟初始化；同时核对实际绑定状态，确保字符串场景可稳定复现。
+            var templateBindings = Descendants(fixture.RootRow()).OfType<ContentPresenter>()
+                .Select(presenter => presenter.GetBindingExpression(ContentPresenter.ContentTemplateProperty))
+                .Where(binding => binding is not null).ToArray();
+            Assert.IsNotEmpty(templateBindings);
+            foreach (var binding in templateBindings)
+                Assert.AreEqual(BindingStatus.Active, binding!.Status, "模板必须绑定包装项，不能在显示内容上查找属性。");
+            var expectedText = useTemplate ? fixture.Root.CategoryCode : fixture.Root.FakeName;
+            Assert.IsTrue(Descendants(fixture.RootRow()).OfType<TextBlock>().Any(text => text.Text == expectedText));
+            listener.Flush();
+            var bindingErrors = output.ToString();
+            Assert.IsFalse(bindingErrors.Contains("ContentTemplate", StringComparison.Ordinal), bindingErrors);
+            Assert.IsFalse(bindingErrors.Contains("DisplayContent", StringComparison.Ordinal), bindingErrors);
+        }
+        finally
+        {
+            trace.Listeners.Remove(listener);
+            trace.Switch.Level = previousLevel;
+        }
+    });
+
     /// <summary>展示中文层级，父子独立勾选，确定后回写缓存对象并执行一次命令。</summary>
     [TestMethod]
     public void ShouldDisplayFakeNamesAndCommitIndependentSelections() => DatePickerAssistTests.RunWithApplication(async () =>
@@ -206,14 +308,14 @@ public sealed class ProductCategoryMutiSelectButtonTests
         public Window Window { get; }
 
         /// <summary>加载项目主题，按实际页面的方式绑定缓存树和外部可观察已选集合。</summary>
-        public Fixture()
+        public Fixture(bool showUncategorized = false)
         {
             Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
             Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
             foreach (var resource in new[] { "Variables.xaml", "Typography.xaml", "ListBox.xaml" })
                 Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary
                 { Source = new Uri($"pack://application:,,,/SwiftExport.Client.Wpf;component/Resources/{resource}") });
-            Control = new ProductCategoryMutiSelectButton();
+            Control = new ProductCategoryMutiSelectButton { ShowUncategorizedOption = showUncategorized };
             Root.AddChild(Child);
             Root.AddChild(Category("龙头", "TAP"));
             Roots.Add(Root);
