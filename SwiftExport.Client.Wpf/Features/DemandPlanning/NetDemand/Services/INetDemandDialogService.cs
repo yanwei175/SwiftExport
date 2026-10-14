@@ -2,7 +2,7 @@ namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 
 public interface INetDemandDialogService
 {
-    /// <summary>打开来源需求选择器，并返回本次对话框是否已成功建立过物料需求。</summary>
+    /// <summary>打开成品需求选择器，并返回本次对话框是否已成功建立过物料需求。</summary>
     Task<bool> ShowSourceDemandCandidatesAsync(
         CancellationToken cancellationToken = default);
 }

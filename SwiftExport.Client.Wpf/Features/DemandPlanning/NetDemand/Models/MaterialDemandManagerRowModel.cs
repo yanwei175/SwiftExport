@@ -20,9 +20,9 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     public int Version { get; set; }
     /// <summary>物料需求生命周期。</summary>
     public NetDemandLifecycleStatusEnum LifecycleStatus { get; init; }
-    /// <summary>所属来源需求 Uid。</summary>
+    /// <summary>所属成品需求 Uid。</summary>
     public Guid GrossDemandId { get; init; }
-    /// <summary>来源需求拆解修订号。</summary>
+    /// <summary>成品需求拆解修订号。</summary>
     public int DecompositionRevision { get; init; }
     /// <summary>拆解修订内行号。</summary>
     public int LineNumber { get; init; }
@@ -100,7 +100,7 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     public decimal GrossQty { get; init; }
     /// <summary>当前净需求数量。</summary>
     public decimal NetQty { get; init; }
-    /// <summary>来源需求交期。</summary>
+    /// <summary>成品需求交期。</summary>
     public DateTime? DemandRequiredDate { get; init; }
     /// <summary>有效采购 Link 的净关联数量。</summary>
     public decimal? AssociatedPurchaseQty { get; init; }

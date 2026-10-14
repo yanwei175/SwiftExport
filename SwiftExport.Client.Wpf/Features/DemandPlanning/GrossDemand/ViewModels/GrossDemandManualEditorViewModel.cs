@@ -1,19 +1,19 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.SysEnums;
-using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.SysEnums;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
@@ -45,7 +45,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _currentUser = currentUser;
-        Title = "手工毛需求";
+        Title = "手工成品需求";
         Edit.PropertyChanged += OnEditPropertyChanged;
         PropertyChanged += OnOwnPropertyChanged;
         RegisterBusyAwareCommand(SaveCommand);

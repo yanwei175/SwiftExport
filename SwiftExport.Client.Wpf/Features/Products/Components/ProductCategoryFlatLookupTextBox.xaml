@@ -30,6 +30,7 @@
     </UserControl.Resources>
 
     <controls:LookupTextBox x:Name="LookupEditor" StretchToHost="True"
+                            ShowDropDownButton="True"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
                             FontSize="{Binding FontSize, ElementName=Root}"
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
@@ -41,7 +42,7 @@
                             SelectionClearedCommandParameter="{Binding SelectionClearedCommandParameter, ElementName=Root}"
                             Placeholder="{Binding Placeholder, ElementName=Root}"
                             SearchMode="Local"
-                            DisplayMemberPath="CategoryName"
+                            DisplayMemberPath="FakeName"
                             FilterMemberPaths="CategoryName,CategoryCode,FakeName,CategoryPath"
                             SelectedValuePath="Uid"
                             ClearSelectionOnEdit="False"

@@ -1,10 +1,10 @@
-using System.Windows.Controls;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
+using System.Windows.Controls;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Views;
 
-/// <summary>承载来源需求候选选择器的视图。</summary>
+/// <summary>承载成品需求候选选择器的视图。</summary>
 public partial class SourceDemandCandidatePickerView : UserControl
 {
     public SourceDemandCandidatePickerView() => InitializeComponent();

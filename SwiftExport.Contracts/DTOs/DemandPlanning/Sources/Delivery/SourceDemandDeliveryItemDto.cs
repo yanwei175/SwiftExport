@@ -1,9 +1,9 @@
-using System;
 using SwiftExport.Contracts.SysEnums;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
 {
-    /// <summary>来源需求的统一可交付投影；正式已发仅统计有效且已过账的 PackingList 行。</summary>
+    /// <summary>成品需求的统一可交付投影；正式已发仅统计有效且已过账的 PackingList 行。</summary>
     public class SourceDemandDeliveryItemDto
     {
         /// <summary>GrossDemand 稳定标识。</summary>
@@ -48,7 +48,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
         public string ImagePath { get; set; }
         /// <summary>交付单位快照。</summary>
         public string Unit { get; set; }
-        /// <summary>来源需求数量。</summary>
+        /// <summary>成品需求数量。</summary>
         public decimal DemandQty { get; set; }
         /// <summary>有效已过账 PackingList 行的交付净额。</summary>
         public decimal DeliveredQty { get; set; }

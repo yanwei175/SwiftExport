@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -6,10 +7,17 @@ using System.Windows.Markup;
 using System.Windows.Threading;
 using System.Xml.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExport.Wpf.EnterpriseGrid.Selection;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Products.ProductList.Views;
+using SwiftExportClient.Navigation;
+using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
@@ -19,11 +27,135 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductMasterInteractionTests
 {
+    /// <summary>真实页面通过整行选择双向接线；主表格子选区变化不查询明细，子表格子模式禁止整行删除。</summary>
+    [TestMethod]
+    public void ManagerNativeSelection_ShouldSuspendNeutralQueriesInCellMode() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        var loadCount = 0;
+        var api = DispatchProxy.Create<IProductMasterApi, ProductMasterSupplierEditingTests.TestProxy>();
+        ((ProductMasterSupplierEditingTests.TestProxy)(object)api).InvokeMethod = (method, args) =>
+        {
+            Assert.AreEqual(nameof(IProductMasterApi.GetDetailAsync), method.Name);
+            loadCount++;
+            return Task.FromResult(ServiceResult<ProductMasterDetailDto>.Ok(new() { Uid = (Guid)args[0]!, Version = 1 }));
+        };
+        var runner = DispatchProxy.Create<IApiCallRunner, ProductMasterSupplierEditingTests.TestProxy>();
+        ((ProductMasterSupplierEditingTests.TestProxy)(object)runner).InvokeMethod = (_, args) => ((Delegate)args[0]!).DynamicInvoke();
+        using var vm = new ProductMasterManagerViewModel(api, runner, new ReferenceDataCacheServiceStub(), null!,
+            new TestDialogs(), null!, null!, new ImageAddressResolverStub());
+        vm.Masters.LoadFromDtos([Master("首行"), Master("次行")]);
+        var first = vm.Masters.Items.First();
+        var second = vm.Masters.Items.Last();
+        var view = new ProductMasterManagerView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1320, Height = 820, ShowInTaskbar = false };
+        try
+        {
+            window.Show();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var masterGrid = (DataGrid)view.FindName("MasterGrid");
+            var neutralGrid = (DataGrid)view.FindName("NeutralGrid");
+            Assert.AreEqual(nameof(vm.SelectedMaster), BindingOperations.GetBinding(masterGrid, DataGrid.SelectedItemProperty)!.Path.Path);
+            Assert.AreEqual(nameof(vm.SelectedNeutral), BindingOperations.GetBinding(neutralGrid, DataGrid.SelectedItemProperty)!.Path.Path);
+            Assert.AreEqual(BindingMode.TwoWay, BindingOperations.GetBinding(masterGrid, DataGrid.SelectedItemProperty)!.Mode);
+            Assert.AreEqual(BindingMode.TwoWay, BindingOperations.GetBinding(neutralGrid, DataGrid.SelectedItemProperty)!.Mode);
+            Assert.IsNull(BindingOperations.GetBinding(masterGrid, GridSelection.CurrentRowProperty));
+            Assert.IsNull(BindingOperations.GetBinding(neutralGrid, GridSelection.CurrentRowProperty));
+            masterGrid.SelectedItem = first;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreSame(first, vm.SelectedMaster);
+            Assert.AreSame(first, vm.NeutralMaster);
+            Assert.AreEqual(1, loadCount);
+            vm.IsCellSelectionMode = true;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(DataGridSelectionUnit.CellOrRowHeader, masterGrid.SelectionUnit);
+            Assert.IsNull(vm.NeutralMaster);
+            Assert.AreEqual(0, neutralGrid.Items.Count);
+            var column = masterGrid.Columns.OfType<DataGridTextColumn>().First();
+            masterGrid.CurrentCell = new DataGridCellInfo(second, column);
+            masterGrid.SelectedCells.Clear();
+            masterGrid.SelectedCells.Add(masterGrid.CurrentCell);
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(1, loadCount, "格子选区只能服务单元格操作，不建立中性产品查询上下文。");
+            Assert.IsFalse(vm.OpenDetailCommand.CanExecute(null));
+            Assert.IsFalse(vm.DeleteSelectedCommand.CanExecute(null));
+            vm.IsCellSelectionMode = false;
+            masterGrid.SelectedItem = second;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(DataGridSelectionUnit.FullRow, masterGrid.SelectionUnit);
+            Assert.AreSame(second, vm.NeutralMaster);
+            Assert.AreEqual(2, loadCount);
+            vm.Neutrals.LoadFromDtos([Neutral("中性产品")]);
+            var neutral = vm.Neutrals.Items.Single();
+            neutralGrid.SelectedItem = neutral;
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.AreSame(neutral, vm.SelectedNeutral);
+            vm.IsNeutralCellSelectionMode = true;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(DataGridSelectionUnit.CellOrRowHeader, neutralGrid.SelectionUnit);
+            Assert.IsFalse(vm.DeleteNeutralCommand.CanExecute(null));
+            Assert.IsTrue(vm.CanEditNeutrals);
+        }
+        finally
+        {
+            window.Close();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        }
+        Assert.IsNull(vm.CommitPendingEdits, "真实视图卸载后必须解除原生提交回调。");
+    });
+
+    /// <summary>格子模式即时禁用编辑和删除且拒绝直接执行，整行及卡片模式恢复原有入口。</summary>
+    [TestMethod]
+    public async Task ManagerCellMode_ShouldBlockDetailAndDeleteWithoutLosingCurrentMaster()
+    {
+        var dialogs = new TestDialogs();
+        var opened = 0;
+        var navigation = DispatchProxy.Create<INavigationService, ProductMasterSupplierEditingTests.TestProxy>();
+        ((ProductMasterSupplierEditingTests.TestProxy)(object)navigation).InvokeMethod = (_, _) =>
+        {
+            opened++;
+            return Task.CompletedTask;
+        };
+        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, dialogs, navigation, null!, new ImageAddressResolverStub());
+        vm.Masters.LoadFromDtos([Master("已保存")]);
+        var saved = vm.Masters.Items.Single();
+        vm.SelectedMaster = saved;
+        saved.IsChecked = true;
+        var editNotified = false;
+        var deleteNotified = false;
+        vm.OpenDetailCommand.CanExecuteChanged += (_, _) => editNotified = true;
+        vm.DeleteSelectedCommand.CanExecuteChanged += (_, _) => deleteNotified = true;
+        vm.IsCellSelectionMode = true;
+        Assert.IsTrue(editNotified && deleteNotified, "切换模式必须刷新两个按钮，不依赖再次选行。");
+        Assert.IsFalse(vm.OpenDetailCommand.CanExecute(saved));
+        Assert.IsFalse(vm.DeleteSelectedCommand.CanExecute(null), "勾选项也不能绕过格子模式限制。");
+        await vm.OpenDetailCommand.ExecuteAsync(saved);
+        await vm.DeleteSelectedCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, opened);
+        Assert.AreEqual(0, dialogs.ConfirmCount);
+        Assert.AreSame(saved, vm.SelectedMaster, "格子模式仍保留主从表联动所需的当前主型号。");
+        Assert.AreEqual(1, vm.Masters.Items.Count);
+        vm.IsCardView = true;
+        Assert.IsTrue(vm.OpenDetailCommand.CanExecute(saved), "卡片入口不受隐藏列表的格子模式影响。");
+        Assert.IsTrue(vm.DeleteSelectedCommand.CanExecute(null));
+        await vm.OpenDetailCommand.ExecuteAsync(saved);
+        Assert.AreEqual(1, opened);
+        vm.IsCardView = false;
+        Assert.IsFalse(vm.OpenDetailCommand.CanExecute(null));
+        Assert.IsFalse(vm.DeleteSelectedCommand.CanExecute(null));
+        vm.IsCellSelectionMode = false;
+        Assert.IsTrue(vm.OpenDetailCommand.CanExecute(null));
+        Assert.IsTrue(vm.DeleteSelectedCommand.CanExecute(null));
+        await vm.DeleteSelectedCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, dialogs.ConfirmCount);
+        Assert.AreEqual(0, vm.Masters.Items.Count);
+    }
+
     /// <summary>新增行不能打开服务端详情，但切回已保存行必须立即刷新编辑按钮。</summary>
     [TestMethod]
     public void ManagerSelection_ShouldNotifyDetailCommandAfterAddingRow()
     {
-        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, null!, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, null!, null!, new ImageAddressResolverStub());
         vm.Masters.LoadFromDtos([Master("已保存")]);
         var saved = vm.Masters.Items.Single();
         vm.SelectedMaster = saved;
@@ -41,7 +173,7 @@ public sealed class ProductMasterInteractionTests
     [TestMethod]
     public void DetailPreview_ShouldFollowMainImageAndListChanges()
     {
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!);
         vm.Neutrals.LoadFromDtos([Neutral("首行", true), Neutral("末行")]);
         var first = vm.Neutrals.Items.First();
         var last = vm.Neutrals.Items.Last();
@@ -67,7 +199,7 @@ public sealed class ProductMasterInteractionTests
     public async Task ManagerDelete_ShouldConfirmOnlyPersistedRowsAndSelectLast()
     {
         var dialogs = new TestDialogs();
-        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, null!, dialogs, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterManagerViewModel(null!, null!, null!, null!, dialogs, null!, null!, new ImageAddressResolverStub());
         vm.Masters.LoadFromDtos([Master("首行"), Master("末行")]);
         var first = vm.Masters.Items.First();
         var last = vm.Masters.Items.Last();
@@ -96,7 +228,7 @@ public sealed class ProductMasterInteractionTests
     public async Task DetailDelete_ShouldSelectLastAndKeepRowsWhenCancelled()
     {
         var dialogs = new TestDialogs();
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, dialogs, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, dialogs, null!);
         vm.Neutrals.LoadFromDtos([Neutral("首行"), Neutral("末行")]);
         var first = vm.Neutrals.Items.First();
         var last = vm.Neutrals.Items.Last();
@@ -115,6 +247,43 @@ public sealed class ProductMasterInteractionTests
         Assert.AreSame(last, vm.SelectedNeutral);
         await vm.DeleteNeutralCommand.ExecuteAsync(null);
         Assert.IsNull(vm.SelectedNeutral);
+    }
+
+    /// <summary>详情格子模式拒绝勾选行删除，恢复整行后正常确认删除，不撤销头部与其他行草稿。</summary>
+    [TestMethod]
+    public async Task DetailCellMode_ShouldBlockDeleteAndRestoreInRowMode()
+    {
+        var dialogs = new TestDialogs();
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, dialogs, null!);
+        vm.Neutrals.LoadFromDtos([Neutral("待删除"), Neutral("保留")]);
+        var target = vm.Neutrals.Items.First();
+        var other = vm.Neutrals.Items.Last();
+        vm.SelectedNeutral = target;
+        target.IsChecked = true;
+        var seriesDraft = Guid.NewGuid();
+        vm.Header.ProductSeriesId = seriesDraft;
+        other.ProductCode = "其他行草稿";
+        var notified = false;
+        vm.DeleteNeutralCommand.CanExecuteChanged += (_, _) => notified = true;
+        vm.IsCellSelectionMode = true;
+        Assert.IsTrue(notified, "切换格子模式应立即通知删除按钮重新计算。");
+        Assert.IsFalse(vm.DeleteNeutralCommand.CanExecute(null), "勾选行也不能绕过格子模式限制。");
+        await vm.DeleteNeutralCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, dialogs.ConfirmCount);
+        Assert.AreEqual(2, vm.Neutrals.Items.Count);
+        Assert.AreSame(target, vm.SelectedNeutral);
+        notified = false;
+        vm.IsCellSelectionMode = false;
+        Assert.IsTrue(notified);
+        Assert.IsTrue(vm.DeleteNeutralCommand.CanExecute(null));
+        await vm.DeleteNeutralCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, dialogs.ConfirmCount);
+        Assert.AreSame(other, vm.Neutrals.Items.Single());
+        Assert.AreSame(other, vm.SelectedNeutral);
+        Assert.AreEqual(target.Uid, vm.Neutrals.CreateSaveRequest().DeleteItems.Single().Uid);
+        Assert.AreEqual(seriesDraft, vm.Header.ProductSeriesId);
+        Assert.AreEqual("其他行草稿", other.ProductCode);
+        Assert.IsTrue(other.IsDirty);
     }
 
     /// <summary>使用页面真实数值绑定验证空白能提交并进入其他单元格，非法非空文本仍被阻止。</summary>

@@ -27,7 +27,7 @@
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <resourceProxies:BindingProxy x:Key="ProductsViewModelProxy" Data="{Binding}" />
-        
+
         <DataTemplate x:Key="ProductUnitOptionTemplate">
             <StackPanel Margin="0,0" Orientation="Horizontal">
                 <TextBlock Text="{Binding DataNameEn}" FontWeight="SemiBold" />
@@ -52,7 +52,7 @@
             <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        
+
         <!--条件筛选区域-->
         <Grid RowDefinitions="Auto,8, *">
             <Grid ColumnDefinitions="3*,3*,3*">
@@ -81,12 +81,12 @@
                 </StackPanel>
 
             </Grid>
-            
-            
+
+
             <StackPanel Grid.Row="2">
                 <DockPanel LastChildFill="True">
                     <WrapPanel HorizontalAlignment="Left">
-                        
+
                         <ui:Button Margin="0,0,8,0" MinWidth="70"
                                    Appearance="Primary"
                                    Command="{Binding AddRowCommand}"
@@ -111,9 +111,8 @@
                                    ToolTip="删除产品"/>
 
                         <ui:Button Content="放弃修改" Margin="0,0,8,0" MinWidth="70"  
-                                   Appearance="Transparent"
-                                Command="{Binding RejectProductChangesCommand}" 
-                                ToolTip="放弃产品修改"/>
+                                    Command="{Binding RejectProductChangesCommand}" 
+                                    ToolTip="放弃产品修改"/>
 
                         <filter:MultiSelectLookupButton Header="客户" Width="120" Margin="0,0,8,0"
                                                         ShowSearchBox="True"
@@ -123,7 +122,7 @@
                                                         SelectionCommittedCommand="{Binding SearchCommand}"
                                                         SelectedValuePath="Uid"
                                                         SelectedItems="{Binding FilterCustomerList}"/>
-                        
+
                         <filter:MultiSelectLookupButton Width="120" Margin="0,0,8,0" Header="颜色"
                                                         ShowSearchBox="True"
                                                         ItemsSource="{Binding ReferenceDataCache.ProductColors}"
@@ -144,9 +143,9 @@
                                        Placeholder="物料类型"
                                        ItemsSource="{Binding MaterialTypes}"
                                        SelectedItems="{Binding FilterMaterialTypes, Mode=OneWay}" />
-                        
+
                         <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
-                        
+
                         <ui:DropDownButton x:Name="MoreFunction" Content="更多功能">
                             <ui:DropDownButton.Flyout>
                                 <ContextMenu MinWidth="180" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
@@ -163,18 +162,18 @@
                     </WrapPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        
+
                         <ui:ToggleSwitch VerticalAlignment="Center"
                                  OffContent="简单字段"
                                  OnContent="复杂字段"
                                  IsChecked="{Binding IsComplexFieldMode, Mode=TwoWay}" />
-                        
+
                         <ui:ToggleSwitch Margin="12,0,0,0"
                                  VerticalAlignment="Center"
                                  OffContent="整行模式"
                                  OnContent="格子模式"
                                  IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-                        
+
                         <ui:ToggleSwitch Margin="12,0,0,0"
                                          VerticalAlignment="Center"
                                          OffContent="BOM 关闭"
@@ -210,7 +209,7 @@
 
             </StackPanel>
         </Grid>
-        
+
         <controls:RightDrawerHost Grid.Row="2"
                                   DisplayMode="Overlay"
                                   DrawerWidth="820"
@@ -278,16 +277,91 @@
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="主产品型号" Width="110" Binding="{Binding MasterSku, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="master-sku" />
+                            <DataGridTemplateColumn Header="主产品型号" Width="110" 
+                                                    gridColumns:GridColumn.FillDownFieldPaths="ProductMasterId,MasterSku"
+                                                    gridColumns:GridColumn.Key="master-sku" 
+                                                    gridColumns:GridColumn.FieldPath="ProductMasterId">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding MasterSku}" 
+                                                   Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Content="清除" 
+                                                    Command="{Binding DataContext.ClearProductMasterCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                    CommandParameter="{Binding}" 
+                                                    AutomationProperties.Name="清除失效主型号引用">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding MasterSku}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ProductMasterId}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <productComponents:ProductMasterLookupTextBox Text="{Binding MasterSku, Mode=OneWay}"                                                                                          
+                                                                ItemsSource="{Binding DataContext.ProductMasterCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                SelectedProductMaster="{Binding DataContext.EditProductMaster, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                                                SearchCommand="{Binding DataContext.SearchProductMastersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                IsBusy="{Binding DataContext.IsProductMasterLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                SelectionCommittedCommand="{Binding DataContext.CommitProductMasterCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                                SelectionCommittedCommandParameter="{Binding}"
+                                                                SelectionClearedCommand="{Binding DataContext.ClearProductMasterCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                                SelectionClearedCommandParameter="{Binding}" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="产品型号" Width="120"
-                                            Binding="{Binding LinkSku, UpdateSourceTrigger=PropertyChanged}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="link-sku" />
+                            <DataGridTemplateColumn Header="产品型号" Width="150" 
+                                                    gridColumns:GridColumn.Key="link-sku" 
+                                                    gridColumns:GridColumn.FieldPath="ProductNeutralId">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding LinkSku}" 
+                                                   Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <Button DockPanel.Dock="Right" Content="清除" Command="{Binding DataContext.ClearProductNeutralCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" AutomationProperties.Name="清除失效中性产品引用">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding LinkSku}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding ProductNeutralId}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <productComponents:ProductNeutralLookupTextBox Text="{Binding LinkSku, Mode=OneWay}"
+                                                                    ItemsSource="{Binding DataContext.ProductNeutralCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    SelectedProductNeutral="{Binding DataContext.EditProductNeutral, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                                                                    SearchCommand="{Binding DataContext.SearchProductNeutralsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    IsBusy="{Binding DataContext.IsProductNeutralLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    SelectionCommittedCommand="{Binding DataContext.CommitProductNeutralCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                                    SelectionCommittedCommandParameter="{Binding}"
+                                                                    SelectionClearedCommand="{Binding DataContext.ClearProductNeutralCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
+                                                                    SelectionClearedCommandParameter="{Binding}" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
 
                             <DataGridTextColumn Header="物料编号" Width="130" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}"
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
@@ -450,7 +524,9 @@
                                                     gridColumns:GridColumn.Key="manufacturer-code"
                                                     gridColumns:GridColumn.FillDownFieldPaths="ManufacturerId,ManufacturerCode,ManufacturerName">
                                 <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding ManufacturerCode}" ToolTip="{Binding ManufacturerName}" /></DataTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ManufacturerCode}" ToolTip="{Binding ManufacturerName}" />
+                                    </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
@@ -474,7 +550,9 @@
                                                     gridColumns:GridColumn.Key="default-warehouse-code"
                                                     gridColumns:GridColumn.FillDownFieldPaths="DefaultWarehouseSiteId,DefaultWarehouseCode,DefaultWarehouseName">
                                 <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate><TextBlock Text="{Binding DefaultWarehouseCode}" ToolTip="{Binding DefaultWarehouseName}" /></DataTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding DefaultWarehouseCode}" ToolTip="{Binding DefaultWarehouseName}" />
+                                    </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
@@ -569,10 +647,10 @@
 
                         <ui:Button Grid.Column="1" Content="关闭" Command="{Binding BomDrawer.CloseCommand}" MinWidth="70"/>
                     </Grid>
-                    
+
                     <TextBlock Grid.Row="2" Text="{Binding BomDrawer.StatusText}" Style="{StaticResource CaptionTextBlock}" 
                                Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
-                    
+
                     <DataGrid Grid.Row="4" 
                               ItemsSource="{Binding BomDrawer.Boms.Items}" 
                               SelectedItem="{Binding BomDrawer.SelectedLine, Mode=TwoWay}"

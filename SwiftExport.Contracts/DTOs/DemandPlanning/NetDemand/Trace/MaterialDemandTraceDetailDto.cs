@@ -1,6 +1,6 @@
+using SwiftExport.Contracts.SysEnums;
 using System;
 using System.Collections.Generic;
-using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace
 {
@@ -9,7 +9,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace
     {
         /// <summary>物料需求身份。</summary>
         public Guid NetDemandId { get; set; }
-        /// <summary>来源需求身份。</summary>
+        /// <summary>成品需求身份。</summary>
         public Guid GrossDemandId { get; set; }
         /// <summary>来源类型。</summary>
         public string SourceType { get; set; }

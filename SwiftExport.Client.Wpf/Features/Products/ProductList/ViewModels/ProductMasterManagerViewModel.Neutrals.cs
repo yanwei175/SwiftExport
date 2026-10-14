@@ -19,6 +19,9 @@ public sealed partial class ProductMasterManagerViewModel
     private bool _neutralLoaded;
     private bool _neutralLoadAttempted;
 
+    /// <summary>主表格子模式不提供行级明细；隐藏列表的模式不影响卡片入口。</summary>
+    private bool IsNeutralLinkSuspended => IsCellSelectionMode && !IsCardView;
+
     /// <summary>由宿主视图提交原生编辑事务；关闭和业务操作前阻止无法转换的单元格输入。</summary>
     public Func<bool>? CommitPendingEdits { get; set; }
 
@@ -32,7 +35,7 @@ public sealed partial class ProductMasterManagerViewModel
     public bool IsInteractionEnabled => !_disposed && IsNotBusy && !IsQuerying && !IsSelectionPrompt;
 
     /// <summary>获取下表是否已有可编辑的持久化主型号明细。</summary>
-    public bool CanEditNeutrals => IsInteractionEnabled && CanWrite && !IsNeutralLoading && _neutralLoaded
+    public bool CanEditNeutrals => !IsNeutralLinkSuspended && IsInteractionEnabled && CanWrite && !IsNeutralLoading && _neutralLoaded
         && ReferenceEquals(SelectedMaster, _neutralMaster)
         && _neutralMaster is { IsNew: false, IsDeleted: false } && Masters.Items.Contains(_neutralMaster);
 
@@ -44,8 +47,10 @@ public sealed partial class ProductMasterManagerViewModel
     /// <summary>获取或设置颜色编辑候选。</summary>
     [ObservableProperty] public partial ProductColorDto? EditColor { get; set; }
 
-    /// <summary>获取或设置下表格子选择模式，与上表独立。</summary>
-    [ObservableProperty] public partial bool IsNeutralCellSelectionMode { get; set; }
+    /// <summary>获取或设置下表格子选择模式；格子模式只编辑单元格，不提供整行删除。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteNeutralCommand))]
+    public partial bool IsNeutralCellSelectionMode { get; set; }
 
     /// <summary>获取明细加载状态。</summary>
     [ObservableProperty] public partial bool IsNeutralLoading { get; private set; }
@@ -59,14 +64,27 @@ public sealed partial class ProductMasterManagerViewModel
     [ObservableProperty] public partial string NeutralStatusText { get; private set; } = "请选择已保存的主型号。";
 
     partial void OnSelectedNeutralChanged(ProductNeutralLineModel? value) => Neutrals.SelectedItem = value;
+    partial void OnIsCellSelectionModeChanged(bool value) => NotifyNeutralCommands();
     partial void OnIsNeutralLoadingChanged(bool value) => NotifyNeutralCommands();
     partial void OnIsSelectionPromptChanged(bool value) => NotifyNeutralCommands();
     partial void OnIsQueryingChanged(bool value) => NotifyNeutralCommands();
 
-    /// <summary>原生选择路由结束后接纳目标行；取消时恢复主型号，下表不丢失编辑。</summary>
+    /// <summary>接纳整行主型号选择；进入格子模式先保护下表草稿，再清空明细并停止联动。</summary>
     public async Task SelectMasterAsync(ProductMasterLineModel? target)
     {
-        if (_disposed || IsQuerying) return;
+        if (_disposed) return;
+        if (IsNeutralLinkSuspended)
+        {
+            if (!IsInteractionEnabled || !TryCommitPendingEdits() || !await ConfirmNeutralDiscardAsync())
+            {
+                IsCellSelectionMode = false;
+                SelectedMaster = _neutralMaster;
+                return;
+            }
+            if (!_disposed && IsNeutralLinkSuspended) ResetNeutralContext(null);
+            return;
+        }
+        if (IsQuerying) return;
         if (!IsInteractionEnabled || !TryCommitPendingEdits())
         {
             SelectedMaster = _neutralMaster;
@@ -86,7 +104,7 @@ public sealed partial class ProductMasterManagerViewModel
     }
 
     /// <summary>切回列表时补载隐藏期间尚未读取的主型号；已加载编辑不重新查询。</summary>
-    public Task EnsureNeutralsLoadedAsync() => !IsCardView && !_neutralLoadAttempted && !IsNeutralLoading
+    public Task EnsureNeutralsLoadedAsync() => !IsCardView && !IsCellSelectionMode && !_neutralLoadAttempted && !IsNeutralLoading
         && IsInteractionEnabled ? LoadNeutralsCoreAsync() : Task.CompletedTask;
 
     /// <summary>检查视图编辑转换，未绑定视图时由模型测试直接通过。</summary>
@@ -108,13 +126,15 @@ public sealed partial class ProductMasterManagerViewModel
     private void ResetNeutralContext(ProductMasterLineModel? target)
     {
         CancelNeutralQuery();
+        if (IsNeutralLinkSuspended) target = null;
         _neutralMaster = target;
         _neutralLoaded = false;
         _neutralLoadAttempted = false;
         SelectedNeutral = null;
         EditColor = null;
         Neutrals.Clear();
-        NeutralStatusText = target is null ? "请选择已保存的主型号。"
+        NeutralStatusText = IsNeutralLinkSuspended ? "格子模式不联动中性产品，请切回整行模式后选择主型号。"
+            : target is null ? "请选择已保存的主型号。"
             : target.IsNew ? "请先保存主型号，再维护中性产品。" : $"主型号：{target.MasterSku}，尚未加载中性产品。";
         OnPropertyChanged(nameof(NeutralMaster));
         NotifyNeutralCommands();
@@ -124,7 +144,7 @@ public sealed partial class ProductMasterManagerViewModel
     private async Task LoadNeutralsCoreAsync()
     {
         var master = _neutralMaster;
-        if (_disposed || master is null || master.IsNew || master.Uid == Guid.Empty || master.IsDeleted) return;
+        if (_disposed || IsNeutralLinkSuspended || master is null || master.IsNew || master.Uid == Guid.Empty || master.IsDeleted) return;
         CancelNeutralQuery();
         var sequence = ++_neutralSequence;
         using var cts = new CancellationTokenSource();
@@ -136,7 +156,7 @@ public sealed partial class ProductMasterManagerViewModel
         try
         {
             var result = await _runner.RunAsync(() => _api.GetDetailAsync(master.Uid, cts.Token), cts.Token, "加载中性产品失败");
-            if (_disposed || cts.IsCancellationRequested || sequence != _neutralSequence || !ReferenceEquals(master, _neutralMaster)) return;
+            if (_disposed || IsNeutralLinkSuspended || cts.IsCancellationRequested || sequence != _neutralSequence || !ReferenceEquals(master, _neutralMaster)) return;
             if (!result.Success || result.Data is null)
             {
                 NeutralStatusText = "中性产品加载失败，请点击下方刷新重试。";
@@ -160,7 +180,7 @@ public sealed partial class ProductMasterManagerViewModel
     /// <summary>接纳服务端明细和展示投影，不接纳主型号其他未保存字段。</summary>
     private void AcceptNeutrals(ProductMasterDetailDto detail)
     {
-        if (_neutralMaster?.Uid != detail.Uid) return;
+        if (IsNeutralLinkSuspended || _neutralMaster?.Uid != detail.Uid) return;
         Neutrals.LoadFromDtos(detail.Neutrals ?? []);
         SelectedNeutral = Neutrals.Items.FirstOrDefault();
         _neutralLoaded = true;
@@ -285,9 +305,11 @@ public sealed partial class ProductMasterManagerViewModel
     { if (!_disposed) ReBuildImagePathCommand.NotifyCanExecuteChanged(); }
 
     private bool CanAddNeutral() => CanEditNeutrals;
-    private bool CanDeleteNeutral() => CanEditNeutrals && (Neutrals.CheckedCount > 0 || SelectedNeutral is not null);
+    /// <summary>下表格子模式不删除整行，即使存在勾选也必须先切回整行模式。</summary>
+    private bool CanDeleteNeutral() => !IsNeutralCellSelectionMode && CanEditNeutrals
+        && (Neutrals.CheckedCount > 0 || SelectedNeutral is not null);
     private bool CanSaveNeutrals() => CanEditNeutrals && Neutrals.HasChanges;
-    private bool CanRefreshNeutrals() => IsInteractionEnabled && !IsNeutralLoading
+    private bool CanRefreshNeutrals() => !IsNeutralLinkSuspended && IsInteractionEnabled && !IsNeutralLoading
         && ReferenceEquals(SelectedMaster, _neutralMaster) && _neutralMaster is { IsNew: false, IsDeleted: false };
 
     /// <summary>主从任一集合变化均更新文档关闭保护。</summary>
@@ -299,7 +321,6 @@ public sealed partial class ProductMasterManagerViewModel
         if (e.PropertyName is nameof(IsBusy) or nameof(CanWrite))
         {
             NotifyNeutralCommands();
-            NotifySyncCommands();
         }
     }
 

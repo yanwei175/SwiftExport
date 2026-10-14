@@ -794,7 +794,7 @@ CREATE TABLE "public"."product" (
     "updated_by" varchar(500) NULL,
     "is_active" boolean NOT NULL,
     "product_master_id" uuid NULL,
-    "master_sku" varchar(300) NULL,
+    "product_neutral_id" uuid NULL,
     "sku" varchar(300) NOT NULL,
     "description_en" varchar(2000) NULL,
     "description_zh" varchar(2000) NULL,
@@ -807,7 +807,6 @@ CREATE TABLE "public"."product" (
     "bom_version" integer NOT NULL,
     "bom_no" varchar(300) NULL,
     "note" varchar(2000) NULL,
-    "link_sku" varchar(300) NULL,
     "main_image" varchar(500) NULL,
     "cny_price" numeric(18,4) NULL,
     "usd_price" numeric(18,4) NULL,
@@ -1569,6 +1568,7 @@ CREATE FUNCTION public."fn_packing_list_posting_execution_line_append_only"() RE
 CREATE TRIGGER "tr_packing_list_posting_execution_line_append_only" BEFORE UPDATE OR DELETE ON "public"."packing_list_posting_execution_line" FOR EACH ROW EXECUTE FUNCTION public."fn_packing_list_posting_execution_line_append_only"();
 CREATE INDEX "ix_product_default_supplier_id" ON "public"."product" ("default_supplier_id") WHERE "is_deleted" = FALSE AND "default_supplier_id" IS NOT NULL;
 CREATE INDEX "ix_product_master_color" ON "public"."product" ("product_master_id", "color_id") WHERE "is_deleted" = FALSE;
+CREATE INDEX "ix_product_product_neutral_id" ON "public"."product" ("product_neutral_id") WHERE "is_deleted" = FALSE AND "product_neutral_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_product_sku" ON "public"."product" ("sku") WHERE "is_deleted" = FALSE;
 -- 评审限制：引用冻结只检查当前可见事实；并发新增引用的锁协议尚待仓储适配，不能用于正式部署。
 CREATE FUNCTION public."fn_product_unit_frozen_on_reference"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW."unit" IS DISTINCT FROM OLD."unit" AND (EXISTS (SELECT 1 FROM "public"."inventory_ledger_entry" r WHERE r."product_id" = OLD."uid") OR EXISTS (SELECT 1 FROM "public"."purchase_order_line" r WHERE r."product_id" = OLD."uid")) THEN RAISE EXCEPTION USING ERRCODE = 'P3102', MESSAGE = '已被事实引用的字段禁止修改'; END IF; RETURN NEW; END; $body$;
@@ -2284,8 +2284,8 @@ COMMENT ON COLUMN "public"."product"."created_by" IS '记录创建人标识。';
 COMMENT ON COLUMN "public"."product"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."product"."updated_by" IS '记录最后更新人标识。';
 COMMENT ON COLUMN "public"."product"."is_active" IS '是否允许新业务引用；停用保留历史身份，不等同软删除。';
-COMMENT ON COLUMN "public"."product"."product_master_id" IS '所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。';
-COMMENT ON COLUMN "public"."product"."master_sku" IS '逻辑外键：直接存字符串 "AT010011"。';
+COMMENT ON COLUMN "public"."product"."product_master_id" IS '独立引用的主型号身份；允许为空或失效，不从中性产品推导。';
+COMMENT ON COLUMN "public"."product"."product_neutral_id" IS '独立引用的中性产品身份；允许为空或失效，不同步主型号及颜色。';
 COMMENT ON COLUMN "public"."product"."sku" IS '该实体保存的公司产品编码。';
 COMMENT ON COLUMN "public"."product"."description_en" IS '该实体保存的英文产品描述。';
 COMMENT ON COLUMN "public"."product"."description_zh" IS '该实体保存的中文产品描述。';
@@ -2298,7 +2298,6 @@ COMMENT ON COLUMN "public"."product"."supply_type" IS '供应方式（仅表示�
 COMMENT ON COLUMN "public"."product"."bom_version" IS 'BOM版本号。 约定：0 表示无BOM，>0 表示存在对应版本BOM。';
 COMMENT ON COLUMN "public"."product"."bom_no" IS '该实体保存的BOM 编号。';
 COMMENT ON COLUMN "public"."product"."note" IS '该实体保存的业务备注。';
-COMMENT ON COLUMN "public"."product"."link_sku" IS '该实体保存的关联产品编码。';
 COMMENT ON COLUMN "public"."product"."main_image" IS '该实体保存的产品主图路径。';
 COMMENT ON COLUMN "public"."product"."cny_price" IS '该实体保存的人民币单价或参考价。';
 COMMENT ON COLUMN "public"."product"."usd_price" IS '该实体保存的美元参考价。';

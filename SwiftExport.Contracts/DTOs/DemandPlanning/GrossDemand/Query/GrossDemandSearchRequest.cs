@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
     /// <summary>
-    /// 来源需求管理查询条件；链路条件按当前有效关系筛选，不改变来源生命周期。
+    /// 成品需求管理查询条件；链路条件按当前有效关系筛选，不改变来源生命周期。
     /// </summary>
     public class GrossDemandSearchRequest : PagedRequestBase
     {

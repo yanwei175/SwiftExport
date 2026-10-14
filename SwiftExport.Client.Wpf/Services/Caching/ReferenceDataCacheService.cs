@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Windows;
 using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.Inventory;
@@ -14,10 +12,12 @@ using SwiftExport.Contracts.DTOs.Products.Attributes;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Services.Api;
+using System.Collections.ObjectModel;
+using System.Windows;
 
 namespace SwiftExportClient.Services.Caching;
 
@@ -169,7 +169,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         {
             if (_disposed) return Task.FromResult(CacheRefreshResult.Fail("缓存服务已经释放。"));
             if (AreProductAttributesLoaded)
-                return Task.FromResult(CacheRefreshResult.Ok("产品标签缓存已经加载。"));
+                return Task.FromResult(CacheRefreshResult.Ok("产品属性缓存已经加载。"));
 
             if (_attributeEnsureTask is { IsCompleted: false })
                 return _attributeEnsureTask;
@@ -190,7 +190,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             lock (_attributeEnsureSync)
             {
                 if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
-                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品标签缓存结果。");
+                    return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品属性缓存结果。");
 
                 cancellation = new CancellationTokenSource();
                 _refreshCancellation = cancellation;
@@ -198,7 +198,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
 
             var token = cancellation.Token;
             var definitionsTask = _apiCallRunner.RunAsync(
-                () => _productAttributeApi.GetDefinitionsAsync(token), token, "加载产品标签缓存失败");
+                () => _productAttributeApi.GetDefinitionsAsync(token), token, "加载产品属性缓存失败");
             var typesTask = LoadDictionaryTypesAsync();
             var valuesTask = LoadDictionaryValuesAsync();
             await Task.WhenAll(definitionsTask, typesTask, valuesTask).WaitAsync(token);
@@ -222,12 +222,12 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                 ProductAttributesChanged?.Invoke(this, EventArgs.Empty);
             });
             return applied
-                ? CacheRefreshResult.Ok("产品标签缓存已更新。")
-                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品标签缓存结果。");
+                ? CacheRefreshResult.Ok("产品属性缓存已更新。")
+                : CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品属性缓存结果。");
         }
         catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
         {
-            return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品标签缓存结果。");
+            return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次产品属性缓存结果。");
         }
         finally
         {
@@ -703,8 +703,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         var attributes = await EnsureProductAttributesLoadedAsync();
         if (_disposed || generation != Volatile.Read(ref _sessionGeneration))
             return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。");
-        return CacheRefreshResult.Ok(attributes.Success ? "基础资料和产品标签缓存已经加载。"
-            : "基础资料缓存已经加载。产品标签缓存未更新，请在标签区域重试。");
+        return CacheRefreshResult.Ok(attributes.Success ? "基础资料和产品属性缓存已经加载。"
+            : "基础资料缓存已经加载。产品属性缓存未更新，请在标签区域重试。");
     }
 
     /// <summary>同一刷新门内并行读取网络资料；字典模板与标签成对发布，其他基础资料保持独立失败边界。</summary>
@@ -731,7 +731,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
             var dictionaryTypesTask = LoadDictionaryTypesAsync();
             var dictionaryValuesTask = LoadDictionaryValuesAsync();
             var definitionsTask = forceAttributes || !AreProductAttributesLoaded
-                ? _apiCallRunner.RunAsync(() => _productAttributeApi.GetDefinitionsAsync(token), token, "加载产品标签缓存失败")
+                ? _apiCallRunner.RunAsync(() => _productAttributeApi.GetDefinitionsAsync(token), token, "加载产品属性缓存失败")
                 : Task.FromResult(ServiceResult<ProductAttributeDefinitionsDto>.Ok(new ProductAttributeDefinitionsDto
                 {
                     Groups = ProductAttributeGroups.ToList(),
@@ -826,8 +826,8 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
                     dictionaryTypesResult.Success ? null : dictionaryTypesResult.Message,
                     dictionaryValuesResult.Success ? null : dictionaryValuesResult.Message));
             return CacheRefreshResult.Ok(attributesValid
-                ? "产品颜色、客户、供应商、产品标签、币种和字典缓存已更新。"
-                : "基础资料缓存已更新。产品标签缓存未更新，请在标签区域重试。");
+                ? "产品颜色、客户、供应商、产品属性、币种和字典缓存已更新。"
+                : "基础资料缓存已更新。产品属性缓存未更新，请在标签区域重试。");
         }
         catch (OperationCanceledException) when (cancellation?.IsCancellationRequested == true)
         { return CacheRefreshResult.Fail("登录会话已经变更，已忽略本次缓存结果。"); }
@@ -905,7 +905,7 @@ public sealed class ReferenceDataCacheService : IReferenceDataCacheService, IDis
         return true;
     }
 
-    /// <summary>接纳完整分类视觉树，与产品标签的模板来源保持独立。</summary>
+    /// <summary>接纳完整分类视觉树，与产品属性的模板来源保持独立。</summary>
     private void PublishCategories(ProductCategoryDto[] categories)
     {
         var tree = BuildCategoryTree(categories);

@@ -19,10 +19,17 @@
         <WrapPanel Margin="0,0,0,12">
             <Button Content="下载导入模板" Click="OnDownloadTemplate" IsEnabled="{Binding CanUseFiles}" Margin="0,0,8,0"/>
             <Button Content="加载文件" Click="OnChooseFile" IsEnabled="{Binding CanUseFiles}" Margin="0,0,8,0"/>
-            <ComboBox ItemsSource="{Binding Worksheets}" SelectedItem="{Binding SelectedSheet}" IsEnabled="{Binding CanUseFiles}" MinWidth="140" Margin="0,0,8,0" AutomationProperties.Name="导入工作表"/>
+
+            <ComboBox MinWidth="140" Margin="0,0,8,0" 
+                      VerticalContentAlignment="Center"
+                      ItemsSource="{Binding Worksheets}" 
+                      SelectedItem="{Binding SelectedSheet}" 
+                      IsEnabled="{Binding CanUseFiles}"                       
+                      AutomationProperties.Name="导入工作表"/>
+            
             <Button Content="读取工作表" Command="{Binding ReadSheetCommand}" Margin="0,0,8,0"/>
             <Button Content="开始导入" Command="{Binding ImportCommand}" Margin="0,0,8,0"/>
-            <Button Content="停止" Command="{Binding StopCommand}" Margin="0,0,8,0"/>
+            <Button Content="停止" Command="{Binding StopCommand}" Margin="0,0,8,0" MinWidth="70"/>
             <Button Content="下载未成功数据及原因" Click="OnDownloadErrors" IsEnabled="{Binding CanDownloadResults}"/>
         </WrapPanel>
         

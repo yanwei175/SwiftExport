@@ -58,7 +58,7 @@
                 <Grid RowDefinitions="Auto,*">
                     <DockPanel Grid.Row="0" Margin="4">
                         <Button Content="打开采购详情" Command="{Binding OpenPurchaseCommand}" DockPanel.Dock="Right" />
-                        <TextBlock Text="货好属于整条采购行，共享行不向来源需求分摊。" Foreground="Gray" />
+                        <TextBlock Text="货好属于整条采购行，共享行不向成品需求分摊。" Foreground="Gray" />
                     </DockPanel>
                     <DataGrid Grid.Row="1" ItemsSource="{Binding Detail.Purchases}" SelectedItem="{Binding SelectedPurchase, Mode=TwoWay}"
                               Background="Transparent"

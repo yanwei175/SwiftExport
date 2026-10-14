@@ -46,7 +46,7 @@
 
     <controls:LookupTextBox x:Name="LookupEditor" StretchToHost="True"
                             Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
-                            FontSize="{Binding FontSize, ElementName=Root}"
+                            FontSize="{Binding FontSize, ElementName=Root}"                          
                             ItemsSource="{Binding ItemsSource, ElementName=Root}"
                             SelectedItem="{Binding SelectedProductMaster, ElementName=Root, Mode=TwoWay}"
                             SelectedValue="{Binding SelectedProductMasterId, ElementName=Root, Mode=TwoWay}"
@@ -62,8 +62,8 @@
                             SearchMode="Remote"
                             DisplayMemberPath="MasterSku"
                             FilterMemberPaths="MasterSku,DefaultDescriptionZh"
-                             SelectedValuePath="Uid"
-                             RequireItemMatch="True"
-                             ClearSelectionOnEdit="False"
-                             ItemTemplate="{StaticResource ProductMasterLookupItemTemplate}" />
+                            SelectedValuePath="Uid"
+                            RequireItemMatch="True"
+                            ClearSelectionOnEdit="False"
+                            ItemTemplate="{StaticResource ProductMasterLookupItemTemplate}" />
 </UserControl>

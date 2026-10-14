@@ -4,7 +4,7 @@ using System;
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
     /// <summary>
-    /// 来源需求本体详情及接收时业务快照。
+    /// 成品需求本体详情及接收时业务快照。
     /// </summary>
     /// <remarks>来源表：GrossDemand；不装入物料需求、执行关系、采购或收货集合。</remarks>
     public class GrossDemandDetailDto

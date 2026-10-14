@@ -1,8 +1,8 @@
 using Refit;
-using System;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,7 +28,7 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
             Guid sourceUid,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>从来源需求建立物料需求。</summary>
+        /// <summary>从成品需求建立物料需求。</summary>
         [Post("/source-demands/establish")]
         Task<ServiceResult<EstablishMaterialDemandsResult>> EstablishFromSourcesAsync(
             [Body] EstablishMaterialDemandsCommand command,

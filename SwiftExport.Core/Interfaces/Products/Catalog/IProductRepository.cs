@@ -16,21 +16,6 @@ public interface IProductRepository : IRepository<Product>
     Task<Product?> GetByIdAsync(Guid uid, CancellationToken cancellationToken) => GetByIdAsync(uid);
     /// <summary>可取消地读取共享图引用的完整子产品，不扩展通用仓储职责。</summary>
     Task<IReadOnlyList<Product>> GetByIdListAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken) => GetByIdListAsync(ids);
-    /// <summary>
-    /// 在当前事务内按 ProductMasterId 同步未软删除物料，包含停用物料；型号编码始终同步。
-    /// updateDescriptions 控制中英文描述和配置，updateDefaultSupplier 控制供应商 ID；未选组保留原值，空值可清除。
-    /// source 必须是服务端规范化后的主型号；仅实际变化的物料递增版本并更新审计字段，返回变更行数。
-    /// </summary>
-    Task<int> SyncFromProductMasterAsync(
-        ProductMaster source,
-        bool updateDescriptions,
-        bool updateDefaultSupplier,
-        CancellationToken cancellationToken = default);
-    /// <summary>在调用方事务内从数据库当前主型号值向其未删除关联产品下发指定资料组，返回实际变更产品数。</summary>
-    Task<int> SyncSelectedFieldsFromMastersAsync(
-        IReadOnlyCollection<Guid> productMasterIds,
-        ProductMasterSyncFields fields,
-        CancellationToken cancellationToken = default);
     /// <summary>在调用方事务内只更新所选产品，从其有效关联主型号读取指定资料组，返回实际变更产品数。</summary>
     Task<int> PullSelectedFieldsFromMastersAsync(
         IReadOnlyCollection<Guid> productIds,

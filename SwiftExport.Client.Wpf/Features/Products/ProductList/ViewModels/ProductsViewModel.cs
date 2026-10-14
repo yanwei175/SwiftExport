@@ -5,20 +5,23 @@ using Mapster;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.Apis.SupplierApis;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
-using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
+using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
-using SwiftExport.Contracts.DTOs.Inventory.WareHouseSite.Picker;
-using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
-using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
+using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Mvvm;
@@ -47,6 +50,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private readonly IProductImageUploadDialogService _imageUploadDialog;
     private readonly ICurrentUserService? _currentUser;
     private readonly INavigationService? _navigation;
+    private readonly IProductMasterApi? _productMasterApi;
+    private readonly IProductNeutralManagerApi? _productNeutralApi;
+    private CancellationTokenSource? _masterLookupCts, _neutralLookupCts;
     private readonly Dictionary<Guid, CancellationTokenSource> _detailRefreshes = [];
     private bool _disposed;
     private bool _isInitialized;
@@ -65,7 +71,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         BomDrawerViewModel bomDrawer,
         IProductImageUploadDialogService imageUploadDialog,
         ICurrentUserService? currentUser = null,
-        INavigationService? navigation = null)
+        INavigationService? navigation = null,
+        IProductMasterApi? productMasterApi = null,
+        IProductNeutralManagerApi? productNeutralApi = null)
     {
         _productApi = productApi;
         _customerApi = customerApi;
@@ -77,9 +85,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         _imageUploadDialog = imageUploadDialog;
         _currentUser = currentUser;
         _navigation = navigation;
+        _productMasterApi = productMasterApi;
+        _productNeutralApi = productNeutralApi;
         if (_currentUser is not null) _currentUser.CurrentUserChanged += OnCurrentUserChanged;
         BomDrawer = bomDrawer;
-        Title = "产品资料";
+        Title = "物料管理";
         Products.PropertyChanged += OnProductsPropertyChanged;
         Products.ListStateChanged += OnProductsListStateChanged;
         BomDrawer.SelectionRestoreRequested += OnBomDrawerSelectionRestoreRequested;
@@ -181,6 +191,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     /// <summary>权限快照变化时即时更新拉取入口。</summary>
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
+        _masterLookupCts?.Cancel(); _neutralLookupCts?.Cancel();
+        ProductMasterCandidates.Clear(); ProductNeutralCandidates.Clear();
+        EditProductMaster = null; EditProductNeutral = null;
         NotifyPullCommands();
         OpenDetailCommand.NotifyCanExecuteChanged();
     }
@@ -192,6 +205,10 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public BomDrawerViewModel BomDrawer { get; }
     public IReferenceDataCacheService ReferenceDataCache => _referenceDataCache;
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
+    /// <summary>独立主型号搜索候选，不参与物料的中性产品筛选。</summary>
+    public ObservableCollection<ProductMasterLookupItemModel> ProductMasterCandidates { get; } = [];
+    /// <summary>独立中性产品候选，不要求与物料主型号归属一致。</summary>
+    public ObservableCollection<ProductNeutralLookupItemModel> ProductNeutralCandidates { get; } = [];
     /// <summary>产品模块独立授权的精简仓库候选；不借用库存模块的仓库缓存。</summary>
     public ObservableCollection<WarehouseSitePickerDto> WarehouseCandidates { get; } = [];
     public IReadOnlyList<string> MaterialTypes { get; } = MaterialTypesEnum.MaterialTypes;
@@ -219,6 +236,14 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public partial ProductColorDto? EditColor { get; set; }
     [ObservableProperty]
     public partial SupplierDto? EditSupplier { get; set; }
+    /// <summary>待确认的主型号候选，原行身份仅在确认或明确清空时变化。</summary>
+    [ObservableProperty] public partial ProductMasterLookupItemModel? EditProductMaster { get; set; }
+    /// <summary>待确认的中性产品候选，不回写主型号或颜色。</summary>
+    [ObservableProperty] public partial ProductNeutralLookupItemModel? EditProductNeutral { get; set; }
+    /// <summary>主型号候选读取状态。</summary>
+    [ObservableProperty] public partial bool IsProductMasterLookupBusy { get; private set; }
+    /// <summary>中性产品候选读取状态。</summary>
+    [ObservableProperty] public partial bool IsProductNeutralLookupBusy { get; private set; }
     [ObservableProperty] public partial SupplierDto? EditManufacturer { get; set; }
     [ObservableProperty] public partial WarehouseSitePickerDto? EditWarehouse { get; set; }
 
@@ -523,6 +548,81 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     [RelayCommand] private Task SearchSuppliersAsync(string? keyword) => LoadSuppliersAsync(keyword);
 
+    /// <summary>主型号搜索取消前一次请求；页面释放或新查询启动后不接纳旧候选。</summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SearchProductMastersAsync(string? keyword)
+    {
+        if (_disposed || !CanWrite || IsBusy || _productMasterApi is null) return;
+        var current = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _masterLookupCts, current); previous?.Cancel(); previous?.Dispose();
+        IsProductMasterLookupBusy = true;
+        try
+        {
+            var result = await _apiCallRunner.RunAsync(() => _productMasterApi.GetPagedAsync(
+                new ProductMasterSearchRequest { Keyword = NullIfWhiteSpace(keyword), PageIndex = 1, PageSize = 50 }, current.Token),
+                current.Token, "搜索主型号失败");
+            if (_disposed || current.IsCancellationRequested || !ReferenceEquals(current, _masterLookupCts)) return;
+            if (!result.Success) { _messageService.ShowWarning("主型号候选未加载", result.Message); return; }
+            ProductMasterCandidates.Clear();
+            foreach (var item in result.Data?.Items ?? []) ProductMasterCandidates.Add(new(item));
+        }
+        finally { if (!_disposed && ReferenceEquals(current, _masterLookupCts)) IsProductMasterLookupBusy = false; }
+    }
+
+    /// <summary>查询中性产品自身编码；不按所选主型号限制候选，也不自动改变其他关系。</summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SearchProductNeutralsAsync(string? keyword)
+    {
+        if (_disposed || !CanWrite || IsBusy || _productNeutralApi is null) return;
+        var current = new CancellationTokenSource();
+        var previous = Interlocked.Exchange(ref _neutralLookupCts, current); previous?.Cancel(); previous?.Dispose();
+        IsProductNeutralLookupBusy = true;
+        try
+        {
+            var result = await _apiCallRunner.RunAsync(() => _productNeutralApi.GetPagedAsync(
+                new ProductNeutralManagerSearchRequest { Keyword = NullIfWhiteSpace(keyword), PageIndex = 1, PageSize = 50 }, current.Token),
+                current.Token, "搜索中性产品失败");
+            if (_disposed || current.IsCancellationRequested || !ReferenceEquals(current, _neutralLookupCts)) return;
+            if (!result.Success) { _messageService.ShowWarning("中性产品候选未加载", result.Message); return; }
+            ProductNeutralCandidates.Clear();
+            foreach (var item in result.Data?.Items ?? []) ProductNeutralCandidates.Add(new(item));
+        }
+        finally { if (!_disposed && ReferenceEquals(current, _neutralLookupCts)) IsProductNeutralLookupBusy = false; }
+    }
+
+    /// <summary>确认主型号仅保存自身引用与联表显示，不改变中性产品、颜色或物料独立资料。</summary>
+    [RelayCommand]
+    private void CommitProductMaster(ProductLineModel? line)
+    {
+        if (_disposed || !CanWrite || IsBusy || line is null || EditProductMaster is null) return;
+        line.ProductMasterId = EditProductMaster.Uid; line.MasterSku = EditProductMaster.MasterSku ?? string.Empty;
+        line.CategoryId = EditProductMaster.CategoryId; line.CategoryName = EditProductMaster.CategoryName ?? string.Empty;
+        EditProductMaster = null;
+    }
+    /// <summary>明确清空主型号保存 null，中性产品及已有标签保持。</summary>
+    [RelayCommand]
+    private void ClearProductMaster(ProductLineModel? line)
+    {
+        if (_disposed || !CanWrite || IsBusy || line is null) return;
+        line.ProductMasterId = null; line.MasterSku = string.Empty; line.CategoryId = Guid.Empty; line.CategoryName = string.Empty;
+        EditProductMaster = null;
+    }
+    /// <summary>确认中性产品仅保存其身份与编码，不从候选推导主型号或颜色。</summary>
+    [RelayCommand]
+    private void CommitProductNeutral(ProductLineModel? line)
+    {
+        if (_disposed || !CanWrite || IsBusy || line is null || EditProductNeutral is null) return;
+        line.ProductNeutralId = EditProductNeutral.Uid; line.LinkSku = EditProductNeutral.ProductCode ?? string.Empty;
+        EditProductNeutral = null;
+    }
+    /// <summary>明确清空中性产品保存 null，其余关系不变。</summary>
+    [RelayCommand]
+    private void ClearProductNeutral(ProductLineModel? line)
+    {
+        if (_disposed || !CanWrite || IsBusy || line is null) return;
+        line.ProductNeutralId = null; line.LinkSku = string.Empty; EditProductNeutral = null;
+    }
+
     [RelayCommand]
     private async Task RefreshProductCategoriesAsync()
     {
@@ -644,7 +744,10 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
             }
             loaded.AddRange(result.Data.Items.Select(item => new WarehouseSitePickerDto
             {
-                Uid = item.Uid, Code = item.Code, Name = item.Name, IsActive = true
+                Uid = item.Uid,
+                Code = item.Code,
+                Name = item.Name,
+                IsActive = true
             }));
             if (loaded.Count >= result.Data.TotalCount || result.Data.Items.Count == 0) break;
         }
@@ -763,6 +866,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         if (_disposed) return;
         _disposed = true;
+        foreach (var lookup in new[] { _masterLookupCts, _neutralLookupCts }) { lookup?.Cancel(); lookup?.Dispose(); }
         WeakReferenceMessenger.Default.Unregister<ProductDetailSavedMessage>(this);
         foreach (var pending in _detailRefreshes.Values) { pending.Cancel(); pending.Dispose(); }
         _detailRefreshes.Clear();

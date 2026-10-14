@@ -30,9 +30,9 @@
         <Grid HorizontalAlignment="Stretch">
             <StackPanel  DockPanel.Dock="Left" Orientation="Horizontal" 
                          VerticalAlignment="Center">
-                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}"  Margin="0,0,4,0" />
-                <ui:Button Content="放弃" Command="{Binding RejectDetailChangesCommand}"  Margin="0,0,4,0" />
-                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" />
+                <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}"  Margin="0,0,4,0" MinWidth="70"/>
+                <ui:Button Content="放弃" Command="{Binding RejectDetailChangesCommand}"  Margin="0,0,4,0" MinWidth="70"/>
+                <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0" MinWidth="70"/>
             </StackPanel>
 
             <StackPanel Panel.ZIndex="999" HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Vertical">
@@ -220,8 +220,8 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <ui:Button Content="新增行" Command="{Binding AddNeutralCommand}" Margin="0,0,4,0"/>
-                <ui:Button Content="删除行" Command="{Binding DeleteNeutralCommand}" Margin="0,0,4,0"/>
+                        <ui:Button Content="新增行" Command="{Binding AddNeutralCommand}" Margin="0,0,4,0" MinWidth="70"/>
+                        <ui:Button Content="删除行" Command="{Binding DeleteNeutralCommand}" Margin="0,0,4,0" MinWidth="70"/>
                 <ui:ToggleSwitch Margin="0,0,4,0"
                                  VerticalAlignment="Center"
                                  OffContent="整行模式"
@@ -230,6 +230,7 @@
             </StackPanel>
 
             <DataGrid Grid.Row="2" ItemsSource="{Binding Neutrals.Items}"
+                          SelectedItem="{Binding SelectedNeutral, Mode=TwoWay}"
                           Style="{StaticResource SwiftExportDataGrid}"
                           RowHeight="{StaticResource DataGridRowHeightMedium}"
                           FontSize="{StaticResource SwiftExportDefaltFontSize}"
@@ -243,7 +244,6 @@
                           gridCore:GridRowHeader.ShowRowNumber="True" 
                           gridOperations:GridOperations.IsEnabled="True"
                           gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                          gridSelection:GridSelection.CurrentRow="{Binding SelectedNeutral, Mode=TwoWay}"
                           gridValidation:GridValidation.IsEnabled="False" 
                           AutomationProperties.Name="中性产品可编辑列表">
                 <DataGrid.Columns>
@@ -300,11 +300,13 @@
                                         Binding="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                        gridColumns:GridColumn.CanFillDown="False"
                                         gridColumns:GridColumn.Key="neutral-product-code" 
                                         gridColumns:GridColumn.FieldPath="ProductCode" />
 
-                    <DataGridTemplateColumn Header="颜色" Width="140" 
+                    <DataGridTemplateColumn Header="颜色" Width="160" 
                                             gridColumns:GridColumn.Key="neutral-color" 
+                                            gridColumns:GridColumn.CanFillDown="False"
                                             gridColumns:GridColumn.FieldPath="ColorId">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -328,7 +330,8 @@
                                         Binding="{Binding DefaultSalesPriceUsd, UpdateSourceTrigger=LostFocus, StringFormat=N2, TargetNullValue=''}"
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        gridColumns:GridColumn.Key="neutral-sales-price-usd" gridColumns:GridColumn.FieldPath="DefaultSalesPriceUsd" />
+                                        gridColumns:GridColumn.Key="neutral-sales-price-usd" 
+                                        gridColumns:GridColumn.FieldPath="DefaultSalesPriceUsd" />
 
                     <DataGridTextColumn Header="计算汇率" Width="100" 
                                         Binding="{Binding DefaultExchangeRate, UpdateSourceTrigger=LostFocus, StringFormat=N4, TargetNullValue=''}"

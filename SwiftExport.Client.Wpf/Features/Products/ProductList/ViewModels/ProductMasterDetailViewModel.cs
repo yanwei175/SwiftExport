@@ -13,7 +13,6 @@ using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.Components.Models;
-using SwiftExportClient.Features.Products.ProductList.Services;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.Models;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Mvvm;
@@ -37,7 +36,6 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
     private readonly IReferenceDataCacheService? _cache;
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
-    private readonly IProductMasterSyncDialogService _syncDialog;
     private readonly INavigationService _navigation;
     private readonly ICurrentUserService? _currentUser;
     private CancellationTokenSource? _loadCts;
@@ -52,7 +50,6 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         IMessageService messages,
         IDialogService dialogs,
         INavigationService navigation,
-        IProductMasterSyncDialogService syncDialog,
         ICurrentUserService? currentUser = null)
     {
         _api = api;
@@ -60,7 +57,6 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         _cache = cache;
         _messages = messages;
         _dialogs = dialogs;
-        _syncDialog = syncDialog;
         _navigation = navigation;
         _currentUser = currentUser;
         Title = "父级详情";
@@ -128,8 +124,10 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
     [ObservableProperty] public partial ProductColorDto? EditColor { get; set; }
     /// <summary>获取详情加载与保存状态文本。</summary>
     [ObservableProperty] public partial string StatusText { get; set; } = "正在准备主型号详情。";
-    /// <summary>获取或设置中性产品 DataGrid 是否使用格子选择模式。</summary>
-    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; } = false;
+    /// <summary>获取或设置中性产品格子选择模式；格子模式保留单元格编辑，但禁止整行删除。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteNeutralCommand))]
+    public partial bool IsCellSelectionMode { get; set; } = false;
     /// <summary>模板确认期间冻结标签与保存，避免旧模板草稿同时被修改。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanEditTags))]
@@ -174,10 +172,11 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         NotifyDocumentState();
     }
 
-    /// <summary>新增行直接移除；已保存行确认后软删除，完成后选择剩余最后一行。</summary>
+    /// <summary>整行模式下删除中性产品；已保存行先确认，完成后选择剩余最后一行。</summary>
     [RelayCommand(CanExecute = nameof(CanDeleteNeutral))]
     private async Task DeleteNeutralAsync()
     {
+        if (!CanDeleteNeutral()) return;
         var lines = Neutrals.CheckedItems.Count > 0
             ? Neutrals.CheckedItems.ToArray()
             : SelectedNeutral is null ? [] : [SelectedNeutral];
@@ -189,7 +188,7 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         NotifyDocumentState();
     }
 
-    /// <summary>验证聚合并采集同步授权，确认后原子保存，取消及失败不接纳基线。</summary>
+    /// <summary>校验后原子保存主型号、中性产品及标签，失败保留详情草稿。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
@@ -205,6 +204,13 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
                 _messages.ShowWarning("主型号未保存", error);
                 return;
             }
+            // 校验可能等待异步结果，发送前再次检查文档存活与当前编辑权限。
+            if (_disposed) return;
+            if (!CanWrite)
+            {
+                _messages.ShowWarning("主型号未保存", "编辑权限已收回，本地草稿已保留。");
+                return;
+            }
             var request = new SaveProductMasterDetailRequest
             {
                 ContractVersion = 3,
@@ -214,25 +220,6 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
                 SelectedOptionIds = Tags.GetSelectedOptionIds()
             };
             Neutrals.ApplyChanges(request);
-            var selection = await _syncDialog.ConfirmSaveAsync();
-            if (!selection.Confirmed || _disposed) return;
-            // 等待确认期间权限可能被收回，不继续发送原本尚未发出的保存请求。
-            if (!CanWrite)
-            {
-                _messages.ShowWarning("主型号未保存", "编辑权限已收回，本地草稿已保留。");
-                return;
-            }
-            // 确认等待期间缓存可能更新或会话被清理；重验标签，失败快照只能发送 null 保持协议。
-            var tagError = Tags.ValidateSelection(Header.ProductAttributeProfileId ?? Guid.Empty);
-            if (tagError is not null)
-            {
-                ValidationSummary = tagError;
-                _messages.ShowWarning("主型号未保存", tagError);
-                return;
-            }
-            request.SelectedOptionIds = Tags.GetSelectedOptionIds();
-            request.UpdateProductDescriptions = selection.UpdateProductDescriptions;
-            request.UpdateProductDefaultSupplier = selection.UpdateProductDefaultSupplier;
             var result = await _runner.RunAsync(() => _api.SaveDetailAsync(request), "保存主型号详情失败");
             if (_disposed) return;
             if (!result.Success || result.Data?.Detail is null)
@@ -628,7 +615,9 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
 
     private bool CanSave() => !_disposed && IsNotBusy && CanWrite && !IsProfileChangePending && HasUnsavedChanges;
     private bool CanAddNeutral() => !_disposed && IsNotBusy && CanWrite;
-    private bool CanDeleteNeutral() => IsNotBusy && CanWrite && (Neutrals.CheckedCount > 0 || SelectedNeutral is not null);
+    /// <summary>格子模式不提供整行删除，勾选项也不能绕过模式限制。</summary>
+    private bool CanDeleteNeutral() => !IsCellSelectionMode && IsNotBusy && CanWrite
+        && (Neutrals.CheckedCount > 0 || SelectedNeutral is not null);
 
     /// <summary>取消详情加载并解除模型事件订阅。</summary>
     public void Dispose()

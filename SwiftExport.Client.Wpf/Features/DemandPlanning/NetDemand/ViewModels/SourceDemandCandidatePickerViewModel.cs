@@ -1,11 +1,11 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Services.Api;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 
@@ -24,7 +24,7 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
     /// <summary>当前来源单一次完整加载的全部待建立行。</summary>
     public ObservableCollection<SourceDemandCandidateRowModel> Items { get; } = [];
 
-    /// <summary>返回当前来源单内用户已勾选的来源需求。</summary>
+    /// <summary>返回当前来源单内用户已勾选的成品需求。</summary>
     public IReadOnlyList<SourceDemandCandidateDto> SelectedRows =>
         Items.Where(item => item.IsChecked).Select(item => item.Demand).ToArray();
 
@@ -127,7 +127,7 @@ public sealed partial class SourceDemandCandidatePickerViewModel(
                         SourceVersion = item.SourceVersion,
                     }).ToList(),
                 }),
-                "从来源需求建立物料需求失败");
+                "从成品需求建立物料需求失败");
             if (!result.Success || result.Data is null)
             {
                 StatusText = result.Message;

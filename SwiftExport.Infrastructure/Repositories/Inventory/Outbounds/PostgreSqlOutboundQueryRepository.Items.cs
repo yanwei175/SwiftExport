@@ -49,11 +49,12 @@ public sealed partial class PostgreSqlOutboundQueryRepository : IOutboundQueryRe
     private static string ItemsSql() => $"""
         WITH candidates AS MATERIALIZED (
             SELECT b."uid" AS "Uid",b."warehouse_site_id" AS "WarehouseSiteId",
-                b."product_id" AS "ProductId",{P("Sku")} AS "Sku",{P("LinkSku")} AS "LinkSku",
+                b."product_id" AS "ProductId",{P("Sku")} AS "Sku",pn.product_code AS "LinkSku",
                 {P("DescriptionZh")} AS "Description",{P("MainImage")} AS "ImagePath",{P("Unit")} AS "Unit",
                 b."on_hand_qty" AS "OnHandQty",dw."name" AS "DefaultWarehouseName"
             FROM "public"."inventory_balance" b JOIN "public"."product" p ON {P("Uid")}=b."product_id"
             JOIN "public"."warehouse_site" w ON w."uid"=b."warehouse_site_id"
+            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             LEFT JOIN "public"."warehouse_site" dw ON dw."uid"={P("DefaultWarehouseSiteId")}
                 AND dw."is_deleted"=FALSE
             WHERE b."warehouse_site_id"=@WarehouseSiteId AND b."is_deleted"=FALSE
@@ -62,7 +63,7 @@ public sealed partial class PostgreSqlOutboundQueryRepository : IOutboundQueryRe
                 AND NULLIF(btrim({P("Unit")},' '),'') IS NOT NULL
                 AND b."product_id"<>ALL(@ExcludedProductIds)
                 AND (@Keyword IS NULL OR {P("Sku")} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
-                    OR {P("LinkSku")} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                    OR pn.product_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR {P("DescriptionZh")} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')
         ), totals AS (
             SELECT COUNT(*)::integer AS "TotalCount" FROM candidates

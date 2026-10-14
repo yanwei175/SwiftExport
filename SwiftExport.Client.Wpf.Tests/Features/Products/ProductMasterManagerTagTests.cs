@@ -195,8 +195,8 @@ public sealed class ProductMasterManagerTagTests
                 Assert.AreEqual(nameof(INavigationService.OpenDocumentAsync), method.Name);
                 Opened.Add(((string)args[1]!, args[2])); return Task.CompletedTask;
             });
-            ViewModel = new(api, null!, runner, new ReferenceDataCacheServiceStub(), Proxy<IMessageService>((_, _) => null), dialogs,
-                navigation, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
+            ViewModel = new(api, runner, new ReferenceDataCacheServiceStub(), Proxy<IMessageService>((_, _) => null), dialogs,
+                navigation, null!, new ImageAddressResolverStub());
             ViewModel.Masters.LoadFromDtos(Server.Adapt<List<ProductMasterListItemDto>>());
             ViewModel.SelectedMaster = ViewModel.Masters.Items[0];
         }

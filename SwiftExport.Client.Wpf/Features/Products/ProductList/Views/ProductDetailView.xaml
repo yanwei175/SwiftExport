@@ -25,11 +25,14 @@
       <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="224"/></Grid.ColumnDefinitions>
       <Grid IsEnabled="{Binding CanEditHeader}" x:Name="EditableFields">
        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+       <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
        <TextBlock Grid.Row="0" Grid.Column="0" Text="物料编号 *" VerticalAlignment="Center" Margin="0,0,8,8" />
 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="物料编号 *" Text="{Binding Header.Sku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
 <TextBlock Grid.Row="0" Grid.Column="2" Text="产品型号" VerticalAlignment="Center" Margin="0,0,8,8" />
-<TextBox Grid.Row="0" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="产品型号" Text="{Binding Header.LinkSku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
+<controls:LookupTextBox Grid.Row="0" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="产品型号"
+ Text="{Binding Header.LinkSku, Mode=OneWay}" ItemsSource="{Binding ProductNeutralCandidates}" SelectedItem="{Binding SelectedProductNeutral, Mode=TwoWay}"
+ SearchCommand="{Binding SearchProductNeutralsCommand}" IsBusy="{Binding IsProductNeutralLookupBusy}" SearchMode="Remote" DisplayMemberPath="ProductCode" FilterMemberPaths="ProductCode,ColorName"
+ RequireItemMatch="True" ClearSelectionOnEdit="False" SelectionCommittedCommand="{Binding CommitProductNeutralCommand}" SelectionClearedCommand="{Binding ClearProductNeutralCommand}" />
 <TextBlock Grid.Row="0" Grid.Column="4" Text="颜色" VerticalAlignment="Center" Margin="0,0,8,8" />
 <productComponents:ProductColorLookupTextBox Grid.Row="0" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="颜色" Text="{Binding Header.Finish, Mode=OneWay}" ItemsSource="{Binding ReferenceDataCache.ProductColors}" SelectedColor="{Binding SelectedColor, Mode=TwoWay}" SelectionCommittedCommand="{Binding CommitColorCommand}" SelectionClearedCommand="{Binding ClearColorCommand}" />
 <TextBlock Grid.Row="1" Grid.Column="0" Text="物料类型" VerticalAlignment="Center" Margin="0,0,8,8" />
@@ -66,6 +69,23 @@
 <TextBox Grid.Row="6" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="中文配置" Text="{Binding Header.FeaturesZh, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
 <TextBlock Grid.Row="6" Grid.Column="2" Text="英文配置" VerticalAlignment="Center" Margin="0,0,8,8" />
 <TextBox Grid.Row="6" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="英文配置" Text="{Binding Header.FeaturesEn, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+<TextBlock Grid.Row="7" Grid.Column="0" Text="来源主型号" VerticalAlignment="Center" Margin="0,0,8,8" />
+<productComponents:ProductMasterLookupTextBox Grid.Row="7" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="来源主型号"
+ Text="{Binding Header.MasterSku, Mode=OneWay}" ItemsSource="{Binding ProductMasterCandidates}" SelectedProductMaster="{Binding SelectedProductMaster, Mode=TwoWay}"
+ SearchCommand="{Binding SearchProductMastersCommand}" IsBusy="{Binding IsProductMasterLookupBusy}"
+ SelectionCommittedCommand="{Binding CommitProductMasterCommand}" SelectionClearedCommand="{Binding ClearProductMasterCommand}" />
+<Button Grid.Row="7" Grid.Column="2" Content="清除主型号引用" Command="{Binding ClearProductMasterCommand}" Margin="0,0,8,8" AutomationProperties.Name="清除失效主型号引用">
+ <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
+  <DataTrigger Binding="{Binding Header.MasterSku}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+  <DataTrigger Binding="{Binding Header.ProductMasterId}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+ </Style.Triggers></Style></Button.Style>
+</Button>
+<Button Grid.Row="7" Grid.Column="3" Content="清除中性产品引用" Command="{Binding ClearProductNeutralCommand}" Margin="0,0,12,8" AutomationProperties.Name="清除失效中性产品引用">
+ <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
+  <DataTrigger Binding="{Binding Header.LinkSku}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+  <DataTrigger Binding="{Binding Header.ProductNeutralId}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+ </Style.Triggers></Style></Button.Style>
+</Button>
       </Grid>
       <Border Grid.Column="2" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" Padding="8" VerticalAlignment="Top">
        <controls:CachedImage Width="208" Height="208" Style="{StaticResource SwiftExportCachedImage}" SourcePath="{Binding Header.MainImage}" DecodePixelWidth="800" Stretch="Uniform" AutomationProperties.Name="物料图片预览"/>
@@ -76,8 +96,7 @@
      <StackPanel>
       <TextBlock Text="来源与包装参考" FontWeight="SemiBold" Margin="0,0,0,8"/>
       <WrapPanel>
-       <StackPanel Margin="0,0,32,8"><TextBlock Text="来源主型号" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding Source.MasterSku, TargetNullValue=未关联}" AutomationProperties.Name="只读来源主型号"/></StackPanel>
-       <StackPanel Margin="0,0,32,8"><TextBlock Text="分类" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding Source.CategoryName}"/></StackPanel>
+       <StackPanel Margin="0,0,32,8"><TextBlock Text="分类" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding SourceCategoryName}"/></StackPanel>
        <StackPanel Margin="0,0,32,8"><TextBlock Text="属性模板（来自主型号）" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding TemplateStatus}" AutomationProperties.Name="只读物料属性模板"/></StackPanel>
        <StackPanel Margin="0,0,32,8"><TextBlock Text="状态" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding SourceStatus}"/></StackPanel>
       </WrapPanel>

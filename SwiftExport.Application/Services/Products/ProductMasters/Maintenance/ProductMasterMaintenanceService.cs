@@ -25,7 +25,7 @@ using System.Text;
 
 namespace SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 
-/// <summary>编排主型号、中性产品和标签选择保存，以及按显式选项同步关联物料的校验、并发及请求级事务。</summary>
+/// <summary>编排主型号、中性产品和标签选择保存，以及物料主动获取主型号资料的请求级事务。</summary>
 public sealed partial class ProductMasterMaintenanceService(
     IProductMasterRepository masterRepository,
     IProductNeutralRepository neutralRepository,
@@ -54,7 +54,7 @@ public sealed partial class ProductMasterMaintenanceService(
         var ids = request.ProductIds.Distinct().OrderBy(id => id).ToArray();
         return ExecuteTransactionAsync(async () =>
         {
-            // 先只读取得关联，再按“主型号→产品”的既有下发锁顺序加锁，避免两个入口互相等待。
+            // 先只读取得关联，再按“主型号→物料”的稳定顺序加锁，锁后重验来源身份。
             var observedProducts = await productRepository.GetByIdListAsync(ids);
             if (observedProducts.Count != ids.Length || observedProducts.Any(product => product.IsDeleted))
                 throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "所选产品不存在或已删除，请刷新后重试。");
@@ -93,42 +93,6 @@ public sealed partial class ProductMasterMaintenanceService(
                 UpdatedProductCount = updated
             }, $"已检查 {ids.Length} 个产品，跳过 {ids.Length - eligible.Length} 个，更新 {updated} 个。");
         }, "从主型号拉取产品资料", cancellationToken);
-    }
-
-    /// <summary>在单一事务中锁定并校验所选主型号，再从数据库当前值向关联产品下发指定资料组。</summary>
-    public Task<ServiceResult<SyncProductMasterDataResponse>> SyncProductsAsync(
-        SyncProductMasterDataRequest request,
-        ProductMasterSyncFields fields,
-        CancellationToken cancellationToken = default)
-    {
-        if (request?.ProductMasterIds is null || request.ProductMasterIds.Count == 0 || request.ProductMasterIds.Count > 200
-            || request.ProductMasterIds.Any(id => id == Guid.Empty))
-            return Task.FromResult(ServiceResult<SyncProductMasterDataResponse>.Fail(ServiceErrorCodes.Validation, "请选择 1 至 200 个有效主型号。"));
-        if (fields == ProductMasterSyncFields.None || (fields & ~ProductMasterSyncFields.All) != 0)
-            return Task.FromResult(ServiceResult<SyncProductMasterDataResponse>.Fail(ServiceErrorCodes.Validation, "下发资料组无效。"));
-
-        var ids = request.ProductMasterIds.Distinct().OrderBy(id => id).ToArray();
-        return ExecuteTransactionAsync(async () =>
-        {
-            var masters = await masterRepository.GetByIdListAsync(ids, true);
-            if (masters.Count != ids.Length || masters.Any(master => master.IsDeleted))
-                throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "所选主型号不存在或已删除，请刷新后重试。");
-            if ((fields & ProductMasterSyncFields.Supplier) != 0)
-            {
-                // 空 Guid 明确清空产品默认供应商；非空值必须在同一事务内锁定并校验活动资格。
-                var supplierIds = masters.Select(master => master.DefaultSupplierId).Where(id => id != Guid.Empty).Distinct().ToArray();
-                var suppliers = await supplierRepository.GetByIdListAsync(supplierIds, true);
-                if (suppliers.Count != supplierIds.Length || suppliers.Any(supplier => supplier.IsDeleted || !supplier.IsActive))
-                    throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "下发默认供应商失败：部分供应商不存在、已删除或已停用。");
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            var changed = await productRepository.SyncSelectedFieldsFromMastersAsync(ids, fields, cancellationToken);
-            return ServiceResult<SyncProductMasterDataResponse>.Ok(new SyncProductMasterDataResponse
-            {
-                ProductMasterCount = ids.Length,
-                UpdatedProductCount = changed
-            }, $"已下发 {ids.Length} 个主型号，更新 {changed} 个关联产品。");
-        }, "独立下发主型号资料", cancellationToken);
     }
 
     /// <summary>在单一事务中批量更新主型号分类；任一无效或并发项都会回滚整个批次。</summary>
@@ -198,8 +162,7 @@ public sealed partial class ProductMasterMaintenanceService(
         }, "批量归类主型号", cancellationToken);
     }
 
-    /// <summary>在单一事务中校验并保存管理页的新增、修改、删除，再按请求选项同步新增及修改项关联的物料。</summary>
-    /// <remarks>同步选项不作用于删除项；任一主型号或物料写入失败均回滚整个批次。</remarks>
+    /// <summary>在单一事务中校验并保存管理页的新增、修改、删除；仅写主型号及其自身聚合。</summary>
     public async Task<ServiceResult<ProductMasterBatchSaveResponse>> BatchSaveAsync(ProductMasterBatchSaveRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null || request.ContractVersion != 3 || !request.HasChanges)
@@ -210,8 +173,6 @@ public sealed partial class ProductMasterMaintenanceService(
             NormalizeBatchRequest(request);
             await ValidateMasterBatchAsync(request, cancellationToken);
             var response = new ProductMasterBatchSaveResponse { TotalCount = request.TotalCount };
-            // 只收集新增和修改的主型号；删除项仅处理主型号及其中性产品，不向物料写入同步值。
-            var synchronizationSources = new List<ProductMaster>();
 
             foreach (var item in request.CreateItems)
             {
@@ -219,8 +180,6 @@ public sealed partial class ProductMasterMaintenanceService(
                 var result = await masterRepository.AddAsync(entity);
                 response.Items.Add(SaveItemResultFactory.FromCreate(item, result));
                 EnsureWrite(result, "新增主型号失败。");
-                entity.Uid = result.Uid;
-                synchronizationSources.Add(entity);
             }
             foreach (var item in request.UpdateItems)
             {
@@ -230,7 +189,6 @@ public sealed partial class ProductMasterMaintenanceService(
                 var result = await masterRepository.UpdateAsync(entity);
                 response.Items.Add(SaveItemResultFactory.FromUpdate(item, result));
                 EnsureWrite(result, "更新主型号失败。");
-                synchronizationSources.Add(entity);
             }
             foreach (var item in request.DeleteItems)
             {
@@ -240,15 +198,11 @@ public sealed partial class ProductMasterMaintenanceService(
                 response.Items.Add(SaveItemResultFactory.FromDelete(item, result));
                 EnsureWrite(result, "删除主型号失败。");
             }
-            // 所有主型号写入通过后，按 UID 顺序同步；请求的两个开关对本批次每个同步源使用同一取值。
-            // 任一同步失败仍由外层事务回滚整个批次。
-            foreach (var source in synchronizationSources.OrderBy(source => source.Uid))
-                await SynchronizeProductsAsync(source, request.UpdateProductDescriptions, request.UpdateProductDefaultSupplier, cancellationToken);
             return ServiceResult<ProductMasterBatchSaveResponse>.Ok(response, $"已保存 {response.SuccessCount} 条主型号变更。");
         }, "保存主型号列表", cancellationToken);
     }
 
-    /// <summary>在单一事务中保存头部、标签最终选择、明细及关联物料同步，任一步失败全部回滚。</summary>
+    /// <summary>在单一事务中保存头部、标签最终选择及中性明细，任一步失败全部回滚。</summary>
     public async Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default)
     {
         if (request?.Master is null || request.ContractVersion != 3)
@@ -285,7 +239,7 @@ public sealed partial class ProductMasterMaintenanceService(
             var selectedIds = request.SelectedOptionIds ?? existingDetail?.SelectedOptionIds ?? [];
             await ValidateAttributeSelectionsAsync(request.Master.ProductAttributeProfileId, selectedIds, cancellationToken);
             if (existingDetail is not null && existingDetail.Master.ProductAttributeProfileId != request.Master.ProductAttributeProfileId)
-                await ValidateLinkedProductSelectionsAsync(request.ProductMasterId, request.Master.ProductAttributeProfileId, false, cancellationToken);
+                await ValidateLinkedProductSelectionsAsync(request.ProductMasterId, request.Master.ProductAttributeProfileId, cancellationToken);
             Guid productMasterId;
             if (existingDetail is null)
             {
@@ -305,10 +259,6 @@ public sealed partial class ProductMasterMaintenanceService(
             await SaveAttributeSelectionsAsync(productMasterId, selectedIds, cancellationToken);
             await SaveNeutralRowsAsync(productMasterId, NeutralChanges(request));
 
-            var source = ToEntity(request.Master);
-            source.Uid = productMasterId;
-            await SynchronizeProductsAsync(source, request.UpdateProductDescriptions, request.UpdateProductDefaultSupplier, cancellationToken);
-
             var saved = await LoadDetailAsync(productMasterId, false, cancellationToken)
                 ?? throw new ProductMasterWriteException(ServiceErrorCodes.Unexpected, "保存后无法读取主型号详情。");
             return ServiceResult<SaveProductMasterDetailResponse>.Ok(new SaveProductMasterDetailResponse { Detail = saved }, "主型号详情已保存。");
@@ -316,23 +266,7 @@ public sealed partial class ProductMasterMaintenanceService(
     }
 
 
-    /// <summary>同步前校验所选默认供应商为有效且启用的记录，再委托仓储按主型号 UID 更新关联物料。</summary>
-    /// <remarks>主型号编码始终参与同步；两个布尔值分别控制四个描述/配置字段和供应商 ID，空供应商表示清除。</remarks>
-    private async Task SynchronizeProductsAsync(ProductMaster source, bool updateDescriptions, bool updateDefaultSupplier, CancellationToken cancellationToken)
-    {
-        if (updateDefaultSupplier && source.DefaultSupplierId != Guid.Empty)
-        {
-            // 保持引用校验和资料写入同事务；加锁防止供应商在校验后被停用或删除。
-            var supplier = await supplierRepository.GetByIdAsync(source.DefaultSupplierId, true);
-            if (supplier is null || supplier.IsDeleted || !supplier.IsActive)
-                throw new ProductMasterWriteException(ServiceErrorCodes.Validation, "同步默认供应商失败：供应商不存在、已删除或已停用。");
-        }
-        cancellationToken.ThrowIfCancellationRequested();
-        await productRepository.SyncFromProductMasterAsync(source, updateDescriptions, updateDefaultSupplier, cancellationToken);
-    }
-
-    /// <summary>父记录加更新锁后原子保存明细；不回写头部，避免覆盖管理页独立编辑。</summary>
-    /// <summary>执行已校验的明细写入；所有仓储共享外层事务。</summary>
+    /// <summary>在调用方已锁定主型号的外层事务内保存中性产品变更，不单独回写头部。</summary>
     private async Task SaveNeutralRowsAsync(Guid productMasterId, BatchSaveRequestBase<ProductNeutralWriteDto> request)
     {
         foreach (var item in request.CreateItems)
@@ -410,10 +344,8 @@ public sealed partial class ProductMasterMaintenanceService(
             var original = existing.Single(row => row.Uid == item.Uid);
             await ValidateRetainedSelectionsAsync(original, item.Data.ProductAttributeProfileId, cancellationToken);
             if (original.ProductAttributeProfileId != item.Data.ProductAttributeProfileId)
-                await ValidateLinkedProductSelectionsAsync(item.Uid, item.Data.ProductAttributeProfileId, false, cancellationToken);
+                await ValidateLinkedProductSelectionsAsync(item.Uid, item.Data.ProductAttributeProfileId, cancellationToken);
         }
-        foreach (var item in request.DeleteItems)
-            await ValidateLinkedProductSelectionsAsync(item.Uid, null, true, cancellationToken);
     }
 
     /// <summary>父资料已先锁定后校验编码和明细状态，避免持有主从锁后反向锁父资料。</summary>

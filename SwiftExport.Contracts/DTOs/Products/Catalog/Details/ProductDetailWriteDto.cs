@@ -1,11 +1,15 @@
 using System;
 namespace SwiftExport.Contracts.DTOs.Products
 {
-    /// <summary>物料详情可写资料；不携带主型号归属、模板、BOM、启停或包装。</summary>
+    /// <summary>物料详情可写资料及两个独立来源身份；不携带模板、BOM、启停或包装。</summary>
     public class ProductDetailWriteDto
     {
         /// <summary>物料编号。</summary>
         public string Sku { get; set; }
+        /// <summary>独立引用的主型号身份；空值表示清除。</summary>
+        public Guid? ProductMasterId { get; set; }
+        /// <summary>独立引用的中性产品身份；空值表示清除。</summary>
+        public Guid? ProductNeutralId { get; set; }
         /// <summary>英文描述。</summary>
         public string DescriptionEn { get; set; }
         /// <summary>中文描述。</summary>
@@ -24,8 +28,6 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string SupplyType { get; set; }
         /// <summary>备注。</summary>
         public string Note { get; set; }
-        /// <summary>产品型号。</summary>
-        public string LinkSku { get; set; }
         /// <summary>完整图片地址或本地路径。</summary>
         public string MainImage { get; set; }
         /// <summary>人民币参考价。</summary>

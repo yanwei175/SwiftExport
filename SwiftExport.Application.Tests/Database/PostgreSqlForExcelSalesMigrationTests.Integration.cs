@@ -46,7 +46,8 @@ public sealed class PostgreSqlForExcelSalesMigrationIntegrationTests
     {
         var customer = CustomerRow(Prefix()); var other = CustomerRow(Prefix()); await Add(context, customer); await Add(context, other);
         var product = ProductRow(); product.SupplyType = "生产"; product.MaterialType = "未知"; product.Unit = " PCS ";
-        product.LinkSku = " 产品原值 "; product.MainImage = "图片"; await Add(context, product);
+        var neutral = ProductNeutralReferenceTestData.Create(product, " " + product.Sku + " 产品原值 ");
+        await Add(context, neutral); product.ProductNeutralId = neutral.Uid; product.MainImage = "图片"; await Add(context, product);
         var key = Prefix();
         var first = Relation(customer, key, product.Uid); first.LinkSku = " 客户型号 ";
         var second = Relation(customer, " " + key.ToLowerInvariant() + " ", product.Uid); second.LinkSku = "   ";
@@ -57,7 +58,7 @@ public sealed class PostgreSqlForExcelSalesMigrationIntegrationTests
         var input = new[] { key }; var rows = await repo.MatchProductsAsync(customer.Uid, input, default);
         Assert.HasCount(2, rows); CollectionAssert.AreEqual(new[] { key }, input);
         Assert.AreEqual("客户型号", rows.Single(row => row.CustomerProductId == first.Uid).LinkSku);
-        Assert.AreEqual(" 产品原值 ", rows.Single(row => row.CustomerProductId == second.Uid).LinkSku);
+        Assert.AreEqual(neutral.ProductCode, rows.Single(row => row.CustomerProductId == second.Uid).LinkSku);
         Assert.IsTrue(rows.All(row => row.IsUsable && row.ProductId == product.Uid && row.Sku == product.Sku && row.Unit == " PCS " && row.MainImage == "图片"));
         Assert.HasCount(2, await repo.MatchProductsAsync(customer.Uid, [key.ToLowerInvariant() + " "], default), "源 SQL Server 等值忽略参数尾部 ASCII 空格，但数组原值不能改写。");
     });
@@ -68,7 +69,7 @@ public sealed class PostgreSqlForExcelSalesMigrationIntegrationTests
     {
         var customer = CustomerRow(Prefix()); await Add(context, customer);
         var keys = Enumerable.Range(0, 8).Select(_ => Prefix()).ToArray();
-        var active = ProductRow(); active.LinkSku = null; active.MainImage = null; await Add(context, active);
+        var active = ProductRow(); active.ProductNeutralId = null; active.MainImage = null; await Add(context, active);
         var inactive = ProductRow(); inactive.IsActive = false; await Add(context, inactive);
         var deleted = ProductRow(); await Add(context, deleted); await Delete<Product>(context, deleted.Uid);
         var emptyUnit = ProductRow(); emptyUnit.Unit = "   "; await Add(context, emptyUnit);
@@ -102,7 +103,7 @@ public sealed class PostgreSqlForExcelSalesMigrationIntegrationTests
     public Task ProductMatches_LinkSkuKeepsUnicodeAndNullableFallback() => InRollback(async (context, repo) =>
     {
         var customer = CustomerRow(Prefix()); await Add(context, customer);
-        var product = ProductRow(); product.LinkSku = null; await Add(context, product);
+        var product = ProductRow(); product.ProductNeutralId = null; await Add(context, product);
         var first = Relation(customer, Prefix(), product.Uid); first.LinkSku = "\t\u3000";
         var second = Relation(customer, Prefix(), product.Uid); second.LinkSku = "   ";
         await Add(context, first); await Add(context, second);

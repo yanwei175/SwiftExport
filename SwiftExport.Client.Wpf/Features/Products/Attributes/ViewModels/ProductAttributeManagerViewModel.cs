@@ -9,8 +9,8 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.Attributes.Models;
-using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Features.SystemSettings.Dictionaries.Models;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -26,7 +26,7 @@ namespace SwiftExportClient.Features.Products.Attributes.ViewModels;
 /// <summary>独立维护全局标签组、值和直接属性模板关系，整页草稿只在原子保存成功后接纳。</summary>
 public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
-    /// <summary>产品标签工作区的稳定单实例路由身份。</summary>
+    /// <summary>产品属性工作区的稳定单实例路由身份。</summary>
     public const string RouteKey = "product-attributes";
     private readonly IProductAttributeApi _api;
     private readonly IApiCallRunner _runner;
@@ -50,7 +50,7 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
     {
         _api = api; _runner = runner; _cache = cache; _messages = messages; _dialogs = dialogs; _user = user; _navigation = navigation;
         _sessionUserId = user.CurrentUser?.UserId;
-        Title = "产品标签";
+        Title = "自定义属性";
         IsReadOnly = !user.HasPermission(PermissionKeys.ProductsCategoryEdit);
         Groups = new(dto => new ProductAttributeGroupLineModel());
         Options = new(dto => new ProductAttributeOptionLineModel());
@@ -88,7 +88,7 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
     [ObservableProperty] public partial bool IsLoading { get; private set; }
     [ObservableProperty] public partial bool IsResolvingChanges { get; private set; }
     [ObservableProperty] public partial bool RequiresReload { get; private set; }
-    [ObservableProperty] public partial string StatusMessage { get; private set; } = "尚未读取产品标签。";
+    [ObservableProperty] public partial string StatusMessage { get; private set; } = "尚未读取产品属性。";
     [ObservableProperty] public partial ProductAttributeGroupLineModel? SelectedGroup { get; set; }
     [ObservableProperty] public partial ProductAttributeProfileSelectionModel? SelectedProfileSelection { get; private set; }
     [ObservableProperty] public partial int SelectedTabIndex { get; set; }
@@ -112,10 +112,10 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
     public bool AreGridsReadOnly => !CanEditDefinitions;
     /// <summary>说明会话、权限及回执不明导致的编辑限制。</summary>
     public string EditStateMessage => !IsCurrentSession ? "登录会话已结束，请重新打开页面。" :
-        !CanWrite ? "当前会话无权编辑产品标签。" :
+        !CanWrite ? "当前会话无权编辑产品属性。" :
         RequiresReload ? "保存结果需要核对，请刷新服务器数据后继续。" :
-        IsLoading ? "正在读取标签定义和属性模板候选。" :
-        !IsLoaded ? "尚未成功读取完整标签定义。" : string.Empty;
+        IsLoading ? "正在读取属性定义和属性模板候选。" :
+        !IsLoaded ? "尚未成功读取完整属性定义。" : string.Empty;
     private bool IsCurrentSession => !_disposed && !_sessionEnded && _user.IsAuthenticated && _user.CurrentUser?.UserId == _sessionUserId;
 
     /// <summary>提交当前原生编辑后激活模板管理页签；不保存或替换标签定义草稿。</summary>
@@ -123,8 +123,8 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
     private async Task ManageAttributeProfilesAsync()
     {
         if (!CanOpenAttributeProfiles() || CommitPendingEdits?.Invoke() == false) return;
-        var request = new DictionaryDataDocumentOpenRequest(DictCodes.ProductAttributeProfile, "产品属性模板",
-            "模板明细与字典管理共用；已被产品或标签组使用的模板不能删除、停用。");
+        var request = new DictionaryDataDocumentOpenRequest(DictCodes.ProductAttributeProfile, "自定义属性模板",
+            "模板明细与字典管理共用；已被产品或属性组使用的模板不能删除、停用。");
         await _navigation.OpenDocumentAsync(DictionaryDataManagerViewModel.RouteKey, request.DocumentKey, request);
     }
 
@@ -183,8 +183,8 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
         IsResolvingChanges = true; NotifyState();
         try
         {
-            decision = await _dialogs.ShowAsync("产品标签有未保存修改，保存将提交整页的标签组、值和属性模板关联。",
-                new DialogOptions("产品标签未保存") { PrimaryButtonText = "保存", SecondaryButtonText = "放弃", CloseButtonText = "取消" },
+            decision = await _dialogs.ShowAsync("产品属性有未保存修改，保存将提交整页的属性组、值和属性模板关联。",
+                new DialogOptions("产品属性未保存") { PrimaryButtonText = "保存", SecondaryButtonText = "放弃", CloseButtonText = "取消" },
                 cancellationToken: cancellationToken);
         }
         finally { IsResolvingChanges = false; NotifyState(); }
@@ -267,12 +267,12 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
             if (!IsCurrentSession || !CanWrite) { ValidationSummary = StatusMessage = "当前会话或编辑权限已变化，草稿已保留。"; return; }
             var request = BuildRequest();
             var selectedUid = SelectedGroup?.Uid;
-            var result = await _runner.RunAsync(() => _api.BatchSaveDefinitionsAsync(request), "保存产品标签失败");
+            var result = await _runner.RunAsync(() => _api.BatchSaveDefinitionsAsync(request), "保存产品属性失败");
             if (!IsCurrentSession) return;
             if (!result.Success)
             {
                 ValidationSummary = StatusMessage = result.Message;
-                _messages.ShowError("保存产品标签失败", result.Message); return;
+                _messages.ShowError("保存产品属性失败", result.Message); return;
             }
             var response = result.Data;
             if (response is null || !ValidReceipts(response.GroupResults, request.GroupChanges)
@@ -285,8 +285,8 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
             var realSelectedUid = request.GroupChanges.CreateItems.Any(item => item.Data.ClientUid == selectedUid)
                 ? response.GroupResults.Items.Single(item => item.ClientKey == selectedUid?.ToString("N")).Uid : selectedUid;
             LoadSnapshot(response.Definitions, realSelectedUid);
-            saved = true; StatusMessage = "产品标签已保存。";
-            _messages.ShowSuccess("产品标签已保存", "标签组、值和直接属性模板关联已一起提交。");
+            saved = true; StatusMessage = "产品属性已保存。";
+            _messages.ShowSuccess("产品属性已保存", "属性组、值和直接属性模板关联已一起提交。");
             try
             {
                 var refresh = await _cache.RefreshProductAttributesAsync();
@@ -294,18 +294,18 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
             }
             catch (Exception exception)
             {
-                Trace.TraceError("产品标签保存后缓存刷新异常：{0}", exception);
+                Trace.TraceError("产品属性保存后缓存刷新异常：{0}", exception);
                 if (IsCurrentSession) ReportCacheRefreshFailure("请稍后手动刷新。");
             }
-        }, "正在保存产品标签...");
+        }, "正在保存产品属性...");
         return saved;
     }
 
     /// <summary>保存后的共享缓存失败不回滚已经确认的私有基线。</summary>
     private void ReportCacheRefreshFailure(string message)
     {
-        StatusMessage = "产品标签已保存，但缓存刷新失败；可稍后重新刷新。";
-        _messages.ShowWarning("产品标签已保存，但缓存刷新失败", message);
+        StatusMessage = "产品属性已保存，但缓存刷新失败；可稍后重新刷新。";
+        _messages.ShowWarning("产品属性已保存，但缓存刷新失败", message);
     }
 
     /// <summary>构造直接关联差异；组删除的关系由后端级联，模板只保存直接关联。</summary>
@@ -380,7 +380,7 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
         var selectedId = SelectedGroup?.Uid;
         Groups.RejectChanges(); Options.RejectChanges();
         LoadSnapshot(_baseline, selectedId); RequiresReload = requiresReload;
-        StatusMessage = "产品标签编辑已撤销。"; NotifyState();
+        StatusMessage = "产品属性编辑已撤销。"; NotifyState();
     }
 
     /// <summary>页面读取检查取消、代际、会话和存活；失败保留旧完整基线。</summary>
@@ -394,20 +394,20 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
         {
             var cache = refreshCache ? await _cache.RefreshProductAttributesAsync() : await _cache.EnsureProductAttributesLoadedAsync();
             if (!IsCurrentSession || generation != _loadGeneration || cts.IsCancellationRequested) return;
-            if (!cache.Success) { ValidationSummary = StatusMessage = "属性模板及标签候选加载失败：" + cache.Message; return; }
-            var result = await _runner.RunAsync(() => _api.GetDefinitionsAsync(cts.Token), cts.Token, "加载产品标签失败");
+            if (!cache.Success) { ValidationSummary = StatusMessage = "属性模板及属性候选加载失败：" + cache.Message; return; }
+            var result = await _runner.RunAsync(() => _api.GetDefinitionsAsync(cts.Token), cts.Token, "加载产品属性失败");
             if (!IsCurrentSession || generation != _loadGeneration || cts.IsCancellationRequested) return;
             if (!result.Success || !ValidSnapshot(result.Data))
-            { ValidationSummary = StatusMessage = result.Success ? "服务器未返回完整共享标签定义。" : result.Message; return; }
+            { ValidationSummary = StatusMessage = result.Success ? "服务器未返回完整共享标属性定义。" : result.Message; return; }
             LoadSnapshot(result.Data, SelectedGroup?.Uid);
-            StatusMessage = Groups.Items.Count == 0 ? "尚无标签定义，可新增标签组并选择直接适用属性模板。" : "产品标签已加载。";
+            StatusMessage = Groups.Items.Count == 0 ? "尚无属性定义，可新增属性组并选择直接适用属性模板。" : "产品属性已加载。";
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         catch (Exception exception)
         {
-            Trace.TraceError("读取产品标签工作区异常：{0}", exception);
+            Trace.TraceError("读取产品属性工作区异常：{0}", exception);
             if (IsCurrentSession && generation == _loadGeneration && !cts.IsCancellationRequested)
-                ValidationSummary = StatusMessage = "加载产品标签失败，请稍后重试。";
+                ValidationSummary = StatusMessage = "加载产品属性失败，请稍后重试。";
         }
         finally
         {
@@ -531,7 +531,7 @@ public sealed partial class ProductAttributeManagerViewModel : ViewModelBaseEx, 
 
     /// <summary>未知技术错误只记录诊断，页面使用稳定反馈并保留当前编辑。</summary>
     protected override Task HandleExceptionAsync(Exception exception)
-    { Trace.TraceError("产品标签页面操作异常：{0}", exception); ValidationSummary = StatusMessage = "操作未完成，输入已保留，请稍后重试。"; return Task.CompletedTask; }
+    { Trace.TraceError("产品属性页面操作异常：{0}", exception); ValidationSummary = StatusMessage = "操作未完成，输入已保留，请稍后重试。"; return Task.CompletedTask; }
 
     private void CancelLoad()
     { _loadGeneration++; _loadCts?.Cancel(); _loadCts?.Dispose(); _loadCts = null; IsLoading = false; }

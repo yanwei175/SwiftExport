@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExport.Wpf.EnterpriseGrid.Columns;
 
 namespace SwiftExportClient.Features.Products.ProductList.Views;
 
@@ -27,6 +29,13 @@ public partial class ProductMasterManagerView : UserControl
         if (IsLoaded) AttachViewModel();
     }
 
+    /// <summary>仅在供应商单元格原生进入编辑时恢复当前行候选，不接管编辑按键或改写行资料。</summary>
+    private void OnMasterPreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+    {
+        if (GridColumn.GetKey(e.Column) == "default-supplier" && e.Row.Item is ProductMasterLineModel line)
+            _viewModel?.PrepareSupplierEditor(line);
+    }
+
     private void AttachViewModel()
     {
         DetachViewModel();
@@ -45,11 +54,13 @@ public partial class ProductMasterManagerView : UserControl
         _viewModel = null;
     }
 
-    /// <summary>让原生选择和鼠标路由先结束，再执行异步主从切换及取消恢复。</summary>
+    /// <summary>整行选择和模式切换延迟处理；格子选区不触发主从查询或反复清空明细。</summary>
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(ProductMasterManagerViewModel.SelectedMaster)
-            or nameof(ProductMasterManagerViewModel.IsCardView))
+        if (e.PropertyName is nameof(ProductMasterManagerViewModel.IsCardView)
+            or nameof(ProductMasterManagerViewModel.IsCellSelectionMode)
+            || e.PropertyName == nameof(ProductMasterManagerViewModel.SelectedMaster)
+                && _viewModel is { } vm && (vm.IsCardView || !vm.IsCellSelectionMode))
             QueueSelection();
     }
 

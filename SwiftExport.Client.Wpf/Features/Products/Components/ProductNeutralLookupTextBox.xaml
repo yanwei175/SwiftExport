@@ -1,0 +1,69 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.Components.ProductNeutralLookupTextBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:products="clr-namespace:SwiftExportClient.Features.Products.Components.Models"
+             x:Name="Root"
+             FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
+             MinHeight="30">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ProductNeutralLookupItemTemplate"
+                      DataType="{x:Type products:ProductNeutralLookupItemModel}">
+            <Grid MinWidth="360">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- 候选列表只请求 96px 缩略图，不创建大图 Tooltip。 -->
+                <controls:CachedImage DisplayMode="Thumbnail" Grid.RowSpan="2"
+                                      Width="48"
+                                      Height="48"
+                                      SourcePath="{Binding Source.Data.ImagePath}"
+                                      DecodePixelWidth="96"
+                                      Stretch="Uniform"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+
+                <TextBlock Grid.Column="2"
+                           Text="{Binding ProductCode}"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Row="1"
+                           Grid.Column="2"
+                           Margin="0,2,0,0"
+                           Text="{Binding ColorName}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <controls:LookupTextBox x:Name="LookupEditor" StretchToHost="True"
+                            Text="{Binding Text, ElementName=Root, Mode=TwoWay}"
+                            FontSize="{Binding FontSize, ElementName=Root}"
+                            ItemsSource="{Binding ItemsSource, ElementName=Root}"
+                            SelectedItem="{Binding SelectedProductNeutral, ElementName=Root, Mode=TwoWay}"
+                            SelectedValue="{Binding SelectedProductNeutralId, ElementName=Root, Mode=TwoWay}"
+                            SearchCommand="{Binding SearchCommand, ElementName=Root}"
+                            SelectionCommittedCommand="{Binding SelectionCommittedCommand, ElementName=Root}"
+                            SelectionCommittedCommandParameter="{Binding SelectionCommittedCommandParameter, ElementName=Root}"
+                            SelectionClearedCommand="{Binding SelectionClearedCommand, ElementName=Root}"
+                            SelectionClearedCommandParameter="{Binding SelectionClearedCommandParameter, ElementName=Root}"
+                            IsBusy="{Binding IsBusy, ElementName=Root}"
+                            SearchDelay="{Binding SearchDelay, ElementName=Root}"
+                            MinimumSearchLength="{Binding MinimumSearchLength, ElementName=Root}"
+                            Placeholder="{Binding Placeholder, ElementName=Root}"
+                            SearchMode="Remote"
+                            DisplayMemberPath="ProductCode"
+                            FilterMemberPaths="ProductCode,ColorName"
+                            SelectedValuePath="Uid"
+                            RequireItemMatch="True"
+                            ClearSelectionOnEdit="False"
+                            ItemTemplate="{StaticResource ProductNeutralLookupItemTemplate}" />
+</UserControl>

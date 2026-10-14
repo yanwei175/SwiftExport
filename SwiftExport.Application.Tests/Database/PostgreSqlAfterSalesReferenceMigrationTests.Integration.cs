@@ -120,7 +120,8 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
     {
         var customer=NewCustomer(f);customer.IsActive=false;await f.Seed(customer);
         var color=new ProductColor{ColorCode=f.Prefix+"C",ColorCodeUnique=f.Prefix+"CU",ColorNameEn="历史颜色",ColorNameZh="中文",IsDeleted=true};await f.Seed(color);
-        var p=new Product{Sku=f.Prefix+"P",SupplyType="采购",Unit="SET",ColorId=color.Uid,DescriptionZh="",DescriptionEn="英文",FeaturesZh=null,FeaturesEn="规格",LinkSku=" AQ "};await f.Seed(p);
+        var p=new Product{Sku=f.Prefix+"P",SupplyType="采购",Unit="SET",ColorId=color.Uid,DescriptionZh="",DescriptionEn="英文",FeaturesZh=null,FeaturesEn="规格"};
+        var neutral=ProductNeutralReferenceTestData.Create(p," "+f.Prefix+" AQ ");await f.Seed(neutral);await f.Seed(p);
         var tail=Guid.NewGuid().ToString("N")[..10];
         var preferred=Guid.Parse("ffffffff-ffff-ffff-ffff-"+tail+"02");var other=Guid.Parse("00000000-0000-0000-0000-"+tail+"ff");
         Assert.IsTrue(new SqlGuid(preferred).CompareTo(new SqlGuid(other))<0);Assert.IsTrue(preferred.CompareTo(other)>0);
@@ -130,7 +131,7 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationIntegrationTests
             Relation(customer,p,f.Prefix+"First",preferred,true,false),Relation(customer,p,f.Prefix+"Second",other,true,false)}) await f.Seed(row);
         var d=await f.Repository.ReferenceAsync("products",p.Uid,customer.Uid,active);
         Assert.IsNotNull(d);Assert.AreEqual(p.Uid,d.Uid);Assert.AreEqual(p.Sku,d.Code);Assert.AreEqual("",d.Name);
-        Assert.AreEqual(f.Prefix+"First",d.CustomerSku);Assert.AreEqual(" AQ ",d.LinkSku);Assert.AreEqual("SET",d.Unit);
+        Assert.AreEqual(f.Prefix+"First",d.CustomerSku);Assert.AreEqual(neutral.ProductCode,d.LinkSku);Assert.AreEqual("SET",d.Unit);
         Assert.AreEqual(color.Uid,d.ColorId);Assert.AreEqual("历史颜色",d.ColorName);Assert.AreEqual("规格",d.Specification);
         Assert.AreEqual(NullText(),(await f.Repository.ReferenceAsync("products",p.Uid,null,active))!.CustomerSku);
         Assert.AreEqual(NullText(),(await f.Repository.ReferenceAsync("products",p.Uid,Guid.Empty,active))!.CustomerSku);

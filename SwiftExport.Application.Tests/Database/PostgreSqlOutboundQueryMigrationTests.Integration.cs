@@ -99,11 +99,11 @@ public sealed class PostgreSqlOutboundQueryMigrationIntegrationTests
     public async Task DetailRoundTripProjection()
     {
         using var f=new Fixture();var h=f.Head();h.Version=3;h.WarehouseCodeSnapshot="旧仓码";h.WarehouseNameSnapshot="旧仓名";h.Remark=null;h.IssueReason=null;h.PostedDate=new DateTime(2026,10,5,13,14,15);h.PostedBy="旧过账人";h.ReversedDate=new DateTime(2026,10,6,1,2,3);h.ReversedBy="旧反向人";h.ReverseReason="旧原因";h.TriggerPackingListId=Guid.NewGuid();h.CreatedDate=new DateTime(2026,10,1);h.CreatedBy="创建人";h.UpdatedDate=new DateTime(2026,10,2);h.UpdatedBy="更新人";await f.InsertAsync(h);
-        var p=Product(f);p.LinkSku="当前关联";p.MainImage=null;await f.InsertAsync(p);var l=f.Line(h);l.Version=2;l.ProductId=p.Uid;l.SkuSnapshot="旧SKU";l.DescriptionSnapshot="旧描述";l.UnitSnapshot=null;l.OriginalLineId=Guid.NewGuid();l.CreatedDate=new DateTime(2026,10,1);l.CreatedBy="行创建";l.UpdatedDate=new DateTime(2026,10,2);l.UpdatedBy="行更新";await f.InsertAsync(l);
+        var p=Product(f);var neutral=ProductNeutralReferenceTestData.Create(p,p.Sku+"当前关联");await f.InsertAsync(neutral);p.MainImage=null;await f.InsertAsync(p);var l=f.Line(h);l.Version=2;l.ProductId=p.Uid;l.SkuSnapshot="旧SKU";l.DescriptionSnapshot="旧描述";l.UnitSnapshot=null;l.OriginalLineId=Guid.NewGuid();l.CreatedDate=new DateTime(2026,10,1);l.CreatedBy="行创建";l.UpdatedDate=new DateTime(2026,10,2);l.UpdatedBy="行更新";await f.InsertAsync(l);
         var d=(await f.Repository.GetDetailAsync(h.Uid,default))!;var row=d.Lines.Single();
         Assert.AreEqual(h.Uid,d.Header.Uid);Assert.AreEqual(3,d.Header.Version);Assert.AreEqual(h.CommandId,d.Header.CommandId);Assert.AreEqual("旧仓码",d.Header.WarehouseCodeSnapshot);Assert.AreEqual("旧仓名",d.Header.WarehouseNameSnapshot);Assert.AreEqual(h.ShipmentDate,d.Header.ShipmentDate);Assert.AreEqual("",d.Header.Remark);Assert.AreEqual("",d.Header.IssueReason);
         Assert.AreEqual(h.PostedDate,d.Header.PostedDate);Assert.AreEqual(h.PostedBy,d.Header.PostedBy);Assert.AreEqual(h.ReversedDate,d.Header.ReversedDate);Assert.AreEqual(h.ReversedBy,d.Header.ReversedBy);Assert.AreEqual(h.ReverseReason,d.Header.ReverseReason);Assert.AreEqual(h.TriggerPackingListId,d.Header.TriggerPackingListId);Assert.AreEqual(h.CreatedDate,d.Header.CreatedDate);Assert.AreEqual(h.CreatedBy,d.Header.CreatedBy);Assert.AreEqual(h.UpdatedDate,d.Header.UpdatedDate);Assert.AreEqual(h.UpdatedBy,d.Header.UpdatedBy);
-        Assert.AreEqual(l.Uid,row.Uid);Assert.AreEqual(2,row.Version);Assert.AreEqual(h.Uid,row.OutboundDocumentId);Assert.AreEqual(l.CommandItemId,row.CommandItemId);Assert.AreEqual(l.OriginalLineId,row.OriginalLineId);Assert.AreEqual(l.ProductId,row.ProductId);Assert.AreEqual(l.LineNumber,row.LineNumber);Assert.AreEqual(l.Quantity,row.Quantity);Assert.AreEqual("旧SKU",row.SkuSnapshot);Assert.AreEqual("旧描述",row.DescriptionSnapshot);Assert.IsNull(row.UnitSnapshot);Assert.AreEqual("当前关联",row.LinkSku);Assert.IsNull(row.ImagePath);Assert.AreEqual(0m,row.OnHandQty);Assert.IsFalse(row.IsDeleted);
+        Assert.AreEqual(l.Uid,row.Uid);Assert.AreEqual(2,row.Version);Assert.AreEqual(h.Uid,row.OutboundDocumentId);Assert.AreEqual(l.CommandItemId,row.CommandItemId);Assert.AreEqual(l.OriginalLineId,row.OriginalLineId);Assert.AreEqual(l.ProductId,row.ProductId);Assert.AreEqual(l.LineNumber,row.LineNumber);Assert.AreEqual(l.Quantity,row.Quantity);Assert.AreEqual("旧SKU",row.SkuSnapshot);Assert.AreEqual("旧描述",row.DescriptionSnapshot);Assert.IsNull(row.UnitSnapshot);Assert.AreEqual(neutral.ProductCode,row.LinkSku);Assert.IsNull(row.ImagePath);Assert.AreEqual(0m,row.OnHandQty);Assert.IsFalse(row.IsDeleted);
         Assert.AreEqual(l.CreatedDate,row.CreatedDate);Assert.AreEqual(l.CreatedBy,row.CreatedBy);Assert.AreEqual(l.UpdatedDate,row.UpdatedDate);Assert.AreEqual(l.UpdatedBy,row.UpdatedBy);
     }
 
@@ -129,7 +129,7 @@ public sealed class PostgreSqlOutboundQueryMigrationIntegrationTests
     [TestMethod]
     public async Task ProductsAndDefaults()
     {
-        using var f=new Fixture();var p=Product(f);p.IsActive=false;p.Unit=" PCS ";p.MainImage=null;p.LinkSku=null;await f.InsertAsync(p);var deleted=Product(f);deleted.IsDeleted=true;await f.InsertAsync(deleted);var unknown=Guid.NewGuid();
+        using var f=new Fixture();var p=Product(f);p.IsActive=false;p.Unit=" PCS ";p.MainImage=null;p.ProductNeutralId=null;await f.InsertAsync(p);var deleted=Product(f);deleted.IsDeleted=true;await f.InsertAsync(deleted);var unknown=Guid.NewGuid();
         var rows=await f.Repository.GetProductsAsync(new[]{p.Uid,p.Uid,deleted.Uid,unknown},default);Assert.HasCount(1,rows);var row=rows.Single();Assert.AreEqual(p.Uid,row.ProductId);Assert.AreEqual(p.Sku,row.Sku);Assert.AreEqual(" PCS ",row.Unit);Assert.IsNull(row.ImagePath);Assert.IsNull(row.LinkSku);Assert.AreEqual(Guid.Empty,row.Uid);Assert.AreEqual(Guid.Empty,row.WarehouseSiteId);Assert.AreEqual(0m,row.OnHandQty);Assert.IsNull(row.DefaultWarehouseName);await f.Usable();
     }
 
@@ -180,7 +180,7 @@ public sealed class PostgreSqlOutboundQueryMigrationIntegrationTests
     }
 
     /// <summary>合法产品显式填充必填SupplyType，身份/SKU独立随机，不借测试创建真实业务关系。</summary>
-    private static Product Product(Fixture f)=>new(){Uid=Guid.NewGuid(),Sku=f.Prefix+Guid.NewGuid().ToString("N"),SupplyType="采购",MaterialType="零件",Unit="PCS",MainImage="当前图像",LinkSku="当前关联"};
+    private static Product Product(Fixture f)=>new(){Uid=Guid.NewGuid(),Sku=f.Prefix+Guid.NewGuid().ToString("N"),SupplyType="采购",MaterialType="零件",Unit="PCS",MainImage="当前图像"};
     /// <summary>随机公共节点，01/02末字节保证SqlGuid与.NET Guid序相反，避免固定业务身份。</summary>
     private static (Guid A,Guid B) OppositeIds(){var node=Guid.NewGuid().ToString("N")[20..30];return(Guid.Parse("ffffffff-ffff-ffff-ffff-"+node+"01"),Guid.Parse("00000000-0000-0000-0000-"+node+"02"));}
 

@@ -193,6 +193,137 @@ public sealed class ProductMasterNeutralWorkspaceTests
         Assert.IsTrue(vm.CanEditNeutrals);
     }
 
+    /// <summary>主表格子模式不建立明细上下文，延迟选择和补载都不能触发读取。</summary>
+    [TestMethod]
+    public async Task MasterCellMode_ShouldKeepNeutralWorkspaceEmptyWithoutLoading()
+    {
+        var api = new ApiStub();
+        using var vm = CreateVm(api);
+        vm.SelectedMaster = vm.Masters.Items.First();
+        vm.IsCellSelectionMode = true;
+        await vm.SelectMasterAsync(vm.SelectedMaster);
+        await vm.EnsureNeutralsLoadedAsync();
+        Assert.AreEqual(0, api.LoadCount);
+        Assert.IsNull(vm.NeutralMaster);
+        Assert.AreEqual(0, vm.Neutrals.Items.Count);
+        Assert.IsFalse(vm.CanEditNeutrals);
+        Assert.IsFalse(vm.AddNeutralCommand.CanExecute(null));
+        Assert.IsFalse(vm.SaveNeutralsCommand.CanExecute(null));
+    }
+
+    /// <summary>切入主表格子模式取消读取，接口忽略取消后返回也不能恢复隐藏的明细。</summary>
+    [TestMethod]
+    public async Task MasterCellMode_ShouldCancelAndIgnorePendingNeutralResponse()
+    {
+        var api = new ApiStub();
+        using var vm = CreateVm(api);
+        var pending = new TaskCompletionSource<ServiceResult<ProductMasterDetailDto>>();
+        api.Load = (_, _) => pending.Task;
+        var master = vm.Masters.Items.First();
+        var loading = vm.SelectMasterAsync(master);
+        var token = api.LastToken;
+        vm.IsCellSelectionMode = true;
+        vm.SelectedMaster = null;
+        await vm.SelectMasterAsync(vm.SelectedMaster);
+        await vm.EnsureNeutralsLoadedAsync();
+        Assert.IsTrue(token.IsCancellationRequested);
+        Assert.IsNull(vm.NeutralMaster);
+        pending.SetResult(ServiceResult<ProductMasterDetailDto>.Ok(Detail(master.Uid, "LATE")));
+        await loading;
+        Assert.AreEqual(1, api.LoadCount);
+        Assert.AreEqual(0, vm.Neutrals.Items.Count);
+        Assert.IsFalse(vm.CanEditNeutrals);
+    }
+
+    /// <summary>取消主表格子切换恢复整行选择与明细草稿；确认只放弃明细，不撤销主表修改。</summary>
+    [TestMethod]
+    public async Task MasterCellMode_ShouldProtectNeutralDraftAndKeepMasterDraft()
+    {
+        var api = new ApiStub();
+        var dialogs = new DialogStub { Result = false };
+        using var vm = CreateVm(api, dialogs);
+        var master = vm.Masters.Items.First();
+        await vm.SelectMasterAsync(master);
+        master.DefaultDescriptionZh = "主型号草稿";
+        var neutral = vm.Neutrals.Items.Single();
+        neutral.ProductCode = "中性产品草稿";
+        vm.IsCellSelectionMode = true;
+        vm.SelectedMaster = null;
+        await vm.SelectMasterAsync(vm.SelectedMaster);
+        Assert.IsFalse(vm.IsCellSelectionMode);
+        Assert.AreSame(master, vm.SelectedMaster);
+        Assert.AreSame(master, vm.NeutralMaster);
+        Assert.AreSame(neutral, vm.Neutrals.Items.Single());
+        Assert.AreEqual("中性产品草稿", neutral.ProductCode);
+        Assert.IsTrue(neutral.IsDirty);
+        Assert.AreEqual(1, api.LoadCount);
+        dialogs.Result = true;
+        vm.IsCellSelectionMode = true;
+        vm.SelectedMaster = null;
+        await vm.SelectMasterAsync(vm.SelectedMaster);
+        await vm.EnsureNeutralsLoadedAsync();
+        Assert.IsTrue(vm.IsCellSelectionMode);
+        Assert.IsNull(vm.NeutralMaster);
+        Assert.AreEqual(0, vm.Neutrals.Items.Count);
+        Assert.AreEqual("主型号草稿", master.DefaultDescriptionZh);
+        Assert.IsTrue(master.IsDirty);
+        Assert.AreEqual(1, api.LoadCount);
+        Assert.AreEqual(2, dialogs.Count);
+    }
+
+    /// <summary>切回整行模式后按当前选择重新加载一次，重复补载不发送额外请求。</summary>
+    [TestMethod]
+    public async Task MasterCellMode_ReturnToRowsShouldReloadSelectedMasterOnDemand()
+    {
+        var api = new ApiStub();
+        using var vm = CreateVm(api);
+        var first = vm.Masters.Items.First();
+        var second = vm.Masters.Items.Last();
+        await vm.SelectMasterAsync(first);
+        vm.IsCellSelectionMode = true;
+        vm.SelectedMaster = null;
+        await vm.SelectMasterAsync(vm.SelectedMaster);
+        vm.IsCellSelectionMode = false;
+        vm.SelectedMaster = second;
+        await vm.SelectMasterAsync(vm.SelectedMaster);
+        await vm.EnsureNeutralsLoadedAsync();
+        Assert.AreEqual(2, api.LoadCount);
+        Assert.AreSame(second, vm.NeutralMaster);
+        Assert.AreEqual(second.Uid, vm.Neutrals.Items.Single().ProductMasterId);
+        Assert.IsTrue(vm.CanEditNeutrals);
+    }
+
+    /// <summary>子表格子模式只禁止整行删除，保留字段编辑和保存；恢复整行后删除重新可用。</summary>
+    [TestMethod]
+    public async Task NeutralCellMode_ShouldDisableDeleteWithoutBlockingEditOrSave()
+    {
+        var api = new ApiStub();
+        var dialogs = new DialogStub();
+        using var vm = CreateVm(api, dialogs);
+        var master = vm.Masters.Items.First();
+        await vm.SelectMasterAsync(master);
+        var neutral = vm.Neutrals.Items.Single();
+        neutral.IsChecked = true;
+        vm.IsNeutralCellSelectionMode = true;
+        Assert.IsTrue(vm.CanEditNeutrals);
+        Assert.IsFalse(vm.DeleteNeutralCommand.CanExecute(null), "格子模式即使已有勾选行也不能整行删除。");
+        await vm.DeleteNeutralCommand.ExecuteAsync(null);
+        Assert.AreSame(neutral, vm.Neutrals.Items.Single());
+        Assert.AreEqual(0, dialogs.Count);
+        neutral.ProductCode = "格子编辑";
+        Assert.IsTrue(vm.SaveNeutralsCommand.CanExecute(null));
+        api.Save = (id, request) =>
+        {
+            Assert.AreEqual("格子编辑", request.UpdateItems.Single().Data.ProductCode);
+            return Task.FromResult(ServiceResult<ProductMasterDetailDto>.Ok(Detail(id, "格子编辑")));
+        };
+        await vm.SaveNeutralsCommand.ExecuteAsync(null);
+        Assert.IsFalse(vm.Neutrals.HasChanges);
+        Assert.AreEqual("格子编辑", vm.Neutrals.Items.Single().ProductCode);
+        vm.IsNeutralCellSelectionMode = false;
+        Assert.IsTrue(vm.DeleteNeutralCommand.CanExecute(null));
+    }
+
     /// <summary>页面释放后迟到的读取响应不能写入集合。</summary>
     [TestMethod]
     public async Task DisposedPage_ShouldIgnoreLateResponse()
@@ -211,7 +342,7 @@ public sealed class ProductMasterNeutralWorkspaceTests
 
     private static ProductMasterManagerViewModel CreateVm(ApiStub api, DialogStub? dialogs = null)
     {
-        var vm = new ProductMasterManagerViewModel(api, null!, new Runner(), null!, new Messages(), dialogs ?? new DialogStub(), null!, api, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub())
+        var vm = new ProductMasterManagerViewModel(api, new Runner(), null!, new Messages(), dialogs ?? new DialogStub(), null!, api, new ImageAddressResolverStub())
         { IsCardView = false };
         vm.Masters.LoadFromDtos([
             new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1, Data = new ProductMasterWriteDto { MasterSku = "A" } },
@@ -252,11 +383,6 @@ public sealed class ProductMasterNeutralWorkspaceTests
             => Task.FromResult(ServiceResult<ProductMasterBatchSaveResponse>.Ok(new ProductMasterBatchSaveResponse()));
         public Task<ServiceResult<SaveProductMasterDetailResponse>> SaveDetailAsync(SaveProductMasterDetailRequest request, CancellationToken cancellationToken = default)
             => throw new AssertFailedException("管理页不应调用头部聚合保存。");
-        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncDescriptionsAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
-        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncFeaturesAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
-        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncSupplierAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
-        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncWeightVolumeAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
-        public Task<ServiceResult<SyncProductMasterDataResponse>> SyncAllAsync(SyncProductMasterDataRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("明细测试不应下发产品资料。");
     }
 
     /// <summary>直接执行接口委托，不引入网络或错误转换。</summary>

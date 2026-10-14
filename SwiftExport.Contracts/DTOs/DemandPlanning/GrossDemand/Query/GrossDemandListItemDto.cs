@@ -4,7 +4,7 @@ using System;
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
     /// <summary>
-    /// 来源需求管理页只读查询行；链路提示仅表明事实存在，不代表完成率。
+    /// 成品需求管理页只读查询行；链路提示仅表明事实存在，不代表完成率。
     /// </summary>
     /// <remarks>来源快照来自 GrossDemand；链路提示用有效关系和正式过账事实计算。</remarks>
     public class GrossDemandListItemDto

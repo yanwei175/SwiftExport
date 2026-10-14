@@ -1,5 +1,3 @@
-using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
-using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 using SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels;
@@ -14,11 +12,12 @@ using SwiftExportClient.Features.Inventory.Outbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels;
 using SwiftExportClient.Features.Planning;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
-using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Attributes.ViewModels;
-using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExportClient.Features.Products.Categories.ViewModels;
+using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Products.ProductMasterImport.ViewModels;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
 using SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels;
@@ -28,6 +27,8 @@ using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Dictionaries.ViewModels;
+using SwiftExportClient.Features.SystemSettings.Page.ViewModels;
 
 namespace SwiftExportClient.Navigation;
 
@@ -39,23 +40,27 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new("home", "首页", "Workspace", typeof(HomeViewModel), NavigationModuleKeys.Home, RequiredPermission: null, CanClose: false),
 
-        new(PackingListManagerViewModel.RouteKey, "PackingList工作台", "Workspace", typeof(PackingListManagerViewModel), NavigationModuleKeys.Shipping, "Shipping.PackingList.View"),
+        new(PackingListManagerViewModel.RouteKey, "箱单管理", "Workspace", typeof(PackingListManagerViewModel), NavigationModuleKeys.Shipping, "Shipping.PackingList.View"),
 
-        new(PackingListDetailViewModel.RouteKey, "PackingList详情", "Detail", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, "Shipping.PackingList.View"),
+        new(PackingListDetailViewModel.RouteKey, "箱单详情", "Detail", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, "Shipping.PackingList.View"),
 
-        new("products", "产品", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, "Products.Product.View"),
+        new("products", "物料管理", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, "Products.Product.View"),
+
         new(ProductDetailViewModel.RouteKey, "物料详情", "Detail", typeof(ProductDetailViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsProductView),
 
         new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
-        new(SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel.RouteKey,
-            "父级型号批量导入", "Workspace", typeof(SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
 
-        new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", typeof(ProductNeutralManagerViewModel), NavigationModuleKeys.Products, "Products.Neutral.View"),
+        new(ProductMasterImportViewModel.RouteKey, "父级型号批量导入", "Workspace", typeof(ProductMasterImportViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
 
         new(ProductMasterDetailViewModel.RouteKey, "主型号详情", "Workspace", typeof(ProductMasterDetailViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
 
+        new(ProductNeutralManagerViewModel.RouteKey, "中性产品管理", "Workspace", typeof(ProductNeutralManagerViewModel), NavigationModuleKeys.Products, "Products.Neutral.View"),
+
+
         new("product-category-manager", "产品分类管理", "Workspace", typeof(ProductCategoryManagerViewModel), NavigationModuleKeys.Products, "Products.Category.View"),
-        new(ProductAttributeManagerViewModel.RouteKey, "产品标签", "Workspace", typeof(ProductAttributeManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsCategoryView),
+
+        new(ProductAttributeManagerViewModel.RouteKey, "自定义属性", "Workspace", typeof(ProductAttributeManagerViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsCategoryView),
+
         new(DictionaryDataManagerViewModel.RouteKey, "字典明细", "Workspace", typeof(DictionaryDataManagerViewModel), NavigationModuleKeys.SystemSettings, "System.Dictionary.View", DiscardOnAccessRevoked: true),
 
         new("product-colors", "产品颜色管理", "Workspace", typeof(ProductColorsViewModel), NavigationModuleKeys.Products, "Products.Color.View"),
@@ -83,7 +88,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(SalesFulfillmentDetailViewModel.RouteKey, "销售履约详情", "Detail", typeof(SalesFulfillmentDetailViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
         new(GrossDemandWorkspaceViewModel.RouteKey, "成品需求", "Workspace", typeof(GrossDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
-        new(GrossDemandTraceViewModel.RouteKey, "来源需求追踪", "Detail", typeof(GrossDemandTraceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
+        new(GrossDemandTraceViewModel.RouteKey, "成品需求追踪", "Detail", typeof(GrossDemandTraceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
 
         new(NetDemandManagerViewModel.RouteKey, "物料需求", "Workspace", typeof(NetDemandManagerViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Material.View"),
         new(MaterialDemandTraceViewModel.RouteKey, "物料需求追踪", "Detail", typeof(MaterialDemandTraceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Material.View"),
@@ -142,7 +147,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(ProductNeutralManagerViewModel.RouteKey, "产品管理", "Workspace", "DocumentTable24"),
                     new("products", "物料管理", "Workspace", "Cube24"),
                     new("product-category-manager", "产品分类", "Workspace", "Folder24"),
-                    new(ProductAttributeManagerViewModel.RouteKey, "产品标签", "Workspace", "DocumentTable24"),
+                    new(ProductAttributeManagerViewModel.RouteKey, "自定义属性", "Workspace", "DocumentTable24"),
                     new("product-colors", "产品颜色", "Workspace", "Color24"),
                     new("product-bom", "BOM 管理", "Workspace", "Branch24"),
                 ]),

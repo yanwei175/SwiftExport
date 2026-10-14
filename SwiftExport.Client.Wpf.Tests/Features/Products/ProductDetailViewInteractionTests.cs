@@ -5,6 +5,7 @@ using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.Components;
+using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Views;
 using SwiftExportClient.Resources.Controls.Filter;
 using SwiftExportClient.Resources.Controls;
@@ -25,6 +26,75 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailViewInteractionTests
 {
+    /// <summary>真实来源选择器提交 Uid，两关系独立，颜色和标签保持，清除按钮只清自身引用。</summary>
+    [TestMethod]
+    public void SourceLookups_ShouldCommitIndependentIdentities() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        LoadResources();
+        var detail = ProductDetailViewModelTests.Detail();
+        detail.Data.ColorId = Guid.NewGuid();
+        using var vm = ProductDetailViewModelTests.Create(detail, ProductMasterTagSelectionTests.Definition());
+        await ProductDetailViewModelTests.Open(vm, detail.Uid);
+        var view = new ProductDetailView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1480, Height = 900, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsFalse(vm.HasUnsavedChanges);
+            var masterControl = Descendants(view).OfType<ProductMasterLookupTextBox>().Single();
+            var masterLookup = (LookupTextBox)masterControl.FindName("LookupEditor");
+            var neutralLookup = Descendants(view).OfType<LookupTextBox>().Single(control => AutomationProperties.GetName(control) == "产品型号");
+            var masterId = Guid.NewGuid(); var neutralId = Guid.NewGuid();
+            var master = new ProductMasterLookupItemModel(new() { Uid = masterId, Data = new() { MasterSku = "主型号候选", ProductAttributeProfileId = detail.ProductAttributeProfileId } });
+            var neutral = new ProductNeutralLookupItemModel(new() { Uid = neutralId, Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "独立中性型号" } });
+            masterLookup.CommitExternalSelection(master, LookupCommitReason.Mouse);
+            neutralLookup.CommitExternalSelection(neutral, LookupCommitReason.Mouse);
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.AreEqual(masterId, vm.Header.ProductMasterId);
+            Assert.AreEqual(neutralId, vm.Header.ProductNeutralId);
+            Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
+            var clear = (Button)neutralLookup.FindName("BtnClear");
+            ((IInvokeProvider)new ButtonAutomationPeer(clear).GetPattern(PatternInterface.Invoke)!).Invoke();
+            // Automation Invoke 按 Input 优先级排队，等待到 ApplicationIdle 才能断言点击及绑定已完成。
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsNull(vm.Header.ProductNeutralId);
+            Assert.AreEqual(masterId, vm.Header.ProductMasterId);
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
+
+    /// <summary>失效身份显示空文本仍有明确清除入口，页面加载不能自动清空两个 ID。</summary>
+    [TestMethod]
+    public void MissingSourceReferences_ShouldHaveExplicitClearButtons() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        LoadResources();
+        var detail = ProductDetailViewModelTests.Detail();
+        detail.MasterSku = null; detail.LinkSku = null;
+        detail.Data.ProductNeutralId = detail.ProductNeutralId = Guid.NewGuid();
+        using var vm = ProductDetailViewModelTests.Create(detail, null);
+        await ProductDetailViewModelTests.Open(vm, detail.Uid);
+        var view = new ProductDetailView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1480, Height = 900, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsFalse(vm.HasUnsavedChanges);
+            var masterClear = Descendants(view).OfType<Button>().Single(control => AutomationProperties.GetName(control) == "清除失效主型号引用");
+            var neutralClear = Descendants(view).OfType<Button>().Single(control => AutomationProperties.GetName(control) == "清除失效中性产品引用");
+            Assert.AreEqual(Visibility.Visible, masterClear.Visibility);
+            Assert.AreEqual(Visibility.Visible, neutralClear.Visibility);
+            ((IInvokeProvider)new ButtonAutomationPeer(masterClear).GetPattern(PatternInterface.Invoke)!).Invoke();
+            // DataBind 优先级早于 Input，不能把等待绑定当作等待真实按钮点击。
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsNull(vm.Header.ProductMasterId);
+            Assert.AreEqual(detail.Data.ProductNeutralId, vm.Header.ProductNeutralId);
+            ((IInvokeProvider)new ButtonAutomationPeer(neutralClear).GetPattern(PatternInterface.Invoke)!).Invoke();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsNull(vm.Header.ProductNeutralId);
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
+
     /// <summary>未知旧单位保留，候选更新不产生假脏状态，只有真实选择确认和清除才写入代码。</summary>
     [TestMethod]
     public void UnitLookup_ShouldPreserveLegacyUntilExplicitCommitOrClear() => DatePickerAssistTests.RunWithApplication(async () =>

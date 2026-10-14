@@ -57,7 +57,7 @@
         <Grid Grid.Column="2" RowDefinitions="Auto,8,*,8,Auto">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel>
-                    <TextBlock FontWeight="SemiBold" Text="未分解来源需求" />
+                    <TextBlock FontWeight="SemiBold" Text="未分解成品需求" />
                     <TextBlock Margin="0,2,0,0"
                                Text="选择左侧来源单后，将一次加载该单全部待建立行。"
                                Style="{StaticResource CaptionTextBlock}"
@@ -102,8 +102,8 @@
                             <DataTemplate>
                                 <CheckBox HorizontalAlignment="Center"
                                           IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          AutomationProperties.Name="选择该来源需求"
-                                          ToolTip="选择该来源需求" />
+                                          AutomationProperties.Name="选择该成品需求"
+                                          ToolTip="选择该成品需求" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

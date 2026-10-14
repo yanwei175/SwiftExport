@@ -100,7 +100,7 @@ public sealed partial class MaterialDemandTraceViewModel(
         }
     }
 
-    /// <summary>在来源读取权限允许时打开独立来源需求追踪。</summary>
+    /// <summary>在来源读取权限允许时打开独立成品需求追踪。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenSourceTrace))]
     private Task OpenSourceTraceAsync() => navigation.OpenDocumentAsync(
         GrossDemandTraceViewModel.RouteKey, $"gross-demand-trace:{Detail!.GrossDemandId:N}",

@@ -61,7 +61,8 @@ public sealed class PostgreSqlProductSalesLookupIntegrationTests
         product.IsActive = false;
         product.CNYPrice = 12;
         product.USDPrice = 3;
-        product.LinkSku = "fallback";
+        var neutral = ProductNeutralReferenceTestData.Create(product, prefix + "-fallback");
+        await Insert(context, neutral);
         product.DescriptionEn = "description";
         var color = new ProductColor { ColorCodeUnique = Prefix(), ColorCode = Prefix(), ColorNameEn = "blue" };
         await Insert(context, color);
@@ -86,7 +87,7 @@ public sealed class PostgreSqlProductSalesLookupIntegrationTests
         Assert.AreEqual("blue", overridden.ColorNameEn);
         // 原 SQL 投影名 DefaultDescriptionEn 与 DTO DescriptionEn 不一致；本批迁移不暗改公共输出。
         Assert.IsNull(overridden.DescriptionEn);
-        Assert.AreEqual("fallback", result.Items.Single(row => row.CustomerProductId == second.Uid).LinkSku);
+        Assert.AreEqual(neutral.ProductCode, result.Items.Single(row => row.CustomerProductId == second.Uid).LinkSku);
         var firstPage = await repository.SearchSalesOrderProductsAsync(new() { CustomerId = customer.Uid, PageSize = 1 });
         var secondPage = await repository.SearchSalesOrderProductsAsync(new() { CustomerId = customer.Uid, PageSize = 1, PageIndex = 2 });
         Assert.AreNotEqual(firstPage.Items.Single().CustomerProductId, secondPage.Items.Single().CustomerProductId);

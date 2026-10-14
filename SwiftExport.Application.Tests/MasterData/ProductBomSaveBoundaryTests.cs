@@ -487,6 +487,7 @@ public sealed partial class ProductBomSaveBoundaryTests
     private static ProductDto Dto(Product product) => new()
     {
         Uid = product.Uid, Version = product.Version, Sku = product.Sku, MaterialType = product.MaterialType!,
+        ProductMasterId = product.ProductMasterId, ProductNeutralId = product.ProductNeutralId,
         SupplyType = product.SupplyType, BomNo = product.BomNo!, BomVersion = product.BomVersion,
         Unit = product.Unit!, Note = product.Note!, DescriptionZh = product.DescriptionZh!, IsDeleted = product.IsDeleted
     };
@@ -717,7 +718,8 @@ public sealed partial class ProductBomSaveBoundaryTests
                     return Task.FromResult<ProductDetailDto?>(new ProductDetailDto
                     {
                         Uid = detailProduct.Uid, Version = detailProduct.Version, Data = detailProduct.Adapt<ProductDetailWriteDto>(),
-                        ProductMasterId = detailProduct.ProductMasterId, MasterSku = detailProduct.MasterSku,
+                        ProductMasterId = detailProduct.ProductMasterId, ProductNeutralId = detailProduct.ProductNeutralId,
+                        MasterSku = master is { IsDeleted: false } ? master.MasterSku : null,
                         IsActive = detailProduct.IsActive, BomNo = detailProduct.BomNo, BomVersion = detailProduct.BomVersion,
                         ProductAttributeProfileId = master?.ProductAttributeProfileId
                     });

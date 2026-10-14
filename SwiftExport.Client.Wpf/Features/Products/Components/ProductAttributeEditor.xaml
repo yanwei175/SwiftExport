@@ -16,8 +16,8 @@
         </Grid.RowDefinitions>
         
         <DockPanel LastChildFill="True">
-            <Button DockPanel.Dock="Right" Content="刷新标签" Command="{Binding RefreshCommand, ElementName=Root}"
-                    AutomationProperties.Name="刷新属性模板标签定义" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Left" Content="刷新标签" Command="{Binding RefreshCommand, ElementName=Root}"
+                    AutomationProperties.Name="刷新属性模板标签定义" Margin="0,0,8,0" MinWidth="70"/>
             <TextBlock Text="{Binding Workspace.StatusText, ElementName=Root}" TextWrapping="Wrap" VerticalAlignment="Center" />
         </DockPanel>
         

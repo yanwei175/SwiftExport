@@ -12,10 +12,10 @@ public partial class Product : BaseEntity
     /// <summary>是否允许新业务引用；停用保留历史身份，不等同软删除。</summary>
     public bool IsActive { get; set; } = true;
 
-    /// <summary>所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。</summary>
+    /// <summary>独立引用的主型号身份；允许为空或失效，不从中性产品推导。</summary>
     public Guid? ProductMasterId { get; set; }
-    /// <summary>逻辑外键：直接存字符串 &quot;AT010011&quot;。</summary>
-    public string? MasterSku { get; set; } // 逻辑外键：直接存字符串 "AT010011"
+    /// <summary>独立引用的中性产品身份；允许为空或失效，不同步主型号及颜色。</summary>
+    public Guid? ProductNeutralId { get; set; }
     /// <summary>该实体保存的公司产品编码。</summary>
     public required string Sku { get; set; }
     /// <summary>该实体保存的英文产品描述。</summary>
@@ -47,8 +47,6 @@ public partial class Product : BaseEntity
     public string? BomNo { get; set; }
     /// <summary>该实体保存的业务备注。</summary>
     public string? Note { get; set; }
-    /// <summary>该实体保存的关联产品编码。</summary>
-    public string? LinkSku { get; set; }
     /// <summary>该实体保存的产品主图路径。</summary>
     public string? MainImage { get; set; }
 

@@ -2,13 +2,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
 using SwiftExport.Contracts.Apis.MasterData;
-using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.SysEnums;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExportClient.Authentication;
+using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.Services;
 using SwiftExportClient.Mvvm;
@@ -368,7 +368,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         await LoadPageAsync();
     }
 
-    /// <summary>打开来源需求候选；建立由对话框完成，关闭后刷新物料工作台。</summary>
+    /// <summary>打开成品需求候选；建立由对话框完成，关闭后刷新物料工作台。</summary>
     [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private async Task EstablishFromSourcesAsync()
     {
@@ -391,13 +391,15 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                 DecompositionRevision = group.Select(item => item.DecompositionRevision).Distinct().Single()
             }).ToList();
         if (!await _dialogService.ConfirmAsync(
-                "回退来源物料需求", $"将回退 {items.Count} 条来源需求的当前物料修订，是否继续？", "安全回退")) return;
+                "回退来源物料需求", $"将回退 {items.Count} 条成品需求的当前物料修订，是否继续？", "安全回退")) return;
         await RunBusyAsync(async () =>
         {
             var result = await _apiCallRunner.RunAsync(
                 () => _api.RollbackSourceEstablishmentAsync(new RollbackMaterialDemandsCommand
                 {
-                    CommandId = Guid.NewGuid(), Reason = "用户从物料需求工作台安全回退", Items = items
+                    CommandId = Guid.NewGuid(),
+                    Reason = "用户从物料需求工作台安全回退",
+                    Items = items
                 }),
                 "回退来源物料需求失败");
             if (!result.Success || result.Data is null)
@@ -493,11 +495,12 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                     var request = _suggestionUnknown
                         ? _pendingSuggestion!
                         : new UpdateSuggestedPurchaseSupplierCommand
-                    {
-                        CommandId = Guid.NewGuid(), NetDemandId = row.Uid,
-                        Version = row.Version,
-                        SuggestedPurchaseSupplierId = row.SuggestedPurchaseSupplierId
-                    };
+                        {
+                            CommandId = Guid.NewGuid(),
+                            NetDemandId = row.Uid,
+                            Version = row.Version,
+                            SuggestedPurchaseSupplierId = row.SuggestedPurchaseSupplierId
+                        };
                     // 未知行只能与原行身份相同；成功行已从脏集合移除，后续行尚未发送。
                     if (_suggestionUnknown && row.Uid != request.NetDemandId) continue;
                     var result = await _apiCallRunner.RunAsync(

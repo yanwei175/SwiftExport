@@ -8,6 +8,11 @@ namespace SwiftExport.Contracts.DTOs.Products
     public class ProductDto : BaseDto
     {
         // ERP SKU级别管理字段
+        /// <summary>独立引用的主型号身份；空值表示清除。</summary>
+        public Guid? ProductMasterId { get; set; }
+        /// <summary>独立引用的中性产品身份；空值表示清除。</summary>
+        public Guid? ProductNeutralId { get; set; }
+        /// <summary>引用主型号的当前编码，只读查询投影。</summary>
         public string MasterSku { get; set; }
         public string Sku { get; set; }
         public string DescriptionEn { get; set; } 
@@ -22,6 +27,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public int BomVersion { get; set; }   // BOM版本：0=无BOM，>0=有BOM。
         public string BomNo { get; set; }
         public string Note { get; set; }
+        /// <summary>引用中性产品的当前编码，只读查询投影。</summary>
         public string LinkSku { get; set; }
 
         // 价格

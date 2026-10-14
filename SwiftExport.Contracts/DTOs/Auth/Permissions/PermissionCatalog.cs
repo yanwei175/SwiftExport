@@ -26,7 +26,7 @@ namespace SwiftExport.Contracts.DTOs.Auth
             new PermissionDefinition(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage, "建议供应商管理", "DemandPlanning", true),
             new PermissionDefinition(PermissionKeys.DemandPlanningMaterialView, "物料需求查看", "DemandPlanning", true),
             new PermissionDefinition(PermissionKeys.DemandPlanningSourceManualManage, "手工需求管理", "DemandPlanning", true),
-            new PermissionDefinition(PermissionKeys.DemandPlanningSourceView, "来源需求查看", "DemandPlanning", true),
+            new PermissionDefinition(PermissionKeys.DemandPlanningSourceView, "成品需求查看", "DemandPlanning", true),
             new PermissionDefinition(PermissionKeys.InventoryBalanceView, "库存余额与流水查看", "Inventory", true),
             new PermissionDefinition(PermissionKeys.InventoryInboundCreate, "入库单创建", "Inventory", true),
             new PermissionDefinition(PermissionKeys.InventoryInboundDelete, "入库单删除", "Inventory", true),

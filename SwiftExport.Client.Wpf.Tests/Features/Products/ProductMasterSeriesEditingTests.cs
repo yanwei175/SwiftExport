@@ -165,8 +165,8 @@ public sealed class ProductMasterSeriesEditingTests
         Assert.AreEqual(fixture.Original.Uid, fixture.Detail.SelectedSeries!.Uid);
         Assert.IsFalse(fixture.Detail.SelectedSeries.IsEnabled);
         Assert.IsFalse(fixture.Detail.HasUnsavedChanges);
-        using var manager = new ProductMasterManagerViewModel(null!, null!, fixture.Runner, fixture.Cache,
-            fixture.Messages, null!, null!, null!, new ImageAddressResolverStub(), new ProductMasterSyncDialogStub());
+        using var manager = new ProductMasterManagerViewModel(null!, fixture.Runner, fixture.Cache,
+            fixture.Messages, null!, null!, null!, new ImageAddressResolverStub());
         manager.Masters.LoadFromDtos([
             new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1, Data = new() { MasterSku = "A" } },
             new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1, Data = new() { MasterSku = "B" } }]);
@@ -232,7 +232,7 @@ public sealed class ProductMasterSeriesEditingTests
                 LastRequest = (DictionaryDataDocumentOpenRequest)args[2]!;
                 return Task.CompletedTask;
             });
-            Detail = new ProductMasterDetailViewModel(api, Runner, Cache, Messages, null!, navigation, new ProductMasterSyncDialogStub(), user);
+            Detail = new ProductMasterDetailViewModel(api, Runner, Cache, Messages, null!, navigation, user);
             Detail.Header.Load(new ProductMasterDetailDto { Uid = Guid.NewGuid(), Version = 1, ProductSeriesName = Original.DataNameZh,
                 Master = new() { MasterSku = "M", ProductSeriesId = Original.Uid } });
             Detail.Tags.Load(Guid.Empty, [], []);

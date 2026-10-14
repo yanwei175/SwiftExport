@@ -15,6 +15,7 @@ using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Suppliers.Components;
+using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
@@ -22,7 +23,7 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证详情供应商缓存身份恢复、显式提交、清空及真实本地选择控件接线。</summary>
+/// <summary>验证主型号管理与详情供应商缓存身份恢复、显式提交、清空及真实本地选择控件接线。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class ProductMasterSupplierEditingTests
@@ -162,6 +163,104 @@ public sealed class ProductMasterSupplierEditingTests
         });
     }
 
+    /// <summary>编辑态从会话缓存恢复当前供应商；确认和清空只修改目标行，其他字段及其他行草稿保留。</summary>
+    [TestMethod]
+    public void ManagerSupplier_ShouldRestoreCacheCandidateAndChangeOnlyTargetRow()
+    {
+        var original = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "SUP-001", SupplierName = "原供应商" };
+        var next = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "SUP-002", SupplierName = "新供应商" };
+        using var vm = CreateManager(suppliers: [original, next]);
+        vm.Masters.LoadFromDtos([
+            new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1, DefaultSupplierName = original.SupplierName,
+                Data = new() { MasterSku = "A", DefaultSupplierId = original.Uid } },
+            new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1, DefaultSupplierName = "其他供应商",
+                Data = new() { MasterSku = "B", DefaultSupplierId = Guid.NewGuid() } }]);
+        var target = vm.Masters.Items[0];
+        var other = vm.Masters.Items[1];
+        var otherSupplierId = other.DefaultSupplierId;
+        vm.PrepareSupplierEditor(target);
+        Assert.AreSame(original, vm.SupplierOptions[0]);
+        Assert.AreSame(original, vm.EditSupplier);
+        Assert.IsFalse(target.IsDirty, "打开本地候选不能提前改业务身份或产生草稿。");
+        target.DefaultDescriptionZh = "目标其他草稿";
+        other.DefaultDescriptionZh = "其他行草稿";
+        vm.EditSupplier = next;
+        Assert.AreEqual(original.Uid, target.DefaultSupplierId);
+        vm.CommitSupplierCommand.Execute(target);
+        Assert.AreEqual(next.Uid, target.ToWriteDto().DefaultSupplierId);
+        Assert.AreEqual(next.SupplierName, target.DefaultSupplierName);
+        Assert.AreSame(next, vm.EditSupplier, "双向选择保留当前项，单元格中仍能显示已确认供应商并继续清空。");
+        vm.ClearSupplierCommand.Execute(target);
+        Assert.IsNull(vm.EditSupplier);
+        Assert.AreEqual(Guid.Empty, target.DefaultSupplierId);
+        Assert.AreEqual(string.Empty, target.DefaultSupplierName);
+        Assert.AreEqual("目标其他草稿", target.DefaultDescriptionZh);
+        Assert.AreEqual("其他行草稿", other.DefaultDescriptionZh);
+        Assert.AreEqual(otherSupplierId, other.DefaultSupplierId);
+        Assert.IsTrue(other.IsDirty);
+        target.RejectChanges();
+        vm.PrepareSupplierEditor(target);
+        Assert.AreSame(original, vm.EditSupplier);
+        Assert.IsFalse(target.IsDirty);
+        Assert.IsTrue(other.IsDirty);
+    }
+
+    /// <summary>保存等待、查询及只读状态拒绝供应商确认和清空，失败回执不丢失原草稿。</summary>
+    [TestMethod]
+    public async Task ManagerSupplier_ShouldRejectChangesWhileSavingQueryingOrReadOnly()
+    {
+        var original = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "SUP-001", SupplierName = "原供应商" };
+        var next = new SupplierDto { Uid = Guid.NewGuid(), SupplierCode = "SUP-002", SupplierName = "新供应商" };
+        var completion = new TaskCompletionSource<ServiceResult<ProductMasterBatchSaveResponse>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var api = Proxy<IProductMasterApi>((method, _) => method.Name == nameof(IProductMasterApi.BatchSaveAsync)
+            ? completion.Task : throw new AssertFailedException(method.Name));
+        using var vm = CreateManager(api, [original, next]);
+        vm.Masters.LoadFromDtos([new ProductMasterListItemDto { Uid = Guid.NewGuid(), Version = 1,
+            DefaultSupplierName = original.SupplierName, Data = new() { MasterSku = "A", DefaultSupplierId = original.Uid } }]);
+        var row = vm.Masters.Items.Single();
+        row.DefaultDescriptionZh = "未保存草稿";
+        var saving = vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsTrue(vm.IsBusy);
+        vm.EditSupplier = next;
+        vm.CommitSupplierCommand.Execute(row);
+        vm.ClearSupplierCommand.Execute(row);
+        Assert.AreEqual(original.Uid, row.DefaultSupplierId);
+        completion.SetResult(ServiceResult<ProductMasterBatchSaveResponse>.Fail("测试保存失败"));
+        await saving;
+        Assert.IsFalse(vm.IsBusy);
+        Assert.AreEqual("未保存草稿", row.DefaultDescriptionZh);
+        Assert.IsTrue(row.IsDirty);
+        vm.IsQuerying = true;
+        vm.EditSupplier = next;
+        vm.CommitSupplierCommand.Execute(row);
+        vm.ClearSupplierCommand.Execute(row);
+        Assert.AreEqual(original.Uid, row.DefaultSupplierId);
+        vm.IsQuerying = false;
+        // 工作区负责将页面置为只读，测试通过同一公开属性模拟该已解析导航状态。
+        typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(vm, true);
+        Assert.IsFalse(vm.CanWrite);
+        vm.EditSupplier = next;
+        vm.CommitSupplierCommand.Execute(row);
+        vm.ClearSupplierCommand.Execute(row);
+        Assert.AreEqual(original.Uid, row.DefaultSupplierId);
+        Assert.AreEqual(original.SupplierName, row.DefaultSupplierName);
+        Assert.IsTrue(row.IsDirty);
+    }
+
+    /// <summary>管理页依赖只提供本地供应商缓存和受控保存接口，不存在远程供应商搜索依赖。</summary>
+    private static ProductMasterManagerViewModel CreateManager(IProductMasterApi? api = null, SupplierDto[]? suppliers = null)
+    {
+        var supplierCache = new ReadOnlyObservableCollection<SupplierDto>(new ObservableCollection<SupplierDto>(suppliers ?? []));
+        var cache = Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
+        {
+            "get_Suppliers" => supplierCache,
+            nameof(IReferenceDataCacheService.GetDictionaryValues) => Array.Empty<SysDictDataDto>(),
+            _ => null
+        });
+        return new ProductMasterManagerViewModel(api!, Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke()),
+            cache, Proxy<IMessageService>((_, _) => null), null!, null!, null!, new ImageAddressResolverStub());
+    }
+
     private static ProductMasterDetailDto Detail() => new()
     {
         Uid = Guid.NewGuid(), Version = 1, DefaultSupplierName = "原供应商",
@@ -185,7 +284,7 @@ public sealed class ProductMasterSupplierEditingTests
             "add_ProductAttributesChanged" or "remove_ProductAttributesChanged" => null,
             _ => throw new AssertFailedException(method.Name)
         }),
-        Proxy<IMessageService>((_, _) => null), null!, null!, new ProductMasterSyncDialogStub());
+        Proxy<IMessageService>((_, _) => null), null!, null!);
     }
 
     private static T Proxy<T>(Func<MethodInfo, object?[], object?> invoke) where T : class

@@ -36,7 +36,7 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         b."denominator" AS "Denominator",
         b."note" AS "Note"
     """;
-    /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
+    /// <summary>完整物料事实只包含持久化身份；型号展示不写回物料，BOM 校验沿用原资料字段。</summary>
     private const string ProductFactColumns = """
         p."uid" AS "Uid",
         p."version" AS "Version",
@@ -47,7 +47,7 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         p."updated_by" AS "UpdatedBy",
         p."is_active" AS "IsActive",
         p."product_master_id" AS "ProductMasterId",
-        p."master_sku" AS "MasterSku",
+        p."product_neutral_id" AS "ProductNeutralId",
         p."sku" AS "Sku",
         p."description_en" AS "DescriptionEn",
         p."description_zh" AS "DescriptionZh",
@@ -60,7 +60,6 @@ public sealed class PostgreSqlBomRepository(RepositoryBaseContext context) : Pos
         p."bom_version" AS "BomVersion",
         p."bom_no" AS "BomNo",
         p."note" AS "Note",
-        p."link_sku" AS "LinkSku",
         p."main_image" AS "MainImage",
         p."cny_price" AS "CNYPrice",
         p."usd_price" AS "USDPrice",

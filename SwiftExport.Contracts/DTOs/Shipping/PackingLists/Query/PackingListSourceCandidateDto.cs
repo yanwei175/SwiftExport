@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using SwiftExport.Contracts.DTOs.Base;
-using SwiftExport.Contracts.SysEnums.Shipping;
-using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
 {
     /// <summary>装箱单 Picker 使用的可交付来源及唯一默认包装投影。</summary>
     public class PackingListSourceCandidateDto
     {
-        /// <summary>来源需求唯一标识。</summary>
+        /// <summary>成品需求唯一标识。</summary>
         public Guid GrossDemandId { get; set; }
         /// <summary>候选来源并发版本。</summary>
         public int DemandVersion { get; set; }
@@ -59,7 +55,7 @@ namespace SwiftExport.Contracts.DTOs.Shipping.PackingLists
         public string CustomerPoNo { get; set; }
         /// <summary>查询展示图片，不持久化。</summary>
         public string ImagePath { get; set; }
-            /// <summary>销售发票号或系统售后单号，仅用于来源查询和展示。</summary>
+        /// <summary>销售发票号或系统售后单号，仅用于来源查询和展示。</summary>
         public string InvoiceNo { get; set; }
-}
+    }
 }

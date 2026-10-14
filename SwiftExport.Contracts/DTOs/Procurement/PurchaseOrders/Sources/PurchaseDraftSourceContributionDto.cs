@@ -1,10 +1,8 @@
-using SwiftExport.Contracts.SysEnums;
 using System;
-using System.Collections.Generic;
 
 namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
 {
-/// <summary>合并采购行仍保留的逐物料需求来源贡献。</summary>
+    /// <summary>合并采购行仍保留的逐物料需求来源贡献。</summary>
     public class PurchaseDraftSourceContributionDto
     {
         public Guid CommandItemId { get; set; }
@@ -18,7 +16,7 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts
         public int? SourceLineNumber { get; set; }
         public string Sku { get; set; }
         public string LinkSku { get; set; }
-        /// <summary>来源需求在采购预览时使用的图片快照路径。</summary>
+        /// <summary>成品需求在采购预览时使用的图片快照路径。</summary>
         public string ImagePath { get; set; }
         public decimal ExpectedRemainingQty { get; set; }
         public decimal PurchaseQty { get; set; }

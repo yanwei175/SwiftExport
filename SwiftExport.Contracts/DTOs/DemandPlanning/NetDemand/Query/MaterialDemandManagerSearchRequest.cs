@@ -11,7 +11,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public Guid? SourceUid { get; set; }
         /// <summary>限定物料需求 Uid。</summary>
         public List<Guid> NetDemandIds { get; set; } = new List<Guid>();
-        /// <summary>限定来源需求 Uid。</summary>
+        /// <summary>限定成品需求 Uid。</summary>
         public List<Guid> GrossDemandIds { get; set; } = new List<Guid>();
         /// <summary>限定来源业务单据 Uid。</summary>
         public List<Guid> SourceUids { get; set; } = new List<Guid>();
@@ -23,9 +23,9 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public List<string> Skus { get; set; } = new List<string>();
         /// <summary>限定客户型号。</summary>
         public List<string> CustomerSkus { get; set; } = new List<string>();
-        /// <summary>来源需求交期起点。</summary>
+        /// <summary>成品需求交期起点。</summary>
         public DateTime? DemandRequiredDateFrom { get; set; }
-        /// <summary>来源需求交期终点。</summary>
+        /// <summary>成品需求交期终点。</summary>
         public DateTime? DemandRequiredDateTo { get; set; }
         /// <summary>限定父件或客供件；为空表示全部。</summary>
         public bool? IsCustomerSupplied { get; set; }

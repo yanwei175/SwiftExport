@@ -3,7 +3,7 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
-/// <summary>表示来源需求选择器左侧的一张待建立来源单。</summary>
+/// <summary>表示成品需求选择器左侧的一张待建立来源单。</summary>
 public sealed class SourceDemandCandidateGroupModel
 {
     /// <summary>来源类型，与来源 Uid 共同构成后端明细查询边界。</summary>

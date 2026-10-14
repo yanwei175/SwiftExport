@@ -131,7 +131,7 @@ public sealed partial class PurchaseOrderTraceViewModel(
     private bool CanOpenMaterialTrace() => SelectedLink is { NetDemandId: var id } && id != Guid.Empty
         && currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialView);
 
-    /// <summary>在来源身份证据完整且有权限时跳转来源需求追踪。</summary>
+    /// <summary>在来源身份证据完整且有权限时跳转成品需求追踪。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenSourceTrace))]
     private Task OpenSourceTraceAsync() => navigation.OpenDocumentAsync(
         GrossDemandTraceViewModel.RouteKey, $"gross-demand-trace:{SelectedLink!.GrossDemandId!.Value:N}",
@@ -146,8 +146,11 @@ public sealed partial class PurchaseOrderTraceViewModel(
         SwiftExportClient.Features.Inventory.Inbounds.ViewModels.InboundManagerViewModel.RouteKey,
         $"inbound-document:{SelectedReceipt!.InboundDocumentId:N}",
         new SwiftExportClient.Features.Inventory.Inbounds.Models.InboundDocumentOpenRequest
-        { InboundDocumentId = SelectedReceipt.InboundDocumentId, DocumentNo = SelectedReceipt.DocumentNo,
-          PostingStatus = SelectedReceipt.PostingStatus });
+        {
+            InboundDocumentId = SelectedReceipt.InboundDocumentId,
+            DocumentNo = SelectedReceipt.DocumentNo,
+            PostingStatus = SelectedReceipt.PostingStatus
+        });
 
     private bool CanOpenInbound() => SelectedReceipt is { InboundDocumentId: var id } && id != Guid.Empty
         && currentUser.HasPermission(PermissionKeys.InventoryInboundView);

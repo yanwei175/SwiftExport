@@ -7,6 +7,7 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:resourceProxies="clr-namespace:SwiftExportClient.Resources.Proxies"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
+             xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -98,11 +99,6 @@
                                     <ContextMenu>
                                         <MenuItem Header="批量导入" Command="{Binding PlacementTarget.DataContext.OpenImportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="从详情新建" Command="{Binding PlacementTarget.DataContext.CreateDetailCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="描述,配置,供应商,重量体积统一下发" Command="{Binding PlacementTarget.DataContext.SyncAllCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="描述下发" Command="{Binding PlacementTarget.DataContext.SyncDescriptionsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="配置下发" Command="{Binding PlacementTarget.DataContext.SyncFeaturesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="供应商下发" Command="{Binding PlacementTarget.DataContext.SyncSupplierCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
-                                        <MenuItem Header="重量体积下发" Command="{Binding PlacementTarget.DataContext.SyncWeightVolumeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     </ContextMenu>
                                 </ui:DropDownButton.Flyout>
                             </ui:DropDownButton>
@@ -147,12 +143,16 @@
                         BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
                         BorderThickness="1"
                         CornerRadius="4">
-                        <StackPanel Orientation="Horizontal" MinHeight="120">
-
-                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
-
-                            </Grid>
-                        </StackPanel>
+                            <DockPanel>
+                                <ToggleButton DockPanel.Dock="Right" VerticalAlignment="Top"
+                                              Content="关闭" MinWidth="70"
+                                              IsChecked="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"/>
+                                
+                                <StackPanel Orientation="Horizontal" MinHeight="120">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+                                </Grid>
+                                </StackPanel>
+                            </DockPanel>
                     </Border>
                 </Popup>
 
@@ -224,8 +224,9 @@
                     </Grid.RowDefinitions>
 
 
-                    <DataGrid x:Name="MasterGrid" 
+                    <DataGrid x:Name="MasterGrid" PreparingCellForEdit="OnMasterPreparingCellForEdit"
                               ItemsSource="{Binding Masters.Items}"
+                              SelectedItem="{Binding SelectedMaster, Mode=TwoWay}"
                               RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                               RowHeight="{StaticResource DataGridRowHeightMedium}"
                               FontSize="{StaticResource SwiftExportDefaltFontSize}"
@@ -238,7 +239,6 @@
                               gridCore:GridRowHeader.ShowRowNumber="True"
                               gridOperations:GridOperations.IsEnabled="True"
                               gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                              gridSelection:GridSelection.CurrentRow="{Binding SelectedMaster, Mode=TwoWay}"
                               gridValidation:GridValidation.IsEnabled="True"
                               AutomationProperties.Name="主型号可编辑列表">
                         <DataGrid.Style>
@@ -279,9 +279,11 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="主型号" Width="100" Binding="{Binding MasterSku, UpdateSourceTrigger=PropertyChanged}"
+                            <DataGridTextColumn Header="主型号" Width="100" 
+                                                Binding="{Binding MasterSku, UpdateSourceTrigger=PropertyChanged}"
                                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
+                                                gridColumns:GridColumn.CanFillDown="False"
                                                     gridColumns:GridColumn.Key="master-sku"/>
 
                             <DataGridTextColumn Header="中文描述" Width="190" Binding="{Binding DefaultDescriptionZh, UpdateSourceTrigger=LostFocus}"
@@ -336,9 +338,9 @@
 
 
                             <DataGridTemplateColumn Header="分类" Width="160"
-                                                        SortMemberPath="CategoryName"
-                                                        gridColumns:GridColumn.FillDownFieldPaths="CategoryId,CategoryName"
-                                                        gridColumns:GridColumn.Key="category">
+                                                    SortMemberPath="CategoryName"
+                                                    gridColumns:GridColumn.FillDownFieldPaths="CategoryId,CategoryName"
+                                                    gridColumns:GridColumn.Key="category">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding CategoryName}" 
@@ -348,7 +350,7 @@
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
                                         <productComponents:ProductCategoryFlatLookupTextBox 
-                                                Text="{Binding CategoryName, Mode=OneWay}"
+                                                Text="{Binding CategoryName, Mode=OneWay}"                                            
                                                 ItemsSource="{Binding DataContext.ReferenceDataCache.ProductCategories, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                 SelectedCategory="{Binding DataContext.EditCategory, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                                 SelectionCommittedCommand="{Binding DataContext.CommitCategoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -361,6 +363,7 @@
 
                             <DataGridTemplateColumn Header="默认供应商" Width="90" 
                                                         gridColumns:GridColumn.Key="default-supplier" 
+                                                        gridColumns:GridColumn.FillDownFieldPaths="DefaultSupplierId,DefaultSupplierName"
                                                         gridColumns:GridColumn.FieldPath="DefaultSupplierId,DefaultSupplierName">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -370,16 +373,15 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <controls:LookupTextBox StretchToHost="True" Text="{Binding DefaultSupplierName, Mode=TwoWay}" SearchMode="Remote"
-                                                                    ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                    IsBusy="{Binding DataContext.IsSupplierLookupBusy, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                    SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                    SelectedItem="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
-                                                                    DisplayMemberPath="SupplierName" 
-                                                                    FilterMemberPaths="SupplierCode,SupplierName"                                                             
-                                                                    SelectedValuePath="Uid"
+                                        <supplierComponents:SupplierAutoSuggestComboBox StretchToHost="True"
+                                                                    ItemsSource="{Binding DataContext.SupplierOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    SelectedSupplier="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}"
+                                                                    Placeholder="{Binding DefaultSupplierName}"
                                                                     SelectionCommittedCommand="{Binding DataContext.CommitSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                    SelectionCommittedCommandParameter="{Binding}" />
+                                                                    SelectionCommittedCommandParameter="{Binding}"
+                                                                    SelectionClearedCommand="{Binding DataContext.ClearSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    SelectionClearedCommandParameter="{Binding}"
+                                                                    AutomationProperties.Name="当前主型号默认供应商" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>
@@ -434,7 +436,9 @@
                             <DataGridTextColumn Header="标签" Width="240" IsReadOnly="True"
                                                 Binding="{Binding TagSummary, Mode=OneWay}"
                                                 ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="attribute-tags" gridColumns:GridColumn.FieldPath="TagSummary" />
+                                                gridColumns:GridColumn.CanFillDown="False"
+                                                gridColumns:GridColumn.Key="attribute-tags" 
+                                                gridColumns:GridColumn.FieldPath="TagSummary" />
 
                         </DataGrid.Columns>
                     </DataGrid>
@@ -634,6 +638,7 @@
                     <DataGrid x:Name="NeutralGrid" Grid.Row="2" 
                               IsEnabled="{Binding CanEditNeutrals}" 
                               ItemsSource="{Binding Neutrals.Items}"
+                              SelectedItem="{Binding SelectedNeutral, Mode=TwoWay}"
                               Style="{StaticResource SwiftExportDataGrid}"
                               RowHeight="{StaticResource DataGridRowHeightMedium}"
                               FontSize="{StaticResource SwiftExportDefaltFontSize}"
@@ -646,7 +651,6 @@
                               gridCore:GridRowHeader.ShowRowNumber="True" 
                               gridOperations:GridOperations.IsEnabled="True"
                               gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                              gridSelection:GridSelection.CurrentRow="{Binding SelectedNeutral, Mode=TwoWay}"
                               gridValidation:GridValidation.IsEnabled="False" 
                               AutomationProperties.Name="中性产品可编辑列表">
                         <DataGrid.Columns>

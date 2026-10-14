@@ -12,7 +12,7 @@ namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 /// <summary>统一普通产品写入入口，并保护产品资料变化直接影响的当前 BOM 组成。</summary>
 public partial class ProductMaintenanceService
 {
-    /// <summary>只在调用方已取得的事务中执行写入；旧列表 DTO 缺少的归属、单品尺寸和启停字段保留数据库值。</summary>
+    /// <summary>只在调用方已取得的事务中执行写入；来源 ID 明确保存，列表未携带的单品尺寸和启停字段保留数据库值。</summary>
     private async Task WriteBatchInCurrentTransactionAsync(ProductBatchSaveRequest request,
         ProductBatchSaveResponse response, IReadOnlyDictionary<Guid, Product>? detailCandidates = null,
         CancellationToken cancellationToken = default)
@@ -36,7 +36,6 @@ public partial class ProductMaintenanceService
                 entity.Sku = item.Data.Sku;
                 entity.Unit = item.Data.Unit;
                 entity.ManufacturerModel = item.Data.ManufacturerModel;
-                entity.LinkSku = item.Data.LinkSku;
             }
             else
             {

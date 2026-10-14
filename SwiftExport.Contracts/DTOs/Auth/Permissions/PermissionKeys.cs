@@ -87,7 +87,7 @@ namespace SwiftExport.Contracts.DTOs.Auth
         public const string CustomersProductsView = "Customers.Products.View";
         /// <summary>物料需求查看权限。</summary>
         public const string DemandPlanningMaterialView = "DemandPlanning.Material.View";
-        /// <summary>来源需求查看权限。</summary>
+        /// <summary>成品需求查看权限。</summary>
         public const string DemandPlanningSourceView = "DemandPlanning.Source.View";
         /// <summary>库存余额与流水查看权限。</summary>
         public const string InventoryBalanceView = "Inventory.Balance.View";

@@ -18,7 +18,7 @@ public sealed class PostgreSqlForExcelSalesOrderRepository(RepositoryBaseContext
             ORDER BY uid
             """, new { Code = customerCode.Trim().ToUpperInvariant() }, token);
 
-    /// <summary>批量匹配调用方已规范化的型号；产品 LEFT JOIN 保留断链，关系启用、产品启用及非 ASCII 空白单位只影响 IsUsable。</summary>
+    /// <summary>匹配客户型号并保留断链；客户型号优先，物料型号取中性来源，原资格只影响 IsUsable。</summary>
     public Task<IReadOnlyList<SalesOrderImportProductCandidateDto>> MatchProductsAsync(Guid customerId, string[] customerSkus, CancellationToken token)
     {
         // 空数组沿用源短路，包括已取消请求；不访问会话，也不再次 Trim/大写/去重调用方数组。
@@ -28,12 +28,13 @@ public sealed class PostgreSqlForExcelSalesOrderRepository(RepositoryBaseContext
         // SQL Server 等值比较忽略参数尾部 ASCII 空格；仅 SQL 内 rtrim 右侧数组项，不能全 Trim 或改写调用方数组。
         return ReadAsync<SalesOrderImportProductCandidateDto>("""
             SELECT cp.uid AS "CustomerProductId",p.uid AS "ProductId",cp.customer_sku AS "CustomerSku",
-                   p.sku AS "Sku",COALESCE(NULLIF(btrim(cp.link_sku,' '),''),p.link_sku) AS "LinkSku",
+                   p.sku AS "Sku",COALESCE(NULLIF(btrim(cp.link_sku,' '),''),pn.product_code) AS "LinkSku",
                    p.unit AS "Unit",p.main_image AS "MainImage",
                    CASE WHEN cp.is_active=TRUE AND p.is_active=TRUE AND NULLIF(btrim(p.unit,' '),'') IS NOT NULL
                         THEN TRUE ELSE FALSE END AS "IsUsable"
             FROM public.customer_product cp
             LEFT JOIN public.product p ON p.uid=cp.sku_id AND p.is_deleted=FALSE
+            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             WHERE cp.customer_id=@CustomerId AND cp.is_deleted=FALSE
               AND upper(btrim(cp.customer_sku,' ')) COLLATE public.erp_dictionary_ci = ANY(
                   SELECT rtrim(input.sku,' ') FROM unnest(@Skus) input(sku))

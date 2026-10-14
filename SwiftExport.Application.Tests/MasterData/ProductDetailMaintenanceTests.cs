@@ -35,7 +35,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         Assert.IsTrue(result.Success, result.Message);
         var saved = fixture.Products[product.Uid];
         Assert.AreEqual(product.ProductMasterId, saved.ProductMasterId);
-        Assert.AreEqual(product.MasterSku, saved.MasterSku);
+        Assert.AreEqual(product.ProductNeutralId, saved.ProductNeutralId);
         Assert.IsFalse(saved.IsActive);
         Assert.AreEqual("DETAIL-BOM", saved.BomNo);
         Assert.AreEqual(8, saved.BomVersion);
@@ -160,7 +160,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         CollectionAssert.AreEqual(new[] { "profile", "group", "master", "product" }, fixture.DetailLockTrace);
     }
 
-    /// <summary>详情保存后旧列表修改仍保留模板来源及单品重量、体积，不通过字符串重新解析归属。</summary>
+    /// <summary>列表明确保存来源 ID，型号文字不参与归属；未携带的单品重量和体积保持原值。</summary>
     [TestMethod]
     public async Task OrdinaryUpdate_PreservesFieldsMissingFromLegacyDto()
     {
@@ -176,7 +176,52 @@ public sealed partial class ProductBomSaveBoundaryTests
         Assert.AreEqual(product.ProductMasterId, saved.ProductMasterId);
         Assert.AreEqual(2m, saved.UnitWeight);
         Assert.AreEqual(0.125m, saved.UnitCBM);
-        Assert.AreEqual("手工型号文字", saved.MasterSku);
+        Assert.AreEqual(product.ProductNeutralId, saved.ProductNeutralId);
+    }
+
+    /// <summary>两个来源可分别改为失效身份；未改标签时保留既有选值，不以来源丢失阻断基础资料。</summary>
+    [TestMethod]
+    public async Task Detail_DanglingIndependentSourcesKeepSelectionsAndOtherFields()
+    {
+        var fixture = DetailFixture(out var product, out var first, out _);
+        fixture.Selection(product.Uid, first);
+        product.BomNo = "KEEP-BOM"; product.BomVersion = 2; product.UnitWeight = 2m;
+        var request = DetailRequest(product, null);
+        request.Data.ProductMasterId = Guid.NewGuid();
+        request.Data.ProductNeutralId = Guid.NewGuid();
+        request.Data.Note = "失效来源仍可保存";
+        var result = await fixture.Service.SaveDetailAsync(request);
+        Assert.IsTrue(result.Success, result.Message);
+        var saved = fixture.Products[product.Uid];
+        Assert.AreEqual(request.Data.ProductMasterId, saved.ProductMasterId);
+        Assert.AreEqual(request.Data.ProductNeutralId, saved.ProductNeutralId);
+        Assert.AreEqual("KEEP-BOM", saved.BomNo); Assert.AreEqual(2, saved.BomVersion);
+        Assert.AreEqual(2m, saved.UnitWeight);
+        CollectionAssert.AreEqual(new[] { first }, result.Data.Detail.SelectedOptionIds);
+        Assert.AreEqual(6, saved.Version);
+    }
+
+    /// <summary>列表保存两来源身份，之后明确清空只清空关系，不影响单品尺寸和其他物料资料。</summary>
+    [TestMethod]
+    public async Task OrdinaryUpdate_WritesAndClearsBothSourceIds()
+    {
+        var fixture = DetailFixture(out var product, out _, out _);
+        product.UnitWeight = 3m; product.UnitCBM = 0.05m;
+        var dto = Dto(product);
+        dto.ProductMasterId = Guid.NewGuid(); dto.ProductNeutralId = Guid.NewGuid();
+        dto.Note = "两关系独立保存";
+        var changed = await fixture.Entry.UpdateAsync(new() { Uid = product.Uid, Version = product.Version, Data = dto });
+        Assert.IsTrue(changed.Success, changed.Message);
+        var saved = fixture.Products[product.Uid];
+        Assert.AreEqual(dto.ProductMasterId, saved.ProductMasterId);
+        Assert.AreEqual(dto.ProductNeutralId, saved.ProductNeutralId);
+        var clear = Dto(saved); clear.ProductMasterId = null; clear.ProductNeutralId = null;
+        var cleared = await fixture.Entry.UpdateAsync(new() { Uid = saved.Uid, Version = saved.Version, Data = clear });
+        Assert.IsTrue(cleared.Success, cleared.Message);
+        var final = fixture.Products[product.Uid];
+        Assert.IsNull(final.ProductMasterId); Assert.IsNull(final.ProductNeutralId);
+        Assert.AreEqual(3m, final.UnitWeight); Assert.AreEqual(0.05m, final.UnitCBM);
+        Assert.AreEqual("两关系独立保存", final.Note);
     }
 
     /// <summary>物料单项和批量删除只清理本类型选择，选择及物料删除同事务提交。</summary>
@@ -222,7 +267,6 @@ public sealed partial class ProductBomSaveBoundaryTests
         fixture.Masters.Add(master.Uid, master);
         product = fixture.Product("MATERIAL");
         product.ProductMasterId = master.Uid;
-        product.MasterSku = master.MasterSku;
         first = Guid.NewGuid(); second = Guid.NewGuid();
         var group = new ProductAttributeGroupDto { Uid = Guid.NewGuid(), GroupCode = "INSTALL", GroupName = "安装方式", SelectionMode = ProductAttributeSelectionMode.Multiple };
         group.Options = [new ProductAttributeOptionDto { Uid = first, AttributeGroupId = group.Uid, OptionCode = "WALL", OptionName = "挂墙" },
@@ -231,7 +275,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         return fixture;
     }
 
-    /// <summary>写 DTO 只包含允许编辑的字段，不能夹带 BOM 或主型号身份。</summary>
+    /// <summary>写 DTO 包含独立来源身份，BOM 与只读型号投影不参与提交。</summary>
     private static SaveProductDetailRequest DetailRequest(Product product, List<Guid>? selection)
         => new() { ProductId = product.Uid, ExpectedVersion = product.Version,
             Data = product.Adapt<ProductDetailWriteDto>(), SelectedOptionIds = selection };

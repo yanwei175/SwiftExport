@@ -19,7 +19,7 @@ public sealed class NetDemandDialogService(SourceDemandCandidatePickerViewModel 
                 {
                     DataContext = sourceDemandPicker
                 },
-                new DialogOptions("从来源需求建立物料需求")
+                new DialogOptions("从成品需求建立物料需求")
                 {
                     ScrollStrategy = DialogScrollStrategy.Content,
                     WidthRatio = 1,

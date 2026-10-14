@@ -3,7 +3,7 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
 {
-    /// <summary>来源需求可交付列表查询条件；查询具有客户和正剩余交付量的活动需求。</summary>
+    /// <summary>成品需求可交付列表查询条件；查询具有客户和正剩余交付量的活动需求。</summary>
     public class SourceDemandDeliverySearchRequest : PagedRequestBase
     {
         /// <summary>可选来源类型精确筛选。</summary>

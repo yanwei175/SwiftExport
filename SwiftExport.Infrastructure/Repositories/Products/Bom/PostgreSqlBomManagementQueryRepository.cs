@@ -38,7 +38,7 @@ public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
-            var columns = new[] { "p.sku", "p.master_sku", "p.bom_no", "p.description_en", "p.description_zh" };
+            var columns = new[] { "p.sku", "pm.master_sku", "p.bom_no", "p.description_en", "p.description_zh" };
             filters.Add("(" + string.Join(" OR ", columns.Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'")) + ")");
         }
         if (request.CategoryIds?.Count > 0)
@@ -63,7 +63,7 @@ public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext
         // 一条命令取得计数与页数据；只读不引入全图锁或修改业务事务。
         var sql = $"""
             {Groups} SELECT count(*)::integer {from};
-            {Groups} SELECT p.uid AS "Uid",p.version AS "Version",p.master_sku AS "MasterSku",p.sku AS "Sku",
+            {Groups} SELECT p.uid AS "Uid",p.version AS "Version",pm.master_sku AS "MasterSku",p.sku AS "Sku",
                 p.description_en AS "DescriptionEn",p.description_zh AS "DescriptionZh",p.main_image AS "MainImage",
                 color.color_name_zh AS "Finish",COALESCE(pm.category_id,@EmptyGuid) AS "CategoryId",
                 CASE WHEN pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'

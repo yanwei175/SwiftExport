@@ -32,7 +32,7 @@ public sealed class PostgreSqlOutboundItemsQueryMigrationIntegrationTests
     [TestMethod]
     public async Task FullProjectionAndCurrentFacts()
     {
-        using var f=new Fixture();var w=f.Warehouse();await f.Insert(w);var p=f.Product();p.Unit=" PCS ";p.DescriptionZh="当前说明";p.LinkSku=null;p.MainImage=null;await f.Insert(p);var b=f.Balance(w,p);b.SkuSnapshot="历史SKU";b.UnitSnapshot="历史单位";await f.Insert(b);
+        using var f=new Fixture();var w=f.Warehouse();await f.Insert(w);var p=f.Product();p.Unit=" PCS ";p.DescriptionZh="当前说明";p.ProductNeutralId=null;p.MainImage=null;await f.Insert(p);var b=f.Balance(w,p);b.SkuSnapshot="历史SKU";b.UnitSnapshot="历史单位";await f.Insert(b);
         var q=f.Request(w);var d=await f.Repository.SearchItemsAsync(q,default);Assert.AreEqual(1,d.TotalCount);var r=d.Items.Single();Assert.AreEqual(b.Uid,r.Uid);Assert.AreNotEqual(p.Uid,r.Uid);Assert.AreEqual(w.Uid,r.WarehouseSiteId);Assert.AreEqual(p.Uid,r.ProductId);Assert.AreEqual(p.Sku,r.Sku);Assert.AreEqual("当前说明",r.Description);Assert.IsNull(r.LinkSku);Assert.IsNull(r.ImagePath);Assert.AreEqual(" PCS ",r.Unit);Assert.AreEqual(3.1250m,r.OnHandQty);Assert.IsNull(r.DefaultWarehouseName);await f.Usable();
     }
 
@@ -84,8 +84,8 @@ public sealed class PostgreSqlOutboundItemsQueryMigrationIntegrationTests
     {
         using var f=new Fixture();var w=f.Warehouse();var p=f.Product();var foil=f.Product();
         var value=field=="ascii"?"MIXEDCASEWORDZZZZZ":field=="chinese"?"中文库存":"~%_[";
-        if(field=="link")p.LinkSku=value;else if(field is "description" or "chinese")p.DescriptionZh=value;else p.Sku+=value;
-        foil.LinkSku="~xA";foil.DescriptionZh="通配不应命中";await f.Insert(w);foreach(var product in new[]{p,foil}){await f.Insert(product);await f.Insert(f.Balance(w,product));}
+        if(field=="link")await f.Insert(ProductNeutralReferenceTestData.Create(p,p.Sku+value));else if(field is "description" or "chinese")p.DescriptionZh=value;else p.Sku+=value;
+        await f.Insert(ProductNeutralReferenceTestData.Create(foil,foil.Sku+"~xA"));foil.DescriptionZh="通配不应命中";await f.Insert(w);foreach(var product in new[]{p,foil}){await f.Insert(product);await f.Insert(f.Balance(w,product));}
         var q=f.Request(w);q.Keyword=keyword;var d=await f.Repository.SearchItemsAsync(q,default);Assert.AreEqual(1,d.TotalCount);Assert.AreEqual(p.Uid,d.Items.Single().ProductId);
     }
 

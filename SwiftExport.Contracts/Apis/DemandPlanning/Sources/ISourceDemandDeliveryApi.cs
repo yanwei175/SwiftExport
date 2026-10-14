@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.DemandPlanning
 {
-    /// <summary>提供来源需求统一可交付查询，不暴露来源接收写入口。</summary>
+    /// <summary>提供成品需求统一可交付查询，不暴露来源接收写入口。</summary>
     public interface ISourceDemandDeliveryApi
     {
         [Post("/search")]

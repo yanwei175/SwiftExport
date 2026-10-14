@@ -234,20 +234,23 @@ public sealed class PostgreSqlManualGrossDemandServiceIntegrationTests
         Assert.AreEqual(1, f.Receipts.FindCalls); await f.AssertRolledBack(request.CommandId, before);
     }
 
-    /// <summary>真实产品和标准快照保留；单位不被顺手补齐，客户端非生效字段变化仍重放。随机产品明确保留。</summary>
+    /// <summary>真实产品和标准快照保留；型号取物料独立中性产品引用，单位不被顺手补齐，客户端非生效字段变化仍重放。随机物料及中性产品明确保留。</summary>
     [TestMethod]
     public async Task StandardProduct_RealReadAndOriginalSnapshots()
     {
         using var f = FixtureFor();
         var product = new Product { Sku = "PGMDP" + Guid.NewGuid().ToString("N"), SupplyType = "采购",
-            DescriptionEn = "产品描述", LinkSku = "产品关联", FeaturesEn = "产品规格", MainImage = "产品图片",
+            DescriptionEn = "产品描述", FeaturesEn = "产品规格", MainImage = "产品图片",
             Unit = "PCS", IsActive = true };
+        var neutral = ProductNeutralReferenceTestData.Create(product, product.Sku + "产品关联");
+        Assert.IsTrue((await new SwiftExport.Infrastructure.Repositories.Base.PostgreSqlDapperRepository<ProductNeutral>(Context(f.Session, f.User)).AddAsync(neutral)).Success);
+        product.ProductNeutralId = neutral.Uid;
         Assert.IsTrue((await f.Products.AddAsync(product)).Success);
-        f.Emit("retained-product", new { product.Uid, product.Sku, ExpectedProductCount = 1 });
+        f.Emit("retained-product", new { product.Uid, product.Sku, ProductNeutralId = neutral.Uid, neutral.ProductCode, ExpectedProductCount = 1 });
         var request = Request(); request.IsNonStandard = false; request.ProductId = product.Uid;
         var dto = Success(await f.Service.CreateManualAsync(request));
         Assert.AreEqual(product.Uid, dto.ProductId); Assert.AreEqual(product.Sku, dto.Sku);
-        Assert.AreEqual(product.DescriptionEn, dto.Description); Assert.AreEqual(product.LinkSku, dto.LinkSku);
+        Assert.AreEqual(product.DescriptionEn, dto.Description); Assert.AreEqual(neutral.ProductCode, dto.LinkSku);
         Assert.AreEqual(product.FeaturesEn, dto.Specification); Assert.AreEqual(product.MainImage, dto.ImagePath);
         Assert.IsNull(dto.Unit); Assert.AreEqual("颜色", dto.Color); Assert.AreEqual("客户型号", dto.CustomerSku);
         await f.AssertPersisted(request.CommandId, dto, 1);

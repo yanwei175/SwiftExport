@@ -212,7 +212,8 @@ public sealed class ManualGrossDemandService(
         if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(product)) throw new GrossDemandValidationException("客供件不能作为手工来源需求根产品。");
         demand.ProductId = product.Uid;
         demand.SkuSnapshot = product.Sku;
-        demand.LinkSkuSnapshot = product.LinkSku;
+        // 型号来自物料独立关联的中性产品投影，不再读取物料实体中的旧文字关系。
+        demand.LinkSkuSnapshot = (await productRepository.GetDtoByIdAsync(product.Uid))?.LinkSku;
         demand.DescriptionSnapshot = product.DescriptionEn;
         demand.ColorSnapshot = color?.Trim();
         demand.SpecificationSnapshot = product.FeaturesEn;

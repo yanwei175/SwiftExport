@@ -41,15 +41,17 @@ public sealed partial class PostgreSqlOutboundQueryRepository(RepositoryBaseCont
         return header is null ? null : new() { Header = header, Lines = lines };
     }
 
-    /// <summary>读取未删产品的六个身份字段，不筛停用或余额；空集合先返回，原分支不因取消令牌而拒绝。</summary>
+    /// <summary>读取未删物料及中性来源当前型号；失效来源留空，不筛停用或余额，空集合沿用短路。</summary>
     public async Task<IReadOnlyList<OutboundItemCandidateDto>> GetProductsAsync(IReadOnlyList<Guid> ids, CancellationToken token)
     {
         if (ids.Count == 0) return [];
         var p = new PostgreSqlParameters(); p.AddIds("Ids", ids);
         return (await context.Session.Connection.QueryAsync<OutboundItemCandidateDto>(Command($"""
-            SELECT {P("Uid")} AS "ProductId",{P("Sku")} AS "Sku",{P("LinkSku")} AS "LinkSku",
+            SELECT {P("Uid")} AS "ProductId",{P("Sku")} AS "Sku",pn.product_code AS "LinkSku",
                 {P("DescriptionZh")} AS "Description",{P("MainImage")} AS "ImagePath",{P("Unit")} AS "Unit"
-            FROM "public"."product" p WHERE {P("Uid")}=ANY(@Ids) AND {P("IsDeleted")}=FALSE;
+            FROM "public"."product" p
+            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
+            WHERE {P("Uid")}=ANY(@Ids) AND {P("IsDeleted")}=FALSE;
             """, new QueryParameters(p), token))).ToList();
     }
 
@@ -134,9 +136,10 @@ public sealed partial class PostgreSqlOutboundQueryRepository(RepositoryBaseCont
             l."created_by" AS "CreatedBy",
             l."updated_date" AS "UpdatedDate",
             l."updated_by" AS "UpdatedBy",
-            {P("LinkSku")} AS "LinkSku",{P("MainImage")} AS "ImagePath",COALESCE(b."on_hand_qty",0) AS "OnHandQty"
+            pn.product_code AS "LinkSku",{P("MainImage")} AS "ImagePath",COALESCE(b."on_hand_qty",0) AS "OnHandQty"
         FROM "public"."outbound_document_line" l JOIN "public"."outbound_document" h ON h."uid"=l."outbound_document_id"
         LEFT JOIN "public"."product" p ON {P("Uid")}=l."product_id"
+        LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
         LEFT JOIN "public"."inventory_balance" b ON b."warehouse_site_id"=h."warehouse_site_id"
             AND b."product_id"=l."product_id" AND b."is_deleted"=FALSE
         WHERE l."outbound_document_id"=@Uid AND l."is_deleted"=FALSE

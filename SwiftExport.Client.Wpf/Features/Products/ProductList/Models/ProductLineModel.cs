@@ -10,6 +10,10 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
 {
     [ObservableProperty] public partial string Sku { get; set; } = string.Empty;
     [ObservableProperty] public partial string MasterSku { get; set; } = string.Empty;
+    /// <summary>物料独立关联的主型号身份；编码仅作联表显示。</summary>
+    [ObservableProperty] public partial Guid? ProductMasterId { get; set; }
+    /// <summary>物料独立关联的中性产品身份，不由主型号或颜色推导。</summary>
+    [ObservableProperty] public partial Guid? ProductNeutralId { get; set; }
     [ObservableProperty] public partial string DescriptionEn { get; set; } = string.Empty;
     [ObservableProperty] public partial string DescriptionZh { get; set; } = string.Empty;
     [ObservableProperty] public partial string FeaturesEn { get; set; } = string.Empty;

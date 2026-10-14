@@ -25,7 +25,7 @@ using SwiftExport.Application.Tests.Database;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
-/// <summary>在获批单PG测试库执行真实服务及仓储，验证资料同步、版本和事务回滚，不读取业务连接配置。</summary>
+/// <summary>在获批单PG测试库执行真实保存与主动拉取服务，验证独立资料、版本和事务边界。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class ProductMasterSynchronizationSqlTests
@@ -86,98 +86,50 @@ public sealed class ProductMasterSynchronizationSqlTests
         if (_database is not null) await _database.DisposeAsync();
     }
 
-    /// <summary>两入口四种选项按 UID 更新且不串组；停用物料参与，删除和未关联物料保持不变。</summary>
+    /// <summary>主型号两保存入口仅更新自身资料；关联物料描述、配置、供应商、重量体积及审计版本均保持原值。</summary>
     [TestMethod]
-    [DataRow(false, false, false)] [DataRow(false, true, false)]
-    [DataRow(false, false, true)] [DataRow(false, true, true)]
-    [DataRow(true, false, false)] [DataRow(true, true, false)]
-    [DataRow(true, false, true)] [DataRow(true, true, true)]
-    public async Task Save_UpdatesOnlyLinkedProducts(bool detail, bool descriptions, bool supplier)
+    [DataRow(false)] [DataRow(true)]
+    public async Task Save_DoesNotOverwriteLinkedProducts(bool detail)
     {
         var active = await AddProductAsync(_masterId);
         var inactive = await AddProductAsync(_masterId, active: false);
+        // 审计基线从数据库读回，避免 timestamp(6) 的精度转换被误判为同步更新。
+        active = (await _products.GetByIdAsync(active.Uid))!;
+        inactive = (await _products.GetByIdAsync(inactive.Uid))!;
         var deleted = await AddProductAsync(_masterId, deleted: true);
         var unlinked = await AddProductAsync(null);
         var other = await AddProductAsync(Guid.NewGuid());
-        Assert.IsTrue(await SaveAsync(detail, descriptions, supplier));
+        Assert.IsTrue(await SaveAsync(detail));
         foreach (var id in new[] { active.Uid, inactive.Uid })
         {
             var saved = (await _products.GetByIdAsync(id))!;
-            Assert.AreEqual("NEW", saved.MasterSku);
+            Assert.AreEqual("NEW", (await _products.GetDtoByIdAsync(id))!.MasterSku);
             Assert.AreEqual(_masterId, saved.ProductMasterId);
-            Assert.AreEqual(descriptions ? "英文描述" : "原描述", saved.DescriptionEn);
-            Assert.AreEqual(descriptions ? "中文描述" : "原中文", saved.DescriptionZh);
-            Assert.AreEqual(descriptions ? "英文配置" : "原配置", saved.FeaturesEn);
-            Assert.AreEqual(descriptions ? null : "原中文配置", saved.FeaturesZh);
-            Assert.AreEqual(supplier ? _supplierId : active.DefaultSupplierId, saved.DefaultSupplierId);
-            Assert.AreEqual(supplier ? "SERVER-SUP" : null,
+            Assert.AreEqual("原描述", saved.DescriptionEn);
+            Assert.AreEqual("原中文", saved.DescriptionZh);
+            Assert.AreEqual("原配置", saved.FeaturesEn);
+            Assert.AreEqual("原中文配置", saved.FeaturesZh);
+            Assert.AreEqual(active.DefaultSupplierId, saved.DefaultSupplierId);
+            Assert.AreEqual(null,
                 (await _products.GetDtoByIdAsync(id))!.DefaultSupplierCode);
-            Assert.AreEqual(2, saved.Version);
-            Assert.AreEqual("master-sync-test", saved.UpdatedBy);
-            Assert.IsNotNull(saved.UpdatedDate);
+            Assert.AreEqual(1, saved.Version);
+            Assert.AreEqual(id == active.Uid ? active.UpdatedBy : inactive.UpdatedBy, saved.UpdatedBy);
+            Assert.AreEqual(id == active.Uid ? active.UpdatedDate : inactive.UpdatedDate, saved.UpdatedDate);
             Assert.AreEqual(99m, saved.CNYPrice);
+            Assert.IsNull(saved.UnitWeight);
+            Assert.IsNull(saved.UnitCBM);
         }
         Assert.IsFalse((await _products.GetByIdAsync(inactive.Uid))!.IsActive);
         foreach (var id in new[] { deleted.Uid, unlinked.Uid, other.Uid })
         {
-            // PG物理列使用下划线；为原快照断言显式投影CLR名称，避免把未映射值误判为同步改写。
-            var saved = await _session.Connection.QuerySingleAsync<Product>("SELECT uid AS \"Uid\",master_sku AS \"MasterSku\",version AS \"Version\" FROM public.product WHERE uid=@id", new { id });
-            Assert.AreEqual("OLD", saved.MasterSku);
+            // 已删除物料和失效主型号的显示值为空，持久化物料仍仅按身份核验版本。
+            var saved = await _session.Connection.QuerySingleAsync<Product>("SELECT uid AS \"Uid\",version AS \"Version\" FROM public.product WHERE uid=@id", new { id });
+            Assert.IsNull((await _products.GetDtoByIdAsync(id))?.MasterSku);
             Assert.AreEqual(1, saved.Version);
         }
-        // 同步已增加版本，原来打开的物料编辑对象不能覆盖服务端同步。
+        // 主型号编码由投影读取；保存主型号不会使物料现有版本失效。
         var stale = await _products.UpdateAsync(active);
-        Assert.IsFalse(stale.Success);
-        Assert.AreEqual("CONCURRENCY_CONFLICT", stale.ErrorCode);
-    }
-
-    /// <summary>勾选组的空值清除，两次相同提交不会对无差异物料重复打戳。</summary>
-    [TestMethod]
-    public async Task EmptyValues_ClearSelectedGroups_AndNoOpPreservesVersion()
-    {
-        var product = await AddProductAsync(_masterId);
-        var request = DetailRequest(true, true);
-        request.Master = new() { MasterSku = " OLD ", DefaultDescriptionEn = "   " };
-        var result = await _service.SaveDetailAsync(request);
-        Assert.IsTrue(result.Success, result.Message);
-        var saved = (await _products.GetByIdAsync(product.Uid))!;
-        Assert.IsNull(saved.DescriptionEn);
-        Assert.IsNull(saved.DescriptionZh);
-        Assert.IsNull(saved.FeaturesEn);
-        Assert.IsNull(saved.FeaturesZh);
-        Assert.IsNull(saved.DefaultSupplierId);
-        Assert.IsNull((await _products.GetDtoByIdAsync(product.Uid))!.DefaultSupplierCode);
-        request.ExpectedVersion = result.Data.Detail.Version;
-        Assert.IsTrue((await _service.SaveDetailAsync(request)).Success);
-        var unchanged = (await _products.GetByIdAsync(product.Uid))!;
-        Assert.AreEqual(saved.Version, unchanged.Version);
-        Assert.AreEqual(saved.UpdatedDate, unchanged.UpdatedDate);
-    }
-
-    /// <summary>任一同步 SQL 失败回滚主型号、Neutral 和前面已写入的物料；两个入口一致。</summary>
-    [TestMethod]
-    [DataRow(false)] [DataRow(true)]
-    public async Task SyncFailure_RollsBackAggregate(bool detail)
-    {
-        var product = await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("ALTER TABLE public.product ADD CONSTRAINT ck_test_sync_failure CHECK (master_sku <> 'NEW');");
-        Assert.IsFalse(await SaveAsync(detail, true, true, addNeutral: detail));
-        Assert.AreEqual("OLD", (await _products.GetByIdAsync(product.Uid))!.MasterSku);
-        Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT version FROM public.product_master WHERE uid=@id", new { id = _masterId }));
-        Assert.AreEqual(0, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM public.product_neutral"));
-        Assert.IsNull(_session.Transaction);
-    }
-
-    /// <summary>无效供应商在整次事务内拒绝，未授权供应商同步时不新增启用校验。</summary>
-    [TestMethod]
-    [DataRow(false)] [DataRow(true)]
-    public async Task InactiveSupplier_RejectsOnlySelectedSynchronization(bool detail)
-    {
-        await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=FALSE WHERE uid=@id", new { id = _supplierId });
-        Assert.IsFalse(await SaveAsync(detail, false, true));
-        Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT version FROM public.product_master WHERE uid=@id", new { id = _masterId }));
-        Assert.IsTrue(await SaveAsync(detail, false, false));
+        Assert.IsTrue(stale.Success, stale.Message);
     }
 
     /// <summary>主型号或明细旧版本拒绝整个保存，不更改关联物料。</summary>
@@ -186,7 +138,7 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task VersionConflict_DoesNotSynchronize(string scenario)
     {
         var product = await AddProductAsync(_masterId);
-        var request = DetailRequest(true, true);
+        var request = DetailRequest();
         if (scenario == "neutral")
         {
             var row = new ProductNeutral { ProductMasterId = _masterId, ProductCode = "N", ColorId = _colorId };
@@ -206,141 +158,17 @@ public sealed class ProductMasterSynchronizationSqlTests
     public async Task CreateWithoutLinks_AndDelete_DoNotMutateProducts()
     {
         var product = await AddProductAsync(_masterId);
-        var create = DetailRequest(true, true);
+        var create = DetailRequest();
         create.ProductMasterId = Guid.Empty;
         create.ExpectedVersion = 0;
         Assert.IsTrue((await _service.SaveDetailAsync(create)).Success);
         var deleted = await _service.BatchSaveAsync(new()
         {
-            UpdateProductDescriptions = true, UpdateProductDefaultSupplier = true,
+            ContractVersion = 3,
             DeleteItems = [new() { Uid = _masterId, Version = 1 }]
         });
         Assert.IsTrue(deleted.Success, deleted.Message);
         Assert.AreEqual(1, (await _products.GetByIdAsync(product.Uid))!.Version);
-    }
-
-    /// <summary>后一个主型号同步失败，回滚前一个已经同步的物料及同批新增主型号。</summary>
-    [TestMethod]
-    public async Task LaterBatchSyncFailure_RollsBackEarlierSyncAndCreate()
-    {
-        var other = (await _scope.ServiceProvider.GetRequiredService<IProductMasterRepository>()
-            .AddAsync(new ProductMaster { MasterSku = "OTHER" })).Uid;
-        var ids = new[] { _masterId, other }.OrderBy(id => id).ToArray();
-        var first = await AddProductAsync(ids[0]);
-        var last = await AddProductAsync(ids[1]);
-        await _session.Connection.ExecuteAsync("ALTER TABLE public.product ADD CONSTRAINT ck_test_later_failure CHECK (description_en <> 'FAIL');");
-        var result = await _service.BatchSaveAsync(new()
-        {
-            UpdateProductDescriptions = true,
-            CreateItems = [new() { Data = new() { MasterSku = "CREATED" } }],
-            UpdateItems =
-            [
-                new() { Uid = ids[0], Version = 1, Data = new() { MasterSku = "FIRST", DefaultDescriptionEn = "OK" } },
-                new() { Uid = ids[1], Version = 1, Data = new() { MasterSku = "LAST", DefaultDescriptionEn = "FAIL" } }
-            ]
-        });
-        Assert.IsFalse(result.Success);
-        Assert.AreEqual(1, (await _products.GetByIdAsync(first.Uid))!.Version);
-        Assert.AreEqual("原描述", (await _products.GetByIdAsync(first.Uid))!.DescriptionEn);
-        Assert.AreEqual(1, (await _products.GetByIdAsync(last.Uid))!.Version);
-        Assert.AreEqual(2, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM public.product_master"));
-        Assert.AreEqual(0, await _session.Connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM public.product_master WHERE version<>1"));
-    }
-
-    /// <summary>五种独立下发从数据库读取现值，只更新所选字段组及关联产品；重复下发不改变版本。</summary>
-    [TestMethod]
-    [DataRow("descriptions")]
-    [DataRow("features")]
-    [DataRow("supplier")]
-    [DataRow("weight-volume")]
-    [DataRow("all")]
-    public async Task IndependentSync_UpdatesSelectedGroupsOnly(string group)
-    {
-        await _session.Connection.ExecuteAsync("""
-            UPDATE public.product_master SET default_description_en='新英文', default_description_zh='新中文',
-                default_features_en='新配置', default_features_zh=NULL, default_supplier_id=@supplierId,
-                default_gross_weight=12.5, default_cbm=0.75 WHERE uid=@masterId
-            """, new { supplierId = _supplierId, masterId = _masterId });
-        var active = await AddProductAsync(_masterId);
-        var inactive = await AddProductAsync(_masterId, active: false);
-        var deleted = await AddProductAsync(_masterId, deleted: true);
-        var unlinked = await AddProductAsync(null);
-        var fields = group switch
-        {
-            "descriptions" => ProductMasterSyncFields.Descriptions,
-            "features" => ProductMasterSyncFields.Features,
-            "supplier" => ProductMasterSyncFields.Supplier,
-            "weight-volume" => ProductMasterSyncFields.WeightVolume,
-            _ => ProductMasterSyncFields.All
-        };
-        var request = new SyncProductMasterDataRequest { ProductMasterIds = [_masterId] };
-        var result = await _service.SyncProductsAsync(request, fields);
-        Assert.IsTrue(result.Success, result.Message);
-        Assert.AreEqual(1, result.Data.ProductMasterCount);
-        Assert.AreEqual(2, result.Data.UpdatedProductCount);
-        foreach (var id in new[] { active.Uid, inactive.Uid })
-        {
-            var saved = (await _products.GetByIdAsync(id))!;
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.Descriptions) ? "新英文" : "原描述", saved.DescriptionEn);
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.Descriptions) ? "新中文" : "原中文", saved.DescriptionZh);
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.Features) ? "新配置" : "原配置", saved.FeaturesEn);
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.Features) ? null : "原中文配置", saved.FeaturesZh);
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.Supplier) ? _supplierId : Guid.Empty, saved.DefaultSupplierId);
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.WeightVolume) ? 12.5m : null, saved.UnitWeight);
-            Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.WeightVolume) ? 0.75m : null, saved.UnitCBM);
-            Assert.AreEqual("OLD", saved.MasterSku);
-            Assert.AreEqual(2, saved.Version);
-        }
-        foreach (var id in new[] { deleted.Uid, unlinked.Uid })
-            Assert.AreEqual(1, await _session.Connection.ExecuteScalarAsync<int>("SELECT version FROM public.product WHERE uid=@id", new { id }));
-        var repeated = await _service.SyncProductsAsync(request, fields);
-        Assert.IsTrue(repeated.Success, repeated.Message);
-        Assert.AreEqual(0, repeated.Data.UpdatedProductCount);
-        Assert.AreEqual(2, (await _products.GetByIdAsync(active.Uid))!.Version);
-    }
-
-    /// <summary>多个主型号合并下发；无关联源成功返回零，空值照实清除。</summary>
-    [TestMethod]
-    public async Task IndependentSync_MultipleSources_AndEmptyValues()
-    {
-        var otherId = (await _scope.ServiceProvider.GetRequiredService<IProductMasterRepository>()
-            .AddAsync(new ProductMaster { MasterSku = "OTHER", DefaultDescriptionEn = "OTHER-DESC" })).Uid;
-        var first = await AddProductAsync(_masterId);
-        var second = await AddProductAsync(otherId);
-        var request = new SyncProductMasterDataRequest { ProductMasterIds = [_masterId, otherId] };
-        var result = await _service.SyncProductsAsync(request, ProductMasterSyncFields.Descriptions | ProductMasterSyncFields.Supplier);
-        Assert.IsTrue(result.Success, result.Message);
-        Assert.AreEqual(2, result.Data.UpdatedProductCount);
-        Assert.IsNull((await _products.GetByIdAsync(first.Uid))!.DescriptionEn);
-        Assert.AreEqual("OTHER-DESC", (await _products.GetByIdAsync(second.Uid))!.DescriptionEn);
-        Assert.IsNull((await _products.GetByIdAsync(first.Uid))!.DefaultSupplierId);
-        var noLinks = await _service.SyncProductsAsync(new() { ProductMasterIds = [Guid.NewGuid()] }, ProductMasterSyncFields.Features);
-        Assert.IsFalse(noLinks.Success, "不存在的来源不能被当成无关联来源。");
-        var emptySource = (await _scope.ServiceProvider.GetRequiredService<IProductMasterRepository>()
-            .AddAsync(new ProductMaster { MasterSku = "EMPTY" })).Uid;
-        var empty = await _service.SyncProductsAsync(new() { ProductMasterIds = [emptySource] }, ProductMasterSyncFields.All);
-        Assert.IsTrue(empty.Success, empty.Message);
-        Assert.AreEqual(0, empty.Data.UpdatedProductCount);
-    }
-
-    /// <summary>无效供应商和后续 SQL 失败均回滚整批，不留下部分产品更新。</summary>
-    [TestMethod]
-    public async Task IndependentSync_InvalidSupplierAndSqlFailure_RollBack()
-    {
-        var product = await AddProductAsync(_masterId);
-        await _session.Connection.ExecuteAsync("UPDATE public.product_master SET default_supplier_id=@id, default_gross_weight=55 WHERE uid=@masterId",
-            new { id = _supplierId, masterId = _masterId });
-        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=FALSE WHERE uid=@id", new { id = _supplierId });
-        var request = new SyncProductMasterDataRequest { ProductMasterIds = [_masterId] };
-        Assert.IsFalse((await _service.SyncProductsAsync(request, ProductMasterSyncFields.All)).Success);
-        Assert.AreEqual(1, (await _products.GetByIdAsync(product.Uid))!.Version);
-        await _session.Connection.ExecuteAsync("UPDATE public.supplier SET is_active=TRUE WHERE uid=@id", new { id = _supplierId });
-        await _session.Connection.ExecuteAsync("ALTER TABLE public.product ADD CONSTRAINT ck_test_independent_sync_failure CHECK (unit_weight <> 55)");
-        Assert.IsFalse((await _service.SyncProductsAsync(request, ProductMasterSyncFields.All)).Success);
-        var saved = (await _products.GetByIdAsync(product.Uid))!;
-        Assert.AreEqual("原描述", saved.DescriptionEn);
-        Assert.AreEqual(1, saved.Version);
-        Assert.IsNull(_session.Transaction);
     }
 
     /// <summary>五组拉取只更新所选产品；同主型号的未选产品及重复拉取均不增加版本。</summary>
@@ -381,7 +209,7 @@ public sealed class ProductMasterSynchronizationSqlTests
         Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.Supplier) ? _supplierId : Guid.Empty, saved.DefaultSupplierId);
         Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.WeightVolume) ? 12.5m : null, saved.UnitWeight);
         Assert.AreEqual(fields.HasFlag(ProductMasterSyncFields.WeightVolume) ? 0.75m : null, saved.UnitCBM);
-        Assert.AreEqual("OLD", saved.MasterSku);
+        Assert.AreEqual("OLD", (await _products.GetDtoByIdAsync(selected.Uid))!.MasterSku);
         Assert.AreEqual(2, saved.Version);
         Assert.AreEqual(1, (await _products.GetByIdAsync(untouched.Uid))!.Version);
         var repeated = await _service.PullProductsAsync(request, fields);
@@ -434,7 +262,7 @@ public sealed class ProductMasterSynchronizationSqlTests
     {
         var product = new Product
         {
-            ProductMasterId = masterId, MasterSku = "OLD", Sku = Guid.NewGuid().ToString("N"),
+            ProductMasterId = masterId, Sku = Guid.NewGuid().ToString("N"),
             SupplyType = "采购", IsActive = active, IsDeleted = deleted,
             DescriptionEn = "原描述", DescriptionZh = "原中文", FeaturesEn = "原配置", FeaturesZh = "原中文配置",
             DefaultSupplierId = Guid.Empty, CNYPrice = 99m
@@ -446,25 +274,23 @@ public sealed class ProductMasterSynchronizationSqlTests
         return product;
     }
 
-    private SaveProductMasterDetailRequest DetailRequest(bool descriptions, bool supplier) => new()
+    private SaveProductMasterDetailRequest DetailRequest() => new()
     {
+        ContractVersion = 3,
         ProductMasterId = _masterId, ExpectedVersion = 1,
-        UpdateProductDescriptions = descriptions, UpdateProductDefaultSupplier = supplier,
         Master = new() { MasterSku = " NEW ", DefaultDescriptionEn = " 英文描述 ", DefaultDescriptionZh = "中文描述",
             DefaultFeaturesEn = "英文配置", DefaultFeaturesZh = " ", DefaultSupplierId = _supplierId }
     };
 
     private static ProductMasterBatchSaveRequest BatchRequest(SaveProductMasterDetailRequest request) => new()
     {
-        UpdateProductDescriptions = request.UpdateProductDescriptions,
-        UpdateProductDefaultSupplier = request.UpdateProductDefaultSupplier,
+        ContractVersion = 3,
         UpdateItems = [new() { Uid = request.ProductMasterId, Version = request.ExpectedVersion, Data = request.Master }]
     };
 
-    private async Task<bool> SaveAsync(bool detail, bool descriptions, bool supplier, bool addNeutral = false)
+    private async Task<bool> SaveAsync(bool detail)
     {
-        var request = DetailRequest(descriptions, supplier);
-        if (addNeutral) request.CreateNeutrals.Add(new() { Data = new() { ProductCode = "N", ColorId = _colorId } });
+        var request = DetailRequest();
         return detail ? (await _service.SaveDetailAsync(request)).Success : (await _service.BatchSaveAsync(BatchRequest(request))).Success;
     }
 

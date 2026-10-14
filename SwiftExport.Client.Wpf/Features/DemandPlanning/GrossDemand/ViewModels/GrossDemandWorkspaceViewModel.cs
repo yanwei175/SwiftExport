@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
+using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.Errors;
-using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExportClient.Authentication;
 using SwiftExport.Contracts.SysEnums;
+using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
@@ -20,7 +20,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
-/// <summary>管理来源需求本体查询、来源导航及当前兼容的手工需求与拆解命令。</summary>
+/// <summary>管理成品需求本体查询、来源导航及当前兼容的手工需求与拆解命令。</summary>
 public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     IAsyncInitializable,
     IDocumentTabViewModel,
@@ -373,7 +373,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             {
                 _pendingClose = new CloseGrossDemandCommand
                 {
-                    CommandId = Guid.NewGuid(), Uid = selected!.Uid, Version = selected.Version,
+                    CommandId = Guid.NewGuid(),
+                    Uid = selected!.Uid,
+                    Version = selected.Version,
                     Reason = "用户从毛需求工作台关闭手工需求"
                 };
             }
@@ -406,7 +408,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     #region 抽屉与来源追溯
 
-    /// <summary>用来源需求 Uid 打开独立只读追踪，页面重新加载当前下游证据。</summary>
+    /// <summary>用成品需求 Uid 打开独立只读追踪，页面重新加载当前下游证据。</summary>
     [RelayCommand(CanExecute = nameof(CanUseSelected))]
     private async Task OpenTraceAsync()
     {
@@ -446,13 +448,13 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             }
             else
             {
-                _messageService.ShowInfo("来源导航", "该手工来源当前不可编辑，请在来源需求列表查看保留的来源快照。");
+                _messageService.ShowInfo("来源导航", "该手工来源当前不可编辑，请在成品需求列表查看保留的来源快照。");
             }
 
             return;
         }
 
-        _messageService.ShowInfo("来源导航", "该来源类型尚未接入独立单据页面，请在来源需求列表查看保留的来源快照。");
+        _messageService.ShowInfo("来源导航", "该来源类型尚未接入独立单据页面，请在成品需求列表查看保留的来源快照。");
     }
 
     [RelayCommand]

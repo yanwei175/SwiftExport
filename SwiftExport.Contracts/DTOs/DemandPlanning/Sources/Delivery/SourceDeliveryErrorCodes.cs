@@ -7,11 +7,11 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.SourceDemandDelivery
         public const string QueryUnavailable = "DELIVERY_QUERY_UNAVAILABLE";
         /// <summary>查询参数或额度声明格式无效。</summary>
         public const string ClaimInvalid = "SOURCE_DELIVERY_CLAIM_INVALID";
-        /// <summary>指定的来源需求不存在或已删除。</summary>
+        /// <summary>指定的成品需求不存在或已删除。</summary>
         public const string NotFound = "SOURCE_DELIVERY_NOT_FOUND";
-        /// <summary>来源需求已关闭、作废或缺少交付客户。</summary>
+        /// <summary>成品需求已关闭、作废或缺少交付客户。</summary>
         public const string Inactive = "SOURCE_DELIVERY_INACTIVE";
-        /// <summary>来源需求或上游事实版本已经变化。</summary>
+        /// <summary>成品需求或上游事实版本已经变化。</summary>
         public const string VersionConflict = "SOURCE_DELIVERY_VERSION_CONFLICT";
         /// <summary>聚合申报数量超过当前剩余可交付量。</summary>
         public const string Exceeded = "SOURCE_DELIVERY_EXCEEDED";

@@ -34,7 +34,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
         [Post("/save")]
         Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync([Body] SaveSalesOrderRequest request);
 
-        /// <summary>确认销售订单并接收来源需求。</summary>
+        /// <summary>确认销售订单并接收成品需求。</summary>
         [Post("/{uid}/confirm")]
         Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync(
             Guid uid,
@@ -52,7 +52,7 @@ namespace SwiftExport.Contracts.Apis.SalesOrderApis
             Guid uid,
             [Body] CloseSalesOrderRequest request);
 
-        /// <summary>删除未确认且无来源需求的销售订单草稿。</summary>
+        /// <summary>删除未确认且无成品需求的销售订单草稿。</summary>
         [Post("/{uid}/delete-draft")]
         Task<ServiceResult<bool>> DeleteDraftAsync(
             Guid uid,

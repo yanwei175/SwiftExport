@@ -21,11 +21,11 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning
         public const string SourceVersionConflict = "SOURCE_VERSION_CONFLICT";
         /// <summary>提交来源版本早于已接收版本。</summary>
         public const string StaleSourceVersion = "STALE_SOURCE_VERSION";
-        /// <summary>待建立或回退的来源需求不存在。</summary>
+        /// <summary>待建立或回退的成品需求不存在。</summary>
         public const string SourceNotFound = "SOURCE_NOT_FOUND";
-        /// <summary>来源需求自身版本已变化。</summary>
+        /// <summary>成品需求自身版本已变化。</summary>
         public const string SourceChanged = "SOURCE_CHANGED";
-        /// <summary>来源需求不是可建立物料的活动状态。</summary>
+        /// <summary>成品需求不是可建立物料的活动状态。</summary>
         public const string InvalidSourceLifecycle = "INVALID_SOURCE_LIFECYCLE";
         /// <summary>来源行存在重复活动需求。</summary>
         public const string DuplicateActiveSource = "DUPLICATE_ACTIVE_SOURCE";
@@ -49,7 +49,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning
         public const string ProductionCustomerSuppliedNotSupported = "PRODUCTION_CUSTOMER_SUPPLIED_NOT_SUPPORTED";
         /// <summary>来源商业事实变化需要先处置既有采用。</summary>
         public const string SourceChangeRequiresDisposition = "SOURCE_CHANGE_REQUIRES_DISPOSITION";
-        /// <summary>来源需求数量与来源行不一致。</summary>
+        /// <summary>成品需求数量与来源行不一致。</summary>
         public const string SourceDemandMismatch = "SOURCE_DEMAND_MISMATCH";
         /// <summary>来源仍有有效下游采用，不能退出。</summary>
         public const string SourceExitBlocked = "SOURCE_EXIT_BLOCKED";

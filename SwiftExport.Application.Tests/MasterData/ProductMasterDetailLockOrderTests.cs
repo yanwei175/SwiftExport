@@ -8,10 +8,13 @@ using SwiftExport.Application.Services.Products.ProductMasters.Maintenance;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
+using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
 using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Core.Interfaces.Products.Catalog;
+using SwiftExport.Core.Interfaces.Products.Attributes;
 using SwiftExport.Core.Interfaces.Products.Categories;
 using SwiftExport.Core.Interfaces.Products.Colors;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
@@ -114,7 +117,7 @@ public sealed class ProductMasterDetailLockOrderTests
 
         Assert.IsTrue(result.Success, result.Message);
         fixture.AssertLockPrefix(withNeutral);
-        Assert.AreEqual(withNeutral ? 3 : 2, fixture.WriteCount);
+        Assert.AreEqual(withNeutral ? 2 : 1, fixture.WriteCount);
         Assert.AreEqual(4, result.Data.Detail.Version);
         Assert.AreEqual(withNeutral ? 1 : 0, result.Data.Detail.Neutrals.Count);
         Assert.AreEqual(1, fixture.Session.ConnectionStub.TransactionStub.CommitCount);
@@ -171,7 +174,7 @@ public sealed class ProductMasterDetailLockOrderTests
         fixture.AssertRollbackWithoutWrites();
     }
 
-    /// <summary>主型号批量第二次新增遭遇编码占用或原失败时，撤销第一条写入并停止后续物料同步。</summary>
+    /// <summary>主型号批量第二次新增遭遇编码占用或原失败时，撤销第一条写入。</summary>
     [TestMethod]
     [DataRow("PRODUCT_MASTER_SKU_OCCUPIED", ServiceErrorCodes.Validation, 400)]
     [DataRow("CONCURRENCY_CONFLICT", ServiceErrorCodes.VersionConflict, 409)]
@@ -229,6 +232,99 @@ public sealed class ProductMasterDetailLockOrderTests
         fixture.AssertWriteRollback(2);
     }
 
+    /// <summary>删除来源主型号允许留下失效物料引用及其独立标签；实际删除用例不能因物料标签阻断或隐式清理。</summary>
+    [TestMethod]
+    public async Task DeleteMaster_WithLinkedProductTags_PreservesProductReferenceAndSelections()
+    {
+        var product = new Product { Uid = Guid.NewGuid(), Sku = "SOURCE-DELETE-PRODUCT" };
+        var selection = new ProductAttributeSelection
+        {
+            OwnerType = ProductAttributeOwnerType.Product, OwnerId = product.Uid, OptionId = Guid.NewGuid()
+        };
+        var groupId = Guid.NewGuid();
+        var productSelectionReads = 0;
+        var groupLocks = 0;
+        // 只提供删除用例必需的读取；任何选择写入都作为意外调用失败，避免“空读取”绕开回归。
+        var attributes = Proxy<IProductAttributeRepository>((method, args) => method switch
+        {
+            "GetProfilesAsync" => Task.FromResult<IReadOnlyList<SysDictData>>([]),
+            "GetSelectionsAsync" => ReadSelections((ProductAttributeOwnerType)args[0]!, (IEnumerable<Guid>)args[1]!),
+            "GetGroupIdsForOptionsAsync" => Task.FromResult<IReadOnlyList<Guid>>(
+                ((IEnumerable<Guid>)args[0]!).Contains(selection.OptionId) ? [groupId] : []),
+            "LockGroupsForSelectionAsync" => LockGroups((IEnumerable<Guid>)args[0]!),
+            _ => throw new AssertFailedException($"删除主型号不应调用物料标签维护：{method}。")
+        });
+        var fixture = new Fixture(attributes) { LinkedProduct = product };
+        var masterId = fixture.CreateRequest(false).ProductMasterId;
+        product.ProductMasterId = masterId;
+
+        var result = await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
+        {
+            ContractVersion = 3,
+            DeleteItems = [new() { Uid = masterId, Version = 3 }]
+        });
+
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.IsTrue(fixture.MasterDeleted);
+        Assert.IsTrue(productSelectionReads > 0, "必须真实读取关联物料的选择，不能依赖空标签夹具绕过保护。");
+        Assert.AreEqual(1, groupLocks);
+        Assert.AreEqual(masterId, product.ProductMasterId);
+        Assert.AreEqual(ProductAttributeOwnerType.Product, selection.OwnerType);
+        Assert.AreEqual(product.Uid, selection.OwnerId);
+        Assert.IsFalse(selection.IsDeleted);
+        Assert.AreEqual(1, fixture.WriteCount);
+        Assert.IsFalse(fixture.Calls.Contains("product.write"));
+        Assert.AreEqual(1, fixture.Session.ConnectionStub.TransactionStub.CommitCount);
+        Assert.AreEqual(0, fixture.Session.ConnectionStub.TransactionStub.RollbackCount);
+        fixture.AssertTransactionReleased();
+
+        // 按对象类型提供真实非空物料选择；主型号自身没有选择，删除它不会触及本物料关系。
+        Task<IReadOnlyList<ProductAttributeSelection>> ReadSelections(ProductAttributeOwnerType ownerType, IEnumerable<Guid> ids)
+        {
+            if (ownerType != ProductAttributeOwnerType.Product) return Task.FromResult<IReadOnlyList<ProductAttributeSelection>>([]);
+            productSelectionReads++;
+            return Task.FromResult<IReadOnlyList<ProductAttributeSelection>>(ids.Contains(product.Uid) ? [selection] : []);
+        }
+
+        // 仍保留定义共享锁的调用证据，本测试不宣称模拟真实 PostgreSQL 的锁竞争。
+        Task<IReadOnlyList<ProductAttributeGroup>> LockGroups(IEnumerable<Guid> ids)
+        {
+            CollectionAssert.AreEqual(new[] { groupId }, ids.ToArray());
+            groupLocks++;
+            return Task.FromResult<IReadOnlyList<ProductAttributeGroup>>([new ProductAttributeGroup { Uid = groupId }]);
+        }
+    }
+
+    /// <summary>列表和详情修改描述、配置、供应商及重量体积时，只写主型号，不隐式写关联物料。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task MasterSave_DoesNotOverwriteProductData(bool batch)
+    {
+        var fixture = new Fixture();
+        var request = fixture.CreateRequest(false);
+        request.Master.DefaultDescriptionEn = "主型号描述";
+        request.Master.DefaultFeaturesZh = "主型号配置";
+        request.Master.DefaultGrossWeight = 12.5m;
+        request.Master.DefaultCbm = 0.5m;
+        var success = batch
+            ? (await fixture.Service.BatchSaveAsync(new ProductMasterBatchSaveRequest
+            {
+                ContractVersion = 3,
+                UpdateItems = [new() { Uid = request.ProductMasterId, Version = request.ExpectedVersion, Data = request.Master }]
+            })).Success
+            : (await fixture.Service.SaveDetailAsync(request)).Success;
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(1, fixture.WriteCount);
+        Assert.AreEqual("主型号描述", fixture.WrittenMasters.Single().DefaultDescriptionEn);
+        Assert.AreEqual("主型号配置", fixture.WrittenMasters.Single().DefaultFeaturesZh);
+        Assert.AreEqual(12.5m, fixture.WrittenMasters.Single().DefaultGrossWeight);
+        Assert.AreEqual(0.5m, fixture.WrittenMasters.Single().DefaultCbm);
+        Assert.AreEqual(1, fixture.Session.ConnectionStub.TransactionStub.CommitCount);
+        fixture.AssertTransactionReleased();
+    }
+
     /// <summary>受控仓储记录实际调用和写入，使用会话契约提供带快照回滚的离线事务，不执行 SQL。</summary>
     private sealed class Fixture
     {
@@ -241,21 +337,24 @@ public sealed class ProductMasterDetailLockOrderTests
         private int _version = 3;
 
         /// <summary>构造真实业务服务，全部仓储共享同一受控会话。</summary>
-        public Fixture()
+        public Fixture(IProductAttributeRepository? attributes = null)
         {
             var originalVersion = _version;
+            var originalDeleted = MasterDeleted;
             ProductNeutralDto[] originalNeutrals = [];
             Guid[] originalMasters = [];
             // 仅恢复本夹具暂存的新增和头版本，不声称模拟真实数据库的约束或锁竞争。
             Session.ConnectionStub.OnBegin = () =>
             {
                 originalVersion = _version;
+                originalDeleted = MasterDeleted;
                 originalNeutrals = _neutrals.ToArray();
                 originalMasters = _createdMasters.ToArray();
             };
             Session.ConnectionStub.TransactionStub.OnRollback = () =>
             {
                 _version = originalVersion;
+                MasterDeleted = originalDeleted;
                 _neutrals.Clear();
                 _neutrals.AddRange(originalNeutrals);
                 _createdMasters.Clear();
@@ -270,7 +369,7 @@ public sealed class ProductMasterDetailLockOrderTests
                 Proxy<IProductColorRepository>((method, args) => ReferenceCall<ProductColor>(method, args, "color", _colorId,
                     ColorExists ? [new ProductColor { Uid = _colorId }] : [])),
                 Proxy<IProductRepository>(ProductCall),
-                new EmptyProductAttributeRepository(),
+                attributes ?? new EmptyProductAttributeRepository(),
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 
@@ -287,6 +386,10 @@ public sealed class ProductMasterDetailLockOrderTests
         public string WriteErrorCode { get; set; } = "WRITE_FAILED";
         public bool ThrowOnWriteFailure { get; set; }
         public int CreatedMasterCount => _createdMasters.Count;
+        /// <summary>删除场景可指定独立物料，仓储只返回其身份，不修改来源或选值。</summary>
+        public Product? LinkedProduct { get; set; }
+        /// <summary>记录主型号软删除结果，供真实批量删除路径验收。</summary>
+        public bool MasterDeleted { get; private set; }
 
         /// <summary>创建使用有效父引用的头部请求，可附带一条新增中性明细。</summary>
         public SaveProductMasterDetailRequest CreateRequest(bool withNeutral) => new()
@@ -332,7 +435,7 @@ public sealed class ProductMasterDetailLockOrderTests
             Assert.AreEqual(1, Session.ConnectionStub.TransactionStub.DisposeCount);
         }
 
-        /// <summary>确认成功的前序暂存写入已撤销，错误之后没有同步或保存后重读，且事务已释放。</summary>
+        /// <summary>确认成功的前序暂存写入已撤销，错误之后没有保存后重读，且事务已释放。</summary>
         public void AssertWriteRollback(int attempts)
         {
             Assert.AreEqual(attempts, WriteCount);
@@ -383,6 +486,14 @@ public sealed class ProductMasterDetailLockOrderTests
             Assert.IsNotNull(Session.Transaction);
             switch (method)
             {
+                case "GetByIdAsync":
+                    Assert.AreEqual(_masterId, args[0]);
+                    Assert.AreEqual(true, args[1]);
+                    Calls.Add("master.lock");
+                    return Task.FromResult<ProductMaster?>(new ProductMaster
+                    {
+                        Uid = _masterId, Version = _version, CategoryId = _categoryId, IsDeleted = MasterDeleted
+                    });
                 case "GetDetailHeaderAsync":
                     Assert.AreEqual(_masterId, args[0]);
                     Calls.Add((bool)args[1]! ? "master.lock" : "master.read");
@@ -425,6 +536,15 @@ public sealed class ProductMasterDetailLockOrderTests
                     WrittenMasters.Add(master);
                     SuccessfulWrites++;
                     return Task.FromResult(RepositoryWriteResult.Ok(_masterId, master.Version, ++_version));
+                case "DeleteAsync":
+                    Assert.AreEqual(_masterId, args[0]);
+                    Assert.AreEqual(_version, args[1]);
+                    Assert.AreEqual(true, args[2]);
+                    Calls.Add("master.delete");
+                    WriteCount++;
+                    MasterDeleted = true;
+                    SuccessfulWrites++;
+                    return Task.FromResult(RepositoryWriteResult.Ok(_masterId, _version, ++_version));
                 default:
                     throw new AssertFailedException($"未预期的主型号仓储调用：{method}。");
             }
@@ -436,6 +556,11 @@ public sealed class ProductMasterDetailLockOrderTests
             Assert.IsNotNull(Session.Transaction);
             switch (method)
             {
+                case "SoftDeleteByProductMasterIdAsync":
+                    Assert.AreEqual(_masterId, args[0]);
+                    Calls.Add("neutral.delete");
+                    _neutrals.Clear();
+                    return Task.FromResult(RepositoryWriteResult.Ok(_masterId, null, null));
                 case "GetByProductMasterIdAsync":
                     Assert.AreEqual(_masterId, args[0]);
                     Calls.Add((bool)args[1]! ? "neutral.lock" : "neutral.read");
@@ -464,19 +589,13 @@ public sealed class ProductMasterDetailLockOrderTests
             }
         }
 
-        /// <summary>把物料同步也计为写入，防止失败路径漏检这项业务副作用。</summary>
+        /// <summary>只允许读取关联物料身份；主型号保存发生任何物料写入都立即失败。</summary>
         private object ProductCall(string method, object?[] args)
         {
-            if (method == "GetIdsByProductMasterIdsAsync") return Task.FromResult<IReadOnlyList<Guid>>([]);
-            Assert.AreEqual("SyncFromProductMasterAsync", method);
-            Assert.IsNotNull(Session.Transaction);
-            // 详情沿用既有标识；列表新增只允许同步仓储刚返回的持久化标识。
-            var sourceId = ((ProductMaster)args[0]!).Uid;
-            if (_createdMasters.Count > 0) Assert.IsTrue(_createdMasters.Contains(sourceId));
-            else Assert.AreEqual(_masterId, sourceId);
-            Calls.Add("product.write");
-            WriteCount++;
-            return Task.FromResult(0);
+            if (method == "GetIdsByProductMasterIdsAsync")
+                return Task.FromResult<IReadOnlyList<Guid>>(LinkedProduct is { ProductMasterId: { } masterId } linked
+                    && ((IEnumerable<Guid>)args[0]!).Contains(masterId) ? [linked.Uid] : []);
+            throw new AssertFailedException($"主型号保存不应写入物料：{method}。");
         }
     }
 

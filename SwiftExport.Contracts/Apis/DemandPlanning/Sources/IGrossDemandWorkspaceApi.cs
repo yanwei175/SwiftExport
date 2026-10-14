@@ -23,7 +23,7 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         [Get("/{uid}")]
         Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>读取指定来源需求的拆解、采购与交付历史。</summary>
+        /// <summary>读取指定成品需求的拆解、采购与交付历史。</summary>
         [Get("/{uid}/trace")]
         Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
 

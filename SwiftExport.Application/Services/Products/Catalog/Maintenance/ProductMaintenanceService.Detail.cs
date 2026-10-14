@@ -49,7 +49,9 @@ public partial class ProductMaintenanceService
             var validation = await ValidateBatchSaveAsync(batch);
             if (!string.IsNullOrWhiteSpace(validation))
                 throw new ProductDetailWriteException(ServiceErrorCodes.BusinessBlocked, validation);
-            await ValidateProductSelectionsAsync(locked.ProfileId, locked.SelectedOptionIds, cancellationToken);
+            // 未提交标签变更时仅保持既有身份，允许来源丢失或改挂后继续维护物料基础资料。
+            if (request.SelectedOptionIds is not null)
+                await ValidateProductSelectionsAsync(locked.ProfileId, locked.SelectedOptionIds, cancellationToken);
             await WriteBatchInCurrentTransactionAsync(batch, new ProductBatchSaveResponse { TotalCount = 1 },
                 new Dictionary<Guid, Product> { [request.ProductId] = candidate }, cancellationToken);
             if (request.SelectedOptionIds is not null)
@@ -110,42 +112,52 @@ public partial class ProductMaintenanceService
         }
     }
 
-    /// <summary>先观察来源和组范围，再依次锁模板、组、来源主型号和物料；锁后范围变化直接冲突，不逆序补锁。</summary>
+    /// <summary>观察旧、新独立主型号，按模板、组、主型号及物料顺序锁定；中性来源不参与模板推导或归属校验。</summary>
     private async Task<(Product Product, Guid? ProfileId, IReadOnlyList<Guid> SelectedOptionIds)> LockProductDetailAsync(
         SaveProductDetailRequest request, CancellationToken cancellationToken)
     {
         var observed = await productRepository.GetByIdAsync(request.ProductId, cancellationToken);
         if (observed is null || observed.IsDeleted)
             throw new ProductDetailWriteException(ServiceErrorCodes.NotFound, "物料不存在或已删除。");
-        var observedMaster = observed.ProductMasterId.HasValue
-            ? await masterRepository.GetByIdAsync(observed.ProductMasterId.Value) : null;
-        var profileId = observedMaster is { IsDeleted: false } ? observedMaster.ProductAttributeProfileId : null;
+        var masterIds = new[] { observed.ProductMasterId, request.Data.ProductMasterId }
+            .Where(id => id.HasValue).Select(id => id!.Value).Distinct().OrderBy(id => id).ToArray();
+        var observedMasters = new Dictionary<Guid, ProductMaster?>();
+        foreach (var id in masterIds)
+            observedMasters[id] = await masterRepository.GetByIdAsync(id);
+        var finalMaster = request.Data.ProductMasterId.HasValue
+            ? observedMasters.GetValueOrDefault(request.Data.ProductMasterId.Value) : null;
+        var profileId = finalMaster is { IsDeleted: false } ? finalMaster.ProductAttributeProfileId : null;
         var oldSelections = await attributeRepository.GetSelectionsAsync(ProductAttributeOwnerType.Product, [request.ProductId], cancellationToken);
         var selectedIds = request.SelectedOptionIds?.ToArray() ?? oldSelections.Select(row => row.OptionId).ToArray();
         var lockedGroups = (await attributeRepository.GetGroupIdsForOptionsAsync(oldSelections.Select(row => row.OptionId)
             .Concat(selectedIds).Distinct(), cancellationToken)).ToHashSet();
-        var profiles = await attributeRepository.GetProfilesAsync(profileId.HasValue ? [profileId.Value] : [], true, cancellationToken);
+        var profileIds = observedMasters.Values.Where(row => row is { IsDeleted: false } && row.ProductAttributeProfileId.HasValue)
+            .Select(row => row!.ProductAttributeProfileId!.Value).Distinct().OrderBy(id => id).ToArray();
+        var profiles = await attributeRepository.GetProfilesAsync(profileIds, true, cancellationToken);
         await attributeRepository.LockGroupsForSelectionAsync(lockedGroups.OrderBy(id => id), cancellationToken);
         // 当前资料引用沿用颜色、供应商及仓库的读取顺序；只读校验没有引入反向父锁。
         var referenceError = await ValidateMasterDataReferencesAsync([(request.Data.Adapt<ProductDto>(), observed)]);
         if (referenceError is not null) throw new ProductDetailWriteException(ServiceErrorCodes.BusinessBlocked, referenceError);
-        var lockedMaster = observed.ProductMasterId.HasValue
-            ? await masterRepository.GetByIdAsync(observed.ProductMasterId.Value, true) : null;
-        if (lockedMaster?.IsDeleted != observedMaster?.IsDeleted
-            || lockedMaster?.ProductAttributeProfileId != observedMaster?.ProductAttributeProfileId)
-            throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "来源主型号或属性模板已变化，请刷新后重新保存。");
+        foreach (var id in masterIds)
+        {
+            var lockedMaster = await masterRepository.GetByIdAsync(id, true);
+            var before = observedMasters[id];
+            if (lockedMaster?.IsDeleted != before?.IsDeleted || lockedMaster?.ProductAttributeProfileId != before?.ProductAttributeProfileId)
+                throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "来源主型号或属性模板已变化，请刷新后重新保存。");
+        }
         var product = await productRepository.GetByIdAsync(request.ProductId, true);
         if (product is null || product.IsDeleted)
             throw new ProductDetailWriteException(ServiceErrorCodes.NotFound, "物料不存在或已删除。");
-        if (product.Version != request.ExpectedVersion || product.ProductMasterId != observed.ProductMasterId)
-            throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "物料版本或所属主型号已变化，请刷新后重新保存。");
+        if (product.Version != request.ExpectedVersion || product.ProductMasterId != observed.ProductMasterId
+            || product.ProductNeutralId != observed.ProductNeutralId)
+            throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "物料版本或来源关系已变化，请刷新后重新保存。");
         var currentSelections = await attributeRepository.GetSelectionsAsync(ProductAttributeOwnerType.Product, [request.ProductId], cancellationToken);
         var finalIds = request.SelectedOptionIds?.ToArray() ?? currentSelections.Select(row => row.OptionId).ToArray();
         var requiredGroups = (await attributeRepository.GetGroupIdsForOptionsAsync(currentSelections.Select(row => row.OptionId)
             .Concat(finalIds).Distinct(), cancellationToken)).ToHashSet();
         if (!requiredGroups.SetEquals(lockedGroups))
             throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "标签定义或物料选择已变化，请刷新后重新保存。");
-        if (finalIds.Length > 0 && (!profileId.HasValue || !profiles.Any(row => row.Uid == profileId.Value && !row.IsDeleted
+        if (request.SelectedOptionIds is not null && finalIds.Length > 0 && (!profileId.HasValue || !profiles.Any(row => row.Uid == profileId.Value && !row.IsDeleted
             && row.IsEnabled && string.Equals(row.DictCode?.Trim(), DictCodes.ProductAttributeProfile, StringComparison.OrdinalIgnoreCase))))
             throw new ProductDetailWriteException(ServiceErrorCodes.Validation, "来源主型号没有有效属性模板，不能保存非空标签选择。");
         return (product, profileId, finalIds);

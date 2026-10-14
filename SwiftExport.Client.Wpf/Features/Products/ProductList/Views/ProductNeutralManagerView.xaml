@@ -72,8 +72,7 @@
                                    Command="{Binding DeleteSelectedCommand}"
                                    ToolTip="删除产品"/>
 
-                        <ui:Button Content="放弃修改" Margin="0,0,8,0" MinWidth="70"  
-                                   Appearance="Transparent"
+                        <ui:Button Content="放弃修改" Margin="0,0,8,0" MinWidth="70"
                                 Command="{Binding RejectListChangesCommand}" 
                                 ToolTip="放弃产品修改"/>
 

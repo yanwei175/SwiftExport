@@ -7,7 +7,7 @@
 <DataGrid ItemsSource="{Binding Lines}" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" MaxHeight="260"><DataGrid.Columns>
 <DataGridTextColumn Header="动作" Binding="{Binding ActionKind}"/><DataGridTextColumn Header="数量" Binding="{Binding Qty}"/><DataGridTextColumn Header="单位" Binding="{Binding Unit}"/>
 <DataGridTextColumn Header="单据编号" Binding="{Binding DocumentNo}"/><DataGridTextColumn Header="流水" Binding="{Binding LedgerId}"/>
-<DataGridTextColumn Header="来源需求" Binding="{Binding GrossDemandId}"/><DataGridTextColumn Header="箱单物理行" Binding="{Binding PackingListLineId}"/>
+<DataGridTextColumn Header="成品需求" Binding="{Binding GrossDemandId}"/><DataGridTextColumn Header="箱单物理行" Binding="{Binding PackingListLineId}"/>
 <DataGridTextColumn Header="原执行行" Binding="{Binding OriginalExecutionLineId}"/>
 <DataGridTextColumn Header="根需求量" Binding="{Binding RootQtySnapshot}"/><DataGridTextColumn Header="子需求量" Binding="{Binding ComponentQtySnapshot}"/>
 </DataGrid.Columns></DataGrid></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>

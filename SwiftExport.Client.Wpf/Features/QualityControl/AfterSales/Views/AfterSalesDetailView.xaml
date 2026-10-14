@@ -243,7 +243,7 @@
                     <TextBlock Text="补件明细" Style="{StaticResource SubtitleTextBlock}" Margin="0,0,16,0" />
                     <ui:Button Content="新增补件" Command="{Binding AddLineCommand}" Margin="0,0,8,0" />
                     <ui:Button Content="删除当前补件" Command="{Binding DeleteLineCommand}" />
-                    <TextBlock Text="无补件可直接保存投诉；空或零数量不创建来源需求。" Margin="16,0,0,0" VerticalAlignment="Center" />
+                    <TextBlock Text="无补件可直接保存投诉；空或零数量不创建成品需求。" Margin="16,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
                 <DataGrid x:Name="ReplacementGrid"  Style="{StaticResource SwiftExportDataGrid}"
                           Grid.Row="2" 

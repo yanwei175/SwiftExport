@@ -180,7 +180,7 @@ public sealed partial class ProductMasterTagSelectionTests
         });
         var cache = Cache(definition);
         using var vm = new ProductMasterDetailViewModel(api, Runner(), cache, Proxy<IMessageService>((_, _) => null),
-            null!, null!, new ProductMasterSyncDialogStub());
+            null!, null!);
         vm.Header.Load(new() { Uid = masterId, Version = 1, Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = FixtureProfileId } });
         vm.Tags.Load(FixtureProfileId, [], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -208,7 +208,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var confirmed = false;
         var cache = Cache(definition, first, next);
         var dialogs = Proxy<IDialogService>((_, _) => Task.FromResult(confirmed));
-        using var vm = new ProductMasterDetailViewModel(null!, null!, cache, null!, dialogs, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, cache, null!, dialogs, null!);
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = first.Uid }, ProductAttributeProfileName = first.DataNameZh });
         vm.Tags.Load(first.Uid, [definition.Options[0].Uid], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -250,7 +250,7 @@ public sealed partial class ProductMasterTagSelectionTests
             return null;
         });
         using var vm = new ProductMasterDetailViewModel(api, Runner(), Cache(definition), Proxy<IMessageService>((_, _) => null),
-            null!, navigation, new ProductMasterSyncDialogStub());
+            null!, navigation);
         vm.Header.Load(new() { Master = new() { MasterSku = "NEW-MASTER", ProductAttributeProfileId = FixtureProfileId } });
         vm.Header.MarkAsAdded();
         var neutral = vm.Neutrals.AddNewNeutral(Guid.Empty);
@@ -282,7 +282,7 @@ public sealed partial class ProductMasterTagSelectionTests
             return Task.FromResult(ServiceResult<SaveProductMasterDetailResponse>.Fail("BusinessBlocked", "测试拒绝"));
         });
         using var vm = new ProductMasterDetailViewModel(api, Runner(), null!, Proxy<IMessageService>((_, _) => null),
-            null!, null!, new ProductMasterSyncDialogStub());
+            null!, null!);
         var category = Guid.NewGuid();
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = category } });
         vm.Tags.Load(category, [Guid.NewGuid()], []);
@@ -317,7 +317,7 @@ public sealed partial class ProductMasterTagSelectionTests
         });
         Task<CacheRefreshResult> Refresh() { calls++; return completion.Task; }
         using var vm = new ProductMasterDetailViewModel(null!, null!, cache, Proxy<IMessageService>((_, _) => null),
-            null!, null!, new ProductMasterSyncDialogStub());
+            null!, null!);
         vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = FixtureProfileId } });
         vm.Tags.Load(FixtureProfileId, [], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -353,7 +353,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var calls = 0;
         var api = Proxy<IProductMasterApi>((_, _) => { calls++; throw new AssertFailedException("只读用户不能发送保存。"); });
         using var vm = new ProductMasterDetailViewModel(api, Runner(), Cache(definition), Proxy<IMessageService>((_, _) => null),
-            null!, null!, new ProductMasterSyncDialogStub(), user);
+            null!, null!, user);
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = FixtureProfileId } });
         vm.Tags.Load(FixtureProfileId, [definition.Options[0].Uid], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -377,7 +377,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var user = new CurrentUserService();
         user.SetCurrentUser(new() { Permissions = [PermissionKeys.ProductsMasterEdit] });
         var definition = Definition();
-        using var vm = new ProductMasterDetailViewModel(null!, null!, Cache(definition), null!, null!, null!, new ProductMasterSyncDialogStub(), user);
+        using var vm = new ProductMasterDetailViewModel(null!, null!, Cache(definition), null!, null!, null!, user);
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = FixtureProfileId } });
         vm.Tags.Load(FixtureProfileId, [], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -414,7 +414,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var next = Profile(Guid.NewGuid(), "新属性模板");
         var confirmation = new TaskCompletionSource<bool>();
         using var vm = new ProductMasterDetailViewModel(null!, null!, Cache(definition, first, next), null!,
-            Proxy<IDialogService>((_, _) => confirmation.Task), null!, new ProductMasterSyncDialogStub(), user);
+            Proxy<IDialogService>((_, _) => confirmation.Task), null!, user);
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = first.Uid }, ProductAttributeProfileName = first.DataNameZh });
         vm.Tags.Load(first.Uid, [definition.Options[0].Uid], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -430,18 +430,18 @@ public sealed partial class ProductMasterTagSelectionTests
         Assert.IsFalse(vm.CanEditTags);
     }
 
-    /// <summary>保存确认等待时收回权限，保留完整标签草稿且不发送原本尚未提交的请求。</summary>
+    /// <summary>保存请求在途时收回权限，禁止再次提交，拒绝回执仍保留完整标签草稿。</summary>
     [TestMethod]
-    public async Task PermissionRevokedDuringSaveConfirmation_ShouldPreventRequest()
+    public async Task PermissionRevokedDuringSaveRequest_ShouldKeepDraftAndBlockReentry()
     {
         var user = new CurrentUserService();
         user.SetCurrentUser(new() { Permissions = [PermissionKeys.ProductsMasterEdit] });
         var definition = Definition();
-        var confirmation = new TaskCompletionSource<ProductMasterSyncDialogResult>();
+        var completion = new TaskCompletionSource<ServiceResult<SaveProductMasterDetailResponse>>();
         var calls = 0;
-        var api = Proxy<IProductMasterApi>((_, _) => { calls++; throw new AssertFailedException("权限已收回不能发送请求。"); });
+        var api = Proxy<IProductMasterApi>((_, _) => { calls++; return completion.Task; });
         using var vm = new ProductMasterDetailViewModel(api, Runner(), Cache(definition), Proxy<IMessageService>((_, _) => null),
-            null!, null!, new ProductMasterSyncDialogStub { Respond = () => confirmation.Task }, user);
+            null!, null!, user);
         vm.Header.Load(new() { Uid = Guid.NewGuid(), Version = 1, Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = FixtureProfileId } });
         vm.Tags.Load(FixtureProfileId, [], []);
         vm.Tags.RefreshDefinitions(Resolution([definition], true));
@@ -449,10 +449,14 @@ public sealed partial class ProductMasterTagSelectionTests
         vm.Tags.Groups.Single().CommitMultipleSelectionCommand.Execute(null);
         var pending = vm.SaveCommand.ExecuteAsync(null);
         Assert.IsTrue(vm.IsBusy);
+        Assert.AreEqual(1, calls);
         user.Clear();
-        confirmation.SetResult(new() { Confirmed = true });
+        Assert.IsFalse(vm.SaveCommand.CanExecute(null));
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, calls);
+        completion.SetResult(ServiceResult<SaveProductMasterDetailResponse>.Fail("Forbidden", "编辑权限已收回"));
         await pending;
-        Assert.AreEqual(0, calls);
+        Assert.AreEqual(1, calls);
         Assert.IsTrue(vm.Tags.IsDirty);
         Assert.IsTrue(vm.HasUnsavedChanges);
         Assert.IsFalse(vm.CanEditTags);

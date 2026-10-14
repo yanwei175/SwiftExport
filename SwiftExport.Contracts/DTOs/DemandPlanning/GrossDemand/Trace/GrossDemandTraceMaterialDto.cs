@@ -1,9 +1,9 @@
-using System;
 using SwiftExport.Contracts.SysEnums;
+using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace
 {
-    /// <summary>来源需求一次拆解修订中的物料行及当前可证明的采购贡献。</summary>
+    /// <summary>成品需求一次拆解修订中的物料行及当前可证明的采购贡献。</summary>
     public class GrossDemandTraceMaterialDto
     {
         public Guid NetDemandId { get; set; }

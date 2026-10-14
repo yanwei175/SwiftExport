@@ -6,6 +6,10 @@ using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
+using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager;
+using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Requests;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.Suppliers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -26,7 +30,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>已有物料的资料与独立标签详情文档；来源主型号、模板和包装只读，不管理 BOM。</summary>
+/// <summary>已有物料的资料、独立来源引用与标签详情文档；模板由所选主型号提供，包装只读，不管理 BOM。</summary>
 public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     /// <summary>物料详情稳定路由键。</summary>
@@ -39,18 +43,24 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private readonly IDialogService _dialogs;
     private readonly INavigationService _navigation;
     private readonly ICurrentUserService? _currentUser;
+    private readonly IProductMasterApi? _productMasterApi;
+    private readonly IProductNeutralManagerApi? _productNeutralApi;
     private readonly CancellationTokenSource _lifetimeCts = new();
-    private CancellationTokenSource? _loadCts, _supplierCts, _manufacturerCts;
+    private CancellationTokenSource? _loadCts, _supplierCts, _manufacturerCts, _masterLookupCts, _neutralLookupCts;
+    private Guid? _resolvedMasterId, _resolvedProfileId;
+    private string _resolvedProfileName = string.Empty, _resolvedCategoryName = string.Empty;
     private long _loadSequence, _sessionSequence;
     private bool _initialized, _disposed;
 
     /// <summary>初始化已有物料详情及对称释放的模型、缓存、身份订阅。</summary>
     public ProductDetailViewModel(IProductApi api, ISupplierApi supplierApi, IApiCallRunner runner,
         IReferenceDataCacheService cache, IMessageService messages, IDialogService dialogs,
-        INavigationService navigation, ICurrentUserService? currentUser = null)
+        INavigationService navigation, ICurrentUserService? currentUser = null,
+        IProductMasterApi? productMasterApi = null, IProductNeutralManagerApi? productNeutralApi = null)
     {
         _api = api; _supplierApi = supplierApi; _runner = runner; _cache = cache;
         _messages = messages; _dialogs = dialogs; _navigation = navigation; _currentUser = currentUser;
+        _productMasterApi = productMasterApi; _productNeutralApi = productNeutralApi;
         Title = "物料详情";
         Header.PropertyChanged += OnHeaderChanged;
         Tags.StateChanged += OnTagsChanged;
@@ -61,6 +71,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
             RefreshProductAttributesCommand, CommitColorCommand, ClearColorCommand, CommitSupplierCommand,
             ClearSupplierCommand, CommitManufacturerCommand, ClearManufacturerCommand, CommitWarehouseCommand, ClearWarehouseCommand,
             CommitUnitCommand, ClearUnitCommand,
+            CommitProductMasterCommand, ClearProductMasterCommand, CommitProductNeutralCommand, ClearProductNeutralCommand,
             SearchSuppliersCommand, SearchManufacturersCommand })
             RegisterBusyAwareCommand(command);
         ApplyPermission();
@@ -81,6 +92,10 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     /// <summary>制造商独立搜索结果。</summary>
     public ObservableCollection<SupplierDto> ManufacturerCandidates { get; } = [];
+    /// <summary>供物料独立选择的主型号候选。</summary>
+    public ObservableCollection<ProductMasterLookupItemModel> ProductMasterCandidates { get; } = [];
+    /// <summary>供物料独立选择的中性产品候选，不按主型号过滤。</summary>
+    public ObservableCollection<ProductNeutralLookupItemModel> ProductNeutralCandidates { get; } = [];
     /// <summary>产品专用权限下完整发布的参考仓库候选。</summary>
     public ObservableCollection<WarehouseSitePickerDto> WarehouseCandidates { get; } = [];
     /// <summary>单位字典候选，保存英文代码。</summary>
@@ -100,9 +115,13 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     /// <summary>只读启停状态。</summary>
     public string SourceStatus => Source is null ? "未加载" : Source.IsActive ? "启用" : "停用";
     /// <summary>只读模板名称或无法配置标签的来源说明。</summary>
-    public string TemplateStatus => (Source?.ProductMasterId ?? Guid.Empty) == Guid.Empty
+    public string TemplateStatus => (Header.ProductMasterId ?? Guid.Empty) == Guid.Empty
         ? "未关联主型号，暂不能配置标签。"
-        : string.IsNullOrWhiteSpace(Source?.ProductAttributeProfileName) ? "来源主型号尚未设置属性模板。" : Source.ProductAttributeProfileName;
+        : _resolvedMasterId != Header.ProductMasterId || string.IsNullOrWhiteSpace(Header.MasterSku)
+            ? "主型号引用已失效或尚未读取，已有标签保持。"
+            : string.IsNullOrWhiteSpace(_resolvedProfileName) ? "来源主型号尚未设置属性模板。" : _resolvedProfileName;
+    /// <summary>当前草稿主型号提供的只读分类名称。</summary>
+    public string SourceCategoryName => _resolvedMasterId == Header.ProductMasterId ? _resolvedCategoryName : string.Empty;
     /// <summary>视图采集尚未提交的原生输入；无效数值阻止保存但保留输入。</summary>
     public Func<bool>? CommitPendingEdits { get; set; }
     /// <summary>放弃后恢复原生绑定目标，覆盖无效输入缓冲。</summary>
@@ -123,6 +142,14 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     [ObservableProperty] public partial bool IsSupplierLookupBusy { get; private set; }
     /// <summary>制造商查询状态。</summary>
     [ObservableProperty] public partial bool IsManufacturerLookupBusy { get; private set; }
+    /// <summary>待确认主型号候选，候选取消不会改动引用。</summary>
+    [ObservableProperty] public partial ProductMasterLookupItemModel? SelectedProductMaster { get; set; }
+    /// <summary>待确认中性产品候选，选择不回写主型号或颜色。</summary>
+    [ObservableProperty] public partial ProductNeutralLookupItemModel? SelectedProductNeutral { get; set; }
+    /// <summary>主型号候选加载状态。</summary>
+    [ObservableProperty] public partial bool IsProductMasterLookupBusy { get; private set; }
+    /// <summary>中性产品候选加载状态。</summary>
+    [ObservableProperty] public partial bool IsProductNeutralLookupBusy { get; private set; }
 
     /// <summary>首次按身份加载已有物料；重复打开或激活不覆盖详情草稿。</summary>
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
@@ -158,12 +185,14 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         if (!CanSave() || !(CommitPendingEdits?.Invoke() ?? true)) return;
         await RunWriteAsync(async () =>
         {
-            var error = Header.ValidateRow() ?? Tags.ValidateSelection(Source?.ProductAttributeProfileId ?? Guid.Empty);
+            // 没有明确修改标签时采用 null 保持协议；切换或丢失来源不能隐式清空旧标签。
+            var selectedIds = Tags.IsDirty ? Tags.GetSelectedOptionIds() : null;
+            var error = Header.ValidateRow() ?? (Tags.IsDirty ? Tags.ValidateSelection(_resolvedProfileId ?? Guid.Empty) : null);
             if (error is not null) { ValidationSummary = error; _messages.ShowWarning("物料未保存", error); return; }
             if (!CanWrite || _disposed) return;
             var session = Volatile.Read(ref _sessionSequence);
             var request = new SaveProductDetailRequest { ProductId = Header.Uid, ExpectedVersion = Header.Version,
-                Data = Header.ToWriteDto(), SelectedOptionIds = Tags.GetSelectedOptionIds() };
+                Data = Header.ToWriteDto(), SelectedOptionIds = selectedIds };
             var result = await _runner.RunAsync(() => _api.SaveDetailAsync(Header.Uid, request, _lifetimeCts.Token),
                 _lifetimeCts.Token, "保存物料详情失败");
             if (!IsAlive(session)) return;
@@ -198,7 +227,10 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     {
         if (!CanReadCommand() || Tags.IsPopupOpen) return;
         Header.RejectChanges(); Tags.RejectChanges();
-        RefreshTagCandidates(); SyncLookupSelections(); RefreshEditorTargets?.Invoke();
+        if (_resolvedMasterId != Header.ProductMasterId && Source is { } source && source.Data.ProductMasterId == Header.ProductMasterId)
+            SetResolvedMaster(Header.ProductMasterId, source.ProductAttributeProfileId, source.ProductAttributeProfileName, source.CategoryName);
+        else RefreshTagCandidates();
+        SyncLookupSelections(); RefreshEditorTargets?.Invoke();
         ValidationSummary = null; NotifyDocumentState();
     }
 
@@ -215,14 +247,38 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         await RunBusyAsync(async () =>
         {
             var session = Volatile.Read(ref _sessionSequence);
-            var source = await _runner.RunAsync(() => _api.GetDetailAsync(Header.Uid, _lifetimeCts.Token),
-                _lifetimeCts.Token, "读取物料模板来源失败");
-            if (!IsAlive(session)) return;
-            if (!source.Success || source.Data is null) { _messages.ShowWarning("模板来源未刷新", source.Message); return; }
+            var masterId = Header.ProductMasterId;
+            Guid? profileId = null;
+            string? profileName = null, categoryName = null;
+            ProductDetailDto? refreshedSource = null;
+            if (masterId.HasValue && _productMasterApi is not null)
+            {
+                var master = await _runner.RunAsync(() => _productMasterApi.GetDetailAsync(masterId.Value, _lifetimeCts.Token),
+                    _lifetimeCts.Token, "读取主型号模板来源失败");
+                if (!IsAlive(session)) return;
+                if (!master.Success || master.Data is null) { _messages.ShowWarning("模板来源未刷新", master.Message); return; }
+                profileId = master.Data.Master.ProductAttributeProfileId;
+                profileName = master.Data.ProductAttributeProfileName;
+                categoryName = master.Data.CategoryName;
+            }
+            else if (masterId.HasValue)
+            {
+                var source = await _runner.RunAsync(() => _api.GetDetailAsync(Header.Uid, _lifetimeCts.Token),
+                    _lifetimeCts.Token, "读取物料模板来源失败");
+                if (!IsAlive(session)) return;
+                if (!source.Success || source.Data is null || source.Data.Data.ProductMasterId != masterId)
+                { _messages.ShowWarning("模板来源未刷新", source.Message); return; }
+                profileId = source.Data.ProductAttributeProfileId; profileName = source.Data.ProductAttributeProfileName;
+                categoryName = source.Data.CategoryName;
+                refreshedSource = source.Data;
+            }
             var refreshed = await _cache.RefreshProductAttributesAsync();
             if (!IsAlive(session)) return;
             if (!refreshed.Success) { _messages.ShowWarning("标签未刷新", refreshed.Message); return; }
-            Source = source.Data; OnPropertyChanged(nameof(UnitCandidates)); SyncSelectedUnit(); RefreshTagCandidates();
+            if (Header.ProductMasterId != masterId) return;
+            if (refreshedSource is not null) Source = refreshedSource;
+            SetResolvedMaster(masterId, profileId, profileName, categoryName);
+            OnPropertyChanged(nameof(UnitCandidates)); SyncSelectedUnit();
         }, "正在刷新标签及来源模板...");
     }
 
@@ -274,6 +330,73 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private void ClearUnit()
     { if (!CanEditLookup()) return; Header.Unit = string.Empty; SelectedUnit = null; }
 
+    /// <summary>搜索主型号取消旧请求；不使用中性产品推导或限制来源。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditLookup), AllowConcurrentExecutions = true)]
+    private async Task SearchProductMastersAsync(string? keyword)
+    {
+        if (!CanEditLookup() || _productMasterApi is null) return;
+        var current = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+        var previous = Interlocked.Exchange(ref _masterLookupCts, current); previous?.Cancel(); previous?.Dispose();
+        var session = Volatile.Read(ref _sessionSequence); IsProductMasterLookupBusy = true;
+        try
+        {
+            var result = await _runner.RunAsync(() => _productMasterApi.GetPagedAsync(
+                new ProductMasterSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 50 }, current.Token), current.Token, "搜索主型号失败");
+            if (!IsAlive(session) || current.IsCancellationRequested || !ReferenceEquals(current, _masterLookupCts)) return;
+            if (!result.Success) { _messages.ShowWarning("主型号候选未加载", result.Message); return; }
+            ProductMasterCandidates.Clear(); foreach (var item in result.Data?.Items ?? []) ProductMasterCandidates.Add(new(item));
+        }
+        finally { if (!_disposed && ReferenceEquals(current, _masterLookupCts)) IsProductMasterLookupBusy = false; }
+    }
+    /// <summary>中性产品独立查询，旧查询或释放后的结果不能回写。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditLookup), AllowConcurrentExecutions = true)]
+    private async Task SearchProductNeutralsAsync(string? keyword)
+    {
+        if (!CanEditLookup() || _productNeutralApi is null) return;
+        var current = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+        var previous = Interlocked.Exchange(ref _neutralLookupCts, current); previous?.Cancel(); previous?.Dispose();
+        var session = Volatile.Read(ref _sessionSequence); IsProductNeutralLookupBusy = true;
+        try
+        {
+            var result = await _runner.RunAsync(() => _productNeutralApi.GetPagedAsync(
+                new ProductNeutralManagerSearchRequest { Keyword = keyword, PageIndex = 1, PageSize = 50 }, current.Token), current.Token, "搜索中性产品失败");
+            if (!IsAlive(session) || current.IsCancellationRequested || !ReferenceEquals(current, _neutralLookupCts)) return;
+            if (!result.Success) { _messages.ShowWarning("中性产品候选未加载", result.Message); return; }
+            ProductNeutralCandidates.Clear(); foreach (var item in result.Data?.Items ?? []) ProductNeutralCandidates.Add(new(item));
+        }
+        finally { if (!_disposed && ReferenceEquals(current, _neutralLookupCts)) IsProductNeutralLookupBusy = false; }
+    }
+    /// <summary>确认主型号只改变该引用及其模板显示；保留中性产品、颜色和已有标签身份。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditLookup))]
+    private void CommitProductMaster()
+    {
+        if (!CanEditLookup() || SelectedProductMaster is not { } master || Tags.IsPopupOpen) return;
+        Header.ProductMasterId = master.Uid; Header.MasterSku = master.MasterSku ?? string.Empty;
+        SetResolvedMaster(master.Uid, master.ProductAttributeProfileId, master.ProductAttributeProfileName, master.CategoryName);
+    }
+    /// <summary>明确清空主型号为 null，不清空中性产品或标签选择。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditLookup))]
+    private void ClearProductMaster()
+    {
+        if (!CanEditLookup() || Tags.IsPopupOpen) return;
+        Header.ProductMasterId = null; Header.MasterSku = string.Empty; SelectedProductMaster = null;
+        SetResolvedMaster(null, null, null, null);
+    }
+    /// <summary>确认中性产品仅写入其身份与显示型号，不改变主型号、模板或颜色。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditLookup))]
+    private void CommitProductNeutral()
+    {
+        if (!CanEditLookup() || SelectedProductNeutral is not { } neutral) return;
+        Header.ProductNeutralId = neutral.Uid; Header.LinkSku = neutral.ProductCode ?? string.Empty;
+    }
+    /// <summary>明确清空中性产品关系，主型号及物料自身资料保持。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditLookup))]
+    private void ClearProductNeutral()
+    {
+        if (!CanEditLookup()) return;
+        Header.ProductNeutralId = null; Header.LinkSku = string.Empty; SelectedProductNeutral = null;
+    }
+
     /// <summary>详情读取具有取消、请求序号及会话存活门禁，整次加载只持有一层 Busy。</summary>
     private async Task LoadAsync(Guid id, CancellationToken externalToken)
     {
@@ -296,6 +419,10 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private void AcceptDetail(ProductDetailDto detail)
     {
         Source = detail; Header.Load(detail);
+        _resolvedMasterId = Header.ProductMasterId;
+        _resolvedProfileId = detail.ProductAttributeProfileId;
+        _resolvedProfileName = detail.ProductAttributeProfileName ?? string.Empty;
+        _resolvedCategoryName = detail.CategoryName ?? string.Empty;
         Tags.Load(detail.ProductAttributeProfileId ?? Guid.Empty, detail.SelectedOptionIds, detail.AttributeSelections);
         RefreshTagCandidates(); SyncLookupSelections();
         StatusText = $"已加载物料，当前版本 {Header.Version}。"; AcceptChanges(); NotifyDocumentState();
@@ -345,6 +472,12 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private void SyncLookupSelections()
     {
         SyncSelectedUnit();
+        SelectedProductMaster = Header.ProductMasterId is { } masterId
+            ? ProductMasterCandidates.FirstOrDefault(item => item.Uid == masterId)
+                ?? new ProductMasterLookupItemModel(new ProductMasterListItemDto { Uid = masterId, Data = new() { MasterSku = Header.MasterSku } }) : null;
+        SelectedProductNeutral = Header.ProductNeutralId is { } neutralId
+            ? ProductNeutralCandidates.FirstOrDefault(item => item.Uid == neutralId)
+                ?? new ProductNeutralLookupItemModel(new ProductNeutralManagerListItemDto { Uid = neutralId, Data = new() { ProductCode = Header.LinkSku } }) : null;
         SelectedColor = Header.ColorId is { } color && color != Guid.Empty
             ? _cache?.ProductColors.FirstOrDefault(item => item.Uid == color) ?? new ProductColorDto { Uid = color, ColorNameZh = Header.Finish } : null;
         SelectedSupplier = Header.DefaultSupplierId is { } supplier && supplier != Guid.Empty
@@ -363,13 +496,28 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     /// <summary>刷新只读模板来源，不当作用户切换模板，不清除选择或覆盖选值基线。</summary>
     private void RefreshTagCandidates()
     {
-        var id = Source?.ProductAttributeProfileId ?? Guid.Empty;
+        var id = _resolvedMasterId == Header.ProductMasterId ? _resolvedProfileId ?? Guid.Empty : Guid.Empty;
         var resolution = id == Guid.Empty ? new ProductAttributeResolution(true, TemplateStatus, [], [])
             : _cache?.ResolveProductAttributes(id) ?? new(false, "标签定义尚未加载，请刷新标签。", [], []);
         Tags.RefreshSourceProfile(id, resolution); NotifyDocumentState();
     }
+    /// <summary>只刷新当前草稿主型号提供的模板与分类；标签工作区保留原选择及回滚基线。</summary>
+    private void SetResolvedMaster(Guid? masterId, Guid? profileId, string? profileName, string? categoryName)
+    {
+        _resolvedMasterId = masterId; _resolvedProfileId = profileId;
+        _resolvedProfileName = profileName ?? string.Empty; _resolvedCategoryName = categoryName ?? string.Empty;
+        OnPropertyChanged(nameof(TemplateStatus)); OnPropertyChanged(nameof(SourceCategoryName)); RefreshTagCandidates();
+    }
     private void OnAttributesChanged(object? sender, EventArgs e) { if (!_disposed) { OnPropertyChanged(nameof(UnitCandidates)); SyncSelectedUnit(); RefreshTagCandidates(); } }
-    private void OnHeaderChanged(object? sender, PropertyChangedEventArgs e) => NotifyDocumentState();
+    private void OnHeaderChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ProductEditModel.ProductMasterId))
+        {
+            OnPropertyChanged(nameof(TemplateStatus)); OnPropertyChanged(nameof(SourceCategoryName));
+            RefreshTagCandidates();
+        }
+        NotifyDocumentState();
+    }
     private void OnTagsChanged(object? sender, EventArgs e) => NotifyDocumentState();
     private void OnDocumentChanged(object? sender, PropertyChangedEventArgs e)
     { if (e.PropertyName is nameof(IsBusy) or nameof(CanWrite)) { OnPropertyChanged(nameof(CanEditHeader)); OnPropertyChanged(nameof(CanEditTags)); } }
@@ -378,6 +526,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     {
         if (_disposed) return;
         Interlocked.Increment(ref _sessionSequence); _loadCts?.Cancel(); _supplierCts?.Cancel(); _manufacturerCts?.Cancel();
+        _masterLookupCts?.Cancel(); _neutralLookupCts?.Cancel();
         ApplyPermission(); NotifyDocumentState();
     }
     private void ApplyPermission() => IsReadOnly = _currentUser is not null && !_currentUser.HasPermission(PermissionKeys.ProductsProductEdit);
@@ -392,6 +541,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         if (_disposed) return;
         IsDirty = HasUnsavedChanges; Title = DocumentTitle;
         OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(TemplateStatus)); OnPropertyChanged(nameof(SourceCategoryName));
         OnPropertyChanged(nameof(CanEditHeader)); OnPropertyChanged(nameof(CanEditTags));
         SaveCommand.NotifyCanExecuteChanged();
     }
@@ -403,7 +553,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         if (_cache is not null) _cache.ProductAttributesChanged -= OnAttributesChanged;
         if (_currentUser is not null) _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
         _lifetimeCts.Cancel();
-        foreach (var cts in new[] { _loadCts, _supplierCts, _manufacturerCts }) { cts?.Cancel(); cts?.Dispose(); }
+        foreach (var cts in new[] { _loadCts, _supplierCts, _manufacturerCts, _masterLookupCts, _neutralLookupCts }) { cts?.Cancel(); cts?.Dispose(); }
         _lifetimeCts.Dispose(); Tags.Dispose(); CommitPendingEdits = null; RefreshEditorTargets = null;
     }
 }

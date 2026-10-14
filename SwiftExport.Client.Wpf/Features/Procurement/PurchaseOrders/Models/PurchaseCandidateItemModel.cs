@@ -16,7 +16,7 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public Guid Uid { get; init; }
     /// <summary>物料需求并发版本。</summary>
     public int Version { get; init; }
-    /// <summary>来源需求归属客户稳定身份。</summary>
+    /// <summary>成品需求归属客户稳定身份。</summary>
     public Guid? CustomerId { get; init; }
     public string CustomerCode { get; init; } = string.Empty;
     public string CustomerName { get; init; } = string.Empty;
@@ -56,7 +56,7 @@ public sealed partial class PurchaseCandidateItemModel : ObservableObject, INoti
     public string SuggestedDeliverySupplierHint { get; init; } = string.Empty;
     /// <summary>客供件父件活动采购单中的实际采购供应商事实。</summary>
     public List<PurchaseDraftActualSupplierFactDto> ParentActualPurchaseSuppliers { get; init; } = [];
-    /// <summary>来源需求交期。</summary>
+    /// <summary>成品需求交期。</summary>
     public DateTime? DemandRequiredDate { get; init; }
     /// <summary>当前尚未被有效采购贡献承接的数量。</summary>
     public decimal RemainingQty { get; init; }

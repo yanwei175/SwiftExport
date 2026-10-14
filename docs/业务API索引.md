@@ -406,11 +406,6 @@
 | GET `api/ProductMaster/{productMasterId:guid}` | GetDetailAsync | `Task<ServiceResult<ProductMasterDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:33) |
 | POST `api/ProductMaster/batch-save` | BatchSaveAsync | `Task<ServiceResult<ProductMasterBatchSaveResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:40) |
 | POST `api/ProductMaster/save-detail` | SaveDetailAsync | `Task<ServiceResult<SaveProductMasterDetailResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:47) |
-| POST `api/ProductMaster/sync-descriptions` | SyncDescriptionsAsync | `Task<ServiceResult<SyncProductMasterDataResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:54) |
-| POST `api/ProductMaster/sync-features` | SyncFeaturesAsync | `Task<ServiceResult<SyncProductMasterDataResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:60) |
-| POST `api/ProductMaster/sync-supplier` | SyncSupplierAsync | `Task<ServiceResult<SyncProductMasterDataResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:66) |
-| POST `api/ProductMaster/sync-weight-volume` | SyncWeightVolumeAsync | `Task<ServiceResult<SyncProductMasterDataResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:72) |
-| POST `api/ProductMaster/sync-all` | SyncAllAsync | `Task<ServiceResult<SyncProductMasterDataResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:78) |
 
 ## ProductNeutralController
 

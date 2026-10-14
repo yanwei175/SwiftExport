@@ -123,7 +123,9 @@ public sealed class PostgreSqlProcurementMasterDataQueryMigrationIntegrationTest
         await Add(context, customer); await Add(context, supplier);
         var color = new ProductColor { ColorCodeUnique = Prefix(), ColorCode = Prefix(), ColorNameZh = "颜色说明" }; await Add(context, color);
         var product = ProductRow(prefix); product.DefaultSupplierId = supplier.Uid; product.ColorId = color.Uid;
-        product.MainImage = "图片"; product.LinkSku = "关联"; product.FeaturesZh = "配置"; product.DescriptionZh = "中文"; product.DescriptionEn = "English";
+        var neutral = ProductNeutralReferenceTestData.Create(product, prefix + "关联");
+        await Add(context, neutral); product.ProductNeutralId = neutral.Uid;
+        product.MainImage = "图片"; product.FeaturesZh = "配置"; product.DescriptionZh = "中文"; product.DescriptionEn = "English";
         await Add(context, product);
         var relations = Enumerable.Range(0, 4).Select(index => new CustomerProduct
         { CustomerId = customer.Uid, CustomerCode = customer.CustomerCode, SkuId = product.Uid, CustomerSku = Prefix() + index, IsActive = index != 2 }).ToArray();
@@ -138,7 +140,7 @@ public sealed class PostgreSqlProcurementMasterDataQueryMigrationIntegrationTest
         Assert.AreEqual(expected.CustomerSku, row.CustomerSku); Assert.AreEqual(supplierRelation.SupplierSku, row.SupplierSku);
         // 主控已只读核实 SQL Server 和 PG 两列均为 (18,4)，六位输入应由存储舍入，不能把查询迁移变成精度变更。
         Assert.AreEqual(1.2346m, row.UnitPrice); Assert.AreEqual(1.3951m, row.TaxPrice);
-        Assert.AreEqual("颜色说明", row.FinishZh); Assert.AreEqual("图片", row.MainImage); Assert.AreEqual("关联", row.LinkSku);
+        Assert.AreEqual("颜色说明", row.FinishZh); Assert.AreEqual("图片", row.MainImage); Assert.AreEqual(neutral.ProductCode, row.LinkSku);
         Assert.AreEqual("配置", row.FeaturesZh); Assert.AreEqual("中文", row.DescriptionZh); Assert.AreEqual("English", row.DescriptionEn);
         request.Keyword = expected.CustomerSku; Assert.AreEqual(product.Uid, (await repo.SearchProductsAsync(request, default)).Items.Single().Uid);
         request.Keyword = supplierRelation.SupplierSku; Assert.AreEqual(product.Uid, (await repo.SearchProductsAsync(request, default)).Items.Single().Uid);

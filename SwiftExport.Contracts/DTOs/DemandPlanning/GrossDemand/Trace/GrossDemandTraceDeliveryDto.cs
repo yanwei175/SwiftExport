@@ -2,7 +2,7 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace
 {
-    /// <summary>来源需求的装箱正式交付或反向历史行。</summary>
+    /// <summary>成品需求的装箱正式交付或反向历史行。</summary>
     public class GrossDemandTraceDeliveryDto
     {
         public Guid PackingListId { get; set; }

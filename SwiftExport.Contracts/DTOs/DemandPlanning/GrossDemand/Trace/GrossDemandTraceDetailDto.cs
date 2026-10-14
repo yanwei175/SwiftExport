@@ -1,10 +1,10 @@
+using SwiftExport.Contracts.SysEnums;
 using System;
 using System.Collections.Generic;
-using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace
 {
-    /// <summary>单条来源需求的只读链路证据；数量只在各自单位和事实粒度内解释。</summary>
+    /// <summary>单条成品需求的只读链路证据；数量只在各自单位和事实粒度内解释。</summary>
     public class GrossDemandTraceDetailDto
     {
         public Guid GrossDemandId { get; set; }

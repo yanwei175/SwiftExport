@@ -2,7 +2,7 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
-    /// <summary>携带手工来源需求身份、预期版本和替换后的业务输入。</summary>
+    /// <summary>携带手工成品需求身份、预期版本和替换后的业务输入。</summary>
     public class UpdateManualGrossDemandRequest
     {
         /// <summary>一次修改意图的稳定标识；结果未知时原样重试。</summary>

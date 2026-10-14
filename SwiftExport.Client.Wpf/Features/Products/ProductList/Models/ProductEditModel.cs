@@ -5,12 +5,18 @@ using SwiftExportClient.Mvvm;
 
 namespace SwiftExportClient.Features.Products.ProductList.Models;
 
-/// <summary>物料详情私有编辑模型，仅维护详情允许修改的资料；来源、包装和标签选择由详情文档分别持有。</summary>
+/// <summary>物料详情私有编辑模型，维护独立资料与两项可空来源身份；包装和标签选择由详情文档分别持有。</summary>
 public sealed partial class ProductEditModel : BaseLineModel<ProductDetailDto>
 {
     /// <summary>获取或设置物料编号。</summary>
     [ObservableProperty] public partial string Sku { get; set; } = string.Empty;
-    /// <summary>获取或设置产品型号。</summary>
+    /// <summary>获取或设置独立主型号身份，不通过中性产品推导。</summary>
+    [ObservableProperty] public partial Guid? ProductMasterId { get; set; }
+    /// <summary>获取或设置独立中性产品身份。</summary>
+    [ObservableProperty] public partial Guid? ProductNeutralId { get; set; }
+    /// <summary>获取或设置主型号实时显示编码，不作为保存身份。</summary>
+    [ObservableProperty] public partial string MasterSku { get; set; } = string.Empty;
+    /// <summary>获取或设置中性产品实时显示编码，不作为保存身份。</summary>
     [ObservableProperty] public partial string LinkSku { get; set; } = string.Empty;
     /// <summary>获取或设置英文描述。</summary>
     [ObservableProperty] public partial string DescriptionEn { get; set; } = string.Empty;
@@ -64,7 +70,7 @@ public sealed partial class ProductEditModel : BaseLineModel<ProductDetailDto>
     [ObservableProperty] public partial string Note { get; set; } = string.Empty;
     /// <summary>验证必须录入的物料编号，其余业务关系由后端在事务中重新校验。</summary>
     public override string? ValidateRow() => string.IsNullOrWhiteSpace(Sku) ? "物料编号不能为空。" : null;
-    /// <summary>采集专用详情写契约，不发送来源主型号、模板、包装或 BOM 字段。</summary>
+    /// <summary>采集专用详情写契约及两项来源身份，不发送模板、包装或 BOM 字段。</summary>
     public ProductDetailWriteDto ToWriteDto() => this.Adapt<ProductDetailWriteDto>();
     /// <summary>接纳完整读快照中的可写字段与选择器显示信息。</summary>
     protected override void LoadFromDto(ProductDetailDto dto) => dto.Adapt(this);

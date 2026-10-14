@@ -4,37 +4,37 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Requests;
-using SwiftExport.Contracts.DTOs.Products.ProductMasters.Responses;
+using SwiftExport.Application.Interfaces.Products.ProductMasters.Maintenance;
+using SwiftExport.Core.Interfaces.Products.Catalog;
 using SwiftExport.WebApi.Controllers.Products.ProductMasters;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
-/// <summary>核对独立下发的 Controller 与 Refit 共同使用五个 POST 路由及窄请求响应。</summary>
+/// <summary>验证主型号被动下发退出契约；物料主动获取由独立 Pull 契约测试覆盖。</summary>
 [TestClass]
 public sealed class ProductMasterSyncApiContractTests
 {
-    /// <summary>逐个验证路由、HTTP 方法和同一请求响应契约，防止菜单调用到错误下发范围。</summary>
+    /// <summary>主型号 HTTP、服务及仓储不再暴露按来源批量覆盖物料的入口。</summary>
     [TestMethod]
-    public void SyncActions_MatchRefitRoutesAndContracts()
+    public void MasterPushEndpointsAndRepositoryMethods_AreRemoved()
     {
-        foreach (var name in new[]
+        Assert.IsFalse(typeof(IProductMasterApi).GetMethods().Any(method =>
+            method.GetCustomAttribute<PostAttribute>()?.Path.StartsWith("/sync-", StringComparison.Ordinal) == true));
+        Assert.IsFalse(typeof(ProductMasterController).GetMethods().Any(method =>
+            method.GetCustomAttribute<HttpPostAttribute>()?.Template?.StartsWith("sync-", StringComparison.Ordinal) == true));
+        Assert.IsNull(typeof(IProductMasterMaintenanceService).GetMethod("SyncProductsAsync"));
+        Assert.IsNull(typeof(IProductRepository).GetMethod("SyncFromProductMasterAsync"));
+        Assert.IsNull(typeof(IProductRepository).GetMethod("SyncSelectedFieldsFromMastersAsync"));
+    }
+
+    /// <summary>列表和详情保存请求不再携带覆盖物料的开关，旧选项不能成为保存隐式副作用。</summary>
+    [TestMethod]
+    public void MasterSaveRequests_DoNotExposeProductOverwriteOptions()
+    {
+        foreach (var type in new[] { typeof(ProductMasterBatchSaveRequest), typeof(SaveProductMasterDetailRequest) })
         {
-            nameof(IProductMasterApi.SyncDescriptionsAsync),
-            nameof(IProductMasterApi.SyncFeaturesAsync),
-            nameof(IProductMasterApi.SyncSupplierAsync),
-            nameof(IProductMasterApi.SyncWeightVolumeAsync),
-            nameof(IProductMasterApi.SyncAllAsync)
-        })
-        {
-            var api = typeof(IProductMasterApi).GetMethod(name)!;
-            var controller = typeof(ProductMasterController).GetMethod(name)!;
-            var refit = api.GetCustomAttribute<PostAttribute>()!;
-            var action = controller.GetCustomAttribute<HttpPostAttribute>()!;
-            Assert.AreEqual(refit.Path, "/" + action.Template, name);
-            Assert.AreEqual(typeof(SyncProductMasterDataRequest), api.GetParameters()[0].ParameterType, name);
-            Assert.AreEqual(typeof(SyncProductMasterDataRequest), controller.GetParameters()[0].ParameterType, name);
-            StringAssert.Contains(api.ReturnType.FullName!, nameof(SyncProductMasterDataResponse), name);
-            Assert.AreEqual(api.ReturnType, controller.ReturnType, name);
+            Assert.IsNull(type.GetProperty("UpdateProductDescriptions"), type.Name);
+            Assert.IsNull(type.GetProperty("UpdateProductDefaultSupplier"), type.Name);
         }
     }
 }

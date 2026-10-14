@@ -51,18 +51,19 @@ public sealed class PostgreSqlProcurementReferenceReadRepository(RepositoryBaseC
             WHERE t."uid"=@uid AND COALESCE(t."is_deleted",FALSE)=FALSE FOR SHARE OF t;
         """, new { uid }, ct));
 
-    /// <summary>保留产品、颜色及首条客户/供应商关系快照；外连缺失仍返回空文本，不新增关系资格。</summary>
+    /// <summary>采购快照型号取物料独立中性来源，其他关系沿用首条投影；外连缺失留空，不新增资格。</summary>
     public Task<ProcurementProductCandidateDto?> GetProductCandidateAsync(Guid productId, Guid customerId, Guid supplierId, CancellationToken ct)
     {
         var sql = $"""
             SELECT p."uid" AS "Uid",p."sku" AS "Sku",
                 COALESCE(p."main_image",'') AS "MainImage",COALESCE(cp."CustomerSku",'') AS "CustomerSku",
-                COALESCE(p."link_sku",'') AS "LinkSku",COALESCE(sp."SupplierSku",'') AS "SupplierSku",
+                COALESCE(pn."product_code",'') AS "LinkSku",COALESCE(sp."SupplierSku",'') AS "SupplierSku",
                 COALESCE(p."description_zh",'') AS "DescriptionZh",COALESCE(p."description_en",'') AS "DescriptionEn",
                 COALESCE(color."ColorNameZh",'') AS "FinishZh",COALESCE(p."features_zh",'') AS "FeaturesZh",
                 COALESCE(p."material_type",'') AS "MaterialType",COALESCE(p."supply_type",'') AS "SupplyType",
                 COALESCE(p."unit",'') AS "Unit"
             FROM "public"."product" p
+            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             LEFT JOIN LATERAL (
                 SELECT c."color_name_zh" AS "ColorNameZh" FROM "public"."product_color" c
                 WHERE c."uid"=p."color_id" AND COALESCE(c."is_deleted",FALSE)=FALSE FOR SHARE OF c

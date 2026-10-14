@@ -264,6 +264,10 @@ public sealed class PurchaseDraftPreviewService(
         var productIds = netDemands.Where(x => x.ProductId.HasValue).Select(x => x.ProductId!.Value).Distinct().ToArray();
         var products = (await productRepository.GetByIdListAsync(productIds, withUpdLock: true))
             .ToDictionary(x => x.Uid);
+        // 编码只取当前联表投影；实体继续用于采购角色及图片，不恢复物料的旧字符串关系。
+        var productCodes = new Dictionary<Guid, string?>();
+        foreach (var id in products.Keys)
+            productCodes[id] = (await productRepository.GetDtoByIdAsync(id))?.LinkSku;
         var purchaseData = await LoadPurchaseDataAsync(netDemands.Select(net =>
         {
             itemByDemand.TryGetValue(net.Uid, out var item);
@@ -317,7 +321,7 @@ public sealed class PurchaseDraftPreviewService(
                 PlannedDeliveryDate = item is null ? net.RequiredDate : item.PlannedDeliveryDate,
                 ProductId = net.ProductId,
                 Sku = net.SkuSnapshot,
-                LinkSku = product?.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty,
+                LinkSku = product is null ? gross.LinkSkuSnapshot ?? string.Empty : productCodes.GetValueOrDefault(product.Uid) ?? string.Empty,
                 CustomerSku = net.CustomerSkuSnapshot ?? string.Empty,
                 Description = net.DescriptionSnapshot ?? string.Empty,
                 Color = net.ColorSnapshot ?? string.Empty,

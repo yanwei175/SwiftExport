@@ -84,11 +84,6 @@ public sealed class ProductMasterModelsAndContractsTests
         AssertRoute(nameof(IProductMasterApi.BatchSaveAsync), "/batch-save", typeof(PostAttribute));
         AssertRoute(nameof(IProductMasterApi.SaveDetailAsync), "/save-detail", typeof(PostAttribute));
         AssertRoute(nameof(IProductMasterApi.AssignCategoryAsync), "/assign-category", typeof(PostAttribute));
-        AssertRoute(nameof(IProductMasterApi.SyncDescriptionsAsync), "/sync-descriptions", typeof(PostAttribute));
-        AssertRoute(nameof(IProductMasterApi.SyncFeaturesAsync), "/sync-features", typeof(PostAttribute));
-        AssertRoute(nameof(IProductMasterApi.SyncSupplierAsync), "/sync-supplier", typeof(PostAttribute));
-        AssertRoute(nameof(IProductMasterApi.SyncWeightVolumeAsync), "/sync-weight-volume", typeof(PostAttribute));
-        AssertRoute(nameof(IProductMasterApi.SyncAllAsync), "/sync-all", typeof(PostAttribute));
         foreach (var method in typeof(IProductMasterApi).GetMethods())
             Assert.AreEqual(typeof(CancellationToken), method.GetParameters().Last().ParameterType, method.Name);
     }
@@ -247,7 +242,7 @@ public sealed class ProductMasterModelsAndContractsTests
         Assert.AreEqual(72m, line.DefaultPurchasePriceCny);
     }
 
-    /// <summary>验证管理页和详情页使用单一 CurrentRow 桥接及可切换选择模式。</summary>
+    /// <summary>验证管理页和详情页使用原生 SelectedItem、可切换选择模式及现有展示列。</summary>
     [TestMethod]
     public void ProductMasterViews_ShouldExposeSearchImageAndSelectionSwitches()
     {
@@ -255,9 +250,8 @@ public sealed class ProductMasterModelsAndContractsTests
         var manager = XDocument.Load(ViewPath("ProductMasterManagerView.xaml"));
         foreach (var command in new[] { "SyncDescriptionsCommand", "SyncFeaturesCommand", "SyncSupplierCommand", "SyncWeightVolumeCommand", "SyncAllCommand" })
         {
-            var menu = manager.Descendants(presentation + "MenuItem")
-                .Single(item => ((string?)item.Attribute("Command"))?.Contains(command, StringComparison.Ordinal) == true);
-            StringAssert.Contains((string?)menu.Attribute("Command"), "PlacementTarget.DataContext.");
+            Assert.IsFalse(manager.Descendants(presentation + "MenuItem")
+                .Any(item => ((string?)item.Attribute("Command"))?.Contains(command, StringComparison.Ordinal) == true));
         }
         var managerGrid = manager.Descendants(presentation + "DataGrid")
             .Single(grid => (string?)grid.Attribute("ItemsSource") == "{Binding Masters.Items}");
@@ -266,7 +260,7 @@ public sealed class ProductMasterModelsAndContractsTests
         Assert.IsTrue(searchBox.Descendants(presentation + "KeyBinding")
             .Any(binding => (string?)binding.Attribute("Key") == "Enter"
                 && ((string?)binding.Attribute("Command"))?.Contains("SearchCommand", StringComparison.Ordinal) == true));
-        Assert.IsNull(managerGrid.Attribute("SelectedItem"));
+        Assert.AreEqual("{Binding SelectedMaster, Mode=TwoWay}", (string?)managerGrid.Attribute("SelectedItem"));
         StringAssert.Contains((string?)managerGrid.Attribute("SelectionUnit"), "GridSelectionUnitConverter");
         var mainImageColumn = managerGrid.Descendants(presentation + "DataGridTemplateColumn")
             .Single(column => (string?)column.Attribute("Header") == "图片");
@@ -291,7 +285,7 @@ public sealed class ProductMasterModelsAndContractsTests
 
         var detail = XDocument.Load(ViewPath("ProductMasterDetailView.xaml"));
         var detailGrid = detail.Descendants(presentation + "DataGrid").Single();
-        Assert.IsNull(detailGrid.Attribute("SelectedItem"));
+        Assert.AreEqual("{Binding SelectedNeutral, Mode=TwoWay}", (string?)detailGrid.Attribute("SelectedItem"));
         StringAssert.Contains((string?)detailGrid.Attribute("SelectionUnit"), "GridSelectionUnitConverter");
         var mainImageFlag = detailGrid.Descendants(presentation + "DataGridTemplateColumn")
             .Single(column => (string?)column.Attribute("Header") == "默认主图");

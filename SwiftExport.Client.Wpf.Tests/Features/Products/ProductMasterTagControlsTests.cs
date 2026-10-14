@@ -122,7 +122,7 @@ public sealed class ProductMasterTagControlsTests
     {
         LoadResources();
         var definition = ProductMasterTagSelectionTests.Definition();
-        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, null!, null!, null!, null!);
         vm.Header.ProductAttributeProfileId = ProductMasterTagSelectionTests.FixtureProfileId;
         vm.Tags.RefreshDefinitions(ProductMasterTagSelectionTests.Resolution([definition], true));
         vm.Tags.Load(ProductMasterTagSelectionTests.FixtureProfileId, [definition.Options[0].Uid], []);
@@ -183,7 +183,7 @@ public sealed class ProductMasterTagControlsTests
             _ => null
         });
         var dialogs = Proxy<IDialogService>((method, _) => method.Name == nameof(IDialogService.ConfirmAsync) ? confirmation.Task : null);
-        using var vm = new ProductMasterDetailViewModel(null!, null!, cache, Proxy<IMessageService>((_, _) => null), dialogs, null!, new ProductMasterSyncDialogStub());
+        using var vm = new ProductMasterDetailViewModel(null!, null!, cache, Proxy<IMessageService>((_, _) => null), dialogs, null!);
         var category = Guid.NewGuid();
         vm.Header.Load(new() { Master = new() { MasterSku = "MASTER", ProductAttributeProfileId = category } });
         vm.Tags.Load(category, [Guid.NewGuid()], []);

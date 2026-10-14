@@ -25,7 +25,7 @@ public sealed partial class ProductMasterTagSelectionTests
     {
         var group = Definition(); var profile = Profile(FixtureProfileId, "顶喷模板");
         using var vm = new ProductMasterDetailViewModel(null!, null!, CacheWithResolution(_ => Resolution([group]), profile), null!,
-            Proxy<IDialogService>((_, _) => throw new AssertFailedException("分类变化不需要标签确认。")), null!, new ProductMasterSyncDialogStub());
+            Proxy<IDialogService>((_, _) => throw new AssertFailedException("分类变化不需要标签确认。")), null!);
         LoadTagDetail(vm, profile.Uid, group.Options[0].Uid); vm.Tags.RefreshDefinitions(Resolution([group]));
         var categoryId = Guid.NewGuid();
         vm.SelectedCategory = new ProductCategoryCacheNode(new SwiftExport.Contracts.DTOs.Products.ProductCategoryDto { Uid = categoryId, CategoryName = "新分类" });
@@ -65,7 +65,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var group = Definition(); var first = Profile(FixtureProfileId, "顶喷"); var next = Profile(Guid.NewGuid(), "手持花洒");
         var cache = CacheWithResolution(_ => Resolution([group]), first, next);
         using var vm = new ProductMasterDetailViewModel(null!, null!, cache, null!,
-            Proxy<IDialogService>((_, _) => throw new AssertFailedException("共同标签不需要清除确认。")), null!, new ProductMasterSyncDialogStub());
+            Proxy<IDialogService>((_, _) => throw new AssertFailedException("共同标签不需要清除确认。")), null!);
         LoadTagDetail(vm, first.Uid, group.Options[0].Uid); vm.Tags.RefreshDefinitions(Resolution([group]));
         vm.SelectedProfile = next; await vm.CommitProfileCommand.ExecuteAsync(null);
         Assert.AreEqual(next.Uid, vm.Header.ProductAttributeProfileId); Assert.AreEqual(next.Uid, vm.Tags.ProfileId);
@@ -87,7 +87,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var cache = CacheWithResolution(id => Resolution(id == first.Uid ? [common, exclusive] : [common]), first, next);
         string? prompt = null;
         using var vm = new ProductMasterDetailViewModel(null!, null!, cache, null!,
-            Proxy<IDialogService>((_, args) => { prompt = (string)args[1]!; return Task.FromResult(confirm); }), null!, new ProductMasterSyncDialogStub());
+            Proxy<IDialogService>((_, args) => { prompt = (string)args[1]!; return Task.FromResult(confirm); }), null!);
         LoadTagDetail(vm, first.Uid, common.Options[0].Uid, exclusive.Options[0].Uid);
         vm.Tags.RefreshDefinitions(Resolution([common, exclusive]));
         vm.SelectedProfile = next; await vm.CommitProfileCommand.ExecuteAsync(null);
@@ -111,7 +111,7 @@ public sealed partial class ProductMasterTagSelectionTests
         string? warning = null;
         using var vm = new ProductMasterDetailViewModel(null!, null!, cache,
             Proxy<IMessageService>((_, args) => { warning = (string)args[1]!; return null; }),
-            Proxy<IDialogService>((_, _) => throw new AssertFailedException("解析失败不能请求清除全部选择。")), null!, new ProductMasterSyncDialogStub());
+            Proxy<IDialogService>((_, _) => throw new AssertFailedException("解析失败不能请求清除全部选择。")), null!);
         LoadTagDetail(vm, first.Uid, group.Options[0].Uid); vm.Tags.RefreshDefinitions(Resolution([group]));
         vm.SelectedProfile = next; await vm.CommitProfileCommand.ExecuteAsync(null);
         Assert.AreEqual(first.Uid, vm.Header.ProductAttributeProfileId); Assert.AreSame(first, vm.SelectedProfile);
@@ -128,7 +128,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var confirmation = new TaskCompletionSource<bool>(); var warned = false;
         var cache = CacheWithResolution(id => id == first.Uid ? Resolution([common, exclusive]) : target, first, next);
         using var vm = new ProductMasterDetailViewModel(null!, null!, cache, Proxy<IMessageService>((_, _) => { warned = true; return null; }),
-            Proxy<IDialogService>((_, _) => confirmation.Task), null!, new ProductMasterSyncDialogStub());
+            Proxy<IDialogService>((_, _) => confirmation.Task), null!);
         LoadTagDetail(vm, first.Uid, common.Options[0].Uid, exclusive.Options[0].Uid);
         vm.Tags.RefreshDefinitions(Resolution([common, exclusive]));
         vm.SelectedProfile = next; var pending = vm.CommitProfileCommand.ExecuteAsync(null);
@@ -153,24 +153,26 @@ public sealed partial class ProductMasterTagSelectionTests
         Assert.IsTrue(model.IsDirty);
     }
 
-    /// <summary>保存确认等待时缓存失效，即使之前构造了空集合，也重验为 null 保持协议。</summary>
+    /// <summary>请求发送后缓存失效不改写已发送协议，失败保留头部草稿及未知标签定义状态。</summary>
     [TestMethod]
-    public async Task CacheClearDuringSaveConfirmation_ShouldSendNullInsteadOfStaleEmpty()
+    public async Task CacheClearDuringSaveRequest_ShouldKeepDraftAndUnavailableDefinitions()
     {
         SaveProductMasterDetailRequest? sent = null;
-        var confirmation = new TaskCompletionSource<ProductMasterSyncDialogResult>();
+        var completion = new TaskCompletionSource<ServiceResult<SaveProductMasterDetailResponse>>();
         var api = Proxy<IProductMasterApi>((_, args) =>
         {
             sent = (SaveProductMasterDetailRequest)args[0]!;
-            return Task.FromResult(ServiceResult<SaveProductMasterDetailResponse>.Fail("BusinessBlocked", "保留测试草稿"));
+            return completion.Task;
         });
         using var vm = new ProductMasterDetailViewModel(api, Runner(), null!, Proxy<IMessageService>((_, _) => null),
-            null!, null!, new ProductMasterSyncDialogStub { Respond = () => confirmation.Task });
+            null!, null!);
         LoadTagDetail(vm, FixtureProfileId); vm.Tags.RefreshDefinitions(Resolution([])); vm.Header.DefaultDescriptionZh = "其他字段草稿";
         var pending = vm.SaveCommand.ExecuteAsync(null); Assert.IsTrue(vm.IsBusy);
+        Assert.IsNotNull(sent); Assert.IsNotNull(sent.SelectedOptionIds); Assert.AreEqual(0, sent.SelectedOptionIds.Count);
         vm.Tags.RefreshDefinitions(new(false, "标签定义尚未加载。", [], []));
-        confirmation.SetResult(new() { Confirmed = true }); await pending;
-        Assert.IsNotNull(sent); Assert.IsNull(sent.SelectedOptionIds); Assert.IsTrue(vm.HasUnsavedChanges);
+        completion.SetResult(ServiceResult<SaveProductMasterDetailResponse>.Fail("BusinessBlocked", "保留测试草稿")); await pending;
+        Assert.AreEqual(0, sent.SelectedOptionIds.Count); Assert.IsNull(vm.Tags.GetSelectedOptionIds());
+        Assert.IsTrue(vm.HasUnsavedChanges); Assert.IsFalse(vm.Tags.CanEdit);
     }
 
     /// <summary>详情在属性模板确认期间释放后，迟到确认不得改写头部或丢弃选择。</summary>
@@ -180,7 +182,7 @@ public sealed partial class ProductMasterTagSelectionTests
         var group = Definition(); var first = Profile(FixtureProfileId, "顶喷"); var next = Profile(Guid.NewGuid(), "新属性模板");
         var confirmation = new TaskCompletionSource<bool>();
         using var vm = new ProductMasterDetailViewModel(null!, null!, Cache(group, first, next), null!,
-            Proxy<IDialogService>((_, _) => confirmation.Task), null!, new ProductMasterSyncDialogStub());
+            Proxy<IDialogService>((_, _) => confirmation.Task), null!);
         LoadTagDetail(vm, first.Uid, group.Options[0].Uid); vm.Tags.RefreshDefinitions(Resolution([group]));
         vm.SelectedProfile = next; var pending = vm.CommitProfileCommand.ExecuteAsync(null);
         vm.Dispose(); confirmation.SetResult(true); await pending;

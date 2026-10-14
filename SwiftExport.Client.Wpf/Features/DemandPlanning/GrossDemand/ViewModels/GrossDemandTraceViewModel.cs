@@ -19,7 +19,7 @@ using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
-/// <summary>按单条来源需求展示拆解、采购关联及装箱交付的只读证据。</summary>
+/// <summary>按单条成品需求展示拆解、采购关联及装箱交付的只读证据。</summary>
 public sealed partial class GrossDemandTraceViewModel(
     IGrossDemandWorkspaceApi api, IApiCallRunner runner, INavigationService navigation,
     ICurrentUserService currentUser) : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
@@ -27,7 +27,7 @@ public sealed partial class GrossDemandTraceViewModel(
     private CancellationTokenSource? _loadCancellation;
     private bool _disposed;
 
-    /// <summary>来源需求只读追踪路由键。</summary>
+    /// <summary>成品需求只读追踪路由键。</summary>
     public const string RouteKey = "gross-demand-trace";
 
     [ObservableProperty]
@@ -51,12 +51,12 @@ public sealed partial class GrossDemandTraceViewModel(
     public partial string StatusText { get; set; } = string.Empty;
 
     /// <summary>页签标题使用来源单号和来源行号。</summary>
-    public string DocumentTitle => Detail is null ? "来源需求追踪" : $"来源 {Detail.SourceNo} / {Detail.SourceLineNumber}";
+    public string DocumentTitle => Detail is null ? "成品需求追踪" : $"来源 {Detail.SourceNo} / {Detail.SourceLineNumber}";
 
     /// <summary>只读追踪无未保存状态。</summary>
     public bool HasUnsavedChanges => false;
 
-    /// <summary>使用稳定来源需求身份初始化页签。</summary>
+    /// <summary>使用稳定成品需求身份初始化页签。</summary>
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
         IsReadOnly = true;
@@ -74,7 +74,7 @@ public sealed partial class GrossDemandTraceViewModel(
         _loadCancellation?.Cancel();
         if (_disposed || GrossDemandId == Guid.Empty)
         {
-            StatusText = "缺少来源需求标识。";
+            StatusText = "缺少成品需求标识。";
             return;
         }
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(navigationToken);
@@ -86,7 +86,7 @@ public sealed partial class GrossDemandTraceViewModel(
             {
                 var result = await runner.RunAsync(
                     () => api.GetTraceAsync(demandId, cancellation.Token), cancellation.Token,
-                    "加载来源需求追踪失败");
+                    "加载成品需求追踪失败");
                 if (_disposed || cancellation.IsCancellationRequested
                     || !ReferenceEquals(_loadCancellation, cancellation) || GrossDemandId != demandId) return;
                 if (!result.Success || result.Data is null)
@@ -102,7 +102,7 @@ public sealed partial class GrossDemandTraceViewModel(
                 SelectedPurchase = null;
                 SelectedDelivery = null;
                 StatusText = Detail.ReviewReason ?? string.Empty;
-            }, "正在加载来源需求追踪...", skipIfBusy: false);
+            }, "正在加载成品需求追踪...", skipIfBusy: false);
         }
         finally
         {

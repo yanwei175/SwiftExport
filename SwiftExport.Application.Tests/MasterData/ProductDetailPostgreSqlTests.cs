@@ -219,9 +219,11 @@ public sealed class ProductDetailPostgreSqlTests
         var master = await fixture.Tags.DetailRequestAsync(scope);
         var deletion = new ProductMasterBatchSaveRequest
         { ContractVersion = 3, DeleteItems = [new() { Uid = fixture.Tags.Master.Uid, Version = master.ExpectedVersion }] };
-        var blocked = await scope.Maintenance.BatchSaveAsync(deletion);
-        Assert.IsFalse(blocked.Success);
-        Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, blocked.Error.Code);
+        var removedMaster = await scope.Maintenance.BatchSaveAsync(deletion);
+        Assert.IsTrue(removedMaster.Success, removedMaster.Message);
+        var retained = await scope.Services.GetRequiredService<IProductRepository>().GetByIdAsync(product.Uid);
+        Assert.AreEqual(fixture.Tags.Master.Uid, retained!.ProductMasterId);
+        Assert.HasCount(1, await attributes.GetSelectionsAsync(ProductAttributeOwnerType.Product, [product.Uid], default));
         var item = new DeleteItemRequest { Uid = product.Uid, Version = selected.Data.Detail.Version };
         if (batch)
         {
@@ -404,7 +406,7 @@ public sealed class ProductDetailPostgreSqlTests
             var product = new Product
             {
                 Sku = "DETAIL-" + Guid.NewGuid().ToString("N"), ProductMasterId = unlinked ? null : Tags.Master.Uid,
-                MasterSku = "旧文字型号", SupplyType = SupplyTypeEnums.采购, MaterialType = MaterialTypesEnum.零件,
+                SupplyType = SupplyTypeEnums.采购, MaterialType = MaterialTypesEnum.零件,
                 IsActive = !withReadOnlyFacts, BomNo = withReadOnlyFacts ? "DETAIL-BOM-" + Guid.NewGuid().ToString("N") : null,
                 BomVersion = withReadOnlyFacts ? 3 : 0, CNYPrice = 10m, USDPrice = 2m
             };

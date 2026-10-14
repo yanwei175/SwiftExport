@@ -6,7 +6,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Products.Catalog;
 
-/// <summary>产品普通读取保留各入口软删范围及当前关联展示，不额外取得更新锁。</summary>
+/// <summary>产品普通读取保留软删范围；型号展示分别取独立的主型号、中性产品来源，不额外取得更新锁。</summary>
 public partial class PostgreSqlProductRepository
 {
     /// <summary>从真实客户产品关系取得当前非空客户代码；不读取关系快照或产品旧列，不排除停用记录。</summary>
@@ -35,7 +35,7 @@ public partial class PostgreSqlProductRepository
         p."updated_by" AS "UpdatedBy",
         p."is_active" AS "IsActive",
         p."product_master_id" AS "ProductMasterId",
-        p."master_sku" AS "MasterSku",
+        p."product_neutral_id" AS "ProductNeutralId",
         p."sku" AS "Sku",
         p."description_en" AS "DescriptionEn",
         p."description_zh" AS "DescriptionZh",
@@ -48,7 +48,6 @@ public partial class PostgreSqlProductRepository
         p."bom_version" AS "BomVersion",
         p."bom_no" AS "BomNo",
         p."note" AS "Note",
-        p."link_sku" AS "LinkSku",
         p."main_image" AS "MainImage",
         p."cny_price" AS "CNYPrice",
         p."usd_price" AS "USDPrice",
@@ -67,7 +66,9 @@ public partial class PostgreSqlProductRepository
         p."created_by" AS "CreatedBy",
         p."updated_date" AS "UpdatedDate",
         p."updated_by" AS "UpdatedBy",
-        p."master_sku" AS "MasterSku",
+        p."product_master_id" AS "ProductMasterId",
+        p."product_neutral_id" AS "ProductNeutralId",
+        pm."master_sku" AS "MasterSku",
         p."sku" AS "Sku",
         p."description_en" AS "DescriptionEn",
         p."description_zh" AS "DescriptionZh",
@@ -79,7 +80,7 @@ public partial class PostgreSqlProductRepository
         p."bom_version" AS "BomVersion",
         p."bom_no" AS "BomNo",
         p."note" AS "Note",
-        p."link_sku" AS "LinkSku",
+        pn."product_code" AS "LinkSku",
         p."main_image" AS "MainImage",
         p."cny_price" AS "CNYPrice",
         p."usd_price" AS "USDPrice",
@@ -105,6 +106,7 @@ public partial class PostgreSqlProductRepository
         """;
     private const string CatalogQueryJoins = """
         LEFT JOIN public.product_master pm ON pm.uid=p.product_master_id AND (pm.is_deleted=FALSE OR pm.is_deleted IS NULL)
+        LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
         LEFT JOIN public.product_category pat ON pat.uid=pm.category_id AND (pat.is_deleted=FALSE OR pat.is_deleted IS NULL)
         LEFT JOIN public.product_color pc ON pc.uid=p.color_id AND (pc.is_deleted=FALSE OR pc.is_deleted IS NULL)
         LEFT JOIN public.supplier defaultSupplier ON defaultSupplier.uid=p.default_supplier_id AND (defaultSupplier.is_deleted=FALSE OR defaultSupplier.is_deleted IS NULL)
@@ -135,13 +137,12 @@ public partial class PostgreSqlProductRepository
             parameters, Transaction, cancellationToken: cancellationToken))).AsList();
     }
 
-    /// <summary>详情只投影现有 DTO 字段；已失效供应商仓库隐藏名称，保留产品上的逻辑标识。</summary>
+    /// <summary>按身份投影独立来源及当前分类；失效来源隐藏展示，保留物料上的逻辑标识。</summary>
     public Task<ProductDto?> GetDtoByIdAsync(Guid uid) => Connection.QuerySingleOrDefaultAsync<ProductDto>($"""
-        SELECT {CatalogDtoColumns},p.is_active AS "IsActive",{CatalogReferenceColumns}
-        FROM public.product p {CatalogReferenceJoins}
-        LEFT JOIN public.supplier defaultSupplier ON defaultSupplier.uid=p.default_supplier_id AND defaultSupplier.is_deleted=FALSE
+        SELECT {CatalogDtoColumns},p.is_active AS "IsActive",{CatalogClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish"
+        FROM public.product p {CatalogQueryJoins} {CatalogReferenceJoins}
         WHERE p.uid=@Uid AND (p.is_deleted=FALSE OR p.is_deleted IS NULL)
-        """, new { Uid = uid }, Transaction);
+        """, new { Uid = uid, EmptyGuid = Guid.Empty }, Transaction);
 
     /// <summary>按原始 SKU 读取 DTO，分类从当前主型号取得，空价格保持 DTO 原有默认映射。</summary>
     public Task<ProductDto?> GetDtoBySkuAsync(string sku) => Connection.QueryFirstOrDefaultAsync<ProductDto>($"""

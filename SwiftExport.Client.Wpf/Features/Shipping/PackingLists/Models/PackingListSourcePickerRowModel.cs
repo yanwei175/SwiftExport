@@ -5,7 +5,7 @@ namespace SwiftExportClient.Features.Shipping.PackingLists.Models;
 /// <summary>待发货来源候选快照；仅勾选和本次数量属于界面输入，不保存库存事实。</summary>
 public sealed partial class PackingListSourcePickerRowModel : ObservableObject
 {
-    /// <summary>来源需求唯一标识。</summary>
+    /// <summary>成品需求唯一标识。</summary>
     public Guid GrossDemandId { get; init; }
     /// <summary>候选来源并发版本。</summary>
     public int DemandVersion { get; init; }

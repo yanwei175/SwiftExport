@@ -1,16 +1,14 @@
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using Mapster;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using SwiftExport.Contracts.Apis.QualityControl;
+using Mapster;
 using SwiftExport.Contracts.Apis.ProductApis;
-using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Apis.QualityControl;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products;
+using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.QualityControl.AfterSales;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.SysEnums;
@@ -24,6 +22,8 @@ using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 
@@ -174,18 +174,25 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         return !HasUnsavedChanges || await _dialogs.ConfirmAsync("关闭售后服务单", "当前服务单有未保存修改，确定放弃并关闭吗？", "放弃并关闭", "继续编辑", cancellationToken);
     }
 
-    [RelayCommand(CanExecute = nameof(CanAddLine))] private void AddLine()
+    [RelayCommand(CanExecute = nameof(CanAddLine))]
+    private void AddLine()
     {
-        var line = LineList.AddNew(new() { Uid = GuidSequentialGenerator.NewGuid(), Version = 1,
-            LineNumber = LineList.AllLines.Count == 0 ? 1 : LineList.AllLines.Max(x => x.LineNumber) + 1 });
+        var line = LineList.AddNew(new()
+        {
+            Uid = GuidSequentialGenerator.NewGuid(),
+            Version = 1,
+            LineNumber = LineList.AllLines.Count == 0 ? 1 : LineList.AllLines.Max(x => x.LineNumber) + 1
+        });
         SelectedLine = line; UpdateDirtyState();
     }
-    [RelayCommand(CanExecute = nameof(CanDeleteLine))] private void DeleteLine()
+    [RelayCommand(CanExecute = nameof(CanDeleteLine))]
+    private void DeleteLine()
     {
         var line = SelectedLine!;
         LineList.Remove(line); SelectedLine = Lines.FirstOrDefault(); UpdateDirtyState();
     }
-    [RelayCommand(CanExecute = nameof(CanSave))] private async Task SaveAsync()
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private async Task SaveAsync()
     {
         if (_pendingWrite is null)
         {
@@ -198,13 +205,14 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         await RunPendingWriteAsync();
     }
 
-    [RelayCommand(CanExecute = nameof(CanConfirm))] private async Task ConfirmDemandAsync()
+    [RelayCommand(CanExecute = nameof(CanConfirm))]
+    private async Task ConfirmDemandAsync()
     {
         if (_pendingConfirmation is null)
         {
             if (!Validate(true)) return;
             if (!Lines.Any(x => x.Quantity > 0)) { _messages.ShowInfo("无需确认", "当前没有正数量补发要求，投诉单可以直接保存并在处理完成后结案。"); return; }
-            if (!await _dialogs.ConfirmAsync("确认实物需求", "将先保存当前修改，再把正数量补件交给来源需求。确认后相关事实会锁定。", "保存并确认")) return;
+            if (!await _dialogs.ConfirmAsync("确认实物需求", "将先保存当前修改，再把正数量补件交给成品需求。确认后相关事实会锁定。", "保存并确认")) return;
             SetPendingConfirmation(new PendingDemandConfirmation(CreateSaveCommand(), !IsPersisted, Guid.NewGuid()));
         }
         await RunBusyAsync(async () =>
@@ -251,10 +259,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         }, "正在保存并确认实物需求...");
     }
 
-    [RelayCommand(CanExecute = nameof(CanCancelConfirmation))] private async Task CancelDemandConfirmationAsync()
+    [RelayCommand(CanExecute = nameof(CanCancelConfirmation))]
+    private async Task CancelDemandConfirmationAsync()
     {
         if (_pendingWrite?.Operation == "cancel") { await RunPendingWriteAsync(); return; }
-        var reason = await _reasonDialog.RequestAsync("取消实物需求确认", "来源需求会先检查是否能够安全撤回；失败时服务单仍保持确认和锁定状态。");
+        var reason = await _reasonDialog.RequestAsync("取消实物需求确认", "成品需求会先检查是否能够安全撤回；失败时服务单仍保持确认和锁定状态。");
         if (reason is null) return;
         var uid = Header.Uid;
         var request = new CancelAfterSalesDemandConfirmationCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
@@ -262,7 +271,8 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             () => _runner.RunAsync(() => _api.CancelDemandConfirmationAsync(uid, request), "取消实物需求确认失败")));
         await RunPendingWriteAsync();
     }
-    [RelayCommand(CanExecute = nameof(CanCloseDocument))] private async Task CloseAsync()
+    [RelayCommand(CanExecute = nameof(CanCloseDocument))]
+    private async Task CloseAsync()
     {
         if (_pendingWrite?.Operation == "close") { await RunPendingWriteAsync(); return; }
         var reason = await _reasonDialog.RequestAsync("结案", "正数量要求必须已正式交付完成或由下游合法关闭。请输入结案说明。");
@@ -273,10 +283,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             () => _runner.RunAsync(() => _api.CloseAsync(uid, request), "结案失败")));
         await RunPendingWriteAsync();
     }
-    [RelayCommand(CanExecute = nameof(CanReopen))] private async Task ReopenAsync()
+    [RelayCommand(CanExecute = nameof(CanReopen))]
+    private async Task ReopenAsync()
     {
         if (_pendingWrite?.Operation == "reopen") { await RunPendingWriteAsync(); return; }
-        var reason = await _reasonDialog.RequestAsync("重开售后服务单", "重开只恢复售后生命周期，不会重新发布来源需求。请输入原因。");
+        var reason = await _reasonDialog.RequestAsync("重开售后服务单", "重开只恢复售后生命周期，不会重新发布成品需求。请输入原因。");
         if (reason is null) return;
         var uid = Header.Uid;
         var request = new ReopenAfterSalesCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
@@ -284,10 +295,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             () => _runner.RunAsync(() => _api.ReopenAsync(uid, request), "重开失败")));
         await RunPendingWriteAsync();
     }
-    [RelayCommand(CanExecute = nameof(CanVoid))] private async Task VoidAsync()
+    [RelayCommand(CanExecute = nameof(CanVoid))]
+    private async Task VoidAsync()
     {
         if (_pendingWrite?.Operation == "void") { await RunPendingWriteAsync(); return; }
-        var reason = await _reasonDialog.RequestAsync("作废售后服务单", "作废要求服务单开放、未确认且没有活动来源需求。请输入原因。");
+        var reason = await _reasonDialog.RequestAsync("作废售后服务单", "作废要求服务单开放、未确认且没有活动成品需求。请输入原因。");
         if (reason is null) return;
         var uid = Header.Uid;
         var request = new VoidAfterSalesCommand { CommandId = Guid.NewGuid(), Version = Header.Version, Reason = reason };
@@ -295,7 +307,8 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
             () => _runner.RunAsync(() => _api.VoidAsync(uid, request), "作废失败")));
         await RunPendingWriteAsync();
     }
-    [RelayCommand(CanExecute = nameof(CanReload))] private async Task ReloadAsync()
+    [RelayCommand(CanExecute = nameof(CanReload))]
+    private async Task ReloadAsync()
     {
         if (HasPendingIntent) return;
         if (IsDirty && !await _dialogs.ConfirmAsync("重新加载售后服务单", "重新加载会放弃当前未保存修改，确定继续吗？", "放弃并重新加载", "继续编辑")) return;
@@ -363,11 +376,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
         if (HasInputErrors) return ValidationFailed("请先修正页面中无效的数字或日期。");
         if (Header.CustomerId == Guid.Empty) return ValidationFailed("Header.CustomerId：请选择客户。");
         if (Header.AcceptedDate == default) return ValidationFailed("Header.AcceptedDate：请选择受理日期。");
-        var headerError=Header.Validate(forConfirmation && Lines.Any(x=>x.Quantity>0));
-        if(headerError is not null) return ValidationFailed(headerError);
+        var headerError = Header.Validate(forConfirmation && Lines.Any(x => x.Quantity > 0));
+        if (headerError is not null) return ValidationFailed(headerError);
         foreach (var line in Lines)
         {
-            if(line.IsNew && line.IsEmptyPlaceholder) continue;
+            if (line.IsNew && line.IsEmptyPlaceholder) continue;
             var error = line.Validate(forConfirmation);
             if (error is null) continue;
             SelectedLine = line;
@@ -382,8 +395,11 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
     {
         var command = new SaveAfterSalesCommand
         {
-            CommandId = Guid.NewGuid(), Uid = Header.Uid, Version = Header.Version,
-            Header = Header.ToDto(), AddedLines = Lines.Where(x => x.IsNew && !x.IsEmptyPlaceholder).Select(x => x.ToEditDto()).ToList(),
+            CommandId = Guid.NewGuid(),
+            Uid = Header.Uid,
+            Version = Header.Version,
+            Header = Header.ToDto(),
+            AddedLines = Lines.Where(x => x.IsNew && !x.IsEmptyPlaceholder).Select(x => x.ToEditDto()).ToList(),
             UpdatedLines = Lines.Where(x => !x.IsNew && x.IsDirty).Select(x => x.ToEditDto()).ToList(),
             DeletedLines = LineList.DeletedItems.Select(x => new AfterSalesDeletedLineDto { Uid = x.Uid, Version = x.Version }).ToList()
         };
@@ -614,8 +630,8 @@ public sealed partial class AfterSalesDetailViewModel : ViewModelBaseEx, IDocume
               };
 
         Header.SynchronizeSupplier(Header.ResponsibleSupplierId.HasValue
-            ? Suppliers.FirstOrDefault(x=>x.Uid==Header.ResponsibleSupplierId.Value)
-              ?? new SupplierDto { Uid=Header.ResponsibleSupplierId.Value }
+            ? Suppliers.FirstOrDefault(x => x.Uid == Header.ResponsibleSupplierId.Value)
+              ?? new SupplierDto { Uid = Header.ResponsibleSupplierId.Value }
             : null);
     }
 

@@ -17,6 +17,7 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Views;
@@ -31,6 +32,55 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailNavigationTests
 {
+    /// <summary>列表明确选择两个独立引用，保存目标行时仍保留其他行及 BOM 草稿。</summary>
+    [TestMethod]
+    public async Task SourceLookups_ShouldSaveIndependentIdsAndPreserveOtherDrafts()
+    {
+        using var fixture = new Fixture { Choice = DialogResult.Primary, SaveSucceeds = true };
+        var target = fixture.ViewModel.Products.Items[0];
+        var other = fixture.ViewModel.Products.Items[1];
+        var masterId = Guid.NewGuid(); var neutralId = Guid.NewGuid(); var colorId = Guid.NewGuid();
+        target.ColorId = colorId;
+        other.Note = "其他行草稿";
+        fixture.ViewModel.BomDrawer.Boms.AddNewItem("保留 BOM").Note = "抽屉草稿";
+        fixture.ViewModel.EditProductMaster = new(new() { Uid = masterId, Data = new() { MasterSku = "主型号" } });
+        fixture.ViewModel.CommitProductMasterCommand.Execute(target);
+        fixture.ViewModel.EditProductNeutral = new(new() { Uid = neutralId, Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "独立中性产品" } });
+        fixture.ViewModel.CommitProductNeutralCommand.Execute(target);
+        Assert.AreEqual(colorId, target.ColorId);
+        Assert.AreEqual(masterId, target.ProductMasterId);
+        Assert.AreEqual(neutralId, target.ProductNeutralId);
+        await fixture.ViewModel.OpenDetailCommand.ExecuteAsync(null);
+        Assert.IsNotNull(fixture.LastSave);
+        Assert.AreEqual(1, fixture.LastSave.UpdateItems.Count);
+        Assert.AreEqual(masterId, fixture.LastSave.UpdateItems[0].Data.ProductMasterId);
+        Assert.AreEqual(neutralId, fixture.LastSave.UpdateItems[0].Data.ProductNeutralId);
+        Assert.AreEqual("其他行草稿", other.Note);
+        Assert.IsTrue(other.IsDirty);
+        Assert.IsTrue(fixture.ViewModel.BomDrawer.Boms.HasChanges);
+    }
+
+    /// <summary>空显示的失效来源身份仍能回传，只有显式清除才发送 null；两关系互不影响。</summary>
+    [TestMethod]
+    public void MissingSourceIds_ShouldRemainUntilExplicitClear()
+    {
+        using var fixture = new Fixture();
+        var line = fixture.ViewModel.Products.Items[0];
+        var masterId = Guid.NewGuid(); var neutralId = Guid.NewGuid();
+        line.Load(new() { Uid = line.Uid, Version = 1, Sku = "A", ProductMasterId = masterId, ProductNeutralId = neutralId });
+        Assert.IsFalse(line.IsDirty);
+        Assert.AreEqual(string.Empty, line.MasterSku);
+        Assert.AreEqual(string.Empty, line.LinkSku);
+        Assert.AreEqual(masterId, line.ToDto().ProductMasterId);
+        Assert.AreEqual(neutralId, line.ToDto().ProductNeutralId);
+        fixture.ViewModel.ClearProductMasterCommand.Execute(line);
+        Assert.IsNull(line.ToDto().ProductMasterId);
+        Assert.AreEqual(neutralId, line.ToDto().ProductNeutralId);
+        fixture.ViewModel.ClearProductNeutralCommand.Execute(line);
+        Assert.IsNull(line.ToDto().ProductNeutralId);
+        Assert.IsTrue(line.IsDirty);
+    }
+
     /// <summary>取消与放弃仅影响目标物料，其他物料和 BOM 组成草稿始终保留。</summary>
     [TestMethod]
     [DataRow(DialogResult.Close)]

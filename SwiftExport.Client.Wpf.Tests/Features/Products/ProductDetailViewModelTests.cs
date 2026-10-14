@@ -4,11 +4,14 @@ using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Attributes;
+using SwiftExport.Contracts.DTOs.Products.ProductMasters;
+using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager;
 using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.Products.ProductList.Models;
+using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -23,6 +26,68 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class ProductDetailViewModelTests
 {
+    /// <summary>两项来源可以归属不同主型号，选择或清空不联动颜色、描述与标签身份。</summary>
+    [TestMethod]
+    public async Task Sources_ShouldRemainIndependentAndSendNullForUneditedTags()
+    {
+        var definition = ProductMasterTagSelectionTests.Definition();
+        var detail = Detail();
+        detail.SelectedOptionIds = [definition.Options[0].Uid];
+        detail.Data.ColorId = Guid.NewGuid();
+        SaveProductDetailRequest? sent = null;
+        using var vm = Create(detail, definition, save: request =>
+        { sent = request; return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail("保留草稿")); });
+        await Open(vm, detail.Uid);
+        var masterId = Guid.NewGuid(); var neutralId = Guid.NewGuid();
+        vm.SelectedProductMaster = new(new() { Uid = masterId, Data = new() { MasterSku = "独立主型号", ProductAttributeProfileId = Guid.NewGuid() } });
+        vm.CommitProductMasterCommand.Execute(null);
+        vm.SelectedProductNeutral = new(new() { Uid = neutralId, Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "其他主型号的中性产品" } });
+        vm.CommitProductNeutralCommand.Execute(null);
+        Assert.AreEqual(masterId, vm.Header.ProductMasterId);
+        Assert.AreEqual(neutralId, vm.Header.ProductNeutralId);
+        Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
+        Assert.IsFalse(vm.Tags.IsDirty);
+        Assert.IsTrue(vm.Tags.HasSelections);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsNotNull(sent);
+        Assert.IsNull(sent.SelectedOptionIds);
+        Assert.AreEqual(masterId, sent.Data.ProductMasterId);
+        Assert.AreEqual(neutralId, sent.Data.ProductNeutralId);
+        vm.ClearProductMasterCommand.Execute(null);
+        Assert.IsNull(vm.Header.ProductMasterId);
+        Assert.AreEqual(neutralId, vm.Header.ProductNeutralId);
+        Assert.IsTrue(vm.Tags.HasSelections);
+        vm.ClearProductNeutralCommand.Execute(null);
+        Assert.IsNull(vm.Header.ProductNeutralId);
+        Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
+    }
+
+    /// <summary>失效引用只显示空编码，基本资料保存保持身份和标签，不将空显示误解释成清空引用。</summary>
+    [TestMethod]
+    public async Task MissingSources_ShouldPreserveIdentityAndAllowBasicSave()
+    {
+        var detail = Detail();
+        detail.MasterSku = null; detail.LinkSku = null;
+        detail.ProductAttributeProfileId = null;
+        detail.Data.ProductNeutralId = detail.ProductNeutralId = Guid.NewGuid();
+        detail.SelectedOptionIds = [Guid.NewGuid()];
+        SaveProductDetailRequest? sent = null;
+        using var vm = Create(detail, ProductMasterTagSelectionTests.Definition(), save: request =>
+        { sent = request; return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail("保留草稿")); });
+        await Open(vm, detail.Uid);
+        Assert.AreEqual(string.Empty, vm.Header.MasterSku);
+        Assert.AreEqual(string.Empty, vm.Header.LinkSku);
+        Assert.AreEqual(detail.Data.ProductMasterId, vm.SelectedProductMaster!.Uid);
+        Assert.AreEqual(detail.Data.ProductNeutralId, vm.SelectedProductNeutral!.Uid);
+        vm.Header.Note = "基本资料独立保存";
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsNotNull(sent);
+        Assert.AreEqual(detail.Data.ProductMasterId, sent.Data.ProductMasterId);
+        Assert.AreEqual(detail.Data.ProductNeutralId, sent.Data.ProductNeutralId);
+        Assert.IsNull(sent.SelectedOptionIds);
+        Assert.IsTrue(vm.Tags.HasSelections);
+    }
+
     /// <summary>基础字段与物料自身选择通过同一请求提交，成功后才接纳版本和基线。</summary>
     [TestMethod]
     public async Task Save_ShouldSubmitFieldsAndOwnSelectionsAtomically()
@@ -316,14 +381,18 @@ public sealed class ProductDetailViewModelTests
     }
 
     /// <summary>测试详情快照同时包含只读来源、包装和明确单品值。</summary>
-    internal static ProductDetailDto Detail() => new()
+    internal static ProductDetailDto Detail()
     {
-        Uid = Guid.NewGuid(), Version = 7, ProductMasterId = Guid.NewGuid(), MasterSku = "MASTER",
+        var masterId = Guid.NewGuid();
+        return new()
+        {
+        Uid = Guid.NewGuid(), Version = 7, ProductMasterId = masterId, MasterSku = "MASTER",
         CategoryId = Guid.NewGuid(), CategoryName = "面盆龙头", ProductAttributeProfileId = ProductMasterTagSelectionTests.FixtureProfileId,
         ProductAttributeProfileName = "面盆龙头模板", IsActive = true, BomNo = "BOM-REFERENCE", BomVersion = 1,
         PcsOfCarton = 12m, NwOfCarton = 8m, GwOfCarton = 9m, CbmOfCarton = 0.3m,
-        Data = new() { Sku = "MATERIAL", MaterialType = "成品", SupplyType = "采购", Unit = "PC", UnitWeight = 0.5m, UnitCBM = 0.01m, CNYPrice = 10m, USDPrice = 2m }
-    };
+        Data = new() { Sku = "MATERIAL", ProductMasterId = masterId, MaterialType = "成品", SupplyType = "采购", Unit = "PC", UnitWeight = 0.5m, UnitCBM = 0.01m, CNYPrice = 10m, USDPrice = 2m }
+        };
+    }
     /// <summary>按真实详情打开协议初始化测试文档。</summary>
     internal static Task Open(ProductDetailViewModel vm, Guid id) => vm.InitializeDocumentAsync(new ProductDocumentOpenRequest { ProductId = id }, CancellationToken.None);
     private static CacheRefreshResult CacheResult(bool success) => (CacheRefreshResult)Activator.CreateInstance(typeof(CacheRefreshResult),

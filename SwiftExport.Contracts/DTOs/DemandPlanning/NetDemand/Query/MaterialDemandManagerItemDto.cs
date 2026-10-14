@@ -19,17 +19,17 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public int Version { get; set; }
         /// <summary>物料需求生命周期。</summary>
         public NetDemandLifecycleStatusEnum LifecycleStatus { get; set; }
-        /// <summary>所属来源需求 Uid。</summary>
+        /// <summary>所属成品需求 Uid。</summary>
         public Guid GrossDemandId { get; set; }
-        /// <summary>来源需求拆解修订号。</summary>
+        /// <summary>成品需求拆解修订号。</summary>
         public int DecompositionRevision { get; set; }
         /// <summary>拆解修订内的物料行号。</summary>
         public int LineNumber { get; set; }
-        /// <summary>来源需求归属客户 Uid；采购单头客户快照只能由该权威事实派生。</summary>
+        /// <summary>成品需求归属客户 Uid；采购单头客户快照只能由该权威事实派生。</summary>
         public Guid? CustomerId { get; set; }
-        /// <summary>来源需求归属客户当前编码。</summary>
+        /// <summary>成品需求归属客户当前编码。</summary>
         public string CustomerCode { get; set; }
-        /// <summary>来源需求归属客户当前名称。</summary>
+        /// <summary>成品需求归属客户当前名称。</summary>
         public string CustomerName { get; set; }
         /// <summary>来源业务类型快照。</summary>
         public string SourceType { get; set; }
@@ -98,7 +98,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal GrossQty { get; set; }
         /// <summary>当前净需求数量；现阶段未自动抵扣库存和在途。</summary>
         public decimal NetQty { get; set; }
-        /// <summary>来源需求交期。</summary>
+        /// <summary>成品需求交期。</summary>
         public DateTime? DemandRequiredDate { get; set; }
         /// <summary>有效采购 Link 的分配量减释放量合计。</summary>
         public decimal? AssociatedPurchaseQty { get; set; }

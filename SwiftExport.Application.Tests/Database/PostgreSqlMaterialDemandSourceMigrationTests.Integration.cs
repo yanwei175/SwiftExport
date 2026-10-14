@@ -161,7 +161,9 @@ public sealed class PostgreSqlMaterialDemandSourceMigrationIntegrationTests
         var gross = f.Gross(Guid.NewGuid(), "MD", 1);
         gross.ImagePathSnapshot = "父来源图"; gross.LinkSkuSnapshot = "父来源型号"; gross.UnitSnapshot = "SET";
         await f.InsertAsync(gross);
-        var product = new Product { Uid = Guid.NewGuid(), Sku = f.Prefix + "PRODUCT", SupplyType = SupplyTypeEnums.采购, Unit = "CURRENT", LinkSku = "当前物料型号", MainImage = "当前物料图", IsActive = false };
+        var product = new Product { Uid = Guid.NewGuid(), Sku = f.Prefix + "PRODUCT", SupplyType = SupplyTypeEnums.采购, Unit = "CURRENT", MainImage = "当前物料图", IsActive = false };
+        var neutral = ProductNeutralReferenceTestData.Create(product, f.Prefix + "当前物料型号");
+        await f.InsertAsync(neutral);
         await f.InsertAsync(product);
         var supplier = f.Supplier("S"); supplier.IsActive = false; await f.InsertAsync(supplier);
         var mapping = new SupplierProduct { Uid = Guid.NewGuid(), SupplierId = supplier.Uid, SupplierCode = supplier.SupplierCode, SkuId = product.Uid, ProductSku = product.Sku, SupplierSku = "供应商型号", UnitPrice = 2.5m, TaxPrice = null };
@@ -169,7 +171,7 @@ public sealed class PostgreSqlMaterialDemandSourceMigrationIntegrationTests
         var net = f.Net(gross, 1); net.ProductId = product.Uid; net.UnitSnapshot = storedUnit; net.SuggestedPurchaseSupplierId = supplier.Uid;
         await f.InsertAsync(net);
         var row = (await f.Repository.GetPurchaseCandidatesAsync(f.Query(gross))).Single();
-        Assert.AreEqual("当前物料图", row.ImagePath); Assert.AreEqual("当前物料型号", row.LinkSku);
+        Assert.AreEqual("当前物料图", row.ImagePath); Assert.AreEqual(neutral.ProductCode, row.LinkSku);
         Assert.AreEqual(expectedUnit, row.Unit); Assert.AreEqual("供应商型号", row.SuggestedSupplierSku);
         Assert.AreEqual(2.5m, row.SuggestedUnitPrice); Assert.IsNull(row.SuggestedTaxPrice);
         Assert.AreEqual(supplier.SupplierCode, row.SuggestedPurchaseSupplierCode);

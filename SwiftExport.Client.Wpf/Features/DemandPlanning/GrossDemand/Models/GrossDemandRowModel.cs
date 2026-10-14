@@ -4,7 +4,7 @@ using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
 
-/// <summary>承载来源需求本体快照、兼容拆解状态与页面选择状态。</summary>
+/// <summary>承载成品需求本体快照、兼容拆解状态与页面选择状态。</summary>
 public sealed partial class GrossDemandRowModel : ObservableObject
 {
     public Guid Uid { get; private set; }

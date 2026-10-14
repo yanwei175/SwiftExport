@@ -85,8 +85,8 @@ public sealed partial class ProductMasterMaintenanceService
         _lockedAttributeGroupIds = groupIds.ToHashSet();
     }
 
-    /// <summary>上游模板变更或删除不能清空物料自身标签；重验锁范围，避免关联维护与新增选择竞争。</summary>
-    private async Task ValidateLinkedProductSelectionsAsync(Guid masterId, Guid? targetProfileId, bool deleting, CancellationToken cancellationToken)
+    /// <summary>模板变更重验物料选择；删除主型号允许保留物料来源 ID 和自身标签，不自动清理失效关系。</summary>
+    private async Task ValidateLinkedProductSelectionsAsync(Guid masterId, Guid? targetProfileId, CancellationToken cancellationToken)
     {
         var productIds = await productRepository.GetIdsByProductMasterIdsAsync([masterId], cancellationToken);
         var selections = await attributeRepository.GetSelectionsAsync(ProductAttributeOwnerType.Product, productIds, cancellationToken);
@@ -94,8 +94,6 @@ public sealed partial class ProductMasterMaintenanceService
         var requiredGroups = await attributeRepository.GetGroupIdsForOptionsAsync(selections.Select(row => row.OptionId), cancellationToken);
         if (requiredGroups.Any(id => !_lockedAttributeGroupIds.Contains(id)))
             throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "关联物料的标签选择已变化，请刷新后重试。");
-        if (deleting)
-            throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, $"有 {selections.Select(row => row.OwnerId).Distinct().Count()} 个关联物料保存了独立标签，不能删除来源主型号，请先处理这些物料标签。");
         var unavailableCount = 0;
         foreach (var owner in selections.GroupBy(row => row.OwnerId))
         {
