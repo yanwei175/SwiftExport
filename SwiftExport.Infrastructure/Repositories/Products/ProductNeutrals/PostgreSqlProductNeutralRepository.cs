@@ -36,13 +36,13 @@ public sealed class PostgreSqlProductNeutralRepository(RepositoryBaseContext con
         pn."is_main_image" AS "IsMainImage"
     """;
 
-    /// <summary>新增委托通用仓储，只把两个指定中性唯一索引冲突转换成固定业务回执。</summary>
+    /// <summary>新增委托通用仓储，只把全局中性编码唯一索引冲突转换成固定业务回执。</summary>
     public override async Task<RepositoryWriteResult> AddAsync(ProductNeutral entity)
     {
         try { return await base.AddAsync(entity); }
         catch (PostgresException exception) when (PostgreSqlProductNeutralWriteConflict.IsKnown(exception))
         {
-            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, null, exception);
+            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, null);
         }
     }
 
@@ -54,7 +54,7 @@ public sealed class PostgreSqlProductNeutralRepository(RepositoryBaseContext con
         try { return await base.UpdateAsync(entity); }
         catch (PostgresException exception) when (PostgreSqlProductNeutralWriteConflict.IsKnown(exception))
         {
-            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, oldVersion, exception);
+            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, oldVersion);
         }
     }
 

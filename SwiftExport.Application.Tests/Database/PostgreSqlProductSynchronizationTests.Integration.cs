@@ -175,13 +175,13 @@ public sealed class PostgreSqlProductSynchronizationIntegrationTests
         session.Transaction = transaction;
         try
         {
-            // 复制库若未升级独立来源列，只在本例回滚事务内补齐新物料结构；不提交 DDL。
+            // 只在回滚事务内验证去掉旧来源列后的结构；自身型号保留，不持久升级复制库。
             await session.Connection.ExecuteAsync("""
                 SET LOCAL lock_timeout='5s';
                 ALTER TABLE public.product
                     DROP COLUMN IF EXISTS master_sku,
-                    DROP COLUMN IF EXISTS link_sku,
-                    ADD COLUMN IF NOT EXISTS product_neutral_id uuid NULL;
+                    DROP COLUMN IF EXISTS product_neutral_id,
+                    ADD COLUMN IF NOT EXISTS link_sku varchar(300) NULL;
                 """, transaction: transaction);
             await scenario(context, new PostgreSqlProductRepository(context));
         }
@@ -220,7 +220,7 @@ public sealed class PostgreSqlProductSynchronizationIntegrationTests
         };
         var neutral = ProductNeutralReferenceTestData.Create(item, item.Sku + "原关联");
         Assert.IsTrue((await new PostgreSqlDapperRepository<ProductNeutral>(context).AddAsync(neutral)).Success);
-        item.ProductNeutralId = neutral.Uid;
+        item.LinkSku = neutral.ProductCode;
         var repository = new PostgreSqlDapperRepository<Product>(context);
         Assert.IsTrue((await repository.AddAsync(item)).Success);
         item = (await repository.GetByIdAsync(item.Uid))!;
@@ -246,7 +246,7 @@ public sealed class PostgreSqlProductSynchronizationIntegrationTests
         Assert.AreEqual(original.USDPrice, saved.USDPrice); Assert.AreEqual(original.CNYPrice, saved.CNYPrice);
         Assert.AreEqual(original.DefaultWarehouseSiteId, saved.DefaultWarehouseSiteId); Assert.AreEqual(original.ManufacturerId, saved.ManufacturerId);
         Assert.AreEqual(original.MainImage, saved.MainImage); Assert.AreEqual(original.Note, saved.Note);
-        Assert.AreEqual(original.ProductNeutralId, saved.ProductNeutralId); Assert.AreEqual(original.ManufacturerModel, saved.ManufacturerModel);
+        Assert.AreEqual(original.LinkSku, saved.LinkSku); Assert.AreEqual(original.ManufacturerModel, saved.ManufacturerModel);
         Assert.AreEqual(original.CreatedDate, saved.CreatedDate);
         Assert.AreEqual(original.CreatedBy, saved.CreatedBy);
     }

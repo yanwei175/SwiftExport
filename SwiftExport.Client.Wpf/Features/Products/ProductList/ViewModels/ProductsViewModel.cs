@@ -207,7 +207,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public ObservableCollection<SupplierDto> SupplierCandidates { get; } = [];
     /// <summary>独立主型号搜索候选，不参与物料的中性产品筛选。</summary>
     public ObservableCollection<ProductMasterLookupItemModel> ProductMasterCandidates { get; } = [];
-    /// <summary>独立中性产品候选，不要求与物料主型号归属一致。</summary>
+    /// <summary>型号输入的中性产品编码建议，不建立物料引用关系。</summary>
     public ObservableCollection<ProductNeutralLookupItemModel> ProductNeutralCandidates { get; } = [];
     /// <summary>产品模块独立授权的精简仓库候选；不借用库存模块的仓库缓存。</summary>
     public ObservableCollection<WarehouseSitePickerDto> WarehouseCandidates { get; } = [];
@@ -238,7 +238,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     public partial SupplierDto? EditSupplier { get; set; }
     /// <summary>待确认的主型号候选，原行身份仅在确认或明确清空时变化。</summary>
     [ObservableProperty] public partial ProductMasterLookupItemModel? EditProductMaster { get; set; }
-    /// <summary>待确认的中性产品候选，不回写主型号或颜色。</summary>
+    /// <summary>待确认的型号编码建议，不回写主型号或颜色。</summary>
     [ObservableProperty] public partial ProductNeutralLookupItemModel? EditProductNeutral { get; set; }
     /// <summary>主型号候选读取状态。</summary>
     [ObservableProperty] public partial bool IsProductMasterLookupBusy { get; private set; }
@@ -569,7 +569,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         finally { if (!_disposed && ReferenceEquals(current, _masterLookupCts)) IsProductMasterLookupBusy = false; }
     }
 
-    /// <summary>查询中性产品自身编码；不按所选主型号限制候选，也不自动改变其他关系。</summary>
+    /// <summary>查询中性产品编码建议；自由输入不要求命中候选或所选主型号。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchProductNeutralsAsync(string? keyword)
     {
@@ -590,7 +590,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         finally { if (!_disposed && ReferenceEquals(current, _neutralLookupCts)) IsProductNeutralLookupBusy = false; }
     }
 
-    /// <summary>确认主型号仅保存自身引用与联表显示，不改变中性产品、颜色或物料独立资料。</summary>
+    /// <summary>确认主型号仅保存自身引用与联表显示，不改变物料自身型号、颜色或独立资料。</summary>
     [RelayCommand]
     private void CommitProductMaster(ProductLineModel? line)
     {
@@ -599,7 +599,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         line.CategoryId = EditProductMaster.CategoryId; line.CategoryName = EditProductMaster.CategoryName ?? string.Empty;
         EditProductMaster = null;
     }
-    /// <summary>明确清空主型号保存 null，中性产品及已有标签保持。</summary>
+    /// <summary>明确清空主型号保存 null，物料自身型号及已有标签保持。</summary>
     [RelayCommand]
     private void ClearProductMaster(ProductLineModel? line)
     {
@@ -607,20 +607,20 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         line.ProductMasterId = null; line.MasterSku = string.Empty; line.CategoryId = Guid.Empty; line.CategoryName = string.Empty;
         EditProductMaster = null;
     }
-    /// <summary>确认中性产品仅保存其身份与编码，不从候选推导主型号或颜色。</summary>
+    /// <summary>确认候选仅填写物料自身型号，不从候选推导主型号或颜色。</summary>
     [RelayCommand]
     private void CommitProductNeutral(ProductLineModel? line)
     {
         if (_disposed || !CanWrite || IsBusy || line is null || EditProductNeutral is null) return;
-        line.ProductNeutralId = EditProductNeutral.Uid; line.LinkSku = EditProductNeutral.ProductCode ?? string.Empty;
+        line.LinkSku = EditProductNeutral.ProductCode ?? string.Empty;
         EditProductNeutral = null;
     }
-    /// <summary>明确清空中性产品保存 null，其余关系不变。</summary>
+    /// <summary>明确清空物料自身型号，其余关系不变。</summary>
     [RelayCommand]
     private void ClearProductNeutral(ProductLineModel? line)
     {
         if (_disposed || !CanWrite || IsBusy || line is null) return;
-        line.ProductNeutralId = null; line.LinkSku = string.Empty; EditProductNeutral = null;
+        line.LinkSku = string.Empty; EditProductNeutral = null;
     }
 
     [RelayCommand]

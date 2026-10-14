@@ -48,7 +48,7 @@
             </Style>
 
             <Style x:Key="LookupEditorBorderStyle" TargetType="Border">
-                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Background" Value="{DynamicResource UserControlFillColorDefaultBrush}" />
                 <Setter Property="BorderBrush" Value="Transparent" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
@@ -98,11 +98,11 @@
                 <!--选中候选后显示-->
                 <Grid>                    
                     <Border x:Name="DisplayTextBlockBorder"
-                        Style="{DynamicResource LookupEditorBorderStyle}"
-                        Padding="{DynamicResource TextControlThemePadding}"
-                        BorderBrush="{DynamicResource TextControlElevationBorderBrush}"
-                        BorderThickness="{DynamicResource TextBoxBorderThemeThickness}"
-                        Visibility="{Binding ElementName=DisplayTextBlock, Path=Visibility}">
+                            Style="{DynamicResource LookupEditorBorderStyle}"
+                            Padding="{DynamicResource TextControlThemePadding}"
+                            BorderBrush="{DynamicResource TextControlElevationBorderBrush}"
+                            BorderThickness="{DynamicResource TextBoxBorderThemeThickness}"
+                            Visibility="{Binding ElementName=DisplayTextBlock, Path=Visibility}">
                         <TextBlock x:Name="DisplayTextBlock"
                                    Style="{StaticResource LookupOverlayTextStyle}"
                                    FontSize="{DynamicResource ContentControlFontSize}"

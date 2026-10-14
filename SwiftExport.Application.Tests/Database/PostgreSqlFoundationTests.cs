@@ -136,18 +136,18 @@ public sealed class PostgreSqlFoundationTests
         Assert.AreEqual(nullable, EntityColumnSchema.IsNullable(property));
     }
 
-    /// <summary>型号和中性编码仅改变指定唯一键，不改变非空列、父颜色组合唯一或列级比较。</summary>
+    /// <summary>型号和中性编码保留全局唯一与非空列；同一父型号下颜色可以重复，不改变列级比较。</summary>
     [TestMethod]
     [DataRow("product_master", "master_sku")]
     [DataRow("product_neutral", "product_code")]
-    public void ProductCodeIndex_PreservesColumnAndCompositeRules(string tableName, string codeName)
+    public void ProductCodeIndex_PreservesGlobalCodeWithoutMasterColorUniqueness(string tableName, string codeName)
     {
         var script = Generate();
         StringAssert.Contains(script, $"CREATE UNIQUE INDEX \"ux_{tableName}_{codeName}\" ON \"public\".\"{tableName}\" ((rtrim(\"{codeName}\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_deleted\" = FALSE;");
         var table = Regex.Match(script, $"CREATE TABLE \"public\".\"{tableName}\" \\((.*?)\\n\\);", RegexOptions.Singleline).Value;
         StringAssert.Contains(table, $"\"{codeName}\" varchar(300) NOT NULL");
         Assert.IsFalse(table.Contains("COLLATE", StringComparison.Ordinal));
-        StringAssert.Contains(script, "CREATE UNIQUE INDEX \"ux_product_neutral_master_color\" ON \"public\".\"product_neutral\" (\"product_master_id\", \"color_id\") WHERE \"is_deleted\" = FALSE;");
+        Assert.IsFalse(script.Contains("ux_product_neutral_master_color", StringComparison.Ordinal));
         Assert.IsFalse(script.Contains("rtrim(\"master_sku\", ' ') COLLATE public.erp_dictionary_ci)) WHERE \"is_active\"", StringComparison.Ordinal));
     }
 
@@ -172,17 +172,17 @@ public sealed class PostgreSqlFoundationTests
         => Assert.Throws<InvalidOperationException>(() => EntityColumnSchema.ResolveStoreType(
             typeof(InvalidTypeExample).GetProperty(property)!));
 
-    /// <summary>全实体结构确定性生成，包含原保护规则；JSON不能放宽为标量。</summary>
+    /// <summary>按当前全实体固定快照验证确定性结构及保护规则；撤除中性父颜色唯一索引后仍严格核对数量，JSON不能放宽为标量。</summary>
     [TestMethod]
     public void Schema_IsDeterministicAndComplete()
     {
         var script = Generate();
         Assert.AreEqual(script, Generate());
-        Assert.AreEqual(50, Regex.Matches(script, "CREATE TABLE ").Count);
-        Assert.AreEqual(1076, Regex.Matches(script, "COMMENT ON COLUMN ").Count);
-        Assert.AreEqual(110, Regex.Matches(script, " CHECK ").Count);
-        Assert.AreEqual(58, Regex.Matches(script, "CREATE UNIQUE INDEX ").Count);
-        Assert.AreEqual(10, Regex.Matches(script, "CREATE TRIGGER ").Count);
+        Assert.AreEqual(58, Regex.Matches(script, "CREATE TABLE ").Count);
+        Assert.AreEqual(1179, Regex.Matches(script, "COMMENT ON COLUMN ").Count);
+        Assert.AreEqual(128, Regex.Matches(script, " CHECK ").Count);
+        Assert.AreEqual(66, Regex.Matches(script, "CREATE UNIQUE INDEX ").Count);
+        Assert.AreEqual(12, Regex.Matches(script, "CREATE TRIGGER ").Count);
         StringAssert.Contains(script, "IS JSON OBJECT OR \"result_json\" IS JSON ARRAY");
         StringAssert.Contains(script, "length(rtrim(\"command_type\", ' '))");
         StringAssert.Contains(script, "\"recorded_at_utc\" timestamp(6) with time zone");

@@ -214,7 +214,6 @@ public sealed class ServiceErrorCodeCompatibilityTests
     [DataRow("SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts.PurchaseDraftWarningCodes", "RelatedCustomerSuppliedRemaining", "RELATED_CUSTOMER_SUPPLIED_REMAINING")]
     [DataRow("SwiftExport.Contracts.DTOs.Products.ProductErrorCodes", "ProductMasterSkuOccupied", "PRODUCT_MASTER_SKU_OCCUPIED")]
     [DataRow("SwiftExport.Contracts.DTOs.Products.ProductErrorCodes", "ProductNeutralCodeOccupied", "PRODUCT_NEUTRAL_CODE_OCCUPIED")]
-    [DataRow("SwiftExport.Contracts.DTOs.Products.ProductErrorCodes", "ProductNeutralMasterColorOccupied", "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED")]
     [DataRow("SwiftExport.Contracts.DTOs.QualityControl.AfterSalesErrorCodes", "AftersalesDeliveryQueryUnavailable", "AFTERSALES_DELIVERY_QUERY_UNAVAILABLE")]
     [DataRow("SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListErrorCodes", "AmbiguousSource", "AMBIGUOUS_SOURCE")]
     [DataRow("SwiftExport.Contracts.DTOs.Shipping.PackingLists.PackingListErrorCodes", "BalanceInvalid", "BALANCE_INVALID")]

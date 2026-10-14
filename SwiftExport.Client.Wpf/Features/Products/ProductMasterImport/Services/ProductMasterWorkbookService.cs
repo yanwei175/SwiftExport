@@ -28,7 +28,7 @@ public sealed class ProductMasterWorkbookService(IExcelReadService reader)
         (nameof(ProductMasterImportRowDto.DefaultNetWeight), "每箱净重(KG)", 18d),
         (nameof(ProductMasterImportRowDto.DefaultGrossWeight), "每箱毛重(KG)", 18d),
         (nameof(ProductMasterImportRowDto.DefaultCbm), "每箱体积(CBM)", 18d),
-        (nameof(ProductMasterImportRowDto.CategoryPath), "分类路径", 34d),
+        (nameof(ProductMasterImportRowDto.ProductSeriesNameEn), "产品系列英文名称", 34d),
         (nameof(ProductMasterImportRowDto.DefaultSupplierCode), "默认供应商编码", 22d)
     });
     private static readonly PropertyInfo[] Fields = Columns.Select(column => typeof(ProductMasterImportRowDto).GetProperty(column.Key)!).ToArray();
@@ -109,11 +109,11 @@ public sealed class ProductMasterWorkbookService(IExcelReadService reader)
         await AtomicTemplateFileWriter.WriteAsync(content, full, target.Overwrite, null, token, publishCommit).ConfigureAwait(false);
     }, token);
 
-    /// <summary>本地只校验文件字段和数值；分类与供应商的实时引用交给服务器。</summary>
+    /// <summary>本地只校验文件字段和数值；系列英文名称与供应商的实时引用交给服务器。</summary>
     private static void Validate(ProductMasterImportRowDto row, List<string> errors)
     {
         if (row.MasterSku is null) errors.Add("主型号不能为空");
-        var maximums = new[] { 300, 2000, 2000, 500, 500, int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue, 16000, 300 };
+        var maximums = new[] { 300, 2000, 2000, 500, 500, int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue, 500, 300 };
         for (var index = 0; index < Fields.Length; index++)
             if ((Fields[index].GetValue(row) as string)?.Length > maximums[index]) errors.Add($"{Columns[index].Header}不能超过 {maximums[index]} 字符");
         if (row.DefaultPcsPerPackage is { } pcs && (!int.TryParse(pcs, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer) || integer <= 0)) errors.Add("每箱装率须为正整数或空白");

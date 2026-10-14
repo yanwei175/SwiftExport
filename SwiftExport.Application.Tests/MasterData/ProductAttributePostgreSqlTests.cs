@@ -280,7 +280,7 @@ public sealed partial class ProductAttributePostgreSqlTests
         Assert.IsTrue((await fixture.SaveAsync(scope, request)).Success);
     }
 
-    /// <summary>关系和头部已经暂存后，中性产品数据库颜色组合冲突仍撤销整个聚合。</summary>
+    /// <summary>关系和头部已经暂存后，中性采购价超过真实数据库精度仍撤销整个聚合，保留写入阶段回滚证据。</summary>
     [TestMethod]
     public async Task NeutralWriteFailureRollsBackMasterAndSelections()
     {
@@ -292,10 +292,12 @@ public sealed partial class ProductAttributePostgreSqlTests
         Assert.IsTrue((await scope.Services.GetRequiredService<IRepository<ProductNeutral>>().AddAsync(new ProductNeutral
             { ProductMasterId = fixture.Master.Uid, ColorId = color.Uid, ProductCode = existingCode })).Success);
         var request = await fixture.DetailRequestAsync(scope); request.SelectedOptionIds = [group.Options[0].Uid]; request.Master.DefaultDescriptionZh = "须回滚";
-        // 不重复编码，使用数据库的主型号＋颜色组合唯一约束在头部与选择写入后产生失败。
-        request.CreateNeutrals.Add(new() { Data = new() { ProductCode = "TAG-NEW-" + suffix, ColorId = color.Uid } });
+        // 正价格通过现有业务校验；numeric(18,4) 列在实际中性 INSERT 阶段拒绝溢出，不能靠预校验冒充写后回滚。
+        request.CreateNeutrals.Add(new() { Data = new()
+        { ProductCode = "TAG-NEW-" + suffix, ColorId = color.Uid, DefaultPurchasePriceCny = decimal.MaxValue } });
         var failure = await scope.Maintenance.SaveDetailAsync(request);
-        Assert.IsFalse(failure.Success); Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, failure.Error.Code, failure.Message);
+        Assert.IsFalse(failure.Success); Assert.AreEqual(ServiceErrorCodes.Unexpected, failure.Error.Code, failure.Message);
+        Assert.IsNull(scope.Session.Transaction);
         var actual = await scope.Query.GetDetailAsync(fixture.Master.Uid);
         Assert.AreEqual(1, actual.Data.Version); Assert.IsNull(actual.Data.Master.DefaultDescriptionZh); Assert.HasCount(0, actual.Data.SelectedOptionIds);
         Assert.HasCount(1, actual.Data.Neutrals); Assert.AreEqual(existingCode, actual.Data.Neutrals[0].Data.ProductCode);

@@ -112,7 +112,7 @@ public partial class ProductMaintenanceService
         }
     }
 
-    /// <summary>观察旧、新独立主型号，按模板、组、主型号及物料顺序锁定；中性来源不参与模板推导或归属校验。</summary>
+    /// <summary>观察旧、新独立主型号，按模板、组、主型号及物料顺序锁定；自由型号不参与模板推导或关联校验。</summary>
     private async Task<(Product Product, Guid? ProfileId, IReadOnlyList<Guid> SelectedOptionIds)> LockProductDetailAsync(
         SaveProductDetailRequest request, CancellationToken cancellationToken)
     {
@@ -148,8 +148,7 @@ public partial class ProductMaintenanceService
         var product = await productRepository.GetByIdAsync(request.ProductId, true);
         if (product is null || product.IsDeleted)
             throw new ProductDetailWriteException(ServiceErrorCodes.NotFound, "物料不存在或已删除。");
-        if (product.Version != request.ExpectedVersion || product.ProductMasterId != observed.ProductMasterId
-            || product.ProductNeutralId != observed.ProductNeutralId)
+        if (product.Version != request.ExpectedVersion || product.ProductMasterId != observed.ProductMasterId)
             throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "物料版本或来源关系已变化，请刷新后重新保存。");
         var currentSelections = await attributeRepository.GetSelectionsAsync(ProductAttributeOwnerType.Product, [request.ProductId], cancellationToken);
         var finalIds = request.SelectedOptionIds?.ToArray() ?? currentSelections.Select(row => row.OptionId).ToArray();

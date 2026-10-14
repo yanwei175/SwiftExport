@@ -154,7 +154,7 @@ public sealed partial class ProductAttributePostgreSqlTests
         Assert.IsTrue(current.Data.AttributeSelections.Single().IsAvailable);
     }
 
-    /// <summary>列表、快速归类和导入换分类保留模板和选值，不需要给新分类关联任何标签。</summary>
+    /// <summary>列表和快速归类改变分类时保留模板选值，导入不参与分类维护。</summary>
     [TestMethod]
     [DataRow("List")]
     [DataRow("Assign")]
@@ -179,11 +179,11 @@ public sealed partial class ProductAttributePostgreSqlTests
         else
         {
             var saved = await scope.Import.ImportAsync([new ProductMasterImportRowDto { SourceRowNumber = 2, MasterSku = fixture.Master.MasterSku,
-                CategoryPath = fixture.OtherCategory.CategoryName, DefaultPcsPerPackage = "1" }]);
+                DefaultPcsPerPackage = "1" }]);
             Assert.IsTrue(saved.Success, saved.Message); Assert.IsTrue(saved.Data.Items.Single().Success, saved.Data.Items.Single().Message);
         }
         var current = await scope.Query.GetDetailAsync(fixture.Master.Uid);
-        Assert.AreEqual(fixture.OtherCategory.Uid, current.Data.Master.CategoryId);
+        Assert.AreEqual(entrance == "Import" ? fixture.Category.Uid : fixture.OtherCategory.Uid, current.Data.Master.CategoryId);
         CollectionAssert.AreEqual(new[] { group.Options[0].Uid }, current.Data.SelectedOptionIds.ToArray());
         Assert.IsTrue(current.Data.AttributeSelections.Single().IsAvailable);
     }

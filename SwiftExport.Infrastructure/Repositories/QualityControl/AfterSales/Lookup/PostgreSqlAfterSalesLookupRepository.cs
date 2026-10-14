@@ -88,16 +88,15 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
         _ => throw new ArgumentException("不支持的售后候选类型。", nameof(kind))
     };
 
-    /// <summary>当前型号取独立中性来源，失效留空；颜色及客户关系的历史显示和首条顺序沿用原规则。</summary>
+    /// <summary>当前型号取物料自身 LinkSku，不依赖中性产品；颜色及客户关系的历史显示和首条顺序沿用原规则。</summary>
     private static string ProductSql(bool active) => $"""
         SELECT p."uid" AS "Uid",p."sku" AS "Code",
           COALESCE(p."description_zh",p."description_en",'') AS "Name",
-          pn."product_code" AS "LinkSku",p."unit" AS "Unit",
+          p."link_sku" AS "LinkSku",p."unit" AS "Unit",
           p."color_id" AS "ColorId",
           COALESCE(c."color_name_en",c."color_name_zh") AS "ColorName",
           COALESCE(p."features_zh",p."features_en") AS "Specification",cp."CustomerSku"
         FROM "public"."product" p LEFT JOIN "public"."product_color" c ON c."uid"=p."color_id"
-        LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
         LEFT JOIN LATERAL (
           SELECT r."customer_sku" AS "CustomerSku" FROM "public"."customer_product" r
           WHERE r."sku_id"=p."uid" AND r."customer_id"=@CustomerId

@@ -794,7 +794,7 @@ CREATE TABLE "public"."product" (
     "updated_by" varchar(500) NULL,
     "is_active" boolean NOT NULL,
     "product_master_id" uuid NULL,
-    "product_neutral_id" uuid NULL,
+    "link_sku" varchar(300) NULL,
     "sku" varchar(300) NOT NULL,
     "description_en" varchar(2000) NULL,
     "description_zh" varchar(2000) NULL,
@@ -1568,7 +1568,6 @@ CREATE FUNCTION public."fn_packing_list_posting_execution_line_append_only"() RE
 CREATE TRIGGER "tr_packing_list_posting_execution_line_append_only" BEFORE UPDATE OR DELETE ON "public"."packing_list_posting_execution_line" FOR EACH ROW EXECUTE FUNCTION public."fn_packing_list_posting_execution_line_append_only"();
 CREATE INDEX "ix_product_default_supplier_id" ON "public"."product" ("default_supplier_id") WHERE "is_deleted" = FALSE AND "default_supplier_id" IS NOT NULL;
 CREATE INDEX "ix_product_master_color" ON "public"."product" ("product_master_id", "color_id") WHERE "is_deleted" = FALSE;
-CREATE INDEX "ix_product_product_neutral_id" ON "public"."product" ("product_neutral_id") WHERE "is_deleted" = FALSE AND "product_neutral_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_product_sku" ON "public"."product" ("sku") WHERE "is_deleted" = FALSE;
 -- 评审限制：引用冻结只检查当前可见事实；并发新增引用的锁协议尚待仓储适配，不能用于正式部署。
 CREATE FUNCTION public."fn_product_unit_frozen_on_reference"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW."unit" IS DISTINCT FROM OLD."unit" AND (EXISTS (SELECT 1 FROM "public"."inventory_ledger_entry" r WHERE r."product_id" = OLD."uid") OR EXISTS (SELECT 1 FROM "public"."purchase_order_line" r WHERE r."product_id" = OLD."uid")) THEN RAISE EXCEPTION USING ERRCODE = 'P3102', MESSAGE = '已被事实引用的字段禁止修改'; END IF; RETURN NEW; END; $body$;
@@ -1594,7 +1593,6 @@ CREATE INDEX "ix_product_master_series" ON "public"."product_master" ("product_s
 CREATE UNIQUE INDEX "ux_product_master_master_sku" ON "public"."product_master" ((rtrim("master_sku", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_neutral_color" ON "public"."product_neutral" ("color_id") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_neutral_product_master" ON "public"."product_neutral" ("product_master_id") WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_product_neutral_master_color" ON "public"."product_neutral" ("product_master_id", "color_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_neutral_product_code" ON "public"."product_neutral" ((rtrim("product_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_package_product_type" ON "public"."product_package" ("product_id", "package_type") WHERE "is_deleted" = FALSE AND "product_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_purchase_confirmation_line_command_line" ON "public"."purchase_confirmation_line" ("command_id", "purchase_order_line_id");
@@ -2285,7 +2283,7 @@ COMMENT ON COLUMN "public"."product"."updated_date" IS '记录最后更新时间
 COMMENT ON COLUMN "public"."product"."updated_by" IS '记录最后更新人标识。';
 COMMENT ON COLUMN "public"."product"."is_active" IS '是否允许新业务引用；停用保留历史身份，不等同软删除。';
 COMMENT ON COLUMN "public"."product"."product_master_id" IS '独立引用的主型号身份；允许为空或失效，不从中性产品推导。';
-COMMENT ON COLUMN "public"."product"."product_neutral_id" IS '独立引用的中性产品身份；允许为空或失效，不同步主型号及颜色。';
+COMMENT ON COLUMN "public"."product"."link_sku" IS '物料自身的产品型号；可自由维护，按同名编码反查中性产品，无匹配也不影响业务。';
 COMMENT ON COLUMN "public"."product"."sku" IS '该实体保存的公司产品编码。';
 COMMENT ON COLUMN "public"."product"."description_en" IS '该实体保存的英文产品描述。';
 COMMENT ON COLUMN "public"."product"."description_zh" IS '该实体保存的中文产品描述。';
@@ -2415,7 +2413,7 @@ COMMENT ON COLUMN "public"."product_master"."product_attribute_profile_id" IS '�
 COMMENT ON COLUMN "public"."product_master"."product_series_id" IS '产品系列字典明细身份；为空表示未设置，改名保持引用，不参与标签选择。';
 COMMENT ON COLUMN "public"."product_master"."category_id" IS '分类唯一标识。';
 COMMENT ON COLUMN "public"."product_master"."default_supplier_id" IS '默认供应商标识；使用逻辑外键，由应用服务校验。';
-COMMENT ON TABLE "public"."product_neutral" IS '中性产品实体，保存主型号下按颜色区分的业务编码、价格和图片路径。';
+COMMENT ON TABLE "public"."product_neutral" IS '中性产品实体，以全局唯一业务编码标识记录，保存所属主型号、颜色、价格和图片路径。';
 COMMENT ON COLUMN "public"."product_neutral"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_neutral"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
 COMMENT ON COLUMN "public"."product_neutral"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
@@ -2423,7 +2421,7 @@ COMMENT ON COLUMN "public"."product_neutral"."created_date" IS '记录创建时�
 COMMENT ON COLUMN "public"."product_neutral"."created_by" IS '记录创建人标识。';
 COMMENT ON COLUMN "public"."product_neutral"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."product_neutral"."updated_by" IS '记录最后更新人标识。';
-COMMENT ON COLUMN "public"."product_neutral"."product_code" IS '中性产品业务编码；未删除记录内唯一。';
+COMMENT ON COLUMN "public"."product_neutral"."product_code" IS '中性产品业务编码；在全部未删除记录中唯一，不按主型号或颜色划分唯一范围。';
 COMMENT ON COLUMN "public"."product_neutral"."product_master_id" IS '所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。';
 COMMENT ON COLUMN "public"."product_neutral"."color_id" IS '颜色标识；使用逻辑外键，由应用服务校验。';
 COMMENT ON COLUMN "public"."product_neutral"."default_sales_price_usd" IS '默认美元销售价。';

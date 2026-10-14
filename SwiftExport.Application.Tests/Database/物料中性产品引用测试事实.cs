@@ -2,10 +2,10 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>为物料查询夹具建立独立中性产品引用；只构造实体，插入与回滚仍由各测试自己的会话负责。</summary>
+/// <summary>为查询夹具创建可按编码匹配的中性产品，并给物料填写自身型号；插入与回滚由调用方会话负责。</summary>
 internal static class ProductNeutralReferenceTestData
 {
-    /// <summary>用调用方指定的原文编码创建中性产品并将其 Uid 写入物料；不推导或同步物料的主型号和颜色。使用重新分配 Uid 的新增仓储时，调用方插入后重新接纳该 Uid。</summary>
+    /// <summary>用指定原文编码创建可选匹配资料，将同一文本存入物料 LinkSku；不建立中性产品身份引用或同步主型号、颜色。</summary>
     internal static ProductNeutral Create(Product product, string code)
     {
         var neutral = new ProductNeutral
@@ -14,7 +14,7 @@ internal static class ProductNeutralReferenceTestData
             ProductMasterId = Guid.NewGuid(),
             ColorId = Guid.NewGuid()
         };
-        product.ProductNeutralId = neutral.Uid;
+        product.LinkSku = code;
         return neutral;
     }
 }

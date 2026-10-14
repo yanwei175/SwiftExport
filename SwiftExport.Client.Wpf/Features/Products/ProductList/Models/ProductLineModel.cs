@@ -12,8 +12,6 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
     [ObservableProperty] public partial string MasterSku { get; set; } = string.Empty;
     /// <summary>物料独立关联的主型号身份；编码仅作联表显示。</summary>
     [ObservableProperty] public partial Guid? ProductMasterId { get; set; }
-    /// <summary>物料独立关联的中性产品身份，不由主型号或颜色推导。</summary>
-    [ObservableProperty] public partial Guid? ProductNeutralId { get; set; }
     [ObservableProperty] public partial string DescriptionEn { get; set; } = string.Empty;
     [ObservableProperty] public partial string DescriptionZh { get; set; } = string.Empty;
     [ObservableProperty] public partial string FeaturesEn { get; set; } = string.Empty;
@@ -25,6 +23,7 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
     [ObservableProperty] public partial int BomVersion { get; set; }
     [ObservableProperty] public partial string BomNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string Note { get; set; } = string.Empty;
+    /// <summary>物料自身可自由填写的型号；候选中性产品编码仅作输入建议。</summary>
     [ObservableProperty] public partial string LinkSku { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal CnyPrice { get; set; }
     [ObservableProperty] public partial decimal UsdPrice { get; set; }

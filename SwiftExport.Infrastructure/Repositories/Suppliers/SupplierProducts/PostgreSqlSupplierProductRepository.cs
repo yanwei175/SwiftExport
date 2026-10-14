@@ -36,7 +36,7 @@ public sealed class PostgreSqlSupplierProductRepository(RepositoryBaseContext co
         sp.uid AS "Uid",sp.version AS "Version",sp.is_deleted AS "IsDeleted",
         sp.created_date AS "CreatedDate",sp.created_by AS "CreatedBy",sp.updated_date AS "UpdatedDate",sp.updated_by AS "UpdatedBy",
         sp.supplier_id AS "SupplierId",s.supplier_code AS "SupplierCode",s.supplier_name AS "SupplierName",
-        sp.sku_id AS "SkuId",p.sku AS "ProductSku",pn.product_code AS "LinkSku",
+        sp.sku_id AS "SkuId",p.sku AS "ProductSku",p.link_sku AS "LinkSku",
         p.description_en AS "DescriptionEn",p.description_zh AS "DescriptionZh",p.features_zh AS "FeaturesZh",
         CASE WHEN p.uid IS NULL THEN ''
              WHEN pm.uid IS NULL OR pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'
@@ -51,7 +51,6 @@ public sealed class PostgreSqlSupplierProductRepository(RepositoryBaseContext co
         FROM public.supplier_product sp
         JOIN public.supplier s ON s.uid=sp.supplier_id AND (s.is_deleted=FALSE OR s.is_deleted IS NULL)
         LEFT JOIN public.product p ON p.uid=sp.sku_id AND (p.is_deleted=FALSE OR p.is_deleted IS NULL)
-        LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
         LEFT JOIN public.product_master pm ON pm.uid=p.product_master_id AND (pm.is_deleted=FALSE OR pm.is_deleted IS NULL)
         LEFT JOIN public.product_category pc ON pc.uid=pm.category_id AND (pc.is_deleted=FALSE OR pc.is_deleted IS NULL)
         """;
@@ -75,7 +74,7 @@ public sealed class PostgreSqlSupplierProductRepository(RepositoryBaseContext co
             where += """
                  AND (sp.supplier_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR p.sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
-                    OR pn.product_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                    OR p.link_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR sp.supplier_sku_description_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
                     OR sp.supplier_sku_features_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')
                 """;

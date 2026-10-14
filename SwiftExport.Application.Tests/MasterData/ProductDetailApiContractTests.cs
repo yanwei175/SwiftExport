@@ -22,7 +22,7 @@ public sealed class ProductDetailApiContractTests
         Assert.AreEqual("{id}/detail", ((HttpPostAttribute)Attribute.GetCustomAttribute(typeof(ProductController).GetMethod("SaveDetail")!, typeof(HttpPostAttribute))!).Template);
     }
 
-    /// <summary>标签保持 null 协议；两个来源身份可写、可空，型号展示、模板和 BOM 不进入写契约。</summary>
+    /// <summary>标签保持 null 协议；物料型号可写且不需要中性产品身份，模板和 BOM 不进入写契约。</summary>
     [TestMethod]
     public void DetailWrite_ExcludesReadOnlyFieldsAndKeepsNullProtocol()
     {
@@ -30,11 +30,11 @@ public sealed class ProductDetailApiContractTests
         Assert.IsNull(JsonConvert.DeserializeObject<SaveProductDetailRequest>("{\"SelectedOptionIds\":null}")!.SelectedOptionIds);
         Assert.HasCount(0, JsonConvert.DeserializeObject<SaveProductDetailRequest>("{\"SelectedOptionIds\":[]}")!.SelectedOptionIds!);
         var fields = typeof(ProductDetailWriteDto).GetProperties().Select(row => row.Name).ToHashSet();
-        foreach (var name in new[] { "MasterSku", "LinkSku", "ProductAttributeProfileId", "CategoryId", "IsActive", "BomNo", "BomVersion", "PcsOfCarton", "NwOfCarton", "GwOfCarton", "CbmOfCarton", "OwnerType" })
+        foreach (var name in new[] { "MasterSku", "ProductNeutralId", "ProductAttributeProfileId", "CategoryId", "IsActive", "BomNo", "BomVersion", "PcsOfCarton", "NwOfCarton", "GwOfCarton", "CbmOfCarton", "OwnerType" })
             Assert.IsFalse(fields.Contains(name), $"只读字段 {name} 不能进入物料详情写契约。");
         Assert.IsTrue(fields.Contains("UnitWeight") && fields.Contains("UnitCBM"));
         Assert.AreEqual(typeof(Guid?), typeof(ProductDetailWriteDto).GetProperty("ProductMasterId")!.PropertyType);
-        Assert.AreEqual(typeof(Guid?), typeof(ProductDetailWriteDto).GetProperty("ProductNeutralId")!.PropertyType);
+        Assert.AreEqual(typeof(string), typeof(ProductDetailWriteDto).GetProperty("LinkSku")!.PropertyType);
     }
 
     /// <summary>路径身份冲突直接返回校验失败，不调用任何查询或写入服务。</summary>

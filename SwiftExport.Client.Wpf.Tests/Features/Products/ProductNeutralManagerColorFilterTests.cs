@@ -171,6 +171,9 @@ public sealed class ProductNeutralManagerColorFilterTests
 
     private sealed class RecordingNeutralManagerApi : IProductNeutralManagerApi
     {
+        /// <inheritdoc />
+        public Task<ServiceResult<BatchSaveResponseBase>> ImportAsync(List<SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Import.ProductNeutralImportRowDto> rows,
+            CancellationToken cancellationToken = default) => throw new AssertFailedException("颜色筛选不应提交导入。");
         public List<ProductNeutralManagerSearchRequest> Requests { get; } = [];
         public bool FailNext { get; set; }
 

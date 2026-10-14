@@ -25,12 +25,8 @@ public sealed partial class PostgreSqlRepositoryTests
     [DataRow("master", "ux_product_master_master_sku", "PRODUCT_MASTER_SKU_OCCUPIED", "主型号编码已被占用", 0)]
     [DataRow("neutral", "ux_product_neutral_product_code", "PRODUCT_NEUTRAL_CODE_OCCUPIED", "中性产品编码已被占用", 3)]
     [DataRow("neutral", "ux_product_neutral_product_code", "PRODUCT_NEUTRAL_CODE_OCCUPIED", "中性产品编码已被占用", 0)]
-    [DataRow("neutral", "ux_product_neutral_master_color", "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", "该主型号下颜色已被占用", 3)]
-    [DataRow("neutral", "ux_product_neutral_master_color", "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", "该主型号下颜色已被占用", 0)]
     [DataRow("manager", "ux_product_neutral_product_code", "PRODUCT_NEUTRAL_CODE_OCCUPIED", "中性产品编码已被占用", 3)]
     [DataRow("manager", "ux_product_neutral_product_code", "PRODUCT_NEUTRAL_CODE_OCCUPIED", "中性产品编码已被占用", 0)]
-    [DataRow("manager", "ux_product_neutral_master_color", "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", "该主型号下颜色已被占用", 3)]
-    [DataRow("manager", "ux_product_neutral_master_color", "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", "该主型号下颜色已被占用", 0)]
     public async Task ProductKnownUniqueConflict_ReturnsFixedResult(string kind, string index, string code, string message, int version)
     {
         foreach (var update in new[] { false, true })

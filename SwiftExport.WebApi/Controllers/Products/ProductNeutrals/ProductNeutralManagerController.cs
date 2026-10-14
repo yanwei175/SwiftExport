@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using SwiftExport.Application.Interfaces.Products.ProductNeutrals.Import;
+using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Import;
 using SwiftExport.Application.Interfaces.Products.ProductNeutrals.Query;
 using SwiftExport.Application.Interfaces.Products.ProductNeutrals.Maintenance;
 using SwiftExport.Contracts.DTOs.Products.ProductNeutralManager;
@@ -9,11 +12,19 @@ using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.WebApi.Controllers.Products.ProductNeutrals;
 
-/// <summary>中性产品管理 HTTP 边界，仅负责分页与批量保存请求转发。</summary>
+/// <summary>中性产品管理 HTTP 边界，仅转发分页、批量保存及管理员导入请求。</summary>
 [ApiController]
 [Route("api/[controller]")]
-public sealed class ProductNeutralManagerController(IProductNeutralQueryService query, IProductNeutralBatchMaintenanceService maintenance) : ControllerBase
+public sealed class ProductNeutralManagerController(IProductNeutralQueryService query, IProductNeutralBatchMaintenanceService maintenance,
+    IProductNeutralImportService imports) : ControllerBase
 {
+    /// <summary>转发一至一百行导入；逐行事务与活动管理员检查由服务执行，不限制连续批次提交。</summary>
+    [Authorize]
+    [HttpPost("import")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public Task<ServiceResult<BatchSaveResponseBase>> ImportAsync([FromBody] List<ProductNeutralImportRowDto> rows,
+        CancellationToken cancellationToken) => imports.ImportAsync(rows, cancellationToken);
+
     /// <summary>分页查询跨主型号中性产品。</summary>
     [HttpPost("page")]
     public Task<ServiceResult<PagedResponseBase<ProductNeutralManagerListItemDto>>> GetPagedAsync(

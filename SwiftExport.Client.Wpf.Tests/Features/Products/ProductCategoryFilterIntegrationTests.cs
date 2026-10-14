@@ -190,6 +190,9 @@ public sealed class ProductCategoryFilterIntegrationTests
     /// <summary>记录中性产品分页请求，并返回稳定空页。</summary>
     private sealed class ProductNeutralApiStub : IProductNeutralManagerApi
     {
+        /// <inheritdoc />
+        public Task<ServiceResult<BatchSaveResponseBase>> ImportAsync(List<SwiftExport.Contracts.DTOs.Products.ProductNeutralManager.Import.ProductNeutralImportRowDto> rows,
+            CancellationToken cancellationToken = default) => throw new AssertFailedException("分类筛选不应提交导入。");
         public List<ProductNeutralManagerSearchRequest> Requests { get; } = [];
 
         public Task<ServiceResult<PagedResponseBase<ProductNeutralManagerListItemDto>>> GetPagedAsync(

@@ -35,13 +35,13 @@ public sealed class PostgreSqlProductNeutralManagerRepository(RepositoryBaseCont
         pn."is_main_image" AS "IsMainImage"
     """;
 
-    /// <summary>管理入口新增仍委托通用仓储，只转换指定中性编码及主型号颜色唯一冲突。</summary>
+    /// <summary>管理入口新增仍委托通用仓储，只转换全局中性编码唯一索引冲突。</summary>
     public override async Task<RepositoryWriteResult> AddAsync(ProductNeutral entity)
     {
         try { return await base.AddAsync(entity); }
         catch (PostgresException exception) when (PostgreSqlProductNeutralWriteConflict.IsKnown(exception))
         {
-            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, null, exception);
+            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, null);
         }
     }
 
@@ -53,7 +53,7 @@ public sealed class PostgreSqlProductNeutralManagerRepository(RepositoryBaseCont
         try { return await base.UpdateAsync(entity); }
         catch (PostgresException exception) when (PostgreSqlProductNeutralWriteConflict.IsKnown(exception))
         {
-            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, oldVersion, exception);
+            return PostgreSqlProductNeutralWriteConflict.CreateResult(entity.Uid, oldVersion);
         }
     }
 

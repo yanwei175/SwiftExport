@@ -32,7 +32,7 @@ public sealed class PostgreSqlSupplierProductMigrationIntegrationTests
         product.ProductMasterId = master.Uid;
         product.DefaultSupplierId = supplier.Uid;
         var neutral = ProductNeutralReferenceTestData.Create(product, product.Sku + "当前关联码");
-        await Add(context, neutral); product.ProductNeutralId = neutral.Uid; product.DescriptionEn = "当前英文"; product.DescriptionZh = "当前中文";
+        await Add(context, neutral); product.LinkSku = neutral.ProductCode; product.DescriptionEn = "当前英文"; product.DescriptionZh = "当前中文";
         product.FeaturesZh = "当前规格"; product.MaterialType = "当前角色"; product.MainImage = "仅存图片文本";
         Assert.IsTrue((await new PostgreSqlDapperRepository<Product>(context).UpdateAsync(product)).Success);
         var linked = Relation(supplier.Uid, product.Uid, Prefix());
@@ -45,7 +45,7 @@ public sealed class PostgreSqlSupplierProductMigrationIntegrationTests
         Assert.IsNotNull(dto);
         Assert.AreEqual(supplier.SupplierCode, dto.SupplierCode);
         Assert.AreEqual(product.Sku, dto.ProductSku);
-        Assert.AreEqual(neutral.ProductCode, dto.LinkSku);
+        Assert.AreEqual(product.LinkSku, dto.LinkSku);
         Assert.AreEqual("当前英文", dto.DescriptionEn);
         Assert.AreEqual("当前中文", dto.DescriptionZh);
         Assert.AreEqual("当前规格", dto.FeaturesZh);

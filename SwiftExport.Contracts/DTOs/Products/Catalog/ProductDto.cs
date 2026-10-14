@@ -4,14 +4,12 @@ using System;
 
 namespace SwiftExport.Contracts.DTOs.Products
 {
-    /// <summary>产品资料的保存与查询契约；关联 ID 可写，关联名称由当前资料查询投影。</summary>
+    /// <summary>产品资料的保存与查询契约；物料型号独立维护，主型号编码由当前资料查询投影。</summary>
     public class ProductDto : BaseDto
     {
         // ERP SKU级别管理字段
         /// <summary>独立引用的主型号身份；空值表示清除。</summary>
         public Guid? ProductMasterId { get; set; }
-        /// <summary>独立引用的中性产品身份；空值表示清除。</summary>
-        public Guid? ProductNeutralId { get; set; }
         /// <summary>引用主型号的当前编码，只读查询投影。</summary>
         public string MasterSku { get; set; }
         public string Sku { get; set; }
@@ -27,7 +25,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public int BomVersion { get; set; }   // BOM版本：0=无BOM，>0=有BOM。
         public string BomNo { get; set; }
         public string Note { get; set; }
-        /// <summary>引用中性产品的当前编码，只读查询投影。</summary>
+        /// <summary>物料自身的产品型号；可自由填写，允许没有对应中性产品。</summary>
         public string LinkSku { get; set; }
 
         // 价格

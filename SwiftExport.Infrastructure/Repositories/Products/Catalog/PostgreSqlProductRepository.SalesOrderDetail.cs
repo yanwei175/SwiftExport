@@ -23,7 +23,7 @@ public partial class PostgreSqlProductRepository
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
             keywordFilter = hasCustomer
                 ? " AND (cp.sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR cp.customer_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR cp.link_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR p.description_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')"
-                : " AND (p.sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR pn.product_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR p.description_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')";
+                : " AND (p.sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR p.link_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR p.description_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')";
         }
 
         string from;
@@ -34,13 +34,12 @@ public partial class PostgreSqlProductRepository
             from = """
                 FROM public.customer_product cp
                 JOIN public.product p ON p.uid=cp.sku_id AND p.is_deleted=FALSE
-                LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
                 LEFT JOIN public.product_color pc ON pc.uid=p.color_id AND pc.is_deleted=FALSE
                 WHERE cp.customer_id=@CustomerId AND cp.is_deleted=FALSE AND cp.is_active=TRUE
                 """;
             projection = """
                 cp.uid AS "CustomerProductId", coalesce(cp.customer_sku,'') AS "CustomerSku",
-                coalesce(cp.link_sku,pn.product_code) AS "LinkSku",
+                coalesce(cp.link_sku,p.link_sku) AS "LinkSku",
                 coalesce(cp.cny_price,p.cny_price) AS "CnyPrice", coalesce(cp.usd_price,p.usd_price) AS "UsdPrice"
                 """;
         }
@@ -48,13 +47,12 @@ public partial class PostgreSqlProductRepository
         {
             from = """
                 FROM public.product p
-                LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
                 LEFT JOIN public.product_color pc ON pc.uid=p.color_id AND pc.is_deleted=FALSE
                 WHERE p.is_deleted=FALSE
                 """;
             projection = """
                 NULL::uuid AS "CustomerProductId", ''::text AS "CustomerSku",
-                coalesce(pn.product_code,'') AS "LinkSku", p.cny_price AS "CnyPrice", p.usd_price AS "UsdPrice"
+                coalesce(p.link_sku,'') AS "LinkSku", p.cny_price AS "CnyPrice", p.usd_price AS "UsdPrice"
                 """;
         }
         // 两条读取沿用原接口的一般读已提交行为；不声称 COUNT 与数据具有跨语句快照。

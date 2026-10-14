@@ -7,16 +7,21 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Controls.Primitives;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SwiftExportClient.Resources.Controls.Filter;
 
+/// <summary>以弹出层暂存多选，支持平面或树形本地候选，确定后才写回绑定集合。</summary>
 public partial class MultiSelectLookupButton : UserControl
 {
     private readonly ObservableCollection<LookupItem> _lookupItems = new();
 
     private ICollectionView? _itemsView;
+    private INotifyCollectionChanged? _itemsSourceNotifier;
 
 
+    /// <summary>初始化多选界面及加载、卸载时的集合订阅。</summary>
     public MultiSelectLookupButton()
     {
         InitializeComponent();
@@ -58,7 +63,7 @@ public partial class MultiSelectLookupButton : UserControl
             nameof(ItemsSource),
             typeof(IEnumerable),
             typeof(MultiSelectLookupButton),
-            new PropertyMetadata(null));
+            new PropertyMetadata(null, OnItemsSourceChanged));
 
     public IEnumerable? ItemsSource
     {
@@ -67,6 +72,17 @@ public partial class MultiSelectLookupButton : UserControl
     }
 
     #endregion
+
+    /// <summary>标识子集合属性路径；非空时以树形展示候选。</summary>
+    public static readonly DependencyProperty ChildrenMemberPathProperty = DependencyProperty.Register(
+        nameof(ChildrenMemberPath), typeof(string), typeof(MultiSelectLookupButton), new PropertyMetadata(string.Empty));
+
+    /// <summary>获取或设置子集合路径；各节点独立勾选，不联动父子选择。</summary>
+    public string ChildrenMemberPath
+    {
+        get => (string)GetValue(ChildrenMemberPathProperty);
+        set => SetValue(ChildrenMemberPathProperty, value);
+    }
 
     #region SelectedItems
 
@@ -275,8 +291,10 @@ public partial class MultiSelectLookupButton : UserControl
 
     #region Lifecycle
 
+    /// <summary>进入视觉树时恢复候选与外部已选集合的通知订阅。</summary>
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        AttachItemsSourceNotifier();
         SubscribeSelectedItems(
             SelectedItems as INotifyCollectionChanged);
 
@@ -284,18 +302,61 @@ public partial class MultiSelectLookupButton : UserControl
         UpdateDisplayText();
     }
 
+    /// <summary>离开视觉树时取消弹层草稿并解除外部集合订阅。</summary>
     private void OnUnloaded(
         object sender,
         RoutedEventArgs e)
     {
+        PART_Popup.IsOpen = false;
+        DetachItemsSourceNotifier();
         UnsubscribeSelectedItems(
             SelectedItems as INotifyCollectionChanged);
+    }
+
+    /// <summary>切换源时重接通知；树形弹层正在编辑时保留仍存在的临时选择。</summary>
+    private static void OnItemsSourceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var control = (MultiSelectLookupButton)d;
+        control.DetachItemsSourceNotifier();
+        control.AttachItemsSourceNotifier();
+        control.RefreshOpenTree();
+    }
+
+    /// <summary>仅在已加载期间监听缓存根集合，卸载后不保留控件引用。</summary>
+    private void AttachItemsSourceNotifier()
+    {
+        if (!IsLoaded || _itemsSourceNotifier is not null || ItemsSource is not INotifyCollectionChanged notifier)
+            return;
+        _itemsSourceNotifier = notifier;
+        notifier.CollectionChanged += OnItemsSourceCollectionChanged;
+    }
+
+    /// <summary>解除旧候选集合通知，允许控件卸载和重复加载。</summary>
+    private void DetachItemsSourceNotifier()
+    {
+        if (_itemsSourceNotifier is not null)
+            _itemsSourceNotifier.CollectionChanged -= OnItemsSourceCollectionChanged;
+        _itemsSourceNotifier = null;
+    }
+
+    /// <summary>接纳缓存刷新，不提前提交多选草稿。</summary>
+    private void OnItemsSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshOpenTree();
+
+    /// <summary>按稳定值匹配新节点，替换已打开树中的过期缓存实例。</summary>
+    private void RefreshOpenTree()
+    {
+        if (!PART_Popup.IsOpen || string.IsNullOrWhiteSpace(ChildrenMemberPath))
+            return;
+        var draft = FlattenItems(_lookupItems).Where(item => item.IsChecked).Select(item => item.Item).ToArray();
+        BuildLookupItems(draft);
+        RefreshFilters();
     }
 
     #endregion
 
     #region Popup
 
+    /// <summary>打开时从当前源创建选择草稿，并按显示模式连接列表或树视图。</summary>
     private void Popup_OnOpened(object? sender, EventArgs e)
     {
         BuildLookupItems();
@@ -308,6 +369,8 @@ public partial class MultiSelectLookupButton : UserControl
         _itemsView.Filter = FilterItem;
 
         PART_ListBox.ItemsSource = _itemsView;
+        PART_TreeView.ItemsSource = _itemsView;
+        RefreshFilters();
 
         if (ShowSearchBox)
         {
@@ -316,12 +379,14 @@ public partial class MultiSelectLookupButton : UserControl
         }
     }
 
+    /// <summary>关闭时清理视图和临时投影；未点确定的勾选不会写回。</summary>
     private void Popup_OnClosed(object? sender, EventArgs e)
     {
         // Popup 关闭时丢弃尚未 Commit 的临时状态。
         PART_SearchBox.Text = string.Empty;
 
         PART_ListBox.ItemsSource = null;
+        PART_TreeView.ItemsSource = null;
 
         _itemsView = null;
 
@@ -332,7 +397,8 @@ public partial class MultiSelectLookupButton : UserControl
 
     #region Lookup Items
 
-    private void BuildLookupItems()
+    /// <summary>从只读业务对象创建独立勾选投影；草稿参数用于缓存刷新时恢复选择。</summary>
+    private void BuildLookupItems(IEnumerable? draft = null)
     {
         _lookupItems.Clear();
 
@@ -344,41 +410,48 @@ public partial class MultiSelectLookupButton : UserControl
             if (item == null)
                 continue;
 
-            var value = GetMemberValue(
-                item,
-                SelectedValuePath);
-
-            var displayText = GetDisplayText(item);
-
-            _lookupItems.Add(new LookupItem
-            {
-                Item = item,
-
-                Value = value,
-
-                DisplayText = displayText,
-
-                // 有外部模板时，把原始 DTO 给模板。
-                // 没有模板时，直接显示 DisplayMemberPath 得到的字符串。
-                DisplayContent = ItemTemplate != null
-                    ? item
-                    : displayText,
-
-                ContentTemplate = ItemTemplate,
-
-                IsChecked = IsItemSelected(
-                    item,
-                    value)
-            });
+            _lookupItems.Add(BuildLookupItem(item, draft));
         }
     }
 
+    /// <summary>递归投影子集合，仅保存界面状态，不向缓存节点写入勾选或展开状态。</summary>
+    private LookupItem BuildLookupItem(object item, IEnumerable? draft)
+    {
+        var value = GetMemberValue(item, SelectedValuePath);
+        var displayText = GetDisplayText(item);
+        var result = new LookupItem
+        {
+            Item = item, Value = value, DisplayText = displayText,
+            DisplayContent = ItemTemplate is null ? displayText : item,
+            ContentTemplate = ItemTemplate,
+            IsChecked = IsItemSelected(item, value, draft),
+        };
+        if (!string.IsNullOrWhiteSpace(ChildrenMemberPath)
+            && GetMemberValue(item, ChildrenMemberPath) is IEnumerable children)
+        {
+            foreach (var child in children)
+                if (child is not null) result.Children.Add(BuildLookupItem(child, draft));
+        }
+        return result;
+    }
+
+    /// <summary>遍历完整投影，搜索隐藏的节点仍参与清除和最终提交。</summary>
+    private static IEnumerable<LookupItem> FlattenItems(IEnumerable<LookupItem> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item;
+            foreach (var child in FlattenItems(item.Children)) yield return child;
+        }
+    }
+
+    /// <summary>外部已选集合变化时同步全部层级的勾选，不发出提交命令。</summary>
     private void SyncLookupItemsFromSelectedItems()
     {
         if (_lookupItems.Count == 0)
             return;
 
-        foreach (var lookupItem in _lookupItems)
+        foreach (var lookupItem in FlattenItems(_lookupItems))
         {
             lookupItem.IsChecked =
                 IsItemSelected(
@@ -387,14 +460,17 @@ public partial class MultiSelectLookupButton : UserControl
         }
     }
 
+    /// <summary>优先按稳定值匹配分类刷新前后的对象；未配置值路径时按对象匹配。</summary>
     private bool IsItemSelected(
         object item,
-        object? value)
+        object? value,
+        IEnumerable? selection = null)
     {
-        if (SelectedItems == null)
+        selection ??= SelectedItems;
+        if (selection == null)
             return false;
 
-        foreach (var selectedItem in SelectedItems)
+        foreach (var selectedItem in selection)
         {
             if (selectedItem == null)
                 continue;
@@ -434,13 +510,27 @@ public partial class MultiSelectLookupButton : UserControl
 
     #region Search
 
+    /// <summary>本地关键词变化只刷新候选显示，不修改已选状态或触发远程请求。</summary>
     private void SearchBox_OnTextChanged(
         object sender,
         TextChangedEventArgs e)
     {
+        RefreshFilters();
+    }
+
+    /// <summary>按层刷新本地搜索，命中后代时保留并展开祖先，原始候选及勾选不变。</summary>
+    private void RefreshFilters()
+    {
+        foreach (var item in FlattenItems(_lookupItems))
+        {
+            item.ChildrenView.Filter = FilterItem;
+            item.ChildrenView.Refresh();
+            if (!string.IsNullOrWhiteSpace(PART_SearchBox.Text)) item.IsExpanded = true;
+        }
         _itemsView?.Refresh();
     }
 
+    /// <summary>匹配配置字段或后代，保留命中分支的祖先以展示完整层级。</summary>
     private bool FilterItem(
         object item)
     {
@@ -478,7 +568,7 @@ public partial class MultiSelectLookupButton : UserControl
             }
         }
 
-        return false;
+        return lookupItem.Children.Any(child => FilterItem(child));
     }
 
     private IReadOnlyList<string> GetFilterPaths()
@@ -517,16 +607,18 @@ public partial class MultiSelectLookupButton : UserControl
         PART_Popup.IsOpen = false;
     }
 
+    /// <summary>清除完整草稿，包含搜索隐藏节点；最终选择仍需确定后更新。</summary>
     private void ResetButton_OnClick(object sender, RoutedEventArgs e)
     {
         // 只清除 Popup 临时状态。
         // 点击确定以后才真正写回 SelectedItems。
-        foreach (var item in _lookupItems)
+        foreach (var item in FlattenItems(_lookupItems))
         {
             item.IsChecked = false;
         }
     }
 
+    /// <summary>冻结所有层级的勾选后更新完整对象集合，最后执行一次提交命令。</summary>
     private void CommitSelection()
     {
         if (SelectedItems == null)
@@ -542,7 +634,7 @@ public partial class MultiSelectLookupButton : UserControl
         // 必须先保存用户在 Popup 中的临时选择。
         // SelectedItems.Clear() 会触发 CollectionChanged，
         // 从而重新同步 _lookupItems.IsChecked。
-        var selectedItems = _lookupItems
+        var selectedItems = FlattenItems(_lookupItems)
             .Where(x => x.IsChecked)
             .Select(x => x.Item)
             .ToArray();
@@ -685,9 +777,21 @@ public partial class MultiSelectLookupButton : UserControl
 
     #region Internal Item
 
-    private sealed class LookupItem : INotifyPropertyChanged
+    /// <summary>承载多选弹层的临时状态，不修改原始业务对象。</summary>
+    private sealed partial class LookupItem : ObservableObject
     {
-        private bool _isChecked;
+        /// <summary>创建独立子集合视图，筛选不影响共享数据。</summary>
+        public LookupItem() => ChildrenView = new ListCollectionView(Children);
+
+        /// <summary>获取子节点投影。</summary>
+        public ObservableCollection<LookupItem> Children { get; } = [];
+
+        /// <summary>获取保留祖先关系的子候选视图。</summary>
+        public ICollectionView ChildrenView { get; }
+
+        /// <summary>获取或设置当前分支展开状态。</summary>
+        [ObservableProperty]
+        public partial bool IsExpanded { get; set; } = true;
 
         public required object Item { get; init; }
 
@@ -711,29 +815,48 @@ public partial class MultiSelectLookupButton : UserControl
             init;
         }
 
-        public bool IsChecked
-        {
-            get => _isChecked;
-
-            set
-            {
-                if (_isChecked == value)
-                    return;
-
-                _isChecked = value;
-
-                PropertyChanged?.Invoke(
-                    this,
-                    new PropertyChangedEventArgs(
-                        nameof(IsChecked)));
-            }
-        }
-
-        public event PropertyChangedEventHandler?
-            PropertyChanged;
+        /// <summary>获取或设置该节点自身的临时勾选，不联动后代。</summary>
+        [ObservableProperty]
+        public partial bool IsChecked { get; set; }
     }
 
     #endregion
+
+    /// <summary>仅点击节点正文时切换该项，展开箭头继续由原生 TreeView 处理。</summary>
+    private void TreeView_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source) return;
+        for (var current = source; current is not null; current = System.Windows.Media.VisualTreeHelper.GetParent(current))
+        {
+            if (current is ToggleButton) return;
+            if (current is TreeViewItem { DataContext: LookupItem item })
+            {
+                item.IsChecked = !item.IsChecked;
+                e.Handled = true;
+                return;
+            }
+        }
+    }
+
+    /// <summary>空格切换当前分类；方向键和展开折叠继续使用原生树导航。</summary>
+    private void TreeView_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && PART_TreeView.SelectedItem is LookupItem item)
+        {
+            item.IsChecked = !item.IsChecked;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>未被子编辑器处理的 Esc 取消草稿，Enter 确定；关闭后返回入口焦点。</summary>
+    private void PopupContent_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Escape or Key.Enter)) return;
+        if (e.Key == Key.Enter) CommitSelection();
+        PART_Popup.IsOpen = false;
+        PART_Button.Focus();
+        e.Handled = true;
+    }
     private void PART_ListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ListBox listBox)

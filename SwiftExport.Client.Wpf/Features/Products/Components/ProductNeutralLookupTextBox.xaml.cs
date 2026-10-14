@@ -7,7 +7,7 @@ using SwiftExportClient.Features.Products.Components.Models;
 namespace SwiftExportClient.Features.Products.Components;
 
 /// <summary>
-/// 中性产品远程搜索编辑器。复用产品 Lookup 的交互，搜索由调用方负责；仅封装中性产品选择和候选视觉。
+/// 中性产品远程候选编辑器。搜索由调用方负责，可只把候选编码用作建议；自由输入不建立产品关系。
 /// </summary>
 public partial class ProductNeutralLookupTextBox : UserControl
 {
@@ -29,6 +29,17 @@ public partial class ProductNeutralLookupTextBox : UserControl
     {
         get => (string)GetValue(TextProperty);
         set => SetValue(TextProperty, value);
+    }
+
+    /// <summary>标识是否必须匹配候选；关闭后允许保留任意型号文本，编辑时退出旧候选展示。</summary>
+    public static readonly DependencyProperty RequireItemMatchProperty = DependencyProperty.Register(
+        nameof(RequireItemMatch), typeof(bool), typeof(ProductNeutralLookupTextBox), new PropertyMetadata(true));
+
+    /// <summary>获取或设置是否要求匹配候选；物料自身型号编辑设为 false。</summary>
+    public bool RequireItemMatch
+    {
+        get => (bool)GetValue(RequireItemMatchProperty);
+        set => SetValue(RequireItemMatchProperty, value);
     }
 
     /// <summary>标识中性产品候选集合依赖属性。</summary>

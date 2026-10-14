@@ -483,7 +483,7 @@ public sealed partial class ProductMasterMaintenanceService(
         catch (Exception exception) { _logger.LogError(exception, "回滚主产品事务失败。"); }
     }
 
-    /// <summary>保留原写入失败边界，仅将仓储明确识别的编码占用映射为输入校验；组合占用仍按业务阻断处理。</summary>
+    /// <summary>保留原写入失败边界，仅将仓储明确识别的全局编码占用映射为输入校验。</summary>
     private static void EnsureWrite(RepositoryWriteResult result, string message)
     {
         if (result.Success) return;
@@ -491,7 +491,6 @@ public sealed partial class ProductMasterMaintenanceService(
         {
             ServiceErrorCodes.ConcurrencyConflict => ServiceErrorCodes.VersionConflict,
             ProductErrorCodes.ProductMasterSkuOccupied or ProductErrorCodes.ProductNeutralCodeOccupied => ServiceErrorCodes.Validation,
-            ProductErrorCodes.ProductNeutralMasterColorOccupied => ServiceErrorCodes.BusinessBlocked,
             _ => ServiceErrorCodes.BusinessBlocked
         };
         throw new ProductMasterWriteException(code, string.IsNullOrWhiteSpace(result.Message) ? message : result.Message);

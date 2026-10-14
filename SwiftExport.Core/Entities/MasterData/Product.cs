@@ -14,8 +14,8 @@ public partial class Product : BaseEntity
 
     /// <summary>独立引用的主型号身份；允许为空或失效，不从中性产品推导。</summary>
     public Guid? ProductMasterId { get; set; }
-    /// <summary>独立引用的中性产品身份；允许为空或失效，不同步主型号及颜色。</summary>
-    public Guid? ProductNeutralId { get; set; }
+    /// <summary>物料自身的产品型号；可自由维护，按同名编码反查中性产品，无匹配也不影响业务。</summary>
+    public string? LinkSku { get; set; }
     /// <summary>该实体保存的公司产品编码。</summary>
     public required string Sku { get; set; }
     /// <summary>该实体保存的英文产品描述。</summary>

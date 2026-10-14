@@ -30,14 +30,13 @@ public partial class PostgreSqlProductRepository
             CASE WHEN pm.uid IS NULL OR pm.category_id IS NULL OR pm.category_id=@EmptyGuid THEN '未分类'
                  ELSE COALESCE(pat.category_name,'分类已失效') END AS "CategoryName"
             """;
-        var contains = string.Join(" OR ", new[] { "p.sku", "p.description_en", "p.description_zh", "pn.product_code", "pat.category_name" }
+        var contains = string.Join(" OR ", new[] { "p.sku", "p.description_en", "p.description_zh", "p.link_sku", "pat.category_name" }
             .Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @ContainsKeyword ESCAPE ''"));
         // 不加 IsActive 条件：普通产品与客户关系的资格边界继续由原业务入口负责。
         var rows = await Connection.QueryAsync<ProductLookupDto>(new CommandDefinition($"""
-            SELECT p."uid" AS "Uid",p."sku" AS "Sku",p."description_en" AS "DescriptionEn",p."description_zh" AS "DescriptionZh",pn."product_code" AS "LinkSku",p."main_image" AS "MainImage",p."features_en" AS "FeaturesEn",p."features_zh" AS "FeaturesZh",p."material_type" AS "MaterialType",p."unit" AS "Unit",p."usd_price" AS "USDPrice",p."cny_price" AS "CNYPrice",
+            SELECT p."uid" AS "Uid",p."sku" AS "Sku",p."description_en" AS "DescriptionEn",p."description_zh" AS "DescriptionZh",p."link_sku" AS "LinkSku",p."main_image" AS "MainImage",p."features_en" AS "FeaturesEn",p."features_zh" AS "FeaturesZh",p."material_type" AS "MaterialType",p."unit" AS "Unit",p."usd_price" AS "USDPrice",p."cny_price" AS "CNYPrice",
                 {category},pc.color_name_zh AS "Finish"
             FROM public.product p
-            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             LEFT JOIN public.product_master pm ON pm.uid=p.product_master_id AND (pm.is_deleted=FALSE OR pm.is_deleted IS NULL)
             LEFT JOIN public.product_category pat ON pat.uid=pm.category_id AND (pat.is_deleted=FALSE OR pat.is_deleted IS NULL)
             LEFT JOIN public.product_color pc ON pc.uid=p.color_id AND (pc.is_deleted=FALSE OR pc.is_deleted IS NULL)

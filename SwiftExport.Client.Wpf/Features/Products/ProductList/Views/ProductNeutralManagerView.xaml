@@ -89,6 +89,7 @@
                         <ui:DropDownButton Content="更多功能" Margin="0,0,4,0">
                             <ui:DropDownButton.Flyout>
                                 <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                    <MenuItem Header="批量导入" Command="{Binding OpenImportCommand}" />
                                     <MenuItem Header="重建勾选产品图片路径"
                                       Command="{Binding ReBuildCheckedImagePathsCommand}" />
                                 </ContextMenu>
@@ -114,12 +115,16 @@
                         BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
                         BorderThickness="1"
                         CornerRadius="4">
-                        <StackPanel Orientation="Horizontal" MinHeight="120">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right" VerticalAlignment="Top"
+                                              Content="关闭" MinWidth="70"
+                                              IsChecked="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"/>
 
-                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
-
-                            </Grid>
-                        </StackPanel>
+                            <StackPanel Orientation="Horizontal" MinHeight="120">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+                                </Grid>
+                            </StackPanel>
+                        </DockPanel>
                     </Border>
                 </Popup>
 

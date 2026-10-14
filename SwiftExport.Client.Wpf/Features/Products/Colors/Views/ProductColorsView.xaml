@@ -5,8 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:Width="1200"
-             d:Height="800"
-             
+             d:Height="800"             
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -42,144 +41,148 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="12,8,12,8">
+
+    <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
+            <RowDefinition Height="8" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="4" />
+            <RowDefinition Height="8" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <ui:TextBox Width="240"
-                         VerticalContentAlignment="Center"
-                         PlaceholderText="按颜色代码、英文名或中文名查询"
-                         Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}">
+        <!--条件筛选区域-->
+        <Grid RowDefinitions="Auto,8, *">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <TextBlock Text="产品颜色管理" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+                <!--搜索框-->
+                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                            Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}"
+                            Icon="{ui:SymbolIcon Symbol=Search24}"
+                            PlaceholderText="按颜色代码、英文名或中文名查询">
                     <ui:TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding SearchCommand}" />
                     </ui:TextBox.InputBindings>
                 </ui:TextBox>
-                <Button Width="36"
-                        MinHeight="32"
-                        Margin="4,0,0,0"
-                        Padding="6,4"
-                        Command="{Binding SearchCommand}"
-                        ToolTip="查询（Enter）">
-                    <ui:SymbolIcon Symbol="Search24" />
-                </Button>
-            </StackPanel>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
 
-                <ui:Button Appearance="Primary"
-                            Command="{Binding AddRowCommand}"
-                           Icon="{ui:SymbolIcon Symbol=Add24}"
-                           Content="新增"
-                           ToolTip="新增产品颜色"/>
+                    <ui:Button Grid.Column="2"  Appearance="Primary" Margin="8,0,0,0"
+                            Content="查询" VerticalAlignment="Stretch"
+                            Command="{Binding SearchCommand}" MinWidth="70"/>
 
-                <ui:Button Appearance="Success" Margin="6,0,0,0"
-                            Command="{Binding SaveCommand}"
-                          Icon="{ui:SymbolIcon Symbol=Save24}"
-                            Content="保存"
-                        ToolTip="保存全部变更"/>
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
+                            VerticalAlignment="Stretch" MinWidth="70"/>
+                </StackPanel>
+            </Grid>
 
-                <ui:Button Margin="6,0,0,0"
-                           Command="{Binding DeleteSelectedCommand}"
-                           Icon="{ui:SymbolIcon Symbol=Delete24}"
-                           Content="删除"
-                           ToolTip="删除当前产品颜色"/>
-                
-                <ui:Button  Margin="6,0,0,0"
-                            Command="{x:Static ApplicationCommands.Undo}"
-                           CommandTarget="{Binding ElementName=ColorsGrid}"
-                           Icon="{ui:SymbolIcon Symbol=ArrowUndo24}"
-                           Content="撤销"
-                           ToolTip="撤销上一步单元格操作（Ctrl+Z）"/>
-                
-                <ui:Button  Margin="6,0,0,0"
-                           Command="{Binding RejectAllChangesCommand}"
-                           CommandTarget="{Binding ElementName=ColorsGrid}"
-                           Icon="{ui:SymbolIcon Symbol=ArrowReset24}"
-                           Content="放弃全部"
-                           ToolTip="放弃本页全部未保存变更"/>               
 
-                <ui:Button Margin="6,0,0,0"
-                            Command="{Binding RefreshCommand}"
-                          Icon="{ui:SymbolIcon Symbol=ArrowClockwise24}"
-                            Content="刷新"
-                        ToolTip="刷新当前页"/>
+            <StackPanel Grid.Row="2">
+                <DockPanel LastChildFill="True">
+                    <WrapPanel HorizontalAlignment="Left">
 
-                <ui:DropDownButton MinHeight="32" Margin="6,0,0,0"
-                                   MinWidth="80"
-                                   Padding="10,4">
-                    <ui:DropDownButton.Content>
                         <StackPanel Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="MoreHorizontal24" />
-                            <TextBlock Margin="6,0,0,0" Text="更多" />
+
+                            <ui:Button Margin="0,0,8,0" MinWidth="70" 
+                                        Command="{Binding AddRowCommand}"
+                                        Content="新增"
+                                        ToolTip="新增产品颜色"/>
+
+                            <ui:Button Content="保存" Appearance="Primary" Command="{Binding SaveCommand}" Margin="0,0,8,0" MinWidth="70"/>
+
+                            <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" MinWidth="70" />
+
+                            <ui:Button  Margin="0,0,8,0" MinWidth="70" Command="{x:Static ApplicationCommands.Undo}"
+                                       CommandTarget="{Binding ElementName=ColorsGrid}"
+                                       Content="撤销"
+                                       ToolTip="撤销上一步单元格操作（Ctrl+Z）"/>
+
+                            <ui:Button  Margin="0,0,8,0" MinWidth="70"
+                                           Command="{Binding RejectAllChangesCommand}"
+                                           CommandTarget="{Binding ElementName=ColorsGrid}"
+                                           Content="撤销全部"
+                                           ToolTip="撤销本页全部未保存变更"/>
+
+
+
+                            <ui:DropDownButton Content="更多功能" Margin="0,0,8,0">
+                                <ui:DropDownButton.Flyout>
+                                    <ContextMenu MinWidth="180" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                        <MenuItem Header="导入颜色" Command="{Binding MoreCommand}" CommandParameter="导入颜色" />
+                                        <MenuItem Header="导出颜色"  Command="{Binding MoreCommand}" CommandParameter="导出颜色" />
+                                        <Separator />
+                                        <MenuItem Header="批量规范化代码" Command="{Binding MoreCommand}" CommandParameter="批量规范化代码" />
+                                    </ContextMenu>
+                                </ui:DropDownButton.Flyout>
+                            </ui:DropDownButton>
+
+                            <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
+
+
+
+                            <ui:ToggleSwitch Grid.Column="4" Margin="0,0,8,0"
+                                             HorizontalAlignment="Right"
+                                             VerticalAlignment="Center"
+                                             OffContent="整行模式"
+                                             OnContent="单元格模式"
+                                             IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
+
+                            <Border Padding="8,4" Background="Transparent" CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
+                                <TextBlock Style="{StaticResource ProductColorsStatusText}" VerticalAlignment="Center" />
+                            </Border>
                         </StackPanel>
-                    </ui:DropDownButton.Content>
-                    <ui:DropDownButton.Flyout>
-                        <ContextMenu MinWidth="180"
-                                     DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                            <MenuItem Header="导入颜色"
-                                      Command="{Binding MoreCommand}"
-                                      CommandParameter="导入颜色" />
-                            <MenuItem Header="导出颜色"
-                                      Command="{Binding MoreCommand}"
-                                      CommandParameter="导出颜色" />
-                            <Separator />
-                            <MenuItem Header="向下填充（Ctrl+D）"
-                                      Command="{x:Static gridOperations:GridOperations.FillDownCommand}"
-                                      CommandTarget="{x:Reference ColorsGrid}" />
-                            <MenuItem Header="批量规范化代码"
-                                      Command="{Binding MoreCommand}"
-                                      CommandParameter="批量规范化代码" />
-                        </ContextMenu>
-                    </ui:DropDownButton.Flyout>
-                </ui:DropDownButton>
-                
+
+                    </WrapPanel>
+                </DockPanel>
+
+                <Popup IsOpen="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"
+                       Placement="Bottom"
+                       PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+                       Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+                       VerticalOffset="4"
+                       AllowsTransparency="True"
+                       PopupAnimation="Fade"
+                       StaysOpen="True">
+                    <Border Padding="8"
+                        Background="{DynamicResource UserLayerOnMicaBaseAltFillColorTertiaryBrush}"
+                        BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right" VerticalAlignment="Top"
+                                          Content="关闭" MinWidth="70"
+                                          IsChecked="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"/>
+
+                            <StackPanel Orientation="Horizontal" MinHeight="120">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+                                </Grid>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </Popup>
+
             </StackPanel>
-
-            <ui:ToggleSwitch Grid.Column="4"
-                             Margin="8,0"
-                             HorizontalAlignment="Right"
-                             VerticalAlignment="Center"
-                             OffContent="整行模式"
-                             OnContent="单元格模式"
-                             IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-
-            <Border Grid.Column="6"
-                    Padding="8,4"
-                    Background="Transparent"
-                    CornerRadius="{StaticResource SwiftExportControlCornerRadius}">
-                <TextBlock Style="{StaticResource ProductColorsStatusText}"
-                           VerticalAlignment="Center" />
-            </Border>
         </Grid>
 
-        <ui:InfoBar Grid.Row="2"
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+
+            <ui:InfoBar Grid.Row="0"
                     Title="请检查当前数据"
                     Message="{Binding ValidationSummary}"
                     Severity="Warning"
                     IsClosable="False"
                     IsOpen="{Binding HasValidationError}" />
 
-        <Grid Grid.Row="4">
-            <DataGrid x:Name="ColorsGrid"
+            <Grid Grid.Row="2">
+                <DataGrid x:Name="ColorsGrid"
                       ItemsSource="{Binding Lines.Items}"
                       Style="{StaticResource SwiftExportDataGrid}"
                       RowStyle="{StaticResource SwiftExportStateDataGridRow}"
@@ -195,115 +198,116 @@
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn Width="55"
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Width="55"
                                             CanUserSort="False"
                                             gridColumns:GridColumn.Key="row-check"
                                             gridColumns:GridColumn.CanFilter="False"
                                             gridColumns:GridColumn.CanExport="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
-                        <DataGridTemplateColumn.HeaderTemplate>
-                            <DataTemplate>
-                                <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
+                            <DataGridTemplateColumn.HeaderTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
                                           HorizontalAlignment="Left" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.HeaderTemplate>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <CheckBox  IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                </DataTemplate>
+                            </DataGridTemplateColumn.HeaderTemplate>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox  IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                           HorizontalAlignment="Center" />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Header="唯一颜色代码"
+                        <DataGridTextColumn Header="唯一颜色代码"
                                         Width="180"
                                         Binding="{Binding ColorCodeUnique, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         gridColumns:GridColumn.Key="color-code-unique"
                                         gridColumns:GridColumn.FieldPath="ColorCodeUnique" />
-                    <DataGridTextColumn Header="颜色代码"
+                        <DataGridTextColumn Header="颜色代码"
                                         Width="160"
                                         Binding="{Binding ColorCode, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         gridColumns:GridColumn.Key="color-code"
                                         gridColumns:GridColumn.FieldPath="ColorCode" />
-                    <DataGridTextColumn Header="英文名称"
+                        <DataGridTextColumn Header="英文名称"
                                         Width="2*"
                                         Binding="{Binding ColorNameEn, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         gridColumns:GridColumn.Key="color-name-en"
                                         gridColumns:GridColumn.FieldPath="ColorNameEn" />
-                    <DataGridTextColumn Header="中文名称"
+                        <DataGridTextColumn Header="中文名称"
                                         Width="2*"
                                         Binding="{Binding ColorNameZh, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
                                         gridColumns:GridColumn.Key="color-name-zh"
                                         gridColumns:GridColumn.FieldPath="ColorNameZh" />
-                </DataGrid.Columns>
-            </DataGrid>
+                    </DataGrid.Columns>
+                </DataGrid>
 
-            <StackPanel HorizontalAlignment="Center"
+                <StackPanel HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         IsHitTestVisible="False"
                         Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="暂无产品颜色数据"
+                    <TextBlock Text="暂无产品颜色数据"
                            Style="{StaticResource BodyStrongTextBlock}"
                            HorizontalAlignment="Center" />
-                <TextBlock Margin="0,4,0,0"
+                    <TextBlock Margin="0,4,0,0"
                            Text="调整关键词后查询，或新增第一条颜色记录。"
                            Style="{StaticResource CaptionTextBlock}"
                            Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
-            </StackPanel>
+                </StackPanel>
 
-            <Border Panel.ZIndex="10"
+                <Border Panel.ZIndex="10"
                     Background="Transparent"
                     BorderBrush="{DynamicResource UserSubtleFillColorSecondaryBrush}"
                     BorderThickness="{StaticResource SwiftExportBorderThickness}"
                     Visibility="{Binding IsBusy, Converter={StaticResource BooleanToVisibilityConverter}}" d:IsHidden="True">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <ui:ProgressRing Width="28"
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <ui:ProgressRing Width="28"
                                      Height="28"
                                      IsIndeterminate="True" />
-                    <TextBlock Margin="0,8,0,0"
+                        <TextBlock Margin="0,8,0,0"
                                Text="{Binding BusyMessage, FallbackValue=正在处理...}"
                                Style="{StaticResource BodyTextBlock}" />
-                </StackPanel>
-            </Border>
-        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
-        <Grid Grid.Row="6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0"
+                <StackPanel Grid.Column="0"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
-                <TextBlock Text="{Binding ResultSummary}"
+                    <TextBlock Text="{Binding ResultSummary}"
                            Style="{StaticResource CaptionTextBlock}" />
-                <TextBlock Margin="8,0,0,0"
+                    <TextBlock Margin="8,0,0,0"
                            Text="{Binding ElementName=ColorsGrid, Path=(gridValidation:GridValidation.ErrorCount), StringFormat=表格错误 {0} 项}"
                            Style="{StaticResource CaptionTextBlock}"
                            Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
-            </StackPanel>
+                </StackPanel>
 
-            <TextBlock Grid.Column="1"
+                <TextBlock Grid.Column="1"
                        Margin="16,0"
                        Text="{Binding PageStatus}"
                        Style="{StaticResource CaptionTextBlock}"
                        VerticalAlignment="Center" />
 
-            <controls:PageNavigator Grid.Column="2"
+                <controls:PageNavigator Grid.Column="2"
                                     TotalCount="{Binding TotalCount}"
                                     PageIndex="{Binding PageIndex, Mode=OneWay}"
                                     PageSize="{Binding PageSize, Mode=OneWay}"
                                     PageChangeCommand="{Binding PageChangeCommand}" />
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

@@ -24,7 +24,7 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
         await ExpectCollision(context, CodeIndex(master), () => Insert(context, duplicate));
     });
 
-    /// <summary>前导空格与重音有区别，软删行释放编码；中性记录用不同父和颜色隔离组合唯一键。</summary>
+    /// <summary>前导空格与重音有区别，软删行释放全局编码；随机父和颜色只提供有效引用，不参与编码唯一范围。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlProductUniquenessIntegration")]
     [DataRow(true)]
@@ -112,41 +112,51 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
         Assert.AreEqual(before, await Snapshot(context, master, original.Uid));
     });
 
-    /// <summary>组合唯一键仍限制有效父型号和颜色；跨父迁入已有组合也失败，不同编码不能绕过组合约束。</summary>
+    /// <summary>两个中性仓储允许同父同色不同编码新增及换父；迁移后仍拒绝其他父型号复用已占用编码。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlProductUniquenessIntegration")]
-    public Task MasterColorCombination_InsertAndReparentStillReject() => InRollback(async context =>
+    [DataRow("neutral")]
+    [DataRow("manager")]
+    public Task RepeatedMasterColor_InsertAndReparentRemainLegal(string repository) => InRollback(async context =>
     {
         var first = (ProductNeutral)await NewEntity(context, false, Prefix());
         await Insert(context, first);
         var second = (ProductNeutral)await NewEntity(context, false, Prefix());
         second.ColorId = first.ColorId;
         await Insert(context, second);
-        var duplicate = new ProductNeutral { ProductCode = Prefix(), ProductMasterId = first.ProductMasterId, ColorId = first.ColorId };
-        await ExpectCollision(context, CombinationIndex, () => Insert(context, duplicate));
-        var before = await Snapshot(context, false, second.Uid);
-        await ExpectCollision(context, CombinationIndex, () => context.Session.Connection.ExecuteAsync(
-            "UPDATE public.product_neutral SET product_master_id=@Parent,version=version+1,image_path='迁入' WHERE uid=@Uid",
-            new { Parent = first.ProductMasterId, second.Uid }, context.Session.Transaction));
-        Assert.AreEqual(before, await Snapshot(context, false, second.Uid));
-        await context.Session.Connection.ExecuteAsync("UPDATE public.product_neutral SET is_deleted=TRUE WHERE uid=@Uid", new { first.Uid }, context.Session.Transaction);
-        await Insert(context, duplicate);
+        var sameCombination = (ProductNeutral)await NewEntity(context, false, Prefix());
+        sameCombination.ProductMasterId = first.ProductMasterId;
+        sameCombination.ColorId = first.ColorId;
+        var inserted = await Write(context, repository, sameCombination, false);
+        Assert.IsTrue(inserted.Success, inserted.Message);
+        Assert.AreEqual(1, inserted.AffectedRows);
+
+        second.ProductMasterId = first.ProductMasterId;
+        var reparented = await Write(context, repository, second, true);
+        Assert.IsTrue(reparented.Success, reparented.Message);
+        Assert.AreEqual(1, reparented.OldVersion);
+        Assert.AreEqual(2, reparented.NewVersion);
+        Assert.AreEqual(3, await context.Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT count(*) FROM public.product_neutral WHERE product_master_id=@Parent AND color_id=@Color AND is_deleted=FALSE",
+            new { Parent = first.ProductMasterId, Color = first.ColorId }, context.Session.Transaction));
+        Assert.AreEqual(2, await context.Session.Connection.ExecuteScalarAsync<int>(
+            "SELECT version FROM public.product_neutral WHERE uid=@Uid AND product_master_id=@Parent",
+            new { second.Uid, Parent = first.ProductMasterId }, context.Session.Transaction));
+
+        var codeDuplicate = await NewEntity(context, false, first.ProductCode.ToLowerInvariant() + " ");
+        await ExpectCollision(context, CodeIndex(false), () => Insert(context, codeDuplicate));
     });
 
     /// <summary>三个真实 PG 仓储的 Add/Update 返回精确占用码；技术失败事务先恢复保存点，再验证数据库未部分更新。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlProductUniquenessIntegration")]
-    [DataRow("master", false, false)]
-    [DataRow("master", true, false)]
-    [DataRow("neutral", false, false)]
-    [DataRow("neutral", true, false)]
-    [DataRow("manager", false, false)]
-    [DataRow("manager", true, false)]
-    [DataRow("neutral", false, true)]
-    [DataRow("neutral", true, true)]
-    [DataRow("manager", false, true)]
-    [DataRow("manager", true, true)]
-    public Task RepositoryWrite_KnownUniqueConflictReturnsBusinessCode(string repository, bool update, bool combination) => InRollback(async context =>
+    [DataRow("master", false)]
+    [DataRow("master", true)]
+    [DataRow("neutral", false)]
+    [DataRow("neutral", true)]
+    [DataRow("manager", false)]
+    [DataRow("manager", true)]
+    public Task RepositoryWrite_KnownUniqueConflictReturnsBusinessCode(string repository, bool update) => InRollback(async context =>
     {
         var master = repository == "master";
         var owner = await NewEntity(context, master, Prefix() + "Taken");
@@ -155,16 +165,11 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
         string? before = null;
         if (update) { await Insert(context, candidate); before = await Snapshot(context, master, candidate.Uid); }
         if (master) ((ProductMaster)candidate).MasterSku = ((ProductMaster)owner).MasterSku.ToLowerInvariant() + " ";
-        else if (combination)
-        {
-            ((ProductNeutral)candidate).ProductMasterId = ((ProductNeutral)owner).ProductMasterId;
-            ((ProductNeutral)candidate).ColorId = ((ProductNeutral)owner).ColorId;
-        }
         else ((ProductNeutral)candidate).ProductCode = ((ProductNeutral)owner).ProductCode.ToLowerInvariant() + " ";
         await Savepoint(context);
         var result = await Write(context, repository, candidate, update);
         Assert.IsFalse(result.Success);
-        Assert.AreEqual(master ? "PRODUCT_MASTER_SKU_OCCUPIED" : combination ? "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED" : "PRODUCT_NEUTRAL_CODE_OCCUPIED", result.ErrorCode);
+        Assert.AreEqual(master ? "PRODUCT_MASTER_SKU_OCCUPIED" : "PRODUCT_NEUTRAL_CODE_OCCUPIED", result.ErrorCode);
         Assert.AreEqual(0, result.AffectedRows);
         Assert.IsNull(result.NewVersion);
         Assert.AreEqual(candidate.Uid, result.Uid);

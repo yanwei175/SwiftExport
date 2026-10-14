@@ -23,6 +23,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         var fixture = DetailFixture(out var product, out var first, out _);
         product.IsActive = false;
         product.BomNo = "DETAIL-BOM";
+        product.LinkSku = "仅属于物料的型号";
         product.BomVersion = 8;
         var request = DetailRequest(product, [first]);
         request.Data.Note = "详情备注";
@@ -35,7 +36,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         Assert.IsTrue(result.Success, result.Message);
         var saved = fixture.Products[product.Uid];
         Assert.AreEqual(product.ProductMasterId, saved.ProductMasterId);
-        Assert.AreEqual(product.ProductNeutralId, saved.ProductNeutralId);
+        Assert.AreEqual(product.LinkSku, saved.LinkSku);
         Assert.IsFalse(saved.IsActive);
         Assert.AreEqual("DETAIL-BOM", saved.BomNo);
         Assert.AreEqual(8, saved.BomVersion);
@@ -160,13 +161,14 @@ public sealed partial class ProductBomSaveBoundaryTests
         CollectionAssert.AreEqual(new[] { "profile", "group", "master", "product" }, fixture.DetailLockTrace);
     }
 
-    /// <summary>列表明确保存来源 ID，型号文字不参与归属；未携带的单品重量和体积保持原值。</summary>
+    /// <summary>列表独立保存主型号和自身型号；未携带的单品重量和体积保持原值。</summary>
     [TestMethod]
     public async Task OrdinaryUpdate_PreservesFieldsMissingFromLegacyDto()
     {
         var fixture = DetailFixture(out var product, out _, out _);
         product.UnitWeight = 2m;
         product.UnitCBM = 0.125m;
+        product.LinkSku = "不依赖中性产品的型号";
         var dto = Dto(product);
         dto.MasterSku = "手工型号文字";
         dto.Note = "列表修改";
@@ -176,10 +178,10 @@ public sealed partial class ProductBomSaveBoundaryTests
         Assert.AreEqual(product.ProductMasterId, saved.ProductMasterId);
         Assert.AreEqual(2m, saved.UnitWeight);
         Assert.AreEqual(0.125m, saved.UnitCBM);
-        Assert.AreEqual(product.ProductNeutralId, saved.ProductNeutralId);
+        Assert.AreEqual(product.LinkSku, saved.LinkSku);
     }
 
-    /// <summary>两个来源可分别改为失效身份；未改标签时保留既有选值，不以来源丢失阻断基础资料。</summary>
+    /// <summary>主型号引用失效、产品型号没有中性产品匹配时，基础资料和既有标签仍可保存。</summary>
     [TestMethod]
     public async Task Detail_DanglingIndependentSourcesKeepSelectionsAndOtherFields()
     {
@@ -188,40 +190,42 @@ public sealed partial class ProductBomSaveBoundaryTests
         product.BomNo = "KEEP-BOM"; product.BomVersion = 2; product.UnitWeight = 2m;
         var request = DetailRequest(product, null);
         request.Data.ProductMasterId = Guid.NewGuid();
-        request.Data.ProductNeutralId = Guid.NewGuid();
+        request.Data.LinkSku = "未建立中性产品的自由型号";
         request.Data.Note = "失效来源仍可保存";
         var result = await fixture.Service.SaveDetailAsync(request);
         Assert.IsTrue(result.Success, result.Message);
         var saved = fixture.Products[product.Uid];
         Assert.AreEqual(request.Data.ProductMasterId, saved.ProductMasterId);
-        Assert.AreEqual(request.Data.ProductNeutralId, saved.ProductNeutralId);
+        Assert.AreEqual(request.Data.LinkSku, saved.LinkSku);
+        Assert.AreEqual(request.Data.LinkSku, result.Data.Detail.LinkSku);
+        Assert.AreEqual(request.Data.LinkSku, result.Data.Detail.Data.LinkSku);
         Assert.AreEqual("KEEP-BOM", saved.BomNo); Assert.AreEqual(2, saved.BomVersion);
         Assert.AreEqual(2m, saved.UnitWeight);
         CollectionAssert.AreEqual(new[] { first }, result.Data.Detail.SelectedOptionIds);
         Assert.AreEqual(6, saved.Version);
     }
 
-    /// <summary>列表保存两来源身份，之后明确清空只清空关系，不影响单品尺寸和其他物料资料。</summary>
+    /// <summary>列表保存独立主型号和自由型号，明确清空不影响单品尺寸和其他物料资料。</summary>
     [TestMethod]
-    public async Task OrdinaryUpdate_WritesAndClearsBothSourceIds()
+    public async Task OrdinaryUpdate_WritesAndClearsIndependentModel()
     {
         var fixture = DetailFixture(out var product, out _, out _);
         product.UnitWeight = 3m; product.UnitCBM = 0.05m;
         var dto = Dto(product);
-        dto.ProductMasterId = Guid.NewGuid(); dto.ProductNeutralId = Guid.NewGuid();
-        dto.Note = "两关系独立保存";
+        dto.ProductMasterId = Guid.NewGuid(); dto.LinkSku = "未匹配中性产品的物料型号";
+        dto.Note = "主型号和物料型号独立保存";
         var changed = await fixture.Entry.UpdateAsync(new() { Uid = product.Uid, Version = product.Version, Data = dto });
         Assert.IsTrue(changed.Success, changed.Message);
         var saved = fixture.Products[product.Uid];
         Assert.AreEqual(dto.ProductMasterId, saved.ProductMasterId);
-        Assert.AreEqual(dto.ProductNeutralId, saved.ProductNeutralId);
-        var clear = Dto(saved); clear.ProductMasterId = null; clear.ProductNeutralId = null;
+        Assert.AreEqual(dto.LinkSku, saved.LinkSku);
+        var clear = Dto(saved); clear.ProductMasterId = null; clear.LinkSku = null;
         var cleared = await fixture.Entry.UpdateAsync(new() { Uid = saved.Uid, Version = saved.Version, Data = clear });
         Assert.IsTrue(cleared.Success, cleared.Message);
         var final = fixture.Products[product.Uid];
-        Assert.IsNull(final.ProductMasterId); Assert.IsNull(final.ProductNeutralId);
+        Assert.IsNull(final.ProductMasterId); Assert.IsNull(final.LinkSku);
         Assert.AreEqual(3m, final.UnitWeight); Assert.AreEqual(0.05m, final.UnitCBM);
-        Assert.AreEqual("两关系独立保存", final.Note);
+        Assert.AreEqual("主型号和物料型号独立保存", final.Note);
     }
 
     /// <summary>物料单项和批量删除只清理本类型选择，选择及物料删除同事务提交。</summary>
@@ -275,7 +279,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         return fixture;
     }
 
-    /// <summary>写 DTO 包含独立来源身份，BOM 与只读型号投影不参与提交。</summary>
+    /// <summary>写 DTO 包含独立主型号身份与自由产品型号，BOM 与只读主型号编码不参与提交。</summary>
     private static SaveProductDetailRequest DetailRequest(Product product, List<Guid>? selection)
         => new() { ProductId = product.Uid, ExpectedVersion = product.Version,
             Data = product.Adapt<ProductDetailWriteDto>(), SelectedOptionIds = selection };

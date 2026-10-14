@@ -11,7 +11,10 @@
                     xmlns:bomViews="clr-namespace:SwiftExportClient.Features.Products.Bom.Views"
                     xmlns:bomViewModels="clr-namespace:SwiftExportClient.Features.Products.Bom.ViewModels"
                     xmlns:importViews="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImport.Views"
-                    xmlns:importViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImport.ViewModels">
+                    xmlns:importViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductMasterImport.ViewModels"
+                    xmlns:neutralImportViews="clr-namespace:SwiftExportClient.Features.Products.ProductNeutralImport.Views"
+                    xmlns:neutralImportViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductNeutralImport.ViewModels">
+    <DataTemplate DataType="{x:Type neutralImportViewModels:ProductNeutralImportViewModel}"><neutralImportViews:ProductNeutralImportView /></DataTemplate>
     <DataTemplate DataType="{x:Type importViewModels:ProductMasterImportViewModel}"><importViews:ProductMasterImportView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductsViewModel}"><listViews:ProductsView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterManagerViewModel}"><listViews:ProductMasterManagerView /></DataTemplate>

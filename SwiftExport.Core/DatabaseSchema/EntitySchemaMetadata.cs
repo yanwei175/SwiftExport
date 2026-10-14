@@ -60,9 +60,7 @@ namespace SwiftExport.Core.Entities.MasterData
     [DbFreezeColumnOnReference(nameof(Product.Unit), typeof(SwiftExport.Core.Entities.Inventory.InventoryLedgerEntry), nameof(SwiftExport.Core.Entities.Inventory.InventoryLedgerEntry.ProductId))]
     [DbIndex("IX_Product_DefaultSupplierId", nameof(Product.DefaultSupplierId), Filter = "\"is_deleted\" = FALSE AND \"default_supplier_id\" IS NOT NULL")]
     [DbIndex("IX_Product_Master_Color", nameof(Product.ProductMasterId), nameof(Product.ColorId), Filter = "\"is_deleted\" = FALSE")]
-    [DbIndex("IX_Product_ProductNeutralId", nameof(Product.ProductNeutralId), Filter = "\"is_deleted\" = FALSE AND \"product_neutral_id\" IS NOT NULL")]
     [LogicalReference(nameof(Product.ProductMasterId), typeof(ProductMaster))]
-    [LogicalReference(nameof(Product.ProductNeutralId), typeof(ProductNeutral))]
     [LogicalReference(nameof(Product.ColorId), typeof(ProductColor), IsRequired = true)]
     [LogicalReference(nameof(Product.DefaultSupplierId), typeof(Supplier))]
     [LogicalReference(nameof(Product.DefaultWarehouseSiteId), typeof(SwiftExport.Core.Entities.Inventory.WarehouseSite))]
@@ -92,7 +90,6 @@ namespace SwiftExport.Core.Entities.MasterData
 
     [DbCheck("CK_ProductNeutral_ExchangeRate", "\"default_exchange_rate\" IS NULL OR \"default_exchange_rate\" > 0")]
     [DbIndex("UX_ProductNeutral_ProductCode", nameof(ProductNeutral.ProductCode), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
-    [DbIndex("UX_ProductNeutral_Master_Color", nameof(ProductNeutral.ProductMasterId), nameof(ProductNeutral.ColorId), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
     [DbIndex("IX_ProductNeutral_ProductMaster", nameof(ProductNeutral.ProductMasterId), Filter = "\"is_deleted\" = FALSE")]
     [DbIndex("IX_ProductNeutral_Color", nameof(ProductNeutral.ColorId), Filter = "\"is_deleted\" = FALSE")]
     [LogicalReference(nameof(ProductNeutral.ProductMasterId), typeof(ProductMaster), IsRequired = true)]

@@ -132,11 +132,11 @@
                                                         SelectedValuePath="Uid" SelectedItems="{Binding FilterColorList}"/>
 
                         <productComponents:ProductCategoryLookupTextBox Width="120" Margin="0,0,8,0"
-                                    Placeholder="产品分类"
-                                    ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
-                                    SelectedCategory="{Binding FilterCategory, Mode=TwoWay}"
-                                    RefreshCommand="{Binding RefreshProductCategoriesCommand}"                                                                        
-                                    IsRefreshing="{Binding IsCategoryCacheRefreshing}" />
+                                            Placeholder="产品分类"
+                                            ItemsSource="{Binding ReferenceDataCache.ProductCategoryTree}"
+                                            SelectedCategory="{Binding FilterCategory, Mode=TwoWay}"
+                                            RefreshCommand="{Binding RefreshProductCategoriesCommand}"                                                                        
+                                            IsRefreshing="{Binding IsCategoryCacheRefreshing}" />
 
                         <controls:DropDownCheckBox  Width="120" Margin="0,0,8,0"
                                        ShowClearOption="True"
@@ -198,12 +198,16 @@
                         BorderBrush="{DynamicResource UserCardStrokeColorDefaultSolidBrush}"
                         BorderThickness="1"
                         CornerRadius="4">
-                        <StackPanel Orientation="Horizontal" MinHeight="120">
+                        <DockPanel>
+                            <ToggleButton DockPanel.Dock="Right" VerticalAlignment="Top"
+                                              Content="关闭" MinWidth="70"
+                                              IsChecked="{Binding IsChecked, Mode=TwoWay,ElementName=OptionsToggleButton}"/>
 
-                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
-
-                            </Grid>
-                        </StackPanel>
+                            <StackPanel Orientation="Horizontal" MinHeight="120">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,130,Auto,Auto">
+                                </Grid>
+                            </StackPanel>
+                        </DockPanel>
                     </Border>
                 </Popup>
 
@@ -324,7 +328,7 @@
 
                             <DataGridTemplateColumn Header="产品型号" Width="150" 
                                                     gridColumns:GridColumn.Key="link-sku" 
-                                                    gridColumns:GridColumn.FieldPath="ProductNeutralId">
+                                                    gridColumns:GridColumn.FieldPath="LinkSku">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding LinkSku}" 
@@ -333,23 +337,8 @@
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>
                                     <DataTemplate>
-                                        <DockPanel>
-                                            <Button DockPanel.Dock="Right" Content="清除" Command="{Binding DataContext.ClearProductNeutralCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" CommandParameter="{Binding}" AutomationProperties.Name="清除失效中性产品引用">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding LinkSku}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding ProductNeutralId}" Value="{x:Null}">
-                                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Button.Style>
-                                            </Button>
-                                            <productComponents:ProductNeutralLookupTextBox Text="{Binding LinkSku, Mode=OneWay}"
+                                            <productComponents:ProductNeutralLookupTextBox Text="{Binding LinkSku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                    RequireItemMatch="False"
                                                                     ItemsSource="{Binding DataContext.ProductNeutralCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                     SelectedProductNeutral="{Binding DataContext.EditProductNeutral, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                                                                     SearchCommand="{Binding DataContext.SearchProductNeutralsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -358,7 +347,6 @@
                                                                     SelectionCommittedCommandParameter="{Binding}"
                                                                     SelectionClearedCommand="{Binding DataContext.ClearProductNeutralCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" 
                                                                     SelectionClearedCommandParameter="{Binding}" />
-                                        </DockPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellEditingTemplate>
                             </DataGridTemplateColumn>

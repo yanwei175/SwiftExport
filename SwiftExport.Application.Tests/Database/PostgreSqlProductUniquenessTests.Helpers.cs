@@ -21,8 +21,6 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>唯一性验收的本地辅助：结构核验、随机夹具、保存点和回滚，不修改共享夹具。</summary>
 public sealed partial class PostgreSqlProductUniquenessIntegrationTests
 {
-    private const string CombinationIndex = "ux_product_neutral_master_color";
-
     /// <summary>每例固定专用保留库，先验已部署结构，所有数据回滚后独立连接检查随机审计夹具零留存。</summary>
     private static async Task InRollback(Func<RepositoryBaseContext, Task> scenario)
     {
@@ -105,7 +103,7 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
     private static Task<string> Snapshot(RepositoryBaseContext context, bool master, Guid uid) => context.Session.Connection.QuerySingleAsync<string>(
         $"SELECT to_jsonb(t)::text FROM public.{Table(master)} t WHERE uid=@Uid", new { Uid = uid }, context.Session.Transaction);
 
-    /// <summary>读取两个表达式编码索引和原组合索引，不部署 DDL 或接受缺失索引作为跳过。</summary>
+    /// <summary>读取两个全局编码索引并确认已撤除父颜色唯一限制；只核验部署状态，不执行 DDL 或跳过缺失编码索引。</summary>
     private static async Task AssertIndexes(IDbConnection connection)
     {
         foreach (var master in new[] { true, false })
@@ -120,14 +118,8 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
                 $@"^\(*rtrim\(\s*\(*{Column(master)}\)*\s*(?:::text)?\s*,\s*' '\s*(?:::text)?\s*\)\)*$", RegexOptions.CultureInvariant));
             Assert.AreEqual("is_deleted=false", Regex.Replace(shape.Predicate, @"[\s()]", ""));
         }
-        var combined = await ReadIndex(connection, "product_neutral", CombinationIndex);
-        Assert.IsNotNull(combined);
-        Assert.IsTrue(combined.Unique && combined.Valid && combined.Ready && !combined.Expression);
-        Assert.AreEqual(2, combined.Keys);
-        Assert.AreEqual(2, combined.Attributes);
-        Assert.AreEqual("product_master_id", combined.Key1);
-        Assert.AreEqual("color_id", combined.Key2);
-        Assert.AreEqual("is_deleted=false", Regex.Replace(combined.Predicate, @"[\s()]", ""));
+        Assert.IsNull(await ReadIndex(connection, "product_neutral", "ux_product_neutral_master_color"),
+            "父型号和颜色组合唯一索引尚未撤除；本组测试不自动迁移数据库。");
     }
 
     /// <summary>按真实表和索引读取目录状态，编码规则必须引用 public 下指定 ICU 对象。</summary>
@@ -135,7 +127,6 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
         SELECT i.indisunique AS "Unique",i.indisvalid AS "Valid",i.indisready AS "Ready",
                i.indnkeyatts AS "Keys",i.indnatts AS "Attributes",(i.indexprs IS NOT NULL) AS "Expression",
                pg_get_indexdef(i.indexrelid,1,true) AS "Key1",
-               CASE WHEN i.indnkeyatts>1 THEN pg_get_indexdef(i.indexrelid,2,true) ELSE '' END AS "Key2",
                pg_get_expr(i.indpred,i.indrelid) AS "Predicate",
                i.indcollation[0]=to_regcollation('public.erp_dictionary_ci') AS "Collation"
         FROM pg_catalog.pg_index i
@@ -179,7 +170,6 @@ public sealed partial class PostgreSqlProductUniquenessIntegrationTests
         public int Keys { get; set; }
         public int Attributes { get; set; }
         public string Key1 { get; set; } = "";
-        public string Key2 { get; set; } = "";
         public string Predicate { get; set; } = "";
     }
 

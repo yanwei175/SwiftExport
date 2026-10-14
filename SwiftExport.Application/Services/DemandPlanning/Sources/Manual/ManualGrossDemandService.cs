@@ -213,7 +213,7 @@ public sealed class ManualGrossDemandService(
         demand.ProductId = product.Uid;
         demand.SkuSnapshot = product.Sku;
         // 型号来自物料独立关联的中性产品投影，不再读取物料实体中的旧文字关系。
-        demand.LinkSkuSnapshot = (await productRepository.GetDtoByIdAsync(product.Uid))?.LinkSku;
+        demand.LinkSkuSnapshot = product.LinkSku;
         demand.DescriptionSnapshot = product.DescriptionEn;
         demand.ColorSnapshot = color?.Trim();
         demand.SpecificationSnapshot = product.FeaturesEn;

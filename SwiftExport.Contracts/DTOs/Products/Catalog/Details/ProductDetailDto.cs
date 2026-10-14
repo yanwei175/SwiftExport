@@ -11,9 +11,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public ProductDetailWriteDto Data { get; set; } = new ProductDetailWriteDto();
         /// <summary>已保存的来源主型号身份，只读。</summary>
         public Guid? ProductMasterId { get; set; }
-        /// <summary>已保存的中性产品来源身份；与主型号来源独立。</summary>
-        public Guid? ProductNeutralId { get; set; }
-        /// <summary>来源中性产品的当前编码；引用失效时为空，只读。</summary>
+        /// <summary>物料自身已保存的产品型号；不因中性产品缺失而变为空。</summary>
         public string LinkSku { get; set; }
         /// <summary>来源主型号当前编码，只读。</summary>
         public string MasterSku { get; set; }

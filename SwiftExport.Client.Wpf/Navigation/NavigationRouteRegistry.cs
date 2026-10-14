@@ -18,6 +18,7 @@ using SwiftExportClient.Features.Products.Categories.ViewModels;
 using SwiftExportClient.Features.Products.Colors.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Products.ProductMasterImport.ViewModels;
+using SwiftExportClient.Features.Products.ProductNeutralImport.ViewModels;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
 using SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels;
@@ -51,6 +52,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(ProductMasterManagerViewModel.RouteKey, "主产品管理", "Workspace", typeof(ProductMasterManagerViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
 
         new(ProductMasterImportViewModel.RouteKey, "父级型号批量导入", "Workspace", typeof(ProductMasterImportViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
+        new(ProductNeutralImportViewModel.RouteKey, "中性产品批量导入", "Workspace", typeof(ProductNeutralImportViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsNeutralView),
 
         new(ProductMasterDetailViewModel.RouteKey, "主型号详情", "Workspace", typeof(ProductMasterDetailViewModel), NavigationModuleKeys.Products, "Products.Master.View"),
 

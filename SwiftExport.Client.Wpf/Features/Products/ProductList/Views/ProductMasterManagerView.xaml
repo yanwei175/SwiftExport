@@ -343,8 +343,17 @@
                                                     gridColumns:GridColumn.Key="category">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding CategoryName}" 
-                                                       Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                                        <TextBlock Text="{Binding CategoryName}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock"   BasedOn="{StaticResource SwiftExportDataGridTextBlock}" >
+                                                    <Style.Triggers>
+                                                        <Trigger Property="Text" Value="未分类">
+                                                            <Setter  Property="Foreground" Value="{DynamicResource UserBusinessTextWarningBrush}"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                                 <DataGridTemplateColumn.CellEditingTemplate>

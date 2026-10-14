@@ -102,7 +102,42 @@ public sealed class ProductNeutralLookupTextBoxTests
         Assert.IsFalse(editor.IsDropDownOpen);
     });
 
-    /// <summary>从实际物料页取得编辑模板并放入真实 DataGrid；仅确认和明确清空改写目标行。</summary>
+    /// <summary>自由模式支持无匹配文本，关闭候选或失焦不恢复旧建议，也不丢输入。</summary>
+    [TestMethod]
+    public void FreeText_ShouldSurviveEmptyCandidatesPopupCancelAndBlur() => Run(async () =>
+    {
+        var first = Item("NEUTRAL-A", "镀铬");
+        var sink = new ContentControl { Tag = "NEUTRAL-A" };
+        var lookup = new ProductNeutralLookupTextBox
+        {
+            RequireItemMatch = false, ItemsSource = new[] { first }, SelectedProductNeutral = first
+        };
+        BindingOperations.SetBinding(lookup, ProductNeutralLookupTextBox.TextProperty,
+            new Binding(nameof(ContentControl.Tag)) { Source = sink, Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+        var editor = (LookupTextBox)lookup.FindName("LookupEditor");
+        using var host = new Host(lookup);
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        Assert.IsFalse(editor.RequireItemMatch);
+        Assert.IsTrue(editor.ClearSelectionOnEdit);
+        EnterEditing(editor);
+        var input = (TextBox)editor.FindName("InputTextBox");
+        input.Text = "自由型号/特殊配置";
+        await Dispatcher.Yield(DispatcherPriority.DataBind);
+        Assert.AreEqual("自由型号/特殊配置", sink.Tag);
+        Key(input, System.Windows.Input.Key.Down);
+        Assert.IsTrue(editor.IsDropDownOpen);
+        Key(input, System.Windows.Input.Key.Escape);
+        Assert.IsFalse(editor.IsDropDownOpen);
+        lookup.ItemsSource = Array.Empty<ProductNeutralLookupItemModel>();
+        host.Next.Focus(); Keyboard.Focus(host.Next);
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+        Assert.AreEqual("自由型号/特殊配置", lookup.Text);
+        Assert.AreEqual("自由型号/特殊配置", sink.Tag);
+        Assert.IsNull(lookup.SelectedProductNeutral);
+        Assert.IsFalse(editor.IsDropDownOpen);
+    });
+
+    /// <summary>物料列保持原生编辑，任意型号文本可保存；编码建议和清空只改目标行型号。</summary>
     [TestMethod]
     public void ProductsColumn_UsesWrapperAndCommitsOnlyConfirmedIdentity() => Run(async () =>
     {
@@ -116,10 +151,10 @@ public sealed class ProductNeutralLookupTextBoxTests
         var second = Item("NEUTRAL-B", "哑黑");
         var row = new ProductLineModel
         {
-            ProductNeutralId = first.Uid, LinkSku = first.ProductCode!,
+            LinkSku = first.ProductCode!,
             ProductMasterId = Guid.NewGuid(), ColorId = Guid.NewGuid()
         };
-        var other = new ProductLineModel { ProductNeutralId = first.Uid, LinkSku = "其他行" };
+        var other = new ProductLineModel { LinkSku = "其他行" };
         var masterId = row.ProductMasterId;
         var colorId = row.ColorId;
         var context = new SelectionSink([first, second]);
@@ -146,29 +181,36 @@ public sealed class ProductNeutralLookupTextBoxTests
         var editor = (LookupTextBox)lookup.FindName("LookupEditor");
         Assert.AreEqual("NEUTRAL-A", lookup.Text);
         Assert.AreEqual(LookupTextBoxSearchMode.Remote, editor.SearchMode);
+        Assert.IsFalse(editor.RequireItemMatch);
+        Assert.IsTrue(editor.ClearSelectionOnEdit);
         Assert.AreEqual(0, context.SearchProductNeutralsCommand.Count);
 
         EnterEditing(editor);
         var input = (TextBox)editor.FindName("InputTextBox");
         input.Text = "尚未确认";
-        Assert.AreEqual(first.Uid, row.ProductNeutralId);
-        Assert.AreEqual("NEUTRAL-A", row.LinkSku);
+        await Dispatcher.Yield(DispatcherPriority.DataBind);
+        Assert.AreEqual("尚未确认", row.LinkSku);
+        Assert.AreEqual(masterId, row.ProductMasterId);
+        Assert.AreEqual(colorId, row.ColorId);
         Key(input, System.Windows.Input.Key.Down);
         ((ListBox)editor.FindName("ResultList")).SelectedItem = second;
         Key(input, System.Windows.Input.Key.Enter);
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         Assert.AreSame(second, context.EditProductNeutral);
         Assert.AreSame(row, context.CommitProductNeutralCommand.Parameter);
-        Assert.AreEqual(second.Uid, row.ProductNeutralId);
         Assert.AreEqual("NEUTRAL-B", row.LinkSku);
         ((Button)editor.FindName("BtnClear")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
         Assert.AreSame(row, context.ClearProductNeutralCommand.Parameter);
-        Assert.IsNull(row.ProductNeutralId);
         Assert.AreEqual(string.Empty, row.LinkSku);
         Assert.AreEqual(masterId, row.ProductMasterId);
         Assert.AreEqual(colorId, row.ColorId);
-        Assert.AreEqual(first.Uid, other.ProductNeutralId);
+        Assert.AreEqual("其他行", other.LinkSku);
+        input.Text = "没有候选的自有型号";
+        await Dispatcher.Yield(DispatcherPriority.DataBind);
+        Assert.IsTrue(grid.CommitEdit(DataGridEditingUnit.Cell, true));
+        Assert.IsTrue(grid.CommitEdit(DataGridEditingUnit.Row, true));
+        Assert.AreEqual("没有候选的自有型号", row.ToDto().LinkSku);
         Assert.AreEqual("其他行", other.LinkSku);
     });
 
@@ -214,13 +256,11 @@ public sealed class ProductNeutralLookupTextBoxTests
         public RecordingCommand CommitProductNeutralCommand => _commit ??= new(parameter =>
         {
             var row = (ProductLineModel)parameter!;
-            row.ProductNeutralId = EditProductNeutral!.Uid;
-            row.LinkSku = EditProductNeutral.ProductCode!;
+            row.LinkSku = EditProductNeutral!.ProductCode!;
         });
         public RecordingCommand ClearProductNeutralCommand { get; } = new(parameter =>
         {
             var row = (ProductLineModel)parameter!;
-            row.ProductNeutralId = null;
             row.LinkSku = string.Empty;
         });
         private RecordingCommand? _commit;

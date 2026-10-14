@@ -30,7 +30,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>已有物料的资料、独立来源引用与标签详情文档；模板由所选主型号提供，包装只读，不管理 BOM。</summary>
+/// <summary>已有物料的独立资料、自由型号和标签详情文档；模板由所选主型号提供，包装只读，不管理 BOM。</summary>
 public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     /// <summary>物料详情稳定路由键。</summary>
@@ -94,7 +94,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     public ObservableCollection<SupplierDto> ManufacturerCandidates { get; } = [];
     /// <summary>供物料独立选择的主型号候选。</summary>
     public ObservableCollection<ProductMasterLookupItemModel> ProductMasterCandidates { get; } = [];
-    /// <summary>供物料独立选择的中性产品候选，不按主型号过滤。</summary>
+    /// <summary>物料型号的中性产品编码建议，不按主型号过滤或建立关系。</summary>
     public ObservableCollection<ProductNeutralLookupItemModel> ProductNeutralCandidates { get; } = [];
     /// <summary>产品专用权限下完整发布的参考仓库候选。</summary>
     public ObservableCollection<WarehouseSitePickerDto> WarehouseCandidates { get; } = [];
@@ -144,7 +144,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     [ObservableProperty] public partial bool IsManufacturerLookupBusy { get; private set; }
     /// <summary>待确认主型号候选，候选取消不会改动引用。</summary>
     [ObservableProperty] public partial ProductMasterLookupItemModel? SelectedProductMaster { get; set; }
-    /// <summary>待确认中性产品候选，选择不回写主型号或颜色。</summary>
+    /// <summary>待确认型号编码建议，选择不回写主型号或颜色。</summary>
     [ObservableProperty] public partial ProductNeutralLookupItemModel? SelectedProductNeutral { get; set; }
     /// <summary>主型号候选加载状态。</summary>
     [ObservableProperty] public partial bool IsProductMasterLookupBusy { get; private set; }
@@ -366,7 +366,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         }
         finally { if (!_disposed && ReferenceEquals(current, _neutralLookupCts)) IsProductNeutralLookupBusy = false; }
     }
-    /// <summary>确认主型号只改变该引用及其模板显示；保留中性产品、颜色和已有标签身份。</summary>
+    /// <summary>确认主型号只改变该引用及其模板显示；保留物料型号、颜色和已有标签身份。</summary>
     [RelayCommand(CanExecute = nameof(CanEditLookup))]
     private void CommitProductMaster()
     {
@@ -374,7 +374,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         Header.ProductMasterId = master.Uid; Header.MasterSku = master.MasterSku ?? string.Empty;
         SetResolvedMaster(master.Uid, master.ProductAttributeProfileId, master.ProductAttributeProfileName, master.CategoryName);
     }
-    /// <summary>明确清空主型号为 null，不清空中性产品或标签选择。</summary>
+    /// <summary>明确清空主型号为 null，不清空物料型号或标签选择。</summary>
     [RelayCommand(CanExecute = nameof(CanEditLookup))]
     private void ClearProductMaster()
     {
@@ -382,19 +382,19 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         Header.ProductMasterId = null; Header.MasterSku = string.Empty; SelectedProductMaster = null;
         SetResolvedMaster(null, null, null, null);
     }
-    /// <summary>确认中性产品仅写入其身份与显示型号，不改变主型号、模板或颜色。</summary>
+    /// <summary>确认候选仅填写物料自身型号，不改变主型号、模板或颜色。</summary>
     [RelayCommand(CanExecute = nameof(CanEditLookup))]
     private void CommitProductNeutral()
     {
         if (!CanEditLookup() || SelectedProductNeutral is not { } neutral) return;
-        Header.ProductNeutralId = neutral.Uid; Header.LinkSku = neutral.ProductCode ?? string.Empty;
+        Header.LinkSku = neutral.ProductCode ?? string.Empty;
     }
-    /// <summary>明确清空中性产品关系，主型号及物料自身资料保持。</summary>
+    /// <summary>明确清空物料自身型号，主型号和其他独立资料保持。</summary>
     [RelayCommand(CanExecute = nameof(CanEditLookup))]
     private void ClearProductNeutral()
     {
         if (!CanEditLookup()) return;
-        Header.ProductNeutralId = null; Header.LinkSku = string.Empty; SelectedProductNeutral = null;
+        Header.LinkSku = string.Empty; SelectedProductNeutral = null;
     }
 
     /// <summary>详情读取具有取消、请求序号及会话存活门禁，整次加载只持有一层 Busy。</summary>
@@ -475,9 +475,9 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         SelectedProductMaster = Header.ProductMasterId is { } masterId
             ? ProductMasterCandidates.FirstOrDefault(item => item.Uid == masterId)
                 ?? new ProductMasterLookupItemModel(new ProductMasterListItemDto { Uid = masterId, Data = new() { MasterSku = Header.MasterSku } }) : null;
-        SelectedProductNeutral = Header.ProductNeutralId is { } neutralId
-            ? ProductNeutralCandidates.FirstOrDefault(item => item.Uid == neutralId)
-                ?? new ProductNeutralLookupItemModel(new ProductNeutralManagerListItemDto { Uid = neutralId, Data = new() { ProductCode = Header.LinkSku } }) : null;
+        // 型号只是自身文本；没有候选也正常显示，不生成中性产品的伪身份。
+        SelectedProductNeutral = ProductNeutralCandidates.FirstOrDefault(item =>
+            string.Equals(item.ProductCode, Header.LinkSku, StringComparison.OrdinalIgnoreCase));
         SelectedColor = Header.ColorId is { } color && color != Guid.Empty
             ? _cache?.ProductColors.FirstOrDefault(item => item.Uid == color) ?? new ProductColorDto { Uid = color, ColorNameZh = Header.Finish } : null;
         SelectedSupplier = Header.DefaultSupplierId is { } supplier && supplier != Guid.Empty

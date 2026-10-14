@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using Mapster;
 using Microsoft.Extensions.Logging;
 using SwiftExport.Application.Contexts;
@@ -8,18 +7,20 @@ using SwiftExport.Application.Interfaces.Products.ProductMasters.Import;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters.Import;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Products.Categories;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
+using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
 
 namespace SwiftExport.Application.Services.Products.ProductMasters.Import;
 
 /// <summary>一百行批次的父级保存用例；每行重读加锁，空白清空，不进入子产品同步链。</summary>
 public sealed class ProductMasterImportService(IProductMasterRepository masters, IProductCategoryRepository categories,
-    ISupplierRepository suppliers, ICurrentUser user, IPermissionEvaluationService permissions,
+    ISupplierRepository suppliers, ISysDictDataRepository dictionaries, ICurrentUser user, IPermissionEvaluationService permissions,
     ServiceBaseContext context) : IProductMasterImportService
 {
     private readonly ILogger _logger = context.LoggerFactory.CreateLogger<ProductMasterImportService>();
@@ -66,14 +67,15 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
             var data = Parse(row);
             if (duplicate) throw new RowFailure(ServiceErrorCodes.Validation, "文件中主型号重复。");
             context.Session.Transaction = context.Session.Connection.BeginTransaction();
-            // 分类维护与主型号详情同样先锁分类，防止导入建立已失效的层级引用。
-            var tree = await categories.GetAllForUpdateAsync();
-            var path = Text(row.CategoryPath);
-            data.CategoryId = path is null ? Guid.Empty : ResolveCategory(tree, path);
             // 导入不修改模板或选择；先观察主型号身份，锁后重验，避免覆盖期间新增或更换的记录。
             var observedMatches = await masters.GetByMasterSkusAsync([data.MasterSku], false, token);
             if (observedMatches.Count > 1) throw new RowFailure(ServiceErrorCodes.Validation, "主型号编码匹配不唯一。");
             var observed = observedMatches.SingleOrDefault();
+            // 分类不参与输入，仅按现有身份保护原引用，不遍历或解析分类树。
+            if (observed is { CategoryId: var categoryId } && categoryId != Guid.Empty
+                && await categories.GetByIdAsync(categoryId, true) is not { IsDeleted: false })
+                throw new RowFailure(ServiceErrorCodes.Validation, "现有产品分类已失效，请在父级型号页面修正后导入。");
+            data.ProductSeriesId = await ResolveSeriesAsync(Text(row.ProductSeriesNameEn), observed?.ProductSeriesId, token);
             var supplierCode = Text(row.DefaultSupplierCode);
             if (supplierCode is not null)
             {
@@ -87,12 +89,12 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
             var matches = await masters.GetByMasterSkusAsync([data.MasterSku], true, token);
             if (matches.Count > 1) throw new RowFailure(ServiceErrorCodes.Validation, "主型号编码匹配不唯一。");
             var existing = matches.SingleOrDefault();
-            if (existing?.Uid != observed?.Uid || existing?.CategoryId != observed?.CategoryId)
-                throw new RowFailure(ServiceErrorCodes.VersionConflict, "主型号或分类已变化，请核对后重试。");
+            if (existing?.Uid != observed?.Uid || existing?.CategoryId != observed?.CategoryId || existing?.ProductSeriesId != observed?.ProductSeriesId)
+                throw new RowFailure(ServiceErrorCodes.VersionConflict, "主型号、分类或产品系列已变化，请核对后重试。");
             receipt.Operation = existing is null ? SaveOperation.Create : SaveOperation.Update;
             receipt.Uid = existing?.Uid;
             receipt.OldVersion = existing?.Version;
-            // 只覆盖十一字段，保留当前模板、独立标签选择、系列字典身份及其他非导入字段。
+            // 只覆盖十一字段，分类保持原值，属性模板、独立标签选择及其他非导入字段保留。
             var entity = existing?.Adapt<ProductMaster>() ?? new ProductMaster();
             entity.MasterSku = existing?.MasterSku ?? data.MasterSku;
             entity.DefaultDescriptionZh = data.DefaultDescriptionZh;
@@ -103,7 +105,7 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
             entity.DefaultNetWeight = data.DefaultNetWeight;
             entity.DefaultGrossWeight = data.DefaultGrossWeight;
             entity.DefaultCbm = data.DefaultCbm;
-            entity.CategoryId = data.CategoryId;
+            entity.ProductSeriesId = data.ProductSeriesId;
             entity.DefaultSupplierId = data.DefaultSupplierId;
             token.ThrowIfCancellationRequested();
             var write = existing is null ? await masters.AddAsync(entity) : await masters.UpdateAsync(entity);
@@ -144,10 +146,10 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
             DefaultNetWeight = Measure(row.DefaultNetWeight, 4, "每箱净重"),
             DefaultGrossWeight = Measure(row.DefaultGrossWeight, 4, "每箱毛重"),
             DefaultCbm = Measure(row.DefaultCbm, 6, "每箱体积"),
-            CategoryId = Guid.Empty, DefaultSupplierId = Guid.Empty
+            DefaultSupplierId = Guid.Empty
         };
         if (data.MasterSku is null) errors.Add("主型号不能为空。");
-        Value(row.CategoryPath, 16000, "分类路径"); Value(row.DefaultSupplierCode, 300, "供应商编码");
+        Value(row.ProductSeriesNameEn, 500, "产品系列英文名称"); Value(row.DefaultSupplierCode, 300, "供应商编码");
         if (errors.Count > 0) throw new RowFailure(ServiceErrorCodes.Validation, string.Join("；", errors));
         return data;
         string? Value(string? raw, int length, string name)
@@ -167,29 +169,30 @@ public sealed class ProductMasterImportService(IProductMasterRepository masters,
         }
     }
 
-    /// <summary>匹配完整真实祖先路径；环、断链、同名歧义均拒绝，不自动创建分类。</summary>
-    private static Guid ResolveCategory(IReadOnlyList<ProductCategory> tree, string path)
+    /// <summary>按有效系列英文名称唯一匹配；旧、新系列按 Uid 锁定并重验，防止改名或停用竞争。</summary>
+    private async Task<Guid?> ResolveSeriesAsync(string? name, Guid? previousId, CancellationToken token)
     {
-        var nodes = tree.Where(item => !item.IsDeleted).ToDictionary(item => item.Uid);
-        var found = new List<Guid>();
-        foreach (var item in nodes.Values)
+        Guid? targetId = null;
+        if (name is not null)
         {
-            var parts = new List<string>(); var seen = new HashSet<Guid>(); var current = item;
-            while (current is not null && seen.Add(current.Uid) && !string.IsNullOrWhiteSpace(current.CategoryName))
-            {
-                parts.Add(current.CategoryName.Trim());
-                if (current.ParentId is null || current.ParentId == Guid.Empty)
-                {
-                    parts.Reverse();
-                    if (string.Equals(Normalize(string.Join(" / ", parts)), Normalize(path), StringComparison.OrdinalIgnoreCase)) found.Add(item.Uid);
-                    break;
-                }
-                nodes.TryGetValue(current.ParentId.Value, out current);
-            }
+            var matches = (await dictionaries.GetByCodeAsync(DictCodes.ProductSeries)).Where(item => !item.IsDeleted && item.IsEnabled
+                && string.Equals(item.DictCode?.Trim(), DictCodes.ProductSeries, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Text(item.DataNameEn), name, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (matches.Length != 1) throw new RowFailure(ServiceErrorCodes.Validation, "产品系列英文名称不存在、已停用或匹配不唯一。");
+            targetId = matches[0].Uid;
         }
-        return found.Count == 1 ? found[0] : throw new RowFailure(ServiceErrorCodes.Validation, "分类路径不存在、层级失效或匹配不唯一。");
+        // 使用既有单行锁读取，显式排序；通用批量读取没有稳定锁顺序。
+        foreach (var id in new[] { previousId, targetId }.Where(id => id.HasValue && id.Value != Guid.Empty).Select(id => id!.Value).Distinct().OrderBy(id => id))
+        {
+            token.ThrowIfCancellationRequested();
+            var locked = await dictionaries.GetByIdAsync(id, true);
+            if (id == targetId && (locked is null || locked.IsDeleted || !locked.IsEnabled
+                || !string.Equals(locked.DictCode?.Trim(), DictCodes.ProductSeries, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Text(locked.DataNameEn), name, StringComparison.OrdinalIgnoreCase)))
+                throw new RowFailure(ServiceErrorCodes.Validation, "产品系列已改名、停用或移出系列字典，请核对后重试。");
+        }
+        return targetId;
     }
-    private static string Normalize(string value) => Regex.Replace(value.Trim(), @"\s*/\s*", " / ");
     private static string? Text(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     /// <summary>仅承载可安全作为行回执返回的业务错误。</summary>
     private sealed class RowFailure(string code, string message) : Exception(message)

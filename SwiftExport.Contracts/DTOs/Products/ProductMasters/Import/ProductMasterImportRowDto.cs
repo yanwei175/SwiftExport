@@ -14,7 +14,8 @@ namespace SwiftExport.Contracts.DTOs.Products.ProductMasters.Import
         public string DefaultNetWeight { get; set; }
         public string DefaultGrossWeight { get; set; }
         public string DefaultCbm { get; set; }
-        public string CategoryPath { get; set; }
+        /// <summary>产品系列的字典英文名称，保存时匹配有效系列 Uid；空白清空系列。</summary>
+        public string ProductSeriesNameEn { get; set; }
         public string DefaultSupplierCode { get; set; }
     }
 }

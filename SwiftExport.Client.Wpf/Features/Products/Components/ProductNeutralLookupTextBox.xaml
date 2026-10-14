@@ -3,10 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:products="clr-namespace:SwiftExportClient.Features.Products.Components.Models"
+             xmlns:converters="clr-namespace:SwiftExportClient.Resources.Converters"
              x:Name="Root"
              FontSize="{DynamicResource SwiftExport.LookUpTextBoxFontSize}"
              MinHeight="30">
     <UserControl.Resources>
+        <converters:InverseBooleanConverter x:Key="InvertMatchRequirement" />
         <DataTemplate x:Key="ProductNeutralLookupItemTemplate"
                       DataType="{x:Type products:ProductNeutralLookupItemModel}">
             <Grid MinWidth="360">
@@ -63,7 +65,7 @@
                             DisplayMemberPath="ProductCode"
                             FilterMemberPaths="ProductCode,ColorName"
                             SelectedValuePath="Uid"
-                            RequireItemMatch="True"
-                            ClearSelectionOnEdit="False"
+                            RequireItemMatch="{Binding RequireItemMatch, ElementName=Root}"
+                            ClearSelectionOnEdit="{Binding RequireItemMatch, ElementName=Root, Converter={StaticResource InvertMatchRequirement}}"
                             ItemTemplate="{StaticResource ProductNeutralLookupItemTemplate}" />
 </UserControl>

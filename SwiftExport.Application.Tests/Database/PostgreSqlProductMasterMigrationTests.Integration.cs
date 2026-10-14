@@ -266,7 +266,7 @@ public sealed class PostgreSqlProductMasterMigrationIntegrationTests
     private static ProductMaster Master(string code, Guid category = default, bool deleted = false) => new()
     { Uid = Guid.NewGuid(), MasterSku = code, CategoryId = category, IsDeleted = deleted, Version = 1 };
 
-    /// <summary>每条随机中性记录使用不同颜色身份，避免原主型号颜色唯一索引干扰主图排序测试。</summary>
+    /// <summary>随机中性记录独立构造颜色引用及全局编码，不让夹具身份影响主图排序测试。</summary>
     private static ProductNeutral Neutral(Guid masterId, string code, bool main = false, string? image = null, bool deleted = false) => new()
     { Uid = Guid.NewGuid(), ProductMasterId = masterId, ColorId = Guid.NewGuid(), ProductCode = code, IsMainImage = main, ImagePath = image, IsDeleted = deleted, Version = 1 };
 

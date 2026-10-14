@@ -26,7 +26,46 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailViewInteractionTests
 {
-    /// <summary>真实来源选择器提交 Uid，两关系独立，颜色和标签保持，清除按钮只清自身引用。</summary>
+    /// <summary>详情没有任何中性候选时仍能保存任意型号，关闭候选和失焦均不丢文本。</summary>
+    [TestMethod]
+    public void FreeModelText_ShouldSaveWithoutCandidatesAndKeepOtherFields() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        LoadResources();
+        var detail = ProductDetailViewModelTests.Detail();
+        detail.Data.LinkSku = "物料原型号";
+        SaveProductDetailRequest? sent = null;
+        using var vm = ProductDetailViewModelTests.Create(detail, null, save: request =>
+        { sent = request; return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail("测试保留草稿")); });
+        await ProductDetailViewModelTests.Open(vm, detail.Uid);
+        var view = new ProductDetailView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1480, Height = 900, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var control = Descendants(view).OfType<ProductNeutralLookupTextBox>().Single();
+            var editor = (LookupTextBox)control.FindName("LookupEditor");
+            Assert.IsFalse(editor.RequireItemMatch);
+            Assert.IsTrue(editor.ClearSelectionOnEdit);
+            Assert.AreEqual(0, vm.ProductNeutralCandidates.Count);
+            editor.FocusEditor();
+            var input = (TextBox)editor.FindName("InputTextBox");
+            input.Text = "非候选/独立物料型号";
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Descendants(view).OfType<TextBox>().Single(text => AutomationProperties.GetName(text) == "备注").Focus();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual("非候选/独立物料型号", vm.Header.LinkSku);
+            Assert.AreEqual(detail.Data.ProductMasterId, vm.Header.ProductMasterId);
+            Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.IsNotNull(sent);
+            Assert.AreEqual("非候选/独立物料型号", sent.Data.LinkSku);
+            Assert.AreEqual(detail.Data.ProductMasterId, sent.Data.ProductMasterId);
+            Assert.IsTrue(vm.HasUnsavedChanges);
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
+
+    /// <summary>真实编辑器保存主型号 Uid 与自身型号文本，编码建议和清空不改变其他资料。</summary>
     [TestMethod]
     public void SourceLookups_ShouldCommitIndependentIdentities() => DatePickerAssistTests.RunWithApplication(async () =>
     {
@@ -43,7 +82,8 @@ public sealed class ProductDetailViewInteractionTests
             Assert.IsFalse(vm.HasUnsavedChanges);
             var masterControl = Descendants(view).OfType<ProductMasterLookupTextBox>().Single();
             var masterLookup = (LookupTextBox)masterControl.FindName("LookupEditor");
-            var neutralLookup = Descendants(view).OfType<LookupTextBox>().Single(control => AutomationProperties.GetName(control) == "产品型号");
+            var neutralControl = Descendants(view).OfType<ProductNeutralLookupTextBox>().Single();
+            var neutralLookup = (LookupTextBox)neutralControl.FindName("LookupEditor");
             var masterId = Guid.NewGuid(); var neutralId = Guid.NewGuid();
             var master = new ProductMasterLookupItemModel(new() { Uid = masterId, Data = new() { MasterSku = "主型号候选", ProductAttributeProfileId = detail.ProductAttributeProfileId } });
             var neutral = new ProductNeutralLookupItemModel(new() { Uid = neutralId, Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "独立中性型号" } });
@@ -51,26 +91,25 @@ public sealed class ProductDetailViewInteractionTests
             neutralLookup.CommitExternalSelection(neutral, LookupCommitReason.Mouse);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             Assert.AreEqual(masterId, vm.Header.ProductMasterId);
-            Assert.AreEqual(neutralId, vm.Header.ProductNeutralId);
+            Assert.AreEqual("独立中性型号", vm.Header.LinkSku);
             Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
             var clear = (Button)neutralLookup.FindName("BtnClear");
             ((IInvokeProvider)new ButtonAutomationPeer(clear).GetPattern(PatternInterface.Invoke)!).Invoke();
             // Automation Invoke 按 Input 优先级排队，等待到 ApplicationIdle 才能断言点击及绑定已完成。
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-            Assert.IsNull(vm.Header.ProductNeutralId);
+            Assert.AreEqual(string.Empty, vm.Header.LinkSku);
             Assert.AreEqual(masterId, vm.Header.ProductMasterId);
         }
         finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
     });
 
-    /// <summary>失效身份显示空文本仍有明确清除入口，页面加载不能自动清空两个 ID。</summary>
+    /// <summary>失效主型号有明确清除入口，页面加载或清除引用不改变物料自身型号。</summary>
     [TestMethod]
     public void MissingSourceReferences_ShouldHaveExplicitClearButtons() => DatePickerAssistTests.RunWithApplication(async () =>
     {
         LoadResources();
         var detail = ProductDetailViewModelTests.Detail();
-        detail.MasterSku = null; detail.LinkSku = null;
-        detail.Data.ProductNeutralId = detail.ProductNeutralId = Guid.NewGuid();
+        detail.MasterSku = null; detail.Data.LinkSku = "自由物料型号";
         using var vm = ProductDetailViewModelTests.Create(detail, null);
         await ProductDetailViewModelTests.Open(vm, detail.Uid);
         var view = new ProductDetailView { DataContext = vm };
@@ -80,17 +119,12 @@ public sealed class ProductDetailViewInteractionTests
             window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             Assert.IsFalse(vm.HasUnsavedChanges);
             var masterClear = Descendants(view).OfType<Button>().Single(control => AutomationProperties.GetName(control) == "清除失效主型号引用");
-            var neutralClear = Descendants(view).OfType<Button>().Single(control => AutomationProperties.GetName(control) == "清除失效中性产品引用");
             Assert.AreEqual(Visibility.Visible, masterClear.Visibility);
-            Assert.AreEqual(Visibility.Visible, neutralClear.Visibility);
             ((IInvokeProvider)new ButtonAutomationPeer(masterClear).GetPattern(PatternInterface.Invoke)!).Invoke();
             // DataBind 优先级早于 Input，不能把等待绑定当作等待真实按钮点击。
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             Assert.IsNull(vm.Header.ProductMasterId);
-            Assert.AreEqual(detail.Data.ProductNeutralId, vm.Header.ProductNeutralId);
-            ((IInvokeProvider)new ButtonAutomationPeer(neutralClear).GetPattern(PatternInterface.Invoke)!).Invoke();
-            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
-            Assert.IsNull(vm.Header.ProductNeutralId);
+            Assert.AreEqual("自由物料型号", vm.Header.LinkSku);
         }
         finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
     });

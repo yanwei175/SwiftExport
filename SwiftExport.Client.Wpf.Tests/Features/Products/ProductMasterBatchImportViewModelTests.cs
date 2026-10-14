@@ -149,6 +149,37 @@ public sealed class ProductMasterBatchImportViewModelTests
         await vm.LoadFileCommand.ExecuteAsync(fixture.Input);Assert.IsFalse(vm.ImportCommand.CanExecute(null));Assert.AreEqual(0,fixture.Api.Sizes.Count);
     }
 
+    /// <summary>模板和错误回写只含系列英文名，不含分类；提交原名称供服务器匹配身份。</summary>
+    [TestMethod]
+    public async Task TemplateAndErrorWorkbookUseSeriesEnglishName()
+    {
+        using var fixture=new Fixture(1);fixture.Api.FailRow=2;using var vm=fixture.Create();
+        await vm.DownloadTemplateCommand.ExecuteAsync(new ProductMasterImportFileTarget(fixture.Output,false));
+        using(var book=new ClosedXML.Excel.XLWorkbook(fixture.Output))
+        {
+            var sheet=book.Worksheet(1);Assert.AreEqual("产品系列英文名称",sheet.Cell(1,10).GetString());
+            Assert.IsFalse(sheet.Range(1,1,1,11).Cells().Any(cell=>cell.GetString().Contains("分类",StringComparison.Ordinal)));
+            sheet.Cell(2,1).Value="M-1";sheet.Cell(2,10).Value=" Standard ";book.Save();
+        }
+        await vm.LoadFileCommand.ExecuteAsync(fixture.Output);Assert.AreEqual("Standard",vm.Rows.Single().Input.ProductSeriesNameEn);
+        await vm.ImportCommand.ExecuteAsync(null);Assert.AreEqual("Standard",fixture.Api.Requests.Single().Single().ProductSeriesNameEn);
+        await vm.DownloadErrorsCommand.ExecuteAsync(new ProductMasterImportFileTarget(fixture.Input,true));
+        using(var book=new ClosedXML.Excel.XLWorkbook(fixture.Input))
+        {Assert.AreEqual("产品系列英文名称",book.Worksheet(1).Cell(1,10).GetString());Assert.AreEqual("Standard",book.Worksheet(1).Cell(2,10).GetString());}
+        await vm.LoadFileCommand.ExecuteAsync(fixture.Input);Assert.AreEqual("Standard",vm.Rows.Single().Input.ProductSeriesNameEn);
+        using(var book=new ClosedXML.Excel.XLWorkbook(fixture.Input)){book.Worksheet(1).Cell(2,10).Value=new string('x',501);book.Save();}
+        await vm.LoadFileCommand.ExecuteAsync(fixture.Input);Assert.IsFalse(vm.ImportCommand.CanExecute(null));StringAssert.Contains(vm.Rows.Single().Reason,"500");
+    }
+
+    /// <summary>旧分类模板必须重新下载，不能把原分类内容误解释为系列名称。</summary>
+    [TestMethod]
+    public async Task OldCategoryTemplateIsRejected()
+    {
+        using var fixture=new Fixture(1);using var vm=fixture.Create();
+        using(var book=new ClosedXML.Excel.XLWorkbook(fixture.Input)){book.Worksheet(1).Cell(1,10).Value="分类路径";book.Save();}
+        await vm.LoadFileCommand.ExecuteAsync(fixture.Input);Assert.AreEqual(0,vm.Rows.Count);Assert.IsFalse(vm.ImportCommand.CanExecute(null));Assert.AreEqual(0,fixture.Api.Sizes.Count);
+    }
+
     /// <summary>整文件聚合所有长度、数值和重复错误，并允许前十一列表头换序。</summary>
     [TestMethod]
     public async Task FieldErrorsAndReorderedHeadersAreHandled()
@@ -203,7 +234,7 @@ public sealed class ProductMasterBatchImportViewModelTests
             {drawing.DrawRectangle((Brush)Application.Current.Resources["UserLayerOnMicaBaseAltFillColorDefaultBrush"],null,new Rect(0,0,1280,760));drawing.DrawRectangle(new VisualBrush(view),null,new Rect(0,0,1280,760));}
             bitmap.Render(visual);
             var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            using var image=File.Create(Path.Combine(FindRoot(),".artifacts","product-master-import-batches","父级导入页面.png"));encoder.Save(image);
+            using var image=File.Create(Path.Combine(FindRoot(),".artifacts","product-master-import-series","父级导入页面.png"));encoder.Save(image);
         }
         finally {window.Close();}
     });
@@ -246,6 +277,7 @@ public sealed class ProductMasterBatchImportViewModelTests
     private sealed class ApiStub : IProductMasterImportApi
     {
         internal readonly List<int> Sizes=[];
+        internal readonly List<List<ProductMasterImportRowDto>> Requests=[];
         internal int Active,MaximumActive,FailBatch,FailRow;
         internal bool Delay,Incomplete;
         internal readonly TaskCompletionSource Started=new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -253,7 +285,7 @@ public sealed class ProductMasterBatchImportViewModelTests
         /// <inheritdoc />
         public async Task<ServiceResult<BatchSaveResponseBase>> ImportAsync(List<ProductMasterImportRowDto> rows,CancellationToken cancellationToken=default)
         {
-            Sizes.Add(rows.Count);Active++;MaximumActive=Math.Max(MaximumActive,Active);
+            Sizes.Add(rows.Count);Requests.Add(rows);Active++;MaximumActive=Math.Max(MaximumActive,Active);
             try
             {
                 Started.TrySetResult();if(Delay)await Release.Task;else await Task.Yield();

@@ -12,7 +12,7 @@ namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 /// <summary>统一普通产品写入入口，并保护产品资料变化直接影响的当前 BOM 组成。</summary>
 public partial class ProductMaintenanceService
 {
-    /// <summary>只在调用方已取得的事务中执行写入；来源 ID 明确保存，列表未携带的单品尺寸和启停字段保留数据库值。</summary>
+    /// <summary>只在调用方已取得的事务中执行写入；主型号及自由型号独立保存，列表未携带的单品尺寸和启停字段保留数据库值。</summary>
     private async Task WriteBatchInCurrentTransactionAsync(ProductBatchSaveRequest request,
         ProductBatchSaveResponse response, IReadOnlyDictionary<Guid, Product>? detailCandidates = null,
         CancellationToken cancellationToken = default)
@@ -34,6 +34,7 @@ public partial class ProductMaintenanceService
                 // 详情候选保留可空价格、颜色和单品尺寸，公共校验规范化后的字符串则回填候选。
                 entity = candidate;
                 entity.Sku = item.Data.Sku;
+                entity.LinkSku = item.Data.LinkSku;
                 entity.Unit = item.Data.Unit;
                 entity.ManufacturerModel = item.Data.ManufacturerModel;
             }

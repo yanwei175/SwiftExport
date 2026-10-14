@@ -3,11 +3,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
 
-/// <summary>中性产品实体，保存主型号下按颜色区分的业务编码、价格和图片路径。</summary>
+/// <summary>中性产品实体，以全局唯一业务编码标识记录，保存所属主型号、颜色、价格和图片路径。</summary>
 [Table("product_neutral")]
 public partial class ProductNeutral : BaseEntity
 {
-    /// <summary>中性产品业务编码；未删除记录内唯一。</summary>
+    /// <summary>中性产品业务编码；在全部未删除记录中唯一，不按主型号或颜色划分唯一范围。</summary>
     public string ProductCode { get; set; } = default!;
     /// <summary>所属主型号标识；使用逻辑外键，由聚合保存上下文赋值。</summary>
     public Guid ProductMasterId { get; set; }

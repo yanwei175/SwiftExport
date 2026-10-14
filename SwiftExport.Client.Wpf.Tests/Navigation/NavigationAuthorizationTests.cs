@@ -22,8 +22,9 @@ public sealed class NavigationAuthorizationTests
         [
             null,
             "Shipping.PackingList.View", "Shipping.PackingList.View",
-            "Products.Product.View", "Products.Master.View", "Products.Master.View", "Products.Neutral.View", "Products.Master.View",
-            "Products.Category.View", "Products.Category.View", "Products.Color.View", "Products.Bom.View",
+            "Products.Product.View", "Products.Product.View", "Products.Master.View", "Products.Master.View",
+            PermissionKeys.ProductsNeutralView, "Products.Master.View", "Products.Neutral.View",
+            "Products.Category.View", "Products.Category.View", PermissionKeys.SystemDictionaryView, "Products.Color.View", "Products.Bom.View",
             "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",
             "Suppliers.Supplier.View", "Suppliers.Products.View",
             "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
@@ -44,7 +45,7 @@ public sealed class NavigationAuthorizationTests
             if (route.Key == "procurement-demand-association")
                 CollectionAssert.AreEqual(new[] { PermissionKeys.ProcurementOrderRead }, route.AnyRequiredPermissions!.ToArray());
             else Assert.IsNull(route.AnyRequiredPermissions);
-            Assert.AreEqual(route.Key == "system-settings", route.DiscardOnAccessRevoked);
+            Assert.AreEqual(route.Key is "system-settings" or "dictionary-data-manager", route.DiscardOnAccessRevoked);
             if (route.RequiredPermission is not null)
                 Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
         }

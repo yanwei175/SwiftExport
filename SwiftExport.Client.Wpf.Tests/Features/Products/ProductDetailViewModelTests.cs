@@ -26,7 +26,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class ProductDetailViewModelTests
 {
-    /// <summary>两项来源可以归属不同主型号，选择或清空不联动颜色、描述与标签身份。</summary>
+    /// <summary>主型号引用与物料自身型号独立，编码建议和清空不联动颜色、描述与标签身份。</summary>
     [TestMethod]
     public async Task Sources_ShouldRemainIndependentAndSendNullForUneditedTags()
     {
@@ -44,7 +44,7 @@ public sealed class ProductDetailViewModelTests
         vm.SelectedProductNeutral = new(new() { Uid = neutralId, Data = new() { ProductMasterId = Guid.NewGuid(), ProductCode = "其他主型号的中性产品" } });
         vm.CommitProductNeutralCommand.Execute(null);
         Assert.AreEqual(masterId, vm.Header.ProductMasterId);
-        Assert.AreEqual(neutralId, vm.Header.ProductNeutralId);
+        Assert.AreEqual("其他主型号的中性产品", vm.Header.LinkSku);
         Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
         Assert.IsFalse(vm.Tags.IsDirty);
         Assert.IsTrue(vm.Tags.HasSelections);
@@ -52,13 +52,13 @@ public sealed class ProductDetailViewModelTests
         Assert.IsNotNull(sent);
         Assert.IsNull(sent.SelectedOptionIds);
         Assert.AreEqual(masterId, sent.Data.ProductMasterId);
-        Assert.AreEqual(neutralId, sent.Data.ProductNeutralId);
+        Assert.AreEqual("其他主型号的中性产品", sent.Data.LinkSku);
         vm.ClearProductMasterCommand.Execute(null);
         Assert.IsNull(vm.Header.ProductMasterId);
-        Assert.AreEqual(neutralId, vm.Header.ProductNeutralId);
+        Assert.AreEqual("其他主型号的中性产品", vm.Header.LinkSku);
         Assert.IsTrue(vm.Tags.HasSelections);
         vm.ClearProductNeutralCommand.Execute(null);
-        Assert.IsNull(vm.Header.ProductNeutralId);
+        Assert.AreEqual(string.Empty, vm.Header.LinkSku);
         Assert.AreEqual(detail.Data.ColorId, vm.Header.ColorId);
     }
 
@@ -67,23 +67,22 @@ public sealed class ProductDetailViewModelTests
     public async Task MissingSources_ShouldPreserveIdentityAndAllowBasicSave()
     {
         var detail = Detail();
-        detail.MasterSku = null; detail.LinkSku = null;
+        detail.MasterSku = null; detail.Data.LinkSku = "物料自有型号";
         detail.ProductAttributeProfileId = null;
-        detail.Data.ProductNeutralId = detail.ProductNeutralId = Guid.NewGuid();
         detail.SelectedOptionIds = [Guid.NewGuid()];
         SaveProductDetailRequest? sent = null;
         using var vm = Create(detail, ProductMasterTagSelectionTests.Definition(), save: request =>
         { sent = request; return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail("保留草稿")); });
         await Open(vm, detail.Uid);
         Assert.AreEqual(string.Empty, vm.Header.MasterSku);
-        Assert.AreEqual(string.Empty, vm.Header.LinkSku);
+        Assert.AreEqual("物料自有型号", vm.Header.LinkSku);
         Assert.AreEqual(detail.Data.ProductMasterId, vm.SelectedProductMaster!.Uid);
-        Assert.AreEqual(detail.Data.ProductNeutralId, vm.SelectedProductNeutral!.Uid);
+        Assert.IsNull(vm.SelectedProductNeutral);
         vm.Header.Note = "基本资料独立保存";
         await vm.SaveCommand.ExecuteAsync(null);
         Assert.IsNotNull(sent);
         Assert.AreEqual(detail.Data.ProductMasterId, sent.Data.ProductMasterId);
-        Assert.AreEqual(detail.Data.ProductNeutralId, sent.Data.ProductNeutralId);
+        Assert.AreEqual("物料自有型号", sent.Data.LinkSku);
         Assert.IsNull(sent.SelectedOptionIds);
         Assert.IsTrue(vm.Tags.HasSelections);
     }

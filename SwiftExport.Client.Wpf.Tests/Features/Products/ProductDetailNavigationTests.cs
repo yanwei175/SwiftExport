@@ -32,7 +32,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailNavigationTests
 {
-    /// <summary>列表明确选择两个独立引用，保存目标行时仍保留其他行及 BOM 草稿。</summary>
+    /// <summary>列表选择主型号并录入自身型号，保存目标行仍保留其他行及 BOM 草稿。</summary>
     [TestMethod]
     public async Task SourceLookups_ShouldSaveIndependentIdsAndPreserveOtherDrafts()
     {
@@ -49,35 +49,35 @@ public sealed class ProductDetailNavigationTests
         fixture.ViewModel.CommitProductNeutralCommand.Execute(target);
         Assert.AreEqual(colorId, target.ColorId);
         Assert.AreEqual(masterId, target.ProductMasterId);
-        Assert.AreEqual(neutralId, target.ProductNeutralId);
+        Assert.AreEqual("独立中性产品", target.LinkSku);
         await fixture.ViewModel.OpenDetailCommand.ExecuteAsync(null);
         Assert.IsNotNull(fixture.LastSave);
         Assert.AreEqual(1, fixture.LastSave.UpdateItems.Count);
         Assert.AreEqual(masterId, fixture.LastSave.UpdateItems[0].Data.ProductMasterId);
-        Assert.AreEqual(neutralId, fixture.LastSave.UpdateItems[0].Data.ProductNeutralId);
+        Assert.AreEqual("独立中性产品", fixture.LastSave.UpdateItems[0].Data.LinkSku);
         Assert.AreEqual("其他行草稿", other.Note);
         Assert.IsTrue(other.IsDirty);
         Assert.IsTrue(fixture.ViewModel.BomDrawer.Boms.HasChanges);
     }
 
-    /// <summary>空显示的失效来源身份仍能回传，只有显式清除才发送 null；两关系互不影响。</summary>
+    /// <summary>失效主型号身份仍能回传，显式清空引用不影响自由填写的物料自身型号。</summary>
     [TestMethod]
     public void MissingSourceIds_ShouldRemainUntilExplicitClear()
     {
         using var fixture = new Fixture();
         var line = fixture.ViewModel.Products.Items[0];
-        var masterId = Guid.NewGuid(); var neutralId = Guid.NewGuid();
-        line.Load(new() { Uid = line.Uid, Version = 1, Sku = "A", ProductMasterId = masterId, ProductNeutralId = neutralId });
+        var masterId = Guid.NewGuid();
+        line.Load(new() { Uid = line.Uid, Version = 1, Sku = "A", ProductMasterId = masterId, LinkSku = "自由型号" });
         Assert.IsFalse(line.IsDirty);
         Assert.AreEqual(string.Empty, line.MasterSku);
-        Assert.AreEqual(string.Empty, line.LinkSku);
+        Assert.AreEqual("自由型号", line.LinkSku);
         Assert.AreEqual(masterId, line.ToDto().ProductMasterId);
-        Assert.AreEqual(neutralId, line.ToDto().ProductNeutralId);
+        Assert.AreEqual("自由型号", line.ToDto().LinkSku);
         fixture.ViewModel.ClearProductMasterCommand.Execute(line);
         Assert.IsNull(line.ToDto().ProductMasterId);
-        Assert.AreEqual(neutralId, line.ToDto().ProductNeutralId);
+        Assert.AreEqual("自由型号", line.ToDto().LinkSku);
         fixture.ViewModel.ClearProductNeutralCommand.Execute(line);
-        Assert.IsNull(line.ToDto().ProductNeutralId);
+        Assert.AreEqual(string.Empty, line.ToDto().LinkSku);
         Assert.IsTrue(line.IsDirty);
     }
 

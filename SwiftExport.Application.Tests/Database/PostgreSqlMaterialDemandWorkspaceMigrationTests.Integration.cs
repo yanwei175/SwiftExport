@@ -152,7 +152,7 @@ public sealed class PostgreSqlMaterialDemandWorkspaceMigrationIntegrationTests
     {
         using var f = new Fixture(); var gross = f.Gross(); gross.ImagePathSnapshot = " 父来源图 "; gross.LinkSkuSnapshot = "来源型号"; gross.UnitSnapshot = "SET"; await f.InsertAsync(gross);
         var supplier = f.Supplier(); supplier.IsActive = false; await f.InsertAsync(supplier);
-        var product = new Product { Uid = Guid.NewGuid(), Sku = f.Prefix + "P", SupplyType = SupplyTypeEnums.采购, Unit = "CURRENT", MainImage = "当前物料图", ProductNeutralId = null, IsActive = false }; await f.InsertAsync(product);
+        var product = new Product { Uid = Guid.NewGuid(), Sku = f.Prefix + "P", SupplyType = SupplyTypeEnums.采购, Unit = "CURRENT", MainImage = "当前物料图", LinkSku = null, IsActive = false }; await f.InsertAsync(product);
         var parent = f.Net(gross, 1); parent.SuggestedPurchaseSupplierId = supplier.Uid; await f.InsertAsync(parent);
         var net = f.Net(gross, 2); net.ProductId = product.Uid; net.UnitSnapshot = unit; net.SuggestedPurchaseSupplierId = supplier.Uid;
         if (supplied) { net.RootNetDemandId = parent.Uid; net.ParentNetDemandId = parent.Uid; net.DeliveryTargetNetDemandId = parent.Uid; net.DeliveryMode = DemandDeliveryModeEnum.ParentExecutionSupplier; }

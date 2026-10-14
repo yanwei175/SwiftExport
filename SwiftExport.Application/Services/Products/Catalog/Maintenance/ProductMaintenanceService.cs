@@ -412,7 +412,10 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
         product.Sku = product.Sku.Trim();
         product.MasterSku = product.MasterSku?.Trim();
         product.BomNo = product.BomNo?.Trim();
+        // 物料自身型号只做文本规范化与存储长度校验，不要求匹配中性产品。
         product.LinkSku = product.LinkSku?.Trim();
+        if (product.LinkSku?.Length > 300)
+            return $"第 {FormatRowIndex(rowIndex)}：产品型号不能超过 300 个字符。";
         return null;
     }
 

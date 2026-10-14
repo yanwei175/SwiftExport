@@ -129,7 +129,7 @@ public sealed class PostgreSqlOutboundQueryMigrationIntegrationTests
     [TestMethod]
     public async Task ProductsAndDefaults()
     {
-        using var f=new Fixture();var p=Product(f);p.IsActive=false;p.Unit=" PCS ";p.MainImage=null;p.ProductNeutralId=null;await f.InsertAsync(p);var deleted=Product(f);deleted.IsDeleted=true;await f.InsertAsync(deleted);var unknown=Guid.NewGuid();
+        using var f=new Fixture();var p=Product(f);p.IsActive=false;p.Unit=" PCS ";p.MainImage=null;p.LinkSku=null;await f.InsertAsync(p);var deleted=Product(f);deleted.IsDeleted=true;await f.InsertAsync(deleted);var unknown=Guid.NewGuid();
         var rows=await f.Repository.GetProductsAsync(new[]{p.Uid,p.Uid,deleted.Uid,unknown},default);Assert.HasCount(1,rows);var row=rows.Single();Assert.AreEqual(p.Uid,row.ProductId);Assert.AreEqual(p.Sku,row.Sku);Assert.AreEqual(" PCS ",row.Unit);Assert.IsNull(row.ImagePath);Assert.IsNull(row.LinkSku);Assert.AreEqual(Guid.Empty,row.Uid);Assert.AreEqual(Guid.Empty,row.WarehouseSiteId);Assert.AreEqual(0m,row.OnHandQty);Assert.IsNull(row.DefaultWarehouseName);await f.Usable();
     }
 

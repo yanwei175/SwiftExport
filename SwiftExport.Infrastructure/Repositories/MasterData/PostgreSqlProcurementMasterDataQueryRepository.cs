@@ -48,7 +48,7 @@ public sealed class PostgreSqlProcurementMasterDataQueryRepository(RepositoryBas
         var taxPrice = hasSupplier ? "sp.tax_price" : "CAST(NULL AS numeric(18,6))";
         var columns = $"""
             p.uid AS "Uid",p.sku AS "Sku",COALESCE(p.main_image,'') AS "MainImage",
-            COALESCE(cp.customer_sku,'') AS "CustomerSku",COALESCE(pn.product_code,'') AS "LinkSku",
+            COALESCE(cp.customer_sku,'') AS "CustomerSku",COALESCE(p.link_sku,'') AS "LinkSku",
             {supplierSku} AS "SupplierSku",COALESCE(p.description_zh,'') AS "DescriptionZh",
             COALESCE(p.description_en,'') AS "DescriptionEn",COALESCE(color.color_name_zh,'') AS "FinishZh",
             COALESCE(p.features_zh,'') AS "FeaturesZh",COALESCE(p.material_type,'') AS "MaterialType",
@@ -64,7 +64,6 @@ public sealed class PostgreSqlProcurementMasterDataQueryRepository(RepositoryBas
             """ : string.Empty;
         var filter = $"""
             FROM public.product p
-            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             LEFT JOIN public.product_color color ON color.uid=p.color_id AND COALESCE(color.is_deleted,FALSE)=FALSE
             LEFT JOIN LATERAL (
                 SELECT relation.customer_sku FROM public.customer_product relation

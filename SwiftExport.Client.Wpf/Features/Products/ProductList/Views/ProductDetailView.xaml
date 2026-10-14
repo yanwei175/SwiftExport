@@ -29,10 +29,10 @@
        <TextBlock Grid.Row="0" Grid.Column="0" Text="物料编号 *" VerticalAlignment="Center" Margin="0,0,8,8" />
 <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,12,8" AutomationProperties.Name="物料编号 *" Text="{Binding Header.Sku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"  />
 <TextBlock Grid.Row="0" Grid.Column="2" Text="产品型号" VerticalAlignment="Center" Margin="0,0,8,8" />
-<controls:LookupTextBox Grid.Row="0" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="产品型号"
- Text="{Binding Header.LinkSku, Mode=OneWay}" ItemsSource="{Binding ProductNeutralCandidates}" SelectedItem="{Binding SelectedProductNeutral, Mode=TwoWay}"
- SearchCommand="{Binding SearchProductNeutralsCommand}" IsBusy="{Binding IsProductNeutralLookupBusy}" SearchMode="Remote" DisplayMemberPath="ProductCode" FilterMemberPaths="ProductCode,ColorName"
- RequireItemMatch="True" ClearSelectionOnEdit="False" SelectionCommittedCommand="{Binding CommitProductNeutralCommand}" SelectionClearedCommand="{Binding ClearProductNeutralCommand}" />
+<productComponents:ProductNeutralLookupTextBox Grid.Row="0" Grid.Column="3" Margin="0,0,12,8" AutomationProperties.Name="产品型号"
+ Text="{Binding Header.LinkSku, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding ProductNeutralCandidates}" SelectedProductNeutral="{Binding SelectedProductNeutral, Mode=TwoWay}"
+ SearchCommand="{Binding SearchProductNeutralsCommand}" IsBusy="{Binding IsProductNeutralLookupBusy}"
+ RequireItemMatch="False" SelectionCommittedCommand="{Binding CommitProductNeutralCommand}" SelectionClearedCommand="{Binding ClearProductNeutralCommand}" />
 <TextBlock Grid.Row="0" Grid.Column="4" Text="颜色" VerticalAlignment="Center" Margin="0,0,8,8" />
 <productComponents:ProductColorLookupTextBox Grid.Row="0" Grid.Column="5" Margin="0,0,12,8" AutomationProperties.Name="颜色" Text="{Binding Header.Finish, Mode=OneWay}" ItemsSource="{Binding ReferenceDataCache.ProductColors}" SelectedColor="{Binding SelectedColor, Mode=TwoWay}" SelectionCommittedCommand="{Binding CommitColorCommand}" SelectionClearedCommand="{Binding ClearColorCommand}" />
 <TextBlock Grid.Row="1" Grid.Column="0" Text="物料类型" VerticalAlignment="Center" Margin="0,0,8,8" />
@@ -78,12 +78,6 @@
  <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
   <DataTrigger Binding="{Binding Header.MasterSku}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
   <DataTrigger Binding="{Binding Header.ProductMasterId}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
- </Style.Triggers></Style></Button.Style>
-</Button>
-<Button Grid.Row="7" Grid.Column="3" Content="清除中性产品引用" Command="{Binding ClearProductNeutralCommand}" Margin="0,0,12,8" AutomationProperties.Name="清除失效中性产品引用">
- <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers>
-  <DataTrigger Binding="{Binding Header.LinkSku}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger>
-  <DataTrigger Binding="{Binding Header.ProductNeutralId}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
  </Style.Triggers></Style></Button.Style>
 </Button>
       </Grid>

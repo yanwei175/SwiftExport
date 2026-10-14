@@ -25,7 +25,7 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductNeutralBatchSaveTests
 {
-    /// <summary>新增、修改、删除一次提交，保持父字段版本不变，新增行父标识由服务端确定。</summary>
+    /// <summary>同父同色的不同编码可新增和修改，混合删除一次提交，保持父字段版本不变。</summary>
     [TestMethod]
     public async Task Save_ShouldCommitOnlyNeutralsAndKeepMasterUntouched()
     {
@@ -44,6 +44,7 @@ public sealed class ProductNeutralBatchSaveTests
         Assert.IsTrue(result.Data.Neutrals.All(row => row.ProductMasterId == fixture.MasterId));
         Assert.AreEqual(1, result.Data.Neutrals.Count(row => row.Data.IsMainImage));
         Assert.IsTrue(result.Data.Neutrals.Any(row => row.Data.ProductCode == "NEW"));
+        Assert.IsTrue(result.Data.Neutrals.All(row => row.Data.ColorId == fixture.ColorId));
         Assert.IsNull(fixture.Session.Transaction);
     }
 
@@ -51,7 +52,6 @@ public sealed class ProductNeutralBatchSaveTests
     [TestMethod]
     [DataRow("CONCURRENCY_CONFLICT", ServiceErrorCodes.VersionConflict)]
     [DataRow("PRODUCT_NEUTRAL_CODE_OCCUPIED", ServiceErrorCodes.Validation)]
-    [DataRow("PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", ServiceErrorCodes.BusinessBlocked)]
     [DataRow("WRITE_FAILED", ServiceErrorCodes.BusinessBlocked)]
     public async Task WriteFailure_ShouldRollbackWholeBatch(string writeCode, string expectedCode)
     {

@@ -255,7 +255,7 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
             Maintenance = new(masters, neutrals, categories, suppliers, Services.GetRequiredService<IProductColorRepository>(), Services.GetRequiredService<IProductRepository>(), attributes, context);
             Query = new(masters, neutrals, attributes);
             Categories = new(categories, context);
-            Import = new(masters, categories, suppliers, user, user, context);
+            Import = new(masters, categories, suppliers, Services.GetRequiredService<SwiftExport.Core.Interfaces.Systems.Dictionaries.Data.ISysDictDataRepository>(), user, user, context);
         }
         /// <summary>释放请求事务和连接。</summary>
         public void Dispose() => _scope.Dispose();

@@ -215,7 +215,7 @@ public sealed class ProductNeutralBatchMaintenanceService(
         catch (Exception exception) { _logger.LogError(exception, "回滚中性产品管理事务失败。"); }
     }
 
-    /// <summary>保留版本冲突和原失败默认分类，仅把精确编码占用视为校验失败，父颜色组合占用仍阻断业务。</summary>
+    /// <summary>保留版本冲突和原失败默认分类，仅把全局编码占用视为校验失败。</summary>
     private static void EnsureWrite(RepositoryWriteResult result, string fallbackMessage)
     {
         if (result.Success) return;
@@ -223,7 +223,6 @@ public sealed class ProductNeutralBatchMaintenanceService(
         {
             ServiceErrorCodes.ConcurrencyConflict => ServiceErrorCodes.VersionConflict,
             ProductErrorCodes.ProductMasterSkuOccupied or ProductErrorCodes.ProductNeutralCodeOccupied => ServiceErrorCodes.Validation,
-            ProductErrorCodes.ProductNeutralMasterColorOccupied => ServiceErrorCodes.BusinessBlocked,
             _ => ServiceErrorCodes.BusinessBlocked
         };
         throw new ProductNeutralBatchWriteException(code,

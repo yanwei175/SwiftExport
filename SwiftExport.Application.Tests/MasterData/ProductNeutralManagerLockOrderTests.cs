@@ -39,6 +39,46 @@ public sealed class ProductNeutralManagerLockOrderTests
         AssertTransaction(f, committed: true);
     }
 
+    /// <summary>目标父已有同颜色不同编码时，新增及换父均成功；仍保留观察、父锁和中性行重读流程。</summary>
+    [TestMethod]
+    public async Task CreateAndReparentToRepeatedMasterColor_PreserveDistinctCodes()
+    {
+        var f = new Fixture();
+        f.Committed.Add(new ProductNeutral
+        { Uid = Guid.NewGuid(), ProductMasterId = f.NewMasterId, ColorId = f.NewColorId, ProductCode = "TARGET" });
+        var request = f.UpdateRequest();
+        request.CreateItems.Add(new() { Data = new()
+        { ProductMasterId = f.NewMasterId, ColorId = f.NewColorId, ProductCode = "NEW" } });
+
+        var result = await f.Service.BatchSaveAsync(request);
+
+        Assert.IsTrue(result.Success, result.Message);
+        CollectionAssert.AreEqual(new[] { "observe", "color", "master", "neutral", "codes", "add", "update" }, f.Events.ToArray());
+        var rows = f.Committed.Where(row => row.ProductMasterId == f.NewMasterId && row.ColorId == f.NewColorId).ToArray();
+        Assert.HasCount(3, rows);
+        CollectionAssert.AreEquivalent(new[] { "TARGET", "NEW", "OLD" }, rows.Select(row => row.ProductCode).ToArray());
+        AssertTransaction(f, committed: true);
+    }
+
+    /// <summary>跨父型号已占用的编码仍按全局唯一拒绝，不能因允许同父同色重复而扩大编码范围。</summary>
+    [TestMethod]
+    public async Task CodeOwnedByAnotherMaster_RejectsBeforeWrites()
+    {
+        var f = new Fixture();
+        f.Committed.Add(new ProductNeutral
+        { Uid = Guid.NewGuid(), ProductMasterId = Guid.NewGuid(), ColorId = Guid.NewGuid(), ProductCode = "TAKEN" });
+        var request = f.UpdateRequest();
+        request.UpdateItems[0].Data.ProductCode = " taken ";
+
+        var result = await f.Service.BatchSaveAsync(request);
+
+        Assert.IsFalse(result.Success);
+        Assert.AreEqual(ServiceErrorCodes.Validation, result.Error.Code);
+        Assert.AreEqual(0, f.Writes);
+        Assert.AreEqual("OLD", f.Committed.Single(row => row.Uid == f.NeutralId).ProductCode);
+        AssertTransaction(f, committed: false);
+    }
+
     /// <summary>观察后旧父被其他请求改变，锁后重读必须拒绝过期归属，不查编码或写入，并回滚本次事务。</summary>
     [TestMethod]
     public async Task ReparentedAfterObservation_ReturnsBusinessBlockedWithoutWrites()
@@ -91,7 +131,6 @@ public sealed class ProductNeutralManagerLockOrderTests
     [DataRow(false, "WRITE_FAILED", ServiceErrorCodes.BusinessBlocked)]
     [DataRow(true, "WRITE_FAILED", ServiceErrorCodes.Unexpected)]
     [DataRow(false, "PRODUCT_NEUTRAL_CODE_OCCUPIED", ServiceErrorCodes.Validation)]
-    [DataRow(false, "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", ServiceErrorCodes.BusinessBlocked)]
     [DataRow(false, "CONCURRENCY_CONFLICT", ServiceErrorCodes.VersionConflict)]
     public async Task SecondWriteFailure_RollsBackEarlierInsert(bool throws, string writeCode, string expectedCode)
     {
@@ -217,7 +256,9 @@ public sealed class ProductNeutralManagerLockOrderTests
             {
                 Assert.IsTrue((bool)args[1]!);
                 Events.Add("codes");
-                return Task.FromResult<IReadOnlyList<ProductNeutral>>([]);
+                // 返回事务快照中的真实占用者，验证跨父编码仍被识别，自己的原编码则可继续更新。
+                var codes = ((IEnumerable<string>)args[0]!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                return Task.FromResult<IReadOnlyList<ProductNeutral>>(_pending.Where(row => codes.Contains(row.ProductCode)).Select(Copy).ToArray());
             }
             Assert.IsTrue(method is "AddAsync" or "UpdateAsync" or "DeleteAsync", method);
             Writes++;

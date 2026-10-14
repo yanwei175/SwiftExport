@@ -11,6 +11,9 @@ using SwiftExportClient.Features.Products.Components.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
+using SwiftExportClient.Authentication;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExportClient.Features.Products.ProductNeutralImport.ViewModels;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
@@ -34,6 +37,8 @@ public sealed partial class ProductNeutralManagerViewModel
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
     private readonly IImageAddressResolver _imageAddresses;
+    private readonly INavigationService? _navigation;
+    private readonly ICurrentUserService? _currentUser;
     private CancellationTokenSource? _queryCts;
     private CancellationTokenSource? _masterLookupCts;
     private long _querySequence;
@@ -51,7 +56,9 @@ public sealed partial class ProductNeutralManagerViewModel
         IReferenceDataCacheService cache,
         IMessageService messages,
         IDialogService dialogs,
-        IImageAddressResolver imageAddresses)
+        IImageAddressResolver imageAddresses,
+        INavigationService? navigation = null,
+        ICurrentUserService? currentUser = null)
     {
         _api = api;
         _productMasterApi = productMasterApi;
@@ -60,6 +67,9 @@ public sealed partial class ProductNeutralManagerViewModel
         _messages = messages;
         _dialogs = dialogs;
         _imageAddresses = imageAddresses;
+        _navigation = navigation;
+        _currentUser = currentUser;
+        if (_currentUser is not null) _currentUser.CurrentUserChanged += OnImportUserChanged;
         _imageAddresses.Changed += OnImageConfigurationChanged;
         Title = "产品管理";
         Lines.ListStateChanged += OnListStateChanged;
@@ -69,6 +79,7 @@ public sealed partial class ProductNeutralManagerViewModel
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(ReBuildImagePathCommand);
         RegisterBusyAwareCommand(ReBuildCheckedImagePathsCommand);
+        RegisterBusyAwareCommand(OpenImportCommand);
     }
 
     /// <summary>由宿主视图提交原生 DataGrid 编辑事务。</summary>
@@ -401,6 +412,13 @@ public sealed partial class ProductNeutralManagerViewModel
         ReBuildCheckedImagePathsCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>打开独立导入队列；固定路由身份复用已有页签，不读取或替换管理页草稿。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenImport))]
+    private Task OpenImportAsync() => _navigation!.OpenDocumentAsync(ProductNeutralImportViewModel.RouteKey, ProductNeutralImportViewModel.RouteKey);
+    private bool CanOpenImport() => !_disposed && IsNotBusy && _navigation is not null
+        && _currentUser?.HasPermission(PermissionKeys.ProductsNeutralView) == true;
+    private void OnImportUserChanged(object? sender, EventArgs e) => OpenImportCommand.NotifyCanExecuteChanged();
+
     private Task<PageLoadOutcome> LoadPageAsync() => LoadPageCoreAsync();
 
     /// <summary>执行 latest-request-wins 分页查询，仅最新且页面仍存活的结果可以替换集合。</summary>
@@ -531,6 +549,8 @@ public sealed partial class ProductNeutralManagerViewModel
     {
         if (_disposed) return;
         _disposed = true;
+        if (_currentUser is not null) _currentUser.CurrentUserChanged -= OnImportUserChanged;
+        OpenImportCommand.NotifyCanExecuteChanged();
         _imageAddresses.Changed -= OnImageConfigurationChanged;
         Lines.ListStateChanged -= OnListStateChanged;
         PropertyChanged -= OnManagerPropertyChanged;

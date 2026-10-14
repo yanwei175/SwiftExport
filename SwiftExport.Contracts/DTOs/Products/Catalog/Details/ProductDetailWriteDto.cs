@@ -8,8 +8,8 @@ namespace SwiftExport.Contracts.DTOs.Products
         public string Sku { get; set; }
         /// <summary>独立引用的主型号身份；空值表示清除。</summary>
         public Guid? ProductMasterId { get; set; }
-        /// <summary>独立引用的中性产品身份；空值表示清除。</summary>
-        public Guid? ProductNeutralId { get; set; }
+        /// <summary>物料自身的产品型号；可自由填写，不要求存在中性产品。</summary>
+        public string LinkSku { get; set; }
         /// <summary>英文描述。</summary>
         public string DescriptionEn { get; set; }
         /// <summary>中文描述。</summary>

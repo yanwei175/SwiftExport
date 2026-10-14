@@ -167,6 +167,8 @@ public static class DependencyInjection
             SwiftExport.Application.Services.Products.Attributes.ProductAttributeDefinitionService>();
         services.AddScoped<SwiftExport.Application.Interfaces.Products.ProductMasters.Import.IProductMasterImportService,
             SwiftExport.Application.Services.Products.ProductMasters.Import.ProductMasterImportService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.Products.ProductNeutrals.Import.IProductNeutralImportService,
+            SwiftExport.Application.Services.Products.ProductNeutrals.Import.ProductNeutralImportService>();
         services.AddScoped<ProductMasterMaintenanceService>();
         services.AddScoped<IProductMasterMaintenanceService>(provider => provider.GetRequiredService<ProductMasterMaintenanceService>());
         services.AddScoped<IProductNeutralMaintenanceService>(provider => provider.GetRequiredService<ProductMasterMaintenanceService>());

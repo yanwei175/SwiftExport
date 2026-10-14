@@ -67,7 +67,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                     nd.product_id AS "ProductId",
                     (nd.product_id IS NULL) AS "IsNonStandard",
                     nd.sku_snapshot AS "Sku",
-                    COALESCE(pn.product_code,gd.link_sku_snapshot) AS "LinkSku",
+                    COALESCE(p.link_sku,gd.link_sku_snapshot) AS "LinkSku",
                     nd.customer_sku_snapshot AS "CustomerSku",
                     nd.description_snapshot AS "Description",
                     nd.color_snapshot AS "Color",
@@ -117,7 +117,6 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                 LEFT JOIN "public"."customer" customer ON customer.uid=gd.customer_id AND COALESCE(customer.is_deleted,FALSE)=FALSE
                 LEFT JOIN "public"."net_demand" root ON root.uid=nd.root_net_demand_id
                 LEFT JOIN "public"."product" p ON p.uid=nd.product_id AND COALESCE(p.is_deleted,FALSE)=FALSE
-                LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
                 LEFT JOIN "public"."supplier" suggestedSupplier
                   ON suggestedSupplier.uid=nd.suggested_purchase_supplier_id AND COALESCE(suggestedSupplier.is_deleted,FALSE)=FALSE
                 LEFT JOIN "public"."net_demand" deliveryTarget
@@ -243,7 +242,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
         var where = LifecycleWhere(request.LifecycleStatus, parameters);
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            where.Add($"(gd.source_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.customer_sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.description_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR pn.product_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')");
+            where.Add($"(gd.source_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.customer_sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR nd.description_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR p.link_sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')");
             parameters.Add("Keyword", LiteralPattern(request.Keyword));
         }
         AddIds(request.NetDemandIds, "nd.uid", "NetDemandIds", where, parameters);

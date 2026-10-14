@@ -29,7 +29,7 @@ public sealed class PostgreSqlForExcelPurchaseOrderRepository(RepositoryBaseCont
             FROM public.supplier WHERE uid=@uid AND is_deleted=FALSE FOR SHARE;
             """, new { uid }, token));
 
-    /// <summary>按客户返回关联并保留断链；客户型号优先、物料型号取中性来源，采购资格只写入 IsUsable。</summary>
+    /// <summary>按客户返回关联并保留断链；客户型号优先、物料型号取自身 LinkSku，采购资格只写入 IsUsable。</summary>
     public async Task<IReadOnlyList<PurchaseOrderImportProductCandidateDto>> MatchProductsAsync(Guid customerId, string[] skus, CancellationToken token)
     {
         // 空数组与源一致先返回，包括已取消请求；不再规范化、去重或修改调用方数组。
@@ -40,7 +40,7 @@ public sealed class PostgreSqlForExcelPurchaseOrderRepository(RepositoryBaseCont
         // 产品锁置于固定 LATERAL 源内，外层只锁非空关系；不能 FOR SHARE OF 可空产品侧。
         return (await context.Session.Connection.QueryAsync<PurchaseOrderImportProductCandidateDto>(Command($"""
             SELECT cp.uid AS "CustomerProductId",cp.customer_sku AS "CustomerSku",p.uid AS "ProductId",p.sku AS "Sku",
-                   COALESCE(NULLIF(btrim(cp.link_sku,' '),''),pn.product_code) AS "LinkSku",
+                   COALESCE(NULLIF(btrim(cp.link_sku,' '),''),p.link_sku) AS "LinkSku",
                    p.unit AS "Unit",p.main_image AS "MainImage",p.material_type AS "MaterialType",
                    CASE WHEN cp.is_active=TRUE AND p.is_active=TRUE
                      AND rtrim(p.supply_type,' ') COLLATE public.erp_dictionary_ci='采购'
@@ -48,11 +48,10 @@ public sealed class PostgreSqlForExcelPurchaseOrderRepository(RepositoryBaseCont
                      AND NULLIF(btrim(p.sku,' '),'') IS NOT NULL THEN TRUE ELSE FALSE END AS "IsUsable"
             FROM public.customer_product cp
             LEFT JOIN LATERAL (
-                SELECT source.uid,source.sku,source.product_neutral_id,source.unit,source.main_image,
+                SELECT source.uid,source.sku,source.link_sku,source.unit,source.main_image,
                        source.material_type,source.supply_type,source.is_active
                 FROM public.product source WHERE source.uid=cp.sku_id AND source.is_deleted=FALSE FOR SHARE
             ) p ON TRUE
-            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             WHERE cp.customer_id=@CustomerId AND cp.is_deleted=FALSE
               AND upper(btrim(cp.customer_sku,' ')) COLLATE public.erp_dictionary_ci=ANY(
                   SELECT rtrim(input.sku,' ') FROM unnest(@Skus) input(sku))

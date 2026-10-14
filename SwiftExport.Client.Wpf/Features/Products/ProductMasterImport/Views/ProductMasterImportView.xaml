@@ -67,7 +67,7 @@
                 <DataGridTextColumn Header="每箱净重(KG)" Binding="{Binding Input.DefaultNetWeight}" Width="150"/>
                 <DataGridTextColumn Header="每箱毛重(KG)" Binding="{Binding Input.DefaultGrossWeight}" Width="150"/>
                 <DataGridTextColumn Header="每箱体积(CBM)" Binding="{Binding Input.DefaultCbm}" Width="150"/>
-                <DataGridTextColumn Header="分类路径" Binding="{Binding Input.CategoryPath}" Width="150"/>
+                <DataGridTextColumn Header="产品系列英文名称" Binding="{Binding Input.ProductSeriesNameEn}" Width="150"/>
                 <DataGridTextColumn Header="默认供应商编码" Binding="{Binding Input.DefaultSupplierCode}" Width="150"/>
                 <DataGridTextColumn Header="原因" Binding="{Binding Reason}" Width="400"/>
             </DataGrid.Columns>

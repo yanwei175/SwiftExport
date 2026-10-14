@@ -106,7 +106,7 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
                    nd.root_net_demand_id AS "RootNetDemandId", root.sku_snapshot AS "RootSku",
                    nd.delivery_mode = 1 AS "IsCustomerSupplied", nd.delivery_target_net_demand_id AS "DeliveryTargetNetDemandId",
                    nd.product_id AS "ProductId", nd.product_id IS NULL AS "IsNonStandard",
-                   nd.sku_snapshot AS "Sku", COALESCE(pn.product_code, '') AS "LinkSku",
+                   nd.sku_snapshot AS "Sku", COALESCE(p.link_sku, '') AS "LinkSku",
                    nd.customer_sku_snapshot AS "CustomerSku", nd.description_snapshot AS "Description",
                    nd.color_snapshot AS "Color", nd.specification_snapshot AS "Specification",
                    COALESCE(p.main_image, '') AS "ImagePath", nd.material_type_snapshot AS "MaterialType",
@@ -131,7 +131,6 @@ public sealed class PostgreSqlMaterialDemandSourceRepository(RepositoryBaseConte
             LEFT JOIN "public"."customer" customer ON customer.uid = gd.customer_id AND COALESCE(customer.is_deleted, FALSE) = FALSE
             LEFT JOIN "public"."net_demand" root ON root.uid = nd.root_net_demand_id
             LEFT JOIN "public"."product" p ON p.uid = nd.product_id AND COALESCE(p.is_deleted, FALSE) = FALSE
-            LEFT JOIN public.product_neutral pn ON pn.uid=p.product_neutral_id AND pn.is_deleted=FALSE
             LEFT JOIN "public"."supplier" suggestedSupplier ON suggestedSupplier.uid = nd.suggested_purchase_supplier_id
                 AND COALESCE(suggestedSupplier.is_deleted, FALSE) = FALSE
             LEFT JOIN "public"."supplier_product" supplierProduct ON supplierProduct.supplier_id = nd.suggested_purchase_supplier_id

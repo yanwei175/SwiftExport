@@ -49,7 +49,7 @@ public sealed class ProductMasterBatchImportHttpTests
         await app.StartAsync();
         var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
         using var client = new HttpClient { BaseAddress = new Uri(address + "/api/ProductMasterImport") };
-        var inputs = new List<ProductMasterImportRowDto> { new() { SourceRowNumber = 2, MasterSku = "M-1", DefaultDescriptionZh = "HTTP 导入" } };
+        var inputs = new List<ProductMasterImportRowDto> { new() { SourceRowNumber = 2, MasterSku = "M-1", DefaultDescriptionZh = "HTTP 导入", ProductSeriesNameEn = " standard " } };
         using var anonymous = await client.PostAsJsonAsync("/api/ProductMasterImport/import", inputs);
         Assert.AreEqual(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         Assert.AreEqual(0, fixture.Reads);
@@ -63,6 +63,7 @@ public sealed class ProductMasterBatchImportHttpTests
         Assert.IsTrue(saved.Success, saved.Message);
         Assert.IsTrue(saved.Data.Items.Single().Success);
         Assert.AreEqual("HTTP 导入", fixture.Masters[0].DefaultDescriptionZh);
+        Assert.AreEqual(fixture.TargetSeries.Uid, fixture.Masters[0].ProductSeriesId);
         // 连续批次不需要冷却或清理缓存，第二次也立即到达应用服务。
         Assert.IsTrue((await api.ImportAsync(inputs)).Data.Items.Single().Success);
         Assert.AreEqual(2, fixture.Writes);

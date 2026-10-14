@@ -19,6 +19,9 @@ using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Core.Interfaces.Products.Categories;
 using SwiftExport.Core.Interfaces.Products.ProductMasters;
 using SwiftExport.Core.Interfaces.Suppliers.Management;
+using SwiftExport.Core.Interfaces.Systems.Dictionaries.Data;
+using SwiftExport.Core.Entities.Systems.Dictionaries.Data;
+using SwiftExport.Contracts.SysEnums;
 
 namespace SwiftExport.Application.Tests.MasterData;
 
@@ -26,11 +29,11 @@ namespace SwiftExport.Application.Tests.MasterData;
 [TestClass]
 public sealed class ProductMasterBatchImportTests
 {
-    /// <summary>空白清空可空字段，保留模板与系列、编码和审计，只更新父级。</summary>
+    /// <summary>空白清空系列等可空字段，分类与属性模板、编码和审计保留，只更新父级。</summary>
     [TestMethod]
     public async Task BlankFieldsClearAndUnrelatedFieldsRemain()
     {
-        var fixture = new Fixture();
+        var fixture = new Fixture(); fixture.Masters[0].CategoryId = fixture.ChildCategory.Uid;
         var profileId = fixture.Masters.Single().ProductAttributeProfileId;
         var receipt = await fixture.Service.ImportAsync([new() { SourceRowNumber = 2, MasterSku = " m-1 " }]);
         Assert.IsTrue(receipt.Success, receipt.Message);
@@ -40,10 +43,10 @@ public sealed class ProductMasterBatchImportTests
         Assert.IsNull(master.DefaultDescriptionZh);
         Assert.IsNull(master.DefaultPcsPerPackage);
         Assert.IsNull(master.DefaultNetWeight);
-        Assert.AreEqual(Guid.Empty, master.CategoryId);
+        Assert.AreEqual(fixture.ChildCategory.Uid, master.CategoryId);
         Assert.AreEqual(Guid.Empty, master.DefaultSupplierId);
         Assert.AreEqual(profileId, master.ProductAttributeProfileId);
-        Assert.AreEqual(fixture.OriginalSeriesId, master.ProductSeriesId);
+        Assert.IsNull(master.ProductSeriesId);
         Assert.AreEqual("original", master.CreatedBy);
         Assert.AreEqual(5, master.Version);
         Assert.AreEqual(1, fixture.Connection.Commits);
@@ -58,7 +61,7 @@ public sealed class ProductMasterBatchImportTests
         var saved = await fixture.Service.ImportAsync([
             new() { SourceRowNumber = 2, MasterSku = "M-1", DefaultDescriptionZh = "成功更新" },
             new() { SourceRowNumber = 3, MasterSku = "BAD" },
-            new() { SourceRowNumber = 4, MasterSku = "GOOD", DefaultPcsPerPackage = "24", CategoryPath = "工具/夹具", DefaultSupplierCode = "sup-1" }
+            new() { SourceRowNumber = 4, MasterSku = "GOOD", DefaultPcsPerPackage = "24", ProductSeriesNameEn = " standard ", DefaultSupplierCode = "sup-1" }
         ]);
         Assert.IsTrue(saved.Success);
         CollectionAssert.AreEqual(new[] { true, false, true }, saved.Data.Items.Select(item => item.Success).ToArray());
@@ -67,7 +70,8 @@ public sealed class ProductMasterBatchImportTests
         Assert.IsFalse(fixture.Masters.Any(m => m.MasterSku == "BAD"));
         var created = fixture.Masters.Single(m => m.MasterSku == "GOOD");
         Assert.AreEqual(24, created.DefaultPcsPerPackage);
-        Assert.AreEqual(fixture.ChildCategory.Uid, created.CategoryId);
+        Assert.AreEqual(Guid.Empty, created.CategoryId);
+        Assert.AreEqual(fixture.TargetSeries.Uid, created.ProductSeriesId);
         Assert.AreEqual(fixture.Suppliers.Single().Uid, created.DefaultSupplierId);
         Assert.AreEqual(2, fixture.Connection.Commits);
         Assert.AreEqual(1, fixture.Connection.Rollbacks);
@@ -103,7 +107,7 @@ public sealed class ProductMasterBatchImportTests
         var fixture = new Fixture();
         var saved = await fixture.Service.ImportAsync([
             new() { SourceRowNumber=2, MasterSku="A", DefaultPcsPerPackage="0", DefaultNetWeight="-1", DefaultCbm="0.1234567" },
-            new() { SourceRowNumber=3, MasterSku="B", CategoryPath="不存在" },
+            new() { SourceRowNumber=3, MasterSku="B", ProductSeriesNameEn="不存在" },
             new() { SourceRowNumber=4, MasterSku="C", DefaultSupplierCode="不存在" },
             new() { SourceRowNumber=5, MasterSku="D" }, new() { SourceRowNumber=6, MasterSku=" d " }
         ]);
@@ -113,17 +117,57 @@ public sealed class ProductMasterBatchImportTests
         Assert.IsNull(fixture.Session.Transaction);
     }
 
-    /// <summary>分类清空不再影响模板；导入不能改写未包含在模板中的属性模板字段。</summary>
+    /// <summary>按英文名称忽略大小写匹配系列，分类及未参与输入的属性模板保持原值。</summary>
     [TestMethod]
-    public async Task ImportCanClearCategoryWithoutChangingProfile()
+    public async Task ImportMatchesSeriesAndPreservesCategoryAndProfile()
     {
         var fixture = new Fixture(); fixture.Masters[0].CategoryId=fixture.ChildCategory.Uid;
         var profileId = fixture.Masters[0].ProductAttributeProfileId;
-        var saved = await fixture.Service.ImportAsync([new() { SourceRowNumber=2,MasterSku="M-1" }]);
+        var saved = await fixture.Service.ImportAsync([new() { SourceRowNumber=2,MasterSku="M-1", ProductSeriesNameEn=" STANDARD " }]);
         Assert.IsTrue(saved.Data.Items.Single().Success);
-        Assert.AreEqual(Guid.Empty,fixture.Masters[0].CategoryId);
+        Assert.AreEqual(fixture.ChildCategory.Uid,fixture.Masters[0].CategoryId);
+        Assert.AreEqual(fixture.TargetSeries.Uid,fixture.Masters[0].ProductSeriesId);
         Assert.AreEqual(profileId,fixture.Masters[0].ProductAttributeProfileId);
         Assert.AreEqual(1,fixture.Writes);
+        CollectionAssert.AreEqual(new[] { fixture.OriginalSeriesId, fixture.TargetSeries.Uid }.OrderBy(id => id).ToArray(), fixture.DictionaryLocks.ToArray());
+    }
+
+    /// <summary>中文名、失效系列、错误字典归属及英文名称重复均不能变成有效 Uid。</summary>
+    [TestMethod]
+    public async Task InvalidOrAmbiguousSeriesDoNotWrite()
+    {
+        var fixture = new Fixture();
+        fixture.DictionaryRows.AddRange([
+            new() { DictCode=DictCodes.ProductSeries,DataNameEn="Disabled",IsEnabled=false },
+            new() { DictCode=DictCodes.ProductSeries,DataNameEn="Deleted",IsEnabled=true,IsDeleted=true },
+            new() { DictCode="Color",DataNameEn="WrongType",IsEnabled=true },
+            new() { DictCode=DictCodes.ProductSeries,DataNameEn="Ambiguous",IsEnabled=true },
+            new() { DictCode=DictCodes.ProductSeries,DataNameEn=" ambiguous ",IsEnabled=true }
+        ]);
+        var inputs = new[] { "标准系列", "Disabled", "Deleted", "WrongType", "Ambiguous", new string('x',501) };
+        var result = await fixture.Service.ImportAsync(inputs.Select((name,index)=>new ProductMasterImportRowDto { SourceRowNumber=index+2,MasterSku="NEW-"+index,ProductSeriesNameEn=name }).ToList());
+        Assert.IsTrue(result.Success);Assert.AreEqual(inputs.Length,result.Data.FailedCount);Assert.AreEqual(0,fixture.Writes);
+        Assert.IsTrue(result.Data.Items.All(item=>item.ErrorCode==ServiceErrorCodes.Validation));
+        Assert.IsTrue(result.Data.Items.All(item=>item.Message.Contains("系列",StringComparison.Ordinal)));Assert.IsNull(fixture.Session.Transaction);
+    }
+
+    /// <summary>匹配后改名、停用、软删或移出类型时，锁后复核必须拒绝该行。</summary>
+    [TestMethod]
+    [DataRow("rename")][DataRow("disable")][DataRow("delete")][DataRow("type")]
+    public async Task SeriesChangedBeforeLockFailsWithoutWriting(string change)
+    {
+        var fixture = new Fixture();
+        fixture.BeforeDictionaryLock=id=>
+        {
+            if(id!=fixture.TargetSeries.Uid)return;
+            if(change=="rename")fixture.TargetSeries.DataNameEn="Renamed";
+            if(change=="disable")fixture.TargetSeries.IsEnabled=false;
+            if(change=="delete")fixture.TargetSeries.IsDeleted=true;
+            if(change=="type")fixture.TargetSeries.DictCode="Color";
+        };
+        var result=await fixture.Service.ImportAsync([new(){SourceRowNumber=2,MasterSku="M-1",ProductSeriesNameEn="Standard"}]);
+        Assert.IsFalse(result.Data.Items.Single().Success);Assert.AreEqual(ServiceErrorCodes.Validation,result.Data.Items.Single().ErrorCode);
+        Assert.AreEqual(fixture.OriginalSeriesId,fixture.Masters[0].ProductSeriesId);Assert.AreEqual(0,fixture.Writes);Assert.IsNull(fixture.Session.Transaction);
     }
 
     /// <summary>取消发生在第二行写入后时只撤销该行，已提交的第一行保持有效。</summary>
@@ -144,6 +188,10 @@ public sealed class ProductMasterBatchImportTests
     internal sealed class Fixture : ICurrentUser, IPermissionEvaluationService
     {
         internal readonly Guid OriginalSeriesId = Guid.NewGuid();
+        internal readonly SysDictData TargetSeries = new() { DictCode=DictCodes.ProductSeries,DataNameEn="Standard",DataNameZh="标准系列",IsEnabled=true };
+        internal readonly List<SysDictData> DictionaryRows = [];
+        internal readonly List<Guid> DictionaryLocks = [];
+        internal Action<Guid>? BeforeDictionaryLock;
         internal List<ProductMaster> Masters = [new() { MasterSku = "M-1", Version = 4, DefaultDescriptionZh = "旧描述", DefaultPcsPerPackage = 12, ProductAttributeProfileId = Guid.NewGuid(), CreatedBy = "original" }];
         internal List<Supplier> Suppliers = [new() { SupplierCode = "SUP-1", SupplierName = "测试供应商", DocRelateNo = "S" }];
         internal ProductCategory RootCategory = new() { CategoryName = "工具" };
@@ -157,18 +205,30 @@ public sealed class ProductMasterBatchImportTests
         internal Fixture()
         {
             Masters[0].ProductSeriesId = OriginalSeriesId;
+            DictionaryRows.AddRange([TargetSeries,new() { Uid=OriginalSeriesId,DictCode=DictCodes.ProductSeries,DataNameEn="Original",IsEnabled=true }]);
             ChildCategory.ParentId = RootCategory.Uid;
             List<ProductMaster> snapshot = [];
             Connection = new ConnectionStub(() => snapshot = Masters.Select(m => m.Adapt<ProductMaster>()).ToList(),
                 () => Masters = snapshot.Select(m => m.Adapt<ProductMaster>()).ToList());
             Session = new(Connection);
             var masters = Proxy<IProductMasterRepository>(MasterCall);
-            var categories = Proxy<IProductCategoryRepository>((name, _) =>
+            var categories = Proxy<IProductCategoryRepository>((name, args) =>
             {
                 Reads++;
-                if (name == "GetAllForUpdateAsync") Assert.IsNotNull(Session.Transaction);
-                Assert.IsTrue(name is "GetAllAsync" or "GetAllForUpdateAsync");
-                return Task.FromResult<IReadOnlyList<ProductCategory>>([RootCategory, ChildCategory]);
+                Assert.AreEqual("GetByIdAsync",name,"导入不能读取或遍历分类树");Assert.IsNotNull(Session.Transaction);Assert.AreEqual(true,args[1]);
+                return Task.FromResult(new[] { RootCategory,ChildCategory }.SingleOrDefault(row=>row.Uid==(Guid)args[0]!));
+            });
+            var dictionaries = Proxy<ISysDictDataRepository>((name,args)=>
+            {
+                Reads++;Assert.IsNotNull(Session.Transaction);
+                if(name=="GetByCodeAsync")
+                {Assert.AreEqual(DictCodes.ProductSeries,args[0]);return Task.FromResult<IReadOnlyList<SysDictData>>(DictionaryRows.Where(row=>row.DictCode==(string)args[0]!).Select(row=>row.Adapt<SysDictData>()).ToArray());}
+                if(name=="GetByIdAsync")
+                {
+                    Assert.AreEqual(true,args[1]);var id=(Guid)args[0]!;DictionaryLocks.Add(id);BeforeDictionaryLock?.Invoke(id);
+                    return Task.FromResult(DictionaryRows.SingleOrDefault(row=>row.Uid==id)?.Adapt<SysDictData>());
+                }
+                throw new AssertFailedException(name);
             });
             var suppliers = Proxy<ISupplierRepository>((name, args) =>
             {
@@ -180,7 +240,7 @@ public sealed class ProductMasterBatchImportTests
                     _ => throw new AssertFailedException(name)
                 };
             });
-            Service = new(masters, categories, suppliers, this, this,
+            Service = new(masters, categories, suppliers, dictionaries, this, this,
                 new ServiceBaseContext(Session, NullLoggerFactory.Instance));
         }
 

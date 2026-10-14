@@ -199,11 +199,10 @@ public sealed class ProductMasterDetailLockOrderTests
         Assert.AreEqual(0, fixture.CreatedMasterCount);
     }
 
-    /// <summary>详情保存精确区分头编码、明细编码及颜色组合占用，并撤销已经成功的头部写入。</summary>
+    /// <summary>详情保存精确区分头编码、明细编码占用和并发失败，并撤销已经成功的头部写入。</summary>
     [TestMethod]
     [DataRow(1, "PRODUCT_MASTER_SKU_OCCUPIED", ServiceErrorCodes.Validation, 400)]
     [DataRow(2, "PRODUCT_NEUTRAL_CODE_OCCUPIED", ServiceErrorCodes.Validation, 400)]
-    [DataRow(2, "PRODUCT_NEUTRAL_MASTER_COLOR_OCCUPIED", ServiceErrorCodes.BusinessBlocked, 422)]
     [DataRow(2, "CONCURRENCY_CONFLICT", ServiceErrorCodes.VersionConflict, 409)]
     [DataRow(2, "WRITE_FAILED", ServiceErrorCodes.BusinessBlocked, 422)]
     public async Task DetailWriteFailure_ShouldRollbackHeadAndSkipSync(int failWrite, string writeCode, string expectedCode, int status)

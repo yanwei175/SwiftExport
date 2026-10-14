@@ -177,6 +177,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductMasterController.GetDetailAsync"] = PermissionKeys.ProductsMasterView,
         ["ProductMasterController.SaveDetailAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductNeutralManagerController.GetPagedAsync"] = PermissionKeys.ProductsNeutralView,
+        ["ProductNeutralManagerController.ImportAsync"] = PermissionKeys.ProductsNeutralEdit,
         ["AfterSalesConfirmationController.ConfirmDemandAsync"] = PermissionKeys.AfterSalesConfirm,
         ["AfterSalesConfirmationController.CancelDemandConfirmationAsync"] = PermissionKeys.AfterSalesCancelConfirmation,
         ["AfterSalesLifecycleController.CloseAsync"] = PermissionKeys.AfterSalesLifecycle,

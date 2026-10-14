@@ -104,6 +104,7 @@ public static class ApiRegistrationExtensions
         services.AddTransient<Func<IProductMasterImportApi>>(provider => () => provider.GetRequiredService<IProductMasterImportApi>());
         services.AddControllerApi<IProductNeutralApi>("ProductNeutral");
         services.AddControllerApi<IProductNeutralManagerApi>("ProductNeutralManager");
+        services.AddTransient<Func<IProductNeutralManagerApi>>(provider => () => provider.GetRequiredService<IProductNeutralManagerApi>());
         services.AddControllerApi<IProductColorApi>("ProductColor");
         services.AddControllerApi<IProductCategoryApi>("ProductCategory");
         services.AddControllerApi<IProductAttributeApi>("ProductAttribute");

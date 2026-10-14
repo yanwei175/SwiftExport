@@ -10,20 +10,20 @@ public partial class PostgreSqlProductRepository
     /// <inheritdoc />
     public async Task<ProductDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        // 可写资料含两个独立来源身份，在 Uid 分隔前映射；来源名称、包装及审计在分隔后，只供展示。
+        // 可写资料包含主型号身份和物料自身型号，在 Uid 分隔前映射；来源名称、包装及审计在分隔后只供展示。
         var rows = await Connection.QueryAsync<ProductDetailWriteDto, ProductDetailDto, ProductDetailDto>(new CommandDefinition($"""
             SELECT p.sku AS "Sku",p.description_en AS "DescriptionEn",p.description_zh AS "DescriptionZh",
                 p.features_en AS "FeaturesEn",p.features_zh AS "FeaturesZh",p.color_id AS "ColorId",
                 p.material_type AS "MaterialType",p.unit AS "Unit",p.supply_type AS "SupplyType",
                 p.note AS "Note",p.main_image AS "MainImage",
-                p.product_master_id AS "ProductMasterId",p.product_neutral_id AS "ProductNeutralId",
+                p.product_master_id AS "ProductMasterId",p.link_sku AS "LinkSku",
                 p.cny_price AS "CNYPrice",p.usd_price AS "USDPrice",p.unit_weight AS "UnitWeight",p.unit_cbm AS "UnitCBM",
                 p.default_supplier_id AS "DefaultSupplierId",p.manufacturer_id AS "ManufacturerId",
                 p.manufacturer_model AS "ManufacturerModel",p.default_warehouse_site_id AS "DefaultWarehouseSiteId",
                 p.uid AS "Uid",p.version AS "Version",p.is_deleted AS "IsDeleted",p.is_active AS "IsActive",
                 p.created_date AS "CreatedDate",p.created_by AS "CreatedBy",p.updated_date AS "UpdatedDate",p.updated_by AS "UpdatedBy",
-                p.product_master_id AS "ProductMasterId",p.product_neutral_id AS "ProductNeutralId",
-                pm.master_sku AS "MasterSku",pn.product_code AS "LinkSku",
+                p.product_master_id AS "ProductMasterId",
+                pm.master_sku AS "MasterSku",p.link_sku AS "LinkSku",
                 {CatalogClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish",
                 pm.product_attribute_profile_id AS "ProductAttributeProfileId",
                 COALESCE(NULLIF(profile.data_name_zh,''),profile.data_name_en) AS "ProductAttributeProfileName",
