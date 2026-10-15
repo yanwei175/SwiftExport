@@ -6,6 +6,7 @@ using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
 using SwiftExport.Contracts.Wrappers;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace SwiftExport.Contracts.Apis.SystemApis
 {
@@ -14,6 +15,10 @@ namespace SwiftExport.Contracts.Apis.SystemApis
     /// </summary>
     public interface ISysDictTypeApi : IGenericApi<SysDictTypeDto>
     {
+        /// <summary>显式补齐全部内置字典类型与默认值；保留数据库已有身份和显示配置，返回新增及修复数量。</summary>
+        [Post("/sync-built-in")]
+        Task<ServiceResult<BuiltInDictionarySyncResponse>> SyncBuiltInAsync(CancellationToken cancellationToken = default);
+
         [Get("/all")]
         Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>> GetAllAsync();
 

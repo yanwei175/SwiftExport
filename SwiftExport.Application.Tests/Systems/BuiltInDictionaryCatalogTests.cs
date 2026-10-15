@@ -10,19 +10,19 @@ namespace SwiftExport.Application.Tests.Systems;
 [TestClass]
 public sealed class BuiltInDictionaryCatalogTests
 {
-    /// <summary>空存储提供十一个类型与两个必需明细；条款建议、属性模板、产品系列、测试 EXW 及单位明细不会凭空出现。</summary>
+    /// <summary>空存储提供十二个类型与六个必需明细；条款建议、属性模板、产品系列、测试 EXW 及单位明细不会凭空出现。</summary>
     [TestMethod]
     public void EmptyStorage_ReturnsOnlyDeclaredDefinitions()
     {
         var types = BuiltInDictionaryCatalog.TypeDtos([]);
         var data = BuiltInDictionaryCatalog.DataDtos([]);
-        Assert.AreEqual(11, types.Count);
-        Assert.AreEqual(2, data.Count);
+        Assert.AreEqual(12, types.Count);
+        Assert.AreEqual(6, data.Count);
         Assert.IsTrue(types.All(item => item.IsBuiltIn && item.IsSystem && item.Version == 0));
         Assert.IsTrue(data.All(item => item.IsBuiltIn && item.IsSystem && item.IsEnabled && item.Version == 0));
         Assert.IsTrue(data.All(item => item.CreatedDate is null && item.CreatedBy is null));
         Assert.IsFalse(data.Any(item => item.DataNameEn == "EXW" || item.DictCode == DictCodes.Unit));
-        Assert.AreEqual(13, types.Select(item => item.Uid).Concat(data.Select(item => item.Uid)).Distinct().Count());
+        Assert.AreEqual(18, types.Select(item => item.Uid).Concat(data.Select(item => item.Uid)).Distinct().Count());
         Assert.IsTrue(types.Any(item => item.DictCode == DictCodes.IncotermLocation));
         Assert.IsTrue(types.Any(item => item.DictCode == DictCodes.IncotermSortRemark));
         Assert.IsFalse(data.Any(item => item.DictCode == DictCodes.IncotermLocation || item.DictCode == DictCodes.IncotermSortRemark));
@@ -51,6 +51,25 @@ public sealed class BuiltInDictionaryCatalogTests
         Assert.IsTrue(type.IsBuiltIn && type.IsSystem);
         Assert.AreEqual(0, type.Version);
         Assert.IsFalse(BuiltInDictionaryCatalog.DataDtos([]).Any(item => item.DictCode == DictCodes.ProductSeries));
+    }
+
+    /// <summary>包装类型及四个常用角色可在空存储读取，固定身份与稳定代码不会随重复读取变化。</summary>
+    [TestMethod]
+    public void ProductPackageType_RegistersStableTypeAndFourPackagingRoles()
+    {
+        var type = BuiltInDictionaryCatalog.TypeDtos([]).Single(item => item.DictCode == DictCodes.ProductPackageType);
+        Assert.AreEqual(Guid.Parse("55a113d5-1eb8-4510-a21d-d5a0912734d1"), type.Uid);
+        Assert.AreEqual("产品包装类型", type.DictName);
+        Assert.AreEqual("Products", type.GroupCode);
+        Assert.IsTrue(type.IsBuiltIn && type.IsSystem);
+        Assert.AreEqual(0, type.Version);
+        Assert.IsTrue(DictCodes.DictCodeList.Contains(DictCodes.ProductPackageType));
+        var values = BuiltInDictionaryCatalog.DataDtos([]).Where(item => item.DictCode == DictCodes.ProductPackageType).ToArray();
+        CollectionAssert.AreEquivalent(new[] { "InnerBox:内盒", "ShippingBox:单套运输盒", "Carton:出货外箱", "Pallet:托盘" },
+            values.Select(item => item.DataNameEn + ":" + item.DataNameZh).ToArray());
+        Assert.IsTrue(values.All(item => item.IsBuiltIn && item.IsSystem && item.IsEnabled && item.Version == 0));
+        CollectionAssert.AreEqual(values.Select(item => item.Uid).ToArray(), BuiltInDictionaryCatalog.DataDtos([])
+            .Where(item => item.DictCode == DictCodes.ProductPackageType).Select(item => item.Uid).ToArray());
     }
 
     /// <summary>已有数据库身份和显示覆盖优先，归并不能原地修改仓储实体。</summary>
@@ -108,7 +127,7 @@ public sealed class BuiltInDictionaryCatalogTests
             new() { DictCode = DictCodes.Unit, DataNameEn = "Pcs", DataNameZh = "个", IsEnabled = true },
             new() { DictCode = DictCodes.Unit, DataNameEn = "Deleted", IsDeleted = true }
         ]);
-        Assert.AreEqual(4, items.Count);
+        Assert.AreEqual(8, items.Count);
         Assert.IsFalse(items.Single(item => item.DataNameEn == "EXW").IsBuiltIn);
         Assert.IsTrue(items.Single(item => item.DataNameEn == "EXW").IsSystem);
         Assert.AreEqual("Pcs", items.Single(item => item.DictCode == DictCodes.Unit).DataNameEn);

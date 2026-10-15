@@ -9,7 +9,13 @@ namespace SwiftExport.Core.Interfaces.Systems.Dictionaries.Types;
 public interface ISysDictTypeRepository : IRepository<SysDictType>
 {
     /// <summary>读取全部持久候选，包含软删除记录，以便内置类型保留已有业务身份；保存可按稳定身份锁定。</summary>
-    Task<IReadOnlyList<SysDictType>> GetAllIncludingDeletedAsync(bool withUpdLock = false);
+    Task<IReadOnlyList<SysDictType>> GetAllIncludingDeletedAsync(bool withUpdLock = false, CancellationToken cancellationToken = default);
+
+    /// <summary>在外层事务内串行化显式同步，保护空表中尚不存在的内置身份；不阻塞普通字典读取。</summary>
+    Task LockBuiltInSyncAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>以给定身份补齐内置类型；已有记录只恢复有效标记，保留名称、分组、层级和创建审计。</summary>
+    Task<RepositoryWriteResult> SaveBuiltInAsync(SysDictType entity, int expectedVersion, CancellationToken cancellationToken = default);
 
     /// <summary>按数据库活动类型分页；有效内置清单的分页由字典应用服务合并后处理。</summary>
     Task<PagedResponseBase<SysDictTypeDto>> GetPagedAsync(SysDictTypeSearchRequest request);

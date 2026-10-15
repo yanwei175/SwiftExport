@@ -38,8 +38,9 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        // 全局共享标签新增保存端点，沿用分类编辑键；继续逐项执行完整权限矩阵。
-        Assert.AreEqual(245, routes.Count);
+        // 当前矩阵原有 241 个单键端点，新增内置字典同步后为 242；继续逐项验证拒绝与放行。
+        Assert.AreEqual(242, routes.Count);
+        Assert.AreEqual("System.Dictionary.Edit", routes["SysDictTypeController.SyncBuiltInAsync"]);
         Assert.AreEqual("Products.Category.Edit", routes["ProductAttributeController.BatchSaveDefinitionsAsync"]);
         Assert.IsFalse(routes.ContainsKey("ProductAttributeController.BatchSaveAsync"));
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterImportController.ImportAsync"]);

@@ -909,7 +909,9 @@ CREATE TABLE "public"."product_color" (
     "color_code" varchar(300) NOT NULL,
     "color_name_en" varchar(500) NULL,
     "color_name_zh" varchar(500) NULL,
+    "sort_no" integer NOT NULL DEFAULT 0,
     CONSTRAINT "pk_product_color" PRIMARY KEY ("uid"),
+    CONSTRAINT "ck_product_color_sort_no" CHECK ("sort_no" >= 0),
     CONSTRAINT "ck_product_color_version" CHECK ("version" >= 1)
 );
 CREATE TABLE "public"."product_detail" (
@@ -987,7 +989,7 @@ CREATE TABLE "public"."product_package" (
     "created_by" varchar(500) NULL,
     "updated_date" timestamp(6) without time zone NULL,
     "updated_by" varchar(500) NULL,
-    "product_id" uuid NULL,
+    "owner_product_id" uuid NULL,
     "package_type" varchar(300) NOT NULL,
     "pcs_per_package" integer NOT NULL,
     "length_cm" numeric(18,4) NULL,
@@ -997,7 +999,7 @@ CREATE TABLE "public"."product_package" (
     "gw_kg" numeric(18,4) NULL,
     "cbm" numeric(18,6) NULL,
     "is_default" boolean NOT NULL,
-    "packaging_material_sku" varchar(300) NULL,
+    "packaging_material_id" uuid NULL,
     "note" varchar(2000) NULL,
     CONSTRAINT "pk_product_package" PRIMARY KEY ("uid"),
     CONSTRAINT "ck_product_package_measures" CHECK (( "length_cm" IS NULL OR "length_cm" >= 0 ) AND ( "width_cm" IS NULL OR "width_cm" >= 0 ) AND ( "height_cm" IS NULL OR "height_cm" >= 0 ) AND ( "nw_kg" IS NULL OR "nw_kg" >= 0 ) AND ( "gw_kg" IS NULL OR "gw_kg" >= 0 ) AND ( "cbm" IS NULL OR "cbm" >= 0 )),
@@ -1594,7 +1596,7 @@ CREATE UNIQUE INDEX "ux_product_master_master_sku" ON "public"."product_master" 
 CREATE INDEX "ix_product_neutral_color" ON "public"."product_neutral" ("color_id") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_product_neutral_product_master" ON "public"."product_neutral" ("product_master_id") WHERE "is_deleted" = FALSE;
 CREATE UNIQUE INDEX "ux_product_neutral_product_code" ON "public"."product_neutral" ((rtrim("product_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_product_package_product_type" ON "public"."product_package" ("product_id", "package_type") WHERE "is_deleted" = FALSE AND "product_id" IS NOT NULL;
+CREATE UNIQUE INDEX "ux_product_package_owner_type" ON "public"."product_package" ("owner_product_id", "package_type") WHERE "is_deleted" = FALSE AND "owner_product_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_purchase_confirmation_line_command_line" ON "public"."purchase_confirmation_line" ("command_id", "purchase_order_line_id");
 CREATE FUNCTION public."fn_purchase_confirmation_line_append_only"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION USING ERRCODE = 'P3100', MESSAGE = '只追加事实禁止更新或删除'; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_purchase_confirmation_line_append_only" BEFORE UPDATE OR DELETE ON "public"."purchase_confirmation_line" FOR EACH ROW EXECUTE FUNCTION public."fn_purchase_confirmation_line_append_only"();
@@ -2363,7 +2365,7 @@ COMMENT ON COLUMN "public"."product_category"."parent_id" IS '关联的上级记
 COMMENT ON COLUMN "public"."product_category"."fake_name" IS '该实体保存的分类显示别名。';
 COMMENT ON COLUMN "public"."product_category"."category_code" IS '该实体保存的分类编码。';
 COMMENT ON COLUMN "public"."product_category"."sort_no" IS '该实体保存的分类显示顺序。';
-COMMENT ON TABLE "public"."product_color" IS '产品颜色主数据实体，保存稳定颜色编码及中英文名称。';
+COMMENT ON TABLE "public"."product_color" IS '产品颜色主数据实体，保存稳定颜色编码、中英文名称及全局显示顺序。';
 COMMENT ON COLUMN "public"."product_color"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_color"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
 COMMENT ON COLUMN "public"."product_color"."is_deleted" IS '软删除标记；为真时业务查询默认不再返回该记录。';
@@ -2375,6 +2377,7 @@ COMMENT ON COLUMN "public"."product_color"."color_code_unique" IS '该实体保�
 COMMENT ON COLUMN "public"."product_color"."color_code" IS '该实体保存的颜色业务编码。';
 COMMENT ON COLUMN "public"."product_color"."color_name_en" IS '该实体保存的颜色英文名称。';
 COMMENT ON COLUMN "public"."product_color"."color_name_zh" IS '该实体保存的颜色中文名称。';
+COMMENT ON COLUMN "public"."product_color"."sort_no" IS '全局显示排序号，数值越小越靠前；允许零和重复值。';
 COMMENT ON TABLE "public"."product_detail" IS '产品文件资料实体，保存产品图纸、说明书、标签和条码文件位置。';
 COMMENT ON COLUMN "public"."product_detail"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';
 COMMENT ON COLUMN "public"."product_detail"."version" IS '并发版本号(乐观并发控制). 约定： 1. 新增时 Version = 1 2. 更新时 WHERE Uid + Version 命中后，Version 自动 +1 3. 命中失败视为并发冲突（数据已被他人修改）';
@@ -2438,7 +2441,7 @@ COMMENT ON COLUMN "public"."product_package"."created_date" IS '记录创建时�
 COMMENT ON COLUMN "public"."product_package"."created_by" IS '记录创建人标识。';
 COMMENT ON COLUMN "public"."product_package"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."product_package"."updated_by" IS '记录最后更新人标识。';
-COMMENT ON COLUMN "public"."product_package"."product_id" IS '关联产品主键Id';
+COMMENT ON COLUMN "public"."product_package"."owner_product_id" IS '这套包装规格所属的被包装物料身份，逻辑引用 Product.Uid。';
 COMMENT ON COLUMN "public"."product_package"."package_type" IS '包装类型：InnerBox(内盒), Carton(外箱), Pallet(托盘)';
 COMMENT ON COLUMN "public"."product_package"."pcs_per_package" IS '装率：该层级包装内含有的单品(PCS)数量';
 COMMENT ON COLUMN "public"."product_package"."length_cm" IS '该实体保存的包装长度（厘米）。';
@@ -2446,9 +2449,9 @@ COMMENT ON COLUMN "public"."product_package"."width_cm" IS '该实体保存的�
 COMMENT ON COLUMN "public"."product_package"."height_cm" IS '该实体保存的包装高度（厘米）。';
 COMMENT ON COLUMN "public"."product_package"."nw_kg" IS '该级总净重(KG)';
 COMMENT ON COLUMN "public"."product_package"."gw_kg" IS '该级总毛重(KG)';
-COMMENT ON COLUMN "public"."product_package"."cbm" IS '包装体积（CBM）；当前两种数据库均为普通可空数值列，由调用方提供，不自动按尺寸计算。';
+COMMENT ON COLUMN "public"."product_package"."cbm" IS '包装体积（CBM）；由调用方提供，不自动按尺寸计算。';
 COMMENT ON COLUMN "public"."product_package"."is_default" IS '是否为出货默认计算规格';
-COMMENT ON COLUMN "public"."product_package"."packaging_material_sku" IS '对应的包材物料号 (关联BOM)';
+COMMENT ON COLUMN "public"."product_package"."packaging_material_id" IS '使用的包材物料身份，逻辑引用 Product.Uid；不承担包装规格自身的 Uid。';
 COMMENT ON COLUMN "public"."product_package"."note" IS '该实体保存的业务备注。';
 COMMENT ON TABLE "public"."purchase_confirmation_line" IS '确认批次的行依据，记录明确无 BOM 与实际结构指纹；永不回填当前 BOM。';
 COMMENT ON COLUMN "public"."purchase_confirmation_line"."uid" IS '全链路唯一主键（Guid）。 说明：已统一以 Uid 作为主键标识，不再使用整型 Uid。';

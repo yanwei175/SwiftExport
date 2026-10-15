@@ -541,7 +541,7 @@ public sealed class PostgreSqlPackingListRepository(RepositoryBaseContext contex
             LEFT JOIN public.after_sales_line asl ON rtrim(g.source_type,' ') COLLATE public.erp_dictionary_ci='CR' AND asl.uid=g.source_line_id AND asl.header_id=ash.uid AND asl.is_deleted=FALSE
             LEFT JOIN LATERAL(SELECT count(*) AS package_count,MAX(pp.pcs_per_package) AS pcs_per_package,
                 MAX(pp.nw_kg) AS nw_per_package,MAX(pp.gw_kg) AS gw_per_package,MAX(pp.cbm) AS cbm_per_package
-                FROM public.product_package pp WHERE g.is_non_standard=FALSE AND pp.product_id=g.product_id AND pp.is_deleted=FALSE AND pp.is_default=TRUE) pkg ON TRUE
+                FROM public.product_package pp WHERE g.is_non_standard=FALSE AND pp.owner_product_id=g.product_id AND pp.is_deleted=FALSE AND pp.is_default=TRUE) pkg ON TRUE
             WHERE g.uid=ANY(@Ids) AND g.is_deleted=FALSE;
             """, Ids(grossDemandIds), cancellationToken))).AsList();
     }

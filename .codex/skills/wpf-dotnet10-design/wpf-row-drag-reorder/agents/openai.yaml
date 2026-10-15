@@ -1,0 +1,4 @@
+interface:
+  display_name: "WPF 行拖拽重排"
+  short_description: "为 WPF 表格添加行拖拽重排，维护 SortNo 或订单明细 LineNumber"
+  default_prompt: "使用 $wpf-row-drag-reorder 为当前 WPF 表格实现行首手柄拖拽重排，并验证编号、保存与撤销。"

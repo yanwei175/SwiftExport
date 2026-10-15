@@ -33,11 +33,11 @@ public sealed class BuiltInDictionaryTypeServiceTests
         var byId = await fixture.Service.GetByIdAsync(all.Data.First().Uid);
 
         Assert.IsTrue(all.Success && tree.Success && page.Success && filtered.Success && byId.Success);
-        Assert.AreEqual(11, all.Data.Count);
+        Assert.AreEqual(12, all.Data.Count);
         Assert.IsTrue(all.Data.All(type => type.IsBuiltIn && type.IsSystem && type.Version == 0));
         CollectionAssert.AreEquivalent(all.Data.Select(type => type.Uid).ToArray(),
             tree.Data.SelectMany(group => Flatten(group.Children)).Select(type => type.Uid).ToArray());
-        Assert.AreEqual(11, page.Data.TotalCount);
+        Assert.AreEqual(12, page.Data.TotalCount);
         Assert.HasCount(3, page.Data.Items);
         Assert.AreEqual(2, filtered.Data.TotalCount);
         Assert.HasCount(1, filtered.Data.Items);

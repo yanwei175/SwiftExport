@@ -25,15 +25,63 @@ using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Products.ProductList.Views;
 using SwiftExportClient.Resources.Controls.Filter;
+using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Caching;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
-/// <summary>验证顶部分类多选在主型号和中性产品页面中的真实绑定、查询语义与取消恢复边界。</summary>
+/// <summary>验证产品管理页分类筛选和主表分页的真实绑定、模式切换及查询边界。</summary>
 [TestClass]
 [DoNotParallelize]
 public sealed class ProductCategoryFilterIntegrationTests
 {
+    /// <summary>列表和卡片共享可见分页栏，实际页码和页容量操作应查询正确页，切换模式不隐藏或覆盖分页。</summary>
+    [TestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public void MasterPager_ShouldRemainUsableInListAndCardModes(bool isCardView) => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        var api = new ProductMasterApiStub { TotalCount = 100 };
+        using var model = CreateProductMasterViewModel(api, cache: new ReferenceDataCacheServiceStub());
+        model.IsCardView = isCardView;
+        await model.SearchCommand.ExecuteAsync(null);
+        var view = new ProductMasterManagerView { DataContext = model };
+        var window = new Window { Content = view, Width = 1280, Height = 760, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var pager = Descendants(view).OfType<PageNavigator>().Single();
+            Assert.IsTrue(pager.IsVisible && pager.ActualHeight > 0, "当前显示模式必须为分页栏分配可见空间。");
+            var secondPage = Descendants(pager).OfType<Button>().Single(button => Equals(button.Content, "2"));
+            Assert.IsTrue(secondPage.IsEnabled);
+            var pageButtonCenter = secondPage.TransformToAncestor(view).Transform(new Point(secondPage.ActualWidth / 2, secondPage.ActualHeight / 2));
+            Assert.IsTrue(view.InputHitTest(pageButtonCenter) is DependencyObject hit && pager.IsAncestorOf(hit),
+                "当前显示模式的页码必须真实可点击，不能被卡片覆盖。");
+            secondPage.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(2, api.Requests.Last().PageIndex);
+            Assert.AreEqual(2, model.PageIndex);
+            var pageSize = (ComboBox)pager.FindName("CboPageSize");
+            pageSize.SelectedItem = 50;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(50, api.Requests.Last().PageSize);
+            Assert.AreEqual(1, api.Requests.Last().PageIndex);
+            model.IsCardView = !isCardView;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsTrue(pager.IsVisible && pager.ActualHeight > 0, "模式切换后共用分页栏仍应可见。");
+            var cards = Descendants(view).OfType<ListBox>().Single(list => ReferenceEquals(list.ItemsSource, model.Masters.Items));
+            if (model.IsCardView)
+            {
+                var cardBottom = cards.TransformToAncestor(view).Transform(new Point(0, cards.ActualHeight)).Y;
+                var pagerTop = pager.TransformToAncestor(view).Transform(new Point()).Y;
+                Assert.IsTrue(cardBottom <= pagerTop, "卡片区域不能遮挡底部分页栏。");
+            }
+            SavePreview(window, model.IsCardView ? "主产品卡片模式分页.png" : "主产品列表模式分页.png");
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
+
     /// <summary>两个管理页顶部多选确定后查询父分类及后代，列表使用整页宽度；关闭取消不提前查询。</summary>
     [TestMethod]
     [DataRow("ProductMasterManagerView.xaml")]
@@ -246,13 +294,15 @@ public sealed class ProductCategoryFilterIntegrationTests
     private sealed class ProductMasterApiStub : IProductMasterApi
     {
         public List<ProductMasterSearchRequest> Requests { get; } = [];
+        public int TotalCount { get; set; }
 
         public Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(
             ProductMasterSearchRequest request,
             CancellationToken cancellationToken = default)
         {
             Requests.Add(request);
-            return Task.FromResult(ServiceResult<PagedResponseBase<ProductMasterListItemDto>>.Ok(new()));
+            return Task.FromResult(ServiceResult<PagedResponseBase<ProductMasterListItemDto>>.Ok(new()
+            { TotalCount = TotalCount, PageIndex = request.PageIndex, PageSize = request.PageSize }));
         }
 
         public Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(

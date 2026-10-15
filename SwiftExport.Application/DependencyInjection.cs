@@ -189,6 +189,8 @@ public static class DependencyInjection
         services.AddScoped<IProductCategoryService, ProductCategoryService>();
         services.AddScoped<ISysDictDataService, SysDictDataService>();
         services.AddScoped<ISysDictTypeService, SysDictTypeService>();
+        services.AddScoped<Interfaces.Systems.Dictionaries.IBuiltInDictionarySyncService,
+            Services.Systems.Dictionaries.BuiltInDictionarySyncService>();
         services.AddScoped<ISalesOrderQueryService, SalesOrderQueryService>();
         services.AddScoped<ISalesFulfillmentQueryService, SalesFulfillmentQueryService>();
         services.AddScoped<ISalesOrderDraftService, SalesOrderDraftService>();

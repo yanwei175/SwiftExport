@@ -30,14 +30,20 @@ internal static class BuiltInDictionaryCatalog
         // 只登记模板类型；具体模板由用户维护，不能在目录中预置模板明细。
         new(new("00757a40-f61b-4e87-8750-db5a1c41b6f2"), DictCodes.ProductAttributeProfile, "产品属性模板", 10, "Products", "产品"),
         // 只登记系列类型；具体系列由用户在字典中维护，不自动生成明细。
-        new(new("70ce6276-847b-46ab-926d-c0abcf08fb66"), DictCodes.ProductSeries, "产品系列", 20, "Products", "产品")
+        new(new("70ce6276-847b-46ab-926d-c0abcf08fb66"), DictCodes.ProductSeries, "产品系列", 20, "Products", "产品"),
+        new(new("55a113d5-1eb8-4510-a21d-d5a0912734d1"), DictCodes.ProductPackageType, "产品包装类型", 30, "Products", "产品")
     ]);
 
     /// <summary>系统必需的明细清单；英文名称暂作稳定代码，中文名称等显示信息允许覆盖。</summary>
     internal static IReadOnlyList<DataDefinition> Data { get; } = Array.AsReadOnly<DataDefinition>(
     [
         new(new("979dc2d0-eeba-40a2-bfa0-1ea1c934aa4c"), DictCodes.FlowTestFunction, "Default", "Default", "默认测试功能"),
-        new(new("fce647f2-2996-4995-a568-73e221bc5453"), DictCodes.FlowLimiterSpecification, "Unlimited", "不限流", "本功能未安装限流器")
+        new(new("fce647f2-2996-4995-a568-73e221bc5453"), DictCodes.FlowLimiterSpecification, "Unlimited", "不限流", "本功能未安装限流器"),
+        // 包装角色只限定类型语义，不要求每个产品逐层具备全部包装。
+        new(new("5ba7a73a-fdaa-462a-8aa3-d108e24caf09"), DictCodes.ProductPackageType, "InnerBox", "内盒", "产品内部包装，可按实际包装方式省略"),
+        new(new("a07ab0bc-e867-4473-9a48-a9302925432f"), DictCodes.ProductPackageType, "ShippingBox", "单套运输盒", "装入一套产品，可容纳内盒或直接装产品"),
+        new(new("ed67d590-f2b9-4458-b2b3-01e6d53854d4"), DictCodes.ProductPackageType, "Carton", "出货外箱", "最终出货的集装外箱"),
+        new(new("aeb5ef4e-5cdd-48f1-aa42-b5d4058fbdad"), DictCodes.ProductPackageType, "Pallet", "托盘", "托盘包装规格")
     ]);
 
     /// <summary>按稳定编码识别内置类型，不按可编辑名称或客户端标记判断。</summary>

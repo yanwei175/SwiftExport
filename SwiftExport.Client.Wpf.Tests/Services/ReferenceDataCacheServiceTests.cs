@@ -1337,6 +1337,9 @@ public sealed class ReferenceDataCacheServiceTests
     private sealed class DictTypeApiStub(
         Func<Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>>> getAll) : ISysDictTypeApi
     {
+        /// <summary>只读缓存测试不执行内置字典同步；补齐共享接口新增成员以保持测试桩可编译。</summary>
+        public Task<ServiceResult<BuiltInDictionarySyncResponse>> SyncBuiltInAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public int GetAllCallCount { get; private set; }
 
         public Task<ServiceResult<IReadOnlyList<SysDictTypeDto>>> GetAllAsync()

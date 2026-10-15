@@ -98,11 +98,11 @@ public sealed class PostgreSqlProductCatalogMigrationIntegrationTests
         var noReferences = ProductRow(prefix + "B");
         noReferences.ProductMasterId = Guid.NewGuid();
         foreach (var row in new[] { product, noReferences }) await Insert(context, row);
-        var chosen = new ProductPackage { ProductId = product.Uid,
+        var chosen = new ProductPackage { OwnerProductId = product.Uid,
             PackageType = "Pallet", IsDefault = true, PcsPerPackage = 5, Gw_KG = 6m, Cbm = 0.2m };
-        var samePriority = new ProductPackage { ProductId = product.Uid, PackageType = "InnerBox", IsDefault = true, PcsPerPackage = 5, Gw_KG = 7m };
-        var ordinary = new ProductPackage { ProductId = product.Uid, IsDefault = false, PcsPerPackage = 99 };
-        var hidden = new ProductPackage { ProductId = product.Uid, IsDefault = true, PcsPerPackage = 999, IsDeleted = true };
+        var samePriority = new ProductPackage { OwnerProductId = product.Uid, PackageType = "InnerBox", IsDefault = true, PcsPerPackage = 5, Gw_KG = 7m };
+        var ordinary = new ProductPackage { OwnerProductId = product.Uid, IsDefault = false, PcsPerPackage = 99 };
+        var hidden = new ProductPackage { OwnerProductId = product.Uid, IsDefault = true, PcsPerPackage = 999, IsDeleted = true };
         foreach (var row in new[] { chosen, samePriority, ordinary, hidden }) await Insert(context, row);
         var repository = new PostgreSqlProductRepository(context);
         var idDetail = await repository.GetDtoByIdAsync(product.Uid);

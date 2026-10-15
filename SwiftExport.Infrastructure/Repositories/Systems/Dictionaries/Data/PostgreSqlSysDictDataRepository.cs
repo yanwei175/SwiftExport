@@ -109,14 +109,14 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
         }
 
         /// <summary>保留软删除事实供目录判定内置身份；读取不修复数据，维护锁按 Uid 稳定排序。</summary>
-        public async Task<IReadOnlyList<SysDictData>> GetForBuiltInMergeAsync(string? dictCode = null, bool withUpdLock = false)
+        public async Task<IReadOnlyList<SysDictData>> GetForBuiltInMergeAsync(string? dictCode = null, bool withUpdLock = false, CancellationToken cancellationToken = default)
         {
             var lockHint = GetLockHint(withUpdLock);
             var where = string.IsNullOrWhiteSpace(dictCode) ? "" : "WHERE btrim(dict_code, ' ') = @DictCode";
-            var rows = await Connection.QueryAsync<SysDictData>($"""
+            var rows = await Connection.QueryAsync<SysDictData>(new CommandDefinition($"""
                 SELECT {Columns} FROM public.sys_dict_data
                 {where} ORDER BY uid{lockHint};
-                """, new { DictCode = dictCode?.Trim() }, Transaction);
+                """, new { DictCode = dictCode?.Trim() }, Transaction, cancellationToken: cancellationToken));
             return rows.AsList();
         }
 
@@ -133,8 +133,8 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
             return rows.AsList();
         }
 
-        /// <summary>仅保存目录认可的内置覆盖，不重建 Guid 或创建审计；写入和首次保存竞争由外层用例统一回滚。</summary>
-        public async Task<RepositoryWriteResult> SaveBuiltInOverrideAsync(SysDictData entity, int expectedVersion)
+        /// <summary>保存目录认可的内置覆盖或显式同步结果，保留 Guid 和创建审计；失败由外层用例统一回滚。</summary>
+        public async Task<RepositoryWriteResult> SaveBuiltInOverrideAsync(SysDictData entity, int expectedVersion, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(entity);
             if (Transaction is null) throw new InvalidOperationException("内置字典覆盖必须位于应用层事务中。");
@@ -148,7 +148,7 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
                 entity.Version = 1;
                 AuditStamp.StampForInsert(entity);
                 // 给定身份的主键处理首次保存竞争；同业务键已有旧身份时也拒绝新建，避免断开旧业务引用。
-                var rows = await Connection.ExecuteAsync("""
+                var rows = await Connection.ExecuteAsync(new CommandDefinition("""
                     INSERT INTO public.sys_dict_data
                         (uid, version, is_deleted, created_date, created_by, updated_date, updated_by,
                          dict_code, data_name_en, data_name_zh, remark, sort_order, css_class, is_system, is_enabled)
@@ -159,7 +159,7 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
                         WHERE btrim(dict_code, ' ') = btrim(@DictCode, ' ')
                           AND btrim(data_name_en, ' ') = btrim(@DataNameEn, ' '))
                     ON CONFLICT DO NOTHING;
-                    """, PostgreSqlParameters.Entity(entity, Metadata), Transaction);
+                    """, PostgreSqlParameters.Entity(entity, Metadata), Transaction, cancellationToken: cancellationToken));
                 return rows == 1
                     ? RepositoryWriteResult.Ok(entity.Uid, 0, 1, "内置字典覆盖保存成功。")
                     : RepositoryWriteResult.Fail(entity.Uid, 0, ServiceErrorCodes.ConcurrencyConflict, "内置字典已被保存，请刷新后重试。");
@@ -168,13 +168,13 @@ namespace SwiftExport.Infrastructure.Repositories.Systems.Dictionaries.Data
             AuditStamp.StampForUpdate(entity);
             var parameters = PostgreSqlParameters.Entity(entity, Metadata);
             parameters.Add("ExpectedVersion", expectedVersion);
-            // 创建审计与业务键不进入 SET；旧内置记录的异常标记仅在用户显式保存时恢复。
-            var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>("""
+            // 创建审计与业务键不进入 SET；旧内置记录的异常标记仅在显式保存或同步时恢复。
+            var newVersion = await Connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition("""
                 UPDATE public.sys_dict_data SET data_name_zh=@DataNameZh, remark=@Remark,
                     sort_order=@SortOrder, css_class=@CssClass, is_deleted=FALSE, is_system=TRUE, is_enabled=TRUE,
                     updated_date=@UpdatedDate, updated_by=@UpdatedBy, version=version+1
                 WHERE uid=@Uid AND version=@ExpectedVersion RETURNING version;
-                """, parameters, Transaction);
+                """, parameters, Transaction, cancellationToken: cancellationToken));
             if (newVersion is null)
                 return RepositoryWriteResult.Fail(entity.Uid, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "内置字典已被修改，请刷新后重试。");
             entity.Version = newVersion.Value;

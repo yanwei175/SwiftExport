@@ -28,6 +28,9 @@ namespace SwiftExport.Contracts.SysEnums
         /// <summary>产品系列的内置类型编码；系列明细由用户维护，不预置具体系列。</summary>
         public const string ProductSeries = "ProductSeries";
 
+        /// <summary>产品包装类型编码；提供内置包装角色，并允许用户扩展其他包装类型。</summary>
+        public const string ProductPackageType = "ProductPackageType";
+
         /// <summary>条款备注建议的内置类型编码；业务字段保存自由文本，不要求命中字典明细。</summary>
         public const string IncotermSortRemark = "IncotermSortRemark";
         /// <summary>条款地点建议的内置类型编码；业务字段保存自由文本，不要求命中字典明细。</summary>
@@ -46,7 +49,8 @@ namespace SwiftExport.Contracts.SysEnums
             IncotermLocation,
             IncotermSortRemark,
             ProductAttributeProfile,
-            ProductSeries
+            ProductSeries,
+            ProductPackageType
         };
     }
 }

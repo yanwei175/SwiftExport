@@ -22,6 +22,7 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
     private readonly ILogger<ProductColorService> _logger = context.LoggerFactory.CreateLogger<ProductColorService>();
 
     #region 批量保存
+    /// <summary>在同一事务校验并保存颜色资料及排序号，任一写入失败回滚整批。</summary>
     public async Task<ServiceResult<ProductColorBatchSaveResponse>> BatchSaveAsync(ProductColorBatchSaveRequest batchReq)
     {
         if (batchReq is null)
@@ -181,6 +182,7 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
         return errors.Length == 0 ? null : errors.ToString().Trim();
     }
 
+    /// <summary>统一校验单条与批量保存的颜色字段，排序号允许零及重复值。</summary>
     private static string? ValidateColor(ProductColorDto? color, int? rowIndex, string operation)
     {
         if (color is null)
@@ -189,6 +191,8 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
             return $"第 {FormatRowIndex(rowIndex)} 行：唯一颜色代码不能为空。";
         if (string.IsNullOrWhiteSpace(color.ColorCode))
             return $"第 {FormatRowIndex(rowIndex)} 行：颜色代码不能为空。";
+        if (color.SortNo < 0)
+            return $"第 {FormatRowIndex(rowIndex)} 行：排序号不能小于零。";
 
         color.ColorCodeUnique = color.ColorCodeUnique.Trim();
         color.ColorCode = color.ColorCode.Trim();
@@ -242,14 +246,13 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
     #region 显式基础读写
 
 
+    /// <summary>按全局顺序返回完整颜色资料；空库成功返回空集合，允许维护页首次新增。</summary>
     public async Task<ServiceResult<IReadOnlyList<ProductColorDto>>> GetAllAsync()
     {
         try
         {
             var entities = await repository.GetAllAsync();
-            return entities.Any()
-                ? ServiceResult<IReadOnlyList<ProductColorDto>>.Ok(entities.Adapt<IReadOnlyList<ProductColorDto>>())
-                : ServiceResult<IReadOnlyList<ProductColorDto>>.Fail("未找到数据");
+            return ServiceResult<IReadOnlyList<ProductColorDto>>.Ok(entities.Adapt<IReadOnlyList<ProductColorDto>>());
         }
         catch (Exception ex)
         {
@@ -285,5 +288,13 @@ public partial class ProductColorService(IProductColorRepository repository, Ser
 
 
     #endregion
+
+    /// <summary>在通用新增入口同样校验排序号，避免绕过批量保存约束。</summary>
+    protected override Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<ProductColorDto>> createItems) =>
+        Task.FromResult<string?>(createItems.Any(item => item.Data.SortNo < 0) ? "排序号不能小于零。" : null);
+
+    /// <summary>在通用更新入口同样校验排序号，保持全部写入口语义一致。</summary>
+    protected override Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<ProductColorDto>> updateItems) =>
+        Task.FromResult<string?>(updateItems.Any(item => item.Data.SortNo < 0) ? "排序号不能小于零。" : null);
 
 }

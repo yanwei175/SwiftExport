@@ -184,16 +184,7 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0">
-                    <Grid.Style>
-                        <Style TargetType="Grid">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsCardView}" Value="True">
-                                    <Setter Property="Height" Value="0" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Grid.Style>
-
+                    <!-- 主表和卡片切换内容行，分页及结果提示共用底部行。 -->
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="4"/>
@@ -429,6 +420,115 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
+                    <ListBox Grid.Row="0" ItemsSource="{Binding Masters.Items}"
+                             SelectedItem="{Binding SelectedMaster, Mode=TwoWay}"
+                             ItemContainerStyle="{StaticResource ProductMasterCardItemStyle}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.Style>
+                            <Style TargetType="{x:Type ListBox}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCardView}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.Style>
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel IsItemsHost="True" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="240" MinHeight="240" Margin="6"
+                                        Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+                                        CornerRadius="{StaticResource SwiftExportCornerRadius}">
+                                    <Border.Style>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource UserSystemAccentColorPrimaryBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource UserSystemAccentColorPrimaryBrush}" />
+                                                    <Setter Property="BorderThickness" Value="2" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="210" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <Border Background="White"
+                                                CornerRadius="4,4,0,0"
+                                                Padding="8">
+                                            <controls:CachedImage Style="{StaticResource SwiftExportCachedImage}"
+                                                                  Width="Auto"
+                                                                  Height="Auto"
+                                                                  DecodePixelWidth="800"
+                                                                  SourcePath="{Binding MainImagePath}"
+                                                                  Stretch="Uniform" />
+                                        </Border>
+                                        <StackPanel Grid.Row="1" Margin="12">
+                                            <TextBlock Text="{Binding MasterSku}"
+                                                       Style="{StaticResource BodyStrongTextBlock}"
+                                                       TextTrimming="CharacterEllipsis" />
+
+                                            <TextBlock Margin="0,4,0,0"
+                                                       MinHeight="40"
+                                                       MaxHeight="40"
+                                                       Style="{StaticResource BodyTextBlock}"
+                                                       Text="{Binding DefaultDescriptionEn}"
+                                                       TextWrapping="Wrap"
+                                                       ToolTip="{Binding DefaultDescriptionEn}" />
+
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="销售价" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Text="{Binding DefaultSalesPriceUsd, StringFormat=US$ {0:N2}, TargetNullValue=--}"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource UserBusinessTextAccentBrush}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="采购价" Style="{StaticResource CaptionTextBlock}" />
+                                                    <TextBlock Text="{Binding DefaultPurchasePriceCny, StringFormat=¥ {0:N2}, TargetNullValue=--}"
+                                                               FontWeight="SemiBold" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock VerticalAlignment="Center"
+                                                           Text="{Binding DefaultSupplierName, StringFormat=供应商：{0}, TargetNullValue=供应商：--}"
+                                                           Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding DefaultSupplierName}" />
+                                                <ui:Button Grid.Column="1"
+                                                           Appearance="Primary"
+                                                           Icon="{ui:SymbolIcon Symbol=Search24}"
+                                                           Command="{Binding DataContext.OpenDetailCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                           CommandParameter="{Binding}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -457,115 +557,6 @@
                     </Grid>
                     
                 </Grid>
-
-                <ListBox Grid.RowSpan="3" ItemsSource="{Binding Masters.Items}"
-                         SelectedItem="{Binding SelectedMaster, Mode=TwoWay}" 
-                         ItemContainerStyle="{StaticResource ProductMasterCardItemStyle}"
-                         BorderThickness="0" 
-                         Background="Transparent"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.Style>
-                        <Style TargetType="{x:Type ListBox}">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsCardView}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ListBox.Style>
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel IsItemsHost="True" />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Border Width="240" MinHeight="240" Margin="6"
-                                    Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
-                                    CornerRadius="{StaticResource SwiftExportCornerRadius}">
-                                <Border.Style>
-                                    <Style TargetType="{x:Type Border}">
-                                        <Setter Property="BorderBrush" Value="{DynamicResource UserControlStrokeColorDefaultBrush}" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                <Setter Property="BorderBrush" Value="{DynamicResource UserSystemAccentColorPrimaryBrush}" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                <Setter Property="BorderBrush" Value="{DynamicResource UserSystemAccentColorPrimaryBrush}" />
-                                                <Setter Property="BorderThickness" Value="2" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="210" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-                                    <Border Background="White"
-                                            CornerRadius="4,4,0,0"
-                                            Padding="8">
-                                        <controls:CachedImage Style="{StaticResource SwiftExportCachedImage}"
-                                                              Width="Auto"
-                                                              Height="Auto"
-                                                              DecodePixelWidth="800"
-                                                              SourcePath="{Binding MainImagePath}"
-                                                              Stretch="Uniform" />
-                                    </Border>
-                                    <StackPanel Grid.Row="1" Margin="12">
-                                        <TextBlock Text="{Binding MasterSku}"
-                                                   Style="{StaticResource BodyStrongTextBlock}"
-                                                   TextTrimming="CharacterEllipsis" />
-
-                                        <TextBlock Margin="0,4,0,0"
-                                                   MinHeight="40"
-                                                   MaxHeight="40"
-                                                   Style="{StaticResource BodyTextBlock}"
-                                                   Text="{Binding DefaultDescriptionEn}"
-                                                   TextWrapping="Wrap"
-                                                   ToolTip="{Binding DefaultDescriptionEn}" />
-
-                                        <Grid Margin="0,4,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel>
-                                                <TextBlock Text="销售价" Style="{StaticResource CaptionTextBlock}" />
-                                                <TextBlock Text="{Binding DefaultSalesPriceUsd, StringFormat=US$ {0:N2}, TargetNullValue=--}"
-                                                           FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource UserBusinessTextAccentBrush}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="采购价" Style="{StaticResource CaptionTextBlock}" />
-                                                <TextBlock Text="{Binding DefaultPurchasePriceCny, StringFormat=¥ {0:N2}, TargetNullValue=--}"
-                                                           FontWeight="SemiBold" />
-                                            </StackPanel>
-                                        </Grid>
-                                        <Grid Margin="0,4,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock VerticalAlignment="Center"
-                                                       Text="{Binding DefaultSupplierName, StringFormat=供应商：{0}, TargetNullValue=供应商：--}"
-                                                       Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding DefaultSupplierName}" />
-                                            <ui:Button Grid.Column="1" 
-                                                       Appearance="Primary"
-                                                       Icon="{ui:SymbolIcon Symbol=Search24}"
-                                                       Command="{Binding DataContext.OpenDetailCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                                       CommandParameter="{Binding}" />
-                                        </Grid>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
 
                 <GridSplitter Grid.Row="1" Height="6" HorizontalAlignment="Stretch" ResizeDirection="Rows">
                     <GridSplitter.Style>

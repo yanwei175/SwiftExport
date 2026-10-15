@@ -31,6 +31,32 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationTests
         Assert.AreEqual(4,type.GetMethod("ReferenceAsync")!.GetParameters().Length);
     }
 
+    /// <summary>颜色候选优先按全局排序，其他白名单候选继续使用原编码及 Guid 顺序。</summary>
+    [TestMethod]
+    [DataRow("colors")] [DataRow("suppliers")]
+    public async Task LookupUsesGlobalOrderOnlyForColors(string kind)
+    {
+        using var f = new Fixture(false);
+        f.Connection.CountRows = new DataTable();
+        f.Connection.CountRows.Columns.Add("Count", typeof(int));
+        f.Connection.CountRows.Rows.Add(1);
+        var id = Guid.NewGuid();
+        f.Connection.Rows.Rows.Add(id, "A", "名称");
+        var result = await f.Repository.LookupAsync(kind, new AfterSalesLookupRequest(), default);
+        Assert.AreEqual(id, result.Items.Single().Uid);
+        var sql = f.Connection.Commands.Single().Sql;
+        if (kind == "colors")
+        {
+            StringAssert.Contains(sql, "ORDER BY q.\"SortNo\" ASC, q.\"SortCode\" COLLATE public.erp_dictionary_ci ASC NULLS FIRST, q.\"Uid\" ASC");
+            StringAssert.Contains(sql, "c.\"sort_no\" AS \"SortNo\"");
+        }
+        else
+        {
+            StringAssert.Contains(sql, "ORDER BY rtrim(q.\"Code\",' ') COLLATE public.erp_dictionary_ci ASC NULLS FIRST");
+            Assert.IsFalse(sql.Contains("SortNo", StringComparison.Ordinal));
+        }
+    }
+
     /// <summary>精确 kind 白名单拒绝 NULL、大小写、空白和 SQL 文本，沿源异常且零命令。</summary>
     [TestMethod]
     [DataRow(null)] [DataRow("")] [DataRow("Customers")] [DataRow(" customers")] [DataRow("customers ")]
@@ -156,7 +182,7 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationTests
     /// <summary>记录真实 Dapper 命令参数、事务与 reader，结果仅模拟传输。</summary>
     private sealed class RecordingConnection:DbConnection
     {
-        public DataTable Rows=PostgreSqlAfterSalesReferenceMigrationTests.Rows(false);public DbDataReader? Reader;public Exception? Error;public CancellationToken Token;public int Begins,Commits,Rollbacks;
+        public DataTable Rows=PostgreSqlAfterSalesReferenceMigrationTests.Rows(false);public DataTable? CountRows;public DbDataReader? Reader;public Exception? Error;public CancellationToken Token;public int Begins,Commits,Rollbacks;
         public readonly List<(string Sql,Dictionary<string,object?> Values,Dictionary<string,NpgsqlDbType> Types,DbTransaction? Transaction)> Commands=[];
         [AllowNull]public override string ConnectionString{get;set;}="";public override string Database=>"offline";public override string DataSource=>"none";public override string ServerVersion=>"test";public override ConnectionState State=>ConnectionState.Open;
         public override void Open(){}public override void Close(){}public override void ChangeDatabase(string databaseName)=>throw new NotSupportedException();
@@ -176,7 +202,8 @@ public sealed class PostgreSqlAfterSalesReferenceMigrationTests
             protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
             {
                 owner.Commands.Add((CommandText,container.Parameters.Cast<NpgsqlParameter>().ToDictionary(p=>p.ParameterName,p=>(object?)p.Value),container.Parameters.Cast<NpgsqlParameter>().ToDictionary(p=>p.ParameterName,p=>p.NpgsqlDbType),DbTransaction));
-                if(owner.Error is not null)throw owner.Error;owner.Reader=owner.Rows.CreateDataReader();return owner.Reader;
+                if(owner.Error is not null)throw owner.Error;
+                owner.Reader=owner.CountRows is null ? owner.Rows.CreateDataReader() : new DataTableReader([owner.CountRows,owner.Rows]);return owner.Reader;
             }
             protected override Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior,CancellationToken token){owner.Token=token;return Task.FromResult(ExecuteDbDataReader(behavior));}
             protected override void Dispose(bool disposing){if(disposing)container.Dispose();base.Dispose(disposing);}

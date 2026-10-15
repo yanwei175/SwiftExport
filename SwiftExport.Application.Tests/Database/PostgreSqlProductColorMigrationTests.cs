@@ -47,7 +47,9 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.AreEqual(3, result.Single().Version);
         Assert.IsNull(result.Single().ColorNameZh);
         CollectionAssert.AreEqual(new[] { "Ab" }, (string[])f.Connection.Values["Codes"]!);
-        StringAssert.Contains(f.Connection.Text, "c.is_deleted=FALSE ORDER BY c.uid");
+        StringAssert.Contains(f.Connection.Text, locking
+            ? "c.is_deleted=FALSE ORDER BY c.uid"
+            : "c.is_deleted=FALSE ORDER BY c.sort_no ASC, c.color_code_unique COLLATE public.erp_dictionary_ci ASC NULLS FIRST, c.uid");
         Assert.AreEqual(locking, f.Connection.Text.Contains("FOR UPDATE", StringComparison.Ordinal));
         Assert.IsFalse(f.Connection.Text.Contains("CreatedDate", StringComparison.Ordinal));
         Assert.AreSame(f.Session.Transaction, f.Connection.LastTransaction);
@@ -132,10 +134,11 @@ public sealed partial class PostgreSqlRepositoryTests
     {
         using var f = new Fixture();
         var repository = new PostgreSqlProductColorRepository(DictionaryContext(f));
-        var entity = new ProductColor { ColorCodeUnique = "A", ColorCode = "A", ColorNameZh = null };
+        var entity = new ProductColor { ColorCodeUnique = "A", ColorCode = "A", ColorNameZh = null, SortNo = 8 };
         Assert.IsTrue((await repository.AddAsync(entity)).Success);
         Assert.AreEqual(1, entity.Version);
         Assert.AreEqual(DBNull.Value, f.Connection.Values["ColorNameZh"]);
+        Assert.AreEqual(8, f.Connection.Values["SortNo"]);
         f.Connection.Rows.Columns.Add("Version", typeof(int));
         f.Connection.Rows.Rows.Add(2);
         Assert.AreEqual(2, (await repository.UpdateAsync(entity)).NewVersion);
@@ -143,5 +146,21 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.AreSame(f.Session.Transaction, f.Connection.LastTransaction);
         Assert.AreEqual(0, f.Connection.Commits);
         Assert.AreEqual(0, f.Connection.Rollbacks);
+    }
+
+    /// <summary>全量颜色读取投影排序号并保持全局稳定顺序、软删范围和当前事务。</summary>
+    [TestMethod]
+    public async Task Color_AllReadsSortNoAndUsesStableGlobalOrder()
+    {
+        using var f = new Fixture();
+        f.Connection.Rows.Columns.Add("SortNo", typeof(int));
+        f.Connection.Rows.Rows.Add(7);
+        var result = await new PostgreSqlProductColorRepository(DictionaryContext(f)).GetAllAsync();
+        Assert.AreEqual(7, result.Single().SortNo);
+        StringAssert.Contains(f.Connection.Text, "c.\"sort_no\" AS \"SortNo\"");
+        StringAssert.Contains(f.Connection.Text, "ORDER BY c.sort_no ASC, c.color_code_unique COLLATE public.erp_dictionary_ci ASC NULLS FIRST, c.uid");
+        StringAssert.Contains(f.Connection.Text, "c.is_deleted=FALSE OR c.is_deleted IS NULL");
+        Assert.IsFalse(f.Connection.Text.Contains("FOR UPDATE", StringComparison.Ordinal));
+        Assert.AreSame(f.Session.Transaction, f.Connection.LastTransaction);
     }
 }

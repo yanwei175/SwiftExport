@@ -34,7 +34,7 @@ public partial class PostgreSqlProductRepository
                 AND profile.dict_code COLLATE public.erp_dictionary_ci=@ProfileCode COLLATE public.erp_dictionary_ci
             LEFT JOIN LATERAL (
                 SELECT pp.pcs_per_package,pp.nw_kg,pp.gw_kg,pp.cbm FROM public.product_package pp
-                WHERE pp.product_id=p.uid AND (pp.is_deleted=FALSE OR pp.is_deleted IS NULL)
+                WHERE pp.owner_product_id=p.uid AND (pp.is_deleted=FALSE OR pp.is_deleted IS NULL)
                 ORDER BY pp.is_default DESC NULLS LAST,pp.pcs_per_package DESC NULLS LAST,pp.uid LIMIT 1
             ) pkg ON TRUE
             WHERE p.uid=@Uid AND p.is_deleted=FALSE

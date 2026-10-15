@@ -7,6 +7,7 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Application.Services.Products.Colors;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Data;
@@ -82,6 +83,68 @@ public sealed class ProductColorDeletionTests
             Assert.IsTrue((bool)args[1]!);
             return Task.FromResult<IReadOnlyList<ProductColor>>([new() { Uid = uid, Version = 1 }]);
         }
+    }
+
+    /// <summary>标准及批量创建/更新均传递排序号，负数在仓储写入之前被阻断。</summary>
+    [TestMethod]
+    [DataRow(false, false, -1)] [DataRow(false, true, -1)]
+    [DataRow(true, false, -1)] [DataRow(true, true, -1)]
+    [DataRow(false, false, 0)] [DataRow(false, true, 7)]
+    [DataRow(true, false, 7)] [DataRow(true, true, 0)]
+    public async Task SortNo_WritesAndValidatesEverySaveEntry(bool batch, bool update, int sortNo)
+    {
+        var session = new SessionStub();
+        var uid = Guid.NewGuid();
+        ProductColor? written = null;
+        var repository = DispatchProxy.Create<IProductColorRepository, RepositoryProxy>();
+        ((RepositoryProxy)(object)repository).Call = (name, args) => name switch
+        {
+            "GetByIdAsync" => Task.FromResult<ProductColor?>(new() { Uid = uid, Version = 2 }),
+            "GetByIdListAsync" => Task.FromResult<IReadOnlyList<ProductColor>>([new() { Uid = uid, Version = 2 }]),
+            "GetByColorCodesAsync" => Task.FromResult<IReadOnlyList<ProductColor>>([]),
+            "GetReferencedColorIdsAsync" => Task.FromResult<IReadOnlyList<Guid>>([]),
+            "AddAsync" or "UpdateAsync" => Write((ProductColor)args[0]!),
+            _ => throw new AssertFailedException(name),
+        };
+        var service = new ProductColorService(repository, new ServiceBaseContext(session, NullLoggerFactory.Instance));
+        var dto = new ProductColorDto { Uid = uid, Version = 2, ColorCodeUnique = "A", ColorCode = "A", SortNo = sortNo };
+        var create = new CreateItemRequest<ProductColorDto> { Data = dto };
+        var change = new UpdateItemRequest<ProductColorDto> { Uid = uid, Version = 2, Data = dto };
+        var success = batch
+            ? (await service.BatchSaveAsync(new ProductColorBatchSaveRequest
+            { CreateItems = update ? [] : [create], UpdateItems = update ? [change] : [] })).Success
+            : update ? (await service.UpdateAsync(change)).Success : (await service.AddAsync(create)).Success;
+        Assert.AreEqual(sortNo >= 0, success);
+        if (sortNo < 0) Assert.IsNull(written);
+        else
+        {
+            Assert.IsNotNull(written);
+            Assert.AreEqual(sortNo, written.SortNo);
+            if (update) Assert.AreEqual(2, written.Version);
+        }
+        if (batch) Assert.AreEqual(sortNo < 0 ? 1 : 0, session.ConnectionStub.Tx.Rollbacks);
+
+        Task<RepositoryWriteResult> Write(ProductColor entity)
+        {
+            written = entity;
+            return Task.FromResult(RepositoryWriteResult.Ok(uid, 1, 3));
+        }
+    }
+
+    /// <summary>空颜色列表成功返回；实体排序号映射为共享 DTO，供两个客户端缓存保持返回顺序。</summary>
+    [TestMethod]
+    [DataRow(false)] [DataRow(true)]
+    public async Task GetAll_ReturnsSuccessfulEmptyOrMappedSortNo(bool empty)
+    {
+        var repository = DispatchProxy.Create<IProductColorRepository, RepositoryProxy>();
+        ((RepositoryProxy)(object)repository).Call = (name, _) => name == "GetAllAsync"
+            ? Task.FromResult<IReadOnlyList<ProductColor>>(empty ? [] : [new() { SortNo = 9 }])
+            : throw new AssertFailedException(name);
+        var service = new ProductColorService(repository, new ServiceBaseContext(new SessionStub(), NullLoggerFactory.Instance));
+        var result = await service.GetAllAsync();
+        Assert.IsTrue(result.Success);
+        Assert.AreEqual(empty ? 0 : 1, result.Data.Count);
+        if (!empty) Assert.AreEqual(9, result.Data.Single().SortNo);
     }
 
     /// <summary>只代理当前场景需要的仓储调用，未声明的调用直接失败。</summary>

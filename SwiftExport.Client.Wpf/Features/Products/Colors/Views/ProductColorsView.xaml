@@ -1,8 +1,10 @@
 <UserControl x:Class="SwiftExportClient.Features.Products.Colors.Views.ProductColorsView"
+             x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dd="urn:gong-wpf-dragdrop"
              mc:Ignorable="d"
              d:Width="1200"
              d:Height="800"             
@@ -183,11 +185,11 @@
 
             <Grid Grid.Row="2">
                 <DataGrid x:Name="ColorsGrid"
-                      ItemsSource="{Binding Lines.Items}"
+                      ItemsSource="{Binding ColorsView}"
                       Style="{StaticResource SwiftExportDataGrid}"
                       RowStyle="{StaticResource SwiftExportStateDataGridRow}"
-                      IsReadOnly="False"
-                      CanUserSortColumns="True"
+                      IsReadOnly="{Binding IsReadOnly}"
+                      CanUserSortColumns="False"
                       SelectionMode="Extended"
                       SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                       RowHeight="{StaticResource DataGridRowHeightSmall}"
@@ -195,10 +197,30 @@
                       gridCore:GridVirtualization.IsEnabled="True"
                       gridCore:GridRowHeader.ShowRowNumber="True"
                       gridOperations:GridOperations.IsEnabled="True"
+                      dd:DragDrop.IsDragSource="True"
+                      dd:DragDrop.IsDropTarget="True"
+                      dd:DragDrop.DropHandler="{Binding ElementName=Root}"
+                      PreviewKeyDown="OnReorderKeyDown"
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
                     <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="排序" Width="48" IsReadOnly="True" CanUserSort="False"
+                                                gridColumns:GridColumn.Key="color-reorder"
+                                                gridColumns:GridColumn.CanFilter="False"
+                                                gridColumns:GridColumn.CanExport="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock x:Name="ColorReorderHandle" Text="≡" FontSize="20"
+                                               Background="Transparent" Cursor="SizeAll"
+                                               HorizontalAlignment="Stretch" TextAlignment="Center"
+                                               VerticalAlignment="Stretch"
+                                               IsEnabled="{Binding DataContext.CanReorder, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                               AutomationProperties.Name="拖动调整颜色顺序"
+                                               ToolTip="拖动调整顺序；Alt+↑ / Alt+↓ 移动当前行，保存后生效" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Width="55"
                                             CanUserSort="False"
                                             gridColumns:GridColumn.Key="row-check"
@@ -218,6 +240,11 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
+                        <DataGridTextColumn Header="排序号" Width="80" IsReadOnly="True"
+                                            Binding="{Binding SortNo}"
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
+                                            gridColumns:GridColumn.Key="color-sort-no"
+                                            gridColumns:GridColumn.FieldPath="SortNo" />
                         <DataGridTextColumn Header="唯一颜色代码"
                                         Width="180"
                                         Binding="{Binding ColorCodeUnique, UpdateSourceTrigger=PropertyChanged}"
@@ -253,7 +280,7 @@
                         VerticalAlignment="Center"
                         IsHitTestVisible="False"
                         Visibility="{Binding IsEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="暂无产品颜色数据"
+                    <TextBlock Text="暂无匹配的产品颜色"
                            Style="{StaticResource BodyStrongTextBlock}"
                            HorizontalAlignment="Center" />
                     <TextBlock Margin="0,4,0,0"
@@ -296,17 +323,6 @@
                            Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
                 </StackPanel>
 
-                <TextBlock Grid.Column="1"
-                       Margin="16,0"
-                       Text="{Binding PageStatus}"
-                       Style="{StaticResource CaptionTextBlock}"
-                       VerticalAlignment="Center" />
-
-                <controls:PageNavigator Grid.Column="2"
-                                    TotalCount="{Binding TotalCount}"
-                                    PageIndex="{Binding PageIndex, Mode=OneWay}"
-                                    PageSize="{Binding PageSize, Mode=OneWay}"
-                                    PageChangeCommand="{Binding PageChangeCommand}" />
             </Grid>
         </Grid>
     </Grid>

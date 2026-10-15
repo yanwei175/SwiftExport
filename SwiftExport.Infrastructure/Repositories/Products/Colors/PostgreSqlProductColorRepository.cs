@@ -27,7 +27,8 @@ public sealed class PostgreSqlProductColorRepository(RepositoryBaseContext conte
         c."color_code_unique" AS "ColorCodeUnique",
         c."color_code" AS "ColorCode",
         c."color_name_en" AS "ColorNameEn",
-        c."color_name_zh" AS "ColorNameZh"
+        c."color_name_zh" AS "ColorNameZh",
+        c."sort_no" AS "SortNo"
     """;
     private const string NarrowColumns = """
         c."uid" AS "Uid",
@@ -36,8 +37,15 @@ public sealed class PostgreSqlProductColorRepository(RepositoryBaseContext conte
         c."color_code_unique" AS "ColorCodeUnique",
         c."color_code" AS "ColorCode",
         c."color_name_en" AS "ColorNameEn",
-        c."color_name_zh" AS "ColorNameZh"
+        c."color_name_zh" AS "ColorNameZh",
+        c."sort_no" AS "SortNo"
     """;
+
+    private const string DisplayOrder = "c.sort_no ASC, c.color_code_unique COLLATE public.erp_dictionary_ci ASC NULLS FIRST, c.uid";
+
+    /// <summary>颜色完整列表使用专属显示顺序，不改变泛型仓储和其他实体的默认排序。</summary>
+    public override async Task<IReadOnlyList<ProductColor>> GetAllAsync() =>
+        (await Connection.QueryAsync<ProductColor>($"SELECT {Columns} FROM {Table} c WHERE (c.is_deleted=FALSE OR c.is_deleted IS NULL) ORDER BY {DisplayOrder}", transaction: Transaction)).AsList();
 
     /// <summary>存在检查包含软删颜色，保持输入原文本；尾部 ASCII 空格及 ICU 比较不代表唯一索引已适配。</summary>
     public Task<bool> ExistByColorCode(string productColor)
@@ -62,7 +70,9 @@ public sealed class PostgreSqlProductColorRepository(RepositoryBaseContext conte
             .Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? [];
         if (values.Length == 0) return [];
         var locking = GetLockHint(withUpdLock);
-        return (await Connection.QueryAsync<ProductColor>($"SELECT {NarrowColumns} FROM {Table} c WHERE {Matches("color_code_unique", "Codes")} AND c.is_deleted=FALSE ORDER BY c.uid{locking}", Codes("Codes", values), Transaction)).AsList();
+        // 写路径保持 Uid 锁顺序；无锁查询使用颜色全局显示顺序。
+        var order = withUpdLock ? "c.uid" : DisplayOrder;
+        return (await Connection.QueryAsync<ProductColor>($"SELECT {NarrowColumns} FROM {Table} c WHERE {Matches("color_code_unique", "Codes")} AND c.is_deleted=FALSE ORDER BY {order}{locking}", Codes("Codes", values), Transaction)).AsList();
     }
 
     /// <summary>检查未软删产品及中性引用并去重；保留原产品锁，中性引用只读，由父颜色锁协调新增。</summary>
@@ -101,7 +111,7 @@ public sealed class PostgreSqlProductColorRepository(RepositoryBaseContext conte
             parameters.AddTexts("BatchKeywords", batch);
         }
         var count = await Connection.ExecuteScalarAsync<int>($"SELECT COUNT(1) FROM {Table} c WHERE {where}", parameters, Transaction);
-        var rows = await Connection.QueryAsync<ProductColor>($"SELECT {Columns} FROM {Table} c WHERE {where} ORDER BY c.color_code_unique COLLATE public.erp_dictionary_ci ASC NULLS FIRST, c.uid LIMIT @Limit OFFSET @Offset", parameters, Transaction);
+        var rows = await Connection.QueryAsync<ProductColor>($"SELECT {Columns} FROM {Table} c WHERE {where} ORDER BY {DisplayOrder} LIMIT @Limit OFFSET @Offset", parameters, Transaction);
         return new PagedResponseBase<ProductColor> { Items = rows.AsList(), TotalCount = count, PageIndex = index, PageSize = size };
     }
 

@@ -13,6 +13,7 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 - 新增、拆分、合并或审查 View、code-behind、ViewModel、Model、Policy、Service、Adapter、Mapper、Component 的文件与职责：读 `../file-organization/SKILL.md`。
 - Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换、Mapster 配置、`Adapt` 映射：读 `../../aspdotnet10/application-mapster-mapping/SKILL.md`。
 - 页面类型、DataGrid 行为、页面命令：读 `../feature-page/SKILL.md`。
+- 行拖拽重排、行首手柄、SortNo / 订单明细 LineNumber 顺序调整：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排）。
 - Fluent 布局、4px 间距、卡片、表单、Dialog 视觉：读 `../fluent-layout/SKILL.md`。
 - 官方主题、ThemeMode、命名 Style、资源边界：读 `../official-theme/SKILL.md`。
 - lepoco/WPF-UI 控件、FluentWindow、TitleBar、InfoBar、Snackbar、ContentDialog、SymbolIcon：读 `../wpfui-controls/SKILL.md`。

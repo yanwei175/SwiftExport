@@ -1,4 +1,6 @@
 using SwiftExport.Application.Interfaces.Systems.Dictionaries.Types;
+using SwiftExport.Application.Interfaces.Systems.Dictionaries;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -12,10 +14,16 @@ namespace SwiftExport.WebApi.Controllers.Systems.Dictionaries.Types;
 
 /// <summary>
 /// 系统字典类型控制器
-/// 支持标准 CRUD 操作和分组树查询
+/// 支持标准 CRUD、分组树查询及显式同步内置字典。
 /// </summary>
-public class SysDictTypeController(ISysDictTypeService service) : BaseController<SysDictType, SysDictTypeDto>(service)
+public class SysDictTypeController(ISysDictTypeService service, IBuiltInDictionarySyncService builtInSync) : BaseController<SysDictType, SysDictTypeDto>(service)
 {
+    /// <summary>由字典编辑权限持有者明确触发内置类型与默认值落库，转交同步用例控制事务。</summary>
+    [Authorize]
+    [HttpPost("sync-built-in")]
+    public Task<ServiceResult<BuiltInDictionarySyncResponse>> SyncBuiltInAsync(CancellationToken cancellationToken) =>
+        builtInSync.SyncAsync(cancellationToken);
+
     /// <summary>
     /// 获取所有字典类型（平面列表）
     /// </summary>

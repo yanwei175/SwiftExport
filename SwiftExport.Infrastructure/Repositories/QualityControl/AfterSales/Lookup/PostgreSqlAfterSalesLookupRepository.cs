@@ -18,7 +18,7 @@ namespace SwiftExport.Infrastructure.Repositories.QualityControl.AfterSales.Look
 /// <summary>实现售后七类白名单候选分页及引用核验，借用当前会话和事务，不裁决额外业务资格。</summary>
 public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext context) : IAfterSalesLookupRepository
 {
-    /// <summary>按原活动白名单和客户上下文分页读取候选，保留产品快照、空值排序及取消，不创建事务或加锁。</summary>
+    /// <summary>分页读取白名单候选；颜色遵循全局排序，其余类型保留原顺序、快照及取消边界。</summary>
     public async Task<PagedResponseBase<AfterSalesLookupDto>> LookupAsync(
         string kind, AfterSalesLookupRequest request, CancellationToken cancellationToken)
     {
@@ -32,11 +32,13 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
             WHERE (@Keyword IS NULL OR q."Code" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE ''
                 OR q."Name" COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '')
             """;
+        var order = kind == "colors"
+            ? "q.\"SortNo\" ASC, q.\"SortCode\" COLLATE public.erp_dictionary_ci ASC NULLS FIRST, q.\"Uid\" ASC"
+            : $"rtrim(q.\"Code\",' ') COLLATE public.erp_dictionary_ci ASC NULLS FIRST, {SqlGuidOrder("q.\"Uid\"")} ASC";
         var sql = $"""
             SELECT COUNT(*) FROM ({source}) q {where};
             SELECT {columns} FROM ({source}) q {where}
-            ORDER BY rtrim(q."Code",' ') COLLATE public.erp_dictionary_ci ASC NULLS FIRST,
-                {SqlGuidOrder("q.\"Uid\"")} ASC
+            ORDER BY {order}
             LIMIT @Take OFFSET @Skip;
             """;
         var parameters = new DynamicParameters();
@@ -73,7 +75,7 @@ public sealed class PostgreSqlAfterSalesLookupRepository(RepositoryBaseContext c
         "customers" => $"SELECT c.\"uid\" AS \"Uid\",c.\"customer_code\" AS \"Code\",c.\"customer_name\" AS \"Name\" FROM \"public\".\"customer\" c WHERE c.\"is_deleted\"=FALSE{Active("c", active)}",
         "suppliers" => $"SELECT s.\"uid\" AS \"Uid\",s.\"supplier_code\" AS \"Code\",s.\"supplier_name\" AS \"Name\" FROM \"public\".\"supplier\" s WHERE s.\"is_deleted\"=FALSE{Active("s", active)}",
         "owners" => $"SELECT u.\"uid\" AS \"Uid\",u.\"user_name\" AS \"Code\",COALESCE(u.\"nick_name\",u.\"user_name\") AS \"Name\" FROM \"public\".\"sys_user\" u WHERE u.\"is_deleted\"=FALSE{Active("u", active)}",
-        "colors" => $"SELECT c.\"uid\" AS \"Uid\",c.\"color_code\" AS \"Code\",COALESCE(c.\"color_name_en\",c.\"color_name_zh\") AS \"Name\" FROM \"public\".\"product_color\" c WHERE c.\"is_deleted\"=FALSE",
+        "colors" => $"SELECT c.\"uid\" AS \"Uid\",c.\"color_code\" AS \"Code\",COALESCE(c.\"color_name_en\",c.\"color_name_zh\") AS \"Name\",c.\"sort_no\" AS \"SortNo\",c.\"color_code_unique\" AS \"SortCode\" FROM \"public\".\"product_color\" c WHERE c.\"is_deleted\"=FALSE",
         "quality-categories" => $"""
             SELECT d."uid" AS "Uid",
             COALESCE(NULLIF(btrim(d."category_code"),''),NULLIF(btrim(d."fake_name"),''),d."category_name") AS "Code",

@@ -6,10 +6,9 @@ namespace SwiftExport.Core.Entities.MasterData;
 /// <summary>产品包装规格实体，保存产品装率、尺寸、重量、体积和包材要求。</summary>
 [Table("product_package")]
 public partial class ProductPackage : BaseEntity
-{/// <summary>
- /// 关联产品主键Id
- /// </summary>
-    public Guid? ProductId { get; set; }
+{
+    /// <summary>这套包装规格所属的被包装物料身份，逻辑引用 Product.Uid。</summary>
+    public Guid? OwnerProductId { get; set; }
 
     /// <summary>
     /// 包装类型：InnerBox(内盒), Carton(外箱), Pallet(托盘)
@@ -39,7 +38,7 @@ public partial class ProductPackage : BaseEntity
     public decimal? Gw_KG { get; set; }
 
     /// <summary>
-    /// 包装体积（CBM）；当前两种数据库均为普通可空数值列，由调用方提供，不自动按尺寸计算。
+    /// 包装体积（CBM）；由调用方提供，不自动按尺寸计算。
     /// </summary>
     public decimal? Cbm { get; set; }
 
@@ -49,9 +48,9 @@ public partial class ProductPackage : BaseEntity
     public bool IsDefault { get; set; }
 
     /// <summary>
-    /// 对应的包材物料号 (关联BOM)
+    /// 使用的包材物料身份，逻辑引用 Product.Uid；不承担包装规格自身的 Uid。
     /// </summary>
-    public string? PackagingMaterialSku { get; set; }
+    public Guid? PackagingMaterialId { get; set; }
 
     /// <summary>该实体保存的业务备注。</summary>
     public string? Note { get; set; }

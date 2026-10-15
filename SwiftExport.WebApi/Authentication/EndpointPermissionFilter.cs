@@ -252,6 +252,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["SysDictTypeController.GetById"] = PermissionKeys.SystemDictionaryView,
         ["SysDictTypeController.Create"] = PermissionKeys.SystemDictionaryCreate,
         ["SysDictTypeController.Update"] = PermissionKeys.SystemDictionaryEdit,
+        ["SysDictTypeController.SyncBuiltInAsync"] = PermissionKeys.SystemDictionaryEdit,
         ["SysDictTypeController.Delete"] = PermissionKeys.SystemDictionaryDelete,
         ["SysDicCurrencyExchangeController.GetAll"] = PermissionKeys.SystemExchangeRateView,
         ["SysDicCurrencyExchangeController.GetPaged"] = PermissionKeys.SystemExchangeRateView,

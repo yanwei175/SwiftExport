@@ -32,7 +32,8 @@
 
         <TextBlock Grid.Row="2" Text="有效权限（只读）" Margin="0,8,0,4" />
 
-            <ListBox Grid.Row="3" ItemsSource="{Binding EffectivePermissions}" Height="260" MinHeight="260"
+            <ListBox Grid.Row="3" ItemsSource="{Binding EffectivePermissions}" 
+                     Height="260" MinHeight="260" ItemContainerStyle="{StaticResource SwiftExportListBoxItemStyle}"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>

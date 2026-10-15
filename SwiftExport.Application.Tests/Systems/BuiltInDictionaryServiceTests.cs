@@ -31,7 +31,7 @@ public sealed class BuiltInDictionaryServiceTests
         var fixture = new Fixture();
         var all = await fixture.Service.GetAllAsync();
         Assert.IsTrue(all.Success);
-        Assert.AreEqual(2, all.Data.Count);
+        Assert.AreEqual(6, all.Data.Count);
         var page = await fixture.Service.GetPagedAsync(new() { Keyword = "不限流", PageSize = 1 });
         Assert.AreEqual(1, page.Data.TotalCount);
         var byCode = await fixture.Service.GetByCodeAsync(" FlowLimiterSpecification ");
@@ -39,6 +39,41 @@ public sealed class BuiltInDictionaryServiceTests
         Assert.AreEqual(page.Data.Items.Single().Uid, byId.Data.Uid);
         Assert.AreEqual(0, fixture.Writes);
         Assert.AreEqual(0, fixture.Session.Begins);
+    }
+
+    /// <summary>包装内置项读取不落库，显示覆盖才保存；没有物理类型行仍能扩展值，内置业务代码受保护。</summary>
+    [TestMethod]
+    public async Task ProductPackageType_ReadsWithoutWritingAndAllowsExplicitOverridesAndExtensions()
+    {
+        var fixture = new Fixture();
+        var defaults = await fixture.Service.GetByCodeAsync(DictCodes.ProductPackageType);
+        Assert.IsTrue(defaults.Success);
+        Assert.HasCount(4, defaults.Data);
+        Assert.HasCount(0, fixture.Store);
+        Assert.AreEqual(0, fixture.Writes);
+        Assert.AreEqual(0, fixture.Session.Begins);
+        var carton = defaults.Data.Single(item => item.DataNameEn == "Carton");
+        carton.DataNameZh = "我的出货外箱";
+        var saved = await fixture.Service.UpdateAsync(Update(carton));
+        Assert.IsTrue(saved.Success, saved.Message);
+        Assert.AreEqual(carton.Uid, fixture.Store.Single().Uid);
+        Assert.AreEqual("我的出货外箱", fixture.Store.Single().DataNameZh);
+        Assert.AreEqual(DictCodes.ProductPackageType, fixture.Store.Single().DictCode);
+        var read = (await fixture.Service.GetByIdAsync(carton.Uid)).Data;
+        Assert.AreEqual("Carton", read.DataNameEn);
+        read.DataNameEn = "MasterBox";
+        Assert.IsFalse((await fixture.Service.UpdateAsync(Update(read))).Success);
+        read.DataNameEn = "Carton";
+        read.IsEnabled = false;
+        Assert.IsFalse((await fixture.Service.UpdateAsync(Update(read))).Success);
+        Assert.IsFalse((await fixture.Service.DeleteAsync(new() { Uid = carton.Uid, Version = 1 })).Success);
+        var custom = await fixture.Service.AddAsync(new() { Data = new()
+            { DictCode = DictCodes.ProductPackageType, DataNameEn = "Sleeve", DataNameZh = "腰封", IsEnabled = true } });
+        Assert.IsTrue(custom.Success, custom.Message);
+        var all = await fixture.Service.GetByCodeAsync(DictCodes.ProductPackageType);
+        Assert.HasCount(5, all.Data);
+        Assert.IsFalse(all.Data.Single(item => item.DataNameEn == "Sleeve").IsBuiltIn);
+        Assert.AreEqual(2, fixture.Writes, "只有显式保存显示覆盖和新增自定义值才写入仓储。");
     }
 
     /// <summary>单条首次保存身份不变，陈旧零版本拒绝覆盖，后续正版本保存正常递增。</summary>

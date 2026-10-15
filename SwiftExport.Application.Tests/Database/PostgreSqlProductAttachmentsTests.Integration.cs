@@ -84,11 +84,11 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         Assert.AreEqual(package.Gw_KG, physical.Gross);
         var stale = await repository.GetByIdAsync(package.Uid);
         Assert.IsNotNull(stale);
-        read.ProductId = null;
+        read.OwnerProductId = null;
         read.Nw_KG = null;
         read.Gw_KG = 7.4321m;
         read.Length_CM = null;
-        read.PackagingMaterialSku = null;
+        read.PackagingMaterialId = null;
         read.Note = null;
         read.IsDefault = false;
         var update = await repository.UpdateAsync(read);
@@ -161,7 +161,7 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         Assert.AreEqual("Pallet", unchanged.PackageType);
         Assert.AreEqual(1, unchanged.Version);
         Assert.AreEqual(2, await context.Session.Connection.ExecuteScalarAsync<int>(
-            "SELECT count(*) FROM public.product_package WHERE product_id=@Id", new { Id = product.Uid }, context.Session.Transaction));
+            "SELECT count(*) FROM public.product_package WHERE owner_product_id=@Id", new { Id = product.Uid }, context.Session.Transaction));
     });
 
     /// <summary>沿用现有普通 PackageType 大小写比较；空产品不参与组合唯一，软删记录也不占用原组合，不新增规则。</summary>
@@ -223,12 +223,12 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
     };
 
     /// <summary>构造满足现有数量和非负尺寸约束的包装，各数值不同以检测下划线字段串列。</summary>
-    private static ProductPackage NewPackage(Guid? productId) => new()
+    private static ProductPackage NewPackage(Guid? ownerProductId) => new()
     {
-        ProductId = productId, PackageType = "Carton", PcsPerPackage = 12,
+        OwnerProductId = ownerProductId, PackageType = "Carton", PcsPerPackage = 12,
         Length_CM = 11.1234m, Width_CM = 22.2345m, Height_CM = 33.3456m,
         Nw_KG = 4.4567m, Gw_KG = 5.5678m, Cbm = 0.123456m,
-        IsDefault = true, PackagingMaterialSku = Prefix(), Note = "随机包装备注"
+        IsDefault = true, PackagingMaterialId = Guid.NewGuid(), Note = "随机包装备注"
     };
 
     /// <summary>逐项检查文件资料的身份、关联和全部路径映射。</summary>
@@ -246,11 +246,11 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         Assert.AreEqual(expected.Barcode2Path, actual.Barcode2Path);
     }
 
-    /// <summary>逐项检查包装身份、数量、尺寸、重量、体积及包材文本映射。</summary>
+    /// <summary>逐项检查包装规格身份、两个物料引用、数量、尺寸、重量和体积映射。</summary>
     private static void AssertPackage(ProductPackage expected, ProductPackage actual)
     {
         Assert.AreEqual(expected.Uid, actual.Uid);
-        Assert.AreEqual(expected.ProductId, actual.ProductId);
+        Assert.AreEqual(expected.OwnerProductId, actual.OwnerProductId);
         Assert.AreEqual(expected.PackageType, actual.PackageType);
         Assert.AreEqual(expected.PcsPerPackage, actual.PcsPerPackage);
         Assert.AreEqual(expected.Length_CM, actual.Length_CM);
@@ -260,7 +260,7 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         Assert.AreEqual(expected.Gw_KG, actual.Gw_KG);
         Assert.AreEqual(expected.Cbm, actual.Cbm);
         Assert.AreEqual(expected.IsDefault, actual.IsDefault);
-        Assert.AreEqual(expected.PackagingMaterialSku, actual.PackagingMaterialSku);
+        Assert.AreEqual(expected.PackagingMaterialId, actual.PackagingMaterialId);
         Assert.AreEqual(expected.Note, actual.Note);
     }
 
@@ -304,7 +304,7 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
             Assert.AreEqual("23505", exception.SqlState);
             Assert.AreEqual("public", exception.SchemaName);
             Assert.AreEqual("product_package", exception.TableName);
-            Assert.AreEqual("ux_product_package_product_type", exception.ConstraintName);
+            Assert.AreEqual("ux_product_package_owner_type", exception.ConstraintName);
         }
         finally
         {

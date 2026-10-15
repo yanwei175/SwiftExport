@@ -98,8 +98,9 @@ namespace SwiftExport.Core.Entities.MasterData
 
     [DbCheck("CK_ProductPackage_Pcs", "\"pcs_per_package\" > 0")]
     [DbCheck("CK_ProductPackage_Measures", "( \"length_cm\" IS NULL OR \"length_cm\" >= 0 ) AND ( \"width_cm\" IS NULL OR \"width_cm\" >= 0 ) AND ( \"height_cm\" IS NULL OR \"height_cm\" >= 0 ) AND ( \"nw_kg\" IS NULL OR \"nw_kg\" >= 0 ) AND ( \"gw_kg\" IS NULL OR \"gw_kg\" >= 0 ) AND ( \"cbm\" IS NULL OR \"cbm\" >= 0 )")]
-    [DbIndex("UX_ProductPackage_Product_Type", nameof(ProductPackage.ProductId), nameof(ProductPackage.PackageType), IsUnique = true, Filter = "\"is_deleted\" = FALSE AND \"product_id\" IS NOT NULL")]
-    [LogicalReference(nameof(ProductPackage.ProductId), typeof(Product))]
+    [DbIndex("UX_ProductPackage_Owner_Type", nameof(ProductPackage.OwnerProductId), nameof(ProductPackage.PackageType), IsUnique = true, Filter = "\"is_deleted\" = FALSE AND \"owner_product_id\" IS NOT NULL")]
+    [LogicalReference(nameof(ProductPackage.OwnerProductId), typeof(Product))]
+    [LogicalReference(nameof(ProductPackage.PackagingMaterialId), typeof(Product))]
     public partial class ProductPackage { }
 
     [DbIndex("UX_Supplier_SupplierCode", nameof(Supplier.SupplierCode), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]

@@ -102,7 +102,7 @@ public partial class PostgreSqlProductRepository
                 pkg.pcs_per_package AS "PcsOfCarton",pkg.nw_kg AS "NwOfCarton",pkg.gw_kg AS "GwOfCarton",pkg.cbm AS "CbmOfCarton"
             {from}
             LEFT JOIN LATERAL (SELECT pp.pcs_per_package,pp.nw_kg,pp.gw_kg,pp.cbm FROM public.product_package pp
-                WHERE pp.product_id=p.uid AND (pp.is_deleted=FALSE OR pp.is_deleted IS NULL)
+                WHERE pp.owner_product_id=p.uid AND (pp.is_deleted=FALSE OR pp.is_deleted IS NULL)
                 ORDER BY pp.is_default DESC NULLS LAST,pp.pcs_per_package DESC NULLS LAST,pp.uid LIMIT 1) pkg ON TRUE
             {where} ORDER BY p.sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,p.uid LIMIT @Limit OFFSET @Offset
             """, parameters, Transaction);
