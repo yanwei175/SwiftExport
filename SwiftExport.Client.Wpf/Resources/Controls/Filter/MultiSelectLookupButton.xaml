@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:system="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d" 
               d:DesignHeight="30" d:DesignWidth="120">
     <UserControl.Resources>
@@ -120,13 +121,15 @@
                     <!-- 多选列表 -->
                     <ListBox x:Name="PART_ListBox"
                              Grid.Row="1"
+                             Width="432"
                              MaxHeight="350"
                              BorderThickness="0"
                              Background="Transparent"
                              ScrollViewer.CanContentScroll="True"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             PreviewMouseLeftButtonUp="PART_ListBox_PreviewMouseLeftButtonUp">
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling">
                         <ListBox.Style>
                             <Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -137,31 +140,59 @@
                                 </Style.Triggers>
                             </Style>
                         </ListBox.Style>
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ui:VirtualizingWrapPanel ItemSize="136,64" SpacingMode="None" StretchItems="False" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
                         <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource SwiftExportListBoxItemStyle}">
+                            <Style TargetType="ListBoxItem">
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="VerticalContentAlignment" Value="Stretch" />
                                 <Setter Property="Focusable" Value="False" />
                                 <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="4" />
                                 <Setter Property="Cursor" Value="Hand" />
                                 <Setter Property="IsTabStop" Value="False" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
                         </ListBox.ItemContainerStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Grid Background="Transparent">
-                                    <CheckBox Margin="0"
-                                              IsHitTestVisible="False"
-                                              HorizontalContentAlignment="Stretch"
-                                              VerticalContentAlignment="Center"
-                                              IsChecked="{Binding IsChecked}">
-
-
-                                        <ContentPresenter HorizontalAlignment="Stretch" Content="{Binding DisplayContent}"
-                                                    ContentTemplate="{Binding DataContext.ContentTemplate,
-                                                  RelativeSource={RelativeSource AncestorType=CheckBox}}" />
-
-                                    </CheckBox>
-                                </Grid>
+                                <ToggleButton Width="128" Height="56" Padding="8,4"
+                                              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center"
+                                              AutomationProperties.Name="{Binding DisplayText}"
+                                              KeyboardNavigation.AcceptsReturn="False"
+                                              IsChecked="{Binding IsChecked, Mode=TwoWay}">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                    <ContentPresenter HorizontalAlignment="Stretch" Content="{Binding DisplayContent}"
+                                                      ContentTemplate="{Binding DataContext.ContentTemplate,
+                                                          RelativeSource={RelativeSource AncestorType=ToggleButton}}">
+                                        <ContentPresenter.Resources>
+                                            <DataTemplate DataType="{x:Type system:String}">
+                                                <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Left"
+                                                           Foreground="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource AncestorType=ContentPresenter}}"
+                                                           TextTrimming="CharacterEllipsis" LineHeight="20" MaxHeight="40"
+                                                           LineStackingStrategy="BlockLineHeight" VerticalAlignment="Center" />
+                                            </DataTemplate>
+                                        </ContentPresenter.Resources>
+                                    </ContentPresenter>
+                                </ToggleButton>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
 
@@ -190,13 +221,22 @@
                         </TreeView.ItemContainerStyle>
                         <TreeView.ItemTemplate>
                             <HierarchicalDataTemplate ItemsSource="{Binding ChildrenView}">
-                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" Margin="0,0,8,0"
                                           IsHitTestVisible="False" Focusable="False"
-                                          AutomationProperties.Name="{Binding DisplayText}">
-                                    <ContentPresenter Content="{Binding DisplayContent}"
+                                          VerticalAlignment="Center" AutomationProperties.Name="{Binding DisplayText}">
+                                        <CheckBox.LayoutTransform>
+                                            <ScaleTransform ScaleX="0.8" ScaleY="0.8" />
+                                        </CheckBox.LayoutTransform>
+                                    </CheckBox>
+                                    <ContentPresenter Grid.Column="1" Content="{Binding DisplayContent}" VerticalAlignment="Center"
                                                       ContentTemplate="{Binding DataContext.ContentTemplate,
-                                                          RelativeSource={RelativeSource AncestorType=CheckBox}}" />
-                                </CheckBox>
+                                                          RelativeSource={RelativeSource AncestorType=TreeViewItem}}" />
+                                </Grid>
                             </HierarchicalDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>

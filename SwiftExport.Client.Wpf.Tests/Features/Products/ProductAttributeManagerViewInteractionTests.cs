@@ -95,7 +95,7 @@ public sealed class ProductAttributeManagerViewInteractionTests
             Assert.AreEqual(1, list.Items.Count);
             list.UpdateLayout();
             var row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
-            var check = Descendants(row).OfType<CheckBox>().Single();
+            var check = Descendants(row).OfType<ToggleButton>().Single();
             Assert.AreNotEqual(true, check.IsChecked, "未勾选的模板不能冒充直接关联。");
             check.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
@@ -104,7 +104,7 @@ public sealed class ProductAttributeManagerViewInteractionTests
             popup.IsOpen = true; await Dispatcher.Yield(DispatcherPriority.Loaded);
             search.Text = "ROUND"; await Dispatcher.Yield(DispatcherPriority.Background);
             list.UpdateLayout(); row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
-            Descendants(row).OfType<CheckBox>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+            Descendants(row).OfType<ToggleButton>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             PopupButton(popup, "确定").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
@@ -114,7 +114,7 @@ public sealed class ProductAttributeManagerViewInteractionTests
             Assert.AreEqual(1, request.GroupChanges.UpdateItems.Single().Version);
             Assert.AreEqual(fixture.GroupId, request.ProfileChanges.CreateItems.Single().Data.AttributeGroupId);
             Assert.IsTrue(fixture.ViewModel.SaveCommand.CanExecute(null));
-            var saveButton = Descendants(view).OfType<Button>().Single(button => Equals(button.Content, "保存全部标签"));
+            var saveButton = Descendants(view).OfType<Button>().Single(button => ReferenceEquals(button.Command, fixture.ViewModel.SaveCommand));
             Assert.IsTrue(saveButton.IsEnabled);
             SavePreview(window, "产品标签关联属性模板.png");
             tabs.SelectedIndex = 0;

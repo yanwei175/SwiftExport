@@ -857,22 +857,4 @@ public partial class MultiSelectLookupButton : UserControl
         PART_Button.Focus();
         e.Handled = true;
     }
-    private void PART_ListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not ListBox listBox)
-            return;
-
-        var source = e.OriginalSource as DependencyObject;
-
-        var itemContainer = ItemsControl.ContainerFromElement(
-            listBox,
-            source) as ListBoxItem;
-
-        if (itemContainer?.DataContext is not LookupItem item)
-            return;
-
-        item.IsChecked = !item.IsChecked;
-
-        e.Handled = true;
-    }
 }

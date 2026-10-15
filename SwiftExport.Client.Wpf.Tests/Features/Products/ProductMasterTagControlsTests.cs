@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.Controls;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Features.Products.Components.Models;
@@ -13,6 +14,8 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.Reflection;
+using System.IO;
+using System.Diagnostics;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using SwiftExportClient.Resources.Controls.Filter;
@@ -21,6 +24,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
@@ -30,6 +34,119 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductMasterTagControlsTests
 {
+    /// <summary>搜索、虚拟化回收和关闭弹层时，选项容器的纵向对齐不依赖已脱离的祖先。</summary>
+    [TestMethod]
+    public void MultiSelect_ShouldNotReportAlignmentBindingErrors() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        PresentationTraceSources.Refresh();
+        using var output = new StringWriter();
+        using var listener = new TextWriterTraceListener(output);
+        var trace = PresentationTraceSources.DataBindingSource;
+        var previousLevel = trace.Switch.Level;
+        trace.Switch.Level = SourceLevels.Warning;
+        trace.Listeners.Add(listener);
+        var options = Enumerable.Range(1, 200).Select(index => $"选项{index:000}").ToArray();
+        var control = new MultiSelectLookupButton { ItemsSource = options, SelectedItems = new ObservableCollection<string>() };
+        var window = new Window { Content = control, Width = 360, Height = 180, ShowInTaskbar = false };
+        var popup = (Popup)control.FindName("PART_Popup");
+        try
+        {
+            window.Show();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            popup.IsOpen = true;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var list = (ListBox)control.FindName("PART_ListBox");
+            Assert.IsTrue(Descendants(list).OfType<ToggleButton>().Any());
+            var row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+            Assert.IsNotNull(row);
+            Descendants(list).OfType<ScrollViewer>().First().ScrollToBottom();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var search = (TextBox)control.FindName("PART_SearchBox");
+            foreach (var keyword in new[] { "选项200", "无匹配项", "" })
+            {
+                search.Text = keyword;
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            }
+            await ClosePopupAsync(popup, () => popup.IsOpen = false);
+            // 默认主题的祖先绑定在容器脱离时不一定进入诊断日志，同时检查真实表达式是否失去来源。
+            var alignmentBinding = row.GetBindingExpression(Control.VerticalContentAlignmentProperty);
+            Assert.IsFalse(alignmentBinding is not null && alignmentBinding.DataItem is null,
+                "脱离列表的选项容器仍在查找纵向对齐的祖先来源。");
+            window.Close();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            listener.Flush();
+            var diagnostics = output.ToString();
+            Assert.IsFalse(diagnostics.Contains("VerticalContentAlignment", StringComparison.Ordinal), diagnostics);
+        }
+        finally
+        {
+            popup.IsOpen = false;
+            window.Close();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            trace.Listeners.Remove(listener);
+            trace.Switch.Level = previousLevel;
+        }
+    });
+
+    /// <summary>平面选项等尺寸换行并保留虚拟化；原生按钮切换只更新弹层草稿，文本限制为两行。</summary>
+    [TestMethod]
+    public void MultiSelect_TilesWrapAndRemainVirtualized() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        var options = Enumerable.Range(1, 200).Select(index => new ProductAttributeOptionDto
+            { Uid = Guid.NewGuid(), OptionName = $"选项{index:000}：墙装及吸顶安装的较长规格说明" }).ToArray();
+        var selected = new ObservableCollection<ProductAttributeOptionDto>();
+        var control = new MultiSelectLookupButton { Header = "产品属性", ItemsSource = options,
+            SelectedItems = selected, DisplayMemberPath = "OptionName", SelectedValuePath = "Uid" };
+        var window = new Window { Content = control, Width = 360, Height = 180, ShowInTaskbar = false };
+        var popup = (Popup)control.FindName("PART_Popup");
+        try
+        {
+            window.Show(); window.Activate();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            popup.IsOpen = true;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var list = (ListBox)control.FindName("PART_ListBox");
+            list.UpdateLayout();
+            var tiles = Descendants(list).OfType<ToggleButton>().ToArray();
+            Assert.IsTrue(tiles.Length >= 4 && tiles.Length < options.Length, "流式列表必须按视口创建选项。");
+            Assert.IsTrue(tiles.All(tile => tile.ActualWidth == 128 && tile.ActualHeight == 56));
+            var firstOrigin = tiles[0].TranslatePoint(new Point(), list);
+            Assert.IsTrue(tiles[1].TranslatePoint(new Point(), list).X > firstOrigin.X);
+            Assert.IsTrue(tiles.Skip(1).Any(tile => tile.TranslatePoint(new Point(), list).Y > firstOrigin.Y));
+            var label = Descendants(tiles[0]).OfType<TextBlock>().Single();
+            Assert.AreEqual(TextWrapping.Wrap, label.TextWrapping);
+            Assert.AreEqual(TextTrimming.CharacterEllipsis, label.TextTrimming);
+            Assert.IsTrue(label.ActualHeight <= 40);
+            // 原生 TogglePattern 与鼠标点击共用切换路径，不通过赋值伪造按钮交互。
+            ((IToggleProvider)new ToggleButtonAutomationPeer(tiles[0]).GetPattern(PatternInterface.Toggle)!).Toggle();
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.AreEqual(true, tiles[0].IsChecked);
+            Assert.IsEmpty(selected);
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            SaveTilePreview((FrameworkElement)popup.Child);
+            await ClosePopupAsync(popup, () => popup.IsOpen = false);
+            Assert.IsEmpty(selected);
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
+
+    /// <summary>保存实际弹层预览，供本次布局交付核对；文件仅写到工作区的构建产物目录。</summary>
+    private static void SaveTilePreview(FrameworkElement view)
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "AGENTS.md"))) root = root.Parent;
+        Assert.IsNotNull(root);
+        var directory = Path.Combine(root.FullName, ".artifacts", "multiselect-layout-20261015");
+        Directory.CreateDirectory(directory);
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(view.ActualWidth), (int)Math.Ceiling(view.ActualHeight),
+            96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(view);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(directory, "多选平铺.png")); encoder.Save(stream);
+    }
+
     /// <summary>按编码本地搜索，关闭不接纳临时勾选，确定与清空更新完整最终身份。</summary>
     [TestMethod]
     public void MultiSelect_ShouldSearchCancelConfirmAndClear() => DatePickerAssistTests.RunWithApplication(async () =>
@@ -62,7 +179,7 @@ public sealed class ProductMasterTagControlsTests
             Assert.AreEqual(1, list.Items.Count);
             list.UpdateLayout();
             var row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
-            var checkbox = Descendants(row).OfType<CheckBox>().Single();
+            var checkbox = Descendants(row).OfType<ToggleButton>().Single();
             checkbox.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             await ClosePopupAsync(popup, () => popup.IsOpen = false);
@@ -78,7 +195,7 @@ public sealed class ProductMasterTagControlsTests
             list.UpdateLayout();
             row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
             Assert.IsNotNull(row, "搜索结果必须实现可勾选的行容器。");
-            checkbox = Descendants(row).OfType<CheckBox>().Single();
+            checkbox = Descendants(row).OfType<ToggleButton>().Single();
             checkbox.SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             await ClosePopupAsync(popup, () => Button(popup, "确定").RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)));

@@ -255,7 +255,7 @@ public sealed class ProductDetailViewInteractionTests
             var list = (ListBox)multi.FindName("PART_ListBox");
             list.UpdateLayout();
             var row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1);
-            Descendants(row).OfType<CheckBox>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+            Descendants(row).OfType<ToggleButton>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             popup.IsOpen = false;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
@@ -265,7 +265,7 @@ public sealed class ProductDetailViewInteractionTests
             await Dispatcher.Yield(DispatcherPriority.Loaded);
             list.UpdateLayout();
             row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1);
-            Descendants(row).OfType<CheckBox>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
+            Descendants(row).OfType<ToggleButton>().Single().SetCurrentValue(ToggleButton.IsCheckedProperty, true);
             await Dispatcher.Yield(DispatcherPriority.DataBind);
             var confirm = Descendants(popup.Child).OfType<Button>().Single(button => Equals(button.Content, "确定"));
             ((IInvokeProvider)new ButtonAutomationPeer(confirm).GetPattern(PatternInterface.Invoke)!).Invoke();
