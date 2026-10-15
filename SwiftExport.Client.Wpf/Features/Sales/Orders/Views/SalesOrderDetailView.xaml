@@ -341,7 +341,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="≡" FontSize="20" Background="Transparent" Cursor="SizeAll"
-                                               HorizontalAlignment="Stretch" TextAlignment="Center" VerticalAlignment="Stretch"
+                                               HorizontalAlignment="Stretch" TextAlignment="Center" VerticalAlignment="Center"
                                                rowDrag:RowDragReorder.IsHandle="True"
                                                IsEnabled="{Binding DataContext.CanReorder, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                AutomationProperties.Name="拖动调整行顺序"
