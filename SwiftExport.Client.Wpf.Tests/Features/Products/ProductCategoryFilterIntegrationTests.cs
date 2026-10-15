@@ -293,6 +293,7 @@ public sealed class ProductCategoryFilterIntegrationTests
     /// <summary>记录主型号分页请求，并返回稳定空页。</summary>
     private sealed class ProductMasterApiStub : IProductMasterApi
     {
+        public Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(BatchSetProductMasterMainImagesRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public List<ProductMasterSearchRequest> Requests { get; } = [];
         public int TotalCount { get; set; }
 

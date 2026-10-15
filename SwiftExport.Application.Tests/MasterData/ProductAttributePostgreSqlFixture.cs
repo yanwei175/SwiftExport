@@ -62,21 +62,23 @@ internal sealed class ProductAttributePostgreSqlFixture : IAsyncDisposable
     }
 
     /// <summary>严格核对实例和库名；未配置时明确标记未运行，绝不回退使用 dv_next。</summary>
-    internal static async Task<ProductAttributePostgreSqlFixture> CreateAsync()
+    internal static async Task<ProductAttributePostgreSqlFixture> CreateAsync(string expectedDatabase = "dv_next_product_attribute_tests_20261012")
     {
+        // 仅接受开发者明确授权的两个复制库；既有用例保留原默认目标，不能传入生产库。
+        Assert.IsTrue(expectedDatabase is "dv_next_product_attribute_tests_20261012" or "dv_next_product_main_image_tests_20261015");
         var value = Environment.GetEnvironmentVariable("SWIFTEXPORT_PG_ATTRIBUTE_TEST_CONNECTION");
         if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_ATTRIBUTE_TESTS") != "1" || string.IsNullOrWhiteSpace(value))
             Assert.Inconclusive("未显式启用产品标签专用复制库测试。");
         var settings = new NpgsqlConnectionStringBuilder(value);
         Assert.AreEqual("192.168.3.12", settings.Host);
         Assert.AreEqual(5432, settings.Port);
-        Assert.AreEqual("dv_next_product_attribute_tests_20261012", settings.Database);
+        Assert.AreEqual(expectedDatabase, settings.Database);
         Assert.IsTrue(string.IsNullOrEmpty(settings.SearchPath) || settings.SearchPath == "public");
         var fixture = new ProductAttributePostgreSqlFixture(value!);
         try
         {
             var scope = fixture.NewScope();
-            Assert.AreEqual("dv_next_product_attribute_tests_20261012", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT current_database()"));
+            Assert.AreEqual(expectedDatabase, await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT current_database()"));
             Assert.AreEqual("192.168.3.12", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT host(inet_server_addr())"));
             Assert.AreEqual("5432", await scope.Session.Connection.ExecuteScalarAsync<string>("SELECT current_setting('port')"));
             Assert.IsTrue(await scope.Session.Connection.ExecuteScalarAsync<bool>("""

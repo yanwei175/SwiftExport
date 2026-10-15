@@ -1,14 +1,15 @@
 ---
 name: aspdotnet10-contracts-refit-dto
-description: SwiftExport Contracts 共享契约技能组入口。用于 SwiftExport.Contracts、netstandard2.0 兼容、Refit API、DTO、Wrappers、SysEnums、Common 工具、Request/Response、前后端共享枚举和 Mapster 映射规则。
+description: 新增、修改或为新用例复用 SwiftExport 共享契约的技能入口；仅消费既有响应不触发契约设计。
 ---
 
 # Contracts / Refit / DTO Skill
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/references/工程架构总纲.md`
+公共启动沿用 `AGENTS.md`，已读约束复用。先核实目标契约及直接调用方，再按实际变更读取：
+
+- 改变分层、公共依赖或边界不明时读 `.agents/references/工程架构总纲.md` 相关章节
 - `../contracts-netstandard20/SKILL.md`
 - 目标 Contracts API、DTO、Request、Response
 - 改 `Apis/**` 或 Refit：读 `../contracts-refit-api/SKILL.md`

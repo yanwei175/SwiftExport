@@ -78,6 +78,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
         PropertyChanged += OnManagerStateChanged;
         RegisterBusyAwareCommand(SaveCommand);
+        RegisterBusyAwareCommand(SetMainImagesCommand);
         RegisterBusyAwareCommand(OpenImportCommand);
         WeakReferenceMessenger.Default.Register<ProductMasterManagerViewModel, ProductMasterDetailSavedMessage>(this,
             static (recipient, message) => recipient.ObserveDetailSaved(message));
@@ -121,6 +122,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     public partial ProductMasterLineModel? SelectedMaster { get; set; }
     /// <summary>获取或设置是否显示只读卡片视图。</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SetMainImagesCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial bool IsCardView { get; set; } = false;
@@ -384,6 +386,73 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         }, "正在保存主型号...");
     }
 
+    /// <summary>只为勾选的已保存主型号补齐主图；确认和写入期间冻结页面，成功仅回填展示和版本。</summary>
+    [RelayCommand(CanExecute = nameof(CanSetMainImages))]
+    private async Task SetMainImagesAsync()
+    {
+        if (!CanSetMainImages() || !TryCommitPendingEdits()) return;
+        var targets = Masters.CheckedItems.ToArray();
+        if (HasUnsavedChanges || targets.Any(row => row.IsNew || row.IsDeleted || row.Uid == Guid.Empty) || targets.Length > 200)
+        {
+            _messages.ShowWarning("不能批量设置主图", "请先保存或放弃主从表修改，并勾选 1 至 200 个已保存的主型号。");
+            return;
+        }
+        var request = new BatchSetProductMasterMainImagesRequest
+        {
+            Items = targets.Select(row => new ProductMasterMainImageTarget
+            { ProductMasterId = row.Uid, ExpectedVersion = row.Version }).ToList()
+        };
+        var user = _currentUser?.CurrentUser;
+        IsSelectionPrompt = true;
+        bool confirmed;
+        try
+        {
+            confirmed = await _dialogs.ConfirmAsync("批量设置主图",
+                $"为勾选的 {targets.Length} 个主型号按颜色排序补齐主图，已有默认主图保持不变，无可用图片的跳过。", "设置主图");
+        }
+        finally { IsSelectionPrompt = false; }
+        if (!confirmed || !CanSetMainImages() || !ReferenceEquals(user, _currentUser?.CurrentUser) || !TryCommitPendingEdits()) return;
+        if (HasUnsavedChanges || Masters.CheckedCount != targets.Length || targets.Any(row => !Masters.Items.Contains(row)
+            || !row.IsChecked || row.Version != request.Items.Single(item => item.ProductMasterId == row.Uid).ExpectedVersion))
+        {
+            _messages.ShowWarning("选集已变化", "请处理当前修改或重新勾选主型号后重试。");
+            return;
+        }
+        await RunWriteAsync(async () =>
+        {
+            var result = await _runner.RunAsync(() => _api.SetMainImagesAsync(request), "批量设置主图失败");
+            if (_disposed || !CanWrite || !ReferenceEquals(user, _currentUser?.CurrentUser)) return;
+            if (!result.Success || result.Data is null)
+            {
+                _messages.ShowError("批量设置主图失败", result.Message);
+                return;
+            }
+            foreach (var saved in result.Data.Items)
+            {
+                var row = targets.FirstOrDefault(item => item.Uid == saved.ProductMasterId);
+                if (row is null || row.IsDirty || !Masters.Items.Contains(row)
+                    || row.Version != request.Items.Single(item => item.ProductMasterId == row.Uid).ExpectedVersion) continue;
+                using (row.SuppressChangeTracking())
+                {
+                    row.Version = saved.NewVersion;
+                    row.MainImagePath = saved.MainImagePath ?? string.Empty;
+                    row.DefaultSalesPriceUsd = saved.DefaultSalesPriceUsd;
+                    row.DefaultPurchasePriceCny = saved.DefaultPurchasePriceCny;
+                }
+            }
+            ResultSummary = $"已设置 {result.Data.Items.Count} 个主图，已有默认值跳过 {result.Data.AlreadySetCount} 个，无可用候选跳过 {result.Data.NoCandidateCount} 个。";
+            _messages.ShowSuccess("批量设置主图完成", ResultSummary);
+            if (!Neutrals.HasChanges && _neutralMaster is not null && result.Data.Items.Any(item => item.ProductMasterId == _neutralMaster.Uid))
+                await LoadNeutralsCoreAsync();
+            UpdateChangeState();
+        }, "正在批量设置主图…");
+    }
+
+    /// <summary>整行或卡片模式下按明确勾选集操作，不依赖当前单元格所对应的行。</summary>
+    private bool CanSetMainImages() => IsInteractionEnabled && CanWrite && !IsNeutralLoading
+        && (IsCardView || !IsCellSelectionMode) && Masters.CheckedCount > 0
+        && (_currentUser is null || _currentUser.HasPermission(PermissionKeys.ProductsMasterEdit));
+
     [RelayCommand]
     private void RejectListChanges()
     {
@@ -633,6 +702,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
         OpenImportCommand.NotifyCanExecuteChanged();
+        SetMainImagesCommand.NotifyCanExecuteChanged();
     }
     /// <summary>列表格子模式不提供整行删除；卡片模式沿用其当前项和勾选项。</summary>
     private bool CanDeleteSelected() => (IsCardView || !IsCellSelectionMode)

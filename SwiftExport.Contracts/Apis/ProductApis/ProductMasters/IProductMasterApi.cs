@@ -12,6 +12,12 @@ namespace SwiftExport.Contracts.Apis.ProductApis
     /// <summary>主产品资料管理 API，负责主型号查询及主从资料保存。</summary>
     public interface IProductMasterApi
     {
+        /// <summary>按颜色排序为指定主型号补齐默认主图，已有默认值跳过。</summary>
+        [Post("/set-main-images")]
+        Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(
+            [Body] BatchSetProductMasterMainImagesRequest request,
+            CancellationToken cancellationToken = default(CancellationToken));
+
         /// <summary>分页查询主型号。</summary>
         [Post("/page")]
         Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(

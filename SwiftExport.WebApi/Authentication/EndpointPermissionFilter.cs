@@ -174,6 +174,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["ProductMasterImportController.ImportAsync"] = PermissionKeys.ProductsMasterEdit,
         // 提交仍由应用服务再次检查活动管理员；不影响普通产品维护端点。
         ["ProductMasterController.AssignCategoryAsync"] = PermissionKeys.ProductsMasterEdit,
+        ["ProductMasterController.SetMainImagesAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductMasterController.GetDetailAsync"] = PermissionKeys.ProductsMasterView,
         ["ProductMasterController.SaveDetailAsync"] = PermissionKeys.ProductsMasterEdit,
         ["ProductNeutralManagerController.GetPagedAsync"] = PermissionKeys.ProductsNeutralView,

@@ -403,6 +403,7 @@
 | --- | --- | --- | --- |
 | POST `api/ProductMaster/page` | GetPagedAsync | `Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:20) |
 | POST `api/ProductMaster/assign-category` | AssignCategoryAsync | `Task<ServiceResult<AssignProductMastersToCategoryResult>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:27) |
+| POST `api/ProductMaster/set-main-images` | SetMainImagesAsync | `Task<ServiceResult<BatchSetProductMasterMainImagesResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs)；按颜色顺序补齐勾选主型号默认主图，已有默认值跳过，权限 `Products.Master.Edit` |
 | GET `api/ProductMaster/{productMasterId:guid}` | GetDetailAsync | `Task<ServiceResult<ProductMasterDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:33) |
 | POST `api/ProductMaster/batch-save` | BatchSaveAsync | `Task<ServiceResult<ProductMasterBatchSaveResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:40) |
 | POST `api/ProductMaster/save-detail` | SaveDetailAsync | `Task<ServiceResult<SaveProductMasterDetailResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Products/ProductMasters/ProductMasterController.cs:47) |

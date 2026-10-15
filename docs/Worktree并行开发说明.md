@@ -1,23 +1,23 @@
 # SwiftExport Worktree 并行开发说明
 
-核对日期：2026-10-15。第一阶段只准备使用说明和配置调整清单，**没有创建/删除Worktree、切换分支、提交、合并、修改环境脚本或操作数据库**。本说明不授予这些操作权限，也不处理当前工作区已有业务改动。
+核对日期：2026-10-15。第一阶段完成使用说明；随后按用户授权调整了初始化、缓存和本仓库 Git 符号链接配置。**没有创建/删除 Worktree、切换分支、提交、合并或操作数据库**，已有业务改动保持不变。
 
 规则权威继续是 [AGENTS](../AGENTS.md)、[路由与共享工作区规则](../.agents/references/架构治理与路由判定规则.md) 和 [测试总纲](../.agents/references/测试与验收总纲.md)。角色、Router及纵向/横向切片边界不变；Worktree只隔离检出文件与各自索引，不共享聊天上下文，也不自动隔离数据库、端口或桌面。
 
-## 1. 当前检查结果与待调整配置
+## 1. 当前配置与验证结果
 
-| 对象 | 已确认事实 | 后续调整建议（本阶段未实施） |
+| 对象 | 当前状态 | 使用边界 |
 | --- | --- | --- |
-| 初始化Restore | `.codex/environments/environment.toml`先restore WebAPI解决方案，再MSBuild restore完整解决方案；两者包含同一后端产品及测试图 | 按任务目标选一次restore图。WPF/后端任务选其必要项目/组合；VSTO按其独立工具链处理，不先后无条件restore两个重叠图 |
-| 环境清理 | 同文件cleanup递归删除当前目录的bin/obj/.vs | 不在每次暂停、恢复、切换模块时清理；完整删除/归档Worktree本身无需提前重复清空。显式排障才清所需产物，操作前核实绝对目标在授权Worktree内 |
-| 配置维护方式 | 环境TOML首行标记自动生成；本次未修改 | 后续通过环境管理入口调整，复核生成diff；不要把本文建议直接当作已生效脚本 |
-| NuGet | 当前进程`NUGET_PACKAGES=D:\DevCaches\NuGet` | 后续确认新工作区进程继承同一缓存与访问权限；不把个人机器路径硬写入所有项目，不因缓存存在跳过每个工作区必要资产生成 |
-| Git符号链接 | 索引中6个Web发现入口均为120000；当前实际目录可解析，但仓库`.git/config`的`core.symlinks=false` | 新检出可能成为保存目标字符串的普通文件，不能由当前可用推定新Worktree可用。后续确认Windows链接权限和合适的仓库/Worktree设置；仅改开关不会自动修复已有占位文件 |
-| Worktree配置作用域 | 当前`extensions.worktreeConfig=true`，`core.symlinks=false`来自公共仓库配置 | 如后续调整单工作区配置，明确与公共配置的作用域；本次不更改Git配置 |
+| 初始化Restore | setup 只检查根目录、.NET 10 SDK、缓存目录及可选 MSBuild；已移除两次重叠 restore | 首次开发由 Agent 按实际项目还原依赖，生成各工作树自己的资产；VSTO 使用其工具链，不默认还原整仓 |
+| 环境清理 | cleanup 已置空，保留各工作树的 bin/obj/.vs | 显式排障才清所需产物，操作前核实绝对目标；归档 Worktree 不提前重复清空 |
+| 配置维护方式 | 本次直接调整仓库内两个 TOML 文件，并通过解析与 setup 执行检查 | 当前工具未提供环境编辑入口；后续在应用设置中重新保存环境时，应核对生成 diff，避免恢复旧 restore/cleanup |
+| NuGet | 项目 config 为 Codex shell 设置 `NUGET_PACKAGES=D:\DevCaches\NuGet`，并将该目录加入额外可写范围；setup 独立设置同一路径 | 不依赖 setup 子进程把变量传回应用，未修改系统/用户环境变量。项目配置须被客户端加载，新任务核对实际缓存与权限；缓存不等于 obj 资产 |
+| Git符号链接 | 本仓库 `core.symlinks=true`；Windows 开发者模式已启用，现有6个 Web Skill 链接可达 | 不会自动修复已有普通占位文件；首次新 Worktree 仍检查实际检出链接 |
+| Worktree配置作用域 | `extensions.worktreeConfig=true` 保持；符号链接开关写入公共仓库配置，供本仓库后续 Worktree 使用 | 未修改全局 Git 设置；独立 clone 不继承本机 `.git/config`，单工作树覆盖设置可能改变有效值 |
 | 启动端口 | WebApi launchSettings使用HTTP5057/HTTPS7286；Web Playwright验收固定4173且不复用服务器 | 后续按启动入口支持的环境变量/参数分配端口，并使测试baseURL、就绪探测和宿主一致；未完成端口接线前串行执行相应宿主 |
 | 共享PG夹具 | Legacy夹具的`serial.lock`位于本检出目录下的TestResults；原有实例/库白名单仍有效 | 不同Worktree的本地文件锁不能互斥同一数据库。先沿用单一执行者/串行租用；独立库或跨Worktree协调方案另按授权处理，不能只随机换库名或绕过白名单 |
 
-检查依据：[环境脚本](../.codex/environments/environment.toml)、[WebAPI启动配置](../SwiftExport.WebApi/Properties/launchSettings.json)、[Web验收配置](../SwiftExport.WebApp/playwright.config.ts)、[PG夹具](../SwiftExport.Application.Tests/Database/PostgreSqlLegacyTestDatabase.cs)。没有执行restore、启动或夹具。
+检查依据：[环境脚本](../.codex/environments/environment.toml)、[Codex项目配置](../.codex/config.toml)、[WebAPI启动配置](../SwiftExport.WebApi/Properties/launchSettings.json)、[Web验收配置](../SwiftExport.WebApp/playwright.config.ts)、[PG夹具](../SwiftExport.Application.Tests/Database/PostgreSqlLegacyTestDatabase.cs)。两个 TOML 解析及 PowerShell 语法检查通过；新 setup 在当前检出执行成功，NuGet 查询返回上述目录。没有执行 restore、业务构建/测试、启动宿主或数据库夹具。项目配置字段依据 [Codex 配置参考](https://learn.chatgpt.com/docs/config-file/config-reference)。
 
 ## 2. 新Worktree的规则与Skill可达性
 
@@ -38,7 +38,7 @@ Test-Path .codex/skills/react-web/index/SKILL.md
 
 Git Worktree根部的`.git`通常是指向管理目录的文件，不应被工具当作固定目录；共享Git对象/引用与独立工作树、HEAD/索引的边界见 [Git官方说明](https://git-scm.com/docs/git-worktree)。同一分支不应强制同时检出到多个Worktree。
 
-Web发现入口只维护符号链接，正文仍唯一保存在`.codex/skills/react-web`。若链接不可用，报告原生发现限制，按根AGENTS/Router直接读取正文并从正文目录解析相对引用；不要复制第二份Skill或静默声称原生发现通过。链接修复与Windows权限配置是后续独立配置动作，本次未做新Worktree验收。
+Web发现入口只维护符号链接，正文仍唯一保存在`.codex/skills/react-web`。若链接不可用，报告原生发现限制，按根AGENTS/Router直接读取正文并从正文目录解析相对引用；不要复制第二份Skill或静默声称原生发现通过。本次已开启仓库符号链接支持，但尚未创建新 Worktree 验收。
 
 ## 3. 缓存与构建产物
 
@@ -74,6 +74,8 @@ Web发现入口只维护符号链接，正文仍唯一保存在`.codex/skills/re
 
 ## 7. 本阶段结论与后续边界
 
-需要后续单独实施的配置清单为：环境setup去重restore、cleanup改为明确生命周期动作、Windows符号链接策略、缓存继承检查、固定端口参数接线，以及PG/桌面共享资源协调。没有修改环境/部署/Git配置、链接或测试夹具；没有用新Worktree验证这些建议的运行效果。
+已完成环境 setup 去重、取消自动 cleanup、Codex 命令缓存配置及仓库符号链接开关。以后用户只需提出“用工作树开发某功能”，Agent 负责确认基线、创建工作树和按目标项目还原依赖；首次创建时检查配置、缓存权限和链接，不要求用户手动配置。
+
+当前配置和治理修改尚未提交。创建前先确认如何纳入基线，不自动提交或搬运其他业务改动。固定端口宿主、共享测试库及真实桌面交互继续由一个执行者串行运行；本轮不为这些资源新增协调框架，也未修改部署配置或测试夹具。
 
 高频入口精简参考了OpenAI 2026-09-11的 [Rethinking skills and prompts for GPT-6 Astra](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)：只在相关任务加载规则、缩短描述并渐进披露细节。该建议不替代SwiftExport已确认的架构、业务和高风险验证约束。

@@ -97,6 +97,7 @@
                                     <ContextMenu>
                                         <MenuItem Header="批量导入" Command="{Binding PlacementTarget.DataContext.OpenImportCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         <MenuItem Header="从详情新建" Command="{Binding PlacementTarget.DataContext.CreateDetailCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        <MenuItem Header="批量设置主图" Command="{Binding PlacementTarget.DataContext.SetMainImagesCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     </ContextMenu>
                                 </ui:DropDownButton.Flyout>
                             </ui:DropDownButton>

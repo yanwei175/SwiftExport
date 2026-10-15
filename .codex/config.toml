@@ -1,1 +1,9 @@
 sandbox_mode = "workspace-write"
+
+# 所有本项目的 Codex 命令共享包缓存；各工作树仍生成自己的 obj 资产。
+[shell_environment_policy.set]
+NUGET_PACKAGES = 'D:\DevCaches\NuGet'
+
+# 只开放已授权的包缓存目录，不扩大到整个磁盘。
+[sandbox_workspace_write]
+writable_roots = ['D:\DevCaches\NuGet']

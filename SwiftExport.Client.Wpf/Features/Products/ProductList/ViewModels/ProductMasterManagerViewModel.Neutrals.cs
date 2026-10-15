@@ -327,6 +327,7 @@ public sealed partial class ProductMasterManagerViewModel
     /// <summary>统一刷新上下文可编辑状态与相关命令。</summary>
     private void NotifyNeutralCommands()
     {
+        SetMainImagesCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsInteractionEnabled));
         OnPropertyChanged(nameof(CanEditNeutrals));
         AddNeutralCommand.NotifyCanExecuteChanged();

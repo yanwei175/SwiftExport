@@ -1,20 +1,20 @@
 ---
 name: aspdotnet10-dapper-repository
-description: SwiftExport Dapper Repository、SQL、DbSession、RepositoryBaseContext、IRepository、DapperRepository、分页查询、批量保存和事务共享规则。涉及 DbSession、RepositoryBaseContext、审计打戳、DI 注册时同时使用对应 infrastructure 子技能。
+description: 新增或修改 SwiftExport Dapper 仓储、SQL 与仓储持锁实现；仅调用既有仓储不触发完整基础设施设计。
 ---
 
 # Dapper Repository Skill
 
 ## 必读
 
-- `AGENTS.md`
-- `.agents/backend.toml`
-- `.agents/references/工程架构总纲.md`
-- `.agents/references/数据模型与状态规则.md`
-- 涉及连接、事务、`DbSession` 时读 `../infrastructure-db-session/SKILL.md`
-- 涉及 `IRepository`、`DapperRepository`、`RepositoryBaseContext` 时读 `../infrastructure-repository-base/SKILL.md`
-- 涉及审计字段时读 `../infrastructure-audit-stamp/SKILL.md`
-- 涉及 DI 注册时读 `../infrastructure-di-registration/SKILL.md`
+公共启动沿用 `AGENTS.md`；已读约束复用，只补齐本次改变的职责：
+
+- 改变分层、公共依赖或边界不明时读 `.agents/references/工程架构总纲.md` 相关章节
+- 改变实体字段归属、状态或数量口径时读 `.agents/references/数据模型与状态规则.md` 相关章节
+- 修改连接/事务生命周期或 `DbSession` 实现时读 `../infrastructure-db-session/SKILL.md`
+- 修改 `IRepository`、`DapperRepository`、`RepositoryBaseContext` 或其通用 CRUD 语义时读 `../infrastructure-repository-base/SKILL.md`
+- 修改审计打戳行为时读 `../infrastructure-audit-stamp/SKILL.md`
+- 修改 DI 注册时读 `../infrastructure-di-registration/SKILL.md`
 - 涉及复杂单据、业务命令、CommandId、幂等回执、锁顺序或多仓储事务时读 `../application-document-command/SKILL.md`
 - 涉及具体业务 Repository 的职责或文件拆分时读 `../backend-file-organization/SKILL.md`
 - 目标模块 Repository、Interface、Entity、DTO、Service

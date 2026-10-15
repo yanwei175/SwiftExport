@@ -39,6 +39,75 @@ public sealed partial class ProductMasterMaintenanceService(
     private readonly IDbSession _session = context.Session;
     private readonly ILogger<ProductMasterMaintenanceService> _logger = context.LoggerFactory.CreateLogger<ProductMasterMaintenanceService>();
 
+    /// <summary>按颜色仓储的显示顺序补齐默认主图；颜色、主型号、明细依次持锁，整批失败回滚。</summary>
+    public Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(
+        BatchSetProductMasterMainImagesRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request?.Items is not { Count: > 0 and <= 200 } || request.Items.Any(item => item is null
+            || item.ProductMasterId == Guid.Empty || item.ExpectedVersion < 1)
+            || request.Items.Select(item => item.ProductMasterId).Distinct().Count() != request.Items.Count)
+            return Task.FromResult(ServiceResult<BatchSetProductMasterMainImagesResponse>.Fail(
+                ServiceErrorCodes.Validation, "请选择 1 至 200 个不重复的已保存主型号，并提供有效版本。"));
+
+        var targets = request.Items.OrderBy(item => item.ProductMasterId).ToArray();
+        return ExecuteTransactionAsync(async () =>
+        {
+            // 先观察颜色锁集合；锁主型号后不逆序追加颜色锁，与详情及颜色维护保持相同方向。
+            var observedColors = new HashSet<Guid>();
+            foreach (var target in targets)
+            {
+                var rows = await neutralRepository.GetByProductMasterIdAsync(target.ProductMasterId, false, cancellationToken);
+                observedColors.UnionWith(rows.Select(row => row.Data.ColorId).Where(id => id != Guid.Empty));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var colorId in observedColors.OrderBy(id => id))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await colorRepository.GetByIdAsync(colorId, true);
+            }
+            // GetAllAsync 已按 SortNo、唯一编码的 PG 排序规则、Uid 排序，不能以客户端字符串比较重造顺序。
+            var colorRanks = (await colorRepository.GetAllAsync()).Where(color => !color.IsDeleted)
+                .Select((color, index) => (color.Uid, Rank: index)).ToDictionary(item => item.Uid, item => item.Rank);
+            var masters = await LockMastersAsync(targets.Select(item => item.ProductMasterId), cancellationToken);
+            if (masters.Count != targets.Length)
+                throw new ProductMasterWriteException(ServiceErrorCodes.BusinessBlocked, "部分主型号不存在或已删除，请刷新后重试。");
+            var versions = targets.ToDictionary(item => item.ProductMasterId, item => item.ExpectedVersion);
+            if (masters.Any(master => master.Version != versions[master.Uid]))
+                throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "主型号版本已变化，请刷新后重试。");
+
+            var response = new BatchSetProductMasterMainImagesResponse();
+            foreach (var master in masters)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var rows = await neutralRepository.GetByProductMasterIdAsync(master.Uid, true, cancellationToken);
+                if (rows.Any(row => row.Data.IsMainImage)) { response.AlreadySetCount++; continue; }
+                if (rows.Any(row => row.Data.ColorId != Guid.Empty && !observedColors.Contains(row.Data.ColorId)))
+                    throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "中性产品颜色已变化，请刷新后重试。");
+                // 同色候选保持仓储既有的 ProductCode、Uid 顺序；空图片地址不作为可用主图。
+                var candidate = rows.Where(row => colorRanks.ContainsKey(row.Data.ColorId)
+                        && !string.IsNullOrWhiteSpace(row.Data.ImagePath))
+                    .OrderBy(row => colorRanks[row.Data.ColorId]).FirstOrDefault();
+                if (candidate is null) { response.NoCandidateCount++; continue; }
+
+                // 读取已持锁行的完整实体，只改变默认标记，保留编码、图片和价格等原始值。
+                var neutral = await neutralRepository.GetByIdAsync(candidate.Uid)
+                    ?? throw new ProductMasterWriteException(ServiceErrorCodes.VersionConflict, "中性产品已变化，请刷新后重试。");
+                neutral.IsMainImage = true;
+                EnsureWrite(await neutralRepository.UpdateAsync(neutral), "设置默认主图失败。");
+                var write = await masterRepository.UpdateAsync(master);
+                EnsureWrite(write, "更新主型号版本失败。");
+                response.Items.Add(new ProductMasterMainImageResult
+                {
+                    ProductMasterId = master.Uid, NewVersion = write.NewVersion!.Value, ProductNeutralId = neutral.Uid,
+                    MainImagePath = neutral.ImagePath ?? string.Empty, DefaultSalesPriceUsd = neutral.DefaultSalesPriceUsd,
+                    DefaultPurchasePriceCny = neutral.DefaultPurchasePriceCny
+                });
+            }
+            return ServiceResult<BatchSetProductMasterMainImagesResponse>.Ok(response,
+                $"已设置 {response.Items.Count} 个主图，已有默认值跳过 {response.AlreadySetCount} 个，无可用候选跳过 {response.NoCandidateCount} 个。");
+        }, "批量设置主图", cancellationToken);
+    }
+
     /// <summary>锁定所选产品及其有效主型号，在同一事务内拉取指定资料组；无可用主型号的产品跳过。</summary>
     public Task<ServiceResult<PullProductMasterDataResponse>> PullProductsAsync(
         PullProductMasterDataRequest request,

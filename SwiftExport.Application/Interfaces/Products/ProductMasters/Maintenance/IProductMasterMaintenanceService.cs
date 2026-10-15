@@ -10,6 +10,8 @@ namespace SwiftExport.Application.Interfaces.Products.ProductMasters.Maintenance
 /// <summary>维护主型号聚合，并供物料按明确选集主动获取主型号资料。</summary>
 public interface IProductMasterMaintenanceService
 {
+    /// <summary>在一个事务中按颜色现有排序补齐主型号默认主图，已有默认值跳过。</summary>
+    Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(BatchSetProductMasterMainImagesRequest request, CancellationToken cancellationToken = default);
     /// <summary>原子设置主型号分类。</summary>
     Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(AssignProductMastersToCategoryRequest request, CancellationToken cancellationToken = default);
     /// <summary>原子保存主型号管理页变更。</summary>

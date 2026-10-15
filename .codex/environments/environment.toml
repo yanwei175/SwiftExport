@@ -10,33 +10,39 @@ script = '''
 $ErrorActionPreference = "Stop"
 
 if ($env:CODEX_WORKTREE_PATH) {
-  Set-Location $env:CODEX_WORKTREE_PATH
+  Set-Location -LiteralPath $env:CODEX_WORKTREE_PATH
 }
 
-dotnet restore .\SwiftExport-WebAPI.slnx
+# 初始化只检查工具；首次开发由任务按目标项目还原依赖，避免重复还原整套解决方案。
+if (-not (Test-Path -LiteralPath .\SwiftExport-WebAPI.slnx -PathType Leaf)) {
+  throw "当前目录不是 SwiftExport 工作树根目录。"
+}
+$sdkVersions = @(& dotnet --list-sdks)
+if ($LASTEXITCODE -ne 0 -or -not ($sdkVersions -match '^10\.')) {
+  throw "未找到 .NET 10 SDK。"
+}
+
+# setup 不依赖调用方传入环境变量；后续 Codex 命令由项目 config.toml 单独注入。
+$env:NUGET_PACKAGES = 'D:\DevCaches\NuGet'
+if (-not (Test-Path -LiteralPath $env:NUGET_PACKAGES -PathType Container)) {
+  throw "NuGet 缓存目录不存在：$env:NUGET_PACKAGES"
+}
+Write-Host ".NET 10 SDK 已就绪，NuGet 缓存：$env:NUGET_PACKAGES"
 
 $msbuild = "${env:ProgramFiles}\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe"
-if (Test-Path $msbuild) {
-  & $msbuild .\SwiftExport.slnx /t:Restore /p:Configuration=Debug /p:Platform="Any CPU"
+if (Test-Path -LiteralPath $msbuild -PathType Leaf) {
+  Write-Host "Visual Studio MSBuild 已就绪；仅 VSTO 等需要完整工具链的任务使用。"
 } else {
-  Write-Host "未找到 Visual Studio MSBuild；已完成后端依赖还原，完整 WPF/VSTO 构建需要 Visual Studio / Build Tools。"
+  Write-Warning "未找到 Visual Studio MSBuild；不影响普通 .NET 10 WPF/后端任务，VSTO 任务需另行检查工具链。"
 }
+Write-Host "初始化完成。尚未 restore；首次构建/测试前按目标项目还原一次，各工作树独立保留 bin/obj。"
 '''
 
 [cleanup]
 script = ""
 
 [cleanup.win32]
-script = '''
-$ErrorActionPreference = "Continue"
-
-if ($env:CODEX_WORKTREE_PATH) {
-  Set-Location $env:CODEX_WORKTREE_PATH
-}
-
-Get-ChildItem -Recurse -Force -Directory -Include bin,obj,.vs |
-  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-'''
+script = ""
 
 [[actions]]
 name = "Run WebApi"

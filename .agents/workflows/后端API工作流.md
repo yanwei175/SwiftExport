@@ -8,34 +8,11 @@
 
 小范围且授权、目标和边界明确时直接实施，复用有效的架构/契约结论；下列设计项仅针对本次新增或改变的边界，不为局部修正重新创建整套方案。读取和偏差处理统一遵循 Router policy。
 
-1. 先读 `AGENTS.md`、`.agents/router.toml`、`.agents/backend.toml`。
-2. 先读 `.codex/skills/aspdotnet10/index/SKILL.md`，再按任务读取：
-   - API / Application Service：`.codex/skills/aspdotnet10/api-application-service/SKILL.md`
-   - 复杂单据 / CommandId / Preview / 幂等回执 / 多仓储事务 / 锁顺序：`.codex/skills/aspdotnet10/application-document-command/SKILL.md`
-   - Controller / Service / Interface / Policy / Repository / DTO 文件与职责拆分：`.codex/skills/aspdotnet10/backend-file-organization/SKILL.md`
-   - 后端测试选择 / 权限 / 并发 / 幂等 / 回滚 / SQL 契约门禁：`.codex/skills/aspdotnet10/backend-quality-gates/SKILL.md`
-   - Controller / BaseController / 路由 / HTTP 方法 / 防重复提交标注：`.codex/skills/aspdotnet10/webapi-controller-boundary/SKILL.md`
-   - AuthController / JWT / ICurrentUser / DevUser / 认证授权：`.codex/skills/aspdotnet10/webapi-auth-current-user/SKILL.md`
-   - Program.cs / Middleware / Filter / Serilog / Swagger / JSON：`.codex/skills/aspdotnet10/webapi-pipeline-filters/SKILL.md`
-   - ServiceBaseContext / DbSession / 服务层基础依赖：`.codex/skills/aspdotnet10/application-service-context/SKILL.md`
-   - IBaseService / BaseService / 标准 CRUD / 保存前校验：`.codex/skills/aspdotnet10/application-base-service/SKILL.md`
-   - CreateItemRequest / SaveItemResult / BatchSave / Paged Request/Response：`.codex/skills/aspdotnet10/application-transfer-dtos/SKILL.md`
-   - Mapster / Entity 与 DTO 映射：`.codex/skills/aspdotnet10/application-mapster-mapping/SKILL.md`
-   - Repository / SQL / Dapper：`.codex/skills/aspdotnet10/dapper-repository/SKILL.md`
-   - DbConnectionFactory / DbSession / Connection / Transaction：`.codex/skills/aspdotnet10/infrastructure-db-session/SKILL.md`
-   - IRepository / DapperRepository / RepositoryBaseContext：`.codex/skills/aspdotnet10/infrastructure-repository-base/SKILL.md`
-   - AuditStampService / 审计字段 / 当前用户打戳：`.codex/skills/aspdotnet10/infrastructure-audit-stamp/SKILL.md`
-   - DependencyInjection / AddInfrastructureServices / Repository 注册：`.codex/skills/aspdotnet10/infrastructure-di-registration/SKILL.md`
-   - Contracts 共享契约总入口：`.codex/skills/aspdotnet10/contracts-refit-dto/SKILL.md`
-   - Contracts netstandard2.0 兼容 / C# 语法限制：`.codex/skills/aspdotnet10/contracts-netstandard20/SKILL.md`
-   - Refit API / IGenericApi / Controller 路由对齐：`.codex/skills/aspdotnet10/contracts-refit-api/SKILL.md`
-   - DTOs / Auth DTO / BaseDto / 交互模型：`.codex/skills/aspdotnet10/contracts-dto-models/SKILL.md`
-   - Wrappers / ServiceResult / BatchSave / PagedResponse：`.codex/skills/aspdotnet10/contracts-wrappers/SKILL.md`
-   - SysEnums / 共享枚举 / 状态枚举：`.codex/skills/aspdotnet10/contracts-shared-enums/SKILL.md`
-   - Common / 静态工具 / SaveItemResultFactory：`.codex/skills/aspdotnet10/contracts-common-helpers/SKILL.md`
-3. 改变分层/公共依赖或当前边界不明时读取工程总纲相关章节；数据库、仓储、SQL、连接、结构及工具任务补齐当前 PostgreSQL 基线。单据状态、库存数量或需求交接实际变化时补读对应业务/模型章节，不展开无关总纲。
-4. 改变模块职责、API/DTO语义或跨域交接时按模块索引读取命中地图；只有新增或重构WPF页面纵向切片时读取切片教程。改变采购—入库—库存交接时核对三方契约；没有有效偏差ID时记录来源位置，不恢复旧表。
-5. 从目标实现、直接调用方和相关测试追踪必要的 Controller、Application、Contracts、Entity、Repository；已有有效证据复用，有疑点再向下补读。
+1. 公共启动和授权边界沿用 `AGENTS.md`，不重复展开已读入口。
+2. 从目标实现、直接调用方和相关测试确认必要的 Controller、Application、Contracts、Entity、Repository；先定位事实，再选择专项规则。
+3. 按 [后端技能索引](../../.codex/skills/aspdotnet10/index/SKILL.md) 选择本次改动所需 Skill，修改前补齐技术约束；工作流不另维护技能路由。
+4. 改变分层/公共依赖或当前边界不明时读取工程总纲相关章节；数据库、仓储、SQL、连接、结构及工具任务补齐当前 PostgreSQL 基线。单据状态、库存数量或需求交接实际变化时补读对应业务/模型章节，不展开无关总纲。
+5. 改变模块职责、API/DTO语义或跨域交接时按模块索引读取命中地图；只有新增或重构WPF页面纵向切片时读取切片教程。改变采购—入库—库存交接时核对三方契约；没有有效偏差ID时记录来源位置，不恢复旧表。
 6. 偏差按 `.agents/references/架构治理与路由判定规则.md` 分类；过期事实和无关历史偏差不阻断当前实现，需要改变有效目标、扩大授权或豁免门禁时才等待决定。
 7. 先设计或确认 Contracts DTO/API/枚举；新增或复用 DTO 时读取 `.codex/skills/aspdotnet10/contracts-dto-models/references/DTO复用与文件组织门禁.md`，搜索现有契约及其调用方，记录复用或新建理由。
 8. DTO 默认按 API 用例独立设计；只有语义、字段口径、权限暴露、生命周期一致且已有真实多消费者时复用，不建立跨用例万能 DTO。“窄”指契约职责单一，不要求最少字段；查询 DTO 必须完整支撑目标用例。拆分现有 DTO 前建立字段处置矩阵，调用方迁移并验证前不得删除仍需字段。

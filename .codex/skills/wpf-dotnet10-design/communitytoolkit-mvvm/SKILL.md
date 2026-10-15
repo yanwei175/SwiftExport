@@ -27,7 +27,7 @@ description: SwiftExport 当前 .NET 10 WPF 客户端的 CommunityToolkit.Mvvm �
 
 执行前先读：
 
-- `.agents/references/工程架构总纲.md`
+- 改变分层、公共依赖或边界不明时读 `.agents/references/工程架构总纲.md` 相关章节；局部属性/命令实现复用既有架构结论
 - 目标页面和目标模型的真实源码
 
 本 skill 已根据本地 `mvvm-toolkit-samples` 中的 `ObservableObject`、`RelayCommand`、`AsyncRelayCommand`、`ObservableValidator`、`Ioc` 参考资料项目化；不要再照搬 sample app 的通用命名和结构。

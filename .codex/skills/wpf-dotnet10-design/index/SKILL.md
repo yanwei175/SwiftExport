@@ -13,7 +13,8 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 
 - MVVM、ViewModel、LineModel、命令、绑定属性：读 `../communitytoolkit-mvvm/SKILL.md`。
 - 决定新类型职责/目录、拆分合并、公共复用或专项职责审查：读 `../file-organization/SKILL.md`；现有类型内局部修正不自动触发。
-- Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换、Mapster 配置、`Adapt` 映射：读 `../../aspdotnet10/application-mapster-mapping/SKILL.md`。
+- 新增、修改或为新用例复用 Contracts 契约：读 `../../aspdotnet10/contracts-refit-dto/SKILL.md`，由该入口选择兼容性、DTO、Refit 等专项规则；仅消费既有响应不触发契约设计。
+- 新增或修改 DTO 与前端模型之间的转换、Mapster 配置、`Adapt` 映射：读 `../../aspdotnet10/application-mapster-mapping/SKILL.md`，核对现有全局及 Feature 映射配置。
 - 新增或改变页面组成、DataGrid页面交互或页面命令边界：读 `../feature-page/SKILL.md`；局部VM计算不自动升级为整页设计。
 - 客户端共享 RowDragReorder、行首手柄、SortNo / LineNumber 及箱单受限分组重排：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排），不作为 EnterpriseGrid 模块接入。
 - Fluent 布局、4px 间距、卡片、表单、Dialog 视觉：读 `../fluent-layout/SKILL.md`。
@@ -21,7 +22,7 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 - lepoco/WPF-UI 控件、FluentWindow、TitleBar、InfoBar、Snackbar、ContentDialog、SymbolIcon：读 `../wpfui-controls/SKILL.md`。
 - 自定义控件、PopupTextBox、SearchTextBox、控件 API：读 `../custom-controls/SKILL.md`。
 - 搜索文本框专项：读 `../searchtextbox/SKILL.md`。
-- ViewModel、Refit API、Feature Service、权限、普通表单验证、导航参数、Document Tab identity、Dialog/抽屉/子页面返回协议：读 `../page-architecture/SKILL.md`。
+- 新增或改变 ViewModel/API/Feature Service 的职责边界、页面权限、表单验证、导航或 Dialog/抽屉/子页面协议：读 `../page-architecture/SKILL.md`；既有 ViewModel 内局部计算不因此展开整页架构。
 - 页面异步加载、搜索防抖、写命令并发、Busy、导航生命周期、错误分类、资源释放和未保存变更：读 `../runtime-safety/SKILL.md`。
 - 前端测试证据、可访问性、本地化与文化格式、UI 性能、日志与敏感信息、缓存、文件导入导出安全：读 `../quality-gates/SKILL.md`。
 - 原生 DataGrid 企业级增强框架、当前行/单元格、编辑导航、列、验证、状态、筛选、导出：先读 `../wpf-enterprise-grid/SKILL.md`，再由其选择 Grid 子 Skill。

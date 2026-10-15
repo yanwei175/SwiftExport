@@ -14,6 +14,13 @@ namespace SwiftExport.WebApi.Controllers.Products.ProductMasters;
 [Route("api/[controller]")]
 public sealed class ProductMasterController(IProductMasterQueryService query, IProductMasterMaintenanceService maintenance) : ControllerBase
 {
+    /// <summary>按颜色排序批量补齐主型号默认主图，应用服务负责版本和整批事务。</summary>
+    [HttpPost("set-main-images")]
+    [PreventDuplicateRequest(WindowSeconds = 5)]
+    public Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(
+        [FromBody] BatchSetProductMasterMainImagesRequest request,
+        CancellationToken cancellationToken) => maintenance.SetMainImagesAsync(request, cancellationToken);
+
     /// <summary>分页查询主型号。</summary>
     [HttpPost("page")]
     public Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(

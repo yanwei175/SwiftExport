@@ -308,6 +308,7 @@ public sealed class ProductNeutralManagerColorFilterTests
 
     private sealed class UnusedProductMasterApi : IProductMasterApi
     {
+        public Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(BatchSetProductMasterMainImagesRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<PagedResponseBase<ProductMasterListItemDto>>> GetPagedAsync(ProductMasterSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<AssignProductMastersToCategoryResult>> AssignCategoryAsync(AssignProductMastersToCategoryRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProductMasterDetailDto>> GetDetailAsync(Guid productMasterId, CancellationToken cancellationToken = default) => throw new NotSupportedException();

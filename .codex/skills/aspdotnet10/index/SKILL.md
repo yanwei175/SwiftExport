@@ -24,11 +24,11 @@ description: SwiftExport 后端任务的技能选择入口；按本次API、服�
 - 新增/修改普通业务 Controller、`BaseController`、Controller 路由、HTTP 方法、防重复提交标注：读 `../webapi-controller-boundary/SKILL.md`。
 - 修改登录、注册、JWT、`/api/auth/me`、`ICurrentUser`、DevUser 免登录、认证授权：读 `../webapi-auth-current-user/SKILL.md`。
 - 修改 `Program.cs`、中间件顺序、Serilog、Swagger、JSON、全局异常、防重复提交 Filter：读 `../webapi-pipeline-filters/SKILL.md`。
-- 涉及 Application 服务基础依赖、`ServiceBaseContext`、`DbSession`、日志、事务 scope：读 `../application-service-context/SKILL.md`。
+- 新增或改变 Application 服务的基础依赖、事务边界或日志上下文：读 `../application-service-context/SKILL.md`；仅调用现有服务不展开其基础设施设计。
 - 继承或修改 `IBaseService` / `BaseService`，实现标准 CRUD、保存前校验 hook：读 `../application-base-service/SKILL.md`。
 - 使用 `CreateItemRequest`、`UpdateItemRequest`、`DeleteItemRequest`、`SaveItemResult`、批量保存、分页 Request/Response：读 `../application-transfer-dtos/SKILL.md`。
 - 涉及 Entity/DTO/前端模型转换、Mapster 配置、`Adapt` 映射：读 `../application-mapster-mapping/SKILL.md`。
-- 写 Repository、SQL、Dapper、事务：读 `../dapper-repository/SKILL.md`。
+- 新增或修改 Repository、Dapper SQL 或仓储持锁实现：读 `../dapper-repository/SKILL.md`；仅调用既有仓储按需核实其实际 SQL 和事务语义。
 - 修改 `DbConnectionFactory`、`DbSession`、连接字符串、Connection/Transaction 生命周期：读 `../infrastructure-db-session/SKILL.md`。
 - 修改 `IRepository`、`DapperRepository`、`RepositoryBaseContext`、泛型 CRUD、乐观并发、软删除：读 `../infrastructure-repository-base/SKILL.md`。
 - 修改 `AuditStampService`、审计字段、`CreatedBy/UpdatedBy`、当前用户打戳：读 `../infrastructure-audit-stamp/SKILL.md`。

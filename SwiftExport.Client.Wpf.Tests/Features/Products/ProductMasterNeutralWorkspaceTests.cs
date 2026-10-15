@@ -364,6 +364,7 @@ public sealed class ProductMasterNeutralWorkspaceTests
     /// <summary>可控制完成时序的接口替身，记录分页和明细调用边界。</summary>
     private sealed class ApiStub : IProductMasterApi, IProductNeutralApi
     {
+        public Task<ServiceResult<BatchSetProductMasterMainImagesResponse>> SetMainImagesAsync(BatchSetProductMasterMainImagesRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public int LoadCount { get; private set; }
         public int PageCount { get; private set; }
         public CancellationToken LastToken { get; private set; }
