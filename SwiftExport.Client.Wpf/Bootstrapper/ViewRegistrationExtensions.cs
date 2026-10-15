@@ -59,6 +59,7 @@ public static class ViewRegistrationExtensions
         services.AddTransient<HomeViewModel>();
 
         services.AddTransient<ProductsViewModel>();
+        services.AddTransient<SwiftExportClient.Features.Products.PackagingMaterials.ViewModels.PackagingMaterialManagerViewModel>();
         services.AddTransient<ProductMasterManagerViewModel>();
         services.AddTransient<SwiftExportClient.Features.Products.ProductMasterImport.Services.ProductMasterWorkbookService>();
         services.AddTransient<SwiftExportClient.Features.Products.ProductMasterImport.ViewModels.ProductMasterImportViewModel>();

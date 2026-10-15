@@ -35,7 +35,7 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(controller, "PermissionKeys.PackingListReverse");
     }
 
-    /// <summary>PG 草稿读取只依赖原毛需求和正式交付，唯一默认包装规则及禁止采购前置保持。</summary>
+    /// <summary>PG 草稿读取只依赖原毛需求和正式交付，仅采用有效外箱且不增加采购前置。</summary>
     [TestMethod]
     public void Repository_UsesGrossDemandWithoutPlanningOrProcurementPrerequisites()
     {
@@ -47,6 +47,8 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(delivery, "g.\"demand_qty\"-COALESCE(d.\"DeliveredQty\",0)");
         StringAssert.Contains(delivery, "FOR UPDATE OF l,h");
         StringAssert.Contains(repository, "pkg.package_count=1");
+        StringAssert.Contains(repository, "pp.is_deleted=FALSE AND pp.package_type=@CartonPackageType");
+        Assert.IsFalse(repository.Contains("is_default", StringComparison.Ordinal));
         foreach (var forbidden in new[] { "net_demand", "allocation", "purchase_order_head", "purchase_order_line", "packing_list_document", "packing_list_contribution_line" })
             Assert.IsFalse(repository.Contains("public." + forbidden, StringComparison.Ordinal), forbidden);
     }

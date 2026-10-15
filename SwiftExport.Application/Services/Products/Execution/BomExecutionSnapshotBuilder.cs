@@ -117,12 +117,12 @@ internal static class BomExecutionSnapshotBuilder
         }
     }
 
-    /// <summary>验证新执行引用的身份、生命周期、物料角色与启用单位，虚拟件允许作为结构节点。</summary>
+    /// <summary>验证新执行引用的身份、生命周期、物料角色与启用单位；包材可参与消耗，虚拟件允许作为结构节点。</summary>
     private static void ValidateProduct(Product product, IReadOnlyDictionary<string, string> units)
     {
         if (product.Uid == Guid.Empty || product.IsDeleted || !product.IsActive || string.IsNullOrWhiteSpace(product.Sku))
             throw new InvalidOperationException($"产品 {product.Sku} 不存在、已删除或已停用。");
-        if (product.MaterialType is not (MaterialTypesEnum.成品 or MaterialTypesEnum.零件 or MaterialTypesEnum.虚拟件 or MaterialTypesEnum.客供件))
+        if (product.MaterialType is not (MaterialTypesEnum.成品 or MaterialTypesEnum.零件 or MaterialTypesEnum.虚拟件 or MaterialTypesEnum.客供件 or MaterialTypesEnum.包材))
             throw new InvalidOperationException($"产品 {product.Sku} 的物料角色无效。");
         if (product.SupplyType is not (SupplyTypeEnums.采购 or SupplyTypeEnums.生产 or SupplyTypeEnums.外协))
             throw new InvalidOperationException($"产品 {product.Sku} 的供货类型无效。");

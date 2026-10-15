@@ -43,6 +43,7 @@ public sealed class ProductQueryService(
             detail.SelectedOptionIds = (await attributeRepository.GetSelectionsAsync(ProductAttributeOwnerType.Product, [uid], cancellationToken))
                 .Select(row => row.OptionId).OrderBy(id => id).ToList();
             detail.AttributeSelections = (await attributeRepository.GetSelectionDetailsAsync(ProductAttributeOwnerType.Product, [uid], cancellationToken)).ToList();
+            detail.Packages = (await repository.GetPackagesAsync(uid, cancellationToken: cancellationToken)).ToList();
             read?.Commit();
             return ServiceResult<ProductDetailDto>.Ok(detail);
         }
@@ -80,15 +81,16 @@ public sealed class ProductQueryService(
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request)
+    public async Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            var result = await repository.GetPagedAsync(request);
+            var result = await repository.GetPagedAsync(request, cancellationToken);
             return result is null
                 ? ServiceResult<PagedResponseBase<ProductDto>>.Fail("未找到数据")
                 : ServiceResult<PagedResponseBase<ProductDto>>.Ok(result);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "应用服务执行失败。");

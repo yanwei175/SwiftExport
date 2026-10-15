@@ -11,6 +11,7 @@ namespace SwiftExportClient.Features.Products.ProductList.Views;
 public partial class ProductDetailView : UserControl
 {
     private ProductDetailViewModel? _attached;
+    private bool _changingTab;
 
     /// <summary>初始化物料详情视图。</summary>
     public ProductDetailView() => InitializeComponent();
@@ -43,7 +44,16 @@ public partial class ProductDetailView : UserControl
                 expression?.UpdateSource();
             valid &= !Validation.GetHasError(textBox);
         }
-        return valid;
+        return valid && (_attached?.Packaging.CommitPendingEdits?.Invoke() ?? true);
+    }
+
+    /// <summary>两个面板保留各自视觉树；切换前提交输入，转换错误则恢复原页签，不丢失编辑缓冲。</summary>
+    private void OnDetailTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_changingTab || !ReferenceEquals(e.OriginalSource, sender) || e.RemovedItems.Count == 0) return;
+        _changingTab = true;
+        try { if (!CommitEdits()) DetailTabs.SelectedItem = e.RemovedItems[0]; }
+        finally { _changingTab = false; }
     }
 
     /// <summary>放弃或成功重载后恢复目标文本，覆盖转换失败而尚未写入模型的原生缓冲。</summary>

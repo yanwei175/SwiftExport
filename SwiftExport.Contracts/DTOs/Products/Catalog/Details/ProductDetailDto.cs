@@ -51,6 +51,8 @@ namespace SwiftExport.Contracts.DTOs.Products
         public decimal? GwOfCarton { get; set; }
         /// <summary>包装参考箱体积。</summary>
         public decimal? CbmOfCarton { get; set; }
+        /// <summary>包装关系完整快照；null 表示该服务端未提供或区块未加载，不能据此清空。</summary>
+        public List<ProductPackageDto> Packages { get; set; }
         /// <summary>该物料自身已保存的选项身份。</summary>
         public List<Guid> SelectedOptionIds { get; set; } = new List<Guid>();
         /// <summary>该物料自身选择的展示信息，失效身份仍保留。</summary>

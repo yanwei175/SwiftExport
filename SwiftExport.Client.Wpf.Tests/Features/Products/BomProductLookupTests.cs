@@ -138,7 +138,7 @@ public sealed class BomProductLookupTests
         public Task<ServiceResult<Guid>> UpdateAsync(Guid id, ProductDto request) => NotSupported<Guid>();
         public Task<ServiceResult<Guid>> DeleteAsync(Guid id) => NotSupported<Guid>();
         public Task<ServiceResult<List<ProductCategoryDto>>> GetCategoryTreeAsync() => NotSupported<List<ProductCategoryDto>>();
-        public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request) => NotSupported<PagedResponseBase<ProductDto>>();
+        public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request, CancellationToken cancellationToken = default) => NotSupported<PagedResponseBase<ProductDto>>();
         public Task<ServiceResult<List<string>>> GetAllCustomerCodeListAsync() => NotSupported<List<string>>();
         public Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku) => NotSupported<ProductDto>();
         public Task<ServiceResult<ProductBatchSaveResponse>> BatchSaveAsync(ProductBatchSaveRequest request) => NotSupported<ProductBatchSaveResponse>();

@@ -12,7 +12,7 @@ namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 /// <summary>统一普通产品写入入口，并保护产品资料变化直接影响的当前 BOM 组成。</summary>
 public partial class ProductMaintenanceService
 {
-    /// <summary>只在调用方已取得的事务中执行写入；主型号及自由型号独立保存，列表未携带的单品尺寸和启停字段保留数据库值。</summary>
+    /// <summary>只在调用方事务中写入；未声明更新的单件自重、未携带的单品体积及启停字段保留数据库值。</summary>
     private async Task WriteBatchInCurrentTransactionAsync(ProductBatchSaveRequest request,
         ProductBatchSaveResponse response, IReadOnlyDictionary<Guid, Product>? detailCandidates = null,
         CancellationToken cancellationToken = default)
@@ -21,7 +21,10 @@ public partial class ProductMaintenanceService
         foreach (var item in request.CreateItems)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var result = await _repository.AddAsync(item.Data.Adapt<Product>());
+            var created = item.Data.Adapt<Product>();
+            // 旧列表用空 Guid 表示未选颜色，实体的可空关联必须保存为 null，才能继续使用详情写契约。
+            if (item.Data.ColorId == Guid.Empty) created.ColorId = null;
+            var result = await _repository.AddAsync(created);
             response.Items.Add(SwiftExport.Contracts.Common.SaveItemResultFactory.FromCreate(item, result));
             EnsureWriteSucceeded(result, "新增产品失败。");
         }
@@ -42,7 +45,11 @@ public partial class ProductMaintenanceService
             {
                 entity = await _repository.GetByIdAsync(item.Uid)
                     ?? throw new ProductBatchWriteException("产品不存在或已删除。");
+                var originalWeight = entity.UnitWeight;
                 item.Data.Adapt(entity);
+                if (item.Data.ColorId == Guid.Empty) entity.ColorId = null;
+                // 旧列表和集成调用方未声明更新自重时保持原值，明确提交则允许清空。
+                if (!item.Data.UpdateUnitWeight) entity.UnitWeight = originalWeight;
             }
             entity.Uid = item.Uid;
             entity.Version = item.Version;

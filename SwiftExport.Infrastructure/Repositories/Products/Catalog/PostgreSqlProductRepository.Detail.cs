@@ -10,7 +10,7 @@ public partial class PostgreSqlProductRepository
     /// <inheritdoc />
     public async Task<ProductDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        // 可写资料包含主型号身份和物料自身型号，在 Uid 分隔前映射；来源名称、包装及审计在分隔后只供展示。
+        // 可写资料在 Uid 前映射；包装只展示本物料唯一有效 Carton，缺失时保留 NULL，不回退其他包装角色。
         var rows = await Connection.QueryAsync<ProductDetailWriteDto, ProductDetailDto, ProductDetailDto>(new CommandDefinition($"""
             SELECT p.sku AS "Sku",p.description_en AS "DescriptionEn",p.description_zh AS "DescriptionZh",
                 p.features_en AS "FeaturesEn",p.features_zh AS "FeaturesZh",p.color_id AS "ColorId",
@@ -32,13 +32,11 @@ public partial class PostgreSqlProductRepository
             FROM public.product p {CatalogQueryJoins} {CatalogReferenceJoins}
             LEFT JOIN public.sys_dict_data profile ON profile.uid=pm.product_attribute_profile_id AND profile.is_deleted=FALSE
                 AND profile.dict_code COLLATE public.erp_dictionary_ci=@ProfileCode COLLATE public.erp_dictionary_ci
-            LEFT JOIN LATERAL (
-                SELECT pp.pcs_per_package,pp.nw_kg,pp.gw_kg,pp.cbm FROM public.product_package pp
-                WHERE pp.owner_product_id=p.uid AND (pp.is_deleted=FALSE OR pp.is_deleted IS NULL)
-                ORDER BY pp.is_default DESC NULLS LAST,pp.pcs_per_package DESC NULLS LAST,pp.uid LIMIT 1
-            ) pkg ON TRUE
+            LEFT JOIN public.product_package pkg ON pkg.owner_product_id=p.uid
+                AND pkg.package_type=@CartonPackageType AND pkg.is_deleted=FALSE
             WHERE p.uid=@Uid AND p.is_deleted=FALSE
-            """, new { Uid = uid, EmptyGuid = Guid.Empty, ProfileCode = DictCodes.ProductAttributeProfile }, Transaction,
+            """, new { Uid = uid, EmptyGuid = Guid.Empty, ProfileCode = DictCodes.ProductAttributeProfile,
+                CartonPackageType = ProductPackageTypeCodes.Carton }, Transaction,
                 cancellationToken: cancellationToken), (data, detail) => { detail.Data = data; return detail; }, splitOn: "Uid");
         return rows.SingleOrDefault();
     }

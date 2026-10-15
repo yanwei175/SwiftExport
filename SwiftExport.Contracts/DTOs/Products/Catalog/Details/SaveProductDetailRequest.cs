@@ -13,5 +13,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public ProductDetailWriteDto Data { get; set; } = new ProductDetailWriteDto();
         /// <summary>最终选项；null保持、空集合清空、非空替换，不能默认初始化。</summary>
         public List<Guid> SelectedOptionIds { get; set; }
+        /// <summary>包装显式变更；null 保持，空变更不删除任何既有关系。</summary>
+        public ProductPackageChangesRequest PackagingChanges { get; set; }
     }
 }

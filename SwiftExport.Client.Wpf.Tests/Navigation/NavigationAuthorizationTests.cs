@@ -22,7 +22,7 @@ public sealed class NavigationAuthorizationTests
         [
             null,
             "Shipping.PackingList.View", "Shipping.PackingList.View",
-            "Products.Product.View", "Products.Product.View", "Products.Master.View", "Products.Master.View",
+            "Products.Product.View", "Products.Product.View", "Products.Product.View", "Products.Master.View", "Products.Master.View",
             PermissionKeys.ProductsNeutralView, "Products.Master.View", "Products.Neutral.View",
             "Products.Category.View", "Products.Category.View", PermissionKeys.SystemDictionaryView, "Products.Color.View", "Products.Bom.View",
             "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",

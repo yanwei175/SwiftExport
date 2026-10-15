@@ -1,6 +1,7 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Products.Catalog;
@@ -17,10 +18,15 @@ public partial class PostgreSqlProductRepository
         ArgumentNullException.ThrowIfNull(request);
         var keyword = request.Keyword?.Trim();
         if (string.IsNullOrWhiteSpace(keyword)) return [];
+        var materialType = request.MaterialType?.Trim();
+        var typeFilter = string.IsNullOrWhiteSpace(materialType) ? "" : " AND rtrim(p.material_type,' ') COLLATE public.erp_dictionary_ci=@MaterialType";
+        // 包材身份候选不能由调用方关闭启用限制；普通候选省略新参数时保持原语义。
+        var activeFilter = request.ActiveOnly || materialType == MaterialTypesEnum.包材 ? " AND p.is_active=TRUE" : "";
         var parameters = new
         {
             Limit = Math.Clamp(request.Limit <= 0 ? 20 : request.Limit, 1, 50),
             request.ExcludeProductId,
+            MaterialType = materialType,
             ExactKeyword = keyword,
             PrefixKeyword = $"{keyword}%",
             ContainsKeyword = $"%{keyword}%",
@@ -32,7 +38,7 @@ public partial class PostgreSqlProductRepository
             """;
         var contains = string.Join(" OR ", new[] { "p.sku", "p.description_en", "p.description_zh", "p.link_sku", "pat.category_name" }
             .Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @ContainsKeyword ESCAPE ''"));
-        // 不加 IsActive 条件：普通产品与客户关系的资格边界继续由原业务入口负责。
+        // 普通候选默认不加 IsActive 条件；显式类型/启用过滤只收窄本次请求，不改变客户关系资格。
         var rows = await Connection.QueryAsync<ProductLookupDto>(new CommandDefinition($"""
             SELECT p."uid" AS "Uid",p."sku" AS "Sku",p."description_en" AS "DescriptionEn",p."description_zh" AS "DescriptionZh",p."link_sku" AS "LinkSku",p."main_image" AS "MainImage",p."features_en" AS "FeaturesEn",p."features_zh" AS "FeaturesZh",p."material_type" AS "MaterialType",p."unit" AS "Unit",p."usd_price" AS "USDPrice",p."cny_price" AS "CNYPrice",
                 {category},pc.color_name_zh AS "Finish"
@@ -41,6 +47,7 @@ public partial class PostgreSqlProductRepository
             LEFT JOIN public.product_category pat ON pat.uid=pm.category_id AND (pat.is_deleted=FALSE OR pat.is_deleted IS NULL)
             LEFT JOIN public.product_color pc ON pc.uid=p.color_id AND (pc.is_deleted=FALSE OR pc.is_deleted IS NULL)
             WHERE (p.is_deleted=FALSE OR p.is_deleted IS NULL) AND (@ExcludeProductId=@EmptyGuid OR p.uid<>@ExcludeProductId)
+                {typeFilter}{activeFilter}
                 AND ({contains} OR EXISTS (SELECT 1 FROM public.customer_product cp WHERE cp.sku_id=p.uid
                     AND (cp.is_deleted=FALSE OR cp.is_deleted IS NULL) AND cp.customer_sku COLLATE public.erp_dictionary_ci LIKE @ContainsKeyword ESCAPE ''))
             ORDER BY CASE

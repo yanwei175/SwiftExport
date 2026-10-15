@@ -521,10 +521,12 @@ public sealed class PostgreSqlPackingListRepository(RepositoryBaseContext contex
         return header is null ? null : new PackingListDetailDto { Header = header, Lines = lines };
     }
 
-    /// <summary>原包装唯一默认项和完整来源头行匹配才补充快照，保持标准/非标、售后投诉号和销售客户PO规则。</summary>
+    /// <summary>标准物料只读取唯一有效 Carton，缺失保持空值；保留非标限制及完整来源头行匹配的 PO、投诉号规则。</summary>
     public async Task<IReadOnlyList<PackingListSourceEnrichment>> GetSourceEnrichmentsAsync(IReadOnlyCollection<Guid> grossDemandIds, CancellationToken cancellationToken = default)
     {
         if (grossDemandIds.Count == 0) return Array.Empty<PackingListSourceEnrichment>();
+        var parameters = Ids(grossDemandIds);
+        parameters.Add("CartonPackageType", ProductPackageTypeCodes.Carton);
         return (await context.Session.Connection.QueryAsync<PackingListSourceEnrichment>(Command("""
             SELECT g.uid AS "GrossDemandId",CASE WHEN pkg.package_count=1 THEN pkg.pcs_per_package::numeric(18,4) END AS "PcsPerPackage",
                 CASE WHEN pkg.package_count=1 THEN pkg.nw_per_package END AS "NwPerPackage",
@@ -541,9 +543,10 @@ public sealed class PostgreSqlPackingListRepository(RepositoryBaseContext contex
             LEFT JOIN public.after_sales_line asl ON rtrim(g.source_type,' ') COLLATE public.erp_dictionary_ci='CR' AND asl.uid=g.source_line_id AND asl.header_id=ash.uid AND asl.is_deleted=FALSE
             LEFT JOIN LATERAL(SELECT count(*) AS package_count,MAX(pp.pcs_per_package) AS pcs_per_package,
                 MAX(pp.nw_kg) AS nw_per_package,MAX(pp.gw_kg) AS gw_per_package,MAX(pp.cbm) AS cbm_per_package
-                FROM public.product_package pp WHERE g.is_non_standard=FALSE AND pp.owner_product_id=g.product_id AND pp.is_deleted=FALSE AND pp.is_default=TRUE) pkg ON TRUE
+                FROM public.product_package pp WHERE g.is_non_standard=FALSE AND pp.owner_product_id=g.product_id
+                    AND pp.is_deleted=FALSE AND pp.package_type=@CartonPackageType) pkg ON TRUE
             WHERE g.uid=ANY(@Ids) AND g.is_deleted=FALSE;
-            """, Ids(grossDemandIds), cancellationToken))).AsList();
+            """, parameters, cancellationToken))).AsList();
     }
 
     /// <summary>复用统一交付投影，原多关键词OR/发票精确集合在物化计数前筛选，不新增采购贡献资格。</summary>

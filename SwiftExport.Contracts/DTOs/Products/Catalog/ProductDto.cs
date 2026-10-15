@@ -31,6 +31,10 @@ namespace SwiftExport.Contracts.DTOs.Products
         // 价格
         public decimal CNYPrice { get; set; }
         public decimal USDPrice { get; set; }
+        /// <summary>物料单件自重（KG），不是外箱净重或毛重；空值表示未设置。</summary>
+        public decimal? UnitWeight { get; set; }
+        /// <summary>批量更新时是否明确提交单件自重，允许清空；旧调用方省略时保留原值。</summary>
+        public bool UpdateUnitWeight { get; set; }
 
 
         // 装箱基础数据（供销售订单行带出）

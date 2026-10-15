@@ -998,7 +998,6 @@ CREATE TABLE "public"."product_package" (
     "nw_kg" numeric(18,4) NULL,
     "gw_kg" numeric(18,4) NULL,
     "cbm" numeric(18,6) NULL,
-    "is_default" boolean NOT NULL,
     "packaging_material_id" uuid NULL,
     "note" varchar(2000) NULL,
     CONSTRAINT "pk_product_package" PRIMARY KEY ("uid"),
@@ -2442,15 +2441,14 @@ COMMENT ON COLUMN "public"."product_package"."created_by" IS '记录创建人标
 COMMENT ON COLUMN "public"."product_package"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."product_package"."updated_by" IS '记录最后更新人标识。';
 COMMENT ON COLUMN "public"."product_package"."owner_product_id" IS '这套包装规格所属的被包装物料身份，逻辑引用 Product.Uid。';
-COMMENT ON COLUMN "public"."product_package"."package_type" IS '包装类型：InnerBox(内盒), Carton(外箱), Pallet(托盘)';
-COMMENT ON COLUMN "public"."product_package"."pcs_per_package" IS '装率：该层级包装内含有的单品(PCS)数量';
+COMMENT ON COLUMN "public"."product_package"."package_type" IS 'ProductPackageType 字典的稳定英文代码；支持内盒、单套运输盒、出货外箱、托盘及自定义类型，各层可省略。';
+COMMENT ON COLUMN "public"."product_package"."pcs_per_package" IS '装率：该包装内含有的成品基础单位数，不是下级包装数量。';
 COMMENT ON COLUMN "public"."product_package"."length_cm" IS '该实体保存的包装长度（厘米）。';
 COMMENT ON COLUMN "public"."product_package"."width_cm" IS '该实体保存的包装宽度（厘米）。';
 COMMENT ON COLUMN "public"."product_package"."height_cm" IS '该实体保存的包装高度（厘米）。';
 COMMENT ON COLUMN "public"."product_package"."nw_kg" IS '该级总净重(KG)';
 COMMENT ON COLUMN "public"."product_package"."gw_kg" IS '该级总毛重(KG)';
 COMMENT ON COLUMN "public"."product_package"."cbm" IS '包装体积（CBM）；由调用方提供，不自动按尺寸计算。';
-COMMENT ON COLUMN "public"."product_package"."is_default" IS '是否为出货默认计算规格';
 COMMENT ON COLUMN "public"."product_package"."packaging_material_id" IS '使用的包材物料身份，逻辑引用 Product.Uid；不承担包装规格自身的 Uid。';
 COMMENT ON COLUMN "public"."product_package"."note" IS '该实体保存的业务备注。';
 COMMENT ON TABLE "public"."purchase_confirmation_line" IS '确认批次的行依据，记录明确无 BOM 与实际结构指纹；永不回填当前 BOM。';

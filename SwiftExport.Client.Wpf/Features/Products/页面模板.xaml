@@ -1,5 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:packagingViews="clr-namespace:SwiftExportClient.Features.Products.PackagingMaterials.Views"
+                    xmlns:packagingViewModels="clr-namespace:SwiftExportClient.Features.Products.PackagingMaterials.ViewModels"
                     xmlns:listViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
                     xmlns:listViewModels="clr-namespace:SwiftExportClient.Features.Products.ProductList.ViewModels"
                     xmlns:attributeViews="clr-namespace:SwiftExportClient.Features.Products.Attributes.Views"
@@ -17,6 +19,7 @@
     <DataTemplate DataType="{x:Type neutralImportViewModels:ProductNeutralImportViewModel}"><neutralImportViews:ProductNeutralImportView /></DataTemplate>
     <DataTemplate DataType="{x:Type importViewModels:ProductMasterImportViewModel}"><importViews:ProductMasterImportView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductsViewModel}"><listViews:ProductsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type packagingViewModels:PackagingMaterialManagerViewModel}"><packagingViews:PackagingMaterialManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterManagerViewModel}"><listViews:ProductMasterManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductNeutralManagerViewModel}"><listViews:ProductNeutralManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type listViewModels:ProductMasterDetailViewModel}"><listViews:ProductMasterDetailView /></DataTemplate>

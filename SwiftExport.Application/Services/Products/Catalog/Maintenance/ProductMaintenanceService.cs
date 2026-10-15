@@ -200,6 +200,11 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             transaction = _session.Connection.BeginTransaction(IsolationLevel.Serializable);
             _session.Transaction = transaction;
 
+            // 与包装新增/改选共用稳定 Product 行锁，任何删除、软删或改型都不能越过已建立引用。
+            var lockedProductIds = batchReq.UpdateItems.Select(item => item.Uid)
+                .Concat(batchReq.DeleteItems.Select(item => item.Uid)).Where(id => id != Guid.Empty).Distinct().ToArray();
+            if (lockedProductIds.Length > 0) await productRepository.LockProductRowsAsync(lockedProductIds);
+
             var validationError = await ValidateBatchSaveAsync(batchReq);
             if (!string.IsNullOrWhiteSpace(validationError))
             {
@@ -301,9 +306,28 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             ? await ValidateBeforeDeleteAsync(request.DeleteItems)
             : null);
 
-        return errors.Length == 0
-            ? await ValidateBomSaveBoundaryAsync(request)
-            : errors.ToString().Trim();
+        if (errors.Length > 0) return errors.ToString().Trim();
+        var packagingError = await ValidatePackagingReferencesAsync(request);
+        return packagingError ?? await ValidateBomSaveBoundaryAsync(request);
+    }
+
+    /// <summary>所有物料写入口共享包装引用保护；软删 DTO 与单项删除也不能使已有有效包材关系失效。</summary>
+    private async Task<string?> ValidatePackagingReferencesAsync(ProductBatchSaveRequest request)
+    {
+        // Owner 删除后详情不可再打开，必须先移除有效规格，避免留下无法修复的包材引用。
+        foreach (var ownerId in request.DeleteItems.Select(item => item.Uid)
+                     .Concat(request.UpdateItems.Where(item => item.Data.IsDeleted).Select(item => item.Uid)).Distinct())
+        {
+            if ((await productRepository.GetPackagesAsync(ownerId)).Count > 0)
+                return "物料仍拥有有效包装规格，请先在物料详情移除包装关系，再删除物料。";
+        }
+        var ids = request.DeleteItems.Select(item => item.Uid)
+            .Concat(request.UpdateItems.Where(item => item.Data.IsDeleted
+                || item.Data.MaterialType != SwiftExport.Contracts.SysEnums.StaticEnums.MaterialTypesEnum.包材).Select(item => item.Uid))
+            .Distinct().ToArray();
+        if (ids.Length == 0) return null;
+        var referenced = await productRepository.GetReferencedPackagingMaterialIdsAsync(ids);
+        return referenced.Count == 0 ? null : "包材仍被有效包装规格引用，不能删除或改成其他物料类型；请先调整包装关系。";
     }
 
     /// <summary>批量确认制造商和参考仓库仍存在；只对新选或改选的目标要求启用。</summary>
@@ -389,6 +413,7 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
         return ProductUnitPolicy.Normalize(items, dictionaryItems);
     }
 
+    /// <summary>规范化物料基础资料并拒绝负价、负自重及无效身份，不在此改变包装关系或历史快照。</summary>
     private static string? ValidateProduct(ProductDto? product, int? rowIndex, string operation)
     {
         if (product is null)
@@ -399,6 +424,8 @@ public partial class ProductMaintenanceService(IProductRepository productReposit
             return $"第 {FormatRowIndex(rowIndex)}：BOM 版本不能小于 0。";
         if (product.CNYPrice < 0 || product.USDPrice < 0)
             return $"第 {FormatRowIndex(rowIndex)}：产品价格不能小于 0。";
+        if (product.UnitWeight < 0)
+            return $"第 {FormatRowIndex(rowIndex)}：单件自重不能小于 0。";
         if (product.DefaultWarehouseSiteId == Guid.Empty || product.ManufacturerId == Guid.Empty)
             return $"第 {FormatRowIndex(rowIndex)}：默认仓库或制造商标识不能是空 Guid。";
 

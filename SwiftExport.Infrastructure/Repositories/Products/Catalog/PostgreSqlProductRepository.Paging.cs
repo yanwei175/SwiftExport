@@ -1,6 +1,7 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Infrastructure.Repositories.Base;
 
@@ -17,8 +18,8 @@ public partial class PostgreSqlProductRepository
              ELSE COALESCE(pat.fake_name,'') END AS "CategoryName"
         """;
 
-    /// <summary>保留原筛选与分页上限；分类显示取 FakeName，普通查询不锁行，包装保持原优先级。</summary>
-    public async Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request)
+    /// <summary>保留原筛选与分页上限；分类显示取 FakeName，装箱参数只取当前物料的有效外箱，缺失保留空值。</summary>
+    public async Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request, CancellationToken cancellationToken = default)
     {
         request ??= new ProductSearchRequest();
         var pageIndex = Math.Max(1, request.PageIndex);
@@ -27,12 +28,13 @@ public partial class PostgreSqlProductRepository
         parameters.Add("Offset", (pageIndex - 1) * pageSize);
         parameters.Add("Limit", pageSize);
         parameters.Add("EmptyGuid", Guid.Empty);
+        parameters.Add("CartonPackageType", ProductPackageTypeCodes.Carton);
         var filters = new List<string> { "(p.is_deleted=FALSE OR p.is_deleted IS NULL)" };
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
             filters.Add("(" + string.Join(" OR ", new[]
-                { "p.sku", "p.description_en", "p.description_zh", "pc.color_code", "pc.color_name_en", "pc.color_name_zh", "pat.category_name" }
+                { "p.sku", "p.description_en", "p.description_zh", "p.features_en", "p.features_zh", "pc.color_code", "pc.color_name_en", "pc.color_name_zh", "pat.category_name" }
                 .Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'")) + ")");
         }
         var batch = request.BatchKeywords?.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim())
@@ -95,17 +97,16 @@ public partial class PostgreSqlProductRepository
         var from = $"FROM public.product p {CatalogQueryJoins} {CatalogReferenceJoins}";
         var where = "WHERE " + string.Join(" AND ", filters);
         // 分开计数和取页，沿用同一连接事务和筛选；不通过一对多客户 JOIN 放大计数。
-        var count = await Connection.ExecuteScalarAsync<int>($"SELECT count(*) {from} {where}", parameters, Transaction);
-        var rows = await Connection.QueryAsync<ProductDto>($"""
+        var count = await Connection.ExecuteScalarAsync<int>(new CommandDefinition($"SELECT count(*) {from} {where}", parameters, Transaction, cancellationToken: cancellationToken));
+        var rows = await Connection.QueryAsync<ProductDto>(new CommandDefinition($"""
             SELECT {CatalogDtoColumns},{CatalogPagedClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish",
                 pat.fake_name AS "FakeName",pc.color_code_unique AS "ColorCodeUnique",pc.color_code AS "ColorCode",pc.color_name_en AS "ColorNameEn",
                 pkg.pcs_per_package AS "PcsOfCarton",pkg.nw_kg AS "NwOfCarton",pkg.gw_kg AS "GwOfCarton",pkg.cbm AS "CbmOfCarton"
             {from}
-            LEFT JOIN LATERAL (SELECT pp.pcs_per_package,pp.nw_kg,pp.gw_kg,pp.cbm FROM public.product_package pp
-                WHERE pp.owner_product_id=p.uid AND (pp.is_deleted=FALSE OR pp.is_deleted IS NULL)
-                ORDER BY pp.is_default DESC NULLS LAST,pp.pcs_per_package DESC NULLS LAST,pp.uid LIMIT 1) pkg ON TRUE
+            LEFT JOIN public.product_package pkg ON pkg.owner_product_id=p.uid
+                AND pkg.package_type=@CartonPackageType AND pkg.is_deleted=FALSE
             {where} ORDER BY p.sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,p.uid LIMIT @Limit OFFSET @Offset
-            """, parameters, Transaction);
+            """, parameters, Transaction, cancellationToken: cancellationToken));
         return new PagedResponseBase<ProductDto> { TotalCount = count, Items = rows.ToList(), PageIndex = pageIndex, PageSize = pageSize };
     }
 

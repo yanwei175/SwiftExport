@@ -13,10 +13,10 @@ using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 
-/// <summary>物料详情保存用例；模板来自主型号，选择只归属当前物料，BOM 和包装资料不在可写边界中。</summary>
+/// <summary>物料详情保存用例；资料、独立标签和包装行同事务保存，不改变 BOM 或历史单据快照。</summary>
 public partial class ProductMaintenanceService
 {
-    /// <summary>在唯一 Serializable 事务中保存详情和标签；失败保留原资料，提交确认丢失不自动重试。</summary>
+    /// <summary>在唯一 Serializable 事务中保存资料、标签和包装；失败保留原资料，提交确认丢失不自动重试。</summary>
     public async Task<ServiceResult<SaveProductDetailResponse>> SaveDetailAsync(SaveProductDetailRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -35,12 +35,16 @@ public partial class ProductMaintenanceService
             cancellationToken.ThrowIfCancellationRequested();
             transaction = _session.Connection.BeginTransaction(IsolationLevel.Serializable);
             _session.Transaction = transaction;
+            ValidatePackagingRequest(request.PackagingChanges);
             var locked = await LockProductDetailAsync(request, cancellationToken);
             var candidate = locked.Product;
             request.Data.Adapt(candidate);
             // 详情候选由持久化实体建立，适配仅触及写 DTO；空 Guid 不是“未选择”的有效身份。
             if (candidate.ColorId == Guid.Empty || candidate.DefaultSupplierId == Guid.Empty)
                 throw new ProductDetailWriteException(ServiceErrorCodes.Validation, "颜色或默认供应商标识不能是空 Guid。");
+            // 包装按候选物料最终角色校验；先写显式关系变更，使共用引用保护看到本事务最终关系。
+            locked.Products[request.ProductId] = candidate;
+            await SavePackagingAsync(request, locked.Products, cancellationToken);
             var batch = new ProductBatchSaveRequest
             {
                 UpdateItems = [new UpdateItemRequest<ProductDto>
@@ -63,6 +67,7 @@ public partial class ProductMaintenanceService
                 [request.ProductId], cancellationToken)).Select(row => row.OptionId).ToList();
             detail.AttributeSelections = (await attributeRepository.GetSelectionDetailsAsync(ProductAttributeOwnerType.Product,
                 [request.ProductId], cancellationToken)).ToList();
+            detail.Packages = (await productRepository.GetPackagesAsync(request.ProductId, cancellationToken: cancellationToken)).ToList();
             cancellationToken.ThrowIfCancellationRequested();
             try { transaction.Commit(); }
             catch (Exception exception)
@@ -113,7 +118,7 @@ public partial class ProductMaintenanceService
     }
 
     /// <summary>观察旧、新独立主型号，按模板、组、主型号及物料顺序锁定；自由型号不参与模板推导或关联校验。</summary>
-    private async Task<(Product Product, Guid? ProfileId, IReadOnlyList<Guid> SelectedOptionIds)> LockProductDetailAsync(
+    private async Task<(Product Product, Guid? ProfileId, IReadOnlyList<Guid> SelectedOptionIds, Dictionary<Guid, Product> Products)> LockProductDetailAsync(
         SaveProductDetailRequest request, CancellationToken cancellationToken)
     {
         var observed = await productRepository.GetByIdAsync(request.ProductId, cancellationToken);
@@ -145,7 +150,14 @@ public partial class ProductMaintenanceService
             if (lockedMaster?.IsDeleted != before?.IsDeleted || lockedMaster?.ProductAttributeProfileId != before?.ProductAttributeProfileId)
                 throw new ProductDetailWriteException(ServiceErrorCodes.VersionConflict, "来源主型号或属性模板已变化，请刷新后重新保存。");
         }
-        var product = await productRepository.GetByIdAsync(request.ProductId, true);
+        var packageRows = request.PackagingChanges is { HasChanges: true }
+            ? await productRepository.GetPackagesAsync(request.ProductId, cancellationToken: cancellationToken) : [];
+        var productIds = packageRows.Select(row => row.Data.PackagingMaterialId)
+            .Concat(request.PackagingChanges?.CreateItems.Select(item => item.Data.PackagingMaterialId) ?? [])
+            .Concat(request.PackagingChanges?.UpdateItems.Select(item => item.Data.PackagingMaterialId) ?? [])
+            .Where(id => id.HasValue).Select(id => id!.Value).Append(request.ProductId).Distinct();
+        var products = (await productRepository.LockProductRowsAsync(productIds, cancellationToken)).ToDictionary(row => row.Uid);
+        var product = products.GetValueOrDefault(request.ProductId);
         if (product is null || product.IsDeleted)
             throw new ProductDetailWriteException(ServiceErrorCodes.NotFound, "物料不存在或已删除。");
         if (product.Version != request.ExpectedVersion || product.ProductMasterId != observed.ProductMasterId)
@@ -159,7 +171,7 @@ public partial class ProductMaintenanceService
         if (request.SelectedOptionIds is not null && finalIds.Length > 0 && (!profileId.HasValue || !profiles.Any(row => row.Uid == profileId.Value && !row.IsDeleted
             && row.IsEnabled && string.Equals(row.DictCode?.Trim(), DictCodes.ProductAttributeProfile, StringComparison.OrdinalIgnoreCase))))
             throw new ProductDetailWriteException(ServiceErrorCodes.Validation, "来源主型号没有有效属性模板，不能保存非空标签选择。");
-        return (product, profileId, finalIds);
+        return (product, profileId, finalIds, products);
     }
 
     /// <summary>在模板和组锁下重验有效选项及单选限制，不信任前端定义缓存。</summary>

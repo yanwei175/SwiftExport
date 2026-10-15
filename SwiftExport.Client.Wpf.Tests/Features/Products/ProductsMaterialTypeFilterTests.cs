@@ -86,7 +86,7 @@ public sealed class ProductsMaterialTypeFilterTests
         public ProductSearchRequest? LastSearchRequest { get; private set; }
         public int WarehouseCandidateCalls { get; private set; }
 
-        public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request)
+        public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request, CancellationToken cancellationToken = default)
         {
             LastSearchRequest = request;
             return Task.FromResult(ServiceResult<PagedResponseBase<ProductDto>>.Ok(

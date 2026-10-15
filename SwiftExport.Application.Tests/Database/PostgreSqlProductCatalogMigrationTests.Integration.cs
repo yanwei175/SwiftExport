@@ -76,7 +76,7 @@ public sealed class PostgreSqlProductCatalogMigrationIntegrationTests
         Assert.HasCount(0, await repository.GetExistingSkuListAsync([]));
     });
 
-    /// <summary>详情实时分类与名称遵守软删，保留失效标识和 NULL；包装不限类型并按默认及装率稳定取一条。</summary>
+    /// <summary>详情实时分类与名称遵守软删，保留失效标识和 NULL；分页包装仅取外箱，不受其他类型装率干扰。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlProductCatalogIntegration")]
     public Task DetailsAndPage_MapNullableReferencesAndPackaging() => InRollback(async context =>
@@ -99,10 +99,10 @@ public sealed class PostgreSqlProductCatalogMigrationIntegrationTests
         noReferences.ProductMasterId = Guid.NewGuid();
         foreach (var row in new[] { product, noReferences }) await Insert(context, row);
         var chosen = new ProductPackage { OwnerProductId = product.Uid,
-            PackageType = "Pallet", IsDefault = true, PcsPerPackage = 5, Gw_KG = 6m, Cbm = 0.2m };
-        var samePriority = new ProductPackage { OwnerProductId = product.Uid, PackageType = "InnerBox", IsDefault = true, PcsPerPackage = 5, Gw_KG = 7m };
-        var ordinary = new ProductPackage { OwnerProductId = product.Uid, IsDefault = false, PcsPerPackage = 99 };
-        var hidden = new ProductPackage { OwnerProductId = product.Uid, IsDefault = true, PcsPerPackage = 999, IsDeleted = true };
+            PackageType = SwiftExport.Contracts.SysEnums.ProductPackageTypeCodes.Carton, PcsPerPackage = 5, Gw_KG = 6m, Cbm = 0.2m };
+        var samePriority = new ProductPackage { OwnerProductId = product.Uid, PackageType = "InnerBox", PcsPerPackage = 100, Gw_KG = 7m };
+        var ordinary = new ProductPackage { OwnerProductId = product.Uid, PackageType = "Pallet", PcsPerPackage = 99 };
+        var hidden = new ProductPackage { OwnerProductId = product.Uid, PcsPerPackage = 999, IsDeleted = true };
         foreach (var row in new[] { chosen, samePriority, ordinary, hidden }) await Insert(context, row);
         var repository = new PostgreSqlProductRepository(context);
         var idDetail = await repository.GetDtoByIdAsync(product.Uid);
@@ -119,10 +119,7 @@ public sealed class PostgreSqlProductCatalogMigrationIntegrationTests
         Assert.AreEqual(2, page.TotalCount);
         var projected = page.Items.Single(row => row.Uid == product.Uid);
         Assert.AreEqual(5m, projected.PcsOfCarton);
-        var expectedWeight = await context.Session.Connection.ExecuteScalarAsync<decimal>(
-            "SELECT gw_kg FROM public.product_package WHERE uid=ANY(@Ids) ORDER BY uid LIMIT 1",
-            new { Ids = new[] { chosen.Uid, samePriority.Uid } }, context.Session.Transaction);
-        Assert.AreEqual(expectedWeight, projected.GwOfCarton);
+        Assert.AreEqual(chosen.Gw_KG, projected.GwOfCarton);
         Assert.AreEqual("未分类", page.Items.Single(row => row.Uid == noReferences.Uid).CategoryName);
         Assert.IsNull(page.Items.Single(row => row.Uid == noReferences.Uid).PcsOfCarton);
         Assert.AreEqual(noReferences.Uid, (await repository.GetPagedAsync(new() { Keyword = prefix, PageSize = 1, PageIndex = 2 })).Items.Single().Uid);

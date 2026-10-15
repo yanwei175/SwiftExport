@@ -11,6 +11,26 @@ namespace SwiftExport.Application.Tests.Procurement;
 [TestClass]
 public sealed class ProcurementOrderPolicyTests
 {
+    /// <summary>包材采用普通采购资格，供货方式、停用及空型号限制继续有效，虚拟件仍不能采购。</summary>
+    [TestMethod]
+    public void PackagingMaterial_UsesExistingPurchaseEligibility()
+    {
+        var product = new Product { Sku = "PACK", IsActive = true,
+            SupplyType = SupplyTypeEnums.采购, MaterialType = MaterialTypesEnum.包材 };
+        ProcurementOrderPolicy.RequireProduct(product);
+        product.IsActive = false;
+        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.RequireProduct(product));
+        product.IsActive = true;
+        product.SupplyType = SupplyTypeEnums.生产;
+        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.RequireProduct(product));
+        product.SupplyType = SupplyTypeEnums.采购;
+        product.Sku = " ";
+        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.RequireProduct(product));
+        product.Sku = "PACK";
+        product.MaterialType = MaterialTypesEnum.虚拟件;
+        Assert.ThrowsExactly<InvalidOperationException>(() => ProcurementOrderPolicy.RequireProduct(product));
+    }
+
     /// <summary>产品主档的 SKU 恰好以 NS 开头也仍按真实主档资格判断，非标类型由单据身份表达。</summary>
     [TestMethod]
     public void ProductWithNsPrefix_IsNotAutomaticallyNonStandard()

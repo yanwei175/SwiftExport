@@ -98,7 +98,7 @@ public sealed class BomExecutionSnapshotBuilderTests
         Reject(() => Build(root, [root, child], [Line(root, child, 0, 1)]), "比例无效");
     }
 
-    /// <summary>启停和单位资格影响新执行；客供件不能有BOM，虚拟件可保留为结构节点。</summary>
+    /// <summary>启停和单位资格影响新执行；包材可作为耗材，客供件不能有BOM，虚拟件可保留为结构节点。</summary>
     [TestMethod]
     public void ProductEligibilityAndCustomerSuppliedTerminalRules_AreEnforced()
     {
@@ -111,6 +111,8 @@ public sealed class BomExecutionSnapshotBuilderTests
         child.Unit = "UNKNOWN";
         Reject(() => Build(root, [root, child], [line]), "基础单位");
         child.Unit = "PCS";
+        child.MaterialType = MaterialTypesEnum.包材;
+        Assert.AreEqual(MaterialTypesEnum.包材, Build(root, [root, child], [line]).Nodes.Single().MaterialType);
         child.MaterialType = MaterialTypesEnum.虚拟件;
         Assert.AreEqual(MaterialTypesEnum.虚拟件, Build(root, [root, child], [line]).Nodes.Single().MaterialType);
         child.MaterialType = MaterialTypesEnum.客供件;

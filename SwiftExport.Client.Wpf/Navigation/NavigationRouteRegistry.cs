@@ -46,6 +46,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(PackingListDetailViewModel.RouteKey, "箱单详情", "Detail", typeof(PackingListDetailViewModel), NavigationModuleKeys.Shipping, "Shipping.PackingList.View"),
 
         new("products", "物料管理", "Workspace", typeof(ProductsViewModel), NavigationModuleKeys.Products, "Products.Product.View"),
+        new(SwiftExportClient.Features.Products.PackagingMaterials.ViewModels.PackagingMaterialManagerViewModel.RouteKey, "包材管理", "Workspace", typeof(SwiftExportClient.Features.Products.PackagingMaterials.ViewModels.PackagingMaterialManagerViewModel), NavigationModuleKeys.Products, "Products.Product.View"),
 
         new(ProductDetailViewModel.RouteKey, "物料详情", "Detail", typeof(ProductDetailViewModel), NavigationModuleKeys.Products, PermissionKeys.ProductsProductView),
 
@@ -148,6 +149,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                     new(ProductMasterManagerViewModel.RouteKey, "父级型号", "Workspace", "DocumentTable24"),
                     new(ProductNeutralManagerViewModel.RouteKey, "产品管理", "Workspace", "DocumentTable24"),
                     new("products", "物料管理", "Workspace", "Cube24"),
+                    new(SwiftExportClient.Features.Products.PackagingMaterials.ViewModels.PackagingMaterialManagerViewModel.RouteKey, "包材管理", "Workspace", "Box24"),
                     new("product-category-manager", "产品分类", "Workspace", "Folder24"),
                     new(ProductAttributeManagerViewModel.RouteKey, "自定义属性", "Workspace", "DocumentTable24"),
                     new("product-colors", "产品颜色", "Workspace", "Color24"),

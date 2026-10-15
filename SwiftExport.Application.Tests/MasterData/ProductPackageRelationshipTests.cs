@@ -3,6 +3,7 @@ using Dapper;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Npgsql;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Infrastructure.Contexts;
@@ -18,7 +19,7 @@ namespace SwiftExport.Application.Tests.MasterData;
 /// <summary>包装物料身份迁移的定向验收；只在获批复制库的回滚事务中调整包装表及写入随机夹具。</summary>
 [TestClass]
 [DoNotParallelize]
-public sealed class ProductPackageRelationshipTests
+public sealed partial class ProductPackageRelationshipTests
 {
     /// <summary>生成结构保留包装约束，两个物料引用均为可空 UUID，包装关系仍不生成物理外键。</summary>
     [TestMethod]
@@ -33,8 +34,38 @@ public sealed class ProductPackageRelationshipTests
         StringAssert.Contains(table, "ck_product_package_pcs");
         Assert.IsFalse(table.Contains("\"product_id\"", StringComparison.Ordinal));
         Assert.IsFalse(table.Contains("packaging_material_sku", StringComparison.Ordinal));
+        Assert.IsFalse(table.Contains("is_default", StringComparison.Ordinal));
+        Assert.IsNull(typeof(ProductPackage).GetProperty("IsDefault"));
         Assert.IsFalse(table.Contains("FOREIGN KEY", StringComparison.Ordinal));
         StringAssert.Contains(generated, "CREATE UNIQUE INDEX \"ux_product_package_owner_type\" ON \"public\".\"product_package\" (\"owner_product_id\", \"package_type\") WHERE \"is_deleted\" = FALSE AND \"owner_product_id\" IS NOT NULL;");
+    }
+
+    /// <summary>共享候选保留原四种物料类型并追加包材，键值和列表消费使用同一稳定值。</summary>
+    [TestMethod]
+    public void MaterialTypes_ShouldKeepExistingValuesAndAppendPackaging()
+    {
+        var expected = new[] { "成品", "零件", "虚拟件", "客供件", "包材" };
+        CollectionAssert.AreEqual(expected, MaterialTypesEnum.MaterialTypes);
+        CollectionAssert.AreEqual(expected, MaterialTypesEnum.All.Select(item => item.Key).ToArray());
+        CollectionAssert.AreEqual(expected, MaterialTypesEnum.All.Select(item => item.Value).ToArray());
+    }
+
+    /// <summary>离线核对增量只退役默认列且具备目标、身份及有效记录唯一索引守卫，不清理已有包装。</summary>
+    [TestMethod]
+    public void CartonMigration_ShouldGuardTargetAndPreserveDataAndUniqueKey()
+    {
+        var sql = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "PostgreSQL产品包装外箱规则迁移.sql"));
+        StringAssert.Contains(sql, "current_database() <> current_setting('swiftexport.expected_database')");
+        StringAssert.Contains(sql, "inet_server_addr() IS DISTINCT FROM");
+        StringAssert.Contains(sql, "current_setting('port') <>");
+        StringAssert.Contains(sql, "LOCK TABLE public.product_package IN ACCESS EXCLUSIVE MODE");
+        StringAssert.Contains(sql, "column_name IN ('owner_product_id','packaging_material_id')");
+        StringAssert.Contains(sql, "i.indisunique AND i.indisvalid AND i.indisready");
+        StringAssert.Contains(sql, "pg_get_expr(i.indpred,i.indrelid)");
+        StringAssert.Contains(sql, "ALTER TABLE public.product_package DROP COLUMN is_default RESTRICT;");
+        Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(sql,
+            @"\b(TRUNCATE|DELETE\s+FROM|UPDATE\s+public\.|DROP\s+TABLE|DROP\s+INDEX)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase));
     }
 
     /// <summary>空表迁移后真实往返两个身份并验证三个查询；包含软删记录时拒绝迁移，最后恢复全部结构和夹具。</summary>
@@ -69,15 +100,21 @@ public sealed class ProductPackageRelationshipTests
             else
             {
                 await session.Connection.ExecuteAsync(sql, transaction: transaction);
+                // 身份迁移完成后按顺序执行本阶段增量，旧迁移正文保留原发布版本。
+                var cartonSql = File.ReadAllText(Path.Combine(Root(), "SwiftExport.Infrastructure", "Database", "PostgreSQL产品包装外箱规则迁移.sql"));
+                cartonSql = string.Join('\n', cartonSql.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')
+                    .Where(line => line != "BEGIN;" && line != "COMMIT;"))
+                    .Replace("'dv_next'", "'dv_next_product_attribute_tests_20261012'", StringComparison.Ordinal);
+                await session.Connection.ExecuteAsync(cartonSql, transaction: transaction);
                 var context = new RepositoryBaseContext(session, NullLoggerFactory.Instance, new AuditStampService(new TestUser()), new TestUser());
                 var products = new PostgreSqlDapperRepository<Product>(context);
                 var owner = new Product { Sku = "PKG_OWNER_" + Guid.NewGuid().ToString("N"), SupplyType = "采购" };
-                var material = new Product { Sku = "PKG_MATERIAL_" + Guid.NewGuid().ToString("N"), SupplyType = "采购" };
+                var material = new Product { Sku = "PKG_MATERIAL_" + Guid.NewGuid().ToString("N"), SupplyType = "采购", MaterialType = MaterialTypesEnum.包材 };
                 Assert.IsTrue((await products.AddAsync(owner)).Success);
                 Assert.IsTrue((await products.AddAsync(material)).Success);
                 var packages = new PostgreSqlDapperRepository<ProductPackage>(context);
                 var package = new ProductPackage { OwnerProductId = owner.Uid, PackagingMaterialId = material.Uid,
-                    PcsPerPackage = 12, IsDefault = true, Nw_KG = 20m, Gw_KG = 22m, Cbm = 0.4m };
+                    PcsPerPackage = 12, Nw_KG = 20m, Gw_KG = 22m, Cbm = 0.4m };
                 Assert.IsTrue((await packages.AddAsync(package)).Success);
                 var read = await packages.GetByIdAsync(package.Uid);
                 Assert.IsNotNull(read);
@@ -113,8 +150,9 @@ public sealed class ProductPackageRelationshipTests
     private static DbSession NewTestSession()
     {
         var value = Environment.GetEnvironmentVariable("SWIFTEXPORT_PG_ATTRIBUTE_TEST_CONNECTION");
-        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_ATTRIBUTE_TESTS") != "1" || string.IsNullOrWhiteSpace(value))
-            Assert.Inconclusive("未显式启用包装关系迁移的专用复制库测试。");
+        if (Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_ATTRIBUTE_TESTS") != "1"
+            || Environment.GetEnvironmentVariable("SWIFTEXPORT_RUN_PG_PACKAGE_TESTS") != "1" || string.IsNullOrWhiteSpace(value))
+            Assert.Inconclusive("未显式启用本阶段包装规则的专用复制库测试；历史属性测试开关不授予本阶段写入范围。");
         var settings = new NpgsqlConnectionStringBuilder(value);
         Assert.AreEqual("192.168.3.12", settings.Host);
         Assert.AreEqual(5432, settings.Port);

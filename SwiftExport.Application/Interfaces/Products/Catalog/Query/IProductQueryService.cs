@@ -12,7 +12,7 @@ public interface IProductQueryService
     /// <summary>读取指定产品；缺失返回原有未找到契约。</summary>
     Task<ServiceResult<ProductDto>> GetByIdAsync(Guid uid);
     /// <summary>读取产品分页投影。</summary>
-    Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request);
+    Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync(ProductSearchRequest request, CancellationToken cancellationToken = default);
     /// <summary>按业务 SKU 读取产品投影。</summary>
     Task<ServiceResult<ProductDto>> GetBySkuAsync(string sku);
     /// <summary>搜索产品选择器投影。</summary>

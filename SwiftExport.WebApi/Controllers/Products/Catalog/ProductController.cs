@@ -58,7 +58,7 @@ public sealed class ProductController(IProductQueryService query, IProductMainte
 
     /// <summary>读取产品分页。</summary>
     [HttpPost("page")]
-    public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPaged([FromBody] ProductSearchRequest request) => query.GetPagedAsync(request);
+    public Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPaged([FromBody] ProductSearchRequest request, CancellationToken cancellationToken = default) => query.GetPagedAsync(request, cancellationToken);
 
     /// <summary>搜索产品选择器。</summary>
     [HttpPost("lookup")]

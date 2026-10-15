@@ -83,6 +83,7 @@ public partial class PostgreSqlProductRepository
         p."main_image" AS "MainImage",
         p."cny_price" AS "CNYPrice",
         p."usd_price" AS "USDPrice",
+        p."unit_weight" AS "UnitWeight",
         p."color_id" AS "ColorId",
         p."default_supplier_id" AS "DefaultSupplierId",
         p."default_warehouse_site_id" AS "DefaultWarehouseSiteId",

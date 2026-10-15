@@ -23,10 +23,9 @@ namespace SwiftExport.Contracts.Apis.ProductApis
         [Get("/product-categories/tree")]
         Task<ServiceResult<List<ProductCategoryDto>>> GetCategoryTreeAsync();
 
-        // 2. 搜索产品 (分页)
-        // Refit 会把 SearchDto 序列化为 JSON 放到 Body 中传递，避开了复杂对象的 URL 序列化问题
+        /// <summary>按物料筛选分页读取资料，取消令牌贯穿 HTTP 与数据库读取，不改变已有默认筛选。</summary>
         [Post("/page")]
-        Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync([Body] ProductSearchRequest request);
+        Task<ServiceResult<PagedResponseBase<ProductDto>>> GetPagedAsync([Body] ProductSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
         [Post("/lookup")]
         Task<ServiceResult<List<ProductLookupDto>>> SearchLookupAsync([Body] ProductLookupRequest request, CancellationToken cancellationToken = default(CancellationToken));

@@ -30,7 +30,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>已有物料的独立资料、自由型号和标签详情文档；模板由所选主型号提供，包装只读，不管理 BOM。</summary>
+/// <summary>已有物料的资料、独立标签和包装详情文档；包装结果与包材档案分开，不管理 BOM。</summary>
 public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     /// <summary>物料详情稳定路由键。</summary>
@@ -62,6 +62,8 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         _messages = messages; _dialogs = dialogs; _navigation = navigation; _currentUser = currentUser;
         _productMasterApi = productMasterApi; _productNeutralApi = productNeutralApi;
         Title = "物料详情";
+        Packaging = new ProductPackagingEditorViewModel(api, runner, cache);
+        Packaging.PropertyChanged += OnPackagingChanged;
         Header.PropertyChanged += OnHeaderChanged;
         Tags.StateChanged += OnTagsChanged;
         PropertyChanged += OnDocumentChanged;
@@ -81,6 +83,8 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     public ProductEditModel Header { get; } = new();
     /// <summary>本物料独立选值，不复制主型号选值。</summary>
     public ProductAttributeSelectionModel Tags { get; } = new();
+    /// <summary>包装子区块拥有自己的行草稿，由顶部统一保存。</summary>
+    public ProductPackagingEditorViewModel Packaging { get; }
     /// <summary>已读取的只读来源、包装快照；标签刷新不修改字段草稿或预期版本。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SourceStatus))]
@@ -106,8 +110,8 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     public IReadOnlyList<string> SupplyTypes { get; } = SupplyTypeEnums.SupplyTypes;
     /// <summary>物料详情标题。</summary>
     public string DocumentTitle => string.IsNullOrWhiteSpace(Header.Sku) ? "物料详情" : $"物料 · {Header.Sku}";
-    /// <summary>字段或已确认标签是否存在草稿。</summary>
-    public bool HasUnsavedChanges => Header.IsDirty || Tags.IsDirty;
+    /// <summary>资料字段、已确认标签或包装行是否存在草稿。</summary>
+    public bool HasUnsavedChanges => Header.IsDirty || Tags.IsDirty || Packaging.HasChanges;
     /// <summary>写权限与 Busy 共同控制基础字段。</summary>
     public bool CanEditHeader => !_disposed && Header.Uid != Guid.Empty && CanWrite && IsNotBusy;
     /// <summary>有效模板与完整定义共同控制标签值编辑。</summary>
@@ -183,16 +187,17 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private async Task SaveAsync()
     {
         if (!CanSave() || !(CommitPendingEdits?.Invoke() ?? true)) return;
+        if (!HasUnsavedChanges) { StatusText = "没有需要保存的修改。"; return; }
         await RunWriteAsync(async () =>
         {
             // 没有明确修改标签时采用 null 保持协议；切换或丢失来源不能隐式清空旧标签。
             var selectedIds = Tags.IsDirty ? Tags.GetSelectedOptionIds() : null;
-            var error = Header.ValidateRow() ?? (Tags.IsDirty ? Tags.ValidateSelection(_resolvedProfileId ?? Guid.Empty) : null);
+            var error = Header.ValidateRow() ?? (Tags.IsDirty ? Tags.ValidateSelection(_resolvedProfileId ?? Guid.Empty) : null) ?? Packaging.Validate();
             if (error is not null) { ValidationSummary = error; _messages.ShowWarning("物料未保存", error); return; }
             if (!CanWrite || _disposed) return;
             var session = Volatile.Read(ref _sessionSequence);
             var request = new SaveProductDetailRequest { ProductId = Header.Uid, ExpectedVersion = Header.Version,
-                Data = Header.ToWriteDto(), SelectedOptionIds = selectedIds };
+                Data = Header.ToWriteDto(), SelectedOptionIds = selectedIds, PackagingChanges = Packaging.CreateChangesRequest() };
             var result = await _runner.RunAsync(() => _api.SaveDetailAsync(Header.Uid, request, _lifetimeCts.Token),
                 _lifetimeCts.Token, "保存物料详情失败");
             if (!IsAlive(session)) return;
@@ -226,7 +231,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private void RejectDetailChanges()
     {
         if (!CanReadCommand() || Tags.IsPopupOpen) return;
-        Header.RejectChanges(); Tags.RejectChanges();
+        Header.RejectChanges(); Tags.RejectChanges(); Packaging.RejectChanges();
         if (_resolvedMasterId != Header.ProductMasterId && Source is { } source && source.Data.ProductMasterId == Header.ProductMasterId)
             SetResolvedMaster(Header.ProductMasterId, source.ProductAttributeProfileId, source.ProductAttributeProfileName, source.CategoryName);
         else RefreshTagCandidates();
@@ -424,6 +429,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         _resolvedProfileName = detail.ProductAttributeProfileName ?? string.Empty;
         _resolvedCategoryName = detail.CategoryName ?? string.Empty;
         Tags.Load(detail.ProductAttributeProfileId ?? Guid.Empty, detail.SelectedOptionIds, detail.AttributeSelections);
+        Packaging.Load(detail.Uid, detail.Packages);
         RefreshTagCandidates(); SyncLookupSelections();
         StatusText = $"已加载物料，当前版本 {Header.Version}。"; AcceptChanges(); NotifyDocumentState();
     }
@@ -519,8 +525,11 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         NotifyDocumentState();
     }
     private void OnTagsChanged(object? sender, EventArgs e) => NotifyDocumentState();
+    /// <summary>包装脏状态加入同一文档的关闭、刷新和保存保护，不镜像行草稿。</summary>
+    private void OnPackagingChanged(object? sender, PropertyChangedEventArgs e)
+    { if (e.PropertyName is nameof(ProductPackagingEditorViewModel.HasChanges) or nameof(ProductPackagingEditorViewModel.IsLoaded)) NotifyDocumentState(); }
     private void OnDocumentChanged(object? sender, PropertyChangedEventArgs e)
-    { if (e.PropertyName is nameof(IsBusy) or nameof(CanWrite)) { OnPropertyChanged(nameof(CanEditHeader)); OnPropertyChanged(nameof(CanEditTags)); } }
+    { if (e.PropertyName is nameof(IsBusy) or nameof(CanWrite)) { OnPropertyChanged(nameof(CanEditHeader)); OnPropertyChanged(nameof(CanEditTags)); Packaging.CanEdit = CanEditHeader; } }
     /// <summary>身份或权限变化使旧请求失效，冻结写入并保留编辑。</summary>
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
@@ -534,8 +543,8 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     private bool CanRead() => _currentUser is null || _currentUser.HasPermission(PermissionKeys.ProductsProductView);
     private bool CanReadCommand() => !_disposed && IsNotBusy && CanRead();
     private bool CanEditLookup() => CanEditHeader;
-    private bool CanSave() => !_disposed && Header.Uid != Guid.Empty && CanWrite && IsNotBusy && HasUnsavedChanges && !Tags.IsPopupOpen;
-    /// <summary>文档脏标记镜像真实字段和选项状态，更新标题与保存入口。</summary>
+    private bool CanSave() => !_disposed && Header.Uid != Guid.Empty && CanWrite && IsNotBusy && !Tags.IsPopupOpen;
+    /// <summary>文档脏标记镜像资料、选项和包装状态，更新标题与保存入口。</summary>
     private void NotifyDocumentState()
     {
         if (_disposed) return;
@@ -543,6 +552,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
         OnPropertyChanged(nameof(DocumentTitle)); OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(TemplateStatus)); OnPropertyChanged(nameof(SourceCategoryName));
         OnPropertyChanged(nameof(CanEditHeader)); OnPropertyChanged(nameof(CanEditTags));
+        Packaging.CanEdit = CanEditHeader;
         SaveCommand.NotifyCanExecuteChanged();
     }
     /// <summary>对称取消读取、解除事件并释放私有工作区，晚到响应不能回写。</summary>
@@ -550,6 +560,7 @@ public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentT
     {
         if (_disposed) return; _disposed = true; Interlocked.Increment(ref _sessionSequence);
         Header.PropertyChanged -= OnHeaderChanged; Tags.StateChanged -= OnTagsChanged; PropertyChanged -= OnDocumentChanged;
+        Packaging.PropertyChanged -= OnPackagingChanged; Packaging.Dispose();
         if (_cache is not null) _cache.ProductAttributesChanged -= OnAttributesChanged;
         if (_currentUser is not null) _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
         _lifetimeCts.Cancel();

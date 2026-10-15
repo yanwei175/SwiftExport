@@ -130,6 +130,7 @@ public sealed class MapsterConfig : IRegister
 
         // 详情保存后的列表投影保留外层审计、包装、BOM和来源资料，旧列表价格与颜色按其契约空值规则转换。
         config.NewConfig<ProductDetailDto, ProductDto>()
+            .Map(dest => dest.UnitWeight, src => src.Data.UnitWeight)
             .Map(dest => dest.Sku, src => src.Data.Sku)
             .Map(dest => dest.LinkSku, src => src.Data.LinkSku)
             .Map(dest => dest.ProductMasterId, src => src.Data.ProductMasterId)
@@ -182,6 +183,20 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted)
             .Map(dest => dest.CNYPrice, src => src.CnyPrice)
             .Map(dest => dest.USDPrice, src => src.UsdPrice);
+
+        config.NewConfig<ProductPackageDto, ProductPackageLineModel>()
+            .Map(dest => dest.PackageType, src => src.Data.PackageType)
+            .Map(dest => dest.PackagingMaterialId, src => src.Data.PackagingMaterialId)
+            .Map(dest => dest.PcsPerPackage, src => src.Data.PcsPerPackage)
+            .Map(dest => dest.Length_CM, src => src.Data.Length_CM)
+            .Map(dest => dest.Width_CM, src => src.Data.Width_CM)
+            .Map(dest => dest.Height_CM, src => src.Data.Height_CM)
+            .Map(dest => dest.Nw_KG, src => src.Data.Nw_KG)
+            .Map(dest => dest.Gw_KG, src => src.Data.Gw_KG)
+            .Map(dest => dest.Cbm, src => src.Data.Cbm)
+            .Map(dest => dest.Note, src => src.Data.Note);
+        config.NewConfig<ProductPackageLineModel, ProductPackageDto>()
+            .Map(dest => dest.Data, src => src.Adapt<ProductPackageWriteDto>());
 
         config.NewConfig<ProductMasterListItemDto, ProductMasterLineModel>()
             .IgnoreNullValues(true)

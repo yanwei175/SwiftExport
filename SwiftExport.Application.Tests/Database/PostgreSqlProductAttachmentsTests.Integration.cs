@@ -90,7 +90,6 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         read.Length_CM = null;
         read.PackagingMaterialId = null;
         read.Note = null;
-        read.IsDefault = false;
         var update = await repository.UpdateAsync(read);
         Assert.IsTrue(update.Success, update.Message);
         Assert.AreEqual(2, update.NewVersion);
@@ -228,7 +227,7 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         OwnerProductId = ownerProductId, PackageType = "Carton", PcsPerPackage = 12,
         Length_CM = 11.1234m, Width_CM = 22.2345m, Height_CM = 33.3456m,
         Nw_KG = 4.4567m, Gw_KG = 5.5678m, Cbm = 0.123456m,
-        IsDefault = true, PackagingMaterialId = Guid.NewGuid(), Note = "随机包装备注"
+        PackagingMaterialId = Guid.NewGuid(), Note = "随机包装备注"
     };
 
     /// <summary>逐项检查文件资料的身份、关联和全部路径映射。</summary>
@@ -259,7 +258,6 @@ public sealed class PostgreSqlProductAttachmentsIntegrationTests
         Assert.AreEqual(expected.Nw_KG, actual.Nw_KG);
         Assert.AreEqual(expected.Gw_KG, actual.Gw_KG);
         Assert.AreEqual(expected.Cbm, actual.Cbm);
-        Assert.AreEqual(expected.IsDefault, actual.IsDefault);
         Assert.AreEqual(expected.PackagingMaterialId, actual.PackagingMaterialId);
         Assert.AreEqual(expected.Note, actual.Note);
     }

@@ -40,10 +40,10 @@ internal static class BuiltInDictionaryCatalog
         new(new("979dc2d0-eeba-40a2-bfa0-1ea1c934aa4c"), DictCodes.FlowTestFunction, "Default", "Default", "默认测试功能"),
         new(new("fce647f2-2996-4995-a568-73e221bc5453"), DictCodes.FlowLimiterSpecification, "Unlimited", "不限流", "本功能未安装限流器"),
         // 包装角色只限定类型语义，不要求每个产品逐层具备全部包装。
-        new(new("5ba7a73a-fdaa-462a-8aa3-d108e24caf09"), DictCodes.ProductPackageType, "InnerBox", "内盒", "产品内部包装，可按实际包装方式省略"),
-        new(new("a07ab0bc-e867-4473-9a48-a9302925432f"), DictCodes.ProductPackageType, "ShippingBox", "单套运输盒", "装入一套产品，可容纳内盒或直接装产品"),
-        new(new("ed67d590-f2b9-4458-b2b3-01e6d53854d4"), DictCodes.ProductPackageType, "Carton", "出货外箱", "最终出货的集装外箱"),
-        new(new("aeb5ef4e-5cdd-48f1-aa42-b5d4058fbdad"), DictCodes.ProductPackageType, "Pallet", "托盘", "托盘包装规格")
+        new(new("5ba7a73a-fdaa-462a-8aa3-d108e24caf09"), DictCodes.ProductPackageType, ProductPackageTypeCodes.InnerBox, "内盒", "产品内部包装，可按实际包装方式省略"),
+        new(new("a07ab0bc-e867-4473-9a48-a9302925432f"), DictCodes.ProductPackageType, ProductPackageTypeCodes.ShippingBox, "单套运输盒", "装入一套产品，可容纳内盒或直接装产品"),
+        new(new("ed67d590-f2b9-4458-b2b3-01e6d53854d4"), DictCodes.ProductPackageType, ProductPackageTypeCodes.Carton, "出货外箱", "最终出货的集装外箱"),
+        new(new("aeb5ef4e-5cdd-48f1-aa42-b5d4058fbdad"), DictCodes.ProductPackageType, ProductPackageTypeCodes.Pallet, "托盘", "托盘包装规格")
     ]);
 
     /// <summary>按稳定编码识别内置类型，不按可编辑名称或客户端标记判断。</summary>

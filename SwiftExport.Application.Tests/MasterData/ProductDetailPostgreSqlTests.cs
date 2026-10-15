@@ -82,7 +82,7 @@ public sealed class ProductDetailPostgreSqlTests
         var scope = fixture.Tags.NewScope();
         var product = await fixture.AddProductAsync(scope, withReadOnlyFacts: true);
         var package = new ProductPackage
-        { OwnerProductId = product.Uid, IsDefault = true, PcsPerPackage = 12, Nw_KG = 20m, Gw_KG = 22m, Cbm = 0.4m };
+        { OwnerProductId = product.Uid, PcsPerPackage = 12, Nw_KG = 20m, Gw_KG = 22m, Cbm = 0.4m };
         var write = await scope.Services.GetRequiredService<IRepository<ProductPackage>>().AddAsync(package);
         Assert.IsTrue(write.Success);
         fixture.PackageIds.Add(write.Uid);

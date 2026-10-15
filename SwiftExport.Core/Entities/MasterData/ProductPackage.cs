@@ -1,4 +1,5 @@
 using SwiftExport.Core.Common;
+using SwiftExport.Contracts.SysEnums;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SwiftExport.Core.Entities.MasterData;
@@ -11,12 +12,12 @@ public partial class ProductPackage : BaseEntity
     public Guid? OwnerProductId { get; set; }
 
     /// <summary>
-    /// 包装类型：InnerBox(内盒), Carton(外箱), Pallet(托盘)
+    /// ProductPackageType 字典的稳定英文代码；支持内盒、单套运输盒、出货外箱、托盘及自定义类型，各层可省略。
     /// </summary>
-    public string PackageType { get; set; } = "Carton";
+    public string PackageType { get; set; } = ProductPackageTypeCodes.Carton;
 
     /// <summary>
-    /// 装率：该层级包装内含有的单品(PCS)数量
+    /// 装率：该包装内含有的成品基础单位数，不是下级包装数量。
     /// </summary>
     public int PcsPerPackage { get; set; } = 1;
 
@@ -41,11 +42,6 @@ public partial class ProductPackage : BaseEntity
     /// 包装体积（CBM）；由调用方提供，不自动按尺寸计算。
     /// </summary>
     public decimal? Cbm { get; set; }
-
-    /// <summary>
-    /// 是否为出货默认计算规格
-    /// </summary>
-    public bool IsDefault { get; set; }
 
     /// <summary>
     /// 使用的包材物料身份，逻辑引用 Product.Uid；不承担包装规格自身的 Uid。

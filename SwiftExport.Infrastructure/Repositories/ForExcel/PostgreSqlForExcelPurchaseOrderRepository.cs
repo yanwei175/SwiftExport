@@ -1,5 +1,6 @@
 using Dapper;
 using SwiftExport.Contracts.DTOs.ForExcel.PurchaseOrders;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Core.Interfaces.ForExcel;
 using SwiftExport.Infrastructure.Contexts;
 using SwiftExport.Infrastructure.Repositories.Base;
@@ -29,7 +30,7 @@ public sealed class PostgreSqlForExcelPurchaseOrderRepository(RepositoryBaseCont
             FROM public.supplier WHERE uid=@uid AND is_deleted=FALSE FOR SHARE;
             """, new { uid }, token));
 
-    /// <summary>按客户返回关联并保留断链；客户型号优先、物料型号取自身 LinkSku，采购资格只写入 IsUsable。</summary>
+    /// <summary>按客户返回关联并保留断链；采购资格包含包材，仍只写入 IsUsable，不改变客户型号及物料型号口径。</summary>
     public async Task<IReadOnlyList<PurchaseOrderImportProductCandidateDto>> MatchProductsAsync(Guid customerId, string[] skus, CancellationToken token)
     {
         // 空数组与源一致先返回，包括已取消请求；不再规范化、去重或修改调用方数组。
@@ -37,6 +38,7 @@ public sealed class PostgreSqlForExcelPurchaseOrderRepository(RepositoryBaseCont
         var parameters = new PostgreSqlParameters();
         parameters.Add("CustomerId", customerId);
         parameters.AddTexts("Skus", skus);
+        parameters.Add("PackagingMaterialType", MaterialTypesEnum.包材);
         // 产品锁置于固定 LATERAL 源内，外层只锁非空关系；不能 FOR SHARE OF 可空产品侧。
         return (await context.Session.Connection.QueryAsync<PurchaseOrderImportProductCandidateDto>(Command($"""
             SELECT cp.uid AS "CustomerProductId",cp.customer_sku AS "CustomerSku",p.uid AS "ProductId",p.sku AS "Sku",
@@ -44,7 +46,7 @@ public sealed class PostgreSqlForExcelPurchaseOrderRepository(RepositoryBaseCont
                    p.unit AS "Unit",p.main_image AS "MainImage",p.material_type AS "MaterialType",
                    CASE WHEN cp.is_active=TRUE AND p.is_active=TRUE
                      AND rtrim(p.supply_type,' ') COLLATE public.erp_dictionary_ci='采购'
-                     AND rtrim(p.material_type,' ') COLLATE public.erp_dictionary_ci IN ('成品','零件','客供件')
+                     AND rtrim(p.material_type,' ') COLLATE public.erp_dictionary_ci IN ('成品','零件','客供件',@PackagingMaterialType)
                      AND NULLIF(btrim(p.sku,' '),'') IS NOT NULL THEN TRUE ELSE FALSE END AS "IsUsable"
             FROM public.customer_product cp
             LEFT JOIN LATERAL (

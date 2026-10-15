@@ -1,0 +1,92 @@
+<UserControl x:Class="SwiftExportClient.Features.Products.PackagingMaterials.Views.PackagingMaterialManagerView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+    xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
+    xmlns:selection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+    Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
+    <UserControl.Resources>
+        <selection:GridSelectionUnitConverter x:Key="SelectionUnitConverter" />
+    </UserControl.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,8">
+            <TextBlock Text="包材管理" Style="{StaticResource SubtitleTextBlock}" Margin="0,0,24,0" VerticalAlignment="Center"/>
+            <Button Content="查询" Command="{Binding SearchCommand}" Margin="0,0,8,0" DockPanel.Dock="Right"/>
+            <Button Content="重置" Command="{Binding ResetCommand}" Margin="0,0,8,0" DockPanel.Dock="Right"/>
+            <TextBox Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}" MinWidth="280" MaxWidth="480" HorizontalAlignment="Left"
+                     ToolTip="按编号、中英文描述或规格搜索" AutomationProperties.Name="包材搜索">
+                <TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding SearchCommand}"/></TextBox.InputBindings>
+            </TextBox>
+        </DockPanel>
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8" IsEnabled="{Binding IsNotBusy}">
+            <Button Content="新增" Command="{Binding AddRowCommand}" Margin="0,0,8,0"/>
+            <Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"/>
+            <Button Content="撤销" Command="{Binding RejectCommand}" Margin="0,0,8,0"/>
+            <Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0"/>
+            <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,8,0"/>
+            <Button Content="物料详情" Command="{Binding OpenDetailCommand}" Margin="0,0,8,0"/>
+            <Button Content="上传图片" Command="{Binding UploadImagesCommand}" Margin="0,0,16,0"/>
+            <CheckBox Content="单元格选择" IsChecked="{Binding IsCellSelectionMode}" VerticalAlignment="Center"
+                      ToolTip="单元格选择模式下不能删除行或打开行详情"/>
+        </WrapPanel>
+        <DataGrid x:Name="PackageGrid" Grid.Row="2" ItemsSource="{Binding Products.Items}" SelectedItem="{Binding SelectedLine}"
+            AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="{Binding IsGridReadOnly}"
+            IsEnabled="{Binding IsNotBusy}" SelectionUnit="{Binding IsCellSelectionMode, Converter={StaticResource SelectionUnitConverter}}"
+            SelectionMode="Extended" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+            BeginningEdit="OnBeginningEdit" AutomationProperties.Name="包材档案列表">
+            <DataGrid.Columns>
+                <DataGridCheckBoxColumn Header="勾选" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="48"/>
+                <DataGridTemplateColumn Header="状态" Width="64" IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock>
+                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Text" Value="已保存"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding IsNew}" Value="True"><Setter Property="Text" Value="新增"/></DataTrigger>
+                                <DataTrigger Binding="{Binding IsModified}" Value="True"><Setter Property="Text" Value="已修改"/></DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style>
+                    </TextBlock></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="编号" Width="140" Binding="{Binding Sku, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTemplateColumn Header="图片" Width="64">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><controls:CachedImage Width="48" Height="48" SourcePath="{Binding MainImage}" Style="{StaticResource SwiftExportCachedImage}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate><DataTemplate><TextBox Text="{Binding MainImage, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="包材图片地址"/></DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="中文描述" Width="200" Binding="{Binding DescriptionZh, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTextColumn Header="英文描述" Width="220" Binding="{Binding DescriptionEn, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTextColumn Header="中文规格" Width="200" Binding="{Binding FeaturesZh, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTextColumn Header="英文规格" Width="200" Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}"/>
+                <DataGridTemplateColumn Header="基础单位" Width="100">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Unit}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate><DataTemplate><ComboBox
+                        ItemsSource="{Binding DataContext.UnitOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        DisplayMemberPath="DataNameEn" SelectedValuePath="DataNameEn" SelectedValue="{Binding Unit, UpdateSourceTrigger=PropertyChanged}"
+                        AutomationProperties.Name="包材基础单位"/></DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="供货方式" Width="100">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding SupplyType}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate><DataTemplate><ComboBox
+                        ItemsSource="{Binding DataContext.SupplyTypes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        SelectedItem="{Binding SupplyType, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="包材供货方式"/></DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="默认供应商" Width="180">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding DefaultSupplierCode}" ToolTip="{Binding SupplierName}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.CellEditingTemplate><DataTemplate><suppliers:SupplierLookupTextBox
+                        Text="{Binding DefaultSupplierCode, Mode=OneWay}" AutomationProperties.Name="包材默认供应商"
+                        ItemsSource="{Binding DataContext.SupplierCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        SelectedSupplier="{Binding DataContext.EditSupplier, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
+                        SearchCommand="{Binding DataContext.SearchSuppliersCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        SelectionCommittedCommand="{Binding DataContext.CommitSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" SelectionCommittedCommandParameter="{Binding}"
+                        SelectionClearedCommand="{Binding DataContext.ClearSupplierCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" SelectionClearedCommandParameter="{Binding}"/>
+                    </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="单件自重(KG)" Width="120" Binding="{Binding UnitWeight, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"/>
+                <DataGridTextColumn Header="人民币参考价" Width="120" Binding="{Binding CnyPrice, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"/>
+                <DataGridTextColumn Header="美元参考价" Width="120" Binding="{Binding UsdPrice, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"/>
+                <DataGridTextColumn Header="备注" Width="240" Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <DockPanel Grid.Row="3" Margin="0,8,0,0">
+            <controls:PageNavigator DockPanel.Dock="Right" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}" IsEnabled="{Binding IsNotBusy}"/>
+            <StackPanel><TextBlock Text="{Binding ResultSummary}" TextWrapping="Wrap" AutomationProperties.Name="包材操作结果"/>
+                <TextBlock Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}"/></StackPanel>
+        </DockPanel>
+    </Grid>
+</UserControl>

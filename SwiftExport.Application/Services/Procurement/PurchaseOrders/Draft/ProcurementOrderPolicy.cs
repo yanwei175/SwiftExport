@@ -53,12 +53,12 @@ public static class ProcurementOrderPolicy
         if (head.ConfirmationStatus != ConfirmationStatusEnum.待确认 || head.LifecycleStatus != PurchaseOrderLifecycleStatusEnum.Active)
             throw new InvalidOperationException("只有活动且未确认订单允许此操作。");
     }
-    /// <summary>固定采购根产品必须是活动主档且具采购资格；不得以 SKU 前缀推断非标业务类型。</summary>
+    /// <summary>固定采购根产品必须是活动且采购型的真实物料，包含包材；不得以 SKU 前缀推断非标业务类型。</summary>
     public static void RequireProduct(Product? product)
     {
         if (product is null || !product.IsActive || string.IsNullOrWhiteSpace(product.Sku)
             || product.SupplyType != SupplyTypeEnums.采购
-            || product.MaterialType is not (MaterialTypesEnum.成品 or MaterialTypesEnum.零件 or MaterialTypesEnum.客供件))
+            || product.MaterialType is not (MaterialTypesEnum.成品 or MaterialTypesEnum.零件 or MaterialTypesEnum.客供件 or MaterialTypesEnum.包材))
             throw new InvalidOperationException("产品不存在、停用或不具备标准采购资格。");
     }
     /// <summary>保存白名单精确作用于原有行集合，拒绝增删行、重复行和版本冲突。</summary>

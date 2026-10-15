@@ -6,6 +6,7 @@
  xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
  xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
  xmlns:warehouseComponents="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Components"
+ xmlns:detailViews="clr-namespace:SwiftExportClient.Features.Products.ProductList.Views"
  Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
  <Grid Margin="12,8">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="8"/><RowDefinition Height="*"/><RowDefinition Height="8"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -18,7 +19,15 @@
    <ui:Button DockPanel.Dock="Right" Content="关闭" Command="{Binding CloseDocumentCommand}" HorizontalAlignment="Right"/>
    <TextBlock Text="{Binding DocumentTitle}" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center" Margin="16,0,0,0"/>
   </DockPanel>
-  <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <Grid Grid.Row="2">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+   <TabControl x:Name="DetailTabs" SelectionChanged="OnDetailTabChanged" Margin="0,0,0,8">
+    <TabItem Header="基本资料与标签"/><TabItem Header="包装规格"/>
+   </TabControl>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <ScrollViewer.Style><Style TargetType="ScrollViewer"><Setter Property="Visibility" Value="Visible"/>
+    <Style.Triggers><DataTrigger Binding="{Binding SelectedIndex, ElementName=DetailTabs}" Value="1"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+   </Style></ScrollViewer.Style>
    <StackPanel>
     <ui:Card>
      <Grid>
@@ -106,6 +115,12 @@
     <productComponents:ProductAttributeEditor Workspace="{Binding Tags}" CanEdit="{Binding CanEditTags}" RefreshCommand="{Binding RefreshProductAttributesCommand}" Height="320" AutomationProperties.Name="物料独立标签值编辑"/>
    </StackPanel>
   </ScrollViewer>
+  <detailViews:ProductPackagingEditorView Grid.Row="1" DataContext="{Binding Packaging}">
+   <detailViews:ProductPackagingEditorView.Style><Style TargetType="detailViews:ProductPackagingEditorView"><Setter Property="Visibility" Value="Collapsed"/>
+    <Style.Triggers><DataTrigger Binding="{Binding SelectedIndex, ElementName=DetailTabs}" Value="1"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+   </Style></detailViews:ProductPackagingEditorView.Style>
+  </detailViews:ProductPackagingEditorView>
+  </Grid>
   <StackPanel Grid.Row="4"><TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryTextBlock}"/><TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" Foreground="{DynamicResource UserBusinessTextWarningBrush}"/></StackPanel>
  </Grid>
 </UserControl>

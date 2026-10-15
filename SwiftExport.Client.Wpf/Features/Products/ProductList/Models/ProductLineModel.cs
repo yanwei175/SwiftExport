@@ -27,6 +27,8 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
     [ObservableProperty] public partial string LinkSku { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal CnyPrice { get; set; }
     [ObservableProperty] public partial decimal UsdPrice { get; set; }
+    /// <summary>物料单件自重（KG），与外箱重量分开维护。</summary>
+    [ObservableProperty] public partial decimal? UnitWeight { get; set; }
     [ObservableProperty] public partial decimal? PcsOfCarton { get; set; }
     [ObservableProperty] public partial decimal? NwOfCarton { get; set; }
     [ObservableProperty] public partial decimal? GwOfCarton { get; set; }
@@ -49,11 +51,13 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
     [ObservableProperty] public partial string DefaultSupplierCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string MainImage { get; set; } = string.Empty;
 
+    /// <summary>验证物料列表的必填、非负数值和可空引用输入，错误保留在当前编辑行。</summary>
     public override Task<string?> ValidateAsync()
     {
         if (string.IsNullOrWhiteSpace(Sku)) return Task.FromResult<string?>("SKU 不能为空。");
         if (BomVersion < 0) return Task.FromResult<string?>("BOM 版本不能小于 0。");
         if (CnyPrice < 0 || UsdPrice < 0) return Task.FromResult<string?>("价格不能小于 0。");
+        if (UnitWeight < 0) return Task.FromResult<string?>("单件自重不能小于 0。");
         if (DefaultWarehouseSiteId == Guid.Empty || ManufacturerId == Guid.Empty)
             return Task.FromResult<string?>("默认仓库或制造商标识不能是空 Guid。");
         if (ManufacturerModel?.Trim().Length > 200)
@@ -66,5 +70,11 @@ public partial class ProductLineModel : BaseLineModel<ProductDto>
         dto.Adapt(this);
     }
 
-    public override ProductDto ToDto() => this.Adapt<ProductDto>();
+    /// <summary>冻结当前行资料，并明确声明自重更新，使清空与旧客户端省略可区分。</summary>
+    public override ProductDto ToDto()
+    {
+        var dto = this.Adapt<ProductDto>();
+        dto.UpdateUnitWeight = true;
+        return dto;
+    }
 }

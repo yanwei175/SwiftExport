@@ -120,7 +120,7 @@ public sealed partial class PostgreSqlRepositoryTests
         StringAssert.Contains(fixture.Connection.Text, "LIKE @PrefixKeyword ESCAPE ''");
     }
 
-    /// <summary>分页计数与取页共用所有筛选；分类单多选和客户单多选均独立 AND，包装不限类型且稳定取一条。</summary>
+    /// <summary>分页计数与取页共用所有筛选；分类和客户筛选独立 AND，包装只取有效外箱，不回退其他类型。</summary>
     [TestMethod]
     public async Task CatalogPage_PreservesFiltersCapsAndPackaging()
     {
@@ -159,7 +159,7 @@ public sealed partial class PostgreSqlRepositoryTests
             Assert.IsFalse(command.Sql.Contains("AS \"IsActive\"", StringComparison.Ordinal));
             Assert.AreSame(fixture.Session.Transaction, command.Transaction);
         }
-        StringAssert.Contains(fixture.Connection.Text, "LEFT JOIN LATERAL");
+        StringAssert.Contains(fixture.Connection.Text, "LEFT JOIN public.product_package pkg ON pkg.owner_product_id=p.uid");
         StringAssert.Contains(fixture.Connection.Text, "pat.fake_name AS \"FakeName\"");
         StringAssert.Contains(fixture.Connection.Text, "ELSE COALESCE(pat.fake_name,'') END AS \"CategoryName\"");
         StringAssert.Contains(fixture.Connection.Text, "WHEN pat.uid IS NULL THEN '分类已失效'");
@@ -169,8 +169,9 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.AreEqual(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid, fixture.Connection.Types["CategoryIds"]);
         Assert.AreEqual(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid, fixture.Connection.Types["ColorIds"]);
         Assert.AreEqual(NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Uuid, fixture.Connection.Types["CustomerIds"]);
-        StringAssert.Contains(fixture.Connection.Text, "pp.is_default DESC NULLS LAST,pp.pcs_per_package DESC NULLS LAST,pp.uid LIMIT 1");
-        Assert.IsFalse(fixture.Connection.Text.Contains("package_type=", StringComparison.Ordinal));
+        StringAssert.Contains(fixture.Connection.Text, "pkg.package_type=@CartonPackageType AND pkg.is_deleted=FALSE");
+        Assert.AreEqual(SwiftExport.Contracts.SysEnums.ProductPackageTypeCodes.Carton, fixture.Connection.Values["CartonPackageType"]);
+        Assert.IsFalse(fixture.Connection.Text.Contains("is_default", StringComparison.Ordinal));
         Assert.IsFalse(fixture.Connection.Text.Contains("JOIN public.customer_product", StringComparison.Ordinal));
         await repository.GetPagedAsync(null!);
         Assert.AreEqual(20, fixture.Connection.Values["Limit"]);
