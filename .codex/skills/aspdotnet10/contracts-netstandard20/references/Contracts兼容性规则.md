@@ -49,11 +49,4 @@
 
 ## 验证
 
-修改 Contracts 后优先运行：
-
-```powershell
-dotnet build .\SwiftExport-WebAPI.slnx
-dotnet build .\SwiftExport.Client.Wpf\SwiftExport.Client.Wpf.csproj
-```
-
-如果只改契约但不改调用方，最终回复说明未做联动验证的风险。
+按测试总纲选择Contracts及实际受影响消费者的构建和定向契约/序列化测试。共享破坏性变更、跨端集成或阶段验收时扩大到后端/客户端组合；不因每次局部契约改动无条件构建两个完整入口。同批有效构建可复用，未做的联动验证如实说明；netstandard2.0语法和消费者兼容约束不变。

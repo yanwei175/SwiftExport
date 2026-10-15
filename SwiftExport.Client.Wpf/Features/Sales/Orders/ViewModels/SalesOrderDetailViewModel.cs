@@ -19,6 +19,7 @@ using System.Collections.Specialized;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json;
+using System.Windows.Data;
 using SwiftExportClient.Authentication;
 
 namespace SwiftExportClient.Features.Sales.Orders.ViewModels;
@@ -87,8 +88,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(AddStandardLineCommand);
         RegisterBusyAwareCommand(AddNonStandardLineCommand);
         RegisterBusyAwareCommand(DeleteSelectedLineCommand);
-        RegisterBusyAwareCommand(MoveLineUpCommand);
-        RegisterBusyAwareCommand(MoveLineDownCommand);
+        RegisterBusyAwareCommand(ReorderLineCommand);
     }
 
     public SalesOrderHeaderEditModel Header { get; } = new();
@@ -126,8 +126,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedLineCommand))]
-    [NotifyCanExecuteChangedFor(nameof(MoveLineUpCommand))]
-    [NotifyCanExecuteChangedFor(nameof(MoveLineDownCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReorderLineCommand))]
     public partial SalesOrderLineModel? SelectedLine { get; set; }
 
     [ObservableProperty] public partial SalesOrderProductLookupDto? SelectedProductCandidate { get; set; }
@@ -294,59 +293,24 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         SelectedLine = Lines.Items.FirstOrDefault();
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveLineUp))]
-    private void MoveLineUp(SalesOrderLineModel? line)
+    /// <summary>仅允许当前可维护草稿在原始业务顺序下调整行号。</summary>
+    public bool CanReorder => CanEdit() && RowReorderRequest.IsViewInSourceOrder(CollectionViewSource.GetDefaultView(Lines.Items));
+
+    /// <summary>拖拽和键盘共用行锚点命令；入口再次检查权限和待决命令，保留原保存身份。</summary>
+    [RelayCommand(CanExecute = nameof(CanReorderLine))]
+    private void ReorderLine(RowReorderRequest? request)
     {
-        if (line is null)
-        {
-            return;
-        }
-
-        var index = Lines.Items.IndexOf(line);
-        if (index <= 0)
-        {
-            return;
-        }
-
+        if (!CanReorderLine(request) || !request!.TryResolve(Lines.Items, out var line, out var index)) return;
         using (Lines.SuppressListEvents())
         {
-            if (!Lines.Move(line, index - 1))
-            {
-                return;
-            }
-
+            if (!Lines.Move(line, index)) return;
             ResetLineNumbers();
         }
-
         SelectedLine = line;
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveLineDown))]
-    private void MoveLineDown(SalesOrderLineModel? line)
-    {
-        if (line is null)
-        {
-            return;
-        }
-
-        var index = Lines.Items.IndexOf(line);
-        if (index < 0 || index >= Lines.Items.Count - 1)
-        {
-            return;
-        }
-
-        using (Lines.SuppressListEvents())
-        {
-            if (!Lines.Move(line, index + 1))
-            {
-                return;
-            }
-
-            ResetLineNumbers();
-        }
-
-        SelectedLine = line;
-    }
+    private bool CanReorderLine(RowReorderRequest? request) => CanReorder
+        && request is not null && request.TryResolve(Lines.Items, out var line, out _) && !line.IsDeleted;
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
@@ -834,24 +798,19 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
 
     private void NotifyLineReorderCommands()
     {
-        MoveLineUpCommand.NotifyCanExecuteChanged();
-        MoveLineDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanReorder));
+        ReorderLineCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanEdit() => CanMaintain && CanWrite && IsNotBusy && !IsReadOnly && !HasPendingIntent;
     private bool CanDeleteLine() => CanEdit() && SelectedLine is not null;
-    private bool CanMoveLineUp(SalesOrderLineModel? line) =>
-        CanEdit() && line is not null && Lines.Items.IndexOf(line) > 0;
-    private bool CanMoveLineDown(SalesOrderLineModel? line)
+    /// <summary>基类忙碌和只读变化同步重排手柄，不另存门禁状态。</summary>
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
-        if (!CanEdit() || line is null)
-        {
-            return false;
-        }
-
-        var index = Lines.Items.IndexOf(line);
-        return index >= 0 && index < Lines.Items.Count - 1;
+        base.OnPropertyChanged(e);
+        if (e.PropertyName is nameof(IsBusy) or nameof(IsReadOnly)) OnPropertyChanged(nameof(CanReorder));
     }
+
     private bool CanSave() => CanMaintain && IsNotBusy && (_pendingSave is not null || CanEdit() && IsDirty);
     /// <summary>确认权限独立于草稿维护权限；只读查看者仍可确认无本地修改的已保存订单。</summary>
     private bool CanConfirm() => CanConfirmOrder && IsNotBusy && (_pendingConfirmation is not null ||

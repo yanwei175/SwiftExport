@@ -29,6 +29,7 @@ description: SwiftExport 原生 WPF DataGrid 增强核心技能。用于 Enterpr
 ## 实现检查
 
 - 不吞掉未处理输入，不修改 `ItemsSource`，不关闭虚拟化。
+- 业务行重排在客户端共享行为及页面命令中实现；协调器不创建排序按钮列，也不引入 Gong 或业务编号规则。
 - 不通过 `UpdateLayout` 全局强制布局；需要容器时先 `ScrollIntoView`，再处理生成结果。
 - 设计可注入的导航、列可见性等策略，但避免过早建立通用插件平台。
 - 测试重复启停、卸载重载、空 ItemsSource、列动态变化和多个 DataGrid 并存。

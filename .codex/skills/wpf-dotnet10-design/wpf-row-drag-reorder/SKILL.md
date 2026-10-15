@@ -1,51 +1,50 @@
 ---
 name: wpf-row-drag-reorder
-description: SwiftExport WPF 行拖拽重排。用于 DataGrid 行首手柄拖动、插入位置换算，以及 SortNo、订单明细 LineNumber 重编号、保存和撤销；不用于跨列表转移或树节点改父级。
+description: SwiftExport WPF 行拖拽重排。用于共享 RowDragReorder 手柄行为、SortNo 或订单 LineNumber 重编号、保存和撤销，以及箱单受限包装分组重排；不用于跨列表转移或树节点改父级。
 ---
 
 # WPF 行拖拽重排
 
-适用于当前 .NET 10 WPF 客户端的平面业务列表。先按 WPF 技能组选择页面、MVVM 和验证规则；本技能不授予修改 EnterpriseGrid 框架、后端或其他订单页面的权限。
+业务行重排由客户端承担，不属于 EnterpriseGrid 模块。按本次改动选择 MVVM、控件和测试规则，不因消费已有行为重做整个页面设计。
 
-## 实现位置与现有能力
+## 共享入口
 
-- 项目已引用 `gong-wpf-dragdrop`。优先复用其拖动阈值、取消、插入线和边缘滚动；使用自定义拖拽源及 DropHandler，不让默认 DropHandler 直接改业务集合。
-- View/code-behind 负责 WPF 命中、手柄、编辑提交和插入槽转换；ViewModel 负责门禁、集合顺序和业务编号。Gong 的 `IDragInfo`、`IDropInfo` 不进入业务 ViewModel。
-- 现有实例：仓库根目录下 `SwiftExport.Client.Wpf/Features/Products/Colors/Views/ProductColorsView.xaml` 及同目录 `ProductColorsView.xaml.cs`；业务入口为 `SwiftExport.Client.Wpf/Features/Products/Colors/ViewModels/ProductColorsViewModel.cs`。
-- `BaseListModel.Items` 是只读可观察集合。通过 `Lines.Move(line, finalIndex)` 移动已有对象；不复制 DTO、不重建整表，不调用 `AcceptChanges()` 掩盖未保存重排。
+- 视觉桥接：`SwiftExport.Client.Wpf/Resources/Behaviors/RowDragReorder.cs`；命令参数：`Mvvm/RowReorderRequest.cs`、`Mvvm/RowDropPosition.cs`，后两者相对客户端根目录。
+- `RowDragReorder.IsEnabled` 绑定页面的 `CanReorder`；`MoveCommand` 绑定 CommunityToolkit 生成的 `ReorderLineCommand`；行首元素设置 `IsHandle=True`。
+- `AllowBusinessGrouping` 默认 false，仅箱单等拥有明确业务分组规则的页面显式开启。可选 `CommitEdits` 回调负责组头等额外编辑器；缺省提交 DataGrid 当前单元格和行。
+- 行首手柄及命名列由页面 XAML 声明；框架不注入排序列。手柄列只读，禁用排序、筛选和导出，提供 Automation 名称及操作说明。
+- 复用现有 Gong 包的阈值、取消、边缘滚动和插入线；此行为拥有该表格的 Gong 拖放接线，不与其他 DragHandler/DropHandler 混用，不调用默认 DropHandler 改集合。
 
-## 拖放边界
+## 命令协议与职责
 
-- 可编辑表格优先仅从行首手柄发起拖动，保留文字选择、勾选、编辑及 DataGrid 原生键盘行为。明确单行或多行语义；颜色页是单行，勾选和多选不自动扩大拖动范围。
-- 开始拖动前提交当前单元格和行，验证失败阻止拖动；落下时再次检查提交及门禁。拖动本身不调用保存 API。
-- 来源必须属于当前表格、当前编辑集合；拒绝其他窗口/列表、过期快照、删除行、无效目标。DragOver 与 Drop 均检查，不能只依赖手柄的 IsEnabled。
-- 忙碌、无写权限、业务状态禁止编辑时拒绝重排。全局顺序只能在完整列表上调整；搜索、筛选、分组、表头排序或 CustomSort 生效时禁止拖动。清空搜索恢复 `Filter = null`。分页数据不得冒充完整顺序。
-- 保留虚拟化。每次读取当前命中元素的 DataContext，拖动载荷使用稳定模型对象/身份；不要缓存 DataGridRow/DataGridCell，也不要把创建控件时捕获的对象当成永久行参数。
-- 提供插入线和可理解的手柄名称、操作说明，并提供符合页面快捷键约定的键盘等价入口。焦点和当前行跟随移动对象。
+- `RowReorderRequest(SourceItem, TargetItem, Position)` 使用实际模型对象和目标锚点；位置为 `Before`、`After` 或无目标行时的 `End`。
+- 平面页面用 `request.TryResolve(Lines.Items, out line, out finalIndex)` 解析移除源行后的最终索引；拒绝过期源/目标、原地及非法落点。不要再对结果减一。
+- View/共享行为负责命中、编辑提交、键盘与插入提示；ViewModel 负责权限、业务状态、集合顺序、编号和保存。Gong 类型不进入业务 ViewModel。
+- `ReorderLineCommand.CanExecute` 和执行入口都检查当前业务门禁，不能仅依靠手柄 IsEnabled。命令仅改当前编辑集合，不调用 API。
+- 使用 `Lines.Move(line, finalIndex)`；`BaseListModel.Items` 为只读可观察集合，不让拖拽库直接 Add/Remove，也不复制 DTO 或重建整表。
+- 现有接线实例：客户端 `Features/Products/Colors`、`Features/Sales/Orders`、`Features/Procurement/PurchaseOrders`、`Features/Shipping/PackingLists` 下的详情 View 和 ViewModel。
 
-## 插入槽与最终索引
+## 交互与门禁
 
-Gong 的 `InsertIndex` 表示尚未移除源行的插入槽，范围为 `0..Count`。单行在同一完整列表内移动时：
+- 只从手柄拖单行，多选与勾选不扩大范围。开始及落下时提交编辑；原生转换/提交失败阻止移动，保存仍负责最终业务校验。
+- 保留虚拟化，不缓存 DataGridRow/DataGridCell。每次从实际命中元素读取当前数据对象，拒绝外部表格、删除行和旧快照。
+- Busy、只读、权限不足或业务状态禁止编辑时拒绝重排。筛选、额外排序和 CustomSort 期间禁止移动；清空搜索恢复 `Filter=null`，不清除用户的其他视图状态来强行重排。
+- `RowReorderRequest.IsViewInSourceOrder` 供页面复核视图；共享行为还检查原生表格配置。分页不能冒充完整业务顺序。
+- `Alt+↑ / Alt+↓` 使用同一重排命令；原生编辑器和已处理输入优先。行为在禁用、卸载时解除订阅，重载时幂等接线。
 
-```csharp
-var oldIndex = Lines.Items.IndexOf(line);
-var finalIndex = insertIndex > oldIndex ? insertIndex - 1 : insertIndex;
-```
+## 各页面业务约定
 
-先检查来源、成员资格和插入槽范围，再换算并检查最终索引；原地及紧邻自身的插入槽不产生脏状态。ViewModel 接收最终索引，避免 UI 和 ViewModel 重复减一。
+- 颜色以完整列表重编 `SortNo=1..N`；销售以完整有效明细重编 `LineNumber=1..N`，遵守现有维护权限、只读、Busy 和待决命令门禁。
+- 采购仅创建态新增行允许重排，不扩大已保存订单编辑能力。订单的编号仅在各自单据内连续。
+- 箱单允许现有 `DisplayGroup` 包装分组视图。拼箱成员只能落在同组成员前后；普通行落在拼箱成员上时定位到整个块之前或之后，不得插入拼箱内部。拒绝组头及组间空白落点。
+- 箱单整组移动保留工具栏“拼箱上移／下移”按钮，不增加组头拖动；分组支持不代表可跨组改变 PackingGroupId。
+- 在 `Lines.SuppressListEvents()` 内移动及重编号，由现有字段跟踪产生 Modified。不要用 SuppressChangeTracking 或 AcceptChanges 消除排序草稿。
+- 保持 Uid、Version、产品、数量、金额和来源/上下游关联不变；不能用 LineNumber 替代行身份。新增、删除是否立即重编号沿用页面原有约定。
+- 沿用整单/批量保存、Version 和事务边界；失败保留草稿，成功按已有协议接纳/重载，撤销同时恢复编号和集合顺序。本技能不授权后端、其他页面或数据库变更。
 
-## SortNo 与订单 LineNumber
+## 定向验证
 
-- 先确认编号语义及保存链路：颜色 `SortNo` 是全局显示顺序；订单 `LineNumber` 通常是单据内行序，但须检查实际 Entity、DTO、LineModel、映射、仓储读取及消费者，不默认所有订单都可编辑。
-- 对约定连续编号的列表，移动后在 `Lines.SuppressListEvents()` 中按完整有效列表顺序赋值 `1..N`，由现有行属性跟踪产生 Modified。不要在 `SuppressChangeTracking()` 中消除业务编号变更。
-- 保持 Uid、Version、产品、数量、金额和上下游关联不变。不得用 LineNumber 替换明细身份；如消费者把行号当关联键，先核实调整规则。
-- 按单据自身草稿/确认/过账状态、权限及并发规则决定是否允许重排；同一单据的 LineNumber 不得跨单据连续编号。
-- 保留原批量/整单保存、Version 和事务边界。失败保留草稿；成功按现有协议接纳、重载并刷新实际受影响的缓存。撤销须同时恢复字段编号和集合顺序。
-- 新增/删除是否立即重编号遵循页面既有业务约定，不因加入拖拽顺带改变；不要为尚未授权的订单页预先接线或新增通用框架。
-
-## 验证重点
-
-- 测试向上/向下跨多行、首尾、原地/相邻槽、越界、外部来源及过期对象；断言最终对象顺序、编号、选择、身份和脏状态。
-- 测试搜索禁用及清空恢复、Busy/只读/释放、拖动中门禁变化、无效编辑阻断、多选仍只移动目标行。
-- STA 测试加载真实 DataGrid，验证手柄命中及非手柄拒绝，连续重排并滚动回收容器，再移动当前显示行。不得用关闭虚拟化让测试通过。
-- 覆盖保存失败保留、撤销恢复和保存请求中的业务编号；人工验收实际鼠标拖放、插入线、边缘滚动、Esc 取消和键盘等价路径。记录未执行的人工项。
+- 优先复用已有测试；新增行为覆盖上下跨多行、首尾、原地、外部及过期对象、编辑失败、权限/Busy/只读、筛选及恢复。
+- 共享行为使用 STA 测试验证真实手柄、非手柄拒绝、键盘、启停/卸载重载、多 Grid、ItemsSource 更换和 200 行容器回收。
+- 页面测试断言编号、身份、选择、脏状态、保存内容、失败保留及撤销；箱单验证组边界、普通行跨块、整组按钮和包装数据不变。
+- 完整客户端启动和截图不是默认验收步骤；实际鼠标拖放、插入线、边缘滚动与 Esc 取消按交互风险按需验收，记录未执行项。

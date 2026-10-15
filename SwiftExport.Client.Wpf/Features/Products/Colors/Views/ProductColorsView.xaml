@@ -4,11 +4,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:dd="urn:gong-wpf-dragdrop"
              mc:Ignorable="d"
              d:Width="1200"
              d:Height="800"             
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:rowDrag="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -197,10 +197,8 @@
                       gridCore:GridVirtualization.IsEnabled="True"
                       gridCore:GridRowHeader.ShowRowNumber="True"
                       gridOperations:GridOperations.IsEnabled="True"
-                      dd:DragDrop.IsDragSource="True"
-                      dd:DragDrop.IsDropTarget="True"
-                      dd:DragDrop.DropHandler="{Binding ElementName=Root}"
-                      PreviewKeyDown="OnReorderKeyDown"
+                      rowDrag:RowDragReorder.IsEnabled="{Binding CanReorder}"
+                      rowDrag:RowDragReorder.MoveCommand="{Binding ReorderLineCommand}"
                       gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                       gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
                       gridValidation:GridValidation.IsEnabled="True">
@@ -211,10 +209,11 @@
                                                 gridColumns:GridColumn.CanExport="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock x:Name="ColorReorderHandle" Text="≡" FontSize="20"
+                                    <TextBlock x:Name="ColorReorderHandle" 
+                                               rowDrag:RowDragReorder.IsHandle="True" Text="≡" FontSize="20"
                                                Background="Transparent" Cursor="SizeAll"
                                                HorizontalAlignment="Stretch" TextAlignment="Center"
-                                               VerticalAlignment="Stretch"
+                                               VerticalAlignment="Center"
                                                IsEnabled="{Binding DataContext.CanReorder, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                AutomationProperties.Name="拖动调整颜色顺序"
                                                ToolTip="拖动调整顺序；Alt+↑ / Alt+↓ 移动当前行，保存后生效" />

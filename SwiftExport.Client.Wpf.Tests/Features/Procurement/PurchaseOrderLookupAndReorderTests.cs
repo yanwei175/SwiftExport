@@ -6,6 +6,11 @@ using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Components;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
+using SwiftExportClient.Authentication;
+using SwiftExportClient.Mvvm;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Procurement;
 
@@ -13,6 +18,42 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement;
 [TestClass]
 public sealed class PurchaseOrderLookupAndReorderTests
 {
+    /// <summary>创建态命令维护真实集合及行号；已保存行、权限撤销、只读及释放后均不能绕过门禁。</summary>
+    [TestMethod]
+    public void DragReorderOnlyChangesNewCreateRows() => StaTest.RunAsync(async () =>
+    {
+        var user = new CurrentUserService();
+        user.SetCurrentUser(new MeDto { Permissions = [PermissionKeys.ProcurementOrderCreate] });
+        using var vm = new PurchaseOrderDetailViewModel(null!, null!, null!, null!, null!, user);
+        await vm.InitializeDocumentAsync(null, default);
+        var first = vm.Lines.Items[0];
+        var second = vm.Lines.AddNew(new PurchaseOrderLineDetailDto { Uid = Guid.NewGuid(), LineNumber = 10, Quantity = 7m });
+        var request = new RowReorderRequest(second, first, RowDropPosition.Before);
+        Assert.IsTrue(vm.ReorderLineCommand.CanExecute(request));
+        vm.ReorderLineCommand.Execute(request);
+        Assert.AreSame(second, vm.Lines.Items[0]);
+        Assert.AreSame(second, vm.Lines.SelectedItem);
+        CollectionAssert.AreEqual(new[] { 1, 2 }, vm.Lines.Items.Select(row => row.LineNumber).ToArray());
+        Assert.AreEqual(7m, second.Quantity);
+        vm.IsCreateMode = false;
+        var reverse = new RowReorderRequest(first, second, RowDropPosition.Before);
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(reverse));
+        vm.ReorderLineCommand.Execute(reverse);
+        Assert.AreSame(second, vm.Lines.Items[0]);
+        vm.IsCreateMode = true;
+        user.SetCurrentUser(new MeDto { Permissions = [] });
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(reverse));
+        user.SetCurrentUser(new MeDto { Permissions = [PermissionKeys.ProcurementOrderCreate] });
+        typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(vm, true);
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(reverse));
+        typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(vm, false);
+        vm.Lines.LoadFromDtos([new() { Uid = first.Uid, LineNumber = 1, Quantity = 1m }, new() { Uid = second.Uid, LineNumber = 2, Quantity = 7m }]);
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(new RowReorderRequest(vm.Lines.Items[1], vm.Lines.Items[0], RowDropPosition.Before)));
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(reverse));
+        vm.Dispose();
+        Assert.IsFalse(vm.CanReorder);
+    });
+
     [TestMethod]
     public void LookupSelectedItemsMustUseNarrowProcurementDtos()
     {
@@ -132,7 +173,7 @@ public sealed class PurchaseOrderLookupAndReorderTests
 
         StringAssert.Contains(xaml, "CanUserSortColumns=\"False\"");
         StringAssert.Contains(xaml, "gridOperations:GridOperations.IsEnabled=\"True\"");
-        StringAssert.Contains(xaml, "gridOperations:DataGridLineReorder.IsEnabled=\"{Binding IsCreateMode}\"");
+        StringAssert.Contains(xaml, "rowDrag:RowDragReorder.IsEnabled=\"{Binding CanReorder}\"");
         StringAssert.Contains(xaml, "gridSelection:GridSelection.IsCellClickSelectionEnabled=\"True\"");
         StringAssert.Contains(xaml, "gridValidation:GridValidation.IsEnabled=\"True\"");
         StringAssert.Contains(xaml, "<DataTrigger Binding=\"{Binding IsCreateMode}\" Value=\"True\">");

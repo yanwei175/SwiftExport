@@ -52,7 +52,7 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         Lines.ListStateChanged += OnLinesChanged;
         PropertyChanged += OnPageChanged;
         foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand,
-            MoveLineUpCommand, MoveLineDownCommand, SplitTailCommand, UndoCommand })
+            ReorderLineCommand, SplitTailCommand, UndoCommand })
             RegisterBusyAwareCommand(command);
     }
     public PackingListHeaderModel Header { get; } = new();
@@ -240,55 +240,48 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveLineUp))]
-    private void MoveLineUp(PackingListLineModel? line) => MoveLine(line ?? SelectedLine, -1);
-    private bool CanMoveLineUp(PackingListLineModel? line)
+    /// <summary>只对现有包装分组开放重排，筛选或额外排序仍禁止改变业务行号。</summary>
+    public bool CanReorder => IsEditable && RowReorderRequest.IsViewInSourceOrder(Lines.PackingView, allowBusinessGrouping: true)
+        && Lines.PackingView.GroupDescriptions.Count == 1
+        && Lines.PackingView.GroupDescriptions[0] is System.Windows.Data.PropertyGroupDescription { PropertyName: nameof(PackingListLineModel.DisplayGroup) };
+
+    /// <summary>成员仅在本拼箱内重排，普通行按包装块边界移动，不改变来源、数量或拼箱归属。</summary>
+    [RelayCommand(CanExecute = nameof(CanReorderLine))]
+    private void ReorderLine(RowReorderRequest? request)
     {
-        if (!IsEditable)
-            return false;
-
-        line ??= SelectedLine;
-
-        if (line is null) return false;
-        var index = Lines.Items.IndexOf(line);
-        return index > 0 && (!line.PackingGroupId.HasValue || Lines.Items[index - 1].PackingGroupId == line.PackingGroupId);
+        if (!TryReorderDestination(request, out _, out _) || CommitEdits?.Invoke() == false
+            || !TryReorderDestination(request, out var line, out var index)) return;
+        using (Lines.SuppressListEvents())
+        {
+            if (!Lines.Move(line, index)) return;
+            Renumber();
+        }
+        SelectedLine = line;
+        NotifyState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveLineDown))]
-    private void MoveLineDown(PackingListLineModel? line) => MoveLine(line ?? SelectedLine, 1);
-    private bool CanMoveLineDown(PackingListLineModel? line)
+    private bool CanReorderLine(RowReorderRequest? request) => TryReorderDestination(request, out _, out _);
+
+    /// <summary>将真实行落点转换为完整业务集合位置，禁止成员跨组和普通行插入拼箱内部。</summary>
+    private bool TryReorderDestination(RowReorderRequest? request, out PackingListLineModel line, out int index)
     {
-        if (!IsEditable)
-            return false;
-
-        line ??= SelectedLine;
-
-        if (line is null)
-            return false;
-
-        var index = Lines.Items.IndexOf(line);
-
-        return index >= 0 && index < Lines.Items.Count - 1
-            && (!line.PackingGroupId.HasValue || Lines.Items[index + 1].PackingGroupId == line.PackingGroupId);
+        line = null!; index = -1;
+        if (!CanReorder || request?.SourceItem is not PackingListLineModel source || source.IsDeleted || !Lines.Items.Contains(source)) return false;
+        if (request.TargetItem is not null && (request.TargetItem is not PackingListLineModel targetRow || !Lines.Items.Contains(targetRow))) return false;
+        if (source.PackingGroupId.HasValue)
+        {
+            if (request.TargetItem is not PackingListLineModel target || target.PackingGroupId != source.PackingGroupId) return false;
+        }
+        else if (request.TargetItem is PackingListLineModel target && target.PackingGroupId is { } groupId)
+        {
+            // 只移动普通行，目标成员仅作为所属完整包装块的锚点。
+            var anchor = request.Position == RowDropPosition.Before
+                ? Lines.Items.First(item => item.PackingGroupId == groupId)
+                : Lines.Items.Last(item => item.PackingGroupId == groupId);
+            request = request with { TargetItem = anchor };
+        }
+        return request.TryResolve(Lines.Items, out line, out index);
     }
-
-
-
-    private void MoveLine(PackingListLineModel? line, int offset)
-    {
-        if (!IsEditable || line is null)
-            return;
-
-        if (CommitEdits?.Invoke() == false) return;
-        MovePackingBlock(line, offset);
-        Renumber();
-
-        MoveLineUpCommand.NotifyCanExecuteChanged();
-        MoveLineDownCommand.NotifyCanExecuteChanged();
-    }
-
-
-
 
     /// <summary>拆尾箱只改当前草稿；来源和总数量不变，新增行使用独立身份。</summary>
     [RelayCommand(CanExecute = nameof(CanSplitTail))]
@@ -368,10 +361,11 @@ public sealed partial class PackingListDetailViewModel : ViewModelBaseEx, IDocum
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(DocumentTitle));
         OnPropertyChanged(nameof(IsEditable));
+        OnPropertyChanged(nameof(CanReorder));
         OnPropertyChanged(nameof(CanEditFacts));
         OnPropertyChanged(nameof(CanInteractWithLines));
-        foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, MoveLineUpCommand,
-            MoveLineDownCommand, SplitTailCommand, UndoCommand, PostCommand, ReverseCommand, TraceCommand,
+        foreach (var command in new IRelayCommand[] { SaveCommand, SelectSourcesCommand, DeleteLineCommand, ReorderLineCommand,
+            SplitTailCommand, UndoCommand, PostCommand, ReverseCommand, TraceCommand,
             AddPackingGroupCommand, DeletePackingGroupCommand, SelectOrdinaryPackingCommand,
             MoveIntoPackingGroupCommand, MoveOutOfPackingGroupCommand, MovePackingGroupUpCommand, MovePackingGroupDownCommand }) command.NotifyCanExecuteChanged();
     }

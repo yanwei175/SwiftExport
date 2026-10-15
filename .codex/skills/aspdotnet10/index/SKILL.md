@@ -1,6 +1,6 @@
 ---
 name: aspdotnet10
-description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 API、Application Service、Contracts DTO/Refit、Dapper Repository、数据库实体、事务、状态与单据流程相关任务。触发后先根据任务选择本技能组下的子 skill。
+description: SwiftExport 后端任务的技能选择入口；按本次API、服务、契约或数据库改动加载专项规则。
 ---
 
 # SwiftExport ASP.NET 后端技能组
@@ -8,6 +8,8 @@ description: SwiftExport .NET 10 / ASP.NET 后端技能组入口。用于后端 
 ## 使用方式
 
 公共启动沿用 `AGENTS.md`；本入口只按业务任务选择对应子 Skill，不反向重读 Agent 和后端工作流。已读依赖按根规则复用。
+
+下表是候选索引，不是逐项读取清单。以本次实际修改的职责或风险选择；仅消费已有契约、调用服务或汇报结果，不因此加载这些对象全部设计资料。局部实现复用有效结论，专项Skill的回引不启动第二轮流程。
 
 数据库、仓储、SQL、结构及相关工具任务先读取 `.agents/references/PostgreSQL当前基线.md`。当前仅使用 PostgreSQL + Dapper；已有专项 Skill 继续负责技术细则，不另建 SQL Server/PG 双库分支。
 

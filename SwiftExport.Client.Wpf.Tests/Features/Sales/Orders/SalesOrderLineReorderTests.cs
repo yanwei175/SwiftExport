@@ -76,25 +76,25 @@ public sealed class SalesOrderLineReorderTests
         var second = viewModel.Lines.Items[1];
         var third = viewModel.Lines.Items[2];
 
-        Assert.IsFalse(viewModel.MoveLineUpCommand.CanExecute(first));
-        Assert.IsTrue(viewModel.MoveLineDownCommand.CanExecute(first));
-        Assert.IsFalse(viewModel.MoveLineDownCommand.CanExecute(third));
+        Assert.IsFalse(viewModel.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(viewModel.Lines.Items, first, -1)));
+        Assert.IsTrue(viewModel.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(viewModel.Lines.Items, first, 1)));
+        Assert.IsFalse(viewModel.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(viewModel.Lines.Items, third, 1)));
 
-        viewModel.MoveLineDownCommand.Execute(first);
+        viewModel.ReorderLineCommand.Execute(RowReorderTestRequests.Step(viewModel.Lines.Items, first, 1));
 
         CollectionAssert.AreEqual(new[] { second, first, third }, viewModel.Lines.Items.ToArray());
         CollectionAssert.AreEqual(new[] { 1, 2, 3 }, viewModel.Lines.Items.Select(line => line.LineNumber).ToArray());
         Assert.AreSame(first, viewModel.SelectedLine);
         Assert.IsTrue(viewModel.IsDirty);
-        Assert.IsTrue(viewModel.MoveLineUpCommand.CanExecute(first));
+        Assert.IsTrue(viewModel.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(viewModel.Lines.Items, first, -1)));
 
         viewModel.SelectedLine = second;
         viewModel.DeleteSelectedLineCommand.Execute(null);
         CollectionAssert.AreEqual(new[] { 1, 2 }, viewModel.Lines.Items.Select(line => line.LineNumber).ToArray());
 
         SetReadOnly(viewModel, true);
-        Assert.IsFalse(viewModel.MoveLineUpCommand.CanExecute(first));
-        Assert.IsFalse(viewModel.MoveLineDownCommand.CanExecute(first));
+        Assert.IsFalse(viewModel.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(viewModel.Lines.Items, first, -1)));
+        Assert.IsFalse(viewModel.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(viewModel.Lines.Items, first, 1)));
     }
 
     [TestMethod]
@@ -108,7 +108,7 @@ public sealed class SalesOrderLineReorderTests
         first.Sku = "A";
         second.Sku = "B";
 
-        viewModel.MoveLineUpCommand.Execute(second);
+        viewModel.ReorderLineCommand.Execute(RowReorderTestRequests.Step(viewModel.Lines.Items, second, -1));
         var request = viewModel.Lines.CreateSaveRequest(viewModel.Header);
 
         CollectionAssert.AreEqual(new[] { second.Uid, first.Uid }, request.Lines.Select(line => line.Uid).ToArray());

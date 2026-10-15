@@ -9,7 +9,7 @@ description: SwiftExport 后端 API 与 Application Service 开发规则。用�
 
 公共启动沿用 `AGENTS.md`；以下仅补齐当前业务任务尚未读取的依赖，不回溯已读入口。
 
-- `.agents/references/工程架构总纲.md`
+- 改变分层、公共依赖或现有边界不明时读 `.agents/references/工程架构总纲.md` 相关章节；局部修正复用有效结论
 - 涉及 Controller、路由、HTTP 方法时读 `../webapi-controller-boundary/SKILL.md`
 - 涉及复杂单据、业务命令、CommandId、Preview、幂等、过账或反向时读 `../application-document-command/SKILL.md`
 - 涉及服务、接口、Policy、Repository 或 Controller 的职责与文件拆分时读 `../backend-file-organization/SKILL.md`
@@ -25,6 +25,8 @@ description: SwiftExport 后端 API 与 Application Service 开发规则。用�
 
 ## 开发顺序
 
+以下描述涉及新增用例时的分层关系，不要求每次局部修改重建DTO、接口或Controller。只实施本次需要的部分，复用现有契约和架构；验证范围统一遵循测试总纲。
+
 1. 确认业务场景和模块边界。
 2. 设计或确认 `SwiftExport.Contracts` 中的 DTO、Request、Response、Refit API 和共享枚举。
 3. 在 `SwiftExport.Application/Interfaces` 声明服务接口方法。
@@ -33,7 +35,7 @@ description: SwiftExport 后端 API 与 Application Service 开发规则。用�
 6. 优先复用现有 Repository。
 7. 如现有 Repository 不足，再新增 Core Interface 和 Infrastructure Dapper 实现。
 8. 在 `SwiftExport.WebApi/Controllers/<Module>` 新增或修改 action。
-9. 运行 `dotnet build .\SwiftExport-WebAPI.slnx`。
+9. 按后端质量门禁选择受影响项目编译和定向测试；跨模块/共享基础设施或阶段验收再扩大构建与回归，同批有效证据只执行一次。
 
 ## WebApi 边界
 

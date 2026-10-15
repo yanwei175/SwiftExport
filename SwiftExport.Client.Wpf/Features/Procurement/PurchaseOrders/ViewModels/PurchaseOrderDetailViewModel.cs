@@ -20,6 +20,7 @@ using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Data;
 
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 
@@ -57,7 +58,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         RegisterBusyAwareCommand(CreateCommand); RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(ConfirmCommand); RegisterBusyAwareCommand(CancelConfirmationCommand);
         RegisterBusyAwareCommand(RefreshCommand); RegisterBusyAwareCommand(CloseDocumentCommand);
-        RegisterBusyAwareCommand(MoveLineUpCommand); RegisterBusyAwareCommand(MoveLineDownCommand);
+        RegisterBusyAwareCommand(ReorderLineCommand);
     }
 
     public PurchaseOrderHeaderEditorModel Header { get; } = new();
@@ -129,25 +130,32 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         Lines.Remove(line); NotifyState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveLineUp))] private void MoveLineUp(PurchaseOrderLineEditModel? line) => MoveLine(line, -1);
-    [RelayCommand(CanExecute = nameof(CanMoveLineDown))] private void MoveLineDown(PurchaseOrderLineEditModel? line) => MoveLine(line, 1);
+    /// <summary>仅创建态且具备创建权限时允许重排；已保存采购明细维持原有编辑边界。</summary>
+    public bool CanReorder => HasCreatePermission && IsCreateMode && IsNotBusy && CanInteractWithDocument
+        && _pendingConfirmation is null && RowReorderRequest.IsViewInSourceOrder(CollectionViewSource.GetDefaultView(Lines.Items));
 
-    /// <summary>仅在创建态移动新增行，并以集合顺序重新生成连续行号。</summary>
-    private void MoveLine(PurchaseOrderLineEditModel? line, int offset)
+    /// <summary>按目标行锚点移动新增采购行，并以完整集合顺序重编行号。</summary>
+    [RelayCommand(CanExecute = nameof(CanReorderLine))]
+    private void ReorderLine(RowReorderRequest? request)
     {
-        if (line is null) return;
-        var index = Lines.Items.IndexOf(line); var target = index + offset;
-        if (index < 0 || target < 0 || target >= Lines.Items.Count || !Lines.Move(line, target)) return;
-        for (var i = 0; i < Lines.Items.Count; i++) Lines.Items[i].LineNumber = i + 1;
-        Lines.SelectedItem = line; NotifyState();
+        if (!CanReorderLine(request) || !request!.TryResolve(Lines.Items, out var line, out var index)) return;
+        using (Lines.SuppressListEvents())
+        {
+            if (!Lines.Move(line, index)) return;
+            for (var i = 0; i < Lines.Items.Count; i++) Lines.Items[i].LineNumber = i + 1;
+        }
+        Lines.SelectedItem = line;
+        NotifyState();
     }
 
-    private bool CanMoveLineUp(PurchaseOrderLineEditModel? line)
-        => IsCreateMode && IsNotBusy && line is { IsNew: true, IsDeleted: false } && Lines.Items.IndexOf(line) > 0;
-    private bool CanMoveLineDown(PurchaseOrderLineEditModel? line)
+    private bool CanReorderLine(RowReorderRequest? request) => CanReorder && request is not null
+        && request.TryResolve(Lines.Items, out var line, out _) && line is { IsNew: true, IsDeleted: false };
+
+    /// <summary>基类忙碌和只读变化同步创建态重排手柄。</summary>
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
-        var index = line is null ? -1 : Lines.Items.IndexOf(line);
-        return IsCreateMode && IsNotBusy && line is { IsNew: true, IsDeleted: false } && index >= 0 && index < Lines.Items.Count - 1;
+        base.OnPropertyChanged(e);
+        if (e.PropertyName is nameof(IsBusy) or nameof(IsReadOnly)) OnPropertyChanged(nameof(CanReorder));
     }
 
     [RelayCommand]
@@ -408,7 +416,7 @@ public sealed partial class PurchaseOrderDetailViewModel : ViewModelBaseEx, IDoc
         OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(CanConfirm)); OnPropertyChanged(nameof(CanCancel));
         CreateCommand.NotifyCanExecuteChanged(); SaveCommand.NotifyCanExecuteChanged();
         ConfirmCommand.NotifyCanExecuteChanged(); CancelConfirmationCommand.NotifyCanExecuteChanged();
-        MoveLineUpCommand.NotifyCanExecuteChanged(); MoveLineDownCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanReorder)); ReorderLineCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(CanInteractWithDocument));
         VoidOrderCommand.NotifyCanExecuteChanged(); DeleteDraftLinesCommand.NotifyCanExecuteChanged(); RetryReversalCommand.NotifyCanExecuteChanged();
     }

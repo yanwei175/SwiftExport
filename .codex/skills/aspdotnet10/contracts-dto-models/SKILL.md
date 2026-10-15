@@ -1,6 +1,6 @@
 ---
 name: aspdotnet10-contracts-dto-models
-description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTOs、DTO 新建与复用决策、命名和文件组织、Auth DTO、BaseDto、前后端交互模型、Dapper 只读 DTO、Mapster 映射，以及避免 Entity/UI 状态泄露到 DTO 的任务。
+description: 设计或修改SwiftExport共享DTO及其复用边界；仅消费已有DTO不触发完整契约设计。
 ---
 
 # Contracts DTO Models Skill
@@ -9,10 +9,10 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 
 - `../contracts-netstandard20/SKILL.md`
 - `SwiftExport.Contracts/DTOs/Base/BaseDto.cs`
-- `SwiftExport.Contracts/DTOs/Auth/**`
+- 修改Auth契约时读取相关 `SwiftExport.Contracts/DTOs/Auth/**`，其他DTO不因此展开认证模型
 - 目标 `SwiftExport.Contracts/DTOs/**`
 - 新增、复用、拆分或改名 DTO 时读 `references/DTO复用与文件组织门禁.md`
-- 目标业务模块已有能力地图时必须读取；采购任务读 `.agents/references/模块能力地图/采购模块能力地图.md`
+- 新增/改变用例语义、跨域职责或字段口径时读取目标地图相关章节；局部兼容修正复用有效结论
 - 涉及 Wrappers 时读 `../contracts-wrappers/SKILL.md`
 - 涉及 Mapster 时读 `../application-mapster-mapping/SKILL.md`
 
@@ -21,7 +21,7 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 - 新增或修改 DTO。
 - 新增 Auth、Base、单据头行、查询结果、Lookup DTO。
 - Dapper 需要直接映射只读 DTO。
-- 前端 ViewModel / LineModel 需要共享传输模型。
+- 前端任务确需新增或修改共享传输模型；仅使用既有DTO仍按前端职责实现。
 - 实体到 DTO 或 DTO 到实体映射变化。
 
 ## 核心规则
@@ -38,7 +38,7 @@ description: SwiftExport Contracts DTO 技能。用于 SwiftExport.Contracts/DTO
 - Auth DTO 放 `DTOs/Auth`，用于登录、当前用户、注册、重置密码。
 - DTO 字段名保持稳定，避免破坏 Refit、WPF Binding、Mapster 和 Dapper 映射。
 - DTO 不承载 UI 状态。
-- 若本次修改会触碰、复制或扩大能力地图记录的已知偏差，必须先输出“门禁偏差提醒”并暂停，等待用户选择重构或兼容方案；不得静默沿用或越界自动重构。
+- 偏差按路由policy分类；保留有效业务目标，不以过期事实或旧偏差编号自动阻断，不借文档差异扩大重构。
 
 ## 详细参考
 

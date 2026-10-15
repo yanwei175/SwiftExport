@@ -68,8 +68,7 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         RegisterBusyAwareCommand(RejectAllChangesCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(MoreCommand);
-        RegisterBusyAwareCommand(MoveLineUpCommand);
-        RegisterBusyAwareCommand(MoveLineDownCommand);
+        RegisterBusyAwareCommand(ReorderLineCommand);
     }
 
     /// <summary>获取页面维护职责说明。</summary>
@@ -152,19 +151,15 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         SelectedLine = ColorsView.Cast<ProductColorLineModel>().FirstOrDefault();
     }
 
-    /// <summary>将目标行上移一位；命令入口再次校验，禁止绕过筛选、权限及 Busy 门禁。</summary>
-    [RelayCommand(CanExecute = nameof(CanMoveLineUp))]
-    private void MoveLineUp(ProductColorLineModel? line)
+    /// <summary>接纳当前业务行锚点，拖拽和键盘共用完整列表重排入口。</summary>
+    [RelayCommand(CanExecute = nameof(CanReorderLine))]
+    private void ReorderLine(RowReorderRequest? request)
     {
-        if (CanMoveLineUp(line)) MoveLineTo(line!, Lines.Items.IndexOf(line!) - 1);
+        if (CanReorderLine(request) && request!.TryResolve(Lines.Items, out var line, out var index)) MoveLineTo(line, index);
     }
 
-    /// <summary>将目标行下移一位，保持当前行选择。</summary>
-    [RelayCommand(CanExecute = nameof(CanMoveLineDown))]
-    private void MoveLineDown(ProductColorLineModel? line)
-    {
-        if (CanMoveLineDown(line)) MoveLineTo(line!, Lines.Items.IndexOf(line!) + 1);
-    }
+    private bool CanReorderLine(RowReorderRequest? request) => CanReorder
+        && request is not null && request.TryResolve<ProductColorLineModel>(Lines.Items, out _, out _);
 
     /// <summary>校验当前集合成员和移动后的最终索引；过期行、越界及原地移动均不接纳。</summary>
     public bool CanMoveLineTo(ProductColorLineModel line, int newIndex) => CanReorder
@@ -294,9 +289,6 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
     private bool CanDeleteSelected() => CanWriteCommand() && SelectedLine is not null;
     private bool CanRejectChanges() => CanRunCommand() && Lines.HasChanges;
     private bool CanSave() => CanWriteCommand() && Lines.HasChanges;
-    private bool CanMoveLineUp(ProductColorLineModel? line) => CanMoveLines() && line is not null && Lines.Items.IndexOf(line) > 0;
-    private bool CanMoveLineDown(ProductColorLineModel? line) => CanMoveLines() && line is not null
-        && Lines.Items.IndexOf(line) is var index && index >= 0 && index < Lines.Items.Count - 1;
 
     /// <summary>禁止在被排序、筛选或分组的视图移动行，即使外部直接调用命令也不能绕过。</summary>
     private bool CanMoveLines() => CanWriteCommand() && string.IsNullOrWhiteSpace(Keyword)
@@ -316,8 +308,7 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         ResultSummary = $"共 {Lines.Items.Count} 条，当前显示 {ColorsView.Cast<object>().Count()} 条。";
         SaveCommand.NotifyCanExecuteChanged();
         RejectAllChangesCommand.NotifyCanExecuteChanged();
-        MoveLineUpCommand.NotifyCanExecuteChanged();
-        MoveLineDownCommand.NotifyCanExecuteChanged();
+        ReorderLineCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnKeywordChanged(string value) => ApplyLocalFilter();

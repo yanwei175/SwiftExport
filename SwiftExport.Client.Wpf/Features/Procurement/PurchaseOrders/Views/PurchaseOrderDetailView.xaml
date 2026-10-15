@@ -5,6 +5,7 @@
              xmlns:purchaseComponents="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Components"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:rowDrag="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
              xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
@@ -320,14 +321,12 @@
                                       FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                                   RowHeight="{StaticResource DataGridRowHeightMedium}"
                                   CanUserSortColumns="False"
+                                  rowDrag:RowDragReorder.IsEnabled="{Binding CanReorder}"
+                                  rowDrag:RowDragReorder.MoveCommand="{Binding ReorderLineCommand}"
                                   HeadersVisibility="Column"
                                   gridCore:EnterpriseGrid.IsEnabled="True"
                                   gridCore:GridVirtualization.IsEnabled="True"
                                   gridOperations:GridOperations.IsEnabled="True"
-                                  gridOperations:DataGridLineReorder.IsEnabled="{Binding IsCreateMode}"
-                                  gridOperations:DataGridLineReorder.MoveUpCommand="{Binding MoveLineUpCommand}"
-                                  gridOperations:DataGridLineReorder.MoveDownCommand="{Binding MoveLineDownCommand}"
-                                  gridOperations:DataGridLineReorder.ShowWhenReadOnly="False"
                                   gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
                                   gridSelection:GridSelection.CurrentRow="{Binding Lines.SelectedItem,Mode=TwoWay}"
                                   gridValidation:GridValidation.IsEnabled="True">
@@ -345,6 +344,22 @@
                             </Style>
                         </DataGrid.Style>
                         <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="排序" Width="48" IsReadOnly="True" CanUserSort="False"
+                                                gridColumns:GridColumn.Key="row-reorder"
+                                                gridColumns:GridColumn.CanFilter="False"
+                                                gridColumns:GridColumn.CanExport="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="≡" FontSize="20" Background="Transparent" Cursor="SizeAll"
+                                               HorizontalAlignment="Stretch" TextAlignment="Center" VerticalAlignment="Stretch"
+                                               rowDrag:RowDragReorder.IsHandle="True"
+                                               IsEnabled="{Binding DataContext.CanReorder, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                               AutomationProperties.Name="拖动调整行顺序"
+                                               ToolTip="拖动调整顺序；Alt+↑ / Alt+↓ 移动当前行，保存后生效" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
                             <DataGridTextColumn 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                         Header="行号" 

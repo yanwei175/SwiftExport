@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SwiftExportClient.Mvvm;
 using Microsoft.Extensions.Logging.Abstractions;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.Apis.Shipping;
@@ -187,7 +188,7 @@ public sealed class PackingListViewModelTests
         Assert.AreEqual(2, vm.Lines.Items.Count);
         Assert.AreNotEqual(vm.Lines.Items[0].Uid, vm.Lines.Items[1].Uid);
         Assert.AreEqual("new.png", vm.Lines.Items[1].ImagePath); Assert.AreEqual(1.5m, vm.Lines.Items[1].PackageCount);
-        var last = vm.Lines.Items[1]; vm.MoveLineUpCommand.Execute(last);
+        var last = vm.Lines.Items[1]; vm.ReorderLineCommand.Execute(new RowReorderRequest(last, vm.Lines.Items[0], RowDropPosition.Before));
         Assert.AreSame(last, vm.Lines.Items[0]); Assert.AreEqual(1, last.LineNumber);
     }
     /// <summary>关闭时编辑器产生的新修改仍需确认，不能先检查旧脏状态。</summary>
@@ -313,6 +314,52 @@ public sealed class PackingListViewModelTests
         readOnly.AddPackingGroupCommand.Execute(null);
         Assert.AreEqual(0, readOnly.Lines.PackingGroups.Count);
     }
+    /// <summary>拖拽保留拼箱成员连续性，普通行绕过整块；提交失败、跨组及过期目标不能改变业务数据。</summary>
+    [TestMethod]
+    public async Task DragReorderPreservesPackingBlocksAndInputFacts()
+    {
+        var api = new PackingListApiStub(); var ui = new PackingListUiStub();
+        using var vm = Detail(api, ui); await NewDraft(vm);
+        var ordinary = vm.Lines.Items[0];
+        var groupId = Guid.NewGuid();
+        var a = vm.Lines.AddNew(new() { Uid = Guid.NewGuid(), PackingListHeadId = vm.Header.Uid, LineNumber = 2,
+            GrossDemandId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Qty = 2, PcsPerPackage = 2, PackingGroupId = groupId,
+            NwPerPackage = 2, GwPerPackage = 3, CbmPerPackage = 1 });
+        var b = vm.Lines.AddNew(new() { Uid = Guid.NewGuid(), PackingListHeadId = vm.Header.Uid, LineNumber = 3,
+            GrossDemandId = a.GrossDemandId, ProductId = a.ProductId, Qty = 2, PcsPerPackage = 2, PackingGroupId = groupId,
+            NwPerPackage = 2, GwPerPackage = 3, CbmPerPackage = 1 });
+        var tail = vm.Lines.AddNew(new() { Uid = Guid.NewGuid(), PackingListHeadId = vm.Header.Uid, LineNumber = 4,
+            GrossDemandId = Guid.NewGuid(), ProductId = Guid.NewGuid(), Qty = 5 });
+        var facts = vm.Lines.Items.ToDictionary(row => row.Uid,
+            row => (row.GrossDemandId, row.ProductId, row.Qty, row.PackingGroupId, row.NwPerPackage, row.GwPerPackage, row.CbmPerPackage));
+        var withinGroup = new RowReorderRequest(a, b, RowDropPosition.After);
+        Assert.IsTrue(vm.ReorderLineCommand.CanExecute(withinGroup));
+        vm.ReorderLineCommand.Execute(withinGroup);
+        CollectionAssert.AreEqual(new[] { ordinary, b, a, tail }, vm.Lines.Items.ToArray());
+        var crossGroup = new RowReorderRequest(a, tail, RowDropPosition.After);
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(crossGroup));
+        vm.ReorderLineCommand.Execute(crossGroup);
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(new RowReorderRequest(a, null, RowDropPosition.End)));
+        vm.ReorderLineCommand.Execute(new RowReorderRequest(ordinary, b, RowDropPosition.After));
+        CollectionAssert.AreEqual(new[] { b, a, ordinary, tail }, vm.Lines.Items.ToArray());
+        vm.ReorderLineCommand.Execute(new RowReorderRequest(tail, a, RowDropPosition.Before));
+        CollectionAssert.AreEqual(new[] { tail, b, a, ordinary }, vm.Lines.Items.ToArray());
+        Assert.AreSame(tail, vm.SelectedLine);
+        CollectionAssert.AreEqual(new[] { 1, 2, 3, 4 }, vm.Lines.Items.Select(row => row.LineNumber).ToArray());
+        foreach (var row in vm.Lines.Items)
+            Assert.AreEqual(facts[row.Uid], (row.GrossDemandId, row.ProductId, row.Qty, row.PackingGroupId, row.NwPerPackage, row.GwPerPackage, row.CbmPerPackage));
+        var before = vm.Lines.Items.ToArray();
+        vm.CommitEdits = () => false;
+        vm.ReorderLineCommand.Execute(new RowReorderRequest(tail, null, RowDropPosition.End));
+        CollectionAssert.AreEqual(before, vm.Lines.Items.ToArray());
+        Assert.IsFalse(vm.ReorderLineCommand.CanExecute(new RowReorderRequest(ordinary, new PackingListLineModel { PackingGroupId = Guid.NewGuid() }, RowDropPosition.Before)));
+        vm.CommitEdits = () => true;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(1, api.Creates.Count);
+        CollectionAssert.AreEqual(before.Select(row => row.Uid).ToArray(), api.Creates[0].Lines.Select(row => row.Uid).ToArray());
+        Assert.IsTrue(vm.HasUnsavedChanges, "模拟保存失败后仍须保留排序草稿。");
+    }
+
     private static PackingListDetailViewModel Detail(PackingListApiStub api, PackingListUiStub ui, PackingListSourceStub? source = null) =>
         new(api, Runner(), new ReferenceDataCacheServiceStub(), source ?? new(), new PackingListNavigationStub(), ui, ui);
     private static async Task NewDraft(PackingListDetailViewModel vm)

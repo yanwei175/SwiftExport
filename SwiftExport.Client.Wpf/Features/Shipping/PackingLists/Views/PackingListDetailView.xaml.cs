@@ -22,6 +22,7 @@ namespace SwiftExportClient.Features.Shipping.PackingLists.Views
         public PackingListDetailView()
         {
             InitializeComponent();
+            SwiftExportClient.Resources.Behaviors.RowDragReorder.SetCommitEdits(OrderLinesGrid, CommitEditors);
             OrderLinesGrid.BeginningEdit += (_, e) =>
             {
                 // 共享包装只能在组头编辑；产品数量及其他来源文本仍逐行编辑。

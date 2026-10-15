@@ -1,6 +1,6 @@
 ---
 name: wpf-dotnet10-file-organization
-description: SwiftExport .NET 10 WPF 客户端文件与职责拆分技能。用于新增、拆分、合并或审查 View、code-behind、ViewModel、子 ViewModel、Model、Policy、Feature Service、UI Service、Adapter、Mapper 和 Component；不负责具体 MVVM、WPF-UI 控件或运行时机制。
+description: 决定SwiftExport WPF新类型职责、目录、拆分合并或公共复用边界；现有类型内的局部修正不触发完整盘点。
 ---
 
 # WPF 客户端文件与职责拆分 Skill
@@ -8,6 +8,8 @@ description: SwiftExport .NET 10 WPF 客户端文件与职责拆分技能。用�
 ## 适用边界
 
 本 Skill 只决定代码应由哪个类型、目录和文件承担，以及何时需要拆分。具体实现分别服从对应专项 Skill：
+
+只加载本次确实改变的边界；下面是规则归属，不要求因读取本Skill而全部加载。既有职责未变时复用已确认结论，不顺带盘点整个Feature。
 
 - CommunityToolkit 源生成器、命令和基类 API：`../communitytoolkit-mvvm/SKILL.md`
 - Refit、Feature Service、权限、验证、导航和 Dialog 协议：`../page-architecture/SKILL.md`

@@ -30,6 +30,7 @@
 | 业务状态到视觉状态的适配 | `wpf-grid-state` |
 | FilterRow、ColumnFilter、本地/远程筛选 | `wpf-grid-filter` |
 | CSV/Excel、可见列与原始值导出 | `wpf-grid-export` |
+| 客户端业务行拖拽与 LineNumber / SortNo | `wpf-row-drag-reorder`；不增加 Grid 模块或 Gong 依赖 |
 
 跨模块任务由 `wpf-enterprise-grid-architect` 作为唯一主 Agent 统一 API 和事件顺序，不把模块边界变成重复监听同一事件的孤岛。
 

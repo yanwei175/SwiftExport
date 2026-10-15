@@ -92,20 +92,6 @@ public sealed partial class PackingListDetailViewModel
         Lines.Move(row, index);
     }
 
-    /// <summary>普通行与组按块移动；组内上下移动不能跨组。</summary>
-    private bool MovePackingBlock(PackingListLineModel row, int offset)
-    {
-        if (row.PackingGroupId.HasValue)
-        {
-            var index = Lines.Items.IndexOf(row) + offset;
-            if (index >= 0 && index < Lines.Items.Count && Lines.Items[index].PackingGroupId == row.PackingGroupId)
-                Lines.Move(row, index);
-            return true;
-        }
-        var blocks = Lines.Items.GroupBy(x => (x.PackingGroupId.HasValue, Id: x.PackingGroupId ?? x.Uid)).Select(x => x.ToList()).ToList();
-        return MoveBlocks(blocks, blocks.FindIndex(x => x.Contains(row)), offset);
-    }
-
     /// <summary>移动选中拼箱的完整成员块，不打散产品行。</summary>
     [RelayCommand(CanExecute = nameof(IsEditable))]
     private void MovePackingGroupUp() => MoveSelectedGroup(-1);

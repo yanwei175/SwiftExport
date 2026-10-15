@@ -35,9 +35,9 @@ public sealed class ProductColorsSortingTests
         using var f = new Fixture();
         await f.Vm.InitializeAsync();
         var original = f.Vm.Lines.Items.ToArray();
-        Assert.IsFalse(f.Vm.MoveLineUpCommand.CanExecute(original[0]));
-        Assert.IsFalse(f.Vm.MoveLineDownCommand.CanExecute(original[2]));
-        f.Vm.MoveLineDownCommand.Execute(original[0]);
+        Assert.IsFalse(f.Vm.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(f.Vm.Lines.Items, original[0], -1)));
+        Assert.IsFalse(f.Vm.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(f.Vm.Lines.Items, original[2], 1)));
+        f.Vm.ReorderLineCommand.Execute(RowReorderTestRequests.Step(f.Vm.Lines.Items, original[0], 1));
         CollectionAssert.AreEqual(new[] { original[1], original[0], original[2] }, f.Vm.Lines.Items.ToArray());
         CollectionAssert.AreEqual(new[] { 1, 2, 3 }, f.Vm.Lines.Items.Select(line => line.SortNo).ToArray());
         Assert.AreSame(original[0], f.Vm.SelectedLine);
@@ -47,7 +47,7 @@ public sealed class ProductColorsSortingTests
         CollectionAssert.AreEqual(original, f.Vm.Lines.Items.ToArray());
         CollectionAssert.AreEqual(new[] { 10, 20, 30 }, original.Select(line => line.SortNo).ToArray());
         Assert.IsFalse(f.Vm.HasChanges);
-        f.Vm.MoveLineUpCommand.Execute(original[2]);
+        f.Vm.ReorderLineCommand.Execute(RowReorderTestRequests.Step(f.Vm.Lines.Items, original[2], -1));
         Assert.AreSame(original[2], f.Vm.Lines.Items[1]);
     });
 
@@ -62,8 +62,8 @@ public sealed class ProductColorsSortingTests
         first.ColorNameZh = "未保存编辑";
         f.Vm.Keyword = keyword;
         Assert.AreEqual("UNIQUE-B", f.Vm.ColorsView.Cast<SwiftExportClient.Features.Products.Colors.Models.ProductColorLineModel>().Single().ColorCodeUnique);
-        Assert.IsFalse(f.Vm.MoveLineDownCommand.CanExecute(first));
-        f.Vm.MoveLineDownCommand.Execute(first);
+        Assert.IsFalse(f.Vm.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1)));
+        f.Vm.ReorderLineCommand.Execute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1));
         Assert.AreSame(first, f.Vm.Lines.Items[0]);
         f.Vm.SearchCommand.Execute(null);
         Assert.AreEqual(1, f.Loads);
@@ -72,7 +72,7 @@ public sealed class ProductColorsSortingTests
         Assert.IsTrue(f.Vm.IsEmpty);
         f.Vm.Keyword = string.Empty;
         Assert.IsNull(f.Vm.ColorsView.Filter);
-        Assert.IsTrue(f.Vm.MoveLineDownCommand.CanExecute(first));
+        Assert.IsTrue(f.Vm.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1)));
         Assert.AreEqual("未保存编辑", first.ColorNameZh);
         Assert.IsTrue(f.Vm.HasChanges);
     });
@@ -102,7 +102,7 @@ public sealed class ProductColorsSortingTests
         using var f = new Fixture();
         await f.Vm.InitializeAsync();
         var first = f.Vm.Lines.Items[0];
-        f.Vm.MoveLineDownCommand.Execute(first);
+        f.Vm.ReorderLineCommand.Execute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1));
         f.SaveSuccess = false;
         await f.Vm.SaveCommand.ExecuteAsync(null);
         Assert.IsTrue(f.Vm.HasChanges);
@@ -129,14 +129,14 @@ public sealed class ProductColorsSortingTests
         await f.Vm.InitializeAsync();
         var first = f.Vm.Lines.Items[0];
         typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(f.Vm, true);
-        Assert.IsFalse(f.Vm.MoveLineDownCommand.CanExecute(first));
-        f.Vm.MoveLineDownCommand.Execute(first);
+        Assert.IsFalse(f.Vm.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1)));
+        f.Vm.ReorderLineCommand.Execute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1));
         Assert.AreSame(first, f.Vm.Lines.Items[0]);
         typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(f.Vm, false);
         f.LoadGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var pending = f.Vm.RefreshCommand.ExecuteAsync(null);
         Assert.IsTrue(f.Vm.IsBusy);
-        Assert.IsFalse(f.Vm.MoveLineDownCommand.CanExecute(first));
+        Assert.IsFalse(f.Vm.ReorderLineCommand.CanExecute(RowReorderTestRequests.Step(f.Vm.Lines.Items, first, 1)));
         f.Vm.Dispose();
         f.LoadGate.SetResult(ServiceResult<List<ProductColorDto>>.Ok([]));
         await pending;
@@ -216,7 +216,7 @@ public sealed class ProductColorsSortingTests
             source.StartDrag(drag);
             Assert.AreSame(first, drag.Data);
             var drop = DropInfo(grid, drag, first, count);
-            var target = (IDropTarget)view;
+            var target = GongDragDrop.GetDropHandler(grid);
             target.DragOver(DropInfo(grid, drag, first, -1));
             target.Drop(DropInfo(grid, drag, first, count + 1));
             Assert.IsFalse(f.Vm.HasChanges);
@@ -267,6 +267,8 @@ public sealed class ProductColorsSortingTests
             grid.UpdateLayout();
             row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(lineToMove);
             Assert.IsTrue(Handle(row).IsEnabled);
+            source = GongDragDrop.GetDragHandler(grid);
+            target = GongDragDrop.GetDropHandler(grid);
             var restoredDrag = DragInfo(grid, Handle(row));
             source.StartDrag(restoredDrag);
             typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(f.Vm, true);
@@ -279,6 +281,8 @@ public sealed class ProductColorsSortingTests
             target.Drop(readOnlyDrop);
             CollectionAssert.AreEqual(before, f.Vm.Lines.Items.ToArray());
             typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(f.Vm, false);
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            target = GongDragDrop.GetDropHandler(grid);
             target.Drop(DropInfo(grid, restoredDrag, lineToMove, count));
             Assert.AreSame(lineToMove, f.Vm.Lines.Items.Last());
             if (count > 3) Assert.IsTrue(Descendants(grid).OfType<DataGridRow>().Count() < count);
@@ -303,7 +307,11 @@ public sealed class ProductColorsSortingTests
     private static IDropInfo DropInfo(DataGrid grid, IDragInfo source, ProductColorLineModel line, int slot)
     {
         var values = new Dictionary<string, object?>
-        { ["VisualTarget"] = grid, ["DragInfo"] = source, ["Data"] = line, ["InsertIndex"] = slot };
+        {
+            ["VisualTarget"] = grid, ["DragInfo"] = source, ["Data"] = line, ["InsertIndex"] = slot,
+            ["TargetItem"] = slot >= 0 && slot < grid.Items.Count ? grid.Items[slot] : null,
+            ["InsertPosition"] = RelativeInsertPosition.BeforeTargetItem,
+        };
         var info = DispatchProxy.Create<IDropInfo, Proxy>();
         ((Proxy)info).Call = (name, args) =>
         {

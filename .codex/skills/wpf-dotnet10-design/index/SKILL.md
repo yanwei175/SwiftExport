@@ -1,19 +1,21 @@
 ---
 name: wpf-dotnet10-design
-description: SwiftExport 当前 .NET 10 WPF 前端技能组入口。用于前端页面、CommunityToolkit MVVM、Fluent 布局、官方主题、lepoco/WPF-UI 控件、自定义控件、搜索选择控件、DataGrid 和页面体验设计实现。
+description: SwiftExport .NET 10 WPF 任务的技能选择入口；按实际页面、MVVM、控件或交互改动选择专项规则。
 ---
 
 # 技能用途
 
 SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 
+子Skill按本次改变的职责/行为选择，不是整套必读清单；局部修正复用有效页面与架构结论，已有上下文不重新加载。技术约束仍有效，新增共享行为或有具体风险证据时补齐相关专项规则。
+
 ## 子 Skill 路由
 
 - MVVM、ViewModel、LineModel、命令、绑定属性：读 `../communitytoolkit-mvvm/SKILL.md`。
-- 新增、拆分、合并或审查 View、code-behind、ViewModel、Model、Policy、Service、Adapter、Mapper、Component 的文件与职责：读 `../file-organization/SKILL.md`。
+- 决定新类型职责/目录、拆分合并、公共复用或专项职责审查：读 `../file-organization/SKILL.md`；现有类型内局部修正不自动触发。
 - Contracts DTO 与 ViewModel、EditModel、LineModel、TreeItemModel 之间的转换、Mapster 配置、`Adapt` 映射：读 `../../aspdotnet10/application-mapster-mapping/SKILL.md`。
-- 页面类型、DataGrid 行为、页面命令：读 `../feature-page/SKILL.md`。
-- 行拖拽重排、行首手柄、SortNo / 订单明细 LineNumber 顺序调整：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排）。
+- 新增或改变页面组成、DataGrid页面交互或页面命令边界：读 `../feature-page/SKILL.md`；局部VM计算不自动升级为整页设计。
+- 客户端共享 RowDragReorder、行首手柄、SortNo / LineNumber 及箱单受限分组重排：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排），不作为 EnterpriseGrid 模块接入。
 - Fluent 布局、4px 间距、卡片、表单、Dialog 视觉：读 `../fluent-layout/SKILL.md`。
 - 官方主题、ThemeMode、命名 Style、资源边界：读 `../official-theme/SKILL.md`。
 - lepoco/WPF-UI 控件、FluentWindow、TitleBar、InfoBar、Snackbar、ContentDialog、SymbolIcon：读 `../wpfui-controls/SKILL.md`。
