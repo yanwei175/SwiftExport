@@ -1,7 +1,10 @@
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.Messaging;
@@ -31,6 +34,52 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass, DoNotParallelize]
 public sealed class PackagingMaterialManagerTests
 {
+    /// <summary>搜索框的 Enter 在页面初始化及数据上下文替换后执行当前查询，且不产生无管理元素的命令绑定错误。</summary>
+    [TestMethod]
+    public void SearchEnter_TracksCurrentPageWithoutBindingErrors() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        PresentationTraceSources.Refresh();
+        using var output = new StringWriter();
+        using var listener = new TextWriterTraceListener(output);
+        var trace = PresentationTraceSources.DataBindingSource;
+        var previousLevel = trace.Switch.Level;
+        trace.Switch.Level = SourceLevels.Error;
+        trace.Listeners.Add(listener);
+        using var first = new Fixture(); using var second = new Fixture();
+        var window = new Window { Width = 1000, Height = 480, ShowInTaskbar = false };
+        try
+        {
+            var view = new PackagingMaterialManagerView(); window.Content = view; window.Show();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            foreach (var fixture in new[] { first, second })
+            {
+                view.DataContext = fixture.ViewModel;
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                var search = Descendants(view).OfType<TextBox>().Single(item => System.Windows.Automation.AutomationProperties.GetName(item) == "包材搜索");
+                var enter = search.InputBindings.OfType<KeyBinding>().Single(item => item.Key == Key.Enter);
+                Assert.AreSame(fixture.ViewModel.SearchCommand, enter.Command);
+                search.Text = fixture == first ? "第一组包材" : "第二组包材";
+                search.Focus();
+                search.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(search)!, Environment.TickCount, Key.Enter)
+                { RoutedEvent = Keyboard.KeyDownEvent });
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                Assert.IsNotNull(fixture.LastSearch);
+                Assert.AreEqual(search.Text, fixture.LastSearch.Keyword);
+            }
+            Assert.AreEqual("第一组包材", first.LastSearch!.Keyword);
+            window.Close();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            listener.Flush();
+            Assert.IsFalse(output.ToString().Contains("SearchCommand", StringComparison.Ordinal), output.ToString());
+        }
+        finally
+        {
+            window.Close();
+            trace.Listeners.Remove(listener); trace.Switch.Level = previousLevel;
+        }
+    });
+
     /// <summary>查询与重置始终固定包材，新增以同一 Product 批量协议保存，乱序回执仍按 ClientKey 接纳。</summary>
     [TestMethod]
     public async Task SearchResetAndBatchSave_KeepPackagingIdentityAndReceipts()

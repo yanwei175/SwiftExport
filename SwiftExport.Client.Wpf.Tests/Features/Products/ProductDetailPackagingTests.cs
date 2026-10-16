@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -9,6 +11,7 @@ using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Responses;
+using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -22,6 +25,69 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass, DoNotParallelize]
 public sealed class ProductDetailPackagingTests
 {
+    /// <summary>包装类型在真实编辑器创建、选择和退出编辑时保持字典来源，不因脱离表格而报告祖先绑定错误。</summary>
+    [TestMethod]
+    public void PackageTypeEditor_EditLifecycleKeepsDictionaryBinding() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        PresentationTraceSources.Refresh();
+        using var output = new StringWriter();
+        using var listener = new TextWriterTraceListener(output);
+        var trace = PresentationTraceSources.DataBindingSource;
+        var previousLevel = trace.Switch.Level;
+        trace.Switch.Level = SourceLevels.Error;
+        trace.Listeners.Add(listener);
+        var cache = new ReferenceDataCacheServiceStub(dictionaryValues:
+        [
+            new SysDictDataDto { DictCode = DictCodes.ProductPackageType, DataNameEn = ProductPackageTypeCodes.Carton, DataNameZh = "外箱", IsEnabled = true },
+            new SysDictDataDto { DictCode = DictCodes.ProductPackageType, DataNameEn = ProductPackageTypeCodes.InnerBox, DataNameZh = "内盒", IsEnabled = true }
+        ]);
+        using var vm = new ProductPackagingEditorViewModel(null!, null!, cache) { CanEdit = true };
+        var data = Package(Guid.NewGuid()); vm.Load(data.OwnerProductId, [data]);
+        var window = new Window { Width = 1000, Height = 480, ShowInTaskbar = false };
+        try
+        {
+            var view = new ProductPackagingEditorView { DataContext = vm };
+            window.Content = view; window.Show();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = (DataGrid)view.FindName("PackageGrid");
+            var row = vm.Rows.Items.Single();
+            // 模板实例在加入单元格之前也必须能解析页面字典，避免初始化阶段查找不存在的 DataGrid 祖先。
+            var detachedEditor = (ComboBox)((DataGridTemplateColumn)grid.Columns[1]).CellEditingTemplate.LoadContent();
+            detachedEditor.DataContext = row;
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreEqual(2, detachedEditor.Items.Count);
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                grid.SelectedItem = row; grid.CurrentCell = new DataGridCellInfo(row, grid.Columns[1]);
+                Assert.IsTrue(grid.BeginEdit());
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                var combo = Descendants(grid.Columns[1].GetCellContent(row)).OfType<ComboBox>().Single();
+                CollectionAssert.AreEqual(new[] { ProductPackageTypeCodes.Carton, ProductPackageTypeCodes.InnerBox },
+                    combo.Items.Cast<SysDictDataDto>().Select(item => item.DataNameEn).ToArray());
+                combo.IsDropDownOpen = true;
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                combo.SelectedIndex = 1; combo.IsDropDownOpen = false;
+                Assert.IsTrue(grid.CommitEdit(DataGridEditingUnit.Cell, true));
+                Assert.IsTrue(grid.CommitEdit(DataGridEditingUnit.Row, true));
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                Assert.AreEqual(ProductPackageTypeCodes.InnerBox, row.PackageType);
+                // 原生提交会卸载编辑模板；让仍存活的绑定完成一次刷新，覆盖脱离视觉树的阶段。
+                combo.GetBindingExpression(ItemsControl.ItemsSourceProperty)!.UpdateTarget();
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            }
+            window.Close();
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            listener.Flush();
+            Assert.IsFalse(output.ToString().Contains("PackageTypes", StringComparison.Ordinal), output.ToString());
+        }
+        finally
+        {
+            window.Close();
+            trace.Listeners.Remove(listener); trace.Switch.Level = previousLevel;
+        }
+    });
+
     /// <summary>仅包装变化也启用父保存并纳入关闭保护；保存回执一次接纳父、行版本及外箱摘要。</summary>
     [TestMethod]
     public async Task PackagingOnlyEdit_UsesUnifiedSaveAndAcceptsCompleteSnapshot()
