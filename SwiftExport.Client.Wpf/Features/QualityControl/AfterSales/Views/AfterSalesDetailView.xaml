@@ -270,7 +270,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="补货物料" SortMemberPath="ProductId" Width="180">
+                        <DataGridTemplateColumn ClipboardContentBinding="{Binding SkuSnapshot, Mode=OneWay}" Header="补货物料" SortMemberPath="ProductId" Width="180">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding SkuSnapshot}" VerticalAlignment="Center"/>
@@ -289,7 +289,7 @@
                             </DataGridTemplateColumn.CellEditingTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="非标" Width="60" SortMemberPath="IsNonStandard">
+                        <DataGridTemplateColumn ClipboardContentBinding="{Binding IsNonStandard, Mode=OneWay}" Header="非标" Width="60" SortMemberPath="IsNonStandard">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <CheckBox IsChecked="{Binding IsNonStandard,Mode=TwoWay}"/>
@@ -313,7 +313,7 @@
                                             Binding="{Binding DescriptionSnapshot,Mode=TwoWay}" Width="200"/>
 
                         
-                        <DataGridTemplateColumn Header="颜色" SortMemberPath="ColorId" Width="120">
+                        <DataGridTemplateColumn ClipboardContentBinding="{Binding ColorSnapshot, Mode=OneWay}" Header="颜色" SortMemberPath="ColorId" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding ColorSnapshot}" VerticalAlignment="Center"/>

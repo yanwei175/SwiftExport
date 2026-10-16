@@ -241,6 +241,14 @@ public sealed partial class ProductLineModel : BaseLineModel<ProductDto>
 - `Load(dto)` 与 `RejectChanges()` 使用基类内部低层抑制。页面导航、Tab 切换不得用抑制作用域包住，因为失焦提交的真实编辑仍应成为修改。
 - `SetTrackedProperty` 仅为现有手写属性保留；新增 LineModel 不以它代替 CommunityToolkit 源生成器。
 
+## 表格填充与恢复边界
+
+- Ctrl+D 由客户端 `DataGridFillDownBehavior` 提交不含控件的 `FillDownRequest`，页面生成命令负责字段白名单、当前写入许可和行归属检查；执行方法也检查，不能只依赖 CanExecute。
+- 普通字段使用强类型赋值，关联对象复用候选确认的业务方法，完整维护 Id、名称及派生联动；不得反射写入或用 SuppressChangeTracking 接纳用户填充。
+- 同时填充计算依赖与可手动覆盖字段时，由页面固定业务优先级，不沿用列显示顺序。中性产品先填采购价、汇率、利润率，再应用显式选择的美元售价（含 null）；未选售价时沿用自动计算，不抑制模型通知。
+- 主图标志、图片地址、唯一编码、排序号及操作列不开放填充。
+- `BaseLineModel`/`BaseListModel.RejectChanges()` 恢复已接纳基线，不提供字段操作历史。保留页面已有放弃修改入口，不映射为 Ctrl+Z；编辑器 Undo 由原生编辑器负责。
+
 ## 列表模型规则
 
 - `BaseListModel.Items` 是只读可观察集合，页面只能绑定和读取，不能绕过基类直接 Add/Remove/Clear。

@@ -1,3 +1,4 @@
+using SwiftExportClient.Mvvm;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -33,6 +34,62 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailNavigationTests
 {
+    /// <summary>实际页面填充完整关系事实，拒绝危险字段、外来行和只读行；既有放弃修改恢复基线。</summary>
+    [TestMethod]
+    public void FillDown_ShouldKeepRelationsAndRejectUnsafeRequestsWithoutLosingBaseline()
+    {
+        using var fixture = new Fixture();
+        var vm = fixture.ViewModel;
+        var source = vm.Products.Items[0];
+        var target = vm.Products.Items[1];
+        source.ProductMasterId = Guid.NewGuid(); source.MasterSku = "MASTER";
+        source.CategoryId = Guid.NewGuid(); source.CategoryName = "分类";
+        source.DefaultSupplierId = Guid.NewGuid(); source.DefaultSupplierCode = "SUP"; source.SupplierName = "供应商";
+        source.ColorId = Guid.NewGuid(); source.Finish = "颜色";
+        source.ManufacturerId = Guid.NewGuid(); source.ManufacturerCode = "M"; source.ManufacturerName = "制造方";
+        source.DefaultWarehouseSiteId = Guid.NewGuid(); source.DefaultWarehouseCode = "W"; source.DefaultWarehouseName = "仓库";
+        vm.Products.AcceptChanges();
+        var oldMaster = target.ProductMasterId;
+        var oldSupplier = target.DefaultSupplierId;
+        var request = new FillDownRequest(source, [target],
+            [nameof(ProductLineModel.ProductMasterId), nameof(ProductLineModel.DefaultSupplierId), nameof(ProductLineModel.ColorId),
+             nameof(ProductLineModel.ManufacturerId), nameof(ProductLineModel.DefaultWarehouseSiteId)]);
+        Assert.IsTrue(vm.FillDownCommand.CanExecute(request));
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual(source.ProductMasterId, target.ProductMasterId);
+        Assert.AreEqual(source.MasterSku, target.MasterSku);
+        Assert.AreEqual(source.CategoryId, target.CategoryId);
+        Assert.AreEqual(source.CategoryName, target.CategoryName);
+        Assert.AreEqual(source.DefaultSupplierId, target.DefaultSupplierId);
+        Assert.AreEqual(source.DefaultSupplierCode, target.DefaultSupplierCode);
+        Assert.AreEqual(source.SupplierName, target.SupplierName);
+        Assert.AreEqual(source.ColorId, target.ColorId); Assert.AreEqual(source.Finish, target.Finish);
+        Assert.AreEqual(source.ManufacturerId, target.ManufacturerId); Assert.AreEqual(source.ManufacturerName, target.ManufacturerName);
+        Assert.AreEqual(source.DefaultWarehouseSiteId, target.DefaultWarehouseSiteId); Assert.AreEqual(source.DefaultWarehouseName, target.DefaultWarehouseName);
+        Assert.IsTrue(target.IsDirty);
+        var sku = target.Sku;
+        var forbidden = new FillDownRequest(source, [target], [nameof(ProductLineModel.Sku)]);
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(forbidden));
+        vm.FillDownCommand.Execute(forbidden);
+        Assert.AreEqual(sku, target.Sku);
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(new FillDownRequest(source, [target], [nameof(ProductLineModel.MainImage)])));
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(new FillDownRequest(source, [new ProductLineModel()], request.Fields)));
+        target.IsReadOnly = true;
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(request));
+        source.DefaultSupplierCode = "不可写";
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual("SUP", target.DefaultSupplierCode);
+        target.IsReadOnly = false;
+        typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(vm, true);
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual("SUP", target.DefaultSupplierCode);
+        typeof(ViewModelBaseEx).GetProperty(nameof(ViewModelBaseEx.IsReadOnly))!.SetValue(vm, false);
+        vm.RejectProductChangesCommand.Execute(null);
+        Assert.AreEqual(oldMaster, target.ProductMasterId);
+        Assert.AreEqual(oldSupplier, target.DefaultSupplierId);
+        Assert.IsFalse(vm.Products.HasChanges);
+    }
+
     /// <summary>列表选择主型号并录入自身型号，保存目标行仍保留其他行及 BOM 草稿。</summary>
     [TestMethod]
     public async Task SourceLookups_ShouldSaveIndependentIdsAndPreserveOtherDrafts()

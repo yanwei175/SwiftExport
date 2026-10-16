@@ -7,10 +7,8 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
              xmlns:products="clr-namespace:SwiftExportClient.Features.Products.Components"
-             xmlns:core="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:columns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:selection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:validation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:core="clr-namespace:SwiftExportClient.Resources.Behaviors"
+             xmlns:validation="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.Bom.ViewModels"
              mc:Ignorable="d" d:Height="800" d:Width="1280"
              d:DataContext="{d:DesignInstance vm:BomManagerViewModel}"
@@ -97,16 +95,13 @@
                       IsEnabled="{Binding CanSelectProduct}" IsReadOnly="True" 
                       AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single"
                       RowHeight="{DynamicResource DataGridRowHeightMedium}"
-                      Style="{StaticResource SwiftExportDataGrid}" 
-                      core:EnterpriseGrid.IsEnabled="True" 
-                      core:GridVirtualization.IsEnabled="True"
-                      core:GridRowHeader.ShowRowNumber="True" 
-                      selection:GridSelection.IsCellClickSelectionEnabled="True" 
+                      Style="{StaticResource SwiftExportDataGrid}"
+                      core:GridRowHeader.ShowRowNumber="True"
                       AutomationProperties.Name="BOM 成品主表">
 
                 <DataGrid.Columns>
 
-                    <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False" columns:GridColumn.Key="image">
+                    <DataGridTemplateColumn Header="图片" Width="64" CanUserSort="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <controls:CachedImage Width="48" Height="48" Margin="2" SourcePath="{Binding MainImage}" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96"/>
@@ -179,11 +174,7 @@
                       AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" 
                       SelectionMode="Single" BeginningEdit="OnBeginningEdit"
                       RowHeight="{DynamicResource DataGridRowHeightMedium}"
-                      core:EnterpriseGrid.IsEnabled="True" 
-                      core:GridVirtualization.IsEnabled="True" 
                       core:GridRowHeader.ShowRowNumber="True"
-                      selection:GridSelection.IsCellClickSelectionEnabled="True" 
-                      validation:GridValidation.IsEnabled="True" 
                       AutomationProperties.Name="BOM 子件组成表">
                 <DataGrid.Style>
                     <Style TargetType="DataGrid" BasedOn="{StaticResource SwiftExportDataGrid}">
@@ -199,7 +190,7 @@
                 </DataGrid.Style>
                 <DataGrid.Columns>
 
-                    <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True" columns:GridColumn.Key="image">
+                    <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <controls:CachedImage Width="40" Height="40" 
@@ -210,7 +201,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="子件 SKU" Width="180" columns:GridColumn.Key="component">
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding SubSku, Mode=OneWay}" Header="子件 SKU" Width="180">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding SubSku}" Style="{StaticResource SwiftExportDataGridTextBlock}"/>
@@ -241,19 +232,16 @@
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"/>
 
                     <DataGridTextColumn Header="分子" Width="80" 
-                                        Binding="{Binding Numerator, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" 
-                                        columns:GridColumn.FieldPath="Numerator"
+                                        Binding="{Binding Numerator, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
 
                     <DataGridTextColumn Header="分母" Width="80" 
-                                        Binding="{Binding Denominator, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" 
-                                        columns:GridColumn.FieldPath="Denominator"
+                                        Binding="{Binding Denominator, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}"
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
 
-                    <DataGridTextColumn Header="备注" Width="*" MinWidth="160" Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}" 
-                                        columns:GridColumn.FieldPath="Note"
+                    <DataGridTextColumn Header="备注" Width="*" MinWidth="160" Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                         EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"/>
 

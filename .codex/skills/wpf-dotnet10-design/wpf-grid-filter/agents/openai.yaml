@@ -1,4 +1,4 @@
 interface:
   display_name: "WPF Grid Filter"
-  short_description: "Éè¼Æ DataGrid É¸Ñ¡ĞĞ¡¢ÁĞÉ¸Ñ¡ÃèÊöÓëÊÓÍ¼ÊÊÅä"
-  default_prompt: "Use $wpf-grid-filter to design Enterprise Grid filtering."
+  short_description: "ä½¿ç”¨åŸç”Ÿé›†åˆè§†å›¾ä¸é¡µé¢æŸ¥è¯¢ï¼Œé¿å…æ¢å¤å·²é€€å‡ºç­›é€‰å°è£…"
+  default_prompt: "Use $wpf-grid-filter to apply native collection views or page-owned remote queries."

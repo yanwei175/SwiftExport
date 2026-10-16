@@ -2,7 +2,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using SwiftExport.Wpf.EnterpriseGrid.Columns;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Components;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
@@ -48,19 +47,14 @@ public partial class PurchaseCandidateSelectionView : UserControl
     private void OnBeginningEdit(object? sender, DataGridBeginningEditEventArgs e)
     {
         if (e.Row.Item is not PurchaseCandidateItemModel row) return;
-        var canEdit = GridColumn.GetKey(e.Column) switch
-        {
-            "PurchaseSupplier" => row.CanEditPurchaseSupplier,
-            _ => true,
-        };
+        var canEdit = !ReferenceEquals(e.Column, PurchaseSupplierColumn) || row.CanEditPurchaseSupplier;
         if (!canEdit) e.Cancel = true;
     }
 
     /// <summary>原生 BeginEdit 生成模板后把焦点交给当前 Lookup，保留 DataGrid 的双击、F2 与 Esc 语义。</summary>
     private void OnPreparingCellForEdit(object? sender, DataGridPreparingCellForEditEventArgs e)
     {
-        var columnKey = GridColumn.GetKey(e.Column);
-        if (columnKey != "PurchaseSupplier") return;
+        if (!ReferenceEquals(e.Column, PurchaseSupplierColumn)) return;
         var editingElement = e.EditingElement;
         Dispatcher.BeginInvoke(new Action(() =>
         {

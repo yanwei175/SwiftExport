@@ -636,10 +636,39 @@ public sealed partial class ProductMasterDetailViewModel : ViewModelBaseEx, IDoc
         cts?.Cancel();
         cts?.Dispose();
     }
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => !_disposed && CanEditHeader
+        && request is not null && request.Fields.All(field => field is nameof(ProductNeutralLineModel.DefaultSalesPriceUsd)
+            or nameof(ProductNeutralLineModel.DefaultExchangeRate)
+            or nameof(ProductNeutralLineModel.ProfitMargin)
+            or nameof(ProductNeutralLineModel.DefaultPurchasePriceCny))
+        && request.TryGetRows<ProductNeutralLineModel>(Neutrals.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<ProductNeutralLineModel>(Neutrals.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            // 先应用计算依赖，再应用显式选择的手动售价；业务优先级不能由显示列顺序决定。
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.DefaultPurchasePriceCny)))
+                target.DefaultPurchasePriceCny = source.DefaultPurchasePriceCny;
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.DefaultExchangeRate)))
+                target.DefaultExchangeRate = source.DefaultExchangeRate;
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.ProfitMargin)))
+                target.ProfitMargin = source.ProfitMargin;
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.DefaultSalesPriceUsd)))
+                target.DefaultSalesPriceUsd = source.DefaultSalesPriceUsd;
+        }
+    }
+
 }
 
 internal static class ProductMasterServiceResultExtensions
 {
     public static bool ErrorCodeIs(this ServiceErrorDto error, string errorCode) =>
         string.Equals(error.Code, errorCode, StringComparison.Ordinal);
+
 }

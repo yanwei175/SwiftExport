@@ -16,7 +16,7 @@ SwiftExport 当前 .NET 10 WPF 前端设计技能组入口。
 - 新增、修改或为新用例复用 Contracts 契约：读 `../../aspdotnet10/contracts-refit-dto/SKILL.md`，由该入口选择兼容性、DTO、Refit 等专项规则；仅消费既有响应不触发契约设计。
 - 新增或修改 DTO 与前端模型之间的转换、Mapster 配置、`Adapt` 映射：读 `../../aspdotnet10/application-mapster-mapping/SKILL.md`，核对现有全局及 Feature 映射配置。
 - 新增或改变页面组成、DataGrid页面交互或页面命令边界：读 `../feature-page/SKILL.md`；局部VM计算不自动升级为整页设计。
-- 客户端共享 RowDragReorder、行首手柄、SortNo / LineNumber 及箱单受限分组重排：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排），不作为 EnterpriseGrid 模块接入。
+- 客户端共享 RowDragReorder、行首手柄、SortNo / LineNumber 及箱单受限分组重排：读 `../wpf-row-drag-reorder/SKILL.md`（WPF 行拖拽重排），不建设独立 Grid 模块项目。
 - Fluent 布局、4px 间距、卡片、表单、Dialog 视觉：读 `../fluent-layout/SKILL.md`。
 - 官方主题、ThemeMode、命名 Style、资源边界：读 `../official-theme/SKILL.md`。
 - lepoco/WPF-UI 控件、FluentWindow、TitleBar、InfoBar、Snackbar、ContentDialog、SymbolIcon：读 `../wpfui-controls/SKILL.md`。

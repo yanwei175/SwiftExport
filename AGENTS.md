@@ -175,7 +175,7 @@ D:\DevCaches是NuGet包的文档地址,你拥有权限,避免每次隔离构建�
 - `SwiftExport.Client.Wpf.Tests/**` 中当前任务相关的客户端测试、夹具和测试数据
 - `SwiftExport.Contracts/**` 中前端依赖的 API、DTO、枚举、通用契约
 
-补测试不允许修改后端业务行为、删除有效断言或绕过失败。EnterpriseGrid 框架及其专项测试由 Grid Architect 按授权负责；普通前端任务可运行专项测试，但不会因此获得其写入权限。
+补测试不允许修改后端业务行为、删除有效断言或绕过失败。EnterpriseGrid 独立项目已退出；客户端共享 Grid 适配的架构/API 任务由 Grid Architect 按授权负责，普通页面接入和测试按前端工作流执行。
 
 前端任务禁止借机写入：
 

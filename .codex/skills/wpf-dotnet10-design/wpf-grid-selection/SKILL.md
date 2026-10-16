@@ -1,35 +1,33 @@
 ---
 name: wpf-grid-selection
-description: SwiftExport WPF DataGrid 选择与当前单元格技能。用于任意单元格子控件点击时同步 SelectedItem，以及 CurrentRow、CurrentColumn、CurrentCell 的 MVVM 双向桥接。
+description: SwiftExport 原生 DataGrid 选择绑定和选区命令参数；用于 CurrentItem、SelectedItem、SelectedItems、SelectedCells 及活动样式。
 ---
 
 # WPF Grid Selection
 
-## 真相源
+## 原生状态与绑定
 
-- FullRow 模式以 `DataGrid.SelectedItem` 为当前行真相；Cell/CellOrRowHeader 模式以 `DataGrid.CurrentCell.Item` 为当前行真相。
-- `CurrentRow` 是 MVVM 友好的当前项镜像，不创建第二套行对象。
-- `CurrentColumn` 可镜像 `DataGridColumn`；跨 ViewModel 使用稳定的 `CurrentColumnKey`，避免业务 VM 依赖 WPF 类型。
-- `IsCurrentCell` 仅用于宿主样式区分活动 Cell；通过 Item、Column 与 DataGrid.CurrentCell 比较，不缓存虚拟化容器。
-- 不自动写业务对象的 `IsSelected` 属性；多选集合同步必须是独立、显式功能。
+- 原生 DataGrid 是唯一选择和活动位置真相源，不恢复 GridSelection、CurrentRow、CurrentColumnKey 或 SelectionSnapshot 镜像。
+- 固定整行选择且需要选中项的页面直接绑定 SelectedItem；需要活动单元格所在行的页面绑定 CurrentItem，显式 Mode=TwoWay。
+- CurrentItem 对应 CurrentCell.Item；SelectedItem 在多选时不一定是活动行。不要让二者双向绑定到同一个 VM 属性。
+- CurrentCell/CurrentColumn 直接使用原生属性；业务 VM 通常只需要数据项。
+- CurrentItem 不承诺在集合重置或移除行后自动清空；页面/列表用例负责清空或恢复有效项。程序化滚动在 Loaded 后由宿主显式 ScrollIntoView。
+- 不通过 Preview/冒泡鼠标补写选择，不自动 Focus、BeginEdit 或提交编辑；模板内命令直接传当前行参数。
+- GridSelectionUnitConverter、GridCurrentRowStateConverter、GridCurrentCellStateConverter 及测试归客户端 Resources/Converters，框架无 Selection 运行时模块。
+- 活动样式通过 MultiBinding 和无状态 Converter 比较原生 CurrentCell，不存储第二份选择状态，不缓存虚拟化容器。客户端 DataGridPresentation.Owner 仅继承宿主引用，由表格样式绑定自身；容器使用 Self 路径读取 Owner.CurrentCell，避免未挂载或回收期间 FindAncestor 警告，不订阅选择事件。
 
-## 鼠标同步
+## 原生多选集合
 
-- 不得在 `PreviewMouseLeftButtonDown` 阶段写入 `DataGrid.CurrentCell` 或主动聚焦目标 Cell；这会改变同一次原生鼠标路由的前置状态，使跨 Cell 单击被 `DataGridCell` 误判为编辑入口。
-- 原生列先由 `DataGridCell` 完成鼠标焦点、选择和 CurrentCell 更新，再通过 `CurrentCellChanged/SelectionChanged` 合并回写。
-- TextBox、CheckBox、Button、TemplateColumn 等子控件若需要点击后备同步，应在冒泡末端（包含已处理事件）或当前鼠标路由结束后执行，不得抢在 `DataGridCell.MouseLeftButtonDown` 类处理器之前。
-- 仅同步焦点/选择，不因单击调用 `BeginEdit`，也不阻止 Button 命令或控件自身事件。
-- 尊重 `SelectionMode`、`SelectionUnit` 和 Ctrl/Shift 多选语义；单选修复不得破坏扩展选择。
-
-## 双向同步
-
-- View 到 VM：SelectionChanged/CurrentCellChanged 更新附加属性。
-- VM 到 View：FullRow 更新 SelectedItem；Cell/CellOrRowHeader 只移动既有 CurrentColumn 对应的 CurrentCell，不破坏 SelectedCells。
-- 使用重入门闩区分 View 更新与 Binding 回写，处理 ItemsSource 重置和项被移除。
-- CurrentCell 镜像不取代原生属性，不持有已虚拟化的 DataGridCell 控件实例。
-- `CurrentRow` 是单值活动行，不等于 SelectedCells 涉及的所有行；没有真实批量业务需求时不输出选区集合。
-- 页面可用 `GridSelectionUnitConverter` 将普通 bool 开关映射到 FullRow/CellOrRowHeader；Convert/ConvertBack 的非法输入统一回退 FullRow。
+- DataGridSelectionBehavior 无业务调用，已与专属测试一起删除；不预留持续同步快照或双向选区包装。
+- 命令执行时通过 CommandParameter 读取原生 SelectedItems/SelectedCells；跨 await 使用前提取本次所需数据，避免持有实时集合。
+- FullRow：SelectedItems 是整行集合；Cell：SelectedItems 为空；CellOrRowHeader：SelectedItems 仅包含选中的整行。
+- “选中格子涉及的行”须显式从 SelectedCells.Item 去重，不能伪装成 SelectedItems，空选区也不能补入活动行。
+- 不自动同步业务 IsChecked/CheckedItems，不改变原生 Ctrl/Shift、焦点和编辑。
+- 集合内容变化不等于 CommandParameter 引用变化；依赖数量的命令可用性由页面既有机制通知。
+- Microsoft.Xaml.Behaviors.Wpf 继续服务客户端 Ctrl+D 等已有行为，不因删除选择桥接而移除包。
 
 ## 验收
 
-覆盖 TextBox、CheckBox、Button、DataGridTemplateColumn、空白区域、行头、多选修饰键、虚拟化后滚动、ItemsSource 替换和同值重复赋值。
+原生活动项、编辑兼容、行号与软验证测试归客户端 Resources/DataGrid；现有填充行为测试归 Resources/Behaviors。
+覆盖原生 CurrentItem 双向绑定、列表用例清空活动项、选区与活动项区别及已有命令的选区读取。
+复用原生鼠标、F2、双击、键盘编辑兼容测试；不保留已退出的选择快照或“点击任意子控件强制选行”断言。

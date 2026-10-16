@@ -10,9 +10,42 @@ using SwiftExportClient.Authentication;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
+/// <summary>验证销售行的页面批量命令维护业务联动、写入许可与列表基线。</summary>
 [TestClass]
 public sealed class SalesOrderLineReorderTests
 {
+    /// <summary>填充软输入沿模型重算金额，标准行单位不被覆盖，权限和只读状态变化立即阻止写入。</summary>
+    [TestMethod]
+    public void FillDown_ShouldRecalculateAmountsRespectUnitRulesAndCurrentPermission()
+    {
+        var vm = CreateViewModel();
+        vm.Lines.LoadFromDtos([
+            new SalesOrderDetailLineDto { Uid = Guid.NewGuid(), Qty = 2, UsdPrice = 3, UnitSnapshot = "BOX" },
+            new SalesOrderDetailLineDto { Uid = Guid.NewGuid(), Qty = 1, UsdPrice = 1, UnitSnapshot = "PCS" },
+            new SalesOrderDetailLineDto { Uid = Guid.NewGuid(), Qty = 1, UsdPrice = 1, UnitSnapshot = "PCS", IsNonStandard = true }]);
+        var source = vm.Lines.Items[0]; var standard = vm.Lines.Items[1]; var custom = vm.Lines.Items[2];
+        var notifications = new List<string?>();
+        standard.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+        var request = new FillDownRequest(source, [standard, custom],
+            [nameof(SalesOrderLineModel.QtyText), nameof(SalesOrderLineModel.UsdPriceText), nameof(SalesOrderLineModel.UnitSnapshot)]);
+        Assert.IsTrue(vm.FillDownCommand.CanExecute(request));
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual(2m, standard.Qty); Assert.AreEqual(6m, standard.UsdAmount);
+        Assert.IsTrue(notifications.Contains(nameof(SalesOrderLineModel.UsdAmount)));
+        Assert.AreEqual("PCS", standard.UnitSnapshot); Assert.AreEqual("BOX", custom.UnitSnapshot);
+        Assert.IsTrue(standard.IsDirty); Assert.IsTrue(custom.IsDirty);
+        source.QtyText = "8";
+        standard.IsReadOnly = true;
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual(2m, standard.Qty); Assert.AreEqual(8m, custom.Qty);
+        SetReadOnly(vm, true);
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(request));
+        source.QtyText = "10";
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual(8m, custom.Qty);
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(new FillDownRequest(source, [custom], [nameof(SalesOrderLineModel.LineNumber)])));
+    }
+
     [TestMethod]
     public void BaseListMove_ShouldSynchronizeVisibleAndAllOrderAndRejectToBaseline()
     {

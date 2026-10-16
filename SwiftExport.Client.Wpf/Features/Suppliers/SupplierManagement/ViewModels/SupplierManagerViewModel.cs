@@ -272,4 +272,49 @@ public sealed partial class SupplierManagerViewModel : ViewModelBaseEx, IAsyncIn
     private bool CanDelete() => IsNotBusy && CanWrite && (Suppliers.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsNotBusy && CanWrite && Suppliers.HasChanges;
     private bool CanReject() => IsNotBusy && Suppliers.HasChanges;
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => CanWriteCommand()
+        && request is not null && request.Fields.All(field => field is nameof(SupplierLineModel.SupplierName)
+            or nameof(SupplierLineModel.DocRelateNo)
+            or nameof(SupplierLineModel.ContactPerson)
+            or nameof(SupplierLineModel.ContactPhone)
+            or nameof(SupplierLineModel.ContactEmail)
+            or nameof(SupplierLineModel.Address)
+            or nameof(SupplierLineModel.Discount)
+            or nameof(SupplierLineModel.Currency)
+            or nameof(SupplierLineModel.TaxRate)
+            or nameof(SupplierLineModel.DefaultLeadTimeDays)
+            or nameof(SupplierLineModel.PaymentTerms)
+            or nameof(SupplierLineModel.DiscountRemark))
+        && request.TryGetRows<SupplierLineModel>(Suppliers.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<SupplierLineModel>(Suppliers.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(SupplierLineModel.SupplierName): target.SupplierName = source.SupplierName; break;
+                    case nameof(SupplierLineModel.DocRelateNo): target.DocRelateNo = source.DocRelateNo; break;
+                    case nameof(SupplierLineModel.ContactPerson): target.ContactPerson = source.ContactPerson; break;
+                    case nameof(SupplierLineModel.ContactPhone): target.ContactPhone = source.ContactPhone; break;
+                    case nameof(SupplierLineModel.ContactEmail): target.ContactEmail = source.ContactEmail; break;
+                    case nameof(SupplierLineModel.Address): target.Address = source.Address; break;
+                    case nameof(SupplierLineModel.Discount): target.Discount = source.Discount; break;
+                    case nameof(SupplierLineModel.Currency): target.Currency = source.Currency; break;
+                    case nameof(SupplierLineModel.TaxRate): target.TaxRate = source.TaxRate; break;
+                    case nameof(SupplierLineModel.DefaultLeadTimeDays): target.DefaultLeadTimeDays = source.DefaultLeadTimeDays; break;
+                    case nameof(SupplierLineModel.PaymentTerms): target.PaymentTerms = source.PaymentTerms; break;
+                    case nameof(SupplierLineModel.DiscountRemark): target.DiscountRemark = source.DiscountRemark; break;
+                }
+            }
+        }
+    }
 }

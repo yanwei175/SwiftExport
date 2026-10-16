@@ -593,8 +593,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void CommitProductMaster(ProductLineModel? line)
     {
         if (_disposed || !CanWrite || IsBusy || line is null || EditProductMaster is null) return;
-        line.ProductMasterId = EditProductMaster.Uid; line.MasterSku = EditProductMaster.MasterSku ?? string.Empty;
-        line.CategoryId = EditProductMaster.CategoryId; line.CategoryName = EditProductMaster.CategoryName ?? string.Empty;
+        ApplyProductMaster(line, EditProductMaster.Uid, EditProductMaster.MasterSku ?? string.Empty, EditProductMaster.CategoryId, EditProductMaster.CategoryName ?? string.Empty);
         EditProductMaster = null;
     }
     /// <summary>明确清空主型号保存 null，物料自身型号及已有标签保持。</summary>
@@ -625,7 +624,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void CommitColor(ProductLineModel? line)
     {
         if (line is null || EditColor is null) return;
-        line.ColorId = EditColor.Uid; line.Finish = EditColor.ColorNameZh ?? EditColor.ColorNameEn ?? string.Empty;
+        ApplyColor(line, EditColor.Uid, EditColor.ColorNameZh ?? EditColor.ColorNameEn ?? string.Empty);
         EditColor = null;
     }
 
@@ -642,9 +641,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void CommitSupplier(ProductLineModel? line)
     {
         if (line is null || EditSupplier is null) return;
-        line.DefaultSupplierId = EditSupplier.Uid;
-        line.DefaultSupplierCode = EditSupplier.SupplierCode ?? string.Empty;
-        line.SupplierName = EditSupplier.SupplierName ?? string.Empty;
+        ApplySupplier(line, EditSupplier.Uid, EditSupplier.SupplierCode ?? string.Empty, EditSupplier.SupplierName ?? string.Empty);
         EditSupplier = null;
     }
 
@@ -663,9 +660,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void CommitManufacturer(ProductLineModel? line)
     {
         if (line is null || EditManufacturer is null) return;
-        line.ManufacturerId = EditManufacturer.Uid;
-        line.ManufacturerCode = EditManufacturer.SupplierCode ?? string.Empty;
-        line.ManufacturerName = EditManufacturer.SupplierName ?? string.Empty;
+        ApplyManufacturer(line, EditManufacturer.Uid, EditManufacturer.SupplierCode ?? string.Empty, EditManufacturer.SupplierName ?? string.Empty);
         EditManufacturer = null;
     }
 
@@ -685,9 +680,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void CommitWarehouse(ProductLineModel? line)
     {
         if (line is null || EditWarehouse is null) return;
-        line.DefaultWarehouseSiteId = EditWarehouse.Uid;
-        line.DefaultWarehouseCode = EditWarehouse.Code ?? string.Empty;
-        line.DefaultWarehouseName = EditWarehouse.Name ?? string.Empty;
+        ApplyWarehouse(line, EditWarehouse.Uid, EditWarehouse.Code ?? string.Empty, EditWarehouse.Name ?? string.Empty);
         EditWarehouse = null;
     }
 
@@ -870,6 +863,110 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private bool CanSave() => IsNotBusy && CanWrite && Products.HasChanges;
 
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>完整更新主型号关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyProductMaster(ProductLineModel target, Guid? productMasterId, string masterSku, Guid categoryId, string categoryName)
+    {
+        target.ProductMasterId = productMasterId;
+        target.MasterSku = masterSku;
+        target.CategoryId = categoryId;
+        target.CategoryName = categoryName;
+    }
+
+    /// <summary>完整更新颜色关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyColor(ProductLineModel target, Guid colorId, string finish)
+    {
+        target.ColorId = colorId;
+        target.Finish = finish;
+    }
+
+    /// <summary>完整更新供应商关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplySupplier(ProductLineModel target, Guid? defaultSupplierId, string defaultSupplierCode, string supplierName)
+    {
+        target.DefaultSupplierId = defaultSupplierId;
+        target.DefaultSupplierCode = defaultSupplierCode;
+        target.SupplierName = supplierName;
+    }
+
+    /// <summary>完整更新制造方关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyManufacturer(ProductLineModel target, Guid? manufacturerId, string manufacturerCode, string manufacturerName)
+    {
+        target.ManufacturerId = manufacturerId;
+        target.ManufacturerCode = manufacturerCode;
+        target.ManufacturerName = manufacturerName;
+    }
+
+    /// <summary>完整更新仓库关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyWarehouse(ProductLineModel target, Guid? defaultWarehouseSiteId, string defaultWarehouseCode, string defaultWarehouseName)
+    {
+        target.DefaultWarehouseSiteId = defaultWarehouseSiteId;
+        target.DefaultWarehouseCode = defaultWarehouseCode;
+        target.DefaultWarehouseName = defaultWarehouseName;
+    }
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => !_disposed && CanWrite && IsNotBusy
+        && request is not null && request.Fields.All(field => field is nameof(ProductLineModel.ProductMasterId)
+            or nameof(ProductLineModel.LinkSku)
+            or nameof(ProductLineModel.DescriptionEn)
+            or nameof(ProductLineModel.DescriptionZh)
+            or nameof(ProductLineModel.FeaturesZh)
+            or nameof(ProductLineModel.FeaturesEn)
+            or nameof(ProductLineModel.ColorId)
+            or nameof(ProductLineModel.MaterialType)
+            or nameof(ProductLineModel.Unit)
+            or nameof(ProductLineModel.SupplyType)
+            or nameof(ProductLineModel.DefaultSupplierId)
+            or nameof(ProductLineModel.ManufacturerId)
+            or nameof(ProductLineModel.ManufacturerModel)
+            or nameof(ProductLineModel.DefaultWarehouseSiteId)
+            or nameof(ProductLineModel.CnyPrice)
+            or nameof(ProductLineModel.UsdPrice)
+            or nameof(ProductLineModel.PcsOfCarton)
+            or nameof(ProductLineModel.NwOfCarton)
+            or nameof(ProductLineModel.GwOfCarton)
+            or nameof(ProductLineModel.CbmOfCarton)
+            or nameof(ProductLineModel.Note))
+        && request.TryGetRows<ProductLineModel>(Products.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<ProductLineModel>(Products.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(ProductLineModel.ProductMasterId): ApplyProductMaster(target, source.ProductMasterId, source.MasterSku, source.CategoryId, source.CategoryName); break;
+                    case nameof(ProductLineModel.LinkSku): target.LinkSku = source.LinkSku; break;
+                    case nameof(ProductLineModel.DescriptionEn): target.DescriptionEn = source.DescriptionEn; break;
+                    case nameof(ProductLineModel.DescriptionZh): target.DescriptionZh = source.DescriptionZh; break;
+                    case nameof(ProductLineModel.FeaturesZh): target.FeaturesZh = source.FeaturesZh; break;
+                    case nameof(ProductLineModel.FeaturesEn): target.FeaturesEn = source.FeaturesEn; break;
+                    case nameof(ProductLineModel.ColorId): ApplyColor(target, source.ColorId, source.Finish); break;
+                    case nameof(ProductLineModel.MaterialType): target.MaterialType = source.MaterialType; break;
+                    case nameof(ProductLineModel.Unit): target.Unit = source.Unit; break;
+                    case nameof(ProductLineModel.SupplyType): target.SupplyType = source.SupplyType; break;
+                    case nameof(ProductLineModel.DefaultSupplierId): ApplySupplier(target, source.DefaultSupplierId, source.DefaultSupplierCode, source.SupplierName); break;
+                    case nameof(ProductLineModel.ManufacturerId): ApplyManufacturer(target, source.ManufacturerId, source.ManufacturerCode, source.ManufacturerName); break;
+                    case nameof(ProductLineModel.ManufacturerModel): target.ManufacturerModel = source.ManufacturerModel; break;
+                    case nameof(ProductLineModel.DefaultWarehouseSiteId): ApplyWarehouse(target, source.DefaultWarehouseSiteId, source.DefaultWarehouseCode, source.DefaultWarehouseName); break;
+                    case nameof(ProductLineModel.CnyPrice): target.CnyPrice = source.CnyPrice; break;
+                    case nameof(ProductLineModel.UsdPrice): target.UsdPrice = source.UsdPrice; break;
+                    case nameof(ProductLineModel.PcsOfCarton): target.PcsOfCarton = source.PcsOfCarton; break;
+                    case nameof(ProductLineModel.NwOfCarton): target.NwOfCarton = source.NwOfCarton; break;
+                    case nameof(ProductLineModel.GwOfCarton): target.GwOfCarton = source.GwOfCarton; break;
+                    case nameof(ProductLineModel.CbmOfCarton): target.CbmOfCarton = source.CbmOfCarton; break;
+                    case nameof(ProductLineModel.Note): target.Note = source.Note; break;
+                }
+            }
+        }
+    }
+
 }
 
 
@@ -883,4 +980,5 @@ internal static class ObservableCollectionExtensions
         foreach (var item in items)
             collection.Add(item);
     }
+
 }

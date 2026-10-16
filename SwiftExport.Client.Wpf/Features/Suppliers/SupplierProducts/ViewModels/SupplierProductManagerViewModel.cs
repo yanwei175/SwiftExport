@@ -470,4 +470,35 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         && SelectedLine.SupplierId == ActiveSupplier.Uid;
     private static string FirstNonEmpty(string? first, string? second) => !string.IsNullOrWhiteSpace(first) ? first : second ?? string.Empty;
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => CanAdd()
+        && request is not null && request.Fields.All(field => field is nameof(SupplierProductLineModel.SupplierSku)
+            or nameof(SupplierProductLineModel.SupplierSkuDescriptionZh)
+            or nameof(SupplierProductLineModel.SupplierSkuFeaturesZh)
+            or nameof(SupplierProductLineModel.UnitPrice)
+            or nameof(SupplierProductLineModel.TaxPrice))
+        && request.TryGetRows<SupplierProductLineModel>(Products.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<SupplierProductLineModel>(Products.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(SupplierProductLineModel.SupplierSku): target.SupplierSku = source.SupplierSku; break;
+                    case nameof(SupplierProductLineModel.SupplierSkuDescriptionZh): target.SupplierSkuDescriptionZh = source.SupplierSkuDescriptionZh; break;
+                    case nameof(SupplierProductLineModel.SupplierSkuFeaturesZh): target.SupplierSkuFeaturesZh = source.SupplierSkuFeaturesZh; break;
+                    case nameof(SupplierProductLineModel.UnitPrice): target.UnitPrice = source.UnitPrice; break;
+                    case nameof(SupplierProductLineModel.TaxPrice): target.TaxPrice = source.TaxPrice; break;
+                }
+            }
+        }
+    }
 }

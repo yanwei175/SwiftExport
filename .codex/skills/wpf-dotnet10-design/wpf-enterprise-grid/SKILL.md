@@ -1,6 +1,6 @@
 ---
 name: wpf-enterprise-grid
-description: 原生 WPF DataGrid 企业级增强框架技能组入口。用于整体架构、公共 API、模块边界、功能路线、技术决策和 Grid 专项代码审查，并路由到核心、选择、编辑、列、验证、状态、筛选和导出子 Skill。
+description: 原生 WPF DataGrid 客户端适配技能组入口。用于整体架构、公共 API、模块边界、功能路线、技术决策和 Grid 专项代码审查，并路由到核心、选择、编辑、列、验证、状态、筛选和导出子 Skill。
 ---
 
 # WPF Enterprise Grid 技能组
@@ -17,23 +17,23 @@ description: 原生 WPF DataGrid 企业级增强框架技能组入口。用于�
 ## 子 Skill 路由
 
 - 框架入口、AttachedProperty、生命周期、Helper：读 `../wpf-grid-core/SKILL.md`。
-- CurrentRow、SelectedItem、CurrentCell、CurrentColumn：读 `../wpf-grid-selection/SKILL.md`。
+- 原生 CurrentItem/SelectedItem、CurrentCell/CurrentColumn、原生多选集合命令参数：读 `../wpf-grid-selection/SKILL.md`。
 - 原生双击、F2、Enter、Tab、Shift+Tab、Esc 兼容：读 `../wpf-grid-editing/SKILL.md`。
-- 列标识、Lookup、Enum、Numeric：读 `../wpf-grid-column/SKILL.md`。
-- 单元格/行验证和错误导航：读 `../wpf-grid-validation/SKILL.md`。
+- 必要列元数据、原生文本/数值/模板列：读 `../wpf-grid-column/SKILL.md`。
+- 单元格/行验证、聚合与软提示：读 `../wpf-grid-validation/SKILL.md`。
 - 业务行状态到视觉的无侵入映射：读 `../wpf-grid-state/SKILL.md`。
-- FilterRow、ColumnFilter、本地/远程筛选：读 `../wpf-grid-filter/SKILL.md`。
-- CSV/Excel 和数据导出：读 `../wpf-grid-export/SKILL.md`。
-- Ctrl+Z、Ctrl+C、Ctrl+V、Ctrl+D、Delete 清空与单元格历史由 `GridOperations` 负责，需同时检查 core、selection、column 和 editing 兼容边界。
+- 原生集合视图与页面远程筛选：读 `../wpf-grid-filter/SKILL.md`。
+- 客户端 CSV/Excel 导出边界：读 `../wpf-grid-export/SKILL.md`。
+- Operations 与 Grid 提交历史已退出。Ctrl+D 由客户端薄行为和页面强类型命令负责；同时读取 communitytoolkit-mvvm 和 column/editing。原生 Ctrl+C 和模板 ClipboardContentBinding 按 column/editing 检查。Grid 级 Ctrl+V、Delete 清空已退出，编辑器内操作及业务清空命令保留。
 - 业务行拖拽重排由客户端 `RowDragReorder` 负责，读 `../wpf-row-drag-reorder/SKILL.md`；Grid 不再提供上下移按钮列，不维护 LineNumber / SortNo。
 
-跨模块任务可以同时读取多个子 Skill，但由一个协调器统一事件顺序和公共 API。
+跨模块任务可读取多个子 Skill，但须明确事件所有权；各客户端适配独立管理生命周期；没有总入口、协调器或选择 Behavior。
 
 ## 工作方法
 
 1. 先确认原生 DataGrid 行为、现有绑定和源码约束。
 2. 先写决策、API 契约、事件顺序和验收场景，再写实现。
-3. 默认使用组合模式：原生 DataGrid + 附加属性 + 每实例内部协调器。
+3. 默认使用组合模式：原生 DataGrid + 客户端按需附加属性/薄行为。
 4. 将公共 API 与内部实现分离；不因第一版方便暴露不稳定类型。
 5. 每次只实现一个可独立验收的能力切片，并验证关闭该能力后恢复原生行为。
 
@@ -44,4 +44,8 @@ description: 原生 WPF DataGrid 企业级增强框架技能组入口。用于�
 - 不依赖 WPF-UI、HandyControl、MaterialDesignThemes 或商业 Grid。
 - 不通过关闭虚拟化、扫描可视树或复制业务集合来实现功能。
 - 不让多个模块无序处理同一个输入事件。
-- 公开的双向附加属性必须具备重入保护、解绑和空值语义。
+- 不新增选择状态附加属性；选区直接通过命令读取原生集合，其他真实双向状态仍需重入保护、解绑和空值语义。
+
+## 当前精简边界
+
+EnterpriseGrid 独立项目、专项测试项目、总开关和协调器均已退出。行号、必要软验证及有效测试迁至客户端。GridColumn.Key/FieldPath 全部删除；仅模板软验证需要 GridValidation.FieldPath，填充显式使用客户端 Field。其他能力优先原生 DataGrid 和现有页面命令；详细边界见 references/总体架构.md。

@@ -6,16 +6,19 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExportClient.Features.Sales.Orders.Models;
+using SwiftExportClient.Resources.Behaviors;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Orders;
 
+/// <summary>验证销售数量的客户端软提示不会阻断原生编辑提交。</summary>
 [TestClass]
 public sealed class SalesOrderSoftEditorTests
 {
+    /// <summary>保留无效原始输入并显示错误，修正后更新数量并清除对应列提示。</summary>
     [TestMethod]
     public void InvalidNumberText_ShouldCommitCellAndPreserveRawText()
     {
-        StaTest.RunAsync(() =>
+        StaTest.RunAsync(async () =>
         {
             var line = new SalesOrderLineModel();
             line.Load(new SalesOrderDetailLineDto
@@ -40,6 +43,7 @@ public sealed class SalesOrderSoftEditorTests
                 ItemsSource = new[] { line },
             };
             dataGrid.Columns.Add(numberColumn);
+            GridValidation.SetIsEnabled(dataGrid, true);
             var window = new Window
             {
                 Width = 420,
@@ -61,13 +65,22 @@ public sealed class SalesOrderSoftEditorTests
                 Assert.IsTrue(dataGrid.CommitEdit(DataGridEditingUnit.Cell, true));
                 Assert.AreEqual("invalid-number", line.QtyText);
                 Assert.AreEqual(2m, line.Qty);
+                await dataGrid.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Background);
+                Assert.IsTrue(GridValidation.GetErrors(dataGrid).Any(error => ReferenceEquals(error.Column, numberColumn)));
+                BeginEdit(dataGrid, line, numberColumn);
+                textBox = FindVisualDescendant<TextBox>(dataGrid);
+                textBox.Text = "3";
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                Assert.IsTrue(dataGrid.CommitEdit(DataGridEditingUnit.Cell, true));
+                Assert.AreEqual(3m, line.Qty);
+                await dataGrid.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Background);
+                Assert.IsFalse(GridValidation.GetErrors(dataGrid).Any(error => ReferenceEquals(error.Column, numberColumn)));
             }
             finally
             {
                 window.Close();
             }
 
-            return Task.CompletedTask;
         });
     }
 

@@ -11,9 +11,11 @@ using WpfDropDownButton = Wpf.Ui.Controls.DropDownButton;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products.Colors;
 
+/// <summary>验证颜色页面菜单使用可用控件并连接实际业务命令。</summary>
 [TestClass]
 public sealed class ProductColorsMoreMenuTests
 {
+    /// <summary>菜单保留实际业务命令，填充接到客户端行为，退出 Grid 撤销按钮并保留放弃修改。</summary>
     [TestMethod]
     public void Xaml_ShouldUseSupportedContextMenuAndPreserveCommands()
     {
@@ -22,8 +24,7 @@ public sealed class ProductColorsMoreMenuTests
         XNamespace ui = "http://schemas.lepo.co/wpfui/2022/xaml";
 
         var moreButton = document.Descendants(ui + "DropDownButton")
-            .Single(button => button.Descendants(presentation + "TextBlock")
-                .Any(text => (string?)text.Attribute("Text") == "更多"));
+            .Single(button => (string?)button.Attribute("Content") == "更多功能");
         var flyoutProperty = moreButton.Element(ui + "DropDownButton.Flyout");
         Assert.IsNotNull(flyoutProperty);
         Assert.IsFalse(flyoutProperty.Descendants(ui + "Flyout").Any());
@@ -36,16 +37,15 @@ public sealed class ProductColorsMoreMenuTests
 
         var menuItems = contextMenu.Elements(presentation + "MenuItem").ToArray();
         CollectionAssert.AreEqual(
-            new[] { "导入颜色", "导出颜色", "向下填充（Ctrl+D）", "批量规范化代码" },
+            new[] { "导入颜色", "导出颜色", "批量规范化代码" },
             menuItems.Select(item => (string?)item.Attribute("Header")).ToArray());
 
-        var fillDownItem = menuItems.Single(item => (string?)item.Attribute("Header") == "向下填充（Ctrl+D）");
-        StringAssert.Contains(
-            (string?)fillDownItem.Attribute("Command") ?? string.Empty,
-            "GridOperations.FillDownCommand");
-        StringAssert.Contains(
-            (string?)fillDownItem.Attribute("CommandTarget") ?? string.Empty,
-            "ColorsGrid");
+        XNamespace behaviors = "clr-namespace:SwiftExportClient.Resources.Behaviors";
+        var fill = document.Descendants(behaviors + "DataGridFillDownBehavior").Single();
+        Assert.AreEqual("{Binding FillDownCommand}", (string?)fill.Attribute("Command"));
+        var buttons = document.Descendants(ui + "Button").ToArray();
+        Assert.IsFalse(buttons.Any(button => ((string?)button.Attribute("Command"))?.Contains("ApplicationCommands.Undo") == true));
+        Assert.IsTrue(buttons.Any(button => (string?)button.Attribute("Command") == "{Binding RejectAllChangesCommand}"));
     }
 
     [TestMethod]

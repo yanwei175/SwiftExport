@@ -86,7 +86,7 @@
                       EnableColumnVirtualization="True"
                       SelectionMode="Extended">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Width="64" CanUserSort="False" 
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="64" CanUserSort="False"
                                             HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                         <DataGridTemplateColumn.HeaderTemplate >
                             <DataTemplate>

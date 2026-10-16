@@ -6,11 +6,7 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
-             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
              mc:Ignorable="d" d:Height="760" d:Width="1280">
@@ -151,16 +147,11 @@
                       SelectionMode="Extended"
                       SelectionUnit="FullRow"
                       FrozenColumnCount="1"
-                      gridCore:EnterpriseGrid.IsEnabled="True"
-                      gridCore:GridVirtualization.IsEnabled="True"
                       gridCore:GridRowHeader.ShowRowNumber="True"
-                      gridOperations:GridOperations.IsEnabled="True"
-                      gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                      gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
-                      gridValidation:GridValidation.IsEnabled="False"
+                      SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                       AutomationProperties.Name="中性产品可编辑列表">
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Width="45" CanUserSort="False"
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False"
                                             HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                         <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
@@ -174,9 +165,7 @@
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="图片" Width="68" CanUserSort="False"
-                                            gridColumns:GridColumn.Key="neutral-manager-image"
-                                            gridColumns:GridColumn.FieldPath="ImagePath">
+                    <DataGridTemplateColumn Header="图片" Width="68" CanUserSort="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <controls:CachedImage Width="48" Height="48"
@@ -192,9 +181,7 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="主型号" Width="120"
-                                            gridColumns:GridColumn.Key="neutral-manager-product-master"
-                                            gridColumns:GridColumn.FieldPath="ProductMasterId">
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding MasterSku, Mode=OneWay}" Header="主型号" Width="120">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding MasterSku}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
@@ -219,13 +206,9 @@
                     <DataGridTextColumn Header="产品编码" Width="160"
                         Binding="{Binding ProductCode, UpdateSourceTrigger=PropertyChanged}"
                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                        gridColumns:GridColumn.Key="neutral-manager-product-code"
-                        gridColumns:GridColumn.FieldPath="ProductCode" />
+                        EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                     
-                    <DataGridTemplateColumn Header="颜色" Width="140"
-                                            gridColumns:GridColumn.Key="neutral-manager-color"
-                                            gridColumns:GridColumn.FieldPath="ColorId">
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding ColorName, Mode=OneWay}" Header="颜色" Width="140">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding ColorName}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
@@ -248,31 +231,21 @@
                     <DataGridTextColumn Header="美元销售价" Width="110"
                         Binding="{Binding DefaultSalesPriceUsd, UpdateSourceTrigger=LostFocus, StringFormat=N2, TargetNullValue=''}"
                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                        gridColumns:GridColumn.Key="neutral-manager-sales-price"
-                        gridColumns:GridColumn.FieldPath="DefaultSalesPriceUsd" />
+                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" />
                     <DataGridTextColumn Header="计算汇率" Width="100"
                         Binding="{Binding DefaultExchangeRate, UpdateSourceTrigger=LostFocus, StringFormat=N4, TargetNullValue=''}"
                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                        gridColumns:GridColumn.Key="neutral-manager-exchange-rate"
-                        gridColumns:GridColumn.FieldPath="DefaultExchangeRate" />
+                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" />
                     <DataGridTextColumn Header="利润率" Width="90"
                         Binding="{Binding ProfitMargin, UpdateSourceTrigger=LostFocus, StringFormat=N2, TargetNullValue=''}"
                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                        gridColumns:GridColumn.Key="neutral-manager-profit-margin"
-                        gridColumns:GridColumn.FieldPath="ProfitMargin" />
+                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" />
                     <DataGridTextColumn Header="人民币采购价" Width="120"
                         Binding="{Binding DefaultPurchasePriceCny, UpdateSourceTrigger=LostFocus, StringFormat=N2, TargetNullValue=''}"
                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                        gridColumns:GridColumn.Key="neutral-manager-purchase-price"
-                        gridColumns:GridColumn.FieldPath="DefaultPurchasePriceCny" />
+                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" />
                     
-                    <DataGridTemplateColumn Header="操作" Width="60"
-                                            gridColumns:GridColumn.Key="rebuild-image-path"
-                                            gridColumns:GridColumn.FieldPath="ReBuildImagePath">
+                    <DataGridTemplateColumn Header="操作" Width="60">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -290,14 +263,10 @@
                     </DataGridTemplateColumn>
                     
                     <DataGridTextColumn Header="产品分类" Width="130" IsReadOnly="True"
-                        Binding="{Binding CategoryName}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                        gridColumns:GridColumn.Key="neutral-manager-category"
-                        gridColumns:GridColumn.FieldPath="CategoryName" />
+                        Binding="{Binding CategoryName}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
                     
                     <DataGridTextColumn Header="中文描述" Width="*" IsReadOnly="True"
-                        Binding="{Binding ProductMasterDescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                        gridColumns:GridColumn.Key="neutral-manager-master-description"
-                        gridColumns:GridColumn.FieldPath="ProductMasterDescriptionZh" />
+                        Binding="{Binding ProductMasterDescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
 
                 </DataGrid.Columns>

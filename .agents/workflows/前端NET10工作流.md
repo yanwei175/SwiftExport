@@ -31,5 +31,5 @@
 
 - 前端任务默认只写 `SwiftExport.Client.Wpf/**`、必要的 `SwiftExport.Contracts/**`，以及 `SwiftExport.Client.Wpf.Tests/**` 中本次相关测试、夹具和测试数据。
 - 补测不允许删除有效断言或绕过失败；后端缺陷交还后端角色，不借补测改变后端行为。
-- EnterpriseGrid 框架及其专项测试由 Grid Architect 按授权负责；运行专项测试不授予前端写入权限。
+- EnterpriseGrid 独立项目已退出；共享 Grid 架构/API 按 Grid 工作流，页面接入按当前前端授权范围执行。
 - 不借前端任务修改 WebApi、Application、Infrastructure、Core。

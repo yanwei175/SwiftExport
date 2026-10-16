@@ -9,7 +9,7 @@
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.Attributes.ViewModels"
              d:DataContext="{d:DesignInstance vm:ProductAttributeManagerViewModel}"
              xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
-             xmlns:gridcore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridcore="clr-namespace:SwiftExportClient.Resources.Behaviors"
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
              PreviewMouseLeftButtonDown="OnPreviewMouseDown" PreviewKeyDown="OnPreviewKeyDown"
              PreviewLostKeyboardFocus="OnPreviewLostKeyboardFocus">
@@ -72,7 +72,6 @@
                 <DataGrid x:Name="GroupGrid" Grid.Row="1" ItemsSource="{Binding Groups.Items}"
                           SelectedItem="{Binding SelectedGroup, Mode=TwoWay}" AutoGenerateColumns="False"
                           Style="{StaticResource SwiftExportDataGrid}"
-                          gridcore:EnterpriseGrid.IsEnabled="True"
                           gridcore:GridRowHeader.ShowRowNumber="True"
                           CanUserAddRows="False" CanUserDeleteRows="False" SelectionUnit="FullRow" SelectionMode="Single"
                           IsReadOnly="{Binding AreGridsReadOnly}" IsEnabled="{Binding IsInteractionEnabled}"
@@ -91,7 +90,7 @@
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
 
-                        <DataGridTemplateColumn Header="选择方式" Width="96">
+                        <DataGridTemplateColumn ClipboardContentBinding="{Binding SelectionMode, Mode=OneWay}" Header="选择方式" Width="96">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox ItemsSource="{Binding DataContext.SelectionModes, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -125,7 +124,6 @@
                         <DataGrid x:Name="OptionGrid" Grid.Row="1" ItemsSource="{Binding CurrentOptions}"
                                   SelectedItem="{Binding SelectedOption, Mode=TwoWay}"
                                   Style="{StaticResource SwiftExportDataGrid}"
-                                  gridcore:EnterpriseGrid.IsEnabled="True"
                                   gridcore:GridRowHeader.ShowRowNumber="True"
                                   AutoGenerateColumns="False"
                                   CanUserAddRows="False" CanUserDeleteRows="False" SelectionUnit="FullRow" SelectionMode="Single"

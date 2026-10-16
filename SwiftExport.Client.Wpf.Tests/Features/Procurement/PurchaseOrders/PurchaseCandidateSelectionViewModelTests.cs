@@ -1,3 +1,4 @@
+using SwiftExportClient.Mvvm;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.Apis.Procurement;
@@ -6,9 +7,7 @@ using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Procurement.PurchaseDrafts;
 using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Wpf.EnterpriseGrid.Columns;
-using SwiftExport.Wpf.EnterpriseGrid.Operations;
-using SwiftExport.Wpf.EnterpriseGrid.Validation;
+using SwiftExportClient.Resources.Behaviors;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Components;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
@@ -153,7 +152,11 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         Assert.AreEqual(initial.SupplierCode, childRow.DeliverySupplierCode);
         Assert.AreEqual(initial.SupplierName, childRow.DeliverySupplierName);
 
-        parentRow.PurchaseSupplierSelection = replacement;
+        var donor = CreateCandidateRow(replacement);
+        viewModel.Items.Add(donor);
+        var fill = new FillDownRequest(donor, [parentRow], [nameof(PurchaseCandidateItemModel.SupplierId)]);
+        Assert.IsTrue(viewModel.FillDownCommand.CanExecute(fill));
+        viewModel.FillDownCommand.Execute(fill);
         Assert.AreEqual(replacement.Uid, childRow.DeliveryTargetSupplierId);
         Assert.AreEqual(replacement.SupplierCode, childRow.DeliverySupplierCode);
         Assert.AreEqual(replacement.SupplierName, childRow.DeliverySupplierName);
@@ -182,9 +185,9 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         StringAssert.Contains(row.ValidationDisplayMessage, "采购数量必须大于 0");
     }
 
-    /// <summary>真实采购 Grid 聚合行级业务错误但不向各业务单元格分发软错误边框，并仍可定位错误行。</summary>
+    /// <summary>真实采购页直接显示模型验证消息；错误到达和清除不依赖 Grid 软验证聚合。</summary>
     [TestMethod]
-    public void BusinessValidation_ShouldRemainRowScopedInPurchaseGrid()
+    public void BusinessValidation_ShouldDisplayAndClearWithoutGridAggregation()
     {
         Controls.DatePickerAssistTests.RunWithApplication(() =>
         {
@@ -203,15 +206,25 @@ public sealed class PurchaseCandidateSelectionViewModelTests
             {
                 var grid = (DataGrid)view.FindName("CandidateGrid");
                 PumpDispatcher();
-                var errors = GridValidation.GetErrors(grid);
-                Assert.IsTrue(errors.Any(error => ReferenceEquals(error.Item, row)
-                    && error.ColumnKey is null
-                    && error.Message.Contains("采购数量必须大于 0", StringComparison.Ordinal)));
+                Assert.IsFalse(GridValidation.GetIsEnabled(grid));
+                Assert.IsEmpty(GridValidation.GetErrors(grid));
+                var validationColumn = grid.Columns.Single(column => Equals(column.Header, "验证结果"));
+                grid.ScrollIntoView(row, validationColumn);
+                grid.UpdateLayout();
+                PumpDispatcher();
+                var message = FindVisualDescendants<TextBlock>(validationColumn.GetCellContent(row)).Single();
+                StringAssert.Contains(message.Text, "采购数量必须大于 0");
+                row.PurchaseQty = 1m;
+                row.ValidationMessage = "服务端业务校验错误";
+                PumpDispatcher();
+                Assert.AreEqual("服务端业务校验错误", message.Text);
+                row.ValidationMessage = string.Empty;
+                PumpDispatcher();
+                Assert.AreEqual(string.Empty, message.Text);
+                Assert.IsFalse(row.HasErrors);
                 Assert.IsFalse(FindVisualDescendants<DataGridCell>(grid)
                     .Where(cell => ReferenceEquals(cell.DataContext, row))
                     .Any(cell => GridValidation.GetCellState(cell).HasError));
-                Assert.IsTrue(GridValidation.FocusFirstError(grid));
-                Assert.AreSame(row, grid.SelectedItem);
             }
             finally
             {
@@ -298,7 +311,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
                 var grid = (DataGrid)view.FindName("CandidateGrid");
                 var column = FindColumn(grid, "DeliverySupplier");
                 Assert.IsTrue(column.IsReadOnly);
-                Assert.IsFalse(GridColumn.GetCanFillDown(column));
+                Assert.IsNull(DataGridFillDownBehavior.GetField(column));
                 Assert.IsNull(column.CellEditingTemplate);
                 grid.CurrentCell = new DataGridCellInfo(row, column);
                 grid.Focus();
@@ -312,9 +325,9 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         });
     }
 
-    /// <summary>真实 EnterpriseGrid 命令必须复合填充供应商事实、跳过禁用行并一次撤销。</summary>
+    /// <summary>真实客户端行为必须完整更新供应商事实、跳过禁用行并保留业务清空命令。</summary>
     [TestMethod]
-    public void PurchaseSupplierColumn_CtrlDShouldFillCompositeFactsSkipDisabledAndUndoTogether()
+    public void PurchaseSupplierColumn_CtrlDShouldFillFactsSkipDisabledAndKeepClearCommand()
     {
         Controls.DatePickerAssistTests.RunWithApplication(() =>
         {
@@ -344,23 +357,22 @@ public sealed class PurchaseCandidateSelectionViewModelTests
                 grid.Focus();
                 PumpDispatcher();
 
-                Assert.IsTrue(GridOperations.FillDownCommand.CanExecute(null, grid));
-                GridOperations.FillDownCommand.Execute(null, grid);
+                Assert.IsTrue(DataGridFillDownBehavior.FillDownCommand.CanExecute(null, grid));
+                DataGridFillDownBehavior.FillDownCommand.Execute(null, grid);
                 PumpDispatcher();
 
                 Assert.AreEqual(sourceSupplier.Uid, second.SupplierId);
                 Assert.AreEqual(sourceSupplier.SupplierCode, second.PurchaseSupplierCode);
                 Assert.AreEqual(sourceSupplier.SupplierName, second.PurchaseSupplierName);
                 Assert.AreEqual(sourceSupplier.Uid, second.PurchaseSupplierSelection?.Uid);
-                Assert.AreEqual(disabledOriginal.Uid, disabled.SupplierId, "禁用目标行必须由 CanFillDownPath 跳过。 ");
+                Assert.AreEqual(disabledOriginal.Uid, disabled.SupplierId, "禁用目标行必须由 页面许可 跳过。 ");
 
-                Assert.IsTrue(ApplicationCommands.Undo.CanExecute(null, grid));
-                ApplicationCommands.Undo.Execute(null, grid);
-                PumpDispatcher();
-                Assert.AreEqual(secondOriginal.Uid, second.SupplierId);
-                Assert.AreEqual(secondOriginal.SupplierCode, second.PurchaseSupplierCode);
-                Assert.AreEqual(secondOriginal.SupplierName, second.PurchaseSupplierName);
-                Assert.AreEqual(secondOriginal.Uid, second.PurchaseSupplierSelection?.Uid);
+                Assert.IsFalse(ApplicationCommands.Undo.CanExecute(null, grid));
+                viewModel.ClearPurchaseSupplierCommand.Execute(second);
+                Assert.AreEqual(Guid.Empty, second.SupplierId);
+                Assert.AreEqual(string.Empty, second.PurchaseSupplierCode);
+                Assert.AreEqual(string.Empty, second.PurchaseSupplierName);
+                Assert.IsNull(second.PurchaseSupplierSelection);
 
                 grid.CurrentCell = new DataGridCellInfo(disabled, column);
                 grid.Focus();
@@ -630,7 +642,7 @@ public sealed class PurchaseCandidateSelectionViewModelTests
         });
 
     private static DataGridTemplateColumn FindColumn(DataGrid grid, string key) =>
-        (DataGridTemplateColumn)grid.Columns.Single(column => GridColumn.GetKey(column) == key);
+        (DataGridTemplateColumn)grid.Columns.Single(column => column.ClipboardContentBinding is System.Windows.Data.Binding binding && binding.Path.Path == key + "Display");
 
     private static Window Show(FrameworkElement content)
     {

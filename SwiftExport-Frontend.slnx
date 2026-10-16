@@ -1,5 +1,4 @@
 <Solution>
   <Project Path="SwiftExport.Client.Wpf/SwiftExport.Client.Wpf.csproj" />
   <Project Path="SwiftExport.Contracts/SwiftExport.Contracts.csproj" />
-  <Project Path="SwiftExport.Wpf.EnterpriseGrid/SwiftExport.Wpf.EnterpriseGrid.csproj" />
 </Solution>

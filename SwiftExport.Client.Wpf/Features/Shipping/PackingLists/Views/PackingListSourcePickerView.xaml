@@ -62,7 +62,7 @@
                   IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}"
                   AutomationProperties.Name="待交付来源列表">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="本次分配数量" Width="115">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding AllocationQtyText, Mode=OneWay}" Header="本次分配数量" Width="115">
                     <DataGridTemplateColumn.CellTemplate><DataTemplate>
                         <ui:TextBox Text="{Binding AllocationQtyText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.IsAllocationMode, RelativeSource={RelativeSource AncestorType=DataGrid}}" AutomationProperties.Name="本次分配数量"/>
                     </DataTemplate></DataGridTemplateColumn.CellTemplate>
@@ -70,7 +70,7 @@
                 <DataGridTextColumn Header="来源 InvoiceNo" Binding="{Binding InvoiceNo}" Width="130"/>
                 <DataGridTextColumn Header="来源行号" Binding="{Binding SourceLineNumber}" Width="80"/>
 
-                <DataGridTemplateColumn Header="勾选" Width="45" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Header="勾选" Width="45" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsChecked, Mode=OneWay}" 
@@ -106,7 +106,7 @@
                 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="不可用原因" Binding="{Binding DeliveryUnavailableReason}" Width="220"/>
 
                 <DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" Header="英文描述" Binding="{Binding DescriptionEnSnapshot}" Width="180"/>
-                <DataGridTemplateColumn Header="是否非标">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsNonStandard, Mode=OneWay}" Header="是否非标">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsNonStandard,Mode=OneWay}" IsHitTestVisible="False" Focusable="False"/>

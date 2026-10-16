@@ -29,7 +29,7 @@
                   VerticalAlignment="Stretch" MinHeight="160" AutomationProperties.Name="系统参数列表">
             <DataGrid.Columns>
                 
-                <DataGridTemplateColumn Header="参数" Width="240" IsReadOnly="True">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding DisplayName, Mode=OneWay}" Header="参数" Width="240" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Margin="8">
@@ -40,7 +40,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 
-                <DataGridTemplateColumn Header="参数值" Width="2*" MinWidth="280" IsReadOnly="True">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding Value, Mode=OneWay}" Header="参数值" Width="2*" MinWidth="280" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Margin="8" VerticalAlignment="Stretch">

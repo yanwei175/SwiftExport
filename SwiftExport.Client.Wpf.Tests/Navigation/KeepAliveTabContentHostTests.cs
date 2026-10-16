@@ -11,9 +11,10 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using SwiftExport.Wpf.EnterpriseGrid.Columns;
-using SwiftExport.Wpf.EnterpriseGrid.Operations;
-using EnterpriseGridCore = SwiftExport.Wpf.EnterpriseGrid.Core.EnterpriseGrid;
+using SwiftExportClient.Resources.Behaviors;
+using SwiftExportClient.Mvvm;
+using Microsoft.Xaml.Behaviors;
+using CommunityToolkit.Mvvm.Input;
 
 namespace SwiftExport.Client.Wpf.Tests.Navigation;
 
@@ -119,7 +120,7 @@ public sealed class KeepAliveTabContentHostTests
     }
 
     [TestMethod]
-    public void GridFillDownSwitchAndUndo_ShouldKeepGridSelectionCurrentCellAndVirtualization()
+    public void GridFillDownSwitch_ShouldKeepSelectionCurrentCellAndVirtualizationWithoutUndo()
     {
         StaTest.RunAsync(async () =>
         {
@@ -149,11 +150,11 @@ public sealed class KeepAliveTabContentHostTests
                 grid.UpdateLayout();
                 var scrollViewer = FindVisualChildren<ScrollViewer>(grid).First();
                 var verticalOffset = scrollViewer.VerticalOffset;
-                GridOperations.FillDownCommand.Execute(null, grid);
+                DataGridFillDownBehavior.FillDownCommand.Execute(null, grid);
                 CollectionAssert.AreEqual(
                     new[] { firstModel.Rows[80].Value, firstModel.Rows[80].Value, firstModel.Rows[80].Value },
                     firstModel.Rows.Skip(80).Take(3).Select(row => row.Value).ToArray());
-                Assert.IsTrue(GridOperations.GetCanUndo(grid));
+                Assert.IsFalse(System.Windows.Input.ApplicationCommands.Undo.CanExecute(null, grid));
                 Assert.IsTrue(verticalOffset > 0d);
 
                 host.SelectedItem = second;
@@ -173,7 +174,7 @@ public sealed class KeepAliveTabContentHostTests
 
                 ApplicationCommands.Undo.Execute(null, grid);
                 CollectionAssert.AreEqual(
-                    new[] { "Row-080", "Row-081", "Row-082" },
+                    new[] { "Row-080", "Row-080", "Row-080" },
                     firstModel.Rows.Skip(80).Take(3).Select(row => row.Value).ToArray());
             }
             finally
@@ -378,8 +379,14 @@ public sealed class KeepAliveTabContentHostTests
         public LookupTextBox Lookup { get; }
     }
 
+    /// <summary>缓存页测试宿主，显式处理唯一允许填充的字段。</summary>
     private sealed class GridHostViewModel
     {
+        public ICommand FillCommand => new RelayCommand<FillDownRequest>(request =>
+        {
+            if (request is not null && request.TryGetRows(Rows, out var source, out var targets))
+                foreach (var target in targets) target.Value = source.Value;
+        });
         public ObservableCollection<GridRow> Rows { get; } = new(
             Enumerable.Range(0, 100).Select(index => new GridRow($"Row-{index:000}")));
     }
@@ -400,7 +407,7 @@ public sealed class KeepAliveTabContentHostTests
             {
                 Binding = new Binding(nameof(GridRow.Value)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
             };
-            GridColumn.SetKey(column, "value");
+
             Grid.Columns.Add(column);
             var quantityColumn = new DataGridTextColumn
             {
@@ -410,11 +417,14 @@ public sealed class KeepAliveTabContentHostTests
                     ValidatesOnExceptions = true
                 }
             };
-            GridColumn.SetKey(quantityColumn, "quantity");
+
             Grid.Columns.Add(quantityColumn);
             Grid.SetBinding(DataGrid.ItemsSourceProperty, new Binding(nameof(GridHostViewModel.Rows)));
-            EnterpriseGridCore.SetIsEnabled(Grid, true);
-            GridOperations.SetIsEnabled(Grid, true);
+
+            DataGridFillDownBehavior.SetField(column, nameof(GridRow.Value));
+            var fill = new DataGridFillDownBehavior();
+            BindingOperations.SetBinding(fill, DataGridFillDownBehavior.CommandProperty, new Binding(nameof(GridHostViewModel.FillCommand)));
+            Interaction.GetBehaviors(Grid).Add(fill);
             Content = Grid;
         }
 

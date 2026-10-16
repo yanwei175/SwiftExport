@@ -14,6 +14,7 @@ using SwiftExport.Contracts.DTOs.Suppliers;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
+using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Suppliers.Components;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
@@ -28,6 +29,51 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductMasterSupplierEditingTests
 {
+    /// <summary>管理页填充完整关联事实，拒绝失效系列及只读目标，原有放弃修改恢复行基线。</summary>
+    [TestMethod]
+    public void ManagerFillDown_ShouldKeepRelationFactsAndExistingRejectCommand()
+    {
+        var series = new SysDictDataDto { Uid = Guid.NewGuid(), DataNameZh = "系列" };
+        using var vm = CreateManager(series: [series]);
+        vm.Masters.LoadFromDtos([
+            new ProductMasterListItemDto { Uid = Guid.NewGuid(), Data = new() { MasterSku = "A" } },
+            new ProductMasterListItemDto { Uid = Guid.NewGuid(), Data = new() { MasterSku = "B" } }]);
+        var source = vm.Masters.Items[0]; var target = vm.Masters.Items[1];
+        source.CategoryId = Guid.NewGuid(); source.CategoryName = "分类";
+        source.DefaultSupplierId = Guid.NewGuid(); source.DefaultSupplierName = "供应商";
+        source.ProductAttributeProfileId = Guid.NewGuid(); source.ProductAttributeProfileName = "属性方案";
+        source.ProductSeriesId = series.Uid; source.ProductSeriesName = series.DataNameZh;
+        vm.Masters.AcceptChanges();
+        var request = new FillDownRequest(source, [target],
+            [nameof(ProductMasterLineModel.CategoryId), nameof(ProductMasterLineModel.DefaultSupplierId),
+             nameof(ProductMasterLineModel.ProductAttributeProfileId), nameof(ProductMasterLineModel.ProductSeriesId)]);
+        Assert.IsTrue(vm.FillDownCommand.CanExecute(request));
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual(source.CategoryId, target.CategoryId); Assert.AreEqual("分类", target.CategoryName);
+        Assert.AreEqual(source.DefaultSupplierId, target.DefaultSupplierId); Assert.AreEqual("供应商", target.DefaultSupplierName);
+        Assert.AreEqual(source.ProductAttributeProfileId, target.ProductAttributeProfileId);
+        Assert.AreEqual("属性方案", target.ProductAttributeProfileName);
+        Assert.AreEqual(series.Uid, target.ProductSeriesId); Assert.AreEqual("系列", target.ProductSeriesName);
+        Assert.IsTrue(target.IsDirty);
+        var invalidSeries = new FillDownRequest(source, [target], [nameof(ProductMasterLineModel.ProductSeriesId)]);
+        source.ProductSeriesId = Guid.NewGuid();
+        Assert.IsFalse(vm.FillDownCommand.CanExecute(invalidSeries));
+        vm.FillDownCommand.Execute(invalidSeries);
+        Assert.AreEqual(series.Uid, target.ProductSeriesId);
+        source.ProductSeriesId = series.Uid;
+        target.IsReadOnly = true;
+        source.DefaultSupplierName = "不得写入";
+        vm.FillDownCommand.Execute(request);
+        Assert.AreEqual("供应商", target.DefaultSupplierName);
+        target.IsReadOnly = false;
+        vm.RejectListChangesCommand.Execute(null);
+        Assert.AreEqual(Guid.Empty, target.CategoryId); Assert.AreEqual(string.Empty, target.CategoryName);
+        Assert.AreEqual(Guid.Empty, target.DefaultSupplierId); Assert.AreEqual(string.Empty, target.DefaultSupplierName);
+        Assert.IsNull(target.ProductAttributeProfileId); Assert.AreEqual(string.Empty, target.ProductAttributeProfileName);
+        Assert.IsNull(target.ProductSeriesId); Assert.AreEqual(string.Empty, target.ProductSeriesName);
+        Assert.IsFalse(vm.Masters.HasChanges);
+    }
+
     /// <summary>新候选只在提交后改头部，清空不接纳其他草稿，撤销恢复原选择。</summary>
     [TestMethod]
     public void Supplier_ShouldCommitClearAndRestoreSelectionOnReject()
@@ -248,13 +294,13 @@ public sealed class ProductMasterSupplierEditingTests
     }
 
     /// <summary>管理页依赖只提供本地供应商缓存和受控保存接口，不存在远程供应商搜索依赖。</summary>
-    private static ProductMasterManagerViewModel CreateManager(IProductMasterApi? api = null, SupplierDto[]? suppliers = null)
+    private static ProductMasterManagerViewModel CreateManager(IProductMasterApi? api = null, SupplierDto[]? suppliers = null, SysDictDataDto[]? series = null)
     {
         var supplierCache = new ReadOnlyObservableCollection<SupplierDto>(new ObservableCollection<SupplierDto>(suppliers ?? []));
         var cache = Proxy<IReferenceDataCacheService>((method, _) => method.Name switch
         {
             "get_Suppliers" => supplierCache,
-            nameof(IReferenceDataCacheService.GetDictionaryValues) => Array.Empty<SysDictDataDto>(),
+            nameof(IReferenceDataCacheService.GetDictionaryValues) => series ?? [],
             _ => null
         });
         return new ProductMasterManagerViewModel(api!, Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke()),

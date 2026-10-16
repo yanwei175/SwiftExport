@@ -366,4 +366,53 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     private bool CanDelete() => IsNotBusy && CanWrite && (Customers.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsNotBusy && CanWrite && Customers.HasChanges;
     private bool CanReject() => IsNotBusy && Customers.HasChanges;
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => CanWriteCommand()
+        && request is not null && request.Fields.All(field => field is nameof(CustomerLineModel.CustomerName)
+            or nameof(CustomerLineModel.DocRelateNo)
+            or nameof(CustomerLineModel.ContactPerson)
+            or nameof(CustomerLineModel.PhoneNumber)
+            or nameof(CustomerLineModel.Address)
+            or nameof(CustomerLineModel.Incoterm)
+            or nameof(CustomerLineModel.IncotermLocation)
+            or nameof(CustomerLineModel.IncotermSortRemark)
+            or nameof(CustomerLineModel.DepositRate)
+            or nameof(CustomerLineModel.LeadTimeDays)
+            or nameof(CustomerLineModel.PaymentMethod)
+            or nameof(CustomerLineModel.Currency)
+            or nameof(CustomerLineModel.ShippedBy)
+            or nameof(CustomerLineModel.EtdSortRemark))
+        && request.TryGetRows<CustomerLineModel>(Customers.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<CustomerLineModel>(Customers.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(CustomerLineModel.CustomerName): target.CustomerName = source.CustomerName; break;
+                    case nameof(CustomerLineModel.DocRelateNo): target.DocRelateNo = source.DocRelateNo; break;
+                    case nameof(CustomerLineModel.ContactPerson): target.ContactPerson = source.ContactPerson; break;
+                    case nameof(CustomerLineModel.PhoneNumber): target.PhoneNumber = source.PhoneNumber; break;
+                    case nameof(CustomerLineModel.Address): target.Address = source.Address; break;
+                    case nameof(CustomerLineModel.Incoterm): target.Incoterm = source.Incoterm; break;
+                    case nameof(CustomerLineModel.IncotermLocation): target.IncotermLocation = source.IncotermLocation; break;
+                    case nameof(CustomerLineModel.IncotermSortRemark): target.IncotermSortRemark = source.IncotermSortRemark; break;
+                    case nameof(CustomerLineModel.DepositRate): target.DepositRate = source.DepositRate; break;
+                    case nameof(CustomerLineModel.LeadTimeDays): target.LeadTimeDays = source.LeadTimeDays; break;
+                    case nameof(CustomerLineModel.PaymentMethod): target.PaymentMethod = source.PaymentMethod; break;
+                    case nameof(CustomerLineModel.Currency): target.Currency = source.Currency; break;
+                    case nameof(CustomerLineModel.ShippedBy): target.ShippedBy = source.ShippedBy; break;
+                    case nameof(CustomerLineModel.EtdSortRemark): target.EtdSortRemark = source.EtdSortRemark; break;
+                }
+            }
+        }
+    }
 }

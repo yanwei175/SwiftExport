@@ -12,7 +12,6 @@ using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products.ProductMasters;
 using SwiftExport.Contracts.Wrappers;
-using SwiftExport.Wpf.EnterpriseGrid.Selection;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Views;
@@ -59,8 +58,8 @@ public sealed class ProductMasterInteractionTests
             Assert.AreEqual(nameof(vm.SelectedNeutral), BindingOperations.GetBinding(neutralGrid, DataGrid.SelectedItemProperty)!.Path.Path);
             Assert.AreEqual(BindingMode.TwoWay, BindingOperations.GetBinding(masterGrid, DataGrid.SelectedItemProperty)!.Mode);
             Assert.AreEqual(BindingMode.TwoWay, BindingOperations.GetBinding(neutralGrid, DataGrid.SelectedItemProperty)!.Mode);
-            Assert.IsNull(BindingOperations.GetBinding(masterGrid, GridSelection.CurrentRowProperty));
-            Assert.IsNull(BindingOperations.GetBinding(neutralGrid, GridSelection.CurrentRowProperty));
+            Assert.IsNull(BindingOperations.GetBinding(masterGrid, DataGrid.CurrentItemProperty));
+            Assert.IsNull(BindingOperations.GetBinding(neutralGrid, DataGrid.CurrentItemProperty));
             masterGrid.SelectedItem = first;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             Assert.AreSame(first, vm.SelectedMaster);

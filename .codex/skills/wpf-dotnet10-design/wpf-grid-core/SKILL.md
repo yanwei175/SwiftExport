@@ -1,36 +1,29 @@
 ---
 name: wpf-grid-core
-description: SwiftExport 原生 WPF DataGrid 增强核心技能。用于 EnterpriseGrid 入口、AttachedProperty、内部协调器、模块生命周期、事件订阅、Helper、Extension、资源与兼容性设计。
+description: SwiftExport 原生 WPF DataGrid 客户端适配技能。用于行号、软提示附加属性、独立生命周期、事件订阅、资源和原生兼容性。
 ---
 
 # WPF Grid Core
 
-## 架构模式
+## 当前边界
 
-- 保持宿主为原生 `DataGrid`；功能通过显式启用的附加属性组合。
-- 每个 DataGrid 只创建一个内部协调器，由其统一分派输入、选择、编辑和验证事件。
-- 协调器及模块接口首版保持 `internal`；公共 API 只暴露稳定的附加属性、命令和策略契约。
-- 启用、禁用、Loaded、Unloaded 必须幂等；事件必须成对订阅/解绑，不持有页面或 ViewModel 强引用。
+- EnterpriseGrid 独立项目、总入口和协调器已退出。功能归客户端 `Resources/Behaviors`，不恢复总开关、模块注册或空壳项目。
+- 原生 DataGrid 是唯一宿主。`GridRowHeader`、`GridValidation` 各自按需启用，内部实例只管理自己的事件。填充行为独立管理生命周期；无调用的选择桥接已退出。
+- 启停、Loaded/Unloaded/Detach 必须幂等；只处理宿主加载卸载，卸载释放模型/集合订阅与排队工作，重载读取当前数据源，关闭移除自身状态。
+- 不保存业务 RowState、不修改 ItemsSource、不调用业务 API；业务写入通过已有页面命令完成。
 
-## 公共 API 原则
+## 附加属性与视觉
 
-- 使用 `FrameworkPropertyMetadataOptions.BindsTwoWayByDefault` 仅限真正的双向状态。
-- 区分配置属性、双向状态和只读诊断属性，不用一个 DP 同时承担三种语义。
-- 对 DataGridColumn 的元数据使用附加属性，避免创建平行 Column 基类。
-- 命名使用 `EnterpriseGrid`、`GridSelection`、`GridOperations`、`GridValidation`、`GridColumn` 等稳定域前缀。
+- 不建立第二套 CurrentItem/CurrentCell。仅真实双向状态使用 BindsTwoWayByDefault；错误摘要是只读呈现。
+- 列识别使用原生列对象；确需 View 事件识别时用具名列引用。GridColumn.Key 已删除。
+- 模板软验证映射仅用 GridValidation.FieldPath；普通绑定列读取 Binding.Path，填充许可另用 DataGridFillDownBehavior.Field。
+- 客户端可复用现有 Microsoft.Xaml.Behaviors.Wpf；不为行号/验证增加 Behavior 包或第三方 Grid 依赖，不引入 DataGridExtensions。
+- 命名样式沿用客户端主题规则，不将 WPF-UI 弹窗、服务或业务类型写入适配。
 
-## 依赖与视觉
+## 行号与验收
 
-- 框架项目只依赖 WPF/.NET；首阶段不引入 `Microsoft.Xaml.Behaviors`。
-- 只有原生附加行为无法可靠解绑或复用时，先记录 ADR，再评估 Behaviors 包。
-- 视觉使用命名资源和系统 Fluent 能力；不得引用宿主的 WPF-UI 控件类型。
-- 宿主页面可以通过 Command -> `IDialogService/IMessageService` 使用 WPF-UI ContentDialog、Snackbar；框架模块不得直接依赖 WPF-UI 或操作 DialogHost。
-
-## 实现检查
-
-- 不吞掉未处理输入，不修改 `ItemsSource`，不关闭虚拟化。
-- 业务行重排在客户端共享行为及页面命令中实现；协调器不创建排序按钮列，也不引入 Gong 或业务编号规则。
-- 不通过 `UpdateLayout` 全局强制布局；需要容器时先 `ScrollIntoView`，再处理生成结果。
-- 设计可注入的导航、列可见性等策略，但避免过早建立通用插件平台。
-- 测试重复启停、卸载重载、空 ItemsSource、列动态变化和多个 DataGrid 并存。
-- `GridRowHeader.ShowRowNumber` 只能表达当前视图行号，不得读取业务 RowIndex、修改宿主 RowHeaderWidth、关闭虚拟化或长期缓存 DataGridRow。
+- GridRowHeader.ShowRowNumber 表示当前视图的一基行号；ShowRowNumberInColumn 提供只读原生列。二者同时启用时列模式优先。
+- 不写业务 RowIndex/SortNo/LineNumber，不覆盖宿主 RowHeaderWidth/Style/Template，不缓存 DataGridRow，不关闭虚拟化。
+- 关闭/卸载只移除适配拥有的列和行头值，保留业务列；排序、筛选、集合替换与回收后重算。
+- 不安装 Copy/Paste/Delete/Undo 命令。Ctrl+D 的输入所有权按 column/editing 技能；原生删行禁用用 CanUserDeleteRows=False。
+- 回归归 SwiftExport.Client.Wpf.Tests/Resources/DataGrid：启停、卸载重载、数据替换、排序筛选、虚拟化及原生输入。行为桥接测试归 Resources/Behaviors。

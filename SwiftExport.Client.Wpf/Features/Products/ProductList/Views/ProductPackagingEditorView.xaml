@@ -3,7 +3,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
  xmlns:products="clr-namespace:SwiftExportClient.Features.Products.Components"
  xmlns:proxies="clr-namespace:SwiftExportClient.Resources.Proxies"
- xmlns:selection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+ xmlns:selection="clr-namespace:SwiftExportClient.Resources.Converters"
  Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
     <UserControl.Resources>
         <proxies:BindingProxy x:Key="PackagingEditorProxy" Data="{Binding}"/>
@@ -39,7 +39,7 @@
                 </Style>
             </DataGrid.Style>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="勾选" Width="48">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Header="勾选" Width="48">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"/>
@@ -48,7 +48,7 @@
                 </DataGridTemplateColumn>
                 
                 
-                <DataGridTemplateColumn Header="包装类型" Width="160">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding PackageType, Mode=OneWay}" Header="包装类型" Width="160">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding PackageType}" VerticalAlignment="Center"/>
@@ -72,7 +72,7 @@
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
                 
-                <DataGridTemplateColumn Header="包材" Width="180">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding PackagingMaterialSku, Mode=OneWay}" Header="包材" Width="180">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding PackagingMaterialSku}" VerticalAlignment="Center" ToolTip="{Binding MaterialStatus}"/>

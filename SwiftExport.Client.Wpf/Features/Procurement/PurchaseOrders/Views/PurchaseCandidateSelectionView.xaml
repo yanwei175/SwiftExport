@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseCandidateSelectionView"
+<UserControl xmlns:fill="clr-namespace:SwiftExportClient.Resources.Behaviors" xmlns:i="http://schemas.microsoft.com/xaml/behaviors" x:Class="SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseCandidateSelectionView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -6,11 +6,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:purchaseComponents="clr-namespace:SwiftExportClient.Features.Procurement.PurchaseOrders.Components"
-             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance viewModels:PurchaseCandidateSelectionViewModel}"
              d:Width="1400" d:Height="600"
@@ -134,19 +130,14 @@
                       SelectionUnit="CellOrRowHeader"
                       BeginningEdit="OnBeginningEdit"
                       PreparingCellForEdit="OnPreparingCellForEdit"
-                      gridCore:EnterpriseGrid.IsEnabled="True"
-                      gridCore:GridVirtualization.IsEnabled="True"
                       gridCore:GridRowHeader.ShowRowNumber="True"
-                      gridOperations:GridOperations.IsEnabled="True"
-                      gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                      gridSelection:GridSelection.CurrentRow="{Binding SelectedItem, Mode=TwoWay}"
-                      gridValidation:GridValidation.IsEnabled="True">
+                      CurrentItem="{Binding SelectedItem, Mode=TwoWay}">
+                    <i:Interaction.Behaviors>
+                        <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
+                    </i:Interaction.Behaviors>
                 
                 <DataGrid.Columns>
-                    <DataGridTemplateColumn Width="56" CanUserSort="False"
-                                            gridColumns:GridColumn.Key="Select"
-                                            gridColumns:GridColumn.FieldPath="IsChecked"
-                                            gridColumns:GridColumn.CanFillDown="False"
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="56" CanUserSort="False"
                                             HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                         <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
@@ -168,9 +159,7 @@
                     </DataGridTemplateColumn>
 
                     <DataGridTemplateColumn Header="图片" Width="72" CanUserSort="False"
-                                            IsReadOnly="True"
-                                            gridColumns:GridColumn.Key="Image"
-                                            gridColumns:GridColumn.CanFillDown="False">
+                                            IsReadOnly="True">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <controls:CachedImage Width="56"
@@ -187,43 +176,31 @@
                     <DataGridTextColumn Header="来源单号" Width="100" 
                                         Binding="{Binding SourceNo}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                        IsReadOnly="True" 
-                                        gridColumns:GridColumn.Key="SourceNo"
-                                        gridColumns:GridColumn.CanFillDown="False" />
+                                        IsReadOnly="True" />
                     
-                    <DataGridTextColumn Header="行" Width="52" gridColumns:GridColumn.Key="SourceLineNumber"
+                    <DataGridTextColumn Header="行" Width="52"
                                         Binding="{Binding SourceLineNumber}"
-                                        gridColumns:GridColumn.CanFillDown="False"
                                         Visibility="Collapsed"/>
                     
                     <DataGridTextColumn Header="SKU" Width="140" 
                                         Binding="{Binding Sku}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                        IsReadOnly="True" 
-                                        gridColumns:GridColumn.Key="Sku"
-                                        gridColumns:GridColumn.CanFillDown="False" />
+                                        IsReadOnly="True" />
                     
                     <DataGridTextColumn Header="产品型号" Width="140" 
                                         Binding="{Binding LinkSku}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                        IsReadOnly="True" 
-                                        gridColumns:GridColumn.Key="LinkSku"
-                                        gridColumns:GridColumn.CanFillDown="False" />
+                                        IsReadOnly="True" />
                     
                     <DataGridTextColumn Header="描述" Width="150" 
                                         Binding="{Binding Description}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                        IsReadOnly="True" 
-                                        gridColumns:GridColumn.Key="Description"
-                                        gridColumns:GridColumn.CanFillDown="False" />
+                                        IsReadOnly="True" />
                     
-                    <DataGridTemplateColumn Header="供应商" 
+                    <DataGridTemplateColumn x:Name="PurchaseSupplierColumn" fill:DataGridFillDownBehavior.Field="SupplierId" ClipboardContentBinding="{Binding PurchaseSupplierDisplay, Mode=OneWay}" Header="供应商"
                                             Width="80"
                                             IsReadOnly="False"
-                                            SortMemberPath="PurchaseSupplierCode"
-                                            gridColumns:GridColumn.Key="PurchaseSupplier"
-                                            gridColumns:GridColumn.CanFillDownPath="CanEditPurchaseSupplier"
-                                            gridColumns:GridColumn.FillDownFieldPaths="SupplierId,PurchaseSupplierCode,PurchaseSupplierName">
+                                            SortMemberPath="PurchaseSupplierCode">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding PurchaseSupplierDisplay}"
@@ -249,11 +226,9 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
                     
-                    <DataGridTemplateColumn Header="客供送至" Width="100" 
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding DeliverySupplierDisplay, Mode=OneWay}" Header="客供送至" Width="100"
                                             IsReadOnly="True"
-                                            SortMemberPath="DeliverySupplierCode"
-                                            gridColumns:GridColumn.Key="DeliverySupplier"
-                                            gridColumns:GridColumn.CanFillDown="False">
+                                            SortMemberPath="DeliverySupplierCode">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DeliverySupplierDisplay}"
@@ -278,31 +253,24 @@
 
                     <DataGridTextColumn Header="待采数量" Width="70" 
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        Binding="{Binding RemainingQty, StringFormat=N1}" IsReadOnly="True" 
-                                        gridColumns:GridColumn.Key="RemainingQty"
-                                        gridColumns:GridColumn.CanFillDown="False" />
+                                        Binding="{Binding RemainingQty, StringFormat=N1}" IsReadOnly="True" />
 
-                    <DataGridTextColumn Header="本次采购" Width="70" 
+                    <DataGridTextColumn fill:DataGridFillDownBehavior.Field="PurchaseQty" Header="本次采购" Width="70"
                                         Binding="{Binding PurchaseQty, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N1}" 
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        gridColumns:GridColumn.Key="PurchaseQty" />
+                                        EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}" />
 
-                    <DataGridTextColumn Header="未税价" Width="70" 
+                    <DataGridTextColumn fill:DataGridFillDownBehavior.Field="UnitPrice" Header="未税价" Width="70"
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding UnitPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N2}" 
-                                        gridColumns:GridColumn.Key="UnitPrice" />
+                                        Binding="{Binding UnitPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N2}" />
 
-                    <DataGridTextColumn Header="含税价" Width="70" 
+                    <DataGridTextColumn fill:DataGridFillDownBehavior.Field="TaxPrice" Header="含税价" Width="70"
                                         ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"
-                                        Binding="{Binding TaxPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N2}" 
-                                        gridColumns:GridColumn.Key="TaxPrice" />
+                                        Binding="{Binding TaxPrice, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=N2}" />
 
-                    <DataGridTemplateColumn Header="计划交期" Width="120"
-                                            gridColumns:GridColumn.Key="PlannedDeliveryDate" 
-                                            gridColumns:GridColumn.FieldPath="PlannedDeliveryDate">
+                    <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="PlannedDeliveryDate" ClipboardContentBinding="{Binding PlannedDeliveryDate, Mode=OneWay}" Header="计划交期" Width="120">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding PlannedDeliveryDate, StringFormat=yyyy-MM-dd}"
@@ -318,9 +286,7 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
-                    <DataGridTemplateColumn Header="验证结果" Width="*"
-                                        gridColumns:GridColumn.Key="ValidationMessage"
-                                        gridColumns:GridColumn.CanFillDown="False">
+                    <DataGridTemplateColumn ClipboardContentBinding="{Binding ValidationDisplayMessage, Mode=OneWay}" Header="验证结果" Width="*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding ValidationDisplayMessage}"

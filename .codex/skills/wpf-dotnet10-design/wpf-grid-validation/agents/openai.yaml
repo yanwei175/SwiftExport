@@ -1,4 +1,4 @@
 interface:
-  display_name: "WPF Grid Validation"
-  short_description: "实现 DataGrid 单元格和行验证的呈现、阻断与错误导航"
-  default_prompt: "Use $wpf-grid-validation to implement Grid validation behavior."
+  display_name: "wpf-grid-validation"
+  short_description: "客户端软提示、原生验证与保存校验边界"
+  default_prompt: "Use $wpf-grid-validation to implement or review native DataGrid client adaptations."

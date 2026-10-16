@@ -382,4 +382,53 @@ public sealed partial class CustomerPoConfigManagerViewModel
         cts?.Cancel();
         cts?.Dispose();
     }
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => IsInteractionEnabled && CanWrite
+        && request is not null && request.Fields.All(field => field is nameof(CustomerPoConfigLineModel.Currency)
+            or nameof(CustomerPoConfigLineModel.DefaultDiscountRate)
+            or nameof(CustomerPoConfigLineModel.DiscountRemark)
+            or nameof(CustomerPoConfigLineModel.InletHoseType)
+            or nameof(CustomerPoConfigLineModel.AeratorType)
+            or nameof(CustomerPoConfigLineModel.PalletType)
+            or nameof(CustomerPoConfigLineModel.BoxType)
+            or nameof(CustomerPoConfigLineModel.LabelType)
+            or nameof(CustomerPoConfigLineModel.IMType)
+            or nameof(CustomerPoConfigLineModel.CartonType)
+            or nameof(CustomerPoConfigLineModel.LogoType)
+            or nameof(CustomerPoConfigLineModel.SalesPerson)
+            or nameof(CustomerPoConfigLineModel.Purchaser)
+            or nameof(CustomerPoConfigLineModel.Note))
+        && request.TryGetRows<CustomerPoConfigLineModel>(Lines.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<CustomerPoConfigLineModel>(Lines.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(CustomerPoConfigLineModel.Currency): target.Currency = source.Currency; break;
+                    case nameof(CustomerPoConfigLineModel.DefaultDiscountRate): target.DefaultDiscountRate = source.DefaultDiscountRate; break;
+                    case nameof(CustomerPoConfigLineModel.DiscountRemark): target.DiscountRemark = source.DiscountRemark; break;
+                    case nameof(CustomerPoConfigLineModel.InletHoseType): target.InletHoseType = source.InletHoseType; break;
+                    case nameof(CustomerPoConfigLineModel.AeratorType): target.AeratorType = source.AeratorType; break;
+                    case nameof(CustomerPoConfigLineModel.PalletType): target.PalletType = source.PalletType; break;
+                    case nameof(CustomerPoConfigLineModel.BoxType): target.BoxType = source.BoxType; break;
+                    case nameof(CustomerPoConfigLineModel.LabelType): target.LabelType = source.LabelType; break;
+                    case nameof(CustomerPoConfigLineModel.IMType): target.IMType = source.IMType; break;
+                    case nameof(CustomerPoConfigLineModel.CartonType): target.CartonType = source.CartonType; break;
+                    case nameof(CustomerPoConfigLineModel.LogoType): target.LogoType = source.LogoType; break;
+                    case nameof(CustomerPoConfigLineModel.SalesPerson): target.SalesPerson = source.SalesPerson; break;
+                    case nameof(CustomerPoConfigLineModel.Purchaser): target.Purchaser = source.Purchaser; break;
+                    case nameof(CustomerPoConfigLineModel.Note): target.Note = source.Note; break;
+                }
+            }
+        }
+    }
 }

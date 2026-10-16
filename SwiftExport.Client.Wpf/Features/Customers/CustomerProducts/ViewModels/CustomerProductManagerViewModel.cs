@@ -423,4 +423,49 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
     private bool CanReject() => IsNotBusy && Products.HasChanges;
     private static string FirstNonEmpty(string? first, string? second) => !string.IsNullOrWhiteSpace(first) ? first : second ?? string.Empty;
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => CanAdd()
+        && request is not null && request.Fields.All(field => field is nameof(CustomerProductLineModel.CustomerSku)
+            or nameof(CustomerProductLineModel.CustomerPdDescription)
+            or nameof(CustomerProductLineModel.CustomerPdSeries)
+            or nameof(CustomerProductLineModel.CustomerColorName)
+            or nameof(CustomerProductLineModel.CustomerPdFeatures)
+            or nameof(CustomerProductLineModel.CustomerBarcode1)
+            or nameof(CustomerProductLineModel.CustomerBarcode2)
+            or nameof(CustomerProductLineModel.Note)
+            or nameof(CustomerProductLineModel.Moq)
+            or nameof(CustomerProductLineModel.LeadTimeDays)
+            or nameof(CustomerProductLineModel.UsdPrice)
+            or nameof(CustomerProductLineModel.CnyPrice))
+        && request.TryGetRows<CustomerProductLineModel>(Products.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<CustomerProductLineModel>(Products.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(CustomerProductLineModel.CustomerSku): target.CustomerSku = source.CustomerSku; break;
+                    case nameof(CustomerProductLineModel.CustomerPdDescription): target.CustomerPdDescription = source.CustomerPdDescription; break;
+                    case nameof(CustomerProductLineModel.CustomerPdSeries): target.CustomerPdSeries = source.CustomerPdSeries; break;
+                    case nameof(CustomerProductLineModel.CustomerColorName): target.CustomerColorName = source.CustomerColorName; break;
+                    case nameof(CustomerProductLineModel.CustomerPdFeatures): target.CustomerPdFeatures = source.CustomerPdFeatures; break;
+                    case nameof(CustomerProductLineModel.CustomerBarcode1): target.CustomerBarcode1 = source.CustomerBarcode1; break;
+                    case nameof(CustomerProductLineModel.CustomerBarcode2): target.CustomerBarcode2 = source.CustomerBarcode2; break;
+                    case nameof(CustomerProductLineModel.Note): target.Note = source.Note; break;
+                    case nameof(CustomerProductLineModel.Moq): target.Moq = source.Moq; break;
+                    case nameof(CustomerProductLineModel.LeadTimeDays): target.LeadTimeDays = source.LeadTimeDays; break;
+                    case nameof(CustomerProductLineModel.UsdPrice): target.UsdPrice = source.UsdPrice; break;
+                    case nameof(CustomerProductLineModel.CnyPrice): target.CnyPrice = source.CnyPrice; break;
+                }
+            }
+        }
+    }
 }

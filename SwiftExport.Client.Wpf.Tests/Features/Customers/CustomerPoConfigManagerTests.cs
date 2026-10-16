@@ -166,12 +166,12 @@ public sealed class CustomerPoConfigManagerTests
         StringAssert.Contains(view, "SupplierAutoSuggestComboBox");
         StringAssert.Contains(view, "CustomerPoConfigCurrencyOptionTemplate");
         StringAssert.Contains(view, "SelectedValuePath=\"CurrencyCode\"");
-        StringAssert.Contains(view, "FieldPath=\"DefaultDiscountRate\"");
-        StringAssert.Contains(view, "FieldPath=\"DiscountRemark\"");
-        StringAssert.Contains(view, "gridValidation:GridValidation.IsEnabled=\"True\"");
+        StringAssert.Contains(view, "Path=\"DefaultDiscountRate\"");
+        StringAssert.Contains(view, "Binding=\"{Binding DiscountRemark, UpdateSourceTrigger=LostFocus}\"");
+        Assert.IsFalse(view.Contains("GridValidation.IsEnabled", StringComparison.Ordinal));
         StringAssert.Contains(view, "GridSelectionUnitConverter");
-        StringAssert.Contains(view, "gridNumeric:NumericDataGridColumn");
-        StringAssert.Contains(view, "MaximumDecimalPlaces=\"6\"");
+        StringAssert.Contains(view, "validation:DiscountRateValidationRule");
+        StringAssert.Contains(view, "<Binding.ValidationRules>");
         StringAssert.Contains(view, "PageNavigator");
 
         var viewModel = Read("SwiftExport.Client.Wpf", "Features", "Customers", "CustomerPoConfigs", "ViewModels", "CustomerPoConfigManagerViewModel.cs");
@@ -197,10 +197,12 @@ public sealed class CustomerPoConfigManagerTests
     private static string Read(params string[] parts) =>
         File.ReadAllText(Path.Combine(new[] { RepositoryRoot() }.Concat(parts).ToArray()));
 
+    /// <summary>同时识别普通仓库的 .git 目录与 worktree 的 .git 指针文件。</summary>
     private static string RepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null && !Directory.Exists(Path.Combine(current.FullName, ".git"))) current = current.Parent;
+        while (current is not null && !Directory.Exists(Path.Combine(current.FullName, ".git"))
+            && !File.Exists(Path.Combine(current.FullName, ".git"))) current = current.Parent;
         return current?.FullName ?? throw new DirectoryNotFoundException("未找到仓库根目录。");
     }
 }

@@ -1,4 +1,4 @@
 interface:
-  display_name: "Enterprise Grid 架构"
-  short_description: "设计和治理原生 WPF DataGrid 企业级增强框架"
-  default_prompt: "Use $wpf-enterprise-grid to design or review the Enterprise DataGrid framework."
+  display_name: "wpf-enterprise-grid"
+  short_description: "鍘熺敓 DataGrid 瀹㈡埛绔灦鏋勪笌涓撻」瀹℃煡"
+  default_prompt: "Use $wpf-enterprise-grid to implement or review native DataGrid client adaptations."

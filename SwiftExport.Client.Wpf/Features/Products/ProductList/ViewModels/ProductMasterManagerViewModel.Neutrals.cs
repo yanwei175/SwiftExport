@@ -275,8 +275,7 @@ public sealed partial class ProductMasterManagerViewModel
     private void CommitColor(ProductNeutralLineModel? line)
     {
         if (!CanEditNeutrals || line is null || EditColor is null) return;
-        line.ColorId = EditColor.Uid;
-        line.ColorName = EditColor.ColorNameZh ?? EditColor.ColorNameEn ?? string.Empty;
+        ApplyNeutralColor(line, EditColor.Uid, EditColor.ColorNameZh ?? EditColor.ColorNameEn ?? string.Empty);
         EditColor = null;
     }
 
@@ -346,5 +345,43 @@ public sealed partial class ProductMasterManagerViewModel
         _neutralCts = null;
         cts?.Cancel();
         IsNeutralLoading = false;
+    }
+
+    /// <summary>完整更新中性产品颜色关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyNeutralColor(ProductNeutralLineModel target, Guid colorId, string colorName)
+    {
+        target.ColorId = colorId;
+        target.ColorName = colorName;
+    }
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDownNeutrals(FillDownRequest? request) => CanEditNeutrals
+        && request is not null && request.Fields.All(field => field is nameof(ProductNeutralLineModel.ColorId)
+            or nameof(ProductNeutralLineModel.DefaultSalesPriceUsd)
+            or nameof(ProductNeutralLineModel.DefaultExchangeRate)
+            or nameof(ProductNeutralLineModel.ProfitMargin)
+            or nameof(ProductNeutralLineModel.DefaultPurchasePriceCny))
+        && request.TryGetRows<ProductNeutralLineModel>(Neutrals.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDownNeutrals))]
+    private void FillDownNeutrals(FillDownRequest? request)
+    {
+        if (!CanFillDownNeutrals(request) || !request!.TryGetRows<ProductNeutralLineModel>(Neutrals.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.ColorId)))
+                ApplyNeutralColor(target, source.ColorId, source.ColorName);
+            // 先应用计算依赖，再应用显式选择的手动售价；业务优先级不能由显示列顺序决定。
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.DefaultPurchasePriceCny)))
+                target.DefaultPurchasePriceCny = source.DefaultPurchasePriceCny;
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.DefaultExchangeRate)))
+                target.DefaultExchangeRate = source.DefaultExchangeRate;
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.ProfitMargin)))
+                target.ProfitMargin = source.ProfitMargin;
+            if (request.Fields.Contains(nameof(ProductNeutralLineModel.DefaultSalesPriceUsd)))
+                target.DefaultSalesPriceUsd = source.DefaultSalesPriceUsd;
+        }
     }
 }

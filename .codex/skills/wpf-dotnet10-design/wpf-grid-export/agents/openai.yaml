@@ -1,4 +1,4 @@
 interface:
   display_name: "WPF Grid Export"
-  short_description: "设计可测试的数据导出管线以及 CSV 和 Excel 导出适配"
-  default_prompt: "Use $wpf-grid-export to design Enterprise Grid export."
+  short_description: "复用客户端业务文件服务，明确导出范围和格式安全"
+  default_prompt: "Use $wpf-grid-export to define client-owned export boundaries without restoring the retired Grid pipeline."

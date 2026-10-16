@@ -5,10 +5,8 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:proxies="clr-namespace:SwiftExportClient.Resources.Proxies"
              xmlns:supplierComponents="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
-             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid" 
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
+             xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
              xmlns:views="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.Views"
              xmlns:viewModels="clr-namespace:SwiftExportClient.Features.Inventory.WarehouseSites.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -100,7 +98,6 @@
                           SelectionMode="Single"
                           EnableRowVirtualization="True" 
                           EnableColumnVirtualization="True"
-                          gridCore:EnterpriseGrid.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumberInColumn="True">
                         <DataGrid.InputBindings>
                             <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding OpenEditCommand}" />
@@ -114,7 +111,7 @@
                             
                             <DataGridTextColumn Header="供应商名称" Binding="{Binding SupplierName}" FontWeight="Bold" Width="120" />
                             
-                            <DataGridTemplateColumn Header="状态" Width="80">
+                            <DataGridTemplateColumn ClipboardContentBinding="{Binding IsActive, Mode=OneWay}" Header="状态" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock VerticalAlignment="Center">

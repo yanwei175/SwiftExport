@@ -308,6 +308,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
             else
             {
                 target.RejectChanges();
+                RefreshSeriesDisplayName(target);
                 if (_neutralMaster?.Uid == id && Neutrals.HasChanges) Neutrals.RejectChanges();
                 UpdateChangeState();
             }
@@ -453,11 +454,13 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         && (IsCardView || !IsCellSelectionMode) && Masters.CheckedCount > 0
         && (_currentUser is null || _currentUser.HasPermission(PermissionKeys.ProductsMasterEdit));
 
+    /// <summary>放弃列表草稿并按恢复后的身份更新不参与脏跟踪的系列显示名称。</summary>
     [RelayCommand]
     private void RejectListChanges()
     {
         if (!IsInteractionEnabled || !TryCommitPendingEdits()) return;
         Masters.RejectChanges();
+        foreach (var line in Masters.Items) RefreshSeriesDisplayName(line);
         SelectedMaster = _neutralMaster is not null && Masters.Items.Contains(_neutralMaster)
             ? _neutralMaster : Masters.Items.LastOrDefault();
         if (!ReferenceEquals(SelectedMaster, _neutralMaster)) ResetNeutralContext(SelectedMaster);
@@ -484,8 +487,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private void CommitCategory(ProductMasterLineModel? line)
     {
         if (line is null || EditCategory is null) return;
-        line.CategoryId = EditCategory.Uid;
-        line.CategoryName = GetCategoryDisplayName(EditCategory);
+        ApplyCategory(line, EditCategory.Uid, GetCategoryDisplayName(EditCategory));
         EditCategory = null;
     }
 
@@ -504,8 +506,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private void CommitProfile(ProductMasterLineModel? line)
     {
         if (line is null || EditProfile is null || !CanWrite || IsBusy) return;
-        line.ProductAttributeProfileId = EditProfile.Uid;
-        line.ProductAttributeProfileName = EditProfile.DataNameZh ?? EditProfile.DataNameEn ?? string.Empty;
+        ApplyProfile(line, EditProfile.Uid, EditProfile.DataNameZh ?? EditProfile.DataNameEn ?? string.Empty);
         EditProfile = null;
     }
 
@@ -531,8 +532,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     {
         if (line is null || EditSeries is null || !CanWrite || IsBusy
             || !SeriesCandidates.Any(item => item.Uid == EditSeries.Uid)) return;
-        line.ProductSeriesId = EditSeries.Uid;
-        line.ProductSeriesName = EditSeries.DataNameZh ?? EditSeries.DataNameEn ?? string.Empty;
+        ApplySeries(line, EditSeries.Uid, EditSeries.DataNameZh ?? EditSeries.DataNameEn ?? string.Empty);
         EditSeries = null;
     }
 
@@ -563,8 +563,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     private void CommitSupplier(ProductMasterLineModel? line)
     {
         if (_disposed || line is null || EditSupplier is null || !CanWrite || IsBusy || IsQuerying) return;
-        line.DefaultSupplierId = EditSupplier.Uid;
-        line.DefaultSupplierName = EditSupplier.SupplierName ?? string.Empty;
+        ApplySupplier(line, EditSupplier.Uid, EditSupplier.SupplierName ?? string.Empty);
         // 双向候选绑定保留已确认项，当前单元格才能继续显示选择并执行显式清空。
     }
 
@@ -809,6 +808,88 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
             {
                 _detailRefreshes.Remove(masterId);
                 current.Dispose();
+            }
+        }
+    }
+
+    /// <summary>完整更新分类关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyCategory(ProductMasterLineModel target, Guid categoryId, string categoryName)
+    {
+        target.CategoryId = categoryId;
+        target.CategoryName = categoryName;
+    }
+
+    /// <summary>完整更新供应商关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplySupplier(ProductMasterLineModel target, Guid defaultSupplierId, string defaultSupplierName)
+    {
+        target.DefaultSupplierId = defaultSupplierId;
+        target.DefaultSupplierName = defaultSupplierName;
+    }
+
+    /// <summary>完整更新属性方案关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplyProfile(ProductMasterLineModel target, Guid? productAttributeProfileId, string productAttributeProfileName)
+    {
+        target.ProductAttributeProfileId = productAttributeProfileId;
+        target.ProductAttributeProfileName = productAttributeProfileName;
+    }
+
+    /// <summary>完整更新系列关联事实，供候选确认和向下填充共同调用；不改变保存基线。</summary>
+    private static void ApplySeries(ProductMasterLineModel target, Guid? productSeriesId, string productSeriesName)
+    {
+        target.ProductSeriesId = productSeriesId;
+        target.ProductSeriesName = productSeriesName;
+    }
+
+    /// <summary>系列名称不在行修改基线内；恢复后依据当前缓存重建，不能保留另一个系列的名称。</summary>
+    private void RefreshSeriesDisplayName(ProductMasterLineModel line)
+    {
+        var series = SeriesCandidates.FirstOrDefault(item => item.Uid == line.ProductSeriesId);
+        line.ProductSeriesName = series?.DataNameZh ?? series?.DataNameEn ?? string.Empty;
+    }
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => IsInteractionEnabled && CanWrite
+        && request is not null && request.Fields.All(field => field is nameof(ProductMasterLineModel.DefaultDescriptionZh)
+            or nameof(ProductMasterLineModel.DefaultDescriptionEn)
+            or nameof(ProductMasterLineModel.DefaultFeaturesZh)
+            or nameof(ProductMasterLineModel.DefaultFeaturesEn)
+            or nameof(ProductMasterLineModel.DefaultPcsPerPackage)
+            or nameof(ProductMasterLineModel.DefaultNetWeight)
+            or nameof(ProductMasterLineModel.DefaultGrossWeight)
+            or nameof(ProductMasterLineModel.DefaultCbm)
+            or nameof(ProductMasterLineModel.CategoryId)
+            or nameof(ProductMasterLineModel.DefaultSupplierId)
+            or nameof(ProductMasterLineModel.ProductAttributeProfileId)
+            or nameof(ProductMasterLineModel.ProductSeriesId))
+        && request.TryGetRows<ProductMasterLineModel>(Masters.Items, out var source, out var targets)
+        && (!request.Fields.Contains(nameof(ProductMasterLineModel.ProductSeriesId)) || source.ProductSeriesId is null
+            || SeriesCandidates.Any(item => item.Uid == source.ProductSeriesId))
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<ProductMasterLineModel>(Masters.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(ProductMasterLineModel.DefaultDescriptionZh): target.DefaultDescriptionZh = source.DefaultDescriptionZh; break;
+                    case nameof(ProductMasterLineModel.DefaultDescriptionEn): target.DefaultDescriptionEn = source.DefaultDescriptionEn; break;
+                    case nameof(ProductMasterLineModel.DefaultFeaturesZh): target.DefaultFeaturesZh = source.DefaultFeaturesZh; break;
+                    case nameof(ProductMasterLineModel.DefaultFeaturesEn): target.DefaultFeaturesEn = source.DefaultFeaturesEn; break;
+                    case nameof(ProductMasterLineModel.DefaultPcsPerPackage): target.DefaultPcsPerPackage = source.DefaultPcsPerPackage; break;
+                    case nameof(ProductMasterLineModel.DefaultNetWeight): target.DefaultNetWeight = source.DefaultNetWeight; break;
+                    case nameof(ProductMasterLineModel.DefaultGrossWeight): target.DefaultGrossWeight = source.DefaultGrossWeight; break;
+                    case nameof(ProductMasterLineModel.DefaultCbm): target.DefaultCbm = source.DefaultCbm; break;
+                    case nameof(ProductMasterLineModel.CategoryId): ApplyCategory(target, source.CategoryId, source.CategoryName); break;
+                    case nameof(ProductMasterLineModel.DefaultSupplierId): ApplySupplier(target, source.DefaultSupplierId, source.DefaultSupplierName); break;
+                    case nameof(ProductMasterLineModel.ProductAttributeProfileId): ApplyProfile(target, source.ProductAttributeProfileId, source.ProductAttributeProfileName); break;
+                    case nameof(ProductMasterLineModel.ProductSeriesId): ApplySeries(target, source.ProductSeriesId, source.ProductSeriesName); break;
+                }
             }
         }
     }

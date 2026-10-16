@@ -66,14 +66,14 @@
    AutomationProperties.Name="功能流量测量表">
    <DataGrid.Columns>
     <DataGridTextColumn Header="状态" Binding="{Binding State,Converter={StaticResource LineStateText}}" IsReadOnly="True" Width="70"/>
-    <DataGridTemplateColumn Header="功能" SortMemberPath="FunctionId" Width="160">
+    <DataGridTemplateColumn ClipboardContentBinding="{Binding FunctionDisplayName, Mode=OneWay}" Header="功能" SortMemberPath="FunctionId" Width="160">
      <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding FunctionDisplayName}" VerticalAlignment="Center" Margin="4"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
      <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
       <ComboBox ItemsSource="{Binding FunctionOptions}" SelectedValue="{Binding FunctionId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"
        SelectedValuePath="Uid" DisplayMemberPath="Name" ItemContainerStyle="{StaticResource DictionaryItem}" AutomationProperties.Name="测试功能"/>
      </DataTemplate></DataGridTemplateColumn.CellEditingTemplate>
     </DataGridTemplateColumn>
-    <DataGridTemplateColumn Header="限流器规格" SortMemberPath="LimiterSpecificationId" Width="160">
+    <DataGridTemplateColumn ClipboardContentBinding="{Binding LimiterDisplayName, Mode=OneWay}" Header="限流器规格" SortMemberPath="LimiterSpecificationId" Width="160">
      <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding LimiterDisplayName}" VerticalAlignment="Center" Margin="4"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
      <DataGridTemplateColumn.CellEditingTemplate><DataTemplate>
       <ComboBox ItemsSource="{Binding LimiterOptions}" SelectedValue="{Binding LimiterSpecificationId,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"

@@ -1,4 +1,4 @@
 interface:
   display_name: "WPF Grid Selection"
-  short_description: "ÊµÏÖ DataGrid µ±Ç°ĞĞ¡¢µ±Ç°ÁĞ¡¢µ±Ç°µ¥Ôª¸ñÓëÑ¡ÔñÍ¬²½"
-  default_prompt: "Use $wpf-grid-selection to implement Grid selection and current-cell synchronization."
+  short_description: "ä½¿ç”¨åŸç”Ÿé€‰æ‹©å±æ€§ã€é€‰åŒºå‘½ä»¤å‚æ•°å’Œæ´»åŠ¨æ ·å¼"
+  default_prompt: "Use $wpf-grid-selection to bind native selection and optional client-owned selection snapshots."

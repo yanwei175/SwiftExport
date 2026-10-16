@@ -7,9 +7,7 @@
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:views="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.Views"
              xmlns:viewModels="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
-             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance viewModels:GrossDemandWorkspaceViewModel}"
              d:Width="1600" d:Height="900">
@@ -239,8 +237,7 @@
                               DisplayMode="Overlay" 
                               IsResizable="True">
                 <controls:RightDrawerHost.MainContent>
-                    <DataGrid ItemsSource="{Binding Items}" 
-                              SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                    <DataGrid ItemsSource="{Binding Items}"
                               Style="{StaticResource SwiftExportDataGrid}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               RowHeight="{StaticResource DataGridRowHeightMedium}" 
@@ -249,14 +246,11 @@
                               SelectionUnit="FullRow"
                               EnableRowVirtualization="True" 
                               EnableColumnVirtualization="True"
-                              gridCore:EnterpriseGrid.IsEnabled="True"
-                              gridCore:GridVirtualization.IsEnabled="True"
                               gridCore:GridRowHeader.ShowRowNumber="True"
-                              gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                              gridSelection:GridSelection.CurrentRow="{Binding SelectedItem, Mode=TwoWay}">
+                              SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
                         <DataGrid.Columns>
 
-                            <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                            <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                                 <DataGridTemplateColumn.HeaderTemplate>
                                     <DataTemplate>
                                         <CheckBox IsThreeState="False" 
@@ -272,14 +266,11 @@
                             </DataGridTemplateColumn>
 
                             <DataGridTextColumn Header="来源" Width="70" Binding="{Binding SourceTypeText}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                                gridColumns:GridColumn.Key="source-type" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
                             <DataGridTextColumn Header="来源行" Width="60" Binding="{Binding SourceLineNumber}" 
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            gridColumns:GridColumn.Key="source-line" />
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
 
-                            <DataGridTextColumn Header="状态" Width="48" Binding="{Binding LifecycleStatusText}"
-                                            gridColumns:GridColumn.Key="lifecycle" >
+                            <DataGridTextColumn Header="状态" Width="48" Binding="{Binding LifecycleStatusText}" >
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource SwiftExportDataGridTextBlock}">
 
@@ -303,16 +294,13 @@
                             </DataGridTextColumn>
 
                             <DataGridTextColumn Header="链路证据" Width="180" Binding="{Binding TraceSummary}"
-                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                                gridColumns:GridColumn.Key="trace-summary" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
 
                             <DataGridTextColumn Header="来源单号" Width="100" Binding="{Binding SourceNo}" 
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            gridColumns:GridColumn.Key="source-no" />
+                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
 
                             <DataGridTextColumn Header="物料类型" Width="72" 
-                                                    Binding="{Binding ItemTypeText}" 
-                                            gridColumns:GridColumn.Key="item-type" >
+                                                    Binding="{Binding ItemTypeText}" >
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" 
                                                BasedOn="{StaticResource SwiftExportDataGridDateTextBlock}">
@@ -325,7 +313,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False" gridColumns:GridColumn.Key="image">
+                            <DataGridTemplateColumn Header="图片" Width="60" CanUserSort="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <controls:CachedImage Width="56" Height="56" Margin="2" 
@@ -338,46 +326,35 @@
                             </DataGridTemplateColumn>
 
                             <DataGridTextColumn Header="SKU" Width="130" Binding="{Binding Sku}" 
-                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                            gridColumns:GridColumn.Key="sku" />
+                                            ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                             <DataGridTextColumn Header="Link SKU" Width="110" Binding="{Binding LinkSku}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="link-sku" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                             <DataGridTextColumn Header="客户型号" Width="120" Binding="{Binding CustomerSku}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="customer-sku" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                             <DataGridTextColumn Header="需求交期" Width="96" Binding="{Binding RequiredDate, StringFormat=yyyy-MM-dd}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                                                gridColumns:GridColumn.Key="required-date" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" />
 
                             <DataGridTextColumn Header="数量" Width="58" Binding="{Binding DemandQty, StringFormat=N1}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                                gridColumns:GridColumn.Key="demand-qty" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" />
 
                             <DataGridTextColumn Header="描述" Width="200" Binding="{Binding Description}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="description" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                             <DataGridTextColumn Header="颜色" Width="100" Binding="{Binding Color}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="color" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                             <DataGridTextColumn Header="规格" Width="150" Binding="{Binding Specification}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="specification" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                             <DataGridTextColumn Header="备注" Width="180" Binding="{Binding Remark}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="remark" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
                             <DataGridTextColumn Header="创建人" Width="88" Binding="{Binding CreatedBy}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                                gridColumns:GridColumn.Key="created-by" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
                             <DataGridTextColumn Header="创建时间" Width="132" Binding="{Binding CreatedDate, StringFormat=yyyy-MM-dd HH:mm}" 
-                                                ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                                                gridColumns:GridColumn.Key="created-at" />
+                                                ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </controls:RightDrawerHost.MainContent>

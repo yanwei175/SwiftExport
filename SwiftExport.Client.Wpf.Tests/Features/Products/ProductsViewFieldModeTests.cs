@@ -29,9 +29,9 @@ public sealed class ProductsViewFieldModeTests
 
         var alwaysVisibleKeys = new[]
         {
-            "main-image", "master-sku", "product-sku", "link-sku", "description-zh", "features-zh", "finish",
-            "category-name", "material-type", "product-unit", "supply-type", "bom-no", "default-supplier-code", "cny-price",
-            "usd-price", "note",
+            "图片", "主产品型号", "物料编号", "产品型号", "中文描述", "中文配置", "颜色",
+            "分类", "物料类型", "基础单位", "供货类型", "BOM", "默认供应商", "人民币价",
+            "美元价", "备注",
         };
         foreach (var key in alwaysVisibleKeys)
         {
@@ -41,8 +41,8 @@ public sealed class ProductsViewFieldModeTests
 
         var complexKeys = new[]
         {
-            "description-en", "features-en", "bom-version", "supplier-name",
-            "pcs-of-carton", "nw-of-carton", "gw-of-carton", "cbm-of-carton",
+            "英文描述", "英文配置", "BOM版本", "供应商名称",
+            "装箱数", "箱净重", "箱毛重", "箱体积",
         };
         foreach (var key in complexKeys)
         {
@@ -59,11 +59,11 @@ public sealed class ProductsViewFieldModeTests
     }
 
     [TestMethod]
-    public void ProductUnitColumn_ShouldUseLocalDictionaryLookupAndStableFieldPath()
+    public void ProductUnitColumn_ShouldUseLocalDictionaryLookupAndBusinessFillField()
     {
-        var column = FindColumn(LoadProductsView(), "product-unit");
+        var column = FindColumn(LoadProductsView(), "基础单位");
         Assert.AreEqual("Unit", column.Attributes().Single(attribute =>
-            attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)).Value);
+            attribute.Name.LocalName == "DataGridFillDownBehavior.Field").Value);
 
         var comboBox = column.Descendants(Presentation + "ComboBox").Single();
         StringAssert.Contains((string?)comboBox.Attribute("ItemsSource") ?? string.Empty, "UnitOptions");
@@ -77,16 +77,16 @@ public sealed class ProductsViewFieldModeTests
     [TestMethod]
     public void MainImageColumn_ShouldUseCachedDisplayAndEditablePath()
     {
-        var column = FindColumn(LoadProductsView(), "main-image");
-        Assert.AreEqual("MainImage", column.Attributes().Single(attribute =>
-            attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)).Value);
+        var column = FindColumn(LoadProductsView(), "图片");
+        Assert.IsFalse(column.Attributes().Any(attribute =>
+            attribute.Name.LocalName == "DataGridFillDownBehavior.Field"));
         Assert.IsTrue(column.Descendants().Any(element => element.Name.LocalName == "CachedImage"));
         var editor = column.Descendants(Presentation + "TextBox").Single();
         StringAssert.Contains((string?)editor.Attribute("Text") ?? string.Empty, "MainImage");
         StringAssert.Contains((string?)editor.Attribute("Text") ?? string.Empty, "Mode=TwoWay");
     }
 
-    /// <summary>验证颜色行编辑、分类树筛选及分类列只读展示的接线。</summary>
+    /// <summary>验证颜色行编辑、分类树多选筛选及分类列只读展示；不恢复旧单选 Lookup。</summary>
     [TestMethod]
     public void ColorLookupAndReadonlyCategory_ShouldUseExpectedTemplates()
     {
@@ -96,13 +96,15 @@ public sealed class ProductsViewFieldModeTests
         StringAssert.Contains((string?)colorEditor.Attribute("ItemsSource") ?? string.Empty, "ReferenceDataCache.ProductColors");
         StringAssert.Contains((string?)colorEditor.Attribute("SelectedColor") ?? string.Empty, "Mode=OneWayToSource");
 
-        var categoryTreeLookup = document.Descendants()
-            .Single(element => element.Name.LocalName == "ProductCategoryLookupTextBox");
-        StringAssert.Contains((string?)categoryTreeLookup.Attribute("ItemsSource") ?? string.Empty,
+        var categoryFilter = document.Descendants()
+            .Single(element => element.Name.LocalName == "ProductCategoryMutiSelectButton");
+        StringAssert.Contains((string?)categoryFilter.Attribute("ItemsSource") ?? string.Empty,
             "ReferenceDataCache.ProductCategoryTree");
+        Assert.AreEqual("{Binding FilterCategories, Mode=OneWay}", (string?)categoryFilter.Attribute("SelectedItems"));
+        Assert.AreEqual("{Binding SearchCommand}", (string?)categoryFilter.Attribute("SelectionCommittedCommand"));
 
-        var colorColumn = FindColumn(document, "finish");
-        var categoryColumn = FindColumn(document, "category-name");
+        var colorColumn = FindColumn(document, "颜色");
+        var categoryColumn = FindColumn(document, "分类");
         Assert.AreEqual("DataGridTemplateColumn", colorColumn.Name.LocalName);
         Assert.AreEqual("DataGridTemplateColumn", categoryColumn.Name.LocalName);
         Assert.IsFalse(colorColumn.Attributes().Any(attribute =>
@@ -151,11 +153,13 @@ public sealed class ProductsViewFieldModeTests
     }
 
     private static XElement FindColumn(XDocument document, string key) => document
-        .Descendants()
+        .Descendants(Presentation + "DataGrid")
+        .Single(grid => (string?)grid.Attribute("ItemsSource") == "{Binding Products.Items}")
+        .Element(Presentation + "DataGrid.Columns")!.Elements()
         .Single(element => element.Name.LocalName.StartsWith("DataGrid", StringComparison.Ordinal)
                            && element.Name.LocalName.EndsWith("Column", StringComparison.Ordinal)
                            && element.Attributes().Any(attribute =>
-                               attribute.Name.LocalName.EndsWith("Key", StringComparison.Ordinal)
+                               attribute.Name.LocalName == "Header"
                                && string.Equals(attribute.Value, key, StringComparison.Ordinal)));
 
     private static XDocument LoadProductsView() => XDocument.Load(Path.Combine(

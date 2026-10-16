@@ -2,8 +2,6 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
@@ -22,9 +20,11 @@ using SwiftExportClient.Services.Caching;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Customers;
 
+/// <summary>验证客户字典候选接线、真实模板生命周期与选择回写。</summary>
 [TestClass]
 public sealed class CustomerDictionaryColumnsTests
 {
+    /// <summary>真实币种模板重建保留当前、空和历史值，主动选择才标记业务变更。</summary>
     [TestMethod]
     public void TemplateComboBox_RecreateAfterUnload_ShouldNotOverwriteCurrentOrLegacyValues()
     {
@@ -119,6 +119,7 @@ public sealed class CustomerDictionaryColumnsTests
         });
     }
 
+    /// <summary>六个字典字段在单元格内直接选择，保留各自候选源、代码路径和双向绑定。</summary>
     [TestMethod]
     public void CustomerDictionaryFields_ShouldUseTemplateComboBoxes()
     {
@@ -146,7 +147,7 @@ public sealed class CustomerDictionaryColumnsTests
         {
             var column = document.Descendants(presentation + "DataGridTemplateColumn")
                 .Single(element => element.Attributes().Any(attribute =>
-                    attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)
+                    attribute.Name.LocalName == "SortMemberPath"
                     && string.Equals(attribute.Value, fieldPath, StringComparison.Ordinal)));
             Assert.AreEqual(fieldPath, (string?)column.Attribute("SortMemberPath"));
 
@@ -159,18 +160,16 @@ public sealed class CustomerDictionaryColumnsTests
             StringAssert.Contains((string?)comboBox.Attribute("SelectedValue"), fieldPath);
             StringAssert.Contains((string?)comboBox.Attribute("SelectedValue"), "Mode=TwoWay");
 
-            if (fieldPath is "Incoterm" or "PaymentMethod" or "Currency" or "ShippedBy")
-            {
-                var cellTemplate = column.Element(presentation + "DataGridTemplateColumn.CellTemplate");
-                Assert.IsNotNull(cellTemplate);
-                var textBlock = cellTemplate.Descendants(presentation + "TextBlock").Single();
-                StringAssert.Contains((string?)textBlock.Attribute("Text"), fieldPath);
-            }
+            // 当前字典列直接在单元格中选择，不要求恢复独立 TextBlock 显示态。
+            var cellTemplate = column.Element(presentation + "DataGridTemplateColumn.CellTemplate");
+            Assert.IsNotNull(cellTemplate);
+            Assert.AreSame(comboBox, cellTemplate.Descendants(presentation + "ComboBox").Single());
+            Assert.IsNull(column.Element(presentation + "DataGridTemplateColumn.CellEditingTemplate"));
         }
     }
 
     [TestMethod]
-    public void CustomerManagerSelectionMode_ShouldDefaultToFullRowAndBindCurrentRow()
+    public void CustomerManagerSelectionMode_ShouldDefaultToFullRowAndBindCurrentItem()
     {
         var cache = new ReferenceDataCacheStub([]);
         var customerProducts = new CustomerProductManagerViewModel(
@@ -211,7 +210,7 @@ public sealed class CustomerDictionaryColumnsTests
         Assert.IsNull(dataGrid.Attribute("SelectedItem"));
 
         var currentRowBinding = dataGrid.Attributes().Single(attribute =>
-            attribute.Name.LocalName.EndsWith("CurrentRow", StringComparison.Ordinal));
+            attribute.Name.LocalName == "CurrentItem");
         StringAssert.Contains(currentRowBinding.Value, "SelectedLine");
         StringAssert.Contains(currentRowBinding.Value, "Mode=TwoWay");
 
@@ -255,7 +254,7 @@ public sealed class CustomerDictionaryColumnsTests
         StringAssert.Contains((string?)dataGrid.Attribute("SelectionUnit"), "GridSelectionUnitConverter");
         Assert.IsNull(dataGrid.Attribute("SelectedItem"));
         var currentRowBinding = dataGrid.Attributes().Single(attribute =>
-            attribute.Name.LocalName.EndsWith("CurrentRow", StringComparison.Ordinal));
+            attribute.Name.LocalName == "CurrentItem");
         StringAssert.Contains(currentRowBinding.Value, "SelectedLine");
         StringAssert.Contains(currentRowBinding.Value, "Mode=TwoWay");
 
@@ -292,29 +291,27 @@ public sealed class CustomerDictionaryColumnsTests
         IsEnabled = true,
     };
 
+    /// <summary>加载客户页真实币种模板与资源，验证卸载重建不会改写历史值。</summary>
     private static DataGrid CreateDictionaryGrid(
         CustomerListModel list,
         IReadOnlyList<SysDicCurrencyDto> options)
     {
-        var grid = new DataGrid
-        {
-            AutoGenerateColumns = false,
-            ItemsSource = list.Items,
-        };
-#pragma warning disable CS0618
-        var comboBox = new FrameworkElementFactory(typeof(ComboBox));
-        comboBox.SetValue(ItemsControl.ItemsSourceProperty, options);
-        comboBox.SetValue(Selector.SelectedValuePathProperty, nameof(SysDicCurrencyDto.CurrencyCode));
-        comboBox.SetBinding(
-            Selector.SelectedValueProperty,
-            new Binding(nameof(CustomerLineModel.Currency))
-            {
-                Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-            });
-        var template = new DataTemplate { VisualTree = comboBox };
-#pragma warning restore CS0618
-        grid.Columns.Add(new DataGridTemplateColumn { Header = "币种", CellTemplate = template });
+        var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "SwiftExport.Client.Wpf",
+            "Features", "Customers", "CustomerManagement", "Views", "CustomerManagerView.xaml"));
+        XNamespace p = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var sourceColumn = document.Descendants(p + "DataGridTemplateColumn")
+            .Single(column => (string?)column.Attribute("SortMemberPath") == "Currency");
+        var template = document.Descendants(p + "DataTemplate")
+            .Single(element => (string?)element.Attribute(x + "Key") == "CustomerCurrencyOptionTemplate");
+        var markup = new XElement(p + "DataGrid", new XAttribute("xmlns", p.NamespaceName),
+            new XAttribute(XNamespace.Xmlns + "x", x.NamespaceName), new XAttribute("AutoGenerateColumns", "False"),
+            new XElement(p + "DataGrid.Resources", new XElement(template)),
+            new XElement(p + "DataGrid.Columns", new XElement(p + "DataGridTemplateColumn",
+                new XAttribute("Header", "币种"), new XElement(sourceColumn.Element(p + "DataGridTemplateColumn.CellTemplate")!))));
+        var grid = (DataGrid)System.Windows.Markup.XamlReader.Parse(markup.ToString());
+        grid.DataContext = new { CurrencyOptions = options };
+        grid.ItemsSource = list.Items;
         return grid;
     }
 

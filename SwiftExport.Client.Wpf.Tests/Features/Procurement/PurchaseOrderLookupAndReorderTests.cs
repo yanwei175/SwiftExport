@@ -1,4 +1,4 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.IO;
 using SwiftExport.Contracts.DTOs.MasterData.ProcurementLookups;
 using SwiftExport.Contracts.DTOs.Inventory;
@@ -161,9 +161,9 @@ public sealed class PurchaseOrderLookupAndReorderTests
         Assert.AreEqual(2, first.LineNumber);
     }
 
-    /// <summary>采购行表必须满足 EnterpriseGrid 的安全重排条件，并为全部业务列声明稳定身份。</summary>
+    /// <summary>采购行表保留原生列与安全重排条件，不挂接无错误来源的软验证。</summary>
     [TestMethod]
-    public void PurchaseLineGridMustUseEnterpriseGridConfigurationAndStableColumnKeys()
+    public void PurchaseLineGridMustKeepNativeColumnsAndSafeReorder()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !File.Exists(Path.Combine(root.FullName, "AGENTS.md"))) root = root.Parent;
@@ -172,24 +172,15 @@ public sealed class PurchaseOrderLookupAndReorderTests
             "SwiftExport.Client.Wpf/Features/Procurement/PurchaseOrders/Views/PurchaseOrderDetailView.xaml"));
 
         StringAssert.Contains(xaml, "CanUserSortColumns=\"False\"");
-        StringAssert.Contains(xaml, "gridOperations:GridOperations.IsEnabled=\"True\"");
+        Assert.IsFalse(xaml.Contains("GridOperations", StringComparison.Ordinal));
         StringAssert.Contains(xaml, "rowDrag:RowDragReorder.IsEnabled=\"{Binding CanReorder}\"");
-        StringAssert.Contains(xaml, "gridSelection:GridSelection.IsCellClickSelectionEnabled=\"True\"");
-        StringAssert.Contains(xaml, "gridValidation:GridValidation.IsEnabled=\"True\"");
+        StringAssert.Contains(xaml, "CurrentItem=\"{Binding Lines.SelectedItem,Mode=TwoWay}\"");
+        Assert.IsFalse(xaml.Contains("GridValidation.IsEnabled", StringComparison.Ordinal));
         StringAssert.Contains(xaml, "<DataTrigger Binding=\"{Binding IsCreateMode}\" Value=\"True\">");
 
-        var expectedKeys = new[]
-        {
-            "line-number", "image", "sku", "customer-sku", "link-sku", "supplier-sku",
-            "description-zh", "finish-zh", "features-zh", "material-type", "supply-type", "unit",
-            "quantity", "unit-price", "unit-amount", "planned-delivery-date",
-            "delivery-supplier", "source-summary", "note"
-        };
-        foreach (var key in expectedKeys)
-        {
-            StringAssert.Contains(xaml, $"gridColumns:GridColumn.Key=\"{key}\"");
-        }
-        Assert.IsFalse(xaml.Contains("gridColumns:GridColumn.Key=\"warehouse-target\"", StringComparison.Ordinal));
+        var expectedHeaders = new[] { "排序", "行号", "图片", "SKU", "客户型号", "关联型号", "供应商型号", "中文描述", "表面处理", "配置", "物料类型", "供货方式", "产品单位", "数量", "未税单价", "未税总价", "计划交期", "送至供应商", "来源单/行", "备注" };
+        foreach (var header in expectedHeaders)
+            StringAssert.Contains(xaml, $"Header=\"{header}\"");
         Assert.IsFalse(xaml.Contains("WarehouseCandidates"));
     }
 }

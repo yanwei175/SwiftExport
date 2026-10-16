@@ -1,4 +1,4 @@
 interface:
-  display_name: "WPF Grid Column"
-  short_description: "设计兼容原生 DataGridColumn 的 Lookup、枚举和数值列扩展"
-  default_prompt: "Use $wpf-grid-column to design native-compatible Enterprise Grid columns."
+  display_name: "wpf-grid-column"
+  short_description: "鍘熺敓鍒椼�佹ā鏉块獙璇佹槧灏勪笌涓氬姟濉厖"
+  default_prompt: "Use $wpf-grid-column to implement or review native DataGrid client adaptations."

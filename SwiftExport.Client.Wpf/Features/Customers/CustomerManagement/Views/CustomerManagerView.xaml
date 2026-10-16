@@ -1,4 +1,4 @@
-<UserControl x:Class="SwiftExportClient.Features.Customers.CustomerManagement.Views.CustomerManagerView"
+<UserControl xmlns:fill="clr-namespace:SwiftExportClient.Resources.Behaviors" xmlns:i="http://schemas.microsoft.com/xaml/behaviors" x:Class="SwiftExportClient.Features.Customers.CustomerManagement.Views.CustomerManagerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -6,11 +6,8 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:drawerViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
-             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridOperations="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Operations;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridSelection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridValidation="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Validation;assembly=SwiftExport.Wpf.EnterpriseGrid" 
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
+             xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
              mc:Ignorable="d"  d:DesignHeight="450" d:DesignWidth="1200" >
     <UserControl.Resources>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
@@ -108,15 +105,13 @@
                           FrozenColumnCount="3"
                           RowHeight="{StaticResource DataGridRowHeightSmall}"
                           FontSize="{DynamicResource SwiftExportDefaltFontSize}"
-                          gridCore:EnterpriseGrid.IsEnabled="True"
-                          gridCore:GridVirtualization.IsEnabled="True"
                           gridCore:GridRowHeader.ShowRowNumber="True"
-                          gridOperations:GridOperations.IsEnabled="True"
-                          gridSelection:GridSelection.IsCellClickSelectionEnabled="True"
-                          gridSelection:GridSelection.CurrentRow="{Binding SelectedLine, Mode=TwoWay}"
-                          gridValidation:GridValidation.IsEnabled="True">
+                          CurrentItem="{Binding SelectedLine, Mode=TwoWay}">
+                    <i:Interaction.Behaviors>
+                        <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
+                    </i:Interaction.Behaviors>
                     <DataGrid.Columns>
-                        <DataGridTemplateColumn Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                        <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                             <DataGridTemplateColumn.HeaderTemplate>
                                 <DataTemplate>
                                     <CheckBox HorizontalAlignment="Center"
@@ -135,35 +130,33 @@
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
 
-                        <DataGridTextColumn Header="客户名称" Width="180" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerName" Header="客户名称" Width="180"
                                             Binding="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
 
-                        <DataGridTextColumn Header="单据关联号" Width="120" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="DocRelateNo" Header="单据关联号" Width="120"
                                             Binding="{Binding DocRelateNo, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
 
-                        <DataGridTextColumn Header="联系人" Width="100" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="ContactPerson" Header="联系人" Width="100"
                                             Binding="{Binding ContactPerson, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
 
-                        <DataGridTextColumn Header="电话" Width="120" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="PhoneNumber" Header="电话" Width="120"
                                             Binding="{Binding PhoneNumber, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
 
-                        <DataGridTextColumn Header="地址" Width="220" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="Address" Header="地址" Width="220"
                                             Binding="{Binding Address, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
 
-                        <DataGridTemplateColumn Header="贸易条款" Width="90"
-                                                SortMemberPath="Incoterm"
-                                                gridColumns:GridColumn.Key="incoterm"
-                                                gridColumns:GridColumn.FieldPath="Incoterm">
+                        <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="Incoterm" ClipboardContentBinding="{Binding Incoterm, Mode=OneWay}" Header="贸易条款" Width="90"
+                                                SortMemberPath="Incoterm">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="4,0" VerticalContentAlignment="Center"
@@ -176,10 +169,8 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="条款地点" Width="140"
-                                                SortMemberPath="IncotermLocation"
-                                                gridColumns:GridColumn.Key="incoterm-location"
-                                                gridColumns:GridColumn.FieldPath="IncotermLocation">
+                        <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="IncotermLocation" ClipboardContentBinding="{Binding IncotermLocation, Mode=OneWay}" Header="条款地点" Width="140"
+                                                SortMemberPath="IncotermLocation">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="8,0" VerticalContentAlignment="Center"
@@ -192,10 +183,8 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="条款备注" Width="180"
-                                                SortMemberPath="IncotermSortRemark"
-                                                gridColumns:GridColumn.Key="incoterm-sort-remark"
-                                                gridColumns:GridColumn.FieldPath="IncotermSortRemark">
+                        <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="IncotermSortRemark" ClipboardContentBinding="{Binding IncotermSortRemark, Mode=OneWay}" Header="条款备注" Width="180"
+                                                SortMemberPath="IncotermSortRemark">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="8,0" VerticalContentAlignment="Center"
@@ -208,21 +197,19 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTextColumn Header="定金比例" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="DepositRate" Header="定金比例"
                                             Width="88" 
                                             Binding="{Binding DepositRate, StringFormat=P0, UpdateSourceTrigger=LostFocus}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
 
-                        <DataGridTextColumn Header="交期(天)" Width="78" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="LeadTimeDays" Header="交期(天)" Width="78"
                                             Binding="{Binding LeadTimeDays, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" 
                                             EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
 
-                        <DataGridTemplateColumn Header="付款方式" Width="120" 
-                                                SortMemberPath="PaymentMethod"
-                                                gridColumns:GridColumn.Key="payment-method"
-                                                gridColumns:GridColumn.FieldPath="PaymentMethod">
+                        <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="PaymentMethod" ClipboardContentBinding="{Binding PaymentMethod, Mode=OneWay}" Header="付款方式" Width="120"
+                                                SortMemberPath="PaymentMethod">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="4,0" VerticalContentAlignment="Center"
@@ -235,10 +222,8 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="币种" Width="140"
-                                                SortMemberPath="Currency"
-                                                gridColumns:GridColumn.Key="currency"
-                                                gridColumns:GridColumn.FieldPath="Currency">
+                        <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="Currency" ClipboardContentBinding="{Binding Currency, Mode=OneWay}" Header="币种" Width="140"
+                                                SortMemberPath="Currency">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="4,0" VerticalContentAlignment="Center"
@@ -251,10 +236,8 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="承运方式" Width="100"
-                                                SortMemberPath="ShippedBy"
-                                                gridColumns:GridColumn.Key="shipped-by"
-                                                gridColumns:GridColumn.FieldPath="ShippedBy">
+                        <DataGridTemplateColumn fill:DataGridFillDownBehavior.Field="ShippedBy" ClipboardContentBinding="{Binding ShippedBy, Mode=OneWay}" Header="承运方式" Width="100"
+                                                SortMemberPath="ShippedBy">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ComboBox Margin="4,0" VerticalContentAlignment="Center"
@@ -268,7 +251,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTextColumn Header="ETD备注" 
+                        <DataGridTextColumn fill:DataGridFillDownBehavior.Field="EtdSortRemark" Header="ETD备注"
                                             Width="160" 
                                             Binding="{Binding EtdSortRemark, UpdateSourceTrigger=PropertyChanged}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" 

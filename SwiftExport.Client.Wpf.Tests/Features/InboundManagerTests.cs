@@ -43,7 +43,7 @@ public sealed class InboundManagerTests
                 Source = row, Mode = System.Windows.Data.BindingMode.TwoWay,
                 TargetNullValue = string.Empty,
                 UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged,
-                ValidatesOnDataErrors = false, ValidatesOnNotifyDataErrors = false, NotifyOnValidationError = true
+                ValidatesOnDataErrors = false, ValidatesOnNotifyDataErrors = false
             });
             await box.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.DataBind);
             Assert.AreEqual("2", box.Text);

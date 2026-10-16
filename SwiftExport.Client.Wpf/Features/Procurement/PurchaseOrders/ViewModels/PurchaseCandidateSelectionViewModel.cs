@@ -980,4 +980,36 @@ public sealed partial class PurchaseCandidateSelectionViewModel : ViewModelBaseE
         Close();
         ClearItems();
     }
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => !_disposed && IsInputEnabled
+        && request is not null && request.Fields.All(field => field is nameof(PurchaseCandidateItemModel.SupplierId)
+            or nameof(PurchaseCandidateItemModel.PurchaseQty)
+            or nameof(PurchaseCandidateItemModel.UnitPrice)
+            or nameof(PurchaseCandidateItemModel.TaxPrice)
+            or nameof(PurchaseCandidateItemModel.PlannedDeliveryDate))
+        && request.TryGetRows<PurchaseCandidateItemModel>(Items, out _, out var targets)
+        && targets.Any(row => row.IsInputEnabled && row.IsAvailableForPurchase
+            && request.Fields.Any(field => field != nameof(PurchaseCandidateItemModel.SupplierId) || row.CanEditPurchaseSupplier));
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<PurchaseCandidateItemModel>(Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => row.IsInputEnabled && row.IsAvailableForPurchase))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(PurchaseCandidateItemModel.SupplierId): if (target.CanEditPurchaseSupplier) target.PurchaseSupplierSelection = source.PurchaseSupplierSelection; break;
+                    case nameof(PurchaseCandidateItemModel.PurchaseQty): target.PurchaseQty = source.PurchaseQty; break;
+                    case nameof(PurchaseCandidateItemModel.UnitPrice): target.UnitPrice = source.UnitPrice; break;
+                    case nameof(PurchaseCandidateItemModel.TaxPrice): target.TaxPrice = source.TaxPrice; break;
+                    case nameof(PurchaseCandidateItemModel.PlannedDeliveryDate): target.PlannedDeliveryDate = source.PlannedDeliveryDate; break;
+                }
+            }
+        }
+    }
 }

@@ -324,6 +324,20 @@ public sealed class ProductMasterNeutralWorkspaceTests
         Assert.IsTrue(vm.DeleteNeutralCommand.CanExecute(null));
     }
 
+    /// <summary>主从管理页多列填充也固定业务优先级，不因列重排覆盖手动售价。</summary>
+    [TestMethod]
+    [DataRow(false, true, false)]
+    [DataRow(true, true, false)]
+    [DataRow(false, false, false)]
+    [DataRow(true, false, false)]
+    [DataRow(false, true, true)]
+    public async Task MultiColumnFill_ShouldRespectExplicitPriceRegardlessOfOrder(bool reverse, bool includePrice, bool nullPrice)
+    {
+        using var vm = CreateVm(new ApiStub());
+        await vm.SelectMasterAsync(vm.Masters.Items.First());
+        ProductFillDownBaselineTests.AssertMultiColumnFill(vm.Neutrals, vm.FillDownNeutralsCommand, reverse, includePrice, nullPrice);
+    }
+
     /// <summary>页面释放后迟到的读取响应不能写入集合。</summary>
     [TestMethod]
     public async Task DisposedPage_ShouldIgnoreLateResponse()

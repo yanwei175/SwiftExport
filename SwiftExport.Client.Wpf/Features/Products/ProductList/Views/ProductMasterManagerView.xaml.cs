@@ -5,7 +5,6 @@ using System.Windows;
 using System.Windows.Threading;
 using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.Products.ProductList.Models;
-using SwiftExport.Wpf.EnterpriseGrid.Columns;
 
 namespace SwiftExportClient.Features.Products.ProductList.Views;
 
@@ -32,7 +31,7 @@ public partial class ProductMasterManagerView : UserControl
     /// <summary>仅在供应商单元格原生进入编辑时恢复当前行候选，不接管编辑按键或改写行资料。</summary>
     private void OnMasterPreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
     {
-        if (GridColumn.GetKey(e.Column) == "default-supplier" && e.Row.Item is ProductMasterLineModel line)
+        if (ReferenceEquals(e.Column, MasterSupplierColumn) && e.Row.Item is ProductMasterLineModel line)
             _viewModel?.PrepareSupplierEditor(line);
     }
 

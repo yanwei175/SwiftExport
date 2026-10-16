@@ -1,4 +1,4 @@
 interface:
-  display_name: "WPF Grid Core"
-  short_description: "ÊµÏÖÔ­Éú DataGrid ÔöÇ¿¿ò¼ÜºËĞÄ¡¢¸½¼ÓÊôĞÔÓë»ù´¡ÉèÊ©"
-  default_prompt: "Use $wpf-grid-core to implement or review the Enterprise Grid core."
+  display_name: "wpf-grid-core"
+  short_description: "å®¢æˆ·ç«¯è¡Œå·ã€è½¯æç¤ºåŠç‹¬ç«‹ç”Ÿå‘½å‘¨æœŸ"
+  default_prompt: "Use $wpf-grid-core to implement or review native DataGrid client adaptations."

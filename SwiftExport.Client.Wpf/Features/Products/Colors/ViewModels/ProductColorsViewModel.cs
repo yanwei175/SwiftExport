@@ -349,4 +349,31 @@ public sealed partial class ProductColorsViewModel : ViewModelBaseEx, IAsyncInit
         _lifetimeCancellation.Dispose();
         Lines.ListStateChanged -= OnListStateChanged;
     }
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => CanWriteCommand()
+        && request is not null && request.Fields.All(field => field is nameof(ProductColorLineModel.ColorCode)
+            or nameof(ProductColorLineModel.ColorNameEn)
+            or nameof(ProductColorLineModel.ColorNameZh))
+        && request.TryGetRows<ProductColorLineModel>(Lines.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<ProductColorLineModel>(Lines.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(ProductColorLineModel.ColorCode): target.ColorCode = source.ColorCode; break;
+                    case nameof(ProductColorLineModel.ColorNameEn): target.ColorNameEn = source.ColorNameEn; break;
+                    case nameof(ProductColorLineModel.ColorNameZh): target.ColorNameZh = source.ColorNameZh; break;
+                }
+            }
+        }
+    }
 }

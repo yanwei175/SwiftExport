@@ -4,7 +4,7 @@
     xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
     xmlns:proxies="clr-namespace:SwiftExportClient.Resources.Proxies"
     xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
-    xmlns:selection="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Selection;assembly=SwiftExport.Wpf.EnterpriseGrid"
+    xmlns:selection="clr-namespace:SwiftExportClient.Resources.Converters"
     Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
     <UserControl.Resources>
         <proxies:BindingProxy x:Key="PackagingManagerProxy" Data="{Binding}"/>
@@ -54,7 +54,7 @@
                   BeginningEdit="OnBeginningEdit" AutomationProperties.Name="包材档案列表">
             <DataGrid.Columns>
                 
-                <DataGridTemplateColumn Header="勾选" Width="48">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Header="勾选" Width="48">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"/>
@@ -110,7 +110,7 @@
 
                 <DataGridTextColumn Header="英文规格" Width="200" Binding="{Binding FeaturesEn, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"/>
 
-                <DataGridTemplateColumn Header="基础单位" Width="100">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding Unit, Mode=OneWay}" Header="基础单位" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Unit}"/>
@@ -126,7 +126,7 @@
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="供货方式" Width="100">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding SupplyType, Mode=OneWay}" Header="供货方式" Width="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding SupplyType}" VerticalAlignment="Center"/>
@@ -141,7 +141,7 @@
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn Header="默认供应商" Width="180">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding DefaultSupplierCode, Mode=OneWay}" Header="默认供应商" Width="180">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding DefaultSupplierCode}" VerticalAlignment="Center" ToolTip="{Binding SupplierName}"/>

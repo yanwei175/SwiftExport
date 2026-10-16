@@ -6,8 +6,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:salesComponents="clr-namespace:SwiftExportClient.Features.Sales.Orders.Components"
-             xmlns:gridColumns="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Columns;assembly=SwiftExport.Wpf.EnterpriseGrid"
-             xmlns:gridCore="clr-namespace:SwiftExport.Wpf.EnterpriseGrid.Core;assembly=SwiftExport.Wpf.EnterpriseGrid"
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:images="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:vm="clr-namespace:SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels"
              mc:Ignorable="d"
@@ -204,8 +203,6 @@
                   SelectionMode="Single"
                   SelectionUnit="FullRow"
                   AutoGenerateColumns="False"
-                  gridCore:EnterpriseGrid.IsEnabled="True"
-                  gridCore:GridVirtualization.IsEnabled="True"
                   gridCore:GridRowHeader.ShowRowNumber="True"
                   SelectionChanged="OrdersGrid_OnSelectionChanged"
                   MouseDoubleClick="OrdersGrid_OnMouseDoubleClick">
@@ -219,84 +216,69 @@
                         <DataGridTextColumn Header="确认" Width="72" 
                                     Binding="{Binding ConfirmationStatus}" 
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="confirmation-status" />
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="单据" Width="72" 
                                     Binding="{Binding DocumentStatus, Converter={StaticResource SalesOrderStateTextConverter}}" 
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="document-status" />
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="执行" Width="82" 
                                     Binding="{Binding FulfillmentStatus, Converter={StaticResource SalesOrderStateTextConverter}}"
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="fulfillment-status" />
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="订单号" Width="135" 
                                     Binding="{Binding OrderNo}" 
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="order-no" />
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="订单日期" Width="96" 
                                     ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                                    Binding="{Binding OrderDate, StringFormat=yyyy-MM-dd}" 
-                                    gridColumns:GridColumn.Key="order-date" />
+                                    Binding="{Binding OrderDate, StringFormat=yyyy-MM-dd}" />
                         
                         <DataGridTextColumn Header="客户" Width="105" 
                                     Binding="{Binding CustomerCode}" 
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="customer-code" />
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="客户名称" Width="150" 
                                     Binding="{Binding CustomerName}" 
                                     ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                    gridColumns:GridColumn.Key="customer-name" />
+                                    EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="发票号" Width="110" 
                                             Binding="{Binding InvoiceNo}" 
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
-                                            gridColumns:GridColumn.Key="invoice-no" />
+                                            EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                         
                         <DataGridTextColumn Header="未完成最早交期" Width="118"
                                             Binding="{Binding EarliestOpenDueDate, StringFormat=yyyy-MM-dd}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                                            gridColumns:GridColumn.Key="earliest-open-due" />
+                                            ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" />
                         
                         <DataGridTextColumn Header="交期提醒" Width="178"
                                             Binding="{Binding Converter={StaticResource SalesOrderDueAlertConverter}}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}"
-                                            gridColumns:GridColumn.Key="due-alert" />
+                                            ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" />
                         
                         <DataGridTextColumn Header="数量" Width="80" 
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Binding="{Binding TotalQty, StringFormat=N0, TargetNullValue=查看明细}"
-                                    gridColumns:GridColumn.Key="total-qty" />
+                                    Binding="{Binding TotalQty, StringFormat=N0, TargetNullValue=查看明细}" />
                         
                         <DataGridTextColumn Header="已交" Width="80"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                    Binding="{Binding TotalShippedQty, StringFormat=N0, TargetNullValue=查看明细}"
-                                    gridColumns:GridColumn.Key="shipped-qty" />
+                                    Binding="{Binding TotalShippedQty, StringFormat=N0, TargetNullValue=查看明细}" />
                         
                         <DataGridTextColumn Header="未交" Width="80"
                                             ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
-                                            Binding="{Binding TotalUnshippedQty, StringFormat=N0, TargetNullValue=查看明细}"
-                                            gridColumns:GridColumn.Key="unshipped-qty" />
+                                            Binding="{Binding TotalUnshippedQty, StringFormat=N0, TargetNullValue=查看明细}" />
                         
                         <DataGridTextColumn Header="单位" Width="66"
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                            Binding="{Binding UnitSnapshot, TargetNullValue=—}"
-                                            gridColumns:GridColumn.Key="unit" />
+                                            Binding="{Binding UnitSnapshot, TargetNullValue=—}" />
                         
                         <DataGridTextColumn Header="需核实原因" Width="170"
                                             ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
-                                            Binding="{Binding ReviewReason}"
-                                            gridColumns:GridColumn.Key="review-reason" />
+                                            Binding="{Binding ReviewReason}" />
                         
                     </DataGrid.Columns>
                 </DataGrid>
@@ -329,9 +311,7 @@
                   IsReadOnly="True"
                   SelectionMode="Extended"
                   SelectionUnit="CellOrRowHeader"
-                  AutoGenerateColumns="False"
-                  gridCore:EnterpriseGrid.IsEnabled="True"
-                  gridCore:GridVirtualization.IsEnabled="True">
+                  AutoGenerateColumns="False">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="行" Width="35" Binding="{Binding LineNumber}"
                                     ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>

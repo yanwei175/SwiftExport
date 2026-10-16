@@ -17,8 +17,6 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
     public ObservableCollection<PackingListPackingGroupModel> PackingGroups { get; } = [];
     /// <summary>空组不能落库，需先填写或删除。</summary>
     public bool HasEmptyGroups => PackingGroups.Any(x => x.Members.Count == 0);
-    /// <summary>拼箱共享字段不能被通用填充跨行覆盖。</summary>
-    public bool CanUseGridOperations => !Items.Any(x => x.PackingGroupId.HasValue);
     /// <summary>订阅自身列表状态，覆盖编辑、增删、恢复和排序。</summary>
     public PackingListLineListModel() : base(_ => new PackingListLineModel())
     {
@@ -94,7 +92,6 @@ public sealed partial class PackingListLineListModel : BaseListModel<PackingList
             _shape = shape;
             PackingView.Refresh();
             OnPropertyChanged(nameof(HasEmptyGroups));
-            OnPropertyChanged(nameof(CanUseGridOperations));
         }
         finally { _syncing = false; }
     }

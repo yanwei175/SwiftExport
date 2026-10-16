@@ -13,7 +13,6 @@ using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Threading;
 using System.Xml.Linq;
 
@@ -69,6 +68,7 @@ public sealed class SalesOrderModelsAndContractsTests
         Assert.AreEqual("{Binding IsNonStandard}", (string?)comboBox.Attribute("IsEnabled"));
     }
 
+    /// <summary>表头继续从业务缓存取选项，并通过代码字段回写已有快照。</summary>
     [TestMethod]
     public void DetailHeader_ShouldUseCachedDictionaryAndCurrencyComboBoxes()
     {
@@ -95,49 +95,75 @@ public sealed class SalesOrderModelsAndContractsTests
                 ((string?)element.Attribute("Text"))?.Contains(bindingPath, StringComparison.Ordinal) == true);
             StringAssert.Contains((string?)comboBox.Attribute("ItemsSource"), optionsProperty);
             StringAssert.Contains((string?)comboBox.Attribute("Text"), "Mode=TwoWay");
-            Assert.AreEqual("True", (string?)comboBox.Attribute("IsEditable"));
-            Assert.AreEqual("True", (string?)comboBox.Attribute("IsReadOnly"));
+            Assert.AreEqual(bindingPath == "Header.Currency" ? "CurrencyCode" : "DataNameEn",
+                (string?)comboBox.Attribute("TextSearch.TextPath"));
         }
     }
 
+    /// <summary>使用页面真实表头与候选模板，确保历史代码可见、不可自由输入，重载保持值且主动选择才回写。</summary>
     [TestMethod]
-    public void EditableReadOnlyComboBox_ShouldPreserveLegacyTextUntilUserSelectsOption()
+    [DataRow(nameof(SalesOrderHeaderEditModel.Currency))]
+    [DataRow(nameof(SalesOrderHeaderEditModel.PaymentMethod))]
+    [DataRow(nameof(SalesOrderHeaderEditModel.Incoterm))]
+    [DataRow(nameof(SalesOrderHeaderEditModel.ShippedBy))]
+    public void HeaderComboBox_ShouldDisplayLegacyTextUntilUserSelectsOption(string field)
     {
         StaTest.RunAsync(async () =>
         {
-            var header = new SalesOrderHeaderEditModel { PaymentMethod = "LEGACY" };
-            var comboBox = new ComboBox
+            var header = new SalesOrderHeaderEditModel
+                { Currency = "LEGACY", PaymentMethod = "LEGACY", Incoterm = "LEGACY", ShippedBy = "LEGACY" };
+            var property = typeof(SalesOrderHeaderEditModel).GetProperty(field)!;
+            var document = XDocument.Load(Path.Combine(FindRepositoryRoot(), "SwiftExport.Client.Wpf",
+                "Features", "Sales", "Orders", "Views", "SalesOrderDetailView.xaml"));
+            XNamespace p = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+            XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+            var source = document.Descendants(p + "ComboBox").Single(element =>
+                ((string?)element.Attribute("Text"))?.Contains("Header." + field + ",", StringComparison.Ordinal) == true);
+            var comboMarkup = new XElement(source);
+            foreach (var attribute in comboMarkup.Attributes().Where(attribute => attribute.Name.LocalName.StartsWith("Grid.")).ToArray())
+                attribute.Remove();
+            var resources = document.Descendants(p + "DataTemplate").Where(element =>
+                (string?)element.Attribute(x + "Key") is "SalesOrderDictionaryOptionTemplate" or "SalesOrderCurrencyOptionTemplate");
+            var markup = new XElement(p + "Grid", new XAttribute("xmlns", p.NamespaceName),
+                new XAttribute(XNamespace.Xmlns + "x", x.NamespaceName),
+                new XElement(p + "Grid.Resources", resources.Select(element => new XElement(element))), comboMarkup);
+            var host = (Grid)System.Windows.Markup.XamlReader.Parse(markup.ToString());
+            var options = new[] { new SysDictDataDto { DataNameEn = "TT", DataNameZh = "电汇", IsEnabled = true } };
+            host.DataContext = new
             {
-                DataContext = header,
-                IsEditable = true,
-                IsReadOnly = true,
-                ItemsSource = new[]
-                {
-                    new SysDictDataDto { DataNameEn = "TT", DataNameZh = "电汇", IsEnabled = true },
-                    new SysDictDataDto { DataNameEn = "LC", DataNameZh = "信用证", IsEnabled = true },
-                },
+                Header = header, PaymentMethodOptions = options, IncotermOptions = options, ShippedByOptions = options,
+                CurrencyOptions = new[] { new SysDicCurrencyDto { CurrencyCode = "USD", CurrencyNameZh = "美元", IsEnabled = true } }
             };
-            TextSearch.SetTextPath(comboBox, nameof(SysDictDataDto.DataNameEn));
-            comboBox.SetBinding(
-                ComboBox.TextProperty,
-                new Binding(nameof(SalesOrderHeaderEditModel.PaymentMethod))
-                {
-                    Mode = BindingMode.TwoWay,
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-                });
-            var window = new Window { Content = comboBox, ShowInTaskbar = false, Width = 240, Height = 80 };
+            var comboBox = (ComboBox)host.Children[0];
+            var window = new Window { Content = host, ShowInTaskbar = false, Width = 240, Height = 80 };
 
             try
             {
                 window.Show();
                 await Dispatcher.Yield(DispatcherPriority.Loaded);
-                Assert.AreEqual("LEGACY", header.PaymentMethod);
+                Assert.AreEqual("LEGACY", property.GetValue(header));
                 Assert.AreEqual("LEGACY", comboBox.Text);
+                comboBox.ApplyTemplate();
+                var displayedText = comboBox.Template.FindName("PART_EditableTextBox", comboBox) as TextBox;
+                Assert.IsNotNull(displayedText, "候选外历史代码必须有可见文本载体，不能只保留在模型或 ComboBox.Text 中。");
+                Assert.IsTrue(displayedText.IsVisible);
+                Assert.AreEqual("LEGACY", displayedText.Text);
+                Assert.IsTrue(displayedText.IsReadOnly, "历史代码展示不应开放任意文本录入。");
+
+                window.Content = null;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                window.Content = host;
+                await Dispatcher.Yield(DispatcherPriority.Loaded);
+                Assert.AreEqual("LEGACY", property.GetValue(header));
+                Assert.AreEqual("LEGACY", displayedText.Text);
 
                 comboBox.SelectedItem = comboBox.Items[0];
                 await Dispatcher.Yield(DispatcherPriority.DataBind);
 
-                Assert.AreEqual("TT", header.PaymentMethod);
+                var expected = field == nameof(SalesOrderHeaderEditModel.Currency) ? "USD" : "TT";
+                Assert.AreEqual(expected, property.GetValue(header));
+                Assert.AreEqual(expected, displayedText.Text);
+                Assert.AreEqual(expected, typeof(SalesOrderEditHeaderDto).GetProperty(field)!.GetValue(header.ToDto()));
             }
             finally
             {

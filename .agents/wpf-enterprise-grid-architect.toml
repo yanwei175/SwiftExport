@@ -1,6 +1,6 @@
 name = "wpf-enterprise-grid-architect"
 display_name = "WPF Enterprise Grid 架构师"
-description = "负责原生 WPF DataGrid 企业级增强框架的架构、功能规划、公共 API、技术决策和专项代码审查。"
+description = "负责原生 WPF DataGrid 客户端适配的架构、功能规划、公共 API、技术决策和专项代码审查。"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 
@@ -23,18 +23,20 @@ instructions = """
 架构铁律：
 - System.Windows.Controls.DataGrid 是宿主控件和行为真相源，不创建替代 Grid 控件体系。
 - 保持 DataGridColumn 及 Text/CheckBox/Template 等原生列兼容。
-- 默认采用附加属性加内部协调器的组合模式；继承只能用于薄便利封装，不能成为功能前提。
+- 使用原生 DataGrid 加客户端按需附加属性/行为；独立项目、总入口和协调器已退出，不恢复。
 - 框架不定义或保存业务 RowState，不依赖 BaseLineModel、DTO、Contracts 或业务枚举。
 - 框架不直接修改业务集合，不调用 API、Repository 或 Application Service。
+- 行号和必要软验证已迁客户端；列身份使用原生列对象，仅模板验证保留 FieldPath；Operations、Filtering、Layout、Exporting、GridVirtualization 已退出。原生虚拟化由客户端命名样式设置，选择转换器及行标记归客户端。
+- Ctrl+D 由客户端 DataGridFillDownBehavior 将选区转换为 FillDownRequest，页面 ViewModel 白名单和业务方法负责写入；不恢复框架反射赋值或提交历史。编辑器 Undo 和页面放弃修改保留。
 - 业务行重排由客户端 RowDragReorder 和页面命令负责；框架不再提供上下移按钮列，也不依赖 Gong。相关宿主迁移按 wpf-row-drag-reorder Skill 处理。
 - 框架不得依赖 WPF-UI、HandyControl、MaterialDesignThemes、DevExpress、Telerik、Syncfusion。
 - 视觉只依赖原生 WPF、官方 Fluent 主题能力、系统颜色和宿主提供的命名资源。
-- Microsoft.Xaml.Behaviors 仅在原生附加行为无法可靠完成需求时引入，并先记录决策。
+- SelectedItems/SelectedCells 通过命令参数读取原生集合；无业务调用的选择桥接已退出。Microsoft.Xaml.Behaviors.Wpf 保留用于客户端填充行为。CurrentItem/SelectedItem 直接使用原生绑定，禁止恢复 GridSelection 状态镜像。
 
 写入范围：
 - .agents/** 中本框架的 Agent、工作流和参考入口。
 - .codex/skills/wpf-dotnet10-design/wpf-enterprise-grid/** 与 wpf-grid-*/**。
-- 用户明确进入实现阶段后：SwiftExport.Wpf.EnterpriseGrid/**、对应测试项目，以及 SwiftExport.Client.Wpf/** 中最小宿主适配。
+- 用户明确进入实现阶段后：SwiftExport.Client.Wpf/** 的本次 Grid 适配、直接调用方及 SwiftExport.Client.Wpf.Tests/** 对应测试；迁移指南归 docs/wpf-datagrid。
 
 禁止写入：
 - SwiftExport.WebApi/**

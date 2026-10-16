@@ -823,4 +823,45 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         && IsPersisted
         && Header.DocumentStatus == SalesOrderDocumentStatusEnum.Open
         && Header.ConfirmationStatus == ConfirmationStatusEnum.已确认);
+
+    /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
+    private bool CanFillDown(FillDownRequest? request) => CanEdit()
+        && request is not null && request.Fields.All(field => field is nameof(SalesOrderLineModel.CustomerSku)
+            or nameof(SalesOrderLineModel.DescriptionEn)
+            or nameof(SalesOrderLineModel.ColorNameEn)
+            or nameof(SalesOrderLineModel.FeaturesEn)
+            or nameof(SalesOrderLineModel.QtyText)
+            or nameof(SalesOrderLineModel.UnitSnapshot)
+            or nameof(SalesOrderLineModel.UsdPriceText)
+            or nameof(SalesOrderLineModel.CnyPriceText)
+            or nameof(SalesOrderLineModel.ExpectedDeliveryDate)
+            or nameof(SalesOrderLineModel.SubNote))
+        && request.TryGetRows<SalesOrderLineModel>(Lines.Items, out _, out var targets)
+        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+
+    /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
+    [RelayCommand(CanExecute = nameof(CanFillDown))]
+    private void FillDown(FillDownRequest? request)
+    {
+        if (!CanFillDown(request) || !request!.TryGetRows<SalesOrderLineModel>(Lines.Items, out var source, out var targets)) return;
+        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        {
+            foreach (var field in request.Fields)
+            {
+                switch (field)
+                {
+                    case nameof(SalesOrderLineModel.CustomerSku): target.CustomerSku = source.CustomerSku; break;
+                    case nameof(SalesOrderLineModel.DescriptionEn): target.DescriptionEn = source.DescriptionEn; break;
+                    case nameof(SalesOrderLineModel.ColorNameEn): target.ColorNameEn = source.ColorNameEn; break;
+                    case nameof(SalesOrderLineModel.FeaturesEn): target.FeaturesEn = source.FeaturesEn; break;
+                    case nameof(SalesOrderLineModel.QtyText): target.QtyText = source.QtyText; break;
+                    case nameof(SalesOrderLineModel.UnitSnapshot): if (target.IsNonStandard) target.UnitSnapshot = source.UnitSnapshot; break;
+                    case nameof(SalesOrderLineModel.UsdPriceText): target.UsdPriceText = source.UsdPriceText; break;
+                    case nameof(SalesOrderLineModel.CnyPriceText): target.CnyPriceText = source.CnyPriceText; break;
+                    case nameof(SalesOrderLineModel.ExpectedDeliveryDate): target.ExpectedDeliveryDate = source.ExpectedDeliveryDate; break;
+                    case nameof(SalesOrderLineModel.SubNote): target.SubNote = source.SubNote; break;
+                }
+            }
+        }
+    }
 }

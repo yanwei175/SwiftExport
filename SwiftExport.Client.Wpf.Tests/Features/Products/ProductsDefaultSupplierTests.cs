@@ -15,13 +15,13 @@ public sealed class ProductsDefaultSupplierTests
             "ProductList", "Views", "ProductsView.xaml");
         var document = XDocument.Load(path);
         var keys = document.Descendants().Attributes()
-            .Where(attribute => attribute.Name.LocalName.EndsWith("Key", StringComparison.Ordinal))
+            .Where(attribute => attribute.Name.LocalName == "SortMemberPath")
             .Select(attribute => attribute.Value).ToArray();
-        foreach (var legacyKey in new[] { "default-customer-code", "default-customer-sku", "default-supplier-sku" })
+        foreach (var legacyKey in new[] { "DefaultCustomerCode", "DefaultCustomerSku", "DefaultSupplierSku" })
             CollectionAssert.DoesNotContain(keys, legacyKey);
         Assert.IsTrue(document.Descendants().Attributes().Any(attribute =>
             attribute.Name.LocalName == "SelectedItems" && attribute.Value == "{Binding FilterCustomerList}"));
-        CollectionAssert.Contains(keys, "default-supplier-code");
+        CollectionAssert.Contains(keys, "DefaultSupplierCode");
     }
 
     [TestMethod]
@@ -39,15 +39,15 @@ public sealed class ProductsDefaultSupplierTests
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         var column = document.Descendants(presentation + "DataGridTemplateColumn")
             .Single(element => element.Attributes().Any(attribute =>
-                attribute.Name.LocalName.EndsWith("Key", StringComparison.Ordinal)
-                && string.Equals(attribute.Value, "default-supplier-code", StringComparison.Ordinal)));
+                attribute.Name.LocalName == "SortMemberPath"
+                && string.Equals(attribute.Value, "DefaultSupplierCode", StringComparison.Ordinal)));
 
         Assert.AreEqual("DefaultSupplierCode", (string?)column.Attribute("SortMemberPath"));
         Assert.IsFalse(column.Attributes().Any(attribute => attribute.Name.LocalName.EndsWith("FieldPath", StringComparison.Ordinal)));
         Assert.AreEqual(
-            "DefaultSupplierId,DefaultSupplierCode,SupplierName",
+            "DefaultSupplierId",
             column.Attributes().Single(attribute =>
-                attribute.Name.LocalName.EndsWith("FillDownFieldPaths", StringComparison.Ordinal)).Value);
+                attribute.Name.LocalName.EndsWith("DataGridFillDownBehavior.Field", StringComparison.Ordinal)).Value);
         Assert.IsTrue(column.Descendants().Any(element => element.Name.LocalName == "SupplierLookupTextBox"));
         Assert.IsTrue(column.Descendants().Attributes().Any(attribute =>
             attribute.Name.LocalName == "SelectionCommittedCommand"
