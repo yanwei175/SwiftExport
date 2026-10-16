@@ -401,8 +401,8 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ComboBox Margin="6" VerticalContentAlignment="Center"
-                                        ItemsSource="{x:Static staticEnums:MaterialTypesEnum.MaterialTypes}"
-                                        SelectedValue="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                    ItemsSource="{x:Static staticEnums:MaterialTypesEnum.MaterialTypes}"
+                                                    SelectedValue="{Binding MaterialType, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

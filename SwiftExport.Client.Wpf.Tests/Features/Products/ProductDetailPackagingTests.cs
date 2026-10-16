@@ -25,7 +25,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass, DoNotParallelize]
 public sealed class ProductDetailPackagingTests
 {
-    /// <summary>包装类型在真实编辑器创建、选择和退出编辑时保持字典来源，不因脱离表格而报告祖先绑定错误。</summary>
+    /// <summary>包装类型常驻选择器保持字典代码回写、父页面编辑门禁和卸载绑定稳定。</summary>
     [TestMethod]
     public void PackageTypeEditor_EditLifecycleKeepsDictionaryBinding() => DatePickerAssistTests.RunWithApplication(async () =>
     {
@@ -52,8 +52,10 @@ public sealed class ProductDetailPackagingTests
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             var grid = (DataGrid)view.FindName("PackageGrid");
             var row = vm.Rows.Items.Single();
+            Assert.AreEqual(ProductPackageTypeCodes.Carton, row.PackageType);
+            Assert.IsFalse(vm.HasChanges, "加载常驻字典选择器不能改写原值或制造脏状态。");
             // 模板实例在加入单元格之前也必须能解析页面字典，避免初始化阶段查找不存在的 DataGrid 祖先。
-            var detachedEditor = (ComboBox)((DataGridTemplateColumn)grid.Columns[1]).CellEditingTemplate.LoadContent();
+            var detachedEditor = (ComboBox)((DataGridTemplateColumn)grid.Columns[1]).CellTemplate.LoadContent();
             detachedEditor.DataContext = row;
             await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             Assert.AreEqual(2, detachedEditor.Items.Count);
@@ -72,7 +74,11 @@ public sealed class ProductDetailPackagingTests
                 Assert.IsTrue(grid.CommitEdit(DataGridEditingUnit.Row, true));
                 await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
                 Assert.AreEqual(ProductPackageTypeCodes.InnerBox, row.PackageType);
-                // 原生提交会卸载编辑模板；让仍存活的绑定完成一次刷新，覆盖脱离视觉树的阶段。
+                vm.CanEdit = false;
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                Assert.IsFalse(combo.IsEnabled, "常驻显示模板的选择器也必须遵守父页面只读和忙碌门禁。");
+                vm.CanEdit = true;
+                // 常驻选择器继续使用页面代理；刷新与卸载都不依赖 DataGrid 祖先。
                 combo.GetBindingExpression(ItemsControl.ItemsSourceProperty)!.UpdateTarget();
                 await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
             }
