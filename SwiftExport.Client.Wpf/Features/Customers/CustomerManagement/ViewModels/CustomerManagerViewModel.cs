@@ -13,9 +13,11 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Windows.Data;
 
 namespace SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 
+/// <summary>维护客户资料、当前页勾选与客户产品入口；业务写入仍由原有保存命令负责。</summary>
 public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncInitializable
 {
     private const int DefaultPageSize = 20;
@@ -60,6 +62,11 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
         RegisterBusyAwareCommand(RejectCommand);
         RegisterBusyAwareCommand(PageChangeCommand);
         RegisterBusyAwareCommand(ToggleCustomerProductsCommand);
+        RegisterBusyAwareCommand(CheckSelectionCommand);
+        RegisterBusyAwareCommand(UncheckSelectionCommand);
+        RegisterBusyAwareCommand(InvertSelectionCommand);
+        RegisterBusyAwareCommand(CheckVisibleCommand);
+        RegisterBusyAwareCommand(UncheckVisibleCommand);
     }
 
     public CustomerListModel Customers { get; } = new();
@@ -143,6 +150,50 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     {
         SelectedLine = Customers.AddNewCustomer();
         UpdateChangeState();
+    }
+
+    /// <summary>勾选菜单选区涉及的当前客户行，不改变原生选区或业务字段。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeCheckedSelection))]
+    private void CheckSelection(IReadOnlyList<CustomerLineModel>? rows) => SetCheckedSelection(rows, true);
+
+    /// <summary>取消菜单选区内客户行的勾选。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeCheckedSelection))]
+    private void UncheckSelection(IReadOnlyList<CustomerLineModel>? rows) => SetCheckedSelection(rows, false);
+
+    /// <summary>逐行反转选区勾选；同一行涉及多个单元格时仅反转一次。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeCheckedSelection))]
+    private void InvertSelection(IReadOnlyList<CustomerLineModel>? rows) => SetCheckedSelection(rows, null);
+
+    /// <summary>勾选当前已加载页的筛选结果，不加载其他页、不影响隐藏行。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeVisibleChecks))]
+    private void CheckVisible() => SetCheckedSelection(GetVisibleCustomers(), true);
+
+    /// <summary>清空当前已加载页筛选结果的勾选，保留隐藏行。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeVisibleChecks))]
+    private void UncheckVisible() => SetCheckedSelection(GetVisibleCustomers(), false);
+
+    /// <summary>以表格使用的默认集合视图限定范围，排除已删除行和占位符。</summary>
+    private CustomerLineModel[] GetVisibleCustomers() => CollectionViewSource.GetDefaultView(Customers.Items)
+        .Cast<object>().OfType<CustomerLineModel>().Where(row => !row.IsDeleted).ToArray();
+
+    private bool CanChangeVisibleChecks() => CanRun() && GetVisibleCustomers().Length > 0;
+
+    /// <summary>执行时重新检查范围，拒绝空选区、换页前快照及已隐藏的行，不回退到当前行。</summary>
+    private bool CanChangeCheckedSelection(IReadOnlyList<CustomerLineModel>? rows)
+    {
+        if (!CanRun() || rows is not { Count: > 0 }) return false;
+        var visible = GetVisibleCustomers().ToHashSet();
+        return rows.All(visible.Contains);
+    }
+
+    /// <summary>只改变 UI 勾选状态并复用列表通知合并；不抑制模型通知、不制造业务脏状态。</summary>
+    private void SetCheckedSelection(IReadOnlyList<CustomerLineModel>? rows, bool? value)
+    {
+        if (!CanChangeCheckedSelection(rows)) return;
+        using (Customers.SuppressListEvents())
+        {
+            foreach (var row in rows!.Distinct()) row.IsChecked = value ?? !row.IsChecked;
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanDelete))]

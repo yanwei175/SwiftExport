@@ -110,6 +110,18 @@
                     <i:Interaction.Behaviors>
                         <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
                     </i:Interaction.Behaviors>
+                    <DataGrid.ContextMenu>
+                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                     Opened="OnCheckMenuOpened" Closed="OnCheckMenuClosed"
+                                     AutomationProperties.Name="客户批量勾选">
+                            <MenuItem Header="勾选选区内行" Command="{Binding CheckSelectionCommand}" />
+                            <MenuItem Header="取消勾选选区内行" Command="{Binding UncheckSelectionCommand}" />
+                            <MenuItem Header="反选选区内行" Command="{Binding InvertSelectionCommand}" />
+                            <Separator />
+                            <MenuItem Header="全选当前筛选结果（本页）" Command="{Binding CheckVisibleCommand}" />
+                            <MenuItem Header="清空当前筛选结果勾选（本页）" Command="{Binding UncheckVisibleCommand}" />
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
                     <DataGrid.Columns>
                         <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                             <DataGridTemplateColumn.HeaderTemplate>

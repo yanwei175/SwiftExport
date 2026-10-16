@@ -361,7 +361,8 @@ public sealed class CustomerDictionaryColumnsTests
         return string.Empty;
     }
 
-    private sealed class ReferenceDataCacheStub : IReferenceDataCacheService
+    /// <summary>为客户页面测试提供离线字典缓存，不连接业务服务。</summary>
+    internal sealed class ReferenceDataCacheStub : IReferenceDataCacheService
     {
         private readonly ObservableCollection<SysDictDataDto> _dictionaryValues;
         private readonly ObservableCollection<SysDicCurrencyDto> _currencies;
