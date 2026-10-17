@@ -174,6 +174,8 @@
                                          OffContent="BOM 关闭"
                                          OnContent="BOM 打开"
                                          IsChecked="{Binding BomDrawer.IsOpen, Mode=OneWay}"
+                                         ToolTip="{Binding BomDrawer.EntryHint}" ToolTipService.ShowOnDisabled="True"
+                                         AutomationProperties.HelpText="{Binding BomDrawer.EntryHint}"
                                          Command="{Binding BomDrawer.ToggleCommand}"
                                          CommandParameter="{Binding SelectedLine}" />
                     </StackPanel>
@@ -233,6 +235,7 @@
                           CurrentItem="{Binding SelectedLine, Mode=TwoWay}">
                     <i:Interaction.Behaviors>
                         <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
+                        <fill:DataGridColumnVisibilityBehavior />
                     </i:Interaction.Behaviors>
                         <DataGrid.Columns>
 
@@ -434,19 +437,32 @@
                             </DataGridTemplateColumn>
 
 
-                            <DataGridTextColumn Header="BOM" Width="110" IsReadOnly="True"
-                                            Binding="{Binding BomNo, Mode=OneWay}"
-                                            ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
-                                            EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                            <DataGridTemplateColumn Header="BOM" Width="110" SortMemberPath="BomNo" gridCore:GridValidation.FieldPath="BomNo" ClipboardContentBinding="{Binding BomNo, Mode=OneWay}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding BomNo}" Style="{StaticResource SwiftExportDataGridTextBlock}"/></DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding BomNo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="自定义 BOM 编号">
+                                            <TextBox.Style>
+                                                <Style TargetType="TextBox" BasedOn="{StaticResource SwiftExportDataGridWarpTextBox}">
+                                                    <Setter Property="IsReadOnly" Value="True"/>
+                                                    <Style.Triggers><DataTrigger Binding="{Binding CanEditBomNo}" Value="True"><Setter Property="IsReadOnly" Value="False"/></DataTrigger></Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
 
-                            <DataGridTemplateColumn Header="需要 BOM" Width="90" SortMemberPath="BomVersion">
+                            <DataGridTemplateColumn Header="需要 BOM" Width="90" SortMemberPath="BomVersion" gridCore:GridValidation.FieldPath="RequiresBom" ClipboardContentBinding="{Binding RequiresBom, Mode=OneWay}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="需要 BOM"
                                                   IsChecked="{Binding RequiresBom, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                   ToolTip="{Binding BomRequirementHint}" ToolTipService.ShowOnDisabled="True" AutomationProperties.HelpText="{Binding BomRequirementHint}">
                                             <CheckBox.Style>
-                                                <Style TargetType="CheckBox">
+                                                <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
                                                     <Setter Property="IsEnabled" Value="False"/>
                                                     <Style.Triggers>
                                                         <MultiDataTrigger>

@@ -29,6 +29,32 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class BomManagerTests
 {
+    /// <summary>来源条件默认开启，取消后查询与分页透传条件，集合和总数完全取自服务端。</summary>
+    [TestMethod]
+    public async Task SourceComponentsFilter_ForwardsToggleAndPreservesServerPage()
+    {
+        var requests = new List<BomProductSearchRequest>();
+        var api = Proxy<IBomApi>((method, args) =>
+        {
+            Assert.AreEqual("SearchProductsAsync", method.Name); var request = (BomProductSearchRequest)args![0]!; requests.Add(request);
+            return Task.FromResult(ServiceResult<PagedResponseBase<BomProductListItemDto>>.Ok(new()
+            {
+                PageIndex = request.PageIndex, PageSize = request.PageSize, TotalCount = request.HasComponents ? 23 : 73,
+                Items = request.HasComponents ? [new() { Uid = Guid.NewGuid(), ComponentCount = 2 }]
+                    : [new() { Uid = Guid.NewGuid(), ComponentCount = 0 }, new() { Uid = Guid.NewGuid(), ComponentCount = 2 }]
+            }));
+        });
+        using var vm = new BomSourcePickerViewModel(api, new ApiCallRunner(NullLogger<ApiCallRunner>.Instance), Guid.NewGuid());
+        Assert.IsTrue(vm.HasComponents); await vm.LoadAsync(); Assert.AreEqual(23, vm.TotalCount);
+        vm.HasComponents = false; await vm.SearchCommand.ExecuteAsync(null);
+        Assert.AreEqual(73, vm.TotalCount); Assert.AreEqual(2, vm.Products.Count); Assert.AreEqual(0, vm.Products[0].ComponentCount);
+        await vm.PageChangeCommand.ExecuteAsync(new PageChangeRequest { NewIndex = 2, NewSize = 50 });
+        Assert.IsTrue(requests[0].HasComponents); Assert.IsTrue(requests.All(request => request.IsBound == true));
+        Assert.IsFalse(requests[^1].HasComponents); Assert.AreEqual(2, requests[^1].PageIndex); Assert.AreEqual(50, requests[^1].PageSize);
+        vm.HasComponents = true; await vm.SearchCommand.ExecuteAsync(null);
+        Assert.IsTrue(requests[^1].HasComponents); Assert.AreEqual(1, requests[^1].PageIndex);
+    }
+
     /// <summary>管理页完整接纳服务端成品分页；三种供货方式均可绑定或编辑，不在分页后筛行。</summary>
     [TestMethod]
     [DataRow(SupplyTypeEnums.生产, false)] [DataRow(SupplyTypeEnums.采购, false)] [DataRow(SupplyTypeEnums.外协, false)]

@@ -48,6 +48,16 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     public BomListModel Boms { get; } = new();
     public ObservableCollection<ProductLookupDto> ProductCandidates { get; } = [];
     public bool HasChanges => Boms.HasChanges;
+    /// <summary>解释真实物料入口的禁用或待保存状态，不把本地编号当作服务器绑定。</summary>
+    public string EntryHint => (_pendingProduct ?? ActiveProduct) switch
+    {
+        null => "请先选择成品。",
+        { MaterialType: not MaterialTypesEnum.成品 } => "只有成品可以维护 BOM。",
+        { RequiresBom: false } => "请先勾选需要 BOM 并保存物料。",
+        { BomNo: null or "" } => "请填写自定义 BOM 编号并保存，或到 BOM 管理页建立或绑定。",
+        { IsBomBindingSaved: false } => "BOM 编号尚未保存，请先保存物料后维护组成。",
+        _ => "打开或关闭当前成品的 BOM 组成。"
+    };
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddItemCommand))]
@@ -79,6 +89,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     public void NotifyProductSelection(ProductLineModel? product)
     {
         _pendingProduct = product;
+        OnPropertyChanged(nameof(EntryHint));
         ToggleCommand.NotifyCanExecuteChanged();
         if (IsOpen)
         {
@@ -89,6 +100,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     /// <summary>由物料列表既有行变化事件刷新入口；失去成品资格时使在途组成失效，保留本地草稿。</summary>
     public void NotifyParentEligibilityChanged()
     {
+        OnPropertyChanged(nameof(EntryHint));
         ToggleCommand.NotifyCanExecuteChanged();
         AddItemCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
@@ -140,7 +152,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     }
 
     /// <summary>父件资格取当前行的物料类型，不缓存打开时状态，也不排除采购或外协成品。</summary>
-    private bool CanAddItem() => IsOpen && ActiveProduct is { MaterialType: MaterialTypesEnum.成品, RequiresBom: true } && !string.IsNullOrWhiteSpace(ActiveProduct.BomNo);
+    private bool CanAddItem() => IsOpen && ActiveProduct is { MaterialType: MaterialTypesEnum.成品, RequiresBom: true, IsBomBindingSaved: true };
 
     /// <summary>父件失去成品资格后保留已有草稿，不再允许删除组成。</summary>
     [RelayCommand(CanExecute = nameof(CanDeleteItem))]
@@ -277,7 +289,12 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 
         if (string.IsNullOrWhiteSpace(product.BomNo))
         {
-            StatusText = $"产品 {product.Sku} 尚未建立 BOM。";
+            StatusText = "请填写自定义 BOM 编号并保存，或到 BOM 管理页建立或绑定。";
+            return;
+        }
+        if (!product.IsBomBindingSaved)
+        {
+            StatusText = "BOM 编号尚未保存，请先保存物料后维护组成。";
             return;
         }
 
@@ -286,7 +303,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         var result = await _apiCallRunner.RunAsync(() => _bomApi.GetBomByBomNo(bomNo), "加载 BOM 失败");
         if (version != Volatile.Read(ref _loadVersion)) return;
         // 等待期间可在物料表修改类型或编号，旧响应不能重新接纳到变化后的父件。
-        if (product.MaterialType != MaterialTypesEnum.成品 || !product.RequiresBom || product.BomNo != bomNo)
+        if (product.MaterialType != MaterialTypesEnum.成品 || !product.IsBomBindingSaved || product.BomNo != bomNo)
         {
             StatusText = "物料类型或 BOM 编号已变化，请重新选择或刷新。";
             return;

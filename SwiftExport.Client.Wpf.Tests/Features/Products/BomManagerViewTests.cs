@@ -13,6 +13,16 @@ using SwiftExport.Contracts.DTOs.Products;
 using SwiftExportClient.Features.Products.Bom.Views;
 using SwiftExportClient.Features.Products.Components;
 using SwiftExportClient.Resources.Controls;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExport.Contracts.Apis.ProductApis;
+using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.Wrappers;
+using SwiftExportClient.Features.Products.Bom.ViewModels;
+using SwiftExportClient.Services.Api;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 
@@ -20,6 +30,45 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass] [DoNotParallelize]
 public sealed class BomManagerViewTests
 {
+    /// <summary>真实来源表保持只读、选择复制与统一行高列样式，两处 BOM 主表使用现有查看菜单。</summary>
+    [TestMethod]
+    public void SourcePicker_ReadOnlyFilterAndColumnMenusUseActualViews() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load();
+        var fixture = new BomManagerTests.Fixture(); using var manager = fixture.Create(); await manager.SearchCommand.ExecuteAsync(null);
+        var managerView = new BomManagerView { DataContext = manager };
+        BomProductSearchRequest? sent = null;
+        var api = BomManagerTests.Proxy<IBomApi>((_, args) =>
+        {
+            sent = (BomProductSearchRequest)args![0]!;
+            return Task.FromResult(ServiceResult<PagedResponseBase<BomProductListItemDto>>.Ok(new()
+            { TotalCount = 37, Items = [new() { Uid = Guid.NewGuid(), Sku = "SOURCE", BomNo = "BOM", IsBound = true, ComponentCount = 2 }] }));
+        });
+        using var source = new BomSourcePickerViewModel(api, new ApiCallRunner(NullLogger<ApiCallRunner>.Instance), Guid.NewGuid());
+        await source.LoadAsync();
+        var sourceView = new BomSourcePickerView { DataContext = source };
+        var window = new Window { Content = managerView, Width = 1400, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var managerGrid = (DataGrid)managerView.FindName("ProductGrid");
+            Assert.AreEqual("查看", ((MenuItem)managerGrid.ContextMenu.Items[0]).Header);
+            var height = managerGrid.RowHeight;
+            window.Content = sourceView; await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = FindChild<DataGrid>(sourceView)!; Assert.IsTrue(grid.IsReadOnly); Assert.AreEqual(height, grid.RowHeight);
+            Assert.IsFalse(grid.BeginEdit()); Assert.IsTrue(source.IsPrimaryButtonEnabled); Assert.AreEqual(37, source.TotalCount);
+            Assert.AreSame(grid.FindResource("SwiftExportDataGridWarpTextBlock"), ((DataGridTextColumn)grid.Columns[1]).ElementStyle);
+            Assert.AreSame(grid.FindResource("SwiftExportDataGridNumberTextBlock"), ((DataGridTextColumn)grid.Columns[4]).ElementStyle);
+            var checkbox = FindChild<CheckBox>(sourceView)!; Assert.IsTrue(checkbox.IsChecked);
+            ((IToggleProvider)new CheckBoxAutomationPeer(checkbox).GetPattern(PatternInterface.Toggle)!).Toggle();
+            await source.SearchCommand.ExecuteAsync(null); Assert.IsFalse(sent!.HasComponents);
+            var menu = grid.ContextMenu; Assert.AreEqual("查看", ((MenuItem)menu.Items[0]).Header);
+            menu.PlacementTarget = grid; menu.IsOpen = true; await Dispatcher.Yield(DispatcherPriority.Background);
+            var columns = (MenuItem)menu.Items[0]; Assert.IsTrue(columns.Items.Count > 0); menu.IsOpen = false;
+        }
+        finally { window.Close(); }
+    });
+
     /// <summary>真实分子编辑阻断非法整数；Lookup 完整回填，原生 Esc/Tab 编辑路由仍有效。</summary>
     [TestMethod]
     public void View_UsesActualResourcesBindingsAndNativeEditing() => DatePickerAssistTests.RunWithApplication(async () =>
