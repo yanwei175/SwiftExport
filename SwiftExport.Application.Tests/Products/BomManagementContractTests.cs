@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
+using Newtonsoft.Json;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Services.Products.BomManagement;
 using SwiftExport.Contracts.Apis.ProductApis;
@@ -27,6 +28,15 @@ namespace SwiftExport.Application.Tests.Products;
 [TestClass]
 public sealed class BomManagementContractTests
 {
+    /// <summary>子件筛选只在 true 时启用；旧客户端省略字段及显式 false 均保持原列表范围。</summary>
+    [TestMethod]
+    public void HasComponents_OmittedOrFalseDoesNotEnableFilter()
+    {
+        Assert.IsFalse(JsonConvert.DeserializeObject<BomProductSearchRequest>("{}")!.HasComponents);
+        Assert.IsFalse(JsonConvert.DeserializeObject<BomProductSearchRequest>("{\"HasComponents\":false}")!.HasComponents);
+        Assert.IsTrue(JsonConvert.DeserializeObject<BomProductSearchRequest>("{\"HasComponents\":true}")!.HasComponents);
+    }
+
     /// <summary>前后端路由一致，绑定请求只有三个窄字段，读取链有 CancellationToken。</summary>
     [TestMethod]
     public void ApiContracts_MatchControllersAndKeepNarrowWrite()
@@ -66,7 +76,7 @@ public sealed class BomManagementContractTests
     {
         var calls = 0; using var cts = new CancellationTokenSource();
         var repository = Proxy<IBomManagementQueryRepository>((_, args) =>
-        { calls++; Assert.AreEqual(cts.Token, args![1]); return Task.FromResult(new PagedResponseBase<BomProductListItemDto>()); });
+        { calls++; Assert.AreEqual(cts.Token, args![1]); Assert.IsTrue(((BomProductSearchRequest)args[0]!).HasComponents); return Task.FromResult(new PagedResponseBase<BomProductListItemDto>()); });
         var service = new BomManagementQueryService(repository, NullLogger<BomManagementQueryService>.Instance);
         foreach (var request in new BomProductSearchRequest[]
         { new() { PageIndex = 0 }, new() { PageSize = 201 }, new() { PageIndex = int.MaxValue, PageSize = 200 }, new() { Keyword = new string('x', 201) }, new() { ColorIds = Enumerable.Repeat(Guid.NewGuid(), 301).ToList() } })
@@ -74,7 +84,7 @@ public sealed class BomManagementContractTests
             Assert.IsFalse((await service.SearchProductsAsync(request, cts.Token)).Success);
         }
         Assert.AreEqual(0, calls);
-        Assert.IsTrue((await service.SearchProductsAsync(new(), cts.Token)).Success); Assert.AreEqual(1, calls);
+        Assert.IsTrue((await service.SearchProductsAsync(new() { HasComponents = true }, cts.Token)).Success); Assert.AreEqual(1, calls);
         Assert.IsFalse((await service.GetNumberInfoAsync(" ", cts.Token)).Success); Assert.AreEqual(1, calls);
     }
 

@@ -13,6 +13,8 @@ public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext
 {
     // 编号归组保持现有 ICU 和尾部 ASCII 空格等值规则，正标记只表达有效性。
     private const string Bound = "p.bom_version>0 AND p.bom_no IS NOT NULL AND btrim(p.bom_no,' ')<>''";
+    // 筛选与投影复用同一有效子件口径；只有实际绑定才计数，未删但非正标记的历史行不计入。
+    private const string CurrentComponentCount = "CASE WHEN " + Bound + " THEN COALESCE(components.current_count,0) ELSE 0 END";
     private const string Groups = """
         WITH parents AS (
             SELECT rtrim(bom_no,' ') COLLATE public.erp_dictionary_ci AS code,count(*)::integer AS parent_count
@@ -35,6 +37,7 @@ public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext
         parameters.Add("EmptyGuid", Guid.Empty);
         var filters = new List<string> { "p.is_deleted=FALSE", "p.material_type='成品'", "p.bom_version>0" };
         if (request.IsBound.HasValue) filters.Add(request.IsBound.Value ? $"({Bound})" : $"NOT COALESCE(({Bound}),FALSE)");
+        if (request.HasComponents) filters.Add($"({CurrentComponentCount})>0");
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
@@ -70,7 +73,7 @@ public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext
                     ELSE COALESCE(category.category_name,'分类已失效') END AS "CategoryName",
                 p.supply_type AS "SupplyType",p.unit AS "Unit",p.bom_no AS "BomNo",p.bom_version AS "BomVersion",
                 COALESCE(({Bound}),FALSE) AS "IsBound",
-                CASE WHEN {Bound} THEN COALESCE(components.current_count,0) ELSE 0 END AS "ComponentCount",
+                {CurrentComponentCount} AS "ComponentCount",
                 CASE WHEN {Bound} THEN COALESCE(parents.parent_count,0) ELSE 0 END AS "SharedProductCount"
             {from} ORDER BY p.sku COLLATE public.erp_dictionary_ci,p.uid OFFSET @Offset LIMIT @PageSize;
             """;

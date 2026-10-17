@@ -27,6 +27,8 @@ GrossDemandDecompositionPlanner 当前建立根及直接客供子件，不是任
 
 物料列表与详情以“需要 BOM”勾选表达需求。未绑定时允许取消为 0；已有绑定不允许直接取消、清编号或换组，包括尚未录入组成的绑定。专用建立/绑定要求先保存正需求标记，并保留已有正数。详情通过可选 RequiresBom 传递意图：省略/null 保持，true 保留正数或设为 1，false 申请归零并接受绑定保护；详情不开放 BomNo 写入。0 配非空编号及负标记仍拒绝，不自动清理历史数据。
 
+复制来源选择器默认勾选“BOM 子件数大于 0”，通过 BomProductSearchRequest.HasComponents 在服务端分页前筛选；仅实际绑定且未删除、正标记组成行计入有效子件数。false 或省略不限制子件数，普通管理页默认仍保留待建立项。物料管理列表允许未绑定且需要 BOM 的成品自定义编号，普通保存首次建立或绑定；已有绑定不能直接换号或清号。编号草稿尚未保存时，抽屉提示先保存，不将本地编号当作已保存组成入口。
+
 ## 源码入口
 
 - [BomService](../../../SwiftExport.Application/Services/Products/BomService.cs)

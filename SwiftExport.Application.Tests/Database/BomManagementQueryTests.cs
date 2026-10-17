@@ -9,6 +9,39 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>真实 Dapper 的管理查询与窄更新离线回归；记录 SQL、参数和结果，不访问实例。</summary>
 public sealed partial class PostgreSqlRepositoryTests
 {
+    /// <summary>有效子件筛选在数据库分页前执行，count/list 与子件投影同口径；取消勾选不限制空组成或待建立项。</summary>
+    [TestMethod]
+    [DataRow(null, true)] [DataRow(true, true)] [DataRow(false, true)]
+    [DataRow(null, false)] [DataRow(true, false)] [DataRow(false, false)]
+    public async Task BomManagement_HasComponentsFiltersCountAndPage(bool? bound, bool hasComponents)
+    {
+        using var fixture = new Fixture();
+        var count = new DataTable(); count.Columns.Add("Total", typeof(int)); count.Rows.Add(0);
+        var rows = new DataTable(); rows.Columns.Add("Uid", typeof(Guid));
+        fixture.Connection.ResultSets = [count, rows];
+        var page = await new PostgreSqlBomManagementQueryRepository(DictionaryContext(fixture)).SearchProductsAsync(new()
+        { IsBound = bound, HasComponents = hasComponents, Keyword = "custom%", PageIndex = 2, PageSize = 5 }, default);
+        Assert.AreEqual(0, page.TotalCount); Assert.HasCount(0, page.Items);
+        Assert.AreEqual(5, fixture.Connection.Values["Offset"]);
+        Assert.AreEqual("%custom~%%", fixture.Connection.Values["Keyword"]);
+        var sql = fixture.Connection.Text;
+        const string projection = "CASE WHEN p.bom_version>0 AND p.bom_no IS NOT NULL AND btrim(p.bom_no,' ')<>'' THEN COALESCE(components.current_count,0) ELSE 0 END";
+        var predicate = "(" + projection + ")>0";
+        StringAssert.Contains(sql, projection + " AS \"ComponentCount\"");
+        Assert.AreEqual(hasComponents ? 2 : 0, sql.Split(predicate, StringSplitOptions.None).Length - 1,
+            "有效子件筛选必须同时出现在总数和分页中；false 不代表仅查空组成。");
+        var whereParts = sql.Split("WHERE p.is_deleted=FALSE", StringSplitOptions.None);
+        Assert.AreEqual(3, whereParts.Length);
+        var countWhere = whereParts[1].Split(';')[0].Trim();
+        var pageWhere = whereParts[2].Split("ORDER BY", StringSplitOptions.None)[0].Trim();
+        Assert.AreEqual(countWhere, pageWhere, "总数和页数据必须使用完全相同的组合筛选。");
+        StringAssert.Contains(sql, "count(*) FILTER(WHERE bom_version>0)::integer AS current_count");
+        StringAssert.Contains(sql, "FROM public.bom WHERE is_deleted=FALSE GROUP BY");
+        Assert.IsFalse(countWhere.Contains("stored_count", StringComparison.Ordinal), "不能用仅有历史或无效行的物理数量判定有效子件。");
+        if (bound == false) StringAssert.Contains(countWhere, "NOT COALESCE((p.bom_version>0");
+        Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
+    }
+
     /// <summary>固定需要 BOM 的成品，count/list 同范围且稳定排序；真实共享引用统计不随列表资格缩减。</summary>
     [TestMethod]
     [DataRow(null)] [DataRow(true)] [DataRow(false)]
