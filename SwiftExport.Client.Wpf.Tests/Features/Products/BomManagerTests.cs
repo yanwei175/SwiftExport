@@ -29,6 +29,54 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class BomManagerTests
 {
+    /// <summary>管理页完整接纳服务端成品分页；三种供货方式均可绑定或编辑，不在分页后筛行。</summary>
+    [TestMethod]
+    [DataRow(SupplyTypeEnums.生产, false)] [DataRow(SupplyTypeEnums.采购, false)] [DataRow(SupplyTypeEnums.外协, false)]
+    [DataRow(SupplyTypeEnums.生产, true)] [DataRow(SupplyTypeEnums.采购, true)] [DataRow(SupplyTypeEnums.外协, true)]
+    public async Task Search_AllSupplyTypesKeepServerPageAndParentActions(string supplyType, bool isBound)
+    {
+        var fixture = new Fixture();
+        fixture.Search = (request, _) =>
+        {
+            Assert.IsNull(request.IsBound, "默认管理页必须包含未绑定成品。");
+            return Task.FromResult(ServiceResult<PagedResponseBase<BomProductListItemDto>>.Ok(new()
+            {
+                PageIndex = request.PageIndex, PageSize = request.PageSize, TotalCount = 137,
+                Items = [new() { Uid = Guid.NewGuid(), Sku = "ROOT", SupplyType = supplyType, IsBound = isBound, BomNo = isBound ? "ROOT" : string.Empty, Version = 3 }]
+            }));
+        };
+        using var vm = fixture.Create();
+        await vm.SearchCommand.ExecuteAsync(null);
+        Assert.AreEqual(137, vm.TotalCount);
+        Assert.AreEqual(supplyType, vm.Products.Single().SupplyType);
+        Assert.AreEqual(!isBound, vm.BindCommand.CanExecute(null));
+        Assert.AreEqual(isBound, vm.CanEditComponents);
+        Assert.AreEqual(isBound, vm.AddItemCommand.CanExecute(null));
+    }
+
+    /// <summary>子件选择不附加父件成品规则，四类子件及既有成品候选均可接纳。</summary>
+    [TestMethod]
+    [DataRow(MaterialTypesEnum.零件)] [DataRow(MaterialTypesEnum.虚拟件)]
+    [DataRow(MaterialTypesEnum.客供件)] [DataRow(MaterialTypesEnum.包材)] [DataRow(MaterialTypesEnum.成品)]
+    public async Task Lookup_AllExistingChildTypesRemainSelectable(string materialType)
+    {
+        var fixture = new Fixture();
+        var candidate = new ProductLookupDto { Uid = Guid.NewGuid(), Sku = "CHILD", MaterialType = materialType };
+        fixture.Lookup = (request, _) =>
+        {
+            Assert.IsNull(request.MaterialType);
+            Assert.IsFalse(request.ActiveOnly);
+            return Task.FromResult(ServiceResult<List<ProductLookupDto>>.Ok([candidate]));
+        };
+        using var vm = fixture.Create(); await vm.SearchCommand.ExecuteAsync(null);
+        await vm.SearchProductsCommand.ExecuteAsync("CHILD");
+        vm.SelectedCandidate = vm.ProductCandidates.Single();
+        var line = vm.Boms.Items.Single();
+        vm.CommitProductCommand.Execute(line);
+        Assert.AreEqual(candidate.Uid, line.SubSkuId);
+        Assert.AreEqual("CHILD", line.SubSku);
+    }
+
     /// <summary>复制为目标下新增，保留组件资料但清除来源身份、版本、审计，来源完全不变。</summary>
     [TestMethod]
     public void Copy_ResetsIdentityAndCannotReplaceNonemptyTarget()
