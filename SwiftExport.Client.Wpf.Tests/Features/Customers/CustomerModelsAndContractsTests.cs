@@ -135,7 +135,7 @@ public sealed class CustomerModelsAndContractsTests
         var customerGroup = registry.MenuItems.Single(item => item.RouteKey == "customers");
         Assert.AreEqual("客户", customerGroup.Title);
         CollectionAssert.AreEqual(
-            new[] { "customers", CustomerProductWorkspaceViewModel.RouteKey },
+            new[] { "customers", CustomerProductWorkspaceViewModel.RouteKey, "customer-po-configs" },
             customerGroup.Children.Select(item => item.RouteKey).ToArray());
     }
 

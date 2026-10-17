@@ -1,3 +1,9 @@
+using System.Reflection;
+using Refit;
+using SwiftExport.Contracts.Apis.CustomerApis;
+using SwiftExport.Contracts.DTOs.Customers;
+using SwiftExport.Application.Interfaces.Customers.Management;
+using SwiftExport.Application.Tests.Customers;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -58,6 +64,48 @@ public sealed class EndpointPermissionHttpTests
         CollectionAssert.AreEqual(new[] { "Sales.Order.View", "Sales.Order.View" }, permission.Keys);
     }
 
+    /// <summary>通过真实 Refit、HTTP 路由和权限过滤器读取完整客户快照，撤权后不进入服务。</summary>
+    [TestMethod]
+    public async Task CustomerGetAll_RefitAndHttpRoutePreserveSnapshotAndPermission()
+    {
+        var permission = new PermissionStub("Customers.Customer.View") { Allowed = true };
+        var calls = 0;
+        var rows = Enumerable.Range(0, 251).Select(i => new CustomerDto { Uid = Guid.NewGuid(), Version = 9,
+            CustomerCode = $"C{i}", CustomerName = $"客户{i}" }).ToArray();
+        var service = DispatchProxy.Create<ICustomerService, CustomerUpdateConcurrencyTests.RepositoryProbe>();
+        ((CustomerUpdateConcurrencyTests.RepositoryProbe)(object)service).Handler = (method, args) =>
+        {
+            Assert.AreEqual("GetAllAsync", method.Name);
+            Assert.IsTrue(((CancellationToken)args![0]!).CanBeCanceled);
+            calls++;
+            return Task.FromResult(ServiceResult<IReadOnlyList<CustomerDto>>.Ok(rows));
+        };
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Production" });
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddSingleton(service);
+        builder.Services.AddControllers(options =>
+        {
+            options.Filters.Add(new EndpointPermissionFilter(new UserStub(), permission));
+            options.Filters.Add<ServiceResultHttpFilter>();
+        }).AddApplicationPart(typeof(SalesOrderQueryController).Assembly);
+        await using var app = builder.Build();
+        app.MapControllers();
+        await app.StartAsync();
+        var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+        using var client = new HttpClient { BaseAddress = new Uri(address + "/api/Customer") };
+        var api = RestService.For<ICustomerApi>(client);
+        var result = await api.GetAllAsync();
+        Assert.IsTrue(result.Success);
+        Assert.HasCount(251, result.Data);
+        Assert.AreEqual(rows[250].Uid, result.Data[250].Uid);
+        Assert.AreEqual(9, result.Data[250].Version);
+        permission.Allowed = false;
+        var denied = await Assert.ThrowsAsync<ApiException>(() => api.GetAllAsync());
+        Assert.AreEqual(HttpStatusCode.Forbidden, denied.StatusCode);
+        Assert.AreEqual(1, calls);
+    }
+
     /// <summary>提供有效身份以精确隔离业务权限，不访问数据库。</summary>
     private sealed class UserStub : ICurrentUser
     {
@@ -67,7 +115,7 @@ public sealed class EndpointPermissionHttpTests
     }
 
     /// <summary>记录 HTTP 过滤器实际检查的键并模拟实时撤权。</summary>
-    private sealed class PermissionStub : IPermissionEvaluationService
+    private sealed class PermissionStub(string requiredPermission = "Sales.Order.View") : IPermissionEvaluationService
     {
         public bool Allowed { get; set; }
         public List<string> Keys { get; } = [];
@@ -76,7 +124,7 @@ public sealed class EndpointPermissionHttpTests
         public Task<bool> HasPermissionAsync(Guid userId, string permissionKey, CancellationToken cancellationToken = default)
         {
             Keys.Add(permissionKey);
-            return Task.FromResult(Allowed && permissionKey == "Sales.Order.View");
+            return Task.FromResult(Allowed && permissionKey == requiredPermission);
         }
     }
 

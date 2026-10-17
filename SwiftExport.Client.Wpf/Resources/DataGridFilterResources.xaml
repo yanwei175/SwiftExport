@@ -1,0 +1,132 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                    xmlns:dgx="urn:tom-englert.de/DataGridExtensions"
+                    xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+                    xmlns:commands="clr-namespace:SwiftExportClient.Resources.Commands"
+                    xmlns:behaviors="clr-namespace:SwiftExportClient.Resources.Behaviors"
+                    xmlns:componentModel="clr-namespace:System.ComponentModel;assembly=WindowsBase">
+    <SolidColorBrush x:Key="FilterSurfaceBrush" x:Shared="False" Color="{DynamicResource SolidBackgroundFillColorBase}" />
+    <SolidColorBrush x:Key="FilterBorderBrush" x:Shared="False" Color="{DynamicResource CardStrokeColorDefault}" />
+
+    <DataTemplate x:Key="FilterValueTemplate">
+        <TextBlock x:Name="ValueText" Text="{Binding}" />
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding}" Value="">
+                <Setter TargetName="ValueText" Property="Text" Value="（空白）" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <Style x:Key="FilterButtonStyle" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="{DynamicResource UserControlFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource UserBusinessTextAccentBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SwiftExportMultipleChoiceFilterStyle" TargetType="{x:Type dgx:MultipleChoiceFilter}">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type dgx:MultipleChoiceFilter}">
+                    <Grid Margin="4,0,0,0">
+                        <ToggleButton x:Name="FilterButton" Style="{StaticResource FilterButtonStyle}"
+                                      Tag="{Binding RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      IsChecked="{Binding IsPopupOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                      ToolTip="筛选" AutomationProperties.Name="{Binding Path=(AutomationProperties.Name), RelativeSource={RelativeSource TemplatedParent}}">
+                            <Grid>
+                                <ui:SymbolIcon Symbol="Filter24" />
+                                <TextBlock x:Name="FilterActiveMarker" Text="●" FontSize="8" Margin="12,-4,-4,0"
+                                           VerticalAlignment="Top" Visibility="Collapsed" />
+                            </Grid>
+                        </ToggleButton>
+                        <Popup x:Name="Popup" AllowsTransparency="True" StaysOpen="False" Placement="Bottom"
+                               PlacementTarget="{Binding ElementName=FilterButton}"
+                               IsOpen="{Binding IsPopupOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                            <Popup.Resources>
+                                <CollectionViewSource x:Key="SortedValues" Source="{Binding Values, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <CollectionViewSource.SortDescriptions>
+                                        <componentModel:SortDescription />
+                                    </CollectionViewSource.SortDescriptions>
+                                </CollectionViewSource>
+                            </Popup.Resources>
+                            <i:Interaction.Behaviors>
+                                <behaviors:FilterPopupFocusBehavior />
+                            </i:Interaction.Behaviors>
+                            <Border Background="{DynamicResource FilterSurfaceBrush}" BorderBrush="{DynamicResource FilterBorderBrush}"
+                                    BorderThickness="1" CornerRadius="{DynamicResource ControlCornerRadius}" Padding="8" MinWidth="220"
+                                    TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                <DockPanel Background="Transparent" KeyboardNavigation.DirectionalNavigation="Cycle">
+                                    <StackPanel DockPanel.Dock="Top">
+                                        <ui:TextBox x:Name="SearchInput" Style="{StaticResource DefaultUiTextBoxStyle}" 
+                                                    ClearButtonEnabled="True"
+                                                    Margin="0,0,0,8"
+                                                 AutomationProperties.Name="搜索筛选值" ToolTip="搜索筛选值"
+                                                 Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}" />
+                                        <Grid Background="Transparent" Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <ToggleButton x:Name="SelectAll" HorizontalAlignment="Stretch"
+                                                          Content="{TemplateBinding SelectAllContent}"
+                                                          IsChecked="{Binding IsAllSelected, ElementName=SelectAllBehavior, Mode=TwoWay}" />
+                                            <Button x:Name="ClearAllFilters" Style="{StaticResource DefaultButtonStyle}"
+                                                    Grid.Column="1" Margin="8,0,0,0"
+                                                       Content="清除全部筛选" AutomationProperties.Name="清除全部筛选"
+                                                       Command="{x:Static commands:DataGridFilterCommands.Clear}"
+                                                       CommandParameter="{Binding Tag, ElementName=FilterButton}" />
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <ListBox x:Name="PART_ListBox" Style="{StaticResource DefaultListBoxStyle}"
+                                             Margin="0"
+                                             ItemsSource="{Binding Source={StaticResource SortedValues}}" SelectionMode="Multiple"
+                                             BorderThickness="0" Background="Transparent" MaxHeight="320"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto" AutomationProperties.Name="筛选候选值">
+                                        <i:Interaction.Behaviors>
+                                            <behaviors:FilterSelectAllBehavior x:Name="SelectAllBehavior" />
+                                        </i:Interaction.Behaviors>
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <CheckBox Style="{StaticResource DefaultCheckBoxStyle}" Padding="4" Margin="0,2"
+                                                                      Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                                      IsChecked="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                                                      Content="{TemplateBinding Content}" ContentTemplate="{StaticResource FilterValueTemplate}" />
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                    </ListBox>
+                                </DockPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="HasTextFilter" Value="False">
+                            <Setter TargetName="SearchInput" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <DataTrigger Binding="{Binding Filter.IsFiltered, RelativeSource={RelativeSource Self}}" Value="True">
+                            <Setter TargetName="FilterActiveMarker" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="FilterButton" Property="ToolTip" Value="已筛选" />
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

@@ -128,6 +128,14 @@ public sealed class PostgreSqlCustomerRepository(RepositoryBaseContext context) 
             $"SELECT c.customer_code AS \"CustomerCode\" FROM public.customer c WHERE {CodeInArray};", parameters, Transaction))).AsList();
     }
 
+    /// <summary>全量管理读取复用分页投影及软删除口径，不限制页数；取消令牌传至数据库命令。</summary>
+    public async Task<IReadOnlyList<CustomerDto>> GetAllForManagementAsync(CancellationToken cancellationToken = default) =>
+        (await Connection.QueryAsync<CustomerDto>(new CommandDefinition($"""
+            SELECT {DtoColumns} FROM public.customer c
+            WHERE COALESCE(c.is_deleted,FALSE)=FALSE
+            ORDER BY c.customer_code COLLATE public.erp_dictionary_ci,c.uid;
+            """, transaction: Transaction, cancellationToken: cancellationToken))).AsList();
+
     /// <summary>管理分页排除软删但保留停用客户，默认二十条、上限二百；关键词不预先 Trim。</summary>
     public async Task<PagedResponseBase<CustomerDto>> GetPagedAsync(CustomerSearchRequest request)
     {

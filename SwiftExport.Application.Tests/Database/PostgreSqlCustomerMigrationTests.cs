@@ -10,6 +10,26 @@ namespace SwiftExport.Application.Tests.Database;
 /// <summary>复用真实 Dapper 无网络夹具验证客户七个专用查询及继承 CRUD 的参数和字段边界。</summary>
 public sealed partial class PostgreSqlRepositoryTests
 {
+    /// <summary>全量查询没有分页上限，保留版本、删除口径和稳定排序；通过真实 Dapper 读取超过二百条。</summary>
+    [TestMethod]
+    public async Task CustomerQuery_GetAllReturnsCompleteManagementSnapshot()
+    {
+        using var fixture = new Fixture();
+        var repository = new PostgreSqlCustomerRepository(DictionaryContext(fixture));
+        fixture.Connection.Rows.Columns.Add("Uid", typeof(Guid));
+        fixture.Connection.Rows.Columns.Add("Version", typeof(int));
+        fixture.Connection.Rows.Columns.Add("CustomerCode", typeof(string));
+        for (var i = 0; i < 251; i++) fixture.Connection.Rows.Rows.Add(Guid.NewGuid(), 7, $"C{i:000}");
+        var rows = await repository.GetAllForManagementAsync();
+        Assert.HasCount(251, rows);
+        Assert.IsTrue(rows.All(row => row.Version == 7));
+        StringAssert.Contains(fixture.Connection.Text, "COALESCE(c.is_deleted,FALSE)=FALSE");
+        StringAssert.Contains(fixture.Connection.Text, "ORDER BY c.customer_code COLLATE public.erp_dictionary_ci,c.uid");
+        Assert.IsFalse(fixture.Connection.Text.Contains("LIMIT", StringComparison.Ordinal));
+        Assert.IsFalse(fixture.Connection.Text.Contains("is_active", StringComparison.Ordinal));
+        Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
+    }
+
     /// <summary>编码查询显式使用 ICU 与尾空格比较，存在性包含软删而实体读取排除软删并还原停用状态。</summary>
     [TestMethod]
     public async Task CustomerQuery_CodeComparisonAndEntityProjectionPreserveBoundaries()

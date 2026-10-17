@@ -80,6 +80,7 @@
 
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
+| GET `api/Customer/all` | GetAll | `Task<ServiceResult<IReadOnlyList<CustomerDto>>>` | 客户管理全量读取，Customers.Customer.View；传递取消令牌 |
 | POST `api/Customer/page` | GetPaged | `Task<ServiceResult<PagedResponseBase<CustomerDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Customers/Management/CustomerController.cs:17) |
 | POST `api/Customer/batch-save` | BatchSave | `Task<ServiceResult<CustomerBatchSaveResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Customers/Management/CustomerController.cs:22) |
 | GET `api/Customer/{id}` | GetById | `Task<ServiceResult<TDto>>` | [继承基类](../SwiftExport.WebApi/Controllers/Base/BaseController.cs:17) |

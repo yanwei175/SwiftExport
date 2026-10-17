@@ -1,4 +1,4 @@
-# WPF 企业级 DataGrid 工作流
+﻿# WPF 企业级 DataGrid 工作流
 
 ## 适用
 
@@ -81,3 +81,21 @@
 
 - 采购候选直接展示 ValidationDisplayMessage，退出无显示消费者的 GridValidation 挂载；保留模型业务通知和保存/预览校验。入出库数量删除无消费者的 NotifyOnValidationError=True，原生转换错误与提示不变。
 - 中性产品两处 Ctrl+D 由页面固定价格填充顺序：采购价、汇率、利润率先应用，选区明确包含美元售价时最后应用手动值（含 null）；未选择售价时保持模型自动计算。不得由列 DisplayIndex 决定最终价格，也不得抑制业务通知。覆盖正反字段顺序、空手动价、后续编辑计算及放弃修改。
+
+
+## 客户页独立筛选与列显隐（2026-10-17）
+
+客户页使用 DataGridExtensions 2.9.1 原生筛选及 GetAll 全量快照。库独占视图 Filter，只使用列条件；保留原生列、编辑验证与 WPF-UI 表头。禁止新增业务筛选协调器，模板内部纯 UI 交互由薄行为维护。
+
+客户页抽屉退出，已有 customer-products 独立工作区及其产品联动、保存和关闭保护保留。客户 VM 不再引用产品编辑器，不维护筛选等待状态，不在新增时清除筛选；隐藏草稿仍参与保存和关闭确认。编辑无效时保留原生反馈，修正或取消后用户重新操作筛选。
+
+DataGridColumnVisibilityBehavior 为普通 DataGrid 自动在首项加入“查看”菜单，没有菜单时创建；绑定原生列 Visibility、按 DisplayIndex 投影有文字标题的列，不持久化布局，不引用业务 VM 或筛选库。提交失败恢复菜单勾选并保留输入，不主动触发筛选重算。菜单关闭释放列投影，卸载/Detach 只清除自有内容，重载不重复挂接。
+
+回归覆盖：已有/无菜单、替换菜单、解绑重载、显隐外部同步、非法输入、筛选中新建与隐藏草稿、筛选结果勾选、独立产品工作区、原生编辑器命令和 Ctrl+D。客户页后台只保留构造函数，清除筛选使用公共 UI 命令；菜单打开/关闭事件退出。
+
+“查看”菜单图标使用公共资源中的 `ui:SymbolIcon Symbol="Grid16"`，通用 Behavior 不引用 WPF-UI 类型。选区勾选只支持 FullRow：MenuItem.CommandParameter 直接单向绑定 ContextMenu.PlacementTarget.SelectedItems。VM 接收 IList，执行时复制客户行并检查 Busy、模式、行归属及实际筛选范围；空集合直接返回，不补当前行。Cell 和 CellOrRowHeader 下禁用三个选区命令，由 IsCellSelectionMode 通知 CanExecute；全选、反选及表头勾选仍操作筛选结果。无需选区转换器、MultiBinding、菜单参数附加属性或打开/关闭事件，VM 不引用 DataGrid。
+
+
+共享 Resources/DataGrid.xaml 合并 DataGridFilterResources.xaml，提供 SwiftExportColumnFilter 和 SwiftExportFilterColumnHeader。命名筛选样式重写 MultipleChoiceFilter.ControlTemplate，按钮、输入框、复选框和列表显式使用 WPF-UI 样式及主题资源，Popup 允许透明；不再通过隐式样式或系统画刷键间接修改库模板。保留 PART_ListBox、Values/Text/IsPopupOpen 绑定及库的筛选算法。FilterPopupFocusBehavior 负责初始焦点、失焦与关闭键；FilterSelectAllBehavior 负责候选全选三态，不依赖业务 VM。模板样式使用静态引用，列表多选模式保留局部值，确保卸载清理旧选区时不会回退 Single；事件在 Detach 解除，排队焦点在关闭/卸载时取消。
+
+筛选 Popup 顶部左侧为全选 ToggleButton，右侧为“清除全部筛选”按钮；右键菜单中的清除入口退出。按钮绑定 Resources/Commands/DataGridFilterCommands.Clear，通过模板内 FilterButton.Tag 的祖先绑定取得宿主 DataGrid，不依赖业务 VM。Popup 空白布局背景参与命中，FilterPopupFocusBehavior 截断未处理的左键冒泡，避免触发列头排序。命令只访问 DataGrid，先提交 Cell/Row 编辑，失败保留原输入和条件，成功后调用 GetFilter().Clear()。客户页后台只保留 InitializeComponent；顶部搜索框、Keyword、SearchCommand、CustomerFilter 和 GlobalFilter 绑定退出。筛选隐藏的草稿仍参与保存及关闭保护。

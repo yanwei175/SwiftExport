@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -13,8 +13,20 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Components\**" />
+    <Compile Remove="Resources\AttachedProperties\**" />
+    <EmbeddedResource Remove="Components\**" />
+    <EmbeddedResource Remove="Resources\AttachedProperties\**" />
+    <None Remove="Components\**" />
+    <None Remove="Resources\AttachedProperties\**" />
+    <Page Remove="Components\**" />
+    <Page Remove="Resources\AttachedProperties\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="ClosedXML.Report" Version="0.2.12" />
+    <PackageReference Include="DataGridExtensions" Version="2.9.1" />
     <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Mapster" Version="10.0.10" />
@@ -44,12 +56,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Components\" />
     <Folder Include="Features\QualityControl\AfterSales\ViewModels\" />
     <Folder Include="Features\QualityControl\AfterSales\Models\" />
     <Folder Include="Features\Shipping\PackingLists\Models\" />
     <Folder Include="Features\Shipping\PackingLists\Services\" />
-    <Folder Include="Resources\AttachedProperties\" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
----
+﻿---
 name: wpf-grid-selection
 description: SwiftExport 原生 DataGrid 选择绑定和选区命令参数；用于 CurrentItem、SelectedItem、SelectedItems、SelectedCells 及活动样式。
 ---
@@ -8,8 +8,10 @@ description: SwiftExport 原生 DataGrid 选择绑定和选区命令参数；用
 ## 原生状态与绑定
 
 - 原生 DataGrid 是唯一选择和活动位置真相源，不恢复 GridSelection、CurrentRow、CurrentColumnKey 或 SelectionSnapshot 镜像。
-- 固定整行选择且需要选中项的页面直接绑定 SelectedItem；需要活动单元格所在行的页面绑定 CurrentItem，显式 Mode=TwoWay。
+- 整行业务选择及需要点击工具栏后仍保留客户的页面绑定 SelectedItem；只需要格内活动位置且允许失焦清空时才绑定 CurrentItem，显式 Mode=TwoWay。
 - CurrentItem 对应 CurrentCell.Item；SelectedItem 在多选时不一定是活动行。不要让二者双向绑定到同一个 VM 属性。
+- 原生 DataGrid 在单元格焦点离开整个表格时会清空 CurrentCell/CurrentItem，双向绑定也会回写 null；此行为不依赖列头或 DataGridExtensions。验收必须包含移焦到工具栏后执行命令，不能只测试程序化设置 CurrentCell。客户页业务 SelectedLine 绑定 SelectedItem，客户产品使用独立工作区，不伪造格选区的 SelectedItem。
+- CurrentItem 的双向绑定只更新 VM 属性，不会自动执行 RelayCommand。需要区分属性变化通知、命令触发和 CanExecute 门禁；排查时验证真实控件输入及业务调用，不以程序化 SelectedItem 或 Automation.Toggle 代替点击命令。
 - CurrentCell/CurrentColumn 直接使用原生属性；业务 VM 通常只需要数据项。
 - CurrentItem 不承诺在集合重置或移除行后自动清空；页面/列表用例负责清空或恢复有效项。程序化滚动在 Loaded 后由宿主显式 ScrollIntoView。
 - 不通过 Preview/冒泡鼠标补写选择，不自动 Focus、BeginEdit 或提交编辑；模板内命令直接传当前行参数。
@@ -31,3 +33,7 @@ description: SwiftExport 原生 DataGrid 选择绑定和选区命令参数；用
 原生活动项、编辑兼容、行号与软验证测试归客户端 Resources/DataGrid；现有填充行为测试归 Resources/Behaviors。
 覆盖原生 CurrentItem 双向绑定、列表用例清空活动项、选区与活动项区别及已有命令的选区读取。
 复用原生鼠标、F2、双击、键盘编辑兼容测试；不保留已退出的选择快照或“点击任意子控件强制选行”断言。
+
+## 客户菜单选区参数
+
+选区勾选只支持 FullRow：MenuItem.CommandParameter 直接单向绑定 ContextMenu.PlacementTarget.SelectedItems。VM 接收 IList，执行时复制客户行并检查 Busy、模式、行归属及实际筛选范围；空集合直接返回，不补当前行。Cell 和 CellOrRowHeader 下禁用三个选区命令，由 IsCellSelectionMode 通知 CanExecute；全选、反选及表头勾选仍操作筛选结果。无需选区转换器、MultiBinding、菜单参数附加属性或打开/关闭事件，VM 不引用 DataGrid。

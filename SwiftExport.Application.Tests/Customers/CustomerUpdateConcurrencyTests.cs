@@ -104,6 +104,35 @@ public sealed class CustomerUpdateConcurrencyTests
         }
     }
 
+    /// <summary>全量服务原样传递取消令牌和完整 DTO；取消不转成失败，异常响应不泄露技术细节。</summary>
+    [TestMethod]
+    public async Task GetAll_ShouldForwardCancellationAndSanitizeFailure()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var repository = DispatchProxy.Create<ICustomerRepository, RepositoryProbe>();
+        var probe = (RepositoryProbe)(object)repository;
+        IReadOnlyList<CustomerDto> rows = [new() { Uid = Guid.NewGuid(), Version = 12, CustomerCode = "C1" }];
+        probe.Handler = (method, args) =>
+        {
+            Assert.AreEqual("GetAllForManagementAsync", method.Name);
+            Assert.AreEqual(cancellation.Token, args![0]);
+            return Task.FromResult(rows);
+        };
+        var session = DispatchProxy.Create<IDbSession, RepositoryProbe>();
+        ((RepositoryProbe)(object)session).Handler = (_, _) => throw new NotSupportedException();
+        var service = new CustomerService(repository, null!, new ServiceBaseContext(session, NullLoggerFactory.Instance));
+        var result = await service.GetAllAsync(cancellation.Token);
+        Assert.IsTrue(result.Success);
+        Assert.AreSame(rows, result.Data);
+        probe.Handler = (_, _) => throw new InvalidOperationException("SQL_SECRET_MARKER");
+        var failure = await service.GetAllAsync(cancellation.Token);
+        Assert.IsFalse(failure.Success);
+        Assert.IsFalse(failure.Message.Contains("SQL_SECRET_MARKER", StringComparison.Ordinal));
+        cancellation.Cancel();
+        probe.Handler = (_, _) => Task.FromCanceled<IReadOnlyList<CustomerDto>>(cancellation.Token);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => service.GetAllAsync(cancellation.Token));
+    }
+
     /// <summary>仅代理本测试允许的仓储调用，会话不允许访问连接。</summary>
     public class RepositoryProbe : DispatchProxy
     {

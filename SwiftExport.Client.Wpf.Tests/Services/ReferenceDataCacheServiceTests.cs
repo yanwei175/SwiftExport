@@ -1237,6 +1237,7 @@ public sealed class ReferenceDataCacheServiceTests
     private sealed class CustomerApiStub(
         Func<CustomerSearchRequest, Task<ServiceResult<PagedResponseBase<CustomerDto>>>> getPage) : ICustomerApi
     {
+        public Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public List<int> RequestedPages { get; } = [];
         public List<int> RequestedPageSizes { get; } = [];
 

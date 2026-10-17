@@ -1,6 +1,7 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                    xmlns:dgx="urn:tom-englert.de/DataGridExtensions">
     
     <Style x:Key="SwiftReadOnlyFieldStyle" TargetType="Border">
 
@@ -25,9 +26,10 @@
         <Setter Property="CornerRadius" Value="4"/>
 
     </Style>
+
+
     
-    
-    
-    
-    
+
+
+
 </ResourceDictionary>

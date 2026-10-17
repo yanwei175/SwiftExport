@@ -1,3 +1,11 @@
+﻿using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Media;
+using System.Windows.Threading;
+using SwiftExport.Client.Wpf.Tests.Controls;
+using SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
+using SwiftExportClient.Features.Customers.CustomerManagement.Views;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.CustomerApis;
 using SwiftExport.Contracts.DTOs.Customers;
@@ -12,7 +20,9 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Customers;
 
+/// <summary>验证客户产品加载及真实客户页当前行、开关和主题接线。</summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class CustomerProductDrawerLoadingTests
 {
     [TestMethod]
@@ -35,7 +45,7 @@ public sealed class CustomerProductDrawerLoadingTests
             CustomerName = "客户一",
         });
 
-        await viewModel.ToggleCommand.ExecuteAsync(customer);
+        await viewModel.SelectCustomerAsync(customer);
 
         Assert.IsTrue(viewModel.IsOpen);
         Assert.AreSame(customer, viewModel.ActiveCustomer);
@@ -47,7 +57,7 @@ public sealed class CustomerProductDrawerLoadingTests
     }
 
     [TestMethod]
-    public async Task OpenDrawer_WhenCustomerChanges_ShouldReplaceResultsWithNewCustomer()
+    public async Task SelectCustomer_WhenCustomerChanges_ShouldReplaceResultsWithNewCustomer()
     {
         var firstCustomer = CreateCustomer(Guid.NewGuid(), "C001", "客户一");
         var secondCustomer = CreateCustomer(Guid.NewGuid(), "C002", "客户二");
@@ -59,8 +69,8 @@ public sealed class CustomerProductDrawerLoadingTests
             new MessageServiceStub(),
             new DialogServiceStub());
 
-        await viewModel.ToggleCommand.ExecuteAsync(firstCustomer);
-        viewModel.NotifyCustomerSelection(secondCustomer);
+        await viewModel.SelectCustomerAsync(firstCustomer);
+        await viewModel.SelectCustomerAsync(secondCustomer);
         await WaitForRequestCountAsync(api, 2);
 
         Assert.IsTrue(viewModel.IsOpen);
@@ -71,6 +81,95 @@ public sealed class CustomerProductDrawerLoadingTests
         Assert.HasCount(1, viewModel.Products.Items);
         Assert.AreEqual("CUSTOM-C002", viewModel.Products.Items[0].CustomerSku);
         Assert.IsFalse(viewModel.Products.Items.Any(item => item.CustomerId == firstCustomer.Uid));
+    }
+
+    /// <summary>进入整行选择后，业务选中客户在工具栏获得焦点时仍保留；客户页选中项变化不再加载产品。</summary>
+    [TestMethod]
+    [DataRow(DataGridSelectionUnit.FullRow)]
+    [DataRow(DataGridSelectionUnit.Cell)]
+    [DataRow(DataGridSelectionUnit.CellOrRowHeader)]
+    public void SelectedCustomer_ShouldSurviveToolbarFocusWithoutOpeningProducts(DataGridSelectionUnit unit) => WithPage(async (vm, view, grid, api) =>
+    {
+        var first = vm.Customers.Items[0];
+        var second = vm.Customers.Items[1];
+        grid.SetCurrentValue(DataGrid.SelectionUnitProperty, unit);
+        grid.ScrollIntoView(second, grid.Columns[1]);
+        grid.UpdateLayout();
+        var cell = (DataGridCell)grid.Columns[1].GetCellContent(second).Parent;
+        Assert.IsTrue(cell.Focus());
+        await Drain();
+        Assert.AreSame(second, grid.CurrentItem);
+        Assert.IsEmpty(api.Requests, "选中客户本身不自动打开抽屉。");
+        grid.SetCurrentValue(DataGrid.SelectionUnitProperty, DataGridSelectionUnit.FullRow);
+        grid.SelectedItem = second;
+        Assert.IsTrue(cell.Focus());
+        await Drain();
+        Assert.AreSame(second, vm.SelectedLine);
+        Assert.AreSame(second, vm.Customers.SelectedItem);
+        var button = Descendants(view).OfType<global::Wpf.Ui.Controls.Button>()
+            .Single(item => ReferenceEquals(item.Command, vm.AddRowCommand));
+        Assert.IsTrue(button.Focus());
+        await Drain();
+        Assert.IsNull(grid.CurrentItem);
+        Assert.AreSame(second, grid.SelectedItem);
+        Assert.AreSame(second, vm.SelectedLine);
+        grid.SelectedItem = first;
+        await Drain();
+        Assert.AreSame(first, vm.SelectedLine);
+        Assert.IsEmpty(api.Requests, "客户页选中项与产品工作区加载解耦。");
+    });
+
+    /// <summary>列头必须沿用 WPF-UI 的真实模板，库的筛选内容不能替换外层主题。</summary>
+    [TestMethod]
+    public void CustomerHeader_ShouldUseWpfUiTemplate() => WithPage((vm, view, grid, api) =>
+    {
+        var expected = (Style)view.FindResource("DefaultDataGridColumnHeaderStyle");
+        var template = expected.Setters.OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
+        var headers = Descendants(grid).OfType<DataGridColumnHeader>().Where(item => item.Column is not null).ToArray();
+        Assert.IsTrue(headers.Length > 1);
+        foreach (var header in headers)
+            Assert.AreSame(template, header.Template, "普通列和勾选列必须继承 WPF-UI 模板。");
+        Assert.IsFalse(grid.Columns[0].CanUserResize);
+        return Task.CompletedTask;
+    });
+
+    /// <summary>使用真实页面、资源和离线 API；卸载完成后才由宿主释放主题。</summary>
+    private static void WithPage(Func<CustomerManagerViewModel, CustomerManagerView, DataGrid, CustomerProductApiStub, Task> test) =>
+        DatePickerAssistTests.RunWithApplication(async () =>
+        {
+            ApplicationResourceLoader.Load();
+            var api = new CustomerProductApiStub();
+            var runner = new DirectApiCallRunner();
+            var messages = new MessageServiceStub();
+            var dialogs = new DialogServiceStub();
+            using var vm = new CustomerManagerViewModel(null!, runner, messages, dialogs,
+                new CustomerDictionaryColumnsTests.ReferenceDataCacheStub([]));
+            vm.Customers.LoadFromDtos([new CustomerDto { Uid = Guid.NewGuid(), Version = 1, CustomerCode = "C001", CustomerName = "客户一" },
+                new CustomerDto { Uid = Guid.NewGuid(), Version = 1, CustomerCode = "C002", CustomerName = "客户二" }]);
+            var view = new CustomerManagerView { DataContext = vm };
+            var window = new Window { Content = view, Width = 1600, Height = 750, ShowInTaskbar = false };
+            try
+            {
+                window.Show();
+                window.Activate();
+                await Task.Delay(600);
+                await Drain();
+                var grid = Descendants(view).OfType<DataGrid>().Single(item => ReferenceEquals(item.ItemsSource, vm.Customers.Items));
+                await test(vm, view, grid, api);
+            }
+            finally { window.Close(); await Drain(); }
+        });
+
+    private static Task Drain() => Dispatcher.CurrentDispatcher.InvokeAsync(() => { }, DispatcherPriority.Background).Task;
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            yield return child;
+            foreach (var descendant in Descendants(child)) yield return descendant;
+        }
     }
 
     private static CustomerLineModel CreateCustomer(Guid uid, string code, string name)

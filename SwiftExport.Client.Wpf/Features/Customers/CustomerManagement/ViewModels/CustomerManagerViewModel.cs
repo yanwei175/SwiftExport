@@ -1,3 +1,4 @@
+﻿using System.Collections;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.CustomerApis;
@@ -5,9 +6,8 @@ using SwiftExport.Contracts.DTOs.Customers.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Customers.CustomerManagement.Models;
-using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Mvvm;
-using SwiftExportClient.Resources.Controls;
+using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
@@ -17,36 +17,35 @@ using System.Windows.Data;
 
 namespace SwiftExportClient.Features.Customers.CustomerManagement.ViewModels;
 
-/// <summary>维护客户资料、当前页勾选与客户产品入口；业务写入仍由原有保存命令负责。</summary>
-public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncInitializable
+/// <summary>维护客户全量资料及筛选结果勾选；业务写入仍由原有保存命令负责。</summary>
+public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
-    private const int DefaultPageSize = 20;
+    private CancellationTokenSource? _loadCancellation;
+    private bool _disposed;
+    private int _loadVersion;
     private readonly ICustomerApi _customerApi;
     private readonly IApiCallRunner _apiCallRunner;
     private readonly IMessageService _messageService;
     private readonly IDialogService _dialogService;
     private readonly IReferenceDataCacheService _referenceDataCache;
     private bool _initialized;
-    private bool _restoringSelection;
 
+    /// <summary>注入客户读取与写入入口、共享字典；订阅在释放时解除。</summary>
     public CustomerManagerViewModel(
         ICustomerApi customerApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
         IDialogService dialogService,
-        IReferenceDataCacheService referenceDataCache,
-        CustomerProductManagerViewModel customerProducts)
+        IReferenceDataCacheService referenceDataCache)
     {
         _customerApi = customerApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
         _referenceDataCache = referenceDataCache;
-        CustomerProducts = customerProducts;
         Title = "客户管理";
         Customers.PropertyChanged += OnListPropertyChanged;
-        CustomerProducts.SelectionRestoreRequested += (_, customer) => RestoreSelection(customer);
-        CustomerProducts.PropertyChanged += OnCustomerProductsPropertyChanged;
+        CollectionChangedEventManager.AddHandler(CollectionViewSource.GetDefaultView(Customers.Items), OnVisibleCustomersChanged);
         CollectionChangedEventManager.AddHandler(
             _referenceDataCache.DictionaryValues,
             OnDictionaryValuesChanged);
@@ -54,46 +53,37 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
             _referenceDataCache.Currencies,
             OnCurrenciesChanged);
         RefreshDictionaryOptions();
-        RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(RejectCommand);
-        RegisterBusyAwareCommand(PageChangeCommand);
-        RegisterBusyAwareCommand(ToggleCustomerProductsCommand);
+        RegisterBusyAwareCommand(SetVisibleChecksCommand);
         RegisterBusyAwareCommand(CheckSelectionCommand);
         RegisterBusyAwareCommand(UncheckSelectionCommand);
         RegisterBusyAwareCommand(InvertSelectionCommand);
         RegisterBusyAwareCommand(CheckVisibleCommand);
-        RegisterBusyAwareCommand(UncheckVisibleCommand);
+        RegisterBusyAwareCommand(InvertVisibleCommand);
     }
 
     public CustomerListModel Customers { get; } = new();
-    public CustomerProductManagerViewModel CustomerProducts { get; }
     public bool HasChanges => Customers.HasChanges;
-    public bool CanChangeSelectionMode => !CustomerProducts.IsOpen;
-    public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
-    public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
+    /// <summary>使用当前页面标题参与导航页签呈现。</summary>
+    public string DocumentTitle => Title;
+    /// <summary>客户草稿独立参与关闭保护，客户产品由独立工作区维护。</summary>
+    public bool HasUnsavedChanges => Customers.HasChanges;
 
-    [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
+    /// <summary>表头全选仅反映当前筛选结果，不包含隐藏客户。</summary>
+    public bool IsAllVisibleChecked => GetVisibleCustomers() is { Length: > 0 } rows && rows.All(row => row.IsChecked);
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial CustomerLineModel? SelectedLine { get; set; }
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ToggleCustomerProductsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CheckSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UncheckSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InvertSelectionCommand))]
     public partial bool IsCellSelectionMode { get; set; }
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PageStatus))]
-    public partial int PageIndex { get; set; } = 1;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalPages))]
-    [NotifyPropertyChangedFor(nameof(PageStatus))]
-    public partial int PageSize { get; set; } = DefaultPageSize;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TotalPages))]
-    [NotifyPropertyChangedFor(nameof(PageStatus))]
-    public partial int TotalCount { get; set; }
     [ObservableProperty] public partial string ResultSummary { get; set; } = "尚未加载客户资料。";
     [ObservableProperty] public partial IReadOnlyList<SysDicCurrencyDto> CurrencyOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> PaymentMethodOptions { get; set; } = [];
@@ -102,75 +92,58 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermLocationOptions { get; set; } = [];
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> IncotermSortRemarkOptions { get; set; } = [];
 
+    /// <summary>幂等加载字典和完整客户快照，释放后的延续不再更新页面。</summary>
     public async Task InitializeAsync()
     {
-        if (_initialized) return;
+        if (_initialized || _disposed) return;
         _initialized = true;
         var cacheResult = await _referenceDataCache.EnsureLoadedAsync();
+        if (_disposed) return;
         RefreshDictionaryOptions();
         if (!cacheResult.Success)
         {
             _messageService.ShowError("加载客户字典失败", cacheResult.Message);
         }
-        await LoadPageAsync(false);
+        await LoadAllAsync(false);
     }
 
-    partial void OnSelectedLineChanged(CustomerLineModel? value)
-    {
-        Customers.SelectedItem = value;
-        if (!_restoringSelection) CustomerProducts.NotifyCustomerSelection(value);
-    }
+    partial void OnSelectedLineChanged(CustomerLineModel? value) => Customers.SelectedItem = value;
 
-    partial void OnIsCellSelectionModeChanged(bool value)
-    {
-        if (value && CustomerProducts.IsOpen)
-        {
-            IsCellSelectionMode = false;
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanToggleCustomerProducts))]
-    private Task ToggleCustomerProductsAsync() =>
-        CustomerProducts.ToggleForCustomerAsync(SelectedLine);
-
+    /// <summary>刷新前确认客户的未保存修改，仅成功读取后接纳新快照。</summary>
     [RelayCommand(CanExecute = nameof(CanRun))]
-    private async Task SearchAsync(string? query)
-    {
-        if (query is not null) Keyword = query;
-        if (!await PrepareReloadAsync()) return;
-        PageIndex = 1;
-        await LoadPageAsync(false);
-    }
-
-    [RelayCommand(CanExecute = nameof(CanRun))]
-    private Task RefreshAsync() => LoadPageAsync(true);
+    private Task RefreshAsync() => LoadAllAsync(true);
 
     [RelayCommand(CanExecute = nameof(CanWriteCommand))]
     private void AddRow()
     {
+        if (!CanWriteCommand()) return;
         SelectedLine = Customers.AddNewCustomer();
         UpdateChangeState();
     }
 
     /// <summary>勾选菜单选区涉及的当前客户行，不改变原生选区或业务字段。</summary>
     [RelayCommand(CanExecute = nameof(CanChangeCheckedSelection))]
-    private void CheckSelection(IReadOnlyList<CustomerLineModel>? rows) => SetCheckedSelection(rows, true);
+    private void CheckSelection(IList? rows) => SetSelectedChecks(rows, true);
 
     /// <summary>取消菜单选区内客户行的勾选。</summary>
     [RelayCommand(CanExecute = nameof(CanChangeCheckedSelection))]
-    private void UncheckSelection(IReadOnlyList<CustomerLineModel>? rows) => SetCheckedSelection(rows, false);
+    private void UncheckSelection(IList? rows) => SetSelectedChecks(rows, false);
 
-    /// <summary>逐行反转选区勾选；同一行涉及多个单元格时仅反转一次。</summary>
+    /// <summary>逐行反转整行选区的勾选状态。</summary>
     [RelayCommand(CanExecute = nameof(CanChangeCheckedSelection))]
-    private void InvertSelection(IReadOnlyList<CustomerLineModel>? rows) => SetCheckedSelection(rows, null);
+    private void InvertSelection(IList? rows) => SetSelectedChecks(rows, null);
 
-    /// <summary>勾选当前已加载页的筛选结果，不加载其他页、不影响隐藏行。</summary>
+    /// <summary>勾选全部已加载客户的筛选结果，不影响隐藏行。</summary>
     [RelayCommand(CanExecute = nameof(CanChangeVisibleChecks))]
     private void CheckVisible() => SetCheckedSelection(GetVisibleCustomers(), true);
 
-    /// <summary>清空当前已加载页筛选结果的勾选，保留隐藏行。</summary>
+    /// <summary>逐行反转全部已加载客户筛选结果的勾选，保留隐藏行。</summary>
     [RelayCommand(CanExecute = nameof(CanChangeVisibleChecks))]
-    private void UncheckVisible() => SetCheckedSelection(GetVisibleCustomers(), false);
+    private void InvertVisible() => SetCheckedSelection(GetVisibleCustomers(), null);
+
+    /// <summary>表头复用筛选结果批量勾选，隐藏行保持原状。</summary>
+    [RelayCommand(CanExecute = nameof(CanChangeVisibleChecks))]
+    private void SetVisibleChecks(bool? value) => SetCheckedSelection(GetVisibleCustomers(), value == true);
 
     /// <summary>以表格使用的默认集合视图限定范围，排除已删除行和占位符。</summary>
     private CustomerLineModel[] GetVisibleCustomers() => CollectionViewSource.GetDefaultView(Customers.Items)
@@ -178,18 +151,24 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
 
     private bool CanChangeVisibleChecks() => CanRun() && GetVisibleCustomers().Length > 0;
 
-    /// <summary>执行时重新检查范围，拒绝空选区、换页前快照及已隐藏的行，不回退到当前行。</summary>
-    private bool CanChangeCheckedSelection(IReadOnlyList<CustomerLineModel>? rows)
+    /// <summary>仅在整行模式允许选区命令；空选区由执行入口直接忽略。</summary>
+    private bool CanChangeCheckedSelection() => CanRun() && !IsCellSelectionMode;
+
+    /// <summary>读取原生选区集合的当前内容，不保留控件集合，也不接受格选区或非客户对象。</summary>
+    private void SetSelectedChecks(IList? selection, bool? value)
     {
-        if (!CanRun() || rows is not { Count: > 0 }) return false;
-        var visible = GetVisibleCustomers().ToHashSet();
-        return rows.All(visible.Contains);
+        if (!CanChangeCheckedSelection() || selection is not { Count: > 0 }) return;
+        var rows = selection.OfType<CustomerLineModel>().ToArray();
+        if (rows.Length != selection.Count) return;
+        SetCheckedSelection(rows, value);
     }
 
     /// <summary>只改变 UI 勾选状态并复用列表通知合并；不抑制模型通知、不制造业务脏状态。</summary>
     private void SetCheckedSelection(IReadOnlyList<CustomerLineModel>? rows, bool? value)
     {
-        if (!CanChangeCheckedSelection(rows)) return;
+        if (!CanRun() || rows is not { Count: > 0 }) return;
+        var visible = GetVisibleCustomers().ToHashSet();
+        if (!rows.All(visible.Contains)) return;
         using (Customers.SuppressListEvents())
         {
             foreach (var row in rows!.Distinct()) row.IsChecked = value ?? !row.IsChecked;
@@ -209,7 +188,7 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
                 $"确定删除 {lines.Length} 个客户吗？其中 {persistedCount} 个已保存客户将在保存时删除；有关联客户产品的客户会被后端阻止。",
                 "删除")) return;
         foreach (var line in lines) Customers.Remove(line);
-        SelectedLine = Customers.Items.FirstOrDefault();
+        SelectedLine = GetVisibleCustomers().FirstOrDefault();
         UpdateChangeState();
     }
 
@@ -233,8 +212,7 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
                 return;
             }
             Customers.ApplySaveResponse(result.Data);
-            TotalCount = Math.Max(0, TotalCount + result.Data.AddSuccessCount - result.Data.DeleteSuccessCount);
-            SelectedLine = Customers.Items.FirstOrDefault(line => ReferenceEquals(line, SelectedLine)) ?? Customers.Items.FirstOrDefault();
+            SelectedLine = GetVisibleCustomers().FirstOrDefault(line => ReferenceEquals(line, SelectedLine)) ?? GetVisibleCustomers().FirstOrDefault();
             UpdateChangeState();
             _messageService.ShowSuccess("客户资料已保存", $"已提交 {result.Data.SuccessCount} 条变更。");
             var cacheResult = await _referenceDataCache.RefreshCustomersAsync();
@@ -249,54 +227,39 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     private void Reject()
     {
         Customers.RejectChanges();
-        SelectedLine = Customers.Items.FirstOrDefault();
+        SelectedLine = GetVisibleCustomers().FirstOrDefault();
         UpdateChangeState();
     }
 
-    [RelayCommand]
-    private Task PageChangeAsync(PageChangeRequest? request)
+    /// <summary>读取全量快照；取消及释放后不回写，失败保留原模型和草稿。</summary>
+    private async Task LoadAllAsync(bool confirmChanges)
     {
-        if (request is null) return Task.CompletedTask;
-        return ChangePageAsync(request.NewIndex, request.NewSize);
-    }
-
-    private async Task ChangePageAsync(int index, int size)
-    {
-        if (!await PrepareReloadAsync()) return;
-        PageIndex = Math.Max(1, index);
-        PageSize = size <= 0 ? DefaultPageSize : size;
-        await LoadPageAsync(false);
-    }
-
-    private async Task<bool> LoadPageAsync(bool confirmChanges)
-    {
-        if (confirmChanges && !await PrepareReloadAsync()) return false;
-        var loaded = false;
-        await RunBusyAsync(async () =>
+        if (_disposed || IsBusy) return;
+        if (confirmChanges && !await PrepareReloadAsync()) return;
+        if (_disposed || IsBusy) return;
+        _loadCancellation?.Cancel();
+        using var cancellation = new CancellationTokenSource();
+        _loadCancellation = cancellation;
+        var version = ++_loadVersion;
+        try
         {
-            var result = await _apiCallRunner.RunAsync(() => _customerApi.GetPagedAsync(new CustomerSearchRequest
+            await RunBusyAsync(async () =>
             {
-                Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
-                PageIndex = PageIndex,
-                PageSize = PageSize,
-            }), "加载客户资料失败");
-            if (!result.Success)
-            {
-                ResultSummary = "客户资料加载失败。";
-                _messageService.ShowError("加载客户资料失败", result.Message);
-                return;
-            }
-            Customers.LoadFromDtos(result.Data?.Items ?? []);
-            SelectedLine = Customers.Items.FirstOrDefault();
-            TotalCount = result.Data?.TotalCount ?? 0;
-            PageIndex = result.Data?.PageIndex > 0 ? result.Data.PageIndex : PageIndex;
-            PageSize = result.Data?.PageSize > 0 ? result.Data.PageSize : PageSize;
-            ResultSummary = $"共 {TotalCount} 条，本页 {Customers.Items.Count} 条。";
-            AcceptChanges();
-            UpdateChangeState();
-            loaded = true;
-        }, "正在加载客户资料...");
-        return loaded;
+                var result = await _apiCallRunner.RunAsync(() => _customerApi.GetAllAsync(cancellation.Token),
+                    cancellation.Token, "加载客户资料失败");
+                if (_disposed || cancellation.IsCancellationRequested || version != _loadVersion) return;
+                if (!result.Success)
+                {
+                    _messageService.ShowError("加载客户资料失败", result.Message);
+                    return;
+                }
+                Customers.LoadFromDtos(result.Data ?? []);
+                SelectedLine = GetVisibleCustomers().FirstOrDefault();
+                AcceptChanges();
+                UpdateChangeState();
+            }, "正在加载客户资料...");
+        }
+        finally { if (ReferenceEquals(_loadCancellation, cancellation)) _loadCancellation = null; }
     }
 
     private async Task<bool> PrepareReloadAsync()
@@ -313,31 +276,25 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
 
             return false;
         }
-        return await CustomerProducts.CloseForNavigationAsync();
+        return true;
     }
 
-    private void RestoreSelection(CustomerLineModel? customer)
+    private void OnListPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _restoringSelection = true;
-        try { SelectedLine = customer; }
-        finally { _restoringSelection = false; }
+        UpdateChangeState();
+        RefreshVisibleState();
     }
 
-    private void OnListPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
+    /// <summary>筛选和列表变化只刷新统计与表头状态，不复制行或清除隐藏行勾选。</summary>
+    private void OnVisibleCustomersChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshVisibleState();
 
-    private void OnCustomerProductsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private void RefreshVisibleState()
     {
-        if (string.IsNullOrEmpty(e.PropertyName)
-            || e.PropertyName == nameof(CustomerProductManagerViewModel.IsOpen))
-        {
-            if (CustomerProducts.IsOpen && IsCellSelectionMode)
-            {
-                IsCellSelectionMode = false;
-            }
-
-            OnPropertyChanged(nameof(CanChangeSelectionMode));
-            ToggleCustomerProductsCommand.NotifyCanExecuteChanged();
-        }
+        ResultSummary = $"显示 {GetVisibleCustomers().Length} 条 / 共 {Customers.Items.Count} 条。";
+        OnPropertyChanged(nameof(IsAllVisibleChecked));
+        CheckVisibleCommand.NotifyCanExecuteChanged();
+        InvertVisibleCommand.NotifyCanExecuteChanged();
+        SetVisibleChecksCommand.NotifyCanExecuteChanged();
     }
 
     private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
@@ -406,13 +363,13 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
     {
         IsDirty = Customers.HasChanges;
         OnPropertyChanged(nameof(HasChanges));
+        OnPropertyChanged(nameof(HasUnsavedChanges));
         SaveCommand.NotifyCanExecuteChanged();
         RejectCommand.NotifyCanExecuteChanged();
         DeleteSelectedCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanRun() => IsNotBusy;
-    private bool CanToggleCustomerProducts() => CustomerProducts.IsOpen || !IsCellSelectionMode;
+    private bool CanRun() => !_disposed && IsNotBusy;
     private bool CanWriteCommand() => IsNotBusy && CanWrite;
     private bool CanDelete() => IsNotBusy && CanWrite && (Customers.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsNotBusy && CanWrite && Customers.HasChanges;
@@ -466,4 +423,24 @@ public sealed partial class CustomerManagerViewModel : ViewModelBaseEx, IAsyncIn
             }
         }
     }
+    /// <summary>关闭前保留客户草稿确认；正在写入或读取时不关闭页面。</summary>
+    public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return !IsBusy && await PrepareReloadAsync();
+    }
+
+    /// <summary>页面关闭时取消读取并解除自有订阅，不清空共享字典缓存。</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        ++_loadVersion;
+        _loadCancellation?.Cancel();
+        Customers.PropertyChanged -= OnListPropertyChanged;
+        CollectionChangedEventManager.RemoveHandler(CollectionViewSource.GetDefaultView(Customers.Items), OnVisibleCustomersChanged);
+        CollectionChangedEventManager.RemoveHandler(_referenceDataCache.DictionaryValues, OnDictionaryValuesChanged);
+        CollectionChangedEventManager.RemoveHandler(_referenceDataCache.Currencies, OnCurrenciesChanged);
+    }
+
 }

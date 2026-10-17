@@ -16,6 +16,7 @@ using SwiftExport.Core.Interfaces;
 using System.Text;
 namespace SwiftExport.Application.Services.Customers.Management;
 
+/// <summary>编排客户资料查询与维护，保留版本校验及批量保存事务。</summary>
 public partial class CustomerService(
     ICustomerRepository repository,
     ICustomerProductRepository customerProductRepository,
@@ -23,6 +24,23 @@ public partial class CustomerService(
 {
 
     private readonly ILogger<CustomerService> _logger = context.LoggerFactory.CreateLogger<CustomerService>();
+
+    /// <summary>提供与管理分页相同字段和可见范围的全量快照；取消不转换成业务失败。</summary>
+    public async Task<ServiceResult<IReadOnlyList<CustomerDto>>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var rows = await repository.GetAllForManagementAsync(cancellationToken);
+            return ServiceResult<IReadOnlyList<CustomerDto>>.Ok(rows);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "读取客户管理资料失败。");
+            return ServiceResult<IReadOnlyList<CustomerDto>>.Fail(
+                SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+        }
+    }
 
     public async Task<ServiceResult<PagedResponseBase<CustomerDto>>> GetPagedAsync(CustomerSearchRequest request)
     {

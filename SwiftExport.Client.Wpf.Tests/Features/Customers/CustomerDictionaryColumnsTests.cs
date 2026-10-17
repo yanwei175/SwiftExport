@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -91,8 +91,7 @@ public sealed class CustomerDictionaryColumnsTests
                 null!,
                 null!,
                 null!,
-                cache,
-                new CustomerProductManagerViewModel(null!, null!, null!, null!, null!));
+                cache);
 
             Assert.IsNotEmpty(viewModel.CurrencyOptions);
             Assert.AreEqual(Guid.Empty, viewModel.CurrencyOptions[0].Uid);
@@ -169,7 +168,7 @@ public sealed class CustomerDictionaryColumnsTests
     }
 
     [TestMethod]
-    public void CustomerManagerSelectionMode_ShouldDefaultToFullRowAndBindCurrentItem()
+    public void CustomerManagerSelectionMode_ShouldDefaultToFullRowAndBindSelectedItem()
     {
         var cache = new ReferenceDataCacheStub([]);
         var customerProducts = new CustomerProductManagerViewModel(
@@ -179,19 +178,13 @@ public sealed class CustomerDictionaryColumnsTests
             null!,
             null!,
             null!,
-            cache,
-            customerProducts);
+            cache);
         Assert.IsFalse(viewModel.IsCellSelectionMode);
-        Assert.IsTrue(viewModel.ToggleCustomerProductsCommand.CanExecute(null));
-
         viewModel.IsCellSelectionMode = true;
-        Assert.IsFalse(viewModel.ToggleCustomerProductsCommand.CanExecute(null));
-
-        viewModel.IsCellSelectionMode = false;
+        Assert.IsTrue(viewModel.IsCellSelectionMode);
         customerProducts.IsOpen = true;
-        Assert.IsFalse(viewModel.CanChangeSelectionMode);
-        viewModel.IsCellSelectionMode = true;
-        Assert.IsFalse(viewModel.IsCellSelectionMode, "抽屉打开时不得进入格子模式。");
+        viewModel.IsCellSelectionMode = false;
+        Assert.IsFalse(viewModel.IsCellSelectionMode, "独立产品编辑器不再控制客户页选择模式。");
 
         var document = XDocument.Load(Path.Combine(
             FindRepositoryRoot(),
@@ -202,15 +195,16 @@ public sealed class CustomerDictionaryColumnsTests
             "Views",
             "CustomerManagerView.xaml"));
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
-        var dataGrid = document.Descendants(presentation + "DataGrid").Single();
+        var dataGrid = document.Descendants().Single(element => element.Name == presentation + "DataGrid"
+            || element.Name == XName.Get("DataGrid", "http://schemas.lepo.co/wpfui/2022/xaml"));
 
         Assert.AreEqual("Extended", (string?)dataGrid.Attribute("SelectionMode"));
         StringAssert.Contains((string?)dataGrid.Attribute("SelectionUnit"), "IsCellSelectionMode");
         StringAssert.Contains((string?)dataGrid.Attribute("SelectionUnit"), "GridSelectionUnitConverter");
-        Assert.IsNull(dataGrid.Attribute("SelectedItem"));
+        Assert.IsNull(dataGrid.Attribute("CurrentItem"));
 
         var currentRowBinding = dataGrid.Attributes().Single(attribute =>
-            attribute.Name.LocalName == "CurrentItem");
+            attribute.Name.LocalName == "SelectedItem");
         StringAssert.Contains(currentRowBinding.Value, "SelectedLine");
         StringAssert.Contains(currentRowBinding.Value, "Mode=TwoWay");
 
@@ -219,13 +213,8 @@ public sealed class CustomerDictionaryColumnsTests
                 && string.Equals((string?)element.Attribute("OnContent"), "格子模式", StringComparison.Ordinal));
         Assert.AreEqual("整行模式", (string?)toggle.Attribute("OffContent"));
         StringAssert.Contains((string?)toggle.Attribute("IsChecked"), "IsCellSelectionMode");
-        StringAssert.Contains((string?)toggle.Attribute("IsEnabled"), "CanChangeSelectionMode");
-
-        var drawerToggle = document.Descendants()
-            .Single(element => element.Name.LocalName == "ToggleSwitch"
-                && string.Equals((string?)element.Attribute("Content"), "快速管理客户产品", StringComparison.Ordinal));
-        StringAssert.Contains((string?)drawerToggle.Attribute("Command"), "ToggleCustomerProductsCommand");
-        Assert.IsNull(drawerToggle.Attribute("CommandParameter"));
+        Assert.IsNull(toggle.Attribute("IsEnabled"));
+        Assert.IsFalse(document.Descendants().Any(element => element.Name.LocalName == "RightDrawerHost"));
     }
 
     [TestMethod]

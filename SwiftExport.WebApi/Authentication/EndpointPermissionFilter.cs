@@ -34,6 +34,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["CustomerProductController.GetPaged"] = PermissionKeys.CustomersProductsView,
         ["CustomerProductController.GetByCustomerSku"] = PermissionKeys.CustomersProductsView,
         ["CustomerProductController.GetAllHaveProductCustomerList"] = PermissionKeys.CustomersProductsView,
+        ["CustomerController.GetAll"] = PermissionKeys.CustomersCustomerView,
         ["CustomerController.GetPaged"] = PermissionKeys.CustomersCustomerView,
         ["CustomerController.GetById"] = PermissionKeys.CustomersCustomerView,
         ["CustomerController.Create"] = PermissionKeys.CustomersCustomerCreate,

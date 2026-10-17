@@ -16,6 +16,7 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 
+/// <summary>维护独立工作区的客户产品编辑、业务关系回填及保存保护。</summary>
 public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
 {
     private const int DefaultPageSize = 20;
@@ -26,7 +27,6 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
     private readonly IDialogService _dialogService;
     private long _loadVersion;
     private long _lookupVersion;
-    private CustomerLineModel? _pendingCustomer;
 
     public CustomerProductManagerViewModel(
         ICustomerProductApi customerProductApi,
@@ -79,13 +79,12 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
     public partial int TotalCount { get; set; }
     [ObservableProperty] public partial string StatusText { get; set; } = "请选择已保存客户后打开客户产品。";
 
-    public event EventHandler<CustomerLineModel?>? SelectionRestoreRequested;
-
     partial void OnSelectedLineChanged(CustomerProductLineModel? value) => Products.SelectedItem = value;
 
+    /// <summary>显式选择已保存客户，切换前确认现有产品草稿。</summary>
     public async Task<bool> SelectCustomerAsync(CustomerLineModel? customer)
     {
-        var target = customer ?? _pendingCustomer;
+        var target = customer;
         if (target is null || target.IsNew || target.Uid == Guid.Empty)
         {
             _messageService.ShowWarning("无法管理客户产品", "请先选择一个已保存客户。");
@@ -107,23 +106,7 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
         return true;
     }
 
-    public async Task ToggleForCustomerAsync(CustomerLineModel? customer)
-    {
-        if (IsOpen)
-        {
-            await CloseAsync();
-            return;
-        }
-
-        await SelectCustomerAsync(customer);
-    }
-
-    public void NotifyCustomerSelection(CustomerLineModel? customer)
-    {
-        _pendingCustomer = customer;
-        if (IsOpen) _ = SwitchCustomerAsync(customer);
-    }
-
+    /// <summary>导航关闭前确认产品草稿，拒绝时保留当前编辑器。</summary>
     public async Task<bool> CloseForNavigationAsync()
     {
         if (!IsOpen) return true;
@@ -131,9 +114,6 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
         CloseCore();
         return true;
     }
-
-    [RelayCommand]
-    private Task ToggleAsync(CustomerLineModel? customer) => ToggleForCustomerAsync(customer);
 
     [RelayCommand]
     private async Task CloseAsync()
@@ -302,32 +282,6 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
         await LoadPageAsync();
     }
 
-    private async Task SwitchCustomerAsync(CustomerLineModel? customer)
-    {
-        if (customer?.Uid != Guid.Empty && customer?.Uid == ActiveCustomer?.Uid)
-        {
-            return;
-        }
-
-        if (customer is null || customer.IsNew || customer.Uid == Guid.Empty)
-        {
-            if (!await ConfirmDiscardAsync())
-            {
-                SelectionRestoreRequested?.Invoke(this, ActiveCustomer);
-                return;
-            }
-
-            CloseCore();
-            return;
-        }
-
-        if (!await SelectCustomerAsync(customer))
-        {
-            SelectionRestoreRequested?.Invoke(this, ActiveCustomer);
-            return;
-        }
-    }
-
     private async Task LoadCustomerAsync(CustomerLineModel customer)
     {
         Interlocked.Increment(ref _loadVersion);
@@ -388,12 +342,11 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx
         Products.Clear();
         SelectedLine = null;
         ActiveCustomer = null;
-        _pendingCustomer = null;
         Keyword = string.Empty;
         TotalCount = 0;
         PageIndex = 1;
         IsOpen = false;
-        StatusText = "客户产品抽屉已关闭。";
+        StatusText = "客户产品编辑已关闭。";
         UpdateChangeState();
     }
 

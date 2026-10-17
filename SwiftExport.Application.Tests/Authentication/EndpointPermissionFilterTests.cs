@@ -33,13 +33,29 @@ public sealed class EndpointPermissionFilterTests
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
     });
 
+    /// <summary>全量客户读取使用客户资料查看权限，拒绝其他业务权限和匿名身份。</summary>
+    [TestMethod]
+    public async Task CustomerGetAll_RequiresCustomerViewPermission()
+    {
+        const string action = "CustomerController.GetAll";
+        var denied = await ExecuteAsync(action, ["Customers.Products.View"]);
+        Assert.IsFalse(denied.Continued);
+        Assert.AreEqual(ServiceErrorCodes.Forbidden, denied.ErrorCode);
+        var anonymous = await ExecuteAsync(action, ["Customers.Customer.View"], authenticated: false);
+        Assert.IsFalse(anonymous.Continued);
+        Assert.AreEqual(ServiceErrorCodes.Unauthenticated, anonymous.ErrorCode);
+        var allowed = await ExecuteAsync(action, ["Customers.Customer.View"]);
+        Assert.IsTrue(allowed.Continued);
+        CollectionAssert.AreEqual(new[] { "Customers.Customer.View" }, allowed.RequestedKeys);
+    }
+
     /// <summary>每个单键 Action 在无权限时拒绝，只授予该键时才进入业务 Action。</summary>
     [TestMethod]
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
         // 新增批量主图后共 243 个单键端点，继续逐项验证拒绝与放行。
-        Assert.AreEqual(243, routes.Count);
+        Assert.AreEqual(244, routes.Count);
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterController.SetMainImagesAsync"]);
         Assert.AreEqual("System.Dictionary.Edit", routes["SysDictTypeController.SyncBuiltInAsync"]);
         Assert.AreEqual("Products.Category.Edit", routes["ProductAttributeController.BatchSaveDefinitionsAsync"]);

@@ -53,6 +53,42 @@ public sealed class NativeCurrentItemTests
         });
     }
 
+    /// <summary>不加载主题、筛选或列头适配，证明原生失焦会清空 CurrentItem，而整行选择仍保留。</summary>
+    [TestMethod]
+    [DataRow(DataGridSelectionUnit.FullRow)]
+    [DataRow(DataGridSelectionUnit.Cell)]
+    [DataRow(DataGridSelectionUnit.CellOrRowHeader)]
+    public void NativeFocusLeave_ShouldClearCurrentItemButKeepRowSelection(DataGridSelectionUnit unit) => StaTest.Run(() =>
+    {
+        var rows = CreateRows();
+        var grid = CreateGrid(rows, unit);
+        var probe = new NativeCurrentItemProbe();
+        grid.SetBinding(DataGrid.CurrentItemProperty, new Binding(nameof(probe.CurrentItem)) { Source = probe, Mode = BindingMode.TwoWay });
+        var button = new Button { Content = "工具栏" };
+        var panel = new DockPanel();
+        DockPanel.SetDock(button, Dock.Top);
+        panel.Children.Add(button);
+        panel.Children.Add(grid);
+        var window = new Window { Content = panel, Width = 400, Height = 220, ShowInTaskbar = false };
+        try
+        {
+            window.Show();
+            window.Activate();
+            grid.UpdateLayout();
+            if (unit == DataGridSelectionUnit.FullRow) grid.SelectedItem = rows[1];
+            var cell = (DataGridCell)grid.Columns[0].GetCellContent(rows[1]).Parent;
+            Assert.IsTrue(cell.Focus());
+            Drain();
+            Assert.AreSame(rows[1], probe.CurrentItem);
+            Assert.IsTrue(button.Focus());
+            Drain();
+            Assert.IsNull(grid.CurrentItem);
+            Assert.IsNull(probe.CurrentItem);
+            if (unit == DataGridSelectionUnit.FullRow) Assert.AreSame(rows[1], grid.SelectedItem);
+        }
+        finally { window.Close(); Drain(); }
+    });
+
     private static ObservableCollection<SelectionRow> CreateRows() => [new("A"), new("B"), new("C")];
 
     /// <summary>测试始终使用原生 DataGrid 和文本列，框架只启用其他模块生命周期。</summary>
