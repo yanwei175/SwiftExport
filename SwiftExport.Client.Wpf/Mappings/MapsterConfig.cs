@@ -90,7 +90,9 @@ public sealed class MapsterConfig : IRegister
 
         // 物料详情以嵌套可写数据采集草稿，空值必须接纳，不能沿用列表的忽略空值策略。
         config.NewConfig<ProductDetailDto, ProductEditModel>()
+            .Map(dest => dest.RequiresBom, src => src.BomVersion > 0)
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
+            .Map(dest => dest.BomNo, src => src.BomNo ?? string.Empty)
             .Map(dest => dest.Finish, src => src.Finish ?? string.Empty)
             .Map(dest => dest.DefaultSupplierCode, src => src.DefaultSupplierCode ?? string.Empty)
             .Map(dest => dest.SupplierName, src => src.SupplierName ?? string.Empty)
@@ -121,6 +123,7 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.MainImage, src => src.Data.MainImage ?? string.Empty)
             .Map(dest => dest.Note, src => src.Data.Note ?? string.Empty);
         config.NewConfig<ProductEditModel, ProductDetailWriteDto>()
+            .Ignore(dest => dest.RequiresBom)
             .Map(dest => dest.CNYPrice, src => src.CnyPrice)
             .Map(dest => dest.USDPrice, src => src.UsdPrice)
             .Map(dest => dest.UnitCBM, src => src.UnitCbm);
@@ -153,6 +156,7 @@ public sealed class MapsterConfig : IRegister
 
 
         config.NewConfig<ProductDto, ProductLineModel>()
+            .Map(dest => dest.RequiresBom, src => src.BomVersion > 0)
             .Map(dest => dest.PersistedIsDeleted, src => src.IsDeleted)
             .Map(dest => dest.Sku, src => src.Sku ?? string.Empty)
             .Map(dest => dest.MasterSku, src => src.MasterSku ?? string.Empty)

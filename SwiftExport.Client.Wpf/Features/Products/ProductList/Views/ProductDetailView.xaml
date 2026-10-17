@@ -149,6 +149,11 @@
                                         </Style>
                                     </Button.Style>
                                 </Button>
+                                <CheckBox Grid.Row="7" Grid.Column="3" Margin="0,0,12,8" VerticalAlignment="Center"
+                                          Content="需要 BOM" AutomationProperties.Name="需要 BOM"
+                                          AutomationProperties.HelpText="{Binding Header.BomRequirementHint}"
+                                          IsChecked="{Binding Header.RequiresBom, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Header.CanChangeBomRequirement}"
+                                          ToolTip="{Binding Header.BomRequirementHint}" ToolTipService.ShowOnDisabled="True"/>
                             </Grid>
                             <Border Grid.Column="2" BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}" BorderThickness="1" Padding="8" VerticalAlignment="Top">
                                 <controls:CachedImage Width="208" Height="208" Style="{StaticResource SwiftExportCachedImage}" SourcePath="{Binding Header.MainImage}" DecodePixelWidth="800" Stretch="Uniform" AutomationProperties.Name="物料图片预览"/>

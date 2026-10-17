@@ -26,6 +26,72 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [TestClass]
 public sealed class ProductDetailViewModelTests
 {
+    /// <summary>详情勾选贯通保存意图；未操作时保留旧正数，失败和撤销保持读取基线。</summary>
+    [TestMethod] [DataRow(0, true)] [DataRow(7, false)]
+    public async Task BomRequirement_EditSendsIntentAndRejectRestoresBaseline(int marker, bool required)
+    {
+        var detail = Detail(); detail.BomNo = string.Empty; detail.BomVersion = marker;
+        SaveProductDetailRequest? sent = null;
+        using var vm = Create(detail, null, save: request =>
+        { sent = request; return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail("保存失败，保留草稿")); });
+        await Open(vm, detail.Uid);
+        Assert.AreEqual(marker, vm.Header.BomVersion); Assert.IsFalse(vm.Header.IsDirty);
+        Assert.AreEqual(marker > 0, vm.Header.RequiresBom); Assert.IsTrue(vm.Header.CanChangeBomRequirement);
+        vm.Header.Note = "无关编辑"; await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsNull(sent!.Data.RequiresBom); Assert.AreEqual(marker, vm.Header.BomVersion);
+        vm.Header.RequiresBom = required; await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(required, sent.Data.RequiresBom); Assert.AreEqual(required ? 1 : 0, vm.Header.BomVersion);
+        Assert.IsTrue(vm.HasUnsavedChanges);
+        vm.RejectDetailChangesCommand.Execute(null);
+        Assert.AreEqual(marker, vm.Header.BomVersion); Assert.AreEqual(marker > 0, vm.Header.RequiresBom);
+        Assert.IsFalse(vm.HasUnsavedChanges); Assert.IsNull(vm.Header.ToWriteDto().RequiresBom);
+        vm.Header.RequiresBom = marker == 0; vm.Header.RequiresBom = marker > 0;
+        Assert.IsNull(vm.Header.ToWriteDto().RequiresBom, "回到原勾选状态不得产生虚假需求意图。");
+    }
+
+    /// <summary>详情明确保存成功后用回传快照接纳标记与勾选，新基线不重复发送需求意图。</summary>
+    [TestMethod] [DataRow(0, true)] [DataRow(7, false)]
+    public async Task BomRequirement_SuccessReloadAcceptsConsistentMarkerAndCheckbox(int marker, bool required)
+    {
+        var detail = Detail(); detail.BomNo = string.Empty; detail.BomVersion = marker;
+        var saved = Detail(); saved.Uid = detail.Uid; saved.BomNo = string.Empty; saved.BomVersion = required ? 1 : 0; saved.Version = 8;
+        using var vm = Create(detail, null, save: request =>
+        {
+            Assert.AreEqual(required, request.Data.RequiresBom);
+            return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Ok(new() { Detail = saved }));
+        });
+        await Open(vm, detail.Uid); vm.Header.RequiresBom = required; await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(required, vm.Header.RequiresBom); Assert.AreEqual(required ? 1 : 0, vm.Header.BomVersion);
+        Assert.AreEqual(8, vm.Header.Version); Assert.IsFalse(vm.HasUnsavedChanges); Assert.IsNull(vm.Header.ToWriteDto().RequiresBom);
+    }
+
+    /// <summary>已绑定的空或非空组成都不可直接取消；详情保存仍有本地拒绝和草稿保护。</summary>
+    [TestMethod]
+    public async Task BomRequirement_BoundParentCannotCancelAndKeepsNumber()
+    {
+        var detail = Detail(); detail.BomVersion = 7;
+        var writes = 0;
+        using var vm = Create(detail, null, save: _ =>
+        { writes++; throw new AssertFailedException("已有绑定不能取消需求。"); });
+        await Open(vm, detail.Uid);
+        Assert.IsFalse(vm.Header.CanChangeBomRequirement);
+        StringAssert.Contains(vm.Header.BomRequirementHint, "不能直接取消");
+        vm.Header.RequiresBom = false; await vm.SaveCommand.ExecuteAsync(null);
+        Assert.AreEqual(0, writes); Assert.AreEqual(detail.BomNo, vm.Header.BomNo); Assert.IsTrue(vm.HasUnsavedChanges);
+    }
+
+    /// <summary>非成品需求在本地阻断，不按采购或外协供货方式排除合法成品。</summary>
+    [TestMethod] [DataRow("零件")] [DataRow("虚拟件")] [DataRow("客供件")] [DataRow("包材")]
+    public async Task BomRequirement_NonFinishedParentCannotEnable(string materialType)
+    {
+        var detail = Detail(); detail.BomNo = string.Empty; detail.BomVersion = 0; detail.Data.MaterialType = materialType;
+        using var vm = Create(detail, null, save: _ => throw new AssertFailedException("非成品不能开启 BOM。"));
+        await Open(vm, detail.Uid);
+        Assert.IsFalse(vm.Header.CanChangeBomRequirement);
+        vm.Header.RequiresBom = true; await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsTrue(vm.HasUnsavedChanges);
+    }
+
     /// <summary>主型号引用与物料自身型号独立，编码建议和清空不联动颜色、描述与标签身份。</summary>
     [TestMethod]
     public async Task Sources_ShouldRemainIndependentAndSendNullForUneditedTags()

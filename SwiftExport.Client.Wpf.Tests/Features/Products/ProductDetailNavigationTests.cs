@@ -2,6 +2,9 @@ using SwiftExportClient.Mvvm;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.Messaging;
@@ -34,6 +37,63 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailNavigationTests
 {
+    /// <summary>列表真实复选框经无障碍切换进入批量请求，已有绑定后禁用且编号只读。</summary>
+    [TestMethod]
+    public void BomRequirement_ListCheckboxUsesRealBindingAndSaveRequest() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); using var fixture = new Fixture(); var vm = fixture.ViewModel;
+        var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = row.Version, Sku = "A", MaterialType = MaterialTypesEnum.成品, SupplyType = SupplyTypeEnums.采购 });
+        var view = new ProductsView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1300, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = Descendants(view).OfType<DataGrid>().Single(candidate => ReferenceEquals(candidate.ItemsSource, vm.Products.Items));
+            var column = grid.Columns.Single(item => Equals(item.Header, "需要 BOM"));
+            grid.ScrollIntoView(row, column); grid.UpdateLayout();
+            var checkbox = Descendants(column.GetCellContent(row)).OfType<CheckBox>().Single();
+            Assert.IsTrue(checkbox.IsEnabled); Assert.IsFalse(checkbox.IsChecked);
+            ((IToggleProvider)new CheckBoxAutomationPeer(checkbox).GetPattern(PatternInterface.Toggle)!).Toggle();
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.IsTrue(row.RequiresBom); Assert.AreEqual(1, row.BomVersion);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.AreEqual(1, fixture.LastSave!.UpdateItems.Single().Data.BomVersion); Assert.IsTrue(row.IsDirty);
+            row.BomNo = "BOUND-EMPTY"; await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.IsFalse(checkbox.IsEnabled); Assert.IsTrue(grid.Columns.Single(item => Equals(item.Header, "BOM")).IsReadOnly);
+        }
+        finally { window.Close(); }
+    });
+
+    /// <summary>列表勾选进入实际批量保存请求；未改旧正数及保存失败的草稿均保持。</summary>
+    [TestMethod] [DataRow(0, 1)] [DataRow(7, 0)] [DataRow(7, 7)]
+    public async Task BomRequirement_ListSaveForwardsMarkerWithoutNormalizingUneditedValue(int marker, int expected)
+    {
+        using var fixture = new Fixture(); var vm = fixture.ViewModel; var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = row.Version, Sku = "A", MaterialType = MaterialTypesEnum.成品,
+            SupplyType = SupplyTypeEnums.采购, BomVersion = marker });
+        Assert.AreEqual(marker > 0, row.RequiresBom); Assert.IsFalse(row.IsDirty);
+        if (expected == marker) row.Note = "保留旧标记";
+        else row.RequiresBom = expected > 0;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsNotNull(fixture.LastSave); Assert.AreEqual(expected, fixture.LastSave.UpdateItems.Single().Data.BomVersion);
+        Assert.IsTrue(row.IsDirty); Assert.IsTrue(string.IsNullOrEmpty(row.BomNo));
+        vm.RejectProductChangesCommand.Execute(null);
+        Assert.AreEqual(marker, row.BomVersion); Assert.AreEqual(marker > 0, row.RequiresBom); Assert.IsFalse(row.IsDirty);
+    }
+
+    /// <summary>列表保存成功并重读后采用服务端标记，勾选和脏状态一致。</summary>
+    [TestMethod] [DataRow(0, 1)] [DataRow(7, 0)]
+    public async Task BomRequirement_ListSuccessReloadAcceptsConsistentMarkerAndCheckbox(int marker, int expected)
+    {
+        using var fixture = new Fixture { SaveSucceeds = true }; var vm = fixture.ViewModel; var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = row.Version, Sku = "A", MaterialType = MaterialTypesEnum.成品,
+            SupplyType = SupplyTypeEnums.采购, BomVersion = marker });
+        var id = row.Uid; row.RequiresBom = expected > 0; await vm.SaveCommand.ExecuteAsync(null);
+        var reloaded = vm.Products.Items.Single(item => item.Uid == id);
+        Assert.AreEqual(expected, reloaded.BomVersion); Assert.AreEqual(expected > 0, reloaded.RequiresBom); Assert.IsFalse(reloaded.IsDirty);
+    }
+
     /// <summary>实际页面填充完整关系事实，拒绝危险字段、外来行和只读行；既有放弃修改恢复基线。</summary>
     [TestMethod]
     public void FillDown_ShouldKeepRelationsAndRejectUnsafeRequestsWithoutLosingBaseline()

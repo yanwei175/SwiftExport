@@ -22,7 +22,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         /// <summary>产品当前基础计量单位；业务上允许为空。</summary>
         public string Unit { get; set; }
         public string SupplyType { get; set; }// 供应方式：采购/生产/外协。
-        public int BomVersion { get; set; }   // BOM版本：0=无BOM，>0=有BOM。
+        public int BomVersion { get; set; }   // BOM 需求标记：0=不需要，>0=需要；编号为空时待建立，不表示业务版本。
         public string BomNo { get; set; }
         public string Note { get; set; }
         /// <summary>物料自身的产品型号；可自由填写，允许没有对应中性产品。</summary>

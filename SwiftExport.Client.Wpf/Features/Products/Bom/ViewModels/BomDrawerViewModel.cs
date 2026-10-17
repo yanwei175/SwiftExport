@@ -93,10 +93,10 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         AddItemCommand.NotifyCanExecuteChanged();
         SaveCommand.NotifyCanExecuteChanged();
         DeleteItemCommand.NotifyCanExecuteChanged();
-        if (ActiveProduct is not null && ActiveProduct.MaterialType != MaterialTypesEnum.成品)
+        if (ActiveProduct is not null && (ActiveProduct.MaterialType != MaterialTypesEnum.成品 || !ActiveProduct.RequiresBom))
         {
             Interlocked.Increment(ref _loadVersion);
-            StatusText = "只有成品可以维护 BOM，当前物料只能作为子件。";
+            StatusText = "只有勾选需要 BOM 的成品可以维护组成。";
         }
     }
 
@@ -115,7 +115,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         await SwitchProductAsync(product ?? _pendingProduct, skipDirtyCheck: true);
     }
 
-    private bool CanToggle(ProductLineModel? product) => IsOpen || (product ?? _pendingProduct)?.MaterialType == MaterialTypesEnum.成品;
+    private bool CanToggle(ProductLineModel? product) => IsOpen || (product ?? _pendingProduct) is { MaterialType: MaterialTypesEnum.成品, RequiresBom: true };
 
     [RelayCommand]
     private async Task CloseAsync()
@@ -140,7 +140,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     }
 
     /// <summary>父件资格取当前行的物料类型，不缓存打开时状态，也不排除采购或外协成品。</summary>
-    private bool CanAddItem() => IsOpen && ActiveProduct?.MaterialType == MaterialTypesEnum.成品 && !string.IsNullOrWhiteSpace(ActiveProduct.BomNo);
+    private bool CanAddItem() => IsOpen && ActiveProduct is { MaterialType: MaterialTypesEnum.成品, RequiresBom: true } && !string.IsNullOrWhiteSpace(ActiveProduct.BomNo);
 
     /// <summary>父件失去成品资格后保留已有草稿，不再允许删除组成。</summary>
     [RelayCommand(CanExecute = nameof(CanDeleteItem))]
@@ -269,9 +269,9 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
             return;
         }
 
-        if (product.MaterialType != MaterialTypesEnum.成品)
+        if (product.MaterialType != MaterialTypesEnum.成品 || !product.RequiresBom)
         {
-            StatusText = "只有成品可以维护 BOM，当前物料只能作为子件。";
+            StatusText = "只有勾选需要 BOM 的成品可以维护组成。";
             return;
         }
 
@@ -286,7 +286,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         var result = await _apiCallRunner.RunAsync(() => _bomApi.GetBomByBomNo(bomNo), "加载 BOM 失败");
         if (version != Volatile.Read(ref _loadVersion)) return;
         // 等待期间可在物料表修改类型或编号，旧响应不能重新接纳到变化后的父件。
-        if (product.MaterialType != MaterialTypesEnum.成品 || product.BomNo != bomNo)
+        if (product.MaterialType != MaterialTypesEnum.成品 || !product.RequiresBom || product.BomNo != bomNo)
         {
             StatusText = "物料类型或 BOM 编号已变化，请重新选择或刷新。";
             return;
