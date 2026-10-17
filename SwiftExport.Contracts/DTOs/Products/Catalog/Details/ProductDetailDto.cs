@@ -27,7 +27,7 @@ namespace SwiftExport.Contracts.DTOs.Products
         public bool IsActive { get; set; }
         /// <summary>当前BOM编号，仅供服务器保留和列表投影。</summary>
         public string BomNo { get; set; }
-        /// <summary>当前BOM有效标记。</summary>
+        /// <summary>是否需要 BOM 的持久化标记：0 不需要，正数需要；编号为空时待建立，不表示业务版本。</summary>
         public int BomVersion { get; set; }
         /// <summary>颜色显示名称。</summary>
         public string Finish { get; set; }

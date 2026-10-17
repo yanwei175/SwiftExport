@@ -85,10 +85,10 @@ public partial class ProductMaintenanceService
             ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
             : new ServiceResult<SaveItemResult> { Success = false, Message = result.Message, Error = result.Error };
 
-    /// <summary>先检查声明绑定的父件资格，再按数据库共享组判断删除和角色边界；新空编号保留成品建父后录组成的流程。</summary>
+    /// <summary>先检查需要 BOM 的成品资格，再保护既有共享绑定；正标记空编号允许待建立，已绑定成品不能直接解除。</summary>
     private async Task<string?> ValidateBomSaveBoundaryAsync(ProductBatchSaveRequest request)
     {
-        // 资格不依赖组成是否已录入；放在图查询跳过判断之前，阻止空父件或不成对的标记绕过。
+        // 资格不依赖编号或组成是否已录入；放在图查询跳过判断之前，阻止非成品声明需要 BOM。
         foreach (var data in request.CreateItems.Select(item => item.Data).Concat(request.UpdateItems.Select(item => item.Data)))
         {
             var error = BomParentPolicy.ValidateBinding(data.Adapt<Product>());
@@ -150,7 +150,7 @@ public partial class ProductMaintenanceService
                 if (oldProduct.BomVersion != candidate.BomVersion && oldGroup.Lines.Count > 0)
                     affectedKeys.Add(oldGroup.GroupKey);
             }
-            else if (!candidate.IsDeleted && candidate.BomVersion > 0)
+            else if (!candidate.IsDeleted && willBind)
             {
                 var bindingError = ValidateNewBinding(candidate, targetGroup, affectedKeys);
                 if (bindingError is not null) return bindingError;
@@ -169,7 +169,8 @@ public partial class ProductMaintenanceService
             candidate.Uid = Guid.NewGuid();
             candidate.IsDeleted = false;
             candidates[candidate.Uid] = candidate;
-            if (candidate.BomVersion <= 0) continue;
+            // 待建立只有需要标记，不加入任何共享组，也不要求先有编号。
+            if (candidate.BomVersion <= 0 || string.IsNullOrWhiteSpace(candidate.BomNo)) continue;
             byInput.TryGetValue(index, out var targetGroup);
             var bindingError = ValidateNewBinding(candidate, targetGroup, affectedKeys);
             if (bindingError is not null) return bindingError;

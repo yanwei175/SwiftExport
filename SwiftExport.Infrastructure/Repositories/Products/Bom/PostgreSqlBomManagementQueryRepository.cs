@@ -8,7 +8,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Products.BomManagement;
 
-/// <summary>以 PostgreSQL 参数化查询读取成品和共享 BOM 摘要，聚合组成后再联表避免计数放大。</summary>
+/// <summary>读取需要 BOM 的未删除成品及共享摘要，默认包含待建立项，聚合组成后联表避免计数放大。</summary>
 public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext context) : IBomManagementQueryRepository
 {
     // 编号归组保持现有 ICU 和尾部 ASCII 空格等值规则，正标记只表达有效性。
@@ -33,7 +33,7 @@ public sealed class PostgreSqlBomManagementQueryRepository(RepositoryBaseContext
         parameters.Add("Offset", (request.PageIndex - 1) * request.PageSize);
         parameters.Add("PageSize", request.PageSize);
         parameters.Add("EmptyGuid", Guid.Empty);
-        var filters = new List<string> { "p.is_deleted=FALSE", "p.material_type='成品'" };
+        var filters = new List<string> { "p.is_deleted=FALSE", "p.material_type='成品'", "p.bom_version>0" };
         if (request.IsBound.HasValue) filters.Add(request.IsBound.Value ? $"({Bound})" : $"NOT COALESCE(({Bound}),FALSE)");
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {

@@ -39,8 +39,8 @@ public partial class Product : BaseEntity
     /// </summary>
     public string SupplyType { get; set; } = default!;
     /// <summary>
-    /// BOM版本号。
-    /// 约定：0 表示无BOM，>0 表示存在对应版本BOM。
+    /// 是否需要 BOM 的兼容标记：0 不需要，正数需要，不区分多个业务版本。
+    /// 正数且编号为空表示待建立或绑定；正数且编号非空表示已有绑定，组成是否为空独立判断。
     /// </summary>
     public int BomVersion { get; set; }
     /// <summary>该实体保存的BOM 编号。</summary>

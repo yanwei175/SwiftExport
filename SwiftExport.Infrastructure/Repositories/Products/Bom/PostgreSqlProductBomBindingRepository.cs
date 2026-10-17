@@ -8,7 +8,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.Products.BomManagement;
 
-/// <summary>只更新 BOM 绑定及系统字段，保留产品主型号、启停和全部其他资料。</summary>
+/// <summary>只为待建立成品写入 BOM 编号及系统字段，保留需要 BOM 的原正标记和全部其他资料。</summary>
 public sealed class PostgreSqlProductBomBindingRepository(RepositoryBaseContext context) : IProductBomBindingRepository
 {
     /// <inheritdoc />
@@ -23,10 +23,11 @@ public sealed class PostgreSqlProductBomBindingRepository(RepositoryBaseContext 
         parameters.Add("UpdatedBy", candidate.UpdatedBy);
         parameters.AddTimestamp("UpdatedDate", candidate.UpdatedDate);
         const string sql = """
-            UPDATE public.product SET bom_no=@BomNo,bom_version=1,version=version+1,
+            UPDATE public.product SET bom_no=@BomNo,version=version+1,
                 updated_by=@UpdatedBy,updated_date=CAST(@UpdatedDate AS timestamp without time zone)
             WHERE uid=@Uid AND version=@Version AND is_deleted=FALSE
-                AND NOT COALESCE((bom_version>0 AND bom_no IS NOT NULL AND btrim(bom_no,' ')<>''),FALSE)
+                AND material_type='成品' AND bom_version>0
+                AND (bom_no IS NULL OR btrim(bom_no,' ')='')
             RETURNING version
             """;
         var version = await context.Session.Connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition(sql, parameters, context.Session.Transaction, cancellationToken: cancellationToken));

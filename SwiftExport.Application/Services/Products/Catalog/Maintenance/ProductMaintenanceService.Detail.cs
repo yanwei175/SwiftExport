@@ -13,7 +13,7 @@ using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.Products.Catalog.Maintenance;
 
-/// <summary>物料详情保存用例；资料、独立标签和包装行同事务保存，不改变 BOM 或历史单据快照。</summary>
+/// <summary>物料详情同事务保存资料、需要 BOM 意图、独立标签和包装行；不更改 BOM 编号、组成或历史单据快照。</summary>
 public partial class ProductMaintenanceService
 {
     /// <summary>在唯一 Serializable 事务中保存资料、标签和包装；失败保留原资料，提交确认丢失不自动重试。</summary>
@@ -39,6 +39,9 @@ public partial class ProductMaintenanceService
             var locked = await LockProductDetailAsync(request, cancellationToken);
             var candidate = locked.Product;
             request.Data.Adapt(candidate);
+            // 可选意图独立解释，旧客户端省略时保留原标记；已有正数不转换为一，取消仍由共享绑定边界审核。
+            if (request.Data.RequiresBom is { } requiresBom)
+                candidate.BomVersion = requiresBom ? Math.Max(candidate.BomVersion, 1) : 0;
             // 详情候选由持久化实体建立，适配仅触及写 DTO；空 Guid 不是“未选择”的有效身份。
             if (candidate.ColorId == Guid.Empty || candidate.DefaultSupplierId == Guid.Empty)
                 throw new ProductDetailWriteException(ServiceErrorCodes.Validation, "颜色或默认供应商标识不能是空 Guid。");

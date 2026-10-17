@@ -127,12 +127,11 @@ public sealed partial class ProductBomSaveBoundaryTests
         fixture.AssertBlocked(result.Success, before);
     }
 
-    /// <summary>编号与有效标记必须成对，不能用零或负标记配编号绕过资格，也不能只提交正标记。</summary>
+    /// <summary>零或负标记不能配编号，非成品不能借待建立状态声明需要 BOM。</summary>
     [TestMethod]
     [DataRow("成品", "NUMBER", 0)] [DataRow("零件", "NUMBER", 0)]
     [DataRow("成品", "NUMBER", -1)] [DataRow("零件", "NUMBER", -1)]
-    [DataRow("成品", null, 1)] [DataRow("零件", null, 1)]
-    [DataRow("成品", "  ", 1)] [DataRow("零件", "  ", 1)]
+    [DataRow("零件", null, 1)] [DataRow("零件", "  ", 1)]
     [DataRow("成品", null, -1)] [DataRow("零件", null, -1)]
     public async Task ParentEligibility_InconsistentBindingIsRejected(string material, string? number, int marker)
     {

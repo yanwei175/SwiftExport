@@ -38,6 +38,20 @@ public sealed class BomManagementBindingTests
         Assert.IsNotNull(fixture.Candidate);
     }
 
+    /// <summary>建立编号要求先有需要标记；待建立成品填入新编号或共享编号后保持原正数。</summary>
+    [TestMethod]
+    [DataRow(false)] [DataRow(true)]
+    public async Task Requirement_BindingRequiresPositiveMarker(bool existing)
+    {
+        var fixture = new Fixture(existing);
+        fixture.Target.BomVersion = 0;
+        var result = await fixture.Save(existing);
+        Assert.IsFalse(result.Success);
+        Assert.IsNull(fixture.Candidate);
+        Assert.AreEqual(0, fixture.Session.Memory.Commits);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
     /// <summary>专用绑定入口拒绝全部非成品，既有共享组的实际父件也必须合格。</summary>
     [TestMethod]
     [DataRow("零件", false)] [DataRow("虚拟件", false)] [DataRow("客供件", false)] [DataRow("包材", false)]
@@ -56,7 +70,7 @@ public sealed class BomManagementBindingTests
 
     /// <summary>专用绑定不能静默覆盖既有的不成对编号或负标记，必须先核实历史事实。</summary>
     [TestMethod]
-    [DataRow("OLD", 0)] [DataRow(null, 1)] [DataRow(null, -1)]
+    [DataRow("OLD", 0)] [DataRow(null, -1)]
     public async Task ParentEligibility_BindingRejectsInconsistentCurrentState(string? number, int marker)
     {
         var fixture = new Fixture(false);
@@ -81,7 +95,7 @@ public sealed class BomManagementBindingTests
         Assert.IsTrue(result.Success, result.Message); Assert.AreEqual(8, result.Data.NewVersion);
         Assert.AreEqual(before, JsonSerializer.Serialize(fixture.Target), "读取实体不应被候选映射原地修改。");
         var candidate = fixture.Candidate!;
-        Assert.AreEqual("SHARED", candidate.BomNo); Assert.AreEqual(1, candidate.BomVersion);
+        Assert.AreEqual("SHARED", candidate.BomNo); Assert.AreEqual(7, candidate.BomVersion);
         candidate.BomNo = fixture.Target.BomNo; candidate.BomVersion = fixture.Target.BomVersion;
         Assert.AreEqual(before, JsonSerializer.Serialize(candidate));
         Assert.AreEqual(IsolationLevel.Serializable, fixture.Session.Memory.Isolation);
@@ -128,7 +142,7 @@ public sealed class BomManagementBindingTests
     /// <summary>可控完整产品和共享组，任何普通产品 UPDATE 或组成写入都会使测试失败。</summary>
     private sealed class Fixture
     {
-        public readonly Product Target = new() { Uid = Guid.NewGuid(), Version = 7, Sku = "TARGET", MaterialType = "成品", SupplyType = "采购", ProductMasterId = Guid.NewGuid(), IsActive = false, Note = "保留", MainImage = "image.jpg", ManufacturerModel = "M", USDPrice = 12m };
+        public readonly Product Target = new() { Uid = Guid.NewGuid(), Version = 7, Sku = "TARGET", MaterialType = "成品", SupplyType = "采购", BomVersion = 7, ProductMasterId = Guid.NewGuid(), IsActive = false, Note = "保留", MainImage = "image.jpg", ManufacturerModel = "M", USDPrice = 12m };
         public readonly Product Child = new() { Uid = Guid.NewGuid(), Sku = "CHILD", MaterialType = "原材料", SupplyType = "采购" };
         public readonly List<Bom> Lines = [];
         public readonly List<Product> Parents = [];

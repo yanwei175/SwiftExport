@@ -52,6 +52,8 @@ public sealed class ProductBomBindingService(IProductRepository products, IBomRe
             if (product.Version != request.ExpectedVersion) return Fail(ServiceErrorCodes.VersionConflict, "产品已被修改，请刷新后重试。");
             var parentError = BomParentPolicy.ValidateParent(product) ?? BomParentPolicy.ValidateBinding(product);
             if (parentError is not null) return Fail(ServiceErrorCodes.BusinessBlocked, parentError);
+            if (product.BomVersion == 0)
+                return Fail(ServiceErrorCodes.BusinessBlocked, "产品尚未标记需要 BOM，请先保存需要 BOM 标记。");
             if (product.BomVersion > 0 && !string.IsNullOrWhiteSpace(product.BomNo))
                 return Fail(ServiceErrorCodes.BusinessBlocked, "产品已有有效 BOM，不能更换或解除绑定。");
             var facts = await boms.GetSharedSaveFactsAsync([request.BomNo.Trim()], withUpdLock: false, cancellationToken);
@@ -63,7 +65,6 @@ public sealed class ProductBomBindingService(IProductRepository products, IBomRe
                 return Fail(ServiceErrorCodes.BusinessBlocked, "绑定目标必须具有当前有效产品和组成。");
             var candidate = product.Adapt<Product>();
             candidate.BomNo = request.BomNo.Trim();
-            candidate.BomVersion = 1;
             var affected = new HashSet<long>();
             var error = ProductMaintenanceService.ValidateNewBinding(candidate, group, affected);
             if (error is not null) return Fail(ServiceErrorCodes.BusinessBlocked, error);

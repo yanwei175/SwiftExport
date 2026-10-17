@@ -1,7 +1,7 @@
 using System;
 namespace SwiftExport.Contracts.DTOs.Products
 {
-    /// <summary>物料详情可写资料及两个独立来源身份；不携带模板、BOM、启停或包装。</summary>
+    /// <summary>物料详情可写资料及两个独立来源身份；可表达是否需要 BOM，不携带模板、BOM 编号、启停或包装。</summary>
     public class ProductDetailWriteDto
     {
         /// <summary>物料编号。</summary>
@@ -22,6 +22,8 @@ namespace SwiftExport.Contracts.DTOs.Products
         public Guid? ColorId { get; set; }
         /// <summary>物料类型。</summary>
         public string MaterialType { get; set; }
+        /// <summary>是否需要 BOM；null 表示未提供并保留原标记，true 保留已有正数或设为 1，false 申请设为 0；已有绑定不能直接取消。</summary>
+        public bool? RequiresBom { get; set; }
         /// <summary>基础单位英文代码；允许为空。</summary>
         public string Unit { get; set; }
         /// <summary>供货方式。</summary>

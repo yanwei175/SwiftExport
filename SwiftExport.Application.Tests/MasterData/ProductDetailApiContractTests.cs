@@ -22,7 +22,7 @@ public sealed class ProductDetailApiContractTests
         Assert.AreEqual("{id}/detail", ((HttpPostAttribute)Attribute.GetCustomAttribute(typeof(ProductController).GetMethod("SaveDetail")!, typeof(HttpPostAttribute))!).Template);
     }
 
-    /// <summary>标签保持 null 协议；物料型号可写且不需要中性产品身份，模板和 BOM 不进入写契约。</summary>
+    /// <summary>标签保持 null 协议；需要 BOM 意图可写，模板、BOM 编号和版本整数不进入写契约。</summary>
     [TestMethod]
     public void DetailWrite_ExcludesReadOnlyFieldsAndKeepsNullProtocol()
     {
@@ -35,6 +35,11 @@ public sealed class ProductDetailApiContractTests
         Assert.IsTrue(fields.Contains("UnitWeight") && fields.Contains("UnitCBM"));
         Assert.AreEqual(typeof(Guid?), typeof(ProductDetailWriteDto).GetProperty("ProductMasterId")!.PropertyType);
         Assert.AreEqual(typeof(string), typeof(ProductDetailWriteDto).GetProperty("LinkSku")!.PropertyType);
+        Assert.AreEqual(typeof(bool?), typeof(ProductDetailWriteDto).GetProperty("RequiresBom")!.PropertyType);
+        Assert.IsNull(JsonConvert.DeserializeObject<SaveProductDetailRequest>("{}")!.Data.RequiresBom,
+            "旧客户端省略意图时不能默认为取消需要 BOM。");
+        Assert.AreEqual(true, JsonConvert.DeserializeObject<SaveProductDetailRequest>("{\"Data\":{\"RequiresBom\":true}}")!.Data.RequiresBom);
+        Assert.AreEqual(false, JsonConvert.DeserializeObject<SaveProductDetailRequest>("{\"Data\":{\"RequiresBom\":false}}")!.Data.RequiresBom);
     }
 
     /// <summary>路径身份冲突直接返回校验失败，不调用任何查询或写入服务。</summary>
