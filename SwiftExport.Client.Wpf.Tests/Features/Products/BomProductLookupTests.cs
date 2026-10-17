@@ -43,7 +43,7 @@ public sealed class BomProductLookupTests
         var products = new ProductApiStub(); var runner = new DirectApiCallRunner();
         var vm = new BomDrawerViewModel(api, products, runner, null!, null!);
         using var manager = new ProductsViewModel(products, null!, null!, runner, null!, null!, null!, vm, null!);
-        manager.Products.LoadFromDtos([new ProductDto { Uid = Guid.NewGuid(), Sku = "ROOT", BomNo = "ROOT", MaterialType = MaterialTypesEnum.成品, SupplyType = supplyType }]);
+        manager.Products.LoadFromDtos([new ProductDto { Uid = Guid.NewGuid(), Sku = "ROOT", BomNo = "ROOT", BomVersion = 1, MaterialType = MaterialTypesEnum.成品, SupplyType = supplyType }]);
         var parent = manager.Products.Items.Single(); manager.SelectedLine = parent;
         var toggleNotices = 0; vm.ToggleCommand.CanExecuteChanged += (_, _) => toggleNotices++;
         parent.MaterialType = MaterialTypesEnum.包材;
@@ -77,7 +77,8 @@ public sealed class BomProductLookupTests
             ? Task.FromResult(ServiceResult<List<BomDto>>.Ok([BomManagerTests.Line("ROOT")]))
             : throw new AssertFailedException("非成品不得读取或写入组成。"));
         var vm = new BomDrawerViewModel(api, new ProductApiStub(), new DirectApiCallRunner(), null!, null!);
-        await vm.ToggleCommand.ExecuteAsync(new ProductLineModel { Uid = Guid.NewGuid(), MaterialType = MaterialTypesEnum.成品, BomNo = "ROOT" });
+        var parent = new ProductLineModel(); parent.Load(new ProductDto { Uid = Guid.NewGuid(), MaterialType = MaterialTypesEnum.成品, BomVersion = 1, BomNo = "ROOT" });
+        await vm.ToggleCommand.ExecuteAsync(parent);
         Assert.HasCount(1, vm.Boms.Items);
         var nonFinished = new ProductLineModel { Uid = Guid.NewGuid(), MaterialType = materialType, BomNo = "LEGACY" };
         vm.NotifyProductSelection(nonFinished);
@@ -96,7 +97,7 @@ public sealed class BomProductLookupTests
         var api = BomManagerTests.Proxy<IBomApi>((method, _) => method.Name == "GetBomByBomNo" ? pending.Task
             : throw new AssertFailedException("不应写入。"));
         var vm = new BomDrawerViewModel(api, new ProductApiStub(), new DirectApiCallRunner(), null!, null!);
-        var parent = new ProductLineModel { Uid = Guid.NewGuid(), MaterialType = MaterialTypesEnum.成品, BomNo = "ROOT" };
+        var parent = new ProductLineModel(); parent.Load(new ProductDto { Uid = Guid.NewGuid(), MaterialType = MaterialTypesEnum.成品, BomVersion = 1, BomNo = "ROOT" });
         var loading = vm.ToggleCommand.ExecuteAsync(parent);
         if (changeMaterialType) parent.MaterialType = MaterialTypesEnum.零件;
         else parent.BomNo = "OTHER";
@@ -147,7 +148,8 @@ public sealed class BomProductLookupTests
     {
         var viewModel = CreateViewModel(new ProductApiStub());
         viewModel.IsOpen = true;
-        viewModel.ActiveProduct = new ProductLineModel { Uid = Guid.NewGuid(), Sku = "PARENT", BomNo = "BOM-1", MaterialType = MaterialTypesEnum.成品 };
+        var parent = new ProductLineModel(); parent.Load(new ProductDto { Uid = Guid.NewGuid(), Sku = "PARENT", BomNo = "BOM-1", BomVersion = 1, MaterialType = MaterialTypesEnum.成品 });
+        viewModel.ActiveProduct = parent;
         viewModel.SelectedCandidate = new ProductLookupDto
         {
             Uid = Guid.NewGuid(),

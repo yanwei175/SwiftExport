@@ -384,6 +384,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
                 return;
             }
 
+            // 只有明确成功的物料回执可以建立新绑定基线，不能仅凭外层请求成功锁定编号。
+            var savedIds = result.Data?.Items.Where(item => item.Success).Select(item => item.Uid).ToHashSet() ?? [];
+            foreach (var product in Products.Items.Where(product => savedIds.Contains(product.Uid))) product.AcceptBomBindingBaseline();
             Products.AcceptChanges();
             UpdateChangeState();
             _messageService.ShowSuccess("产品资料已保存", $"已提交 {result.Data?.SuccessCount ?? 0} 条变更。");
@@ -451,6 +454,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         }
         if (!Products.Items.Contains(target) || target.IsDeleted) return false;
         target.Version = receipt.NewVersion.Value;
+        target.AcceptBomBindingBaseline();
         target.AcceptChanges();
         UpdateChangeState();
         await RefreshSavedDetailAsync(target.Uid);
@@ -811,11 +815,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         UpdateChangeState();
 
-    /// <summary>勾选及行状态变化时更新拉取入口；当前物料的类型或编号变化同时刷新 BOM 父件资格。</summary>
+    /// <summary>勾选及行状态变化时更新拉取和需求入口；类型、编号、需求及已保存绑定变化同时刷新 BOM 父件资格。</summary>
     private void OnProductsListStateChanged(object? sender, ListStateChangedEventArgs<ProductLineModel> e)
     {
         UpdateChangeState();
-        if (e.PropertyName is null or nameof(ProductLineModel.MaterialType) or nameof(ProductLineModel.BomNo))
+        if (e.PropertyName is null or nameof(ProductLineModel.MaterialType) or nameof(ProductLineModel.BomNo) or nameof(ProductLineModel.BomVersion) or nameof(ProductLineModel.IsBomBindingSaved))
             BomDrawer.NotifyParentEligibilityChanged();
     }
 

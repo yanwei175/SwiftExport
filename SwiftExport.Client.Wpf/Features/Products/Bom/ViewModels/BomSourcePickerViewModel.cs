@@ -30,6 +30,8 @@ public sealed partial class BomSourcePickerViewModel : ObservableObject, IDialog
     /// <summary>当前来源页；无组成的绑定可见但不能确认。</summary>
     public ObservableCollection<BomProductItemModel> Products { get; } = [];
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
+    /// <summary>默认仅查看有有效子件的复制来源，可取消后由服务器返回全部绑定行。</summary>
+    [ObservableProperty] public partial bool HasComponents { get; set; } = true;
     [ObservableProperty] public partial BomProductItemModel? SelectedProduct { get; set; }
     [ObservableProperty] public partial bool IsQuerying { get; set; }
     [ObservableProperty] public partial string StatusText { get; set; } = string.Empty;
@@ -67,7 +69,7 @@ public sealed partial class BomSourcePickerViewModel : ObservableObject, IDialog
         try
         {
             var result = await _runner.RunAsync(() => _api.SearchProductsAsync(new BomProductSearchRequest
-            { Keyword = Keyword.Trim(), IsBound = true, PageIndex = PageIndex, PageSize = PageSize }, cts.Token), cts.Token, "查询复制来源失败");
+            { Keyword = Keyword.Trim(), IsBound = true, HasComponents = HasComponents, PageIndex = PageIndex, PageSize = PageSize }, cts.Token), cts.Token, "查询复制来源失败");
             if (_disposed || cts.IsCancellationRequested || !ReferenceEquals(_cts, cts)) return;
             if (!result.Success || result.Data is null) { StatusText = result.Message; return; }
             Products.Clear();

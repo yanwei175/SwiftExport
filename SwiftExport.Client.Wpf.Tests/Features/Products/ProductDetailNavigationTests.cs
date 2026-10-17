@@ -2,6 +2,9 @@ using SwiftExportClient.Mvvm;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.Messaging;
@@ -34,6 +37,170 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailNavigationTests
 {
+    /// <summary>新编号明确写入成功但重读失败时，仍锁定已保存绑定而保留当前编号。</summary>
+    [TestMethod]
+    public async Task BomNumber_SavedBindingStaysLockedWhenRefreshFails()
+    {
+        using var fixture = new Fixture { SaveSucceeds = true, PageFails = true }; var vm = fixture.ViewModel; var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = 1, Sku = "A", MaterialType = MaterialTypesEnum.成品, BomVersion = 1 });
+        row.BomNo = "SAVED-CUSTOM"; await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsTrue(row.IsBomBindingSaved); Assert.IsFalse(row.CanEditBomNo); Assert.AreEqual("SAVED-CUSTOM", row.BomNo);
+        row.Note = "其他资料草稿"; Assert.IsFalse(row.CanEditBomNo);
+        row.BomNo = "CHANGE"; Assert.IsNotNull(await row.ValidateAsync());
+    }
+    /// <summary>通过真实物料页的空格操作复现抽屉按钮，核对参数、上下文和需求资格。</summary>
+    [TestMethod] [DataRow(0, "", true)] [DataRow(1, "", true)] [DataRow(1, "DRAFT", false)] [DataRow(1, "SAVED", true)]
+    public void BomDrawer_RealToggleUsesSelectedProduct(int marker, string number, bool saved) => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); using var fixture = new Fixture(); var vm = fixture.ViewModel;
+        var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = 1, Sku = "A", MaterialType = MaterialTypesEnum.成品, BomVersion = marker, BomNo = saved ? number : string.Empty });
+        if (!saved) row.BomNo = number;
+        var view = new ProductsView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1300, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var toggle = Descendants(view).OfType<global::Wpf.Ui.Controls.ToggleSwitch>().Single(item => Equals(item.OnContent, "BOM 打开"));
+            Assert.AreSame(vm, toggle.DataContext); Assert.AreSame(row, toggle.CommandParameter);
+            Assert.AreEqual(marker > 0, toggle.IsEnabled);
+            if (marker == 0) StringAssert.Contains(toggle.ToolTip.ToString()!, "需要 BOM");
+            if (marker > 0)
+            {
+                toggle.Focus();
+                foreach (var routed in new[] { System.Windows.Input.Keyboard.KeyDownEvent, System.Windows.Input.Keyboard.KeyUpEvent })
+                    toggle.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                        PresentationSource.FromVisual(toggle)!, Environment.TickCount, System.Windows.Input.Key.Space) { RoutedEvent = routed });
+                await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                Assert.IsTrue(vm.BomDrawer.IsOpen, "真实按钮操作应打开BOM抽屉。");
+                var canMaintain = saved && number.Length > 0;
+                Assert.AreEqual(canMaintain, vm.BomDrawer.AddItemCommand.CanExecute(null));
+                Assert.AreEqual(canMaintain ? 1 : 0, fixture.BomReads, "未保存编号不得发起组成读取。");
+                if (!saved) StringAssert.Contains(vm.BomDrawer.StatusText, "尚未保存");
+                if (number.Length == 0) StringAssert.Contains(vm.BomDrawer.StatusText, "编号");
+                // 同一真实开关关闭并重开，保留参数与页面实例，不调用裸 VM 代替用户入口。
+                for (var pass = 0; pass < 2; pass++)
+                {
+                    foreach (var routed in new[] { System.Windows.Input.Keyboard.KeyDownEvent, System.Windows.Input.Keyboard.KeyUpEvent })
+                        toggle.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                            PresentationSource.FromVisual(toggle)!, Environment.TickCount, System.Windows.Input.Key.Space) { RoutedEvent = routed });
+                    await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+                    Assert.AreEqual(pass == 1, vm.BomDrawer.IsOpen);
+                }
+            }
+        }
+        finally { window.Close(); }
+    });
+
+    /// <summary>列表真实复选框经无障碍切换进入批量请求，已有绑定后禁用且编号只读。</summary>
+    [TestMethod]
+    public void BomRequirement_ListCheckboxUsesRealBindingAndSaveRequest() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); using var fixture = new Fixture(); var vm = fixture.ViewModel;
+        var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = row.Version, Sku = "A", MaterialType = MaterialTypesEnum.成品, SupplyType = SupplyTypeEnums.采购 });
+        var view = new ProductsView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1300, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = Descendants(view).OfType<DataGrid>().Single(candidate => ReferenceEquals(candidate.ItemsSource, vm.Products.Items));
+            var column = grid.Columns.Single(item => Equals(item.Header, "需要 BOM"));
+            grid.ScrollIntoView(row, column); grid.UpdateLayout();
+            var checkbox = Descendants(column.GetCellContent(row)).OfType<CheckBox>().Single();
+            Assert.IsTrue(checkbox.IsEnabled); Assert.IsFalse(checkbox.IsChecked);
+            ((IToggleProvider)new CheckBoxAutomationPeer(checkbox).GetPattern(PatternInterface.Toggle)!).Toggle();
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.IsTrue(row.RequiresBom); Assert.AreEqual(1, row.BomVersion);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.AreEqual(1, fixture.LastSave!.UpdateItems.Single().Data.BomVersion); Assert.IsTrue(row.IsDirty);
+            var saved = row.ToDto(); saved.BomNo = "BOUND-EMPTY"; row.Load(saved);
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.IsFalse(checkbox.IsEnabled); Assert.IsFalse(row.CanEditBomNo);
+        }
+        finally { window.Close(); }
+    });
+
+    /// <summary>真实编号编辑器接纳未绑定成品的连续输入，保存后重读锁定已有绑定。</summary>
+    [TestMethod]
+    public void BomNumber_CustomEditorCommitsToSaveAndLocksSavedBinding() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); using var fixture = new Fixture { SaveSucceeds = true }; var vm = fixture.ViewModel;
+        var row = vm.Products.Items[0]; var id = row.Uid;
+        row.Load(new ProductDto { Uid = id, Version = 1, Sku = "A", MaterialType = MaterialTypesEnum.成品, BomVersion = 1 });
+        var view = new ProductsView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1300, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = Descendants(view).OfType<DataGrid>().Single(candidate => ReferenceEquals(candidate.ItemsSource, vm.Products.Items));
+            Assert.AreEqual("查看", ((MenuItem)grid.ContextMenu.Items[0]).Header);
+            var column = grid.Columns.Single(item => Equals(item.Header, "BOM"));
+            grid.ScrollIntoView(row, column); grid.UpdateLayout(); grid.CurrentCell = new(row, column);
+            Assert.IsTrue(grid.BeginEdit()); await Dispatcher.Yield(DispatcherPriority.DataBind);
+            var editor = Descendants(column.GetCellContent(row)).OfType<TextBox>().Single(); Assert.IsFalse(editor.IsReadOnly);
+            editor.Text = "CUSTOM"; editor.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+            Assert.IsTrue(row.CanEditBomNo, "输入草稿第一个字符后不能锁定编号编辑。");
+            editor.Text = "CUSTOM-BOM-001"; Assert.IsTrue(vm.CommitPendingEdits!());
+            Assert.AreEqual("CUSTOM-BOM-001", row.BomNo); Assert.IsFalse(row.IsBomBindingSaved);
+            await vm.SaveCommand.ExecuteAsync(null);
+            Assert.AreEqual("CUSTOM-BOM-001", fixture.LastSave!.UpdateItems.Single().Data.BomNo);
+            var saved = vm.Products.Items.Single(item => item.Uid == id);
+            Assert.IsTrue(saved.IsBomBindingSaved); Assert.IsFalse(saved.CanEditBomNo); Assert.IsFalse(saved.CanChangeBomRequirement);
+            vm.SelectedLine = saved;
+            var toggle = Descendants(view).OfType<global::Wpf.Ui.Controls.ToggleSwitch>().Single(item => Equals(item.OnContent, "BOM 打开"));
+            toggle.Focus();
+            foreach (var routed in new[] { System.Windows.Input.Keyboard.KeyDownEvent, System.Windows.Input.Keyboard.KeyUpEvent })
+                toggle.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                    PresentationSource.FromVisual(toggle)!, Environment.TickCount, System.Windows.Input.Key.Space) { RoutedEvent = routed });
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.IsTrue(vm.BomDrawer.IsOpen); Assert.IsTrue(vm.BomDrawer.AddItemCommand.CanExecute(null));
+            var add = Descendants(view).OfType<Button>().Single(button => ReferenceEquals(button.Command, vm.BomDrawer.AddItemCommand));
+            add.Focus();
+            foreach (var routed in new[] { System.Windows.Input.Keyboard.KeyDownEvent, System.Windows.Input.Keyboard.KeyUpEvent })
+                add.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                    PresentationSource.FromVisual(add)!, Environment.TickCount, System.Windows.Input.Key.Space) { RoutedEvent = routed });
+            Assert.IsTrue(vm.BomDrawer.Boms.HasChanges);
+            await vm.BomDrawer.CloseCommand.ExecuteAsync(null);
+            grid.ScrollIntoView(saved, column); grid.UpdateLayout(); grid.CurrentCell = new(saved, column);
+            Assert.IsTrue(grid.BeginEdit()); await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.IsTrue(Descendants(column.GetCellContent(saved)).OfType<TextBox>().Single().IsReadOnly);
+            grid.CancelEdit();
+            saved.BomNo = "REPLACEMENT"; Assert.IsNotNull(await saved.ValidateAsync());
+            saved.BomNo = string.Empty; Assert.IsNotNull(await saved.ValidateAsync());
+        }
+        finally { window.Close(); }
+    });
+
+    /// <summary>列表勾选进入实际批量保存请求；未改旧正数及保存失败的草稿均保持。</summary>
+    [TestMethod] [DataRow(0, 1)] [DataRow(7, 0)] [DataRow(7, 7)]
+    public async Task BomRequirement_ListSaveForwardsMarkerWithoutNormalizingUneditedValue(int marker, int expected)
+    {
+        using var fixture = new Fixture(); var vm = fixture.ViewModel; var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = row.Version, Sku = "A", MaterialType = MaterialTypesEnum.成品,
+            SupplyType = SupplyTypeEnums.采购, BomVersion = marker });
+        Assert.AreEqual(marker > 0, row.RequiresBom); Assert.IsFalse(row.IsDirty);
+        if (expected == marker) row.Note = "保留旧标记";
+        else row.RequiresBom = expected > 0;
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.IsNotNull(fixture.LastSave); Assert.AreEqual(expected, fixture.LastSave.UpdateItems.Single().Data.BomVersion);
+        Assert.IsTrue(row.IsDirty); Assert.IsTrue(string.IsNullOrEmpty(row.BomNo));
+        vm.RejectProductChangesCommand.Execute(null);
+        Assert.AreEqual(marker, row.BomVersion); Assert.AreEqual(marker > 0, row.RequiresBom); Assert.IsFalse(row.IsDirty);
+    }
+
+    /// <summary>列表保存成功并重读后采用服务端标记，勾选和脏状态一致。</summary>
+    [TestMethod] [DataRow(0, 1)] [DataRow(7, 0)]
+    public async Task BomRequirement_ListSuccessReloadAcceptsConsistentMarkerAndCheckbox(int marker, int expected)
+    {
+        using var fixture = new Fixture { SaveSucceeds = true }; var vm = fixture.ViewModel; var row = vm.Products.Items[0];
+        row.Load(new ProductDto { Uid = row.Uid, Version = row.Version, Sku = "A", MaterialType = MaterialTypesEnum.成品,
+            SupplyType = SupplyTypeEnums.采购, BomVersion = marker });
+        var id = row.Uid; row.RequiresBom = expected > 0; await vm.SaveCommand.ExecuteAsync(null);
+        var reloaded = vm.Products.Items.Single(item => item.Uid == id);
+        Assert.AreEqual(expected, reloaded.BomVersion); Assert.AreEqual(expected > 0, reloaded.RequiresBom); Assert.IsFalse(reloaded.IsDirty);
+    }
+
     /// <summary>实际页面填充完整关系事实，拒绝危险字段、外来行和只读行；既有放弃修改恢复基线。</summary>
     [TestMethod]
     public void FillDown_ShouldKeepRelationsAndRejectUnsafeRequestsWithoutLosingBaseline()
@@ -503,8 +670,10 @@ public sealed class ProductDetailNavigationTests
     {
         internal DialogResult Choice = DialogResult.Close;
         internal bool SaveSucceeds, OmitReceipt;
+        internal bool PageFails;
         internal bool AllowEdit = true;
         internal int SaveCount, PageReads, DetailReads, DialogCount;
+        internal int BomReads;
         internal Task<DialogResult>? Confirmation;
         internal DialogOptions? LastDialog;
         internal ProductBatchSaveRequest? LastSave;
@@ -529,6 +698,7 @@ public sealed class ProductDetailNavigationTests
                 {
                     PageReads++;
                     LastSearch = (ProductSearchRequest)args[0]!;
+                    if (PageFails) return Task.FromResult(ServiceResult<PagedResponseBase<ProductDto>>.Fail("测试刷新失败"));
                     return Task.FromResult(ServiceResult<PagedResponseBase<ProductDto>>.Ok(new() { Items = Server.Adapt<List<ProductDto>>() }));
                 }
                 Assert.AreEqual(nameof(IProductApi.BatchSaveAsync), method.Name);
@@ -567,7 +737,12 @@ public sealed class ProductDetailNavigationTests
             var user = Proxy<ICurrentUserService>((method, args) => method.Name == nameof(ICurrentUserService.HasPermission)
                 ? (string)args[0]! == PermissionKeys.ProductsProductView || AllowEdit && (string)args[0]! == PermissionKeys.ProductsProductEdit : null);
             var messages = Proxy<IMessageService>((_, _) => null);
-            var bom = new BomDrawerViewModel(null!, api, runner, messages, dialogs);
+            var bomApi = Proxy<IBomApi>((method, args) =>
+            {
+                Assert.AreEqual(nameof(IBomApi.GetBomByBomNo), method.Name); BomReads++;
+                return Task.FromResult(ServiceResult<List<BomDto>>.Ok([BomManagerTests.Line((string)args[0]!)]));
+            });
+            var bom = new BomDrawerViewModel(bomApi, api, runner, messages, dialogs);
             ViewModel = new ProductsViewModel(api, null!, null!, runner, cache ?? new ReferenceDataCacheServiceStub(), messages,
                 dialogs, bom, null!, user, navigation);
             ViewModel.Products.LoadFromDtos(Server.Adapt<List<ProductDto>>());

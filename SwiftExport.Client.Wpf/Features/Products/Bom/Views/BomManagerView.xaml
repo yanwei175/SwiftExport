@@ -10,6 +10,7 @@
              xmlns:core="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:validation="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:vm="clr-namespace:SwiftExportClient.Features.Products.Bom.ViewModels"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              mc:Ignorable="d" d:Height="800" d:Width="1280"
              d:DataContext="{d:DesignInstance vm:BomManagerViewModel}"
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
@@ -98,6 +99,7 @@
                       Style="{StaticResource SwiftExportDataGrid}"
                       core:GridRowHeader.ShowRowNumber="True"
                       AutomationProperties.Name="BOM 成品主表">
+                <i:Interaction.Behaviors><core:DataGridColumnVisibilityBehavior /></i:Interaction.Behaviors>
 
                 <DataGrid.Columns>
 

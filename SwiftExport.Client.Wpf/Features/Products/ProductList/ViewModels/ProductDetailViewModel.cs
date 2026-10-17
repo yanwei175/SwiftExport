@@ -30,7 +30,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.Products.ProductList.ViewModels;
 
-/// <summary>已有物料的资料、独立标签和包装详情文档；包装结果与包材档案分开，不管理 BOM。</summary>
+/// <summary>已有物料的资料、BOM 需求、独立标签和包装详情文档；BOM 绑定和组成仍由管理页维护。</summary>
 public sealed partial class ProductDetailViewModel : ViewModelBaseEx, IDocumentTabViewModel, IDocumentTabInitializable, IDisposable
 {
     /// <summary>物料详情稳定路由键。</summary>

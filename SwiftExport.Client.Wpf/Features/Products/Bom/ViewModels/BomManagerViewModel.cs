@@ -225,7 +225,7 @@ public sealed partial class BomManagerViewModel : ViewModelBaseEx, IAsyncInitial
             if (_disposed) return;
             if (result.OutcomeUnknown) { _unknownSave = true; ValidationSummary = "绑定结果未知，请刷新成品核实后继续。"; NotifyCapabilities(); return; }
             if (result.Reason != DialogResult.Primary || result.Saved is null) return;
-            product.BomNo = result.BomNo; product.BomVersion = 1; product.IsBound = true;
+            product.BomNo = result.BomNo; product.BomVersion = Math.Max(1, product.BomVersion); product.IsBound = true;
             product.Version = result.Saved.NewVersion ?? product.Version;
             _messages.ShowSuccess("绑定已保存", "请继续维护组成并保存；刷新时会重新应用主表筛选。");
             if (!await LoadBomCoreAsync(product)) _messages.ShowWarning("绑定已保存", "绑定已保存，但组成刷新失败，请手动刷新。");

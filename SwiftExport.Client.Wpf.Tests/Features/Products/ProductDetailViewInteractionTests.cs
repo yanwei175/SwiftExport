@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.Controls;
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.SystemDtos;
 using SwiftExport.Contracts.SysEnums;
@@ -26,6 +27,33 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailViewInteractionTests
 {
+    /// <summary>真实复选框通过无障碍切换与双向绑定提交需求，绑定后明确禁用取消。</summary>
+    [TestMethod] [DataRow(0)] [DataRow(7)]
+    public void BomRequirement_CheckboxTogglesRealSaveIntentAndDisablesBoundParent(int marker) => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); var detail = ProductDetailViewModelTests.Detail(); detail.BomNo = string.Empty; detail.BomVersion = marker;
+        SaveProductDetailRequest? sent = null;
+        using var vm = ProductDetailViewModelTests.Create(detail, null, save: request =>
+        { sent = request; return Task.FromResult(ServiceResult<SaveProductDetailResponse>.Fail("保留草稿")); });
+        await ProductDetailViewModelTests.Open(vm, detail.Uid);
+        var view = new ProductDetailView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1480, Height = 900, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var checkbox = Descendants(view).OfType<CheckBox>().Single(control => AutomationProperties.GetName(control) == "需要 BOM");
+            Assert.AreEqual(marker > 0, checkbox.IsChecked); Assert.AreEqual(marker, vm.Header.BomVersion); Assert.IsTrue(checkbox.IsEnabled);
+            ((IToggleProvider)new CheckBoxAutomationPeer(checkbox).GetPattern(PatternInterface.Toggle)!).Toggle();
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.AreEqual(marker == 0, vm.Header.RequiresBom);
+            await vm.SaveCommand.ExecuteAsync(null); Assert.AreEqual(marker == 0, sent!.Data.RequiresBom);
+            vm.Header.RequiresBom = true; vm.Header.BomNo = "BOUND-EMPTY";
+            await Dispatcher.Yield(DispatcherPriority.DataBind);
+            Assert.IsFalse(checkbox.IsEnabled); StringAssert.Contains(checkbox.ToolTip.ToString()!, "不能直接取消");
+        }
+        finally { window.Close(); }
+    });
+
     /// <summary>详情没有任何中性候选时仍能保存任意型号，关闭候选和失焦均不丢文本。</summary>
     [TestMethod]
     public void FreeModelText_ShouldSaveWithoutCandidatesAndKeepOtherFields() => DatePickerAssistTests.RunWithApplication(async () =>
@@ -281,10 +309,7 @@ public sealed class ProductDetailViewInteractionTests
     /// <summary>加载产品实际命名资源，真实控件遵循当前主题及图片样式。</summary>
     private static void LoadResources()
     {
-        Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ThemesDictionary());
-        Application.Current.Resources.MergedDictionaries.Add(new global::Wpf.Ui.Markup.ControlsDictionary());
-        foreach (var file in new[] { "UserWpfUiThemeResources.xaml", "Variables.xaml", "Colors.xaml", "Typography.xaml", "ListBox.xaml", "Image.xaml" })
-            Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri($"pack://application:,,,/SwiftExport.Client.Wpf;component/Resources/{file}") });
+        ApplicationResourceLoader.Load();
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
