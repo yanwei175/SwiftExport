@@ -811,8 +811,13 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     private void OnProductsPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         UpdateChangeState();
 
-    /// <summary>勾选及行状态变化时更新拉取入口，避免沿用旧的选择快照。</summary>
-    private void OnProductsListStateChanged(object? sender, ListStateChangedEventArgs<ProductLineModel> e) => UpdateChangeState();
+    /// <summary>勾选及行状态变化时更新拉取入口；当前物料的类型或编号变化同时刷新 BOM 父件资格。</summary>
+    private void OnProductsListStateChanged(object? sender, ListStateChangedEventArgs<ProductLineModel> e)
+    {
+        UpdateChangeState();
+        if (e.PropertyName is null or nameof(ProductLineModel.MaterialType) or nameof(ProductLineModel.BomNo))
+            BomDrawer.NotifyParentEligibilityChanged();
+    }
 
     private void OnDictionaryValuesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
         RefreshUnitOptions();

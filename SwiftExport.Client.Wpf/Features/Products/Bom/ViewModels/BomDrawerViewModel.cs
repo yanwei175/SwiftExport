@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.ProductApis;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
+using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Features.Products.Bom.Models;
 using SwiftExportClient.Features.Products.ProductList.Models;
 using SwiftExportClient.Mvvm;
@@ -12,6 +13,7 @@ using SwiftExportClient.Services.UI;
 
 namespace SwiftExportClient.Features.Products.Bom.ViewModels;
 
+/// <summary>物料管理页的 BOM 抽屉，只允许成品维护当前组成，不按供货方式限制父件。</summary>
 public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 {
     private readonly IBomApi _bomApi;
@@ -49,10 +51,15 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddItemCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteItemCommand))]
     public partial bool IsOpen { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddItemCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteItemCommand))]
     public partial ProductLineModel? ActiveProduct { get; set; }
 
     [ObservableProperty]
@@ -68,18 +75,36 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 
     public event EventHandler<ProductLineModel?>? SelectionRestoreRequested;
 
+    /// <summary>同步物料选择并刷新入口资格，抽屉已打开时沿用原有草稿确认流程。</summary>
     public void NotifyProductSelection(ProductLineModel? product)
     {
         _pendingProduct = product;
+        ToggleCommand.NotifyCanExecuteChanged();
         if (IsOpen)
         {
             _ = SwitchProductAsync(product);
         }
     }
 
-    [RelayCommand]
+    /// <summary>由物料列表既有行变化事件刷新入口；失去成品资格时使在途组成失效，保留本地草稿。</summary>
+    public void NotifyParentEligibilityChanged()
+    {
+        ToggleCommand.NotifyCanExecuteChanged();
+        AddItemCommand.NotifyCanExecuteChanged();
+        SaveCommand.NotifyCanExecuteChanged();
+        DeleteItemCommand.NotifyCanExecuteChanged();
+        if (ActiveProduct is not null && ActiveProduct.MaterialType != MaterialTypesEnum.成品)
+        {
+            Interlocked.Increment(ref _loadVersion);
+            StatusText = "只有成品可以维护 BOM，当前物料只能作为子件。";
+        }
+    }
+
+    /// <summary>成品可打开组成抽屉；已打开的抽屉始终允许按原流程申请关闭。</summary>
+    [RelayCommand(CanExecute = nameof(CanToggle))]
     private async Task ToggleAsync(ProductLineModel? product)
     {
+        if (!CanToggle(product)) return;
         if (IsOpen)
         {
             await CloseAsync();
@@ -89,6 +114,8 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         IsOpen = true;
         await SwitchProductAsync(product ?? _pendingProduct, skipDirtyCheck: true);
     }
+
+    private bool CanToggle(ProductLineModel? product) => IsOpen || (product ?? _pendingProduct)?.MaterialType == MaterialTypesEnum.成品;
 
     [RelayCommand]
     private async Task CloseAsync()
@@ -103,28 +130,34 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
     [RelayCommand]
     private Task RefreshAsync() => IsOpen ? LoadProductAsync(ActiveProduct) : Task.CompletedTask;
 
+    /// <summary>只为当前有编号的成品新增组成；直接执行命令也必须重新核对父件资格。</summary>
     [RelayCommand(CanExecute = nameof(CanAddItem))]
     private void AddItem()
     {
-        if (ActiveProduct is null || string.IsNullOrWhiteSpace(ActiveProduct.BomNo)) return;
-        SelectedLine = Boms.AddNewItem(ActiveProduct.BomNo);
+        var product = ActiveProduct;
+        if (!CanAddItem() || product is null) return;
+        SelectedLine = Boms.AddNewItem(product.BomNo);
     }
 
-    private bool CanAddItem() => IsOpen && ActiveProduct is not null && !string.IsNullOrWhiteSpace(ActiveProduct.BomNo);
+    /// <summary>父件资格取当前行的物料类型，不缓存打开时状态，也不排除采购或外协成品。</summary>
+    private bool CanAddItem() => IsOpen && ActiveProduct?.MaterialType == MaterialTypesEnum.成品 && !string.IsNullOrWhiteSpace(ActiveProduct.BomNo);
 
+    /// <summary>父件失去成品资格后保留已有草稿，不再允许删除组成。</summary>
     [RelayCommand(CanExecute = nameof(CanDeleteItem))]
     private void DeleteItem()
     {
-        if (SelectedLine is null) return;
+        if (!CanDeleteItem()) return;
         Boms.Remove(SelectedLine);
         SelectedLine = Boms.Items.FirstOrDefault();
     }
 
-    private bool CanDeleteItem() => SelectedLine is not null;
+    private bool CanDeleteItem() => CanAddItem() && SelectedLine is not null;
 
+    /// <summary>提交前重新核对成品资格，类型在打开后改变时不写入并保留草稿。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
+        if (!CanSave()) return;
         var validation = await Boms.ValidateAllAsync();
         if (!string.IsNullOrWhiteSpace(validation))
         {
@@ -132,6 +165,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
             return;
         }
 
+        if (!CanSave()) return;
         var request = Boms.CreateSaveRequest();
         if (!request.HasChanges) return;
         var result = await _apiCallRunner.RunAsync(() => _bomApi.BatchSaveAsync(request), "保存 BOM 失败");
@@ -146,7 +180,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         await LoadProductAsync(ActiveProduct);
     }
 
-    private bool CanSave() => Boms.HasChanges;
+    private bool CanSave() => CanAddItem() && Boms.HasChanges;
 
     [RelayCommand(CanExecute = nameof(CanReject))]
     private void Reject()
@@ -190,11 +224,13 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         IsLookupBusy = false;
     }
 
+    /// <summary>父件仍是成品时接纳所选子件，不额外限制子件物料类型。</summary>
     [RelayCommand]
     private void CommitProduct(BomLineModel? line)
     {
-        if (line is null || SelectedCandidate is null || ActiveProduct is null) return;
-        line.BomNo = ActiveProduct.BomNo;
+        var product = ActiveProduct;
+        if (!CanAddItem() || line is null || SelectedCandidate is null || product is null) return;
+        line.BomNo = product.BomNo;
         line.SubSkuId = SelectedCandidate.Uid;
         line.SubSku = SelectedCandidate.Sku ?? string.Empty;
         line.Description = !string.IsNullOrWhiteSpace(SelectedCandidate.DescriptionEn)
@@ -219,6 +255,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
         await LoadProductAsync(product);
     }
 
+    /// <summary>非成品的遗留 BOM 编号不能作为读取组成入口，选择切换仍使旧读取结果失效。</summary>
     private async Task LoadProductAsync(ProductLineModel? product)
     {
         var version = Interlocked.Increment(ref _loadVersion);
@@ -232,15 +269,28 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
             return;
         }
 
+        if (product.MaterialType != MaterialTypesEnum.成品)
+        {
+            StatusText = "只有成品可以维护 BOM，当前物料只能作为子件。";
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(product.BomNo))
         {
             StatusText = $"产品 {product.Sku} 尚未建立 BOM。";
             return;
         }
 
-        StatusText = $"正在加载 {product.BomNo}...";
-        var result = await _apiCallRunner.RunAsync(() => _bomApi.GetBomByBomNo(product.BomNo), "加载 BOM 失败");
+        var bomNo = product.BomNo;
+        StatusText = $"正在加载 {bomNo}...";
+        var result = await _apiCallRunner.RunAsync(() => _bomApi.GetBomByBomNo(bomNo), "加载 BOM 失败");
         if (version != Volatile.Read(ref _loadVersion)) return;
+        // 等待期间可在物料表修改类型或编号，旧响应不能重新接纳到变化后的父件。
+        if (product.MaterialType != MaterialTypesEnum.成品 || product.BomNo != bomNo)
+        {
+            StatusText = "物料类型或 BOM 编号已变化，请重新选择或刷新。";
+            return;
+        }
         if (!result.Success)
         {
             StatusText = result.Message;
@@ -249,7 +299,7 @@ public sealed partial class BomDrawerViewModel : ViewModelBaseEx
 
         Boms.LoadFromDtos(result.Data ?? []);
         SelectedLine = Boms.Items.FirstOrDefault();
-        StatusText = $"BOM {product.BomNo}，共 {Boms.Items.Count} 项。";
+        StatusText = $"BOM {bomNo}，共 {Boms.Items.Count} 项。";
     }
 
     private void ClearProductLookupState()
