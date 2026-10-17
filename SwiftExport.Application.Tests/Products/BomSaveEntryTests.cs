@@ -21,6 +21,50 @@ namespace SwiftExport.Application.Tests.Products;
 [TestClass]
 public sealed class BomSaveEntryTests
 {
+    /// <summary>组成的新增、修改及批量保存均检查所有共享父，不能只核对物理行的来源父。</summary>
+    [TestMethod]
+    [DataRow("零件", "add")] [DataRow("虚拟件", "add")] [DataRow("客供件", "add")] [DataRow("包材", "add")]
+    [DataRow("零件", "update")] [DataRow("虚拟件", "update")] [DataRow("客供件", "update")] [DataRow("包材", "update")]
+    [DataRow("零件", "batch")] [DataRow("虚拟件", "batch")] [DataRow("客供件", "batch")] [DataRow("包材", "batch")]
+    public async Task ParentEligibility_SharedIllegalParentRejectsComposition(string material, string entry)
+    {
+        var fixture = new Fixture();
+        var source = fixture.Product("SOURCE", "SHARED");
+        var other = fixture.Product("OTHER", "SHARED");
+        other.MaterialType = material;
+        var child = fixture.Product("LEAF");
+        var line = fixture.Line(source, child, 1);
+        var before = fixture.PersistedState();
+        bool success;
+        if (entry == "batch")
+            success = (await fixture.Service.BatchSaveAsync(new() { UpdateItems = [new() { Uid = line.Uid, Version = line.Version, Data = Dto(source, child) }] })).Success;
+        else if (entry == "update")
+            success = (await fixture.Entry.UpdateAsync(new() { Uid = line.Uid, Version = line.Version, Data = Dto(source, child) })).Success;
+        else success = (await fixture.Entry.AddAsync(new() { Data = Dto(source, fixture.Product("NEW")) })).Success;
+        Assert.IsFalse(success);
+        Assert.HasCount(0, fixture.Writes);
+        Assert.AreEqual(before, fixture.PersistedState());
+        fixture.AssertOwnedTransaction(0, 1);
+    }
+
+    /// <summary>三种供货成品均可维护组成，五种物料仍可作为终端子件，不新增成品子件限制。</summary>
+    [TestMethod]
+    [DataRow("生产", "成品")] [DataRow("采购", "成品")] [DataRow("外协", "成品")]
+    [DataRow("采购", "零件")] [DataRow("采购", "虚拟件")] [DataRow("采购", "客供件")] [DataRow("采购", "包材")]
+    public async Task ParentEligibility_ValidParentsAndChildrenRemainUsable(string supply, string childMaterial)
+    {
+        var fixture = new Fixture();
+        var parent = fixture.Product("PARENT", "SHARED");
+        parent.SupplyType = supply;
+        parent.IsActive = false;
+        var child = fixture.Product("CHILD");
+        child.MaterialType = childMaterial;
+        var result = await fixture.Entry.AddAsync(new() { Data = Dto(parent, child) });
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.HasCount(1, fixture.Writes);
+        fixture.AssertOwnedTransaction(1, 0);
+    }
+
     /// <summary>共享组成必须对全部有效父项展开，自环和跨共享组循环不能只检查来源父。</summary>
     [TestMethod]
     [DataRow("shared-self", "不能相同")]
@@ -533,7 +577,7 @@ public sealed class BomSaveEntryTests
         /// <summary>新增场景产品，BOM 正数仅表示有效引用，不建立版本分组或发布流程。</summary>
         public Product Product(string sku, string? bomNo = null)
         {
-            var row = new Product { Uid = Guid.NewGuid(), Sku = sku, BomNo = bomNo, BomVersion = bomNo is null ? 0 : 1, SupplyType = "采购" };
+            var row = new Product { Uid = Guid.NewGuid(), Sku = sku, MaterialType = "成品", BomNo = bomNo, BomVersion = bomNo is null ? 0 : 1, SupplyType = "采购" };
             Products.Add(row.Uid, row);
             return row;
         }

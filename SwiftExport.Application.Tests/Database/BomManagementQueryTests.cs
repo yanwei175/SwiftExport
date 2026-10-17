@@ -32,6 +32,9 @@ public sealed partial class PostgreSqlRepositoryTests
         CollectionAssert.AreEqual(new[] { color }, (Guid[])fixture.Connection.Values["ColorIds"]!);
         var sql = fixture.Connection.Text;
         StringAssert.Contains(sql, "p.material_type='成品'"); StringAssert.Contains(sql, "p.is_deleted=FALSE");
+        Assert.AreEqual(2, sql.Split("WHERE p.is_deleted=FALSE AND p.material_type='成品'", StringSplitOptions.None).Length - 1,
+            "计数和分页必须使用同一成品筛选，不能只在页数据上过滤。");
+        Assert.IsFalse(sql.Contains("p.is_active", StringComparison.Ordinal), "父件资格不增加启用状态过滤。");
         StringAssert.Contains(sql, "ORDER BY p.sku COLLATE public.erp_dictionary_ci,p.uid OFFSET @Offset LIMIT @PageSize");
         StringAssert.Contains(sql, "LEFT JOIN parents ON"); StringAssert.Contains(sql, "LEFT JOIN components ON");
         StringAssert.Contains(sql, "count(*) FILTER(WHERE bom_version>0)");

@@ -25,6 +25,52 @@ namespace SwiftExport.Application.Tests.Products;
 [TestClass]
 public sealed class BomManagementBindingTests
 {
+    /// <summary>所有供货方式成品可建立或绑定 BOM，禁用状态不新增资格限制。</summary>
+    [TestMethod]
+    [DataRow("生产", false)] [DataRow("采购", false)] [DataRow("外协", false)]
+    [DataRow("生产", true)] [DataRow("采购", true)] [DataRow("外协", true)]
+    public async Task ParentEligibility_FinishedSupplyTypesAreAllowed(string supply, bool existing)
+    {
+        var fixture = new Fixture(existing);
+        fixture.Target.SupplyType = supply;
+        var result = await fixture.Save(existing);
+        Assert.IsTrue(result.Success, result.Message);
+        Assert.IsNotNull(fixture.Candidate);
+    }
+
+    /// <summary>专用绑定入口拒绝全部非成品，既有共享组的实际父件也必须合格。</summary>
+    [TestMethod]
+    [DataRow("零件", false)] [DataRow("虚拟件", false)] [DataRow("客供件", false)] [DataRow("包材", false)]
+    [DataRow("零件", true)] [DataRow("虚拟件", true)] [DataRow("客供件", true)] [DataRow("包材", true)]
+    public async Task ParentEligibility_BindingRejectsNonFinishedParents(string material, bool sharedParent)
+    {
+        var fixture = new Fixture(sharedParent);
+        if (sharedParent) fixture.Parents[0].MaterialType = material;
+        else fixture.Target.MaterialType = material;
+        var result = await fixture.Save(sharedParent);
+        Assert.IsFalse(result.Success);
+        Assert.IsNull(fixture.Candidate);
+        Assert.AreEqual(0, fixture.Session.Memory.Commits);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
+    /// <summary>专用绑定不能静默覆盖既有的不成对编号或负标记，必须先核实历史事实。</summary>
+    [TestMethod]
+    [DataRow("OLD", 0)] [DataRow(null, 1)] [DataRow(null, -1)]
+    public async Task ParentEligibility_BindingRejectsInconsistentCurrentState(string? number, int marker)
+    {
+        var fixture = new Fixture(false);
+        fixture.Target.BomNo = number;
+        fixture.Target.BomVersion = marker;
+        var before = JsonSerializer.Serialize(fixture.Target);
+        var result = await fixture.Save(false);
+        Assert.IsFalse(result.Success);
+        Assert.IsNull(fixture.Candidate);
+        Assert.AreEqual(before, JsonSerializer.Serialize(fixture.Target));
+        Assert.AreEqual(0, fixture.Session.Memory.Commits);
+        Assert.IsNull(fixture.Session.Transaction);
+    }
+
     /// <summary>新空编号与既有组成都使用完整产品候选，其他产品资料保持逐字段相同。</summary>
     [TestMethod] [DataRow(false)] [DataRow(true)]
     public async Task Binding_PreservesProductDataAndUsesSerializable(bool existing)

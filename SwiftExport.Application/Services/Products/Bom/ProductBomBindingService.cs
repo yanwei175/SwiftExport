@@ -50,7 +50,8 @@ public sealed class ProductBomBindingService(IProductRepository products, IBomRe
             var product = await products.GetByIdAsync(productId, cancellationToken);
             if (product is null || product.IsDeleted) return Fail(ServiceErrorCodes.NotFound, "产品不存在或已删除。");
             if (product.Version != request.ExpectedVersion) return Fail(ServiceErrorCodes.VersionConflict, "产品已被修改，请刷新后重试。");
-            if (product.MaterialType != MaterialTypesEnum.成品) return Fail(ServiceErrorCodes.BusinessBlocked, "BOM 管理只允许为成品建立或绑定。");
+            var parentError = BomParentPolicy.ValidateParent(product) ?? BomParentPolicy.ValidateBinding(product);
+            if (parentError is not null) return Fail(ServiceErrorCodes.BusinessBlocked, parentError);
             if (product.BomVersion > 0 && !string.IsNullOrWhiteSpace(product.BomNo))
                 return Fail(ServiceErrorCodes.BusinessBlocked, "产品已有有效 BOM，不能更换或解除绑定。");
             var facts = await boms.GetSharedSaveFactsAsync([request.BomNo.Trim()], withUpdLock: false, cancellationToken);

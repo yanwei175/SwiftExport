@@ -22,6 +22,7 @@ public sealed partial class ProductBomSaveBoundaryTests
     {
         var fixture = DetailFixture(out var product, out var first, out _);
         product.IsActive = false;
+        product.MaterialType = MaterialTypesEnum.成品;
         product.BomNo = "DETAIL-BOM";
         product.LinkSku = "仅属于物料的型号";
         product.BomVersion = 8;
@@ -187,6 +188,7 @@ public sealed partial class ProductBomSaveBoundaryTests
     {
         var fixture = DetailFixture(out var product, out var first, out _);
         fixture.Selection(product.Uid, first);
+        product.MaterialType = MaterialTypesEnum.成品;
         product.BomNo = "KEEP-BOM"; product.BomVersion = 2; product.UnitWeight = 2m;
         var request = DetailRequest(product, null);
         request.Data.ProductMasterId = Guid.NewGuid();

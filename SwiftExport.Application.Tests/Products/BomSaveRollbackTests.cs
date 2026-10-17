@@ -299,7 +299,7 @@ public sealed class BomSaveRollbackTests
     /// <summary>仓储读取返回独立副本，事务快照只覆盖真正持久化的集合，模拟 Dapper 的对象边界。</summary>
     private sealed class Fixture
     {
-        public Product Parent { get; } = new() { Uid = Guid.NewGuid(), Sku = "A", BomNo = "BOM-A", BomVersion = 1, SupplyType = "采购" };
+        public Product Parent { get; } = new() { Uid = Guid.NewGuid(), Sku = "A", MaterialType = "成品", BomNo = "BOM-A", BomVersion = 1, SupplyType = "采购" };
         public List<Bom> Rows { get; private set; } = [];
         public List<string> Writes { get; } = [];
         public int FailureNumber { get; init; }

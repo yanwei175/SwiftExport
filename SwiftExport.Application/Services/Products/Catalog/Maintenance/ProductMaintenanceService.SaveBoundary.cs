@@ -1,5 +1,4 @@
 using Mapster;
-using SwiftExport.Application.Services.DemandPlanning.Policies;
 using SwiftExport.Contracts.DTOs.Products;
 using SwiftExport.Contracts.DTOs.Products.Requests;
 using SwiftExport.Contracts.DTOs.Products.Responses;
@@ -86,9 +85,15 @@ public partial class ProductMaintenanceService
             ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
             : new ServiceResult<SaveItemResult> { Success = false, Message = result.Message, Error = result.Error };
 
-    /// <summary>按数据库共享组判断绑定、删除和角色边界；绑定既有组成须校验候选有效图，新空编号保留建父后录组成的流程。</summary>
+    /// <summary>先检查声明绑定的父件资格，再按数据库共享组判断删除和角色边界；新空编号保留成品建父后录组成的流程。</summary>
     private async Task<string?> ValidateBomSaveBoundaryAsync(ProductBatchSaveRequest request)
     {
+        // 资格不依赖组成是否已录入；放在图查询跳过判断之前，阻止空父件或不成对的标记绕过。
+        foreach (var data in request.CreateItems.Select(item => item.Data).Concat(request.UpdateItems.Select(item => item.Data)))
+        {
+            var error = BomParentPolicy.ValidateBinding(data.Adapt<Product>());
+            if (error is not null) return error;
+        }
         var changedIds = request.UpdateItems.Select(item => item.Uid)
             .Concat(request.DeleteItems.Select(item => item.Uid)).Distinct().ToArray();
         var existing = (await productRepository.GetByIdListAsync(changedIds))
@@ -184,7 +189,7 @@ public partial class ProductMaintenanceService
                 if (group.Lines.Count > 0) affectedKeys.Add(key);
                 else
                 {
-                    var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(candidates[id]);
+                    var parentError = BomParentPolicy.ValidateParent(candidates[id]);
                     if (parentError is not null) return parentError;
                 }
             }
@@ -213,7 +218,7 @@ public partial class ProductMaintenanceService
     {
         if (string.IsNullOrWhiteSpace(product.BomNo) || group is null)
             return $"产品 {product.Sku} 的有效 BOM 标记必须有可确认的编号。";
-        var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(product);
+        var parentError = BomParentPolicy.ValidateBinding(product);
         if (parentError is not null) return parentError;
         if (group.Lines.Any(line => !line.IsDeleted && line.BomVersion <= 0))
             return $"BOM {group.BomNo} 存在异常组成有效标记，普通绑定不能启用旧数据。";

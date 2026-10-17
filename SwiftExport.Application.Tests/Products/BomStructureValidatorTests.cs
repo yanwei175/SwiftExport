@@ -122,10 +122,12 @@ public sealed class BomStructureValidatorTests
                 .Select(group => group.GroupKey).ToArray(), products);
     }
 
+    /// <summary>建立合法成品及可选绑定，供结构算法测试独立验证循环与重复边界。</summary>
     private static Product Product(string sku, string? bomNo = null) => new()
     {
         Uid = Guid.NewGuid(),
         Sku = sku,
+        MaterialType = "成品",
         BomNo = bomNo,
         BomVersion = bomNo is null ? 0 : 1,
         SupplyType = "采购"

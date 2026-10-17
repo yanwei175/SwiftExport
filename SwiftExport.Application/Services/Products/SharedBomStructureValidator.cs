@@ -71,7 +71,7 @@ public sealed class SharedBomStructureValidator
             return $"BOM {group.BomNo} 中子件重复。";
         foreach (var parent in parents)
         {
-            var parentError = CustomerSuppliedMaterialPolicy.ValidateBomParent(parent);
+            var parentError = BomParentPolicy.ValidateBinding(parent);
             if (parentError is not null) return parentError;
             foreach (var line in lines)
             {

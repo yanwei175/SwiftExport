@@ -54,6 +54,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         dto.Sku = entry == "add" ? "CREATED" : target.Sku;
         dto.BomNo = number;
         dto.BomVersion = 3;
+        dto.MaterialType = MaterialTypesEnum.成品;
         var bomBefore = fixture.BomState();
         var result = entry == "add"
             ? await fixture.Entry.AddAsync(new() { Data = dto })
@@ -87,6 +88,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         if (scenario == "self") child = target;
         if (scenario == "cycle")
         {
+            child.MaterialType = MaterialTypesEnum.成品;
             child.BomNo = "DOWNSTREAM";
             child.BomVersion = 1;
             fixture.Line(child, target);
@@ -101,6 +103,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         var dto = Dto(target);
         dto.BomNo = "SHARED";
         dto.BomVersion = 1;
+        dto.MaterialType = MaterialTypesEnum.成品;
         if (scenario == "customer-parent") dto.MaterialType = MaterialTypesEnum.客供件;
         var before = fixture.State();
         var result = await fixture.Entry.UpdateAsync(new() { Uid = target.Uid, Version = target.Version, Data = dto });
@@ -276,7 +279,9 @@ public sealed partial class ProductBomSaveBoundaryTests
         var before = fixture.State();
         var result = await fixture.Entry.UpdateAsync(new() { Uid = parent.Uid, Version = parent.Version, Data = dto });
         fixture.AssertBlocked(result.Success, before);
-        Assert.IsTrue(fixture.ReferenceReads > 0);
+        if (scenario == "current-version")
+            Assert.AreEqual(0, fixture.ReferenceReads, "编号和标记不成对时应在共享图查询前拒绝。");
+        else Assert.IsTrue(fixture.ReferenceReads > 0);
     }
 
     /// <summary>有效父项和组件的软硬删除都必须阻断，数据库确认的全半角匹配事实也不能被 C# 过滤丢弃。</summary>
@@ -511,7 +516,7 @@ public sealed partial class ProductBomSaveBoundaryTests
         var dto = Dto(target);
         dto.Note = "批次修改";
         var create = new ProductDto { Sku = "NEW", SupplyType = SupplyTypeEnums.采购, MaterialType = MaterialTypesEnum.零件 };
-        if (stage == "read") { create.BomNo = "NEW-EMPTY"; create.BomVersion = 3; }
+        if (stage == "read") { create.MaterialType = MaterialTypesEnum.成品; create.BomNo = "NEW-EMPTY"; create.BomVersion = 3; }
         var before = fixture.State();
         var result = await fixture.Service.BatchSaveAsync(new()
         {
@@ -644,10 +649,10 @@ public sealed partial class ProductBomSaveBoundaryTests
                 }), Proxy<IProductAttributeRepository>(AttributeCall), Proxy<IProductMasterRepository>(MasterCall));
         }
 
-        /// <summary>建立可选当前 BOM 身份；默认版本五用于区别 wrapper 与 DTO 伪造版本。</summary>
+        /// <summary>建立可选当前 BOM 身份；有编号时默认成品，无编号时默认零件，版本五用于区别 wrapper 与 DTO 伪造版本。</summary>
         public Product Product(string sku, string? bomNo = null, int bomVersion = 1)
         {
-            var product = new Product { Uid = Guid.NewGuid(), Version = 5, Sku = sku, MaterialType = MaterialTypesEnum.零件,
+            var product = new Product { Uid = Guid.NewGuid(), Version = 5, Sku = sku, MaterialType = bomNo is null ? MaterialTypesEnum.零件 : MaterialTypesEnum.成品,
                 SupplyType = SupplyTypeEnums.采购, BomNo = bomNo, BomVersion = bomNo is null ? 0 : bomVersion };
             Products.Add(product.Uid, product);
             return product;
