@@ -13,10 +13,15 @@ using SwiftExportClient.Mvvm;
 using SwiftExportClient.Resources.Controls;
 using SwiftExportClient.Services.Api;
 using SwiftExportClient.Services.UI;
+using SwiftExportClient.Services.Caching;
+using SwiftExportClient.Authentication;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExportClient.Navigation;
 
 namespace SwiftExportClient.Features.Suppliers.SupplierProducts.ViewModels;
 
-public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
+/// <summary>唯一供应商产品页面，负责供应商选择、分页编辑及显式默认供应商操作。</summary>
+public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx, IAsyncInitializable, IDocumentTabViewModel, IDisposable
 {
     private const int DefaultPageSize = 20;
     private readonly ISupplierProductApi _supplierProductApi;
@@ -26,22 +31,28 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     private readonly IDialogService _dialogService;
     private long _loadVersion;
     private long _lookupVersion;
-    private SupplierLineModel? _pendingSupplier;
+    private string _appliedKeyword = string.Empty;
+    private readonly ICurrentUserService _user;
 
+    /// <summary>注入页面API、缓存和当前用户；不再创建嵌套Workspace编辑器。</summary>
     public SupplierProductManagerViewModel(
         ISupplierProductApi supplierProductApi,
         IProductApi productApi,
         IApiCallRunner apiCallRunner,
         IMessageService messageService,
-        IDialogService dialogService)
+        IDialogService dialogService, IReferenceDataCacheService referenceDataCache, ICurrentUserService currentUser)
     {
         _supplierProductApi = supplierProductApi;
         _productApi = productApi;
         _apiCallRunner = apiCallRunner;
         _messageService = messageService;
         _dialogService = dialogService;
-        Title = "供应商产品";
+        _referenceDataCache = referenceDataCache; _user = currentUser;
+        _user.CurrentUserChanged += OnPermissionsChanged;
+        Title = "供应商产品管理";
         Products.PropertyChanged += OnListPropertyChanged;
+        PropertyChanged += OnPagePropertyChanged;
+        InitializeCheckSelection();
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(AddItemCommand);
@@ -66,7 +77,12 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     public partial SupplierProductLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial ProductLookupDto? SelectedCandidate { get; set; }
     [ObservableProperty] public partial bool IsLookupBusy { get; set; }
-    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
+    [ObservableProperty][NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CheckSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UncheckSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InvertSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetProductDefaultSupplierCommand))]
+    public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
@@ -81,13 +97,17 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     public partial int TotalCount { get; set; }
     [ObservableProperty] public partial string StatusText { get; set; } = "请选择已保存供应商后打开供应商产品。";
 
-    public event EventHandler<SupplierLineModel?>? SelectionRestoreRequested;
+    /// <summary>独立读取状态允许新供应商替代旧等待，写入保持单一上下文。</summary>
+    [ObservableProperty] public partial bool IsLoading { get; set; }
 
     partial void OnSelectedLineChanged(SupplierProductLineModel? value) => Products.SelectedItem = value;
 
+    /// <summary>显式选择已保存供应商，切换前确认现有产品草稿。</summary>
     public async Task<bool> SelectSupplierAsync(SupplierLineModel? supplier)
     {
-        var target = supplier ?? _pendingSupplier;
+        if (!CanChangeSupplier || !(CommitPendingEdits?.Invoke() ?? true)) return false;
+        var identity = _user.CurrentUser;
+        var target = supplier;
         if (target is null || target.IsNew || target.Uid == Guid.Empty)
         {
             _messageService.ShowWarning("无法管理供应商产品", "请先选择一个已保存供应商。");
@@ -104,66 +124,38 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
             return false;
         }
 
+        if (!CanChangeSupplier || !ReferenceEquals(identity, _user.CurrentUser)) return false;
         IsOpen = true;
         await LoadSupplierAsync(target);
         return true;
     }
 
-    public async Task ToggleForSupplierAsync(SupplierLineModel? supplier)
-    {
-        if (IsOpen)
-        {
-            await CloseAsync();
-            return;
-        }
+    /// <summary>导航关闭前确认产品草稿，拒绝时保留当前编辑器。</summary>
+    public Task<bool> CloseForNavigationAsync() => CanCloseAsync(CancellationToken.None);
 
-        await SelectSupplierAsync(supplier);
-    }
 
-    public void NotifySupplierSelection(SupplierLineModel? supplier)
-    {
-        _pendingSupplier = supplier;
-        if (IsOpen) _ = SwitchSupplierAsync(supplier);
-    }
-
-    public async Task<bool> CloseForNavigationAsync()
-    {
-        if (!IsOpen) return true;
-        if (!await ConfirmDiscardAsync()) return false;
-        CloseCore();
-        return true;
-    }
-
-    [RelayCommand]
-    private Task ToggleAsync(SupplierLineModel? supplier) => ToggleForSupplierAsync(supplier);
-
-    [RelayCommand]
-    private async Task CloseAsync()
-    {
-        if (!await ConfirmDiscardAsync()) return;
-        CloseCore();
-    }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task SearchAsync(string? query)
     {
         if (query is not null) Keyword = query;
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        PageIndex = 1;
-        await LoadPageAsync();
+        var requested = Keyword;
+        if (!await EnsureCanDiscardChangesAsync()) { Keyword = _appliedKeyword; return; }
+        await LoadPageAsync(requestedIndex: 1, requestedKeyword: requested);
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RefreshAsync()
     {
-        if (!await EnsureCanDiscardChangesAsync()) return;
+        if (!await EnsureCanDiscardChangesAsync()) { Keyword = _appliedKeyword; return; }
+        Keyword = _appliedKeyword;
         await LoadPageAsync();
     }
 
     [RelayCommand(CanExecute = nameof(CanAdd))]
     private void AddItem()
     {
-        if (ActiveSupplier is null) return;
+        if (!CanAdd() || !(CommitPendingEdits?.Invoke() ?? true) || ActiveSupplier is null) return;
         SelectedLine = Products.AddNewItem(
             ActiveSupplier.Uid, ActiveSupplier.SupplierCode, ActiveSupplier.SupplierName,
             ActiveSupplier.Currency, ActiveSupplier.TaxRate);
@@ -173,13 +165,13 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     [RelayCommand(CanExecute = nameof(CanDelete))]
     private async Task DeleteSelectedAsync()
     {
-        var lines = Products.CheckedCount > 0
-            ? Products.CheckedItems.ToArray()
-            : SelectedLine is null ? [] : [SelectedLine];
+        if (!CanDelete() || !(CommitPendingEdits?.Invoke() ?? true)) return;
+        var identity = _user.CurrentUser; var lines = DeleteTargets();
         if (lines.Length == 0) return;
         var persistedCount = lines.Count(line => !line.IsNew);
-        if (persistedCount > 0 && !await _dialogService.ConfirmAsync(
+        if (persistedCount > 0 && !await ConfirmActionAsync(
                 "删除供应商产品", $"确定删除 {lines.Length} 条供应商产品吗？其中 {persistedCount} 条将在保存时删除。", "删除")) return;
+        if (!CanDelete() || !ReferenceEquals(identity, _user.CurrentUser) || !lines.SequenceEqual(DeleteTargets())) return;
         foreach (var line in lines) Products.Remove(line);
         SelectedLine = Products.Items.FirstOrDefault();
         UpdateChangeState();
@@ -188,6 +180,8 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
+        if (!CanSave() || !(CommitPendingEdits?.Invoke() ?? true) || !CanSave()) return;
+        var identity = _user.CurrentUser;
         await RunWriteAsync(async () =>
         {
             var error = await Products.ValidateAllAsync();
@@ -196,10 +190,12 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
                 _messageService.ShowWarning("供应商产品未保存", error);
                 return;
             }
+            if (!CanStageChanges() || !ReferenceEquals(identity, _user.CurrentUser)) return;
             var request = Products.CreateSaveRequest();
             if (!request.HasChanges) return;
             var result = await _apiCallRunner.RunAsync(
                 () => _supplierProductApi.BatchSaveAsync(request), "保存供应商产品失败");
+            if (!CanStageChanges() || !ReferenceEquals(identity, _user.CurrentUser)) return;
             if (!result.Success || result.Data is null)
             {
                 _messageService.ShowError("保存供应商产品失败", result.Message);
@@ -216,6 +212,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     [RelayCommand(CanExecute = nameof(CanReject))]
     private void Reject()
     {
+        if (!CanReject() || !(CommitPendingEdits?.Invoke() ?? true)) return;
         Products.RejectChanges();
         SelectedLine = Products.Items.FirstOrDefault();
         UpdateChangeState();
@@ -224,9 +221,10 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
     [RelayCommand(CanExecute = nameof(CanSetProductDefaultSupplier))]
     private async Task SetProductDefaultSupplierAsync()
     {
-        var selected = SelectedLine;
+        if (!CanSetProductDefaultSupplier() || !(CommitPendingEdits?.Invoke() ?? true)) return;
+        var identity = _user.CurrentUser; var selected = SelectedLine;
         if (selected is null || selected.SkuId is not Guid productId || productId == Guid.Empty
-            || !await _dialogService.ConfirmAsync(
+            || !await ConfirmActionAsync(
                 "设置产品默认供应商",
                 $"将 {selected.SupplierCode} 设置为产品 {selected.ProductSku} 的默认供应商。既有净需求计划不会自动改变，是否继续？",
                 "设为默认"))
@@ -234,6 +232,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
             return;
         }
 
+        if (!CanSetProductDefaultSupplier() || !ReferenceEquals(identity, _user.CurrentUser) || !ReferenceEquals(selected, SelectedLine)) return;
         await RunWriteAsync(async () =>
         {
             var productResult = await _apiCallRunner.RunAsync(
@@ -245,6 +244,7 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
                 return;
             }
 
+            if (!CanStageDefaultSupplier() || !ReferenceEquals(identity, _user.CurrentUser) || !ReferenceEquals(selected, SelectedLine)) return;
             var result = await _apiCallRunner.RunAsync(
                 () => _supplierProductApi.SetProductDefaultSupplierAsync(new SetProductDefaultSupplierCommand
                 {
@@ -260,49 +260,62 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
                 return;
             }
 
-            await LoadPageCoreAsync();
+            if (_disposed || !ReferenceEquals(identity, _user.CurrentUser)) return;
+            await LoadPageAsync(allowBusy: true);
             StatusText = $"产品 {selected.ProductSku} 的默认供应商已设置为 {result.Data.SupplierCode}。";
             _messageService.ShowSuccess("默认供应商已更新", StatusText);
         }, "正在设置产品默认供应商...");
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRun))]
     private Task PageChangeAsync(PageChangeRequest? request)
     {
         if (request is null) return Task.CompletedTask;
         return ChangePageAsync(request.NewIndex, request.NewSize);
     }
 
+    /// <summary>候选读取独立取消，切供应商或释放使旧结果失效。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SearchProductsAsync(string? keyword)
     {
+        if (!CanRun() || !CanWrite || !(CanCreate || CanEdit)) return;
+        CancelRead(ref _lookupCts);
         var version = Interlocked.Increment(ref _lookupVersion);
         if (string.IsNullOrWhiteSpace(keyword))
         {
             ClearLookupState(incrementVersion: false);
             return;
         }
+
         SelectedCandidate = null;
         IsLookupBusy = true;
-        var result = await _apiCallRunner.RunAsync(() => _productApi.SearchLookupAsync(new ProductLookupRequest
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var token = cts.Token; _lookupCts = cts;
+        try
         {
-            Keyword = keyword.Trim(), ExcludeProductId = Guid.Empty, Limit = 20,
-        }), "搜索产品失败");
-        if (version != Volatile.Read(ref _lookupVersion)) return;
-        ProductCandidates.Clear();
-        if (result.Success && result.Data is not null)
-        {
-            foreach (var item in result.Data) ProductCandidates.Add(item);
+            var result = await _apiCallRunner.RunAsync(() => _productApi.SearchLookupAsync(new ProductLookupRequest
+            { Keyword = keyword.Trim(), ExcludeProductId = Guid.Empty, Limit = 20 }, token), token, "搜索产品失败");
+            if (_disposed || token.IsCancellationRequested || version != Volatile.Read(ref _lookupVersion)) return;
+            ProductCandidates.Clear();
+            if (result.Success && result.Data is not null)
+                foreach (var item in result.Data) ProductCandidates.Add(item);
         }
-        IsLookupBusy = false;
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally
+        {
+            if (!_disposed && ReferenceEquals(_lookupCts, cts)) IsLookupBusy = false;
+        }
     }
 
-    [RelayCommand]
+
+
+    /// <summary>候选只填充标准资料和空白描述，不覆盖供应商价格。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditRow))]
     private void CommitProduct(SupplierProductLineModel? line)
     {
-        if (line is null || SelectedCandidate is null) return;
+        if (!CanEditRow(line) || SelectedCandidate is null) return;
         var product = SelectedCandidate;
-        line.SkuId = product.Uid;
+        line!.SkuId = product.Uid;
         line.ProductSku = product.Sku ?? string.Empty;
         line.LinkSku = product.LinkSku ?? string.Empty;
         line.DescriptionEn = product.DescriptionEn ?? string.Empty;
@@ -318,11 +331,12 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
         SelectedLine = line;
     }
 
-    [RelayCommand]
+    /// <summary>显式解除可空标准物料关联，保留供应商资料和价格。</summary>
+    [RelayCommand(CanExecute = nameof(CanEditRow))]
     private void ClearProduct(SupplierProductLineModel? line)
     {
-        if (line is null) return;
-        line.SkuId = null;
+        if (!CanEditRow(line)) return;
+        line!.SkuId = null;
         line.ProductSku = string.Empty;
         line.LinkSku = string.Empty;
         line.DescriptionEn = string.Empty;
@@ -336,106 +350,119 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
 
     private async Task ChangePageAsync(int index, int size)
     {
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        PageIndex = Math.Max(1, index);
-        PageSize = size <= 0 ? DefaultPageSize : size;
-        await LoadPageAsync();
+        if (!CanRun() || !await EnsureCanDiscardChangesAsync()) { Keyword = _appliedKeyword; return; }
+        Keyword = _appliedKeyword;
+        await LoadPageAsync(requestedIndex: Math.Max(1, index), requestedSize: size <= 0 ? DefaultPageSize : size);
     }
 
-    private async Task SwitchSupplierAsync(SupplierLineModel? supplier)
-    {
-        if (supplier?.Uid != Guid.Empty && supplier?.Uid == ActiveSupplier?.Uid)
-        {
-            return;
-        }
-
-        if (supplier is null || supplier.IsNew || supplier.Uid == Guid.Empty)
-        {
-            if (!await ConfirmDiscardAsync())
-            {
-                SelectionRestoreRequested?.Invoke(this, ActiveSupplier);
-                return;
-            }
-
-            CloseCore();
-            return;
-        }
-
-        if (!await SelectSupplierAsync(supplier))
-        {
-            SelectionRestoreRequested?.Invoke(this, ActiveSupplier);
-        }
-    }
-
+    /// <summary>在新供应商查询前清除旧供应商数据显示，再由最新请求接纳产品。</summary>
     private async Task LoadSupplierAsync(SupplierLineModel supplier)
     {
         Interlocked.Increment(ref _loadVersion);
         ClearLookupState();
+        Products.Clear(); SelectedLine = null; TotalCount = 0;
         ActiveSupplier = supplier;
+        _appliedKeyword = string.Empty;
         Keyword = string.Empty;
         PageIndex = 1;
         await LoadPageAsync();
     }
 
-    private Task LoadPageAsync() => RunBusyAsync(LoadPageCoreAsync, "正在加载供应商产品...");
-
-    private async Task LoadPageCoreAsync()
+    /// <summary>查询允许供应商替换在途等待，身份、序号和存活状态共同守护回写。</summary>
+    private async Task LoadPageAsync(bool allowBusy = false, int? requestedIndex = null, int? requestedSize = null, string? requestedKeyword = null)
     {
         var supplier = ActiveSupplier;
-        if (!IsOpen || supplier is null || supplier.Uid == Guid.Empty) return;
+        if (!CanView || IsBusy && !allowBusy || !IsOpen || supplier is null || supplier.Uid == Guid.Empty) return;
+        var identity = _user.CurrentUser;
+        var index = requestedIndex ?? PageIndex; var size = requestedSize ?? PageSize;
+        var keyword = requestedKeyword ?? _appliedKeyword;
         var version = Interlocked.Increment(ref _loadVersion);
-        var result = await _apiCallRunner.RunAsync(() => _supplierProductApi.GetPagedAsync(new SupplierProductSearchRequest
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var token = cts.Token; var old = Interlocked.Exchange(ref _pageCts, cts); old?.Cancel(); old?.Dispose();
+        IsLoading = true;
+        StatusText = $"正在加载供应商 {supplier.SupplierCode} 的产品...";
+        try
         {
-            SupplierId = supplier.Uid,
-            Keyword = NullIfWhiteSpace(Keyword),
-            PageIndex = PageIndex,
-            PageSize = PageSize,
-        }), "加载供应商产品失败");
-        if (version != Volatile.Read(ref _loadVersion)) return;
-        if (!result.Success)
-        {
-            StatusText = result.Message;
-            _messageService.ShowError("加载供应商产品失败", result.Message);
-            return;
+            // HTTP 与等待取消同时释放旧读取，仍以请求序号和供应商身份拒绝过期结果。
+            var result = await _apiCallRunner.RunAsync(() => _supplierProductApi.GetPagedAsync(new SupplierProductSearchRequest
+            {
+                SupplierId = supplier.Uid,
+                Keyword = NullIfWhiteSpace(keyword),
+                PageIndex = index,
+                PageSize = size,
+            }, token).WaitAsync(token), token, "加载供应商产品失败");
+            if (!CanView || !ReferenceEquals(identity, _user.CurrentUser) || token.IsCancellationRequested || version != Volatile.Read(ref _loadVersion) || ActiveSupplier?.Uid != supplier.Uid) return;
+            if (!result.Success)
+            {
+                StatusText = result.Message;
+                Keyword = _appliedKeyword;
+                _messageService.ShowError("加载供应商产品失败", result.Message);
+                return;
+            }
+
+            Products.LoadFromDtos(result.Data?.Items ?? []);
+            SelectedLine = Products.Items.FirstOrDefault();
+            TotalCount = result.Data?.TotalCount ?? 0;
+            PageIndex = result.Data?.PageIndex > 0 ? result.Data.PageIndex : index;
+            PageSize = result.Data?.PageSize > 0 ? result.Data.PageSize : size;
+            _appliedKeyword = keyword; Keyword = keyword;
+            StatusText = $"供应商 {supplier.SupplierCode}，共 {TotalCount} 条供应商产品。";
+            UpdateChangeState();
         }
-        Products.LoadFromDtos(result.Data?.Items ?? []);
-        SelectedLine = Products.Items.FirstOrDefault();
-        TotalCount = result.Data?.TotalCount ?? 0;
-        PageIndex = result.Data?.PageIndex > 0 ? result.Data.PageIndex : PageIndex;
-        PageSize = result.Data?.PageSize > 0 ? result.Data.PageSize : PageSize;
-        StatusText = $"供应商 {supplier.SupplierCode}，共 {TotalCount} 条供应商产品。";
-        UpdateChangeState();
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally
+        {
+            if (!_disposed && ReferenceEquals(_pageCts, cts)) IsLoading = false;
+        }
     }
 
-    private async Task<bool> EnsureCanDiscardChangesAsync()
+
+
+    /// <summary>同一确认拥有草稿放弃权，输入错误或写入 Busy 都不会替换当前编辑上下文。</summary>
+    private async Task<bool> EnsureCanDiscardChangesAsync(CancellationToken cancellationToken = default, bool allowNoView = false)
     {
+        if (_disposed || IsBusy || IsPrompting || !allowNoView && !CanView || !(CommitPendingEdits?.Invoke() ?? true)) return false;
         if (!Products.HasChanges) return true;
-        var confirmed = await _dialogService.ConfirmAsync(
-            "放弃供应商产品修改", "当前供应商产品有未保存修改，继续将放弃这些修改。", "继续");
-        if (confirmed) Products.RejectChanges();
-        return confirmed;
+        var identity = _user.CurrentUser;
+        if (!await ConfirmActionAsync("放弃供应商产品修改", "当前供应商产品有未保存修改，继续将放弃这些修改。", "继续", cancellationToken)) return false;
+        if (_disposed || IsBusy || !allowNoView && (!CanView || !ReferenceEquals(identity, _user.CurrentUser))) return false;
+        Products.RejectChanges(); return true;
+    }
+
+    /// <summary>删除、默认供应商及放弃草稿共用唯一确认状态，期间冻结其他编辑、写入和关闭。</summary>
+    private async Task<bool> ConfirmActionAsync(string title, string message, string button, CancellationToken cancellationToken = default)
+    {
+        if (_disposed || IsBusy || IsPrompting) return false;
+        IsPrompting = true;
+        try { return await _dialogService.ConfirmAsync(title, message, button, cancellationToken: cancellationToken) && !_disposed; }
+        finally { if (!_disposed) IsPrompting = false; }
     }
 
     private Task<bool> ConfirmDiscardAsync() => EnsureCanDiscardChangesAsync();
 
+    /// <summary>只清空本页供应商与私有产品状态，并失效在途读取，不修改共享候选缓存。</summary>
     private void CloseCore()
     {
         Interlocked.Increment(ref _loadVersion);
+        CancelRead(ref _pageCts); IsLoading = false;
         ClearLookupState();
         Products.Clear();
         SelectedLine = null;
         ActiveSupplier = null;
-        _pendingSupplier = null;
+        _appliedKeyword = string.Empty;
         Keyword = string.Empty;
         TotalCount = 0;
         PageIndex = 1;
         IsOpen = false;
-        StatusText = "供应商产品抽屉已关闭。";
+        StatusText = "供应商已清空，请选择已保存供应商。";
         UpdateChangeState();
     }
 
+
+
     private void ClearLookupState(bool incrementVersion = true)
     {
+        CancelRead(ref _lookupCts);
         if (incrementVersion) Interlocked.Increment(ref _lookupVersion);
         ProductCandidates.Clear();
         SelectedCandidate = null;
@@ -444,49 +471,76 @@ public sealed partial class SupplierProductManagerViewModel : ViewModelBaseEx
 
     private void OnListPropertyChanged(object? sender, PropertyChangedEventArgs e) => UpdateChangeState();
 
+    /// <summary>直接更新唯一页面的草稿与能力，不通过Workspace镜像状态。</summary>
     private void UpdateChangeState()
     {
-        IsDirty = Products.HasChanges;
-        OnPropertyChanged(nameof(HasChanges));
-        SaveCommand.NotifyCanExecuteChanged();
-        RejectCommand.NotifyCanExecuteChanged();
-        DeleteSelectedCommand.NotifyCanExecuteChanged();
-        SetProductDefaultSupplierCommand.NotifyCanExecuteChanged();
+        IsDirty = Products.HasChanges; OnPropertyChanged(nameof(HasChanges)); OnPropertyChanged(nameof(HasUnsavedChanges)); NotifyCapabilities();
+    }
+    private void NotifyCapabilities()
+    {
+        RefreshCheckState(); OnPropertyChanged(nameof(CanChangeSupplier)); OnPropertyChanged(nameof(CanEditProducts));
+        OnPropertyChanged(nameof(CanView)); OnPropertyChanged(nameof(CanCreate)); OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(IsGridReadOnly));
+        foreach (var command in new IRelayCommand[] { SearchCommand, RefreshCommand, AddItemCommand, DeleteSelectedCommand, SaveCommand,
+                     SetProductDefaultSupplierCommand, RejectCommand, PageChangeCommand, ClearSupplierCommand, FillDownCommand,
+                     CommitProductCommand, ClearProductCommand }) command.NotifyCanExecuteChanged();
+    }
+    /// <summary>供应商产品页的独立查看许可。</summary>
+    public bool CanView => !_disposed && _user.HasPermission(PermissionKeys.SuppliersProductsView);
+    /// <summary>新增供应商产品使用创建权限。</summary>
+    public bool CanCreate => CanView && _user.HasPermission(PermissionKeys.SuppliersProductsCreate);
+    /// <summary>既有供应商产品使用编辑权限。</summary>
+    public bool CanEdit => CanView && _user.HasPermission(PermissionKeys.SuppliersProductsEdit);
+    /// <summary>既有供应商产品使用删除权限。</summary>
+    public bool CanDeleteRecords => CanView && _user.HasPermission(PermissionKeys.SuppliersProductsDelete);
+    /// <summary>缺少创建与编辑权限时文本列只读，查看和勾选仍可用。</summary>
+    public bool IsGridReadOnly => !CanRun() || !CanWrite || !(CanCreate || CanEdit);
+    /// <summary>原生编辑与填充复核行归属、新旧状态和当前供应商身份。</summary>
+    public bool CanEditRow(SupplierProductLineModel? row) => CanRun() && CanWrite && row is { IsDeleted: false, IsReadOnly: false }
+        && Products.Items.Contains(row) && row.SupplierId == ActiveSupplier!.Uid && (row.IsNew ? CanCreate : CanEdit);
+    private bool CanRun() => CanEditProducts && ActiveSupplier is not null;
+    private bool CanAdd() => CanRun() && CanWrite && CanCreate;
+    private SupplierProductLineModel[] DeleteTargets() => Products.CheckedCount > 0 ? Products.CheckedItems.ToArray() : SelectedLine is null ? [] : [SelectedLine];
+    private bool CanDelete() => !IsCellSelectionMode && CanRun() && CanWrite && DeleteTargets() is { Length: > 0 } rows
+        && rows.All(row => Products.Items.Contains(row) && !row.IsDeleted && row.SupplierId == ActiveSupplier!.Uid && (row.IsNew ? CanCreate : CanDeleteRecords));
+    private bool CanSave() => CanRun() && CanWrite && (CanCreate || CanEdit || CanDeleteRecords) && CanStageChanges();
+    private bool CanReject() => CanRun() && Products.HasChanges;
+    /// <summary>Busy 内按真实变更类别二次复核，不把本次写入自己的忙碌视为撤权。</summary>
+    private bool CanStageChanges() => CanView && CanWrite && ActiveSupplier is not null
+        && Products.AllLines.All(row => row.SupplierId == ActiveSupplier.Uid)
+        && (Products.AddedItems.Count == 0 || CanCreate) && (Products.ModifiedItems.Count == 0 || CanEdit)
+        && (Products.DeletedItems.Count == 0 || CanDeleteRecords);
+    private bool CanSetProductDefaultSupplier() => CanRun() && !IsCellSelectionMode && CanStageDefaultSupplier();
+    /// <summary>默认供应商修改Product，额外检查已有产品编辑权限和已保存无草稿关联。</summary>
+    private bool CanStageDefaultSupplier() => CanView && CanWrite && CanEdit && _user.HasPermission(PermissionKeys.ProductsProductEdit)
+        && !Products.HasChanges && ActiveSupplier is not null && SelectedLine is { IsNew: false, IsDeleted: false, IsProductDefaultSupplier: false }
+        && Products.Items.Contains(SelectedLine) && SelectedLine.Uid != Guid.Empty && SelectedLine.SkuId is { } id && id != Guid.Empty
+        && SelectedLine.SupplierId == ActiveSupplier.Uid;
+    /// <summary>撤权使读取失效，保留现有草稿，不取消已发送写入。</summary>
+    private void OnPermissionsChanged(object? sender, EventArgs e)
+    {
+        Interlocked.Increment(ref _loadVersion); Interlocked.Increment(ref _lookupVersion);
+        CancelRead(ref _pageCts); CancelRead(ref _lookupCts); IsLoading = false; IsLookupBusy = false; NotifyCapabilities();
     }
 
-    private bool CanRun() => IsNotBusy && IsOpen && ActiveSupplier is not null;
-    private bool CanAdd() => IsNotBusy && CanWrite && IsOpen && ActiveSupplier is not null;
-    private bool CanDelete() => IsNotBusy && CanWrite && (Products.CheckedCount > 0 || SelectedLine is not null);
-    private bool CanSave() => IsNotBusy && CanWrite && Products.HasChanges;
-    private bool CanReject() => IsNotBusy && Products.HasChanges;
-    private bool CanSetProductDefaultSupplier() => CanWrite
-        && IsNotBusy
-        && IsOpen
-        && !Products.HasChanges
-        && ActiveSupplier is not null
-        && SelectedLine is { IsNew: false, IsDeleted: false, IsProductDefaultSupplier: false }
-        && SelectedLine.Uid != Guid.Empty
-        && SelectedLine.SkuId.HasValue && SelectedLine.SkuId != Guid.Empty
-        && SelectedLine.SupplierId == ActiveSupplier.Uid;
     private static string FirstNonEmpty(string? first, string? second) => !string.IsNullOrWhiteSpace(first) ? first : second ?? string.Empty;
     private static string? NullIfWhiteSpace(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
-    private bool CanFillDown(FillDownRequest? request) => CanAdd()
+    private bool CanFillDown(FillDownRequest? request) => CanRun() && CanWrite
         && request is not null && request.Fields.All(field => field is nameof(SupplierProductLineModel.SupplierSku)
             or nameof(SupplierProductLineModel.SupplierSkuDescriptionZh)
             or nameof(SupplierProductLineModel.SupplierSkuFeaturesZh)
             or nameof(SupplierProductLineModel.UnitPrice)
             or nameof(SupplierProductLineModel.TaxPrice))
         && request.TryGetRows<SupplierProductLineModel>(Products.Items, out _, out var targets)
-        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+        && targets.Count > 0 && targets.All(CanEditRow);
 
     /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
     [RelayCommand(CanExecute = nameof(CanFillDown))]
     private void FillDown(FillDownRequest? request)
     {
         if (!CanFillDown(request) || !request!.TryGetRows<SupplierProductLineModel>(Products.Items, out var source, out var targets)) return;
-        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        foreach (var target in targets.Where(CanEditRow))
         {
             foreach (var field in request.Fields)
             {

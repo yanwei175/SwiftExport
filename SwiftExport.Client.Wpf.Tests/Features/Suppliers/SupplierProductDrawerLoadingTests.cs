@@ -1,3 +1,4 @@
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.Apis.SupplierApis;
 using SwiftExport.Contracts.Apis.ProductApis;
@@ -23,10 +24,10 @@ public sealed class SupplierProductDrawerLoadingTests
         var supplierId = Guid.NewGuid();
         var api = new SupplierProductApiStub();
         var viewModel = new SupplierProductManagerViewModel(
-            api, null!, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub());
+            api, null!, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub(), new ReferenceDataCacheServiceStub(), SupplierTestSupport.FullUser());
         var supplier = CreateSupplier(supplierId, "S001", "供应商一");
 
-        await viewModel.ToggleCommand.ExecuteAsync(supplier);
+        await viewModel.SelectSupplierAsync(supplier);
 
         Assert.IsTrue(viewModel.IsOpen);
         Assert.AreSame(supplier, viewModel.ActiveSupplier);
@@ -44,11 +45,10 @@ public sealed class SupplierProductDrawerLoadingTests
         var second = CreateSupplier(Guid.NewGuid(), "S002", "供应商二");
         var api = new SupplierProductApiStub();
         var viewModel = new SupplierProductManagerViewModel(
-            api, null!, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub());
+            api, null!, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub(), new ReferenceDataCacheServiceStub(), SupplierTestSupport.FullUser());
 
-        await viewModel.ToggleCommand.ExecuteAsync(first);
-        viewModel.NotifySupplierSelection(second);
-        await WaitForRequestCountAsync(api, 2);
+        await viewModel.SelectSupplierAsync(first);
+        await viewModel.SelectSupplierAsync(second);
 
         Assert.AreSame(second, viewModel.ActiveSupplier);
         Assert.AreEqual(first.Uid, api.Requests[0].SupplierId);
@@ -70,9 +70,9 @@ public sealed class SupplierProductDrawerLoadingTests
             Sku = "P-1",
         });
         var viewModel = new SupplierProductManagerViewModel(
-            api, productApi, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub());
+            api, productApi, new DirectApiCallRunner(), new MessageServiceStub(), new DialogServiceStub(), new ReferenceDataCacheServiceStub(), SupplierTestSupport.FullUser());
 
-        await viewModel.ToggleCommand.ExecuteAsync(CreateSupplier(supplierId, "S001", "供应商一"));
+        await viewModel.SelectSupplierAsync(CreateSupplier(supplierId, "S001", "供应商一"));
         Assert.IsTrue(viewModel.SetProductDefaultSupplierCommand.CanExecute(null));
 
         await viewModel.SetProductDefaultSupplierCommand.ExecuteAsync(null);
@@ -114,7 +114,7 @@ public sealed class SupplierProductDrawerLoadingTests
         public SetProductDefaultSupplierCommand? LastSetDefaultCommand { get; private set; }
         private bool IsDefaultSupplier { get; set; }
 
-        public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request)
+        public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request, CancellationToken cancellationToken = default)
         {
             Requests.Add(request);
             var code = Requests.Count == 1 ? "S001" : "S002";

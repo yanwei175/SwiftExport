@@ -102,15 +102,28 @@
                                         AutomationProperties.Name="受理日期" 
                                         Tag="Header.AcceptedDate" />
 
-                        <TextBlock Grid.Row="0" Grid.Column="4" Text="投诉描述（必填）" Margin="0,0,0,4" />
-                        <ui:TextBox Grid.Row="1" Grid.Column="4"  Grid.RowSpan="5" Margin="0,8,8,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                    Text="{Binding Header.IssueDescription,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
-                                        AcceptsReturn="True" 
-                                    TextWrapping="Wrap" 
-                                    IsEnabled="{Binding CanEditSupplement}" 
-                                    AutomationProperties.Name="投诉描述（必填）" 
-                                    Tag="Header.IssueDescription" />
+                        <TextBlock  Grid.Row="0" Grid.Column="4"  Text="品质分类" Margin="0,0,0,4"/>
+                        <qualityComponents:AfterSalesQualityCategoryLookupTextBox
+                            Grid.Row="1" Grid.Column="4" Margin="0,8,8,8"
+                            ItemsSource="{Binding QualityCategories}"
+                            SelectedCategoryId="{Binding Header.QualityCategoryId, Mode=TwoWay}"
+                            RefreshCommand="{Binding RefreshQualityCategoriesCommand}"
+                            IsRefreshing="{Binding IsQualityCategoryLoading}"
+                            IsEnabled="{Binding CanEditFacts}"
+                            Tag="Header.QualityCategoryId" AutomationProperties.Name="售后品质分类"/>
 
+                        <TextBlock Grid.Row="2" Grid.Column="4" Text="预计处理完成" Margin="0,0,0,4" />
+                        <DatePicker Grid.Row="3" Grid.Column="4" Margin="0,8,8,8" VerticalAlignment="Top" SelectedDateFormat="Short"
+                                    SelectedDate="{Binding Header.ExpectedCompletionDate,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="预计处理完成" Tag="Header.ExpectedCompletionDate" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="4" Text="付费售后金额" Margin="0,0,0,4" />
+                        <ui:TextBox Grid.Row="5" Grid.Column="4" Margin="0,8,8,8" VerticalAlignment="Top"
+                                    Text="{Binding Header.ServiceAmountCny,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
+                                    IsEnabled="{Binding CanEditFacts}" 
+                                    PlaceholderText="留空为不付费售后"
+                                    AutomationProperties.Name="付费售后金额" 
+                                    Tag="Header.ServiceAmountCny" />
+                        
                         <Border Grid.Row="1" Grid.Column="5" Grid.RowSpan="5" Margin="0,8,8,8"
                                 BorderThickness="1" 
                                 BorderBrush="{DynamicResource UserCardStrokeColorDefaultBrush}" CornerRadius="4">
@@ -182,57 +195,51 @@
                         <TextBlock Grid.Row="4" Grid.Column="3" Text="退回收到日期" Margin="0,0,0,4" />
                         <DatePicker Grid.Row="5" Grid.Column="3" Margin="0,8,8,8" SelectedDateFormat="Short"
                                     SelectedDate="{Binding Header.ReturnedReceivedDate,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditSupplement}" AutomationProperties.Name="退回收到日期" Tag="Header.ReturnedReceivedDate" />
-
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="投诉单备注" Margin="0,0,0,4" />
-                        <ui:TextBox Grid.Row="7" Grid.Column="0" Margin="0,8,8,8"
+                        
+                        
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="投诉描述（必填）" Margin="0,0,0,4" />
+                        <ui:TextBox Grid.Row="7" Grid.Column="0"  Grid.RowSpan="5" Margin="0,8,8,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Text="{Binding Header.IssueDescription,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
+                                        AcceptsReturn="True" 
+                                    TextWrapping="Wrap" 
+                                    IsEnabled="{Binding CanEditSupplement}" 
+                                    AutomationProperties.Name="投诉描述（必填）" 
+                                    Tag="Header.IssueDescription" />
+                        
+                        
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="投诉单备注" Margin="0,0,0,4" />
+                        <ui:TextBox Grid.Row="7" Grid.Column="1" Margin="0,8,8,8"
                                    Text="{Binding Header.Remark,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
                                     IsEnabled="{Binding CanEditSupplement}" 
                                     AcceptsReturn="True" TextWrapping="Wrap"
                                     AutomationProperties.Name="整单备注" Tag="Header.Remark" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="1" Text="原因分析" Margin="0,0,0,4" />
-                        <ui:TextBox Grid.Row="7" Grid.Column="1" Margin="0,8,8,8"
+                        <TextBlock Grid.Row="6" Grid.Column="2" Text="原因分析" Margin="0,0,0,4" />
+                        <ui:TextBox Grid.Row="7" Grid.Column="2" Margin="0,8,8,8"
                                    Text="{Binding Header.CauseAnalysis,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
                                    AcceptsReturn="True"  TextWrapping="Wrap" 
                                     IsEnabled="{Binding CanEditSupplement}" 
                                    AutomationProperties.Name="原因分析" Tag="Header.CauseAnalysis" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="2" Text="处理说明" Margin="0,0,0,4" />
-                        <ui:TextBox Grid.Row="7" Grid.Column="2" Margin="0,8,8,8"
+                        <TextBlock Grid.Row="6" Grid.Column="3" Text="处理说明" Margin="0,0,0,4" />
+                        <ui:TextBox Grid.Row="7" Grid.Column="3" Margin="0,8,8,8"
                                    Text="{Binding Header.TreatmentDescription,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
                                    AcceptsReturn="True"  TextWrapping="Wrap" 
                                    IsEnabled="{Binding CanEditSupplement}" 
                                    AutomationProperties.Name="处理说明" Tag="Header.TreatmentDescription" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="3" Text="预计处理完成" Margin="0,0,0,4" />
-                        <DatePicker Grid.Row="7" Grid.Column="3" Margin="0,8,8,8" VerticalAlignment="Top" SelectedDateFormat="Short"
-                                    SelectedDate="{Binding Header.ExpectedCompletionDate,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" IsEnabled="{Binding CanEditFacts}" AutomationProperties.Name="预计处理完成" Tag="Header.ExpectedCompletionDate" />
 
                         <TextBlock Grid.Row="6" Grid.Column="4" Text="投诉资料文件夹" Margin="0,0,0,4"/>
                         <ui:TextBox Grid.Row="7" Grid.Column="4" Margin="0,8,8,8"
                                     Text="{Binding Header.LocalFileFolder,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditSupplement}"
                             PlaceholderText="填写本机文件夹路径" AutomationProperties.Name="投诉资料文件夹" Tag="Header.LocalFileFolder"/>
 
-                        <TextBlock Grid.Row="6" Grid.Column="5" Text="付费售后金额" Margin="0,0,0,4" />
-                        <ui:TextBox Grid.Row="7" Grid.Column="5" Margin="0,8,8,8" VerticalAlignment="Top"
-                                    Text="{Binding Header.ServiceAmountCny,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged,ValidatesOnExceptions=True,NotifyOnValidationError=True}" 
-                                    IsEnabled="{Binding CanEditFacts}" 
-                                    PlaceholderText="留空为不付费售后"
-                                    AutomationProperties.Name="付费售后金额" 
-                                    Tag="Header.ServiceAmountCny" />
+
 
 
 
                     </Grid>
-                    <TextBlock Text="品质分类" Margin="0,8,0,4"/>
-                    <qualityComponents:AfterSalesQualityCategoryLookupTextBox
-                        ItemsSource="{Binding QualityCategories}"
-                        SelectedCategoryId="{Binding Header.QualityCategoryId, Mode=TwoWay}"
-                        RefreshCommand="{Binding RefreshQualityCategoriesCommand}"
-                        IsRefreshing="{Binding IsQualityCategoryLoading}"
-                        IsEnabled="{Binding CanEditFacts}"
-                        HorizontalAlignment="Left" Width="320"
-                        Tag="Header.QualityCategoryId" AutomationProperties.Name="售后品质分类"/>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>

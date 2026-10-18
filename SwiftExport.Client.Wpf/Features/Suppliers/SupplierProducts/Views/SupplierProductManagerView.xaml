@@ -1,79 +1,60 @@
-<UserControl xmlns:fill="clr-namespace:SwiftExportClient.Resources.Behaviors" xmlns:i="http://schemas.microsoft.com/xaml/behaviors" x:Class="SwiftExportClient.Features.Suppliers.SupplierProducts.Views.SupplierProductManagerView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+<UserControl x:Class="SwiftExportClient.Features.Suppliers.SupplierProducts.Views.SupplierProductManagerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
+             xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
-             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
-             xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters">
+             xmlns:fill="clr-namespace:SwiftExportClient.Resources.Behaviors" xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors" xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
+             xmlns:dgx="urn:tom-englert.de/DataGridExtensions"
+             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
     <UserControl.Resources>
-        <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
+        <Style x:Key="SelectionMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </Style>
+        <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter"/>
     </UserControl.Resources>
-    <Grid Margin="8">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="4" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="4" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240" />
-                <ColumnDefinition Width="4" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <controls:LookupTextBox Placeholder="供应商料号、SKU、描述或规格" MinimumSearchLength="0"
-                                    Text="{Binding Keyword, Mode=TwoWay}" QueryCommand="{Binding SearchCommand}" />
-            <Button Grid.Column="2" Width="36" Command="{Binding SearchCommand}"  ToolTip="查询">
-                <ui:SymbolIcon Symbol="Search24" />
-            </Button>
-            <StackPanel Grid.Column="4" Orientation="Horizontal">
-                <Button Command="{Binding AddItemCommand}"  Margin="0,0,4,0" Content="新增" />
-                <Button Command="{Binding SaveCommand}" Margin="0,0,4,0" Content="保存" />
-                <Button Command="{Binding SetProductDefaultSupplierCommand}" Margin="0,0,4,0" Content="设为产品默认供应商"
-                        ToolTip="只对已保存的供应商产品生效；既有净需求计划不会自动改变" />
-                <Button Command="{Binding DeleteSelectedCommand}" Margin="0,0,4,0" Content="删除" />
-                <Button Command="{Binding RejectCommand}" Margin="0,0,4,0" Content="放弃" />
-                <Button Command="{Binding RefreshCommand}" Content="刷新" />
-            </StackPanel>
-            <StackPanel Grid.Column="5" Orientation="Horizontal">
-                <ui:ToggleSwitch Margin="0,0,8,0"
-                                 VerticalAlignment="Center"
-                                 OffContent="整行模式"
-                                 OnContent="格子模式"
-                                 IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" />
-                <Button Command="{Binding CloseCommand}" Content="关闭" />
-            </StackPanel>
+    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
+        <Grid RowDefinitions="Auto,8,Auto">
+            <Grid x:Name="SupplierSearchGrid" ColumnDefinitions="3*,3*,3*">
+                <StackPanel Orientation="Horizontal"><TextBlock Text="供应商产品管理" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <suppliers:SupplierAutoSuggestComboBox x:Name="SupplierSelector" Width="160" HorizontalAlignment="Left" Margin="0,0,8,0"
+                    ItemsSource="{Binding SupplierOptions}" SelectedSupplier="{Binding SelectedSupplier, Mode=TwoWay}"
+                    SelectionCommittedCommand="{Binding CommitSupplierCommand}" SelectionClearedCommand="{Binding ClearSupplierCommand}"
+                    IsEnabled="{Binding CanChangeSupplier}" Placeholder="输入供应商代码或名称" AutomationProperties.Name="选择供应商产品所属供应商"/></StackPanel>
+                <ui:TextBox x:Name="SearchTextBox" Grid.Column="1" Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
+                            PlaceholderText="供应商料号、SKU、描述或规格" Icon="{ui:SymbolIcon Symbol=Search24}" IsEnabled="{Binding CanEditProducts}">
+                    <ui:TextBox.InputBindings><KeyBinding Key="Enter" Command="{Binding SearchCommand}"/></ui:TextBox.InputBindings>
+                </ui:TextBox>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0"><ui:Button Content="查询" Command="{Binding SearchCommand}" MinWidth="70" Margin="0,0,8,0" Appearance="Primary"/><ui:Button Content="刷新" Command="{Binding RefreshCommand}" MinWidth="70" Margin="0,0,8,0"/><ui:Button Content="清空" Command="{Binding ClearSupplierCommand}" MinWidth="70" Margin="0,0,8,0"/></StackPanel>
+            </Grid>
+            <WrapPanel Grid.Row="2" IsEnabled="{Binding CanEditProducts}"><ui:Button Content="新增" Command="{Binding AddItemCommand}" MinWidth="70" Margin="0,0,8,0"/><ui:Button Content="保存" Command="{Binding SaveCommand}" MinWidth="70" Margin="0,0,8,0" Appearance="Primary"/><ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" MinWidth="70" Margin="0,0,8,0"/><ui:Button Content="放弃" Command="{Binding RejectCommand}" MinWidth="70" Margin="0,0,8,0"/><ui:ToggleSwitch OffContent="整行模式" OnContent="格子模式" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" Margin="0,0,8,0"/><ui:Button Content="设为产品默认供应商" Command="{Binding SetProductDefaultSupplierCommand}" MinWidth="70" Margin="0,0,8,0"/></WrapPanel>
         </Grid>
-        <TextBlock Grid.Row="2" Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}" />
-
-        <DataGrid Grid.Row="4" ItemsSource="{Binding Products.Items}"
-                  Style="{StaticResource SwiftExportDataGrid}"
-                  RowHeight="{StaticResource DataGridRowHeightMedium}"
-                  RowStyle="{StaticResource SwiftExportStateDataGridRow}"
-                  SelectionMode="Extended"
-                  SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
-                  FrozenColumnCount="4"
-                  gridCore:GridRowHeader.ShowRowNumber="True"
-                  CurrentItem="{Binding SelectedLine, Mode=TwoWay}">
-                    <i:Interaction.Behaviors>
-                        <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
-                    </i:Interaction.Behaviors>
+        <DataGrid x:Name="ProductGrid" Grid.Row="2" ItemsSource="{Binding Products.Items}" SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
+                  Style="{StaticResource SwiftExportDataGrid}" RowStyle="{StaticResource SwiftExportStateDataGridRow}"
+                  RowHeight="{StaticResource DataGridRowHeightMedium}" FontSize="{StaticResource SwiftExportDefaltFontSize}"
+                  IsReadOnly="{Binding IsGridReadOnly}" BeginningEdit="OnBeginningEdit"
+                  IsEnabled="{Binding CanEditProducts}"
+                  SelectionMode="Extended" SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
+                  FrozenColumnCount="4" gridCore:GridRowHeader.ShowRowNumber="True" AutomationProperties.Name="供应商产品管理列表">
+            <i:Interaction.Behaviors><fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}"/><fill:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
+            <DataGrid.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="供应商产品批量勾选">
+                <MenuItem Header="勾选(选区)" Command="{Binding CheckSelectionCommand}" Style="{StaticResource SelectionMenuItem}"><MenuItem.Icon><ui:SymbolIcon Symbol="CheckmarkSquare24"/></MenuItem.Icon></MenuItem>
+                <MenuItem Header="取消勾选(选区)" Command="{Binding UncheckSelectionCommand}" Style="{StaticResource SelectionMenuItem}"><MenuItem.Icon><ui:SymbolIcon Symbol="Square24"/></MenuItem.Icon></MenuItem>
+                <MenuItem Header="反选(选区)" Command="{Binding InvertSelectionCommand}" Style="{StaticResource SelectionMenuItem}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowSwap24"/></MenuItem.Icon></MenuItem>
+                <Separator/>
+                <MenuItem Header="全选(当前页)" Command="{Binding CheckVisibleCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOn24"/></MenuItem.Icon></MenuItem>
+                <MenuItem Header="反选(当前页)" Command="{Binding InvertVisibleCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOff24"/></MenuItem.Icon></MenuItem>
+                <Separator/>
+                <MenuItem Header="刷新" Command="{Binding RefreshCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowClockwise24"/></MenuItem.Icon></MenuItem>
+                <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Delete24"/></MenuItem.Icon></MenuItem>
+                <Separator/><MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"><MenuItem.Icon><ui:SymbolIcon Symbol="Table24"/></MenuItem.Icon></MenuItem></ContextMenu></DataGrid.ContextMenu>
             <DataGrid.Columns>
 
                 <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
-                    <DataGridTemplateColumn.HeaderTemplate>
-                        <DataTemplate>
-                            <CheckBox HorizontalAlignment="Left" 
-                                      IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.HeaderTemplate>
+                    <DataGridTemplateColumn.HeaderTemplate><DataTemplate><CheckBox Margin="0" Padding="0" HorizontalAlignment="Center" AutomationProperties.Name="勾选当前页供应商产品"
+                            IsChecked="{Binding DataContext.IsAllVisibleChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}"
+                            Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                            CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"/></DataTemplate></DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox  HorizontalAlignment="Center" 
@@ -85,7 +66,7 @@
                 <DataGridTemplateColumn Header="图片" Width="56" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <controls:CachedImage Width="40" Height="40" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" />
+                            <controls:CachedImage Width="54" Height="54" Style="{StaticResource SwiftExportCachedImage}" DecodePixelWidth="96" SourcePath="{Binding MainImage}" Stretch="Uniform" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -104,7 +85,7 @@
                         <DataTemplate>
                             <productComponents:ProductLookupTextBox
                             Text="{Binding ProductSku, Mode=OneWay}"
-                            FontSize="10"
+                            FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                             ItemsSource="{Binding DataContext.ProductCandidates, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                             SelectedProduct="{Binding DataContext.SelectedCandidate, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWayToSource}"
                             SearchCommand="{Binding DataContext.SearchProductsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
@@ -120,9 +101,9 @@
 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="SupplierSku" Header="供应商料号" Width="150" Binding="{Binding SupplierSku, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
 
-                <DataGridTextColumn fill:DataGridFillDownBehavior.Field="SupplierSkuDescriptionZh" Header="供应商中文描述" Width="200" Binding="{Binding SupplierSkuDescriptionZh, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                <DataGridTextColumn fill:DataGridFillDownBehavior.Field="SupplierSkuDescriptionZh" Header="供应商中文描述" Width="200" Binding="{Binding SupplierSkuDescriptionZh, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
 
-                <DataGridTextColumn fill:DataGridFillDownBehavior.Field="SupplierSkuFeaturesZh" Header="供应商中文规格" Width="200" Binding="{Binding SupplierSkuFeaturesZh, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
+                <DataGridTextColumn fill:DataGridFillDownBehavior.Field="SupplierSkuFeaturesZh" Header="供应商中文规格" Width="200" Binding="{Binding SupplierSkuFeaturesZh, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
 
                 <DataGridTextColumn Header="币种" Width="70" IsReadOnly="True" Binding="{Binding Currency}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
 
@@ -134,20 +115,21 @@
 
                 <DataGridTextColumn Header="Link SKU" Width="120" IsReadOnly="True" Binding="{Binding LinkSku}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
 
-                <DataGridTextColumn Header="标准中文描述" Width="180" IsReadOnly="True" Binding="{Binding DescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridLongTextBlock}" />
+                <DataGridTextColumn Header="标准中文描述" Width="180" IsReadOnly="True" Binding="{Binding DescriptionZh}" ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" />
 
                 <DataGridTextColumn Header="分类" Width="120" IsReadOnly="True" Binding="{Binding CategoryName}" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}" />
             </DataGrid.Columns>
         </DataGrid>
-        <Grid Grid.Row="6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Style="{StaticResource CaptionTextBlock}" Margin="16,0" VerticalAlignment="Center" />
-            <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}" />
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto" IsEnabled="{Binding CanEditProducts}">
+            <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{Binding PageStatus}" Margin="12,0" VerticalAlignment="Center"/>
+            <controls:PageNavigator Grid.Column="2" TotalCount="{Binding TotalCount}" PageIndex="{Binding PageIndex}" PageSize="{Binding PageSize}" PageChangeCommand="{Binding PageChangeCommand}"/>
         </Grid>
+        <Border Grid.Row="2" Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}">
+            <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Visible"/><Style.Triggers>
+                <DataTrigger Binding="{Binding IsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+            </Style.Triggers></Style></Border.Style>
+            <TextBlock Text="请选择供应商后维护供应商产品。" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
     </Grid>
 </UserControl>

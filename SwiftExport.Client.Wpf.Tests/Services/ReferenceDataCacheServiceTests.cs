@@ -1261,6 +1261,9 @@ public sealed class ReferenceDataCacheServiceTests
         public List<int> RequestedPages { get; } = [];
         public List<int> RequestedPageSizes { get; } = [];
 
+        /// <summary>缓存仍消费分页；全量入口由供应商管理页独立验证。</summary>
+        public Task<ServiceResult<IReadOnlyList<SupplierDto>>> GetAllAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
         public Task<ServiceResult<PagedResponseBase<SupplierDto>>> GetPagedAsync(SupplierSearchRequest request)
         {
             RequestedPages.Add(request.PageIndex);

@@ -89,7 +89,6 @@ public static class ViewRegistrationExtensions
 
         services.AddTransient<SupplierManagerViewModel>();
         services.AddTransient<SupplierProductManagerViewModel>();
-        services.AddTransient<SupplierProductWorkspaceViewModel>();
         services.AddTransient<SupplierPickerViewModel>();
         services.AddTransient<Func<SupplierPickerViewModel>>(provider =>
             () => provider.GetRequiredService<SupplierPickerViewModel>());

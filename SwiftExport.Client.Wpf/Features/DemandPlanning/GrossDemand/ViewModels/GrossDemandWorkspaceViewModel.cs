@@ -128,7 +128,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         ];
     public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SourceLifecycleStatuses { get; } = [];
 
-    public string DocumentTitle => "毛需求";
+    public string DocumentTitle => "成品需求";
     public bool HasUnsavedChanges => ManualEditor.HasUnsavedChanges || ManualEditor.HasPendingSave || _closeUnknown;
     /// <summary>关闭结果未知时保留原来源、版本、原因和命令身份。</summary>
     public bool HasPendingClose => _closeUnknown;
