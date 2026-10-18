@@ -174,8 +174,8 @@
 
                         <ui:ToggleSwitch Margin="12,0,0,0"
                                          VerticalAlignment="Center"
-                                         OffContent="BOM 关闭"
-                                         OnContent="BOM 打开"
+                                         OffContent="快速BOM关"
+                                         OnContent="快速BOM开"
                                          IsChecked="{Binding BomDrawer.IsOpen, Mode=OneWay}"
                                          ToolTip="{Binding BomDrawer.EntryHint}" ToolTipService.ShowOnDisabled="True"
                                          AutomationProperties.HelpText="{Binding BomDrawer.EntryHint}"

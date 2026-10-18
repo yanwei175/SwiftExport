@@ -166,7 +166,7 @@
                 <DataGridTemplateColumn Header="图片" Width="60" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <controls:CachedImage Width="24" Height="24"
+                            <controls:CachedImage Width="54" Height="54"
                                                   Style="{StaticResource SwiftExportCachedImage}" 
                                                   DecodePixelWidth="96" 
                                                   SourcePath="{Binding MainImage}" Stretch="Uniform" />

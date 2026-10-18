@@ -125,7 +125,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <ui:Button Content="从成品需求建立" Margin="0,0,8,0" 
                                Command="{Binding EstablishFromSourcesCommand}" 
-                               Appearance="Info"/>
+                               Appearance="Primary"/>
 
                     <ui:Button Content="安全回退"  Margin="0,0,8,0" 
                                Command="{Binding RollbackSourceEstablishmentCommand}"/>

@@ -83,6 +83,12 @@
             </i:Interaction.Behaviors>
             <DataGrid.ContextMenu>
                 <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="客户批量勾选">
+                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}" >
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="ArrowClockwise24" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    
                     <MenuItem Style="{StaticResource CustomerSelectionMenuItem}" Header="勾选(选区)" Command="{Binding CheckSelectionCommand}" >
                         <MenuItem.Icon>
                             <ui:SymbolIcon Symbol="CheckmarkSquare24"/>
@@ -115,11 +121,7 @@
                         </MenuItem.Icon>
                     </MenuItem>
                     <Separator />
-                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}" >
-                        <MenuItem.Icon>
-                            <ui:SymbolIcon Symbol="ArrowClockwise24" />
-                        </MenuItem.Icon>
-                    </MenuItem>
+
 
                     <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}" ToolTip="删除已勾选客户；未勾选时删除当前客户" >
                         <MenuItem.Icon>
