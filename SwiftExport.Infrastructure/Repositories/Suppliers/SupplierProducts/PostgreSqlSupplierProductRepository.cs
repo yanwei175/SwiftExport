@@ -61,7 +61,7 @@ public sealed class PostgreSqlSupplierProductRepository(RepositoryBaseContext co
         new { Uid = uid, EmptyGuid = Guid.Empty }, transaction: Transaction);
 
     /// <summary>限定所属供应商分页，保留原关键词与默认 20/上限 200；两次读取不声称具有跨语句快照。</summary>
-    public async Task<PagedResponseBase<SupplierProductDto>> GetPagedAsync(SupplierProductSearchRequest request)
+    public async Task<PagedResponseBase<SupplierProductDto>> GetPagedAsync(SupplierProductSearchRequest request, CancellationToken cancellationToken = default)
     {
         request ??= new SupplierProductSearchRequest();
         var index = Math.Max(1, request.PageIndex);
@@ -79,11 +79,11 @@ public sealed class PostgreSqlSupplierProductRepository(RepositoryBaseContext co
                     OR sp.supplier_sku_features_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')
                 """;
         }
-        var count = await Connection.ExecuteScalarAsync<int>($"SELECT count(*)::integer {From} {where}", parameters, Transaction);
-        var rows = await Connection.QueryAsync<SupplierProductDto>($"""
+        var count = await Connection.ExecuteScalarAsync<int>(new CommandDefinition($"SELECT count(*)::integer {From} {where}", parameters, Transaction, cancellationToken: cancellationToken));
+        var rows = await Connection.QueryAsync<SupplierProductDto>(new CommandDefinition($"""
             SELECT {Projection} {From} {where}
             ORDER BY sp.supplier_sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,sp.uid LIMIT @Limit OFFSET @Offset
-            """, parameters, Transaction);
+            """, parameters, Transaction, cancellationToken: cancellationToken));
         return new PagedResponseBase<SupplierProductDto> { Items = rows.ToList(), TotalCount = count, PageIndex = index, PageSize = size };
     }
 

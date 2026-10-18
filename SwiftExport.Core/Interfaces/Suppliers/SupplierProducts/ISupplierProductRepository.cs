@@ -9,7 +9,8 @@ namespace SwiftExport.Core.Interfaces.Suppliers.SupplierProducts;
 public interface ISupplierProductRepository : IRepository<SupplierProduct>
 {
     Task<SupplierProductDto?> GetDtoByIdAsync(Guid uid);
-    Task<PagedResponseBase<SupplierProductDto>> GetPagedAsync(SupplierProductSearchRequest request);
+    /// <summary>按供应商分页读取当前投影，透传取消至计数和取页命令。</summary>
+    Task<PagedResponseBase<SupplierProductDto>> GetPagedAsync(SupplierProductSearchRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetExistingSupplierSkuListAsync(IEnumerable<string> supplierSkus, Guid supplierId);
     Task<IReadOnlyList<string>> GetSupplierSkusUsedByOtherRecordsAsync(
         Guid supplierId,

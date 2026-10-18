@@ -43,9 +43,9 @@ public sealed class SupplierProductController(
     [PreventDuplicateRequest]
     public Task<ServiceResult<SaveItemResult>> Delete(DeleteItemRequest id) => maintenance.DeleteAsync(id);
 
-    /// <summary>按供应商分页读取资料。</summary>
+    /// <summary>按供应商分页读取资料并透传请求取消。</summary>
     [HttpPost("page")]
-    public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPaged([FromBody] SupplierProductSearchRequest request) => query.GetPagedAsync(request);
+    public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPaged([FromBody] SupplierProductSearchRequest request, CancellationToken cancellationToken = default) => query.GetPagedAsync(request, cancellationToken);
 
     /// <summary>原子保存资料变更。</summary>
     [HttpPost("batch-save")]

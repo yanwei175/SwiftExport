@@ -14,6 +14,7 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Entities.MasterData;
 using SwiftExport.Core.Interfaces;
+using System.Data;
 using System.Text;
 
 namespace SwiftExport.Application.Services.Suppliers.SupplierProducts.Maintenance;
@@ -26,39 +27,26 @@ public sealed class SupplierProductMaintenanceService(
     ServiceBaseContext context)
     : BaseService<SupplierProduct, SupplierProductDto>(repository, context), ISupplierProductMaintenanceService
 {
-    public override async Task<ServiceResult<SaveItemResult>> AddAsync(CreateItemRequest<SupplierProductDto> item)
-    {
-        var relationError = await NormalizeRelationsAsync([item.Data]);
-        return relationError is null
-            ? await base.AddAsync(item)
-            : ServiceResult<SaveItemResult>.Fail(relationError);
-    }
-
-    public override async Task<ServiceResult<SaveItemResult>> UpdateAsync(UpdateItemRequest<SupplierProductDto> item)
-    {
-        var relationError = await NormalizeRelationsAsync([item.Data]);
-        return relationError is null
-            ? await base.UpdateAsync(item)
-            : ServiceResult<SaveItemResult>.Fail(relationError);
-    }
-
+    /// <summary>预检与写入统一保护技术异常；仅提交和清理本层创建的整批事务，不接管外层事务。</summary>
     public async Task<ServiceResult<SupplierProductBatchSaveResponse>> BatchSaveAsync(SupplierProductBatchSaveRequest request)
     {
-        if (request is null) return ServiceResult<SupplierProductBatchSaveResponse>.Fail("请求不能为空。");
-        if (!request.HasChanges) return ServiceResult<SupplierProductBatchSaveResponse>.Fail("没有需要保存的数据。");
-
-        var changedDtos = request.CreateItems.Select(item => item.Data)
-            .Concat(request.UpdateItems.Select(item => item.Data))
-            .ToList();
-        var relationError = await NormalizeRelationsAsync(changedDtos);
-        if (relationError is not null) return ServiceResult<SupplierProductBatchSaveResponse>.Fail(relationError);
-        var validationError = await ValidateBatchSaveAsync(request);
-        if (validationError is not null) return ServiceResult<SupplierProductBatchSaveResponse>.Fail(validationError);
-
-        var response = new SupplierProductBatchSaveResponse { TotalCount = request.TotalCount };
-        _session.Transaction = _session.Connection.BeginTransaction();
+        if (_session.Transaction is not null)
+            return ServiceResult<SupplierProductBatchSaveResponse>.Fail("供应商产品批量保存不能在已有事务中执行。");
+        IDbTransaction? transaction = null;
         try
         {
+            if (request is null) return ServiceResult<SupplierProductBatchSaveResponse>.Fail("请求不能为空。");
+            if (request.CreateItems is null || request.UpdateItems is null || request.DeleteItems is null
+                || request.CreateItems.Any(item => item is null) || request.UpdateItems.Any(item => item is null)
+                || request.DeleteItems.Any(item => item is null))
+                return ServiceResult<SupplierProductBatchSaveResponse>.Fail("保存列表及行请求不能为空。");
+            if (!request.HasChanges) return ServiceResult<SupplierProductBatchSaveResponse>.Fail("没有需要保存的数据。");
+            var validationError = await ValidateBatchSaveAsync(request);
+            if (validationError is not null) return ServiceResult<SupplierProductBatchSaveResponse>.Fail(validationError);
+
+            var response = new SupplierProductBatchSaveResponse { TotalCount = request.TotalCount };
+            transaction = _session.Connection.BeginTransaction();
+            _session.Transaction = transaction;
             foreach (var item in request.CreateItems)
             {
                 var writeResult = await _repository.AddAsync(item.Data.Adapt<SupplierProduct>());
@@ -83,23 +71,30 @@ public sealed class SupplierProductMaintenanceService(
                 if (!writeResult.Success) throw new InvalidOperationException(writeResult.Message ?? "删除供应商产品失败。");
             }
 
-            _session.Transaction.Commit();
+            transaction.Commit();
             return ServiceResult<SupplierProductBatchSaveResponse>.Ok(response, $"批量保存完成，成功 {response.SuccessCount} 条。");
         }
         catch (Exception ex)
         {
-            _session.Transaction.Rollback();
+            // 回滚或释放失败只记日志，不能掩盖原始保存错误，也不能处理调用方事务。
+            try { transaction?.Rollback(); }
+            catch (Exception rollbackException) { Logger.LogError(rollbackException, "回滚供应商产品批次失败。"); }
             // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
             Logger.LogError(ex, "应用服务执行失败。");
             return ServiceResult<SupplierProductBatchSaveResponse>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
         finally
         {
-            _session.Transaction.Dispose();
-            _session.Transaction = null;
+            if (transaction is not null)
+            {
+                try { transaction.Dispose(); }
+                catch (Exception disposeException) { Logger.LogError(disposeException, "释放供应商产品批次事务失败。"); }
+                finally { _session.Transaction = null; }
+            }
         }
     }
 
+    /// <summary>按稳定身份验证并回填当前编码；空物料关联清除旧编码，停用不等于软删除。</summary>
     private async Task<string?> NormalizeRelationsAsync(IEnumerable<SupplierProductDto?> source)
     {
         var items = source.Where(dto => dto is not null).Cast<SupplierProductDto>().ToList();
@@ -132,6 +127,7 @@ public sealed class SupplierProductMaintenanceService(
         return null;
     }
 
+    /// <summary>检查本次供应商料号重复，并复用单条保存的关系与字段校验。</summary>
     private async Task<string?> ValidateBatchSaveAsync(SupplierProductBatchSaveRequest request)
     {
         var errors = new StringBuilder();
@@ -151,8 +147,12 @@ public sealed class SupplierProductMaintenanceService(
         return errors.Length == 0 ? null : errors.ToString().Trim();
     }
 
+    /// <summary>在基类异常边界内规范化新增关联，校验资料并检查供应商范围内的料号占用。</summary>
     protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<SupplierProductDto>> items)
     {
+        if (items.Any(item => item is null || item.Data is null)) return "新增数据不能为空。";
+        var relationError = await NormalizeRelationsAsync(items.Select(item => item.Data));
+        if (relationError is not null) return relationError;
         foreach (var item in items)
         {
             var error = ValidateSupplierProduct(item.Data, item.RowIndex ?? 0);
@@ -168,11 +168,15 @@ public sealed class SupplierProductMaintenanceService(
         return null;
     }
 
+    /// <summary>校验外层身份/版本并规范化更新关联，不允许 DTO 身份替代请求条件。</summary>
     protected override async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<SupplierProductDto>> items)
     {
+        if (items.Any(item => item is null || item.Data is null)) return "修改数据不能为空。";
+        if (items.Any(item => item.Uid == Guid.Empty || item.Version <= 0)) return "供应商产品标识或版本无效。";
+        var relationError = await NormalizeRelationsAsync(items.Select(item => item.Data));
+        if (relationError is not null) return relationError;
         foreach (var item in items)
         {
-            if (item.Uid == Guid.Empty || item.Version <= 0) return $"第 {item.RowIndex} 行：供应商产品标识或版本无效。";
             var error = ValidateSupplierProduct(item.Data, item.RowIndex ?? 0);
             if (error is not null) return error;
         }
@@ -190,6 +194,7 @@ public sealed class SupplierProductMaintenanceService(
         return null;
     }
 
+    /// <summary>删除仍使用外层身份和版本，检查目标存在后交仓储执行条件写入。</summary>
     protected override async Task<string?> ValidateBeforeDeleteAsync(List<DeleteItemRequest> items)
     {
         if (items.Any(item => item.Uid == Guid.Empty || item.Version <= 0)) return "删除失败：供应商产品标识或版本无效。";

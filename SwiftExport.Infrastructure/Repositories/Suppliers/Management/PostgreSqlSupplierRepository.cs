@@ -114,6 +114,13 @@ public sealed class PostgreSqlSupplierRepository(RepositoryBaseContext context)
         return (await Connection.QueryAsync<Supplier>($"SELECT {EntityColumns} FROM {Table} s WHERE {MatchesCodes} AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)", Codes(codes), Transaction)).AsList();
     }
 
+    /// <summary>全量管理快照复用分页字段、软删除范围与稳定排序；沿用外层事务并透传取消。</summary>
+    public async Task<IReadOnlyList<SupplierDto>> GetAllForManagementAsync(CancellationToken cancellationToken = default) =>
+        (await Connection.QueryAsync<SupplierDto>(new CommandDefinition($"""
+            SELECT {DtoColumns} FROM {Table} s WHERE (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+            ORDER BY s.supplier_code COLLATE public.erp_dictionary_ci, s.uid
+            """, transaction: Transaction, cancellationToken: cancellationToken))).AsList();
+
     /// <summary>计数和分页使用原 DTO 投影及通配规则，排除软删但不排除停用供应商；不建立新事务。</summary>
     public async Task<PagedResponseBase<SupplierDto>> GetPagedAsync(SupplierSearchRequest request)
     {

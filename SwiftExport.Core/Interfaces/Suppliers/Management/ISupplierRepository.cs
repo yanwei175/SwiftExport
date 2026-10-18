@@ -7,6 +7,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Core.Interfaces.Suppliers.Management
 {
+    /// <summary>提供供应商资料读取、管理投影及编码占用校验。</summary>
     public interface ISupplierRepository : IRepository<Supplier>
     {
         Task<bool> ExistBySupplierCode(string SupplierCode);
@@ -22,6 +23,9 @@ namespace SwiftExport.Core.Interfaces.Suppliers.Management
         /// </summary>
         Task<IReadOnlyList<Supplier>> GetBySupplierCodeListAsync(IEnumerable<string> supplierCodeList);
         Task<PagedResponseBase<SupplierDto>> GetPagedAsync(SupplierSearchRequest request);
+
+        /// <summary>读取与管理分页相同投影和可见范围的全部供应商，保留并发版本并支持取消。</summary>
+        Task<IReadOnlyList<SupplierDto>> GetAllForManagementAsync(CancellationToken cancellationToken = default);
 
     }
 }
