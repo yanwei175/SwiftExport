@@ -37,6 +37,30 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Products;
 [DoNotParallelize]
 public sealed class ProductDetailNavigationTests
 {
+    /// <summary>真实物料表的选中行双向绑定在取消切换时恢复原行，并保留 BOM 抽屉草稿。</summary>
+    [TestMethod]
+    public void NativeSelectedItem_CancelBomSwitchRestoresCurrentRowAndDraft() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); using var fixture = new Fixture { ConfirmDiscard = false };
+        var vm = fixture.ViewModel; var first = vm.Products.Items[0]; var second = vm.Products.Items[1];
+        foreach (var row in vm.Products.Items)
+            row.Load(new ProductDto { Uid = row.Uid, Version = 1, Sku = row.Sku, MaterialType = MaterialTypesEnum.成品, BomVersion = 1, BomNo = row.Sku });
+        var view = new ProductsView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1300, Height = 850, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = Descendants(view).OfType<DataGrid>().Single(item => ReferenceEquals(item.ItemsSource, vm.Products.Items));
+            grid.SelectedItem = first; await vm.BomDrawer.ToggleCommand.ExecuteAsync(first);
+            var draft = vm.BomDrawer.Boms.Items[0]; draft.Note = "保留抽屉草稿";
+            grid.SelectedItem = second; await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreSame(first, vm.SelectedLine); Assert.AreSame(first, grid.SelectedItem);
+            Assert.AreSame(first, vm.BomDrawer.ActiveProduct); Assert.AreSame(draft, vm.BomDrawer.Boms.Items[0]);
+            Assert.AreEqual("保留抽屉草稿", draft.Note); Assert.IsTrue(vm.BomDrawer.Boms.HasChanges);
+            Assert.AreEqual(1, fixture.BomReads);
+        }
+        finally { window.Close(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle); }
+    });
     /// <summary>新编号明确写入成功但重读失败时，仍锁定已保存绑定而保留当前编号。</summary>
     [TestMethod]
     public async Task BomNumber_SavedBindingStaysLockedWhenRefreshFails()
@@ -674,6 +698,7 @@ public sealed class ProductDetailNavigationTests
         internal bool AllowEdit = true;
         internal int SaveCount, PageReads, DetailReads, DialogCount;
         internal int BomReads;
+        internal bool ConfirmDiscard = true;
         internal Task<DialogResult>? Confirmation;
         internal DialogOptions? LastDialog;
         internal ProductBatchSaveRequest? LastSave;
@@ -722,7 +747,7 @@ public sealed class ProductDetailNavigationTests
             var runner = Proxy<IApiCallRunner>((_, args) => ((Delegate)args[0]!).DynamicInvoke());
             var dialogs = Proxy<IDialogService>((method, args) =>
             {
-                if (method.Name != nameof(IDialogService.ShowAsync)) return Task.FromResult(true);
+                if (method.Name != nameof(IDialogService.ShowAsync)) return Task.FromResult(ConfirmDiscard);
                 DialogCount++;
                 LastDialog = (DialogOptions)args[1]!;
                 return Confirmation ?? Task.FromResult(Choice);

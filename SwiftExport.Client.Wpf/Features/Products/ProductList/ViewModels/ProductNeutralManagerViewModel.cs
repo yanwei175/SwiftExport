@@ -75,6 +75,7 @@ public sealed partial class ProductNeutralManagerViewModel
         Title = "产品管理";
         Lines.ListStateChanged += OnListStateChanged;
         PropertyChanged += OnManagerPropertyChanged;
+        InitializeCheckSelection();
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
         RegisterBusyAwareCommand(SaveCommand);
@@ -117,6 +118,10 @@ public sealed partial class ProductNeutralManagerViewModel
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial ProductNeutralManagerLineModel? SelectedLine { get; set; }
+    /// <summary>只影响本页的原生选择语义；格子模式不提供整行选区勾选或删除。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    public partial bool IsCellSelectionMode { get; set; }
     /// <summary>获取或设置 DataGrid 主型号编辑候选。</summary>
     [ObservableProperty] public partial ProductMasterLookupItemModel? EditProductMaster { get; set; }
     /// <summary>获取或设置 DataGrid 颜色编辑候选。</summary>
@@ -244,7 +249,7 @@ public sealed partial class ProductNeutralManagerViewModel
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
-        if (!TryCommitPendingEdits()) return;
+        if (!CanDeleteSelected() || !TryCommitPendingEdits()) return;
         var targets = Lines.CheckedItems.Count > 0
             ? Lines.CheckedItems.ToArray()
             : SelectedLine is null ? [] : [SelectedLine];
@@ -258,7 +263,7 @@ public sealed partial class ProductNeutralManagerViewModel
             }
             finally { IsSelectionPrompt = false; }
         }
-        if (_disposed) return;
+        if (!CanDeleteSelected()) return;
         var last = Lines.Items.LastOrDefault(line => !targets.Contains(line));
         foreach (var target in targets) Lines.Remove(target);
         SelectedLine = last;
@@ -569,8 +574,10 @@ public sealed partial class ProductNeutralManagerViewModel
         }
     }
 
+    /// <summary>同步草稿、显示行勾选和保存资格；UI 勾选本身不标记业务修改。</summary>
     private void UpdateChangeState()
     {
+        RefreshCheckState();
         IsDirty = Lines.HasChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges));
         SaveCommand.NotifyCanExecuteChanged();
@@ -580,7 +587,8 @@ public sealed partial class ProductNeutralManagerViewModel
     }
 
     private bool CanAddRow() => IsInteractionEnabled && CanWrite;
-    private bool CanDeleteSelected() => IsInteractionEnabled && CanWrite && (Lines.CheckedCount > 0 || SelectedLine is not null);
+    /// <summary>仅整行模式允许既有的勾选优先删除，保留交互及写入权限约束。</summary>
+    private bool CanDeleteSelected() => !IsCellSelectionMode && IsInteractionEnabled && CanWrite && (Lines.CheckedCount > 0 || SelectedLine is not null);
     private bool CanSave() => IsInteractionEnabled && CanWrite && Lines.HasChanges;
     private bool CanReBuildImagePath(ProductNeutralManagerLineModel? line) =>
         IsInteractionEnabled
@@ -599,6 +607,7 @@ public sealed partial class ProductNeutralManagerViewModel
     {
         if (_disposed) return;
         _disposed = true;
+        DetachCheckSelection();
         if (_currentUser is not null) _currentUser.CurrentUserChanged -= OnImportUserChanged;
         OpenImportCommand.NotifyCanExecuteChanged();
         _imageAddresses.Changed -= OnImageConfigurationChanged;

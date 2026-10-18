@@ -7,9 +7,17 @@
              xmlns:filter="clr-namespace:SwiftExportClient.Resources.Controls.Filter"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
              xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
              mc:Ignorable="d" d:Height="760" d:Width="1280">
+    <UserControl.Resources>
+        <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter"/>
+        <Style x:Key="SelectionCheckMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </Style>
+    </UserControl.Resources>
     <Grid Margin="12" IsEnabled="{Binding IsInteractionEnabled}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -101,6 +109,7 @@
                         </ui:DropDownButton>
                         
                         <ToggleButton x:Name="OptionsToggleButton" Content="更多条件" Margin="0,0,8,0" HorizontalAlignment="Left" />
+                        <ui:ToggleSwitch OffContent="整行模式" OnContent="格子模式" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}" AutomationProperties.Name="中性产品选择模式"/>
                     </WrapPanel>
 
 
@@ -145,22 +154,41 @@
                       FontSize="{StaticResource SwiftExportDefaltFontSize}"
                       AutoGenerateColumns="False"
                       SelectionMode="Extended"
-                      SelectionUnit="FullRow"
+                      SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                       FrozenColumnCount="1"
                       gridCore:GridRowHeader.ShowRowNumber="True"
                       SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                       AutomationProperties.Name="中性产品可编辑列表">
+                <i:Interaction.Behaviors><gridCore:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
+            <DataGrid.ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="中性产品当前页列表操作">
+                    <MenuItem Header="勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding CheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="CheckmarkSquare24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="取消勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding UncheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Square24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding InvertSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowSwap24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="全选(当前显示行)" Command="{Binding CheckVisibleCommand}" ToolTip="仅操作本表当前显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOn24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(当前显示行)" Command="{Binding InvertVisibleCommand}" ToolTip="仅操作本表当前显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOff24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowClockwise24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Delete24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"><MenuItem.Icon><ui:SymbolIcon Symbol="Table24"/></MenuItem.Icon></MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
                 <DataGrid.Columns>
                     <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False"
                                             HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                         <DataGridTemplateColumn.HeaderTemplate>
                             <DataTemplate>
-                                <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" />
+                                <CheckBox HorizontalAlignment="Center" Margin="0" Padding="0" AutomationProperties.Name="勾选中性产品当前页显示行"
+                                          IsChecked="{Binding DataContext.IsAllVisibleChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}"
+                                          Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                          CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.HeaderTemplate>
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" HorizontalAlignment="Center" />
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

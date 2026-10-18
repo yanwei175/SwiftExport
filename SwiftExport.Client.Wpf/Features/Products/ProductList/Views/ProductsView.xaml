@@ -21,6 +21,9 @@
              d:DataContext="{d:DesignInstance vm:ProductsViewModel}"
              d:Height="800" d:Width="1300">
     <UserControl.Resources>
+        <Style x:Key="SelectionCheckMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </Style>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <resourceProxies:BindingProxy x:Key="ProductsViewModelProxy" Data="{Binding}" />
@@ -232,19 +235,36 @@
                           SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                           FrozenColumnCount="4"
                           gridCore:GridRowHeader.ShowRowNumber="True"
-                          CurrentItem="{Binding SelectedLine, Mode=TwoWay}">
+                          SelectedItem="{Binding SelectedLine, Mode=TwoWay}">
                     <i:Interaction.Behaviors>
                         <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
                         <fill:DataGridColumnVisibilityBehavior />
                     </i:Interaction.Behaviors>
+            <DataGrid.ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="物料当前页列表操作">
+                    <MenuItem Header="勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding CheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="CheckmarkSquare24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="取消勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding UncheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Square24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding InvertSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowSwap24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="全选(当前显示行)" Command="{Binding CheckVisibleCommand}" ToolTip="仅操作本表当前显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOn24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(当前显示行)" Command="{Binding InvertVisibleCommand}" ToolTip="仅操作本表当前显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOff24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="物料详情" Command="{Binding OpenDetailCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Edit24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowClockwise24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Delete24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"><MenuItem.Icon><ui:SymbolIcon Symbol="Table24"/></MenuItem.Icon></MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
                         <DataGrid.Columns>
 
                             <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                                 <DataGridTemplateColumn.HeaderTemplate>
                                     <DataTemplate>
-                                        <CheckBox
-                                        IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}, Mode=TwoWay}"
-                                        HorizontalAlignment="Left" />
+                                        <CheckBox HorizontalAlignment="Center" Margin="0" Padding="0" AutomationProperties.Name="勾选物料当前页显示行"
+                                                  IsChecked="{Binding DataContext.IsAllVisibleChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}"
+                                                  Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                  CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.HeaderTemplate>
                                 <DataGridTemplateColumn.CellTemplate>

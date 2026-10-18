@@ -51,6 +51,7 @@ public sealed partial class PackagingMaterialManagerViewModel : ViewModelBaseEx,
         Products.PropertyChanged += OnListChanged;
         _user.CurrentUserChanged += OnPermissionsChanged;
         PropertyChanged += OnPageStateChanged;
+        InitializeCheckSelection();
         WeakReferenceMessenger.Default.Register<PackagingMaterialManagerViewModel, ProductDetailSavedMessage>(this,
             static (recipient, message) => recipient.ObserveDetailSaved(message.ProductId));
         foreach (var command in new IRelayCommand[] { SearchCommand, ResetCommand, RefreshCommand, AddRowCommand,
@@ -308,8 +309,10 @@ public sealed partial class PackagingMaterialManagerViewModel : ViewModelBaseEx,
     private void OnPermissionsChanged(object? sender, EventArgs args) { _query?.Cancel(); NotifyState(); }
     private void OnPageStateChanged(object? sender, PropertyChangedEventArgs args)
     { if (args.PropertyName is nameof(IsBusy) or nameof(IsQueryBusy) or nameof(SelectedLine) or nameof(IsCellSelectionMode)) NotifyState(); }
+    /// <summary>集中更新包材草稿、勾选聚合、权限和命令状态，避免菜单持有旧资格。</summary>
     private void NotifyState()
     {
+        RefreshCheckState();
         IsDirty = HasUnsavedChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges)); OnPropertyChanged(nameof(CanCreate)); OnPropertyChanged(nameof(CanEdit)); OnPropertyChanged(nameof(IsGridReadOnly));
         foreach (var command in new IRelayCommand[] { SaveCommand, AddRowCommand, DeleteSelectedCommand, OpenDetailCommand, SearchCommand, RefreshCommand, ResetCommand, PageChangeCommand, UploadImagesCommand }) command.NotifyCanExecuteChanged();
@@ -320,7 +323,7 @@ public sealed partial class PackagingMaterialManagerViewModel : ViewModelBaseEx,
     /// <summary>释放时取消查询及全部订阅，不以取消读取中断已经提交的写命令。</summary>
     public void Dispose()
     {
-        if (_disposed) return; _disposed = true; _lifetime.Cancel(); _query?.Cancel(); _lifetime.Dispose();
+        if (_disposed) return; _disposed = true; DetachCheckSelection(); _lifetime.Cancel(); _query?.Cancel(); _lifetime.Dispose();
         Products.PropertyChanged -= OnListChanged; _user.CurrentUserChanged -= OnPermissionsChanged;
         PropertyChanged -= OnPageStateChanged; WeakReferenceMessenger.Default.Unregister<ProductDetailSavedMessage>(this); CommitPendingEdits = null;
     }

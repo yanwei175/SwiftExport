@@ -77,6 +77,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
         Masters.ListStateChanged += OnListStateChanged;
         Neutrals.ListStateChanged += OnNeutralListStateChanged;
         PropertyChanged += OnManagerStateChanged;
+        InitializeCheckSelection();
         RegisterBusyAwareCommand(SaveCommand);
         RegisterBusyAwareCommand(SetMainImagesCommand);
         RegisterBusyAwareCommand(OpenImportCommand);
@@ -686,8 +687,10 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
 
     private void OnListStateChanged(object? sender, ListStateChangedEventArgs<ProductMasterLineModel> e) => UpdateChangeState();
 
+    /// <summary>同步主从草稿、显示行勾选聚合及相关命令，不混用两张表的行身份。</summary>
     private void UpdateChangeState()
     {
+        RefreshCheckState();
         IsDirty = HasUnsavedChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges));
         SaveCommand.NotifyCanExecuteChanged();
@@ -719,6 +722,7 @@ public sealed partial class ProductMasterManagerViewModel : ViewModelBaseEx, IAs
     {
         if (_disposed) return;
         _disposed = true;
+        DetachCheckSelection();
         WeakReferenceMessenger.Default.Unregister<ProductMasterDetailSavedMessage>(this);
         foreach (var pending in _detailRefreshes.Values) { pending.Cancel(); pending.Dispose(); }
         _detailRefreshes.Clear();

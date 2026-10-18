@@ -9,8 +9,13 @@
             xmlns:proxies="clr-namespace:SwiftExportClient.Resources.Proxies"
             xmlns:suppliers="clr-namespace:SwiftExportClient.Features.Suppliers.Components"
             xmlns:selection="clr-namespace:SwiftExportClient.Resources.Converters"
+            xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+            xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged">
     <UserControl.Resources>
+        <Style x:Key="SelectionCheckMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </Style>
         <proxies:BindingProxy x:Key="PackagingManagerProxy" Data="{Binding}"/>
         <selection:GridSelectionUnitConverter x:Key="SelectionUnitConverter" />
     </UserControl.Resources>
@@ -129,9 +134,34 @@
                   EnableRowVirtualization="True"
                   EnableColumnVirtualization="True"
                   BeginningEdit="OnBeginningEdit" AutomationProperties.Name="包材档案列表">
+            <i:Interaction.Behaviors><gridCore:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
+            <DataGrid.ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="包材当前页列表操作">
+                    <MenuItem Header="勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding CheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="CheckmarkSquare24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="取消勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding UncheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Square24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding InvertSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowSwap24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="全选(当前显示行)" Command="{Binding CheckVisibleCommand}" ToolTip="仅操作本表当前显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOn24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(当前显示行)" Command="{Binding InvertVisibleCommand}" ToolTip="仅操作本表当前显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOff24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="物料详情" Command="{Binding OpenDetailCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Edit24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowClockwise24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Delete24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"><MenuItem.Icon><ui:SymbolIcon Symbol="Table24"/></MenuItem.Icon></MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
 
-                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Header="勾选" Width="48">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Header="勾选" Width="48" CanUserSort="False" CanUserResize="False">
+                    <DataGridTemplateColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <CheckBox HorizontalAlignment="Center" Margin="0" Padding="0" AutomationProperties.Name="勾选包材当前页显示行"
+                                      IsChecked="{Binding DataContext.IsAllVisibleChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}"
+                                      Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"/>

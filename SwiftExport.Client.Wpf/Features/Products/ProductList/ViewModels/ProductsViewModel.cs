@@ -92,6 +92,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         Title = "物料管理";
         Products.PropertyChanged += OnProductsPropertyChanged;
         Products.ListStateChanged += OnProductsListStateChanged;
+        InitializeCheckSelection();
         BomDrawer.SelectionRestoreRequested += OnBomDrawerSelectionRestoreRequested;
         if (_referenceDataCache?.DictionaryValues is { } dictionaryValues)
             CollectionChangedEventManager.AddHandler(
@@ -191,6 +192,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     /// <summary>权限快照变化时即时更新拉取入口。</summary>
     private void OnCurrentUserChanged(object? sender, EventArgs e)
     {
+        RefreshCheckState();
         _masterLookupCts?.Cancel(); _neutralLookupCts?.Cancel();
         ProductMasterCandidates.Clear(); ProductNeutralCandidates.Clear();
         EditProductMaster = null; EditProductNeutral = null;
@@ -255,7 +257,10 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     public partial ProductLineModel? SelectedLine { get; set; }
 
+    /// <summary>格子模式只编辑单元格，不提供整行选区勾选、删除或详情入口。</summary>
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenDetailCommand))]
     public partial bool IsCellSelectionMode { get; set; }
 
     [ObservableProperty]
@@ -324,9 +329,11 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         UpdateChangeState();
     }
 
+    /// <summary>保留勾选优先的删除范围；只在整行模式下提交编辑并确认既有行删除。</summary>
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
+        if (!CanDeleteSelected() || !TryCommitPendingEdits()) return;
         var checkedLines = Products.CheckedItems;
         var lines = checkedLines.Count > 0
             ? checkedLines.ToArray()
@@ -344,6 +351,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
             if (!await _dialogService.ConfirmAsync("删除产品", message, "删除")) return;
         }
 
+        if (!CanDeleteSelected()) return;
         foreach (var line in lines)
         {
             Products.Remove(line);
@@ -469,8 +477,8 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         return false;
     }
 
-    /// <summary>读取权限不要求编辑权限；新增、删除、Busy 或释放状态不得进入详情。</summary>
-    private bool CanOpenDetail() => !_disposed && IsNotBusy && _navigation is not null && HasProductViewPermission()
+    /// <summary>读取权限不要求编辑权限；格子模式、新增、删除、Busy 或释放状态不得进入详情。</summary>
+    private bool CanOpenDetail() => !_disposed && !IsCellSelectionMode && IsNotBusy && _navigation is not null && HasProductViewPermission()
         && SelectedLine is { IsNew: false, IsDeleted: false } row && row.Uid != Guid.Empty;
 
     private bool HasProductViewPermission() => _currentUser is null || _currentUser.HasPermission(PermissionKeys.ProductsProductView);
@@ -830,8 +838,10 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
         UnitOptions = _referenceDataCache?.GetDictionaryValues(DictCodes.Unit) ?? [];
 
 
+    /// <summary>同步物料草稿、显示行勾选及现有业务入口，勾选不改变业务编辑基线。</summary>
     private void UpdateChangeState()
     {
+        RefreshCheckState();
         IsDirty = Products.HasChanges; OnPropertyChanged(nameof(HasChanges));
         SaveCommand.NotifyCanExecuteChanged(); RejectProductChangesCommand.NotifyCanExecuteChanged(); DeleteSelectedCommand.NotifyCanExecuteChanged();
         OpenDetailCommand.NotifyCanExecuteChanged();
@@ -846,6 +856,7 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
     {
         if (_disposed) return;
         _disposed = true;
+        DetachCheckSelection();
         foreach (var lookup in new[] { _masterLookupCts, _neutralLookupCts }) { lookup?.Cancel(); lookup?.Dispose(); }
         WeakReferenceMessenger.Default.Unregister<ProductDetailSavedMessage>(this);
         foreach (var pending in _detailRefreshes.Values) { pending.Cancel(); pending.Dispose(); }
@@ -864,8 +875,9 @@ public sealed partial class ProductsViewModel : ViewModelBaseEx, IAsyncInitializ
 
     private bool CanWriteCommand() => IsNotBusy && CanWrite;
 
+    /// <summary>整行模式沿用勾选优先的删除范围，释放或写入受限时禁止入口。</summary>
     private bool CanDeleteSelected() =>
-        IsNotBusy && CanWrite && (Products.CheckedCount > 0 || SelectedLine is not null);
+        !_disposed && !IsCellSelectionMode && IsNotBusy && CanWrite && (Products.CheckedCount > 0 || SelectedLine is not null);
 
     private bool CanRejectChanges() => IsNotBusy && Products.HasChanges;
 

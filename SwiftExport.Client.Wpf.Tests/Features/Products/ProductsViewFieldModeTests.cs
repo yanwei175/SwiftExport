@@ -30,7 +30,7 @@ public sealed class ProductsViewFieldModeTests
         var alwaysVisibleKeys = new[]
         {
             "图片", "主产品型号", "物料编号", "产品型号", "中文描述", "中文配置", "颜色",
-            "分类", "物料类型", "基础单位", "供货类型", "BOM", "默认供应商", "人民币价",
+            "分类", "物料类型", "基础单位", "供货类型", "BOM", "需要 BOM", "默认供应商", "人民币价",
             "美元价", "备注",
         };
         foreach (var key in alwaysVisibleKeys)
@@ -41,7 +41,7 @@ public sealed class ProductsViewFieldModeTests
 
         var complexKeys = new[]
         {
-            "英文描述", "英文配置", "BOM版本", "供应商名称",
+            "英文描述", "英文配置", "供应商名称",
             "装箱数", "箱净重", "箱毛重", "箱体积",
         };
         foreach (var key in complexKeys)
