@@ -11,7 +11,7 @@ namespace SwiftExport.WebApi.Controllers.SalesOrders.Confirmation;
 [ApiController, Route("api/sales-orders/detail")]
 public sealed class SalesOrderConfirmationController(ISalesOrderConfirmationService confirmations, ISalesOrderCancellationService cancellations) : ControllerBase
 {
-    /// <summary>确认订单并接收来源需求。</summary>
+    /// <summary>确认订单并接收成品需求。</summary>
     [HttpPost("{uid:guid}/confirm"), Authorize, PreventDuplicateRequest]
     public Task<ServiceResult<SalesOrderConfirmationResultDto>> ConfirmAsync([FromRoute] Guid uid, [FromBody] ConfirmSalesOrderCommand request)
         => confirmations.ConfirmAsync(uid, request);

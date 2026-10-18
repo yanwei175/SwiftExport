@@ -5,7 +5,7 @@ using SwiftExport.Core.Entities.DemandPlanning;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
 
-/// <summary>为来源需求的实物要求生成稳定指纹，不把来源单头技术版本当作实物变化。</summary>
+/// <summary>为成品需求的实物要求生成稳定指纹，不把来源单头技术版本当作实物变化。</summary>
 internal static class SourceDemandBasisFingerprintFactory
 {
     /// <summary>根据交付客户、产品身份、业务快照、数量和交期生成稳定 SHA-256 指纹。</summary>

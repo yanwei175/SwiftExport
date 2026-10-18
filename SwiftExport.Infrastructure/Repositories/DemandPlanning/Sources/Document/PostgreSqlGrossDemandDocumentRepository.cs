@@ -234,18 +234,18 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
                 InsertSourceDemandSql,
                 PostgreSqlParameters.Entity(demand, Map))), allowNewIdentity: true);
             results.Add(rows == 1 ? RepositoryWriteResult.Ok(demand.Uid, null, demand.Version, "新增成功。")
-                : RepositoryWriteResult.Fail(demand.Uid, null, ServiceErrorCodes.InsertFailed, "新增毛需求失败。"));
+                : RepositoryWriteResult.Fail(demand.Uid, null, ServiceErrorCodes.InsertFailed, "新增成品需求失败。"));
         }
         return results;
     }
 
     /// <summary>更新原来源事实列，不改变来源身份/生命周期，不预推进输入实体Version。</summary>
     public Task<RepositoryWriteResult> UpdateSourceDemandAsync(GrossDemand demand, int expectedVersion) =>
-        VersionWrite(demand, expectedVersion, SourceAssignments, "", "来源需求已更新。", "来源需求状态或版本已变化。");
+        VersionWrite(demand, expectedVersion, SourceAssignments, "", "成品需求已更新。", "成品需求状态或版本已变化。");
 
     /// <summary>手工更新不改UnitSnapshot或客户/来源身份，MD/活动/未删/版本谓词和原消息保留。</summary>
     public Task<RepositoryWriteResult> UpdateManualAsync(GrossDemand demand, int expectedVersion) =>
-        VersionWrite(demand, expectedVersion, ManualAssignments, $" AND {Dictionary("\"source_type\"")}='MD'", "手工毛需求更新成功。", "手工毛需求状态或版本已变化，请刷新后重试。");
+        VersionWrite(demand, expectedVersion, ManualAssignments, $" AND {Dictionary("\"source_type\"")}='MD'", "手工成品需求更新成功。", "手工成品需求状态或版本已变化，请刷新后重试。");
 
     /// <summary>仅指定版本活动手工需求关闭，生命周期和更新审计同一次墙上时间，不改实体状态。</summary>
     public Task<RepositoryWriteResult> CloseManualAsync(Guid uid, int expectedVersion, string reason) => InScope([], [uid], async () =>
@@ -256,8 +256,8 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
             WHERE "uid"=@Uid AND "version"=@ExpectedVersion AND {Dictionary("\"source_type\"")}='MD'
               AND "lifecycle_status"=0 AND "is_deleted"=FALSE RETURNING "version";
             """, p));
-        return version.HasValue ? RepositoryWriteResult.Ok(uid, expectedVersion, version, "手工毛需求已关闭。")
-            : RepositoryWriteResult.Fail(uid, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "手工毛需求状态或版本已变化，请刷新后重试。");
+        return version.HasValue ? RepositoryWriteResult.Ok(uid, expectedVersion, version, "手工成品需求已关闭。")
+            : RepositoryWriteResult.Fail(uid, expectedVersion, ServiceErrorCodes.ConcurrencyConflict, "手工成品需求状态或版本已变化，请刷新后重试。");
     });
 
     /// <summary>上层已证明无物料历史后物理删除；本方法仅Distinct身份与活动未删条件，不增加版本/历史检查。</summary>
@@ -316,11 +316,11 @@ public sealed partial class PostgreSqlGrossDemandDocumentRepository(RepositoryBa
         if (missing.Length > 0)
         {
             if (context.Session.Transaction is null)
-                throw new InvalidOperationException("无父事务时租约必须预先覆盖全部毛需求身份。");
+                throw new InvalidOperationException("无父事务时租约必须预先覆盖全部成品需求身份。");
             // 新建身份可能在业务委托内生成；已有S覆盖后才借事务级U，不追加任何S。
             var bindings = allowNewIdentity ? [] : await Bindings(missing, false, default);
             if (!allowNewIdentity && (bindings.Count != missing.Length || bindings.Any(x => !lease.Covers("Source", x.SourceUid))))
-                throw new InvalidOperationException("毛需求身份未在首次快照前准备，不能事务内追加未知来源。");
+                throw new InvalidOperationException("成品需求身份未在首次快照前准备，不能事务内追加未知来源。");
             foreach (var key in missing.Select(uid => PostgreSqlSourceDemandLock.Key("Gross", uid)).Distinct().Order())
                 await context.Session.Connection.ExecuteAsync(Command("SELECT pg_advisory_xact_lock(@Key);", new { Key = key }));
         }

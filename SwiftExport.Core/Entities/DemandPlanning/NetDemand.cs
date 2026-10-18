@@ -5,22 +5,22 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SwiftExport.Core.Entities.DemandPlanning;
 
 /// <summary>
-/// 毛需求一次拆解版本中的物料需求事实行。
+/// 成品需求一次拆解版本中的物料需求事实行。
 /// </summary>
 [Table("net_demand")]
 public sealed partial class NetDemand : BaseEntity
 {
-    /// <summary>所属毛需求 Uid。</summary>
+    /// <summary>所属成品需求 Uid。</summary>
     public Guid GrossDemandId { get; set; }
-    /// <summary>建立本批物料需求时采用的来源需求技术版本；历史数据无法确认时为空。</summary>
+    /// <summary>建立本批物料需求时采用的成品需求技术版本；历史数据无法确认时为空。</summary>
     public int? SourceDemandVersionSnapshot { get; set; }
     /// <summary>建立本批物料需求时采用的上游单据事实版本；手工来源或历史数据可以为空。</summary>
     public int? SourceVersionSnapshot { get; set; }
     /// <summary>建立本批物料需求时采用的来源实物内容指纹；用于区分技术版本推进与真实需求变化。</summary>
     public string? SourceDemandBasisFingerprintSnapshot { get; set; }
-    /// <summary>生成本行的毛需求拆解修订号。</summary>
+    /// <summary>生成本行的成品需求拆解修订号。</summary>
     public int DecompositionRevision { get; set; }
-    /// <summary>同一毛需求、同一拆解版本内的稳定行号。</summary>
+    /// <summary>同一成品需求、同一拆解版本内的稳定行号。</summary>
     public int LineNumber { get; set; }
     /// <summary>净需求生命周期；回退拆解时旧行会被取消而不是删除历史。</summary>
     public NetDemandLifecycleStatusEnum LifecycleStatus { get; set; } = NetDemandLifecycleStatusEnum.Active;
@@ -69,7 +69,7 @@ public sealed partial class NetDemand : BaseEntity
     public decimal GrossQty { get; set; }
     /// <summary>当前净需求数量；现阶段未扣库存时通常等于 GrossQty。</summary>
     public decimal NetQty { get; set; }
-    /// <summary>从毛需求继承的原始业务交期，只读保留。</summary>
+    /// <summary>从成品需求继承的原始业务交期，只读保留。</summary>
     public DateTime? RequiredDate { get; set; }
     /// <summary>拆解产生或人工维护的净需求备注。</summary>
     public string? Remark { get; set; }

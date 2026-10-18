@@ -10,12 +10,12 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Query;
 
-/// <summary>提供来源需求本体的列表、分组和详情只读查询。</summary>
+/// <summary>提供成品需求本体的列表、分组和详情只读查询。</summary>
 public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDemandQueryRepository grossDemandRepository) : IGrossDemandQueryService
 {
     private readonly ILogger<GrossDemandQueryService> _logger = context.LoggerFactory.CreateLogger<GrossDemandQueryService>();
 
-    /// <summary>查询来源需求本体分页，不投影物料或执行进度。</summary>
+    /// <summary>查询成品需求本体分页，不投影物料或执行进度。</summary>
     public async Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -32,12 +32,12 @@ public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDe
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "查询来源需求失败。");
-            return ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Fail("查询来源需求失败。");
+            _logger.LogError(ex, "查询成品需求失败。");
+            return ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Fail("查询成品需求失败。");
         }
     }
 
-    /// <summary>查询来源单导航分组，筛选口径只属于来源需求本体。</summary>
+    /// <summary>查询来源单导航分组，筛选口径只属于成品需求本体。</summary>
     public async Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default)
     {
         try
@@ -48,47 +48,47 @@ public sealed class GrossDemandQueryService(ServiceBaseContext context, IGrossDe
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "查询来源需求分组失败。");
-            return ServiceResult<List<GrossDemandSourceGroupDto>>.Fail("查询来源需求分组失败。");
+            _logger.LogError(ex, "查询成品需求分组失败。");
+            return ServiceResult<List<GrossDemandSourceGroupDto>>.Fail("查询成品需求分组失败。");
         }
     }
 
-    /// <summary>读取单条来源需求本体详情。</summary>
+    /// <summary>读取单条成品需求本体详情。</summary>
     public async Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        if (uid == Guid.Empty) return ServiceResult<GrossDemandDetailDto>.Fail("来源需求 Uid 不能为空。");
+        if (uid == Guid.Empty) return ServiceResult<GrossDemandDetailDto>.Fail("成品需求 Uid 不能为空。");
         try
         {
             var detail = await grossDemandRepository.GetWorkspaceDetailAsync(uid, cancellationToken);
-            return detail is null ? ServiceResult<GrossDemandDetailDto>.Fail("未找到来源需求。") : ServiceResult<GrossDemandDetailDto>.Ok(detail);
+            return detail is null ? ServiceResult<GrossDemandDetailDto>.Fail("未找到成品需求。") : ServiceResult<GrossDemandDetailDto>.Ok(detail);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "加载来源需求 {Uid} 失败。", uid);
-            return ServiceResult<GrossDemandDetailDto>.Fail("加载来源需求失败。");
+            _logger.LogError(ex, "加载成品需求 {Uid} 失败。", uid);
+            return ServiceResult<GrossDemandDetailDto>.Fail("加载成品需求失败。");
         }
     }
 
-    /// <summary>读取来源需求的拆解、采购与正式交付历史，不生成或修改执行关系。</summary>
+    /// <summary>读取成品需求的拆解、采购与正式交付历史，不生成或修改执行关系。</summary>
     public async Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
     {
-        if (uid == Guid.Empty) return ServiceResult<GrossDemandTraceDetailDto>.Fail("来源需求 Uid 不能为空。");
+        if (uid == Guid.Empty) return ServiceResult<GrossDemandTraceDetailDto>.Fail("成品需求 Uid 不能为空。");
         try
         {
             var detail = await grossDemandRepository.GetTraceAsync(uid, cancellationToken);
-            return detail is null ? ServiceResult<GrossDemandTraceDetailDto>.Fail("未找到来源需求。") : ServiceResult<GrossDemandTraceDetailDto>.Ok(detail);
+            return detail is null ? ServiceResult<GrossDemandTraceDetailDto>.Fail("未找到成品需求。") : ServiceResult<GrossDemandTraceDetailDto>.Ok(detail);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) when (context.Session.Errors.Classify(ex) == DatabaseFailureKind.UnverifiedReceiptHistory)
         {
-            _logger.LogWarning(ex, "来源需求追踪的正式入库反向历史尚未核实，来源需求 {Uid}", uid);
+            _logger.LogWarning(ex, "成品需求追踪的正式入库反向历史尚未核实，成品需求 {Uid}", uid);
             return ServiceResult<GrossDemandTraceDetailDto>.Fail("正式入库反向历史需核实，收货量未知。");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "加载来源需求追踪 {Uid} 失败。", uid);
-            return ServiceResult<GrossDemandTraceDetailDto>.Fail("加载来源需求追踪失败。");
+            _logger.LogError(ex, "加载成品需求追踪 {Uid} 失败。", uid);
+            return ServiceResult<GrossDemandTraceDetailDto>.Fail("加载成品需求追踪失败。");
         }
     }
 }

@@ -35,7 +35,7 @@ public sealed partial class AfterSalesLine : BaseEntity
     public string? ColorSnapshot { get; set; }
     /// <summary>补发规格。</summary>
     public string? SpecificationSnapshot { get; set; }
-    /// <summary>补发数量，空或零不创建来源需求。</summary>
+    /// <summary>补发数量，空或零不创建成品需求。</summary>
     public decimal? Quantity { get; set; }
     /// <summary>补件单位快照；缺失保持未知，确认实物需求前必须明确。</summary>
     public string UnitSnapshot { get; set; } = string.Empty;

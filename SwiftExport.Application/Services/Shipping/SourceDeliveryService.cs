@@ -56,20 +56,20 @@ public sealed class SourceDeliveryService(
             cancellationToken.ThrowIfCancellationRequested();
             if (grossDemandId == Guid.Empty)
                 return ServiceResult<SourceDemandDeliveryItemDto>.Fail(
-                    SourceDeliveryErrorCodes.SourceDeliveryQueryInvalid, "来源需求标识不能为空。", nameof(grossDemandId));
+                    SourceDeliveryErrorCodes.SourceDeliveryQueryInvalid, "成品需求标识不能为空。", nameof(grossDemandId));
             if (!await queryRepository.IsSchemaReadyAsync(cancellationToken))
                 return ServiceResult<SourceDemandDeliveryItemDto>.Fail(
                     UnavailableCode, "来源交付查询所需数据库结构尚未就绪。");
             var item = await queryRepository.GetAsync(grossDemandId, cancellationToken);
             return item is null
                 ? ServiceResult<SourceDemandDeliveryItemDto>.Fail(
-                    SourceDeliveryErrorCodes.NotFound, "来源需求不存在或已删除。", nameof(grossDemandId))
+                    SourceDeliveryErrorCodes.NotFound, "成品需求不存在或已删除。", nameof(grossDemandId))
                 : ServiceResult<SourceDemandDeliveryItemDto>.Ok(item);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "读取来源需求 {GrossDemandId} 的交付上下文失败。", grossDemandId);
+            _logger.LogError(ex, "读取成品需求 {GrossDemandId} 的交付上下文失败。", grossDemandId);
             return ServiceResult<SourceDemandDeliveryItemDto>.Fail(UnavailableCode, UnavailableMessage);
         }
     }
@@ -100,15 +100,15 @@ public sealed class SourceDeliveryService(
             foreach (var pair in totals)
             {
                 if (!result.TryGetValue(pair.Key, out var row))
-                    throw new SourceDeliveryException(SourceDeliveryErrorCodes.NotFound, "来源需求不存在或已删除。");
+                    throw new SourceDeliveryException(SourceDeliveryErrorCodes.NotFound, "成品需求不存在或已删除。");
                 if (!row.IsActive || !row.CustomerId.HasValue)
-                    throw new SourceDeliveryException(SourceDeliveryErrorCodes.Inactive, "来源需求已关闭、作废或缺少交付客户。");
+                    throw new SourceDeliveryException(SourceDeliveryErrorCodes.Inactive, "成品需求已关闭、作废或缺少交付客户。");
                 var related = claims.Where(claim => claim.GrossDemandId == pair.Key).ToArray();
                 if (related.Any(claim => claim.ExpectedDemandVersion.HasValue
                     && claim.ExpectedDemandVersion.Value != row.DemandVersion)
                     || related.Any(claim => claim.ExpectedSourceVersion.HasValue
                         && claim.ExpectedSourceVersion.Value != row.SourceVersion))
-                    throw new SourceDeliveryException(SourceDeliveryErrorCodes.VersionConflict, "来源需求或上游事实版本已变化，请刷新后重试。");
+                    throw new SourceDeliveryException(SourceDeliveryErrorCodes.VersionConflict, "成品需求或上游事实版本已变化，请刷新后重试。");
                 if (pair.Value > row.RemainingQty)
                     throw new SourceDeliveryException(SourceDeliveryErrorCodes.Exceeded, "申报数量超过来源当前剩余可交付量。");
             }

@@ -244,7 +244,7 @@ public sealed class PostgreSqlProcurementReversalRepository(RepositoryBaseContex
         {
             var source = await context.Session.Connection.QuerySingleOrDefaultAsync<GrossDemand>(Command(
                 $"SELECT {GrossDemandColumns} FROM public.gross_demand WHERE uid=@id FOR UPDATE", new { id }, ct));
-            if (source is null) throw new InvalidOperationException("采购来源需求缺失，不能完成操作。");
+            if (source is null) throw new InvalidOperationException("采购成品需求缺失，不能完成操作。");
             facts.Sources.Add(source);
         }
         foreach (var id in sourceIds)

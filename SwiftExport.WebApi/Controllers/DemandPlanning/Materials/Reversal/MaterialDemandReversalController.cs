@@ -5,7 +5,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Materials.Reversal;
 
-/// <summary>转发来源需求对应物料修订的整批回退命令。</summary>
+/// <summary>转发成品需求对应物料修订的整批回退命令。</summary>
 [ApiController]
 [Route("api/demand-planning/net-demands")]
 public sealed class MaterialDemandReversalController(

@@ -31,7 +31,7 @@ using SwiftExport.Core.Interfaces.DemandPlanning;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 
-/// <summary>将来源需求整批建立为物料事实；公共命令组件负责授权边界、事务及回执。</summary>
+/// <summary>将成品需求整批建立为物料事实；公共命令组件负责授权边界、事务及回执。</summary>
 public sealed class MaterialDemandEstablishmentService(
     ServiceBaseContext context,
     IGrossDemandDocumentRepository grossDemandRepository,
@@ -81,8 +81,8 @@ public sealed class MaterialDemandEstablishmentService(
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            context.LoggerFactory.CreateLogger<MaterialDemandEstablishmentService>().LogError(ex, "从来源需求建立物料需求失败。");
-            return ServiceResult<EstablishMaterialDemandsResult>.Fail(ServiceErrorCodes.Unexpected, "从来源需求建立物料需求失败。");
+            context.LoggerFactory.CreateLogger<MaterialDemandEstablishmentService>().LogError(ex, "从成品需求建立物料需求失败。");
+            return ServiceResult<EstablishMaterialDemandsResult>.Fail(ServiceErrorCodes.Unexpected, "从成品需求建立物料需求失败。");
         }
     }
 
@@ -97,7 +97,7 @@ public sealed class MaterialDemandEstablishmentService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             demands.Add(await grossDemandRepository.GetByIdForUpdateAsync(item.GrossDemandId)
-                ?? throw new MaterialDemandException(DemandPlanningErrorCodes.SourceNotFound, "来源需求不存在或已删除。"));
+                ?? throw new MaterialDemandException(DemandPlanningErrorCodes.SourceNotFound, "成品需求不存在或已删除。"));
         }
 
         var result = new EstablishMaterialDemandsResult();
@@ -119,7 +119,7 @@ public sealed class MaterialDemandEstablishmentService(
                 }
                 throw new MaterialDemandException(
                     DemandPlanningErrorCodes.SourceChangeRequiresDisposition,
-                    $"来源需求 {demand.SourceNo} 第 {demand.SourceLineNumber} 行已变化，必须先处置当前物料需求。");
+                    $"成品需求 {demand.SourceNo} 第 {demand.SourceLineNumber} 行已变化，必须先处置当前物料需求。");
             }
 
             // 锁定物料修订历史，再锁产品并读取有效共享组成；规划器只根据这些事实生成待写物料。
@@ -163,7 +163,7 @@ public sealed class MaterialDemandEstablishmentService(
             CorrelationId = string.IsNullOrWhiteSpace(correlationContext.CorrelationId)
                 ? commandId.ToString("N") : correlationContext.CorrelationId[..Math.Min(64, correlationContext.CorrelationId.Length)],
             Module = Module, AggregateType = "GrossDemand", AggregateUid = sourceIds[0],
-            OperationType = EstablishOperation, OperationName = "从来源需求建立物料需求",
+            OperationType = EstablishOperation, OperationName = "从成品需求建立物料需求",
             Summary = $"建立 {result.CreatedSourceCount} 项来源、{result.CreatedMaterialDemandCount} 行物料需求；已有 {result.AlreadyEstablishedCount} 项。",
             ChangedFieldsJson = JsonSerializer.Serialize(new { result.CreatedSourceCount, result.CreatedMaterialDemandCount, result.AlreadyEstablishedCount }),
             RelatedObjectsJson = JsonSerializer.Serialize(new { SourceIds = sourceIds }),
@@ -191,11 +191,11 @@ public sealed class MaterialDemandEstablishmentService(
         if (!demand.IsNonStandard)
         {
             if (!demand.ProductId.HasValue)
-                throw new MaterialDemandException(DemandPlanningErrorCodes.ProductNotFound, "标准来源需求没有关联产品。");
+                throw new MaterialDemandException(DemandPlanningErrorCodes.ProductNotFound, "标准成品需求没有关联产品。");
             root = await productRepository.GetByIdAsync(demand.ProductId.Value, withUpdLock: true)
-                ?? throw new MaterialDemandException(DemandPlanningErrorCodes.ProductNotFound, "来源需求关联产品不存在或已删除。");
+                ?? throw new MaterialDemandException(DemandPlanningErrorCodes.ProductNotFound, "成品需求关联产品不存在或已删除。");
             if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(root))
-                throw new MaterialDemandException(DemandPlanningErrorCodes.CustomerSuppliedRootNotAllowed, "客供件不能作为标准来源需求根产品。");
+                throw new MaterialDemandException(DemandPlanningErrorCodes.CustomerSuppliedRootNotAllowed, "客供件不能作为标准成品需求根产品。");
             if (root.BomVersion > 0 && !string.IsNullOrWhiteSpace(root.BomNo))
                 boms = (await bomRepository.GetBomByBomNoAsync(root.BomNo)).ToArray();
             var childIds = boms.Where(line => line.ComponentProductId.HasValue).Select(line => line.ComponentProductId!.Value).Distinct().ToArray();
@@ -216,9 +216,9 @@ public sealed class MaterialDemandEstablishmentService(
     private static void EnsureSourceVersion(GrossDemand demand, int expectedDemandVersion, int? expectedSourceVersion)
     {
         if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active)
-            throw new MaterialDemandException(DemandPlanningErrorCodes.InvalidSourceLifecycle, "只有活动来源需求可以建立物料需求。");
+            throw new MaterialDemandException(DemandPlanningErrorCodes.InvalidSourceLifecycle, "只有活动成品需求可以建立物料需求。");
         if (demand.Version != expectedDemandVersion || demand.SourceVersion != expectedSourceVersion)
-            throw new MaterialDemandException(DemandPlanningErrorCodes.SourceChanged, "来源需求版本已变化，请刷新候选后重试。");
+            throw new MaterialDemandException(DemandPlanningErrorCodes.SourceChanged, "成品需求版本已变化，请刷新候选后重试。");
     }
 
     /// <summary>将任一仓储写入失败提升为整批业务失败。</summary>

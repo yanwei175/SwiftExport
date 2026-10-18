@@ -198,7 +198,7 @@ public sealed class PostgreSqlNetDemandExecutionLinkRepository(RepositoryBaseCon
                      AND l."command_item_id"=ANY(@Items));
             """, parameters, token));
         if (!lease.IsCurrent || gross.Any(x => !lease.Covers("Gross", x)))
-            throw new InvalidOperationException("执行关联的毛需求身份未在首次快照前完整准备。");
+            throw new InvalidOperationException("执行关联的成品需求身份未在首次快照前完整准备。");
         return await action();
     }
 

@@ -28,6 +28,6 @@ public interface ISalesOrderDraftService
 {
     /// <summary>保存销售草稿及全部行变更。</summary>
     Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync(SaveSalesOrderRequest request);
-    /// <summary>删除未确认且未生成来源需求的草稿。</summary>
+    /// <summary>删除未确认且未生成成品需求的草稿。</summary>
     Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request);
 }

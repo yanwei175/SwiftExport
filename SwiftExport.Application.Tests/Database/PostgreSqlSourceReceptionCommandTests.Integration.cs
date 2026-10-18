@@ -26,7 +26,7 @@ using SwiftExport.Infrastructure.Services.Auth;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>实际来源接收、PG毛需求/业务审计/机器回执及父执行器联验；未迁下游端口仅用于禁止意外调用，不冒称完整售后/物料链。</summary>
+/// <summary>实际来源接收、PG成品需求/业务审计/机器回执及父执行器联验；未迁下游端口仅用于禁止意外调用，不冒称完整售后/物料链。</summary>
 [TestClass, DoNotParallelize, TestCategory("PostgreSqlIntegration")]
 public sealed class PostgreSqlSourceReceptionCommandIntegrationTests
 {

@@ -4,7 +4,7 @@ using System.IO;
 
 namespace SwiftExport.Application.Tests.Orders;
 
-/// <summary>验证销售确认接入来源需求的分层契约。</summary>
+/// <summary>验证销售确认接入成品需求的分层契约。</summary>
 [TestClass]
 public sealed class SalesSourceDemandContractTests
 {

@@ -72,7 +72,7 @@ public sealed partial class ProductPackageRelationshipTests
             Assert.AreEqual(hasCarton && !nonStandard ? 20m : (decimal?)null, enrichment.NwPerPackage);
             Assert.AreEqual(hasCarton && !nonStandard ? 22m : (decimal?)null, enrichment.GwPerPackage);
             Assert.AreEqual(hasCarton && !nonStandard ? 0.4m : (decimal?)null, enrichment.CbmPerPackage);
-            // 断链来源不丢弃毛需求或补造单号，包装读取资格也不因来源类型改变。
+            // 断链来源不丢弃成品需求或补造单号，包装读取资格也不因来源类型改变。
             Assert.IsNull(enrichment.CustomerPoNo);
             Assert.IsNull(enrichment.InvoiceNo);
             source.IsDeleted = true;

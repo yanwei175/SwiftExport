@@ -135,7 +135,7 @@ public sealed class PackingListQueryService(ServiceBaseContext context, IPacking
         PackingListSourceEnrichment? enrichment)
     {
         if (!source.CustomerId.HasValue)
-            Fail(PackingListErrorCodes.SourceChanged, "来源需求缺少最终客户，不能用于装箱单。",
+            Fail(PackingListErrorCodes.SourceChanged, "成品需求缺少最终客户，不能用于装箱单。",
                 $"Sources[{source.GrossDemandId}].CustomerId");
         return new PackingListSourceCandidateDto
         {

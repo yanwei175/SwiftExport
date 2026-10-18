@@ -64,22 +64,22 @@ public sealed class SalesOrderManagerQueryPostgreSqlTests
             Assert.AreEqual(1, result.Data!.TotalCount);
             return result.Data.Items.Single();
         }
-        var draftItem = await Single(new() { QuickView = SalesOrderManagerQuickView.PendingConfirmation });
-        Assert.AreEqual(0m, draftItem.TotalShippedQty);
-        Assert.AreEqual(10m, draftItem.TotalUnshippedQty);
+        var draftItem = await Single(new() { ConfirmationStatuses = [ConfirmationStatusEnum.待确认] });
+        Assert.AreEqual(10m, draftItem.TotalQty);
+        Assert.IsFalse(draftItem.HasMixedUnits);
         var draftFulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(draft));
         Assert.AreEqual(0m, draftFulfillment.Data!.Lines.Single().ShippedQty);
         Assert.AreEqual(10m, draftFulfillment.Data.Lines.Single().UnshippedQty);
         Assert.AreEqual("待确认", draftFulfillment.Data.Lines.Single().SourceState);
         Assert.AreEqual("未关联", draftFulfillment.Data.Lines.Single().PurchaseState);
-        var item = await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped });
-        Assert.AreEqual(4m, item.TotalShippedQty);
-        Assert.AreEqual(6m, item.TotalUnshippedQty);
-        Assert.AreEqual(SalesOrderFulfillmentStatusEnum.PartiallyShipped, item.FulfillmentStatus);
+        var item = await Single(new() { InvoiceNo = "INV-CONFIRMED" });
+        Assert.AreEqual(10m, item.TotalQty);
+        Assert.IsFalse(item.HasMissingUnit);
+        Assert.IsFalse(item.HasMixedUnits);
         Assert.AreEqual("INV-CONFIRMED", item.InvoiceNo);
         var detail = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().GetAsync(confirmed));
         Assert.IsTrue(detail.Success, detail.Message);
-        Assert.AreEqual(4m, detail.Data!.Lines.Single().ShippedQty);
+        Assert.AreEqual(10m, detail.Data!.Lines.Single().Qty);
         var fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
         Assert.IsTrue(fulfillment.Success, fulfillment.Message);
         Assert.AreEqual(4m, fulfillment.Data!.Lines.Single().ShippedQty);
@@ -173,66 +173,62 @@ public sealed class SalesOrderManagerQueryPostgreSqlTests
                                          source_line_number_snapshot,sku_snapshot,unit_snapshot,qty)
             values(@secondLine,@secondPacking,1,@demand,TRUE,'SO',@ConfirmedNo,1,@ConfirmedSku,'PCS',3);
             """, new { secondPacking, secondLine, demand, customerId = db.CustomerId });
-        Assert.AreEqual(7m, (await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped })).TotalShippedQty);
+        Assert.AreEqual(10m, (await Single(new() { InvoiceNo = "INV-CONFIRMED" })).TotalQty);
         fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
         Assert.AreEqual(2, fulfillment.Data!.Lines.Single().Deliveries.Count);
         Assert.AreEqual(7m, fulfillment.Data.Lines.Single().ShippedQty);
-        async Task<int> CountAt(SalesOrderManagerSearchRequest request, DateTime today)
+        async Task<int> CountAt(SalesOrderManagerSearchRequest request)
         {
             request.CustomerId = db.CustomerId;
             var page = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()
-                .SearchManagerAsync(request, today));
+                .SearchManagerAsync(request));
             return page.TotalCount;
         }
-        Assert.AreEqual(1, await CountAt(new() { QuickView = SalesOrderManagerQuickView.DueSoon }, new DateTime(2026, 9, 25)));
-        Assert.AreEqual(0, await CountAt(new() { QuickView = SalesOrderManagerQuickView.DueSoon }, new DateTime(2026, 9, 24)));
-        Assert.AreEqual(1, await CountAt(new() { QuickView = SalesOrderManagerQuickView.Overdue }, new DateTime(2026, 10, 3)));
         Assert.AreEqual(1, await CountAt(new() { EffectiveDeliveryDateFrom = new DateTime(2026, 10, 2),
-            EffectiveDeliveryDateTo = new DateTime(2026, 10, 2), CustomerSkus = ["CUSTOM-CONF"] }, new DateTime(2026, 9, 25)));
+            EffectiveDeliveryDateTo = new DateTime(2026, 10, 2), CustomerSkus = ["CUSTOM-CONF"] }));
         var firstPage = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()
-            .SearchManagerAsync(new() { CustomerId = db.CustomerId, PageIndex = 1, PageSize = 1 }, new DateTime(2026, 9, 25)));
+            .SearchManagerAsync(new() { CustomerId = db.CustomerId, PageIndex = 1, PageSize = 1 }));
         var secondPage = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryRepository>()
-            .SearchManagerAsync(new() { CustomerId = db.CustomerId, PageIndex = 2, PageSize = 1 }, new DateTime(2026, 9, 25)));
+            .SearchManagerAsync(new() { CustomerId = db.CustomerId, PageIndex = 2, PageSize = 1 }));
         Assert.AreEqual(2, firstPage.TotalCount);
         Assert.AreEqual(2, secondPage.TotalCount);
         Assert.AreNotEqual(firstPage.Items.Single().Uid, secondPage.Items.Single().Uid);
         await db.ExecuteAsync("update public.packing_list_head set posting_status=8,reversed_date='2026-09-03' where uid=@packing", new { packing });
-        Assert.AreEqual(3m, (await Single(new() { QuickView = SalesOrderManagerQuickView.PartiallyShipped })).TotalShippedQty);
+        Assert.AreEqual(10m, (await Single(new() { InvoiceNo = "INV-CONFIRMED" })).TotalQty);
         await db.ExecuteAsync("update public.packing_list_head set posting_status=8,reversed_date='2026-09-03' where uid=@secondPacking", new { secondPacking });
-        var reversed = await Single(new() { QuickView = SalesOrderManagerQuickView.NotShipped, InvoiceNo = "INV-CONFIRMED" });
-        Assert.AreEqual(0m, reversed.TotalShippedQty);
-        Assert.AreEqual(10m, reversed.TotalUnshippedQty);
+        var reversed = await Single(new() { InvoiceNo = "INV-CONFIRMED" });
+        Assert.AreEqual(10m, reversed.TotalQty);
+        Assert.IsFalse(reversed.HasMixedUnits);
         fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
         Assert.AreEqual(0m, fulfillment.Data!.Lines.Single().ShippedQty);
         Assert.IsTrue(fulfillment.Data.Lines.Single().Deliveries.All(row => !row.CountsTowardDelivery));
         await db.ExecuteAsync("update public.packing_list_head set posting_status=1,reversed_date=null where uid=@packing; update public.packing_list_line set qty=12 where uid=@packingLine", new { packing, packingLine });
         var overage = await Single(new() { OrderNo = "SO-CONFIRMED" });
-        Assert.AreEqual(12m, overage.TotalShippedQty);
-        Assert.AreEqual(0m, overage.TotalUnshippedQty);
-        Assert.IsTrue(overage.NeedsReview);
-        Assert.IsNull(overage.FulfillmentStatus);
-        Assert.AreEqual(0, await CountAt(new() { QuickView = SalesOrderManagerQuickView.FullyShipped }, new DateTime(2026, 9, 25)));
-        Assert.AreEqual(confirmed, (await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview })).Uid);
+        Assert.AreEqual(10m, overage.TotalQty);
+        Assert.IsFalse(overage.HasMissingUnit);
+        Assert.IsFalse(overage.HasMixedUnits);
+
+        Assert.AreEqual(confirmed, (await Single(new() { OrderNo = "SO-CONFIRMED" })).Uid);
         await db.ExecuteAsync("update public.gross_demand set demand_basis_fingerprint=null where uid=@demand", new { demand });
-        var legacy = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview });
-        Assert.IsNull(legacy.TotalShippedQty);
+        var legacy = await Single(new() { OrderNo = "SO-CONFIRMED" });
+        Assert.AreEqual(10m, legacy.TotalQty);
         var legacyDetail = await db.InScopeAsync(p => p.GetRequiredService<ISalesOrderQueryService>().GetAsync(confirmed));
         Assert.IsTrue(legacyDetail.Success, legacyDetail.Message);
-        Assert.IsNull(legacyDetail.Data!.Lines.Single().ShippedQty);
+        Assert.AreEqual(10m, legacyDetail.Data!.Lines.Single().Qty);
         fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
         Assert.IsNull(fulfillment.Data!.Lines.Single().ShippedQty);
         Assert.IsNull(fulfillment.Data.Lines.Single().GrossDemandId);
         await db.ExecuteAsync("update public.gross_demand set demand_basis_fingerprint=@fingerprint where uid=@demand; update public.packing_list_head set posting_status=8,reversed_date='2026-09-03' where uid=@packing; update public.sales_order_header set document_status=9 where uid=@confirmed", new { demand, packing, confirmed, fingerprint });
-        var closed = await Single(new() { QuickView = SalesOrderManagerQuickView.ClosedWithOutstanding });
-        Assert.AreEqual(10m, closed.TotalUnshippedQty);
+        var closed = await Single(new() { DocumentStatuses = [SalesOrderDocumentStatusEnum.Closed] });
+        Assert.AreEqual(10m, closed.TotalQty);
         fulfillment = await db.InScopeAsync(p => p.GetRequiredService<ISalesFulfillmentQueryService>().GetAsync(confirmed));
         Assert.AreEqual(10m, fulfillment.Data!.Lines.Single().UnshippedQty);
         Assert.AreEqual(0m, fulfillment.Data.Lines.Single().AllowedFurtherDeliveryQty);
         var empty = Guid.NewGuid();
         await db.ExecuteAsync("insert into public.sales_order_header(uid,document_status,confirmation_status,order_no,customer_id,customer_code,lead_time_days) values(@empty,0,0,@EmptyNo,@customerId,@CustomerCode,7)", new { empty, customerId = db.CustomerId });
-        var emptyItem = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview });
+        var emptyItem = await Single(new() { OrderNo = "SO-EMPTY" });
         Assert.AreEqual(empty, emptyItem.Uid);
-        Assert.IsFalse(emptyItem.HasUndatedOpenLine);
+        Assert.AreEqual(0m, emptyItem.TotalQty); Assert.IsNull(emptyItem.UnitSnapshot);
         var mixed = Guid.NewGuid(); var mixedLineA = Guid.NewGuid(); var mixedLineB = Guid.NewGuid();
         await db.ExecuteAsync("""
             insert into public.sales_order_header(uid,document_status,confirmation_status,order_no,customer_id,customer_code,lead_time_days)
@@ -242,31 +238,30 @@ public sealed class SalesOrderManagerQueryPostgreSqlTests
             """, new { mixed, mixedLineA, mixedLineB, customerId = db.CustomerId });
         var mixedItem = await Single(new() { OrderNo = "SO-MIXED" });
         Assert.IsNull(mixedItem.TotalQty);
-        Assert.IsNull(mixedItem.TotalShippedQty);
-        Assert.IsFalse(mixedItem.NeedsReview);
+        Assert.IsTrue(mixedItem.HasMixedUnits);
+        Assert.IsFalse(mixedItem.HasMissingUnit);
         await db.ExecuteAsync("update public.gross_demand set unit_snapshot='BOX' where uid=@demand; update public.sales_order_header set document_status=0 where uid=@confirmed", new { demand, confirmed });
-        var mismatch = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = "SO-CONFIRMED" });
-        Assert.IsNull(mismatch.TotalShippedQty);
-        Assert.AreEqual(0, await CountAt(new() { QuickView = SalesOrderManagerQuickView.Overdue, OrderNo = "SO-CONFIRMED" }, new DateTime(2026, 10, 3)));
+        var mismatch = await Single(new() { OrderNo = "SO-CONFIRMED" });
+        Assert.AreEqual(10m, mismatch.TotalQty);
         await db.ExecuteAsync("update public.gross_demand set unit_snapshot='PCS',source_no=@WrongNo where uid=@demand", new { demand });
-        var wrongSource = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = "SO-CONFIRMED" });
-        StringAssert.Contains(wrongSource.ReviewReason, "来源身份");
+        var wrongSource = await Single(new() { OrderNo = "SO-CONFIRMED" });
+        Assert.AreEqual(10m, wrongSource.TotalQty);
         await db.ExecuteAsync("""
             update public.gross_demand set source_no=@ConfirmedNo where uid=@demand;
             update public.packing_list_head set posting_status=1,reversed_date=null where uid=@packing;
             update public.packing_list_line set source_document_no_snapshot=@WrongNo where uid=@packingLine;
             """, new { demand, packing, packingLine });
-        var badHistory = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = "SO-CONFIRMED" });
-        Assert.IsNull(badHistory.TotalShippedQty);
-        StringAssert.Contains(badHistory.ReviewReason, "装箱过账历史");
+        var badHistory = await Single(new() { OrderNo = "SO-CONFIRMED" });
+        Assert.AreEqual(10m, badHistory.TotalQty);
+        Assert.AreEqual(10m, badHistory.TotalQty);
         await db.ExecuteAsync("""
             insert into public.gross_demand(uid,lifecycle_status,source_type,source_uid,source_no,source_line_id,source_line_number,source_version,
                                     demand_basis_fingerprint,customer_id,is_non_standard,sku_snapshot,customer_sku_snapshot,unit_snapshot,demand_qty,required_date)
             values(gen_random_uuid(),9,'SO',@draft,@DraftNo,@draftLine,1,1,repeat('A',64),@customerId,TRUE,'DRAFT-SKU','CUSTOM-DRAFT','PCS',10,'2026-10-01');
             """, new { draft, draftLine, customerId = db.CustomerId });
-        var pendingWithHistory = await Single(new() { QuickView = SalesOrderManagerQuickView.NeedsReview, OrderNo = "SO-DRAFT" });
-        Assert.IsNull(pendingWithHistory.TotalShippedQty);
-        StringAssert.Contains(pendingWithHistory.ReviewReason, "待确认仍有关联来源");
+        var pendingWithHistory = await Single(new() { OrderNo = "SO-DRAFT" });
+        Assert.AreEqual(10m, pendingWithHistory.TotalQty);
+        Assert.AreEqual(10m, pendingWithHistory.TotalQty);
     }
     private static readonly Dictionary<string, (Guid[] Ids, string Snapshot)> OriginalRows = [];
     private static long OriginalSequence;

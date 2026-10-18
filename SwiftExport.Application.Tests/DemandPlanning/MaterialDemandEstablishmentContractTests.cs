@@ -12,7 +12,7 @@ using SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Document;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证来源需求到物料需求的职责迁移和持久化契约。</summary>
+/// <summary>验证成品需求到物料需求的职责迁移和持久化契约。</summary>
 [TestClass]
 public sealed class MaterialDemandEstablishmentContractTests
 {

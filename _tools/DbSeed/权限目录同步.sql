@@ -34,7 +34,7 @@ VALUES
     ('DemandPlanning.Material.SupplierSuggestion.Manage', '建议供应商管理', 'DemandPlanning', 15),
     ('DemandPlanning.Material.View', '物料需求查看', 'DemandPlanning', 16),
     ('DemandPlanning.Source.Manual.Manage', '手工需求管理', 'DemandPlanning', 17),
-    ('DemandPlanning.Source.View', '来源需求查看', 'DemandPlanning', 18),
+    ('DemandPlanning.Source.View', '成品需求查看', 'DemandPlanning', 18),
     ('Inventory.Balance.View', '库存余额与流水查看', 'Inventory', 19),
     ('Inventory.Inbound.Create', '入库单创建', 'Inventory', 20),
     ('Inventory.Inbound.Delete', '入库单删除', 'Inventory', 21),

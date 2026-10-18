@@ -35,7 +35,7 @@ public sealed class PackingListDraftApiContractTests
         StringAssert.Contains(controller, "PermissionKeys.PackingListReverse");
     }
 
-    /// <summary>PG 草稿读取只依赖原毛需求和正式交付，仅采用有效外箱且不增加采购前置。</summary>
+    /// <summary>PG 草稿读取只依赖原成品需求和正式交付，仅采用有效外箱且不增加采购前置。</summary>
     [TestMethod]
     public void Repository_UsesGrossDemandWithoutPlanningOrProcurementPrerequisites()
     {

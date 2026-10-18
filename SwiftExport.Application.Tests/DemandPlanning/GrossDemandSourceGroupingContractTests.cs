@@ -28,7 +28,7 @@ public sealed class GrossDemandSourceGroupingContractTests
         Assert.IsFalse(source.Contains("10000", StringComparison.Ordinal));
     }
 
-    /// <summary>验证来源需求列表只增加链路存在性提示，不跨单位汇总物料或采购数量。</summary>
+    /// <summary>验证成品需求列表只增加链路存在性提示，不跨单位汇总物料或采购数量。</summary>
     [TestMethod]
     public void RepositoryMainQuery_ProjectsIndependentTraceEvidenceWithoutQuantityRollup()
     {
@@ -39,7 +39,7 @@ public sealed class GrossDemandSourceGroupingContractTests
             "Sources", "Query", "PostgreSqlGrossDemandQueryRepository.Workspace.cs");
         var start = source.IndexOf("var selectSql = $$\"\"\"", StringComparison.Ordinal);
         var end = source.IndexOf("var countSql =", start, StringComparison.Ordinal);
-        Assert.IsTrue(start >= 0 && end > start, "无法定位来源需求主列表 SQL。");
+        Assert.IsTrue(start >= 0 && end > start, "无法定位成品需求主列表 SQL。");
         var query = source[start..end];
         // 将实际插入主查询的三个常量一起检查，避免抽出 SQL 后漏检数量汇总。
         foreach (var name in new[] { "WorkspaceActiveMaterialExists", "WorkspaceActivePurchaseExists", "WorkspacePostedDeliveryExists" })

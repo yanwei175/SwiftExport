@@ -39,10 +39,10 @@ public sealed class SalesOrderCancellationService(ServiceBaseContext context, IS
     private const string CancelConfirmationOperation = "CancelConfirmation";
     private const string CommandType = "Orders.SalesOrder.CancelConfirmation";
     /// <summary>
-    /// 取消销售订单确认，并按毛需求历史决定物理删除或作废保留。
+    /// 取消销售订单确认，并按成品需求历史决定物理删除或作废保留。
     /// </summary>
     /// <remarks>
-    /// 从未拆解的毛需求可以物理删除；曾拆解但已安全回退的毛需求必须作废保留历史。
+    /// 从未拆解的成品需求可以物理删除；曾拆解但已安全回退的成品需求必须作废保留历史。
     /// 一旦存在活动物料修订、物料历史缺口、PackingList 草稿或未反向正式交付，取消确认会被拒绝。
     /// <see cref="CancelSalesOrderConfirmationCommand.CommandId"/> 用作幂等键，同一命令重试返回首次执行结果。
     /// </remarks>
@@ -82,7 +82,7 @@ public sealed class SalesOrderCancellationService(ServiceBaseContext context, IS
             if (reason.Length > 1000)
                 throw new SalesOrderValidationException("取消确认原因不能超过 1000 个字符。");
 
-            // 第一阶段：公共命令锁之后固定订单头、订单行、毛需求的锁序。
+            // 第一阶段：公共命令锁之后固定订单头、订单行、成品需求的锁序。
             var header = await headRepository.GetByIdAsync(uid, true)
                 ?? throw new SalesOrderValidationException("销售订单不存在或已删除。", ServiceErrorCodes.NotFound);
             if (header.DocumentStatus != SalesOrderDocumentStatusEnum.Open)
@@ -92,7 +92,7 @@ public sealed class SalesOrderCancellationService(ServiceBaseContext context, IS
             if (header.Version != request.Version)
                 throw new SalesOrderValidationException("销售订单已被其他用户修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
 
-            // 第二阶段：锁定订单行和来源毛需求，验证一行一需求以及所有下游取消安全条件。
+            // 第二阶段：锁定订单行和来源成品需求，验证一行一需求以及所有下游取消安全条件。
             var lines = await lineRepository.GetLinesByOrderIdAsync(uid, true);
             SourceDemandExitResult exitResult;
             try
@@ -142,7 +142,7 @@ public sealed class SalesOrderCancellationService(ServiceBaseContext context, IS
             OperationType = CancelConfirmationOperation,
             OperationName = "销售订单取消确认",
             Reason = reason,
-            Summary = $"取消确认完成：硬删除 {result.HardDeletedGrossDemandCount} 条毛需求，作废保留 {result.VoidedGrossDemandCount} 条毛需求。",
+            Summary = $"取消确认完成：硬删除 {result.HardDeletedGrossDemandCount} 条成品需求，作废保留 {result.VoidedGrossDemandCount} 条成品需求。",
             ChangedFieldsJson = JsonSerializer.Serialize(new
             {
                 BeforeVersion = header.Version,

@@ -1,6 +1,6 @@
 namespace SwiftExport.Application.Interfaces.DemandPlanning.Sources.Reception.Models;
 
-/// <summary>来源需求接收命令；SourceVersion 是来源单据头的事实版本。</summary>
+/// <summary>成品需求接收命令；SourceVersion 是来源单据头的事实版本。</summary>
 public sealed class SourceDemandReceptionCommand
 {
     public Guid CommandId { get; set; }

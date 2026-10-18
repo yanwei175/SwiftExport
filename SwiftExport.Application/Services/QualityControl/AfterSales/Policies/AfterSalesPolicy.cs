@@ -48,9 +48,9 @@ public static class AfterSalesPolicy
         if (line.Quantity < 0 || line.Quantity > 99999999999999.9999m || decimal.Round(line.Quantity ?? 0,4) != (line.Quantity ?? 0)) Reject("Quantity","数量必须非负，整数最多十四位、小数最多四位。");
         if (line.IsNonStandard && line.ProductId.HasValue) Reject("ProductId","非标不能绑定产品。");
         if (!confirming || !(line.Quantity > 0)) return;
-        // 来源需求现有描述和规格列上限为300；保留投诉事实长度，交接前明确拒绝超长输入。
-        if(line.DescriptionSnapshot?.Length>300) Reject("DescriptionSnapshot","来源需求的补发描述最多300字。");
-        if(line.SpecificationSnapshot?.Length>300) Reject("SpecificationSnapshot","来源需求的补发规格最多300字。");
+        // 成品需求现有描述和规格列上限为300；保留投诉事实长度，交接前明确拒绝超长输入。
+        if(line.DescriptionSnapshot?.Length>300) Reject("DescriptionSnapshot","成品需求的补发描述最多300字。");
+        if(line.SpecificationSnapshot?.Length>300) Reject("SpecificationSnapshot","成品需求的补发规格最多300字。");
         if (line.IsNonStandard)
         {
             if (string.IsNullOrWhiteSpace(line.DescriptionSnapshot)) Reject("DescriptionSnapshot","非标必须填写补发描述。");

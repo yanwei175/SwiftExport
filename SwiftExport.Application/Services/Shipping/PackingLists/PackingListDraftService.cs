@@ -203,9 +203,9 @@ public sealed partial class PackingListDraftService(
         foreach (var total in totals)
         {
             if (!sources.TryGetValue(total.Key, out var source))
-                Fail(PackingListErrorCodes.SourceChanged, "来源需求不存在、已关闭或已不再适用于出货。", $"Lines[{total.Key}].GrossDemandId");
+                Fail(PackingListErrorCodes.SourceChanged, "成品需求不存在、已关闭或已不再适用于出货。", $"Lines[{total.Key}].GrossDemandId");
             if (source.CustomerId != header.CustomerId)
-                Fail(PackingListErrorCodes.CustomerMismatch, "装箱单中存在其他客户的来源需求。", $"Lines[{total.Key}].GrossDemandId");
+                Fail(PackingListErrorCodes.CustomerMismatch, "装箱单中存在其他客户的成品需求。", $"Lines[{total.Key}].GrossDemandId");
             if (total.Value > source.RemainingQty)
                 Fail(PackingListErrorCodes.SourceChanged, "本单来源数量超过当前剩余可交付量。", $"Lines[{total.Key}].Qty");
         }

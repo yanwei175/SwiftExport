@@ -21,7 +21,7 @@ using SwiftExport.Core.Interfaces.Data;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Reception;
 
-/// <summary>在销售或售后外层事务内接收来源需求，维护版本与安全退出规则并记录业务审计。</summary>
+/// <summary>在销售或售后外层事务内接收成品需求，维护版本与安全退出规则并记录业务审计。</summary>
 public sealed class SourceDemandReceptionService(
     IDbSession session,
     IGrossDemandDocumentRepository grossDemandRepository,
@@ -61,7 +61,7 @@ public sealed class SourceDemandReceptionService(
             throw new SourceDemandReceptionException(DemandPlanningErrorCodes.DuplicateActiveSource, $"来源行 {duplicate.Key} 存在重复活动需求。");
         // SO/CR 的现行写入均带来源版本；活动旧事实缺失版本须人工核查，不能自动补齐。
         if (existing.Any(item => !item.SourceVersion.HasValue))
-            throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceVersionMissing, "活动销售或售后来源需求缺少来源版本，请核查历史事实后再确认。");
+            throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceVersionMissing, "活动销售或售后成品需求缺少来源版本，请核查历史事实后再确认。");
         if (command.RejectUnsubmittedActiveLines)
         {
             var submittedLineIds = command.Items.Select(item => item.SourceLineId).ToHashSet();
@@ -102,7 +102,7 @@ public sealed class SourceDemandReceptionService(
                 catch (SourceDemandReceptionException ex)
                 {
                     throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceChangeRequiresDisposition,
-                        $"来源需求已有物料或交付历史，必须先完成影响处置：{ex.Message}");
+                        $"成品需求已有物料或交付历史，必须先完成影响处置：{ex.Message}");
                 }
             }
 
@@ -127,7 +127,7 @@ public sealed class SourceDemandReceptionService(
         if (requestedLineIds.Length != requestedLineIds.Distinct().Count()
             || demands.GroupBy(item => item.SourceLineId).Any(group => group.Count() != 1)
             || !actualLineIds.SequenceEqual(requestedLineIds))
-            throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceDemandMismatch, "来源需求数量与来源明细不一致。");
+            throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceDemandMismatch, "成品需求数量与来源明细不一致。");
         var assessments = await VerifyExitAsync(sourceType, sourceUid, demands);
 
         SourceDemandCancellationPlan plan;
@@ -145,11 +145,11 @@ public sealed class SourceDemandReceptionService(
         var deleted = await grossDemandRepository.HardDeleteForSourceCancellationAsync(plan.HardDeleteGrossDemandIds);
         var voided = await grossDemandRepository.VoidRolledBackForSourceCancellationAsync(plan.VoidGrossDemandIds, reason);
         if (deleted != plan.HardDeleteGrossDemandIds.Count || voided != plan.VoidGrossDemandIds.Count)
-            throw new SourceDemandReceptionException(ServiceErrorCodes.ConcurrencyConflict, "来源需求状态已变化，退出确认失败。");
+            throw new SourceDemandReceptionException(ServiceErrorCodes.ConcurrencyConflict, "成品需求状态已变化，退出确认失败。");
         return new SourceDemandExitResult { HardDeletedCount = deleted, VoidedCount = voided };
     }
 
-    /// <summary>仅关闭无下游阻断的待处理来源需求，并核对实际影响行数。</summary>
+    /// <summary>仅关闭无下游阻断的待处理成品需求，并核对实际影响行数。</summary>
     public async Task<int> ClosePendingAsync(string sourceType, Guid sourceUid, IReadOnlyCollection<Guid> sourceLineIds, string reason)
     {
         EnsureTransaction();
@@ -158,11 +158,11 @@ public sealed class SourceDemandReceptionService(
         await VerifyExitAsync(sourceType, sourceUid, demands);
         var affected = await grossDemandRepository.VoidPendingBySourceAsync(sourceType, sourceUid, reason);
         if (affected != demands.Count)
-            throw new SourceDemandReceptionException(ServiceErrorCodes.ConcurrencyConflict, "部分来源需求状态已变化，关闭失败。");
+            throw new SourceDemandReceptionException(ServiceErrorCodes.ConcurrencyConflict, "部分成品需求状态已变化，关闭失败。");
         return affected;
     }
 
-    /// <summary>在调用方事务中锁定来源需求并判断是否存在活动记录。</summary>
+    /// <summary>在调用方事务中锁定成品需求并判断是否存在活动记录。</summary>
     public async Task<bool> HasActiveAsync(string sourceType, Guid sourceUid)
     {
         EnsureTransaction();
@@ -181,13 +181,13 @@ public sealed class SourceDemandReceptionService(
         var assessments = await materialDemandSourceExit.AssessSourceExitAsync(ids);
         if (assessments.Count != ids.Length || ids.Any(id => !assessments.ContainsKey(id)))
             throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceHistoryInvalid,
-                "来源需求的物料历史评估不完整，不能退出确认。");
+                "成品需求的物料历史评估不完整，不能退出确认。");
         if (assessments.Values.Any(item => item.HasActiveRevision))
             throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceExitBlocked,
                 "来源仍存在活动物料修订，请先在物料需求中完成安全回退。");
         if (assessments.Values.Any(item => !item.IsHistoryComplete))
             throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceHistoryInvalid,
-                "来源需求的物料历史不完整，不能退出确认。");
+                "成品需求的物料历史不完整，不能退出确认。");
         try
         {
             await sourceDeliveryService.VerifySourceExitAsync(sourceType, sourceUid, ids);
@@ -206,7 +206,7 @@ public sealed class SourceDemandReceptionService(
         return demand;
     }
 
-    /// <summary>应用来源事实快照；物料建立状态和修订历史不再写回来源需求。</summary>
+    /// <summary>应用来源事实快照；物料建立状态和修订历史不再写回成品需求。</summary>
     private static void Apply(
         SourceDemandReceptionCommand command,
         SourceDemandReceptionItem item,
@@ -257,16 +257,16 @@ public sealed class SourceDemandReceptionService(
     /// <summary>校验来源身份、版本和完整行集合；拒绝无效请求，不从提示文本推断错误类别。</summary>
     private static void Validate(SourceDemandReceptionCommand command)
     {
-        if (command is null) throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "来源需求命令不能为空。");
+        if (command is null) throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "成品需求命令不能为空。");
         if (command.CommandId == Guid.Empty || command.SourceUid == Guid.Empty || command.CustomerId == Guid.Empty || command.SourceVersion <= 0)
-            throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "来源需求命令身份、客户或版本无效。");
+            throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "成品需求命令身份、客户或版本无效。");
         if (string.IsNullOrWhiteSpace(command.SourceType) || string.IsNullOrWhiteSpace(command.SourceNo) || command.Items.Count == 0)
             throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "来源类型、来源单号和需求行不能为空。");
         var sourceType = command.SourceType.Trim().ToUpperInvariant();
         if (sourceType is not (DocumentTypeStaticsEnum.SalesOrder or DocumentTypeStaticsEnum.ComplaintReplenishment))
             throw new SourceDemandReceptionException(DemandPlanningErrorCodes.SourceTypeNotSupported, "接收协议仅接受销售或投诉补货认可的实物需求。");
         if (command.Items.Any(item => item.SourceLineId == Guid.Empty || item.DemandQty <= 0 || string.IsNullOrWhiteSpace(item.SkuSnapshot)))
-            throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "来源需求行身份、SKU 或数量无效。");
+            throw new SourceDemandReceptionException(ServiceErrorCodes.InvalidCommand, "成品需求行身份、SKU 或数量无效。");
         if (command.Items.GroupBy(item => item.SourceLineId).Any(group => group.Count() > 1))
             throw new SourceDemandReceptionException(DemandPlanningErrorCodes.DuplicateSourceLine, "同一命令不能重复提交来源行。");
         if (command.Items.Any(item => item.IsNonStandard && item.ProductId.HasValue))
@@ -283,7 +283,7 @@ public sealed class SourceDemandReceptionService(
             Uid = GuidSequentialGenerator.NewGuid(), CommandId = command.CommandId,
             CorrelationId = Normalize(correlationContext.CorrelationId, 64) ?? command.CommandId.ToString("N"),
             Module = Module, AggregateType = "SourceDemand", AggregateUid = command.SourceUid,
-            AggregateNoSnapshot = command.SourceNo, OperationType = ReceiveOperation, OperationName = "接收来源需求",
+            AggregateNoSnapshot = command.SourceNo, OperationType = ReceiveOperation, OperationName = "接收成品需求",
             Summary = $"来源版本 {command.SourceVersion}：新增 {result.CreatedCount}，更新 {result.UpdatedCount}，未变化 {result.UnchangedCount}。",
             ChangedFieldsJson = JsonSerializer.Serialize(new
             {
@@ -297,20 +297,20 @@ public sealed class SourceDemandReceptionService(
             UserUid = currentUser.UserId, UserNameSnapshot = currentUser.UserName, OccurredDate = DateTime.Now
         };
         if (await operationLogs.InsertAsync(log) != 1)
-            throw new SourceDemandReceptionException(ServiceErrorCodes.LogWriteFailed, "来源需求审计写入失败。");
+            throw new SourceDemandReceptionException(ServiceErrorCodes.LogWriteFailed, "成品需求审计写入失败。");
     }
 
     /// <summary>来源接收必须参与上游事务，不能独立提交来源或需求事实。</summary>
     private void EnsureTransaction()
     {
         if (session.Transaction is null)
-            throw new SourceDemandReceptionException(ServiceErrorCodes.TransactionRequired, "来源需求接收必须加入调用方业务事务。");
+            throw new SourceDemandReceptionException(ServiceErrorCodes.TransactionRequired, "成品需求接收必须加入调用方业务事务。");
     }
 
     /// <summary>透传仓储稳定错误码；缺少写入错误时保留原技术失败代码。</summary>
     private static void EnsureWrite(Contracts.Wrappers.RepositoryWriteResult result)
     {
-        if (!result.Success) throw new SourceDemandReceptionException(result.ErrorCode ?? ServiceErrorCodes.WriteFailed, result.Message ?? "来源需求写入失败。");
+        if (!result.Success) throw new SourceDemandReceptionException(result.ErrorCode ?? ServiceErrorCodes.WriteFailed, result.Message ?? "成品需求写入失败。");
     }
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

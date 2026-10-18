@@ -19,7 +19,7 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
     public void RepositorySql_MustUseSalesOrderLineDescriptionField()
     {
         var where = Sql("CreateManagerWhere", new SalesOrderManagerSearchRequest { Keyword = "description" }, new PostgreSqlParameters());
-        var projection = Sql("DetailLineProjection");
+        var projection = Sql("DetailLineColumns");
         StringAssert.Contains(where, "keyword_line.description_en COLLATE public.erp_dictionary_ci LIKE @Keyword");
         foreach (var column in new[] { "sku", "link_sku", "customer_sku", "description_en" })
             StringAssert.Contains(projection, "l.\"" + column + "\"");
@@ -27,23 +27,24 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
     }
 
     /// <summary>
-    /// 验证销售查询直接采用来源需求与箱单净交付，不经 Allocation 或自动出库重复计数。
+    /// 验证管理查询只使用订单事实，独立履约能力仍保留原净交付证明。
     /// </summary>
     [TestMethod]
     public void RepositorySql_MustNotUseAllocationOutboundCompatibilityChain()
     {
         var facts = Sql("CreateLineFactsSql");
-        var page = Sql("CreateManagerPageSql");
-        var shippingSql = facts + Sql("CreateManagerFactsSql") + page;
+        var manager = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure", "Repositories", "SalesOrders", "Query", "PostgreSqlSalesOrderQueryRepository.Manager.cs"));
+        var shippingSql = facts;
         // 仅检查交付数量链；独立采购追溯读取需求关联不属于重复计数。
         foreach (var table in new[] { "outbound_document_line", "outbound_document", "net_demand_allocation", "net_demand" })
             Assert.IsFalse(shippingSql.Contains("\"" + table + "\"", StringComparison.Ordinal), table);
-        StringAssert.Contains(page, "f.shipped_qty END AS \"TotalShippedQty\"");
-        StringAssert.Contains(page, "f.unshipped_qty END AS \"TotalUnshippedQty\"");
+        foreach (var forbidden in new[] { "FreezeLineFacts", "gross_demand", "net_demand", "packing_list", "ShippedQty", "ReviewReason" })
+            Assert.IsFalse(manager.Contains(forbidden, StringComparison.Ordinal), forbidden);
         var detail = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "SwiftExport.Infrastructure",
             "Repositories", "SalesOrders", "Query", "PostgreSqlSalesOrderQueryRepository.Detail.cs"));
-        StringAssert.Contains(detail, "FreezeLineFactsAsync");
-        StringAssert.Contains(detail, "facts.\"ShippedQty\",facts.\"UnshippedQty\"");
+        Assert.IsFalse(detail.Contains("FreezeLineFactsAsync", StringComparison.Ordinal));
+        Assert.IsFalse(detail.Contains("ShippedQty", StringComparison.Ordinal));
+        StringAssert.Contains(detail, "l.\"main_image\" AS \"MainImage\"");
         StringAssert.Contains(facts, "FROM \"public\".\"gross_demand\" g");
         StringAssert.Contains(facts, "FROM \"public\".\"packing_list_line\" pl");
         StringAssert.Contains(facts, "ph.posting_status=@Posted");
@@ -52,7 +53,8 @@ public sealed class SalesOrderHeadRepositorySqlContractTests
 
     /// <summary>调用当前 PG 的实际 SQL 生成方法，不建立会话或连接数据库。</summary>
     private static string Sql(string method, params object[] arguments)
-        => (string)typeof(PostgreSqlSalesOrderQueryRepository).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, arguments)!;
+        => (string)(typeof(PostgreSqlSalesOrderQueryRepository).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)?.Invoke(null, arguments)
+            ?? typeof(PostgreSqlSalesOrderQueryRepository).GetField(method, BindingFlags.NonPublic | BindingFlags.Static)!.GetRawConstantValue())!;
 
     /// <summary>
     /// 从测试运行目录向上定位仓库根目录，供源码契约检查使用。

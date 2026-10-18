@@ -39,7 +39,7 @@ public sealed class SalesOrderQueryService(ServiceBaseContext context, ISalesOrd
         SalesOrderManagerSearchRequest request,
         CancellationToken cancellationToken = default)
         => ExecuteReadAsync(
-            () => queryRepository.SearchManagerAsync(request, DateTime.UtcNow.AddHours(8).Date, cancellationToken),
+            () => queryRepository.SearchManagerAsync(request, cancellationToken),
             "查询销售订单失败",
             cancellationToken,
             detailValidation: false);

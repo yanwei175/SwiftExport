@@ -28,7 +28,7 @@ using SwiftExport.Core.Interfaces.Auth;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Manual;
 
-/// <summary>维护手工来源需求；公共执行器拥有创建、修改和关闭各自的事务与完整回执。</summary>
+/// <summary>维护手工成品需求；公共执行器拥有创建、修改和关闭各自的事务与完整回执。</summary>
 public sealed class ManualGrossDemandService(
     ServiceBaseContext context,
     IGrossDemandDocumentRepository grossDemandRepository, IGrossDemandQueryRepository grossDemandQueryRepository,
@@ -43,7 +43,7 @@ public sealed class ManualGrossDemandService(
     private const string UpdateType = "DemandPlanning.Source.Manual.Update";
     private const string CloseType = "DemandPlanning.Source.Manual.Close";
 
-    /// <summary>建立一条没有上游业务单的手工来源需求。</summary>
+    /// <summary>建立一条没有上游业务单的手工成品需求。</summary>
     public Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync(CreateManualGrossDemandRequest request)
         => RunCommandAsync(() => pipeline.ExecuteAsync<CreateManualGrossDemandRequest, GrossDemandDetailDto>(
             request, request?.CommandId, CreateType, AuthorizeAsync,
@@ -87,10 +87,10 @@ public sealed class ManualGrossDemandService(
         demand.SourceNo = number.Data.DocumentNo;
         EnsureWriteSucceeded((await grossDemandRepository.AddSourceDemandsAsync([demand])).Single());
         return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid)
-            ?? throw new GrossDemandValidationException("手工来源需求已创建，但重新加载失败。");
+            ?? throw new GrossDemandValidationException("手工成品需求已创建，但重新加载失败。");
     }
 
-    /// <summary>修改尚无活动物料需求的手工来源需求。</summary>
+    /// <summary>修改尚无活动物料需求的手工成品需求。</summary>
     public Task<ServiceResult<GrossDemandDetailDto>> UpdateManualAsync(Guid uid, UpdateManualGrossDemandRequest request)
         => RunCommandAsync(() => pipeline.ExecuteAsync<UpdateManualGrossDemandRequest, GrossDemandDetailDto>(
             request, request?.CommandId, UpdateType, AuthorizeAsync,
@@ -113,18 +113,18 @@ public sealed class ManualGrossDemandService(
     /// <summary>锁定手工来源后复核版本及活动物料，再应用原有修改规则。</summary>
     private async Task<GrossDemandDetailDto> UpdateInTransactionAsync(Guid uid, UpdateManualGrossDemandRequest request)
     {
-        var demand = await grossDemandRepository.GetByIdForUpdateAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求不存在或已删除。");
+        var demand = await grossDemandRepository.GetByIdForUpdateAsync(uid) ?? throw new GrossDemandValidationException("手工成品需求不存在或已删除。");
         EnsureEditableManual(demand);
-        if (demand.Version != request.Version) throw new GrossDemandValidationException("来源需求已被其他用户修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
-        if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求仍有活动物料需求，请先从物料需求页回退。");
+        if (demand.Version != request.Version) throw new GrossDemandValidationException("成品需求已被其他用户修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
+        if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("成品需求仍有活动物料需求，请先从物料需求页回退。");
         await ApplyManualChangesAsync(demand, request.ProductId, request.IsNonStandard, request.LinkSku,
             request.CustomerSku, request.Description, request.Color, request.Specification, request.ImagePath,
             request.DemandQty, request.RequiredDate, request.Remark);
         EnsureWriteSucceeded(await grossDemandRepository.UpdateManualAsync(demand, request.Version));
-        return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已更新，但重新加载失败。");
+        return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工成品需求已更新，但重新加载失败。");
     }
 
-    /// <summary>关闭尚无活动物料需求的手工来源需求并保留历史。</summary>
+    /// <summary>关闭尚无活动物料需求的手工成品需求并保留历史。</summary>
     public Task<ServiceResult<GrossDemandDetailDto>> CloseManualAsync(Guid uid, CloseGrossDemandCommand command)
         => RunCommandAsync(() => pipeline.ExecuteAsync<CloseGrossDemandCommand, GrossDemandDetailDto>(
             command, command?.CommandId, CloseType, AuthorizeAsync,
@@ -149,12 +149,12 @@ public sealed class ManualGrossDemandService(
     {
         var reason = command.Reason?.Trim();
         if (string.IsNullOrWhiteSpace(reason) || reason.Length > 500) throw new GrossDemandValidationException("关闭原因不能为空且不能超过 500 个字符。");
-        var demand = await grossDemandRepository.GetByIdForUpdateAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求不存在或已删除。");
+        var demand = await grossDemandRepository.GetByIdForUpdateAsync(uid) ?? throw new GrossDemandValidationException("手工成品需求不存在或已删除。");
         EnsureEditableManual(demand);
-        if (demand.Version != command.Version) throw new GrossDemandValidationException("来源需求已被其他用户修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
-        if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("来源需求已有活动物料需求，请先从物料需求页回退。");
+        if (demand.Version != command.Version) throw new GrossDemandValidationException("成品需求已被其他用户修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
+        if (await materialDemandSourceExit.HasActiveAsync(uid)) throw new GrossDemandValidationException("成品需求已有活动物料需求，请先从物料需求页回退。");
         EnsureWriteSucceeded(await grossDemandRepository.CloseManualAsync(uid, command.Version, reason));
-        return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工来源需求已关闭，但重新加载失败。");
+        return await grossDemandQueryRepository.GetWorkspaceDetailAsync(uid) ?? throw new GrossDemandValidationException("手工成品需求已关闭，但重新加载失败。");
     }
 
     /// <summary>仅取原业务实际生效的字段，并复用原 Trim/null 处理，不改变传入请求。</summary>
@@ -209,7 +209,7 @@ public sealed class ManualGrossDemandService(
         }
         if (!productId.HasValue || productId.Value == Guid.Empty) throw new GrossDemandValidationException("标准件必须选择产品。");
         var product = await productRepository.GetByIdAsync(productId.Value) ?? throw new GrossDemandValidationException("所选产品不存在或已删除。");
-        if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(product)) throw new GrossDemandValidationException("客供件不能作为手工来源需求根产品。");
+        if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(product)) throw new GrossDemandValidationException("客供件不能作为手工成品需求根产品。");
         demand.ProductId = product.Uid;
         demand.SkuSnapshot = product.Sku;
         // 型号来自物料独立关联的中性产品投影，不再读取物料实体中的旧文字关系。
@@ -246,25 +246,25 @@ public sealed class ManualGrossDemandService(
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "维护手工来源需求失败。");
-            return ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.Unexpected, "维护手工来源需求失败。");
+            _logger.LogError(ex, "维护手工成品需求失败。");
+            return ServiceResult<GrossDemandDetailDto>.Fail(ServiceErrorCodes.Unexpected, "维护手工成品需求失败。");
         }
     }
 
     private static void EnsureEditableManual(GrossDemand demand)
     {
-        if (!string.Equals(demand.SourceType, DocumentTypeStaticsEnum.ManualDemand, StringComparison.OrdinalIgnoreCase)) throw new GrossDemandValidationException("只有手工来源需求允许直接维护。");
-        if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active) throw new GrossDemandValidationException("只有活动手工来源需求允许维护。");
+        if (!string.Equals(demand.SourceType, DocumentTypeStaticsEnum.ManualDemand, StringComparison.OrdinalIgnoreCase)) throw new GrossDemandValidationException("只有手工成品需求允许直接维护。");
+        if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active) throw new GrossDemandValidationException("只有活动手工成品需求允许维护。");
     }
 
     private static void EnsureWriteSucceeded(RepositoryWriteResult result)
     {
-        if (!result.Success) throw new GrossDemandValidationException(result.Message ?? "来源需求写入失败。");
+        if (!result.Success) throw new GrossDemandValidationException(result.Message ?? "成品需求写入失败。");
     }
 
     /// <summary>保留原业务提示，并让版本冲突与其他资格阻断分别映射 HTTP 状态。</summary>
     private sealed class GrossDemandValidationException(string? message, string code = ServiceErrorCodes.BusinessBlocked)
-        : Exception(message ?? "来源需求校验失败。")
+        : Exception(message ?? "成品需求校验失败。")
     {
         public string Code { get; } = code;
     }

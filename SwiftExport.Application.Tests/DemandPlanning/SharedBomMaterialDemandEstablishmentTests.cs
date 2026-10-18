@@ -173,7 +173,7 @@ public sealed class SharedBomMaterialDemandEstablishmentTests
     /// <summary>提供建立入口的事实与可恢复写入状态，未声明接口调用立即失败。</summary>
     private sealed class Fixture
     {
-        /// <summary>本次来源需求指向的真实共享根，正标记可由场景改变。</summary>
+        /// <summary>本次成品需求指向的真实共享根，正标记可由场景改变。</summary>
         public readonly Product Root = new() { Uid = Guid.NewGuid(), Sku = "ROOT", BomNo = "SHARED", BomVersion = 3, SupplyType = SupplyTypeEnums.采购 };
         /// <summary>直接客供终端产品，物理来源父不参与它的终端身份查询。</summary>
         public readonly Product Child = new() { Uid = Guid.NewGuid(), Sku = "CUSTOMER", MaterialType = MaterialTypesEnum.客供件, SupplyType = SupplyTypeEnums.采购 };

@@ -10,6 +10,8 @@ using SwiftExport.Core.Entities.Systems.SystemParameters;
 using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Core.Interfaces.Systems.SystemParameters;
 using System.Data;
+using SwiftExport.Application.Services.SalesOrders.Draft;
+using System.Globalization;
 
 namespace SwiftExport.Application.Services.Systems.SystemParameters;
 
@@ -19,13 +21,15 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
 {
     private readonly ILogger _logger = context.LoggerFactory.CreateLogger<SystemParameterService>();
     /// <summary>注册参数的说明及值格式；界面直接按读取结果逐行维护，不提供任意增删键。</summary>
-    private sealed record ParameterDefinition(string Key, string DisplayName, string Description, bool AllowLocalPath);
+    private sealed record ParameterDefinition(string Key, string DisplayName, string Description, bool AllowLocalPath, bool IsInteger = false);
     private static readonly ParameterDefinition[] Definitions =
     [
         new(SystemParameterKeys.ProductImagesBaseUrl, "产品图片重建基址",
             "重建图片引用使用的 HTTP/HTTPS 原图目录、Windows 本地绝对目录或 UNC 共享目录；修改此值不会改写已有产品图片引用。", true),
         new(SystemParameterKeys.ProductImagesUploadBaseUrl, "产品图片上传地址",
-            "上传图片后公开访问的 HTTP/HTTPS 原图目录；缩略图位于其 Thumbnails 子目录。上传请求仍发往当前客户端配置的 API。", false)
+            "上传图片后公开访问的 HTTP/HTTPS 原图目录；缩略图位于其 Thumbnails 子目录。上传请求仍发往当前客户端配置的 API。", false),
+        new(SystemParameterKeys.SalesDefaultDeliveryDays, "销售默认交期天数",
+            "新建订单未指定交期时，按订单日期加此自然日天数；0 表示同日，已保存订单不随参数变化。", false, true)
     ];
 
     /// <inheritdoc />
@@ -40,7 +44,8 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
         var legacyBase = parameters[SystemParameterKeys.ProductImagesBaseUrl]?.ParameterValue;
         var fallback = ProductImageAddress.TryNormalizeBaseUrl(legacyBase!, out var legacyUri) ? legacyUri.AbsoluteUri : string.Empty;
         return ServiceResult<IReadOnlyList<SystemParameterDto>>.Ok(Definitions.Select(definition => ToDto(definition,
-            parameters[definition.Key], definition.Key == SystemParameterKeys.ProductImagesUploadBaseUrl ? fallback : string.Empty)).ToArray());
+            parameters[definition.Key], definition.IsInteger ? SalesOrderDefaultDeliveryDatePolicy.InitialDays.ToString(CultureInfo.InvariantCulture)
+                : definition.Key == SystemParameterKeys.ProductImagesUploadBaseUrl ? fallback : string.Empty)).ToArray());
     }
 
     /// <inheritdoc />
@@ -52,12 +57,12 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
         if (definition is null || request is null || request.ExpectedVersion < 0)
             return ServiceResult<SystemParameterDto>.Fail(ServiceErrorCodes.Validation, "参数键或预期版本无效。");
         string normalized;
-        var valid = definition.AllowLocalPath
+        var valid = definition.IsInteger ? TryNormalizeDays(request.Value, out normalized) : definition.AllowLocalPath
             ? ProductImageAddress.TryNormalizeBaseAddress(request.Value, out normalized)
             : TryNormalizePublicUrl(request.Value, out normalized);
         if (!valid)
             return ServiceResult<SystemParameterDto>.Fail(ServiceErrorCodes.Validation,
-                definition.AllowLocalPath
+                definition.IsInteger ? "销售默认交期天数必须为非负整数（自然日，0 表示同日）。" : definition.AllowLocalPath
                     ? "请输入 HTTP/HTTPS 原图目录或 Windows 本地、UNC 绝对目录，不允许相对路径（最多 2048 字符）。"
                     : "请输入不含凭据、查询、片段或 Thumbnails 目录的 HTTP/HTTPS 原图目录地址（最多 2048 字符）。", "Value");
 
@@ -124,6 +129,14 @@ public sealed class SystemParameterService(ISystemParameterRepository repository
     {
         var valid = ProductImageAddress.TryNormalizeBaseUrl(value, out var baseUri);
         normalized = valid ? baseUri.AbsoluteUri : string.Empty;
+        return valid;
+    }
+
+    /// <summary>规范整数参数的文本格式，保存为不带空白或前导零的自然日天数。</summary>
+    private static bool TryNormalizeDays(string value, out string normalized)
+    {
+        var valid = SalesOrderDefaultDeliveryDatePolicy.TryReadDays(value, out var days);
+        normalized = valid ? days.ToString(CultureInfo.InvariantCulture) : string.Empty;
         return valid;
     }
 

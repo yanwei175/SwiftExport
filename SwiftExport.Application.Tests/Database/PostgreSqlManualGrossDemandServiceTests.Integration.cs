@@ -275,7 +275,7 @@ public sealed class PostgreSqlManualGrossDemandServiceIntegrationTests
         var request = Request(); request.IsNonStandard = false; request.ProductId = product.Uid;
         var snapshot = await retained.SequenceSnapshot();
         var result = await retained.Service.CreateManualAsync(request);
-        Assert.AreEqual("客供件不能作为手工来源需求根产品。", result.Message);
+        Assert.AreEqual("客供件不能作为手工成品需求根产品。", result.Message);
         Assert.AreEqual(ServiceErrorCodes.BusinessBlocked, result.Error.Code); Assert.AreEqual(0, retained.Numbers.Calls);
         await retained.AssertRolledBack(request.CommandId, snapshot);
     }

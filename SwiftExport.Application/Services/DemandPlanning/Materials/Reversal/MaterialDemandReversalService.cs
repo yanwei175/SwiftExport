@@ -71,7 +71,7 @@ public sealed class MaterialDemandReversalService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             demands.Add(await grossDemandRepository.GetByIdForUpdateAsync(item.GrossDemandId)
-                ?? throw new MaterialDemandException(DemandPlanningErrorCodes.SourceNotFound, "来源需求不存在或已删除。"));
+                ?? throw new MaterialDemandException(DemandPlanningErrorCodes.SourceNotFound, "成品需求不存在或已删除。"));
         }
 
         var result = new RollbackMaterialDemandsResult();

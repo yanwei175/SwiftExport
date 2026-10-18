@@ -3,7 +3,7 @@ using SwiftExport.Core.Entities.DemandPlanning;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Sources.Policies;
 
-/// <summary>依据毛需求拆解历史，将来源取消划分为物理删除或作废留痕。</summary>
+/// <summary>依据成品需求拆解历史，将来源取消划分为物理删除或作废留痕。</summary>
 internal static class SourceDemandCancellationPolicy
 {
     /// <summary>只对已安全回退的需求建立退出计划，历史不完整时显式阻断。</summary>
@@ -14,7 +14,7 @@ internal static class SourceDemandCancellationPolicy
         foreach (var demand in demands)
         {
             if (demand.LifecycleStatus != GrossDemandLifecycleStatusEnum.Active)
-                throw new InvalidOperationException("毛需求当前状态不允许退出来源确认。");
+                throw new InvalidOperationException("成品需求当前状态不允许退出来源确认。");
             var historyCount = historyCounts.TryGetValue(demand.Uid, out var count) ? count : 0;
             if (historyCount == 0) hardDeleteIds.Add(demand.Uid);
             else voidIds.Add(demand.Uid);
@@ -23,7 +23,7 @@ internal static class SourceDemandCancellationPolicy
     }
 }
 
-/// <summary>来源需求安全退出时的两组目标需求身份。</summary>
+/// <summary>成品需求安全退出时的两组目标需求身份。</summary>
 internal sealed class SourceDemandCancellationPlan(IReadOnlyList<Guid> hardDeleteGrossDemandIds, IReadOnlyList<Guid> voidGrossDemandIds)
 {
     public IReadOnlyList<Guid> HardDeleteGrossDemandIds { get; } = hardDeleteGrossDemandIds;
