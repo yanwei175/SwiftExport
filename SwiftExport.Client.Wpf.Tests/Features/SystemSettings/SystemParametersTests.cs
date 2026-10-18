@@ -1,5 +1,6 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
+using SwiftExport.Client.Wpf.Tests.Controls;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SystemDtos.SystemParameters;
@@ -194,8 +195,9 @@ public sealed class SystemParametersTests
 
     /// <summary>真实参数表格绑定各行的保存、撤销按钮；写入期间冻结全部输入并阻止关闭。</summary>
     [TestMethod]
-    public void ParameterGrid_ShouldBindRowActionsAndFreezeInputs() => StaTest.RunAsync(async () =>
+    public void ParameterGrid_ShouldBindRowActionsAndFreezeInputs() => DatePickerAssistTests.RunWithApplication(async () =>
     {
+        ApplicationResourceLoader.Load();
         using var fixture = new SystemParameterClientFixture();
         fixture.Cache.ApplySaved(UploadParameter("https://example.test/files/ProductImages/"));
         using var model = Model(fixture);

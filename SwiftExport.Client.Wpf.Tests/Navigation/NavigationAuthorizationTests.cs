@@ -27,7 +27,7 @@ public sealed class NavigationAuthorizationTests
             "Products.Category.View", "Products.Category.View", PermissionKeys.SystemDictionaryView, "Products.Color.View", "Products.Bom.View",
             "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",
             "Suppliers.Supplier.View", "Suppliers.Products.View",
-            "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
+            "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
             "DemandPlanning.Source.View", "DemandPlanning.Source.View", "DemandPlanning.Material.View", "DemandPlanning.Material.View",
             "Procurement.Order.Read", "Procurement.Order.Edit", "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
             "QualityControl.AfterSales.View", PermissionKeys.QualityControlFlowView, PermissionKeys.QualityControlFlowView,
@@ -235,7 +235,7 @@ public sealed class NavigationAuthorizationTests
         CollectionAssert.AreEquivalent(
             new[] { NavigationModuleKeys.Home, NavigationModuleKeys.Sales },
             visible.Select(item => item.RouteKey).ToArray());
-        // 当前菜单只有销售订单管理；履约查询路由仍存在，但不再作为侧边菜单入口。
+        // 当前菜单只有销售订单管理；退出的履约页面也不再保留隐藏路由。
         var sales = visible.Single(item => item.RouteKey == NavigationModuleKeys.Sales);
         Assert.AreEqual(1, sales.Children.Count);
         Assert.AreEqual(SwiftExportClient.Features.Sales.Orders.ViewModels.SalesOrderManagerViewModel.RouteKey, sales.Children.Single().RouteKey);

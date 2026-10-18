@@ -215,7 +215,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     public partial int PageSize { get; set; } = 20;
 
     [ObservableProperty]
-    public partial string ResultSummary { get; set; } = "尚未加载毛需求。";
+    public partial string ResultSummary { get; set; } = "尚未加载成品需求。";
 
     public async Task InitializeAsync()
     {
@@ -292,7 +292,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     #endregion
 
-    #region 毛需求业务命令
+    #region 成品需求业务命令
 
     [RelayCommand(CanExecute = nameof(CanCreateManual))]
     private async Task CreateManualAsync()
@@ -325,7 +325,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             var result = await _apiCallRunner.RunAsync(
                 () => _api.GetDetailAsync(selected.Uid, cancellation.Token),
                 cancellation.Token,
-                "加载手工毛需求失败");
+                "加载手工成品需求失败");
             if (cancellation.IsCancellationRequested || !ReferenceEquals(_detailCancellation, cancellation)
                 || ManualEditor.IsEditorLocked)
             {
@@ -334,7 +334,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
             if (!result.Success || result.Data is null)
             {
-                _messageService.ShowError("无法编辑手工毛需求", result.Message);
+                _messageService.ShowError("无法编辑手工成品需求", result.Message);
                 return;
             }
 
@@ -360,7 +360,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         if (!_closeUnknown && (selected is null
             || !await ConfirmDiscardManualChangesAsync()
             || !await _dialogService.ConfirmAsync(
-                "关闭手工毛需求",
+                "关闭手工成品需求",
                 $"关闭 {selected.SourceNo} 后将保留历史且不能继续拆解。是否继续？",
                 "关闭")))
         {
@@ -376,12 +376,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                     CommandId = Guid.NewGuid(),
                     Uid = selected!.Uid,
                     Version = selected.Version,
-                    Reason = "用户从毛需求工作台关闭手工需求"
+                    Reason = "用户从成品需求工作台关闭手工需求"
                 };
             }
             var result = await _apiCallRunner.RunAsync(
                 () => _api.CloseManualAsync(_pendingClose!.Uid, _pendingClose),
-                "关闭手工毛需求失败");
+                "关闭手工成品需求失败");
             if (!result.Success)
             {
                 var code = result.Error?.Code;
@@ -399,9 +399,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             _pendingClose = null;
             OnPropertyChanged(nameof(HasPendingClose));
             OnPropertyChanged(nameof(HasUnsavedChanges));
-            _messageService.ShowSuccess("手工毛需求已关闭", selected?.SourceNo ?? result.Data?.SourceNo ?? string.Empty);
+            _messageService.ShowSuccess("手工成品需求已关闭", selected?.SourceNo ?? result.Data?.SourceNo ?? string.Empty);
             await ReloadAfterWriteAsync();
-        }, "正在关闭手工毛需求...");
+        }, "正在关闭手工成品需求...");
     }
 
     #endregion
@@ -585,7 +585,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                 var result = await _apiCallRunner.RunAsync(
                     () => _api.SearchAsync(CreateSearchRequest(), cancellation.Token),
                     cancellation.Token,
-                    "查询毛需求失败");
+                    "查询成品需求失败");
                 if (cancellation.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cancellation))
                 {
                     return;
@@ -617,9 +617,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                     : Items.FirstOrDefault(item => item.Uid == selectedUid) ?? Items.FirstOrDefault();
                 ClearChecks();
                 ResultSummary = IsSourceSelected
-                    ? $"当前来源共 {TotalCount} 条毛需求，已全部加载。"
-                    : $"共 {TotalCount} 条毛需求，本页 {Items.Count} 条。";
-            }, "正在查询毛需求...", skipIfBusy: false);
+                    ? $"当前来源共 {TotalCount} 条成品需求，已全部加载。"
+                    : $"共 {TotalCount} 条成品需求，本页 {Items.Count} 条。";
+            }, "正在查询成品需求...", skipIfBusy: false);
         }
         finally
         {
@@ -676,7 +676,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             var result = await _apiCallRunner.RunAsync(
                 () => _api.SearchSourceGroupsAsync(CreateSourceGroupSearchRequest(), cancellation.Token),
                 cancellation.Token,
-                "查询毛需求来源分组失败");
+                "查询成品需求来源分组失败");
             if (cancellation.IsCancellationRequested || !ReferenceEquals(_sourceGroupCancellation, cancellation))
             {
                 return false;
@@ -695,7 +695,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                 SourceGroups.Add(group);
             }
 
-            SourceGroupSummary = $"共 {SourceGroups.Count} 张来源单，{result.Data.Sum(item => item.DemandCount)} 条毛需求。";
+            SourceGroupSummary = $"共 {SourceGroups.Count} 张来源单，{result.Data.Sum(item => item.DemandCount)} 条成品需求。";
             if (_appliedSourceUid.HasValue)
             {
                 var selected = SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value);
@@ -819,8 +819,8 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         var confirmed = await _dialogService.ConfirmAsync(
-            "放弃手工毛需求修改",
-            "当前手工毛需求有未保存修改，继续将放弃这些修改。",
+            "放弃手工成品需求修改",
+            "当前手工成品需求有未保存修改，继续将放弃这些修改。",
             "放弃修改",
             cancellationToken: cancellationToken);
         if (ManualEditor.IsEditorLocked) return false;

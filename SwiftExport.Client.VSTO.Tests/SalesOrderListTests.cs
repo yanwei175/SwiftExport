@@ -39,16 +39,25 @@ namespace SwiftExport.Client.VSTO.Tests
                 Assert.AreEqual(2, fixture.Api.Requests[1].PageIndex);
                 Assert.AreEqual(0, model.CheckedCount); Assert.IsNull(model.SelectedOrder);
                 model.Keyword = " invoice "; model.CustomerCode = " AT "; model.Confirmation = 1;
-                model.QuickView = SalesOrderManagerQuickView.PartiallyShipped;
                 await model.SearchCommand.ExecuteAsync(null);
                 var request = fixture.Api.Requests[2];
                 Assert.AreEqual(1, request.PageIndex); Assert.AreEqual("invoice", request.Keyword);
                 CollectionAssert.AreEqual(new[] { "AT" }, request.CustomerCodes);
                 CollectionAssert.AreEqual(new[] { ConfirmationStatusEnum.已确认 }, request.ConfirmationStatuses);
-                Assert.AreEqual(SalesOrderManagerQuickView.PartiallyShipped, request.QuickView);
-                Assert.IsNull(model.Orders[0].Order.TotalQty); Assert.AreEqual("未知", model.Orders[0].FulfillmentText);
+                Assert.IsNull(model.Orders[0].Order.TotalQty); Assert.AreEqual("—", model.Orders[0].UnitText);
                 Assert.AreEqual("开放", model.Orders[0].DocumentText);
             }
+        }
+
+        /// <summary>订单自身的多单位和缺单位分别呈现，数量空值不再借用履约未知提示。</summary>
+        [TestMethod]
+        public void UnitSummary_ExplainsMixedAndMissingIndependently()
+        {
+            var order = new SalesOrderManagerListItemDto { HasMixedUnits = true, HasMissingUnit = true };
+            var row = new SwiftExport.Client.VSTO.Features.Sales.Orders.Models.SalesOrderListRow(order);
+            Assert.AreEqual("多单位（缺少单位）", row.UnitText);
+            order.HasMixedUnits = false; order.HasMissingUnit = false; order.UnitSnapshot = "PCS"; order.TotalQty = 12m;
+            Assert.AreEqual("PCS", row.UnitText); Assert.AreEqual(12m, row.Order.TotalQty);
         }
 
         /// <summary>失败保留已有列表与输入，用户可以主动刷新；无查看权限不发起查询。</summary>

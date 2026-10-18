@@ -32,7 +32,6 @@ using SwiftExportClient.Features.Products.ProductList.ViewModels;
 using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
 using SwiftExportClient.Features.Sales;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Suppliers.Components.ViewModel;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
@@ -97,8 +96,6 @@ public static class ViewRegistrationExtensions
         services.AddTransient<SalesViewModel>();
         services.AddTransient<SalesOrderManagerViewModel>();
         services.AddTransient<SalesOrderDetailViewModel>();
-        services.AddTransient<SalesFulfillmentManagerViewModel>();
-        services.AddTransient<SalesFulfillmentDetailViewModel>();
         services.AddTransient<GrossDemandWorkspaceViewModel>();
         services.AddTransient<GrossDemandManualEditorViewModel>();
         services.AddTransient<GrossDemandTraceViewModel>();

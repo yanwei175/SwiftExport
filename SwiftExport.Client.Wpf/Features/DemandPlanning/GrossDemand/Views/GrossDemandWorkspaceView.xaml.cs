@@ -5,10 +5,10 @@ using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.Views;
 
-/// <summary>承载毛需求工作台交互，并在保活页签隐藏时关闭页面级筛选浮层。</summary>
+/// <summary>承载成品需求工作台交互，并在保活页签隐藏时关闭页面级筛选浮层。</summary>
 public partial class GrossDemandWorkspaceView : UserControl
 {
-    /// <summary>初始化毛需求工作台视图及其可见性生命周期处理。</summary>
+    /// <summary>初始化成品需求工作台视图及其可见性生命周期处理。</summary>
     public GrossDemandWorkspaceView()
     {
         InitializeComponent();

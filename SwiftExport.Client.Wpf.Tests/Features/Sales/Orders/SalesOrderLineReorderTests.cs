@@ -164,7 +164,7 @@ public sealed class SalesOrderLineReorderTests
     {
         var user = new CurrentUserService();
         user.SetCurrentUser(new MeDto { Permissions = PermissionCatalog.All.Select(item => item.PermissionKey).ToList() });
-        return new(null!, null!, null!, null!, null!, null!, new ReferenceDataCacheServiceStub(), user);
+        return new(null!, null!, null!, null!, null!, null!, new ReferenceDataCacheServiceStub(), user, new SalesOrderTestParameters());
     }
 
     private static void SetReadOnly(ViewModelBaseEx viewModel, bool value)

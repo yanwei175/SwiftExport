@@ -109,25 +109,25 @@ public sealed class SalesOrderManagerFilterTests
         await viewModel.InitializeAsync();
         CollectionAssert.AreEqual(new[] { "C001", "C002" }, viewModel.CustomerCodeOptions);
 
-        viewModel.CustomerCode = " C001 ";
+        viewModel.SelectedCustomerCodes.Add(" C001 ");
+        viewModel.SelectedCustomerCodes.Add("C002");
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[1]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[1]);
         viewModel.PageIndex = 3;
-        viewModel.QuickView = SalesOrderManagerQuickView.DueSoon;
+        viewModel.SelectedCustomerCodes.Add("C001");
         Assert.AreEqual(1, viewModel.PageIndex);
         viewModel.EffectiveDeliveryDateFrom = new DateTime(2026, 10, 1);
         await viewModel.SearchCommand.ExecuteAsync(null);
 
         Assert.IsNotNull(api.LastSearchRequest);
-        CollectionAssert.AreEqual(new[] { "C001" }, api.LastSearchRequest.CustomerCodes);
+        CollectionAssert.AreEqual(new[] { "C001", "C002" }, api.LastSearchRequest.CustomerCodes);
         CollectionAssert.AreEquivalent(
             new[] { ConfirmationStatusEnum.待确认, ConfirmationStatusEnum.已确认 },
             api.LastSearchRequest.ConfirmationStatuses);
         CollectionAssert.AreEqual(
             new[] { SalesOrderDocumentStatusEnum.Closed },
             api.LastSearchRequest.DocumentStatuses);
-        Assert.AreEqual(SalesOrderManagerQuickView.DueSoon, api.LastSearchRequest.QuickView);
         Assert.AreEqual(new DateTime(2026, 10, 1), api.LastSearchRequest.EffectiveDeliveryDateFrom);
     }
 
@@ -144,56 +144,30 @@ public sealed class SalesOrderManagerFilterTests
             null!,
             null!,
             AuthorizedUser());
-        viewModel.CustomerCode = "MANUAL";
+        viewModel.SelectedCustomerCodes.Add("MANUAL");
         viewModel.SelectedConfirmationStatuses.Add(viewModel.ConfirmationStatusOptions[0]);
         viewModel.SelectedDocumentStatuses.Add(viewModel.DocumentStatusOptions[0]);
-        viewModel.QuickView = SalesOrderManagerQuickView.Overdue;
         await viewModel.ClearFiltersCommand.ExecuteAsync(null);
 
-        Assert.AreEqual(string.Empty, viewModel.CustomerCode);
+        Assert.IsEmpty(viewModel.SelectedCustomerCodes);
         Assert.IsEmpty(viewModel.SelectedConfirmationStatuses);
         Assert.IsEmpty(viewModel.SelectedDocumentStatuses);
         Assert.IsNotNull(api.LastSearchRequest);
         Assert.IsEmpty(api.LastSearchRequest.CustomerCodes);
-        Assert.AreEqual(SalesOrderManagerQuickView.All, api.LastSearchRequest.QuickView);
     }
 
-    /// <summary>
-    /// 验证交付字段对历史异常保持可空，并且管理页呈现交期与核实提示。
-    /// </summary>
+    /// <summary>订单数量保留可空并由订单单位标志解释；共享管理契约已退出所有履约字段。</summary>
     [TestMethod]
-    public void DeliveryStatistics_ShouldExposeDueAlertsAndReviewReasons()
+    public void OrderFacts_ShouldExposeUnitFlagsWithoutFulfillmentStatistics()
     {
-        Assert.AreEqual(
-            typeof(decimal?),
-            typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.TotalShippedQty))!.PropertyType);
-        Assert.AreEqual(
-            typeof(decimal?),
-            typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.TotalUnshippedQty))!.PropertyType);
-        Assert.AreEqual(
-            typeof(SalesOrderFulfillmentStatusEnum?),
-            typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.FulfillmentStatus))!.PropertyType);
-        Assert.AreEqual(
-            typeof(decimal?),
-            typeof(SalesOrderDetailLineDto).GetProperty(nameof(SalesOrderDetailLineDto.ShippedQty))!.PropertyType);
-        Assert.AreEqual(
-            typeof(decimal?),
-            typeof(SalesOrderDetailLineDto).GetProperty(nameof(SalesOrderDetailLineDto.UnshippedQty))!.PropertyType);
-        Assert.IsNotNull(typeof(SalesOrderManagerSearchRequest).GetProperty(nameof(SalesOrderManagerSearchRequest.QuickView)));
-
-        var viewPath = Path.Combine(
-            FindRepositoryRoot(),
-            "SwiftExport.Client.Wpf",
-            "Features",
-            "Sales",
-            "Orders",
-            "Views",
-            "SalesOrderManagerView.xaml");
-        var viewSource = File.ReadAllText(viewPath);
-        StringAssert.Contains(viewSource, "Header=\"交期提醒\"");
-        StringAssert.Contains(viewSource, "Header=\"需核实原因\"");
-        StringAssert.Contains(viewSource, "SelectedValue=\"{Binding QuickView");
-        Assert.IsFalse(viewSource.Contains("交付统计待接入", StringComparison.Ordinal));
+        Assert.AreEqual(typeof(decimal?), typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.TotalQty))!.PropertyType);
+        Assert.AreEqual(typeof(bool), typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.HasMixedUnits))!.PropertyType);
+        Assert.AreEqual(typeof(bool), typeof(SalesOrderManagerListItemDto).GetProperty(nameof(SalesOrderManagerListItemDto.HasMissingUnit))!.PropertyType);
+        foreach (var field in new[] { "FulfillmentStatus", "TotalShippedQty", "TotalUnshippedQty", "NeedsReview", "ReviewReason" })
+            Assert.IsNull(typeof(SalesOrderManagerListItemDto).GetProperty(field));
+        foreach (var field in new[] { "ShippedQty", "UnshippedQty", "ReviewReason" })
+            Assert.IsNull(typeof(SalesOrderDetailLineDto).GetProperty(field));
+        Assert.IsNull(typeof(SalesOrderManagerSearchRequest).GetProperty("QuickView"));
     }
 
     [TestMethod]

@@ -700,7 +700,7 @@ public sealed class GrossDemandWorkspaceViewModelTests
                  {
                      "来源导航与独立筛选",
                      "主区域筛选与分页",
-                     "毛需求业务命令",
+                     "成品需求业务命令",
                      "抽屉与来源追溯",
                      "查询加载与并发控制",
                      "选择状态与辅助方法",

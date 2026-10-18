@@ -44,11 +44,7 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDetail
     [ObservableProperty] public partial DateTime? ExpectedDeliveryDate { get; set; }
     [ObservableProperty] public partial string SubNote { get; set; } = string.Empty;
     [ObservableProperty] public partial string MainImage { get; set; } = string.Empty;
-    /// <summary>PackingList 有效交付净额接入后的行级已发数量；空值表示未知。</summary>
-    [ObservableProperty] public partial decimal? ShippedQty { get; set; }
 
-    /// <summary>PackingList 有效交付净额接入后的行级未发数量；空值表示未知。</summary>
-    [ObservableProperty] public partial decimal? UnshippedQty { get; set; }
     [ObservableProperty] public partial string QtyText { get; set; } = string.Empty;
     [ObservableProperty] public partial string CnyPriceText { get; set; } = string.Empty;
     [ObservableProperty] public partial string UsdPriceText { get; set; } = string.Empty;
@@ -266,8 +262,6 @@ public sealed partial class SalesOrderLineModel : BaseLineModel<SalesOrderDetail
             || propertyName is nameof(LineTypeText)
                 or nameof(CnyAmount)
                 or nameof(UsdAmount)
-                or nameof(MainImage)
-                or nameof(ShippedQty)
-                or nameof(UnshippedQty);
+                or nameof(MainImage);
     }
 }

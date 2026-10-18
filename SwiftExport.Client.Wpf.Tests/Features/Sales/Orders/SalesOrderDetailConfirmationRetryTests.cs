@@ -34,7 +34,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(),
                 DispatchProxy.Create<INavigationService, NavigationProxy>(),
                 new DialogStub(), null!, new MessagesStub(),
-                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser());
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser(), new SalesOrderTestParameters());
             var uid = Guid.NewGuid();
             var request = new SaveSalesOrderRequest
             {
@@ -73,7 +73,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             var contract = DispatchProxy.Create<ISalesOrderDetailApi, DetailApiProxy>();
             var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
                 new DialogStub(), null!, new MessagesStub(),
-                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), user);
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), user, new SalesOrderTestParameters());
             typeof(SalesOrderDetailViewModel).GetMethod("LoadDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(vm, [new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
                 { Uid = Guid.NewGuid(), Version = 1, DocumentStatus = SalesOrderDocumentStatusEnum.Open,
@@ -104,7 +104,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             api.FailureCodes.Clear();
             var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
                 new DialogStub(), null!, new MessagesStub(),
-                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), user);
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), user, new SalesOrderTestParameters());
             var uid = Guid.NewGuid();
             typeof(SalesOrderDetailViewModel).GetMethod("LoadDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(vm, [new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
@@ -139,7 +139,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             var api = (DetailApiProxy)(object)contract;
             var cache = DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>();
             var viewModel = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
-                new DialogStub(), null!, new MessagesStub(), cache, AuthorizedUser());
+                new DialogStub(), null!, new MessagesStub(), cache, AuthorizedUser(), new SalesOrderTestParameters());
             var uid = Guid.NewGuid();
             var document = new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
             { Uid = uid, Version = 3, OrderNo = "SO-DETAIL", DocumentStatus = SalesOrderDocumentStatusEnum.Open,
@@ -192,7 +192,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
             api.FailureCodes.Enqueue(ServiceErrorCodes.VersionConflict);
             var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
                 new DialogStub(), null!, new MessagesStub(),
-                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser());
+                DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser(), new SalesOrderTestParameters());
             var changed = new List<string?>();
             vm.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
             var uid = Guid.NewGuid();
@@ -245,7 +245,7 @@ public sealed class SalesOrderDetailConfirmationRetryTests
                 api.FailureCodes.Clear();
                 api.FailureCodes.Enqueue(code);
                 var vm = new SalesOrderDetailViewModel(contract, new DirectRunner(), null!,
-                    new DialogStub(), null!, new MessagesStub(), DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser());
+                    new DialogStub(), null!, new MessagesStub(), DispatchProxy.Create<IReferenceDataCacheService, CacheProxy>(), AuthorizedUser(), new SalesOrderTestParameters());
                 typeof(SalesOrderDetailViewModel).GetMethod("LoadDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(vm, [new SalesOrderDetailDto { Header = new SalesOrderEditHeaderDto
                     { Uid = Guid.NewGuid(), Version = 3, DocumentStatus = SalesOrderDocumentStatusEnum.Open,

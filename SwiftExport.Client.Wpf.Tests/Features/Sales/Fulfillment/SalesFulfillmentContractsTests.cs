@@ -1,57 +1,25 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Navigation;
 using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Sales.Fulfillment;
 
-/// <summary>验证销售履约详情已接入只读查询而 Manager 仍不承担读写。</summary>
+/// <summary>验证销售事实页面已退出履约入口，同时保留需求追踪及既有确认命令身份。</summary>
 [TestClass]
 public sealed class SalesFulfillmentContractsTests
 {
+    /// <summary>退出的履约路由不可通过隐藏键继续打开，销售事实入口及独立需求追踪仍注册。</summary>
     [TestMethod]
-    public void RoutesUseSalesPermissionAndExplicitManagerDetailNames()
+    public void RetiredFulfillmentRoutesAreAbsentWhileOrderAndDemandRoutesRemain()
     {
-        var routes = new NavigationRouteRegistry().Routes;
-        var manager = routes.Single(item => item.Key == SalesFulfillmentManagerViewModel.RouteKey);
-        var detail = routes.Single(item => item.Key == SalesFulfillmentDetailViewModel.RouteKey);
-
-        Assert.AreEqual("Manager", manager.Group);
-        Assert.AreEqual("Detail", detail.Group);
-        Assert.AreEqual("Sales.Order.View", manager.RequiredPermission);
-        Assert.AreEqual("Sales.Order.View", detail.RequiredPermission);
-        Assert.IsFalse(manager.ViewModelType.Name.Contains("Workspace", StringComparison.Ordinal));
-        Assert.IsFalse(detail.ViewModelType.Name.Contains("Workspace", StringComparison.Ordinal));
-    }
-
-    [TestMethod]
-    public void DetailUsesDedicatedReadOnlyQueryWhileManagerStaysShell()
-    {
-        var managerView = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "Views", "SalesFulfillmentManagerView.xaml");
-        var detailView = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "Views", "SalesFulfillmentDetailView.xaml");
-        var managerViewModel = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentManagerViewModel.cs");
-        var detailViewModel = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentDetailViewModel.cs");
-
-        StringAssert.Contains(managerView, "Manager 页面空壳");
-        StringAssert.Contains(detailView, "SelectedLine.Deliveries");
-        Assert.IsFalse(managerView.Contains("DataGrid", StringComparison.Ordinal));
-        StringAssert.Contains(detailView, "DataGrid");
-        Assert.IsFalse(managerViewModel.Contains("ISalesFulfillment", StringComparison.Ordinal));
-        StringAssert.Contains(detailViewModel, "ISalesFulfillmentApi");
-        Assert.IsFalse(managerViewModel.Contains("Contracts.DTOs", StringComparison.Ordinal));
-        StringAssert.Contains(detailViewModel, "Contracts.DTOs.SalesOrders.Fulfillment");
-    }
-
-    [TestMethod]
-    public void ManagerAndSalesOrderEntryUseStableDetailDocumentKey()
-    {
-        var salesManager = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Orders", "ViewModels", "SalesOrderManagerViewModel.cs");
-        var fulfillmentDetail = Read("SwiftExport.Client.Wpf", "Features", "Sales", "Fulfillment", "ViewModels", "SalesFulfillmentDetailViewModel.cs");
-
-        StringAssert.Contains(salesManager, "$\"sales-fulfillment-detail:{order.Uid:N}\"");
-        StringAssert.Contains(fulfillmentDetail, "IDocumentTabInitializable");
-        StringAssert.Contains(fulfillmentDetail, "SalesFulfillmentDetailOpenRequest");
+        var registry = new NavigationRouteRegistry();
+        Assert.IsFalse(registry.TryGetRoute("sales-fulfillment-manager", out _));
+        Assert.IsFalse(registry.TryGetRoute("sales-fulfillment-detail", out _));
+        Assert.IsTrue(registry.TryGetRoute("sales-orders", out var orders));
+        Assert.AreEqual("Sales.Order.View", orders.RequiredPermission);
+        Assert.IsTrue(registry.Routes.Any(route => route.ViewModelType.Name == "GrossDemandTraceViewModel"));
+        Assert.IsTrue(registry.Routes.Any(route => route.ViewModelType.Name == "MaterialDemandTraceViewModel"));
     }
 
     [TestMethod]

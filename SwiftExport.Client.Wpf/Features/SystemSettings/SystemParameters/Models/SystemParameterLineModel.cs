@@ -31,6 +31,9 @@ public sealed partial class SystemParameterLineModel : ObservableObject, IDataEr
     /// <summary>已知参数的即时格式校验；未来其他参数的最终规则仍由服务端执行。</summary>
     public string ValidationMessage => Key switch
     {
+        SystemParameterKeys.SalesDefaultDeliveryDays =>
+            int.TryParse(Value?.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var days) && days >= 0
+                ? string.Empty : "请输入非负整数自然日天数，0 表示订单当天。",
         SystemParameterKeys.ProductImagesBaseUrl => ProductImageAddress.TryNormalizeBaseAddress(Value, out _) ? string.Empty
             : "请输入 HTTP/HTTPS 目录、Windows 本地绝对目录或 UNC 目录，最多 2048 字符。",
         SystemParameterKeys.ProductImagesUploadBaseUrl => ProductImageAddress.TryNormalizeBaseUrl(Value, out _) ? string.Empty

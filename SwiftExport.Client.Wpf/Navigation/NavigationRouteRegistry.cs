@@ -23,7 +23,6 @@ using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using SwiftExportClient.Features.QualityControl.Categories.ViewModels;
 using SwiftExportClient.Features.QualityControl.FlowManagement.ViewModels;
 using SwiftExportClient.Features.Sales;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Features.Sales.Orders.ViewModels;
 using SwiftExportClient.Features.Shipping.PackingLists.ViewModels;
 using SwiftExportClient.Features.Suppliers.SupplierManagement.ViewModels;
@@ -86,9 +85,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
-        new(SalesFulfillmentManagerViewModel.RouteKey, "销售履约查询", "Manager", typeof(SalesFulfillmentManagerViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
-        new(SalesFulfillmentDetailViewModel.RouteKey, "销售履约详情", "Detail", typeof(SalesFulfillmentDetailViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
         new(GrossDemandWorkspaceViewModel.RouteKey, "成品需求", "Workspace", typeof(GrossDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
         new(GrossDemandTraceViewModel.RouteKey, "成品需求追踪", "Detail", typeof(GrossDemandTraceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
