@@ -14,6 +14,7 @@ using SwiftExportClient.Services.Caching;
 using SwiftExportClient.Services.UI;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using SwiftExportClient.Authentication;
 
 namespace SwiftExportClient.Features.Customers.CustomerPoConfigs.ViewModels;
 
@@ -29,6 +30,7 @@ public sealed partial class CustomerPoConfigManagerViewModel
     private readonly IReferenceDataCacheService _cache;
     private readonly IMessageService _messages;
     private readonly IDialogService _dialogs;
+    private readonly ICurrentUserService _user;
     private CancellationTokenSource? _queryCts;
     private long _querySequence;
     private bool _initialized;
@@ -36,17 +38,22 @@ public sealed partial class CustomerPoConfigManagerViewModel
 
     /// <summary>初始化页面依赖并连接列表状态。</summary>
     public CustomerPoConfigManagerViewModel(ICustomerPoConfigApi api, IApiCallRunner runner,
-        IReferenceDataCacheService cache, IMessageService messages, IDialogService dialogs)
+        IReferenceDataCacheService cache, IMessageService messages, IDialogService dialogs, ICurrentUserService currentUser)
     {
         _api = api;
         _runner = runner;
         _cache = cache;
         _messages = messages;
         _dialogs = dialogs;
+        _user = currentUser;
+        _user.CurrentUserChanged += OnPermissionsChanged;
         Title = "客户采购默认配置";
         Lines.ListStateChanged += OnListStateChanged;
         PropertyChanged += OnManagerPropertyChanged;
         CollectionChangedEventManager.AddHandler(_cache.Currencies, OnCurrenciesChanged);
+        CollectionChangedEventManager.AddHandler(_cache.Customers, OnReferenceCacheChanged);
+        CollectionChangedEventManager.AddHandler(_cache.Suppliers, OnReferenceCacheChanged);
+        InitializeCheckSelection();
         RefreshCurrencyOptions();
         RegisterBusyAwareCommand(AddRowCommand);
         RegisterBusyAwareCommand(DeleteSelectedCommand);
@@ -65,13 +72,16 @@ public sealed partial class CustomerPoConfigManagerViewModel
     [ObservableProperty] public partial IReadOnlyList<SysDicCurrencyDto> CurrencyOptions { get; set; } = [];
     public string DocumentTitle => Title;
     public bool HasUnsavedChanges => Lines.HasChanges;
-    public bool IsInteractionEnabled => !_disposed && IsNotBusy && !IsQuerying && !IsSelectionPrompt;
+    /// <summary>仅有查看权限且没有查询、写入或确认时允许交互。</summary>
+    public bool IsInteractionEnabled => CanView && IsNotBusy && !IsQuerying && !IsSelectionPrompt;
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     /// <summary>获取或设置表格使用格子选择模式还是整行选择模式。</summary>
-    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty][NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     public partial CustomerPoConfigLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial bool IsQuerying { get; set; }
@@ -89,51 +99,59 @@ public sealed partial class CustomerPoConfigManagerViewModel
     /// <summary>幂等加载基础资料与第一页配置。</summary>
     public async Task InitializeAsync()
     {
-        if (_initialized) return;
+        if (_initialized || !CanQuery()) return;
         _initialized = true;
+        var identity = _user.CurrentUser;
         var cacheResult = await _cache.EnsureLoadedAsync();
+        if (!CanView || !ReferenceEquals(identity, _user.CurrentUser)) return;
         OnPropertyChanged(nameof(CustomerOptions));
         OnPropertyChanged(nameof(SupplierOptions));
         RefreshCurrencyOptions();
         if (!cacheResult.Success) _messages.ShowError("加载基础资料失败", cacheResult.Message);
-        await LoadPageAsync();
+        await LoadPageAsync(1, PageSize, CaptureFilters());
     }
 
-    public Task<bool> CanCloseAsync(CancellationToken cancellationToken) => EnsureCanDiscardChangesAsync();
+    /// <summary>撤销查看权限也允许申请关闭，仍保留原生输入与未保存确认。</summary>
+    public Task<bool> CanCloseAsync(CancellationToken cancellationToken) => EnsureCanDiscardChangesAsync(requireViewPermission: false);
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private async Task SearchAsync()
-    {
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        PageIndex = 1;
-        await LoadPageAsync();
-    }
+    /// <summary>提交客户、供应商及关键词快照，取消或失败时恢复成功条件。</summary>
+    [RelayCommand(CanExecute = nameof(CanQuery), AllowConcurrentExecutions = true)]
+    private Task SearchAsync() => ApplyFiltersAsync(CaptureFilters());
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
+    /// <summary>刷新三项引用缓存后重载已应用范围，查询仍复核当前身份和存活状态。</summary>
+    [RelayCommand(CanExecute = nameof(CanQuery))]
     private async Task RefreshAsync()
     {
-        if (!await EnsureCanDiscardChangesAsync()) return;
-        var currencyResult = await _cache.RefreshCurrenciesAsync();
-        RefreshCurrencyOptions();
-        if (!currencyResult.Success) _messages.ShowWarning("币种缓存刷新失败", currencyResult.Message);
-        await LoadPageAsync();
+        if (!CanQuery() || !await EnsureCanDiscardChangesAsync()) { RestoreFilterEditors(); return; }
+        var identity = _user.CurrentUser;
+        await RunBusyAsync(async () =>
+        {
+            var results = await Task.WhenAll(_cache.RefreshCustomersAsync(), _cache.RefreshSuppliersAsync(), _cache.RefreshCurrenciesAsync());
+            if (!CanView || !ReferenceEquals(identity, _user.CurrentUser)) return;
+            RefreshCurrencyOptions(); BindReferenceSelections(); RestoreFilterEditors();
+            if (results.Any(result => !result.Success))
+                _messages.ShowWarning("基础资料缓存刷新失败", string.Join("；", results.Where(result => !result.Success).Select(result => result.Message)));
+            await LoadPageAsync(PageIndex, PageSize, _appliedFilters);
+        }, "正在刷新配置和基础资料...");
     }
 
+    /// <summary>复核创建权限后新增配置；不能用默认 CanWrite 代替独立权限。</summary>
     [RelayCommand(CanExecute = nameof(CanAddRow))]
     private void AddRow()
     {
-        if (!TryCommitPendingEdits()) return;
+        if (!CanAddRow() || !TryCommitPendingEdits() || !CanAddRow()) return;
         SelectedLine = Lines.AddNewConfig();
         RefreshCurrencyOptions();
         UpdateChangeState();
     }
 
+    /// <summary>沿用勾选优先的删除目标，确认后再次复核身份、权限及选区快照。</summary>
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private async Task DeleteSelectedAsync()
     {
-        if (!TryCommitPendingEdits()) return;
-        var targets = Lines.CheckedItems.Count > 0 ? Lines.CheckedItems.ToArray()
-            : SelectedLine is null ? [] : [SelectedLine];
+        if (!CanDeleteSelected() || !TryCommitPendingEdits()) return;
+        var identity = _user.CurrentUser;
+        var targets = DeleteTargets();
         if (targets.Length == 0) return;
         if (targets.Any(line => !line.IsNew))
         {
@@ -144,43 +162,49 @@ public sealed partial class CustomerPoConfigManagerViewModel
             }
             finally { IsSelectionPrompt = false; }
         }
-        if (_disposed) return;
+        if (!CanDeleteSelected() || !ReferenceEquals(identity, _user.CurrentUser) || !targets.SequenceEqual(DeleteTargets())) return;
         var last = Lines.Items.LastOrDefault(line => !targets.Contains(line));
         foreach (var target in targets) Lines.Remove(target);
         SelectedLine = last;
         UpdateChangeState();
     }
 
+    /// <summary>提交原生编辑后按创建、修改和删除分别复核权限；失败或身份变化保留草稿。</summary>
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        if (!TryCommitPendingEdits()) return;
+        if (!CanSave() || !TryCommitPendingEdits() || !CanSave()) return;
+        var identity = _user.CurrentUser;
         await RunWriteAsync(async () =>
         {
             var error = await Lines.ValidateListAsync();
             if (!string.IsNullOrWhiteSpace(error))
             {
-                ValidationSummary = error;
-                _messages.ShowWarning("配置未保存", error);
-                return;
+                ValidationSummary = error; _messages.ShowWarning("配置未保存", error); return;
             }
+            if (!AreChangesAuthorized() || !ReferenceEquals(identity, _user.CurrentUser)) return;
             var request = Lines.CreateSaveRequest();
             if (!request.HasChanges) return;
             var result = await _runner.RunAsync(() => _api.BatchSaveAsync(request), "保存客户采购默认配置失败");
+            if (!AreChangesAuthorized() || !ReferenceEquals(identity, _user.CurrentUser))
+            {
+                if (!_disposed) ResultSummary = "保存期间身份或权限已变化，请重新查询核对结果；本地草稿已保留。";
+                return;
+            }
             if (!result.Success || result.Data is null)
             {
                 ValidationSummary = result.Message;
-                _messages.ShowError("保存客户采购默认配置失败", result.Message);
-                return;
+                _messages.ShowError("保存客户采购默认配置失败", result.Message); return;
             }
-            Lines.ApplySaveResponse(result.Data);
-            UpdateChangeState();
+            Lines.ApplySaveResponse(result.Data); UpdateChangeState();
             _messages.ShowSuccess("客户采购默认配置已保存", $"已提交 {result.Data.SuccessCount} 条变更。");
-            if (!await LoadPageAsync()) _messages.ShowWarning("保存成功", "数据已保存，但列表刷新失败。请稍后手动刷新。");
+            if (!await LoadPageAsync(PageIndex, PageSize, _appliedFilters))
+                _messages.ShowWarning("保存成功", "数据已保存，但列表刷新失败。请稍后手动刷新。");
         }, "正在保存客户采购默认配置...");
     }
 
-    [RelayCommand]
+    /// <summary>提交原生缓冲后恢复已接纳业务基线，不改变已应用筛选。</summary>
+    [RelayCommand(CanExecute = nameof(CanQuery))]
     private void RejectListChanges()
     {
         if (!IsInteractionEnabled || !TryCommitPendingEdits()) return;
@@ -190,73 +214,78 @@ public sealed partial class CustomerPoConfigManagerViewModel
         UpdateChangeState();
     }
 
-    [RelayCommand]
+    /// <summary>页码属于最后成功查询的条件，取消及失败不接纳新页码。</summary>
+    [RelayCommand(CanExecute = nameof(CanQuery))]
     private async Task PageChangeAsync(PageChangeRequest? request)
     {
-        if (request is null || !await EnsureCanDiscardChangesAsync()) return;
-        PageIndex = Math.Max(1, request.NewIndex);
-        PageSize = request.NewSize <= 0 ? 20 : request.NewSize;
-        await LoadPageAsync();
+        if (request is null || !CanQuery()) return;
+        if (!await EnsureCanDiscardChangesAsync()) { RestoreFilterEditors(); return; }
+        RestoreFilterEditors();
+        await LoadPageAsync(Math.Max(1, request.NewIndex), request.NewSize <= 0 ? 20 : request.NewSize, _appliedFilters);
     }
 
     /// <summary>确认客户选择并把稳定业务编码写入当前行。</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditRow))]
     private void CommitCustomer(CustomerPoConfigLineModel? line)
     {
-        if (line?.SelectedCustomer is null) return;
+        if (!CanEditRow(line) || line!.SelectedCustomer is null) return;
         line.CustomerId = line.SelectedCustomer.Uid;
         line.CustomerCode = line.SelectedCustomer.CustomerCode?.Trim() ?? string.Empty;
     }
 
     /// <summary>显式清空当前行客户。</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditRow))]
     private void ClearCustomer(CustomerPoConfigLineModel? line)
     {
-        if (line is null) return;
-        line.SelectedCustomer = null;
+        if (!CanEditRow(line)) return;
+        line!.SelectedCustomer = null;
         line.CustomerId = null;
         line.CustomerCode = string.Empty;
     }
 
     /// <summary>确认供应商选择并把稳定业务编码写入当前行。</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditRow))]
     private void CommitSupplier(CustomerPoConfigLineModel? line)
     {
-        if (line?.SelectedSupplier is null) return;
+        if (!CanEditRow(line) || line!.SelectedSupplier is null) return;
         line.SupplierId = line.SelectedSupplier.Uid;
         line.SupplierCode = line.SelectedSupplier.SupplierCode.Trim();
     }
 
     /// <summary>显式清空当前行供应商。</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditRow))]
     private void ClearSupplier(CustomerPoConfigLineModel? line)
     {
-        if (line is null) return;
-        line.SelectedSupplier = null;
+        if (!CanEditRow(line)) return;
+        line!.SelectedSupplier = null;
         line.SupplierId = null;
         line.SupplierCode = string.Empty;
     }
 
     /// <summary>执行可取消的分页查询，仅最新且页面存活的结果可回写。</summary>
-    private async Task<bool> LoadPageAsync()
+    private async Task<bool> LoadPageAsync(int pageIndex, int pageSize, QueryFilters filters)
     {
+        if (!CanView) return false;
+        var identity = _user.CurrentUser;
         var selectedId = SelectedLine?.Uid;
         var sequence = Interlocked.Increment(ref _querySequence);
         var currentCts = new CancellationTokenSource();
         var previous = Interlocked.Exchange(ref _queryCts, currentCts);
         previous?.Cancel();
-        previous?.Dispose();
+        // 旧请求自己的 finally 负责释放 CTS。
         IsQuerying = true;
         try
         {
             var request = new CustomerPoConfigSearchRequest
             {
-                Keyword = string.IsNullOrWhiteSpace(Keyword) ? null : Keyword.Trim(),
-                PageIndex = PageIndex,
-                PageSize = PageSize
+                Keyword = string.IsNullOrWhiteSpace(filters.Keyword) ? null : filters.Keyword.Trim(),
+                CustomerId = filters.Customer?.Uid,
+                SupplierId = filters.Supplier?.Uid,
+                PageIndex = pageIndex,
+                PageSize = pageSize
             };
             var result = await _runner.RunAsync(() => _api.GetPagedAsync(request, currentCts.Token), currentCts.Token, "加载客户采购默认配置失败");
-            if (_disposed || currentCts.IsCancellationRequested || sequence != Volatile.Read(ref _querySequence)) return false;
+            if (!CanView || !ReferenceEquals(identity, _user.CurrentUser) || currentCts.IsCancellationRequested || sequence != Volatile.Read(ref _querySequence)) return false;
             if (!result.Success)
             {
                 ResultSummary = "客户采购默认配置加载失败。";
@@ -269,28 +298,40 @@ public sealed partial class CustomerPoConfigManagerViewModel
             BindReferenceSelections();
             SelectedLine = Lines.Items.FirstOrDefault(line => line.Uid == selectedId) ?? Lines.Items.FirstOrDefault();
             TotalCount = page?.TotalCount ?? 0;
-            PageIndex = page?.PageIndex > 0 ? page.PageIndex : PageIndex;
-            PageSize = page?.PageSize > 0 ? page.PageSize : PageSize;
+            PageIndex = page?.PageIndex > 0 ? page.PageIndex : pageIndex;
+            PageSize = page?.PageSize > 0 ? page.PageSize : pageSize;
+            _appliedFilters = filters; RestoreFilterEditors();
             ResultSummary = $"共 {TotalCount} 条配置，本页 {Lines.Items.Count} 条。";
             AcceptChanges();
             UpdateChangeState();
             return true;
         }
+        catch (OperationCanceledException) when (currentCts.IsCancellationRequested) { return false; }
         finally
         {
-            if (ReferenceEquals(_queryCts, currentCts)) IsQuerying = false;
+            if (ReferenceEquals(_queryCts, currentCts)) { _queryCts = null; IsQuerying = false; }
+            currentCts.Dispose();
         }
     }
 
-    /// <summary>按现存编码关联缓存选择项；无法匹配时保留原编码供用户修正。</summary>
+    /// <summary>稳定 ID 优先，只有旧记录缺少 ID 时按编码匹配；回显不修改业务资料。</summary>
     private void BindReferenceSelections()
     {
         foreach (var line in Lines.Items)
         {
-            using var _ = line.SuppressChangeTracking();
-            line.SelectedCustomer = _cache.Customers.FirstOrDefault(item => string.Equals(item.CustomerCode, line.CustomerCode, StringComparison.OrdinalIgnoreCase));
-            line.SelectedSupplier = _cache.Suppliers.FirstOrDefault(item => string.Equals(item.SupplierCode, line.SupplierCode, StringComparison.OrdinalIgnoreCase));
+            line.SelectedCustomer = line.CustomerId is { } customerId ? _cache.Customers.FirstOrDefault(item => item.Uid == customerId)
+                : _cache.Customers.FirstOrDefault(item => string.Equals(item.CustomerCode, line.CustomerCode, StringComparison.OrdinalIgnoreCase));
+            line.SelectedSupplier = line.SupplierId is { } supplierId ? _cache.Suppliers.FirstOrDefault(item => item.Uid == supplierId)
+                : _cache.Suppliers.FirstOrDefault(item => string.Equals(item.SupplierCode, line.SupplierCode, StringComparison.OrdinalIgnoreCase));
         }
+    }
+
+    /// <summary>缓存替换后重建候选与行显示，不静默更改业务 ID 或编码。</summary>
+    private void OnReferenceCacheChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_disposed) return;
+        OnPropertyChanged(nameof(CustomerOptions)); OnPropertyChanged(nameof(SupplierOptions));
+        BindReferenceSelections();
     }
 
     /// <summary>响应应用级币种缓存变化，并保留当前行中已停用或已移除的历史代码。</summary>
@@ -337,50 +378,52 @@ public sealed partial class CustomerPoConfigManagerViewModel
         CurrencyOptions = options;
     }
 
-    private async Task<bool> EnsureCanDiscardChangesAsync()
+    /// <summary>查询必须有查看许可；关闭可在撤权后确认。等待期间身份变化不能承接旧查询意图。</summary>
+    private async Task<bool> EnsureCanDiscardChangesAsync(bool requireViewPermission = true)
     {
-        if (_disposed || IsBusy || IsSelectionPrompt || !TryCommitPendingEdits()) return false;
+        if (_disposed || requireViewPermission && !CanView || IsBusy || IsSelectionPrompt || !TryCommitPendingEdits()) return false;
         if (!HasUnsavedChanges) return true;
+        var identity = _user.CurrentUser;
         IsSelectionPrompt = true;
-        try { return await _dialogs.ConfirmAsync("放弃未保存变更", "当前配置有未保存修改，继续将放弃这些修改。", "继续"); }
+        try { return await _dialogs.ConfirmAsync("放弃未保存变更", "当前配置有未保存修改，继续将放弃这些修改。", "继续")
+            && (!requireViewPermission || CanView && ReferenceEquals(identity, _user.CurrentUser)); }
         finally { IsSelectionPrompt = false; }
     }
 
     private bool TryCommitPendingEdits() => CommitPendingEdits?.Invoke() ?? true;
     private void OnListStateChanged(object? sender, ListStateChangedEventArgs<CustomerPoConfigLineModel> e) => UpdateChangeState();
+    /// <summary>交互状态改变时同步可见权限与命令资格，执行入口仍再次复核。</summary>
     private void OnManagerPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(IsBusy) or nameof(IsQuerying) or nameof(IsSelectionPrompt) or nameof(CanWrite))
-        {
-            OnPropertyChanged(nameof(IsInteractionEnabled));
-            AddRowCommand.NotifyCanExecuteChanged();
-            DeleteSelectedCommand.NotifyCanExecuteChanged();
-            SaveCommand.NotifyCanExecuteChanged();
-        }
+            NotifyPermissionsAndCommands();
     }
+
+    /// <summary>同步列表草稿与显示行勾选，只有业务字段变化才形成修改。</summary>
     private void UpdateChangeState()
     {
         IsDirty = Lines.HasChanges;
         OnPropertyChanged(nameof(HasUnsavedChanges));
-        SaveCommand.NotifyCanExecuteChanged();
-        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        SaveCommand.NotifyCanExecuteChanged(); DeleteSelectedCommand.NotifyCanExecuteChanged();
+        RefreshCheckState();
     }
-    private bool CanAddRow() => IsInteractionEnabled && CanWrite;
-    private bool CanDeleteSelected() => IsInteractionEnabled && CanWrite && (Lines.CheckedCount > 0 || SelectedLine is not null);
-    private bool CanSave() => IsInteractionEnabled && CanWrite && Lines.HasChanges;
 
     /// <summary>取消未完成查询并解除事件订阅。</summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        DetachCheckSelection();
+        _user.CurrentUserChanged -= OnPermissionsChanged;
         Lines.ListStateChanged -= OnListStateChanged;
         PropertyChanged -= OnManagerPropertyChanged;
         CollectionChangedEventManager.RemoveHandler(_cache.Currencies, OnCurrenciesChanged);
+        CollectionChangedEventManager.RemoveHandler(_cache.Customers, OnReferenceCacheChanged);
+        CollectionChangedEventManager.RemoveHandler(_cache.Suppliers, OnReferenceCacheChanged);
         CommitPendingEdits = null;
         var cts = Interlocked.Exchange(ref _queryCts, null);
         cts?.Cancel();
-        cts?.Dispose();
+        // 请求 finally 拥有释放权，页面关闭只取消查询。
     }
 
     /// <summary>按页面白名单检查填充来源、目标归属及当前写入许可，拒绝外来行和危险字段。</summary>
@@ -400,14 +443,14 @@ public sealed partial class CustomerPoConfigManagerViewModel
             or nameof(CustomerPoConfigLineModel.Purchaser)
             or nameof(CustomerPoConfigLineModel.Note))
         && request.TryGetRows<CustomerPoConfigLineModel>(Lines.Items, out _, out var targets)
-        && targets.Any(row => !row.IsDeleted && !row.IsReadOnly);
+        && targets.Count > 0 && targets.All(CanEditRow);
 
     /// <summary>执行当前页面允许的向下填充；关系字段完整回填，保留模型通知与页面放弃修改基线。</summary>
     [RelayCommand(CanExecute = nameof(CanFillDown))]
     private void FillDown(FillDownRequest? request)
     {
         if (!CanFillDown(request) || !request!.TryGetRows<CustomerPoConfigLineModel>(Lines.Items, out var source, out var targets)) return;
-        foreach (var target in targets.Where(row => !row.IsDeleted && !row.IsReadOnly))
+        foreach (var target in targets.Where(CanEditRow))
         {
             foreach (var field in request.Fields)
             {
