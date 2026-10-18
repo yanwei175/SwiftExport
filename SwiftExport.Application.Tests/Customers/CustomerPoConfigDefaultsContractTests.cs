@@ -28,11 +28,12 @@ public sealed class CustomerPoConfigDefaultsContractTests
     [TestMethod]
     public void Validation_ShouldAcceptBoundariesAndRejectInvalidRates()
     {
-        foreach (var value in new decimal?[] { null, 0m, 1m, 0.95m, 1.05m, 12.5m, 0.123456m, 0.9500000m })
+        foreach (var value in new decimal?[] { null, 0m, 1m, 0.95m, 1.05m, 12.5m, 999.999999m, 0.123456m, 0.9500000m })
             Assert.IsNull(CustomerPoConfigService.ValidateFieldLengths(ValidDto(value)), $"应接受 {value?.ToString() ?? "NULL"}");
 
         StringAssert.Contains(CustomerPoConfigService.ValidateFieldLengths(ValidDto(-0.000001m)), "不能小于 0");
         StringAssert.Contains(CustomerPoConfigService.ValidateFieldLengths(ValidDto(0.1234567m)), "6 位小数");
+        StringAssert.Contains(CustomerPoConfigService.ValidateFieldLengths(ValidDto(1000m)), "999.999999");
     }
 
     /// <summary>显式分页和按客户供应商查询必须返回新增字段，币种删除保护也必须识别配置引用。</summary>
@@ -81,6 +82,9 @@ public sealed class CustomerPoConfigDefaultsContractTests
         StringAssert.Contains(sql, "\"default_discount_rate\" >= 0");
         Assert.IsFalse(sql.Contains("\"default_discount_rate\" <= 1", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(sql.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(sql, "CREATE UNIQUE INDEX \"ux_customer_po_config_parties\" ON \"public\".\"customer_po_config\" (\"customer_id\", \"supplier_id\") WHERE \"is_deleted\" = FALSE;");
+        StringAssert.Contains(sql, "ck_customer_po_config_parties");
+        Assert.IsFalse(sql.Contains("ux_customer_po_config_codes", StringComparison.Ordinal));
     }
 
     private static CustomerPoConfigDto ValidDto(decimal? rate, string currency = "CNY", string? remark = null) => new()

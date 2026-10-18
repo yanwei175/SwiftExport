@@ -100,22 +100,24 @@ public sealed class PostgreSqlCustomerPoConfigMigrationIntegrationTests
         Assert.AreEqual(1, page.TotalCount); Assert.AreEqual(literal.Uid, page.Items.Single().Uid); Assert.AreEqual(1, page.PageIndex); Assert.AreEqual(500, page.PageSize);
     });
 
-    /// <summary>已同步组合索引阻止大小写/尾空格及 NULL 重复，更新碰撞后保存点回滚保持外层事务可用。</summary>
+    /// <summary>真实唯一索引按双方身份拒绝插入和更新碰撞；编码重复或为空不再替代身份。</summary>
     [TestMethod]
-    public Task UniqueIndex_RejectsInsertUpdateAndNullablePairCollisions() => InRollback(async (context, repository) =>
+    public Task UniqueIndex_RejectsIdentityCollisionsRegardlessOfCodes() => InRollback(async (context, repository) =>
     {
         var first = Config(Guid.NewGuid(), Guid.NewGuid()); await repository.AddAsync(first);
-        var duplicate = Config(Guid.NewGuid(), Guid.NewGuid()); duplicate.CustomerCode = first.CustomerCode!.ToLowerInvariant() + " "; duplicate.SupplierCode = first.SupplierCode!.ToLowerInvariant();
+        var duplicate = Config(first.CustomerId!.Value, first.SupplierId!.Value);
+        duplicate.CustomerCode = Prefix(); duplicate.SupplierCode = Prefix();
         await Collision(context, () => repository.AddAsync(duplicate));
         var changed = Config(Guid.NewGuid(), Guid.NewGuid()); await repository.AddAsync(changed);
-        changed.CustomerCode = duplicate.CustomerCode; changed.SupplierCode = duplicate.SupplierCode;
+        changed.CustomerId = first.CustomerId; changed.SupplierId = first.SupplierId;
         await Collision(context, () => repository.UpdateAsync(changed));
-        var nullable = Config(Guid.NewGuid(), Guid.NewGuid()); nullable.CustomerCode = null; await repository.AddAsync(nullable);
-        var secondNull = Config(Guid.NewGuid(), Guid.NewGuid()); secondNull.CustomerCode = null; secondNull.SupplierCode = nullable.SupplierCode;
-        await Collision(context, () => repository.AddAsync(secondNull));
+        var independent = Config(Guid.NewGuid(), Guid.NewGuid());
+        independent.CustomerCode = first.CustomerCode; independent.SupplierCode = first.SupplierCode;
+        Assert.IsTrue((await repository.AddAsync(independent)).Success);
+        var nullableText = Config(Guid.NewGuid(), Guid.NewGuid()); nullableText.CustomerCode = null;
+        Assert.IsTrue((await repository.AddAsync(nullableText)).Success);
         Assert.IsTrue(await repository.ExistsIdAsync(first.Uid));
     });
-
     /// <summary>在本例回滚事务内创建随机停用币种，验证 PO 保留其引用；不依赖或修改既有币种，不替代服务完整校验。</summary>
     [TestMethod]
     public Task DisabledCurrencyReference_IsPreserved() => InRollback(async (context, repository) =>
@@ -238,7 +240,7 @@ public sealed class PostgreSqlCustomerPoConfigMigrationIntegrationTests
         using var waiterTx = waiter.Connection.BeginTransaction(IsolationLevel.ReadCommitted); waiter.Transaction = waiterTx;
         await waiter.Connection.ExecuteAsync("SET LOCAL statement_timeout='15s'", transaction: waiterTx);
         var pid = await waiter.Connection.ExecuteScalarAsync<int>("SELECT pg_backend_pid()", transaction: waiterTx);
-        var row = Config(Guid.NewGuid(), Guid.NewGuid()); var duplicate = Config(Guid.NewGuid(), Guid.NewGuid());
+        var row = Config(Guid.NewGuid(), Guid.NewGuid()); var duplicate = Config(row.CustomerId!.Value, row.SupplierId!.Value);
         duplicate.CustomerCode = row.CustomerCode!.ToLowerInvariant() + " "; duplicate.SupplierCode = row.SupplierCode!.ToLowerInvariant();
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         Task<SwiftExport.Contracts.Wrappers.RepositoryWriteResult>? pending = null; var committed = false;
@@ -249,7 +251,7 @@ public sealed class PostgreSqlCustomerPoConfigMigrationIntegrationTests
             await AssertBlocked(owner, pid, pending, timeout.Token);
             ownerTx.Commit(); committed = true; owner.Transaction = null;
             var error = await Assert.ThrowsAsync<PostgresException>(async () => await pending.WaitAsync(timeout.Token));
-            Assert.AreEqual("23505", error.SqlState); Assert.AreEqual("ux_customer_po_config_codes", error.ConstraintName);
+            Assert.AreEqual("23505", error.SqlState); Assert.AreEqual("ux_customer_po_config_parties", error.ConstraintName);
         }
         finally
         {
@@ -279,7 +281,7 @@ public sealed class PostgreSqlCustomerPoConfigMigrationIntegrationTests
     private static async Task Collision(RepositoryBaseContext context, Func<Task<SwiftExport.Contracts.Wrappers.RepositoryWriteResult>> action)
     {
         await context.Session.Connection.ExecuteAsync("SAVEPOINT po_collision", transaction: context.Session.Transaction);
-        try { var error = await Assert.ThrowsAsync<PostgresException>(async () => await action()); Assert.AreEqual("23505", error.SqlState); Assert.AreEqual("ux_customer_po_config_codes", error.ConstraintName); }
+        try { var error = await Assert.ThrowsAsync<PostgresException>(async () => await action()); Assert.AreEqual("23505", error.SqlState); Assert.AreEqual("ux_customer_po_config_parties", error.ConstraintName); }
         finally { await context.Session.Connection.ExecuteAsync("ROLLBACK TO SAVEPOINT po_collision; RELEASE SAVEPOINT po_collision", transaction: context.Session.Transaction); }
     }
 

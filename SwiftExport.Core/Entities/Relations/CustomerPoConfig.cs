@@ -8,11 +8,11 @@ namespace SwiftExport.Core.Entities.Relations;
 [Table("customer_po_config")]
 public partial class CustomerPoConfig : BaseEntity
 {
-    /// <summary>关联的客户主数据 Uid；旧数据按客户编码回填。</summary>
+    /// <summary>客户主数据身份；未删除配置必须有效，旧编码调用保存时先唯一解析。</summary>
     public Guid? CustomerId { get; set; }
     /// <summary>该实体保存的客户业务编码。</summary>
     public string? CustomerCode { get; set; }
-    /// <summary>关联的供应商主数据 Uid；未指定供应商时允许为空。</summary>
+    /// <summary>供应商主数据身份；未删除配置必须有效，与客户身份共同确定配置唯一性。</summary>
     public Guid? SupplierId { get; set; }
     /// <summary>该实体保存的供应商业务编码。</summary>
     public string? SupplierCode { get; set; }

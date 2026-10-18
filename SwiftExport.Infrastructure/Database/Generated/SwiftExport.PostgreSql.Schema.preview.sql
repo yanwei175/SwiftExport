@@ -239,6 +239,7 @@ CREATE TABLE "public"."customer_po_config" (
     "note" varchar(2000) NULL,
     CONSTRAINT "pk_customer_po_config" PRIMARY KEY ("uid"),
     CONSTRAINT "ck_customer_po_config_default_discount_rate" CHECK ("default_discount_rate" IS NULL OR "default_discount_rate" >= 0),
+    CONSTRAINT "ck_customer_po_config_parties" CHECK ("is_deleted" = TRUE OR ("customer_id" IS NOT NULL AND "customer_id" <> '00000000-0000-0000-0000-000000000000'::uuid AND "supplier_id" IS NOT NULL AND "supplier_id" <> '00000000-0000-0000-0000-000000000000'::uuid)),
     CONSTRAINT "ck_customer_po_config_version" CHECK ("version" >= 1)
 );
 CREATE TABLE "public"."customer_product" (
@@ -1513,7 +1514,7 @@ CREATE UNIQUE INDEX "ux_command_receipt_command_id" ON "public"."command_receipt
 CREATE FUNCTION public."fn_command_receipt_append_only"() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN RAISE EXCEPTION USING ERRCODE = 'P3100', MESSAGE = '只追加事实禁止更新或删除'; RETURN NEW; END; $body$;
 CREATE TRIGGER "tr_command_receipt_append_only" BEFORE UPDATE OR DELETE ON "public"."command_receipt" FOR EACH ROW EXECUTE FUNCTION public."fn_command_receipt_append_only"();
 CREATE UNIQUE INDEX "ux_customer_customer_code" ON "public"."customer" ((rtrim("customer_code", ' ') COLLATE public.erp_dictionary_ci)) WHERE "is_deleted" = FALSE;
-CREATE UNIQUE INDEX "ux_customer_po_config_codes" ON "public"."customer_po_config" ((rtrim("customer_code", ' ') COLLATE public.erp_dictionary_ci), (rtrim("supplier_code", ' ') COLLATE public.erp_dictionary_ci)) NULLS NOT DISTINCT WHERE "is_deleted" = FALSE;
+CREATE UNIQUE INDEX "ux_customer_po_config_parties" ON "public"."customer_po_config" ("customer_id", "supplier_id") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_customer_product_sku_id" ON "public"."customer_product" ("sku_id") WHERE "is_deleted" = FALSE AND "sku_id" IS NOT NULL;
 CREATE UNIQUE INDEX "ux_customer_product_customer_customer_sku" ON "public"."customer_product" ("customer_id", "customer_sku") WHERE "is_deleted" = FALSE;
 CREATE INDEX "ix_demand_execution_link_net_demand_remaining" ON "public"."demand_execution_link" ("net_demand_id", "released_qty", "allocated_qty");
@@ -1801,9 +1802,9 @@ COMMENT ON COLUMN "public"."customer_po_config"."created_date" IS '记录创建�
 COMMENT ON COLUMN "public"."customer_po_config"."created_by" IS '记录创建人标识。';
 COMMENT ON COLUMN "public"."customer_po_config"."updated_date" IS '记录最后更新时间。';
 COMMENT ON COLUMN "public"."customer_po_config"."updated_by" IS '记录最后更新人标识。';
-COMMENT ON COLUMN "public"."customer_po_config"."customer_id" IS '关联的客户主数据 Uid；旧数据按客户编码回填。';
+COMMENT ON COLUMN "public"."customer_po_config"."customer_id" IS '客户主数据身份；未删除配置必须有效，旧编码调用保存时先唯一解析。';
 COMMENT ON COLUMN "public"."customer_po_config"."customer_code" IS '该实体保存的客户业务编码。';
-COMMENT ON COLUMN "public"."customer_po_config"."supplier_id" IS '关联的供应商主数据 Uid；未指定供应商时允许为空。';
+COMMENT ON COLUMN "public"."customer_po_config"."supplier_id" IS '供应商主数据身份；未删除配置必须有效，与客户身份共同确定配置唯一性。';
 COMMENT ON COLUMN "public"."customer_po_config"."supplier_code" IS '该实体保存的供应商业务编码。';
 COMMENT ON COLUMN "public"."customer_po_config"."currency" IS '该客户与供应商组合默认使用的币种代码；空值表示未配置。';
 COMMENT ON COLUMN "public"."customer_po_config"."default_discount_rate" IS '默认价格倍率，允许大于 1 表示涨价；空值表示未配置。';
@@ -2294,7 +2295,7 @@ COMMENT ON COLUMN "public"."product"."features_zh" IS '该实体保存的中文�
 COMMENT ON COLUMN "public"."product"."material_type" IS '该实体保存的物料角色类型。';
 COMMENT ON COLUMN "public"."product"."unit" IS '产品当前基础计量单位，保存 Unit 字典项的英文代码；历史交易使用各自的 UnitSnapshot。';
 COMMENT ON COLUMN "public"."product"."supply_type" IS '供应方式（仅表示采购/生产/外协，不再承担“是否有BOM”的语义）。';
-COMMENT ON COLUMN "public"."product"."bom_version" IS 'BOM版本号。 约定：0 表示无BOM，>0 表示存在对应版本BOM。';
+COMMENT ON COLUMN "public"."product"."bom_version" IS '是否需要 BOM 的兼容标记：0 不需要，正数需要，不区分多个业务版本。 正数且编号为空表示待建立或绑定；正数且编号非空表示已有绑定，组成是否为空独立判断。';
 COMMENT ON COLUMN "public"."product"."bom_no" IS '该实体保存的BOM 编号。';
 COMMENT ON COLUMN "public"."product"."note" IS '该实体保存的业务备注。';
 COMMENT ON COLUMN "public"."product"."main_image" IS '该实体保存的产品主图路径。';

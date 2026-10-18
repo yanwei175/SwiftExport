@@ -68,11 +68,10 @@ public sealed class PostgreSqlOperationalCodeIndexTests
         }
     }
 
-    /// <summary>核对三个既有编码唯一索引，不改变业务文本列、NULL或仓库活动供应商规则。</summary>
+    /// <summary>核对保留的用户及仓库编码索引；客户采购配置已改为双方身份唯一，另有专项验证。</summary>
     [TestMethod]
     [DataRow("sys_user", "ux_sys_user_user_name", "user_name", null)]
     [DataRow("warehouse_site", "ux_warehouse_site_code", "code", null)]
-    [DataRow("customer_po_config", "ux_customer_po_config_codes", "customer_code", "supplier_code")]
     public void Schema_KeepsColumnAndNullBoundaries(string table, string index, string key, string? second)
     {
         var script = new PostgreSqlSchemaGenerator().Generate(typeof(BaseEntity).Assembly);
@@ -103,12 +102,6 @@ public sealed class PostgreSqlOperationalCodeIndexTests
     [DataRow("warehouse_site", "leading")]
     [DataRow("warehouse_site", "deleted")]
     [DataRow("warehouse_site", "update")]
-    [DataRow("customer_po_config", "case")]
-    [DataRow("customer_po_config", "trailing")]
-    [DataRow("customer_po_config", "accent")]
-    [DataRow("customer_po_config", "leading")]
-    [DataRow("customer_po_config", "deleted")]
-    [DataRow("customer_po_config", "update")]
     public void UniqueIndex_PreservesComparisonAndRollback(string table, string scenario)
     {
         using var connection = Open();
@@ -159,35 +152,28 @@ public sealed class PostgreSqlOperationalCodeIndexTests
             new { Ids = new[] { first, second } }));
     }
 
-    /// <summary>客户 PO 可空组合与 SQL Server 一致，重复 NULL 组合也必须被同一唯一键拒绝。</summary>
+    /// <summary>客户采购配置活动记录必须有非空双方身份，旧编码空组合不能绕过新身份约束。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlOperationalCodeIntegration")]
     [DataRow(true, false)]
     [DataRow(false, true)]
     [DataRow(true, true)]
-    public void PoPair_NullsKeepSourceUniqueness(bool nullCustomer, bool nullSupplier)
+    public void PoPair_NullsRequireValidParties(bool nullCustomer, bool nullSupplier)
     {
         using var connection = Open();
         using var transaction = connection.BeginTransaction();
         var marker = "__pgcode_" + Guid.NewGuid().ToString("N");
-        var customer = nullCustomer ? null : marker;
-        var supplier = nullSupplier ? null : marker;
-        Insert(connection, transaction, "customer_po_config", Guid.NewGuid(), customer, supplier);
-        transaction.Save("probe");
         var error = Assert.ThrowsExactly<PostgresException>(() =>
-            Insert(connection, transaction, "customer_po_config", Guid.NewGuid(), customer, supplier));
-        transaction.Rollback("probe");
-        Assert.AreEqual(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.AreEqual("ux_customer_po_config_codes", error.ConstraintName);
+            Insert(connection, transaction, "customer_po_config", Guid.NewGuid(), nullCustomer ? null : marker, nullSupplier ? null : marker));
+        Assert.AreEqual(PostgresErrorCodes.CheckViolation, error.SqlState);
+        Assert.AreEqual("ck_customer_po_config_parties", error.ConstraintName);
         transaction.Rollback();
     }
-
     /// <summary>双连接按大小写与尾空格等价键等待，先提交者胜出；最后只清理本例随机身份。</summary>
     [TestMethod]
     [TestCategory("PostgreSqlOperationalCodeIntegration")]
     [DataRow("sys_user")]
     [DataRow("warehouse_site")]
-    [DataRow("customer_po_config")]
     public async Task UniqueIndex_ConcurrentEquivalentCodesHaveOneWinner(string table)
     {
         using var first = Open();
