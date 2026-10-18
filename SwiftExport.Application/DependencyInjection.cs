@@ -194,6 +194,7 @@ public static class DependencyInjection
         services.AddScoped<ISalesOrderQueryService, SalesOrderQueryService>();
         services.AddScoped<ISalesFulfillmentQueryService, SalesFulfillmentQueryService>();
         services.AddScoped<ISalesOrderDraftService, SalesOrderDraftService>();
+        services.AddScoped<SalesOrderDefaultDeliveryDatePolicy>();
         services.AddScoped<ISalesOrderCancellationService, SalesOrderCancellationService>();
         services.AddScoped<ISalesOrderLifecycleService, SalesOrderLifecycleService>();
         services.AddScoped<ISalesOrderConfirmationService, SalesOrderConfirmationService>();

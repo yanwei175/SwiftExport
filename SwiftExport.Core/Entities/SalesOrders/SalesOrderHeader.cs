@@ -68,9 +68,9 @@ public partial class SalesOrderHeader : BaseEntity
     public string? Remark { get; set; }
 
     /// <summary>该实体保存的订单日期。</summary>
-    public DateTime? OrderDate { get; set; } = DateTime.Now;
+    public DateTime? OrderDate { get; set; }
     /// <summary>订单交货日期（客户要求的交货日期）。</summary>
-    public DateTime? DeliveryDate { get; set; } = DateTime.Now.AddDays(45);// 订单交货日期（客户要求的交货日期）
+    public DateTime? DeliveryDate { get; set; }
     /// <summary>销售订单回复日期（销售订单确认时的交货日期）。</summary>
     public DateTime? ReplyDate { get; set; }// 销售订单回复日期（销售订单确认时的交货日期）
 

@@ -38,7 +38,7 @@ using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.SalesOrders.Draft;
 
 /// <summary>保存销售草稿头行及删除未确认草稿，保留行身份、版本和事务顺序。</summary>
-public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, IProductRepository productRepository, ICustomerRepository customerRepository, ICustomerProductRepository customerProductRepository, ISourceDemandReceptionService sourceDemandReceptionService, IDocumentNoService documentNoService, ICurrentUser currentUser, IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderDraftService
+public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, IProductRepository productRepository, ICustomerRepository customerRepository, ICustomerProductRepository customerProductRepository, ISourceDemandReceptionService sourceDemandReceptionService, IDocumentNoService documentNoService, ICurrentUser currentUser, IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor, SalesOrderDefaultDeliveryDatePolicy deliveryDates) : ISalesOrderDraftService
 {
     private const string CreateType = "Orders.SalesOrder.CreateDraft";
     private const string UpdateType = "Orders.SalesOrder.UpdateDraft";
@@ -113,6 +113,8 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
 
             var lineBuild = await BuildLinesAsync(request, header, existingLines, customer);
             ApplyHeaderChanges(header, headerRequest, customer, lineBuild.ActiveLines);
+            // 仅首次执行的新建订单读取实时参数；更新、历史空交期及命令重放不重新计算日期。
+            if (isCreate) await deliveryDates.ApplyForCreateAsync(header, token);
 
             // 第二阶段：先写订单头。更新时将所有既有行号移至正数安全区，释放最终行号的唯一约束。
             if (isCreate)
@@ -149,10 +151,10 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
     }
 
     /// <summary>
-    /// 删除尚未确认且从未生成毛需求的销售订单草稿。
+    /// 删除尚未确认且从未生成成品需求的销售订单草稿。
     /// </summary>
     /// <remarks>
-    /// 这是物理业务删除入口，仅适用于 Open + 待确认且没有来源毛需求的订单；
+    /// 这是物理业务删除入口，仅适用于 Open + 待确认且没有来源成品需求的订单；
     /// 已确认或需要保留历史的订单应使用取消确认、关闭等明确业务命令。
     /// </remarks>
     public Task<ServiceResult<bool>> DeleteDraftAsync(Guid uid, SalesOrderCommandRequest request)
@@ -192,7 +194,7 @@ public sealed class SalesOrderDraftService(ServiceBaseContext context, ISalesOrd
             if (header.Version != request.Version)
                 throw new SalesOrderValidationException("销售订单已被其他用户修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
             if (await sourceDemandReceptionService.HasActiveAsync(DocumentTypeStaticsEnum.SalesOrder, uid))
-                throw new SalesOrderValidationException("销售订单已经生成毛需求，不能作为草稿删除。", ServiceErrorCodes.BusinessBlocked);
+                throw new SalesOrderValidationException("销售订单已经生成成品需求，不能作为草稿删除。", ServiceErrorCodes.BusinessBlocked);
 
             EnsureWriteSucceeded(await headRepository.DeleteDraftAsync(uid, request.Version));
             await lineRepository.DeleteByOrderIdAsync(uid);

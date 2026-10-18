@@ -16,7 +16,7 @@ namespace SwiftExport.Application.Tests.Systems;
 
 /// <summary>验证参数用例的活动账号、管理员、首次配置和版本竞争，不连接业务数据库。</summary>
 [TestClass]
-public sealed class SystemParameterServiceTests
+public sealed partial class SystemParameterServiceTests
 {
     /// <summary>活动普通用户可读未配置定义，非管理员或无效活动投影不能写。</summary>
     [TestMethod]
@@ -27,7 +27,7 @@ public sealed class SystemParameterServiceTests
         var ordinary = Create(repository, session, new UserPermissionProjection());
         var read = await ordinary.ListAsync();
         Assert.IsTrue(read.Success);
-        Assert.AreEqual(2, read.Data.Count);
+        Assert.AreEqual(3, read.Data.Count);
         Assert.AreEqual(0, read.Data[0].Version);
         Assert.IsFalse(read.Data[0].IsConfigured);
         Assert.AreEqual(ServiceErrorCodes.Forbidden, (await ordinary.UpdateAsync(SystemParameterKeys.ProductImagesBaseUrl, Request(0))).Error.Code);

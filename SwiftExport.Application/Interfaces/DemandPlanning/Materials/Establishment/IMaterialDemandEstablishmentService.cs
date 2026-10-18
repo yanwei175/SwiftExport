@@ -3,7 +3,7 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.Application.Interfaces.DemandPlanning.Materials.Establishment;
 
-/// <summary>定义从来源需求整批建立物料需求的权威用例。</summary>
+/// <summary>定义从成品需求整批建立物料需求的权威用例。</summary>
 public interface IMaterialDemandEstablishmentService
 {
 

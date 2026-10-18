@@ -27,19 +27,19 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
     [TestMethod]
     public Task EmptyAndDraftOrConfirmed_MaintainNullVersusZero() => InRollback(async fixture =>
     {
-        Assert.IsNull(await fixture.Repository.GetDetailAsync(Guid.NewGuid()));
+        Assert.IsNull(await fixture.Repository.GetFulfillmentAsync(Guid.NewGuid()));
         await fixture.Add(fixture.Header);
-        var empty = await fixture.Repository.GetDetailAsync(fixture.Header.Uid);
+        var empty = await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid);
         Assert.IsNotNull(empty); Assert.HasCount(0, empty.Lines);
         await fixture.Add(fixture.Line);
-        var draft = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!;
+        var draft = (await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid))!;
         Assert.AreEqual(0m, draft.Lines.Single().ShippedQty); Assert.AreEqual(10m, draft.Lines.Single().UnshippedQty);
         Assert.IsNull(draft.Lines.Single().ReviewReason);
         await fixture.Execute("UPDATE public.sales_order_header SET confirmation_status=1 WHERE uid=@Uid", fixture.Header.Uid);
-        var confirmed = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single();
-        Assert.IsNull(confirmed.ShippedQty); Assert.IsNull(confirmed.UnshippedQty); Assert.AreEqual("来源需求缺失", confirmed.ReviewReason);
+        var confirmed = (await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid))!.Lines.Single();
+        Assert.IsNull(confirmed.ShippedQty); Assert.IsNull(confirmed.UnshippedQty); Assert.AreEqual("成品需求缺失", confirmed.ReviewReason);
         await fixture.Execute("UPDATE public.sales_order_header SET is_deleted=TRUE WHERE uid=@Uid", fixture.Header.Uid);
-        Assert.IsNull(await fixture.Repository.GetDetailAsync(fixture.Header.Uid));
+        Assert.IsNull(await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid));
         Assert.AreEqual(1, await fixture.Session.Connection.ExecuteScalarAsync<int>("SELECT 1", transaction: fixture.Transaction));
     });
 
@@ -58,7 +58,7 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
         gross.DemandBasisFingerprint = variant switch { "null-fingerprint" => null, "lower-fingerprint" => new string('a',64),
             "short-fingerprint" => new string('A',63), "trailing-fingerprint" => new string('A',64)+" ", _ => new string('A',64) };
         await fixture.Seed(gross);
-        var line = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single();
+        var line = (await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid))!.Lines.Single();
         Assert.AreEqual(reason, line.ReviewReason);
         Assert.AreEqual(reason is null ? 0m : (decimal?)null, line.ShippedQty);
         Assert.AreEqual(reason is null ? 10m : (decimal?)null, line.UnshippedQty);
@@ -69,9 +69,9 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
     [DataRow("pending-with-source", "待确认仍有关联来源")]
     [DataRow("open-voided", "来源状态不一致")]
     [DataRow("closed-voided", null)] [DataRow("active-and-voided", null)]
-    [DataRow("duplicate-voided", "来源需求重复")]
-    [DataRow("closed-gross-excluded", "来源需求缺失")]
-    [DataRow("deleted-gross", "来源需求缺失")]
+    [DataRow("duplicate-voided", "成品需求重复")]
+    [DataRow("closed-gross-excluded", "成品需求缺失")]
+    [DataRow("deleted-gross", "成品需求缺失")]
     [DataRow("customer", "来源身份或单位不一致")]
     [DataRow("unit", "来源身份或单位不一致")]
     [DataRow("quantity", "来源身份或单位不一致")]
@@ -93,7 +93,7 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
         await fixture.Seed(gross);
         if (variant is "active-and-voided" or "duplicate-voided")
         { var other = fixture.Gross(); other.LifecycleStatus = GrossDemandLifecycleStatusEnum.Voided; await fixture.Add(other); }
-        var line = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single();
+        var line = (await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid))!.Lines.Single();
         Assert.AreEqual(reason, line.ReviewReason); Assert.AreEqual(reason is null ? 0m : (decimal?)null, line.ShippedQty);
         Assert.AreEqual(reason is null ? 10m : (decimal?)null, line.UnshippedQty);
     });
@@ -110,7 +110,7 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
         if (variant == "reversed") { head.PostingStatus = PackingListPostingStatusEnum.Reversed; head.ReversedDate = fixture.Today; }
         if (variant == "over") line.Qty = 12;
         await fixture.Add(head); await fixture.Add(line);
-        var actual = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single();
+        var actual = (await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid))!.Lines.Single();
         Assert.AreEqual((decimal)shipped, actual.ShippedQty); Assert.AreEqual((decimal)remaining, actual.UnshippedQty);
         Assert.AreEqual(reason, actual.ReviewReason);
     });
@@ -138,7 +138,7 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
         if (variant == "source-line") packing.SourceLineNumberSnapshot = null;
         if (variant != "orphan") await fixture.Add(head);
         await fixture.Add(packing);
-        var line = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single();
+        var line = (await fixture.Repository.GetFulfillmentAsync(fixture.Header.Uid))!.Lines.Single();
         Assert.AreEqual("装箱过账历史异常", line.ReviewReason); Assert.IsNull(line.ShippedQty); Assert.IsNull(line.UnshippedQty);
     });
 
@@ -159,7 +159,7 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
         var line = response.Lines.Single(); Assert.AreEqual(12.5m,line.CnyAmount); Assert.AreEqual(99m,line.UsdAmount);
         Assert.AreEqual("原图",line.MainImage); Assert.AreEqual(fixture.Line.Uid,line.Uid); Assert.AreEqual(1,line.Version);
         await fixture.Execute("UPDATE public.sales_order_line SET qty=8 WHERE uid=@Uid",fixture.Line.Uid);
-        Assert.AreEqual(8m,(await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single().UnshippedQty);
+        Assert.AreEqual(8m,(await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!.Lines.Single().Qty);
         Assert.AreSame(fixture.Transaction,fixture.Session.Transaction);
     });
 

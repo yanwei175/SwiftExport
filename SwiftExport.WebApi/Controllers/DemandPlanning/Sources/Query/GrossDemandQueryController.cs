@@ -7,12 +7,12 @@ using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Query;
 
-/// <summary>将来源需求工作台的列表、分组和详情查询转发给只读服务。</summary>
+/// <summary>将成品需求工作台的列表、分组和详情查询转发给只读服务。</summary>
 [ApiController]
 [Route("api/demand-planning/gross-demands")]
 public sealed class GrossDemandQueryController(IGrossDemandQueryService queryService) : ControllerBase
 {
-    /// <summary>按工作台条件查询来源需求，保留原分页和绑定契约。</summary>
+    /// <summary>按工作台条件查询成品需求，保留原分页和绑定契约。</summary>
     [HttpPost("search")]
     public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(
         [FromBody] GrossDemandSearchRequest request, CancellationToken cancellationToken)
@@ -24,12 +24,12 @@ public sealed class GrossDemandQueryController(IGrossDemandQueryService querySer
         [FromBody] GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken)
         => queryService.SearchSourceGroupsAsync(request, cancellationToken);
 
-    /// <summary>按身份查询来源需求详情。</summary>
+    /// <summary>按身份查询成品需求详情。</summary>
     [HttpGet("{uid:guid}")]
     public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
         => queryService.GetDetailAsync(uid, cancellationToken);
 
-    /// <summary>按来源需求身份读取只读链路证据。</summary>
+    /// <summary>按成品需求身份读取只读链路证据。</summary>
     [HttpGet("{uid:guid}/trace")]
     public Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
         => queryService.GetTraceAsync(uid, cancellationToken);

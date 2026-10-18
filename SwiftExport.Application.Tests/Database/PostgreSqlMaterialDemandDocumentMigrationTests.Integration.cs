@@ -258,7 +258,7 @@ public sealed class PostgreSqlMaterialDemandDocumentMigrationIntegrationTests
         Assert.AreEqual(NetDemandLifecycleStatusEnum.RolledBack,(await observer.Read(row.Uid))!.LifecycleStatus);
     }
 
-    /// <summary>合法随机毛需求只用于本例逻辑引用，不创建产品、客户或单据历史。</summary>
+    /// <summary>合法随机成品需求只用于本例逻辑引用，不创建产品、客户或单据历史。</summary>
     private static GrossDemand Gross()=>new(){Uid=Guid.NewGuid(),Version=3,SourceType="SO",SourceUid=Guid.NewGuid(),SourceNo="PGND"+Guid.NewGuid().ToString("N"),SourceVersion=1,SourceLineNumber=1,DemandBasisFingerprint="ND-basis",IsNonStandard=true,SkuSnapshot="PGND"+Guid.NewGuid().ToString("N"),DemandQty=10,UnitSnapshot="PCS",CreatedDate=Wall,UpdatedDate=Wall,CreatedBy="原创建",UpdatedBy="原更新"};
     /// <summary>完整快照包含NULL、空串、原文本和可选逻辑引用；不依赖其他业务表的真实数据。</summary>
     private static NetDemand Net(Guid gross,int revision=1,int line=1)

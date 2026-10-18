@@ -46,7 +46,7 @@ public sealed partial class AfterSalesHeader : BaseEntity
     /// <summary>客户侧投诉单号，可空；开放单据确认后仍可补充，不影响实物要求。</summary>
     [Column(TypeName = "varchar(100)")]
     public string? CustomerComplaintNo { get; set; }
-    /// <summary>本机投诉资料文件夹路径，仅保存文本，不参与来源需求或文件系统操作。</summary>
+    /// <summary>本机投诉资料文件夹路径，仅保存文本，不参与成品需求或文件系统操作。</summary>
     [Column(TypeName = "varchar(1000)")]
     public string? LocalFileFolder { get; set; }
     /// <summary>责任供应商。</summary>

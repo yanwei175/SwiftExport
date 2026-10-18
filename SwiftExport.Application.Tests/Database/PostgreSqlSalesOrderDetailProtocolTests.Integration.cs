@@ -10,10 +10,10 @@ using SwiftExport.Infrastructure.Data;
 
 namespace SwiftExport.Application.Tests.Database;
 
-/// <summary>通过真实驱动命令边界验证冻结关系及调用方事务；包装器只放在测试，不注入生产钩子。</summary>
+/// <summary>通过真实驱动命令边界验证订单头行读取及调用方事务；包装器只放在测试，不注入生产钩子。</summary>
 public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
 {
-    /// <summary>每一阶段真实执行前改动本例事实，验证候选/交付冻结和商业头行重新观察，SQL仍在真实PG执行。</summary>
+    /// <summary>在头、行两次读取前改动事实，验证商业快照观察当前值，下游变动不参与明细投影。</summary>
     [TestMethod]
     public async Task StagedReads_PreserveFrozenEvidenceAndObserveCurrentCommercialRows()
     {
@@ -27,26 +27,26 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
             await fixture.Seed(gross); await fixture.Add(head); await fixture.Add(packing);
             connection.Observe(async stage =>
             {
-                if (stage == 2)
+                if (stage == 1)
                     await connection.Native.ExecuteAsync("UPDATE public.sales_order_header SET order_no=@OrderNo,version=2,confirmation_status=0 WHERE uid=@Uid",
                         new { Uid=fixture.Header.Uid,OrderNo="阶段后单号" },transaction:transaction);
-                if (stage == 3)
+                if (stage == 2)
                     await connection.Native.ExecuteAsync("UPDATE public.packing_list_line SET qty=8 WHERE uid=@Uid",new { Uid=packing.Uid },transaction:transaction);
-                if (stage == 4)
+                if (stage == 2)
                     await connection.Native.ExecuteAsync("UPDATE public.sales_order_line SET qty=8,sku='阶段后SKU' WHERE uid=@Uid",new { Uid=fixture.Line.Uid },transaction:transaction);
             });
             var result = (await fixture.Repository.GetDetailAsync(fixture.Header.Uid))!;
-            Assert.AreEqual(4,connection.Executions); Assert.AreEqual("阶段后单号",result.Header.OrderNo);
+            Assert.AreEqual(2,connection.Executions); Assert.AreEqual("阶段后单号",result.Header.OrderNo);
             Assert.AreEqual(2,result.Header.Version); Assert.AreEqual(ConfirmationStatusEnum.待确认,result.Header.ConfirmationStatus);
             var line = result.Lines.Single(); Assert.AreEqual("阶段后SKU",line.Sku); Assert.AreEqual(8m,line.Qty);
-            Assert.AreEqual(4m,line.ShippedQty); Assert.AreEqual(6m,line.UnshippedQty); Assert.IsNull(line.ReviewReason);
+            Assert.AreEqual(8m,line.Qty); Assert.AreEqual("阶段后SKU",line.Sku);
             Assert.AreSame(transaction,session.Transaction); Assert.AreEqual(1,connection.Begins);
             Assert.AreEqual(8m,await connection.Native.ExecuteScalarAsync<decimal>("SELECT qty FROM public.packing_list_line WHERE uid=@Uid",new { Uid=packing.Uid },transaction:transaction));
         }
         finally { transaction.Rollback(); session.Transaction=null; }
     }
 
-    /// <summary>事实后删除头，第三阶段为空但第四阶段仍完整执行；返回null不使调用方事务失效。</summary>
+    /// <summary>头读取前删除头，仍完成第二次行读取；返回null不使调用方事务失效。</summary>
     [TestMethod]
     public async Task HeaderBecomesDeleted_AfterFactsStillBuffersLinesAndKeepsOuterTransaction()
     {
@@ -59,10 +59,10 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
             await fixture.Add(fixture.Header); await fixture.Add(fixture.Line);
             connection.Observe(async stage =>
             {
-                if (stage==3) await connection.Native.ExecuteAsync("UPDATE public.sales_order_header SET is_deleted=TRUE WHERE uid=@Uid",new { Uid=fixture.Header.Uid },transaction:transaction);
+                if (stage==1) await connection.Native.ExecuteAsync("UPDATE public.sales_order_header SET is_deleted=TRUE WHERE uid=@Uid",new { Uid=fixture.Header.Uid },transaction:transaction);
             });
             Assert.IsNull(await fixture.Repository.GetDetailAsync(fixture.Header.Uid));
-            Assert.AreEqual(4,connection.Executions); Assert.AreSame(transaction,session.Transaction);
+            Assert.AreEqual(2,connection.Executions); Assert.AreSame(transaction,session.Transaction);
             Assert.AreEqual(1,await connection.Native.ExecuteScalarAsync<int>("SELECT 1",transaction:transaction));
             Assert.AreEqual(0L,await connection.Native.ExecuteScalarAsync<long>("SELECT count(*) FROM pg_class WHERE relnamespace=pg_my_temp_schema() AND relkind IN ('r','p')",transaction:transaction));
         }
@@ -71,7 +71,7 @@ public sealed partial class PostgreSqlSalesOrderDetailMigrationIntegrationTests
 
     /// <summary>后续阶段命令开始前取消，Driver必须返回取消而不清理调用方事务；该命令未在服务器执行。</summary>
     [TestMethod]
-    [DataRow(2)] [DataRow(3)] [DataRow(4)]
+    [DataRow(2)]
     public async Task CancellationBeforeLaterStage_ReturnsCancellationWithUsableOuterTransaction(int stage)
     {
         using var connection=new ObservedConnection(PostgreSqlIntegrationEnvironment.GetFailureConnectionString());

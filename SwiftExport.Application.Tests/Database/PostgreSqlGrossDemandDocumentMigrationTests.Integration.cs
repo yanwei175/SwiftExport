@@ -156,7 +156,7 @@ public sealed class PostgreSqlGrossDemandDocumentMigrationIntegrationTests
         }
         var beforeInput = Clone(changed); var beforeTime = DateTime.Now;
         var result = manual ? await f.Repository.UpdateManualAsync(changed, 4) : await f.Repository.UpdateSourceDemandAsync(changed, 4);
-        AssertWrite(result, original.Uid, 4, 5, manual ? "手工毛需求更新成功。" : "来源需求已更新。");
+        AssertWrite(result, original.Uid, 4, 5, manual ? "手工成品需求更新成功。" : "成品需求已更新。");
         AssertEntity(beforeInput, changed);
         var stored = (await f.Read(original.Uid))!; var expected = Clone(original);
         foreach (var name in manual ? ManualFields : SourceFields) CopyProperty(changed, expected, name);
@@ -197,7 +197,7 @@ public sealed class PostgreSqlGrossDemandDocumentMigrationIntegrationTests
             "manual" => await f.Repository.UpdateManualAsync(changed, version),
             _ => await f.Repository.CloseManualAsync(row.Uid, version, "不应关闭")
         };
-        AssertConflict(result, row.Uid, version, operation == "source" ? "来源需求状态或版本已变化。" : "手工毛需求状态或版本已变化，请刷新后重试。");
+        AssertConflict(result, row.Uid, version, operation == "source" ? "成品需求状态或版本已变化。" : "手工成品需求状态或版本已变化，请刷新后重试。");
         if (boundary == "missing") Assert.IsNull(await f.Read(row.Uid)); else AssertEntity(row, (await f.Read(row.Uid))!);
         Assert.IsNotNull(f.Session.Transaction);
     }
@@ -209,7 +209,7 @@ public sealed class PostgreSqlGrossDemandDocumentMigrationIntegrationTests
     {
         await using var f = new Fixture(); var row = Demand(type: "mD "); await f.PrepareBegin([row.SourceUid], [row.Uid]); await f.Insert(row);
         var result = await f.Repository.CloseManualAsync(row.Uid, 1, reason!);
-        AssertWrite(result, row.Uid, 1, 2, "手工毛需求已关闭。");
+        AssertWrite(result, row.Uid, 1, 2, "手工成品需求已关闭。");
         var stored = (await f.Read(row.Uid))!; AssertLifecycle(row, stored, GrossDemandLifecycleStatusEnum.Closed, reason);
     }
 
@@ -427,7 +427,7 @@ public sealed class PostgreSqlGrossDemandDocumentMigrationIntegrationTests
         var row = Demand(); await seed.InsertCommitted(row); var command = Guid.NewGuid(); using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         observer.Begin(IsolationLevel.RepeatableRead); Assert.AreEqual(1, (await observer.Read(row.Uid))!.Version);
         await holder.PrepareBegin([row.SourceUid], []); var changed = Clone(row); changed.Remark = "提交后的来源";
-        AssertWrite(await holder.Repository.UpdateSourceDemandAsync(changed, 1), row.Uid, 1, 2, "来源需求已更新。");
+        AssertWrite(await holder.Repository.UpdateSourceDemandAsync(changed, 1), row.Uid, 1, 2, "成品需求已更新。");
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously); var calls = 0; int? observed = null;
         Task<CommandExecutionResult<int>>? pending = null;
         try
@@ -639,9 +639,9 @@ public sealed class PostgreSqlGrossDemandDocumentMigrationIntegrationTests
             case "get-id": Assert.IsNotNull(await f.Repository.GetByIdForUpdateAsync(row.Uid)); break;
             case "get-source": Assert.HasCount(1, await f.Repository.GetActiveBySourceForUpdateAsync(row.SourceType, row.SourceUid)); break;
             case "add": AssertWrite((await f.Repository.AddSourceDemandsAsync([row])).Single(), row.Uid, null, row.Version, "新增成功。"); break;
-            case "source": AssertWrite(await f.Repository.UpdateSourceDemandAsync(row, row.Version), row.Uid, row.Version, row.Version + 1, "来源需求已更新。"); break;
-            case "manual": AssertWrite(await f.Repository.UpdateManualAsync(row, row.Version), row.Uid, row.Version, row.Version + 1, "手工毛需求更新成功。"); break;
-            case "close": AssertWrite(await f.Repository.CloseManualAsync(row.Uid, row.Version, "原原因"), row.Uid, row.Version, row.Version + 1, "手工毛需求已关闭。"); break;
+            case "source": AssertWrite(await f.Repository.UpdateSourceDemandAsync(row, row.Version), row.Uid, row.Version, row.Version + 1, "成品需求已更新。"); break;
+            case "manual": AssertWrite(await f.Repository.UpdateManualAsync(row, row.Version), row.Uid, row.Version, row.Version + 1, "手工成品需求更新成功。"); break;
+            case "close": AssertWrite(await f.Repository.CloseManualAsync(row.Uid, row.Version, "原原因"), row.Uid, row.Version, row.Version + 1, "手工成品需求已关闭。"); break;
             case "delete": Assert.AreEqual(1, await f.Repository.HardDeleteForSourceCancellationAsync([row.Uid])); break;
             case "void-ids": Assert.AreEqual(1, await f.Repository.VoidRolledBackForSourceCancellationAsync([row.Uid], "原原因")); break;
             case "void-source": Assert.AreEqual(1, await f.Repository.VoidPendingBySourceAsync(row.SourceType, row.SourceUid, "原原因")); break;

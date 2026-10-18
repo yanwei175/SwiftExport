@@ -8,7 +8,7 @@ using SwiftExport.Core.Entities.MasterData;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Materials.Establishment;
 
-/// <summary>无数据库副作用的毛需求拆解计算器。</summary>
+/// <summary>无数据库副作用的成品需求拆解计算器。</summary>
 public sealed class GrossDemandDecompositionPlanner
 {
     /// <summary>依据来源快照、真实根产品及其共享编号组成生成计划；仅展开直接客供件，不改写物理来源或历史事实。</summary>
@@ -24,16 +24,16 @@ public sealed class GrossDemandDecompositionPlanner
         ArgumentNullException.ThrowIfNull(products);
 
         if (grossDemand.DemandQty <= 0)
-            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidQuantity, "毛需求数量必须大于零。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidQuantity, "成品需求数量必须大于零。");
         if (nextRevision <= 0)
             return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidRevision, "拆解版本必须大于零。");
 
         if (grossDemand.IsNonStandard)
             return BuildNonStandardPlan(grossDemand, nextRevision);
         if (!grossDemand.ProductId.HasValue || rootProduct is null || rootProduct.Uid != grossDemand.ProductId.Value)
-            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.ProductNotFound, "毛需求关联的产品不存在或已删除。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.ProductNotFound, "成品需求关联的产品不存在或已删除。");
         if (CustomerSuppliedMaterialPolicy.IsCustomerSupplied(rootProduct))
-            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.CustomerSuppliedRootNotAllowed, "客供件不能作为标准毛需求根产品。");
+            return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.CustomerSuppliedRootNotAllowed, "客供件不能作为标准成品需求根产品。");
         if ((rootProduct.BomVersion > 0) != !string.IsNullOrWhiteSpace(rootProduct.BomNo))
             return GrossDemandDecompositionPlan.Fail(DemandPlanningErrorCodes.InvalidProductBom, $"产品 {rootProduct.Sku} 的 BOM 编号和有效标记不一致。");
         if (rootProduct.BomVersion > 0 && bomLines.Count == 0)

@@ -219,7 +219,7 @@ public sealed class AfterSalesMaintenanceService(ServiceBaseContext context, IAf
     private async Task NormalizeHeaderAsync(AfterSalesHeader head,AfterSalesHeader? old,bool confirmed)
     {
         head.CustomerComplaintNo=string.IsNullOrWhiteSpace(head.CustomerComplaintNo)?null:head.CustomerComplaintNo.Trim();
-        // 资料路径只做文本规范化，不校验目录存在性，也不参与来源需求交接。
+        // 资料路径只做文本规范化，不校验目录存在性，也不参与成品需求交接。
         head.LocalFileFolder=string.IsNullOrWhiteSpace(head.LocalFileFolder)?null:head.LocalFileFolder.Trim();
         head.ReturnedReceivedDate=head.ReturnedReceivedDate?.Date;
         if(!confirmed)

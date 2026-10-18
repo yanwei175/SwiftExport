@@ -45,7 +45,7 @@ namespace SwiftExport.Application.Tests.QualityControl;
 [TestClass]
 public sealed class AfterSalesServiceTests
 {
-    /// <summary>非标补件无单位可以保存草稿，但确认必须拒绝；明确单位后原样交给来源需求。</summary>
+    /// <summary>非标补件无单位可以保存草稿，但确认必须拒绝；明确单位后原样交给成品需求。</summary>
     [TestMethod]
     public async Task NonStandardRequiresExplicitUnitForConfirmation()
     {
@@ -76,7 +76,7 @@ public sealed class AfterSalesServiceTests
         Assert.AreEqual(string.Empty, f.Rows.Single().UnitSnapshot);
     }
 
-    /// <summary>标准售后实际确认入口把已保存单位交给来源需求，不接受客户端伪造单位。</summary>
+    /// <summary>标准售后实际确认入口把已保存单位交给成品需求，不接受客户端伪造单位。</summary>
     [TestMethod]
     public async Task StandardConfirmationPassesSavedUnitToSource()
     {
@@ -146,7 +146,7 @@ public sealed class AfterSalesServiceTests
         Assert.IsTrue((await f.Service.VoidAsync(create.Uid, voidCommand)).Data.AlreadyApplied);
     }
 
-    /// <summary>资料路径可确认后补充，限制长度、保留审计，且不传递或重发来源需求。</summary>
+    /// <summary>资料路径可确认后补充，限制长度、保留审计，且不传递或重发成品需求。</summary>
     [TestMethod]
     public async Task LocalFolderIsSupplementOnlyAndLimitedTo1000()
     {

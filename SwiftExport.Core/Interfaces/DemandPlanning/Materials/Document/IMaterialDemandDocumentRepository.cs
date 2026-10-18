@@ -16,7 +16,7 @@ public interface IMaterialDemandDocumentRepository
     Task<IReadOnlyList<NetDemand>> GetActiveByGrossDemandForUpdateAsync(Guid grossDemandId);
     /// <summary>锁定来源对应的物料历史并取得下一修订号。</summary>
     Task<int> GetNextDecompositionRevisionForUpdateAsync(Guid grossDemandId);
-    /// <summary>批量锁定并评估来源需求的物料历史，不跨域扫描执行、采购、入库或交付表。</summary>
+    /// <summary>批量锁定并评估成品需求的物料历史，不跨域扫描执行、采购、入库或交付表。</summary>
     Task<IReadOnlyList<MaterialDemandSourceExitAssessment>> AssessSourceExitForUpdateAsync(
         IEnumerable<Guid> grossDemandIds);
     /// <summary>批量写入同次拆解事实并返回各行写入结果。</summary>

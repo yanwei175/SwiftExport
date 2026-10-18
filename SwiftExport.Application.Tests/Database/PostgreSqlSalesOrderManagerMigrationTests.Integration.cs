@@ -31,9 +31,8 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
 {
     /// <summary>九种QuickView与未知值在八种业务事实中按源定义取交集；混合单位不自动进入核实视图。</summary>
     [TestMethod]
-    [DataRow(0,8)] [DataRow(1,3)] [DataRow(2,4)] [DataRow(3,1)] [DataRow(4,1)]
-    [DataRow(5,1)] [DataRow(6,1)] [DataRow(7,1)] [DataRow(8,2)] [DataRow(99,0)]
-    public Task QuickViews_KeepAllSourcePredicates(int quick,int count) => InRollback(async f =>
+    [DataRow(0,3)] [DataRow(1,5)]
+    public Task ConfirmationFilters_OnlyUseOrderState(int quick,int count) => InRollback(async f =>
     {
         var customer=f.Header.CustomerId;
         foreach(var mode in new[]{"draft","none","partial","full","missing","closed","empty","mixed"})
@@ -53,9 +52,8 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
             if(mode is "partial" or "full")
             {var head=x.PackingHead();var line=x.PackingLine(head,gross);line.Qty=mode=="full"?10:4;await x.Add(head);await x.Add(line);}
         }
-        var result=await f.Repository.SearchManagerAsync(new(){CustomerId=customer,QuickView=(SalesOrderManagerQuickView)quick,PageSize=200},f.Today.AddHours(19));
+        var result=await f.Repository.SearchManagerAsync(new(){CustomerId=customer,ConfirmationStatuses=[(ConfirmationStatusEnum)quick],PageSize=200});
         Assert.AreEqual(count,result.TotalCount);Assert.HasCount(count,result.Items);
-        if(quick==8)CollectionAssert.AreEquivalent(new[]{"来源需求缺失","无有效销售行"},result.Items.Select(x=>x.ReviewReason).ToArray());
     });
 
     /// <summary>数量门槛与核实门槛分别生效；超发保留12/0，多单位、缺单位或未知不能汇总。</summary>
@@ -70,13 +68,10 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
             LineNumber=2,IsNonStandard=true,Sku="SKU2",Qty=2,UnitSnapshot="KG"});
         if(mode=="over")
         {var gross=f.Gross();await f.Add(gross);var head=f.PackingHead();var line=f.PackingLine(head,gross);line.Qty=12;await f.Add(head);await f.Add(line);}
-        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},f.Today)).Items.Single();
-        if(mode is "draft" or "over")
-        {Assert.AreEqual(10m,item.TotalQty);Assert.AreEqual(mode=="over"?12m:0m,item.TotalShippedQty);Assert.AreEqual(mode=="over"?0m:10m,item.TotalUnshippedQty);}
-        else {Assert.IsNull(item.TotalQty);Assert.IsNull(item.TotalShippedQty);Assert.IsNull(item.TotalUnshippedQty);Assert.IsNull(item.UnitSnapshot);}
-        Assert.AreEqual(mode is "over" or "unknown" or "empty",item.NeedsReview);
-        if(mode=="over"){Assert.AreEqual("超发需核实",item.ReviewReason);Assert.IsNull(item.FulfillmentStatus);}
-        if(mode=="empty"){Assert.AreEqual("无有效销售行",item.ReviewReason);Assert.IsFalse(item.HasUndatedOpenLine);}
+        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId})).Items.Single();
+        if(mode is "mixed" or "missing-unit") {Assert.IsNull(item.TotalQty);Assert.IsNull(item.UnitSnapshot);}
+        else Assert.AreEqual(mode=="empty"?0m:10m,item.TotalQty);
+        Assert.AreEqual(mode=="mixed",item.HasMixedUnits);Assert.AreEqual(mode=="missing-unit",item.HasMissingUnit);
         Assert.AreEqual(0m,item.ExchangeRate);Assert.AreEqual(string.Empty,item.Currency);Assert.AreEqual(0m,item.TotalAmountLocalCurrency);
     });
 
@@ -89,10 +84,10 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         {var x=new Fixture(f.Session,f.Transaction);x.Header.CustomerId=f.Header.CustomerId;x.Header.CreatedDate=f.Today;ids.Add(x.Header.Uid);await x.Add(x.Header);}
         var expected=ids.OrderByDescending(x=>new SqlGuid(x)).ToArray();
         for(var page=1;page<=3;page++)
-        {var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,PageIndex=page,PageSize=1},f.Today);Assert.AreEqual(3,result.TotalCount);Assert.AreEqual(expected[page-1],result.Items.Single().Uid);}
-        var beyond=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,PageIndex=99,PageSize=1},f.Today);
+        {var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,PageIndex=page,PageSize=1});Assert.AreEqual(3,result.TotalCount);Assert.AreEqual(expected[page-1],result.Items.Single().Uid);}
+        var beyond=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,PageIndex=99,PageSize=1});
         Assert.AreEqual(3,beyond.TotalCount);Assert.HasCount(0,beyond.Items);
-        var empty=await f.Repository.SearchManagerAsync(new(){CustomerId=Guid.NewGuid()},f.Today);Assert.AreEqual(0,empty.TotalCount);Assert.HasCount(0,empty.Items);
+        var empty=await f.Repository.SearchManagerAsync(new(){CustomerId=Guid.NewGuid()});Assert.AreEqual(0,empty.TotalCount);Assert.HasCount(0,empty.Items);
     });
 
     /// <summary>通用搜索覆盖头、当前客户与有效行字段，删除行和删除客户不能贡献搜索匹配。</summary>
@@ -114,7 +109,7 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         if(mode=="link-sku")f.Line.LinkSku=keyword;
         if(mode=="description")f.Line.DescriptionEn=keyword;
         f.Line.IsDeleted=mode=="deleted-line";await f.Add(f.Header);await f.Add(f.Line);
-        var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,Keyword=keyword.ToLowerInvariant()},f.Today);
+        var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,Keyword=keyword.ToLowerInvariant()});
         Assert.AreEqual(mode is "deleted-line" or "deleted-customer"?0:1,result.TotalCount);
     });
 
@@ -127,9 +122,8 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         {await f.Add(new SalesOrderLine{Uid=Guid.NewGuid(),SalesOrderId=f.Header.Uid,OrderNo=f.Header.OrderNo,LineNumber=number,
             IsNonStandard=true,Sku="SKU",Qty=10,UnitSnapshot="PCS",ExpectedDeliveryDate=f.Today});}
         var gross=f.Gross();gross.SourceVersion=0;await f.Add(gross);
-        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},f.Today)).Items.Single();
-        var expected=await f.Session.Connection.ExecuteScalarAsync<string>("SELECT string_agg(reason,'、' ORDER BY reason COLLATE public.erp_dictionary_ci) FROM (VALUES ('旧来源证据缺失'),('来源需求缺失')) reasons(reason)",transaction:f.Transaction);
-        Assert.AreEqual(expected,item.ReviewReason);Assert.IsTrue(item.NeedsReview);Assert.IsNull(item.TotalQty);Assert.IsNull(item.TotalShippedQty);
+        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId})).Items.Single();
+        Assert.AreEqual(30m,item.TotalQty);Assert.IsFalse(item.HasMixedUnits);Assert.IsFalse(item.HasMissingUnit);
     });
 
     /// <summary>单位大小写和尾ASCII空格按源字典相等；零订单量在源与PG均非法，只验证约束拒绝，不伪称查询通过。</summary>
@@ -148,9 +142,9 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         await f.Add(f.Line);
         await f.Add(new SalesOrderLine{Uid=Guid.NewGuid(),SalesOrderId=f.Header.Uid,OrderNo=f.Header.OrderNo,LineNumber=2,
             IsNonStandard=true,Sku="SKU2",Qty=2,UnitSnapshot="pcs ",ExpectedDeliveryDate=null});
-        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},f.Today)).Items.Single();
-        Assert.AreEqual(12m,item.TotalQty);Assert.AreEqual(0m,item.TotalShippedQty);Assert.AreEqual(12m,item.TotalUnshippedQty);
-        Assert.IsFalse(item.NeedsReview);Assert.IsTrue(item.HasUndatedOpenLine);Assert.IsNull(item.EarliestOpenDueDate);
+        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId})).Items.Single();
+        Assert.AreEqual(12m,item.TotalQty);
+        Assert.IsFalse(item.HasMixedUnits);Assert.IsFalse(item.HasMissingUnit);
     });
 
     /// <summary>合法正订单量全部交付后未交为零，即使无交期也不是未定开放行；不是以非法零Qty替代业务事实。</summary>
@@ -163,9 +157,9 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         var gross=f.Gross();gross.RequiredDate=null;await f.Add(gross);
         var packing=f.PackingHead();var packed=f.PackingLine(packing,gross);packed.Qty=f.Line.Qty;
         await f.Add(packing);await f.Add(packed);
-        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},f.Today)).Items.Single();
-        Assert.AreEqual(10m,item.TotalQty);Assert.AreEqual(10m,item.TotalShippedQty);Assert.AreEqual(0m,item.TotalUnshippedQty);
-        Assert.IsFalse(item.NeedsReview);Assert.IsFalse(item.HasUndatedOpenLine);Assert.IsNull(item.EarliestOpenDueDate);
+        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId})).Items.Single();
+        Assert.AreEqual(10m,item.TotalQty);
+        Assert.IsFalse(item.HasMixedUnits);Assert.IsFalse(item.HasMissingUnit);
     });
 
     /// <summary>最终客户名取当前值，NULL客户身份回落Guid.Empty且不改变冻结草稿数量。</summary>
@@ -178,7 +172,7 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         else await f.Add(new Customer{Uid=customer,CustomerCode=Guid.NewGuid().ToString("N"),DocRelateNo=Guid.NewGuid().ToString("N"),CustomerName="候选客户"});
         await f.Add(f.Header);await f.Add(f.Line);var hook=(HookConnection)f.Session.Connection;var stage=0;
         hook.Before=async (_,_)=>{if(stage++!=3||emptyIdentity)return;hook.Before=null;await f.Execute("UPDATE public.customer SET customer_name='当前客户' WHERE uid=@Uid",customer);};
-        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=emptyIdentity?Guid.Empty:customer,OrderNo=f.Header.OrderNo},f.Today)).Items.Single();hook.Before=null;
+        var item=(await f.Repository.SearchManagerAsync(new(){CustomerId=emptyIdentity?Guid.Empty:customer,OrderNo=f.Header.OrderNo})).Items.Single();hook.Before=null;
         Assert.AreEqual(emptyIdentity?Guid.Empty:customer,item.CustomerId);Assert.AreEqual(emptyIdentity?string.Empty:"当前客户",item.CustomerName);Assert.AreEqual(10m,item.TotalQty);
     });
 
@@ -192,7 +186,7 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         f.Header.CustomerPoNo=text;f.Header.CustomerCode="CODE";f.Line.CustomerSku="CSKU";await f.Add(f.Header);await f.Add(f.Line);
         var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,CustomerPoNo=search,
             CustomerCodes=[" code ","CODE"," "],CustomerSkus=[" csku ","CSKU"],
-            DocumentStatuses=[f.Header.DocumentStatus],ConfirmationStatuses=[f.Header.ConfirmationStatus]},f.Today);
+            DocumentStatuses=[f.Header.DocumentStatus],ConfirmationStatuses=[f.Header.ConfirmationStatus]});
         Assert.AreEqual(matches?1:0,result.TotalCount);
     });
 
@@ -206,7 +200,7 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
         var request=new SalesOrderManagerSearchRequest{CustomerId=f.Header.CustomerId,OrderDateFrom=f.Today.AddHours(19),OrderDateTo=f.Today.AddHours(1)};
         if(mode!="to")request.EffectiveDeliveryDateFrom=due.AddHours(12);
         if(mode!="from")request.EffectiveDeliveryDateTo=due.AddHours(12);
-        Assert.AreEqual(matches?1:0,(await f.Repository.SearchManagerAsync(request,f.Today)).TotalCount);
+        Assert.AreEqual(matches?1:0,(await f.Repository.SearchManagerAsync(request)).TotalCount);
     });
 
     /// <summary>四阶段允许混合观察：行事实看到候选后的写入，count保留冻结状态，最终页读取当前软删头。</summary>
@@ -220,17 +214,16 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
             var current=stage++;hook.Before=null;
             try
             {
-                if(current==1)await f.Execute("UPDATE public.sales_order_line SET qty=8 WHERE uid=@Uid",f.Line.Uid);
-                if(current==2)
+                if(current==1)
                 {await f.Execute("UPDATE public.sales_order_line SET qty=17 WHERE uid=@Uid",f.Line.Uid);await f.Execute("UPDATE public.sales_order_header SET confirmation_status=1 WHERE uid=@Uid",f.Header.Uid);}
-                if(current==3)await f.Execute("UPDATE public.sales_order_header SET is_deleted=TRUE,invoice_no='当前商业页' WHERE uid=@Uid",f.Header.Uid);
+                if(current==1)await f.Execute("UPDATE public.sales_order_header SET invoice_no='当前商业页' WHERE uid=@Uid",f.Header.Uid);
             }
             finally{hook.Before=barrier;}
         };
         hook.Before=barrier;
-        var response=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId,QuickView=SalesOrderManagerQuickView.PendingConfirmation},f.Today);
-        hook.Before=null;Assert.AreEqual(4,stage);Assert.AreEqual(1,response.TotalCount);var item=response.Items.Single();
-        Assert.AreEqual(8m,item.TotalQty);Assert.AreEqual(8m,item.TotalUnshippedQty);Assert.AreEqual(0m,item.TotalShippedQty);
+        var response=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId});
+        hook.Before=null;Assert.AreEqual(2,stage);Assert.AreEqual(1,response.TotalCount);var item=response.Items.Single();
+        Assert.AreEqual(17m,item.TotalQty);
         Assert.AreEqual(ConfirmationStatusEnum.已确认,item.ConfirmationStatus);Assert.AreEqual("当前商业页",item.InvoiceNo);
         Assert.AreSame(f.Transaction,f.Session.Transaction);Assert.AreEqual(1,await f.Session.Connection.ExecuteScalarAsync<int>("SELECT 1",transaction:f.Transaction));
     });
@@ -241,19 +234,19 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
     public Task DeletedHeads_KeepCandidateVersusPageBoundary(bool initiallyDeleted) => InRollback(async f =>
     {
         f.Header.IsDeleted=initiallyDeleted;await f.Add(f.Header);var hook=(HookConnection)f.Session.Connection;var stage=0;
-        hook.Before=async (_,_)=>{if(stage++!=3||initiallyDeleted)return;hook.Before=null;await f.Execute("DELETE FROM public.sales_order_header WHERE uid=@Uid",f.Header.Uid);};
-        var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},f.Today);hook.Before=null;
+        hook.Before=async (_,_)=>{if(stage++!=1||initiallyDeleted)return;hook.Before=null;await f.Execute("DELETE FROM public.sales_order_header WHERE uid=@Uid",f.Header.Uid);};
+        var result=await f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId});hook.Before=null;
         Assert.AreEqual(initiallyDeleted?0:1,result.TotalCount);Assert.HasCount(0,result.Items);
     });
 
     /// <summary>取消原样传播且外层事务继续可用，仓储不取消、提交或释放调用方事务。</summary>
     [TestMethod]
-    [DataRow(-1)] [DataRow(0)] [DataRow(1)] [DataRow(2)] [DataRow(3)]
+    [DataRow(-1)] [DataRow(0)] [DataRow(1)]
     public Task Cancellation_KeepEachBoundaryAndCallerOwnership(int boundary) => InRollback(async f =>
     {
         await f.Add(f.Header);await f.Add(f.Line);var hook=(HookConnection)f.Session.Connection;var stage=0;using var c=new CancellationTokenSource();
         if(boundary<0)c.Cancel();else hook.Before=(_,_)=>{if(stage++==boundary)c.Cancel();return Task.CompletedTask;};
-        await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},f.Today,c.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(()=>f.Repository.SearchManagerAsync(new(){CustomerId=f.Header.CustomerId},c.Token));
         hook.Before=null;Assert.AreSame(f.Transaction,f.Session.Transaction);Assert.AreEqual(1,await f.Session.Connection.ExecuteScalarAsync<int>("SELECT 1",transaction:f.Transaction));
     });
 
@@ -262,7 +255,7 @@ public sealed class PostgreSqlSalesOrderManagerMigrationIntegrationTests
     public async Task WithoutOuterTransaction_KeepReusableConnection()
     {
         using var session=Open();var f=new Fixture(session,null);var request=new SalesOrderManagerSearchRequest{CustomerId=Guid.NewGuid()};
-        for(var i=0;i<2;i++){var result=await f.Repository.SearchManagerAsync(request,f.Today);Assert.AreEqual(0,result.TotalCount);Assert.HasCount(0,result.Items);}
+        for(var i=0;i<2;i++){var result=await f.Repository.SearchManagerAsync(request);Assert.AreEqual(0,result.TotalCount);Assert.HasCount(0,result.Items);}
         Assert.IsNull(session.Transaction);Assert.AreEqual(1,await session.Connection.ExecuteScalarAsync<int>("SELECT 1"));
         Assert.AreEqual(0L,await session.Connection.ExecuteScalarAsync<long>("SELECT count(*) FROM pg_class WHERE relnamespace=pg_my_temp_schema() AND relkind IN ('r','p')"));
     }

@@ -5,10 +5,10 @@ namespace SwiftExport.Core.Interfaces.Shipping;
 /// </summary>
 public sealed class SourceDeliveryExitAssessment
 {
-    /// <summary>仍引用来源需求的活动未过账 PackingList 草稿数。</summary>
+    /// <summary>仍引用成品需求的活动未过账 PackingList 草稿数。</summary>
     public int ActiveDraftCount { get; set; }
 
-    /// <summary>仍引用来源需求且尚未反向的已过账 PackingList 数。</summary>
+    /// <summary>仍引用成品需求且尚未反向的已过账 PackingList 数。</summary>
     public int PostedPackingListCount { get; set; }
 
     /// <summary>由相关 PackingList 触发且尚未反向的正式客户出库数。</summary>

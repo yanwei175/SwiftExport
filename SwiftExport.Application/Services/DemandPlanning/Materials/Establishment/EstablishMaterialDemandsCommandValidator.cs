@@ -9,11 +9,11 @@ public sealed class EstablishMaterialDemandsCommandValidator : AbstractValidator
     /// <summary>建立只涉及纯请求结构的校验规则，不读取变化中的业务事实。</summary>
     public EstablishMaterialDemandsCommandValidator()
     {
-        RuleFor(command => command.CommandId).NotEmpty().WithMessage("命令标识和来源需求不能为空。");
-        RuleFor(command => command.Items).NotNull().NotEmpty().WithMessage("命令标识和来源需求不能为空。");
+        RuleFor(command => command.CommandId).NotEmpty().WithMessage("命令标识和成品需求不能为空。");
+        RuleFor(command => command.Items).NotNull().NotEmpty().WithMessage("命令标识和成品需求不能为空。");
         RuleFor(command => command.Items).Must(items => items is null ||
             items.All(item => item is not null && item.GrossDemandId != Guid.Empty && item.SourceDemandVersion > 0)
             && items.Select(item => item.GrossDemandId).Distinct().Count() == items.Count)
-            .WithMessage("命令包含无效或重复的来源需求。");
+            .WithMessage("命令包含无效或重复的成品需求。");
     }
 }

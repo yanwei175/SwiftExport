@@ -41,7 +41,7 @@ public sealed partial class PostgreSqlSalesOrderFulfillmentMigrationIntegrationT
         await f.Execute("UPDATE public.sales_order_header SET confirmation_status=1 WHERE uid=@Uid",f.Header.Uid);
         var unknown=(await f.Repository.GetFulfillmentAsync(f.Header.Uid))!.Lines.Single();
         Assert.IsNull(unknown.ShippedQty); Assert.IsNull(unknown.UnshippedQty); Assert.IsNull(unknown.AllowedFurtherDeliveryQty);
-        Assert.IsNull(unknown.GrossDemandId); Assert.AreEqual("来源需求缺失",unknown.ReviewReason); Assert.AreEqual("未知／需核实",unknown.PurchaseState);
+        Assert.IsNull(unknown.GrossDemandId); Assert.AreEqual("成品需求缺失",unknown.ReviewReason); Assert.AreEqual("未知／需核实",unknown.PurchaseState);
         await f.Execute("UPDATE public.sales_order_header SET is_deleted=TRUE WHERE uid=@Uid",f.Header.Uid);
         Assert.IsNull(await f.Repository.GetFulfillmentAsync(f.Header.Uid)); Assert.AreEqual(1,await f.Scalar());
     });

@@ -11,7 +11,7 @@ using SwiftExport.Core.Interfaces.Auth;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Delivery;
 
-/// <summary>暴露来源需求统一可交付只读边界；来源接收仍仅供单体内上游领域调用。</summary>
+/// <summary>暴露成品需求统一可交付只读边界；来源接收仍仅供单体内上游领域调用。</summary>
 [ApiController]
 [Authorize]
 [Route("api/demand-planning/source-demands/delivery")]
@@ -27,7 +27,7 @@ public sealed class SourceDemandDeliveryController(
         CancellationToken cancellationToken)
         => AuthorizedAsync(() => service.SearchAsync(request, cancellationToken), cancellationToken);
 
-    /// <summary>读取单项来源需求的交付上下文。</summary>
+    /// <summary>读取单项成品需求的交付上下文。</summary>
     [HttpGet("{grossDemandId:guid}")]
     public Task<ActionResult<ServiceResult<SourceDemandDeliveryItemDto>>> GetAsync(
         [FromRoute] Guid grossDemandId,

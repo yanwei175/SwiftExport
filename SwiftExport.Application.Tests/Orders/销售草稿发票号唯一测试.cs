@@ -94,7 +94,7 @@ public sealed class 销售草稿发票号唯一测试
     }
 
     /// <summary>仅替代保存实际使用的方法，其余调用失败，避免宽松替身掩盖编排变更。</summary>
-    private sealed class Fixture
+    internal sealed class Fixture
     {
         internal readonly MemorySession Session = new();
         internal readonly SalesOrderDraftService Service;
@@ -102,6 +102,8 @@ public sealed class 销售草稿发票号唯一测试
         internal int CheckCalls, NumberCalls, HeaderWrites, LineWrites, ReceiptWrites;
         internal Guid ExcludedUid;
         internal string? CheckedInvoice;
+        internal readonly SwiftExport.Application.Tests.Files.SystemParameterRepositoryStub Parameters = new(null);
+        internal SalesOrderHeader? LastWrittenHeader;
         private readonly Guid customerId = Guid.NewGuid(), headId = Guid.NewGuid();
         private readonly Dictionary<Guid, CommandReceipt> receipts = [];
 
@@ -121,7 +123,8 @@ public sealed class 销售草稿发票号唯一测试
                 "DeleteLinesAsync" or "UpdateLinesAsync" => Task.FromResult<IReadOnlyList<RepositoryWriteResult>>([]),
                 "AddLinesAsync" => WriteLines(), _ => Unexpected(m) });
             var query = Proxy<ISalesOrderQueryRepository>((m, a) => m.Name == "GetDetailAsync"
-                ? Task.FromResult<SalesOrderDetailDto?>(new() { Header = new() { Uid = (Guid)a![0]!, OrderNo = "SO-1" } }) : Unexpected(m));
+                ? Task.FromResult<SalesOrderDetailDto?>(new() { Header = new() { Uid = (Guid)a![0]!, OrderNo = "SO-1",
+                    OrderDate = LastWrittenHeader?.OrderDate, DeliveryDate = LastWrittenHeader?.DeliveryDate } }) : Unexpected(m));
             var customer = Proxy<ICustomerRepository>((m, a) => m.Name == "GetByIdAsync"
                 ? Task.FromResult<Customer?>(new() { Uid = customerId, CustomerCode = "C-1", DocRelateNo = "C-1" }) : Unexpected(m));
             var products = Proxy<IProductRepository>((m, a) => m.Name == "GetByIdListAsync"
@@ -138,7 +141,8 @@ public sealed class 销售草稿发票号唯一测试
             var validators = new ServiceCollection().AddSingleton<IValidator<SaveSalesOrderRequest>, SaveSalesOrderRequestValidator>().BuildServiceProvider();
             var pipeline = new CommandPipeline(new CommandRequestValidator(validators), correlation, user, NullLogger<CommandPipeline>.Instance);
             Service = new(context, heads, lines, query, products, customer, customerProducts, null!, numbers,
-                user, permission, pipeline, new BusinessCommandExecutor(context, receipt, user));
+                user, permission, pipeline, new BusinessCommandExecutor(context, receipt, user),
+                new SalesOrderDefaultDeliveryDatePolicy(Parameters));
         }
 
         internal SaveSalesOrderRequest Request(bool update) => new() {
@@ -150,7 +154,7 @@ public sealed class 销售草稿发票号唯一测试
             Assert.IsNotNull(Session.Transaction); CheckCalls++; CheckedInvoice = invoice; ExcludedUid = excluded; return Task.FromResult(Duplicate); }
         // 用仓储结构化拒绝模拟数据库竞争；不假称该替身可以验证真实唯一索引。
         private Task<RepositoryWriteResult> WriteHead(SalesOrderHeader head) {
-            HeaderWrites++; if (WriteConflict) return Task.FromResult(RepositoryWriteResult.Fail(head.Uid, head.Version,
+            HeaderWrites++; LastWrittenHeader = head; if (WriteConflict) return Task.FromResult(RepositoryWriteResult.Fail(head.Uid, head.Version,
                 ServiceErrorCodes.Validation, "发票号已被未删除的销售订单使用，请删除原来的草稿或修改发票号后重新保存。"));
             if (head.Uid == Guid.Empty) head.Uid = headId;
             return Task.FromResult(RepositoryWriteResult.Ok(head.Uid, head.Version, head.Version + 1)); }
@@ -172,7 +176,7 @@ public sealed class 销售草稿发票号唯一测试
     }
 
     /// <summary>观察默认事务入口、回滚和清理，不建立外部连接。</summary>
-    private sealed class MemorySession : IDbSession, IDbConnection
+    internal sealed class MemorySession : IDbSession, IDbConnection
     {
         internal int Begins, Rollbacks;
         public IDbConnection Connection => this;

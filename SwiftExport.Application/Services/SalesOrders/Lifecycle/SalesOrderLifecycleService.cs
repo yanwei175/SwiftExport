@@ -33,7 +33,7 @@ using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.Errors;
 namespace SwiftExport.Application.Services.SalesOrders.Lifecycle;
 
-/// <summary>关闭销售订单并在同一事务处理尚未履约的来源需求。</summary>
+/// <summary>关闭销售订单并在同一事务处理尚未履约的成品需求。</summary>
 public sealed class SalesOrderLifecycleService(ServiceBaseContext context, ISalesOrderHeadRepository headRepository, ISalesOrderLineRepository lineRepository, ISalesOrderQueryRepository queryRepository, ISourceDemandReceptionService sourceDemandReceptionService, ICurrentUser currentUser, IPermissionEvaluationService permissions, CommandPipeline pipeline, BusinessCommandExecutor executor) : ISalesOrderLifecycleService
 {
     private const string CommandType = "Orders.SalesOrder.Close";
@@ -41,7 +41,7 @@ public sealed class SalesOrderLifecycleService(ServiceBaseContext context, ISale
     /// 关闭销售订单，使其退出后续编辑和确认流程。
     /// </summary>
     /// <remarks>
-    /// 若订单仍有未进入下游执行的活动毛需求，会先将其作废；存在拆解或下游执行时禁止直接关闭。
+    /// 若订单仍有未进入下游执行的活动成品需求，会先将其作废；存在拆解或下游执行时禁止直接关闭。
     /// 关闭保留订单及明细历史，不等同于删除草稿。
     /// </remarks>
     public Task<ServiceResult<SalesOrderDetailDto>> CloseAsync(Guid uid, CloseSalesOrderRequest request)

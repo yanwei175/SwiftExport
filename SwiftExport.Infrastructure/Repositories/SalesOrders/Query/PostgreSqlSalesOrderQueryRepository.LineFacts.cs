@@ -94,8 +94,8 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         CROSS JOIN LATERAL (
             SELECT CASE
                 WHEN verified.is_verifiable=FALSE AND h.confirmation_status=@Pending THEN '待确认仍有关联来源'
-                WHEN verified.is_verifiable=FALSE AND g.uid IS NULL THEN '来源需求缺失'
-                WHEN verified.is_verifiable=FALSE AND g.candidate_count<>1 THEN '来源需求重复'
+                WHEN verified.is_verifiable=FALSE AND g.uid IS NULL THEN '成品需求缺失'
+                WHEN verified.is_verifiable=FALSE AND g.candidate_count<>1 THEN '成品需求重复'
                 WHEN verified.is_verifiable=FALSE AND g.lifecycle_status<>@DemandActive
                      AND (h.document_status<>@OrderClosed OR g.lifecycle_status<>@DemandVoided) THEN '来源状态不一致'
                 WHEN verified.is_verifiable=FALSE AND (g.source_version IS NULL OR g.source_version<=0

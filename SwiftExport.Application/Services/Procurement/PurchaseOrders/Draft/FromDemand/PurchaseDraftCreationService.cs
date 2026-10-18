@@ -110,7 +110,7 @@ public sealed class PurchaseDraftCreationService(
             // 固定锁序：GrossDemand -> NetDemand -> Link/CommandItem -> PurchaseOrder。
             var grossDemands = await grossDemandRepository.GetActiveBySourceForUpdateAsync(source.SourceType, source.SourceUid);
             if (grossDemands.Count == 0)
-                throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceNotFound, "来源单没有活动毛需求。");
+                throw new PurchaseDraftException(PurchaseDraftErrorCodes.SourceNotFound, "来源单没有活动成品需求。");
 
             var netDemands = new List<NetDemand>();
             foreach (var grossDemand in grossDemands)

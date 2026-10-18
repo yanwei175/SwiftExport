@@ -159,7 +159,7 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
 
     // 采购反馈按整行展示；同Sequence保留SQL Server Uid DESC字节优先级，不能使用普通PG UUID排序。
     private const string PurchasesSql = """
-        -- Link 历史和采购目标同时展示；货好只属于整条采购行，不回分摊到来源需求。
+        -- Link 历史和采购目标同时展示；货好只属于整条采购行，不回分摊到成品需求。
         SELECT n.uid AS "NetDemandId",
             l.target_head_id AS "PurchaseOrderId",
             l.target_line_id AS "PurchaseLineId",

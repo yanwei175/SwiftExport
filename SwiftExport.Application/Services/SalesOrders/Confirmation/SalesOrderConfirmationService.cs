@@ -159,7 +159,7 @@ public sealed class SalesOrderConfirmationService(
                 ? request.CommandId.ToString("N") : correlation.CorrelationId[..Math.Min(64, correlation.CorrelationId.Length)],
             Module = "SalesOrder", AggregateType = "SalesOrder", AggregateUid = header.Uid,
             AggregateNoSnapshot = header.OrderNo, OperationType = "Confirm", OperationName = "确认销售订单",
-            Summary = $"确认销售订单，接收 {result.GrossDemandCount} 条来源需求。",
+            Summary = $"确认销售订单，接收 {result.GrossDemandCount} 条成品需求。",
             ChangedFieldsJson = JsonSerializer.Serialize(new
             {
                 BeforeVersion = request.Version, AfterVersion = result.Version,

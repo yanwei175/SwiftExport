@@ -20,7 +20,7 @@ public sealed class SalesOrderDeletePermissionTests
     {
         var evaluator = new PermissionStub();
         var service = new SalesOrderDraftService(null!, null!, null!, null!, null!, null!, null!, null!,
-            null!, new UserStub(), evaluator, null!, null!);
+            null!, new UserStub(), evaluator, null!, null!, null!);
         var method = typeof(SalesOrderDraftService).GetMethod("AuthorizeDeleteAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
         evaluator.Allowed = [PermissionKeys.SalesOrderMaintain];

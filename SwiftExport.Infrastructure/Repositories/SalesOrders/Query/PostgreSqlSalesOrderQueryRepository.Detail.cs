@@ -4,7 +4,7 @@ using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.SalesOrders.Query;
 
-/// <summary>PG销售详情分阶段读取，当前头行商业字段与冻结交付事实分别保留源观察时刻。</summary>
+/// <summary>销售管理详情只读取订单头行与商业快照，不关联下游履约事实。</summary>
 public sealed partial class PostgreSqlSalesOrderQueryRepository
 {
     /// <summary>本仓储固定 SQL，保留原字段顺序、参数及写入条件。</summary>
@@ -38,21 +38,18 @@ public sealed partial class PostgreSqlSalesOrderQueryRepository
         l."main_image" AS "MainImage"
     """;
 
-    /// <summary>借用调用方可空事务依次物化候选/交付事实再读取头行；空头在行集合完整缓冲后返回null。</summary>
+    /// <summary>借用调用方可空事务读取订单头和全部有效明细，缺失订单返回 null，不计算交付进度。</summary>
     public async Task<SalesOrderDetailDto?> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
     {
         var parameters = CreateParameters(uid);
-        await FreezeCandidatesAsync(parameters, cancellationToken);
-        await FreezeLineFactsAsync(parameters, cancellationToken);
         var header = (await ReadAsync<SalesOrderHeader>($"SELECT {HeaderProjection} FROM \"public\".\"sales_order_header\" WHERE uid=@Uid AND is_deleted=FALSE",
             parameters, cancellationToken)).SingleOrDefault();
         // 原头后第二结果要完整释放；不内部取消读取器，不用早返触发调用方PG事务被取消。
         var lines = await ReadAsync<SalesOrderDetailLineDto>($"""
-            WITH facts AS ({LineFactsRelation})
-            SELECT {DetailLineColumns},facts."ShippedQty",facts."UnshippedQty",facts."ReviewReason",
+            SELECT {DetailLineColumns},
                    COALESCE(l.cny_amount,l.cny_price*l.qty) AS "CnyAmount",
                    COALESCE(l.usd_amount,l.usd_price*l.qty) AS "UsdAmount"
-            FROM "public"."sales_order_line" l INNER JOIN facts ON facts."SalesOrderLineId"=l.uid
+            FROM "public"."sales_order_line" l
             WHERE l.sales_order_id=@Uid AND l.is_deleted=FALSE
             ORDER BY l.line_number,{SourceUuidOrder("l.uid")}
             """, parameters, cancellationToken);

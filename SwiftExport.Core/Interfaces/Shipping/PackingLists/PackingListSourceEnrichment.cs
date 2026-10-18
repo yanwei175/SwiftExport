@@ -3,7 +3,7 @@
 /// <summary>装箱单来源候选的唯一默认包装与客户参考号补充信息。</summary>
 public sealed class PackingListSourceEnrichment
 {
-    /// <summary>来源需求标识。</summary>
+    /// <summary>成品需求标识。</summary>
     public Guid GrossDemandId { get; set; }
     /// <summary>唯一默认包装的每包数量。</summary>
     public decimal? PcsPerPackage { get; set; }

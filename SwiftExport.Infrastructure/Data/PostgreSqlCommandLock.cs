@@ -29,7 +29,7 @@ internal static class PostgreSqlCommandLock
             if (session.CommandLease is not null)
                 throw new InvalidOperationException("同一数据库会话不能嵌套或并行获取命令租约。");
             if (session.SourceDemandLease is not null)
-                throw new InvalidOperationException("命令租约必须先于需求资源准备，不能持来源或毛需求锁后追加命令锁。");
+                throw new InvalidOperationException("命令租约必须先于需求资源准备，不能持来源或成品需求锁后追加命令锁。");
             var connection = session.Connection;
             if (connection.State != ConnectionState.Open)
                 throw new InvalidOperationException("命令租约要求已打开且不会更换的连接。");

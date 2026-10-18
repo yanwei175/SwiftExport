@@ -10,7 +10,7 @@ namespace SwiftExport.WebApi.Controllers.SalesOrders.Lifecycle;
 [ApiController, Route("api/sales-orders/detail")]
 public sealed class SalesOrderLifecycleController(ISalesOrderLifecycleService service) : ControllerBase
 {
-    /// <summary>关闭订单并按原规则退出来源需求。</summary>
+    /// <summary>关闭订单并按原规则退出成品需求。</summary>
     [HttpPost("{uid:guid}/close"), PreventDuplicateRequest]
     public Task<ServiceResult<SalesOrderDetailDto>> CloseAsync([FromRoute] Guid uid, [FromBody] CloseSalesOrderRequest request)
         => service.CloseAsync(uid, request);

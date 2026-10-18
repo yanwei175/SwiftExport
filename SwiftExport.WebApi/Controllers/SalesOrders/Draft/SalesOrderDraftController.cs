@@ -14,7 +14,7 @@ public sealed class SalesOrderDraftController(ISalesOrderDraftService service) :
     [HttpPost("save"), PreventDuplicateRequest]
     public Task<ServiceResult<SaveSalesOrderResponse>> SaveAsync([FromBody] SaveSalesOrderRequest request) => service.SaveAsync(request);
 
-    /// <summary>删除未确认且无来源需求的草稿。</summary>
+    /// <summary>删除未确认且无成品需求的草稿。</summary>
     [HttpPost("{uid:guid}/delete-draft"), PreventDuplicateRequest]
     public Task<ServiceResult<bool>> DeleteDraftAsync([FromRoute] Guid uid, [FromBody] SalesOrderCommandRequest request) => service.DeleteDraftAsync(uid, request);
 }
