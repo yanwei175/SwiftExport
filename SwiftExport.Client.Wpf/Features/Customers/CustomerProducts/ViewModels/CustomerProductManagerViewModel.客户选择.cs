@@ -107,6 +107,7 @@ public sealed partial class CustomerProductManagerViewModel
         Interlocked.Increment(ref _loadVersion); Interlocked.Increment(ref _lookupVersion);
         CancelRead(ref _pageCts); CancelRead(ref _lookupCts);
         Products.PropertyChanged -= OnListPropertyChanged; PropertyChanged -= OnPagePropertyChanged;
+        DetachCheckSelection();
         CommitPendingEdits = null; _lifetime.Dispose();
     }
 

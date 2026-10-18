@@ -12,23 +12,22 @@
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged" mc:Ignorable="d"  d:DesignHeight="450" d:DesignWidth="1200">
 
     <UserControl.Resources>
+        <Style x:Key="CustomerProductSelectionMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </Style>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
     </UserControl.Resources>
     
-    <Grid Margin="12" RowDefinitions="Auto,8,*">
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="当前客户" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <customers:CustomerAutoSuggestComboBox x:Name="CustomerSelector" Width="360" Placeholder="输入客户代码或名称"
-                ItemsSource="{Binding CustomerOptions}" SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
-                SelectionCommittedCommand="{Binding CommitCustomerCommand}" SelectionClearedCommand="{Binding ClearCustomerCommand}"
-                IsEnabled="{Binding CanChangeCustomer}" AutomationProperties.Name="选择客户产品所属客户"/>
-        </StackPanel>
-    <Grid Grid.Row="2" Margin="0" IsEnabled="{Binding CanEditProducts}" RowDefinitions="Auto,8,*,8,Auto">
+    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
         <!--条件筛选区域-->
         <Grid RowDefinitions="Auto,8, *">
-            <Grid ColumnDefinitions="3*,3*,3*" RowDefinitions="Auto">
+            <Grid x:Name="CustomerSearchGrid" ColumnDefinitions="3*,3*,Auto" RowDefinitions="Auto">
+                <customers:CustomerAutoSuggestComboBox x:Name="CustomerSelector" Grid.Column="0" Margin="0,0,8,0" Placeholder="输入客户代码或名称"
+                    ItemsSource="{Binding CustomerOptions}" SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
+                    SelectionCommittedCommand="{Binding CommitCustomerCommand}" SelectionClearedCommand="{Binding ClearCustomerCommand}"
+                    IsEnabled="{Binding CanChangeCustomer}" AutomationProperties.Name="选择客户产品所属客户"/>
                 <!--搜索框-->
-                <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
+                <ui:TextBox x:Name="SearchTextBox" Grid.Column="1" IsEnabled="{Binding CanEditProducts}" VerticalAlignment="Stretch"
                             FontSize="{DynamicResource SwiftExportDefaltFontSize}"
                             Text="{Binding Keyword,UpdateSourceTrigger=PropertyChanged}" 
                             Icon="{ui:SymbolIcon Symbol=Search24}"
@@ -51,7 +50,7 @@
                 </DockPanel>
             </Grid>
 
-            <DockPanel Grid.Row="2" >
+            <DockPanel Grid.Row="2" IsEnabled="{Binding CanEditProducts}">
                 <ui:Button Content="新增" Command="{Binding AddItemCommand}"  Margin="0,0,8,0"  MinWidth="70"/>
                 
                 <ui:Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"  Appearance="Info"
@@ -70,25 +69,44 @@
         </Grid>
         
         <DataGrid x:Name="ProductGrid" Grid.Row="2"
-                  ItemsSource="{Binding Products.Items}" 
+                  ItemsSource="{Binding Products.Items}" IsEnabled="{Binding CanEditProducts}"
                   SelectionMode="Extended" 
                   SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                   FrozenColumnCount="4" 
-                  RowHeight="{StaticResource DataGridRowHeightMedium}"
+                  RowHeight="{StaticResource DataGridRowHeightSmall}"
                   FontSize="{StaticResource SwiftExportDefaltFontSize}"
                   RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                   Style="{StaticResource SwiftExportDataGrid}"
                   gridCore:GridRowHeader.ShowRowNumber="True"
-                  CurrentItem="{Binding SelectedLine, Mode=TwoWay}">
+                  SelectedItem="{Binding SelectedLine, Mode=TwoWay}">
                     <i:Interaction.Behaviors>
                         <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
+                        <fill:DataGridColumnVisibilityBehavior />
                     </i:Interaction.Behaviors>
+            <DataGrid.ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="客户产品批量勾选">
+                    <MenuItem Header="勾选(选区)" Style="{StaticResource CustomerProductSelectionMenuItem}" Command="{Binding CheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="CheckmarkSquare24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="取消勾选(选区)" Style="{StaticResource CustomerProductSelectionMenuItem}" Command="{Binding UncheckSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="Square24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(选区)" Style="{StaticResource CustomerProductSelectionMenuItem}" Command="{Binding InvertSelectionCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowSwap24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="全选(当前页)" Command="{Binding CheckVisibleCommand}" ToolTip="仅勾选当前页显示行"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOn24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="反选(当前页)" Command="{Binding InvertVisibleCommand}" ToolTip="仅反转当前页显示行的勾选"><MenuItem.Icon><ui:SymbolIcon Symbol="SelectAllOff24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}"><MenuItem.Icon><ui:SymbolIcon Symbol="ArrowClockwise24"/></MenuItem.Icon></MenuItem>
+                    <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}" ToolTip="删除已勾选客户产品；未勾选时删除当前产品"><MenuItem.Icon><ui:SymbolIcon Symbol="Delete24"/></MenuItem.Icon></MenuItem>
+                    <Separator/>
+                    <MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}"><MenuItem.Icon><ui:SymbolIcon Symbol="Table24"/></MenuItem.Icon></MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
 
-                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" CanUserResize="False">
                     <DataGridTemplateColumn.HeaderTemplate>
                         <DataTemplate>
-                            <CheckBox HorizontalAlignment="Center" IsChecked="{Binding DataContext.Products.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" />
+                            <CheckBox HorizontalAlignment="Center" Margin="0" Padding="0" AutomationProperties.Name="勾选当前页显示行"
+                                      IsChecked="{Binding DataContext.IsAllVisibleChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}"
+                                      Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate>
@@ -101,7 +119,7 @@
                 <DataGridTemplateColumn Header="图片" Width="60" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <controls:CachedImage Width="56" Height="56" 
+                            <controls:CachedImage Width="24" Height="24"
                                                   Style="{StaticResource SwiftExportCachedImage}" 
                                                   DecodePixelWidth="96" 
                                                   SourcePath="{Binding MainImage}" Stretch="Uniform" />
@@ -112,7 +130,7 @@
                 
 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerSku" Header="客户型号" Width="140" Binding="{Binding CustomerSku, UpdateSourceTrigger=PropertyChanged}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                 
                 <DataGridTemplateColumn ClipboardContentBinding="{Binding Sku, Mode=OneWay}" Header="关联Sku" Width="150" SortMemberPath="Sku">
@@ -142,11 +160,11 @@
                                     EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
                 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerPdSeries" Header="客户系列名" Width="110" Binding="{Binding CustomerPdSeries, UpdateSourceTrigger=PropertyChanged}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerColorName" Header="客户颜色名" Width="100" Binding="{Binding CustomerColorName, UpdateSourceTrigger=PropertyChanged}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}"
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}" />
                 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerPdFeatures" Header="客户专用规格" Width="180" Binding="{Binding CustomerPdFeatures, UpdateSourceTrigger=PropertyChanged}"
@@ -154,11 +172,11 @@
                                     EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}" />
 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerBarcode1" Header="条码1" Width="120" Binding="{Binding CustomerBarcode1, UpdateSourceTrigger=PropertyChanged}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
                 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerBarcode2" Header="条码2" Width="120" Binding="{Binding CustomerBarcode2, UpdateSourceTrigger=PropertyChanged}"
-                                    ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" 
+                                    ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"/>
                 
                 <DataGridTextColumn fill:DataGridFillDownBehavior.Field="Note" Header="备注" Width="160" Binding="{Binding Note, UpdateSourceTrigger=PropertyChanged}"
@@ -193,7 +211,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <Grid Grid.Row="4">
+        <Grid Grid.Row="4" IsEnabled="{Binding CanEditProducts}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -212,7 +230,6 @@
                             PageSize="{Binding PageSize}" 
                             PageChangeCommand="{Binding PageChangeCommand}" />
         </Grid>
-    </Grid>
         <Border Grid.Row="2" Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}">
             <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Visible"/>
                 <Style.Triggers><DataTrigger Binding="{Binding IsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>

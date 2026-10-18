@@ -17,6 +17,10 @@ using SwiftExport.Contracts.SysEnums.StaticEnums;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Features.Customers.CustomerProducts.Views;
 using SwiftExport.Client.Wpf.Tests.Controls;
+using System.Collections;
+using System.Windows.Media;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using SwiftExportClient.Features.Customers.Components;
 using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Resources.Controls;
@@ -31,6 +35,149 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Customers;
 [DoNotParallelize]
 public sealed class CustomerProductManagerTests
 {
+    /// <summary>批量勾选只接受当前页显示行，格子模式拒绝选区命令，业务草稿与服务端总数保持。</summary>
+    [TestMethod]
+    public async Task CheckCommands_ShouldRespectCurrentPageViewOwnershipAndMode()
+    {
+        var customer = Customer(Guid.NewGuid(), "A", "客户一"); var page = ProductPage(customer);
+        var api = new CustomerProductApiStub { Read = _ => Task.FromResult(page) };
+        using var vm = CreateWorkspace(new ReferenceDataCacheServiceStub(customers: [customer]), api, new DialogServiceStub());
+        vm.SelectedCustomer = customer; await vm.CommitCustomerCommand.ExecuteAsync(null);
+        var rows = vm.Products.Items.ToArray(); var currentView = CollectionViewSource.GetDefaultView(vm.Products.Items);
+        rows[1].IsChecked = true; currentView.Filter = item => !ReferenceEquals(item, rows[1]);
+        vm.SetVisibleChecksCommand.Execute(false); Assert.IsTrue(rows[1].IsChecked);
+        vm.CheckSelectionCommand.Execute(new[] { rows[0], new SwiftExportClient.Features.Customers.CustomerProducts.Models.CustomerProductLineModel() });
+        Assert.IsFalse(rows[0].IsChecked);
+        vm.CheckSelectionCommand.Execute(new[] { rows[0], rows[1] }); Assert.IsFalse(rows[0].IsChecked, "隐藏行不能混入当前显示选区。");
+        vm.CheckSelectionCommand.Execute(new[] { rows[0], rows[2] }); Assert.IsTrue(vm.IsAllVisibleChecked);
+        vm.InvertSelectionCommand.Execute(new[] { rows[0], rows[2] }); Assert.IsFalse(rows[0].IsChecked); Assert.IsFalse(rows[2].IsChecked);
+        vm.IsCellSelectionMode = true;
+        foreach (var command in new ICommand[] { vm.CheckSelectionCommand, vm.UncheckSelectionCommand, vm.InvertSelectionCommand })
+        { Assert.IsFalse(command.CanExecute(rows)); command.Execute(rows); }
+        Assert.IsFalse(rows[0].IsChecked); vm.CheckVisibleCommand.Execute(null); Assert.IsTrue(vm.IsAllVisibleChecked);
+        vm.InvertVisibleCommand.Execute(null); Assert.IsTrue(rows[1].IsChecked); Assert.IsFalse(rows[0].IsChecked);
+        Assert.IsFalse(vm.HasUnsavedChanges); Assert.AreEqual(203, vm.TotalCount); Assert.HasCount(1, api.Requests);
+        vm.Dispose(); currentView.Filter = null;
+    }
+
+    /// <summary>空态不遮挡同一搜索行的客户选择器；选中后核对小行高、缩略图及文本资源。</summary>
+    [TestMethod]
+    public void ActualPage_EmptySelectionLayoutAndCompactStyles() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); var customer = Customer(Guid.NewGuid(), "A", "客户一");
+        var api = new CustomerProductApiStub { Read = _ => Task.FromResult(ProductPage(customer)) };
+        using var vm = CreateWorkspace(new ReferenceDataCacheServiceStub(customers: [customer]), api, new DialogServiceStub());
+        var view = new CustomerProductManagerView { DataContext = vm };
+        var window = new Window { Content = view, Width = 1300, Height = 750, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var selector = (CustomerAutoSuggestComboBox)view.FindName("CustomerSelector"); var search = (FrameworkElement)view.FindName("SearchTextBox");
+            Assert.AreSame(selector.Parent, search.Parent); Assert.AreEqual(0, Grid.GetColumn(selector)); Assert.AreEqual(1, Grid.GetColumn(search));
+            Assert.IsTrue(selector.IsEnabled); Assert.IsTrue(selector.IsVisible);
+            var point = selector.TransformToAncestor(view).Transform(new Point(selector.ActualWidth / 2, selector.ActualHeight / 2));
+            Assert.IsTrue(view.InputHitTest(point) is Visual visual && visual.IsDescendantOf(selector), "空态遮罩不得覆盖客户选择器。");
+            var clear = (Button)view.FindName("ClearCustomerButton"); var actions = (Panel)clear.Parent;
+            var buttons = actions.Children.OfType<Button>().ToList(); Assert.AreSame(clear, buttons[buttons.FindIndex(button => Equals(button.Content, "刷新")) + 1]);
+            var lookup = (LookupTextBox)selector.FindName("LookupEditor");
+            ((Button)lookup.FindName("BtnDropDown")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((ListBox)lookup.FindName("ResultList")).SelectedItem = customer; RaiseEnter((TextBox)lookup.FindName("InputTextBox"));
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            Assert.AreSame(customer, vm.SelectedCustomer); Assert.HasCount(1, api.Requests);
+            var grid = (DataGrid)view.FindName("ProductGrid"); Assert.AreEqual(view.FindResource("DataGridRowHeightSmall"), grid.RowHeight);
+            var first = vm.Products.Items[0]; grid.ScrollIntoView(first, grid.Columns[1]); grid.UpdateLayout();
+            var image = Descendants(grid.Columns[1].GetCellContent(first)).OfType<SwiftExportClient.Resources.Controls.CachedImage>().Single();
+            // 空地址的 Image 不绘制内容；用既有占位图验证有图时的真实模板边界，不发起图片 I/O。
+            image.Source = (ImageSource)view.FindResource("SwiftExportImagePlaceholder"); grid.UpdateLayout();
+            var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(first);
+            var imageTop = image.TransformToAncestor(row).Transform(new Point());
+            Assert.IsTrue(image.ActualHeight > 0 && imageTop.Y >= 0 && imageTop.Y + image.ActualHeight <= row.ActualHeight,
+                $"图片高度={image.ActualHeight}，相对行顶={imageTop.Y}，实际行高={row.ActualHeight}。");
+            var code = grid.Columns.OfType<DataGridTextColumn>().Single(column => Equals(column.Header, "客户型号"));
+            var description = grid.Columns.OfType<DataGridTextColumn>().Single(column => Equals(column.Header, "客户描述"));
+            Assert.AreSame(view.FindResource("SwiftExportDataGridTextBlock"), code.ElementStyle);
+            Assert.AreSame(view.FindResource("SwiftExportDataGridTextBox"), code.EditingElementStyle);
+            Assert.AreSame(view.FindResource("SwiftExportDataGridWarpTextBlock"), description.ElementStyle);
+            Assert.AreSame(view.FindResource("SwiftExportDataGridWarpTextBox"), description.EditingElementStyle);
+        }
+        finally { window.Close(); }
+    });
+
+    /// <summary>真实菜单保留业务项并注入查看，表头/单行勾选和两种模式沿用客户页原生语义。</summary>
+    [TestMethod]
+    public void ActualPage_MenuChecksHeaderAndSelectionModes() => DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        ApplicationResourceLoader.Load(); var customer = Customer(Guid.NewGuid(), "A", "客户一");
+        var api = new CustomerProductApiStub { Read = _ => Task.FromResult(ProductPage(customer)) };
+        using var vm = CreateWorkspace(new ReferenceDataCacheServiceStub(customers: [customer]), api, new DialogServiceStub());
+        vm.SelectedCustomer = customer; await vm.CommitCustomerCommand.ExecuteAsync(null);
+        var view = new CustomerProductManagerView { DataContext = vm }; var window = new Window { Content = view, Width = 1300, Height = 750, ShowInTaskbar = false };
+        try
+        {
+            window.Show(); await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            var grid = (DataGrid)view.FindName("ProductGrid"); var rows = vm.Products.Items.ToArray();
+            grid.SelectedItems.Add(rows[2]); Assert.AreSame(grid.SelectedItem, vm.SelectedLine);
+            OpenCheckMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background);
+            var menu = grid.ContextMenu; var items = menu.Items.OfType<MenuItem>().ToArray();
+            CollectionAssert.AreEqual(new[] { "查看", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选(当前页)", "反选(当前页)", "刷新", "删除", "表格模式" }, items.Select(item => (string)item.Header).ToArray());
+            Assert.AreSame(grid.SelectedItems, items[1].CommandParameter); Assert.IsTrue(items[1].IsEnabled);
+            var selected = grid.SelectedItems.Cast<object>().ToArray(); await InvokeCheckMenu(items[1], menu);
+            Assert.AreEqual(selected.Length, vm.Products.CheckedCount);
+            OpenCheckMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background); await InvokeCheckMenu(items[2], menu); Assert.AreEqual(0, vm.Products.CheckedCount);
+            OpenCheckMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background); await InvokeCheckMenu(items[3], menu); Assert.AreEqual(selected.Length, vm.Products.CheckedCount);
+            var header = Descendants(grid).OfType<CheckBox>().Single(box => ReferenceEquals(box.Command, vm.SetVisibleChecksCommand));
+            await PressCheckSpace(header); Assert.AreEqual(3, vm.Products.CheckedCount); Assert.IsTrue(vm.IsAllVisibleChecked);
+            await PressCheckSpace(header); Assert.AreEqual(0, vm.Products.CheckedCount);
+            var firstRow = (DataGridRow)grid.ItemContainerGenerator.ContainerFromItem(rows[0]);
+            var rowCheck = Descendants(firstRow).OfType<CheckBox>().First(); await PressCheckSpace(rowCheck); Assert.IsTrue(rows[0].IsChecked);
+            var mode = Descendants(view).OfType<global::Wpf.Ui.Controls.ToggleSwitch>().Single(); await PressCheckSpace(mode);
+            Assert.IsTrue(vm.IsCellSelectionMode); Assert.AreEqual(DataGridSelectionUnit.CellOrRowHeader, grid.SelectionUnit);
+            OpenCheckMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background); Assert.IsTrue(items.Skip(1).Take(3).All(item => !item.IsEnabled));
+            vm.CheckSelectionCommand.Execute(rows); Assert.AreEqual(1, vm.Products.CheckedCount); menu.IsOpen = false;
+            await Dispatcher.Yield(DispatcherPriority.Background); await PressCheckSpace(mode);
+            Assert.IsFalse(vm.IsCellSelectionMode); Assert.AreEqual(DataGridSelectionUnit.FullRow, grid.SelectionUnit);
+            Assert.AreSame(grid.SelectedItem, vm.SelectedLine); Assert.IsFalse(vm.HasUnsavedChanges); Assert.AreEqual(203, vm.TotalCount);
+            window.Content = null; await Dispatcher.Yield(DispatcherPriority.Background);
+            Assert.AreEqual(8, menu.Items.OfType<MenuItem>().Count(), "卸载只移除注入的查看，保留业务菜单。");
+            window.Content = view; await Dispatcher.Yield(DispatcherPriority.Loaded);
+            Assert.AreEqual(1, menu.Items.OfType<MenuItem>().Count(item => Equals(item.Header, "查看")));
+        }
+        finally { window.Close(); }
+    });
+
+    /// <summary>以服务端总数大于本页行数的固定样本验证当前页边界。</summary>
+    private static ServiceResult<PagedResponseBase<CustomerProductDto>> ProductPage(CustomerDto customer) =>
+        ServiceResult<PagedResponseBase<CustomerProductDto>>.Ok(new()
+        { TotalCount = 203, PageIndex = 1, PageSize = 20, Items = Enumerable.Range(1, 3).Select(index => new CustomerProductDto
+            { Uid = Guid.NewGuid(), Version = 1, CustomerId = customer.Uid, CustomerCode = customer.CustomerCode, CustomerSku = $"P{index}" }).ToList() });
+
+    /// <summary>只遍历当前呈现的视觉节点，验证真实控件和菜单接线。</summary>
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(parent); index++)
+        { var child = VisualTreeHelper.GetChild(parent, index); yield return child; foreach (var nested in Descendants(child)) yield return nested; }
+    }
+    /// <summary>通过连接到窗口的原生空格输入执行开关和复选框的完整点击路径。</summary>
+    private static async Task PressCheckSpace(Control control)
+    {
+        Assert.IsTrue(control.Focus());
+        foreach (var routed in new[] { Keyboard.KeyDownEvent, Keyboard.KeyUpEvent })
+            control.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(control)!, 0, Key.Space) { RoutedEvent = routed });
+        await Dispatcher.Yield(DispatcherPriority.Background);
+    }
+    /// <summary>通过原生菜单键建立 PlacementTarget，避免手工设置菜单上下文掩盖接线错误。</summary>
+    private static void OpenCheckMenu(DataGrid grid)
+    {
+        grid.Focus(); InputManager.Current.ProcessInput(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(grid)!, 0, Key.Apps) { RoutedEvent = Keyboard.KeyUpEvent });
+    }
+    /// <summary>调用真实菜单自动化入口并等待 Popup 关闭完成。</summary>
+    private static async Task InvokeCheckMenu(MenuItem item, ContextMenu menu)
+    {
+        var closed = new TaskCompletionSource(); RoutedEventHandler handler = (_, _) => closed.TrySetResult(); menu.Closed += handler;
+        try { ((IInvokeProvider)new MenuItemAutomationPeer(item).GetPattern(PatternInterface.Invoke)!).Invoke(); await closed.Task.WaitAsync(TimeSpan.FromSeconds(3)); }
+        finally { menu.Closed -= handler; }
+    }
+
     /// <summary>已有产品数据后切换客户，新请求等待期间旧客户行和旧状态提示立即退出。</summary>
     [TestMethod]
     public async Task SwitchingLoadedCustomer_ShouldClearPreviousRowsBeforeAwait()
@@ -128,8 +275,10 @@ public sealed class CustomerProductManagerTests
         vm.SelectedCustomer = customer; var loading = vm.CommitCustomerCommand.ExecuteAsync(null);
         vm.Dispose(); await loading; pending.SetResult(Page(customer, "LATE"));
         Assert.IsEmpty(vm.Products.Items); Assert.IsNull(vm.CommitPendingEdits);
+        var headerNotices = 0; vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.IsAllVisibleChecked)) headerNotices++; };
         vm.Products.AddNewItem(customer.Uid, customer.CustomerCode);
         Assert.IsFalse(vm.IsDirty, "释放后已解除 Products.PropertyChanged，不再转发集合草稿。");
+        Assert.AreEqual(0, headerNotices, "释放后不保留集合视图事件。");
     }
 
     /// <summary>保存期间切换、清空和页签关闭均被拒绝，客户身份与未提交产品保持一致。</summary>
@@ -144,6 +293,7 @@ public sealed class CustomerProductManagerTests
         vm.SelectedCustomer = first; await vm.CommitCustomerCommand.ExecuteAsync(null);
         var row = vm.Products.AddNewItem(first.Uid, first.CustomerCode); row.CustomerSku = "DRAFT";
         var save = vm.SaveCommand.ExecuteAsync(null); Assert.IsTrue(vm.IsBusy); Assert.IsFalse(vm.CanChangeCustomer);
+        Assert.IsFalse(vm.CheckVisibleCommand.CanExecute(null)); Assert.IsFalse(vm.CheckSelectionCommand.CanExecute(null));
         vm.SelectedCustomer = second; await vm.CommitCustomerCommand.ExecuteAsync(null); await vm.ClearCustomerCommand.ExecuteAsync(null);
         Assert.IsFalse(await vm.CanCloseAsync(default)); Assert.AreSame(first, vm.SelectedCustomer); Assert.AreEqual(first.Uid, vm.ActiveCustomer!.Uid);
         Assert.AreSame(row, vm.Products.Items.Single()); Assert.HasCount(1, api.Requests);

@@ -48,6 +48,7 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx, I
         Title = "客户产品管理";
         Products.PropertyChanged += OnListPropertyChanged;
         PropertyChanged += OnPagePropertyChanged;
+        InitializeCheckSelection();
         RegisterBusyAwareCommand(SearchCommand);
         RegisterBusyAwareCommand(RefreshCommand);
         RegisterBusyAwareCommand(AddItemCommand);
@@ -74,7 +75,11 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx, I
     public partial CustomerProductLineModel? SelectedLine { get; set; }
     [ObservableProperty] public partial ProductLookupDto? SelectedCandidate { get; set; }
     [ObservableProperty] public partial bool IsLookupBusy { get; set; }
-    [ObservableProperty] public partial bool IsCellSelectionMode { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UncheckSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InvertSelectionCommand))]
+    public partial bool IsCellSelectionMode { get; set; }
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
@@ -403,6 +408,7 @@ public sealed partial class CustomerProductManagerViewModel : ViewModelBaseEx, I
     /// <summary>统一刷新同一页面命令和可编辑状态，不镜像第二个 VM。</summary>
     private void NotifyCapabilities()
     {
+        RefreshCheckState();
         OnPropertyChanged(nameof(CanChangeCustomer)); OnPropertyChanged(nameof(CanEditProducts));
         SearchCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged(); AddItemCommand.NotifyCanExecuteChanged();
         PageChangeCommand.NotifyCanExecuteChanged(); ClearCustomerCommand.NotifyCanExecuteChanged();

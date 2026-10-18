@@ -217,6 +217,7 @@ public sealed class CustomerDictionaryColumnsTests
         Assert.IsFalse(document.Descendants().Any(element => element.Name.LocalName == "RightDrawerHost"));
     }
 
+    /// <summary>客户产品列不暴露单位与币种，并按客户页约定双向绑定原生选中行。</summary>
     [TestMethod]
     public void CustomerProductColumns_ShouldNotExposeUnitOrCurrency()
     {
@@ -241,9 +242,9 @@ public sealed class CustomerDictionaryColumnsTests
         Assert.AreEqual("Extended", (string?)dataGrid.Attribute("SelectionMode"));
         StringAssert.Contains((string?)dataGrid.Attribute("SelectionUnit"), "IsCellSelectionMode");
         StringAssert.Contains((string?)dataGrid.Attribute("SelectionUnit"), "GridSelectionUnitConverter");
-        Assert.IsNull(dataGrid.Attribute("SelectedItem"));
+        Assert.IsNull(dataGrid.Attribute("CurrentItem"));
         var currentRowBinding = dataGrid.Attributes().Single(attribute =>
-            attribute.Name.LocalName == "CurrentItem");
+            attribute.Name.LocalName == "SelectedItem");
         StringAssert.Contains(currentRowBinding.Value, "SelectedLine");
         StringAssert.Contains(currentRowBinding.Value, "Mode=TwoWay");
 
