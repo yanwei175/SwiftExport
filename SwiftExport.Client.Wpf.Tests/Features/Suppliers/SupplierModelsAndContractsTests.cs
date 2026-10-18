@@ -1,3 +1,4 @@
+using SwiftExport.Client.Wpf.Tests.TestInfrastructure;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Contracts.Apis.SupplierApis;
@@ -15,6 +16,7 @@ using SwiftExportClient.Navigation;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.Suppliers;
 
+/// <summary>验证供应商模型、现有共享契约和独立管理页面的公开行为。</summary>
 [TestClass]
 public sealed class SupplierModelsAndContractsTests
 {
@@ -108,52 +110,34 @@ public sealed class SupplierModelsAndContractsTests
         var registry = new NavigationRouteRegistry();
         Assert.IsTrue(registry.TryGetRoute("suppliers", out var route));
         Assert.AreEqual("供应商管理", route.Title);
-        Assert.IsTrue(registry.TryGetRoute(SupplierProductWorkspaceViewModel.RouteKey, out var supplierProductRoute));
-        Assert.AreEqual(typeof(SupplierProductWorkspaceViewModel), supplierProductRoute.ViewModelType);
+        Assert.IsTrue(registry.TryGetRoute(SupplierProductManagerViewModel.RouteKey, out var supplierProductRoute));
+        Assert.AreEqual(typeof(SupplierProductManagerViewModel), supplierProductRoute.ViewModelType);
 
         var supplierGroup = registry.MenuItems.Single(item => item.RouteKey == "suppliers");
         Assert.AreEqual("供应商", supplierGroup.Title);
         CollectionAssert.AreEqual(
-            new[] { "suppliers", SupplierProductWorkspaceViewModel.RouteKey },
+            new[] { "suppliers", SupplierProductManagerViewModel.RouteKey },
             supplierGroup.Children.Select(item => item.RouteKey).ToArray());
     }
 
+    /// <summary>管理表的选择模式不再由另一页面的产品编辑器控制。</summary>
     [TestMethod]
-    public void SupplierManager_ShouldMutuallyExcludeCellSelectionAndProductDrawer()
+    public void SupplierManager_ModeIsIndependentWithoutProductDrawer()
     {
-        var supplierProducts = new SupplierProductManagerViewModel(null!, null!, null!, null!, null!);
-        var viewModel = new SupplierManagerViewModel(
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            supplierProducts);
-
-        Assert.IsFalse(viewModel.IsCellSelectionMode);
-        Assert.IsTrue(viewModel.ToggleSupplierProductsCommand.CanExecute(null));
-
-        viewModel.IsCellSelectionMode = true;
-        Assert.IsFalse(viewModel.ToggleSupplierProductsCommand.CanExecute(null));
-
-        viewModel.IsCellSelectionMode = false;
-        supplierProducts.IsOpen = true;
-        Assert.IsFalse(viewModel.CanChangeSelectionMode);
-        viewModel.IsCellSelectionMode = true;
-        Assert.IsFalse(viewModel.IsCellSelectionMode, "抽屉打开时不得进入格子模式。");
+        using var vm = new SupplierManagerViewModel(null!, null!, null!, null!, new ReferenceDataCacheServiceStub(), SupplierTestSupport.FullUser());
+        Assert.IsFalse(vm.IsCellSelectionMode); vm.IsCellSelectionMode = true; Assert.IsTrue(vm.IsCellSelectionMode);
+        Assert.IsNull(typeof(SupplierManagerViewModel).GetProperty("SupplierProducts"));
+        Assert.IsNull(typeof(SupplierManagerViewModel).GetProperty("ToggleSupplierProductsCommand"));
     }
 
     [TestMethod]
-    public void ProductLookup_ShouldFillStandardFieldsWithoutOverwritingSupplierValuesOrPrices_AndClearExplicitly()
+    public async Task ProductLookup_ShouldFillStandardFieldsWithoutOverwritingSupplierValuesOrPrices_AndClearExplicitly()
     {
-        var viewModel = new SupplierProductManagerViewModel(null!, null!, null!, null!, null!);
-        var line = new SupplierProductLineModel
-        {
-            SupplierSkuDescriptionZh = "供应商自定义描述",
-            SupplierSkuFeaturesZh = string.Empty,
-            UnitPrice = 99m,
-            TaxPrice = 110m,
-        };
+        using var viewModel = new SupplierProductManagerViewModel(SupplierTestSupport.EmptyProducts(), null!, SupplierTestSupport.Runner(), null!, null!, new ReferenceDataCacheServiceStub(), SupplierTestSupport.FullUser());
+        var supplier = SupplierTestSupport.Supplier(); await viewModel.SelectSupplierAsync(supplier);
+        var line = viewModel.Products.AddNewItem(supplier.Uid, supplier.SupplierCode, supplier.SupplierName, supplier.Currency, supplier.TaxRate);
+        line.SupplierSkuDescriptionZh = "供应商自定义描述"; line.SupplierSkuFeaturesZh = string.Empty;
+        line.UnitPrice = 99m; line.TaxPrice = 110m;
         viewModel.SelectedCandidate = new ProductLookupDto
         {
             Uid = Guid.NewGuid(), Sku = "P-1", LinkSku = "L-1",

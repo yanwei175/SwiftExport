@@ -33,9 +33,9 @@ public sealed class SupplierProductWorkspaceTests
             .ToArray();
         var cache = new ReferenceDataCacheServiceStub(suppliers: options);
         var productApi = new SupplierProductApiStub();
-        using var workspace = CreateWorkspace(cache, productApi, new DialogServiceStub());
+        using var workspace = CreateManager(cache, productApi, new DialogServiceStub());
 
-        Assert.IsFalse(workspace.Editor.IsOpen);
+        Assert.IsFalse(workspace.IsOpen);
         Assert.IsEmpty(productApi.Requests);
 
         await workspace.InitializeAsync();
@@ -52,14 +52,14 @@ public sealed class SupplierProductWorkspaceTests
         await workspace.CommitSupplierCommand.ExecuteAsync(null);
 
         Assert.AreSame(selected, workspace.SelectedSupplier);
-        Assert.IsTrue(workspace.Editor.IsOpen);
-        Assert.AreEqual(selected.Uid, workspace.Editor.ActiveSupplier?.Uid);
-        Assert.IsFalse(workspace.Editor.ActiveSupplier!.IsNew);
+        Assert.IsTrue(workspace.IsOpen);
+        Assert.AreEqual(selected.Uid, workspace.ActiveSupplier?.Uid);
+        Assert.IsFalse(workspace.ActiveSupplier!.IsNew);
         Assert.HasCount(1, productApi.Requests);
         Assert.AreEqual(selected.Uid, productApi.Requests[0].SupplierId);
         Assert.AreEqual("供应商产品管理 - S025", workspace.DocumentTitle);
-        Assert.AreEqual(selected.Currency, workspace.Editor.ActiveSupplier.Currency);
-        Assert.AreEqual(selected.TaxRate, workspace.Editor.ActiveSupplier.TaxRate);
+        Assert.AreEqual(selected.Currency, workspace.ActiveSupplier.Currency);
+        Assert.AreEqual(selected.TaxRate, workspace.ActiveSupplier.TaxRate);
     }
 
     /// <summary>缓存加载失败只反馈一次，并保留缓存服务已有快照供本地选择。</summary>
@@ -69,14 +69,14 @@ public sealed class SupplierProductWorkspaceTests
         var option = Supplier(Guid.NewGuid(), "S001", "供应商一");
         var cache = new ReferenceDataCacheServiceStub(suppliers: [option], ensureSuccess: false);
         var messages = new MessageServiceStub();
-        using var workspace = CreateWorkspace(cache, new SupplierProductApiStub(), new DialogServiceStub(), messages);
+        using var workspace = CreateManager(cache, new SupplierProductApiStub(), new DialogServiceStub(), messages);
 
         await workspace.InitializeAsync();
         await workspace.InitializeAsync();
 
         Assert.AreEqual(1, messages.Warnings.Count);
         Assert.AreSame(option, workspace.SupplierOptions.Single());
-        Assert.IsFalse(workspace.Editor.IsOpen);
+        Assert.IsFalse(workspace.IsOpen);
     }
 
     /// <summary>取消切换或关闭时保留原编辑器模型、缓存 DTO 和全部未保存变更。</summary>
@@ -87,19 +87,19 @@ public sealed class SupplierProductWorkspaceTests
         var second = Supplier(Guid.NewGuid(), "S002", "供应商二");
         var dialog = new DialogServiceStub { ConfirmationResult = false };
         var productApi = new SupplierProductApiStub();
-        using var workspace = CreateWorkspace(
+        using var workspace = CreateManager(
             new ReferenceDataCacheServiceStub(suppliers: [first, second]), productApi, dialog);
 
         workspace.SelectedSupplier = first;
         await workspace.CommitSupplierCommand.ExecuteAsync(null);
-        var active = workspace.Editor.ActiveSupplier;
-        workspace.Editor.Products.AddNewItem(first.Uid, first.SupplierCode, first.SupplierName, first.Currency, first.TaxRate);
+        var active = workspace.ActiveSupplier;
+        workspace.Products.AddNewItem(first.Uid, first.SupplierCode, first.SupplierName, first.Currency, first.TaxRate);
         workspace.SelectedSupplier = second;
 
         await workspace.CommitSupplierCommand.ExecuteAsync(null);
 
         Assert.AreSame(first, workspace.SelectedSupplier);
-        Assert.AreSame(active, workspace.Editor.ActiveSupplier);
+        Assert.AreSame(active, workspace.ActiveSupplier);
         Assert.HasCount(1, productApi.Requests);
         Assert.IsFalse(await workspace.CanCloseAsync(CancellationToken.None));
         Assert.IsTrue(workspace.HasUnsavedChanges);
@@ -111,7 +111,7 @@ public sealed class SupplierProductWorkspaceTests
     {
         var first = Supplier(Guid.NewGuid(), "S001", "供应商一");
         var cache = new ReferenceDataCacheServiceStub(suppliers: [first]);
-        using var workspace = CreateWorkspace(cache, new SupplierProductApiStub(), new DialogServiceStub());
+        using var workspace = CreateManager(cache, new SupplierProductApiStub(), new DialogServiceStub());
         await workspace.InitializeAsync();
         workspace.SelectedSupplier = first;
         await workspace.CommitSupplierCommand.ExecuteAsync(null);
@@ -120,7 +120,7 @@ public sealed class SupplierProductWorkspaceTests
         await workspace.ClearSupplierCommand.ExecuteAsync(null);
 
         Assert.IsNull(workspace.SelectedSupplier);
-        Assert.IsFalse(workspace.Editor.IsOpen);
+        Assert.IsFalse(workspace.IsOpen);
         Assert.IsFalse(workspace.HasUnsavedChanges);
         workspace.Dispose();
         workspace.Dispose();
@@ -138,7 +138,7 @@ public sealed class SupplierProductWorkspaceTests
             var first = Supplier(Guid.NewGuid(), "S001", "供应商一");
             var second = Supplier(Guid.NewGuid(), "S002", "供应商二");
             var dialog = new DialogServiceStub { ConfirmationResult = false };
-            using var workspace = CreateWorkspace(
+            using var workspace = CreateManager(
                 new ReferenceDataCacheServiceStub(suppliers: [first, second]), new SupplierProductApiStub(), dialog);
             var control = new SupplierAutoSuggestComboBox { DataContext = workspace };
             control.SetBinding(SupplierAutoSuggestComboBox.ItemsSourceProperty, new Binding(nameof(workspace.SupplierOptions)));
@@ -169,8 +169,8 @@ public sealed class SupplierProductWorkspaceTests
 
                 Assert.AreSame(first, control.SelectedSupplier);
                 Assert.AreSame(first, workspace.SelectedSupplier);
-                Assert.AreEqual(first.Uid, workspace.Editor.ActiveSupplier?.Uid);
-                workspace.Editor.Products.AddNewItem(first.Uid, first.SupplierCode, first.SupplierName, first.Currency, first.TaxRate);
+                Assert.AreEqual(first.Uid, workspace.ActiveSupplier?.Uid);
+                workspace.Products.AddNewItem(first.Uid, first.SupplierCode, first.SupplierName, first.Currency, first.TaxRate);
 
                 dropDown.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, dropDown));
                 results.SelectedItem = second;
@@ -189,7 +189,7 @@ public sealed class SupplierProductWorkspaceTests
                 await Dispatcher.Yield(DispatcherPriority.Background);
                 Assert.IsNull(control.SelectedSupplier);
                 Assert.IsNull(workspace.SelectedSupplier);
-                Assert.IsFalse(workspace.Editor.IsOpen);
+                Assert.IsFalse(workspace.IsOpen);
                 Assert.HasCount(2, workspace.SupplierOptions);
             }
             finally
@@ -207,7 +207,7 @@ public sealed class SupplierProductWorkspaceTests
         });
 
     /// <summary>用离线产品 API、缓存和弹窗结果组装本次工作区测试。</summary>
-    private static SupplierProductWorkspaceViewModel CreateWorkspace(
+    private static SupplierProductManagerViewModel CreateManager(
         IReferenceDataCacheService cache,
         ISupplierProductApi productApi,
         IDialogService dialogService,
@@ -216,8 +216,8 @@ public sealed class SupplierProductWorkspaceTests
         var runner = new DirectApiCallRunner();
         messages ??= new MessageServiceStub();
         var editor = new SupplierProductManagerViewModel(
-            productApi, null!, runner, messages, dialogService);
-        return new SupplierProductWorkspaceViewModel(cache, messages, editor);
+            productApi, null!, runner, messages, dialogService, cache, SupplierTestSupport.FullUser());
+        return editor;
     }
 
     /// <summary>构造已持久化的完整供应商候选，供选择器和编辑器共享稳定身份。</summary>
@@ -236,8 +236,7 @@ public sealed class SupplierProductWorkspaceTests
     {
         public List<SupplierProductSearchRequest> Requests { get; } = [];
 
-        public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(
-            SupplierProductSearchRequest request)
+        public Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request, CancellationToken cancellationToken = default)
         {
             Requests.Add(request);
             return Task.FromResult(ServiceResult<PagedResponseBase<SupplierProductDto>>.Ok(

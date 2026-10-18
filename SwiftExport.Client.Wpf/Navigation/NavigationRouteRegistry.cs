@@ -78,7 +78,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel), NavigationModuleKeys.Suppliers, "Suppliers.Supplier.View"),
 
-        new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductWorkspaceViewModel), NavigationModuleKeys.Suppliers, "Suppliers.Products.View"),
+        new(SupplierProductManagerViewModel.RouteKey, "供应商产品管理", "Workspace", typeof(SupplierProductManagerViewModel), NavigationModuleKeys.Suppliers, "Suppliers.Products.View"),
 
         new("sales", "销售", "Workspace", typeof(SalesViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
@@ -176,7 +176,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new("suppliers", "供应商管理", "Workspace", "PeopleTeam24"),
-                    new(SupplierProductWorkspaceViewModel.RouteKey, "供应商产品", "Workspace", "DocumentTable24"),
+                    new(SupplierProductManagerViewModel.RouteKey, "供应商产品", "Workspace", "DocumentTable24"),
                 ]),
             new(
                 "sales",
