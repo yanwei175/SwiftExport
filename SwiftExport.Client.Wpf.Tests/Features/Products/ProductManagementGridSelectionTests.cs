@@ -133,8 +133,14 @@ public sealed class ProductManagementGridSelectionTests
             OpenMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background);
             var menu = grid.ContextMenu;
             var items = menu.Items.OfType<MenuItem>().ToArray();
-            CollectionAssert.AreEqual(new[] { "查看", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选(当前显示行)", "反选(当前显示行)" }.Concat(page.BusinessHeaders).Append("表格模式").ToArray(),
-                items.Select(item => (string)item.Header).ToArray());
+            var operationHeaders = new[] { "查看", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选(当前显示行)", "反选(当前显示行)" }
+                .Concat(page.BusinessHeaders).Append("表格模式").ToArray();
+            var expectedHeaders = table == 0
+                ? new[] { "查看", "刷新" }.Concat(operationHeaders.Where(header => header is not "查看" and not "刷新")).ToArray()
+                : operationHeaders;
+            CollectionAssert.AreEqual(expectedHeaders, items.Select(item => (string)item.Header).ToArray());
+            // 主型号刷新前移只改变布局；按职责取项继续验证全部勾选、模式和权限行为。
+            items = operationHeaders.Select(header => items.Single(item => Equals(item.Header, header))).ToArray();
             Assert.AreSame(grid.SelectedItems, items[1].CommandParameter);
             await InvokeMenu(items[1], menu);
             Assert.AreEqual(2, page.Rows.Count(row => row.Checked()));

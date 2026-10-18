@@ -275,8 +275,11 @@ public sealed class CustomerPoConfigInteractionTests
             grid.SelectedItems.Clear(); grid.SelectedItems.Add(rows[0]); grid.SelectedItems.Add(rows[2]);
             OpenMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background);
             var menu = grid.ContextMenu; var items = menu.Items.OfType<MenuItem>().ToArray();
-            CollectionAssert.AreEqual(new[] { "查看", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选(当前显示行)", "反选(当前显示行)", "新增", "刷新", "删除", "表格模式" },
+            CollectionAssert.AreEqual(new[] { "查看", "刷新", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选(当前显示行)", "反选(当前显示行)", "新增", "删除", "表格模式" },
                 items.Select(item => (string)item.Header).ToArray());
+            // 布局顺序已验证，后续按菜单职责定位，保留原生操作与权限断言。
+            items = new[] { "查看", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选(当前显示行)", "反选(当前显示行)", "新增", "刷新", "删除", "表格模式" }
+                .Select(header => items.Single(item => Equals(item.Header, header))).ToArray();
             Assert.AreSame(grid.SelectedItems, items[1].CommandParameter);
             await InvokeMenu(items[1], menu); Assert.AreEqual(2, vm.Lines.CheckedCount);
             OpenMenu(grid); await Dispatcher.Yield(DispatcherPriority.Background); await InvokeMenu(items[2], menu); Assert.AreEqual(0, vm.Lines.CheckedCount);

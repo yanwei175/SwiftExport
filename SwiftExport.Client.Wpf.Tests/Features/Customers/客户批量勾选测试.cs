@@ -172,11 +172,13 @@ public sealed class CustomerBatchCheckTests
             await Drain();
             Assert.IsTrue(menu.IsOpen, "键盘菜单键应打开同一批量勾选菜单。");
             var items = menu.Items.OfType<MenuItem>().ToArray();
-            CollectionAssert.AreEqual(new[] { "查看", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选", "反选", "刷新", "删除", "表格模式" },
+            CollectionAssert.AreEqual(new[] { "查看", "刷新", "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选", "反选", "删除", "表格模式" },
                 items.Select(item => (string)item.Header).ToArray());
             Assert.IsInstanceOfType<global::Wpf.Ui.Controls.SymbolIcon>(items[0].Icon);
             Assert.AreEqual(global::Wpf.Ui.Controls.SymbolRegular.Grid16, ((global::Wpf.Ui.Controls.SymbolIcon)items[0].Icon).Symbol);
-            items = items.Skip(1).ToArray();
+            // 顺序单独按用户布局验证；操作断言按职责取项，避免刷新位置影响勾选与权限验证。
+            items = new[] { "勾选(选区)", "取消勾选(选区)", "反选(选区)", "全选", "反选", "刷新", "删除", "表格模式" }
+                .Select(header => items.Single(item => Equals(item.Header, header))).ToArray();
             Assert.AreSame(vm.RefreshCommand, items[5].Command);
             Assert.AreSame(vm.DeleteSelectedCommand, items[6].Command);
             Assert.IsTrue(items.Where((_, index) => index > 2 && index != 6).All(item => item.IsEnabled));
