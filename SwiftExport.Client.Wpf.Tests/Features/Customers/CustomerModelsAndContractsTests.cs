@@ -78,7 +78,7 @@ public sealed class CustomerModelsAndContractsTests
     public void CustomerProductSelectionMode_ShouldDefaultToFullRow()
     {
         var viewModel = new CustomerProductManagerViewModel(
-            null!, null!, null!, null!, null!);
+            null!, null!, null!, null!, null!, new SwiftExport.Client.Wpf.Tests.TestInfrastructure.ReferenceDataCacheServiceStub());
 
         Assert.IsFalse(viewModel.IsCellSelectionMode);
         viewModel.IsCellSelectionMode = true;
@@ -129,13 +129,13 @@ public sealed class CustomerModelsAndContractsTests
         var registry = new NavigationRouteRegistry();
         Assert.IsTrue(registry.TryGetRoute("customers", out var customerRoute));
         Assert.AreEqual("客户管理", customerRoute.Title);
-        Assert.IsTrue(registry.TryGetRoute(CustomerProductWorkspaceViewModel.RouteKey, out var customerProductRoute));
-        Assert.AreEqual(typeof(CustomerProductWorkspaceViewModel), customerProductRoute.ViewModelType);
+        Assert.IsTrue(registry.TryGetRoute(CustomerProductManagerViewModel.RouteKey, out var customerProductRoute));
+        Assert.AreEqual(typeof(CustomerProductManagerViewModel), customerProductRoute.ViewModelType);
 
         var customerGroup = registry.MenuItems.Single(item => item.RouteKey == "customers");
         Assert.AreEqual("客户", customerGroup.Title);
         CollectionAssert.AreEqual(
-            new[] { "customers", CustomerProductWorkspaceViewModel.RouteKey, "customer-po-configs" },
+            new[] { "customers", CustomerProductManagerViewModel.RouteKey, "customer-po-configs" },
             customerGroup.Children.Select(item => item.RouteKey).ToArray());
     }
 
@@ -143,7 +143,7 @@ public sealed class CustomerModelsAndContractsTests
     public void ProductLookup_ShouldFillStandardFieldsWithoutOverwritingCustomerValues_AndClearExplicitly()
     {
         var viewModel = new CustomerProductManagerViewModel(
-            null!, null!, null!, null!, null!);
+            null!, null!, null!, null!, null!, new SwiftExport.Client.Wpf.Tests.TestInfrastructure.ReferenceDataCacheServiceStub());
         var line = new CustomerProductLineModel
         {
             CustomerPdDescription = "客户自定义描述",

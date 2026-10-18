@@ -172,7 +172,7 @@ public sealed class CustomerDictionaryColumnsTests
     {
         var cache = new ReferenceDataCacheStub([]);
         var customerProducts = new CustomerProductManagerViewModel(
-            null!, null!, null!, null!, null!);
+            null!, null!, null!, null!, null!, new SwiftExport.Client.Wpf.Tests.TestInfrastructure.ReferenceDataCacheServiceStub());
         var viewModel = new CustomerManagerViewModel(
             null!,
             null!,

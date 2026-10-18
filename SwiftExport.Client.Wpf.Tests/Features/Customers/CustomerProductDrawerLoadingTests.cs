@@ -35,7 +35,7 @@ public sealed class CustomerProductDrawerLoadingTests
             null!,
             new DirectApiCallRunner(),
             new MessageServiceStub(),
-            new DialogServiceStub());
+            new DialogServiceStub(), new ReferenceDataCacheServiceStub());
         var customer = new CustomerLineModel();
         customer.Load(new CustomerDto
         {
@@ -67,7 +67,7 @@ public sealed class CustomerProductDrawerLoadingTests
             null!,
             new DirectApiCallRunner(),
             new MessageServiceStub(),
-            new DialogServiceStub());
+            new DialogServiceStub(), new ReferenceDataCacheServiceStub());
 
         await viewModel.SelectCustomerAsync(firstCustomer);
         await viewModel.SelectCustomerAsync(secondCustomer);

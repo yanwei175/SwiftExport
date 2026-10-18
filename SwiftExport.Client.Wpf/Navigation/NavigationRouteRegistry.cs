@@ -74,7 +74,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new(CustomerPoConfigManagerViewModel.RouteKey, "客户采购默认配置", "Workspace", typeof(CustomerPoConfigManagerViewModel), NavigationModuleKeys.Customers, "Customers.PoConfig.View"),
 
-        new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品管理", "Workspace", typeof(CustomerProductWorkspaceViewModel), NavigationModuleKeys.Customers, "Customers.Products.View"),
+        new(CustomerProductManagerViewModel.RouteKey, "客户产品管理", "Workspace", typeof(CustomerProductManagerViewModel), NavigationModuleKeys.Customers, "Customers.Products.View"),
 
         new("suppliers", "供应商管理", "Workspace", typeof(SupplierManagerViewModel), NavigationModuleKeys.Suppliers, "Suppliers.Supplier.View"),
 
@@ -164,7 +164,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 Children:
                 [
                     new("customers", "客户管理", "Workspace", "People24"),
-                    new(CustomerProductWorkspaceViewModel.RouteKey, "客户产品", "Workspace", "DocumentTable24"),
+                    new(CustomerProductManagerViewModel.RouteKey, "客户产品", "Workspace", "DocumentTable24"),
                     new(CustomerPoConfigManagerViewModel.RouteKey, "客户专用单头", "Workspace", "Settings24"),
                 ]),
             new(

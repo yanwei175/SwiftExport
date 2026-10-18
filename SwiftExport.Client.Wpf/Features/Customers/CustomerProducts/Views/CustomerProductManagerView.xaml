@@ -4,18 +4,26 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views"
+             xmlns:customers="clr-namespace:SwiftExportClient.Features.Customers.Components"
              xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls"
              xmlns:productComponents="clr-namespace:SwiftExportClient.Features.Products.Components"
              xmlns:gridCore="clr-namespace:SwiftExportClient.Resources.Behaviors"
              xmlns:gridSelection="clr-namespace:SwiftExportClient.Resources.Converters"
-             mc:Ignorable="d"  d:DesignHeight="450" d:DesignWidth="1200">
+             Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged" mc:Ignorable="d"  d:DesignHeight="450" d:DesignWidth="1200">
 
     <UserControl.Resources>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
     </UserControl.Resources>
     
-    <Grid Margin="12" RowDefinitions="Auto,8,*,8,Auto">
+    <Grid Margin="12" RowDefinitions="Auto,8,*">
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Text="当前客户" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <customers:CustomerAutoSuggestComboBox x:Name="CustomerSelector" Width="360" Placeholder="输入客户代码或名称"
+                ItemsSource="{Binding CustomerOptions}" SelectedCustomer="{Binding SelectedCustomer, Mode=TwoWay}"
+                SelectionCommittedCommand="{Binding CommitCustomerCommand}" SelectionClearedCommand="{Binding ClearCustomerCommand}"
+                IsEnabled="{Binding CanChangeCustomer}" AutomationProperties.Name="选择客户产品所属客户"/>
+        </StackPanel>
+    <Grid Grid.Row="2" Margin="0" IsEnabled="{Binding CanEditProducts}" RowDefinitions="Auto,8,*,8,Auto">
         <!--条件筛选区域-->
         <Grid RowDefinitions="Auto,8, *">
             <Grid ColumnDefinitions="3*,3*,3*" RowDefinitions="Auto">
@@ -38,7 +46,7 @@
                     <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" 
                                 VerticalAlignment="Stretch" MinWidth="70"/>
 
-                    <ui:Button Content="关闭" Command="{Binding CloseCommand}" Margin="8,0,0,0"  
+                    <ui:Button x:Name="ClearCustomerButton" Content="清空客户" Command="{Binding ClearCustomerCommand}" Margin="8,0,0,0"
                                VerticalAlignment="Stretch" HorizontalAlignment="Right" MinWidth="70"/>
                 </DockPanel>
             </Grid>
@@ -61,7 +69,7 @@
             </DockPanel>
         </Grid>
         
-        <DataGrid Grid.Row="2" 
+        <DataGrid x:Name="ProductGrid" Grid.Row="2"
                   ItemsSource="{Binding Products.Items}" 
                   SelectionMode="Extended" 
                   SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
@@ -204,5 +212,15 @@
                             PageSize="{Binding PageSize}" 
                             PageChangeCommand="{Binding PageChangeCommand}" />
         </Grid>
+    </Grid>
+        <Border Grid.Row="2" Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}">
+            <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Visible"/>
+                <Style.Triggers><DataTrigger Binding="{Binding IsOpen}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+            </Style></Border.Style>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="请先选择客户" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock Text="选择一个已保存客户后，才能管理该客户的产品。" Margin="0,8,0,0" Foreground="{DynamicResource UserTextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>

@@ -4,5 +4,5 @@
  xmlns:productViews="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.Views" xmlns:productViewModels="clr-namespace:SwiftExportClient.Features.Customers.CustomerProducts.ViewModels">
     <DataTemplate DataType="{x:Type managerViewModels:CustomerManagerViewModel}"><managerViews:CustomerManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type configViewModels:CustomerPoConfigManagerViewModel}"><configViews:CustomerPoConfigManagerView /></DataTemplate>
-    <DataTemplate DataType="{x:Type productViewModels:CustomerProductWorkspaceViewModel}"><productViews:CustomerProductWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type productViewModels:CustomerProductManagerViewModel}"><productViews:CustomerProductManagerView /></DataTemplate>
 </ResourceDictionary>

@@ -86,7 +86,6 @@ public static class ViewRegistrationExtensions
         services.AddTransient<CustomerManagerViewModel>();
         services.AddTransient<CustomerPoConfigManagerViewModel>();
         services.AddTransient<CustomerProductManagerViewModel>();
-        services.AddTransient<CustomerProductWorkspaceViewModel>();
 
         services.AddTransient<SupplierManagerViewModel>();
         services.AddTransient<SupplierProductManagerViewModel>();
