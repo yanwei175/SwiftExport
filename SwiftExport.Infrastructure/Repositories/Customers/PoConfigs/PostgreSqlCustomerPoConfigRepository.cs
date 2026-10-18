@@ -11,7 +11,7 @@ using System.Data;
 
 namespace SwiftExport.Infrastructure.Repositories.Customers.PoConfigs;
 
-/// <summary>使用调用方 PostgreSQL 会话维护客户采购默认配置，保留原组合校验差异；锁定读取串行配置表写入以保护缺失结果。</summary>
+/// <summary>按双方身份维护客户采购默认配置，读取时联接主数据当前编码；保留旧编码检查接口供既有调用方兼容。</summary>
 public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext context)
     : PostgreSqlDapperRepository<CustomerPoConfig>(context), ICustomerPoConfigRepository
 {
@@ -24,9 +24,9 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
         cpc."updated_date" AS "UpdatedDate",
         cpc."updated_by" AS "UpdatedBy",
         cpc."customer_id" AS "CustomerId",
-        cpc."customer_code" AS "CustomerCode",
+        COALESCE(customer.customer_code,cpc."customer_code") AS "CustomerCode",
         cpc."supplier_id" AS "SupplierId",
-        cpc."supplier_code" AS "SupplierCode",
+        COALESCE(supplier.supplier_code,cpc."supplier_code") AS "SupplierCode",
         cpc."currency" AS "Currency",
         cpc."default_discount_rate" AS "DefaultDiscountRate",
         cpc."discount_remark" AS "DiscountRemark",
@@ -42,24 +42,32 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
         cpc."purchaser" AS "Purchaser",
         cpc."note" AS "Note"
     """;
+    private const string PartyJoins = """
+        LEFT JOIN public.customer customer ON customer.uid=cpc.customer_id AND COALESCE(customer.is_deleted,FALSE)=FALSE
+        LEFT JOIN public.supplier supplier ON supplier.uid=cpc.supplier_id AND COALESCE(supplier.is_deleted,FALSE)=FALSE
+        """;
+
+    /// <inheritdoc />
+    public async Task LockForWriteAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var transaction = Transaction ?? throw new InvalidOperationException("锁定采购配置读取需要已有事务。");
+        if (transaction.IsolationLevel is not (IsolationLevel.ReadCommitted or IsolationLevel.ReadUncommitted))
+            throw new InvalidOperationException("锁定采购配置读取仅支持 ReadCommitted 或 ReadUncommitted；高隔离快照须由调用链单独验收。");
+        // 行锁不能保护尚不存在的组合；沿用配置读取的单表锁，与真实唯一索引共同阻止并发重复。
+        await Connection.ExecuteAsync(new CommandDefinition(
+            "LOCK TABLE public.customer_po_config IN SHARE ROW EXCLUSIVE MODE", transaction: transaction,
+            cancellationToken: cancellationToken));
+    }
 
     /// <summary>读取双方身份的完整未删除配置；锁定模式须有低隔离事务，先锁单表再查询，事务所有权仍归调用方。</summary>
     public async Task<CustomerPoConfigDto?> GetByPartiesAsync(Guid customerId, Guid supplierId,
         CancellationToken cancellationToken = default, bool withUpdLock = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (withUpdLock)
-        {
-            var transaction = Transaction ?? throw new InvalidOperationException("锁定采购配置读取需要已有事务。");
-            if (transaction.IsolationLevel is not (IsolationLevel.ReadCommitted or IsolationLevel.ReadUncommitted))
-                throw new InvalidOperationException("锁定采购配置读取仅支持 ReadCommitted 或 ReadUncommitted；高隔离快照须由调用链单独验收。");
-            // FOR UPDATE 无法保护不存在的组合；单表锁与配置写锁冲突，等待结束后的新语句读取最新已提交结果。
-            await Connection.ExecuteAsync(new CommandDefinition(
-                "LOCK TABLE public.customer_po_config IN SHARE ROW EXCLUSIVE MODE", transaction: transaction,
-                cancellationToken: cancellationToken));
-        }
+        if (withUpdLock) await LockForWriteAsync(cancellationToken);
         return await Connection.QuerySingleOrDefaultAsync<CustomerPoConfigDto>(new CommandDefinition($"""
-            SELECT {Columns} FROM public.customer_po_config cpc
+            SELECT {Columns} FROM public.customer_po_config cpc {PartyJoins}
             WHERE cpc.customer_id=@CustomerId AND cpc.supplier_id=@SupplierId AND cpc.is_deleted=FALSE
             """, new { CustomerId = customerId, SupplierId = supplierId }, Transaction, cancellationToken: cancellationToken));
     }
@@ -88,7 +96,8 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
             """;
         var result = await Connection.QuerySingleAsync<RelationIds>(sql,
             new { entity.CustomerId, entity.CustomerCode, entity.SupplierId, entity.SupplierCode }, Transaction);
-        if (!result.CustomerId.HasValue || !result.SupplierId.HasValue) return false;
+        if (!result.CustomerId.HasValue || result.CustomerId == Guid.Empty
+            || !result.SupplierId.HasValue || result.SupplierId == Guid.Empty) return false;
         entity.CustomerId = result.CustomerId;
         entity.CustomerCode = result.CustomerCode;
         entity.SupplierId = result.SupplierId;
@@ -118,7 +127,7 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
         return candidates.Where(item => requested.Contains($"{item.CustomerCode}|{item.SupplierCode}")).ToList();
     }
 
-    /// <summary>按原客户/供应商模糊关键词分页，保留默认及上限、完整字段和稳定降序，不更改请求。</summary>
+    /// <summary>按双方精确身份与当前编码关键词同时筛选，总数与分页共用条件，编码更名不改变配置身份。</summary>
     public async Task<PagedResponseBase<CustomerPoConfigDto>> GetPagedAsync(CustomerPoConfigSearchRequest request)
     {
         request ??= new CustomerPoConfigSearchRequest();
@@ -128,15 +137,25 @@ public sealed class PostgreSqlCustomerPoConfigRepository(RepositoryBaseContext c
         parameters.Add("Offset", (index - 1) * size);
         parameters.Add("PageSize", size);
         var where = "WHERE COALESCE(cpc.is_deleted,FALSE)=FALSE";
+        if (request.CustomerId.HasValue)
+        {
+            parameters.Add("CustomerId", request.CustomerId.Value);
+            where += " AND cpc.customer_id=@CustomerId";
+        }
+        if (request.SupplierId.HasValue)
+        {
+            parameters.Add("SupplierId", request.SupplierId.Value);
+            where += " AND cpc.supplier_id=@SupplierId";
+        }
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
             parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
-            where += " AND (cpc.customer_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR cpc.supplier_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')";
+            where += " AND (COALESCE(customer.customer_code,cpc.customer_code) COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR COALESCE(supplier.supplier_code,cpc.supplier_code) COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')";
         }
-        var total = await Connection.ExecuteScalarAsync<int>($"SELECT count(*) FROM public.customer_po_config cpc {where}", parameters, Transaction);
+        var total = await Connection.ExecuteScalarAsync<int>($"SELECT count(*) FROM public.customer_po_config cpc {PartyJoins} {where}", parameters, Transaction);
         var rows = await Connection.QueryAsync<CustomerPoConfigDto>($"""
-            SELECT {Columns} FROM public.customer_po_config cpc {where}
-            ORDER BY cpc.customer_code DESC NULLS LAST,cpc.uid DESC LIMIT @PageSize OFFSET @Offset
+            SELECT {Columns} FROM public.customer_po_config cpc {PartyJoins} {where}
+            ORDER BY COALESCE(customer.customer_code,cpc.customer_code) DESC NULLS LAST,cpc.uid DESC LIMIT @PageSize OFFSET @Offset
             """, parameters, Transaction);
         return new PagedResponseBase<CustomerPoConfigDto>
         { Items = rows.ToList(), TotalCount = total, PageIndex = index, PageSize = size };

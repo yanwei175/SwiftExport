@@ -110,7 +110,8 @@ namespace SwiftExport.Core.Entities.MasterData
 namespace SwiftExport.Core.Entities.Relations
 {
     [DbCheck("CK_CustomerPoConfig_DefaultDiscountRate", "\"default_discount_rate\" IS NULL OR \"default_discount_rate\" >= 0")]
-    [DbIndex("UX_CustomerPoConfig_Codes", nameof(CustomerPoConfig.CustomerCode), nameof(CustomerPoConfig.SupplierCode), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
+    [DbIndex("UX_CustomerPoConfig_Parties", nameof(CustomerPoConfig.CustomerId), nameof(CustomerPoConfig.SupplierId), IsUnique = true, Filter = "\"is_deleted\" = FALSE")]
+    [DbCheck("CK_CustomerPoConfig_Parties", "\"is_deleted\" = TRUE OR (\"customer_id\" IS NOT NULL AND \"customer_id\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"supplier_id\" IS NOT NULL AND \"supplier_id\" <> '00000000-0000-0000-0000-000000000000'::uuid)")]
     [LogicalReference(nameof(CustomerPoConfig.CustomerId), typeof(Customer))]
     [LogicalReference(nameof(CustomerPoConfig.SupplierId), typeof(Supplier))]
     public partial class CustomerPoConfig { }

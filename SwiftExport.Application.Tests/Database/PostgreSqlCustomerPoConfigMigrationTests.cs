@@ -32,6 +32,9 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.HasCount(1, f.Connection.Commands);
         StringAssert.Contains(f.Connection.Text, "cpc.\"im_type\" AS \"IMType\"");
         StringAssert.Contains(f.Connection.Text, "cpc.is_deleted=FALSE");
+        StringAssert.Contains(f.Connection.Text, "LEFT JOIN public.customer customer ON customer.uid=cpc.customer_id");
+        StringAssert.Contains(f.Connection.Text, "COALESCE(customer.customer_code,cpc.\"customer_code\") AS \"CustomerCode\"");
+        StringAssert.Contains(f.Connection.Text, "COALESCE(supplier.supplier_code,cpc.\"supplier_code\") AS \"SupplierCode\"");
         Assert.IsFalse(f.Connection.Text.Contains("LOCK", StringComparison.Ordinal));
         Assert.IsFalse(f.Connection.Text.Contains("is_active", StringComparison.Ordinal));
         Assert.AreSame(f.Session.Transaction, f.Connection.LastTransaction);
@@ -172,9 +175,34 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.AreEqual("备注", page.Items.Single().Note);
         Assert.AreEqual(SqlLikePattern.Build(keyword), f.Connection.Values["Keyword"]);
         Assert.AreEqual((expectedIndex - 1) * expectedSize, f.Connection.Values["Offset"]);
-        StringAssert.Contains(f.Connection.Text, "created_date DESC NULLS LAST,cpc.uid DESC");
+        StringAssert.Contains(f.Connection.Text, "COALESCE(customer.customer_code,cpc.customer_code) DESC NULLS LAST,cpc.uid DESC");
         Assert.IsTrue(f.Connection.Commands.All(c => ReferenceEquals(c.Transaction, f.Session.Transaction)));
         Assert.HasCount(2, f.Connection.Commands);
+    }
+
+    /// <summary>双方 ID 精确条件与当前编码关键词为 AND，总数和分页联接及筛选相同，空值不筛选。</summary>
+    [TestMethod]
+    [DataRow(false, false)] [DataRow(true, false)] [DataRow(false, true)] [DataRow(true, true)]
+    public async Task PoConfig_PageFiltersExactIdentitiesAndCurrentCodes(bool customerFilter, bool supplierFilter)
+    {
+        using var f = new Fixture();
+        f.Connection.Rows.Columns.Add("CustomerCode", typeof(string)); f.Connection.Rows.Columns.Add("SupplierCode", typeof(string));
+        f.Connection.Rows.Rows.Add("CURRENT-C", "CURRENT-S");
+        var customer = Guid.NewGuid(); var supplier = Guid.NewGuid();
+        var page = await new PostgreSqlCustomerPoConfigRepository(DictionaryContext(f)).GetPagedAsync(new()
+        { CustomerId = customerFilter ? customer : null, SupplierId = supplierFilter ? supplier : null, Keyword = "C%", PageIndex = 2, PageSize = 10 });
+        Assert.AreEqual("CURRENT-C", page.Items.Single().CustomerCode); Assert.AreEqual(1, page.TotalCount);
+        Assert.AreEqual(customerFilter, f.Connection.Values.ContainsKey("CustomerId"));
+        Assert.AreEqual(supplierFilter, f.Connection.Values.ContainsKey("SupplierId"));
+        if (customerFilter) Assert.AreEqual(customer, f.Connection.Values["CustomerId"]);
+        if (supplierFilter) Assert.AreEqual(supplier, f.Connection.Values["SupplierId"]);
+        var countWhere = f.Connection.Commands[0].Sql.Split("WHERE COALESCE(cpc.is_deleted,FALSE)=FALSE", StringSplitOptions.None)[1].Trim();
+        var pageWhere = f.Connection.Commands[1].Sql.Split("WHERE COALESCE(cpc.is_deleted,FALSE)=FALSE", StringSplitOptions.None)[1].Split("ORDER BY", StringSplitOptions.None)[0].Trim();
+        Assert.AreEqual(countWhere, pageWhere);
+        Assert.AreEqual(customerFilter, countWhere.Contains("AND cpc.customer_id=@CustomerId", StringComparison.Ordinal));
+        Assert.AreEqual(supplierFilter, countWhere.Contains("AND cpc.supplier_id=@SupplierId", StringComparison.Ordinal));
+        StringAssert.Contains(countWhere, "AND (COALESCE(customer.customer_code,cpc.customer_code)");
+        Assert.IsTrue(f.Connection.Commands.All(command => command.Sql.Contains("LEFT JOIN public.supplier", StringComparison.Ordinal)));
     }
 
     /// <summary>继承新增/更新审计及 nullable 关系映射保持原版本契约，不接管事务。</summary>

@@ -14,7 +14,9 @@ using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Common;
 using SwiftExport.Core.Entities.Relations;
 using SwiftExport.Core.Interfaces;
-using System.Text;
+using System.Data;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Core.Interfaces.Data;
 namespace SwiftExport.Application.Services.Customers.PoConfigs;
 
 /// <summary>编排客户采购默认配置查询、组合校验与原子批量保存。</summary>
@@ -53,10 +55,11 @@ public partial class CustomerPoConfigService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "按客户和供应商查询采购默认配置失败。CustomerId={CustomerId}, SupplierId={SupplierId}", customerId, supplierId);
-            return ServiceResult<CustomerPoConfigDto>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "查询客户采购默认配置失败。");
+            return ServiceResult<CustomerPoConfigDto>.Fail(ServiceErrorCodes.Unexpected, "查询客户采购默认配置失败。");
         }
     }
 
+    /// <summary>兼容既有编码消费者读取全部未删除配置，精确身份读取使用专用端点。</summary>
     public async Task<ServiceResult<IReadOnlyList<CustomerPoConfigDto>>> GetAllAsync()
     {
         try
@@ -70,10 +73,11 @@ public partial class CustomerPoConfigService(
         {
             // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
             Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<IReadOnlyList<CustomerPoConfigDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<IReadOnlyList<CustomerPoConfigDto>>.Fail(ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 
+    /// <summary>按双方身份与关键词同时分页，展示编码来自当前主数据。</summary>
     public async Task<ServiceResult<PagedResponseBase<CustomerPoConfigDto>>> GetPagedAsync(CustomerPoConfigSearchRequest request)
     {
         try
@@ -88,382 +92,198 @@ public partial class CustomerPoConfigService(
         {
             // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。
             Logger.LogError(ex, "应用服务执行失败。");
-            return ServiceResult<PagedResponseBase<CustomerPoConfigDto>>.Fail(SwiftExport.Contracts.DTOs.Errors.ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
+            return ServiceResult<PagedResponseBase<CustomerPoConfigDto>>.Fail(ServiceErrorCodes.Unexpected, "系统发生内部错误，请联系管理员。");
         }
     }
 
     #endregion
 
-    #region 批量保存和验证
+    /// <summary>单条新增也进入身份解析、ID 唯一性及同一事务内核，不依赖基类的编码校验。</summary>
+    public override async Task<ServiceResult<SaveItemResult>> AddAsync(CreateItemRequest<CustomerPoConfigDto> item)
+        => SingleResult(await BatchSaveAsync(new() { CreateItems = [item] }));
+
+    /// <summary>单条更新采用外层身份和版本，与批量更新共享主数据解析及并发保护。</summary>
+    public override async Task<ServiceResult<SaveItemResult>> UpdateAsync(UpdateItemRequest<CustomerPoConfigDto> item)
+        => SingleResult(await BatchSaveAsync(new() { UpdateItems = [item] }));
+
+    /// <summary>删除采用相同事务边界及乐观版本，不为历史无效主数据强制重新解析身份。</summary>
+    public override async Task<ServiceResult<SaveItemResult>> DeleteAsync(DeleteItemRequest item)
+        => SingleResult(await BatchSaveAsync(new() { DeleteItems = [item] }));
+
+    /// <summary>成功只返回已提交的单行回执；失败保留统一内核错误，不暴露已回滚结果。</summary>
+    private static ServiceResult<SaveItemResult> SingleResult(ServiceResult<CustomerPoConfigBatchSaveResponse> result)
+        => result.Success ? ServiceResult<SaveItemResult>.Ok(result.Data.Items.Single(), result.Message)
+            : new() { Success = false, Error = result.Error, Message = result.Message };
+
+    /// <summary>在自有低隔离事务内串行配置写入；先解析当前双方身份，再校验唯一性及原子写入，不自动重试。</summary>
     public async Task<ServiceResult<CustomerPoConfigBatchSaveResponse>> BatchSaveAsync(CustomerPoConfigBatchSaveRequest batchReq)
     {
-        if (batchReq == null)
-        {
-            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail("请求不能为空。");
-        }
+        if (batchReq is null) return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail("请求不能为空。");
+        batchReq.CreateItems ??= [];
+        batchReq.UpdateItems ??= [];
+        batchReq.DeleteItems ??= [];
+        if (batchReq.CreateItems.Any(item => item?.Data is null)
+            || batchReq.UpdateItems.Any(item => item?.Data is null) || batchReq.DeleteItems.Any(item => item is null))
+            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail("保存明细及数据不能为空。");
+        if (!batchReq.HasChanges) return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail("没有需要保存的数据。");
+        if (_session.Transaction is not null)
+            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail("当前请求已有事务，不能重复开始配置保存。");
 
-        if (!batchReq.HasChanges)
-        {
-            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail("没有需要保存的数据。");
-        }
-
-        var validationError = await ValidateBatchSaveAsync(batchReq);
-
-        if (!string.IsNullOrWhiteSpace(validationError))
-        {
-            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail(validationError);
-        }
-
-        var response = new CustomerPoConfigBatchSaveResponse
-        {
-            TotalCount = batchReq.TotalCount
-        };
-
-
-        _session.Transaction = _session.Connection.BeginTransaction();
+        IDbTransaction? transaction = null;
+        var committed = false;
         try
         {
-            foreach (var item in batchReq.CreateItems)
+            transaction = _session.Connection.BeginTransaction(IsolationLevel.ReadCommitted);
+            _session.Transaction = transaction;
+            // 与采购默认配置锁定读取采用同一顺序；先锁范围再读取行，兼顾缺失组合和更新并发。
+            await repository.LockForWriteAsync();
+            var (creates, updates) = await PrepareSaveAsync(batchReq);
+            var response = new CustomerPoConfigBatchSaveResponse { TotalCount = batchReq.TotalCount };
+            for (var i = 0; i < creates.Length; i++)
             {
-                var entity = item.Data.Adapt<CustomerPoConfig>();
-
-                if (!await repository.PopulateRelationIdsAsync(entity))
-                    throw CreateRelationResolutionException(entity);
-
-                var writeResult = await _repository.AddAsync(entity);
-
-                response.Items.Add(
-                    SaveItemResultFactory.FromCreate(item, writeResult));
-
-                if (!writeResult.Success)
-                {
-                    throw new InvalidOperationException(
-                        writeResult.Message ?? "新增客户失败。");
-                }
+                var write = await _repository.AddAsync(creates[i]);
+                EnsureWritten(write);
+                response.Items.Add(SaveItemResultFactory.FromCreate(batchReq.CreateItems[i], write));
             }
-
-            foreach (var item in batchReq.UpdateItems)
+            for (var i = 0; i < updates.Length; i++)
             {
-                var entity = item.Data.Adapt<CustomerPoConfig>();
-
-                if (!await repository.PopulateRelationIdsAsync(entity))
-                    throw CreateRelationResolutionException(entity);
-
-                entity.Uid = item.Uid;
-                entity.Version = item.Version;
-
-                var writeResult = await _repository.UpdateAsync(entity);
-
-                response.Items.Add(
-                    SaveItemResultFactory.FromUpdate(item, writeResult));
-
-                if (!writeResult.Success)
-                {
-                    throw new InvalidOperationException(
-                        writeResult.Message ?? "更新失败。");
-                }
+                var write = await _repository.UpdateAsync(updates[i]);
+                EnsureWritten(write);
+                response.Items.Add(SaveItemResultFactory.FromUpdate(batchReq.UpdateItems[i], write));
             }
-
             foreach (var item in batchReq.DeleteItems)
             {
-                var writeResult = await _repository.DeleteAsync(
-                    item.Uid,
-                    item.Version,
-                    item.IsSoftDelete);
-
-                response.Items.Add(
-                    SaveItemResultFactory.FromDelete(item, writeResult));
-
-                if (!writeResult.Success)
-                {
-                    throw new InvalidOperationException(
-                        writeResult.Message ?? "删除失败。");
-                }
+                var write = await _repository.DeleteAsync(item.Uid, item.Version, item.IsSoftDelete);
+                EnsureWritten(write);
+                response.Items.Add(SaveItemResultFactory.FromDelete(item, write));
             }
-
-
-            _session.Transaction.Commit();
-            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Ok(response, $"批量保存完成，成功 {response.SuccessCount} 条。");
+            try { transaction.Commit(); committed = true; }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "客户采购配置提交失败，保留明确终止与结果未知的区别。");
+                var kind = _session.Errors.Classify(exception);
+                return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail(
+                    kind == DatabaseFailureKind.UniqueConflict ? ServiceErrorCodes.BusinessBlocked
+                    : kind == DatabaseFailureKind.SerializationFailure ? ServiceErrorCodes.ServiceUnavailable
+                    : ServiceErrorCodes.OutcomeUnknown,
+                    kind == DatabaseFailureKind.UniqueConflict ? "客户与供应商配置已存在，请刷新后重试。"
+                    : kind == DatabaseFailureKind.SerializationFailure ? "并发配置变化导致本次未提交，请刷新后重试。"
+                    : "配置提交结果无法确认，请刷新核实，不能直接重试。");
+            }
+            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Ok(response, $"保存完成，成功 {response.SuccessCount} 条。");
         }
-        catch (Exception ex)
+        catch (ConfigSaveException exception)
         {
-            _session.Transaction.Rollback();
+            return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail(exception.Code, exception.Message);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "客户采购配置保存失败。");
+            var kind = _session.Errors.Classify(exception);
             return ServiceResult<CustomerPoConfigBatchSaveResponse>.Fail(
-                        $"批量保存失败，所有操作已回滚。原因：{ex.Message}");
+                kind == DatabaseFailureKind.UniqueConflict ? ServiceErrorCodes.BusinessBlocked
+                : ServiceErrorCodes.Unexpected,
+                kind == DatabaseFailureKind.UniqueConflict
+                    ? "客户与供应商配置已存在，请刷新后重试。" : "保存客户采购默认配置失败。");
         }
         finally
         {
-            _session.Transaction.Dispose();
-            _session.Transaction = null;
+            if (transaction is not null)
+            {
+                if (!committed)
+                    try { transaction.Rollback(); } catch (Exception exception) { _logger.LogWarning(exception, "回滚客户采购配置失败。"); }
+                try { transaction.Dispose(); } catch (Exception exception) { _logger.LogWarning(exception, "释放客户采购配置事务失败。"); }
+                _session.Transaction = null;
+            }
         }
     }
-    private async Task<string?> ValidateBatchSaveAsync(CustomerPoConfigBatchSaveRequest batchReq)
+
+    /// <summary>解析合法主数据并回填当前编码，所有写入口只按最终双方 ID 组合判断重复，旧编码不能绕过。</summary>
+    private async Task<(CustomerPoConfig[] Creates, CustomerPoConfig[] Updates)> PrepareSaveAsync(CustomerPoConfigBatchSaveRequest request)
     {
-        foreach (var item in batchReq.CreateItems)
+        var operationIds = request.UpdateItems.Select(item => item.Uid).Concat(request.DeleteItems.Select(item => item.Uid)).ToArray();
+        if (operationIds.Any(id => id == Guid.Empty) || operationIds.Distinct().Count() != operationIds.Length
+            || request.UpdateItems.Any(item => item.Version <= 0) || request.DeleteItems.Any(item => item.Version <= 0))
+            throw new ConfigSaveException("配置身份或版本无效，同一配置不能在批次中重复操作。");
+        var existing = (await _repository.GetByIdListAsync(operationIds, withUpdLock: true)).Where(row => !row.IsDeleted).ToDictionary(row => row.Uid);
+        foreach (var item in request.UpdateItems.Select(item => (item.Uid, item.Version))
+            .Concat(request.DeleteItems.Select(item => (item.Uid, item.Version))))
         {
-            if (item.Data != null) NormalizeCodes(item.Data);
+            if (!existing.TryGetValue(item.Uid, out var old))
+                throw new ConfigSaveException("配置不存在或已删除。", ServiceErrorCodes.NotFound);
+            if (old.Version != item.Version)
+                throw new ConfigSaveException("配置已被修改，请刷新后重试。", ServiceErrorCodes.VersionConflict);
         }
-        foreach (var item in batchReq.UpdateItems)
+        var creates = new List<CustomerPoConfig>();
+        foreach (var item in request.CreateItems)
         {
-            if (item.Data != null) NormalizeCodes(item.Data);
+            var entity = await ResolveAsync(item.Data);
+            entity.Uid = Guid.Empty;
+            entity.IsDeleted = false;
+            // 新建身份、版本和审计由服务器建立，不能沿用客户端附带的系统字段。
+            entity.Version = 1;
+            entity.CreatedBy = null; entity.CreatedDate = null;
+            entity.UpdatedBy = null; entity.UpdatedDate = null;
+            creates.Add(entity);
         }
-
-        var errorMsg = new StringBuilder();
-
-        if (batchReq.CreateItems.Count > 0)
+        var updates = new List<CustomerPoConfig>();
+        foreach (var item in request.UpdateItems)
         {
-            var error = await ValidateBeforeCreateAsync(batchReq.CreateItems);
-            if (!string.IsNullOrWhiteSpace(error))
-            {
-                errorMsg.AppendLine(error);
-            }
+            var entity = await ResolveAsync(item.Data);
+            entity.Uid = item.Uid;
+            entity.Version = item.Version;
+            // Edit 不能伪装 Delete；创建审计来自锁定旧记录，更新审计仍由仓储重新打戳。
+            entity.IsDeleted = existing[item.Uid].IsDeleted;
+            entity.CreatedBy = existing[item.Uid].CreatedBy;
+            entity.CreatedDate = existing[item.Uid].CreatedDate;
+            entity.UpdatedBy = existing[item.Uid].UpdatedBy;
+            entity.UpdatedDate = existing[item.Uid].UpdatedDate;
+            updates.Add(entity);
         }
-
-        if (batchReq.UpdateItems.Count > 0)
+        var active = creates.Concat(updates).Where(row => !row.IsDeleted).ToArray();
+        if (active.GroupBy(row => (row.CustomerId, row.SupplierId)).Any(group => group.Count() > 1))
+            throw new ConfigSaveException("本次提交中存在重复客户与供应商身份组合。");
+        foreach (var entity in active)
         {
-            var error = await ValidateBeforeUpdateAsync(batchReq.UpdateItems);
-            if (!string.IsNullOrWhiteSpace(error))
-            {
-                errorMsg.AppendLine(error);
-            }
+            var occupied = await repository.GetByPartiesAsync(entity.CustomerId!.Value, entity.SupplierId!.Value);
+            if (occupied is not null && occupied.Uid != entity.Uid)
+                throw new ConfigSaveException("该客户与供应商身份组合已有采购默认配置。");
         }
-
-        if (batchReq.DeleteItems.Count > 0)
-        {
-            var error = await ValidateBeforeDeleteAsync(batchReq.DeleteItems);
-            if (!string.IsNullOrWhiteSpace(error))
-            {
-                errorMsg.AppendLine(error);
-            }
-        }
-
-        if (errorMsg.Length == 0)
-        {
-            var submittedPairs = batchReq.CreateItems
-                .Where(item => item.Data != null)
-                .Select(item => new PoConfigCheck
-                {
-                    CustomerCode = item.Data.CustomerCode,
-                    SupplierCode = item.Data.SupplierCode
-                })
-                .Concat(batchReq.UpdateItems.Where(item => item.Data != null).Select(item => new PoConfigCheck
-                {
-                    Uid = item.Uid,
-                    CustomerCode = item.Data.CustomerCode,
-                    SupplierCode = item.Data.SupplierCode
-                }))
-                .ToList();
-
-            var duplicatePairs = submittedPairs
-                .GroupBy(item => $"{item.CustomerCode}|{item.SupplierCode}", StringComparer.OrdinalIgnoreCase)
-                .Where(group => group.Count() > 1)
-                .Select(group => group.Key.Replace('|', '+'))
-                .ToList();
-            if (duplicatePairs.Count > 0)
-            {
-                errorMsg.AppendLine("保存失败：本次提交中存在重复客户+供应商：" + string.Join(", ", duplicatePairs));
-            }
-            else
-            {
-                var occupiedPairs = await repository.GetUsedByCustomerCodeAndSupplierCodeAsync(submittedPairs);
-                if (occupiedPairs.Count > 0)
-                    errorMsg.AppendLine("保存失败：以下客户+供应商组合已被其他记录使用：" + string.Join(", ", occupiedPairs));
-            }
-        }
-
-        return errorMsg.Length > 0
-            ? errorMsg.ToString().TrimEnd()
-            : null;
+        var currencyError = await ValidateCurrenciesAsync(request.CreateItems.Select(item => item.Data).Concat(request.UpdateItems.Select(item => item.Data)));
+        if (currencyError is not null) throw new ConfigSaveException(currencyError);
+        return (creates.ToArray(), updates.ToArray());
     }
-    protected override async Task<string?> ValidateBeforeCreateAsync(List<CreateItemRequest<CustomerPoConfigDto>> createItems)
+
+    /// <summary>身份优先、编码兼容；双方必须存在且未删除，停用主数据可保留配置，失败不写入。</summary>
+    private async Task<CustomerPoConfig> ResolveAsync(CustomerPoConfigDto data)
     {
-        var codes = new List<PoConfigCheck>();
-
-        foreach (var item in createItems)
-        {
-            if (item.Data == null)
-            {
-                return $"第 {item.RowIndex} 行：新增数据不能为空。";
-            }
-
-            NormalizeCodes(item.Data);
-
-            if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
-            {
-                return $"第 {item.RowIndex} 行：客户代码不能为空。";
-            }
-
-            if (string.IsNullOrWhiteSpace(item.Data.SupplierCode))
-            {
-                return $"第 {item.RowIndex} 行：供应商代码名称不能为空。";
-            }
-
-            var lengthError = ValidateFieldLengths(item.Data);
-            if (!string.IsNullOrWhiteSpace(lengthError)) return $"第 {item.RowIndex} 行：{lengthError}";
-
-            codes.Add(new PoConfigCheck
-            {
-                CustomerCode = item.Data.CustomerCode.Trim(),
-                SupplierCode = item.Data.SupplierCode.Trim()
-            });
-        }
-
-        var currencyError = await ValidateCurrenciesAsync(createItems.Select(item => item.Data));
-        if (!string.IsNullOrWhiteSpace(currencyError)) return currencyError;
-
-        var duplicatePairsInRequest = codes
-            .GroupBy(
-                x => new
-                {
-                    CustomerCode = x.CustomerCode!.ToUpperInvariant(),
-                    SupplierCode = x.SupplierCode!.ToUpperInvariant()
-                })
-            .Where(g => g.Count() > 1)
-            .Select(g => $"{g.Key.CustomerCode} + {g.Key.SupplierCode}")
-            .ToList();
-
-        if (duplicatePairsInRequest.Count > 0)
-        {
-            return "新增失败：本次提交中存在重复客户代码+供应商代码：" +
-                   string.Join(", ", duplicatePairsInRequest);
-        }
-
-        var existedCodes = await repository.GetExistingCustomerCodesAsync(codes);
-
-        if (existedCodes.Count > 0)
-        {
-            return "新增失败：客户代码+供应商代码在数据库中已存在：" +
-                   string.Join(", ", existedCodes);
-        }
-
-        return null;
+        NormalizeCodes(data);
+        var entity = data.Adapt<CustomerPoConfig>();
+        if (!await repository.PopulateRelationIdsAsync(entity))
+            throw new ConfigSaveException("客户或供应商无效；请提供有效身份，缺少身份时编码必须唯一。");
+        data.CustomerId = entity.CustomerId;
+        data.CustomerCode = entity.CustomerCode!;
+        data.SupplierId = entity.SupplierId;
+        data.SupplierCode = entity.SupplierCode!;
+        var error = ValidateFieldLengths(data);
+        if (error is not null) throw new ConfigSaveException(error);
+        return entity;
     }
-    protected override async Task<string?> ValidateBeforeUpdateAsync(List<UpdateItemRequest<CustomerPoConfigDto>> updateItems)
+
+    /// <summary>任何一行失败都终止整个批次；版本冲突保持明确分类。</summary>
+    private static void EnsureWritten(RepositoryWriteResult write)
     {
-        foreach (var item in updateItems)
-        {
-            if (item.Uid == Guid.Empty)
-            {
-                return $"第 {item.RowIndex} 行：修改失败，Uid 不能为空。";
-            }
-
-            if (item.Version <= 0)
-            {
-                return $"第 {item.RowIndex} 行：修改失败，Version 无效。";
-            }
-
-            if (item.Data == null)
-            {
-                return $"第 {item.RowIndex} 行：修改数据不能为空。";
-            }
-
-            NormalizeCodes(item.Data);
-
-            if (string.IsNullOrWhiteSpace(item.Data.CustomerCode))
-            {
-                return $"第 {item.RowIndex} 行：客户不能为空。";
-            }
-
-            if (string.IsNullOrWhiteSpace(item.Data.SupplierCode))
-            {
-                return $"第 {item.RowIndex} 行：供应商不能为空。";
-            }
-
-            var lengthError = ValidateFieldLengths(item.Data);
-            if (!string.IsNullOrWhiteSpace(lengthError)) return $"第 {item.RowIndex} 行：{lengthError}";
-        }
-
-        var currencyError = await ValidateCurrenciesAsync(updateItems.Select(item => item.Data));
-        if (!string.IsNullOrWhiteSpace(currencyError)) return currencyError;
-
-        var uids = updateItems
-            .Select(x => x.Uid)
-            .Distinct()
-            .ToList();
-
-        var existingUids = await _repository.GetExistingIdListAsync(uids);
-
-        var notFoundUids = uids
-            .Except(existingUids)
-            .ToList();
-
-        if (notFoundUids.Count > 0)
-        {
-            return "修改失败：包含不存在的客户 Id：" +
-                   string.Join(", ", notFoundUids);
-        }
-
-        var codePairs = updateItems
-            .Select(x => new PoConfigCheck
-            {
-                Uid = x.Uid,
-                CustomerCode = x.Data.CustomerCode.Trim(),
-                SupplierCode = x.Data.SupplierCode.Trim()
-            })
-            .ToList();
-
-        var duplicatePairsInRequest = codePairs
-            .GroupBy(
-                x => new
-                {
-                    CustomerCode = x.CustomerCode!.ToUpperInvariant(),
-                    SupplierCode = x.SupplierCode!.ToUpperInvariant()
-                })
-            .Where(g => g.Select(x => x.Uid).Distinct().Count() > 1)
-            .Select(g => $"{g.Key.CustomerCode} + {g.Key.SupplierCode}")
-            .ToList();
-
-        if (duplicatePairsInRequest.Count > 0)
-        {
-            return "修改失败：本次提交中存在重复客户+供应商：" +
-                   string.Join(", ", duplicatePairsInRequest);
-        }
-
-        var occupiedPairs = await repository.GetUsedByCustomerCodeAndSupplierCodeAsync(codePairs);
-
-        if (occupiedPairs.Count > 0)
-        {
-            return "修改失败：以下客户+供应商组合已被其他记录使用：" +
-                   string.Join(", ", occupiedPairs);
-        }
-
-        return null;
+        if (!write.Success)
+            throw new ConfigSaveException(write.Message ?? "配置写入失败。",
+                write.ErrorCode == "CONCURRENCY_CONFLICT" ? ServiceErrorCodes.VersionConflict
+                    : ServiceErrorCodes.WriteFailed);
     }
-    protected override async Task<string?> ValidateBeforeDeleteAsync(List<DeleteItemRequest> deleteItems)
+
+    /// <summary>仅传递本用例已确认的业务阻断，技术异常仍由外层统一日志和包装。</summary>
+    private sealed class ConfigSaveException(string message, string code = ServiceErrorCodes.BusinessBlocked) : Exception(message)
     {
-        foreach (var item in deleteItems)
-        {
-            if (item.Uid == Guid.Empty)
-            {
-                return $"第 {item.RowIndex} 行：删除失败，Uid 不能为空。";
-            }
-
-            if (item.Version <= 0)
-            {
-                return $"第 {item.RowIndex} 行：删除失败，Version 无效。";
-            }
-        }
-
-        var uids = deleteItems
-            .Select(x => x.Uid)
-            .Distinct()
-            .ToList();
-
-        var existingUids = await _repository.GetExistingIdListAsync(uids);
-
-        var notFoundUids = uids
-            .Except(existingUids)
-            .ToList();
-
-        if (notFoundUids.Count > 0)
-        {
-            return "删除失败：包含不存在的删除项目 Id：" +
-                   string.Join(", ", notFoundUids);
-        }
-
-        return null;
+        public string Code { get; } = code;
     }
-
     /// <summary>统一清理业务编码和新增可选字段，确保校验与最终写入采用同一值。</summary>
     private static void NormalizeCodes(CustomerPoConfigDto data)
     {
@@ -480,6 +300,7 @@ public partial class CustomerPoConfigService(
         if (data.SupplierCode?.Length > 50) return "供应商编码不能超过 50 个字符。";
         if (data.Currency?.Length > 10) return "币种代码不能超过 10 个字符。";
         if (data.DefaultDiscountRate is < 0m) return "默认折扣率不能小于 0。";
+        if (data.DefaultDiscountRate > 999.999999m) return "默认折扣率不能大于 999.999999。";
         if (data.DefaultDiscountRate.HasValue && decimal.Round(data.DefaultDiscountRate.Value, 6) != data.DefaultDiscountRate.Value)
             return "默认折扣率最多保留 6 位小数。";
         if (data.DiscountRemark?.Length > 500) return "折扣备注不能超过 500 个字符。";
@@ -517,10 +338,5 @@ public partial class CustomerPoConfigService(
             : "以下币种代码不存在：" + string.Join(", ", missingCodes);
     }
 
-    /// <summary>构造包含主数据标识和编码的关系解析错误，便于定位缺失、删除或重复主数据。</summary>
-    private static InvalidOperationException CreateRelationResolutionException(CustomerPoConfig entity) => new(
-        $"客户或供应商无法解析为有效 Uid。客户：{entity.CustomerCode ?? "（空）"} / {entity.CustomerId?.ToString() ?? "无 Id"}；" +
-        $"供应商：{entity.SupplierCode ?? "（空）"} / {entity.SupplierId?.ToString() ?? "无 Id"}。请检查主数据是否存在、未删除；缺少 Id 时编码必须唯一。");
-    #endregion
 
 }

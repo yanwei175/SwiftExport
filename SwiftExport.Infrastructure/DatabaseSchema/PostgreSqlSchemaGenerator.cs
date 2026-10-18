@@ -90,10 +90,7 @@ END $$;
                 var include = index.IncludeColumns.Length == 0 ? "" : $" INCLUDE ({string.Join(", ", index.IncludeColumns.Select(c => Column(entity, c)))})";
                 var filter = string.IsNullOrWhiteSpace(index.Filter) ? "" : " WHERE " + index.Filter;
                 var keys = index.Columns.Select(c => IndexColumn(entity, index, c));
-                // 客户 PO 两个可空编码沿用 SQL Server 唯一键的 NULL 相等规则，不放宽重复默认配置。
-                var nulls = entity == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
-                    && index.Name == "UX_CustomerPoConfig_Codes" ? " NULLS NOT DISTINCT" : "";
-                sql.AppendLine($"CREATE {(index.IsUnique ? "UNIQUE " : "")}INDEX {Q(Register(index.Name))} ON {Table(entity)} ({string.Join(", ", keys)}){include}{nulls}{filter};");
+                sql.AppendLine($"CREATE {(index.IsUnique ? "UNIQUE " : "")}INDEX {Q(Register(index.Name))} ON {Table(entity)} ({string.Join(", ", keys)}){include}{filter};");
             }
             WriteProtection(sql, entity, Register);
         }
@@ -141,8 +138,6 @@ END $$;
                 && index.Name == "UX_SysUser_UserName" && property == "UserName"
             || entity == typeof(SwiftExport.Core.Entities.Inventory.WarehouseSite)
                 && index.Name == "UX_WarehouseSite_Code" && property == "Code"
-            || entity == typeof(SwiftExport.Core.Entities.Relations.CustomerPoConfig)
-                && index.Name == "UX_CustomerPoConfig_Codes" && property is "CustomerCode" or "SupplierCode"
             || entity == typeof(SwiftExport.Core.Entities.DemandPlanning.GrossDemand)
                 && index.Name is "IX_GrossDemand_Source" or "UX_GrossDemand_SourceLine" && property == "SourceType";
         return approvedCode ? $"(rtrim({Column(entity, property)}, ' ') COLLATE public.erp_dictionary_ci)" : Column(entity, property);

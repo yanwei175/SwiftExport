@@ -7,8 +7,11 @@ using SwiftExport.Core.Entities.Relations;
 
 namespace SwiftExport.Core.Interfaces.Customers.PoConfigs
 {
+    /// <summary>读取和维护双方身份范围内的客户采购默认配置，旧编码查询仅供既有消费者兼容。</summary>
     public interface ICustomerPoConfigRepository : IRepository<CustomerPoConfig>
     {
+        /// <summary>在调用方低隔离事务中锁定配置写入范围，保护不存在的双方组合，不自行提交事务。</summary>
+        Task LockForWriteAsync(CancellationToken cancellationToken = default);
         /// <summary>按客户与供应商标识读取完整的活动配置 DTO，不跟踪或修改实体。</summary>
         Task<CustomerPoConfigDto?> GetByPartiesAsync(
             Guid customerId,

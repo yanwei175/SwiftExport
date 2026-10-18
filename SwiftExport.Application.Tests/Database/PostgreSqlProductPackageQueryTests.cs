@@ -25,7 +25,7 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.AreSame(fixture.Session.Transaction, fixture.Connection.LastTransaction);
     }
 
-    /// <summary>分页和详情只关联当前物料的有效 Carton，不采用装率排序、默认项或空值补量。</summary>
+    /// <summary>分页取页前绑定当前物料外箱身份，详情直接关联有效 Carton；两条路径均保留可空量且不回退其他包装。</summary>
     [TestMethod]
     [DataRow(false)]
     [DataRow(true)]
@@ -34,12 +34,13 @@ public sealed partial class PostgreSqlRepositoryTests
         using var fixture = new Fixture();
         var id = Guid.NewGuid();
         var rows = fixture.Connection.Rows;
-        rows.Columns.Add("Sku", typeof(string));
+        rows.Columns.Add("total_count", typeof(int));
         rows.Columns.Add("Uid", typeof(Guid));
+        rows.Columns.Add("Sku", typeof(string));
         foreach (var name in new[] { "PcsOfCarton", "NwOfCarton", "GwOfCarton", "CbmOfCarton" })
             rows.Columns.Add(name, typeof(decimal));
         object Value(decimal value) => hasCarton ? value : DBNull.Value;
-        rows.Rows.Add("PACKED", id, Value(12m), Value(20m), Value(22m), Value(0.4m));
+        rows.Rows.Add(1, id, "PACKED", Value(12m), Value(20m), Value(22m), Value(0.4m));
         var repository = new PostgreSqlProductRepository(DictionaryContext(fixture));
         var page = (await repository.GetPagedAsync(new())).Items.Single();
         var detail = await repository.GetDetailAsync(id);
@@ -52,10 +53,17 @@ public sealed partial class PostgreSqlRepositoryTests
         Assert.AreEqual(detail.NwOfCarton, page.NwOfCarton);
         Assert.AreEqual(detail.GwOfCarton, page.GwOfCarton);
         Assert.AreEqual(detail.CbmOfCarton, page.CbmOfCarton);
-        foreach (var command in fixture.Connection.Commands.Where(command => command.Sql.Contains("public.product_package", StringComparison.Ordinal)))
+        var packagingCommands = fixture.Connection.Commands.Where(command => command.Sql.Contains("public.product_package", StringComparison.Ordinal)).ToArray();
+        Assert.HasCount(2, packagingCommands);
+        foreach (var command in packagingCommands)
         {
             Assert.AreEqual(ProductPackageTypeCodes.Carton, command.Values["CartonPackageType"]);
-            StringAssert.Contains(command.Sql, "pkg.owner_product_id=p.uid");
+            if (command.Sql.Contains("matches AS MATERIALIZED", StringComparison.Ordinal))
+            {
+                StringAssert.Contains(command.Sql, "pkg.owner_product_id=matched.uid");
+                StringAssert.Contains(command.Sql, "pkg.uid=selected.package_id");
+            }
+            else StringAssert.Contains(command.Sql, "pkg.owner_product_id=p.uid");
             StringAssert.Contains(command.Sql, "pkg.package_type=@CartonPackageType AND pkg.is_deleted=FALSE");
             Assert.IsFalse(command.Sql.Contains("is_default", StringComparison.Ordinal));
             Assert.IsFalse(command.Sql.Contains("pcs_per_package DESC", StringComparison.Ordinal));
