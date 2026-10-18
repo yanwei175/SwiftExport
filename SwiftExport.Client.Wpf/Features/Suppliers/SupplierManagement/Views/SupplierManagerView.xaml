@@ -61,7 +61,7 @@
                           SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                           FrozenColumnCount="3"
                           gridCore:GridRowHeader.ShowRowNumber="True"
-                          CurrentItem="{Binding SelectedLine, Mode=TwoWay}">
+                          SelectedItem="{Binding SelectedLine, Mode=TwoWay}">
                     <i:Interaction.Behaviors>
                         <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
                     </i:Interaction.Behaviors>
