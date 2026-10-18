@@ -13,9 +13,9 @@ public sealed partial class CustomerPoConfigLineModel : BaseLineModel<CustomerPo
     public string ClientKey { get; } = Guid.NewGuid().ToString("N");
 
     [ObservableProperty] public partial Guid? CustomerId { get; set; }
-    [ObservableProperty] public partial string CustomerCode { get; set; } = string.Empty;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CustomerDisplay))] public partial string CustomerCode { get; set; } = string.Empty;
     [ObservableProperty] public partial Guid? SupplierId { get; set; }
-    [ObservableProperty] public partial string SupplierCode { get; set; } = string.Empty;
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(SupplierDisplay))] public partial string SupplierCode { get; set; } = string.Empty;
     [ObservableProperty] public partial string Currency { get; set; } = string.Empty;
     [ObservableProperty] public partial decimal? DefaultDiscountRate { get; set; }
     [ObservableProperty] public partial string DiscountRemark { get; set; } = string.Empty;
@@ -31,9 +31,14 @@ public sealed partial class CustomerPoConfigLineModel : BaseLineModel<CustomerPo
     [ObservableProperty] public partial string Purchaser { get; set; } = string.Empty;
     [ObservableProperty] public partial string Note { get; set; } = string.Empty;
     /// <summary>获取或设置客户选择器当前项；该 UI 状态不参与持久化脏跟踪。</summary>
-    [ObservableProperty] public partial CustomerDto? SelectedCustomer { get; set; }
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(CustomerDisplay))] public partial CustomerDto? SelectedCustomer { get; set; }
     /// <summary>获取或设置供应商选择器当前项；该 UI 状态不参与持久化脏跟踪。</summary>
-    [ObservableProperty] public partial SupplierDto? SelectedSupplier { get; set; }
+    [ObservableProperty][NotifyPropertyChangedFor(nameof(SupplierDisplay))] public partial SupplierDto? SelectedSupplier { get; set; }
+
+    /// <summary>展示业务编码和按稳定身份匹配的客户名称，不把缓存名称写回共享契约。</summary>
+    public string CustomerDisplay => string.Join(" ", new[] { CustomerCode, SelectedCustomer?.CustomerName }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    /// <summary>展示业务编码和按稳定身份匹配的供应商名称，缓存缺失时仍保留原编码。</summary>
+    public string SupplierDisplay => string.Join(" ", new[] { SupplierCode, SelectedSupplier?.SupplierName }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     /// <summary>校验客户和供应商业务编码均已确认。</summary>
     public override string? ValidateRow()
@@ -44,6 +49,7 @@ public sealed partial class CustomerPoConfigLineModel : BaseLineModel<CustomerPo
         if (SupplierCode.Length > 50) return "供应商编码不能超过 50 个字符。";
         if (Currency.Length > 10) return "币种代码不能超过 10 个字符。";
         if (DefaultDiscountRate is < 0m) return "默认折扣率不能小于 0。";
+        if (DefaultDiscountRate is > 999.999999m) return "默认折扣率不能超过 999.999999。";
         if (DefaultDiscountRate.HasValue && decimal.Round(DefaultDiscountRate.Value, 6) != DefaultDiscountRate.Value)
             return "默认折扣率最多保留 6 位小数。";
         if (DiscountRemark.Length > 500) return "折扣备注不能超过 500 个字符。";
@@ -61,5 +67,5 @@ public sealed partial class CustomerPoConfigLineModel : BaseLineModel<CustomerPo
     /// <summary>排除选择器对象，避免打开编辑器本身产生业务修改。</summary>
     protected override bool IsTrackingIgnoredProperty(string? propertyName) =>
         base.IsTrackingIgnoredProperty(propertyName)
-        || propertyName is nameof(SelectedCustomer) or nameof(SelectedSupplier);
+        || propertyName is nameof(SelectedCustomer) or nameof(SelectedSupplier) or nameof(CustomerDisplay) or nameof(SupplierDisplay);
 }

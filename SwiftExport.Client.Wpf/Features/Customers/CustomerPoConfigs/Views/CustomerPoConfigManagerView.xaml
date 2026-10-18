@@ -13,6 +13,9 @@
              Loaded="OnLoaded" Unloaded="OnUnloaded" DataContextChanged="OnDataContextChanged"
              mc:Ignorable="d" d:Height="760" d:Width="1320">
     <UserControl.Resources>
+        <Style x:Key="SelectionCheckMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+            <Setter Property="CommandParameter" Value="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+        </Style>
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
         <DataTemplate x:Key="CustomerPoConfigCurrencyOptionTemplate">
             <StackPanel Orientation="Horizontal">
@@ -34,7 +37,20 @@
         </Grid.RowDefinitions>
         <!--条件筛选区域-->
         <Grid RowDefinitions="Auto,8, *">
-            <Grid ColumnDefinitions="3*,3*,3*" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="3*,3*,3*">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="自定义采购单表头" Margin="0,0,8,0"
+                               Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+                    <customerComponents:CustomerAutoSuggestComboBox x:Name="CustomerFilter" Grid.Column="0" Margin="0,0,8,0" Width="160"
+                    ItemsSource="{Binding CustomerOptions}" SelectedCustomer="{Binding FilterCustomer, Mode=TwoWay}"
+                    Placeholder="筛选客户" AutomationProperties.Name="配置客户筛选"/>
+
+                    <supplierComponents:SupplierAutoSuggestComboBox x:Name="SupplierFilter" Grid.Column="1" Margin="0,0,8,0" Width="160"
+                                                                    ItemsSource="{Binding SupplierOptions}" 
+                                                                    SelectedSupplier="{Binding FilterSupplier, Mode=TwoWay}"
+                    Placeholder="筛选供应商" AutomationProperties.Name="配置供应商筛选"/>
+
+                </StackPanel>
                 <!--搜索框-->
                 <ui:TextBox Grid.Column="1" VerticalAlignment="Stretch"
                             FontSize="{DynamicResource SwiftExportDefaltFontSize}"
@@ -51,8 +67,10 @@
                                Content="查询" VerticalAlignment="Stretch"
                                Command="{Binding SearchCommand}" MinWidth="70"/>
 
-                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0" 
+                    <ui:Button Content="刷新" Command="{Binding RefreshCommand}" Margin="8,0,0,0"
                                 VerticalAlignment="Stretch" MinWidth="70"/>
+                    <ui:Button Content="清空" Command="{Binding ClearFiltersCommand}" Margin="8,0,0,0" MinWidth="70"
+                               ToolTip="清空客户、供应商和关键词后查询" AutomationProperties.Name="清空配置筛选"/>
 
                 </DockPanel>
             </Grid>
@@ -61,7 +79,7 @@
 
                 <ui:Button Content="新增" Command="{Binding AddRowCommand}"  Margin="0,0,8,0"  MinWidth="70"/>
 
-                <ui:Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"  Appearance="Info"
+                <ui:Button Content="保存" Command="{Binding SaveCommand}" Margin="0,0,8,0"  Appearance="Primary"
                            MinWidth="70" />
 
                 <ui:Button Content="删除" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" MinWidth="70"/>
@@ -83,34 +101,90 @@
                   RowStyle="{StaticResource SwiftExportStateDataGridRow}"
                   RowHeight="{StaticResource DataGridRowHeightSmall}"
                   AutoGenerateColumns="False"
-                  IsReadOnly="{Binding IsReadOnly}"
+                  IsReadOnly="{Binding IsGridReadOnly}" BeginningEdit="OnBeginningEdit"
                   SelectionMode="Extended"
                   SelectionUnit="{Binding IsCellSelectionMode, Mode=TwoWay, Converter={StaticResource GridSelectionUnitConverter}}"
                   FrozenColumnCount="3"
                   gridCore:GridRowHeader.ShowRowNumber="True"
-                  CurrentItem="{Binding SelectedLine, Mode=TwoWay}"
+                  SelectedItem="{Binding SelectedLine, Mode=TwoWay}"
                   AutomationProperties.Name="客户采购默认配置可编辑列表">
-                    <i:Interaction.Behaviors>
-                        <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
-                    </i:Interaction.Behaviors>
+            <i:Interaction.Behaviors>
+                <fill:DataGridFillDownBehavior Command="{Binding FillDownCommand}" />
+                <fill:DataGridColumnVisibilityBehavior />
+            </i:Interaction.Behaviors>
+            <DataGrid.ContextMenu>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}" AutomationProperties.Name="配置列表操作">
+                    <MenuItem Header="勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding CheckSelectionCommand}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="CheckmarkSquare24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="取消勾选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding UncheckSelectionCommand}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="Square24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="反选(选区)" Style="{StaticResource SelectionCheckMenuItem}" Command="{Binding InvertSelectionCommand}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="ArrowSwap24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="全选(当前显示行)" Command="{Binding CheckVisibleCommand}" ToolTip="仅勾选当前页显示的配置">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="SelectAllOn24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="反选(当前显示行)" Command="{Binding InvertVisibleCommand}" ToolTip="仅反转当前页显示的配置">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="SelectAllOff24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="新增" Command="{Binding AddRowCommand}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="Add24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="刷新" Command="{Binding RefreshCommand}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="ArrowClockwise24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="删除" Command="{Binding DeleteSelectedCommand}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="Delete24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="表格模式" Style="{StaticResource ToggleMenuItemStyle}" IsChecked="{Binding IsCellSelectionMode, Mode=TwoWay}">
+                        <MenuItem.Icon>
+                            <ui:SymbolIcon Symbol="Table24"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
                 <DataGridTemplateColumn ClipboardContentBinding="{Binding IsChecked, Mode=OneWay}" Width="45" CanUserSort="False" HeaderStyle="{StaticResource SwiftExport.DataGridColumnHeaderNoResize}">
                     <DataGridTemplateColumn.HeaderTemplate>
                         <DataTemplate>
-                            <CheckBox IsChecked="{Binding DataContext.Lines.IsAllChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=TwoWay}" AutomationProperties.Name="全选配置" />
+                            <CheckBox HorizontalAlignment="Center" Margin="0" Padding="0" AutomationProperties.Name="全选当前页显示配置"
+                                      IsChecked="{Binding DataContext.IsAllVisibleChecked, RelativeSource={RelativeSource AncestorType=DataGrid}, Mode=OneWay}"
+                                      Command="{Binding DataContext.SetVisibleChecksCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                      CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.HeaderTemplate>
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}" HorizontalAlignment="Center" AutomationProperties.Name="选择配置行" />
+                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" AutomationProperties.Name="选择配置行" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTemplateColumn ClipboardContentBinding="{Binding CustomerCode, Mode=OneWay}" Header="客户" Width="150" SortMemberPath="CustomerCode">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding CustomerCode, Mode=OneWay}" Header="客户" Width="210" SortMemberPath="CustomerCode">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding CustomerCode}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                            <TextBlock Text="{Binding CustomerDisplay}" ToolTip="{Binding CustomerDisplay}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
@@ -125,10 +199,10 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn ClipboardContentBinding="{Binding SupplierCode, Mode=OneWay}" Header="供应商" Width="150" SortMemberPath="SupplierCode">
+                <DataGridTemplateColumn ClipboardContentBinding="{Binding SupplierCode, Mode=OneWay}" Header="供应商" Width="210" SortMemberPath="SupplierCode">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding SupplierCode}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
+                            <TextBlock Text="{Binding SupplierDisplay}" ToolTip="{Binding SupplierDisplay}" Style="{StaticResource SwiftExportDataGridTextBlock}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
@@ -150,7 +224,7 @@
 
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding Currency}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Currency}" Style="{StaticResource SwiftExportDataGridTextBlock}"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                     <DataGridTemplateColumn.CellEditingTemplate>
@@ -167,11 +241,16 @@
                     </DataGridTemplateColumn.CellEditingTemplate>
                 </DataGridTemplateColumn>
 
-                <DataGridTextColumn fill:DataGridFillDownBehavior.Field="DefaultDiscountRate" Header="默认折扣率（≥0；1.05 表示涨价 5%）" Width="230"
+                <DataGridTextColumn fill:DataGridFillDownBehavior.Field="DefaultDiscountRate" Header="折扣率" Width="110"
                                     ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}"
                                     EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}">
+                    <DataGridTextColumn.HeaderTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" ToolTip="空值表示未配置；范围 0..999.999999，最多六位小数；1.05 表示涨价 5%"/>
+                        </DataTemplate>
+                    </DataGridTextColumn.HeaderTemplate>
                     <DataGridTextColumn.Binding>
-                        <Binding Path="DefaultDiscountRate" UpdateSourceTrigger="LostFocus" StringFormat="N2" TargetNullValue="">
+                        <Binding Path="DefaultDiscountRate" UpdateSourceTrigger="LostFocus" StringFormat="0.######" TargetNullValue="">
                             <Binding.ValidationRules>
                                 <validation:DiscountRateValidationRule />
                             </Binding.ValidationRules>
