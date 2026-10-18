@@ -125,6 +125,8 @@ public sealed partial class PostgreSqlRepositoryTests
     public async Task CatalogPage_PreservesFiltersCapsAndPackaging()
     {
         using var fixture = new Fixture();
+        fixture.Connection.Rows.Columns.Add("total_count", typeof(int));
+        fixture.Connection.Rows.Columns.Add("Uid", typeof(Guid));
         var category = Guid.NewGuid();
         var color = Guid.NewGuid();
         var customer = Guid.NewGuid();
@@ -139,7 +141,7 @@ public sealed partial class PostgreSqlRepositoryTests
         });
         Assert.AreEqual(1, page.PageIndex);
         Assert.AreEqual(500, page.PageSize);
-        Assert.HasCount(2, fixture.Connection.Commands);
+        Assert.HasCount(1, fixture.Connection.Commands);
         foreach (var command in fixture.Connection.Commands)
         {
             Assert.AreEqual("%%A_~%~_~[~~%B%%", command.Values["Keyword"]);
@@ -159,7 +161,7 @@ public sealed partial class PostgreSqlRepositoryTests
             Assert.IsFalse(command.Sql.Contains("AS \"IsActive\"", StringComparison.Ordinal));
             Assert.AreSame(fixture.Session.Transaction, command.Transaction);
         }
-        StringAssert.Contains(fixture.Connection.Text, "LEFT JOIN public.product_package pkg ON pkg.owner_product_id=p.uid");
+        StringAssert.Contains(fixture.Connection.Text, "LEFT JOIN public.product_package pkg ON pkg.owner_product_id=matched.uid");
         StringAssert.Contains(fixture.Connection.Text, "pat.fake_name AS \"FakeName\"");
         StringAssert.Contains(fixture.Connection.Text, "ELSE COALESCE(pat.fake_name,'') END AS \"CategoryName\"");
         StringAssert.Contains(fixture.Connection.Text, "WHEN pat.uid IS NULL THEN '分类已失效'");

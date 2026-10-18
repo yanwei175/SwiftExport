@@ -18,7 +18,7 @@ public partial class PostgreSqlProductRepository
              ELSE COALESCE(pat.fake_name,'') END AS "CategoryName"
         """;
 
-    /// <summary>保留原筛选与分页上限；分类显示取 FakeName，装箱参数只取当前物料的有效外箱，缺失保留空值。</summary>
+    /// <summary>一次筛选复用总数和当前页；保留 ICU 匹配、分页上限与当前有效外箱的可空投影。</summary>
     public async Task<PagedResponseBase<ProductDto>> GetPagedAsync(ProductSearchRequest request, CancellationToken cancellationToken = default)
     {
         request ??= new ProductSearchRequest();
@@ -30,13 +30,6 @@ public partial class PostgreSqlProductRepository
         parameters.Add("EmptyGuid", Guid.Empty);
         parameters.Add("CartonPackageType", ProductPackageTypeCodes.Carton);
         var filters = new List<string> { "(p.is_deleted=FALSE OR p.is_deleted IS NULL)" };
-        if (!string.IsNullOrWhiteSpace(request.Keyword))
-        {
-            parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
-            filters.Add("(" + string.Join(" OR ", new[]
-                { "p.sku", "p.description_en", "p.description_zh", "p.features_en", "p.features_zh", "pc.color_code", "pc.color_name_en", "pc.color_name_zh", "pat.category_name" }
-                .Select(column => $"{column} COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'")) + ")");
-        }
         var batch = request.BatchKeywords?.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).Take(300).ToArray() ?? [];
         if (batch.Length > 0)
@@ -96,18 +89,64 @@ public partial class PostgreSqlProductRepository
         }
         var from = $"FROM public.product p {CatalogQueryJoins} {CatalogReferenceJoins}";
         var where = "WHERE " + string.Join(" AND ", filters);
-        // 分开计数和取页，沿用同一连接事务和筛选；不通过一对多客户 JOIN 放大计数。
-        var count = await Connection.ExecuteScalarAsync<int>(new CommandDefinition($"SELECT count(*) {from} {where}", parameters, Transaction, cancellationToken: cancellationToken));
-        var rows = await Connection.QueryAsync<ProductDto>(new CommandDefinition($"""
-            SELECT {CatalogDtoColumns},{CatalogPagedClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish",
+        var matching = $"SELECT p.uid,p.sku {from} {where}";
+        var keywordCtes = "";
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            parameters.Add("Keyword", SqlLikePattern.Build(request.Keyword));
+            // 先应用非关键词筛选，再对四个描述字段的原始文本去重。C 仅用于精确缓存键，
+            // 真正的匹配始终使用原 ICU LIKE；不合并大小写、重音或 Unicode 形式不同的文本。
+            keywordCtes = $"""
+                candidates AS MATERIALIZED (
+                    SELECT p.uid,p.sku,p.description_en,p.description_zh,p.features_en,p.features_zh,
+                        pc.uid AS search_color_id,pat.uid AS search_category_id {from} {where}),
+                search_texts AS MATERIALIZED (
+                    SELECT DISTINCT text.value COLLATE "C" AS value FROM candidates
+                    CROSS JOIN LATERAL (VALUES(description_en),(description_zh),(features_en),(features_zh)) text(value)),
+                text_matches AS MATERIALIZED (
+                    SELECT value FROM search_texts WHERE value COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'),
+                color_matches AS MATERIALIZED (
+                    SELECT uid FROM public.product_color WHERE color_code COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                        OR color_name_en COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                        OR color_name_zh COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'),
+                category_matches AS MATERIALIZED (
+                    SELECT uid FROM public.product_category WHERE category_name COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'),
+                """;
+            matching = """
+                SELECT uid,sku FROM candidates WHERE sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~'
+                    OR description_en COLLATE "C" IN (SELECT value FROM text_matches)
+                    OR description_zh COLLATE "C" IN (SELECT value FROM text_matches)
+                    OR features_en COLLATE "C" IN (SELECT value FROM text_matches)
+                    OR features_zh COLLATE "C" IN (SELECT value FROM text_matches)
+                    OR search_color_id IN (SELECT uid FROM color_matches)
+                    OR search_category_id IN (SELECT uid FROM category_matches)
+                """;
+        }
+        // 命中身份只计算一次。先对窄身份排序取页，再补齐投影；外箱身份参与取页以保留原 JOIN/LIMIT 边界。
+        // 总数 LEFT JOIN 当前页，越界或无命中仍有总数；Dapper 以空 Uid 将右侧映射为 null，不返回空 DTO。
+        var count = 0;
+        var rows = await Connection.QueryAsync<int, ProductDto, ProductDto?>(new CommandDefinition($"""
+            WITH {keywordCtes} matches AS MATERIALIZED ({matching})
+            SELECT totals.total_count,{CatalogDtoColumns},{CatalogPagedClassificationColumns},{CatalogReferenceColumns},pc.color_name_zh AS "Finish",
                 pat.fake_name AS "FakeName",pc.color_code_unique AS "ColorCodeUnique",pc.color_code AS "ColorCode",pc.color_name_en AS "ColorNameEn",
                 pkg.pcs_per_package AS "PcsOfCarton",pkg.nw_kg AS "NwOfCarton",pkg.gw_kg AS "GwOfCarton",pkg.cbm AS "CbmOfCarton"
-            {from}
-            LEFT JOIN public.product_package pkg ON pkg.owner_product_id=p.uid
-                AND pkg.package_type=@CartonPackageType AND pkg.is_deleted=FALSE
-            {where} ORDER BY p.sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,p.uid LIMIT @Limit OFFSET @Offset
-            """, parameters, Transaction, cancellationToken: cancellationToken));
-        return new PagedResponseBase<ProductDto> { TotalCount = count, Items = rows.ToList(), PageIndex = pageIndex, PageSize = pageSize };
+            FROM (SELECT count(*)::integer AS total_count FROM matches) totals
+            LEFT JOIN LATERAL (
+                SELECT matched.uid,pkg.uid AS package_id FROM matches matched
+                LEFT JOIN public.product_package pkg ON pkg.owner_product_id=matched.uid
+                    AND pkg.package_type=@CartonPackageType AND pkg.is_deleted=FALSE
+                ORDER BY matched.sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,matched.uid LIMIT @Limit OFFSET @Offset
+            ) selected ON TRUE
+            LEFT JOIN public.product p ON p.uid=selected.uid
+            {CatalogQueryJoins} {CatalogReferenceJoins}
+            LEFT JOIN public.product_package pkg ON pkg.uid=selected.package_id
+            ORDER BY p.sku COLLATE public.erp_dictionary_ci ASC NULLS FIRST,p.uid
+            """, parameters, Transaction, cancellationToken: cancellationToken), (total, product) =>
+            {
+                count = total;
+                return product;
+            }, splitOn: "Uid");
+        return new PagedResponseBase<ProductDto> { TotalCount = count, Items = rows.OfType<ProductDto>().ToList(), PageIndex = pageIndex, PageSize = pageSize };
     }
 
 }
