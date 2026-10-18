@@ -53,11 +53,6 @@
                 <ComboBox x:Name="ConfirmationSelector" ItemsSource="{Binding ConfirmationOptions}" DisplayMemberPath="Value" SelectedValuePath="Key"
                           SelectedValue="{Binding Confirmation, Mode=TwoWay}" AutomationProperties.Name="确认状态"/>
             </StackPanel>
-            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
-                <TextBlock Text="快捷视图" Margin="0,0,0,4"/>
-                <ComboBox x:Name="QuickViewSelector" ItemsSource="{Binding QuickViewOptions}" DisplayMemberPath="Value" SelectedValuePath="Key"
-                          SelectedValue="{Binding QuickView, Mode=TwoWay}" AutomationProperties.Name="快捷视图"/>
-            </StackPanel>
             <WrapPanel Grid.Row="2" Grid.ColumnSpan="2">
                 <ui:Button Content="查询" Command="{Binding SearchCommand}" Appearance="Primary" Margin="0,0,8,0"/>
                 <ui:Button Content="刷新" Command="{Binding RefreshCommand}"/>
@@ -83,7 +78,7 @@
                   AutomationProperties.Name="销售订单列表">
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow">
-                    <Setter Property="ToolTip" Value="{Binding Order.UnitSnapshot, StringFormat=数量单位：{0}}"/>
+                    <Setter Property="ToolTip" Value="{Binding UnitText, StringFormat=数量单位：{0}}"/>
                 </Style>
             </DataGrid.RowStyle>
             <DataGrid.Columns>
@@ -96,12 +91,13 @@
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="确认" Binding="{Binding ConfirmationText}" IsReadOnly="True" Width="64"/>
                 <DataGridTextColumn Header="单据" Binding="{Binding DocumentText}" IsReadOnly="True" Width="64"/>
-                <DataGridTextColumn Header="执行" Binding="{Binding FulfillmentText}" IsReadOnly="True" Width="80"/>
+
                 <DataGridTextColumn Header="订单号" Binding="{Binding Order.OrderNo}" IsReadOnly="True" Width="120"/>
                 <DataGridTextColumn Header="发票号" Binding="{Binding Order.InvoiceNo}" IsReadOnly="True" Width="110"/>
+                <DataGridTextColumn Header="单位" Binding="{Binding UnitText}" IsReadOnly="True" Width="130"/>
                 <DataGridTextColumn Header="数量" Binding="{Binding Order.TotalQty, StringFormat={}{0:N2}, TargetNullValue=—}" IsReadOnly="True" Width="72"/>
-                <DataGridTextColumn Header="已交" Binding="{Binding Order.TotalShippedQty, StringFormat={}{0:N2}, TargetNullValue=—}" IsReadOnly="True" Width="72"/>
-                <DataGridTextColumn Header="未交" Binding="{Binding Order.TotalUnshippedQty, StringFormat={}{0:N2}, TargetNullValue=—}" IsReadOnly="True" Width="72"/>
+
+
             </DataGrid.Columns>
         </DataGrid>
         <DockPanel Grid.Row="4" Margin="0,8,0,0">

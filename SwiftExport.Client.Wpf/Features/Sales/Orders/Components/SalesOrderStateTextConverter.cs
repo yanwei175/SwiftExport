@@ -14,9 +14,6 @@ public sealed class SalesOrderStateTextConverter : IValueConverter
         {
             SalesOrderDocumentStatusEnum.Open => "正常",
             SalesOrderDocumentStatusEnum.Closed => "已关闭",
-            SalesOrderFulfillmentStatusEnum.NotStarted => "未发货",
-            SalesOrderFulfillmentStatusEnum.PartiallyShipped => "部分发货",
-            SalesOrderFulfillmentStatusEnum.FullyShipped => "全部发货",
             true => "非标",
             false => "标准",
             _ => value?.ToString() ?? "未知",

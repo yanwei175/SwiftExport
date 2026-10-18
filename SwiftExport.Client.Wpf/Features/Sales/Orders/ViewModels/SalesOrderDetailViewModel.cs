@@ -2,8 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.SalesOrderApis;
 using SwiftExport.Contracts.DTOs.SalesOrders.Detail;
-using SwiftExportClient.Features.Sales.Fulfillment.Models;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.SystemDtos;
@@ -42,6 +40,11 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private CancellationTokenSource? _productLookupCancellation;
     private CancellationTokenSource? _customerLookupCancellation;
     private bool _loadingDocument;
+    private readonly ISystemParameterCacheService _systemParameters;
+    private long _defaultDeliveryVersion;
+    private bool _newDocumentActive, _deliveryDateOverridden, _applyingDefaultDelivery;
+    private int? _defaultDeliveryDays;
+    private string? _defaultDeliveryError;
     private ConfirmSalesOrderCommand? _pendingConfirmation;
     private SaveSalesOrderRequest? _pendingSave;
     private CancelSalesOrderConfirmationCommand? _pendingCancellation;
@@ -60,7 +63,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         ISalesOrderCancellationDialogService cancellationDialogService,
         IMessageService messageService,
         IReferenceDataCacheService referenceDataCache,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        ISystemParameterCacheService systemParameters)
     {
         _detailApi = api;
         _apiCallRunner = apiCallRunner;
@@ -70,6 +74,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         _messageService = messageService;
         _referenceDataCache = referenceDataCache;
         _currentUser = currentUser;
+        _systemParameters = systemParameters;
         Title = "销售订单-新建";
         Header.PropertyChanged += OnHeaderPropertyChanged;
         Lines.ListStateChanged += OnLinesStateChanged;
@@ -108,19 +113,14 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     public bool CanCancelOrderConfirmation => _currentUser.HasPermission(PermissionKeys.SalesOrderCancelConfirmation);
     public bool IsPersisted => Header.Uid != Guid.Empty;
 
-    /// <summary>按当前已保存订单身份打开同一个只读履约页签。</summary>
-    [RelayCommand]
-    private Task OpenFulfillmentDetailAsync()
-    {
-        var uid = Header.Uid;
-        return uid == Guid.Empty ? Task.CompletedTask : _navigationService.OpenDocumentAsync(
-            SalesFulfillmentDetailViewModel.RouteKey,
-            $"sales-fulfillment-detail:{uid:N}",
-            new SalesFulfillmentDetailOpenRequest(uid));
-    }
     /// <summary>单头和附加表单随当前单据状态及未决确认统一冻结。</summary>
     public bool IsEditable => !IsReadOnly;
-    public decimal TotalQty => Lines.Items.Sum(line => line.Qty);
+    /// <summary>编辑汇总只合计完整且同单位的订单行；不借助任何下游状态或交期。</summary>
+    public decimal? TotalQty => HasMixedUnits || HasMissingUnit ? null : Lines.Items.Sum(line => line.Qty);
+    /// <summary>不同单位不提供无意义的数量合计。</summary>
+    public bool HasMixedUnits => Lines.Items.Select(line => line.UnitSnapshot?.TrimEnd(' ')).Where(unit => !string.IsNullOrEmpty(unit)).Distinct(StringComparer.OrdinalIgnoreCase).Skip(1).Any();
+    /// <summary>缺失单位与多单位分别提示，空单不判为缺单位。</summary>
+    public bool HasMissingUnit => Lines.Items.Any(line => string.IsNullOrEmpty(line.UnitSnapshot?.TrimEnd(' ')));
     public decimal TotalCnyAmount => Lines.Items.Sum(line => line.CnyAmount ?? 0m);
     public decimal TotalUsdAmount => Lines.Items.Sum(line => line.UsdAmount ?? 0m);
 
@@ -142,19 +142,21 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     /// <summary>非标销售行可选用的单位字典代码。</summary>
     [ObservableProperty] public partial IReadOnlyList<SysDictDataDto> UnitOptions { get; set; } = [];
 
+    /// <summary>区分新建和既有订单；只在新草稿初始化后异步补充默认交期。</summary>
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
-        var cacheResult = await _referenceDataCache.EnsureLoadedAsync();
-        RefreshReferenceOptions();
-        if (!cacheResult.Success)
-        {
-            _messageService.ShowError("加载销售订单基础资料失败", cacheResult.Message);
-        }
-
+        var version = ++_defaultDeliveryVersion;
         var request = parameter as SalesOrderDocumentOpenRequest;
-        if (request?.OrderId is not Guid orderId || orderId == Guid.Empty)
+        var orderId = request?.OrderId ?? Guid.Empty;
+        _newDocumentActive = orderId == Guid.Empty;
+        if (_newDocumentActive) InitializeNewDocument();
+        var cacheResult = await _referenceDataCache.EnsureLoadedAsync().WaitAsync(cancellationToken);
+        if (cancellationToken.IsCancellationRequested || version != _defaultDeliveryVersion) return;
+        RefreshReferenceOptions();
+        if (!cacheResult.Success) _messageService.ShowError("加载销售订单基础资料失败", cacheResult.Message);
+        if (_newDocumentActive)
         {
-            InitializeNewDocument();
+            await LoadDefaultDeliveryAsync(version, cancellationToken);
             return;
         }
 
@@ -250,15 +252,18 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         if (IsBusy || HasPendingIntent) return false;
         if (!HasUnsavedChanges)
         {
+            _newDocumentActive = false; ++_defaultDeliveryVersion;
             return true;
         }
 
-        return await _dialogService.ConfirmAsync(
+        var canClose = await _dialogService.ConfirmAsync(
             "关闭销售订单",
             "当前订单有未保存修改。确定放弃修改并关闭吗？",
             "放弃并关闭",
             "继续编辑",
             cancellationToken);
+        if (canClose) { _newDocumentActive = false; ++_defaultDeliveryVersion; }
+        return canClose;
     }
 
     [RelayCommand(CanExecute = nameof(CanEdit))]
@@ -266,7 +271,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     {
         using (Lines.SuppressListEvents())
         {
-            SelectedLine = Lines.AddStandardLine(Header.DeliveryDate);
+            SelectedLine = Lines.AddStandardLine(null);
             ResetLineNumbers();
         }
     }
@@ -276,7 +281,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     {
         using (Lines.SuppressListEvents())
         {
-            SelectedLine = Lines.AddNonStandardLine(Header.DeliveryDate);
+            SelectedLine = Lines.AddNonStandardLine(null);
             ResetLineNumbers();
         }
     }
@@ -325,7 +330,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         {
             if (_pendingSave is null)
             {
-                var headerError = Header.ValidateModel();
+                var headerError = Header.ValidateModel() ?? (Header.Uid == Guid.Empty && Header.DeliveryDate is null ? _defaultDeliveryError : null);
                 if (!string.IsNullOrWhiteSpace(headerError))
                 {
                     ValidationSummary = headerError;
@@ -388,7 +393,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     {
         if (_pendingConfirmation is null && !await _dialogService.ConfirmAsync(
                 "确认销售订单",
-                "确认后将为每条订单行生成毛需求，但不会拆解 BOM。是否继续？",
+                "确认后将为每条订单行生成成品需求，但不会拆解 BOM。是否继续？",
                 "确认"))
         {
             return;
@@ -412,7 +417,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
             SetPendingConfirmation(null);
             SetRefreshOnly(request.Uid);
             await RefreshCurrentFactAsync("销售订单已确认");
-            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。等待需求工作台拆解。");
+            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条成品需求。等待需求工作台拆解。");
         }, "正在确认销售订单...");
     }
 
@@ -454,7 +459,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
             await RefreshCurrentFactAsync("已取消确认");
             _messageService.ShowSuccess(
                 "已取消确认",
-                $"{DocumentTitle}：删除 {result.Data.HardDeletedGrossDemandCount} 条，作废保留 {result.Data.VoidedGrossDemandCount} 条毛需求。");
+                $"{DocumentTitle}：删除 {result.Data.HardDeletedGrossDemandCount} 条，作废保留 {result.Data.VoidedGrossDemandCount} 条成品需求。");
         }, "正在取消确认...");
     }
 
@@ -624,6 +629,7 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
     private void InitializeNewDocument()
     {
         _loadingDocument = true;
+        _deliveryDateOverridden = false; _defaultDeliveryDays = null; _defaultDeliveryError = null;
         Header.Load(new SalesOrderEditHeaderDto
         {
             DocumentStatus = SalesOrderDocumentStatusEnum.Open,
@@ -641,8 +647,49 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         NotifyDocumentStateChanged();
     }
 
+    /// <summary>使用现有参数缓存取得自然日天数；失败不猜测已配置值，保存仍由服务端兜底。</summary>
+    private async Task LoadDefaultDeliveryAsync(long version, CancellationToken token)
+    {
+        var result = await _systemParameters.RefreshAsync(token).WaitAsync(token);
+        if (token.IsCancellationRequested || version != _defaultDeliveryVersion || !_newDocumentActive || IsPersisted || HasPendingIntent) return;
+        if (!result.Success) { _messageService.ShowWarning("默认交期参数暂不可用", result.Message); return; }
+        var parameter = _systemParameters.Parameters.FirstOrDefault(item => item.Key == SwiftExport.Contracts.DTOs.SystemDtos.SystemParameters.SystemParameterKeys.SalesDefaultDeliveryDays);
+        var value = parameter is null ? "60" : parameter.Value;
+        if (!int.TryParse(value?.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var days) || days < 0)
+        {
+            _defaultDeliveryError = "销售默认交期天数必须为非负整数。";
+            if (!_deliveryDateOverridden) _messageService.ShowWarning("默认交期无法计算", _defaultDeliveryError);
+            return;
+        }
+        _defaultDeliveryDays = days;
+        ApplyDefaultDelivery();
+    }
+
+    /// <summary>自动交期只跟随未保存且未手工覆盖的新草稿；不回写空行交期或重算历史订单。</summary>
+    private void ApplyDefaultDelivery()
+    {
+        if (!_newDocumentActive || IsPersisted || HasPendingIntent || _deliveryDateOverridden
+            || !_defaultDeliveryDays.HasValue || Header.OrderDate is null) return;
+        try
+        {
+            var date = Header.OrderDate.Value.Date.AddDays(_defaultDeliveryDays.Value);
+            _applyingDefaultDelivery = true;
+            Header.DeliveryDate = date;
+            _defaultDeliveryError = null;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            _applyingDefaultDelivery = true;
+            Header.DeliveryDate = null;
+            _defaultDeliveryError = "订单日期加默认交期天数超出可用日期范围，请明确填写交期。";
+            _messageService.ShowWarning("默认交期无法计算", _defaultDeliveryError);
+        }
+        finally { _applyingDefaultDelivery = false; }
+    }
+
     private void LoadDocument(SalesOrderDetailDto document)
     {
+        _newDocumentActive = false; ++_defaultDeliveryVersion;
         _loadingDocument = true;
         Header.Load(document.Header);
         Lines.LoadFromDtos(document.Lines);
@@ -736,9 +783,14 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
 
     private void OnHeaderPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_loadingDocument)
+        if (_loadingDocument || _applyingDefaultDelivery)
         {
             return;
+        }
+        if (_newDocumentActive && Header.Uid == Guid.Empty)
+        {
+            if (e.PropertyName == nameof(SalesOrderHeaderEditModel.DeliveryDate)) _deliveryDateOverridden = Header.DeliveryDate.HasValue;
+            if (e.PropertyName == nameof(SalesOrderHeaderEditModel.OrderDate)) ApplyDefaultDelivery();
         }
 
         UpdateChangeState();
@@ -756,6 +808,8 @@ public sealed partial class SalesOrderDetailViewModel : ViewModelBaseEx,
         }
 
         OnPropertyChanged(nameof(TotalQty));
+        OnPropertyChanged(nameof(HasMixedUnits));
+        OnPropertyChanged(nameof(HasMissingUnit));
         OnPropertyChanged(nameof(TotalCnyAmount));
         OnPropertyChanged(nameof(TotalUsdAmount));
         NotifyLineReorderCommands();

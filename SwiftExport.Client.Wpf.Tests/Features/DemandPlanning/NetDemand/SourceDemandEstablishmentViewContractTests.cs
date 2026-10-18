@@ -3,7 +3,7 @@ using System.IO;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 
-/// <summary>验证来源需求建立入口只存在于物料需求页面。</summary>
+/// <summary>验证从成品需求建立物料需求的入口只存在于物料需求页面。</summary>
 [TestClass]
 public sealed class SourceDemandEstablishmentViewContractTests
 {

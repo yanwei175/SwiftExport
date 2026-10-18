@@ -33,7 +33,6 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         private string keyword = "", customerCode = "", statusText = "点击查询加载销售订单。";
         private string outputPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         private int confirmation = -1, pageIndex = 1, totalCount;
-        private SalesOrderManagerQuickView quickView;
         private SalesOrderListRow selectedOrder;
 
         /// <summary>用户输入的管理列表关键词，发送时裁剪空白。</summary>
@@ -42,8 +41,6 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         public string CustomerCode { get { return customerCode; } set { SetProperty(ref customerCode, value); } }
         /// <summary>确认筛选的页面值，-1 表示全部，其余对应契约枚举。</summary>
         public int Confirmation { get { return confirmation; } set { SetProperty(ref confirmation, value); } }
-        /// <summary>复用服务端快捷视图，与其余条件取交集。</summary>
-        public SalesOrderManagerQuickView QuickView { get { return quickView; } set { SetProperty(ref quickView, value); } }
         /// <summary>预留 Excel 输出目录，默认本机桌面；本期不创建文件。</summary>
         public string OutputPath { get { return outputPath; } set { SetProperty(ref outputPath, value); } }
         /// <summary>DataGrid 当前行，为后续单张生成预留，不自动勾选。</summary>
@@ -61,18 +58,6 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
         {
             new KeyValuePair<int, string>(-1, "全部"), new KeyValuePair<int, string>(0, "待确认"),
             new KeyValuePair<int, string>(1, "已确认")
-        };
-        public IReadOnlyList<KeyValuePair<SalesOrderManagerQuickView, string>> QuickViewOptions { get; } = new[]
-        {
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.All, "全部订单"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.PendingConfirmation, "待确认"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.NotShipped, "未发货"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.PartiallyShipped, "部分发货"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.FullyShipped, "全部发货"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.DueSoon, "临近交期"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.Overdue, "逾期未交"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.ClosedWithOutstanding, "关闭仍未交"),
-            new KeyValuePair<SalesOrderManagerQuickView, string>(SalesOrderManagerQuickView.NeedsReview, "需核实")
         };
         public IAsyncRelayCommand SearchCommand { get; }
         public IAsyncRelayCommand RefreshCommand { get; }
@@ -111,7 +96,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                 Keyword = (Keyword ?? "").Trim(),
                 CustomerCodes = string.IsNullOrWhiteSpace(CustomerCode) ? new List<string>() : new List<string> { CustomerCode.Trim() },
                 ConfirmationStatuses = Confirmation < 0 ? new List<ConfirmationStatusEnum>() : new List<ConfirmationStatusEnum> { (ConfirmationStatusEnum)Confirmation },
-                QuickView = QuickView, PageIndex = Math.Max(1, targetPage), PageSize = PageSize
+                PageIndex = Math.Max(1, targetPage), PageSize = PageSize
             };
             var operation = new CancellationTokenSource();
             var version = session.Capture().Version;
@@ -166,7 +151,7 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.ViewModels
                     if (IsDisposed || sessionVersion == session.Capture().Version) return;
                     sessionVersion = session.Capture().Version; initializedVersion = null;
                     query?.Cancel(); query = null; IsBusy = false;
-                    ClearOrders(); Keyword = ""; CustomerCode = ""; Confirmation = -1; QuickView = SalesOrderManagerQuickView.All;
+                    ClearOrders(); Keyword = ""; CustomerCode = ""; Confirmation = -1;
                     pageIndex = 1; totalCount = 0; ErrorMessage = "";
                     StatusText = "账号已变更，请重新查询销售订单。";
                     OnPropertyChanged(nameof(PageStatus)); OnPropertyChanged(nameof(CanBrowse)); RefreshCommands();

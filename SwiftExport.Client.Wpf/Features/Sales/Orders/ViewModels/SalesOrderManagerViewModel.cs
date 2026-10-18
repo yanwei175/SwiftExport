@@ -9,8 +9,6 @@ using SwiftExport.Contracts.DTOs.SalesOrders.Manager;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExportClient.Features.Sales.Orders.Models;
 using SwiftExportClient.Features.Sales.Orders.Services;
-using SwiftExportClient.Features.Sales.Fulfillment.Models;
-using SwiftExportClient.Features.Sales.Fulfillment.ViewModels;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Resources.Controls;
@@ -65,6 +63,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         _currentUser = currentUser;
         Title = "销售订单管理";
         PropertyChanged += OnBusyPropertyChanged;
+        SelectedCustomerCodes.CollectionChanged += (_, _) => PageIndex = 1;
         SelectedDocumentStatuses.CollectionChanged += (_, _) => PageIndex = 1;
         SelectedConfirmationStatuses.CollectionChanged += (_, _) => PageIndex = 1;
 
@@ -73,7 +72,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         RegisterBusyAwareCommand(ClearFiltersCommand);
         RegisterBusyAwareCommand(OpenNewCommand);
         RegisterBusyAwareCommand(OpenSelectedCommand);
-        RegisterBusyAwareCommand(OpenFulfillmentDetailCommand);
         RegisterBusyAwareCommand(ConfirmSelectedCommand);
         RegisterBusyAwareCommand(RetryPendingConfirmationCommand);
         RegisterBusyAwareCommand(RetryPendingActionCommand);
@@ -98,11 +96,10 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     {
         if (e.PropertyName == nameof(IsBusy)) OnPropertyChanged(nameof(CanBrowse));
         // 修改任一查询条件后，从第一页重新检索，避免旧页码漏掉新命中结果。
-        if (e.PropertyName is nameof(Keyword) or nameof(CustomerCode) or nameof(OrderNo)
+        if (e.PropertyName is nameof(Keyword) or nameof(OrderNo)
             or nameof(CustomerPoNo) or nameof(InvoiceNo) or nameof(CustomerSkusText)
             or nameof(OrderDateFrom) or nameof(OrderDateTo)
-            or nameof(EffectiveDeliveryDateFrom) or nameof(EffectiveDeliveryDateTo)
-            or nameof(QuickView)) PageIndex = 1;
+            or nameof(EffectiveDeliveryDateFrom) or nameof(EffectiveDeliveryDateTo)) PageIndex = 1;
     }
     /// <summary>维护权限独立于销售导航权限。</summary>
     public bool CanMaintain => _currentUser.HasPermission(PermissionKeys.SalesOrderMaintain);
@@ -118,6 +115,8 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     public Task<bool> CanCloseAsync(CancellationToken cancellationToken)
         => Task.FromResult(!IsBusy && !HasPendingIntent);
     public ObservableCollection<SalesOrderDetailLineDto> SelectedOrderLines { get; } = [];
+    /// <summary>行预览使用同次详情返回的头交期，避免列表旧快照与新行事实混用。</summary>
+    [ObservableProperty] public partial DateTime? SelectedOrderDeliveryDate { get; private set; }
     public ObservableCollection<string> CustomerCodeOptions { get; } = [];
     public IReadOnlyList<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> DocumentStatusOptions { get; } =
     [
@@ -131,24 +130,12 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     ];
     public ObservableCollection<SalesOrderFilterOption<SalesOrderDocumentStatusEnum>> SelectedDocumentStatuses { get; } = [];
     public ObservableCollection<SalesOrderFilterOption<ConfirmationStatusEnum>> SelectedConfirmationStatuses { get; } = [];
-    /// <summary>单选快捷视图与其他普通条件取交集。</summary>
-    public IReadOnlyList<SalesOrderFilterOption<SalesOrderManagerQuickView>> QuickViewOptions { get; } =
-    [
-        new(SalesOrderManagerQuickView.All, "全部订单"),
-        new(SalesOrderManagerQuickView.PendingConfirmation, "待确认"),
-        new(SalesOrderManagerQuickView.NotShipped, "未发货"),
-        new(SalesOrderManagerQuickView.PartiallyShipped, "部分发货"),
-        new(SalesOrderManagerQuickView.FullyShipped, "全部发货"),
-        new(SalesOrderManagerQuickView.DueSoon, "临近交期"),
-        new(SalesOrderManagerQuickView.Overdue, "逾期未交"),
-        new(SalesOrderManagerQuickView.ClosedWithOutstanding, "关闭仍未交"),
-        new(SalesOrderManagerQuickView.NeedsReview, "需核实")
-    ];
     public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => $"第 {PageIndex} / {TotalPages} 页";
 
     [ObservableProperty] public partial string Keyword { get; set; } = string.Empty;
-    [ObservableProperty] public partial string CustomerCode { get; set; } = string.Empty;
+    /// <summary>客户代码筛选由现有多选控件一次提交；查询冻结独立副本。</summary>
+    public ObservableCollection<string> SelectedCustomerCodes { get; } = [];
     [ObservableProperty] public partial string OrderNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string CustomerPoNo { get; set; } = string.Empty;
     [ObservableProperty] public partial string InvoiceNo { get; set; } = string.Empty;
@@ -157,7 +144,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     [ObservableProperty] public partial DateTime? OrderDateTo { get; set; }
     [ObservableProperty] public partial DateTime? EffectiveDeliveryDateFrom { get; set; }
     [ObservableProperty] public partial DateTime? EffectiveDeliveryDateTo { get; set; }
-    [ObservableProperty] public partial SalesOrderManagerQuickView QuickView { get; set; }
 
     /// <summary>
     /// 获取或设置高级筛选 Popup 是否打开，仅控制筛选区域显隐，不改变当前筛选值。
@@ -167,7 +153,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand))]
-    [NotifyCanExecuteChangedFor(nameof(OpenFulfillmentDetailCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfirmSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelConfirmationCommand))]
     [NotifyCanExecuteChangedFor(nameof(CloseSelectedCommand))]
@@ -220,7 +205,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
     private async Task ClearFiltersAsync()
     {
         Keyword = string.Empty;
-        CustomerCode = string.Empty;
+        SelectedCustomerCodes.Clear();
         OrderNo = string.Empty;
         CustomerPoNo = string.Empty;
         InvoiceNo = string.Empty;
@@ -229,7 +214,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         OrderDateTo = null;
         EffectiveDeliveryDateFrom = null;
         EffectiveDeliveryDateTo = null;
-        QuickView = SalesOrderManagerQuickView.All;
         SelectedDocumentStatuses.Clear();
         SelectedConfirmationStatuses.Clear();
         PageIndex = 1;
@@ -260,19 +244,6 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             new SalesOrderDocumentOpenRequest(SelectedOrder.Uid));
     }
 
-    /// <summary>从销售管理页按稳定文档键打开只读履约 Detail，重复打开时激活已有页签。</summary>
-    [RelayCommand(CanExecute = nameof(CanUseSelected))]
-    private Task OpenFulfillmentDetailAsync()
-    {
-        var order = SelectedOrder;
-        return order is null
-            ? Task.CompletedTask
-            : _navigationService.OpenDocumentAsync(
-                SalesFulfillmentDetailViewModel.RouteKey,
-                $"sales-fulfillment-detail:{order.Uid:N}",
-                new SalesFulfillmentDetailOpenRequest(order.Uid));
-    }
-
     [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task LoadSelectedLinesAsync()
     {
@@ -281,6 +252,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         _lineLoadCancellation = requestCancellation;
         var selected = SelectedOrder;
         SelectedOrderLines.Clear();
+        SelectedOrderDeliveryDate = null;
         if (selected is null)
         {
             if (ReferenceEquals(_lineLoadCancellation, requestCancellation))
@@ -310,6 +282,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
                 return;
             }
 
+            SelectedOrderDeliveryDate = result.Data.Header is not null ? result.Data.Header.DeliveryDate : selected.DeliveryDate;
             foreach (var line in result.Data.Lines)
             {
                 SelectedOrderLines.Add(line);
@@ -332,7 +305,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
         var order = SelectedOrder;
         if (order is null || (!_pendingConfirmations.ContainsKey(order.Uid) && !await _dialogService.ConfirmAsync(
                 "确认销售订单",
-                $"确认订单 {order.OrderNo} 后将生成毛需求，但不会拆解 BOM。是否继续？",
+                $"确认订单 {order.OrderNo} 后将生成成品需求，但不会拆解 BOM。是否继续？",
                 "确认")))
         {
             return;
@@ -361,7 +334,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             _unknownConfirmationIds.Remove(request.CommandId);
             NotifyPendingStateChanged();
             RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
-            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。等待需求工作台拆解。");
+            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条成品需求。等待需求工作台拆解。");
             await LoadPageCoreAsync();
         }, "正在确认销售订单...");
     }
@@ -404,7 +377,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             _unknownConfirmationIds.Remove(request.CommandId);
             NotifyPendingStateChanged();
             RetryPendingConfirmationCommand.NotifyCanExecuteChanged();
-            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条毛需求。");
+            _messageService.ShowSuccess("销售订单已确认", $"已生成 {result.Data.GrossDemandCount} 条成品需求。");
             await LoadPageCoreAsync();
         }, "正在核实销售订单确认...");
     }
@@ -474,7 +447,7 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
                 }
                 SetPendingAction(null);
                 _messageService.ShowSuccess("已取消确认",
-                    $"{pending.OrderNo}：删除 {result.Data.HardDeletedGrossDemandCount} 条，作废保留 {result.Data.VoidedGrossDemandCount} 条毛需求。");
+                    $"{pending.OrderNo}：删除 {result.Data.HardDeletedGrossDemandCount} 条，作废保留 {result.Data.VoidedGrossDemandCount} 条成品需求。");
             }
             else if (pending.Request is CloseSalesOrderRequest close)
             {
@@ -621,13 +594,11 @@ public sealed partial class SalesOrderManagerViewModel : ViewModelBaseEx, IAsync
             OrderDateTo = OrderDateTo,
             EffectiveDeliveryDateFrom = EffectiveDeliveryDateFrom,
             EffectiveDeliveryDateTo = EffectiveDeliveryDateTo,
-            QuickView = QuickView,
             PageIndex = PageIndex,
             PageSize = PageSize,
             CustomerSkus = SplitValues(CustomerSkusText),
-            CustomerCodes = string.IsNullOrWhiteSpace(CustomerCode)
-                ? []
-                : [CustomerCode.Trim()],
+            CustomerCodes = SelectedCustomerCodes.Select(code => code.Trim()).Where(code => code.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             DocumentStatuses = SelectedDocumentStatuses.Select(option => option.Value).Distinct().ToList(),
             ConfirmationStatuses = SelectedConfirmationStatuses.Select(option => option.Value).Distinct().ToList(),
         };

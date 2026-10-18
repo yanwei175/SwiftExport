@@ -18,20 +18,9 @@ namespace SwiftExport.Client.VSTO.Features.Sales.Orders.Models
         /// <summary>显示单据生命周期。</summary>
         public string DocumentText => Order.DocumentStatus == SalesOrderDocumentStatusEnum.Open ? "开放"
             : Order.DocumentStatus == SalesOrderDocumentStatusEnum.Closed ? "已关闭" : "未知";
-        /// <summary>使用查询返回的履约状态；无证据时保持未知。</summary>
-        public string FulfillmentText
-        {
-            get
-            {
-                switch (Order.FulfillmentStatus)
-                {
-                    case SalesOrderFulfillmentStatusEnum.NotStarted: return "未开始";
-                    case SalesOrderFulfillmentStatusEnum.PartiallyShipped: return "部分发货";
-                    case SalesOrderFulfillmentStatusEnum.FullyShipped: return "全部发货";
-                    default: return "未知";
-                }
-            }
-        }
+        /// <summary>只解释订单行单位本身；多单位和缺单位分别提示，不参考下游交付。</summary>
+        public string UnitText => (Order.HasMixedUnits ? "多单位" : Order.UnitSnapshot ?? "—")
+            + (Order.HasMissingUnit ? "（缺少单位）" : "");
         /// <summary>引用当前查询行，不改变 DTO 的数量、单位或空值语义。</summary>
         public SalesOrderListRow(SalesOrderManagerListItemDto order) { Order = order; }
     }

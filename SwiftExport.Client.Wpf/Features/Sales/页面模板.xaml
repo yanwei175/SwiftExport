@@ -1,7 +1,5 @@
-<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales" xmlns:orderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views" xmlns:orderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels" xmlns:fulfillmentViews="clr-namespace:SwiftExportClient.Features.Sales.Fulfillment.Views" xmlns:fulfillmentViewModels="clr-namespace:SwiftExportClient.Features.Sales.Fulfillment.ViewModels">
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:sales="clr-namespace:SwiftExportClient.Features.Sales" xmlns:orderViews="clr-namespace:SwiftExportClient.Features.Sales.Orders.Views" xmlns:orderViewModels="clr-namespace:SwiftExportClient.Features.Sales.Orders.ViewModels">
     <DataTemplate DataType="{x:Type sales:SalesViewModel}"><sales:SalesView /></DataTemplate>
     <DataTemplate DataType="{x:Type orderViewModels:SalesOrderManagerViewModel}"><orderViews:SalesOrderManagerView /></DataTemplate>
     <DataTemplate DataType="{x:Type orderViewModels:SalesOrderDetailViewModel}"><orderViews:SalesOrderDetailView /></DataTemplate>
-    <DataTemplate DataType="{x:Type fulfillmentViewModels:SalesFulfillmentManagerViewModel}"><fulfillmentViews:SalesFulfillmentManagerView /></DataTemplate>
-    <DataTemplate DataType="{x:Type fulfillmentViewModels:SalesFulfillmentDetailViewModel}"><fulfillmentViews:SalesFulfillmentDetailView /></DataTemplate>
 </ResourceDictionary>

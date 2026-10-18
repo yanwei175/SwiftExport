@@ -85,7 +85,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
         Edit.ResetForCreate();
         _currentDetailEditable = true;
         IsOpen = true;
-        Title = "新建手工毛需求";
+        Title = "新建手工成品需求";
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(IsNew));
     }
@@ -97,7 +97,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
         Edit.Load(detail);
         _currentDetailEditable = detail.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active;
         IsOpen = true;
-        Title = $"编辑手工毛需求 {detail.SourceNo}";
+        Title = $"编辑手工成品需求 {detail.SourceNo}";
         OnPropertyChanged(nameof(HasUnsavedChanges));
         OnPropertyChanged(nameof(IsNew));
     }
@@ -179,14 +179,14 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
     {
         if (_needsCurrentDetail)
         {
-            await RunBusyAsync(LoadCurrentDetailAsync, "正在刷新手工毛需求详情...");
+            await RunBusyAsync(LoadCurrentDetailAsync, "正在刷新手工成品需求详情...");
             return;
         }
 
         if (!_pendingUnknown && !Edit.ValidateForSave(out var validation))
         {
             ValidationSummary = validation;
-            _messageService.ShowWarning("手工毛需求未保存", validation);
+            _messageService.ShowWarning("手工成品需求未保存", validation);
             return;
         }
 
@@ -210,10 +210,10 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
             var result = _pendingCreate is not null
                 ? await _apiCallRunner.RunAsync(
                     () => _api.CreateManualAsync(_pendingCreate),
-                    "新建手工毛需求失败")
+                    "新建手工成品需求失败")
                 : await _apiCallRunner.RunAsync(
                     () => _api.UpdateManualAsync(_pendingUpdate!.Uid, _pendingUpdate),
-                    "更新手工毛需求失败");
+                    "更新手工成品需求失败");
             if (!result.Success || result.Data is null)
             {
                 var code = result.Error?.Code;
@@ -222,7 +222,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
                 SetPendingUnknown(retain);
                 if (!retain) { _pendingCreate = null; _pendingUpdate = null; }
                 ValidationSummary = result.Message;
-                _messageService.ShowError("手工毛需求保存失败", result.Message);
+                _messageService.ShowError("手工成品需求保存失败", result.Message);
                 return;
             }
 
@@ -232,10 +232,10 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
             // 命令回执是首次提交的快照，必须重新读取当前事实才能恢复编辑。
             _confirmedUid = result.Data.Uid;
             SetNeedsCurrentDetail(true);
-            _messageService.ShowSuccess("手工毛需求已保存", result.Data.SourceNo);
+            _messageService.ShowSuccess("手工成品需求已保存", result.Data.SourceNo);
             Saved?.Invoke(this, EventArgs.Empty);
             await LoadCurrentDetailAsync();
-        }, "正在保存手工毛需求...");
+        }, "正在保存手工成品需求...");
     }
 
     /// <summary>从服务端读取已确认命令的最新详情；读取失败时保持表单冻结并允许手动重试读取。</summary>
@@ -243,7 +243,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
     {
         var result = await _apiCallRunner.RunAsync(
             () => _api.GetDetailAsync(_confirmedUid),
-            "刷新手工毛需求详情失败");
+            "刷新手工成品需求详情失败");
         if (!result.Success || result.Data is null || result.Data.Uid != _confirmedUid)
         {
             ValidationSummary = "保存已确认，但当前详情读取失败。请点击“刷新详情”后继续编辑。";
@@ -253,7 +253,7 @@ public sealed partial class GrossDemandManualEditorViewModel : ViewModelBaseEx, 
 
         Edit.Load(result.Data);
         _currentDetailEditable = result.Data.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active;
-        Title = $"编辑手工毛需求 {result.Data.SourceNo}";
+        Title = $"编辑手工成品需求 {result.Data.SourceNo}";
         ValidationSummary = null;
         _confirmedUid = Guid.Empty;
         SetNeedsCurrentDetail(false);

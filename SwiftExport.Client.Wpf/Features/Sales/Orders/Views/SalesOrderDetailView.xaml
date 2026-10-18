@@ -14,6 +14,7 @@
              d:Width="1500"
              d:Height="900">
     <UserControl.Resources>
+        <salesComponents:SalesOrderDeliveryDateConverter x:Key="SalesOrderDeliveryDateConverter"/>
         <salesComponents:SalesOrderStateTextConverter x:Key="SalesOrderStateTextConverter" />
         <gridSelection:GridSelectionUnitConverter x:Key="GridSelectionUnitConverter" />
 
@@ -62,8 +63,6 @@
                             Content="取消确认" />
                     <ui:Button Margin="0,0,4,0" Command="{Binding RetryCurrentFactCommand}"
                             Content="重试刷新详情" />
-                    <ui:Button Margin="0,0,4,0" Command="{Binding OpenFulfillmentDetailCommand}"
-                            Content="履约跟踪" />
 
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -401,6 +400,7 @@
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
+                    <DataGridTextColumn Header="中性型号" Width="130" Binding="{Binding LinkSku}" IsReadOnly="True" ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"/>
                     <DataGridTextColumn fill:DataGridFillDownBehavior.Field="CustomerSku" Header="客户型号" Width="125"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridTextBox}"
@@ -466,18 +466,28 @@
                                             SortMemberPath="ExpectedDeliveryDate">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding ExpectedDeliveryDate, StringFormat=yyyy-MM-dd}"
-                                           Style="{StaticResource SwiftExportDataGridDateTextBlock}" />
+                                <TextBlock Style="{StaticResource SwiftExportDataGridDateTextBlock}">
+                                    <TextBlock.Text>
+                                        <MultiBinding Converter="{StaticResource SalesOrderDeliveryDateConverter}" StringFormat="yyyy-MM-dd">
+                                            <Binding Path="ExpectedDeliveryDate"/>
+                                            <Binding Path="DataContext.Header.DeliveryDate" RelativeSource="{RelativeSource AncestorType=DataGrid}"/>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                         <DataGridTemplateColumn.CellEditingTemplate>
                             <DataTemplate>
                                 <DatePicker SelectedDate="{Binding ExpectedDeliveryDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                            Style="{StaticResource SwiftExportDataGridDatePicker}" />
+                                            Style="{StaticResource SwiftExportDataGridDatePicker}" ToolTip="留空继承订单交期" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellEditingTemplate>
                     </DataGridTemplateColumn>
 
+                    <DataGridTextColumn Header="每箱数量" Width="90" Binding="{Binding PcsOfCarton, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                    <DataGridTextColumn Header="每箱净重" Width="90" Binding="{Binding NwOfCarton, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                    <DataGridTextColumn Header="每箱毛重" Width="90" Binding="{Binding GwOfCarton, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
+                    <DataGridTextColumn Header="每箱体积" Width="90" Binding="{Binding CbmOfCarton, UpdateSourceTrigger=PropertyChanged}" ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" EditingElementStyle="{StaticResource SwiftExportDataGridNumberTextBox}"/>
                     <DataGridTextColumn fill:DataGridFillDownBehavior.Field="SubNote" Header="备注" Width="*"
                                         ElementStyle="{StaticResource SwiftExportDataGridTextBlock}"
                                         EditingElementStyle="{StaticResource SwiftExportDataGridWarpTextBox}"
@@ -511,7 +521,15 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{Binding BusyMessage}" Style="{StaticResource CaptionTextBlock}" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1" Text="数量：" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Margin="48,0,0,0" Text="{Binding TotalQty, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Margin="48,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TotalQty, StringFormat=N2, TargetNullValue=—}" FontWeight="SemiBold"/>
+                    <TextBlock Text="（多单位）">
+                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasMixedUnits}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="（缺少单位）">
+                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding HasMissingUnit}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
                 <TextBlock Grid.Column="3" Text="USD：" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="3" Margin="42,0,0,0" Text="{Binding TotalUsdAmount, StringFormat=N2}" FontWeight="SemiBold" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="5" Text="CNY：" VerticalAlignment="Center" />

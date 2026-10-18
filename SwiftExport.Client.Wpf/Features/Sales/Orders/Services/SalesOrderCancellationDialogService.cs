@@ -24,7 +24,7 @@ public sealed class SalesOrderCancellationDialogService(
         var content = new StackPanel();
         content.Children.Add(new System.Windows.Controls.TextBlock
         {
-            Text = "从未拆解的毛需求将直接删除；已经拆解并安全回退的历史将作废保留。请输入取消原因。",
+            Text = "从未拆解的成品需求将直接删除；已经拆解并安全回退的历史将作废保留。请输入取消原因。",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8)
         });
