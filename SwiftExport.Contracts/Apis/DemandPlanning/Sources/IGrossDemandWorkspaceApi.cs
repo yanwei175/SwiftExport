@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace SwiftExport.Contracts.Apis.DemandPlanning
 {
     /// <summary>
-    /// 毛需求工作台 API。客户端 BaseAddress 为 api/demand-planning/gross-demands。
+    /// 成品需求工作台 API。客户端 BaseAddress 为 api/demand-planning/gross-demands。
     /// </summary>
     public interface IGrossDemandWorkspaceApi
     {

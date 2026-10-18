@@ -1,7 +1,7 @@
 namespace SwiftExport.Contracts.SysEnums
 {
     /// <summary>
-    /// 毛需求自身的生命周期，不承载拆解或执行进度。
+    /// 成品需求自身的生命周期，不承载拆解或执行进度。
     /// </summary>
     public enum GrossDemandLifecycleStatusEnum
     {
@@ -51,7 +51,7 @@ namespace SwiftExport.Contracts.SysEnums
     }
 
     /// <summary>
-    /// 由执行链接和正式单据查询计算的进度，不持久化到毛需求。
+    /// 由执行链接和正式单据查询计算的进度，不持久化到成品需求。
     /// </summary>
     public enum DemandExecutionProgressEnum
     {
@@ -94,7 +94,7 @@ namespace SwiftExport.Contracts.SysEnums
     }
 
     /// <summary>
-    /// 毛需求批量命令的逐项结果。
+    /// 成品需求批量命令的逐项结果。
     /// </summary>
     public enum GrossDemandCommandOutcomeEnum
     {

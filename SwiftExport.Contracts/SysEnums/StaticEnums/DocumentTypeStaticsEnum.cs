@@ -11,7 +11,7 @@ namespace SwiftExport.Contracts.SysEnums.StaticEnums
         public const string SalesOrder = "SO";
 
         /// <summary>
-        /// 手工毛需求。
+        /// 手工成品需求。
         /// </summary>
         public const string ManualDemand = "MD";
 
