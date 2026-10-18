@@ -24,14 +24,15 @@ public sealed class SupplierProductQueryService(ISupplierProductRepository repos
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request)
+    public async Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null || request.SupplierId == Guid.Empty)
             return ServiceResult<PagedResponseBase<SupplierProductDto>>.Fail("供应商 ID 不能为空。");
         try
         {
-            return ServiceResult<PagedResponseBase<SupplierProductDto>>.Ok(await repository.GetPagedAsync(request));
+            return ServiceResult<PagedResponseBase<SupplierProductDto>>.Ok(await repository.GetPagedAsync(request, cancellationToken));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "应用服务执行失败。");

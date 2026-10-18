@@ -17,19 +17,22 @@ using System.Text;
 
 namespace SwiftExport.Application.Services.Suppliers.Management;
 
+/// <summary>编排供应商管理查询与资料维护，保留独立生命周期和批量事务边界。</summary>
 public sealed class SupplierService(
     ISupplierRepository repository,
     ISupplierProductRepository supplierProductRepository,
     ServiceBaseContext context)
     : BaseService<Supplier, SupplierDto>(repository, context), ISupplierService
 {
-    public async Task<ServiceResult<IReadOnlyList<SupplierDto>>> GetAllAsync()
+    /// <summary>返回与管理分页一致的全量 DTO 快照，取消不转换为业务失败。</summary>
+    public async Task<ServiceResult<IReadOnlyList<SupplierDto>>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var entities = await repository.GetAllAsync();
-            return ServiceResult<IReadOnlyList<SupplierDto>>.Ok(entities.Adapt<IReadOnlyList<SupplierDto>>());
+            var rows = await repository.GetAllForManagementAsync(cancellationToken);
+            return ServiceResult<IReadOnlyList<SupplierDto>>.Ok(rows);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             // 技术异常只写服务端日志，响应不携带 SQL、连接或堆栈细节。

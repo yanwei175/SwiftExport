@@ -10,6 +10,7 @@ using SwiftExport.WebApi.Controllers.Base;
 using SwiftExport.WebApi.RequestProtection;
 namespace SwiftExport.WebApi.Controllers.Suppliers.Management;
 
+/// <summary>供应商管理 HTTP 边界，委托服务读取快照、分页和保存资料。</summary>
 public class SupplierController(ISupplierService service) : BaseController<Supplier, SupplierDto>(service)
 {
 
@@ -22,10 +23,11 @@ public class SupplierController(ISupplierService service) : BaseController<Suppl
     public async Task<ServiceResult<SupplierBatchSaveResponse>> BatchSave([FromBody] SupplierBatchSaveRequest req) => await service.BatchSaveAsync(req);
 
 
+    /// <summary>读取完整管理快照，透传请求取消。</summary>
     [HttpGet("all")]
-    public async Task<ServiceResult<IReadOnlyList<SupplierDto>>> GetAll()
+    public async Task<ServiceResult<IReadOnlyList<SupplierDto>>> GetAll(CancellationToken cancellationToken)
     {
-        return await service.GetAllAsync();
+        return await service.GetAllAsync(cancellationToken);
     }
 
 

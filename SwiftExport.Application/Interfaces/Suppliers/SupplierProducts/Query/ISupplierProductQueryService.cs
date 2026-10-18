@@ -10,5 +10,5 @@ public interface ISupplierProductQueryService
     /// <summary>按资料身份读取详情。</summary>
     Task<ServiceResult<SupplierProductDto>> GetByIdAsync(Guid uid);
     /// <summary>按供应商分页读取资料。</summary>
-    Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request);
+    Task<ServiceResult<PagedResponseBase<SupplierProductDto>>> GetPagedAsync(SupplierProductSearchRequest request, CancellationToken cancellationToken = default);
 }
