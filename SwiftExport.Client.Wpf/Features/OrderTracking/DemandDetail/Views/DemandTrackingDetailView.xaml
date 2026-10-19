@@ -1,0 +1,122 @@
+<UserControl x:Class="SwiftExportClient.Features.OrderTracking.DemandDetail.Views.DemandTrackingDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:SwiftExportClient.Resources.Controls" xmlns:shared="clr-namespace:SwiftExportClient.Features.OrderTracking.Shared.Views" xmlns:tracking="clr-namespace:SwiftExportClient.Features.OrderTracking.DemandDetail.Views" xmlns:behaviors="clr-namespace:SwiftExportClient.Resources.Behaviors" xmlns:commands="clr-namespace:SwiftExportClient.Resources.Commands" xmlns:dgx="urn:tom-englert.de/DataGridExtensions" xmlns:i="http://schemas.microsoft.com/xaml/behaviors">
+    <UserControl.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="/SwiftExport.Client.Wpf;component/Features/OrderTracking/Shared/TrackingSectionResources.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></UserControl.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button Content="返回总览" Command="{Binding ReturnToOverviewCommand}" Margin="0,0,8,0"/>
+                <Button Content="刷新基础信息" Command="{Binding RefreshCommand}" MinWidth="70"/>
+            </StackPanel>
+            <TextBlock Text="成品需求跟踪明细" Style="{StaticResource SubtitleTextBlock}" VerticalAlignment="Center"/>
+        </DockPanel>
+        <StackPanel Grid.Row="1" Margin="0,0,0,8">
+            <TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+            <ProgressBar Height="4" IsIndeterminate="True" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        </StackPanel>
+        <TabControl x:Name="SectionsTabs" Grid.Row="2" SelectedIndex="{Binding SelectedSectionIndex, Mode=TwoWay}" SelectionChanged="OnSectionChanged"><TabItem Header="基础信息"><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <TextBlock Text="基础事实" Style="{StaticResource SubtitleTextBlock}" Margin="0,0,0,8"/>
+                <UniformGrid Columns="3">
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="来源类型" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.SourceType, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="来源单号" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.SourceNo, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="来源行号" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.SourceLineNumber, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="客户代码（当前）" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.CustomerCode, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="客户名称（当前）" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.CustomerName, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="客户 PO（当前销售订单）" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.CustomerPo, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="发票号（当前销售订单）" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.InvoiceNo, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="要求交期" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.RequiredDate, Mode=OneWay, StringFormat=yyyy-MM-dd, TargetNullValue=未指定}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="需求数量" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.DemandQty, Mode=OneWay, StringFormat=N2}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="单位快照" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Unit, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="非标需求" Style="{StaticResource FactLabel}"/><CheckBox IsChecked="{Binding Detail.IsNonStandard, Mode=OneWay}" IsEnabled="False"/></StackPanel>
+                </UniformGrid>
+                <TextBlock Text="产品快照" Style="{StaticResource SubtitleTextBlock}" Margin="0,8,0,8"/>
+                <DockPanel>
+                    <controls:CachedImage DockPanel.Dock="Left" Width="128" Height="128" Margin="0,0,16,8" SourcePath="{Binding Detail.ImagePath}"
+                                          Style="{StaticResource SwiftExportCachedImage}" Stretch="Uniform"/>
+                    <UniformGrid Columns="2">
+                        <StackPanel Style="{StaticResource Fact}"><TextBlock Text="产品编码" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Sku, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                        <StackPanel Style="{StaticResource Fact}"><TextBlock Text="客户型号" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.CustomerSku, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                        <StackPanel Style="{StaticResource Fact}"><TextBlock Text="中性型号" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.LinkSku, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                        <StackPanel Style="{StaticResource Fact}"><TextBlock Text="颜色" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Color, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                        <StackPanel Style="{StaticResource Fact}"><TextBlock Text="规格" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Specification, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                        <StackPanel Style="{StaticResource Fact}"><TextBlock Text="描述" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Description, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    </UniformGrid>
+                </DockPanel>
+                <StackPanel Style="{StaticResource Fact}"><TextBlock Text="成品需求备注" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Remark, Mode=OneWay}" Style="{StaticResource FactValue}" MinHeight="64"/></StackPanel>
+                <TextBlock Text="生命周期与审计" Style="{StaticResource SubtitleTextBlock}" Margin="0,8,0,8"/>
+                <UniformGrid Columns="3">
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="生命周期" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.LifecycleStatus, Mode=OneWay, Converter={StaticResource EnumDescriptionConverter}}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="需求版本" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.Version, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="接收时来源版本" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.SourceVersion, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="生命周期变更时间" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.LifecycleChangedAt, Mode=OneWay, StringFormat=yyyy-MM-dd HH:mm:ss}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="生命周期变更操作人" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.LifecycleChangedBy, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="生命周期变更原因" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.LifecycleChangedReason, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="建立时间" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.CreatedDate, Mode=OneWay, StringFormat=yyyy-MM-dd HH:mm:ss}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="建立操作人" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.CreatedBy, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="最近修改时间" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.UpdatedDate, Mode=OneWay, StringFormat=yyyy-MM-dd HH:mm:ss}" Style="{StaticResource FactValue}"/></StackPanel>
+                    <StackPanel Style="{StaticResource Fact}"><TextBlock Text="最近修改操作人" Style="{StaticResource FactLabel}"/><TextBox Text="{Binding Detail.UpdatedBy, Mode=OneWay}" Style="{StaticResource FactValue}"/></StackPanel>
+                </UniformGrid>
+            </StackPanel>
+        </ScrollViewer></TabItem><TabItem Header="物料"><Grid Margin="8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+<TextBlock Text="物料修订与采用快照；不同修订不累加。表头筛选仅作用于当前已加载记录。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+<DockPanel Grid.Row="1"><Button Content="查看物料跟踪详情" Command="{Binding OpenMaterialCommand}" DockPanel.Dock="Right" Margin="8,0,0,8"/><ContentControl Content="{Binding Materials}" ContentTemplate="{StaticResource SectionFeedback}"/></DockPanel>
+
+<DataGrid x:Name="MaterialsGrid" SelectedItem="{Binding SelectedMaterial, Mode=TwoWay}" MouseDoubleClick="OnMaterialDoubleClick" Grid.Row="3" ItemsSource="{Binding Materials.Data, NotifyOnTargetUpdated=True}" IsEnabled="{Binding Materials.CanRead}" Style="{StaticResource TrackingSectionGrid}" AutomationProperties.Name="物料跟踪记录">
+<i:Interaction.Behaviors><behaviors:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
+<DataGrid.ContextMenu><ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"><MenuItem Header="查看物料跟踪详情" Command="{Binding OpenMaterialCommand}"/><MenuItem Header="复制" Command="ApplicationCommands.Copy" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/><MenuItem Header="清除本页筛选" Command="{x:Static commands:DataGridFilterCommands.Clear}" CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/></ContextMenu></DataGrid.ContextMenu>
+<DataGrid.Columns><DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="修订" Binding="{Binding DecompositionRevision}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="行号" Binding="{Binding LineNumber}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="物料编码" Binding="{Binding Sku}" Width="125"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="类型" Binding="{Binding MaterialType}" Width="90"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="采用组成数量" Binding="{Binding GrossQty, StringFormat=N2}" Width="140"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="当前物料需求" Binding="{Binding NetQty, StringFormat=N2}" Width="140"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="单位" Binding="{Binding Unit}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="要求交期" Binding="{Binding RequiredDate, StringFormat=yyyy-MM-dd, TargetNullValue=未指定}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="生命周期" Binding="{Binding LifecycleStatus, Converter={StaticResource EnumDescriptionConverter}}" Width="95"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="待核实原因" Binding="{Binding ReviewReason}" Width="240"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="描述" Binding="{Binding Description}" Width="180" Visibility="Collapsed"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="供货方式" Binding="{Binding SupplyType}" Width="100" Visibility="Collapsed"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="历史删除" Binding="{Binding IsDeleted, Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=Deleted}" Width="100" Visibility="Collapsed"/></DataGrid.Columns></DataGrid>
+</Grid></TabItem><TabItem Header="采购"><Grid Margin="8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+<TextBlock Text="关联净贡献属于本条关联；采购整行数量可能被多个需求共享，不按关联重复汇总。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+<ContentControl Grid.Row="1" Content="{Binding Purchases}" ContentTemplate="{StaticResource SectionFeedback}"/>
+
+<DataGrid x:Name="PurchasesGrid" Grid.Row="3" ItemsSource="{Binding Purchases.Data, NotifyOnTargetUpdated=True}" IsEnabled="{Binding Purchases.CanRead}" Style="{StaticResource TrackingSectionGrid}" AutomationProperties.Name="采购跟踪记录">
+<i:Interaction.Behaviors><behaviors:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
+<DataGrid.ContextMenu><ContextMenu><MenuItem Header="复制" Command="ApplicationCommands.Copy" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/><MenuItem Header="清除本页筛选" Command="{x:Static commands:DataGridFilterCommands.Clear}" CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/></ContextMenu></DataGrid.ContextMenu>
+<DataGrid.Columns><DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="采购单号" Binding="{Binding PurchaseOrderNo}" Width="130"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="行号" Binding="{Binding PurchaseLineNumber}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="供应商" Binding="{Binding SupplierName}" Width="120"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="型号" Binding="{Binding Sku}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="关联净贡献" Binding="{Binding LinkedQty, StringFormat=N2}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="单位" Binding="{Binding Unit}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="采购整行数量" Binding="{Binding PurchaseLineQty, StringFormat=N2, TargetNullValue=待核实}" Width="140"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="确认状态" Binding="{Binding Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=PurchaseConfirmation}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="生命周期" Binding="{Binding Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=PurchaseLifecycle}" Width="110"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="待核实原因" Binding="{Binding ReviewReason}" Width="220"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="原始分配" Binding="{Binding AllocatedQty, StringFormat=N2}" Width="100" Visibility="Collapsed"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="已释放" Binding="{Binding ReleasedQty, StringFormat=N2}" Width="100" Visibility="Collapsed"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="物料修订" Binding="{Binding DecompositionRevision}" Width="90" Visibility="Collapsed"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="关联状态" Binding="{Binding IsActiveLink, Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=ActiveLink}" Width="110" Visibility="Collapsed"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="采购行共享" Binding="{Binding IsSharedPurchaseLine, Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=Shared}" Width="120" Visibility="Collapsed"/></DataGrid.Columns></DataGrid>
+</Grid></TabItem><TabItem Header="收货"><shared:ReceiptTrackingSectionView x:Name="ReceiptsSection" DataContext="{Binding Receipts}"/></TabItem><TabItem Header="交付"><Grid Margin="8"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+<TextBlock Text="正式交付与反向历史分别展示，证据未知时显示待核实。" TextWrapping="Wrap" Margin="0,0,0,8"/>
+<ContentControl Grid.Row="1" Content="{Binding Deliveries}" ContentTemplate="{StaticResource SectionFeedback}"/>
+<WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding Deliveries.IsLoaded, Converter={StaticResource BooleanToVisibilityConverter}}"><TextBlock Text="业务日："/><TextBlock Text="{Binding Deliveries.Data.BusinessDate, StringFormat=yyyy-MM-dd}"/><TextBlock Text="　逾期状态："/><TextBlock x:Name="OverdueStatusText" Text="{Binding Deliveries.Data.IsOverdue, Converter={StaticResource TrackingEvidenceTextConverter}, ConverterParameter=Overdue}"/><TextBlock Text="　逾期天数："/><TextBlock x:Name="OverdueDaysText" Text="{Binding Deliveries.Data.OverdueDays, TargetNullValue=待核实}"/><TextBlock Text="　可信正式交付净额："/><TextBlock Text="{Binding Deliveries.Data.DeliveredQty, TargetNullValue=待核实, StringFormat=N2}"/><TextBlock Text="　剩余数量："/><TextBlock Text="{Binding Deliveries.Data.RemainingQty, TargetNullValue=待核实, StringFormat=N2}"/><TextBlock Text="{Binding Deliveries.Data.Unit}" Margin="8,0,0,0"/></WrapPanel>
+<DataGrid x:Name="DeliveriesGrid" Grid.Row="3" ItemsSource="{Binding Deliveries.Data.Items, NotifyOnTargetUpdated=True}" IsEnabled="{Binding Deliveries.CanRead}" Style="{StaticResource TrackingSectionGrid}" AutomationProperties.Name="交付跟踪记录">
+<i:Interaction.Behaviors><behaviors:DataGridColumnVisibilityBehavior/></i:Interaction.Behaviors>
+<DataGrid.ContextMenu><ContextMenu><MenuItem Header="复制" Command="ApplicationCommands.Copy" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/><MenuItem Header="清除本页筛选" Command="{x:Static commands:DataGridFilterCommands.Clear}" CommandParameter="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/></ContextMenu></DataGrid.ContextMenu>
+<DataGrid.Columns><DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="箱单号" Binding="{Binding PackingListNo}" Width="140"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="行号" Binding="{Binding LineNumber}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridNumberTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="记录数量" Binding="{Binding Qty, StringFormat=N2}" Width="100"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="单位" Binding="{Binding Unit}" Width="80"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="交付证据" Binding="{Binding Converter={StaticResource TrackingEvidenceTextConverter}}" Width="220"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="过账时间" Binding="{Binding PostedDate, StringFormat=yyyy-MM-dd HH:mm}" Width="150"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridDateTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="反向时间" Binding="{Binding ReversedDate, StringFormat=yyyy-MM-dd HH:mm}" Width="150"/>
+<DataGridTextColumn ElementStyle="{StaticResource SwiftExportDataGridWarpTextBlock}" dgx:DataGridFilterColumn.Template="{StaticResource SwiftExportColumnFilter}" Header="待核实原因" Binding="{Binding ReviewReason}" Width="240"/></DataGrid.Columns></DataGrid>
+</Grid></TabItem></TabControl>
+    </Grid>
+</UserControl>

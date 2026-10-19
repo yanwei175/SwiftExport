@@ -1,0 +1,8 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:overviewVm="clr-namespace:SwiftExportClient.Features.OrderTracking.Overview.ViewModels"
+    xmlns:overview="clr-namespace:SwiftExportClient.Features.OrderTracking.Overview.Views"
+    xmlns:detailVm="clr-namespace:SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels"
+    xmlns:detail="clr-namespace:SwiftExportClient.Features.OrderTracking.DemandDetail.Views" xmlns:materialVm="clr-namespace:SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels" xmlns:material="clr-namespace:SwiftExportClient.Features.OrderTracking.MaterialDetail.Views">
+    <DataTemplate DataType="{x:Type overviewVm:OrderTrackingOverviewViewModel}"><overview:OrderTrackingOverviewView/></DataTemplate>
+    <DataTemplate DataType="{x:Type detailVm:DemandTrackingDetailViewModel}"><detail:DemandTrackingDetailView/></DataTemplate>
+<DataTemplate DataType="{x:Type materialVm:MaterialTrackingDetailViewModel}"><material:MaterialTrackingDetailView/></DataTemplate></ResourceDictionary>

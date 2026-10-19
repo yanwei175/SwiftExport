@@ -13,6 +13,8 @@ public static class NavigationModuleKeys
     public const string Suppliers = "suppliers";
     /// <summary>销售模块。</summary>
     public const string Sales = "sales";
+    /// <summary>独立只读订单跟踪模块。</summary>
+    public const string OrderTracking = "order-tracking";
     /// <summary>需求计划模块。</summary>
     public const string DemandPlanning = "demand-planning";
     /// <summary>采购模块。</summary>

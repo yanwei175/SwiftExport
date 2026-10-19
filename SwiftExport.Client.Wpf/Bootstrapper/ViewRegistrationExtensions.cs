@@ -95,6 +95,9 @@ public static class ViewRegistrationExtensions
 
         services.AddTransient<SalesViewModel>();
         services.AddTransient<SalesOrderManagerViewModel>();
+        services.AddTransient<SwiftExportClient.Features.OrderTracking.Overview.ViewModels.OrderTrackingOverviewViewModel>();
+        services.AddTransient<SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels.DemandTrackingDetailViewModel>();
+        services.AddTransient<SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels.MaterialTrackingDetailViewModel>();
         services.AddTransient<SalesOrderDetailViewModel>();
         services.AddTransient<GrossDemandWorkspaceViewModel>();
         services.AddTransient<GrossDemandManualEditorViewModel>();
