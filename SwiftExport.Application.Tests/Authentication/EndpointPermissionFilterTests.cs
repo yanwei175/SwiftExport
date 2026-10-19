@@ -54,8 +54,9 @@ public sealed class EndpointPermissionFilterTests
     public async Task EveryRegisteredSingleKey_RequiresItsExactPermission()
     {
         var routes = ReadMap("SingleKeys");
-        // 跟踪来源组增加一个单键端点；四个区域另有组合权限定向验证。
-        Assert.AreEqual(250, routes.Count);
+        // 新增来源内匹配端点沿用基础查看权限；所选关注项另有组合权限定向验证。
+        Assert.AreEqual(251, routes.Count);
+        Assert.AreEqual("OrderTracking.View",routes["OrderTrackingSourceController.GetSourceMatchesAsync"]);
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterController.SetMainImagesAsync"]);
         Assert.AreEqual("System.Dictionary.Edit", routes["SysDictTypeController.SyncBuiltInAsync"]);
         Assert.AreEqual("Products.Category.Edit", routes["ProductAttributeController.BatchSaveDefinitionsAsync"]);

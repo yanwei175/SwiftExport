@@ -91,6 +91,9 @@ public sealed class OrderTrackingServiceTests
         /// <summary>记录来源参数及同次业务日。</summary>
         public Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SearchSourcesAsync(OrderTrackingSourceSearchRequest request,DateTime day,CancellationToken cancellationToken=default)
         {Calls++;Request=request;BusinessDate=day;if(Failure is not null)throw Failure;return Task.FromResult(new PagedResponseBase<OrderTrackingSourceGroupDto>());}
+        /// <summary>匹配接口替身只记录调用；具体匹配行为由专项仓储测试验证。</summary>
+        public Task<List<Guid>> GetSourceMatchesAsync(string type,Guid id,OrderTrackingSourceMatchRequest request,DateTime day,CancellationToken cancellationToken=default)
+        {Calls++;if(Failure is not null)throw Failure;return Task.FromResult(new List<Guid>());}
         /// <summary>只接收来源身份，不存在任何主表筛选输入。</summary>
         public Task<OrderTrackingSourceDemandsDto> GetSourceDemandsAsync(string type,Guid id,CancellationToken cancellationToken=default)
         {Calls++;if(Failure is not null)throw Failure;return Task.FromResult(new OrderTrackingSourceDemandsDto{SourceType=type,SourceGroupId=id});}

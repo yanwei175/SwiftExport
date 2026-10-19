@@ -149,6 +149,31 @@ public sealed class OrderTrackingSlicesReadOnlyTests
                 _=await Groups(new(){AttentionCodes=[code]});
             Assert.AreEqual(0,(await Groups(new(){Keyword="hitSKU",AttentionCodes=["NoActiveMaterial"]})).TotalCount);
             Assert.AreEqual(1,(await Groups(new(){Keyword="hitSKU",AttentionCodes=["NoActiveMaterial","PurchaseReview"]})).TotalCount);
+            // 匹配身份复用主表同一行谓词；来源相同不意味着组内其他需求也命中。
+            CollectionAssert.AreEquivalent(new[]{g},await Matches(source,new(){Keyword="hitSKU"}));
+            Assert.HasCount(0,await Matches(source,new(){Keyword="不存在"}));
+            Assert.HasCount(0,await Matches(sourceB,new(){Keyword="hitSKU"}));
+            Assert.HasCount(0,await Matches(source,new(){Keyword="hitSKU",CustomerCodes=["B"]}));
+            Assert.HasCount(0,await Matches(source,new(){Keyword="hitSKU",AttentionCodes=["NoActiveMaterial"]}));
+            CollectionAssert.AreEquivalent(new[]{g},await Matches(source,new(){Keyword="hitSKU",AttentionCodes=["NoActiveMaterial","PurchaseReview"]}));
+            foreach(var code in new[]{"Overdue","MissingRequiredDate","DeliveryReview","NoActiveMaterial","PurchaseShortfall","PurchaseExcess","PurchaseReview","ReceiptOutstanding","ReceiptExcess","ReceiptReview","SourceReview"})
+            {
+                var request=new OrderTrackingSourceSearchRequest{AttentionCodes=[code]};
+                var group=(await Groups(request)).Items.SingleOrDefault(row=>row.SourceGroupId==source);
+                Assert.AreEqual(group?.MatchedDemandCount??0,(await Matches(source,new(){AttentionCodes=[code]})).Count,code);
+            }
+            CollectionAssert.AreEquivalent(new[]{bad1},await Matches(bad1,new()));
+            // 相同组身份同时存在SO/CR时，默认SO、显式空不限、显式CR不能被默认集合扩为SO+CR。
+            var crGross=Gross(Guid.NewGuid(),source,customer,"CR-only","","");crGross["source_type"]="CR";
+            data["gross_demand"].Add(crGross);
+            Assert.IsTrue((await Groups(new(){SourceTypes=null!})).Items.All(row=>row.SourceType=="SO"));
+            Assert.IsTrue((await Groups(new(){SourceTypes=[]})).Items.Any(row=>row.SourceType=="CR"));
+            var crGroups=await Groups(new(){SourceTypes=["CR"]});Assert.AreEqual(1,crGroups.TotalCount);Assert.AreEqual("CR",crGroups.Items.Single().SourceType);
+            Assert.HasCount(0,await sources.GetSourceMatchesAsync("CR",source,new(){SourceTypes=null!},OrderTrackingReadFixture.BusinessDate));
+            CollectionAssert.AreEquivalent(new[]{(Guid)crGross["uid"]!},await sources.GetSourceMatchesAsync("CR",source,new(){SourceTypes=[]},OrderTrackingReadFixture.BusinessDate));
+            CollectionAssert.AreEquivalent(new[]{(Guid)crGross["uid"]!},await sources.GetSourceMatchesAsync("CR",source,new(){SourceTypes=["CR"]},OrderTrackingReadFixture.BusinessDate));
+            Assert.HasCount(0,await Matches(source,new(){SourceTypes=["CR"]}));
+            data["gross_demand"].Remove(crGross);
             var cleanGross=Guid.NewGuid();var cleanSource=Guid.NewGuid();var cleanNet=Guid.NewGuid();var cleanLine=Guid.NewGuid();var cleanPo=Guid.NewGuid();
             data["gross_demand"].Add(Gross(cleanGross,cleanSource,customer,"clean","",""));
             data["net_demand"].Add(Net(cleanNet,cleanGross,5m));
@@ -278,6 +303,21 @@ public sealed class OrderTrackingSlicesReadOnlyTests
             var complete=await fixture.Overview.GetSourceDemandsAsync("SO",source);
             Assert.HasCount(302,complete.Items);Assert.IsTrue(complete.Items.Any(item=>item.Unit is null&&item.RequiredDate is null));
             Assert.IsFalse(fixture.Connection.Commands.Last().Sql.Contains("LIMIT",StringComparison.OrdinalIgnoreCase));
+            var matchStart=fixture.Connection.Commands.Count;
+            var allMatches=await Matches(source,new());
+            Assert.HasCount(302,allMatches);Assert.HasCount(302,allMatches.Distinct().ToArray());
+            CollectionAssert.AreEquivalent(complete.Items.Select(row=>row.GrossDemandId).ToArray(),allMatches);
+            Assert.AreEqual(1,fixture.Connection.Commands.Count-matchStart,"完整命中身份只发出一次集合查询。");
+            Assert.IsFalse(fixture.Connection.Commands.Last().Sql.Contains("LIMIT",StringComparison.OrdinalIgnoreCase));
+            CollectionAssert.AreEquivalent(new[]{g},await Matches(source,new(){Keyword="hitSKU"}));
+            // 同来源存在活动缺交期行，但关键词仍须在该行命中；不能跨行拼接关注条件。
+            var noDate=Gross(Guid.NewGuid(),source,customer,"missing-date","","");noDate["required_date"]=null;
+            data["gross_demand"].Add(noDate);
+            Assert.HasCount(0,await Matches(source,new(){Keyword="hitSKU",AttentionCodes=["MissingRequiredDate"]}));
+            CollectionAssert.AreEquivalent(new[]{(Guid)noDate["uid"]!},await Matches(source,new(){AttentionCodes=["MissingRequiredDate"]}));
+            noDate["is_deleted"]=true;
+            Assert.HasCount(0,await Matches(source,new(){AttentionCodes=["MissingRequiredDate"]}));
+            data["gross_demand"].Remove(noDate);
             var allKeys=new SwiftExport.Contracts.DTOs.OrderTracking.Summary.OrderTrackingSourceKeyDto[]{new(){SourceType="SO",SourceGroupId=source}};
             var summaryStart=fixture.Connection.Commands.Count;
             foreach(var dimension in new[]{"Base","Delivery","Material","Purchase","Receipt"})
@@ -291,6 +331,9 @@ public sealed class OrderTrackingSlicesReadOnlyTests
 
         Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<OrderTrackingSourceGroupDto>> Groups(OrderTrackingSourceSearchRequest request)
             =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).SearchSourcesAsync(request,OrderTrackingReadFixture.BusinessDate);
+
+        Task<List<Guid>> Matches(Guid sourceId,OrderTrackingSourceMatchRequest request)
+            =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).GetSourceMatchesAsync("SO",sourceId,request,OrderTrackingReadFixture.BusinessDate);
 
         Dictionary<string,object?> Gross(Guid id,Guid sourceUid,Guid customerId,string sku,string customerSku,string linkSku)=>R(("uid",id),("version",1),("source_type","SO"),("source_uid",sourceUid),("source_line_id",id),
             ("source_no","SAME"),("source_line_number",1),("source_version",1),("demand_basis_fingerprint",new string('A',64)),("customer_id",customerId),("product_id",product),("is_non_standard",false),

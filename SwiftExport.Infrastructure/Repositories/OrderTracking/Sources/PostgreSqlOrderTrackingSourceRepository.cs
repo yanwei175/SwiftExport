@@ -4,8 +4,9 @@ using Dapper;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Deliveries;
 using SwiftExport.Core.Interfaces.OrderTracking.Sources;
 using SwiftExport.Infrastructure.Contexts;
+using SwiftExport.Infrastructure.Repositories.Base;
 namespace SwiftExport.Infrastructure.Repositories.OrderTracking.Sources;
-/// <summary>筛选完整需求集合后按来源类型与稳定组身份分页。</summary>
+/// <summary>按同一需求行条件筛选来源组，并在稳定来源身份内读取完整命中集合。</summary>
 public sealed class PostgreSqlOrderTrackingSourceRepository(RepositoryBaseContext context) : IOrderTrackingSourceRepository
 {
     /// <summary>匹配数参与选组，全部条数和客户一致性独立从完整组计算。</summary>
@@ -13,19 +14,11 @@ public sealed class PostgreSqlOrderTrackingSourceRepository(RepositoryBaseContex
     {
         ArgumentNullException.ThrowIfNull(request);cancellationToken.ThrowIfCancellationRequested();
         var (where,parameters)=OrderTrackingFilters.Build(request);
-        var prefix="WITH ";
-        var overdue=string.Empty;
-        if(request.AttentionCodes?.Count>0)
-        {
-            parameters.AddTimestamp("BusinessDate",businessDate.Date);
-            prefix="WITH "+SwiftExport.Infrastructure.Repositories.OrderTracking.Summary.OrderTrackingSummarySql.Attention(
-                $"g.uid IN(SELECT g.uid {OrderTrackingFactsSql.From} {where})",request.AttentionCodes)+",";
-            overdue=" AND EXISTS(SELECT 1 FROM summary_attention a WHERE a.gross_id=g.uid)";
-        }
+        var (prefix,matchedWhere)=BuildMatchingScope(where,parameters,request.AttentionCodes,businessDate);
         var cte=prefix+$"""
             matched AS (
                 SELECT {OrderTrackingFilters.GroupType} AS group_type,{OrderTrackingFilters.GroupId} AS group_id,count(*)::integer AS matched_count
-                {OrderTrackingFactsSql.From} {where}{overdue}
+                {OrderTrackingFactsSql.From} {matchedWhere}
                 GROUP BY {OrderTrackingFilters.GroupType},{OrderTrackingFilters.GroupId}
             )
             """;
@@ -56,5 +49,30 @@ public sealed class PostgreSqlOrderTrackingSourceRepository(RepositoryBaseContex
             LIMIT @PageSize OFFSET @Offset
             """,new OrderTrackingFilters.Parameters(parameters),context.Session.Transaction,cancellationToken:cancellationToken));
         return new(){Items=rows.AsList(),TotalCount=count,PageIndex=pageIndex,PageSize=pageSize};
+    }
+
+    /// <summary>先限定稳定来源，再在同一需求行上求条件交集；一次读取全部身份，不分页或逐行查明细。</summary>
+    public async Task<List<Guid>> GetSourceMatchesAsync(string sourceType,Guid sourceGroupId,OrderTrackingSourceMatchRequest request,DateTime businessDate,CancellationToken cancellationToken=default)
+    {
+        ArgumentNullException.ThrowIfNull(request);cancellationToken.ThrowIfCancellationRequested();
+        var (where,parameters)=OrderTrackingFilters.Build(request);
+        parameters.Add("SourceType",sourceType);parameters.Add("SourceGroupId",sourceGroupId);
+        where+=$" AND {OrderTrackingFilters.GroupType}=@SourceType AND {OrderTrackingFilters.GroupId}=@SourceGroupId";
+        var (prefix,matchedWhere)=BuildMatchingScope(where,parameters,request.AttentionCodes,businessDate);
+        var rows=await context.Session.Connection.QueryAsync<Guid>(new CommandDefinition(prefix+$"""
+            matched AS (SELECT DISTINCT g.uid AS "GrossDemandId" {OrderTrackingFactsSql.From} {matchedWhere})
+            SELECT "GrossDemandId" FROM matched ORDER BY "GrossDemandId"
+            """,new OrderTrackingFilters.Parameters(parameters),context.Session.Transaction,cancellationToken:cancellationToken));
+        return rows.AsList();
+    }
+
+    /// <summary>搜索选组和组内命中共用关注项并集；基础条件与关注项始终在同一需求身份上求交。</summary>
+    private static (string Prefix,string Where) BuildMatchingScope(string where,PostgreSqlParameters parameters,IReadOnlyCollection<string>? attentionCodes,DateTime businessDate)
+    {
+        if(attentionCodes is not {Count:>0}) return ("WITH ",where);
+        parameters.AddTimestamp("BusinessDate",businessDate.Date);
+        var prefix="WITH "+SwiftExport.Infrastructure.Repositories.OrderTracking.Summary.OrderTrackingSummarySql.Attention(
+            $"g.uid IN(SELECT g.uid {OrderTrackingFactsSql.From} {where})",attentionCodes)+",";
+        return (prefix,where+" AND EXISTS(SELECT 1 FROM summary_attention a WHERE a.gross_id=g.uid)");
     }
 }
