@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
 {
     /// <summary>
-    /// 成品需求管理查询条件；链路条件按当前有效关系筛选，不改变来源生命周期。
+    /// 成品需求事实查询条件；普通列表分页，指定来源时全量返回该来源的匹配需求。
     /// </summary>
     public class GrossDemandSearchRequest : PagedRequestBase
     {
@@ -19,9 +19,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand
         public DateTime? RequiredDateTo { get; set; }
         public bool? IsNonStandard { get; set; }
         public Guid? SourceUid { get; set; }
-        /// <summary>客户编码或名称关键词。</summary>
-        public string CustomerKeyword { get; set; }
-        /// <summary>当前链路快捷条件：All、NoMaterial、HasMaterial、NoPurchase、HasPurchase、NoDelivery、HasDelivery。</summary>
-        public string TraceView { get; set; }
+        /// <summary>按客户身份精确筛选；空集合表示不限制客户。</summary>
+        public List<Guid> CustomerIds { get; set; } = new List<Guid>();
     }
 }

@@ -1,6 +1,5 @@
 using Refit;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -17,15 +16,15 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
         [Post("/search")]
         Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync([Body] GrossDemandSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>读取成品需求关联客户的筛选候选，仅需成品需求查看权限。</summary>
+        [Get("/customer-options")]
+        Task<ServiceResult<List<GrossDemandCustomerOptionDto>>> GetCustomerOptionsAsync(CancellationToken cancellationToken = default(CancellationToken));
+
         [Post("/source-groups/search")]
         Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync([Body] GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
         [Get("/{uid}")]
         Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
-
-        /// <summary>读取指定成品需求的拆解、采购与交付历史。</summary>
-        [Get("/{uid}/trace")]
-        Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default(CancellationToken));
 
         [Post("/manual")]
         Task<ServiceResult<GrossDemandDetailDto>> CreateManualAsync([Body] CreateManualGrossDemandRequest request);

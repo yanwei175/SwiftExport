@@ -167,8 +167,8 @@
 | --- | --- | --- | --- |
 | POST `api/demand-planning/gross-demands/search` | SearchAsync | `Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Sources/Query/GrossDemandQueryController.cs:17) |
 | POST `api/demand-planning/gross-demands/source-groups/search` | SearchSourceGroupsAsync | `Task<ServiceResult<List<GrossDemandSourceGroupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Sources/Query/GrossDemandQueryController.cs:23) |
+| GET `api/demand-planning/gross-demands/customer-options` | GetCustomerOptionsAsync | `Task<ServiceResult<List<GrossDemandCustomerOptionDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Sources/Query/GrossDemandQueryController.cs) |
 | GET `api/demand-planning/gross-demands/{uid:guid}` | GetDetailAsync | `Task<ServiceResult<GrossDemandDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Sources/Query/GrossDemandQueryController.cs:29) |
-| GET `api/demand-planning/gross-demands/{uid:guid}/trace` | GetTraceAsync | `Task<ServiceResult<GrossDemandTraceDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Sources/Query/GrossDemandQueryController.cs:34) |
 
 ## InboundDraftController
 
