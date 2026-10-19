@@ -637,3 +637,24 @@
 ## 共享客户端契约
 
 Refit声明放[Contracts/Apis](../SwiftExport.Contracts/Apis)，用例DTO放[Contracts/DTOs](../SwiftExport.Contracts/DTOs)；实际WPF消费者由[NavigationRouteRegistry](../SwiftExport.Client.Wpf/Navigation/NavigationRouteRegistry.cs)及对应ViewModel确认。模块对应关系见[能力地图](../.agents/references/业务模块能力与页面契约治理规则.md)。泛型继承CRUD不替代模块命令边界。
+
+## OrderTracking（2026-10-19，工作树实现）
+
+订单跟踪为独立只读查询，全部要求 OrderTracking.View；下游额外权限及数量边界见[设计与交付](订单跟踪首阶段设计与交付.md)。共享调用契约为 [IOrderTrackingApi](../SwiftExport.Contracts/Apis/OrderTracking/IOrderTrackingApi.cs)。实现尚未合并、部署；不以本索引代替运行验收。
+
+| HTTP及路由 | 用例 | 返回数据 |
+| --- | --- | --- |
+| POST `api/order-tracking/sources/search` | 来源分组分页 | `PagedResponseBase<OrderTrackingSourceGroupDto>` |
+| GET `api/order-tracking/sources/{sourceType}/{sourceGroupId}/demands` | 所选来源全部非删除成品需求 | `OrderTrackingSourceDemandsDto` |
+| GET `api/order-tracking/customer-codes` | 独立客户代码候选 | `List<string>` |
+| GET `api/order-tracking/demands/{grossDemandId}` | 需求基础快照 | `DemandTrackingHeaderDto` |
+| GET `api/order-tracking/demands/{grossDemandId}/materials` | 物料分解及修订 | `List<DemandTrackingMaterialDto>` |
+| GET `api/order-tracking/demands/{grossDemandId}/purchases` | 采购关联贡献与整行事实 | `List<DemandTrackingPurchaseDto>` |
+| GET `api/order-tracking/demands/{grossDemandId}/receipts` | 关联采购行收货证据 | `DemandTrackingReceiptSectionDto` |
+| GET `api/order-tracking/demands/{grossDemandId}/deliveries` | 正式交付与反向历史 | `DemandTrackingDeliverySectionDto` |
+
+以上数据均由 `ServiceResult<T>` 包装；权限、服务失败和未知证据不伪装为空集合或零进度。
+
+第三轮已定向验收的独立物料跟踪：GET `api/order-tracking/materials/{netDemandId}` 返回 `MaterialTrackingDetailDto`；子路径 `/purchases` 返回 `MaterialTrackingPurchaseSectionDto`，`/receipts` 返回 `DemandTrackingReceiptSectionDto`。来源分页现使用 `AttentionCodes` 多选关注项，集合内 OR、与基础条件在同一活动需求上 AND；按所选维度检查额外权限。原 `OnlyOverdue` 已在第5阶段退出。旧 `overview/search` 已退出；本轮定向验证通过，但尚未合并或部署。
+
+第5阶段新增独立摘要（工作树实现，尚未合并部署）：POST `api/order-tracking/sources/summaries` 使用 `OrderTrackingSourceSummaryRequest`，返回 `OrderTrackingSourceSummaryBatchDto`；GET `api/order-tracking/sources/{sourceType}/{sourceGroupId}/summaries` 返回 `OrderTrackingSourceDemandSummariesDto`，完整覆盖所选来源而不分页。摘要分维度授权及失败隔离，采购行收货在来源内去重，权限与数量边界见设计与交付文档第5阶段记录。
