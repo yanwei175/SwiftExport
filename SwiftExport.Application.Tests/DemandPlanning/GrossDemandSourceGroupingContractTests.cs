@@ -3,7 +3,7 @@ using SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Query;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>验证来源分组和主列表的筛选、分页及独立链路提示契约。</summary>
+/// <summary>验证成品需求分组和本体列表的筛选、分页及下游隔离契约。</summary>
 [TestClass]
 public sealed class GrossDemandSourceGroupingContractTests
 {
@@ -28,9 +28,9 @@ public sealed class GrossDemandSourceGroupingContractTests
         Assert.IsFalse(source.Contains("10000", StringComparison.Ordinal));
     }
 
-    /// <summary>验证成品需求列表只增加链路存在性提示，不跨单位汇总物料或采购数量。</summary>
+    /// <summary>成品需求列表只投影本体快照，不读取物料、采购、入库及交付事实。</summary>
     [TestMethod]
-    public void RepositoryMainQuery_ProjectsIndependentTraceEvidenceWithoutQuantityRollup()
+    public void RepositoryMainQuery_ProjectsFactsWithoutDownstreamEvidence()
     {
         var source = Read(
             "SwiftExport.Infrastructure",
@@ -41,18 +41,13 @@ public sealed class GrossDemandSourceGroupingContractTests
         var end = source.IndexOf("var countSql =", start, StringComparison.Ordinal);
         Assert.IsTrue(start >= 0 && end > start, "无法定位成品需求主列表 SQL。");
         var query = source[start..end];
-        // 将实际插入主查询的三个常量一起检查，避免抽出 SQL 后漏检数量汇总。
-        foreach (var name in new[] { "WorkspaceActiveMaterialExists", "WorkspaceActivePurchaseExists", "WorkspacePostedDeliveryExists" })
-            query += (string)typeof(PostgreSqlGrossDemandQueryRepository).GetField(name, System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetRawConstantValue()!;
-
         Assert.IsFalse(query.Contains("ExecutionProgress", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("ActiveNetDemandCount", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("CustomerSuppliedNetDemandCount", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("inbound_document", StringComparison.Ordinal));
         Assert.IsFalse(query.Contains("SUM(", StringComparison.OrdinalIgnoreCase));
-        StringAssert.Contains(query, "\"HasActiveMaterial\"");
-        StringAssert.Contains(query, "\"HasValidPurchase\"");
-        StringAssert.Contains(query, "\"HasPostedDelivery\"");
+        foreach(var retired in new[]{"HasActiveMaterial","HasValidPurchase","HasPostedDelivery","public.net_demand","public.purchase_order","public.packing_list","TraceView"})
+            Assert.IsFalse(source.Contains(retired,StringComparison.Ordinal),retired);
         StringAssert.Contains(query, "d.source_version AS \"SourceVersion\"");
         StringAssert.Contains(query, "d.customer_id AS \"CustomerId\"");
         StringAssert.Contains(query, "d.unit_snapshot AS \"Unit\"");

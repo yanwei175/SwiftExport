@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.DemandPlanning;
 using SwiftExport.Application.Interfaces.DemandPlanning.Sources.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 
 namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Query;
@@ -12,6 +11,11 @@ namespace SwiftExport.WebApi.Controllers.DemandPlanning.Sources.Query;
 [Route("api/demand-planning/gross-demands")]
 public sealed class GrossDemandQueryController(IGrossDemandQueryService queryService) : ControllerBase
 {
+    /// <summary>在成品需求查看权限下提供客户筛选候选，避免要求客户管理权限。</summary>
+    [HttpGet("customer-options")]
+    public Task<ServiceResult<List<GrossDemandCustomerOptionDto>>> GetCustomerOptionsAsync(CancellationToken cancellationToken)
+        =>queryService.GetCustomerOptionsAsync(cancellationToken);
+
     /// <summary>按工作台条件查询成品需求，保留原分页和绑定契约。</summary>
     [HttpPost("search")]
     public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(
@@ -29,8 +33,4 @@ public sealed class GrossDemandQueryController(IGrossDemandQueryService querySer
     public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
         => queryService.GetDetailAsync(uid, cancellationToken);
 
-    /// <summary>按成品需求身份读取只读链路证据。</summary>
-    [HttpGet("{uid:guid}/trace")]
-    public Task<ServiceResult<GrossDemandTraceDetailDto>> GetTraceAsync([FromRoute] Guid uid, CancellationToken cancellationToken)
-        => queryService.GetTraceAsync(uid, cancellationToken);
 }

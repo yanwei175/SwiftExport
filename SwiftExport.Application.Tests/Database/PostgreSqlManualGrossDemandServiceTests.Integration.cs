@@ -21,7 +21,6 @@ using SwiftExport.Application.Services.Systems.Numbering;
 using SwiftExport.Contracts.Common;
 using SwiftExport.Contracts.DTOs.Auth;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Contracts.DTOs.SystemDtos.Requests;
 using SwiftExport.Contracts.DTOs.SystemDtos.Responses;
@@ -659,7 +658,7 @@ public sealed class PostgreSqlManualGrossDemandServiceIntegrationTests
         /// <summary>Manual不应访问来源分组。</summary>
         public Task<IReadOnlyList<GrossDemandSourceGroupDto>> SearchSourceGroupsAsync(GrossDemandSourceGroupSearchRequest request, CancellationToken cancellationToken = default) => throw new AssertFailedException("不应调用分组。");
         /// <summary>Manual不应访问追溯。</summary>
-        public Task<GrossDemandTraceDetailDto?> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default) => throw new AssertFailedException("不应调用Trace。");
+        public Task<List<GrossDemandCustomerOptionDto>> GetCustomerOptionsAsync(CancellationToken cancellationToken = default) => throw new AssertFailedException("独立需求命令不应读取客户候选。");
     }
 
     /// <summary>取号完整转发DocumentNoService/PGSequence，仍在原父事务，以真实行观测原子分配。</summary>
