@@ -1,3 +1,6 @@
+using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
+using SwiftExportClient.Features.QualityControl.AfterSales.Models;
+using SwiftExportClient.Features.QualityControl.AfterSales.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
@@ -20,7 +23,7 @@ using System.ComponentModel;
 
 namespace SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 
-/// <summary>管理成品需求本体查询、来源导航及当前兼容的手工需求与拆解命令。</summary>
+/// <summary>查询成品需求本体事实，维护独立需求，并按现有权限导航来源和订单跟踪明细。</summary>
 public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     IAsyncInitializable,
     IDocumentTabViewModel,
@@ -37,9 +40,14 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private CancellationTokenSource? _sourceGroupCancellation;
     private CancellationTokenSource? _sourceGroupFilterDebounceCancellation;
     private CancellationTokenSource? _detailCancellation;
+    private CancellationTokenSource? _customerCancellation;
+    private string? _pendingCloseUserId;
     private bool _initialized;
-    private bool _syncingChecks;
+    private GrossDemandQuerySnapshot? _appliedQuery;
+    private GrossDemandQuerySnapshot? _appliedMainQuery;
+    private GrossDemandSourceGroupModel? _appliedSourceGroup;
     private bool _syncingSourceFilters;
+    private GrossDemandLifecycleStatusEnum[] _appliedSourceStatuses = [GrossDemandLifecycleStatusEnum.Active];
     private bool _disposed;
     private Guid? _appliedSourceUid;
     private CloseGrossDemandCommand? _pendingClose;
@@ -78,9 +86,16 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(SelectSourceGroupCommand);
         RegisterBusyAwareCommand(ToggleSourcePanelCommand);
         RegisterBusyAwareCommand(ClearSourceFiltersCommand);
+        RegisterBusyAwareCommand(ReturnToAllCommand);
+        RegisterBusyAwareCommand(ApplyMoreFiltersCommand);
+        RegisterBusyAwareCommand(RefreshCustomerOptionsCommand);
 
         SourceLifecycleStatuses.Add(LifecycleStatusOptions[0]);
         SourceLifecycleStatuses.CollectionChanged += OnSourceGroupFilterChanged;
+        SelectedCustomers.CollectionChanged += OnDraftCollectionChanged;
+        SelectedSourceTypes.CollectionChanged += OnDraftCollectionChanged;
+        SelectedLifecycleStatuses.CollectionChanged += OnDraftCollectionChanged;
+        _currentUser.CurrentUserChanged += OnCurrentUserChanged;
     }
 
     public GrossDemandManualEditorViewModel ManualEditor { get; }
@@ -108,18 +123,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         new(true, "非标件"),
     ];
 
-    /// <summary>当前链路节点筛选；“已交付”仅表示有有效正式交付行。</summary>
-    public IReadOnlyList<GrossDemandFilterOption<string>> TraceViewOptions { get; } =
-    [
-        new("All", "全部链路"),
-        new("NoMaterial", "无活动拆解"),
-        new("HasMaterial", "有活动拆解"),
-        new("NoPurchase", "无可核实采购"),
-        new("HasPurchase", "有可核实采购"),
-        new("NoDelivery", "无正式交付"),
-        new("HasDelivery", "有正式交付"),
-    ];
-
     public ObservableCollection<GrossDemandFilterOption<string>> SelectedSourceTypes { get; } = [];
     public ObservableCollection<GrossDemandFilterOption<GrossDemandLifecycleStatusEnum>> SelectedLifecycleStatuses { get; } =
         [
@@ -134,7 +137,17 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     public bool HasPendingClose => _closeUnknown;
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
     public string PageStatus => IsSourceSelected ? $"当前来源共 {TotalCount} 条" : $"第 {PageIndex} / {TotalPages} 页";
-    public int CheckedCount => Items.Count(item => item.IsChecked);
+    /// <summary>客户候选由工作区只读接口提供；当前选择仅在查询时应用。</summary>
+    public ObservableCollection<GrossDemandCustomerOption> CustomerOptions { get; } = [];
+    /// <summary>精确客户多选，发送稳定身份而非代码或名称关键词。</summary>
+    public ObservableCollection<GrossDemandCustomerOption> SelectedCustomers { get; } = [];
+    [ObservableProperty] public partial string? CustomerLoadError { get; private set; }
+    [ObservableProperty] public partial bool HasUnappliedChanges { get; private set; }
+    /// <summary>来源模式禁用不会生效的主区域条件。</summary>
+    public bool CanEditMainFilters => !IsSourceSelected;
+    /// <summary>当前模式与已应用查询的说明。</summary>
+    public string QueryModeText => IsSourceSelected ? $"来源模式：{_appliedSourceGroup?.SourceNo}，全量加载；仅左侧来源状态生效，主区域条件不生效。"
+        : HasUnappliedChanges ? "条件已修改，尚未应用；刷新和翻页仍使用已应用查询。" : "全部需求模式：普通分页；表头筛选只作用于当前加载数据。";
     public bool IsSourceSelected => _appliedSourceUid.HasValue;
 
     [ObservableProperty]
@@ -150,13 +163,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [ObservableProperty]
     public partial string Keyword { get; set; } = string.Empty;
 
-    [ObservableProperty]
-    public partial string CustomerKeyword { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial GrossDemandFilterOption<string>? SelectedTraceView { get; set; }
-
-    [ObservableProperty]
+[ObservableProperty]
     public partial string SourceNosText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -197,10 +204,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     [ObservableProperty]
     public partial bool IsDrawerOpen { get; private set; }
 
-    [ObservableProperty]
-    public partial bool? IsAllChecked { get; set; }
-
-    [ObservableProperty]
+[ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TotalPages))]
     [NotifyPropertyChangedFor(nameof(PageStatus))]
     public partial int TotalCount { get; set; }
@@ -226,8 +230,8 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
         _initialized = true;
         SelectedStandardType = StandardTypeOptions[0];
-        SelectedTraceView = TraceViewOptions[0];
-        await LoadPageAsync();
+
+        await Task.WhenAll(LoadPageAsync(), LoadCustomerOptionsAsync());
     }
 
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
@@ -252,9 +256,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             Keyword = query;
         }
 
-        ExitSourceMode();
-        PageIndex = 1;
-        await LoadPageAsync();
+        await LoadPageAsync(CaptureMainQuery(), 1, PageSize);
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -262,7 +264,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     {
         if (await ConfirmDiscardManualChangesAsync())
         {
-            await RefreshManagerAsync();
+            await Task.WhenAll(RefreshManagerAsync(), LoadCustomerOptionsAsync());
         }
     }
 
@@ -275,8 +277,8 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
 
         Keyword = string.Empty;
-        CustomerKeyword = string.Empty;
-        SelectedTraceView = TraceViewOptions[0];
+        SelectedCustomers.Clear();
+
         SourceNosText = string.Empty;
         SkusText = string.Empty;
         CustomerSkusText = string.Empty;
@@ -285,9 +287,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         SelectedStandardType = StandardTypeOptions[0];
         SelectedSourceTypes.Clear();
         SelectedLifecycleStatuses.Clear();
-        ExitSourceMode();
-        PageIndex = 1;
-        await LoadPageAsync();
+        await LoadPageAsync(CaptureMainQuery(), 1, PageSize);
     }
 
     #endregion
@@ -357,26 +357,28 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private async Task CloseSelectedManualAsync()
     {
         var selected = SelectedItem;
-        if (!_closeUnknown && (selected is null
-            || !await ConfirmDiscardManualChangesAsync()
-            || !await _dialogService.ConfirmAsync(
-                "关闭手工成品需求",
-                $"关闭 {selected.SourceNo} 后将保留历史且不能继续拆解。是否继续？",
-                "关闭")))
+        var closeUser = _currentUser.CurrentUser;
+        string? reason = null;
+        if (!_closeUnknown)
         {
-            return;
+            if (selected is null || !await ConfirmDiscardManualChangesAsync()) return;
+            var input = new GrossDemandCloseReasonViewModel(selected.SourceNo);
+            var response = await _dialogService.ShowAsync(input,
+                new DialogOptions("关闭独立需求") { PrimaryButtonText = "确认关闭", CloseButtonText = "取消", Width = 560 }, input);
+            if (response != DialogResult.Primary || !input.IsPrimaryButtonEnabled || !CanCloseSelectedManual() || !ReferenceEquals(closeUser, _currentUser.CurrentUser)) return;
+            reason = input.Reason.Trim();
         }
-
         await RunWriteAsync(async () =>
         {
             if (!_closeUnknown)
             {
+                _pendingCloseUserId = closeUser?.UserId;
                 _pendingClose = new CloseGrossDemandCommand
                 {
                     CommandId = Guid.NewGuid(),
                     Uid = selected!.Uid,
                     Version = selected.Version,
-                    Reason = "用户从成品需求工作台关闭手工需求"
+                    Reason = reason!
                 };
             }
             var result = await _apiCallRunner.RunAsync(
@@ -409,20 +411,18 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     #region 抽屉与来源追溯
 
     /// <summary>用成品需求 Uid 打开独立只读追踪，页面重新加载当前下游证据。</summary>
-    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    [RelayCommand(CanExecute = nameof(CanOpenTracking))]
     private async Task OpenTraceAsync()
     {
         var selected = SelectedItem;
         if (selected is null || !await ConfirmDiscardManualChangesAsync()) return;
         await _navigationService.OpenDocumentAsync(
-            GrossDemandTraceViewModel.RouteKey,
-            $"gross-demand-trace:{selected.Uid:N}",
-            new GrossDemandTraceOpenRequest(selected.Uid));
+            DemandTrackingDetailViewModel.RouteKey, selected.Uid.ToString("N"), selected.Uid);
     }
 
-    // 来源单据、拆解结果和手工编辑器共用现有抽屉及脏状态保护。
+    // 来源单据和订单跟踪通过现有导航打开，独立编辑器继续使用抽屉及未保存保护。
 
-    [RelayCommand(CanExecute = nameof(CanUseSelected))]
+    [RelayCommand(CanExecute = nameof(CanOpenSource))]
     private async Task OpenSourceAsync()
     {
         var selected = SelectedItem;
@@ -440,6 +440,12 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             return;
         }
 
+        if (string.Equals(selected.SourceType, "CR", StringComparison.OrdinalIgnoreCase))
+        {
+            await _navigationService.OpenDocumentAsync(AfterSalesDetailViewModel.RouteKey,
+                $"after-sales:{selected.SourceUid:N}", new AfterSalesDocumentOpenRequest { AfterSalesId = selected.SourceUid });
+            return;
+        }
         if (string.Equals(selected.SourceType, "MD", StringComparison.OrdinalIgnoreCase))
         {
             if (CanEditSelectedManual())
@@ -480,9 +486,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             return;
         }
 
-        PageIndex = request.NewIndex;
-        PageSize = request.NewSize;
-        await LoadPageAsync();
+        await LoadPageAsync(_appliedQuery, request.IsPageSizeChanged ? 1 : request.NewIndex, request.NewSize);
     }
 
     #region 来源导航与独立筛选
@@ -509,10 +513,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             return;
         }
 
-        _appliedSourceUid = group.SourceUid;
-        SelectedSourceGroup = group;
-        PageIndex = 1;
-        await LoadPageAsync();
+        if (!await LoadPageAsync(CaptureSourceQuery(group.SourceUid), 1, PageSize, group)) RestoreAppliedSourceSelection();
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -527,8 +528,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
             CancelSourceGroupLoading();
             IsSourcePanelOpen = false;
-            ExitSourceMode();
-            await LoadPageAsync();
+            await ReturnToAllAsync();
             return;
         }
 
@@ -542,6 +542,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         if (_closeUnknown || ManualEditor.HasPendingSave) return;
         if (IsSourcePanelOpen)
         {
+            if (!await ConfirmDiscardManualChangesAsync()) { RestoreSourceStatusInput(); return; }
             await RefreshSourceNavigationAsync(reloadCurrentData: IsSourceSelected);
         }
     }
@@ -550,6 +551,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
     private async Task ClearSourceFiltersAsync()
     {
         if (_closeUnknown || ManualEditor.HasPendingSave) return;
+        if (!await ConfirmDiscardManualChangesAsync()) return;
         _syncingSourceFilters = true;
         try
         {
@@ -569,97 +571,80 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
     // 主表和来源列表分别取消旧请求，确保较晚操作始终获胜。
 
-    private async Task LoadPageAsync()
+    /// <summary>成功后才接纳查询、页码和来源模式；失败始终保留上一批事实及其解释。</summary>
+    private async Task<bool> LoadPageAsync(GrossDemandQuerySnapshot? candidate = null, int? page = null, int? size = null, GrossDemandSourceGroupModel? sourceGroup = null)
     {
-        if (_closeUnknown || ManualEditor.HasPendingSave) return;
+        if (_disposed || _closeUnknown || ManualEditor.HasPendingSave || !_currentUser.HasPermission(PermissionKeys.DemandPlanningSourceView)) return false;
+        var query = candidate ?? _appliedQuery ?? CaptureMainQuery();
+        if (query.RequiredDateFrom > query.RequiredDateTo) { ResultSummary = "要求交期开始日期不能晚于结束日期；原查询结果保留。"; return false; }
         _searchCancellation?.Cancel();
-        _searchCancellation?.Dispose();
-        var cancellation = new CancellationTokenSource();
-        _searchCancellation = cancellation;
-        var selectedUid = SelectedItem?.Uid;
-
+        using var cancellation = new CancellationTokenSource(); _searchCancellation = cancellation;
+        var token = cancellation.Token; var user = _currentUser.CurrentUser; var request = query.ForPage(page ?? PageIndex, size ?? PageSize);
+        var selectedUid = SelectedItem?.Uid; var accepted = false;
         try
         {
             await RunBusyAsync(async () =>
             {
-                var result = await _apiCallRunner.RunAsync(
-                    () => _api.SearchAsync(CreateSearchRequest(), cancellation.Token),
-                    cancellation.Token,
-                    "查询成品需求失败");
-                if (cancellation.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cancellation))
-                {
-                    return;
-                }
-
-                if (!result.Success || result.Data is null)
-                {
-                    ResultSummary = result.Message;
-                    return;
-                }
-
-                DetachRows();
-                Items.Clear();
-                foreach (var dto in result.Data.Items)
-                {
-                    var row = GrossDemandRowModel.FromDto(dto);
-                    row.PropertyChanged += OnRowPropertyChanged;
-                    Items.Add(row);
-                }
-
-                TotalCount = result.Data.TotalCount;
-                PageIndex = IsSourceSelected ? 1 : result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
-                if (!IsSourceSelected && result.Data.PageSize > 0)
-                {
-                    PageSize = result.Data.PageSize;
-                }
-                SelectedItem = selectedUid is null
-                    ? Items.FirstOrDefault()
-                    : Items.FirstOrDefault(item => item.Uid == selectedUid) ?? Items.FirstOrDefault();
-                ClearChecks();
-                ResultSummary = IsSourceSelected
-                    ? $"当前来源共 {TotalCount} 条成品需求，已全部加载。"
-                    : $"共 {TotalCount} 条成品需求，本页 {Items.Count} 条。";
+                var result = await _apiCallRunner.RunAsync(() => _api.SearchAsync(request, token), token, "查询成品需求失败");
+                if (_disposed || token.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cancellation) || !ReferenceEquals(user, _currentUser.CurrentUser)) return;
+                if (!result.Success || result.Data is null) { ResultSummary = result.Message + "；原查询结果保留。"; return; }
+                Items.Clear(); foreach (var dto in result.Data.Items) Items.Add(GrossDemandRowModel.FromDto(dto));
+                _appliedQuery = query; _appliedSourceUid = query.SourceUid;
+                if (!query.SourceUid.HasValue) _appliedMainQuery = query;
+                _appliedSourceGroup = query.SourceUid.HasValue ? sourceGroup ?? SourceGroups.FirstOrDefault(group => group.SourceUid == query.SourceUid) ?? _appliedSourceGroup : null;
+                SelectedSourceGroup = _appliedSourceGroup;
+                TotalCount = result.Data.TotalCount; PageIndex = query.SourceUid.HasValue ? 1 : request.PageIndex; PageSize = request.PageSize;
+                SelectedItem = Items.FirstOrDefault(item => item.Uid == selectedUid) ?? Items.FirstOrDefault();
+                NotifyQueryMode();
+                ResultSummary = IsSourceSelected ? $"当前来源共 {TotalCount} 条成品需求，已全部加载；列筛选仅过滤已加载数据。" : $"共 {TotalCount} 条成品需求，本页 {Items.Count} 条；列筛选仅过滤本页。";
+                accepted = true;
             }, "正在查询成品需求...", skipIfBusy: false);
+            return accepted;
         }
-        finally
-        {
-            if (ReferenceEquals(_searchCancellation, cancellation))
-            {
-                _searchCancellation = null;
-            }
-
-            cancellation.Dispose();
-        }
+        finally { if (ReferenceEquals(_searchCancellation, cancellation)) _searchCancellation = null; }
     }
-
-    private GrossDemandSearchRequest CreateSearchRequest()
-        => IsSourceSelected ? CreateSelectedSourceSearchRequest() : CreateMainSearchRequest();
-
-    private GrossDemandSearchRequest CreateMainSearchRequest() => new()
+    /// <summary>冻结主区域输入，客户按身份精确匹配，文本批量条件只在应用时提交。</summary>
+    private GrossDemandQuerySnapshot CaptureMainQuery() => new(Keyword.Trim(), SelectedSourceTypes.Select(item => item.Value).ToArray(), SplitLines(SourceNosText).ToArray(), SplitLines(SkusText).ToArray(),
+        SplitLines(CustomerSkusText).ToArray(), SelectedCustomers.Select(item => item.Id).ToArray(), SelectedLifecycleStatuses.Select(item => item.Value).ToArray(), RequiredDateFrom?.Date, RequiredDateTo?.Date, SelectedStandardType?.Value);
+    private GrossDemandQuerySnapshot CaptureSourceQuery(Guid uid, IEnumerable<GrossDemandLifecycleStatusEnum>? statuses = null) => new(string.Empty, [], [], [], [], [], (statuses ?? SourceLifecycleStatuses.Select(item => item.Value)).ToArray(), null, null, null, uid);
+    /// <summary>离开来源模式时恢复上次普通分页查询，不静默应用先前编辑的条件。</summary>
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ReturnToAllAsync()
     {
-        Keyword = Keyword.Trim(),
-        CustomerKeyword = CustomerKeyword.Trim(),
-        TraceView = SelectedTraceView?.Value ?? "All",
-        PageIndex = PageIndex,
-        PageSize = PageSize,
-        SourceTypes = SelectedSourceTypes.Select(item => item.Value).ToList(),
-        SourceNos = SplitLines(SourceNosText),
-        Skus = SplitLines(SkusText),
-        CustomerSkus = SplitLines(CustomerSkusText),
-        LifecycleStatuses = SelectedLifecycleStatuses.Select(item => item.Value).ToList(),
-        RequiredDateFrom = RequiredDateFrom,
-        RequiredDateTo = RequiredDateTo,
-        IsNonStandard = SelectedStandardType?.Value,
-    };
-
-    private GrossDemandSearchRequest CreateSelectedSourceSearchRequest() => new()
+        if (await ConfirmDiscardManualChangesAsync()) await LoadPageAsync(_appliedMainQuery ?? CaptureMainQuery(), 1, PageSize);
+    }
+    /// <summary>更多条件明确应用后关闭浮层。</summary>
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ApplyMoreFiltersAsync() { await SearchAsync(null); IsMultiLineFilterOpen = false; }
+    /// <summary>清空更多条件只修改输入，等待明确应用。</summary>
+    [RelayCommand]
+    private void ClearMoreFilters() { SourceNosText = SkusText = CustomerSkusText = string.Empty; RequiredDateFrom = RequiredDateTo = null; }
+    /// <summary>收起不丢失尚未应用的批量文本。</summary>
+    [RelayCommand]
+    private void CollapseMoreFilters() => IsMultiLineFilterOpen = false;
+    private void OnDraftCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => NotifyQueryMode();
+    partial void OnKeywordChanged(string value) => NotifyQueryMode();
+    partial void OnSourceNosTextChanged(string value) => NotifyQueryMode();
+    partial void OnSkusTextChanged(string value) => NotifyQueryMode();
+    partial void OnCustomerSkusTextChanged(string value) => NotifyQueryMode();
+    partial void OnRequiredDateFromChanged(DateTime? value) => NotifyQueryMode();
+    partial void OnRequiredDateToChanged(DateTime? value) => NotifyQueryMode();
+    partial void OnSelectedStandardTypeChanged(GrossDemandFilterOption<bool?>? value) => NotifyQueryMode();
+    private void NotifyQueryMode()
     {
-        PageIndex = 1,
-        PageSize = PageSize,
-        LifecycleStatuses = SourceLifecycleStatuses.Select(item => item.Value).ToList(),
-        SourceUid = _appliedSourceUid,
-    };
-
+        HasUnappliedChanges = _appliedMainQuery is not null && !_appliedMainQuery.SameConditions(CaptureMainQuery());
+        OnPropertyChanged(nameof(IsSourceSelected)); OnPropertyChanged(nameof(CanEditMainFilters)); OnPropertyChanged(nameof(QueryModeText)); OnPropertyChanged(nameof(TotalPages)); OnPropertyChanged(nameof(PageStatus));
+        PageChangeCommand.NotifyCanExecuteChanged();
+    }
+    /// <summary>会话替换取消旧读取并隐藏旧用户事实，不释放未知命令的重试身份。</summary>
+    private void OnCurrentUserChanged(object? sender, EventArgs e)
+    {
+        _searchCancellation?.Cancel(); _customerCancellation?.Cancel(); CancelSourceGroupLoading(); _detailCancellation?.Cancel();
+        Items.Clear(); SourceGroups.Clear(); CustomerOptions.Clear(); SelectedCustomers.Clear(); SelectedItem = null;
+        _appliedQuery = _appliedMainQuery = null; _appliedSourceUid = null; _appliedSourceGroup = null; SelectedSourceGroup = null;
+        TotalCount = 0; PageIndex = 1; IsDrawerOpen = false; ResultSummary = "会话已变化，请重新查询。"; NotifyQueryMode();
+        SearchCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged(); OpenSourceCommand.NotifyCanExecuteChanged(); OpenTraceCommand.NotifyCanExecuteChanged();
+    }
     private GrossDemandSourceGroupSearchRequest CreateSourceGroupSearchRequest() => new()
     {
         LifecycleStatuses = SourceLifecycleStatuses.Select(item => item.Value).ToList(),
@@ -670,14 +655,16 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         CancelSourceGroupLoading();
         var cancellation = new CancellationTokenSource();
         _sourceGroupCancellation = cancellation;
+        var user = _currentUser.CurrentUser;
+        var request = CreateSourceGroupSearchRequest();
         IsSourceGroupLoading = true;
         try
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.SearchSourceGroupsAsync(CreateSourceGroupSearchRequest(), cancellation.Token),
+                () => _api.SearchSourceGroupsAsync(request, cancellation.Token),
                 cancellation.Token,
                 "查询成品需求来源分组失败");
-            if (cancellation.IsCancellationRequested || !ReferenceEquals(_sourceGroupCancellation, cancellation))
+            if (_disposed || cancellation.IsCancellationRequested || !ReferenceEquals(_sourceGroupCancellation, cancellation) || !ReferenceEquals(user, _currentUser.CurrentUser))
             {
                 return false;
             }
@@ -689,6 +676,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             }
 
             var groups = result.Data.Select(GrossDemandSourceGroupModel.FromDto).ToArray();
+            _appliedSourceStatuses = request.LifecycleStatuses.ToArray();
             SourceGroups.Clear();
             foreach (var group in groups)
             {
@@ -701,7 +689,7 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
                 var selected = SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value);
                 if (selected is null)
                 {
-                    ExitSourceMode();
+                    SourceGroupSummary += " 当前来源不在导航结果中，保留已加载数据，可返回全部需求。";
                 }
                 else
                 {
@@ -711,7 +699,9 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
 
             if (reloadCurrentData)
             {
-                await LoadPageAsync();
+                if (IsSourceSelected && SourceGroups.All(group => group.SourceUid != _appliedSourceUid))
+                    await LoadPageAsync(_appliedMainQuery ?? CaptureMainQuery(), 1, PageSize);
+                else await LoadPageAsync(IsSourceSelected ? CaptureSourceQuery(_appliedSourceUid!.Value, request.LifecycleStatuses) : _appliedQuery);
             }
 
             return true;
@@ -733,6 +723,20 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         SelectedSourceGroup = _appliedSourceUid.HasValue
             ? SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value)
             : null;
+    }
+
+    /// <summary>拒绝放弃编辑时恢复已应用来源状态，避免下拉显示与保留数据互相矛盾。</summary>
+    private void RestoreSourceStatusInput()
+    {
+        _syncingSourceFilters = true;
+        try
+        {
+            SourceLifecycleStatuses.Clear();
+            foreach (var status in IsSourceSelected ? _appliedQuery!.LifecycleStatuses : _appliedSourceStatuses)
+                SourceLifecycleStatuses.Add(LifecycleStatusOptions.First(option => option.Value == status));
+        }
+        finally { _syncingSourceFilters = false; }
+        SourceGroupSummary = "已保留未保存修改及原来源筛选。";
     }
 
     private async void OnSourceGroupFilterChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -768,6 +772,27 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         }
     }
 
+    /// <summary>客户候选独立加载，只依赖成品需求查看权限；失败不清空查询结果。</summary>
+    private async Task LoadCustomerOptionsAsync()
+    {
+        if (_disposed || !_currentUser.HasPermission(PermissionKeys.DemandPlanningSourceView)) return;
+        _customerCancellation?.Cancel(); using var cancellation = new CancellationTokenSource(); _customerCancellation = cancellation;
+        var token = cancellation.Token; var user = _currentUser.CurrentUser;
+        try
+        {
+            var result = await _apiCallRunner.RunAsync(() => _api.GetCustomerOptionsAsync(token), token, "客户候选加载失败");
+            if (_disposed || token.IsCancellationRequested || !ReferenceEquals(user, _currentUser.CurrentUser)) return;
+            CustomerLoadError = result.Success ? null : result.Message;
+            if (!result.Success || result.Data is null) return;
+            var retained = SelectedCustomers.Select(item => item.Id).ToHashSet();
+            CustomerOptions.Clear(); foreach (var option in result.Data) CustomerOptions.Add(new(option.Id, $"{option.Code} · {option.Name}"));
+            SelectedCustomers.Clear(); foreach (var option in CustomerOptions.Where(option => retained.Contains(option.Id))) SelectedCustomers.Add(option);
+        }
+        finally { if (ReferenceEquals(_customerCancellation, cancellation)) _customerCancellation = null; }
+    }
+    /// <summary>客户候选首次失败后可独立重试，不改变已应用查询或编辑器。</summary>
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private Task RefreshCustomerOptionsAsync() => LoadCustomerOptionsAsync();
     private async Task RefreshManagerAsync()
     {
         if (IsSourcePanelOpen && !await RefreshSourceNavigationAsync(reloadCurrentData: false))
@@ -775,18 +800,16 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
             return;
         }
 
+        if (IsSourcePanelOpen && IsSourceSelected && SourceGroups.All(group => group.SourceUid != _appliedSourceUid))
+        {
+            await LoadPageAsync(_appliedMainQuery ?? CaptureMainQuery(), 1, PageSize);
+            return;
+        }
+
         await LoadPageAsync();
     }
 
     private Task ReloadAfterWriteAsync() => RefreshManagerAsync();
-
-    private void ExitSourceMode()
-    {
-        _appliedSourceUid = null;
-        SelectedSourceGroup = null;
-        PageIndex = 1;
-        PageChangeCommand.NotifyCanExecuteChanged();
-    }
 
     private void CancelSourceGroupLoading()
     {
@@ -834,69 +857,6 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         return confirmed;
     }
 
-    partial void OnIsAllCheckedChanged(bool? value)
-    {
-        if (_syncingChecks || value is null)
-        {
-            return;
-        }
-
-        _syncingChecks = true;
-        try
-        {
-            foreach (var item in Items)
-            {
-                item.IsChecked = value.Value;
-            }
-        }
-        finally
-        {
-            _syncingChecks = false;
-            UpdateSelectionCommands();
-        }
-    }
-
-    private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(GrossDemandRowModel.IsChecked) || _syncingChecks)
-        {
-            return;
-        }
-
-        _syncingChecks = true;
-        try
-        {
-            var checkedCount = CheckedCount;
-            IsAllChecked = Items.Count == 0 || checkedCount == 0
-                ? false
-                : checkedCount == Items.Count ? true : null;
-        }
-        finally
-        {
-            _syncingChecks = false;
-        }
-
-        UpdateSelectionCommands();
-    }
-
-    private void ClearChecks()
-    {
-        _syncingChecks = true;
-        foreach (var item in Items)
-        {
-            item.IsChecked = false;
-        }
-
-        IsAllChecked = false;
-        _syncingChecks = false;
-        UpdateSelectionCommands();
-    }
-
-    private void UpdateSelectionCommands()
-    {
-        OnPropertyChanged(nameof(CheckedCount));
-    }
-
     private void OnManualEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(GrossDemandManualEditorViewModel.HasUnsavedChanges) or nameof(GrossDemandManualEditorViewModel.IsOpen) or nameof(GrossDemandManualEditorViewModel.HasPendingSave) or nameof(GrossDemandManualEditorViewModel.IsEditorLocked))
@@ -920,29 +880,25 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         await ReloadAfterWriteAsync();
     }
 
-    private bool CanRun() => IsNotBusy && !_closeUnknown && !ManualEditor.IsEditorLocked;
+    private bool CanRun() => !_disposed && IsNotBusy && !_closeUnknown && !ManualEditor.IsEditorLocked && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceView);
     /// <summary>手工创建使用独立维护权限，模块只读访问不能开启编辑器。</summary>
     private bool CanCreateManual() => CanWrite && CanRun()
         && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage);
     private bool CanPageChange() => CanRun() && !IsSourceSelected;
     private bool CanSelectSourceGroup(GrossDemandSourceGroupModel? group) => CanRun() && !IsSourceGroupLoading && group is not null;
-    private bool CanUseSelected() => IsNotBusy && SelectedItem is not null;
+    private bool CanUseSelected() => CanRun() && SelectedItem is not null;
+    private bool CanOpenTracking() => CanUseSelected() && _currentUser.HasPermission(PermissionKeys.OrderTrackingView);
+    private bool CanOpenSource() => CanUseSelected() && SelectedItem is { SourceUid: var id } && id != Guid.Empty && SelectedItem.SourceType switch
+    { "SO" => _currentUser.HasPermission(PermissionKeys.SalesOrderView), "CR" => _currentUser.HasPermission(PermissionKeys.QualityControlAfterSalesView), "MD" => CanEditSelectedManual(), _ => false };
     private bool CanEditSelectedManual() => CanWrite && CanRun()
         && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage)
         && SelectedItem is { SourceType: "MD", LifecycleStatus: GrossDemandLifecycleStatusEnum.Active };
     private bool CanCloseSelectedManual() => CanWrite && IsNotBusy
         && _currentUser.HasPermission(PermissionKeys.DemandPlanningSourceManualManage)
+        && (!_closeUnknown || _pendingCloseUserId == _currentUser.CurrentUser?.UserId)
         && (_closeUnknown || CanEditSelectedManual());
 
     #endregion
-
-    private void DetachRows()
-    {
-        foreach (var row in Items)
-        {
-            row.PropertyChanged -= OnRowPropertyChanged;
-        }
-    }
 
     public void Dispose()
     {
@@ -954,13 +910,18 @@ public sealed partial class GrossDemandWorkspaceViewModel : ViewModelBaseEx,
         _disposed = true;
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
+        _customerCancellation?.Cancel();
         CancelSourceGroupLoading();
         _detailCancellation?.Cancel();
         _detailCancellation?.Dispose();
-        DetachRows();
+
         ManualEditor.PropertyChanged -= OnManualEditorPropertyChanged;
         ManualEditor.Saved -= OnManualSaved;
         SourceLifecycleStatuses.CollectionChanged -= OnSourceGroupFilterChanged;
+        SelectedCustomers.CollectionChanged -= OnDraftCollectionChanged;
+        SelectedSourceTypes.CollectionChanged -= OnDraftCollectionChanged;
+        SelectedLifecycleStatuses.CollectionChanged -= OnDraftCollectionChanged;
+        _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
         ManualEditor.Dispose();
     }
 }

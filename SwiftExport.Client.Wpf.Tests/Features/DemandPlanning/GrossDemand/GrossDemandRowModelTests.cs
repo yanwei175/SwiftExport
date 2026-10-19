@@ -31,10 +31,6 @@ public sealed class GrossDemandRowModelTests
         Assert.AreEqual(uid, row.Uid);
         Assert.AreEqual(4, row.Version);
         Assert.AreEqual("销售单", row.SourceTypeText);
-        Assert.IsFalse(row.IsChecked);
-
-        row.IsChecked = true;
-        Assert.IsTrue(row.IsChecked);
-        Assert.IsFalse(dto.GetType().GetProperties().Any(property => property.Name == nameof(row.IsChecked)));
+        Assert.IsFalse(row.GetType().GetProperties().Any(p => p.Name == "IsChecked"));
     }
 }

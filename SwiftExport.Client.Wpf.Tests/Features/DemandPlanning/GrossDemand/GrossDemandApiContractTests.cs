@@ -14,7 +14,7 @@ public sealed class GrossDemandApiContractTests
     {
         AssertRoute(nameof(IGrossDemandWorkspaceApi.SearchAsync), typeof(PostAttribute), "/search", 0);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.GetDetailAsync), typeof(GetAttribute), "/{uid}");
-        AssertRoute(nameof(IGrossDemandWorkspaceApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
+        AssertRoute(nameof(IGrossDemandWorkspaceApi.GetCustomerOptionsAsync), typeof(GetAttribute), "/customer-options");
         AssertRoute(nameof(IGrossDemandWorkspaceApi.CreateManualAsync), typeof(PostAttribute), "/manual", 0);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.UpdateManualAsync), typeof(PutAttribute), "/manual/{uid}", 1);
         AssertRoute(nameof(IGrossDemandWorkspaceApi.CloseManualAsync), typeof(PostAttribute), "/manual/{uid}/close", 1);
@@ -34,7 +34,7 @@ public sealed class GrossDemandApiContractTests
     {
         AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.SearchAsync));
         AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.GetDetailAsync));
-        AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.GetTraceAsync));
+        AssertHasCancellationToken(nameof(IGrossDemandWorkspaceApi.GetCustomerOptionsAsync));
         AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.CreateManualAsync));
         AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.UpdateManualAsync));
         AssertHasNoCancellationToken(nameof(IGrossDemandWorkspaceApi.CloseManualAsync));
@@ -46,7 +46,7 @@ public sealed class GrossDemandApiContractTests
         var methods = typeof(IGrossDemandWorkspaceApi).GetMethods().Select(method => method.Name).ToArray();
         CollectionAssert.DoesNotContain(methods, "DecomposeAsync");
         CollectionAssert.DoesNotContain(methods, "RollbackAsync");
-        CollectionAssert.Contains(methods, "GetTraceAsync");
+        CollectionAssert.DoesNotContain(methods, "GetTraceAsync");
     }
 
     [TestMethod]
