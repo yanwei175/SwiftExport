@@ -9,6 +9,9 @@ namespace SwiftExport.Application.Tests.OrderTracking.Baseline;
 /// <summary>筛选完整需求集合后按来源类型与稳定组身份分页。</summary>
 public sealed class BaselinePostgreSqlOrderTrackingSourceRepository(RepositoryBaseContext context) : IOrderTrackingSourceRepository
 {
+    /// <summary>历史性能基线没有匹配接口，禁止把当前实现混入旧搜索证据。</summary>
+    public Task<List<Guid>> GetSourceMatchesAsync(string sourceType,Guid sourceGroupId,OrderTrackingSourceMatchRequest request,DateTime businessDate,CancellationToken cancellationToken=default)
+        =>throw new NotSupportedException("历史基线只用于来源搜索对比。");
     /// <summary>匹配数参与选组，全部条数和客户一致性独立从完整组计算。</summary>
     public async Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SearchSourcesAsync(OrderTrackingSourceSearchRequest request,DateTime businessDate,CancellationToken cancellationToken=default)
     {

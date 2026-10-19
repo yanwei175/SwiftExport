@@ -68,6 +68,10 @@ public sealed class OrderTrackingSliceEndpointTests
             (()=>api.SearchSourcesAsync(new(){AttentionCodes=["PurchaseShortfall","ReceiptReview"]}),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.ProcurementOrderRead,PermissionKeys.InventoryInboundView]),
             (()=>api.SearchSourcesAsync(new(){Keyword="~%_?"}),[PermissionKeys.OrderTrackingView]),
             (()=>api.SearchSourcesAsync(new(){AttentionCodes=["Overdue"]}),[PermissionKeys.OrderTrackingView,PermissionKeys.ShippingPackingListView]),
+            (()=>api.GetSourceMatchesAsync("SO",id,new()),[PermissionKeys.OrderTrackingView]),
+            (()=>api.GetSourceMatchesAsync("SO",id,new(){AttentionCodes=["PurchaseShortfall","ReceiptReview"]}),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.ProcurementOrderRead,PermissionKeys.InventoryInboundView]),
+            (()=>api.GetSourceMatchesAsync("SO",id,new(){AttentionCodes=["Overdue","NoActiveMaterial"]}),[PermissionKeys.OrderTrackingView,PermissionKeys.ShippingPackingListView,PermissionKeys.DemandPlanningMaterialView]),
+            (()=>api.GetSourceMatchesAsync("CR",id,new(){AttentionCodes=["MissingRequiredDate","SourceReview"]}),[PermissionKeys.OrderTrackingView]),
             (()=>api.GetMaterialDetailAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView]),
             (()=>api.GetMaterialPurchasesAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.ProcurementOrderRead]),
             (()=>api.GetMaterialReceiptsAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.InventoryInboundView,PermissionKeys.ProcurementOrderRead]),
@@ -90,7 +94,7 @@ public sealed class OrderTrackingSliceEndpointTests
             Assert.AreEqual(HttpStatusCode.Unauthorized,(await Assert.ThrowsAsync<ApiException>(item.Read)).StatusCode);
             Assert.AreEqual(before+1,calls);
         }
-        Assert.AreEqual(12,calls);
+        Assert.AreEqual(16,calls);
     }
 
     /// <summary>由真实 Controller 调用，只有通过权限过滤后才返回窄服务结果。</summary>
