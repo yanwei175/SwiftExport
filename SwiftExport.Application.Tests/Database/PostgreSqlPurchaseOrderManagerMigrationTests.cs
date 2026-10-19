@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Dapper;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -22,31 +23,30 @@ namespace SwiftExport.Application.Tests.Database;
 [TestClass]
 public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
 {
-    /// <summary>两入口均先全局Guard再独立孤儿检查，第三次查询借原事务且不取得业务锁。</summary>
+    /// <summary>两入口单次读取中完成局部反向证明，借原事务且不取得业务锁。</summary>
     [TestMethod, DataRow(false,false), DataRow(false,true), DataRow(true,false), DataRow(true,true)]
     public async Task Offline_GatesAndTransaction(bool lines, bool transactional)
     {
         using var f=new ReadFixture(transactional); using var cts=new CancellationTokenSource();
+        if(!lines)f.Connection.Rows=Page(0,[]);
         if(lines) await f.Repository.GetLinesAsync(Guid.Empty,cts.Token); else await f.Repository.SearchAsync(new(),cts.Token);
-        Assert.AreEqual(3,f.Connection.Commands); Assert.HasCount(3,f.Connection.Sqls);
-        StringAssert.Contains(f.Connection.Sqls[0],"reversal_of_ledger_id"); StringAssert.Contains(f.Connection.Sqls[1],"purchase_line.uid IS NULL");
-        Assert.IsFalse(f.Connection.Sqls[1].Contains("purchase_line.is_deleted",StringComparison.Ordinal));
-        Assert.IsFalse(f.Connection.Sqls[1].Contains("@PurchaseOrderId",StringComparison.Ordinal));
+        Assert.AreEqual(1,f.Connection.Commands); Assert.HasCount(1,f.Connection.Sqls);
+        StringAssert.Contains(f.Connection.Sql,"reversal_of_ledger_id");StringAssert.Contains(f.Connection.Sql,"manager_receipt_scope");
         Assert.AreSame(f.Transaction,f.Session.Transaction); Assert.AreSame(f.Transaction,f.Connection.LastTransaction); Assert.AreEqual(cts.Token,f.Connection.Token);
         Assert.AreEqual(0,f.Connection.EndTransactions); Assert.AreEqual(0,f.Connection.Closes);
-        foreach(var sql in f.Connection.Sqls) foreach(var forbidden in new[]{"CREATE ","DROP ","FOR UPDATE","INTO #","OFFSET"}) Assert.IsFalse(sql.Contains(forbidden,StringComparison.Ordinal));
+        foreach(var sql in f.Connection.Sqls) foreach(var forbidden in new[]{"CREATE ","DROP ","FOR UPDATE","INTO #"}) Assert.IsFalse(sql.Contains(forbidden,StringComparison.Ordinal));
+        Assert.AreEqual(!lines,f.Connection.Sql.Contains("OFFSET",StringComparison.Ordinal));
         Assert.IsTrue(f.Connection.Reader is null||f.Connection.Reader.IsClosed);
     }
 
-    /// <summary>全局反向未知优先于孤儿检查，独立门禁原中文与异常类别保留，两入口都不能吞错误。</summary>
-    [TestMethod, DataRow(false,0),DataRow(true,0),DataRow(false,1),DataRow(true,1)]
-    public async Task Offline_GateFailures(bool lines,int gate)
+    /// <summary>局部历史异常以未知数量投影，不由全局异常清空其他订单；真实SQL语义另由只读PG证明。</summary>
+    [TestMethod, DataRow(false),DataRow(true)]
+    public async Task Offline_UnknownReceiptRemainsData(bool lines)
     {
-        using var f=new ReadFixture(true); f.Connection.Scalars=gate==0?new([true]):new([false,true]);
-        Func<Task> action=()=>lines?f.Repository.GetLinesAsync(Guid.NewGuid()):f.Repository.SearchAsync(new());
-        if(gate==0) await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(action);
-        else Assert.AreEqual("存在无法定位采购行的正式采购入库历史，请先完成数据核实与迁移。",(await Assert.ThrowsAsync<InvalidOperationException>(action)).Message);
-        Assert.AreEqual(gate+1,f.Connection.Commands); Assert.AreSame(f.Transaction,f.Session.Transaction); Assert.AreEqual(0,f.Connection.EndTransactions);
+        using var f=new ReadFixture(true);
+        if(lines){f.Connection.Rows=Rows(new[]{new PurchaseOrderManagerLineDto{ReceiptReviewReason="正式历史需核实"}});var row=(await f.Repository.GetLinesAsync(Guid.NewGuid())).Single();Assert.IsNull(row.ReceivedQty);Assert.IsNull(row.UnreceivedQty);Assert.IsFalse(string.IsNullOrEmpty(row.ReceiptReviewReason));}
+        else{f.Connection.Rows=Page(1,[new(){ReceiptStatus=(PurchaseReceiptStatusEnum)9,ReceiptProgress=null}]);var row=(await f.Repository.SearchAsync(new())).Items.Single();Assert.IsNull(row.ReceiptProgress);Assert.AreEqual((PurchaseReceiptStatusEnum)9,row.ReceiptStatus);}
+        Assert.AreEqual(1,f.Connection.Commands); Assert.AreSame(f.Transaction,f.Session.Transaction); Assert.AreEqual(0,f.Connection.EndTransactions);
     }
 
     /// <summary>一个缓冲工作集承担Count和分页，不C#排序/重算商业状态，全部DTO字段由Dapper还原。</summary>
@@ -54,14 +54,14 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     public async Task Offline_FrozenPagingAndFullMapping(int page,int size,int count)
     {
         using var f=new ReadFixture(false); var samples=Enumerable.Range(1,5).Select(i=>Sample<PurchaseOrderManagerListItemDto>(i)).ToArray();
-        f.Connection.Rows=Rows(samples); var result=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size});
+        f.Connection.Rows=Page(5,samples.Skip((page-1)*size).Take(size)); var result=await f.Repository.SearchAsync(new(){PageIndex=page,PageSize=size});
         Assert.AreEqual(5,result.TotalCount); Assert.HasCount(count,result.Items); Assert.AreEqual(page,result.PageIndex); Assert.AreEqual(size,result.PageSize);
         foreach(var pair in samples.Skip((page-1)*size).Take(size).Zip(result.Items)) foreach(var p in typeof(PurchaseOrderManagerListItemDto).GetProperties()) Assert.AreEqual(p.GetValue(pair.First),p.GetValue(pair.Second),p.Name);
-        Assert.AreEqual(3,f.Connection.Commands); Assert.IsFalse(f.Connection.Values.ContainsKey("Skip"));
+        Assert.AreEqual(1,f.Connection.Commands);Assert.AreEqual((long)(page-1)*size,f.Connection.Values["Offset"]);Assert.AreEqual(size,f.Connection.Values["PageSize"]);
         StringAssert.Contains(f.Connection.Sql,"FROM projected p WHERE"); StringAssert.Contains(f.Connection.Sql,"decimal(18,6)");
         foreach(var p in typeof(PurchaseOrderManagerListItemDto).GetProperties())StringAssert.Contains(f.Connection.Sql,"AS \""+p.Name+"\"");
-        StringAssert.Contains(f.Connection.Sql,"DESC NULLS LAST"); StringAssert.Contains(f.Connection.Sql,"get_byte(uuid_send(p.purchase_order_id),10)");
-        Assert.IsFalse(f.Connection.Sql.Contains("demand_execution_link",StringComparison.Ordinal));
+        StringAssert.Contains(f.Connection.Sql,"DESC NULLS LAST"); StringAssert.Contains(f.Connection.Sql,"get_byte(uuid_send(\"PurchaseOrderId\"),10)");StringAssert.Contains(f.Connection.Sql,"LIMIT @PageSize OFFSET @Offset");
+        StringAssert.Contains(f.Connection.Sql,"manager_orphan_association_heads");
     }
 
     /// <summary>去重状态显式integer数组及空哨兵，字符串字面转义与等值，MaxValue自然日不溢出。</summary>
@@ -69,9 +69,10 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     public async Task Offline_Parameters(bool filled)
     {
         using var f=new ReadFixture(false); var date=new DateTime(2026,10,4,17,18,19,DateTimeKind.Utc);
+        f.Connection.Rows=Page(0,[]);
         var request=new PurchaseOrderManagerSearchRequest{Keyword="  a~%_[  ",CustomerCode="  CODE  ",SupplierId=Guid.NewGuid(),OrderDateFrom=date,OrderDateTo=filled?date:DateTime.MaxValue,
             PlannedDeliveryDateFrom=date,PlannedDeliveryDateTo=date,ExpectedCompletionDateFrom=date,ExpectedCompletionDateTo=date,OnlyWithUnlinkedQuantity=true};
-        if(filled){request.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.待确认,ConfirmationStatusEnum.已确认];request.ReadyStatuses=[(PurchaseReadyStatusEnum)9,(PurchaseReadyStatusEnum)9];}
+        if(filled){request.ConfirmationStatuses=[ConfirmationStatusEnum.已确认,ConfirmationStatusEnum.待确认,ConfirmationStatusEnum.已确认];request.ReadyStatuses=[(PurchaseReadyStatusEnum)9,(PurchaseReadyStatusEnum)9];request.CustomerCodes=["A","A","B"];request.SupplierIds=[request.SupplierId!.Value,request.SupplierId.Value];}
         await f.Repository.SearchAsync(request); var values=f.Connection.Values; var types=f.Connection.Types;
         Assert.AreEqual("%a~~~%~_~[%",values["Keyword"]);Assert.AreEqual("CODE",values["CustomerCode"]);Assert.AreEqual(request.SupplierId,values["SupplierId"]);
         CollectionAssert.AreEqual(filled?new[]{1,0}:new[]{-1},(int[])values["ConfirmationStatuses"]!);Assert.AreEqual(filled,values["LimitConfirmationStatuses"]);
@@ -80,6 +81,9 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         foreach(var key in new[]{"PlannedDeliveryDateFrom","PlannedDeliveryDateTo","ExpectedCompletionDateFrom","ExpectedCompletionDateTo"}){Assert.AreEqual(DateTime.SpecifyKind(date,DateTimeKind.Unspecified),values[key]);Assert.AreEqual(NpgsqlDbType.Timestamp,types[key]);}
         Assert.AreEqual(((DateTime)values["BusinessToday"]!).AddDays(8),values["DueSoonExclusive"]);
         Assert.AreEqual(NpgsqlDbType.Uuid,types["SupplierId"]);Assert.AreEqual(NpgsqlDbType.Boolean,types["OnlyWithUnlinkedQuantity"]);
+        CollectionAssert.AreEqual(filled?new[]{"A","B"}:Array.Empty<string>(),(string[])values["CustomerCodes"]!);
+        CollectionAssert.AreEqual(filled?new[]{request.SupplierId!.Value}:Array.Empty<Guid>(),(Guid[])values["SupplierIds"]!);
+        Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Text,types["CustomerCodes"]);Assert.AreEqual(NpgsqlDbType.Array|NpgsqlDbType.Uuid,types["SupplierIds"]);
         StringAssert.Contains(f.Connection.Sql,"dl.planned_delivery_date<=@PlannedDeliveryDateTo");StringAssert.Contains(f.Connection.Sql,"facts.expected_completion_date<=@ExpectedCompletionDateTo");
     }
 
@@ -91,20 +95,21 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
         if(nulls)foreach(var property in typeof(PurchaseOrderManagerLineDto).GetProperties())if(property.PropertyType==typeof(string)||Nullable.GetUnderlyingType(property.PropertyType)!=null)property.SetValue(sample,null);
         sample.ProductId=Guid.Empty; f.Connection.Rows=Rows(new[]{sample});var uid=Guid.NewGuid();var actual=(await f.Repository.GetLinesAsync(uid)).Single();
         foreach(var p in typeof(PurchaseOrderManagerLineDto).GetProperties())Assert.AreEqual(p.GetValue(sample),p.GetValue(actual),p.Name);
-        Assert.AreEqual(uid,f.Connection.Values["PurchaseOrderId"]);StringAssert.Contains(f.Connection.Sql,"product.main_image");StringAssert.Contains(f.Connection.Sql,"ELSE 0 END AS \"UnreceivedQty\"");
+        Assert.AreEqual(uid,f.Connection.Values["PurchaseOrderId"]);StringAssert.Contains(f.Connection.Sql,"product.main_image");StringAssert.Contains(f.Connection.Sql,"AS \"ReceiptReviewReason\"");
+        Assert.IsFalse(f.Connection.Sql.Contains("LIMIT @PageSize",StringComparison.Ordinal));
         foreach(var p in typeof(PurchaseOrderManagerLineDto).GetProperties())StringAssert.Contains(f.Connection.Sql,"AS \""+p.Name+"\"");
         Assert.IsFalse(f.Connection.Sql.Contains("min_unit",StringComparison.Ordinal));
     }
 
     /// <summary>ADO异步边界传播取消或技术失败，两入口及三阶段不冒充服务器等待取消证据。</summary>
-    [TestMethod,DataRow(false,0),DataRow(true,0),DataRow(false,1),DataRow(true,1),DataRow(false,2),DataRow(true,2)]
-    public async Task Offline_ExecutingCancellation(bool lines,int stage)
+    [TestMethod,DataRow(false),DataRow(true)]
+    public async Task Offline_ExecutingCancellation(bool lines)
     {
         using var f=new ReadFixture(true);using var cts=new CancellationTokenSource();var entered=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        f.Connection.Before=async token=>{if(f.Connection.Commands!=stage+1)return;entered.SetResult();await Task.Delay(Timeout.Infinite,token);};
+        f.Connection.Before=async token=>{entered.SetResult();await Task.Delay(Timeout.Infinite,token);};
         Task read=lines?f.Repository.GetLinesAsync(Guid.NewGuid(),cts.Token):f.Repository.SearchAsync(new(),cts.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));cts.Cancel();await Assert.ThrowsAsync<OperationCanceledException>(()=>read);
-        Assert.AreEqual(stage+1,f.Connection.Commands);Assert.AreSame(f.Transaction,f.Session.Transaction);Assert.AreEqual(0,f.Connection.EndTransactions);
+        Assert.AreEqual(1,f.Connection.Commands);Assert.AreSame(f.Transaction,f.Session.Transaction);Assert.AreEqual(0,f.Connection.EndTransactions);
     }
 
     /// <summary>预取消不执行命令；未知故障原实例传播，不转换零收货。</summary>
@@ -121,10 +126,14 @@ public sealed partial class PostgreSqlPurchaseOrderManagerMigrationTests
     [TestMethod]
     public async Task Offline_DataChangesAfterReaderCloses()
     {
-        using var f=new ReadFixture(false);f.Connection.Rows=Rows(Enumerable.Range(1,5).Select(Sample<PurchaseOrderManagerListItemDto>));
+        using var f=new ReadFixture(false);f.Connection.Rows=Page(5,Enumerable.Range(3,2).Select(Sample<PurchaseOrderManagerListItemDto>));
         f.Connection.AfterBuffered=()=>f.Connection.Rows.Clear();var result=await f.Repository.SearchAsync(new(){PageIndex=2,PageSize=2});
-        Assert.AreEqual(0,f.Connection.Rows.Rows.Count);Assert.AreEqual(5,result.TotalCount);Assert.HasCount(2,result.Items);Assert.AreEqual(3,f.Connection.Commands);
+        Assert.AreEqual(0,f.Connection.Rows.Rows.Count);Assert.AreEqual(5,result.TotalCount);Assert.HasCount(2,result.Items);Assert.AreEqual(1,f.Connection.Commands);
     }
+
+    /// <summary>安排数据库返回的总量及当前页，不在连接替身中解释SQL或执行分页算法。</summary>
+    private static DataTable Page(int total,IEnumerable<PurchaseOrderManagerListItemDto> items)
+    {var table=new DataTable();table.Columns.Add("TotalCount",typeof(int));table.Columns.Add("ItemsJson",typeof(string));table.Rows.Add(total,JsonSerializer.Serialize(items));return table;}
 
     /// <summary>构造丰富DTO样本，数值有意不符合商业规律，确保仓储不在C#重新计算数据库结果。</summary>
     private static T Sample<T>(int number) where T:new()

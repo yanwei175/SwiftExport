@@ -7,6 +7,7 @@ using Npgsql;
 using NpgsqlTypes;
 using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
 using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
+using SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderManagerDto;
 using SwiftExport.Infrastructure.Data;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Sources;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Materials;
@@ -93,6 +94,7 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         };
         try
         {
+            await VerifyPurchaseManagerAsync();
             await VerifyMaterialWorkspaceAsync();
             var sources=new PostgreSqlOrderTrackingSourceRepository(fixture.Context);
             // 成品需求本体查询直接执行生产SQL：两模式共享条件，客户按身份匹配，关键词不解释通配符。
@@ -363,6 +365,92 @@ public sealed class OrderTrackingSlicesReadOnlyTests
 
         Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<OrderTrackingSourceGroupDto>> Groups(OrderTrackingSourceSearchRequest request)
             =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).SearchSourcesAsync(request,OrderTrackingReadFixture.BusinessDate);
+
+        // 采购管理真实SQL：数据库分页、局部反向证据和关联守恒使用同一只读事务，不执行写库夹具。
+        async Task VerifyPurchaseManagerAsync()
+        {
+            var saved=data.ToDictionary(pair=>pair.Key,pair=>pair.Value.Select(row=>new Dictionary<string,object?>(row)).ToList());
+            try
+            {
+                foreach(var rows in data.Values)rows.Clear();
+                var today=TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,TimeZoneInfo.FindSystemTimeZoneById("China Standard Time")).Date;
+                var otherHead=Guid.NewGuid();var otherLine=Guid.NewGuid();var otherSupplier=Guid.NewGuid();
+                var head=R(("uid",po),("version",1),("order_no","PM-001"),("bo_no","BO%_["),("customer_id",customer),("customer_code","MC1"),("supplier_id",supplier),("supplier_name","供应商1"),
+                    ("origin_kind",2),("lifecycle_status",0),("confirmation_status",0),("order_date",new DateTime(2026,10,10)),("is_deleted",false));
+                var secondHead=new Dictionary<string,object?>(head){["uid"]=otherHead,["order_no"]="PM-002",["bo_no"]="BO-2",["customer_code"]="MC2",["supplier_id"]=otherSupplier,["order_date"]=new DateTime(2026,10,11)};
+                data["purchase_order_head"].Add(head);data["purchase_order_head"].Add(secondHead);
+                var line=R(("uid",poLine),("version",1),("purchase_order_id",po),("line_number",1),("product_id",product),("sku","PM-SKU"),("material_type","成品"),("supply_type","采购"),
+                    ("unit_snapshot","PCS"),("quantity",10m),("unlinked_qty",4m),("tax_amount",20m),("planned_delivery_date",today.AddDays(-1)),("source_line_number",1),("is_deleted",false));
+                var secondLine=new Dictionary<string,object?>(line){["uid"]=otherLine,["purchase_order_id"]=otherHead,["quantity"]=5m,["unlinked_qty"]=5m,["planned_delivery_date"]=today.AddDays(5)};
+                data["purchase_order_line"].Add(line);data["purchase_order_line"].Add(secondLine);
+                var gross=Gross(g,source,customer,"PM-SKU","","");data["gross_demand"].Add(gross);var material=Net(net,g,10m);data["net_demand"].Add(material);
+                var link=Link(ids[24],net,poLine,po,6m);data["demand_execution_link"].Add(link);
+                data["product"].Add(R(("uid",product),("main_image","current.png"),("unit","PCS"),("is_deleted",false)));
+                data["supplier_progress_report"].Add(R(("uid",Guid.NewGuid()),("purchase_order_line_id",poLine),("sequence",1),("ready_qty",9m),("is_deleted",false)));
+                data["supplier_progress_report"].Add(R(("uid",Guid.NewGuid()),("purchase_order_line_id",poLine),("sequence",2),("ready_qty",3m),("expected_ready_date",today.AddDays(2)),("is_deleted",false)));
+                var manager=new SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query.PostgreSqlPurchaseOrderManagerQueryRepository(fixture.Context);
+                Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<PurchaseOrderManagerListItemDto>> Search(PurchaseOrderManagerSearchRequest? request=null)=>manager.SearchAsync(request??new());
+                async Task<PurchaseOrderManagerLineDto> Read()=> (await manager.GetLinesAsync(po)).Single();
+                var before=fixture.Connection.Commands.Count;var first=await Search(new(){PageSize=1});Assert.AreEqual(1,fixture.Connection.Commands.Count-before);
+                Assert.AreEqual(2,first.TotalCount);Assert.AreEqual(otherHead,first.Items.Single().PurchaseOrderId);
+                var next=await Search(new(){PageSize=1,PageIndex=2});Assert.AreEqual(po,next.Items.Single().PurchaseOrderId);
+                var beyond=await Search(new(){PageSize=1,PageIndex=3});Assert.AreEqual(2,beyond.TotalCount);Assert.HasCount(0,beyond.Items);
+                Assert.AreEqual(1,(await Search(new(){CustomerCodes=["mc1","MC2"],SupplierIds=[supplier]})).TotalCount);
+                Assert.AreEqual(0,(await Search(new(){CustomerCode="MC2",CustomerCodes=["MC1"]})).TotalCount);
+                Assert.AreEqual(0,(await Search(new(){SupplierId=supplier,SupplierIds=[otherSupplier]})).TotalCount);
+                Assert.AreEqual(1,(await Search(new(){Keyword="%_["})).TotalCount);
+                Assert.AreEqual(otherHead,(await Search(new(){OrderDateFrom=new(2026,10,11)})).Items.Single().PurchaseOrderId);
+                Assert.AreEqual(po,(await Search(new(){PlannedDeliveryDateTo=today.AddDays(-1)})).Items.Single().PurchaseOrderId);
+                Assert.AreEqual(po,(await Search(new(){ExpectedCompletionDateFrom=today.AddDays(1),ExpectedCompletionDateTo=today.AddDays(3)})).Items.Single().PurchaseOrderId);
+                var readyPage=await Search(new(){ReadyStatuses=[(SwiftExport.Contracts.SysEnums.PurchaseReadyStatusEnum)4],PageSize=1,PageIndex=2});Assert.AreEqual(1,readyPage.TotalCount);Assert.HasCount(0,readyPage.Items);
+                head["confirmation_status"]=1;Assert.AreEqual(po,(await Search(new(){DueView=(SwiftExport.Contracts.SysEnums.PurchaseDueViewEnum)1})).Items.Single().PurchaseOrderId);head["confirmation_status"]=0;
+                var normal=await Read();Assert.AreEqual(6m,normal.LinkedDemandQty);Assert.AreEqual(4m,normal.UnlinkedQty);Assert.AreEqual(1,(int)normal.AssociationStatus);Assert.AreEqual(0m,normal.ReceivedQty);
+                // 坏反向仅定位到相关采购行，完整同头证据仍然检查，不能影响另一采购单。
+                var reverse=Receipt(Guid.NewGuid(),8);reverse["reverse_reason"]="";data["inbound_document"].Add(reverse);
+                var reverseItem=ReceiptLine(Guid.NewGuid(),(Guid)reverse["uid"]!,1m);reverseItem["source_line_id"]=otherLine;data["inbound_document_line"].Add(reverseItem);
+                Assert.AreEqual(0m,(await Read()).ReceivedQty);Assert.IsNull((await manager.GetLinesAsync(otherHead)).Single().ReceivedQty);
+                Assert.AreEqual(9,(int)(await Search(new(){CustomerCodes=["MC2"]})).Items.Single().ReceiptStatus);
+                Assert.AreEqual(1,(int)(await Search(new(){CustomerCodes=["MC1"]})).Items.Single().ReceiptStatus);
+                var related=ReceiptLine(Guid.NewGuid(),(Guid)reverse["uid"]!,1m);data["inbound_document_line"].Add(related);Assert.IsNull((await Read()).ReceivedQty);data["inbound_document_line"].Remove(related);
+                reverse["reverse_reason"]="完整反向";var originalId=Guid.NewGuid();
+                var managerOriginalLedger=R(("uid",originalId),("source_document_id",reverse["uid"]),("source_line_id",reverseItem["uid"]),("command_item_id",reverseItem["uid"]),("source_document_type","InboundDocument"),
+                    ("transaction_type",10),("warehouse_site_id",warehouse),("product_id",product),("quantity_delta",1m),("unit_snapshot","PCS"),("is_deleted",false));
+                var reversal=new Dictionary<string,object?>(managerOriginalLedger){["uid"]=Guid.NewGuid(),["transaction_type"]=900,["quantity_delta"]=-1m,["reversal_of_ledger_id"]=originalId};
+                data["inventory_ledger_entry"].Add(managerOriginalLedger);data["inventory_ledger_entry"].Add(reversal);Assert.AreEqual(0m,(await manager.GetLinesAsync(otherHead)).Single().ReceivedQty);
+                var extraLedger=new Dictionary<string,object?>(managerOriginalLedger){["uid"]=Guid.NewGuid()};data["inventory_ledger_entry"].Add(extraLedger);Assert.IsNull((await manager.GetLinesAsync(otherHead)).Single().ReceivedQty);data["inventory_ledger_entry"].Remove(extraLedger);
+                var posted=Receipt(Guid.NewGuid(),1);data["inbound_document"].Add(posted);var postedItem=ReceiptLine(Guid.NewGuid(),(Guid)posted["uid"]!,4m);data["inbound_document_line"].Add(postedItem);
+                Assert.AreEqual(4m,(await Read()).ReceivedQty);Assert.AreEqual(6m,(await Read()).UnreceivedQty);
+                foreach(var change in new (Dictionary<string,object?> Row,string Field,object? Value)[]{(postedItem,"unit_snapshot","BOX"),(postedItem,"product_id",Guid.NewGuid()),(postedItem,"is_deleted",true),(posted,"is_deleted",true),(posted,"posted_date",null),(postedItem,"quantity",12m)})
+                {
+                    var old=change.Row[change.Field];change.Row[change.Field]=change.Value;var unknown=await Read();Assert.IsNull(unknown.ReceivedQty,change.Field);Assert.IsNull(unknown.UnreceivedQty,change.Field);Assert.IsFalse(string.IsNullOrEmpty(unknown.ReceiptReviewReason));change.Row[change.Field]=old;
+                }
+                var orphanReceipt=ReceiptLine(Guid.NewGuid(),(Guid)posted["uid"]!,1m);orphanReceipt["source_line_id"]=Guid.NewGuid();data["inbound_document_line"].Add(orphanReceipt);
+                Assert.IsNull((await Read()).ReceivedQty);data["inbound_document_line"].Remove(orphanReceipt);
+                var managerDraft=Receipt(Guid.NewGuid(),0);data["inbound_document"].Add(managerDraft);var draftItem=ReceiptLine(Guid.NewGuid(),(Guid)managerDraft["uid"]!,99m);draftItem["is_deleted"]=true;data["inbound_document_line"].Add(draftItem);Assert.AreEqual(4m,(await Read()).ReceivedQty);
+                // 多需求合并只返回概况，不显示某一需求的代表性来源行；关联和守恒的异常保持未知。
+                var otherGross=Gross(g3,source,customer,"PM-SKU","","");otherGross["source_line_number"]=2;data["gross_demand"].Add(otherGross);var otherMaterial=Net(net2,g3,4m);data["net_demand"].Add(otherMaterial);
+                var secondLink=Link(Guid.NewGuid(),net2,poLine,po,4m);data["demand_execution_link"].Add(secondLink);line["unlinked_qty"]=0m;
+                var merged=await Read();Assert.AreEqual(2,merged.LinkedDemandCount);Assert.IsNull(merged.SourceLineNumber);StringAssert.Contains(merged.SourceSummary,"2项物料需求");Assert.AreEqual(2,(int)merged.AssociationStatus);
+                foreach(var change in new (Dictionary<string,object?> Row,string Field,object? Value)[]{(otherMaterial,"source_demand_basis_fingerprint_snapshot",null),(otherMaterial,"supply_type_snapshot","自产"),(otherMaterial,"material_type_snapshot","零件"),
+                    (otherGross,"source_uid",Guid.Empty),(otherGross,"source_type","UNKNOWN"),(otherGross,"is_non_standard",true),(line,"unlinked_qty",1m),(line,"supply_type","自产"),(secondLink,"is_deleted",true),(secondLink,"link_status",8)})
+                {
+                    var old=change.Row[change.Field];change.Row[change.Field]=change.Value;var invalid=await Read();Assert.AreEqual(9,(int)invalid.AssociationStatus,change.Field);Assert.IsNull(invalid.LinkedDemandQty);change.Row[change.Field]=old;
+                }
+                secondLink["released_qty"]=4m;line["unlinked_qty"]=4m;Assert.AreEqual(9,(int)(await Read()).AssociationStatus);
+                secondLink["link_status"]=8;Assert.AreEqual(1,(int)(await Read()).AssociationStatus);
+                var orphanLink=Link(Guid.NewGuid(),net,Guid.NewGuid(),po,1m);data["demand_execution_link"].Add(orphanLink);
+                Assert.AreEqual(9,(int)(await Read()).AssociationStatus);var orphanHead=(await Search(new(){CustomerCodes=["MC1"]})).Items.Single();Assert.IsFalse(orphanHead.CanConfirm);StringAssert.Contains(orphanHead.ReviewReason,"需求引用");
+                orphanLink["target_line_id"]=otherLine;Assert.AreEqual(9,(int)(await Read()).AssociationStatus);data["demand_execution_link"].Remove(orphanLink);
+                head["lifecycle_status"]=9;Assert.AreEqual(9,(int)(await Read()).AssociationStatus);
+                link["link_status"]=8;link["released_qty"]=6m;var historical=await Read();Assert.AreEqual(8,(int)historical.AssociationStatus);Assert.IsNull(historical.LinkedDemandQty);Assert.IsNull(historical.UnlinkedQty);Assert.IsNull(historical.AssociationReviewReason);
+                head["lifecycle_status"]=0;link["link_status"]=0;link["released_qty"]=0m;
+                for(var index=0;index<205;index++){var extra=new Dictionary<string,object?>(line){["uid"]=Guid.NewGuid(),["line_number"]=index+2,["quantity"]=1m,["unlinked_qty"]=1m};data["purchase_order_line"].Add(extra);}
+                var fullStart=fixture.Connection.Commands.Count;var full=await manager.GetLinesAsync(po);Assert.HasCount(206,full);Assert.AreEqual(1,fixture.Connection.Commands.Count-fullStart);
+                Assert.IsFalse(fixture.Connection.Commands.Last().Sql.Contains("LIMIT @PageSize",StringComparison.Ordinal));
+                File.WriteAllText(Path.Combine(root,"SwiftExport.Application.Tests","TestResults","purchase-manager-readonly-evidence.json"),JsonSerializer.Serialize(new{ReadOnly=true,Host="192.168.3.12",Port=5432,Database="dv_next",DatabasePaging=true,FullChildRows=206,LocalReceiptReview=true,WholeHeadReversalProof=true,AssociationReview=true,MultiDemandSource=true,VoidedNotApplicable=true}));
+            }
+            finally{foreach(var (table,rows) in saved)data[table]=rows;}
+        }
 
         // 本轮物料依据及承接可信度：只替换输入数据，生产管理单SQL、订单跟踪与采购trace均原样执行。
         async Task VerifyMaterialWorkspaceAsync()

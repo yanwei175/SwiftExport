@@ -8,32 +8,11 @@ using SwiftExport.Core.Interfaces.Procurement;
 namespace SwiftExport.Application.Services.Procurement.PurchaseOrders.Confirmation;
 
 /// <summary>确认依据编排：仅核实采购头行与活动需求引用；不执行库存变动。</summary>
-public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepository references)
+public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepository references,IProcurementDemandAssociationRepository targets)
 {
     /// <summary>按来源锁定后检查剩余行活动贡献，确认不能复活已经释放或失效的物料引用。</summary>
     public static void RequireSourceReferences(ProcurementReversalFacts facts)
-    {
-        var head = facts.Head ?? throw new InvalidOperationException("采购单不存在。");
-        foreach (var line in facts.Lines.Where(x => !x.IsDeleted))
-        {
-            var links = facts.Links.Where(x => x.TargetType == "PO" && x.TargetHeadId == head.Uid && x.TargetLineId == line.Uid
-                && !x.IsDeleted && x.LinkStatus == DemandExecutionLinkStatusEnum.Active).ToList();
-            // 未关联数量为空表示创建数据缺少数量依据，应与活动 Link 缺失或贡献不一致分别报错。
-            if (!line.UnlinkedQty.HasValue)
-                throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）缺少未关联数量依据，请核查创建数据；不能确认。");
-            if (line.UnlinkedQty < 0 || line.UnlinkedQty > line.Quantity
-                || ((head.OriginKind == 1 || line.SourceUid.HasValue) && links.Count == 0)
-                || links.Any(x => x.ReleasedQty < 0 || x.AllocatedQty <= x.ReleasedQty)
-                || links.Sum(x => x.AllocatedQty - x.ReleasedQty) + line.UnlinkedQty != line.Quantity
-                || links.Any(x => !facts.Demands.Any(n => n.Uid == x.NetDemandId && !n.IsDeleted && n.LifecycleStatus == NetDemandLifecycleStatusEnum.Active
-                    && n.DecompositionRevision > 0
-                    && facts.Sources.Any(s => s.Uid == n.GrossDemandId && !s.IsDeleted && s.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active
-                        && !string.IsNullOrWhiteSpace(s.DemandBasisFingerprint)
-                        && !string.IsNullOrWhiteSpace(n.SourceDemandBasisFingerprintSnapshot)
-                        && n.SourceDemandBasisFingerprintSnapshot == s.DemandBasisFingerprint))))
-                throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）的活动物料引用缺失、失效或贡献数量不一致，不能确认。");
-        }
-    }
+        =>ProcurementDemandReferencePolicy.RequireExisting(facts);
     /// <summary>检查客户和实际供应商仍存在且启用，名称变化不覆写既有订单快照。</summary>
     public async Task ValidatePartiesAsync(Guid customerId, Guid supplierId, CancellationToken ct)
     {
@@ -76,6 +55,12 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
             {
                 PurchaseOrderLineId = line.Uid, LineVersion = line.Version
             });
+        }
+        if(facts.Links.Any(link=>link.TargetHeadId==head.Uid && !link.IsDeleted && link.AllocatedQty>link.ReleasedQty
+            && facts.Demands.Any(row=>row.Uid==link.NetDemandId && row.MaterialTypeSnapshot==MaterialTypesEnum.客供件)))
+        {
+            var lineIds=facts.Links.Where(link=>!link.IsDeleted && link.AllocatedQty>link.ReleasedQty).Select(link=>link.TargetLineId).Distinct().ToArray();
+            ProcurementDemandReferencePolicy.RequireDeliveryRelations(facts,await targets.ReadTargetsAsync(lineIds,ct),[]);
         }
         result.Fingerprint = ProcurementOrderPolicy.Fingerprint(new
         {

@@ -62,7 +62,7 @@ public sealed class PurchaseOrderManagerContractTests
             Assert.DoesNotContain(name, properties);
         }
 
-        Assert.AreEqual(typeof(decimal),
+        Assert.AreEqual(typeof(decimal?),
             typeof(PurchaseOrderManagerLineDto).GetProperty(nameof(PurchaseOrderManagerLineDto.UnreceivedQty))!.PropertyType);
         Assert.IsNull(typeof(PurchaseOrderManagerLineDto).GetProperty("UnreceivedQtyText"));
         Assert.IsNotNull(typeof(PurchaseOrderManagerListItemDto).GetProperty("CustomerCode"));
