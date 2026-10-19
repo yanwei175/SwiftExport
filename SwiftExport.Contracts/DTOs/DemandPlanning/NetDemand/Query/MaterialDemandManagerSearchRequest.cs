@@ -7,7 +7,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
     /// <summary>物料需求工作台分页查询条件，不包含计划、分配或转单状态筛选。</summary>
     public class MaterialDemandManagerSearchRequest : PagedRequestBase
     {
-        /// <summary>来源导航选中的唯一来源；填写后返回该来源全部活动物料需求。</summary>
+        /// <summary>来源导航选中的唯一来源；填写后取消分页；来源导航调用方仅提交来源身份和生命周期，以完整展示该修订范围。</summary>
         public Guid? SourceUid { get; set; }
         /// <summary>限定物料需求 Uid。</summary>
         public List<Guid> NetDemandIds { get; set; } = new List<Guid>();
@@ -39,11 +39,11 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public Guid? SuggestedPurchaseSupplierId { get; set; }
         /// <summary>按推荐供应商编码或名称模糊查询。</summary>
         public string SuggestedPurchaseSupplierKeyword { get; set; }
-        /// <summary>有效采购单实际供应商 Uid。</summary>
+        /// <summary>有效采购单实际供应商 Uid；筛选要求采购查看权限。</summary>
         public Guid? ActualPurchaseSupplierId { get; set; }
-        /// <summary>按实际采购供应商编码或名称模糊查询。</summary>
+        /// <summary>按实际采购供应商编码或名称模糊查询；要求采购查看权限。</summary>
         public string ActualPurchaseSupplierKeyword { get; set; }
-        /// <summary>采购单号精确匹配。</summary>
+        /// <summary>采购单号精确匹配；要求采购查看权限。</summary>
         public string PurchaseOrderNo { get; set; }
     }
 }

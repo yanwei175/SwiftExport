@@ -69,7 +69,6 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public string ImagePath { get; set; }
         /// <summary>物料类型快照。</summary>
         public string MaterialType { get; set; }
-        /// <summary>计量单位。</summary>
         /// <summary>物料需求建立时保存的单位快照；未知为空，不从当前产品推断。</summary>
         public string Unit { get; set; }
         /// <summary>拆解时的供货方式快照。</summary>
@@ -96,7 +95,7 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal? SuggestedTaxPrice { get; set; }
         /// <summary>BOM 展开后的原始需求数量。</summary>
         public decimal GrossQty { get; set; }
-        /// <summary>当前净需求数量；现阶段未自动抵扣库存和在途。</summary>
+        /// <summary>当前物料需求数量；现阶段未自动抵扣库存和在途。</summary>
         public decimal NetQty { get; set; }
         /// <summary>成品需求交期。</summary>
         public DateTime? DemandRequiredDate { get; set; }
@@ -104,13 +103,13 @@ namespace SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand
         public decimal? AssociatedPurchaseQty { get; set; }
         /// <summary>当前尚未被有效采购 Link 承接的数量。</summary>
         public decimal? RemainingQty { get { return AssociatedPurchaseQty.HasValue ? Math.Max(0m, NetQty - AssociatedPurchaseQty.Value) : (decimal?)null; } }
-        /// <summary>有效采购 Link 对应的采购单号集合。</summary>
+        /// <summary>有效采购 Link 对应的采购单号集合；无采购查看权限时不返回。</summary>
         public string PurchaseOrderNos { get; set; }
-        /// <summary>有效采购单实际供应商名称；多供应商时按单据汇总显示。</summary>
+        /// <summary>有效采购单实际供应商名称；无采购查看权限时不返回，多供应商按单据汇总显示。</summary>
         public string ActualPurchaseSuppliers { get; set; }
         /// <summary>承接进度：未承接、部分承接、已承接、需核实或历史。</summary>
         public string ProcurementStatus { get; set; }
-        /// <summary>交期提示：已逾期、临近交期或空。</summary>
+        /// <summary>采购承接交期提示：未承接已逾期、未承接临近交期或空，不表示实际交付进度。</summary>
         public string DueHint { get; set; }
         /// <summary>来源、采购目标、单位或数量不可信的原因。</summary>
         public string ReviewReason { get; set; }

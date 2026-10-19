@@ -1,6 +1,5 @@
 using Refit;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 using System;
 using System.Collections.Generic;
@@ -12,10 +11,6 @@ namespace SwiftExport.Contracts.Apis.DemandPlanning
     /// <summary>物料需求管理 API：负责事实查询、来源建立、推荐供应商维护与安全回退。</summary>
     public interface INetDemandManagerApi
     {
-        /// <summary>按物料需求 Uid 查询只读拆解、采购及收货证据。</summary>
-        [Get("/{uid}/trace")]
-        Task<ServiceResult<MaterialDemandTraceDetailDto>> GetTraceAsync(Guid uid,
-            CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>查询全部仍包含待建立行的来源单分组。</summary>
         [Get("/source-demands/candidate-groups")]
         Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
