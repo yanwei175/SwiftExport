@@ -15,7 +15,7 @@ public sealed class PurchaseOrderManagerContractsTests
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         foreach (var token in new[] { "WrapPanel", "ItemsSource=\"{Binding Orders}\"", "ItemsSource=\"{Binding Lines}\"",
-                     "GridSplitter", "SwiftExportGridSplitterHorizontal", "PageNavigator", "新建采购单", "采购跟进" })
+                     "GridSplitter", "SwiftExportGridSplitterHorizontal", "PageNavigator", "新建无关联采购", "采购跟进" })
             StringAssert.Contains(view, token);
         Assert.IsFalse(view.Contains("RightDrawerHost", StringComparison.Ordinal));
     }
@@ -26,7 +26,9 @@ public sealed class PurchaseOrderManagerContractsTests
     {
         var view = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml");
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
-        Assert.AreEqual(4, view.Split("<controls:DropDownCheckBox", StringSplitOptions.None).Length - 1);
+        var document = System.Xml.Linq.XDocument.Parse(view);
+        Assert.AreEqual(4, document.Descendants().Count(x => x.Name.LocalName == "MultiSelectLookupButton"
+            && ((string?)x.Attribute("ItemsSource"))?.Contains("Statuses", StringComparison.Ordinal) == true));
         StringAssert.Contains(view, "SelectedConfirmationStatuses");
         StringAssert.Contains(view, "SelectedLifecycleStatuses");
         foreach (var forbidden in new[] { "SelectedDataScope", "DataScopes", "安排状态", "ArrangementStatus", "IPurchaseOrderWorkspaceApi", "FromLegacy", "IsLegacy" })
@@ -94,7 +96,9 @@ public sealed class PurchaseOrderManagerContractsTests
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
         var codeBehind = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "Views", "PurchaseOrderManagerView.xaml.cs");
 
-        AssertOrdered(view, "<DataGridTemplateColumn Width=\"45\"", "Header=\"单据状态\"");
+        var columns = System.Xml.Linq.XDocument.Parse(view).Descendants().First(x => x.Name.LocalName == "DataGrid.Columns").Elements().ToArray();
+        Assert.AreEqual("DataGridTemplateColumn", columns[0].Name.LocalName); Assert.AreEqual("45", (string?)columns[0].Attribute("Width"));
+        Assert.AreEqual("单据状态", (string?)columns[1].Attribute("Header"));
         StringAssert.Contains(view, "IsAllCurrentPageChecked");
         StringAssert.Contains(view, "IsChecked=\"{Binding IsChecked");
         StringAssert.Contains(view, "IsEnabled=\"{Binding DataContext.IsNotBusy");
@@ -106,7 +110,7 @@ public sealed class PurchaseOrderManagerContractsTests
         StringAssert.Contains(source, "GetConfirmationContextAsync(order.PurchaseOrderId)");
         StringAssert.Contains(source, "var succeededIds = new HashSet<Guid>()");
         StringAssert.Contains(source, "LoadPageCoreAsync(selectedId, preserveCheckedIds)");
-        StringAssert.Contains(source, "Dictionary<Guid, PendingConfirmationState>");
+        StringAssert.Contains(source, "ProcurementCommandSession");
         StringAssert.Contains(source, "ApplyPendingConfirmationState(item, order)");
         StringAssert.Contains(source, "!HasPendingConfirmation(SelectedOrder.PurchaseOrderId)");
         StringAssert.Contains(source, "实际提交");

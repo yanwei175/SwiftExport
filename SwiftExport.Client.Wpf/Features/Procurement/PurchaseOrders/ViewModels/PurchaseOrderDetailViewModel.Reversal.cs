@@ -15,8 +15,8 @@ public sealed partial class PurchaseOrderDetailViewModel
     private bool _reversalDisposed;
     private string ReversalUser => _currentUser.CurrentUser?.UserId ?? string.Empty;
     /// <summary>未决反向命令存在时冻结本单编辑，但允许刷新和原命令重试。</summary>
-    public bool CanInteractWithDocument => !_reversalDisposed && !IsReadOnly && _reversalSession.Find(ReversalUser, PurchaseOrderId) is null;
-    private bool CanVoidOrder() => _pendingConfirmation is null && IsNotBusy && CanInteractWithDocument && !IsCreateMode && !HasUnsavedChanges
+    public bool CanInteractWithDocument => !_reversalDisposed && IsNotBusy && !IsReadOnly && !HasPendingWrite && _reversalSession.Find(ReversalUser, PurchaseOrderId) is null;
+    private bool CanVoidOrder() => IsNotBusy && CanInteractWithDocument && !IsCreateMode && !HasUnsavedChanges
         && _currentUser.HasPermission(PermissionKeys.ProcurementOrderVoid) && LifecycleStatus == PurchaseOrderLifecycleStatusEnum.Active;
     private bool CanDeleteDraftLines() => IsNotBusy && CanEdit && !HasUnsavedChanges && Lines.Items.Count > 0;
     private bool CanRetryReversal() => IsNotBusy && _reversalSession.Find(ReversalUser, PurchaseOrderId) is not null;
@@ -60,7 +60,7 @@ public sealed partial class PurchaseOrderDetailViewModel
             var preview = result.Data;
             if (preview.PurchaseOrderId != uid || preview.Version != version || preview.Operation != operation) { _messages.ShowWarning("预览已失效", "采购身份或版本不匹配，请刷新。"); return; }
             var reason = await _reversalDialogs.ConfirmAsync(preview);
-            if (_reversalDisposed || reason is null || HasUnsavedChanges || PurchaseOrderId != uid || Version != version) return;
+            if (_reversalDisposed || reason is null || HasUnsavedChanges || HasPendingWrite || PurchaseOrderId != uid || Version != version) return;
             if (!_reversalSession.Freeze(ReversalUser, preview, reason)) return;
             await CompleteReversalAsync();
         }, "检查采购反向操作");

@@ -40,6 +40,8 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     public int DueHitLineCount { get; set; }
     public DateTime? EarliestDueHitDate { get; set; }
     public bool HasUnconfirmedReadyRisk { get; set; }
+    /// <summary>风险使用可读文字，不只依赖勾选或颜色。</summary>
+    public string ReadyRiskText => HasUnconfirmedReadyRisk ? "货好但采购未确认" : string.Empty;
     public string ReviewReason { get; set; } = string.Empty;
     public DateTime? ExpectedCompletionDate { get; set; }
     public int Version { get; set; }
@@ -51,6 +53,8 @@ public sealed partial class PurchaseOrderManagementRowModel : ObservableObject
     public void MarkConfirmationResultUnknown()
     {
         HasUnknownConfirmationResult = true;
-        BatchConfirmationStatus = "确认结果待核实；仅当权威查询明确显示已确认时解除当前会话提交门禁。";
+        BatchConfirmationStatus = "该采购有未决写入；请核实或重试原命令，不会创建新的命令身份。";
     }
+    /// <summary>原请求成功或明确拒绝后清理会话投影提示。</summary>
+    public void ClearConfirmationResultUnknown() { HasUnknownConfirmationResult = false; BatchConfirmationStatus = string.Empty; }
 }

@@ -382,10 +382,9 @@ public sealed class MapsterConfig : IRegister
             .Map(dest => dest.ExpectedCompletionDateText, src => src.ExpectedCompletionDate.HasValue ? src.ExpectedCompletionDate.Value.ToString("yyyy-MM-dd") : string.Empty)
             .Map(dest => dest.LatestFollowUpDateText, src => src.LatestFollowUpDate.HasValue ? src.LatestFollowUpDate.Value.ToString("yyyy-MM-dd HH:mm") : string.Empty)
             .Map(dest => dest.LatestFollowUpUserText, src => src.FollowUpUserName ?? string.Empty)
-            .Map(dest => dest.SourceSummary, src => string.IsNullOrEmpty(src.SourceNo)
-                ? src.SourceType ?? string.Empty
-                : string.Concat(src.SourceType, " · ", src.SourceNo,
-                    src.SourceLineNumber.HasValue ? string.Concat(" / ", src.SourceLineNumber.Value.ToString()) : string.Empty));
+            .Map(dest => dest.SourceSummary, src => src.SourceSummary ?? string.Empty)
+            .Map(dest => dest.AssociationReviewReason, src => src.AssociationReviewReason ?? string.Empty)
+            .Map(dest => dest.ReceiptReviewReason, src => src.ReceiptReviewReason ?? string.Empty);
 
         config.NewConfig<PurchaseOrderLineDetailDto, PurchaseOrderLineEditModel>()
             .IgnoreNullValues(true)
@@ -393,6 +392,11 @@ public sealed class MapsterConfig : IRegister
 
         config.NewConfig<PurchaseOrderLineEditModel, PurchaseOrderLineDetailDto>()
             .Map(dest => dest.IsDeleted, src => src.PersistedIsDeleted);
+
+        config.NewConfig<PurchaseOrderLineEditModel, SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto.UpdatePurchaseOrderDraftLineCommand>()
+            .Map(dest => dest.PurchaseOrderLineId, src => src.Uid)
+            .Map(dest => dest.ExpectedVersion, src => src.Version);
+        config.NewConfig<PurchaseOrderLineEditModel, SwiftExport.Contracts.DTOs.Procurement.OrderManagement.CreateIndependentPurchaseOrderLineCommand>();
 
         config.NewConfig<AfterSalesListItemDto, AfterSalesManagerRowModel>()
             .Map(dest => dest.CustomerDisplay, src => string.Concat(src.CustomerCodeSnapshot, " · ", src.CustomerNameSnapshot))
