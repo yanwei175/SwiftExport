@@ -1,3 +1,5 @@
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.Models;
@@ -32,4 +34,22 @@ public partial class GrossDemandWorkspaceView : UserControl
             await viewModel.SelectSourceGroupCommand.ExecuteAsync(group);
         }
     }
-}
+    /// <summary>只调整来源面板视觉宽度，不触发查询或改变已应用来源。</summary>
+    private void OnSourceResizeDelta(object sender, DragDeltaEventArgs e) => SourcePanel.Width = Math.Clamp(SourcePanel.Width + e.HorizontalChange, 160, 440);
+    /// <summary>右击明确当前行，复制仍可使用表格原生多选。</summary>
+    private void OnDemandRightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is DataGrid grid && e.OriginalSource is DependencyObject source && ItemsControl.ContainerFromElement(grid, source) is DataGridRow { Item: GrossDemandRowModel row })
+        {
+            var retained = grid.SelectedItems.Contains(row) ? grid.SelectedItems.Cast<object>().ToArray() : [];
+            grid.SelectedItem = row;
+            foreach (var selected in retained) if (!grid.SelectedItems.Contains(selected)) grid.SelectedItems.Add(selected);
+        }
+    }
+    /// <summary>双击真实需求行按独立维护权限进入编辑，不将双击表头视作业务操作。</summary>
+    private async void OnDemandDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is DataGrid grid && e.OriginalSource is DependencyObject source && ItemsControl.ContainerFromElement(grid, source) is DataGridRow { Item: GrossDemandRowModel row }
+            && DataContext is GrossDemandWorkspaceViewModel vm)
+        { vm.SelectedItem = row; if (vm.EditSelectedManualCommand.CanExecute(null)) await vm.EditSelectedManualCommand.ExecuteAsync(null); }
+    }}

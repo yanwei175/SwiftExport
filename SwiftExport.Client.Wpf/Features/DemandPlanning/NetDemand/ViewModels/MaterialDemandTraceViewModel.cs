@@ -1,3 +1,4 @@
+using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.DemandPlanning;
@@ -100,14 +101,13 @@ public sealed partial class MaterialDemandTraceViewModel(
         }
     }
 
-    /// <summary>在来源读取权限允许时打开独立成品需求追踪。</summary>
+    /// <summary>在订单跟踪查看权限允许时打开现有成品需求跟踪明细。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenSourceTrace))]
     private Task OpenSourceTraceAsync() => navigation.OpenDocumentAsync(
-        GrossDemandTraceViewModel.RouteKey, $"gross-demand-trace:{Detail!.GrossDemandId:N}",
-        new GrossDemandTraceOpenRequest(Detail.GrossDemandId));
+        DemandTrackingDetailViewModel.RouteKey, Detail!.GrossDemandId.ToString("N"), Detail.GrossDemandId);
 
     private bool CanOpenSourceTrace() => Detail is not null
-        && currentUser.HasPermission(PermissionKeys.DemandPlanningSourceView);
+        && currentUser.HasPermission(PermissionKeys.OrderTrackingView);
 
     /// <summary>在采购读取权限允许且目标完整时打开采购详情。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenPurchase))]

@@ -1,3 +1,4 @@
+using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Procurement;
@@ -134,11 +135,10 @@ public sealed partial class PurchaseOrderTraceViewModel(
     /// <summary>在来源身份证据完整且有权限时跳转成品需求追踪。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenSourceTrace))]
     private Task OpenSourceTraceAsync() => navigation.OpenDocumentAsync(
-        GrossDemandTraceViewModel.RouteKey, $"gross-demand-trace:{SelectedLink!.GrossDemandId!.Value:N}",
-        new GrossDemandTraceOpenRequest(SelectedLink.GrossDemandId.Value));
+        DemandTrackingDetailViewModel.RouteKey, SelectedLink!.GrossDemandId!.Value.ToString("N"), SelectedLink.GrossDemandId.Value);
 
     private bool CanOpenSourceTrace() => SelectedLink?.GrossDemandId is { } id && id != Guid.Empty
-        && currentUser.HasPermission(PermissionKeys.DemandPlanningSourceView);
+        && currentUser.HasPermission(PermissionKeys.OrderTrackingView);
 
     /// <summary>按正式入库单号打开入库管理文档并定位原单。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenInbound))]

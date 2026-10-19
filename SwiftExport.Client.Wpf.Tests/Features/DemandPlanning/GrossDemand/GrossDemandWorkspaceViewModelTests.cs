@@ -19,7 +19,7 @@ using SwiftExportClient.Services.UI;
 namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.GrossDemand;
 
 [TestClass]
-public sealed class GrossDemandWorkspaceViewModelTests
+public sealed partial class GrossDemandWorkspaceViewModelTests
 {
     /// <summary>创建结果未知及后续限流均保持完整原请求；成功后才允许编辑及关闭。</summary>
     [TestMethod]
@@ -240,15 +240,12 @@ public sealed class GrossDemandWorkspaceViewModelTests
         using var viewModel = CreateViewModel(api);
         await viewModel.InitializeAsync();
 
-        viewModel.Items[0].IsChecked = true;
-        Assert.IsNull(viewModel.IsAllChecked);
 
-        viewModel.Items[1].IsChecked = true;
-        Assert.AreEqual(true, viewModel.IsAllChecked);
 
-        viewModel.IsAllChecked = false;
-        Assert.IsTrue(viewModel.Items.All(item => !item.IsChecked));
-        Assert.AreEqual(0, viewModel.CheckedCount);
+
+
+        Assert.IsFalse(viewModel.Items[0].GetType().GetProperties().Any(p => p.Name == "IsChecked"));
+        Assert.IsFalse(viewModel.GetType().GetProperties().Any(p => p.Name == "CheckedCount"));
     }
 
     [TestMethod]
@@ -624,11 +621,13 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Assert.AreEqual("更多条件", (string?)toggle.Attribute("Content"));
 
         var popup = workspace.Descendants(presentation + "Popup").Single();
-        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "ElementName=OptionsToggle");
-        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsChecked");
-        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "StackPanel");
-        StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
-        Assert.AreEqual("True", (string?)popup.Attribute("StaysOpen"));
+        StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsMultiLineFilterOpen");
+        StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsMultiLineFilterOpen");
+        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "OptionsToggle");
+        Assert.IsTrue(popup.Descendants(presentation + "Button").Any(element => (string?)element.Attribute("Content") == "应用并查询"));
+        Assert.IsTrue(popup.Descendants(presentation + "Button").Any(element => (string?)element.Attribute("Content") == "清空更多条件"));
+        Assert.IsTrue(popup.Descendants(presentation + "Button").Any(element => (string?)element.Attribute("Content") == "收起"));
+        Assert.AreEqual("False", (string?)popup.Attribute("StaysOpen"));
         Assert.AreEqual(3, popup.Descendants().Count(element => element.Name.LocalName == "TextBox"));
     }
 
@@ -655,14 +654,14 @@ public sealed class GrossDemandWorkspaceViewModelTests
         Assert.AreEqual("OnSourceGroupSelectionChanged", (string?)sourceList.Attribute("SelectionChanged"));
 
         var sourcePanel = sourceList.Ancestors(presentation + "Border").First();
-        Assert.AreEqual("180", (string?)sourcePanel.Attribute("Width"));
+        Assert.AreEqual("240", (string?)sourcePanel.Attribute("Width"));
         StringAssert.Contains((string?)sourcePanel.Attribute("Visibility") ?? string.Empty, "IsSourcePanelOpen");
-        Assert.AreEqual("Left", (string?)sourcePanel.Attribute("DockPanel.Dock"));
+        Assert.IsTrue(workspace.Descendants(presentation + "Thumb").Any());
 
         var sourceToggle = workspace.Descendants(presentation + "ToggleButton")
             .Single(element => ((string?)element.Attribute("Command"))
                 ?.Contains("ToggleSourcePanelCommand", StringComparison.Ordinal) == true);
-        Assert.AreEqual("来源单号分组", (string?)sourceToggle.Attribute("Content"));
+        Assert.AreEqual("来源导航", (string?)sourceToggle.Attribute("Content"));
         StringAssert.Contains((string?)sourceToggle.Attribute("Command") ?? string.Empty, "ToggleSourcePanelCommand");
         StringAssert.Contains((string?)sourceToggle.Attribute("IsChecked") ?? string.Empty, "IsSourcePanelOpen");
         var multilineToggle = workspace.Descendants(presentation + "ToggleButton")
@@ -713,19 +712,21 @@ public sealed class GrossDemandWorkspaceViewModelTests
     private static GrossDemandWorkspaceViewModel CreateViewModel(
         FakeGrossDemandApi api,
         IDialogService? dialogService = null,
-        bool allowManual = true)
+        bool allowManual = true,
+        ICurrentUserService? currentUser = null,
+        INavigationService? navigationService = null)
     {
         var runner = new PassThroughApiCallRunner();
         var messages = new TestMessageService();
-        var user = DispatchProxy.Create<ICurrentUserService, PermissionProxy>();
-        ((PermissionProxy)(object)user).Allow = allowManual;
+        var user = currentUser ?? DispatchProxy.Create<ICurrentUserService, PermissionProxy>();
+        if (currentUser is null) ((PermissionProxy)(object)user).Allow = allowManual;
         var manual = new GrossDemandManualEditorViewModel(
             api,
             DispatchProxy.Create<IProductApi, NoCallProxy>(),
             runner,
             messages,
             user);
-        var navigation = DispatchProxy.Create<INavigationService, NoCallProxy>();
+        var navigation = navigationService ?? DispatchProxy.Create<INavigationService, NoCallProxy>();
         return new GrossDemandWorkspaceViewModel(
             api,
             runner,
@@ -793,20 +794,23 @@ public sealed class GrossDemandWorkspaceViewModelTests
         public int SearchCallCount { get; private set; }
         public int SourceGroupCallCount { get; private set; }
         public int TraceCallCount { get; private set; }
+        public List<GrossDemandSearchRequest> SearchRequests { get; } = [];
+        public List<CancellationToken> SearchTokens { get; } = [];
+        public List<GrossDemandSourceGroupSearchRequest> SourceRequests { get; } = [];
+        public int CustomerCalls { get; private set; }
+        public List<GrossDemandCustomerOptionDto> Customers { get; } = [];
+        public Func<GrossDemandSearchRequest, CancellationToken, Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>>>? SearchHandler { get; set; }
+        public Func<GrossDemandSourceGroupSearchRequest, CancellationToken, Task<ServiceResult<List<GrossDemandSourceGroupDto>>>>? SourceHandler { get; set; }
+        public Func<CancellationToken, Task<ServiceResult<List<GrossDemandCustomerOptionDto>>>>? CustomerHandler { get; set; }
 
-        /// <summary>工作台只导航到独立追溯页，误调用详情追溯时记录并立即失败。</summary>
-        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand.Trace.GrossDemandTraceDetailDto>> GetTraceAsync(
-            Guid uid, CancellationToken cancellationToken = default)
-        {
-            TraceCallCount++;
-            throw new NotSupportedException();
-        }
-
+        public Task<ServiceResult<List<GrossDemandCustomerOptionDto>>> GetCustomerOptionsAsync(CancellationToken cancellationToken = default)
+        { CustomerCalls++; return CustomerHandler?.Invoke(cancellationToken) ?? Task.FromResult(ServiceResult<List<GrossDemandCustomerOptionDto>>.Ok(Customers)); }
         public Task<ServiceResult<PagedResponseBase<GrossDemandListItemDto>>> SearchAsync(GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
         {
             LastSearchRequest = request;
             SearchCallCount++;
-            return Task.FromResult(ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Ok(SearchResponse));
+            SearchRequests.Add(request); SearchTokens.Add(cancellationToken);
+            return SearchHandler?.Invoke(request, cancellationToken) ?? Task.FromResult(ServiceResult<PagedResponseBase<GrossDemandListItemDto>>.Ok(SearchResponse));
         }
 
         public Task<ServiceResult<List<GrossDemandSourceGroupDto>>> SearchSourceGroupsAsync(
@@ -815,7 +819,8 @@ public sealed class GrossDemandWorkspaceViewModelTests
         {
             LastSourceGroupRequest = request;
             SourceGroupCallCount++;
-            return Task.FromResult(ServiceResult<List<GrossDemandSourceGroupDto>>.Ok(SourceGroupResponse));
+            SourceRequests.Add(request);
+            return SourceHandler?.Invoke(request, cancellationToken) ?? Task.FromResult(ServiceResult<List<GrossDemandSourceGroupDto>>.Ok(SourceGroupResponse));
         }
 
         public Task<ServiceResult<GrossDemandDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default)
@@ -846,7 +851,9 @@ public sealed class GrossDemandWorkspaceViewModelTests
         public bool Allow { get; set; } = true;
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
         {
-            "HasPermission" => Allow,
+            "HasPermission" => (string?)args?[0] != SwiftExport.Contracts.DTOs.Auth.PermissionKeys.DemandPlanningSourceManualManage || Allow,
+            "get_CurrentUser" => null,
+            "add_CurrentUserChanged" or "remove_CurrentUserChanged" => null,
             _ => throw new NotSupportedException(method?.Name)
         };
     }
@@ -854,6 +861,10 @@ public sealed class GrossDemandWorkspaceViewModelTests
     private sealed class RecordingDialogService(bool confirmResult) : IDialogService
     {
         public int ConfirmCount { get; private set; }
+        public string Reason { get; set; } = "业务结案";
+        public int ReasonCount { get; private set; }
+        public Task<DialogResult> ShowAsync(object content, DialogOptions options, IDialogContentState? state = null, CancellationToken cancellationToken = default)
+        { ReasonCount++; if(content is GrossDemandCloseReasonViewModel model) model.Reason=Reason; return Task.FromResult(confirmResult?DialogResult.Primary:DialogResult.Close); }
 
         public Task ShowContentAsync(string title, object content, string closeButtonText = "关闭", CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default)
