@@ -34,8 +34,10 @@ public static class PostgreSqlInboundReceiptHistoryGuard
 
     // 条件与源Guard逐项对应：整头有效行、反向头身份/时间/原因、恰好成对流水及无外部修正引用。
     // 全量流水计数不排软删；scopeLine也不排软删，两者都是源证明边界，不能借迁移“修正”。
-    private const string ValidationSql = """
-        SELECT EXISTS(SELECT 1 FROM public.inbound_document h
+    private static string ValidationSql => "SELECT EXISTS(" + InvalidHeadsSql + ")";
+    // 批量摘要复用完全相同的整头证明，只把异常头映射回相关采购行。
+    internal const string InvalidHeadsSql = """
+SELECT h.uid FROM public.inbound_document h
             WHERE h.is_deleted=FALSE AND h.posting_status IN(1,8) AND h.document_type=10
               AND (NOT @Scoped OR EXISTS(
                   SELECT 1 FROM public.inbound_document_line scope_line
@@ -69,6 +71,6 @@ public static class PostgreSqlInboundReceiptHistoryGuard
                           ON x.replacement_of_ledger_id=o.uid OR x.reversal_of_ledger_id=o.uid
                           WHERE o.source_document_id=h.uid AND (x.source_document_id<>h.uid OR x.source_document_id IS NULL))
                   ))
-              ));
-        """;
+              )
+""";
 }
