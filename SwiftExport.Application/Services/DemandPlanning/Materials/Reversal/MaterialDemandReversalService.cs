@@ -89,7 +89,21 @@ public sealed class MaterialDemandReversalService(
                 throw new MaterialDemandException(DemandPlanningErrorCodes.RevisionConflict, "活动物料需求修订已变化，请刷新后重试。");
             var blockers = await executionLinkRepository.GetRollbackBlockersAsync(active.Select(row => row.Uid));
             if (blockers.Count > 0)
-                throw new MaterialDemandException(DemandPlanningErrorCodes.DownstreamExecutionExists, "物料需求已有活动执行单，不能回退。");
+            {
+                var canReadPurchase=currentUser.UserId is {} actor
+                    && await permissions.HasPermissionAsync(actor,PermissionKeys.ProcurementOrderRead,cancellationToken);
+                // 失败仍抛出业务异常让整个命令回滚；只在有采购读取权限时显示采购身份。
+                var locations=blockers.Select(blocker=>
+                {
+                    var material=active.SingleOrDefault(row=>row.Uid==blocker.NetDemandId);
+                    var label=$"物料第 {material?.LineNumber} 行 {material?.SkuSnapshot}（{blocker.NetDemandId}）";
+                    return canReadPurchase
+                        ? $"{label} → {blocker.TargetType} {blocker.TargetNo}，目标行 {blocker.TargetLineId}，{blocker.Message}"
+                        : $"{label} 存在未释放执行贡献，请由有采购查看权限的人员核实。";
+                });
+                throw new MaterialDemandException(DemandPlanningErrorCodes.DownstreamExecutionExists,
+                    $"成品需求 {demand.SourceNo} / 行 {demand.SourceLineNumber}（{demand.Uid}）不能回退：{string.Join("；",locations)}");
+            }
             if (await netDemandRepository.RollbackRevisionAsync(demand.Uid, item.DecompositionRevision, command.Reason.Trim()) != active.Count)
                 throw new MaterialDemandException(ServiceErrorCodes.ConcurrencyConflict, "物料需求已变化，回退未执行。");
             result.RolledBackSourceCount++;

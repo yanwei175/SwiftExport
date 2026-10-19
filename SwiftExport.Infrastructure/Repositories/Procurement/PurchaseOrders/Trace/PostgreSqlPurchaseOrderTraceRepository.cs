@@ -126,13 +126,7 @@ public sealed class PostgreSqlPurchaseOrderTraceRepository(RepositoryBaseContext
                        CASE WHEN n."uid" IS NULL OR g."uid" IS NULL
                            OR g."source_uid" IS NULL OR g."source_uid"='00000000-0000-0000-0000-000000000000'
                            OR g."source_line_id" IS NULL OR g."source_line_id"='00000000-0000-0000-0000-000000000000'
-                           OR n."source_demand_version_snapshot" IS NULL OR n."source_demand_version_snapshot"<>g."version"
-                           OR (rtrim(g."source_type",' ') COLLATE public.erp_dictionary_ci='MD' AND (g."source_version" IS NOT NULL OR n."source_version_snapshot" IS NOT NULL))
-                           OR (rtrim(g."source_type",' ') COLLATE public.erp_dictionary_ci<>'MD' AND (g."source_version" IS NULL OR n."source_version_snapshot" IS NULL
-                               OR n."source_version_snapshot"<>g."source_version"))
-                           OR NULLIF(rtrim(g."demand_basis_fingerprint",' ') COLLATE public.erp_dictionary_ci,'') IS NULL
-                           OR NULLIF(rtrim(n."source_demand_basis_fingerprint_snapshot",' ') COLLATE public.erp_dictionary_ci,'') IS NULL
-                           OR rtrim(n."source_demand_basis_fingerprint_snapshot",' ') COLLATE public.erp_dictionary_ci<>rtrim(g."demand_basis_fingerprint",' ') COLLATE public.erp_dictionary_ci
+                           OR NOT COALESCE({SwiftExport.Infrastructure.Repositories.DemandPlanning.MaterialDemandBasisSql.IsApplicable("n","g")},FALSE)
                            OR NULLIF(btrim(l."unit_snapshot",' ') COLLATE public.erp_dictionary_ci,'') IS NULL
                            OR COALESCE(NULLIF(btrim(p."unit",' ') COLLATE public.erp_dictionary_ci,''),
                                CASE WHEN n."parent_net_demand_id" IS NULL THEN NULLIF(btrim(g."unit_snapshot",' ') COLLATE public.erp_dictionary_ci,'') END) IS NULL
@@ -145,14 +139,8 @@ public sealed class PostgreSqlPurchaseOrderTraceRepository(RepositoryBaseContext
                             WHEN g."source_uid" IS NULL OR g."source_uid"='00000000-0000-0000-0000-000000000000'
                               OR g."source_line_id" IS NULL OR g."source_line_id"='00000000-0000-0000-0000-000000000000'
                               THEN '需求来源身份缺失。'
-                            WHEN n."source_demand_version_snapshot" IS NULL OR n."source_demand_version_snapshot"<>g."version"
-                              OR (rtrim(g."source_type",' ') COLLATE public.erp_dictionary_ci='MD' AND (g."source_version" IS NOT NULL OR n."source_version_snapshot" IS NOT NULL))
-                              OR (rtrim(g."source_type",' ') COLLATE public.erp_dictionary_ci<>'MD' AND (g."source_version" IS NULL OR n."source_version_snapshot" IS NULL
-                                  OR n."source_version_snapshot"<>g."source_version"))
-                              OR NULLIF(rtrim(g."demand_basis_fingerprint",' ') COLLATE public.erp_dictionary_ci,'') IS NULL
-                              OR NULLIF(rtrim(n."source_demand_basis_fingerprint_snapshot",' ') COLLATE public.erp_dictionary_ci,'') IS NULL
-                              OR rtrim(n."source_demand_basis_fingerprint_snapshot",' ') COLLATE public.erp_dictionary_ci<>rtrim(g."demand_basis_fingerprint",' ') COLLATE public.erp_dictionary_ci
-                              THEN '来源版本或需求指纹缺失，或与当前来源不一致。'
+                            WHEN NOT COALESCE({SwiftExport.Infrastructure.Repositories.DemandPlanning.MaterialDemandBasisSql.IsApplicable("n","g")},FALSE)
+                              THEN '来源身份、状态或实物指纹与当前来源不一致。'
                             WHEN NULLIF(btrim(l."unit_snapshot",' ') COLLATE public.erp_dictionary_ci,'') IS NULL
                               OR COALESCE(NULLIF(btrim(p."unit",' ') COLLATE public.erp_dictionary_ci,''),
                                   CASE WHEN n."parent_net_demand_id" IS NULL THEN NULLIF(btrim(g."unit_snapshot",' ') COLLATE public.erp_dictionary_ci,'') END) IS NULL

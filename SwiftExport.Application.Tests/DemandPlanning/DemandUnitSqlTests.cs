@@ -74,9 +74,9 @@ public sealed class DemandUnitPostgreSqlTests
         {
             Assert.AreEqual(row.UnitSnapshot, list.Items.Single(x => x.Uid == row.Uid).Unit);
             Assert.AreEqual(row.UnitSnapshot, candidates.Single(x => x.Uid == row.Uid).Unit);
-            var trace = await query.GetTraceAsync(row.Uid);
-            if (row.UnitSnapshot is null) Assert.IsTrue(string.IsNullOrWhiteSpace(trace!.Unit));
-            else Assert.AreEqual(row.UnitSnapshot, trace!.Unit);
+            var trace = await new SwiftExport.Infrastructure.Repositories.OrderTracking.MaterialDetail.PostgreSqlMaterialTrackingDetailRepository(context).GetMaterialDetailAsync(row.Uid);
+            if (row.UnitSnapshot is null) Assert.IsTrue(string.IsNullOrWhiteSpace(trace!.Material.Unit));
+            else Assert.AreEqual(row.UnitSnapshot, trace!.Material.Unit);
         }
         StringAssert.Contains(list.Items.Single(x => x.Uid == rows[3].Uid).ReviewReason, "单位");
         Assert.IsNull(session.Transaction); Assert.IsNull(session.SourceDemandLease);

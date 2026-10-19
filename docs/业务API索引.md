@@ -231,11 +231,10 @@
 
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
-| GET `api/demand-planning/net-demands/{uid:guid}/trace` | GetTraceAsync | `Task<ServiceResult<MaterialDemandTraceDetailDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:21) |
-| POST `api/demand-planning/net-demands/material-search` | SearchManagerAsync | `Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:25) |
-| POST `api/demand-planning/net-demands/material-source-groups` | SearchMaterialSourceGroupsAsync | `Task<ServiceResult<List<NetDemandSourceGroupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:32) |
-| GET `api/demand-planning/net-demands/source-demands/candidate-groups` | GetSourceDemandCandidateGroupsAsync | `Task<ServiceResult<List<SourceDemandCandidateGroupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:39) |
-| GET `api/demand-planning/net-demands/source-demands/candidates/{sourceType}/{sourceUid:guid}` | GetSourceDemandCandidatesBySourceAsync | `Task<ServiceResult<List<SourceDemandCandidateDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:45) |
+| POST `api/demand-planning/net-demands/material-search` | SearchManagerAsync | `Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:20) |
+| POST `api/demand-planning/net-demands/material-source-groups` | SearchMaterialSourceGroupsAsync | `Task<ServiceResult<List<NetDemandSourceGroupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:27) |
+| GET `api/demand-planning/net-demands/source-demands/candidate-groups` | GetSourceDemandCandidateGroupsAsync | `Task<ServiceResult<List<SourceDemandCandidateGroupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:34) |
+| GET `api/demand-planning/net-demands/source-demands/candidates/{sourceType}/{sourceUid:guid}` | GetSourceDemandCandidatesBySourceAsync | `Task<ServiceResult<List<SourceDemandCandidateDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/DemandPlanning/Materials/Query/MaterialDemandQueryController.cs:40) |
 
 ## MaterialDemandReversalController
 

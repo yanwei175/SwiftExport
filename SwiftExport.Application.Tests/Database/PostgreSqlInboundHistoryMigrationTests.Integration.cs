@@ -7,7 +7,6 @@ using SwiftExport.Application.Services.DemandPlanning.Materials.Query;
 using SwiftExport.Application.Services.DemandPlanning.Sources.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.SysEnums.Inventory;
 using SwiftExport.Core.Common;
@@ -143,19 +142,6 @@ public sealed class PostgreSqlInboundHistoryMigrationIntegrationTests
         });
     }
 
-    /// <summary>物料查询服务收到真实PG门禁信号仍返回“收货量未知”；成品需求追踪改由订单跟踪独立区域验证。</summary>
-    [TestMethod]
-    public async Task ExistingServices_PreserveUnknownReceiptMessage()
-    {
-        await InRollback(async f =>
-        {
-            var head = f.Head(); var line = f.Line(head); await f.Add(head); await f.Add(line);
-            var context = new ServiceBaseContext(f.Session, NullLoggerFactory.Instance); var queries = new TraceSignal(f.Session, line.SourceLineId);
-            var message = (await new MaterialDemandQueryService(context, queries).GetTraceAsync(Guid.NewGuid())).Message;
-            Assert.AreEqual("正式入库反向历史需核实，收货量未知。", message);
-        });
-    }
-
     /// <summary>预取消即使空范围也原样传播，不把取消当历史不完整。</summary>
     [TestMethod]
     public async Task Cancellation_IsNotHistoryFailure()
@@ -219,17 +205,6 @@ public sealed class PostgreSqlInboundHistoryMigrationIntegrationTests
             TransactionType = reversed ? InventoryTransactionTypeEnum.Reversal : head.CreationMode == InboundCreationModeEnum.Automatic ? InventoryTransactionTypeEnum.PackingListAutoReceiptInbound : InventoryTransactionTypeEnum.PurchaseReceiptInbound,
             QuantityDelta = reversed ? -line.Quantity : line.Quantity, UnitSnapshot = "PCS", SourceDocumentType = "inbounddocument ",
             SourceDocumentId = head.Uid, SourceLineId = line.Uid, CommandId = Guid.NewGuid(), CommandItemId = Guid.NewGuid(), OccurredDate = DateTime.UtcNow };
-    }
-    /// <summary>保留实际服务及实际SQL异常分类；只用窄替身省去尚未实现的Trace其他集合。</summary>
-    private sealed class TraceSignal(DbSession session, Guid purchaseLine) : IMaterialDemandQueryRepository
-    {
-        /// <inheritdoc />
-        async Task<MaterialDemandTraceDetailDto?> IMaterialDemandQueryRepository.GetTraceAsync(Guid uid, CancellationToken token)
-        { await PostgreSqlInboundReceiptHistoryGuard.ValidateScopedAsync(session, [purchaseLine], token); return null; }
-        /// <inheritdoc />
-        public Task<PagedResponseBase<MaterialDemandManagerItemDto>> SearchManagerAsync(MaterialDemandManagerSearchRequest request, CancellationToken token) => throw new NotSupportedException();
-        /// <inheritdoc />
-        public Task<IReadOnlyList<NetDemandSourceGroupDto>> SearchMaterialSourceGroupsAsync(MaterialDemandSourceGroupSearchRequest request, CancellationToken token) => throw new NotSupportedException();
     }
     /// <summary>固定测试审计名，不代表真实登录账号。</summary>
     private sealed class TestIdentity : ICurrentUser

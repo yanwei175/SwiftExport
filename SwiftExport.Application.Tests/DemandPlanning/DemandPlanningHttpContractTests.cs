@@ -15,7 +15,7 @@ using SwiftExport.WebApi.RequestProtection;
 
 namespace SwiftExport.Application.Tests.DemandPlanning;
 
-/// <summary>冻结需求模块 17 个 HTTP 动作的完整路径、绑定、返回类型、授权和 Refit 身份。</summary>
+/// <summary>冻结需求模块 16 个 HTTP 动作的完整路径、绑定、返回类型、授权和 Refit 身份；旧物料追踪已退出。</summary>
 [TestClass]
 public sealed class DemandPlanningHttpContractTests
 {
@@ -42,8 +42,6 @@ public sealed class DemandPlanningHttpContractTests
                 typeof(IGrossDemandWorkspaceApi), "CloseManualAsync", false, 0, "route,body"),
             (typeof(MaterialDemandQueryController), "SearchManagerAsync", "POST", "api/demand-planning/net-demands", "material-search",
                 typeof(INetDemandManagerApi), "SearchAsync", false, null, "body,none"),
-            (typeof(MaterialDemandQueryController), "GetTraceAsync", "GET", "api/demand-planning/net-demands", "{uid:guid}/trace",
-                typeof(INetDemandManagerApi), "GetTraceAsync", false, null, "route,none"),
             (typeof(MaterialDemandQueryController), "SearchMaterialSourceGroupsAsync", "POST", "api/demand-planning/net-demands", "material-source-groups",
                 typeof(INetDemandManagerApi), "SearchSourceGroupsAsync", false, null, "body,none"),
             (typeof(MaterialDemandQueryController), "GetSourceDemandCandidateGroupsAsync", "GET", "api/demand-planning/net-demands", "source-demands/candidate-groups",
@@ -62,12 +60,12 @@ public sealed class DemandPlanningHttpContractTests
                 typeof(ISourceDemandDeliveryApi), "GetAsync", true, null, "route,none")
         };
 
-        Assert.HasCount(17, cases);
-        Assert.AreEqual(17, cases.Select(item => item.Controller).Distinct()
+        Assert.HasCount(16, cases);
+        Assert.AreEqual(16, cases.Select(item => item.Controller).Distinct()
             .SelectMany(controller => controller.GetMethods(System.Reflection.BindingFlags.Public
                 | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
             .Count(method => method.IsDefined(typeof(HttpMethodAttribute), false)));
-        Assert.AreEqual(17, cases.Select(item => (item.Verb, item.Prefix, item.Template)).Distinct().Count());
+        Assert.AreEqual(16, cases.Select(item => (item.Verb, item.Prefix, item.Template)).Distinct().Count());
         foreach (var item in cases)
         {
             var action = item.Controller.GetMethod(item.Action)!;

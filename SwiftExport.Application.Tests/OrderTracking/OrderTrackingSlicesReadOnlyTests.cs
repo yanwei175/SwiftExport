@@ -43,7 +43,7 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         var pack=ids[21];var packReverse=ids[22];var draft=ids[23];
         var data=new Dictionary<string,List<Dictionary<string,object?>>>();
         foreach(var table in new[]{"gross_demand","customer","sales_order_header","net_demand","demand_execution_link","purchase_order_head","purchase_order_line","supplier",
-            "inbound_document","inbound_document_line","inventory_ledger_entry","packing_list_head","packing_list_line"}) data[table]=[];
+            "inbound_document","inbound_document_line","inventory_ledger_entry","packing_list_head","packing_list_line","product","supplier_progress_report","business_operation_log"}) data[table]=[];
         data["gross_demand"].AddRange(new[]{Gross(g,source,customer,"hitSKU","CS-hit","LS-hit"),Gross(g2,source,customerB,"OTHER","",""),Gross(g3,sourceB,customer,"OTHER","",""),
             Gross(bad1,Guid.Empty,customer,"OTHER","",""),Gross(bad2,Guid.Empty,customer,"OTHER","","")});
         data["gross_demand"][1]["lifecycle_status"]=8;
@@ -80,6 +80,7 @@ public sealed class OrderTrackingSlicesReadOnlyTests
                 var name="Fixture"+index++;
                 definitions.Add("fixture_"+table+" AS (SELECT * FROM jsonb_populate_recordset(NULL::public."+table+",@"+name+"))");
                 sql=sql.Replace("public."+table+" ", "fixture_"+table+" ").Replace("public."+table+"\n","fixture_"+table+"\n");
+                sql=sql.Replace("\"public\".\""+table+"\"","fixture_"+table);
                 command.Parameters.Add(new NpgsqlParameter(name,NpgsqlDbType.Jsonb){Value=JsonSerializer.Serialize(rows)});
             }
             // QueryMultiple每个语句均需独立CTE作用域；生产SQL内部没有外部拼接或带分号字面量。
@@ -92,6 +93,7 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         };
         try
         {
+            await VerifyMaterialWorkspaceAsync();
             var sources=new PostgreSqlOrderTrackingSourceRepository(fixture.Context);
             // 成品需求本体查询直接执行生产SQL：两模式共享条件，客户按身份匹配，关键词不解释通配符。
             var grossQueries=new SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Query.PostgreSqlGrossDemandQueryRepository(fixture.Context);
@@ -362,6 +364,69 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<OrderTrackingSourceGroupDto>> Groups(OrderTrackingSourceSearchRequest request)
             =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).SearchSourcesAsync(request,OrderTrackingReadFixture.BusinessDate);
 
+        // 本轮物料依据及承接可信度：只替换输入数据，生产管理单SQL、订单跟踪与采购trace均原样执行。
+        async Task VerifyMaterialWorkspaceAsync()
+        {
+            var saved=data.ToDictionary(pair=>pair.Key,pair=>pair.Value.Select(row=>new Dictionary<string,object?>(row)).ToList());
+            try
+            {
+                foreach(var rows in data.Values)rows.Clear();
+                var today=TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,TimeZoneInfo.FindSystemTimeZoneById("China Standard Time")).Date;
+                var gross=Gross(g,source,customer,"WORKSPACE","","");data["gross_demand"].Add(gross);
+                data["gross_demand"].Add(Gross(g3,source,customer,"OTHER-MATERIAL","",""));
+                var material=Net(net,g,10m);material["required_date"]=today.AddDays(-1);data["net_demand"].Add(material);
+                data["net_demand"].Add(Net(net2,g3,4m));
+                var head=R(("uid",po),("order_no","PO-WS"),("customer_id",customer),("supplier_id",supplier),("origin_kind",1),("confirmation_status",1),("lifecycle_status",0),("is_deleted",false));data["purchase_order_head"].Add(head);
+                var line=R(("uid",poLine),("purchase_order_id",po),("line_number",1),("sku","WORKSPACE"),("product_id",product),("quantity",10m),("unlinked_qty",4m),("unit_snapshot","PCS"),("is_deleted",false));data["purchase_order_line"].Add(line);
+                var link=Link(ids[24],net,poLine,po,6m);data["demand_execution_link"].Add(link);
+                data["customer"].Add(R(("uid",customer),("customer_code","A"),("customer_name","客户"),("is_deleted",false)));
+                data["supplier"].Add(R(("uid",supplier),("supplier_name","实际供应商"),("is_deleted",false)));
+                data["product"].Add(R(("uid",product),("sku","WORKSPACE"),("unit","PCS"),("material_type","成品"),("supply_type","采购"),("is_deleted",false)));
+                var workspace=new SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Query.PostgreSqlMaterialDemandQueryRepository(fixture.Context);
+                var tracking=new PostgreSqlDemandTrackingPurchaseRepository(fixture.Context);
+                async Task<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.MaterialDemandManagerItemDto> Read(bool details=true)
+                    =>(await workspace.SearchManagerAsync(new(){NetDemandIds=[net]},includePurchaseDetails:details)).Items.Single();
+                var before=fixture.Connection.Commands.Count;var normal=await Read();Assert.AreEqual(1,fixture.Connection.Commands.Count-before);
+                Assert.AreEqual(6m,normal.AssociatedPurchaseQty);Assert.AreEqual("部分承接",normal.ProcurementStatus);Assert.AreEqual("未承接已逾期",normal.DueHint);
+                var hidden=await Read(false);Assert.AreEqual(6m,hidden.AssociatedPurchaseQty);Assert.IsNull(hidden.PurchaseOrderNos);Assert.IsNull(hidden.ActualPurchaseSuppliers);
+                // 两类版本快照不再否决相同实物依据；三个真实查询消费者必须一致。
+                gross["version"]=8;gross["source_version"]=9;
+                Assert.AreEqual(6m,(await Read()).AssociatedPurchaseQty);Assert.AreEqual(6m,(await tracking.GetMaterialPurchasesAsync(net))!.AssociatedPurchaseQty);
+                var traceRepo=new SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Trace.PostgreSqlPurchaseOrderTraceRepository(fixture.Context);
+                Assert.IsFalse((await traceRepo.GetAsync(po))!.Lines.Single().Links.Single().NeedsReview);
+                foreach(var fingerprint in new string?[]{null,"",new string('B',64),new string('a',64)})
+                {
+                    gross["demand_basis_fingerprint"]=fingerprint;
+                    Assert.IsNull((await Read()).AssociatedPurchaseQty);Assert.IsNull((await tracking.GetMaterialPurchasesAsync(net))!.AssociatedPurchaseQty);
+                    Assert.IsTrue((await traceRepo.GetAsync(po))!.Lines.Single().Links.Single().NeedsReview);
+                }
+                gross["demand_basis_fingerprint"]=new string('A',64);
+                // 产品、客户、单位、目标失效和超承接均是需核实，不能退化成未承接。
+                foreach(var change in new (Dictionary<string,object?> Row,string Field,object? Value)[]{(line,"product_id",Guid.NewGuid()),(head,"customer_id",Guid.NewGuid()),
+                    (line,"unit_snapshot","BOX"),(line,"is_deleted",true),(head,"lifecycle_status",9),(material,"net_qty",5m),
+                    (line,"unlinked_qty",3m),(line,"unlinked_qty",null),(line,"unlinked_qty",-1m),(line,"unlinked_qty",11m)})
+                {
+                    var old=change.Row[change.Field];change.Row[change.Field]=change.Value;var invalid=await Read();
+                    Assert.AreEqual("需核实",invalid.ProcurementStatus,change.Field);Assert.IsNull(invalid.AssociatedPurchaseQty,change.Field);change.Row[change.Field]=old;
+                }
+                // 共用行qty10/unlinked0/links6+4合法；跨物料总量或未关联量不守恒均阻断可信摘要。
+                var shared=Link(Guid.NewGuid(),net2,poLine,po,4m);data["demand_execution_link"].Add(shared);line["unlinked_qty"]=0m;
+                Assert.AreEqual(6m,(await Read()).AssociatedPurchaseQty);shared["allocated_qty"]=5m;
+                Assert.IsNull((await Read()).AssociatedPurchaseQty);data["demand_execution_link"].Remove(shared);line["unlinked_qty"]=4m;
+                head["confirmation_status"]=0;Assert.AreEqual(6m,(await Read()).AssociatedPurchaseQty);head["confirmation_status"]=1;
+                // 完全释放的历史Link保留在追踪但不占承接；到期提示只说明剩余未承接数量。
+                link["released_qty"]=6m;link["link_status"]=1;line["unlinked_qty"]=10m;
+                var released=await Read();Assert.AreEqual(0m,released.AssociatedPurchaseQty);Assert.AreEqual("未承接",released.ProcurementStatus);
+                Assert.IsTrue((await tracking.GetMaterialPurchasesAsync(net))!.Items.Any(row=>row.LinkId==ids[24]));
+                material["required_date"]=today.AddDays(7);Assert.AreEqual("未承接临近交期",(await Read()).DueHint);
+                material["required_date"]=today.AddDays(8);Assert.AreEqual("",(await Read()).DueHint);
+                for(var i=0;i<300;i++)data["net_demand"].Add(Net(Guid.NewGuid(),g,1m));
+                var start=fixture.Connection.Commands.Count;var full=await workspace.SearchManagerAsync(new(){SourceUid=source,PageIndex=99,PageSize=1});
+                Assert.HasCount(302,full.Items);Assert.AreEqual(302,full.TotalCount);Assert.AreEqual(1,full.PageIndex);Assert.AreEqual(1,fixture.Connection.Commands.Count-start);
+            }
+            finally{foreach(var (table,rows) in saved)data[table]=rows;}
+        }
+
         Task<List<Guid>> Matches(Guid sourceId,OrderTrackingSourceMatchRequest request)
             =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).GetSourceMatchesAsync("SO",sourceId,request,OrderTrackingReadFixture.BusinessDate);
 
@@ -369,7 +434,7 @@ public sealed class OrderTrackingSlicesReadOnlyTests
             ("source_no","SAME"),("source_line_number",1),("source_version",1),("demand_basis_fingerprint",new string('A',64)),("customer_id",customerId),("product_id",product),("is_non_standard",false),
             ("sku_snapshot",sku),("customer_sku_snapshot",customerSku),("link_sku_snapshot",linkSku),("description_snapshot","不属于关键词的描述"),("unit_snapshot","PCS"),("demand_qty",10m),
             ("required_date","2026-10-19T00:00:00"),("lifecycle_status",0),("is_deleted",false),("created_date","2026-10-01T00:00:00"));
-        Dictionary<string,object?> Net(Guid id,Guid gross,decimal qty)=>R(("uid",id),("gross_demand_id",gross),("root_net_demand_id",id),("decomposition_revision",1),("line_number",1),("lifecycle_status",0),("is_deleted",false),
+        Dictionary<string,object?> Net(Guid id,Guid gross,decimal qty)=>R(("uid",id),("version",1),("delivery_mode",0),("gross_demand_id",gross),("root_net_demand_id",id),("decomposition_revision",1),("line_number",1),("lifecycle_status",0),("is_deleted",false),
             ("source_demand_version_snapshot",1),("source_version_snapshot",1),("source_demand_basis_fingerprint_snapshot",new string('A',64)),("sku_snapshot","物料快照"),("unit_snapshot","PCS"),
             ("product_id",product),("gross_qty",qty),("net_qty",qty),("material_type_snapshot","成品"),("supply_type_snapshot","采购"));
         Dictionary<string,object?> Link(Guid id,Guid material,Guid targetLine,Guid targetHead,decimal qty)=>R(("uid",id),("net_demand_id",material),("target_type","PO"),("target_head_id",targetHead),("target_line_id",targetLine),

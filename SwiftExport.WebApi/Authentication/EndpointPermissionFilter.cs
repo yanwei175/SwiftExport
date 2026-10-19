@@ -55,7 +55,6 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["CustomerPoConfigController.Delete"] = PermissionKeys.CustomersPoConfigDelete,
         ["MaterialDemandEstablishmentController.EstablishFromSourcesAsync"] = PermissionKeys.DemandPlanningMaterialEstablish,
         ["MaterialDemandQueryController.SearchManagerAsync"] = PermissionKeys.DemandPlanningMaterialView,
-        ["MaterialDemandQueryController.GetTraceAsync"] = PermissionKeys.DemandPlanningMaterialView,
         ["MaterialDemandQueryController.SearchMaterialSourceGroupsAsync"] = PermissionKeys.DemandPlanningMaterialView,
         ["MaterialDemandQueryController.GetSourceDemandCandidateGroupsAsync"] = PermissionKeys.DemandPlanningMaterialView,
         ["MaterialDemandQueryController.GetSourceDemandCandidatesBySourceAsync"] = PermissionKeys.DemandPlanningMaterialView,

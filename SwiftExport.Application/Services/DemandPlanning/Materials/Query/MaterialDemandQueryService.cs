@@ -4,39 +4,20 @@ using SwiftExport.Application.Contexts;
 using SwiftExport.Core.Interfaces.Data;
 using SwiftExport.Application.Interfaces.DemandPlanning.Materials.Query;
 using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
-using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace;
+using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
+using SwiftExport.Contracts.DTOs.Auth;
+using SwiftExport.Contracts.DTOs.Errors;
+using SwiftExport.Core.Interfaces.Auth;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.DemandPlanning;
 
 namespace SwiftExport.Application.Services.DemandPlanning.Materials.Query;
 
 /// <summary>提供物料需求工作台和来源导航的只读查询。</summary>
-public sealed class MaterialDemandQueryService(ServiceBaseContext context, IMaterialDemandQueryRepository netDemandRepository) : IMaterialDemandQueryService
+public sealed class MaterialDemandQueryService(ServiceBaseContext context, IMaterialDemandQueryRepository netDemandRepository,
+    ICurrentUser currentUser, IPermissionEvaluationService permissions) : IMaterialDemandQueryService
 {
     private readonly ILogger<MaterialDemandQueryService> _logger = context.LoggerFactory.CreateLogger<MaterialDemandQueryService>();
-
-    /// <summary>按稳定物料行身份读取追踪，保留历史修订及异常关系。</summary>
-    public async Task<ServiceResult<MaterialDemandTraceDetailDto>> GetTraceAsync(Guid uid, CancellationToken cancellationToken = default)
-    {
-        if (uid == Guid.Empty) return ServiceResult<MaterialDemandTraceDetailDto>.Fail("物料需求 Uid 不能为空。");
-        try
-        {
-            var detail = await netDemandRepository.GetTraceAsync(uid, cancellationToken);
-            return detail is null ? ServiceResult<MaterialDemandTraceDetailDto>.Fail("未找到物料需求。")
-                : ServiceResult<MaterialDemandTraceDetailDto>.Ok(detail);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex) when (context.Session.Errors.Classify(ex) == DatabaseFailureKind.UnverifiedReceiptHistory)
-        {
-            _logger.LogWarning(ex, "物料需求追踪的正式入库反向历史尚未核实，物料需求 {NetDemandId}", uid);
-            return ServiceResult<MaterialDemandTraceDetailDto>.Fail("正式入库反向历史需核实，收货量未知。");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "查询物料需求追踪失败，物料需求 {NetDemandId}", uid);
-            return ServiceResult<MaterialDemandTraceDetailDto>.Fail("查询物料需求追踪失败。");
-        }
-    }
 
     /// <summary>查询物料需求工作台的物料事实和有效采购关联汇总。</summary>
     public async Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>> SearchManagerAsync(
@@ -46,10 +27,16 @@ public sealed class MaterialDemandQueryService(ServiceBaseContext context, IMate
         try
         {
             request ??= new MaterialDemandManagerSearchRequest();
-            request.PageIndex = Math.Max(1, request.PageIndex);
-            request.PageSize = Math.Clamp(request.PageSize, 1, 200);
-            return ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Ok(
-                await netDemandRepository.SearchManagerAsync(request, cancellationToken));
+            var canReadPurchase=currentUser.IsAuthenticated && currentUser.UserId is {} actor
+                && await permissions.HasPermissionAsync(actor,PermissionKeys.ProcurementOrderRead,cancellationToken);
+            if(!canReadPurchase && (request.ActualPurchaseSupplierId.HasValue || !string.IsNullOrWhiteSpace(request.ActualPurchaseSupplierKeyword)
+                || !string.IsNullOrWhiteSpace(request.PurchaseOrderNo)))
+                return ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Fail(ServiceErrorCodes.Forbidden,"按实际供应商或采购单号筛选需要采购查看权限。");
+            var result=await netDemandRepository.SearchManagerAsync(request,cancellationToken,canReadPurchase);
+            // 数量及需核实状态属于物料管理摘要；实际采购身份仅向采购读取权限开放。
+            if(!canReadPurchase)
+                foreach(var row in result.Items){row.PurchaseOrderNos=null!;row.ActualPurchaseSuppliers=null!;}
+            return ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>.Ok(result);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
