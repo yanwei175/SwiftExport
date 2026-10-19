@@ -3,7 +3,7 @@ using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.Models;
 
 /// <summary>
-/// 表示净需求左侧来源导航中的一张来源单及其匹配净需求数量。
+/// 表示物料需求左侧来源导航中的一张来源单及其匹配物料需求数量。
 /// </summary>
 public sealed class NetDemandSourceGroupModel
 {
@@ -31,7 +31,7 @@ public sealed class NetDemandSourceGroupModel
     public string SourceNo { get; }
 
     /// <summary>
-    /// 当前来源导航筛选下的净需求条数。
+    /// 当前来源导航筛选下的物料需求条数。
     /// </summary>
     public int DemandCount { get; }
 
@@ -52,7 +52,7 @@ public sealed class NetDemandSourceGroupModel
     public string DisplaySourceNo => string.IsNullOrWhiteSpace(SourceNo) ? "未命名来源" : SourceNo;
 
     /// <summary>
-    /// 返回来源单包含的匹配净需求数量文本。
+    /// 返回来源单包含的匹配物料需求数量文本。
     /// </summary>
     public string CountText => $"{DemandCount} 条";
 

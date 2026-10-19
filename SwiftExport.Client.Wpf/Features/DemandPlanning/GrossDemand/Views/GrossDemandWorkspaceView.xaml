@@ -200,68 +200,171 @@
           Visibility="{Binding IsSourceSelected, Converter={StaticResource BooleanToVisibilityConverter}}"
           Margin="0,0,8,4" />
       </WrapPanel>
-      <WrapPanel
-        Grid.Row="1"
-        IsEnabled="{Binding CanEditMainFilters}"
-        Margin="0,0,0,4">
-        <ui:TextBox
-          x:Name="KeywordBox"
-          PlaceholderText="单号、产品/中性/客户型号或描述"
-          Width="260"
-          Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
-          ToolTip="来源单号、产品编码、中性型号、客户型号或描述"
-          AutomationProperties.Name="成品需求关键词"
-          Margin="0,0,8,4">
-          <ui:TextBox.InputBindings>
-            <KeyBinding
-              Key="Enter"
-              Command="{Binding SearchCommand}" />
-          </ui:TextBox.InputBindings>
-        </ui:TextBox>
-        <lookup:MultiSelectLookupButton
-          Header="来源类型"
-          DisplayMemberPath="DisplayText"
-          ItemsSource="{Binding SourceTypeOptions}"
-          SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}"
-          MinWidth="100"
-          Margin="0,0,8,4" />
-        <lookup:MultiSelectLookupButton
-          Header="生命周期"
-          DisplayMemberPath="DisplayText"
-          ItemsSource="{Binding LifecycleStatusOptions}"
-          SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}"
-          MinWidth="100"
-          Margin="0,0,8,4" />
-        <ComboBox
-          ItemsSource="{Binding StandardTypeOptions}"
-          DisplayMemberPath="DisplayText"
-          SelectedItem="{Binding SelectedStandardType}"
-          AutomationProperties.Name="需求类型"
-          MinWidth="100"
-          Margin="0,0,8,4" />
-        <lookup:MultiSelectLookupButton
-          x:Name="CustomerSelector"
-          Header="客户"
-          DisplayMemberPath="DisplayText"
-          ItemsSource="{Binding CustomerOptions}"
-          SelectedItems="{Binding SelectedCustomers, Mode=OneWay}"
-          MinWidth="130"
-          Margin="0,0,8,4"
-          AutomationProperties.Name="成品需求客户多选" />
-        <ToggleButton
-          x:Name="OptionsToggle"
-          Content="更多条件"
-          IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
-          Margin="0,0,8,4" />
-        <Button
-          Content="查询"
-          Command="{Binding SearchCommand}"
-          Margin="0,0,8,4" />
-        <Button
-          Content="清空并查询"
-          Command="{Binding ClearFiltersCommand}"
-          Margin="0,0,8,4" />
-      </WrapPanel>
+      <StackPanel Grid.Row="1">
+        <WrapPanel
+          IsEnabled="{Binding CanEditMainFilters}"
+          Margin="0,0,0,4">
+          <ui:TextBox
+            x:Name="KeywordBox"
+            PlaceholderText="单号、产品/中性/客户型号或描述"
+            Width="260"
+            Text="{Binding Keyword, UpdateSourceTrigger=PropertyChanged}"
+            ToolTip="来源单号、产品编码、中性型号、客户型号或描述"
+            AutomationProperties.Name="成品需求关键词"
+            Margin="0,0,8,4">
+            <ui:TextBox.InputBindings>
+              <KeyBinding
+                Key="Enter"
+                Command="{Binding SearchCommand}" />
+            </ui:TextBox.InputBindings>
+          </ui:TextBox>
+          <lookup:MultiSelectLookupButton
+            Header="来源类型"
+            DisplayMemberPath="DisplayText"
+            ItemsSource="{Binding SourceTypeOptions}"
+            SelectedItems="{Binding SelectedSourceTypes, Mode=OneWay}"
+            MinWidth="100"
+            Margin="0,0,8,4" />
+          <lookup:MultiSelectLookupButton
+            Header="生命周期"
+            DisplayMemberPath="DisplayText"
+            ItemsSource="{Binding LifecycleStatusOptions}"
+            SelectedItems="{Binding SelectedLifecycleStatuses, Mode=OneWay}"
+            MinWidth="100"
+            Margin="0,0,8,4" />
+          <ComboBox
+            ItemsSource="{Binding StandardTypeOptions}"
+            DisplayMemberPath="DisplayText"
+            SelectedItem="{Binding SelectedStandardType}"
+            AutomationProperties.Name="需求类型"
+            MinWidth="100"
+            Margin="0,0,8,4" />
+          <lookup:MultiSelectLookupButton
+            x:Name="CustomerSelector"
+            Header="客户"
+            DisplayMemberPath="DisplayText"
+            ItemsSource="{Binding CustomerOptions}"
+            SelectedItems="{Binding SelectedCustomers, Mode=OneWay}"
+            MinWidth="130"
+            Margin="0,0,8,4"
+            AutomationProperties.Name="成品需求客户多选" />
+          <ToggleButton
+            x:Name="OptionsToggle"
+            Content="更多条件"
+            IsChecked="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
+            Margin="0,0,8,4" />
+          <Button
+            Content="查询"
+            Command="{Binding SearchCommand}"
+            Margin="0,0,8,4" />
+          <Button
+            Content="清空并查询"
+            Command="{Binding ClearFiltersCommand}"
+            Margin="0,0,8,4" />
+        </WrapPanel>
+        <Popup
+          IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
+          Placement="Bottom"
+          PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType={x:Type StackPanel}}}"
+          Width="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}"
+          VerticalOffset="4"
+          StaysOpen="False"
+          AllowsTransparency="True">
+          <Border
+            Padding="12"
+            Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="4">
+            <StackPanel>
+              <TextBlock
+                Text="更多条件 · 修改后点击应用，收起会保留输入。"
+                Margin="0,0,0,8" />
+              <WrapPanel
+                Margin="0,0,0,8">
+                <TextBlock
+                  Text="要求交期起"
+                  VerticalAlignment="Center"
+                  Margin="0,0,6,0" />
+                <DatePicker
+                  SelectedDate="{Binding RequiredDateFrom}"
+                  Width="135"
+                  Margin="0,0,12,0" />
+                <TextBlock
+                  Text="至"
+                  VerticalAlignment="Center"
+                  Margin="0,0,6,0" />
+                <DatePicker
+                  SelectedDate="{Binding RequiredDateTo}"
+                  Width="135" />
+              </WrapPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition
+                    Width="*" />
+                  <ColumnDefinition
+                    Width="*" />
+                  <ColumnDefinition
+                    Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel
+                  Margin="0,0,8,0">
+                  <TextBlock
+                    Text="来源单号（每行一项）" />
+                  <TextBox
+                    Text="{Binding SourceNosText, UpdateSourceTrigger=PropertyChanged}"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    Height="150"
+                    VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="批量来源单号" />
+                </StackPanel>
+                <StackPanel
+                  Grid.Column="1"
+                  Margin="0,0,8,0">
+                  <TextBlock
+                    Text="产品编码（每行一项）" />
+                  <TextBox
+                    Text="{Binding SkusText, UpdateSourceTrigger=PropertyChanged}"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    Height="150"
+                    VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="批量产品编码" />
+                </StackPanel>
+                <StackPanel
+                  Grid.Column="2">
+                  <TextBlock
+                    Text="客户型号（每行一项）" />
+                  <TextBox
+                    Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    Height="150"
+                    VerticalScrollBarVisibility="Auto"
+                    AutomationProperties.Name="批量客户型号" />
+                </StackPanel>
+              </Grid>
+              <StackPanel
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Margin="0,12,0,0">
+                <Button
+                  Content="应用并查询"
+                  Command="{Binding ApplyMoreFiltersCommand}"
+                  Margin="0,0,8,0" />
+                <Button
+                  Content="清空更多条件"
+                  Command="{Binding ClearMoreFiltersCommand}"
+                  Margin="0,0,8,0" />
+                <Button
+                  Content="收起"
+                  Command="{Binding CollapseMoreFiltersCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </Popup>
+      </StackPanel>
       <StackPanel
         Grid.Row="2"
         Margin="0,0,0,6">
@@ -292,107 +395,6 @@
             Margin="8,0,0,4" />
         </WrapPanel>
       </StackPanel>
-      <Popup
-        IsOpen="{Binding IsMultiLineFilterOpen, Mode=TwoWay}"
-        Placement="Bottom"
-        PlacementTarget="{Binding ElementName=OptionsToggle}"
-        StaysOpen="False"
-        AllowsTransparency="True">
-        <Border
-          Padding="12"
-          Background="{DynamicResource UserCardBackgroundFillColorDefaultBrush}"
-          BorderBrush="{DynamicResource UserControlStrokeColorDefaultBrush}"
-          BorderThickness="1"
-          CornerRadius="4">
-          <StackPanel
-            Width="740">
-            <TextBlock
-              Text="更多条件 · 修改后点击应用，收起会保留输入。"
-              Margin="0,0,0,8" />
-            <WrapPanel
-              Margin="0,0,0,8">
-              <TextBlock
-                Text="要求交期起"
-                VerticalAlignment="Center"
-                Margin="0,0,6,0" />
-              <DatePicker
-                SelectedDate="{Binding RequiredDateFrom}"
-                Width="135"
-                Margin="0,0,12,0" />
-              <TextBlock
-                Text="至"
-                VerticalAlignment="Center"
-                Margin="0,0,6,0" />
-              <DatePicker
-                SelectedDate="{Binding RequiredDateTo}"
-                Width="135" />
-            </WrapPanel>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition
-                  Width="*" />
-                <ColumnDefinition
-                  Width="*" />
-                <ColumnDefinition
-                  Width="*" />
-              </Grid.ColumnDefinitions>
-              <StackPanel
-                Margin="0,0,8,0">
-                <TextBlock
-                  Text="来源单号（每行一项）" />
-                <TextBox
-                  Text="{Binding SourceNosText, UpdateSourceTrigger=PropertyChanged}"
-                  AcceptsReturn="True"
-                  TextWrapping="Wrap"
-                  Height="150"
-                  VerticalScrollBarVisibility="Auto"
-                  AutomationProperties.Name="批量来源单号" />
-              </StackPanel>
-              <StackPanel
-                Grid.Column="1"
-                Margin="0,0,8,0">
-                <TextBlock
-                  Text="产品编码（每行一项）" />
-                <TextBox
-                  Text="{Binding SkusText, UpdateSourceTrigger=PropertyChanged}"
-                  AcceptsReturn="True"
-                  TextWrapping="Wrap"
-                  Height="150"
-                  VerticalScrollBarVisibility="Auto"
-                  AutomationProperties.Name="批量产品编码" />
-              </StackPanel>
-              <StackPanel
-                Grid.Column="2">
-                <TextBlock
-                  Text="客户型号（每行一项）" />
-                <TextBox
-                  Text="{Binding CustomerSkusText, UpdateSourceTrigger=PropertyChanged}"
-                  AcceptsReturn="True"
-                  TextWrapping="Wrap"
-                  Height="150"
-                  VerticalScrollBarVisibility="Auto"
-                  AutomationProperties.Name="批量客户型号" />
-              </StackPanel>
-            </Grid>
-            <StackPanel
-              Orientation="Horizontal"
-              HorizontalAlignment="Right"
-              Margin="0,12,0,0">
-              <Button
-                Content="应用并查询"
-                Command="{Binding ApplyMoreFiltersCommand}"
-                Margin="0,0,8,0" />
-              <Button
-                Content="清空更多条件"
-                Command="{Binding ClearMoreFiltersCommand}"
-                Margin="0,0,8,0" />
-              <Button
-                Content="收起"
-                Command="{Binding CollapseMoreFiltersCommand}" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
-      </Popup>
       <controls:RightDrawerHost
         x:Name="GrossDrawer"
         Grid.Row="3"

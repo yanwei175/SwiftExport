@@ -13,14 +13,15 @@ using SwiftExportClient.Services.UI;
 using System.IO;
 using System.Reflection;
 using System.Xml.Linq;
+using SwiftExportClient.Navigation;
 
 namespace SwiftExport.Client.Wpf.Tests.Features.DemandPlanning.NetDemand;
 
 /// <summary>
-/// 验证净需求来源导航与更多条件 Popup 的关键交互契约。
+/// 验证物料需求来源导航与更多条件 Popup 的关键交互契约。
 /// </summary>
 [TestClass]
-public sealed class NetDemandManagerSourceNavigationTests
+public sealed partial class NetDemandManagerSourceNavigationTests
 {
     /// <summary>逐行成功后结果未知及限流保持 B 行原请求，A 不重交且 C 只在 B 确认后发送。</summary>
     [TestMethod]
@@ -106,7 +107,7 @@ public sealed class NetDemandManagerSourceNavigationTests
         // 行门禁结合页面未决状态和行资格，不能仅检查旧页面属性名。
         Assert.AreEqual("{Binding IsSuggestionEditable}", (string?)lookup.Attribute("IsEnabled"));
     }
-    /// <summary>来源筛选与主查询条件组合，保持正常分页大小。</summary>
+    /// <summary>来源查询独立于顶部条件，完整加载当前生命周期物料族，保持普通分页大小。</summary>
     [TestMethod]
     public async Task SelectingSource_ShouldUseSourceFactFilterAndKeepNormalPageSize()
     {
@@ -130,7 +131,7 @@ public sealed class NetDemandManagerSourceNavigationTests
         var sourceRequest = api.SearchRequests.Last();
         Assert.AreEqual(sourceUid, sourceRequest.SourceUid);
         CollectionAssert.AreEqual(new[] { "SO" }, sourceRequest.SourceTypes);
-        Assert.AreEqual("SKU-SEARCH", sourceRequest.Keyword);
+        Assert.AreEqual(string.Empty, sourceRequest.Keyword);
         Assert.IsTrue(viewModel.IsSourceSelected);
         Assert.AreEqual(20, viewModel.PageSize);
         Assert.AreEqual(1, viewModel.TotalPages);
@@ -288,12 +289,16 @@ public sealed class NetDemandManagerSourceNavigationTests
         Assert.AreEqual("OnSourceGroupSelectionChanged", (string?)sourceList.Attribute("SelectionChanged"));
 
         var sourcePanel = sourceList.Ancestors(presentation + "Border").First();
-        Assert.AreEqual(1, sourcePanel.Descendants().Count(element => element.Name.LocalName == "DropDownCheckBox"));
+        Assert.AreEqual(1, sourcePanel.Descendants().Count(element => element.Name.LocalName == "MultiSelectLookupButton"));
         StringAssert.Contains((string?)sourcePanel.Attribute("Visibility") ?? string.Empty, "IsSourcePanelOpen");
 
         var popup = workspace.Descendants(presentation + "Popup").Single();
         StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsMultiLineFilterOpen");
-        StringAssert.Contains((string?)popup.Attribute("Width") ?? string.Empty, "PlacementTarget.ActualWidth");
+        Assert.AreEqual(presentation + "StackPanel", popup.Parent!.Name);
+        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "AncestorType={x:Type StackPanel}");
+        Assert.AreEqual("{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}", (string?)popup.Attribute("Width"));
+        Assert.IsFalse(popup.Descendants(presentation + "StackPanel").Any(element => (string?)element.Attribute("Width") == "740"));
+        Assert.AreEqual("False", (string?)popup.Attribute("StaysOpen"));
         var textBoxes = popup.Descendants().Where(element => element.Name.LocalName == "TextBox"
             && (string?)element.Attribute("AcceptsReturn") == "True").ToArray();
         Assert.AreEqual(3, textBoxes.Length);
@@ -335,11 +340,13 @@ public sealed class NetDemandManagerSourceNavigationTests
         Assert.AreEqual("True", (string?)pagerTrigger.Attribute("Value"));
     }
 
-    private static NetDemandManagerViewModel CreateViewModel(RecordingNetDemandApi api, bool allowSuggestion = true)
+    private static NetDemandManagerViewModel CreateViewModel(RecordingNetDemandApi api, bool allowSuggestion = true,
+        IDialogService? dialog = null, ICurrentUserService? currentUser = null, INavigationService? navigation = null,
+        INetDemandDialogService? netDialog = null)
     {
         var runner = new DirectApiCallRunner();
         var messages = new MessageServiceStub();
-        var dialogs = new DialogServiceStub();
+        var dialogs = dialog ?? new DialogServiceStub();
         var user = DispatchProxy.Create<ICurrentUserService, PermissionProxy>();
         ((PermissionProxy)(object)user).Allow = allowSuggestion;
         return new NetDemandManagerViewModel(
@@ -348,8 +355,8 @@ public sealed class NetDemandManagerSourceNavigationTests
             runner,
             dialogs,
             messages,
-            DispatchProxy.Create<INetDemandDialogService, NoCallProxy>(),
-            user);
+            netDialog ?? DispatchProxy.Create<INetDemandDialogService, NoCallProxy>(),
+            currentUser ?? user, navigation);
     }
 
     /// <summary>创建父子联动测试使用的物料工作台行。</summary>
@@ -393,10 +400,6 @@ public sealed class NetDemandManagerSourceNavigationTests
     /// <summary>记录管理页调用；来源候选建立由独立选择器测试覆盖，误调用时直接失败。</summary>
     private sealed class RecordingNetDemandApi(Guid sourceUid) : INetDemandManagerApi
     {
-        /// <summary>管理页只导航到追溯页，本夹具拒绝在管理页直接读取追溯。</summary>
-        public Task<ServiceResult<SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace.MaterialDemandTraceDetailDto>> GetTraceAsync(
-            Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-
         /// <summary>本夹具不承担候选来源分组。</summary>
         public Task<ServiceResult<List<SourceDemandCandidateGroupDto>>> GetSourceDemandCandidateGroupsAsync(
             CancellationToken cancellationToken = default)
@@ -417,6 +420,9 @@ public sealed class NetDemandManagerSourceNavigationTests
         public List<RollbackMaterialDemandsCommand> RollbackCommands { get; } = [];
         public List<UpdateSuggestedPurchaseSupplierCommand> SuggestedSupplierCommands { get; } = [];
         public Queue<string?> SuggestionOutcomes { get; } = new();
+        public Queue<string?> RollbackOutcomes { get; } = new();
+        public Func<MaterialDemandManagerSearchRequest, CancellationToken, Task<ServiceResult<PagedResponseBase<MaterialDemandManagerItemDto>>>>? SearchHandler { get; set; }
+        public Func<MaterialDemandSourceGroupSearchRequest, CancellationToken, Task<ServiceResult<List<NetDemandSourceGroupDto>>>>? GroupHandler { get; set; }
         /// <summary>指定测试需要的当前页物料行；为空时使用默认夹具。</summary>
         public List<MaterialDemandManagerItemDto>? SearchItems { get; init; }
 
@@ -425,6 +431,7 @@ public sealed class NetDemandManagerSourceNavigationTests
             CancellationToken cancellationToken = default)
         {
             SearchRequests.Add(request);
+            if (SearchHandler is not null) return SearchHandler(request, cancellationToken);
             var sourceMode = request.SourceUid.HasValue;
             var items = SearchItems?.ToArray() ?? (sourceMode
                 ? [CreateItem(sourceUid, 1), CreateItem(sourceUid, 2)]
@@ -443,6 +450,7 @@ public sealed class NetDemandManagerSourceNavigationTests
             CancellationToken cancellationToken = default)
         {
             SourceGroupRequests.Add(request);
+            if (GroupHandler is not null) return GroupHandler(request, cancellationToken);
             return Task.FromResult(ServiceResult<List<NetDemandSourceGroupDto>>.Ok(
             [
                 new NetDemandSourceGroupDto
@@ -477,6 +485,8 @@ public sealed class NetDemandManagerSourceNavigationTests
             CancellationToken cancellationToken = default)
         {
             RollbackCommands.Add(command);
+            if (RollbackOutcomes.Count > 0 && RollbackOutcomes.Dequeue() is { } code)
+                return Task.FromResult(ServiceResult<RollbackMaterialDemandsResult>.Fail(code, "SO-1001 / SKU-1：有效执行阻断，不能回退。"));
             return Task.FromResult(ServiceResult<RollbackMaterialDemandsResult>.Ok(new RollbackMaterialDemandsResult
             {
                 RolledBackSourceCount = command.Items.Count,
@@ -513,12 +523,18 @@ public sealed class NetDemandManagerSourceNavigationTests
         protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
         {
             "HasPermission" => Allow,
+            "get_CurrentUser" or "add_CurrentUserChanged" or "remove_CurrentUserChanged" => null,
             _ => throw new NotSupportedException(method?.Name)
         };
     }
 
     private sealed class DialogServiceStub : IDialogService
     {
+        public Task<DialogResult> ShowAsync(object content, DialogOptions options, IDialogContentState? state = null, CancellationToken cancellationToken = default)
+        {
+            ((MaterialDemandRollbackReasonViewModel)content).Reason = "重新核对物料组成";
+            return Task.FromResult(DialogResult.Primary);
+        }
         public Task ShowContentAsync(string title, object content, string closeButtonText = "关闭", CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool> ConfirmAsync(string title, string message, string primaryButtonText = "确定", string closeButtonText = "取消", CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task ShowErrorAsync(string title, string message, CancellationToken cancellationToken = default) => Task.CompletedTask;

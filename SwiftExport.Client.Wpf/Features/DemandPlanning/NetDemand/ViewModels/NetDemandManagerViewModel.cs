@@ -19,6 +19,7 @@ using SwiftExportClient.Services.UI;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels;
 
 namespace SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 
@@ -54,6 +55,17 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private bool _suggestionInFlight;
     private readonly ICurrentUserService _currentUser;
     private readonly INavigationService? _navigation;
+    private MaterialDemandQuerySnapshot? _appliedQuery;
+    private MaterialDemandQuerySnapshot? _appliedMainQuery;
+    private NetDemandSourceGroupModel? _appliedSourceGroup;
+    private string[] _appliedSourceTypes = [];
+    private RollbackMaterialDemandsCommand? _pendingRollback;
+    private string? _pendingRollbackUserId;
+    private string? _pendingSuggestionUserId;
+    private bool _rollbackUnknown;
+    private bool _actionInFlight;
+    private int _sessionVersion;
+    private MaterialDemandManagerRowModel[]? _visibleRows;
 
     public NetDemandManagerViewModel(
         INetDemandManagerApi api,
@@ -86,8 +98,11 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         RegisterBusyAwareCommand(ClearSourceFiltersCommand);
         RegisterBusyAwareCommand(SaveSuggestedSuppliersCommand);
         RegisterBusyAwareCommand(CancelSuggestedSupplierChangesCommand);
+        RegisterBusyAwareCommand(ReturnToAllCommand);
 
         SourceSourceTypes.CollectionChanged += OnSourceGroupFilterChanged;
+        _currentUser.CurrentUserChanged += OnCurrentUserChanged;
+        PropertyChanged += OnPagePropertyChanged;
     }
 
     public ObservableCollection<MaterialDemandManagerRowModel> Items { get; } = [];
@@ -124,7 +139,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     public IReadOnlyList<NetDemandFilterOption<string>> QuickViewOptions { get; } =
     [
         new("All", "全部"), new("Unassigned", "未承接"), new("Partial", "部分承接"),
-        new("Assigned", "已承接"), new("Overdue", "逾期未承接"),
+        new("Assigned", "已承接"), new("Overdue", "未承接逾期"),
         new("DueSoon", "临期未承接"), new("Review", "需核实"),
     ];
 
@@ -134,13 +149,25 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// </summary>
     public ObservableCollection<NetDemandFilterOption<string>> SourceSourceTypes { get; } = [];
     public string DocumentTitle => "物料需求";
-    public bool HasUnsavedChanges => _suggestionUnknown || Items.Any(item => item.IsSuggestionDirty);
+    public bool HasUnsavedChanges => _suggestionUnknown || _rollbackUnknown || Items.Any(item => item.IsSuggestionDirty);
+    /// <summary>回退结果未知时冻结页面，仅允许原账号沿原请求重试。</summary>
+    public bool HasPendingRollback => _rollbackUnknown;
+    /// <summary>普通筛选只在分页模式可编辑，来源全量模式独立于顶部条件。</summary>
+    public bool CanEditMainFilters => !IsSourceSelected && CanRun();
+    /// <summary>实际采购字段需要采购读取权限，承接数量摘要仍可查看。</summary>
+    public bool CanViewPurchaseDetails => _currentUser.HasPermission(PermissionKeys.ProcurementOrderRead);
+    /// <summary>说明实际采购条件的权限边界。</summary>
+    public string PurchasePermissionHint => CanViewPurchaseDetails ? string.Empty : "无采购读取权限，不能查看或筛选实际采购供应商及采购单号。";
+    /// <summary>说明当前事实范围和顶部输入的应用时机。</summary>
+    public string QueryModeText => IsSourceSelected
+        ? $"来源 {_appliedSourceGroup?.SourceNo} · 当前生命周期完整物料族；顶部条件不参与筛选。"
+        : "普通分页 · 修改条件后点击查询；翻页和刷新沿用已应用条件。";
     /// <summary>原行结果未知时仅允许沿原请求重试，不允许编辑或丢弃当前页。</summary>
     public bool HasPendingSuggestion => _suggestionUnknown;
     /// <summary>建议编辑权限独立于模块访问；未决和发送中冻结实际表格编辑。</summary>
     public bool CanEditSuggestion => CanWrite && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage)
-        && !_suggestionUnknown && !_suggestionInFlight
-        && SelectedLifecycle?.Value is null;
+        && IsNotBusy && !_suggestionUnknown && !_suggestionInFlight && !_rollbackUnknown && !_actionInFlight
+        && _appliedQuery?.Lifecycle is null;
     /// <summary>仅推荐建议列需要的表格只读状态。</summary>
     public bool IsSuggestionReadOnly => !CanEditSuggestion;
     public int TotalPages => IsSourceSelected || TotalCount <= 0 ? 1 : (int)Math.Ceiling((double)TotalCount / PageSize);
@@ -165,7 +192,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     public partial bool IsSourceGroupLoading { get; private set; }
 
     /// <summary>
-    /// 显示来源单和匹配净需求数量的加载摘要。
+    /// 显示来源单和匹配物料需求数量的加载摘要。
     /// </summary>
     [ObservableProperty]
     public partial string SourceGroupSummary { get; private set; } = "打开来源导航后加载。";
@@ -240,12 +267,15 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanOpenTrace))]
     private Task OpenTraceAsync()
     {
+        if (!CanOpenTrace()) return Task.CompletedTask;
         var uid = SelectedItem!.Uid;
-        return _navigation!.OpenDocumentAsync(MaterialDemandTraceViewModel.RouteKey,
-            $"material-demand-trace:{uid:N}", new MaterialDemandTraceOpenRequest { NetDemandId = uid });
+        return CanOpenTrace() ? _navigation!.OpenDocumentAsync(MaterialTrackingDetailViewModel.RouteKey,
+            uid.ToString("N"), uid) : Task.CompletedTask;
     }
 
-    private bool CanOpenTrace() => SelectedItem is not null && _navigation is not null;
+    private bool CanOpenTrace() => !_disposed && SelectedItem is not null && _navigation is not null
+        && _currentUser.HasPermission(PermissionKeys.OrderTrackingView)
+        && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialView);
 
     partial void OnSelectedItemChanged(MaterialDemandManagerRowModel? value) => OpenTraceCommand.NotifyCanExecuteChanged();
 
@@ -267,7 +297,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     public partial int PageSize { get; set; } = 20;
 
     [ObservableProperty]
-    public partial string ResultSummary { get; set; } = "尚未加载净需求。";
+    public partial string ResultSummary { get; set; } = "尚未加载物料需求。";
 
     /// <summary>推荐供应商远程搜索是否正在执行。</summary>
     [ObservableProperty]
@@ -282,11 +312,12 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
         _initialized = true;
         InitializeDefaults();
-        await LoadPageAsync();
+        await LoadPageAsync(CaptureDraftQuery(), 1, PageSize);
     }
 
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
+        if (_initialized || _disposed) return;
         _initialized = true;
         InitializeDefaults();
         _openRequest = parameter as NetDemandManagerOpenRequest;
@@ -295,13 +326,13 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             SourceNosText = _openRequest.SourceNo;
         }
 
-        await LoadPageAsync(cancellationToken);
+        await LoadPageAsync(CaptureDraftQuery(), 1, PageSize, cancellationToken);
     }
 
     /// <summary>写命令执行中拒绝关闭；存在建议编辑时由用户明确决定是否放弃。</summary>
     public async Task<bool> CanCloseAsync(CancellationToken cancellationToken)
     {
-        if (IsBusy || _suggestionUnknown)
+        if (IsBusy || _suggestionUnknown || _rollbackUnknown || _actionInFlight)
         {
             return false;
         }
@@ -315,6 +346,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task SearchAsync(string? query)
     {
+        if (!CanRun()) return;
         if (!await EnsureCanDiscardSuggestionChangesAsync("查询将重新加载当前页面。"))
         {
             return;
@@ -324,16 +356,14 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             Keyword = query;
         }
 
-        _openRequest = null;
-        ExitSourceMode();
-        PageIndex = 1;
-        if (IsSourcePanelOpen) await RefreshSourceNavigationAsync(reloadCurrentData: false);
-        await LoadPageAsync();
+        var snapshot = CaptureDraftQuery(includeOpenRequest: false);
+        if (await LoadPageAsync(snapshot, 1, PageSize)) _openRequest = null;
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RefreshAsync()
     {
+        if (!CanRun()) return;
         if (!await EnsureCanDiscardSuggestionChangesAsync("刷新将放弃未保存的推荐供应商修改。"))
         {
             return;
@@ -344,12 +374,11 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ClearFiltersAsync()
     {
+        if (!CanRun()) return;
         if (!await EnsureCanDiscardSuggestionChangesAsync("清空筛选将重新加载页面。"))
         {
             return;
         }
-        _openRequest = null;
-        ExitSourceMode();
         Keyword = string.Empty;
         SourceNosText = string.Empty;
         SkusText = string.Empty;
@@ -363,54 +392,110 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         DemandRequiredDateTo = null;
         SelectedDemandRole = DemandRoleOptions[0];
         SelectedSourceTypes.Clear();
-        PageIndex = 1;
-        if (IsSourcePanelOpen) await RefreshSourceNavigationAsync(reloadCurrentData: false);
-        await LoadPageAsync();
+        if (await LoadPageAsync(CaptureDraftQuery(includeOpenRequest: false), 1, PageSize)) _openRequest = null;
     }
 
+    /// <summary>显式应用更多条件，关闭浮层后走同一查询和未保存保护。</summary>
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ApplyMoreFiltersAsync()
+    {
+        if (!CanRun()) return;
+        IsMultiLineFilterOpen = false;
+        await SearchAsync(null);
+    }
+
+    /// <summary>只清除更多条件输入，保留已应用事实，直到用户点击应用。</summary>
+    [RelayCommand]
+    private void ClearMoreFilters()
+    {
+        if (!CanEditMainFilters) return;
+        SourceNosText = SkusText = CustomerSkusText = SuggestedSupplierKeyword = ActualSupplierKeyword = PurchaseOrderNoFilter = string.Empty;
+        DemandRequiredDateFrom = DemandRequiredDateTo = null;
+    }
+
+    /// <summary>收起浮层时保留待应用输入。</summary>
+    [RelayCommand]
+    private void CollapseMoreFilters() => IsMultiLineFilterOpen = false;
+
     /// <summary>打开成品需求候选；建立由对话框完成，关闭后刷新物料工作台。</summary>
-    [RelayCommand(CanExecute = nameof(CanWriteCommand))]
+    [RelayCommand(CanExecute = nameof(CanEstablish))]
     private async Task EstablishFromSourcesAsync()
     {
-        var hasEstablished = await _netDemandDialogService.ShowSourceDemandCandidatesAsync();
-        if (hasEstablished)
+        if (!CanEstablish() || !await EnsureCanDiscardSuggestionChangesAsync("建立完成后将刷新物料需求。")) return;
+        _actionInFlight = true;
+        NotifyOperationState();
+        try
         {
-            await RefreshManagerAsync();
+            var session = _sessionVersion;
+            var hasEstablished = await _netDemandDialogService.ShowSourceDemandCandidatesAsync();
+            if (hasEstablished && !_disposed && session == _sessionVersion)
+                await RefreshManagerAsync();
         }
+        finally { _actionInFlight = false; NotifyOperationState(); }
     }
 
     /// <summary>按当前勾选行归并来源与修订后执行安全回退，活动执行关系由服务端阻断。</summary>
     [RelayCommand(CanExecute = nameof(CanRollbackSourceEstablishment))]
     private async Task RollbackSourceEstablishmentAsync()
     {
-        var items = Items.Where(item => item.IsChecked)
-            .GroupBy(item => item.GrossDemandId)
-            .Select(group => new RollbackMaterialDemandItem
-            {
-                GrossDemandId = group.Key,
-                DecompositionRevision = group.Select(item => item.DecompositionRevision).Distinct().Single()
-            }).ToList();
-        if (!await _dialogService.ConfirmAsync(
-                "回退来源物料需求", $"将回退 {items.Count} 条成品需求的当前物料修订，是否继续？", "安全回退")) return;
-        await RunBusyAsync(async () =>
+        if (!CanRollbackSourceEstablishment()) return;
+        var session = _sessionVersion;
+        var owner = _currentUser.CurrentUser?.UserId;
+        _actionInFlight = true;
+        NotifyOperationState();
+        try
         {
-            var result = await _apiCallRunner.RunAsync(
-                () => _api.RollbackSourceEstablishmentAsync(new RollbackMaterialDemandsCommand
+            var request = _pendingRollback;
+            if (!_rollbackUnknown)
+            {
+                if (!await EnsureCanDiscardSuggestionChangesAsync("回退成功后将刷新物料需求。")) return;
+                var checkedRows = Items.Where(item => item.IsChecked).ToArray();
+                var items = checkedRows.GroupBy(item => item.GrossDemandId)
+                    .Select(group => new RollbackMaterialDemandItem
+                    {
+                        GrossDemandId = group.Key,
+                        DecompositionRevision = group.Select(item => item.DecompositionRevision).Distinct().Single()
+                    }).ToList();
+                var input = new MaterialDemandRollbackReasonViewModel(
+                    $"已勾选 {checkedRows.Length} 个物料行，涉及 {items.Count} 条成品需求的整个物料修订。\n"
+                    + string.Join("；", checkedRows.Select(x => $"{x.SourceNo} / 来源行 {x.SourceLineNumber} / 修订 {x.DecompositionRevision}").Distinct()));
+                var choice = await _dialogService.ShowAsync(input,
+                    new DialogOptions("回退整个物料修订") { PrimaryButtonText = "确认整修订回退", CloseButtonText = "取消", Width = 640 }, input);
+                if (choice != DialogResult.Primary || !input.IsPrimaryButtonEnabled) return;
+                request = new RollbackMaterialDemandsCommand
                 {
                     CommandId = Guid.NewGuid(),
-                    Reason = "用户从物料需求工作台安全回退",
+                    Reason = input.Reason.Trim(),
                     Items = items
-                }),
-                "回退来源物料需求失败");
-            if (!result.Success || result.Data is null)
-            {
-                _messageService.ShowError("回退失败", result.Message);
-                return;
+                };
             }
-            _messageService.ShowSuccess("回退完成",
-                $"已回退 {result.Data.RolledBackSourceCount} 条，已处于回退状态 {result.Data.AlreadyRolledBackCount} 条。");
-            await RefreshManagerAsync();
-        }, "正在回退物料需求...");
+            if (_disposed || session != _sessionVersion || request is null || !CanWrite
+                || !_currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialRollback)) return;
+            await RunBusyAsync(async () =>
+            {
+                _pendingRollback = request;
+                _pendingRollbackUserId = owner;
+                var result = await _apiCallRunner.RunAsync(() => _api.RollbackSourceEstablishmentAsync(request), "回退物料需求失败");
+                if (_disposed || session != _sessionVersion) { _rollbackUnknown = true; return; }
+                if (!result.Success || result.Data is null)
+                {
+                    var code = result.Error?.Code;
+                    _rollbackUnknown = (result.Success && result.Data is null)
+                        || code is ServiceErrorCodes.OutcomeUnknown or ServiceErrorCodes.CommandBusy or ServiceErrorCodes.ServiceUnavailable
+                        || (_rollbackUnknown && code is ServiceErrorCodes.RateLimited or ServiceErrorCodes.Unauthenticated or ServiceErrorCodes.Forbidden);
+                    if (!_rollbackUnknown) _pendingRollback = null;
+                    ResultSummary = result.Message;
+                    // 具体来源、物料及可见采购目标由后端提示定位，不解析消息猜测跳转身份。
+                    await _dialogService.ShowErrorAsync("回退失败", result.Message);
+                    return;
+                }
+                _pendingRollback = null;
+                _rollbackUnknown = false;
+                _messageService.ShowSuccess("回退完成", $"已回退 {result.Data.RolledBackSourceCount} 条，已处于回退状态 {result.Data.AlreadyRolledBackCount} 条。");
+                await RefreshManagerAsync();
+            }, "正在回退物料需求...");
+        }
+        finally { _actionInFlight = false; NotifyOperationState(); }
     }
 
     /// <summary>以 latest-request-wins 搜索有效供应商候选，旧请求不得覆盖新候选。</summary>
@@ -473,6 +558,9 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanSaveSuggestedSuppliers))]
     private async Task SaveSuggestedSuppliersAsync()
     {
+        if (!CanSaveSuggestedSuppliers()) return;
+        var session = _sessionVersion;
+        var owner = _currentUser.CurrentUser?.UserId;
         // 未决行即使因编辑器迟到通知暂时不再显示为脏，也必须排在本次重试的第一位。
         var dirtyRows = _suggestionUnknown && _pendingSuggestion is not null
             ? Items.Where(item => item.Uid == _pendingSuggestion.NetDemandId)
@@ -503,9 +591,12 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                         };
                     // 未知行只能与原行身份相同；成功行已从脏集合移除，后续行尚未发送。
                     if (_suggestionUnknown && row.Uid != request.NetDemandId) continue;
+                    _pendingSuggestion = request;
+                    _pendingSuggestionUserId = owner;
                     var result = await _apiCallRunner.RunAsync(
                         () => _api.UpdateSuggestedPurchaseSupplierAsync(request),
                         "保存推荐采购供应商失败");
+                    if (_disposed || session != _sessionVersion) { _suggestionUnknown = true; return; }
                     if (!result.Success || result.Data is null)
                     {
                         var code = result.Error?.Code;
@@ -560,7 +651,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanPageChange))]
     private async Task PageChangeAsync(PageChangeRequest? request)
     {
-        if (request is null)
+        if (request is null || !CanPageChange())
         {
             return;
         }
@@ -570,10 +661,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             return;
         }
 
-        _openRequest = null;
-        PageIndex = request.NewIndex;
-        PageSize = request.NewSize;
-        await LoadPageAsync();
+        await LoadPageAsync(_appliedQuery ?? CaptureDraftQuery(), request.NewIndex, request.NewSize);
     }
 
     #region 来源导航与独立筛选
@@ -583,7 +671,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanSelectSourceGroup))]
     private async Task SelectSourceGroupAsync(NetDemandSourceGroupModel? group)
     {
-        if (group is null)
+        if (group is null || !CanSelectSourceGroup(group))
         {
             RestoreAppliedSourceSelection();
             return;
@@ -600,16 +688,22 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             return;
         }
 
-        _appliedSourceUid = group.SourceUid;
-        SelectedSourceGroup = group;
-        NotifySourceModeChanged();
-        PageIndex = 1;
-        await LoadPageAsync();
+        if (!await LoadPageAsync(MaterialDemandQuerySnapshot.ForSource(group, _appliedMainQuery?.Lifecycle), 1, PageSize, sourceGroup: group))
+            RestoreAppliedSourceSelection();
+    }
+
+    /// <summary>恢复已应用的普通查询；读取成功后才退出来源全量模式。</summary>
+    [RelayCommand(CanExecute = nameof(CanRun))]
+    private async Task ReturnToAllAsync()
+    {
+        if (!CanRun() || !await EnsureCanDiscardSuggestionChangesAsync("返回全部将重新加载物料需求。")) return;
+        await LoadPageAsync(_appliedMainQuery ?? CaptureDraftQuery(), 1, PageSize);
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ToggleSourcePanelAsync()
     {
+        if (!CanRun()) return;
         if (!await EnsureCanDiscardSuggestionChangesAsync("切换来源导航将重新加载页面。"))
         {
             return;
@@ -618,8 +712,6 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         {
             CancelSourceGroupLoading();
             IsSourcePanelOpen = false;
-            ExitSourceMode();
-            await LoadPageAsync();
             return;
         }
 
@@ -630,7 +722,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand]
     private async Task RefreshSourceGroupsAsync()
     {
-        if (_suggestionUnknown || _suggestionInFlight) return;
+        if (!CanRun()) return;
         if (!IsSourcePanelOpen)
         {
             return;
@@ -638,6 +730,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
         if (!await EnsureCanDiscardSuggestionChangesAsync("刷新来源导航将重新加载当前来源。"))
         {
+            RestoreSourceFilters();
             return;
         }
 
@@ -647,7 +740,8 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task ClearSourceFiltersAsync()
     {
-        if (_suggestionUnknown || _suggestionInFlight) return;
+        if (!CanRun() || !await EnsureCanDiscardSuggestionChangesAsync("清空来源筛选将刷新当前来源。"))
+        { RestoreSourceFilters(); return; }
         _syncingSourceFilters = true;
         try
         {
@@ -663,24 +757,32 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
     #endregion
 
-    private async Task LoadPageAsync(CancellationToken externalCancellation = default)
+    /// <summary>只在当前请求成功后原子接纳条件、模式、页码和事实行；失败保持原界面上下文。</summary>
+    private async Task<bool> LoadPageAsync(MaterialDemandQuerySnapshot? query = null, int? page = null, int? size = null,
+        CancellationToken externalCancellation = default, NetDemandSourceGroupModel? sourceGroup = null)
     {
-        if (_suggestionUnknown || _suggestionInFlight) return;
+        if (_disposed || _suggestionUnknown || _suggestionInFlight || _rollbackUnknown) return false;
+        query ??= _appliedQuery ?? CaptureDraftQuery();
+        if (query.DateFrom > query.DateTo) { ResultSummary = "需求交期起点不能晚于终点。"; return false; }
+        if (!CanViewPurchaseDetails && (!string.IsNullOrWhiteSpace(query.ActualSupplierKeyword) || !string.IsNullOrWhiteSpace(query.PurchaseOrderNo)))
+        { ResultSummary = PurchasePermissionHint; return false; }
+        var request = query.ForPage(page ?? PageIndex, size ?? PageSize);
         _searchCancellation?.Cancel();
-        _searchCancellation?.Dispose();
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(externalCancellation);
         _searchCancellation = cancellation;
         var selectedUid = SelectedItem?.Uid;
+        var session = _sessionVersion;
+        var accepted = false;
 
         try
         {
-            await RunBusyAsync(async () =>
+            async Task LoadCoreAsync()
             {
                 var result = await _apiCallRunner.RunAsync(
-                    () => _api.SearchAsync(CreateSearchRequest(), cancellation.Token),
+                    () => _api.SearchAsync(request, cancellation.Token),
                     cancellation.Token,
-                    "查询净需求失败");
-                if (cancellation.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cancellation))
+                    "查询物料需求失败");
+                if (_disposed || session != _sessionVersion || cancellation.IsCancellationRequested || !ReferenceEquals(_searchCancellation, cancellation))
                 {
                     return;
                 }
@@ -692,6 +794,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                 }
 
                 DetachRows();
+                _visibleRows = null;
                 Items.Clear();
                 foreach (var dto in result.Data.Items)
                 {
@@ -700,8 +803,13 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                     Items.Add(row);
                 }
 
+                _appliedQuery = query;
+                if (!query.SourceUid.HasValue) _appliedMainQuery = query;
+                _appliedSourceUid = query.SourceUid;
+                _appliedSourceGroup = query.SourceUid.HasValue ? sourceGroup ?? _appliedSourceGroup : null;
+                SelectedSourceGroup = _appliedSourceGroup;
                 TotalCount = result.Data.TotalCount;
-                PageIndex = IsSourceSelected ? 1 : result.Data.PageIndex <= 0 ? PageIndex : result.Data.PageIndex;
+                PageIndex = IsSourceSelected ? 1 : result.Data.PageIndex <= 0 ? request.PageIndex : result.Data.PageIndex;
                 if (!IsSourceSelected && result.Data.PageSize > 0)
                 {
                     PageSize = result.Data.PageSize;
@@ -710,10 +818,14 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                     ? Items.FirstOrDefault()
                     : Items.FirstOrDefault(item => item.Uid == selectedUid) ?? Items.FirstOrDefault();
                 ClearChecks();
+                NotifySourceModeChanged();
                 ResultSummary = IsSourceSelected
                     ? $"当前来源共 {TotalCount} 条物料需求，已全部加载。"
                     : $"共 {TotalCount} 条物料需求，本页 {Items.Count} 条。";
-            }, "正在查询净需求...", skipIfBusy: false);
+                accepted = true;
+            }
+            if (IsBusy && (_actionInFlight || _suggestionInFlight)) await LoadCoreAsync();
+            else await RunBusyAsync(LoadCoreAsync, "正在查询物料需求...", skipIfBusy: false);
         }
         finally
         {
@@ -724,70 +836,28 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
 
             cancellation.Dispose();
         }
+        return accepted;
     }
 
     /// <summary>
     /// 根据当前模式构建主分页查询或来源导航全量查询。
     /// </summary>
-    private MaterialDemandManagerSearchRequest CreateSearchRequest()
-        => IsSourceSelected ? CreateSelectedSourceSearchRequest() : CreateMainSearchRequest();
-
-    private MaterialDemandManagerSearchRequest CreateMainSearchRequest()
+    private MaterialDemandQuerySnapshot CaptureDraftQuery(bool includeOpenRequest = true)
     {
-        var request = new MaterialDemandManagerSearchRequest
-        {
-            Keyword = Keyword.Trim(),
-            PageIndex = PageIndex,
-            PageSize = PageSize,
-            SourceTypes = SelectedSourceTypes.Select(item => item.Value).ToList(),
-            SourceNos = SplitLines(SourceNosText),
-            Skus = SplitLines(SkusText),
-            CustomerSkus = SplitLines(CustomerSkusText),
-            SuggestedPurchaseSupplierKeyword = SuggestedSupplierKeyword.Trim(),
-            ActualPurchaseSupplierKeyword = ActualSupplierKeyword.Trim(),
-            PurchaseOrderNo = PurchaseOrderNoFilter.Trim(),
-            LifecycleStatus = SelectedLifecycle?.Value,
-            QuickView = SelectedQuickView?.Value ?? "All",
-            DemandRequiredDateFrom = DemandRequiredDateFrom,
-            DemandRequiredDateTo = DemandRequiredDateTo,
-            IsCustomerSupplied = SelectedDemandRole?.Value,
-        };
-
-        if (_openRequest?.NetDemandId is Guid netDemandId)
-        {
-            request.NetDemandIds.Add(netDemandId);
-        }
-
-        if (_openRequest?.GrossDemandId is Guid grossDemandId)
-        {
-            request.GrossDemandIds.Add(grossDemandId);
-        }
-
-        if (_openRequest?.SourceUid is Guid sourceUid)
-        {
-            request.SourceUids.Add(sourceUid);
-        }
-
-        return request;
-    }
-
-    private MaterialDemandManagerSearchRequest CreateSelectedSourceSearchRequest()
-    {
-        var request = CreateMainSearchRequest();
-        request.SourceUid = _appliedSourceUid;
-        request.PageIndex = 1;
-        if (SelectedSourceGroup is not null)
-        {
-            request.SourceTypes.Add(SelectedSourceGroup.SourceType);
-        }
-
-        return request;
+        var open = includeOpenRequest ? _openRequest : null;
+        return new(Keyword.Trim(), SelectedSourceTypes.Select(x => x.Value).ToArray(), SplitLines(SourceNosText).ToArray(),
+            SplitLines(SkusText).ToArray(), SplitLines(CustomerSkusText).ToArray(), SuggestedSupplierKeyword.Trim(),
+            CanViewPurchaseDetails ? ActualSupplierKeyword.Trim() : string.Empty,
+            CanViewPurchaseDetails ? PurchaseOrderNoFilter.Trim() : string.Empty,
+            SelectedLifecycle?.Value, SelectedQuickView?.Value ?? "All", DemandRequiredDateFrom, DemandRequiredDateTo,
+            SelectedDemandRole?.Value, open?.NetDemandId is Guid id ? [id] : [],
+            open?.GrossDemandId is Guid gross ? [gross] : [], open?.SourceUid is Guid source ? [source] : []);
     }
 
     private MaterialDemandSourceGroupSearchRequest CreateSourceGroupSearchRequest() => new()
     {
         SourceTypes = SourceSourceTypes.Select(item => item.Value).ToList(),
-        LifecycleStatus = SelectedLifecycle?.Value,
+        LifecycleStatus = _appliedMainQuery?.Lifecycle,
     };
 
     /// <summary>
@@ -795,17 +865,20 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// </summary>
     private async Task<bool> RefreshSourceNavigationAsync(bool reloadCurrentData)
     {
+        if (_disposed || _suggestionUnknown || _rollbackUnknown || _suggestionInFlight) return false;
         CancelSourceGroupLoading();
         var cancellation = new CancellationTokenSource();
         _sourceGroupCancellation = cancellation;
         IsSourceGroupLoading = true;
+        var request = CreateSourceGroupSearchRequest();
+        var session = _sessionVersion;
         try
         {
             var result = await _apiCallRunner.RunAsync(
-                () => _api.SearchSourceGroupsAsync(CreateSourceGroupSearchRequest(), cancellation.Token),
+                () => _api.SearchSourceGroupsAsync(request, cancellation.Token),
                 cancellation.Token,
-                "查询净需求来源分组失败");
-            if (cancellation.IsCancellationRequested || !ReferenceEquals(_sourceGroupCancellation, cancellation))
+                "查询物料需求来源分组失败");
+            if (_disposed || session != _sessionVersion || cancellation.IsCancellationRequested || !ReferenceEquals(_sourceGroupCancellation, cancellation))
             {
                 return false;
             }
@@ -813,6 +886,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             if (!result.Success || result.Data is null)
             {
                 SourceGroupSummary = result.Message;
+                RestoreSourceFilters();
                 return false;
             }
 
@@ -823,23 +897,13 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
                 SourceGroups.Add(group);
             }
 
-            SourceGroupSummary = $"共 {SourceGroups.Count} 张来源单，{result.Data.Sum(item => item.DemandCount)} 条净需求。";
-            if (_appliedSourceUid.HasValue)
-            {
-                var selected = SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value);
-                if (selected is null)
-                {
-                    ExitSourceMode();
-                }
-                else
-                {
-                    SelectedSourceGroup = selected;
-                }
-            }
+            _appliedSourceTypes = request.SourceTypes.ToArray();
+            SourceGroupSummary = $"共 {SourceGroups.Count} 张来源单，{result.Data.Sum(item => item.DemandCount)} 条物料需求。";
+            RestoreAppliedSourceSelection();
 
             if (reloadCurrentData)
             {
-                await LoadPageAsync();
+                await LoadCurrentFactsAsync();
             }
 
             return true;
@@ -859,8 +923,20 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     private void RestoreAppliedSourceSelection()
     {
         SelectedSourceGroup = _appliedSourceUid.HasValue
-            ? SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value)
+            ? SourceGroups.FirstOrDefault(item => item.SourceUid == _appliedSourceUid.Value) ?? _appliedSourceGroup
             : null;
+    }
+
+    /// <summary>用户拒绝丢弃编辑或刷新失败时恢复已经接纳的来源筛选。</summary>
+    private void RestoreSourceFilters()
+    {
+        _syncingSourceFilters = true;
+        try
+        {
+            SourceSourceTypes.Clear();
+            foreach (var option in SourceTypeOptions.Where(x => _appliedSourceTypes.Contains(x.Value))) SourceSourceTypes.Add(option);
+        }
+        finally { _syncingSourceFilters = false; }
     }
 
     /// <summary>
@@ -868,7 +944,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// </summary>
     private async void OnSourceGroupFilterChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (_syncingSourceFilters || !IsSourcePanelOpen)
+        if (_disposed || _syncingSourceFilters || !IsSourcePanelOpen)
         {
             return;
         }
@@ -880,13 +956,19 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         try
         {
             await Task.Delay(250, cancellation.Token);
-            if (!cancellation.IsCancellationRequested)
+            if (!_disposed && !cancellation.IsCancellationRequested)
             {
                 await RefreshSourceGroupsCommand.ExecuteAsync(null);
             }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+        }
+        catch (Exception)
+        {
+            // 事件桥接必须观察异步异常；不把技术细节直接暴露到界面。
+            if (!_disposed && ReferenceEquals(_sourceGroupFilterDebounceCancellation, cancellation))
+                SourceGroupSummary = "来源导航刷新失败，请重试。";
         }
         finally
         {
@@ -906,13 +988,19 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             return;
         }
 
-        await LoadPageAsync();
+        await LoadCurrentFactsAsync();
     }
+
+    /// <summary>当前来源不再存在时尝试恢复普通查询，只有成功才改变来源模式。</summary>
+    private Task<bool> LoadCurrentFactsAsync() => IsSourceSelected && IsSourcePanelOpen
+        && !SourceGroups.Any(x => x.SourceUid == _appliedSourceUid)
+            ? LoadPageAsync(_appliedMainQuery ?? CaptureDraftQuery(), 1, PageSize)
+            : LoadPageAsync();
 
     /// <summary>在会丢弃当前页数据的动作前统一取得用户确认。</summary>
     private async Task<bool> EnsureCanDiscardSuggestionChangesAsync(string action)
     {
-        if (_suggestionUnknown || _suggestionInFlight) return false;
+        if (_disposed || _suggestionUnknown || _suggestionInFlight || _rollbackUnknown) return false;
         if (!HasUnsavedChanges)
         {
             return true;
@@ -924,19 +1012,15 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
             "继续");
     }
 
-    private void ExitSourceMode()
-    {
-        _appliedSourceUid = null;
-        SelectedSourceGroup = null;
-        PageIndex = 1;
-        NotifySourceModeChanged();
-    }
-
     private void NotifySourceModeChanged()
     {
         OnPropertyChanged(nameof(IsSourceSelected));
         OnPropertyChanged(nameof(TotalPages));
         OnPropertyChanged(nameof(PageStatus));
+        OnPropertyChanged(nameof(QueryModeText));
+        OnPropertyChanged(nameof(CanEditMainFilters));
+        OnPropertyChanged(nameof(CanEditSuggestion));
+        OnPropertyChanged(nameof(IsSuggestionReadOnly));
         PageChangeCommand.NotifyCanExecuteChanged();
     }
 
@@ -946,7 +1030,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         _sourceGroupFilterDebounceCancellation?.Dispose();
         _sourceGroupFilterDebounceCancellation = null;
         _sourceGroupCancellation?.Cancel();
-        _sourceGroupCancellation?.Dispose();
+        // 请求本身拥有 CTS 的释放；这里只取消，避免异步延续访问已释放 Token。
         _sourceGroupCancellation = null;
         IsSourceGroupLoading = false;
     }
@@ -973,7 +1057,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         _syncingChecks = true;
         try
         {
-            foreach (var item in Items)
+            foreach (var item in VisibleRows)
             {
                 item.IsChecked = value.Value;
             }
@@ -1002,8 +1086,8 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         {
             if (sender is MaterialDemandManagerRowModel changedRow)
             {
-                // 当前页只要加载了同一拆解树的父子行，就必须保持一致选择；同步期间忽略嵌套通知以避免递归。
-                foreach (var relatedRow in Items.Where(item => IsSameLoadedDemandFamily(item, changedRow)))
+                // 只联动当前可见的同族行，不让列筛选隐藏行意外进入回退批次；整修订影响另由确认弹窗说明。
+                foreach (var relatedRow in VisibleRows.Where(item => IsSameLoadedDemandFamily(item, changedRow)))
                 {
                     relatedRow.IsChecked = changedRow.IsChecked;
                 }
@@ -1049,10 +1133,11 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
     /// <summary>根据当前页实际选中数刷新表头三态，不触发批量选择回写。</summary>
     private void UpdateAllCheckedState()
     {
-        var checkedCount = CheckedCount;
-        IsAllChecked = Items.Count == 0 || checkedCount == 0
+        var visible = VisibleRows.ToArray();
+        var checkedCount = visible.Count(x => x.IsChecked);
+        IsAllChecked = visible.Length == 0 || checkedCount == 0
             ? false
-            : checkedCount == Items.Count ? true : null;
+            : checkedCount == visible.Length ? true : null;
     }
 
     private void UpdateSelectionCommands()
@@ -1061,18 +1146,24 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         RollbackSourceEstablishmentCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanRun() => IsNotBusy && !_suggestionUnknown;
-    private bool CanWriteCommand() => CanWrite && IsNotBusy;
+    private bool CanRun() => !_disposed && (IsNotBusy || _searchCancellation is not null)
+        && !_suggestionUnknown && !_rollbackUnknown && !_actionInFlight;
+    private bool CanEstablish() => CanWrite && IsNotBusy && CanRun() && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialEstablish);
     private bool CanSaveSuggestedSuppliers() => CanWrite && IsNotBusy
+        && !_disposed && !_rollbackUnknown && !_actionInFlight
+        && (!_suggestionUnknown || _pendingSuggestionUserId == _currentUser.CurrentUser?.UserId)
         && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialSupplierSuggestionManage)
         && HasUnsavedChanges;
-    private bool CanCancelSuggestedSupplierChanges() => IsNotBusy && !_suggestionUnknown && HasUnsavedChanges;
+    private bool CanCancelSuggestedSupplierChanges() => CanRun() && HasUnsavedChanges;
     private bool CanRollbackSourceEstablishment() => CanWrite && IsNotBusy
-        && Items.Any(item => item.IsChecked)
+        && !_disposed && !_actionInFlight && !_suggestionUnknown && !_suggestionInFlight
+        && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialRollback)
+        && (_rollbackUnknown ? _pendingRollback is not null && _pendingRollbackUserId == _currentUser.CurrentUser?.UserId
+        : Items.Any(item => item.IsChecked)
         && Items.Where(item => item.IsChecked).All(item => item.LifecycleStatus == NetDemandLifecycleStatusEnum.Active)
         && Items.Where(item => item.IsChecked)
             .GroupBy(item => item.GrossDemandId)
-            .All(group => group.Select(item => item.DecompositionRevision).Distinct().Count() == 1);
+            .All(group => group.Select(item => item.DecompositionRevision).Distinct().Count() == 1));
     private bool CanPageChange() => CanRun() && !IsSourceSelected;
     private bool CanSelectSourceGroup(NetDemandSourceGroupModel? group) => CanRun() && !IsSourceGroupLoading && group is not null;
 
@@ -1094,6 +1185,52 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         CancelSuggestedSupplierChangesCommand.NotifyCanExecuteChanged();
         RefreshCommand.NotifyCanExecuteChanged();
         PageChangeCommand.NotifyCanExecuteChanged();
+        NotifyOperationState();
+    }
+
+    /// <summary>同步独立命令、查询及编辑入口的运行门禁。</summary>
+    private void NotifyOperationState()
+    {
+        OnPropertyChanged(nameof(HasPendingRollback));
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(CanEditMainFilters));
+        OnPropertyChanged(nameof(CanEditSuggestion));
+        OnPropertyChanged(nameof(IsSuggestionReadOnly));
+        SearchCommand.NotifyCanExecuteChanged(); RefreshCommand.NotifyCanExecuteChanged(); ClearFiltersCommand.NotifyCanExecuteChanged();
+        EstablishFromSourcesCommand.NotifyCanExecuteChanged(); RollbackSourceEstablishmentCommand.NotifyCanExecuteChanged();
+        SelectSourceGroupCommand.NotifyCanExecuteChanged(); ToggleSourcePanelCommand.NotifyCanExecuteChanged(); ClearSourceFiltersCommand.NotifyCanExecuteChanged();
+        PageChangeCommand.NotifyCanExecuteChanged(); ReturnToAllCommand.NotifyCanExecuteChanged();
+        SaveSuggestedSuppliersCommand.NotifyCanExecuteChanged(); CancelSuggestedSupplierChangesCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Busy 变化同时刷新字段编辑门禁，不让在途读取期间的新编辑被响应覆盖。</summary>
+    private void OnPagePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(IsBusy)) NotifyOperationState();
+    }
+
+    private IEnumerable<MaterialDemandManagerRowModel> VisibleRows => _visibleRows ?? Items.AsEnumerable();
+
+    /// <summary>由视图提交表头筛选后的可见模型集合；全选只操作可见行，不保存虚拟化容器。</summary>
+    public void UpdateVisibleRows(IEnumerable<MaterialDemandManagerRowModel> rows)
+    {
+        _visibleRows = rows.Where(Items.Contains).ToArray();
+        _syncingChecks = true;
+        try { UpdateAllCheckedState(); }
+        finally { _syncingChecks = false; }
+    }
+
+    /// <summary>会话变化使全部在途读取失效，并清除权限敏感事实；未知写入原请求仍保留且只允许原账号重试。</summary>
+    private void OnCurrentUserChanged(object? sender, EventArgs e)
+    {
+        _sessionVersion++;
+        _searchCancellation?.Cancel();
+        CancelSourceGroupLoading();
+        _supplierSearchCancellation?.Cancel();
+        DetachRows(); Items.Clear(); SourceGroups.Clear(); SuggestedSupplierCandidates.Clear();
+        _visibleRows = null; SelectedItem = null; TotalCount = 0;
+        OnPropertyChanged(nameof(CanViewPurchaseDetails)); OnPropertyChanged(nameof(PurchasePermissionHint));
+        NotifyOperationState(); OpenTraceCommand.NotifyCanExecuteChanged();
     }
 
     private void DetachRows()
@@ -1125,5 +1262,7 @@ public sealed partial class NetDemandManagerViewModel : ViewModelBaseEx,
         CancelSourceGroupLoading();
         DetachRows();
         SourceSourceTypes.CollectionChanged -= OnSourceGroupFilterChanged;
+        _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
+        PropertyChanged -= OnPagePropertyChanged;
     }
 }

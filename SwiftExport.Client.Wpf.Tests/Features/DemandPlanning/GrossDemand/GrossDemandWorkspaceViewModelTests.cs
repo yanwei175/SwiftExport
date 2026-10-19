@@ -623,7 +623,10 @@ public sealed partial class GrossDemandWorkspaceViewModelTests
         var popup = workspace.Descendants(presentation + "Popup").Single();
         StringAssert.Contains((string?)toggle.Attribute("IsChecked") ?? string.Empty, "IsMultiLineFilterOpen");
         StringAssert.Contains((string?)popup.Attribute("IsOpen") ?? string.Empty, "IsMultiLineFilterOpen");
-        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "OptionsToggle");
+        Assert.AreEqual(presentation + "StackPanel", popup.Parent!.Name);
+        StringAssert.Contains((string?)popup.Attribute("PlacementTarget") ?? string.Empty, "AncestorType={x:Type StackPanel}");
+        Assert.AreEqual("{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource Self}}", (string?)popup.Attribute("Width"));
+        Assert.IsFalse(popup.Descendants(presentation + "StackPanel").Any(element => (string?)element.Attribute("Width") == "740"));
         Assert.IsTrue(popup.Descendants(presentation + "Button").Any(element => (string?)element.Attribute("Content") == "应用并查询"));
         Assert.IsTrue(popup.Descendants(presentation + "Button").Any(element => (string?)element.Attribute("Content") == "清空更多条件"));
         Assert.IsTrue(popup.Descendants(presentation + "Button").Any(element => (string?)element.Attribute("Content") == "收起"));

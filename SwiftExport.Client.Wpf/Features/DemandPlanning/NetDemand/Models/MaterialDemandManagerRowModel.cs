@@ -98,7 +98,7 @@ public sealed partial class MaterialDemandManagerRowModel : ObservableObject
     public string SuggestedDeliverySupplierHint { get; init; } = string.Empty;
     /// <summary>原始需求数量。</summary>
     public decimal GrossQty { get; init; }
-    /// <summary>当前净需求数量。</summary>
+    /// <summary>当前物料需求数量。</summary>
     public decimal NetQty { get; init; }
     /// <summary>成品需求交期。</summary>
     public DateTime? DemandRequiredDate { get; init; }
