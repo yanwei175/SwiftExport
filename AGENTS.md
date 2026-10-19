@@ -59,6 +59,7 @@
 3. 类文件名统一使用英文，包括 `partial` 拆分文件的职责后缀，禁止创建中文类文件名；源码注释使用中文，具体要求见“中文注释铁律”。说明文档和参考资料文件名仍优先使用中文；Codex/工具强制识别的文件名保持原名，例如 `AGENTS.md`、`SKILL.md`、`*.toml`。
 4. 当前桌面前端主线是 `.NET 10 WPF + CommunityToolkit MVVM`；Web 目标使用独立的 React Web 治理入口。任务即使引用 .NET 10 客户端作参考，也按实际修改目标选择角色，不把 WPF 实现规范套到 Web。
 5. 当前 .NET 10 WPF 的 MVVM 代码必须遵循 `.codex/skills/wpf-dotnet10-design/communitytoolkit-mvvm/SKILL.md`。
+6. 业务称呼统一使用“成品需求”，不再使用“来源需求”；相关界面文案、源码注释和开发文档保持一致。
 
 ### 中文注释铁律
 

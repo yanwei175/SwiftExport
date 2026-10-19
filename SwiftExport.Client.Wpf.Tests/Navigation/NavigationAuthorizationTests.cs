@@ -28,7 +28,7 @@ public sealed class NavigationAuthorizationTests
             "Customers.Customer.View", "Customers.PoConfig.View", "Customers.Products.View",
             "Suppliers.Supplier.View", "Suppliers.Products.View",
             "Sales.Order.View", "Sales.Order.View", "Sales.Order.View",
-            PermissionKeys.OrderTrackingView, PermissionKeys.OrderTrackingView,
+            PermissionKeys.OrderTrackingView, PermissionKeys.OrderTrackingView, PermissionKeys.OrderTrackingView,
             "DemandPlanning.Source.View", "DemandPlanning.Source.View", "DemandPlanning.Material.View", "DemandPlanning.Material.View",
             "Procurement.Order.Read", "Procurement.Order.Edit", "Procurement.Order.Read", "Procurement.Progress.View", "Procurement.Order.Read",
             "QualityControl.AfterSales.View", PermissionKeys.QualityControlFlowView, PermissionKeys.QualityControlFlowView,
@@ -45,8 +45,10 @@ public sealed class NavigationAuthorizationTests
             Assert.AreEqual(expected[index], route.RequiredPermission, route.Key);
             if (route.Key == "procurement-demand-association")
                 CollectionAssert.AreEqual(new[] { PermissionKeys.ProcurementOrderRead }, route.AnyRequiredPermissions!.ToArray());
+            else if (route.Key == "material-tracking-detail")
+                CollectionAssert.AreEqual(new[] { PermissionKeys.DemandPlanningMaterialView }, route.AnyRequiredPermissions!.ToArray());
             else Assert.IsNull(route.AnyRequiredPermissions);
-            Assert.AreEqual(route.Key is "system-settings" or "dictionary-data-manager" or "order-tracking-overview" or "demand-tracking-detail", route.DiscardOnAccessRevoked);
+            Assert.AreEqual(route.Key is "system-settings" or "dictionary-data-manager" or "order-tracking-overview" or "demand-tracking-detail" or "material-tracking-detail", route.DiscardOnAccessRevoked);
             if (route.RequiredPermission is not null)
                 Assert.IsNotNull(PermissionCatalog.Find(route.RequiredPermission), route.Key);
         }

@@ -9,6 +9,8 @@ using SwiftExport.Contracts.DTOs.OrderTracking.Receipts;
 using SwiftExport.Contracts.DTOs.OrderTracking.Deliveries;
 using SwiftExportClient.Authentication;
 using SwiftExportClient.Features.OrderTracking.Overview.ViewModels;
+using SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels;
+using SwiftExportClient.Features.OrderTracking.DemandDetail.Models;
 using SwiftExportClient.Mvvm;
 using SwiftExportClient.Navigation;
 using SwiftExportClient.Services.Api;
@@ -41,12 +43,14 @@ public sealed partial class DemandTrackingDetailViewModel : ViewModelBaseEx, IDo
         Purchases = new(runner, currentUser, [PermissionKeys.ProcurementOrderRead], api.GetPurchasesAsync,
             x => x.Count == 0, x => Reviews(x.Select(row => row.HasPurchaseTarget ? row.ReviewReason : "采购目标缺失，待核实。")));
         Receipts = new(runner, currentUser, [PermissionKeys.InventoryInboundView, PermissionKeys.ProcurementOrderRead], api.GetReceiptsAsync,
-            x => x.Items.Count == 0, x => Reviews(x.Items.Select(row => row.CountsTowardReceipt is null && string.IsNullOrWhiteSpace(row.ReviewReason)
-                ? "收货计入证据待核实。" : row.ReviewReason).Append(x.ReviewReason)), x => x.GrossDemandId);
+            x => x.Items.Count == 0 && x.PurchaseLines.Count == 0, x => Reviews(x.Items.Select(row => row.CountsTowardReceipt is null && string.IsNullOrWhiteSpace(row.ReviewReason)
+                ? "收货计入证据待核实。" : row.ReviewReason).Concat(x.PurchaseLines.Select(row => row.ReviewReason)).Append(x.ReviewReason)
+                .Append(x.PurchaseLines.Any(row => row.ReceivedQty is null || row.RemainingQty is null) ? "采购整行收货进度待核实。" : null)), x => x.GrossDemandId);
         Deliveries = new(runner, currentUser, [PermissionKeys.ShippingPackingListView], api.GetDeliveriesAsync,
             x => x.Items.Count == 0, x => Reviews(x.Items.Select(row => row.ReviewReason).Append(x.ReviewReason)
                 .Append(x.DeliveredQty is null || x.RemainingQty is null ? "交付数量证据待核实。" : null)), x => x.GrossDemandId);
         _currentUser.CurrentUserChanged += OnCurrentUserChanged;
+        Materials.PropertyChanged += OnMaterialsChanged;
     }
 
     [ObservableProperty]
@@ -54,6 +58,9 @@ public sealed partial class DemandTrackingDetailViewModel : ViewModelBaseEx, IDo
     public partial DemandTrackingHeaderDto? Detail { get; private set; }
     [ObservableProperty] public partial bool IsLoading { get; private set; }
     [ObservableProperty] public partial int SelectedSectionIndex { get; set; }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenMaterialCommand))]
+    public partial DemandTrackingMaterialDto? SelectedMaterial { get; set; }
     /// <summary>物料修订与快照区域。</summary>
     public DemandTrackingSectionViewModel<List<DemandTrackingMaterialDto>> Materials { get; }
     /// <summary>采购关联及整行事实区域。</summary>
@@ -74,11 +81,23 @@ public sealed partial class DemandTrackingDetailViewModel : ViewModelBaseEx, IDo
     /// <summary>仅接受稳定成品需求 ID，拒绝来源单据身份或空身份。</summary>
     public async Task InitializeDocumentAsync(object? parameter, CancellationToken cancellationToken)
     {
-        if (parameter is not Guid id || id == Guid.Empty) throw new ArgumentException("缺少有效的成品需求身份。", nameof(parameter));
+        var id = parameter is DemandTrackingOpenRequest request ? request.GrossDemandId : parameter is Guid guid ? guid : Guid.Empty;
+        var section = parameter is DemandTrackingOpenRequest open ? open.Section : DemandTrackingSection.Basic;
+        if (id == Guid.Empty || !Enum.IsDefined(section)) throw new ArgumentException("缺少有效的成品需求身份或区域。", nameof(parameter));
+        SelectedSectionIndex = (int)section;
         _grossDemandId = id;
         Detail = null;
         Materials.Reset(id); Purchases.Reset(id); Receipts.Reset(id); Deliveries.Reset(id);
         await Task.WhenAll(LoadAsync(cancellationToken), EnsureSelectedSectionAsync(cancellationToken));
+    }
+
+    /// <summary>重复打开既有文档时显式定位区域，不依赖导航重新初始化，也不重复加载成功区域。</summary>
+    public Task ActivateSectionAsync(DemandTrackingSection section, CancellationToken cancellationToken = default)
+    {
+        if (!CanView) return Task.CompletedTask;
+        if (!Enum.IsDefined(section)) throw new ArgumentOutOfRangeException(nameof(section));
+        SelectedSectionIndex = (int)section;
+        return EnsureSelectedSectionAsync(cancellationToken);
     }
 
     /// <summary>只加载被激活区域，保留其余区域的独立成功或失败状态。</summary>
@@ -98,6 +117,17 @@ public sealed partial class DemandTrackingDetailViewModel : ViewModelBaseEx, IDo
     /// <summary>去重显示证据核实原因，不合并不同粒度的数量。</summary>
     private static string? Reviews(IEnumerable<string?> reasons)
     { var values = reasons.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToArray(); return values.Length == 0 ? null : string.Join("；", values); }
+
+    private bool CanOpenMaterial() => CanView && _currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialView)
+        && SelectedMaterial is { NetDemandId: var id } && id != Guid.Empty && Materials.Data?.Contains(SelectedMaterial) == true;
+    /// <summary>活动及历史物料均按稳定 NetDemandId 打开独立详情，不按型号合并。</summary>
+    [RelayCommand(CanExecute = nameof(CanOpenMaterial))]
+    private Task OpenMaterialAsync() => CanOpenMaterial()
+        ? _navigation.OpenDocumentAsync(MaterialTrackingDetailViewModel.RouteKey, SelectedMaterial!.NetDemandId.ToString("N"), SelectedMaterial.NetDemandId)
+        : Task.CompletedTask;
+    /// <summary>刷新或失效物料集合时清除旧选中项，避免用旧行继续导航。</summary>
+    private void OnMaterialsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    { if (e.PropertyName == nameof(Materials.Data)) { SelectedMaterial = null; OpenMaterialCommand.NotifyCanExecuteChanged(); } }
 
     /// <summary>独立刷新当前需求基础事实，允许较新的请求取消旧请求。</summary>
     [RelayCommand(CanExecute = nameof(CanView), AllowConcurrentExecutions = true)]
@@ -149,6 +179,7 @@ public sealed partial class DemandTrackingDetailViewModel : ViewModelBaseEx, IDo
         _loadCancellation?.Cancel();
         _loadCancellation = null;
         Materials.Reset(Guid.Empty); Purchases.Reset(Guid.Empty); Receipts.Reset(Guid.Empty); Deliveries.Reset(Guid.Empty);
+        SelectedMaterial = null; OpenMaterialCommand.NotifyCanExecuteChanged();
         Detail = null; IsLoading = false; ValidationSummary = "会话已变更，请重新打开成品需求。";
         OnPropertyChanged(nameof(CanView));
         RefreshCommand.NotifyCanExecuteChanged(); ReturnToOverviewCommand.NotifyCanExecuteChanged();
@@ -161,6 +192,7 @@ public sealed partial class DemandTrackingDetailViewModel : ViewModelBaseEx, IDo
         _disposed = true;
         ++_loadVersion;
         _currentUser.CurrentUserChanged -= OnCurrentUserChanged;
+        Materials.PropertyChanged -= OnMaterialsChanged;
         _loadCancellation?.Cancel();
         Materials.Dispose(); Purchases.Dispose(); Receipts.Dispose(); Deliveries.Dispose();
     }

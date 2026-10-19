@@ -7,6 +7,7 @@ using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.Home;
 using SwiftExportClient.Features.OrderTracking.Overview.ViewModels;
 using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
+using SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
@@ -89,6 +90,7 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
 
         new(OrderTrackingOverviewViewModel.RouteKey, "跟踪总览", "Workspace", typeof(OrderTrackingOverviewViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, DiscardOnAccessRevoked: true),
         new(DemandTrackingDetailViewModel.RouteKey, "成品需求跟踪明细", "Detail", typeof(DemandTrackingDetailViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, DiscardOnAccessRevoked: true),
+        new(MaterialTrackingDetailViewModel.RouteKey, "物料跟踪详情", "Detail", typeof(MaterialTrackingDetailViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, AnyRequiredPermissions: [PermissionKeys.DemandPlanningMaterialView], DiscardOnAccessRevoked: true),
 
 
 

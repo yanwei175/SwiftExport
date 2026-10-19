@@ -37,6 +37,7 @@ public sealed class TrackingEvidenceTextConverter : IValueConverter
             "Deleted" => value is true ? "已删除历史" : "未删除",
             "ActiveLink" => value is true ? "活动关联" : "历史关联",
             "Shared" => value is true ? "共享采购行" : "非共享采购行",
+            "Overdue" => value is true ? "逾期" : value is false ? "未逾期" : "待核实",
             _ => value?.ToString() ?? "待核实"
         };
     }

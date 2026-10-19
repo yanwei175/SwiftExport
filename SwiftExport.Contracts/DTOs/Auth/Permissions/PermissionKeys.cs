@@ -6,6 +6,8 @@ namespace SwiftExport.Contracts.DTOs.Auth
     /// </summary>
     public static class PermissionKeys
     {
+        /// <summary>订单跟踪基础事实查看权限，不授予销售或需求写操作。</summary>
+        public const string OrderTrackingView = "OrderTracking.View";
         /// <summary>销售订单列表、详情和候选读取权限。</summary>
         public const string SalesOrderView = "Sales.Order.View";
         /// <summary>销售草稿保存权限，独立于删除能力。</summary>

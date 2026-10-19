@@ -34,6 +34,7 @@ public sealed class MapsterConfig : IRegister
     /// <summary>集中登记各业务 DTO 与私有页面模型映射，保留每个用例的身份和空值语义。</summary>
     public void Register(TypeAdapterConfig config)
     {
+        new SwiftExportClient.Features.OrderTracking.Overview.Mappings.OrderTrackingOverviewMappings().Register(config);
         config.NewConfig<SystemParameterDto, SystemParameterLineModel>().Ignore(dest => dest.Status);
         new SwiftExportClient.Features.Shipping.PackingLists.Mappings.PackingListMappings().Register(config);
         new SwiftExportClient.Features.Inventory.Inbounds.Mappings.InboundManagerMappings().Register(config);

@@ -15,6 +15,12 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
 {
     private static readonly Dictionary<string, string> SingleKeys = new(StringComparer.Ordinal)
     {
+        ["OrderTrackingOverviewController.GetSourceDemandsAsync"] = PermissionKeys.OrderTrackingView,
+        ["OrderTrackingSummaryController.GetSourceSummariesAsync"] = PermissionKeys.OrderTrackingView,
+        ["OrderTrackingSummaryController.GetSourceDemandSummariesAsync"] = PermissionKeys.OrderTrackingView,
+        ["OrderTrackingSourceController.SearchSourcesAsync"] = PermissionKeys.OrderTrackingView,
+        ["OrderTrackingOverviewController.GetCustomerCodesAsync"] = PermissionKeys.OrderTrackingView,
+        ["DemandTrackingHeaderController.GetDemandHeaderAsync"] = PermissionKeys.OrderTrackingView,
         ["AuthController.Register"] = PermissionKeys.SystemUsersManage,
         ["AuthController.ResetUserPassword"] = PermissionKeys.SystemUsersManage,
         ["AuthController.GetUsers"] = PermissionKeys.SystemUsersView,
@@ -293,6 +299,18 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         "FileController.Download", "ClientVersionController.Get"
     };
 
+    // 跟踪区域必须同时具有跟踪及来源模块的读取权限，不让单个模块键隐式扩大跨域可见性。
+    private static readonly Dictionary<string, string[]> AllKeys = new(StringComparer.Ordinal)
+    {
+        ["MaterialTrackingDetailController.GetMaterialDetailAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView],
+        ["DemandTrackingPurchaseController.GetMaterialPurchasesAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView, PermissionKeys.ProcurementOrderRead],
+        ["DemandTrackingReceiptController.GetMaterialReceiptsAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView, PermissionKeys.InventoryInboundView, PermissionKeys.ProcurementOrderRead],
+        ["DemandTrackingMaterialController.GetMaterialsAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.DemandPlanningMaterialView],
+        ["DemandTrackingPurchaseController.GetPurchasesAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.ProcurementOrderRead],
+        ["DemandTrackingReceiptController.GetReceiptsAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.InventoryInboundView, PermissionKeys.ProcurementOrderRead],
+        ["DemandTrackingDeliveryController.GetDeliveriesAsync"] = [PermissionKeys.OrderTrackingView, PermissionKeys.ShippingPackingListView]
+    };
+
     // 已登录用户可读取配置及无业务数据的模板；模板服务仍按文件策略实时检查活动账号。
     private static readonly HashSet<string> AuthenticatedReadActions = new(StringComparer.Ordinal)
     {
@@ -334,8 +352,31 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
             return;
         }
 
+        if (AllKeys.TryGetValue(action, out var requiredKeys))
+        {
+            foreach (var requiredKey in requiredKeys)
+                if (!await permissions.HasPermissionAsync(userId, requiredKey, context.HttpContext.RequestAborted))
+                {
+                    Deny(context, ServiceErrorCodes.Forbidden, "当前账号缺少此跟踪区域所需权限。");
+                    return;
+                }
+            await next();
+            return;
+        }
+
         if (SingleKeys.TryGetValue(action, out var key))
         {
+            // 多选关注项的额外权限必须全部满足；拒绝不能退化为忽略筛选。
+            if(action=="OrderTrackingSourceController.SearchSourcesAsync")
+            {
+                var request=context.ActionArguments.Values.OfType<SwiftExport.Contracts.DTOs.OrderTracking.Sources.OrderTrackingSourceSearchRequest>().FirstOrDefault();
+                foreach(var required in SwiftExport.Application.Services.OrderTracking.Summary.OrderTrackingAttentionPolicy.RequiredPermissions(request?.AttentionCodes))
+                    if(!await permissions.HasPermissionAsync(userId,required,context.HttpContext.RequestAborted))
+                    {
+                        Deny(context,ServiceErrorCodes.Forbidden,"当前账号缺少所选关注事项的查看权限。");
+                        return;
+                    }
+            }
             if (await permissions.HasPermissionAsync(userId, key, context.HttpContext.RequestAborted))
                 await next();
             else

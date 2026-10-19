@@ -9,7 +9,7 @@ using SwiftExportClient.Services.Api;
 
 namespace SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
 
-/// <summary>仅供跟踪明细四个只读区域复用读取生命周期；各实例独立保存数据、权限、错误及取消状态。</summary>
+/// <summary>供成品需求和物料跟踪的只读区域复用读取生命周期；各实例独立保存事实、权限及取消状态。</summary>
 public sealed partial class DemandTrackingSectionViewModel<T> : ObservableObjectEx, IDisposable where T : class
 {
     private readonly IApiCallRunner _runner;
@@ -19,6 +19,7 @@ public sealed partial class DemandTrackingSectionViewModel<T> : ObservableObject
     private readonly Func<T, bool> _isEmpty;
     private readonly Func<T, string?> _review;
     private readonly Func<T, Guid?>? _identity;
+    private readonly string _identityName;
     private CancellationTokenSource? _cancellation;
     private Guid _demandId;
     private long _version;
@@ -28,8 +29,8 @@ public sealed partial class DemandTrackingSectionViewModel<T> : ObservableObject
     /// <summary>指定实际区域读取、必要权限和结果语义，不向业务层暴露通用加载框架。</summary>
     public DemandTrackingSectionViewModel(IApiCallRunner runner, ICurrentUserService user, string[] permissions,
         Func<Guid, CancellationToken, Task<ServiceResult<T>>> load, Func<T, bool> isEmpty,
-        Func<T, string?> review, Func<T, Guid?>? identity = null)
-    { _runner = runner; _user = user; _permissions = permissions; _load = load; _isEmpty = isEmpty; _review = review; _identity = identity; }
+        Func<T, string?> review, Func<T, Guid?>? identity = null, string identityName = "成品需求")
+    { _runner = runner; _user = user; _permissions = permissions; _load = load; _isEmpty = isEmpty; _review = review; _identity = identity; _identityName = identityName; }
 
     [ObservableProperty] public partial T? Data { get; private set; }
     [ObservableProperty] public partial bool IsLoading { get; private set; }
@@ -76,7 +77,7 @@ public sealed partial class DemandTrackingSectionViewModel<T> : ObservableObject
                 ErrorMessage = result.Message; return;
             }
             if (_identity is not null && _identity(result.Data) != id)
-            { StatusText = "加载失败，可重试"; ErrorMessage = "区域返回的成品需求身份不一致。"; return; }
+            { StatusText = "加载失败，可重试"; ErrorMessage = $"区域返回的{_identityName}身份不一致。"; return; }
             Data = result.Data; IsLoaded = true; ReviewReason = _review(result.Data);
             StatusText = !string.IsNullOrWhiteSpace(ReviewReason) ? "待核实" : _isEmpty(result.Data) ? "暂无记录" : "已加载";
         }
