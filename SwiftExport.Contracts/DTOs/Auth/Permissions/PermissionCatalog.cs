@@ -126,6 +126,7 @@ namespace SwiftExport.Contracts.DTOs.Auth
             new PermissionDefinition(PermissionKeys.SystemRolesView, "角色查看", "System", false),
             new PermissionDefinition(PermissionKeys.SystemUsersManage, "用户管理", "System", false),
             new PermissionDefinition(PermissionKeys.SystemUsersView, "用户查看", "System", false),
+            new PermissionDefinition(PermissionKeys.OrderTrackingView, "订单跟踪查看", "OrderTracking", true),
         };
 
         private static readonly IReadOnlyList<PermissionDefinition> ReadOnlyDefinitions = Array.AsReadOnly(Definitions);

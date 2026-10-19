@@ -1,4 +1,4 @@
--- 自动生成：PermissionCatalog.All（117 项），实体字段来自 EntityMetadataCache。
+-- 自动生成：PermissionCatalog.All（118 项），实体字段来自 EntityMetadataCache。
 -- 生成入口：_tools/DbSeed/同步权限目录.ps1；不要手改目录项，代码目录改变后重新生成。
 -- 本文件不含连接信息。请在已确认的目标库一次执行完整脚本；生成不等于执行。
 -- 只同步定义，不创建账号、不修改用户/角色授权、不删除目录外定义、不迁移结构。
@@ -133,7 +133,8 @@ VALUES
     ('System.Roles.Manage', '角色管理', 'System', 114),
     ('System.Roles.View', '角色查看', 'System', 115),
     ('System.Users.Manage', '用户管理', 'System', 116),
-    ('System.Users.View', '用户查看', 'System', 117);
+    ('System.Users.View', '用户查看', 'System', 117),
+    ('OrderTracking.View', '订单跟踪查看', 'OrderTracking', 118);
 
 DO $permission_catalog_sync$
 DECLARE

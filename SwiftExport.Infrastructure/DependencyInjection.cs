@@ -154,6 +154,13 @@ public static class DependencyInjection
         services.AddScoped<ISalesOrderLineRepository, PostgreSqlSalesOrderLineRepository>();
         services.AddScoped<INetDemandExecutionLinkRepository, PostgreSqlNetDemandExecutionLinkRepository>();
         services.AddScoped<IGrossDemandQueryRepository, PostgreSqlGrossDemandQueryRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Overview.IOrderTrackingOverviewRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Overview.PostgreSqlOrderTrackingOverviewRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.DemandDetail.IDemandTrackingHeaderRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.DemandDetail.PostgreSqlDemandTrackingHeaderRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Sources.IOrderTrackingSourceRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Sources.PostgreSqlOrderTrackingSourceRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Materials.IDemandTrackingMaterialRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Materials.PostgreSqlDemandTrackingMaterialRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Purchases.IDemandTrackingPurchaseRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Purchases.PostgreSqlDemandTrackingPurchaseRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Receipts.IDemandTrackingReceiptRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts.PostgreSqlDemandTrackingReceiptRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Deliveries.IDemandTrackingDeliveryRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Deliveries.PostgreSqlDemandTrackingDeliveryRepository>();
         services.AddScoped<IGrossDemandDocumentRepository, PostgreSqlGrossDemandDocumentRepository>();
         services.AddScoped<IMaterialDemandQueryRepository, PostgreSqlMaterialDemandQueryRepository>();
         services.AddScoped<IMaterialDemandSourceRepository, PostgreSqlMaterialDemandSourceRepository>();
