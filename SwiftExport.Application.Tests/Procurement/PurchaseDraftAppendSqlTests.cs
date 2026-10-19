@@ -108,10 +108,11 @@ public sealed class PurchaseDraftAppendSqlTests
                 var gross = Guid.NewGuid();
                 var facts = new ProcurementReversalFacts
                 {
-                    Head = new() { Uid = db.OrderId, OriginKind = 1 }, Lines = [line], Links = model.Links,
-                    Sources = [new() { Uid = gross,DemandBasisFingerprint="basis" }],
+                    Head = new() { Uid = db.OrderId, OriginKind = 1,CustomerId=Guid.Parse("5e4b1a50-20ed-4ae3-a6d8-b8f9a8492faa") }, Lines = [line], Links = model.Links,
+                    Sources = [new() { Uid = gross,DemandBasisFingerprint="basis",CustomerId=Guid.Parse("5e4b1a50-20ed-4ae3-a6d8-b8f9a8492faa"),SourceType="MD",SourceUid=gross,IsNonStandard=!line.ProductId.HasValue }],
                     Demands = model.Links.Select(link => new SwiftExport.Core.Entities.DemandPlanning.NetDemand
-                        { Uid = link.NetDemandId, GrossDemandId = gross, DecompositionRevision = 1,SourceDemandBasisFingerprintSnapshot="basis" }).ToList()
+                        { Uid = link.NetDemandId, GrossDemandId = gross, DecompositionRevision = 1,SourceDemandBasisFingerprintSnapshot="basis",ProductId=line.ProductId,
+                            NetQty=line.Quantity,UnitSnapshot=line.UnitSnapshot,MaterialTypeSnapshot=line.MaterialType??string.Empty,SupplyTypeSnapshot="采购" }).ToList()
                 };
                 ProcurementConfirmationBuilder.RequireSourceReferences(facts);
                 line.UnlinkedQty = null;

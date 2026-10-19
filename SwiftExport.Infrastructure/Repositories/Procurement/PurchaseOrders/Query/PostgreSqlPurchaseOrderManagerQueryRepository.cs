@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using Dapper;
 using Npgsql;
 using NpgsqlTypes;
@@ -13,18 +14,20 @@ using SwiftExport.Infrastructure.Repositories.Inventory.Inbounds;
 
 namespace SwiftExport.Infrastructure.Repositories.Procurement.PurchaseOrders.Query;
 
-/// <summary>采购管理PG只读投影：核实全局历史后由一次SQL冻结商业事实；借用会话事务，不接运行DI。</summary>
+/// <summary>采购管理只读投影：数据库完成筛选、计数和分页，按采购行局部核实收货，不接管事务。</summary>
 public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBaseContext context) : IPurchaseOrderManagerQueryRepository
 {
-    /// <summary>SQL完成商业计算、筛选及源排序，完整缓冲后仅计数和分页，不重读真实头。</summary>
+    /// <summary>SQL完成商业计算、筛选、准确计数和稳定分页；只传输当前页，空页仍保留总量。</summary>
     public async Task<PagedResponseBase<PurchaseOrderManagerListItemDto>> SearchAsync(PurchaseOrderManagerSearchRequest request, CancellationToken cancellationToken = default)
     {
-        await EnsureFormalReceiptHistoryIsTraceableAsync(cancellationToken);
+        ArgumentNullException.ThrowIfNull(request);cancellationToken.ThrowIfCancellationRequested();
         var today = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(DateTimeOffset.UtcNow, "China Standard Time").Date;
         var p = new ManagerParameters();
         p.Add("Keyword", ToLikePattern(request.Keyword), NpgsqlDbType.Text);
         p.Add("CustomerCode", string.IsNullOrWhiteSpace(request.CustomerCode) ? null : request.CustomerCode.Trim(), NpgsqlDbType.Text);
         p.Add("SupplierId", request.SupplierId, NpgsqlDbType.Uuid);
+        p.Add("CustomerCodes",request.CustomerCodes.Distinct().Select(value=>value.Trim()).ToArray(),NpgsqlDbType.Array|NpgsqlDbType.Text);
+        p.Add("SupplierIds",request.SupplierIds.Distinct().ToArray(),NpgsqlDbType.Array|NpgsqlDbType.Uuid);
         p.Add("OnlyWithUnlinkedQuantity", request.OnlyWithUnlinkedQuantity, NpgsqlDbType.Boolean);
         p.Timestamp("OrderDateFrom", request.OrderDateFrom?.Date);
         p.Timestamp("OrderDateToExclusive", request.OrderDateTo.HasValue && request.OrderDateTo.Value.Date < DateTime.MaxValue.Date ? request.OrderDateTo.Value.Date.AddDays(1) : null);
@@ -40,35 +43,34 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
         p.Add("ActiveLifecycle", (int)PurchaseOrderLifecycleStatusEnum.Active, NpgsqlDbType.Integer);
         p.Add("PendingConfirmation", (int)ConfirmationStatusEnum.待确认, NpgsqlDbType.Integer);
         p.Add("Confirmed", (int)ConfirmationStatusEnum.已确认, NpgsqlDbType.Integer);
-        var rows = (await context.Session.Connection.QueryAsync<PurchaseOrderManagerListItemDto>(Command(SearchSql, p, cancellationToken))).ToList();
-        return new() { TotalCount = rows.Count, Items = rows.Skip((request.PageIndex - 1) * request.PageSize).Take(request.PageSize).ToList(), PageIndex = request.PageIndex, PageSize = request.PageSize };
+        p.Add("PageSize",request.PageSize,NpgsqlDbType.Integer);p.Add("Offset",(long)(request.PageIndex-1)*request.PageSize,NpgsqlDbType.Bigint);
+        var page=await context.Session.Connection.QuerySingleAsync<ManagerPageRow>(Command(SearchSql,p,cancellationToken));
+        return new() { TotalCount=page.TotalCount,Items=JsonSerializer.Deserialize<List<PurchaseOrderManagerListItemDto>>(page.ItemsJson)??[],PageIndex=request.PageIndex,PageSize=request.PageSize };
     }
 
     /// <summary>从表直接保留采购行数量、未知反馈和当前图片，不采用头的跨单位遮罩。</summary>
     public async Task<IReadOnlyList<PurchaseOrderManagerLineDto>> GetLinesAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
     {
-        await EnsureFormalReceiptHistoryIsTraceableAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         var p = new ManagerParameters(); p.Add("PurchaseOrderId", purchaseOrderId, NpgsqlDbType.Uuid);
         p.Add("PurchaseReceipt", (int)InboundDocumentTypeEnum.PurchaseReceipt, NpgsqlDbType.Integer);
         p.Add("CustomerSuppliedMaterialType", MaterialTypesEnum.客供件, NpgsqlDbType.Text);
         return (await context.Session.Connection.QueryAsync<PurchaseOrderManagerLineDto>(Command(LinesSql, p, cancellationToken))).ToList();
     }
 
-    /// <summary>先复用全局反向证明，再检查无法定位采购行的正式历史；存在但软删采购行仍可定位。</summary>
-    private async Task EnsureFormalReceiptHistoryIsTraceableAsync(CancellationToken token)
+    /// <summary>单SQL返回总量及当前页JSON，避免逐头取明细或在应用内全量分页。</summary>
+    private sealed class ManagerPageRow
     {
-        await PostgreSqlInboundReceiptHistoryGuard.ValidateGlobalAsync(context.Session, token);
-        var p = new ManagerParameters(); p.Add("PurchaseReceipt", (int)InboundDocumentTypeEnum.PurchaseReceipt, NpgsqlDbType.Integer);
-        var invalid = await context.Session.Connection.ExecuteScalarAsync<bool>(Command("""
-            SELECT EXISTS(SELECT 1 FROM public.inbound_document_line receipt_line
-                JOIN public.inbound_document receipt_head ON receipt_head.uid=receipt_line.inbound_document_id
-                LEFT JOIN public.purchase_order_line purchase_line ON purchase_line.uid=receipt_line.source_line_id
-                WHERE receipt_head.document_type=@PurchaseReceipt AND receipt_head.posting_status IN(1,8)
-                  AND receipt_head.is_deleted=FALSE AND receipt_line.is_deleted=FALSE
-                  AND (receipt_line.source_line_id IS NULL OR purchase_line.uid IS NULL))
-            """, p, token));
-        if (invalid) throw new InvalidOperationException("存在无法定位采购行的正式采购入库历史，请先完成数据核实与迁移。");
+        public int TotalCount { get; set; }
+        public string ItemsJson { get; set; } = "[]";
     }
+
+    private const string ManagerColumns="""
+        "PurchaseOrderId","Version","LifecycleStatus","OrderNo","BoNo","CustomerCode","SupplierName","ConfirmationStatus",
+        "OrderDate","ExpectedDate","ReplyDate","LineCount","ReadyQty","TotalQty","ReceiptProgress","UnitSnapshot","ReadyStatus",
+        "ReceiptStatus","ReviewReason","DueHitLineCount","EarliestDueHitDate","HasUnconfirmedReadyRisk","TaxTotalAmount",
+        "ReportedLineCount","ExpectedCompletionDate","CanConfirm","CanCancelConfirmation","CommandBlockedReason"
+        """;
 
     /// <summary>只借用调用方事务及令牌，不新增事务、连接或锁。</summary>
     private CommandDefinition Command(string sql, ManagerParameters p, CancellationToken token) => new(sql, p, context.Session.Transaction, cancellationToken: token);
@@ -99,17 +101,7 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
 
     // 收货先按采购行聚合，不展开需求Link；全部数量、NULL三值和状态优先级由SQL计算。
     private static readonly string SearchSql = $"""
-        WITH receipt_facts AS (
-            SELECT rl.source_line_id,
-                SUM(CASE WHEN rh.posting_status=1 THEN rl.quantity ELSE 0 END) AS received_qty,
-                MAX(CASE WHEN rh.posting_status=1 AND (NULLIF(btrim(rl.unit_snapshot,' '),'') IS NULL
-                    OR rtrim(rl.unit_snapshot,' ') COLLATE public.erp_dictionary_ci<>rtrim(pl.unit_snapshot,' ') COLLATE public.erp_dictionary_ci)
-                    THEN 1 ELSE 0 END) AS has_unit_mismatch
-            FROM public.inbound_document_line rl JOIN public.inbound_document rh ON rh.uid=rl.inbound_document_id
-            LEFT JOIN public.purchase_order_line pl ON pl.uid=rl.source_line_id
-            WHERE rh.document_type=@PurchaseReceipt AND rh.posting_status IN(1,8) AND rl.is_deleted=FALSE AND rh.is_deleted=FALSE
-            GROUP BY rl.source_line_id
-        ), line_facts AS (
+        WITH {PurchaseOrderManagerReceiptSql.Ctes("TRUE")}, {PurchaseOrderManagerAssociationSql.OrphanHeadsCte}, line_facts AS (
             SELECT l.purchase_order_id,l.uid,l.quantity,l.unit_snapshot,l.tax_amount,l.planned_delivery_date,
                 latest.ready_qty,latest.expected_ready_date,
                 CASE WHEN latest.purchase_order_line_id IS NULL THEN 0 ELSE 1 END AS has_progress,
@@ -142,8 +134,10 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
                 COALESCE(SUM(f.due_hit),0)::integer AS due_hit_line_count,MIN(CASE WHEN f.due_hit=1 THEN f.planned_delivery_date END) AS earliest_due_hit_date,
                 COALESCE(SUM(CASE WHEN f.due_hit=1 AND f.ready_qty IS NULL THEN 1 ELSE 0 END),0) AS unconfirmed_due_count,
                 COALESCE(SUM(f.tax_amount),0) AS tax_total_amount,COALESCE(SUM(f.has_progress),0)::integer AS reported_line_count,
-                MAX(f.expected_ready_date) AS expected_completion_date
+                MAX(f.expected_ready_date) AS expected_completion_date,
+                MAX(CASE WHEN orphan.head_id IS NOT NULL THEN 1 ELSE 0 END) AS orphan_association
             FROM public.purchase_order_head h LEFT JOIN line_facts f ON f.purchase_order_id=h.uid
+            LEFT JOIN manager_orphan_association_heads orphan ON orphan.head_id=h.uid
             WHERE h.is_deleted=FALSE
                 AND (NOT @OnlyWithUnlinkedQuantity OR (h.lifecycle_status=@ActiveLifecycle AND h.confirmation_status IN(@PendingConfirmation,@Confirmed)
                     AND EXISTS(SELECT 1 FROM public.purchase_order_line ul WHERE ul.purchase_order_id=h.uid AND ul.is_deleted=FALSE AND ul.unlinked_qty>0)))
@@ -156,6 +150,8 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
                         AND (kl.sku COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR kl.source_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')))
                 AND (@CustomerCode IS NULL OR rtrim(h.customer_code,' ') COLLATE public.erp_dictionary_ci=rtrim(@CustomerCode::text,' ') COLLATE public.erp_dictionary_ci)
                 AND (@SupplierId IS NULL OR h.supplier_id=@SupplierId)
+                AND (cardinality(@CustomerCodes)=0 OR rtrim(h.customer_code,' ') COLLATE public.erp_dictionary_ci=ANY(@CustomerCodes))
+                AND (cardinality(@SupplierIds)=0 OR h.supplier_id=ANY(@SupplierIds))
                 AND (@OrderDateFrom IS NULL OR h.order_date>=@OrderDateFrom) AND (@OrderDateToExclusive IS NULL OR h.order_date<@OrderDateToExclusive)
                 AND (NOT @LimitConfirmationStatuses OR h.confirmation_status=ANY(@ConfirmationStatuses))
                 AND (NOT @LimitLifecycleStatuses OR h.lifecycle_status=ANY(@LifecycleStatuses))
@@ -177,17 +173,18 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
                 CASE WHEN facts.line_count=0 THEN 0 WHEN facts.invalid_receipt_count>0 THEN 9 WHEN facts.zero_receipt_count=facts.line_count THEN 1
                     WHEN facts.full_receipt_count=facts.line_count THEN 3 ELSE 2 END AS receipt_status,
                 CASE WHEN facts.unconfirmed_due_count>0 THEN TRUE ELSE FALSE END AS has_unconfirmed_ready_risk,
-                CASE WHEN facts.invalid_base_count>0 OR facts.invalid_ready_count>0 OR facts.invalid_receipt_count>0 THEN '采购数量、单位、货好或收货事实不一致，需逐行核实。'
+                CASE WHEN facts.orphan_association>0 THEN '本单存在指向缺失或他单行的需求引用，需核实。'
+                    WHEN facts.invalid_base_count>0 OR facts.invalid_ready_count>0 OR facts.invalid_receipt_count>0 THEN '采购数量、单位、货好或收货事实不一致，需逐行核实。'
                     WHEN rtrim(facts.min_unit,' ') COLLATE public.erp_dictionary_ci<>rtrim(facts.max_unit,' ') COLLATE public.erp_dictionary_ci THEN '采购行单位不同，不提供跨行数量合计。'
                     WHEN facts.unknown_ready_count>0 THEN '部分采购行尚未反馈货好数量。' ELSE NULL END AS review_reason,
-                CASE WHEN facts.lifecycle_status=@ActiveLifecycle AND facts.confirmation_status=@PendingConfirmation THEN TRUE ELSE FALSE END AS can_confirm,
+                CASE WHEN facts.lifecycle_status=@ActiveLifecycle AND facts.confirmation_status=@PendingConfirmation AND facts.orphan_association=0 THEN TRUE ELSE FALSE END AS can_confirm,
                 CASE WHEN facts.lifecycle_status=@ActiveLifecycle AND facts.confirmation_status=@Confirmed THEN TRUE ELSE FALSE END AS can_cancel_confirmation,
-                CASE WHEN facts.lifecycle_status<>@ActiveLifecycle THEN '采购单不是活动状态。' ELSE NULL END AS command_blocked_reason
+                CASE WHEN facts.lifecycle_status<>@ActiveLifecycle THEN '采购单不是活动状态。' WHEN facts.orphan_association>0 THEN '需求引用目标需核实。' ELSE NULL END AS command_blocked_reason
             FROM head_facts facts
             WHERE (@ExpectedCompletionDateFrom IS NULL OR facts.expected_completion_date>=@ExpectedCompletionDateFrom)
                 AND (@ExpectedCompletionDateTo IS NULL OR facts.expected_completion_date<=@ExpectedCompletionDateTo)
                 AND (@DueView=0 OR (facts.lifecycle_status=@ActiveLifecycle AND facts.confirmation_status=@Confirmed AND facts.due_hit_line_count>0))
-        )
+        ), filtered AS (
         SELECT p.purchase_order_id AS "PurchaseOrderId",p.version AS "Version",p.lifecycle_status AS "LifecycleStatus",p.order_no AS "OrderNo",p.bo_no AS "BoNo",
             p.customer_code AS "CustomerCode",p.supplier_name AS "SupplierName",p.confirmation_status AS "ConfirmationStatus",p.order_date AS "OrderDate",
             p.expected_date AS "ExpectedDate",p.reply_date AS "ReplyDate",p.line_count AS "LineCount",p.ready_qty AS "ReadyQty",p.total_qty AS "TotalQty",
@@ -196,31 +193,50 @@ public sealed class PostgreSqlPurchaseOrderManagerQueryRepository(RepositoryBase
             p.tax_total_amount AS "TaxTotalAmount",p.reported_line_count AS "ReportedLineCount",p.expected_completion_date AS "ExpectedCompletionDate",
             p.can_confirm AS "CanConfirm",p.can_cancel_confirmation AS "CanCancelConfirmation",p.command_blocked_reason AS "CommandBlockedReason"
         FROM projected p WHERE (NOT @LimitReadyStatuses OR p.ready_status=ANY(@ReadyStatuses)) AND (NOT @LimitReceiptStatuses OR p.receipt_status=ANY(@ReceiptStatuses))
-        ORDER BY p.order_date DESC NULLS LAST,p.order_no COLLATE public.erp_dictionary_ci DESC NULLS LAST,{SourceUuidOrder("p.purchase_order_id")} DESC;
+        ), page AS (
+            SELECT {ManagerColumns} FROM filtered
+            ORDER BY "OrderDate" DESC NULLS LAST,"OrderNo" COLLATE public.erp_dictionary_ci DESC NULLS LAST,{SourceUuidOrder("\"PurchaseOrderId\"")} DESC
+            LIMIT @PageSize OFFSET @Offset
+        )
+        SELECT (SELECT COUNT(*)::integer FROM filtered) AS "TotalCount",
+            COALESCE((SELECT jsonb_agg(to_jsonb(page) ORDER BY "OrderDate" DESC NULLS LAST,
+                "OrderNo" COLLATE public.erp_dictionary_ci DESC NULLS LAST,{SourceUuidOrder("\"PurchaseOrderId\"")} DESC) FROM page),'[]'::jsonb)::text AS "ItemsJson";
         """;
 
     // 图片取当前产品，送达名仅客供件；从表不隐藏单位不同或超量的真实数量。
     private static readonly string LinesSql = $"""
-        WITH receipt_facts AS (
-            SELECT rl.source_line_id,SUM(CASE WHEN rh.posting_status=1 THEN rl.quantity ELSE 0 END) AS received_qty
-            FROM public.inbound_document_line rl JOIN public.inbound_document rh ON rh.uid=rl.inbound_document_id
-            WHERE rh.document_type=@PurchaseReceipt AND rh.posting_status IN(1,8) AND rl.is_deleted=FALSE AND rh.is_deleted=FALSE GROUP BY rl.source_line_id
-        )
+        WITH {PurchaseOrderManagerReceiptSql.Ctes("h.uid=@PurchaseOrderId")}, {PurchaseOrderManagerAssociationSql.Ctes}
         SELECT l.uid AS "PurchaseOrderLineId",l.version AS "Version",COALESCE(l.product_id,'00000000-0000-0000-0000-000000000000'::uuid) AS "ProductId",
             l.line_number AS "LineNumber",product.main_image AS "MainImage",l.customer_sku AS "CustomerSku",l.sku AS "Sku",l.link_sku AS "LinkSku",
             l.supplier_sku AS "SupplierSku",l.description_zh AS "DescriptionZh",l.finish_zh AS "FinishZh",l.features_zh AS "FeaturesZh",
             l.material_type AS "MaterialType",l.supply_type AS "SupplyType",l.quantity AS "Quantity",l.unit_snapshot AS "UnitSnapshot",
-            COALESCE(receipt.received_qty,0) AS "ReceivedQty",CASE WHEN l.quantity>COALESCE(receipt.received_qty,0) THEN l.quantity-COALESCE(receipt.received_qty,0) ELSE 0 END AS "UnreceivedQty",
+            CASE WHEN COALESCE(receipt.has_unit_mismatch,0)=0 AND l.quantity>0 AND NULLIF(btrim(l.unit_snapshot,' '),'') IS NOT NULL
+                    AND COALESCE(receipt.received_qty,0) BETWEEN 0 AND l.quantity THEN COALESCE(receipt.received_qty,0) END AS "ReceivedQty",
+            CASE WHEN COALESCE(receipt.has_unit_mismatch,0)=0 AND l.quantity>0 AND NULLIF(btrim(l.unit_snapshot,' '),'') IS NOT NULL
+                    AND COALESCE(receipt.received_qty,0) BETWEEN 0 AND l.quantity THEN l.quantity-COALESCE(receipt.received_qty,0) END AS "UnreceivedQty",
+            CASE WHEN COALESCE(receipt.has_unit_mismatch,0)>0 THEN receipt.receipt_review_reason
+                WHEN COALESCE(receipt.received_qty,0)>l.quantity THEN '正式收货超过采购数量，需核实'
+                WHEN l.quantity<=0 OR NULLIF(btrim(l.unit_snapshot,' '),'') IS NULL OR COALESCE(receipt.received_qty,0)<0 THEN '采购数量、单位或收货数量需核实' END AS "ReceiptReviewReason",
+            CASE WHEN association.historical_only OR association.review_reason IS NOT NULL THEN NULL ELSE COALESCE(association.linked_qty,0) END AS "LinkedDemandQty",
+            CASE WHEN association.historical_only OR association.review_reason IS NOT NULL THEN NULL ELSE l.unlinked_qty END AS "UnlinkedQty",
+            association.linked_count AS "LinkedDemandCount",
+            CASE WHEN association.historical_only THEN 8 WHEN association.review_reason IS NOT NULL THEN 9 WHEN COALESCE(association.linked_qty,0)=0 THEN 0
+                WHEN association.linked_qty<l.quantity THEN 1 ELSE 2 END AS "AssociationStatus",
+            association.review_reason AS "AssociationReviewReason",
+            COALESCE(association.source_summary,'未关联物料需求') AS "SourceSummary",
             latest.ready_qty AS "ReadyQty",l.planned_delivery_date AS "PlannedDeliveryDate",latest.expected_ready_date AS "ExpectedCompletionDate",
             latest.supplier_reported_date AS "LatestFollowUpDate",latest.created_by AS "FollowUpUserName",l.unit_price AS "UnitPrice",l.tax_price AS "TaxPrice",
             l.unit_amount AS "UnitAmount",l.tax_amount AS "TaxAmount",
             CASE WHEN rtrim(l.material_type,' ') COLLATE public.erp_dictionary_ci=@CustomerSuppliedMaterialType THEN l.delivery_supplier_name_snapshot ELSE NULL END AS "DeliverySupplierName",
-            l.source_type AS "SourceType",l.source_no AS "SourceNo",l.source_line_number AS "SourceLineNumber",l.sub_note AS "SubNote"
+            CASE WHEN association.historical_count>0 THEN association.source_type ELSE l.source_type END AS "SourceType",
+            CASE WHEN association.historical_count>0 THEN association.source_no ELSE l.source_no END AS "SourceNo",
+            CASE WHEN association.historical_count>0 THEN association.source_line_number ELSE l.source_line_number END AS "SourceLineNumber",l.sub_note AS "SubNote"
         FROM public.purchase_order_line l JOIN public.purchase_order_head h ON h.uid=l.purchase_order_id
         LEFT JOIN public.product product ON product.uid=l.product_id AND product.is_deleted=FALSE
         LEFT JOIN LATERAL (SELECT f.ready_qty,f.expected_ready_date,f.supplier_reported_date,f.created_by FROM public.supplier_progress_report f
             WHERE f.purchase_order_line_id=l.uid AND f.is_deleted=FALSE ORDER BY f.sequence DESC NULLS LAST,{SourceUuidOrder("f.uid")} DESC LIMIT 1) latest ON TRUE
         LEFT JOIN receipt_facts receipt ON receipt.source_line_id=l.uid
+        LEFT JOIN manager_association_checked association ON association.line_id=l.uid
         WHERE h.uid=@PurchaseOrderId AND h.is_deleted=FALSE AND l.is_deleted=FALSE ORDER BY l.line_number,{SourceUuidOrder("l.uid")};
         """;
 }

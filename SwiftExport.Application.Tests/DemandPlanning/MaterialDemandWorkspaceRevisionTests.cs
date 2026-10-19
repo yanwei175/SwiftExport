@@ -39,10 +39,10 @@ public sealed class MaterialDemandWorkspaceRevisionTests
     [TestMethod,DataRow(null),DataRow(""),DataRow(" "),DataRow("changed"),DataRow("BASIS")]
     public void Confirmation_RequiresExactNonemptyPhysicalBasis(string? invalid)
     {
-        var head=new PurchaseOrderHead{Uid=Guid.NewGuid(),OriginKind=1};
-        var line=new PurchaseOrderLine{Uid=Guid.NewGuid(),PurchaseOrderId=head.Uid,Quantity=6,UnlinkedQty=0};
-        var source=new GrossDemand{Uid=Guid.NewGuid(),Version=9,DemandBasisFingerprint="basis"};
-        var material=new NetDemand{Uid=Guid.NewGuid(),GrossDemandId=source.Uid,DecompositionRevision=1,SourceDemandVersionSnapshot=1,SourceDemandBasisFingerprintSnapshot="basis"};
+        var head=new PurchaseOrderHead{Uid=Guid.NewGuid(),OriginKind=1,CustomerId=Guid.NewGuid()};
+        var line=new PurchaseOrderLine{Uid=Guid.NewGuid(),PurchaseOrderId=head.Uid,ProductId=Guid.NewGuid(),Quantity=6,UnlinkedQty=0,UnitSnapshot="PCS",MaterialType="成品",SupplyType="采购"};
+        var source=new GrossDemand{Uid=Guid.NewGuid(),Version=9,DemandBasisFingerprint="basis",CustomerId=head.CustomerId,SourceType="MD",SourceUid=Guid.NewGuid()};
+        var material=new NetDemand{Uid=Guid.NewGuid(),GrossDemandId=source.Uid,ProductId=line.ProductId,NetQty=6,UnitSnapshot="PCS",MaterialTypeSnapshot="成品",SupplyTypeSnapshot="采购",DecompositionRevision=1,SourceDemandVersionSnapshot=1,SourceDemandBasisFingerprintSnapshot="basis"};
         var facts=new ProcurementReversalFacts{Head=head,Lines=[line],Sources=[source],Demands=[material],Links=[new(){NetDemandId=material.Uid,TargetType="PO",TargetHeadId=head.Uid,TargetLineId=line.Uid,AllocatedQty=6}]};
         ProcurementConfirmationBuilder.RequireSourceReferences(facts);
         material.SourceDemandBasisFingerprintSnapshot=invalid;

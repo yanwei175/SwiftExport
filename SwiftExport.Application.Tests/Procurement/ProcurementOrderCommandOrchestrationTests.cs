@@ -317,7 +317,7 @@ public sealed class ProcurementOrderCommandOrchestrationTests
                 NullLogger<CommandPipeline>.Instance);
             var support = new ProcurementOrderCommandSupport(permissions, user, logs, new CorrelationStub(),
                 NullLogger<ProcurementOrderCommandSupport>.Instance);
-            Builder = new ProcurementConfirmationBuilder(references);
+            Builder = new ProcurementConfirmationBuilder(references,Proxy<IProcurementDemandAssociationRepository>.New((method,_)=>throw new AssertFailedException("普通采购不应读取客供关系："+method.Name)));
             Drafts = new ProcurementOrderDraftService(repository, references, Builder, numbers,
                 user, new TypeAdapterConfig(), Executor, pipeline, support,
                 Proxy<SwiftExport.Core.Interfaces.ForExcel.IForExcelPurchaseOrderRepository>.New((method, _) =>

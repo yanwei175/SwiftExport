@@ -42,6 +42,10 @@ public sealed class PurchaseOrderManagerQueryService(
             || HasOversizedText(request.Keyword)
             || HasOversizedText(request.CustomerCode)
             || request.SupplierId == Guid.Empty
+            || request.CustomerCodes is null || request.SupplierIds is null
+            || request.CustomerCodes.Count>500 || request.SupplierIds.Count>500
+            || request.CustomerCodes.Any(value=>string.IsNullOrWhiteSpace(value)||HasOversizedText(value))
+            || request.SupplierIds.Any(value=>value==Guid.Empty)
             || request.OrderDateFrom?.Date > request.OrderDateTo?.Date
             || request.ConfirmationStatuses is null
             || request.LifecycleStatuses is null
