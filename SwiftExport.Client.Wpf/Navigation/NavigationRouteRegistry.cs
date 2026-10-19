@@ -97,7 +97,6 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(GrossDemandWorkspaceViewModel.RouteKey, "成品需求", "Workspace", typeof(GrossDemandWorkspaceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Source.View"),
 
         new(NetDemandManagerViewModel.RouteKey, "物料需求", "Workspace", typeof(NetDemandManagerViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Material.View"),
-        new(MaterialDemandTraceViewModel.RouteKey, "物料需求追踪", "Detail", typeof(MaterialDemandTraceViewModel), NavigationModuleKeys.DemandPlanning, "DemandPlanning.Material.View"),
 
         new(PurchaseOrderManagerViewModel.RouteKey, "采购订单管理", "Workspace", typeof(PurchaseOrderManagerViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Read"),
         new(PurchaseDemandAssociationViewModel.RouteKey, "关联物料需求", "Workspace", typeof(PurchaseDemandAssociationViewModel), NavigationModuleKeys.Procurement, "Procurement.Order.Edit", AnyRequiredPermissions: [PermissionKeys.ProcurementOrderRead]),

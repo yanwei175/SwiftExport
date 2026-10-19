@@ -1,4 +1,5 @@
 using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
+using SwiftExportClient.Features.OrderTracking.MaterialDetail.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SwiftExport.Contracts.Apis.Procurement;
@@ -125,11 +126,11 @@ public sealed partial class PurchaseOrderTraceViewModel(
 
     /// <summary>由需求 Link 的稳定物料 Uid 打开物料追踪。</summary>
     [RelayCommand(CanExecute = nameof(CanOpenMaterialTrace))]
-    private Task OpenMaterialTraceAsync() => navigation.OpenDocumentAsync(
-        MaterialDemandTraceViewModel.RouteKey, $"material-demand-trace:{SelectedLink!.NetDemandId:N}",
-        new MaterialDemandTraceOpenRequest { NetDemandId = SelectedLink.NetDemandId });
+    private Task OpenMaterialTraceAsync() => CanOpenMaterialTrace() ? navigation.OpenDocumentAsync(
+        MaterialTrackingDetailViewModel.RouteKey, SelectedLink!.NetDemandId.ToString("N"), SelectedLink.NetDemandId) : Task.CompletedTask;
 
     private bool CanOpenMaterialTrace() => SelectedLink is { NetDemandId: var id } && id != Guid.Empty
+        && currentUser.HasPermission(PermissionKeys.OrderTrackingView)
         && currentUser.HasPermission(PermissionKeys.DemandPlanningMaterialView);
 
     /// <summary>在来源身份证据完整且有权限时跳转成品需求追踪。</summary>

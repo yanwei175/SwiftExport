@@ -28,11 +28,13 @@ public sealed class NetDemandApiContractTests
                 "SwiftExport.Contracts.DTOs.DemandPlanning.GrossDemand." + name));
     }
 
-    /// <summary>净需求追溯退为空壳后，不再暴露独占远程查询及传输模型。</summary>
+    /// <summary>物料跟踪统一使用订单跟踪契约，旧独占接口和模型退役。</summary>
     [TestMethod]
     public void NetDemandTrace_ShouldExposeNewReadOnlyContractWithoutRestoringLegacyDto()
     {
-        AssertRoute(nameof(INetDemandManagerApi.GetTraceAsync), typeof(GetAttribute), "/{uid}/trace");
+        Assert.IsNull(typeof(INetDemandManagerApi).GetMethod("GetTraceAsync"));
+        foreach (var name in new[] { "MaterialDemandTraceDetailDto", "MaterialDemandTracePurchaseDto", "MaterialDemandTraceTreeItemDto" })
+            Assert.IsNull(typeof(INetDemandManagerApi).Assembly.GetType("SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.Trace." + name));
         Assert.IsNull(typeof(INetDemandManagerApi).Assembly.GetType(
             "SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand.NetDemandTraceDto"));
     }
@@ -66,6 +68,7 @@ public sealed class NetDemandApiContractTests
             .Select(property => property.Name).ToArray();
         CollectionAssert.AreEquivalent(new[]
         {
+            nameof(UpdateSuggestedPurchaseSupplierCommand.CommandId),
             nameof(UpdateSuggestedPurchaseSupplierCommand.NetDemandId),
             nameof(UpdateSuggestedPurchaseSupplierCommand.Version),
             nameof(UpdateSuggestedPurchaseSupplierCommand.SuggestedPurchaseSupplierId)
@@ -90,7 +93,6 @@ public sealed class NetDemandApiContractTests
     {
         AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.SearchSourceGroupsAsync));
-        AssertHasCancellationToken(nameof(INetDemandManagerApi.GetTraceAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidateGroupsAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.GetSourceDemandCandidatesBySourceAsync));
         AssertHasCancellationToken(nameof(INetDemandManagerApi.EstablishFromSourcesAsync));

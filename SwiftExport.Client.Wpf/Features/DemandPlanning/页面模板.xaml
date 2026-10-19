@@ -2,5 +2,5 @@
     <DataTemplate DataType="{x:Type grossViewModels:GrossDemandWorkspaceViewModel}"><grossViews:GrossDemandWorkspaceView /></DataTemplate>
     <DataTemplate DataType="{x:Type grossViewModels:GrossDemandCloseReasonViewModel}"><grossViews:GrossDemandCloseReasonView /></DataTemplate>
     <DataTemplate DataType="{x:Type netViewModels:NetDemandManagerViewModel}"><netViews:NetDemandManagerView /></DataTemplate>
-    <DataTemplate DataType="{x:Type netViewModels:MaterialDemandTraceViewModel}"><netViews:MaterialDemandTraceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type netViewModels:MaterialDemandRollbackReasonViewModel}"><netViews:MaterialDemandRollbackReasonView /></DataTemplate>
 </ResourceDictionary>

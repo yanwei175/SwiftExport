@@ -27,7 +27,7 @@ public sealed class NetDemandRowModelTests
 
         Assert.AreEqual("客供件", row.DemandRoleText);
         Assert.AreEqual(8m, row.AssociatedPurchaseQty);
-        StringAssert.StartsWith(row.DisplaySku, "    ↳");
+        Assert.AreEqual(" ↳ B-100", row.DisplaySku);
         Assert.IsFalse(row.IsChecked);
         Assert.IsFalse(dto.GetType().GetProperties().Any(property => property.Name == nameof(row.IsChecked)));
     }
@@ -61,7 +61,8 @@ public sealed class NetDemandRowModelTests
         Assert.IsTrue(row.IsSuggestionDirty);
         Assert.AreEqual(changedSupplierId, row.SuggestedPurchaseSupplierId);
         Assert.AreEqual(deliverySupplierId, row.SuggestedDeliverySupplierId);
-        StringAssert.Contains(row.SuggestedDeliverySupplierDisplay, "PARENT");
+        Assert.AreEqual("父件采购方", row.SuggestedDeliverySupplierDisplay);
+        Assert.AreEqual("PARENT", row.SuggestedDeliverySupplierCode);
 
         row.RejectSuggestedSupplierChanges();
         Assert.IsFalse(row.IsSuggestionDirty);

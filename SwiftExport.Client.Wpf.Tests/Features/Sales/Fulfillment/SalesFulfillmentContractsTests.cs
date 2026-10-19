@@ -21,7 +21,8 @@ public sealed class SalesFulfillmentContractsTests
         Assert.IsFalse(registry.TryGetRoute("gross-demand-trace", out _));
         Assert.IsTrue(registry.TryGetRoute("demand-tracking-detail", out var tracking));
         Assert.AreEqual(PermissionKeys.OrderTrackingView, tracking.RequiredPermission);
-        Assert.IsTrue(registry.Routes.Any(route => route.ViewModelType.Name == "MaterialDemandTraceViewModel"));
+        Assert.IsFalse(registry.Routes.Any(route => route.ViewModelType.Name == "MaterialDemandTraceViewModel"));
+        Assert.IsTrue(registry.Routes.Any(route => route.ViewModelType.Name == "MaterialTrackingDetailViewModel"));
     }
 
     [TestMethod]
