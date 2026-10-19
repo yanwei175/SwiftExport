@@ -117,8 +117,7 @@ public sealed class PostgreSqlProcurementDemandAssociationRepository(RepositoryB
             WHERE n.is_deleted=FALSE AND n.lifecycle_status=0 AND g.is_deleted=FALSE AND g.lifecycle_status=0
                 AND h.is_deleted=FALSE AND h.lifecycle_status=0 AND h.confirmation_status IN(0,1) AND p.is_deleted=FALSE
                 AND p.unlinked_qty>0 AND n.net_qty>COALESCE(used.qty,0) AND n.decomposition_revision>0
-                AND rtrim(n.source_demand_basis_fingerprint_snapshot,' ') COLLATE public.erp_dictionary_ci=rtrim(g.demand_basis_fingerprint,' ') COLLATE public.erp_dictionary_ci
-                AND NULLIF(rtrim(g.demand_basis_fingerprint,' ') COLLATE public.erp_dictionary_ci,'') IS NOT NULL
+                AND {SwiftExport.Infrastructure.Repositories.DemandPlanning.MaterialDemandBasisSql.IsApplicable("n","g")}
                 AND ((p.product_id=n.product_id AND g.is_non_standard=FALSE
                     AND rtrim(p.material_type,' ') COLLATE public.erp_dictionary_ci=rtrim(n.material_type_snapshot,' ') COLLATE public.erp_dictionary_ci
                     AND rtrim(p.supply_type,' ') COLLATE public.erp_dictionary_ci=rtrim(n.supply_type_snapshot,' ') COLLATE public.erp_dictionary_ci)

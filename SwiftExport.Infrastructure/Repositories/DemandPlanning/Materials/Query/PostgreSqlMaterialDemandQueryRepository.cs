@@ -13,32 +13,33 @@ using System.Text.Json;
 
 namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Materials.Query;
 
-/// <summary>提供 PostgreSQL 物料工作台、来源导航和分阶段 Trace；借用调用者会话，事务由应用用例持有。</summary>
+    /// <summary>提供 PostgreSQL 物料工作台与来源导航，借用调用方会话，不读取收货或接管事务。</summary>
 public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBaseContext context) : IMaterialDemandQueryRepository
 {
 
     /// <summary>以单 SQL 物化工作集并统一快捷过滤、计数与页面；空页仍返回总量，来源模式完整取数，事务与取消沿用调用方。</summary>
     public async Task<PagedResponseBase<MaterialDemandManagerItemDto>> SearchManagerAsync(
-        MaterialDemandManagerSearchRequest request, CancellationToken cancellationToken = default)
+        MaterialDemandManagerSearchRequest request, CancellationToken cancellationToken = default, bool includePurchaseDetails = true)
     {
         ArgumentNullException.ThrowIfNull(request);
         var pageIndex = Math.Max(1, request.PageIndex);
         var pageSize = Math.Clamp(request.PageSize <= 0 ? 20 : request.PageSize, 1, 200);
         var paged = !request.SourceUid.HasValue;
         var parameters = new PostgreSqlParameters();
+        parameters.Add("IncludePurchaseDetails",includePurchaseDetails);
         parameters.Add("PurchaseTargetType", "PO");
         // 一次取得 China Standard Time 业务日，不借用数据库服务器时区或重复读取午夜时钟。
         parameters.AddTimestamp("BusinessDate", TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
             TimeZoneInfo.FindSystemTimeZoneById("China Standard Time")).Date);
-        if (paged) { parameters.Add("Offset", (pageIndex - 1) * pageSize); parameters.Add("PageSize", pageSize); }
+        if (paged) { parameters.Add("Offset", (long)(pageIndex - 1) * pageSize); parameters.Add("PageSize", pageSize); }
         var where = CreateWorkspaceWhere(request, parameters);
         var quickWhere = request.QuickView switch
         {
             "Unassigned" => "\"ProcurementStatus\"='未承接'",
             "Partial" => "\"ProcurementStatus\"='部分承接'",
             "Assigned" => "\"ProcurementStatus\"='已承接'",
-            "Overdue" => "\"DueHint\"='已逾期'",
-            "DueSoon" => "\"DueHint\"='临近交期'",
+            "Overdue" => "\"DueHint\"='未承接已逾期'",
+            "DueSoon" => "\"DueHint\"='未承接临近交期'",
             "Review" => "\"ReviewReason\"<>''",
             _ => "TRUE"
         };
@@ -105,8 +106,8 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                     CASE WHEN nd.lifecycle_status<>0 OR assessment.review_reason<>''
                                OR nd.required_date IS NULL OR COALESCE(purchaseFacts.associated_purchase_qty,0)>=nd.net_qty
                          THEN ''
-                         WHEN nd.required_date::date<@BusinessDate THEN '已逾期'
-                         WHEN nd.required_date::date<=(CAST(@BusinessDate AS date) + 7) THEN '临近交期'
+                         WHEN nd.required_date::date<@BusinessDate THEN '未承接已逾期'
+                         WHEN nd.required_date::date<=(CAST(@BusinessDate AS date) + 7) THEN '未承接临近交期'
                          ELSE '' END AS "DueHint",
                     assessment.review_reason AS "ReviewReason",
                     NULL::text AS "SuggestedSupplierSku",
@@ -150,11 +151,18 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                         AND suspectHead.lifecycle_status=0 AND suspectHead.is_deleted=FALSE
                     LEFT JOIN "public"."purchase_order_line" suspectLine ON suspectLine.uid=suspectLink.target_line_id
                         AND suspectLine.purchase_order_id=suspectLink.target_head_id AND suspectLine.is_deleted=FALSE
-                    WHERE suspectLink.net_demand_id=nd.uid AND rtrim(suspectLink.target_type, ' ') COLLATE public.erp_dictionary_ci='PO' COLLATE public.erp_dictionary_ci
-                      AND suspectLink.link_status=0 AND suspectLink.is_deleted=FALSE
+                    WHERE suspectLink.net_demand_id=nd.uid AND suspectLink.is_deleted=FALSE
                       AND suspectLink.allocated_qty>suspectLink.released_qty
-                      AND (suspectHead.uid IS NULL OR suspectLine.uid IS NULL OR suspectHead.customer_id IS NULL
+                      AND (suspectLink.link_status<>0 OR rtrim(suspectLink.target_type,' ') COLLATE public.erp_dictionary_ci<>'PO'
+                           OR suspectHead.uid IS NULL OR suspectLine.uid IS NULL OR suspectHead.customer_id IS NULL
                            OR suspectHead.customer_id<>gd.customer_id OR unitFacts.unit IS NULL
+                           OR suspectLine.product_id IS DISTINCT FROM nd.product_id
+                           OR suspectLine.quantity<=0 OR suspectLine.unlinked_qty IS NULL
+                           OR suspectLine.unlinked_qty<0 OR suspectLine.unlinked_qty>suspectLine.quantity
+                           OR suspectLine.unlinked_qty+(SELECT COALESCE(SUM(shared.allocated_qty-shared.released_qty),0)
+                               FROM public.demand_execution_link shared WHERE shared.target_line_id=suspectLink.target_line_id
+                                 AND rtrim(shared.target_type,' ') COLLATE public.erp_dictionary_ci='PO'
+                                 AND shared.is_deleted=FALSE AND shared.allocated_qty>shared.released_qty)<>suspectLine.quantity
                            OR NULLIF(btrim(suspectLine.unit_snapshot, ' '),'') IS NULL
                            OR btrim(suspectLine.unit_snapshot, ' ') COLLATE public.erp_dictionary_ci<>unitFacts.unit COLLATE public.erp_dictionary_ci)
                 ) purchaseIssues ON TRUE
@@ -172,7 +180,7 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                           ON purchaseLine.uid=link.target_line_id
                          AND purchaseLine.purchase_order_id=purchaseHead.uid AND COALESCE(purchaseLine.is_deleted,FALSE)=FALSE
                         LEFT JOIN "public"."supplier" supplier ON supplier.uid=purchaseHead.supplier_id
-                        WHERE link.net_demand_id=nd.uid
+                        WHERE @IncludePurchaseDetails AND link.net_demand_id=nd.uid
                           AND rtrim(link.target_type, ' ') COLLATE public.erp_dictionary_ci=rtrim(@PurchaseTargetType, ' ') COLLATE public.erp_dictionary_ci AND link.link_status=0 AND link.is_deleted=FALSE
                           AND link.allocated_qty>link.released_qty
                     ) numbers
@@ -181,17 +189,11 @@ public sealed partial class PostgreSqlMaterialDemandQueryRepository(RepositoryBa
                 LEFT JOIN LATERAL (SELECT CASE
                     WHEN nd.lifecycle_status<>0 THEN ''
                     WHEN gd.customer_id IS NULL THEN '来源客户缺失'
-                    WHEN nd.source_demand_version_snapshot IS NULL OR nd.source_demand_version_snapshot<>gd.version
-                      OR NULLIF(rtrim(gd.demand_basis_fingerprint, ' '),'') IS NULL
-                      OR nd.source_demand_basis_fingerprint_snapshot IS NULL
-                      OR rtrim(nd.source_demand_basis_fingerprint_snapshot, ' ') COLLATE public.erp_dictionary_ci<>rtrim(gd.demand_basis_fingerprint, ' ') COLLATE public.erp_dictionary_ci
-                      OR (rtrim(gd.source_type, ' ') COLLATE public.erp_dictionary_ci<>'MD' COLLATE public.erp_dictionary_ci AND (gd.source_version IS NULL OR nd.source_version_snapshot IS NULL
-                          OR nd.source_version_snapshot<>gd.source_version))
-                      OR (rtrim(gd.source_type, ' ') COLLATE public.erp_dictionary_ci='MD' COLLATE public.erp_dictionary_ci AND nd.source_version_snapshot IS NOT NULL)
-                      THEN '来源版本或需求指纹需核实'
+                    WHEN NOT COALESCE({MaterialDemandBasisSql.IsApplicable("nd","gd")},FALSE)
+                      THEN '来源身份、状态或实物指纹需核实'
                     WHEN unitFacts.unit IS NULL THEN '物料单位需核实'
                     WHEN nd.net_qty<=0 THEN '物料需求数量需核实'
-                    WHEN purchaseIssues.invalid_count>0 THEN '采购目标、客户或单位需核实'
+                    WHEN purchaseIssues.invalid_count>0 THEN '采购目标、产品、客户、单位或共享数量需核实'
                     WHEN COALESCE(purchaseFacts.associated_purchase_qty,0)>nd.net_qty THEN '采购承接超量需核实'
                     ELSE '' END AS review_reason) assessment ON TRUE
                 WHERE {string.Join(" AND ", where)}

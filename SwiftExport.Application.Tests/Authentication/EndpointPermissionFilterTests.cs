@@ -55,7 +55,8 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 新增来源内匹配端点沿用基础查看权限；所选关注项另有组合权限定向验证。
-        Assert.AreEqual(251, routes.Count);
+        Assert.AreEqual(250, routes.Count);
+        Assert.IsFalse(routes.ContainsKey("MaterialDemandQueryController.GetTraceAsync"));
         Assert.AreEqual("OrderTracking.View",routes["OrderTrackingSourceController.GetSourceMatchesAsync"]);
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterController.SetMainImagesAsync"]);
         Assert.AreEqual("System.Dictionary.Edit", routes["SysDictTypeController.SyncBuiltInAsync"]);

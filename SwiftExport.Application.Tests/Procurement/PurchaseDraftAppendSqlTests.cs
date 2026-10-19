@@ -109,9 +109,9 @@ public sealed class PurchaseDraftAppendSqlTests
                 var facts = new ProcurementReversalFacts
                 {
                     Head = new() { Uid = db.OrderId, OriginKind = 1 }, Lines = [line], Links = model.Links,
-                    Sources = [new() { Uid = gross }],
+                    Sources = [new() { Uid = gross,DemandBasisFingerprint="basis" }],
                     Demands = model.Links.Select(link => new SwiftExport.Core.Entities.DemandPlanning.NetDemand
-                        { Uid = link.NetDemandId, GrossDemandId = gross, DecompositionRevision = 1 }).ToList()
+                        { Uid = link.NetDemandId, GrossDemandId = gross, DecompositionRevision = 1,SourceDemandBasisFingerprintSnapshot="basis" }).ToList()
                 };
                 ProcurementConfirmationBuilder.RequireSourceReferences(facts);
                 line.UnlinkedQty = null;

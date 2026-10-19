@@ -32,8 +32,8 @@ public sealed class PostgreSqlMaterialDemandWorkspaceMigrationTests
     [DataRow("Unassigned", "\"ProcurementStatus\"='未承接'")]
     [DataRow("Partial", "\"ProcurementStatus\"='部分承接'")]
     [DataRow("Assigned", "\"ProcurementStatus\"='已承接'")]
-    [DataRow("Overdue", "\"DueHint\"='已逾期'")]
-    [DataRow("DueSoon", "\"DueHint\"='临近交期'")]
+    [DataRow("Overdue", "\"DueHint\"='未承接已逾期'")]
+    [DataRow("DueSoon", "\"DueHint\"='未承接临近交期'")]
     [DataRow("Review", "\"ReviewReason\"<>''")]
     public async Task Workspace_UsesSingleMaterializationAndKeepsEmptyPageCount(string quick, string filter)
     {
@@ -62,7 +62,7 @@ public sealed class PostgreSqlMaterialDemandWorkspaceMigrationTests
         var response = await f.Repository.SearchManagerAsync(new() { PageIndex = index, PageSize = size });
         Assert.AreEqual(expectedIndex, response.PageIndex); Assert.AreEqual(expectedSize, response.PageSize);
         var values = f.Connection.Commands.Single().Values;
-        Assert.AreEqual((expectedIndex - 1) * expectedSize, values["Offset"]); Assert.AreEqual(expectedSize, values["PageSize"]);
+        Assert.AreEqual((long)(expectedIndex - 1) * expectedSize, values["Offset"]); Assert.AreEqual(expectedSize, values["PageSize"]);
     }
 
     /// <summary>来源模式完整返回205行，不绑定分页参数；空来源返回PageSize=1并保持已有事务。</summary>
@@ -146,7 +146,9 @@ public sealed class PostgreSqlMaterialDemandWorkspaceMigrationTests
         using var f = new Fixture(true); f.Page(0, "[]");
         var status = history ? NetDemandLifecycleStatusEnum.RolledBack : (NetDemandLifecycleStatusEnum?)null;
         await f.Repository.SearchManagerAsync(new() { LifecycleStatus = status });
-        Assert.AreEqual(!history, f.Connection.Commands.Single().Sql.Contains("gd.lifecycle_status=0", StringComparison.Ordinal));
+        var workspaceSql=f.Connection.Commands.Single().Sql;
+        var outerWhere=workspaceSql[workspaceSql.LastIndexOf("WHERE nd.lifecycle_status=@LifecycleStatus",StringComparison.Ordinal)..];
+        Assert.AreEqual(!history,outerWhere.Contains("gd.lifecycle_status=0",StringComparison.Ordinal));
         var table = new DataTable(); table.Columns.Add("SourceUid", typeof(Guid)); table.Columns.Add("SourceType", typeof(string)); table.Columns.Add("SourceNo", typeof(string)); table.Columns.Add("DemandCount", typeof(int));
         var id = Guid.NewGuid(); table.Rows.Add(id, "SO", "来源", 3); f.Connection.Results.Enqueue(table);
         var groups = await f.Repository.SearchMaterialSourceGroupsAsync(new() { LifecycleStatus = status, SourceTypes = ["SO"] });
@@ -190,7 +192,7 @@ public sealed class PostgreSqlMaterialDemandWorkspaceMigrationTests
         Assert.IsTrue(typeof(PostgreSqlMaterialDemandQueryRepository).IsSealed);
         // PG仓储已经完成公共查询接口，不能继续以早期迁移切片的未接线边界作为验收条件。
         Assert.IsTrue(typeof(IMaterialDemandQueryRepository).IsAssignableFrom(typeof(PostgreSqlMaterialDemandQueryRepository)));
-        Assert.IsNotNull(typeof(PostgreSqlMaterialDemandQueryRepository).GetMethod("GetTraceAsync"));
+        Assert.IsNull(typeof(PostgreSqlMaterialDemandQueryRepository).GetMethod("GetTraceAsync"));
     }
 
     /// <summary>空请求优先于取消；两个方法取消时不消费结果或修改调用方事务。</summary>

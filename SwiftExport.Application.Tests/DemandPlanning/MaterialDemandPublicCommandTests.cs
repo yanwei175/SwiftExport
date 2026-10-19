@@ -135,6 +135,19 @@ public sealed class MaterialDemandPublicCommandTests
         Assert.AreEqual(1, f.RollbackWrites);
     }
 
+    /// <summary>阻断保持失败码及整批事务回滚；材料可定位，采购单号和目标行只向采购查看权限开放。</summary>
+    [TestMethod,DataRow(false),DataRow(true)]
+    public async Task Rollback_BlockersAreLocatableAndRespectPurchasePermission(bool canReadPurchase)
+    {
+        var f=new Fixture{BlockRollback=true,AllowPurchaseRead=canReadPurchase};f.Demand.SourceNo="SO-TEST";
+        var result=await f.Reverse.RollbackAsync(f.RollbackCommand(Guid.NewGuid(),"重做"));
+        Assert.IsFalse(result.Success);Assert.AreEqual("DOWNSTREAM_EXECUTION_EXISTS",result.Error.Code);
+        StringAssert.Contains(result.Message,"SO-TEST");StringAssert.Contains(result.Message,"MAT-1");
+        Assert.AreEqual(canReadPurchase,result.Message.Contains("PO-SECRET",StringComparison.Ordinal));
+        Assert.AreEqual(0,f.RollbackWrites);Assert.AreEqual(0,f.AuditWrites);Assert.AreEqual(0,f.ReceiptWrites);
+        Assert.AreEqual(1,f.Connection.Rollbacks);Assert.IsNull(f.Session.Transaction);
+    }
+
     /// <summary>回退集合改变选择顺序仍命中首次回执，不重复修改物料修订或业务审计。</summary>
     [TestMethod]
     public async Task Rollback_ItemOrderEquivalent_ReplaysOriginalResult()
@@ -243,7 +256,7 @@ public sealed class MaterialDemandPublicCommandTests
         public readonly GrossDemand OtherDemand = new() { Uid = Guid.NewGuid(), Version = 1, DemandBasisFingerprint = "basis" };
         public readonly MaterialDemandEstablishmentService Establish;
         public readonly MaterialDemandReversalService Reverse;
-        public bool AllowEstablish = true, AllowRollback = true, FailAudit, FailReceipt;
+        public bool AllowEstablish = true, AllowRollback = true, FailAudit, FailReceipt, BlockRollback, AllowPurchaseRead;
         public int GrossReads, AuditWrites, ReceiptWrites, ReceiptReads, RollbackWrites;
         public Action? OnGrossRead;
         private readonly Dictionary<Guid, CommandReceipt> _receipts = [];
@@ -264,13 +277,14 @@ public sealed class MaterialDemandPublicCommandTests
             {
                 "GetActiveByGrossDemandForUpdateAsync" => Task.FromResult<IReadOnlyList<NetDemand>>(
                     [new NetDemand { Uid = Guid.NewGuid(), GrossDemandId = (Guid)args![0]!,
-                        SourceDemandBasisFingerprintSnapshot = "basis", DecompositionRevision = 1 }]),
+                        SourceDemandBasisFingerprintSnapshot = "basis", DecompositionRevision = 1,LineNumber=4,SkuSnapshot="MAT-1" }]),
                 "RollbackRevisionAsync" => Rollback(),
                 _ => throw new AssertFailedException($"意外物料仓储调用 {method.Name}")
             });
             var execution = Proxy<INetDemandExecutionLinkRepository>((method, args) => method.Name switch
             {
-                "GetRollbackBlockersAsync" => Task.FromResult<IReadOnlyList<MaterialDemandRollbackBlockerDto>>([]),
+                "GetRollbackBlockersAsync" => Task.FromResult<IReadOnlyList<MaterialDemandRollbackBlockerDto>>(BlockRollback
+                    ? [new(){NetDemandId=((IEnumerable<Guid>)args![0]!).First(),TargetType="PO",TargetNo="PO-SECRET",TargetLineId=Guid.NewGuid(),Message="采购存在未释放贡献。"}] : []),
                 _ => throw new AssertFailedException($"意外执行关系仓储调用 {method.Name}")
             });
             var logs = Proxy<IBusinessOperationLogRepository>((method, args) => method.Name switch
@@ -281,7 +295,7 @@ public sealed class MaterialDemandPublicCommandTests
             var permissions = Proxy<IPermissionEvaluationService>((method, args) => method.Name switch
             {
                 "HasPermissionAsync" => Task.FromResult((string)args![1]! == PermissionKeys.DemandPlanningMaterialEstablish
-                    ? AllowEstablish : AllowRollback),
+                    ? AllowEstablish : (string)args[1]! == PermissionKeys.ProcurementOrderRead ? AllowPurchaseRead : AllowRollback),
                 _ => throw new AssertFailedException($"意外权限服务调用 {method.Name}")
             });
             var receipts = Proxy<ICommandReceiptRepository>((method, args) => method.Name switch

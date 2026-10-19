@@ -28,7 +28,9 @@ public sealed class ProcurementConfirmationBuilder(IProcurementReferenceReadRepo
                 || links.Any(x => !facts.Demands.Any(n => n.Uid == x.NetDemandId && !n.IsDeleted && n.LifecycleStatus == NetDemandLifecycleStatusEnum.Active
                     && n.DecompositionRevision > 0
                     && facts.Sources.Any(s => s.Uid == n.GrossDemandId && !s.IsDeleted && s.LifecycleStatus == GrossDemandLifecycleStatusEnum.Active
-                        && (n.SourceDemandBasisFingerprintSnapshot == null || n.SourceDemandBasisFingerprintSnapshot == s.DemandBasisFingerprint)))))
+                        && !string.IsNullOrWhiteSpace(s.DemandBasisFingerprint)
+                        && !string.IsNullOrWhiteSpace(n.SourceDemandBasisFingerprintSnapshot)
+                        && n.SourceDemandBasisFingerprintSnapshot == s.DemandBasisFingerprint))))
                 throw new InvalidOperationException($"采购第 {line.LineNumber} 行（{line.Sku}）的活动物料引用缺失、失效或贡献数量不一致，不能确认。");
         }
     }
