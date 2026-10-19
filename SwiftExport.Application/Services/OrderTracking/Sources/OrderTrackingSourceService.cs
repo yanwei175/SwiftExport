@@ -6,7 +6,7 @@ using SwiftExport.Application.Interfaces.OrderTracking.Sources;
 using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.Core.Interfaces.OrderTracking.Sources;
 namespace SwiftExport.Application.Services.OrderTracking.Sources;
-/// <summary>校验来源主表条件，仅读取基础事实。</summary>
+/// <summary>校验来源主表条件及关注码；下游关注项用于筛选，不修改基础事实。</summary>
 public sealed class OrderTrackingSourceService(ServiceBaseContext context,IOrderTrackingSourceRepository repository) : IOrderTrackingSourceService
 {
     /// <summary>独立加载来源组，不开启或接管事务。</summary>
@@ -16,7 +16,10 @@ public sealed class OrderTrackingSourceService(ServiceBaseContext context,IOrder
         if(request is null) return ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>.Fail(ServiceErrorCodes.Validation,"查询条件不能为空。");
         if(OrderTrackingSearchValidation.Validate(request.SourceTypes,request.LifecycleStatuses,request.RequiredDateFrom,request.RequiredDateTo) is {} invalid)
             return ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>.Fail(ServiceErrorCodes.Validation,invalid.Message,invalid.Field);
-        try{return ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>.Ok(await repository.SearchSourcesAsync(request,cancellationToken));}
+        if(request.AttentionCodes?.Any(code=>!SwiftExport.Application.Services.OrderTracking.Summary.OrderTrackingAttentionPolicy.IsKnown(code))==true)
+            return ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>.Fail(ServiceErrorCodes.Validation,"包含未知关注事项。","AttentionCodes");
+        var businessDate=OrderTrackingBusinessDate.Today();
+        try{return ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>.Ok(await repository.SearchSourcesAsync(request,businessDate,cancellationToken));}
         catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested){throw;}
         catch(Exception ex)
         {

@@ -6,6 +6,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Npgsql;
 using NpgsqlTypes;
 using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
+using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.Sources;
 using SwiftExport.Contracts.DTOs.OrderTracking.DemandDetail;
 using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Contracts.Wrappers;
@@ -41,13 +43,19 @@ public sealed class OrderTrackingReadOnlyTests
         var user = new OrderTrackingReadFixture.User();
         var context = new RepositoryBaseContext(session, NullLoggerFactory.Instance, new AuditStampService(user), user);
         var overview = new PostgreSqlOrderTrackingOverviewRepository(context); var detail = new PostgreSqlDemandTrackingHeaderRepository(context);
-        var live = await overview.SearchAsync(new() { PageSize = 3 });
-        Assert.AreEqual(await session.Connection.ExecuteScalarAsync<int>("SELECT count(*)::integer FROM public.gross_demand WHERE is_deleted=FALSE AND rtrim(source_type,' ') COLLATE public.erp_dictionary_ci='SO'", transaction: transaction), live.TotalCount);
-        foreach (var item in live.Items)
+        var sourceRepo=new PostgreSqlOrderTrackingSourceRepository(context);
+        var liveGroups=await sourceRepo.SearchSourcesAsync(new(){PageSize=3},OrderTrackingReadFixture.BusinessDate);
+        var liveItems=new List<OrderTrackingListItemDto>();
+        foreach(var group in liveGroups.Items)
         {
-            var actual = await detail.GetDemandHeaderAsync(item.GrossDemandId);
-            Assert.IsNotNull(actual); Assert.AreEqual(item.DemandQty, actual.DemandQty); Assert.AreEqual(item.RequiredDate, actual.RequiredDate);
-            Assert.AreEqual(item.Unit, actual.Unit); Assert.AreEqual(item.Sku, actual.Sku);
+            var full=await overview.GetSourceDemandsAsync(group.SourceType,group.SourceGroupId);
+            Assert.AreEqual(group.TotalDemandCount,full.Items.Count);liveItems.AddRange(full.Items);
+        }
+        foreach(var item in liveItems.Take(3))
+        {
+            var actual=await detail.GetDemandHeaderAsync(item.GrossDemandId);
+            Assert.IsNotNull(actual);Assert.AreEqual(item.DemandQty,actual.DemandQty);Assert.AreEqual(item.RequiredDate,actual.RequiredDate);
+            Assert.AreEqual(item.Unit,actual.Unit);Assert.AreEqual(item.Sku,actual.Sku);
         }
         _ = await overview.GetCustomerCodesAsync();
 
@@ -92,7 +100,8 @@ public sealed class OrderTrackingReadOnlyTests
         Assert.AreEqual(1, (await Page(new() { SourceTypes = [], LifecycleStatuses = [GrossDemandLifecycleStatusEnum.Closed] })).TotalCount);
         Assert.AreEqual(1, (await Page(new() { SourceTypes = [], LifecycleStatuses = [GrossDemandLifecycleStatusEnum.Voided] })).TotalCount);
         var dated = await Page(new() { SourceTypes = [], RequiredDateFrom = new(2026, 10, 19, 12, 0, 0), RequiredDateTo = new(2026, 10, 19, 12, 0, 0) });
-        CollectionAssert.AreEquivalent(new[] { ids[0], ids[3], ids[4] }, dated.Items.Select(item => item.GrossDemandId).ToArray());
+        Assert.AreEqual(3,dated.TotalCount);
+        CollectionAssert.AreEquivalent(new[] { ids[0],ids[3],ids[4],ids[5] },dated.Items.Select(item=>item.GrossDemandId).ToArray());
         Assert.AreEqual(5, (await Page(new() { SourceTypes = [], RequiredDateTo = DateTime.MaxValue })).TotalCount);
         var multi = await Page(new() { SourceTypes = [], CustomerCodes = [" alpha ", "BETA"] });
         Assert.AreEqual(4, multi.TotalCount);
@@ -103,11 +112,11 @@ public sealed class OrderTrackingReadOnlyTests
         Assert.AreEqual(0, (await Page(new() { SourceTypes = [], Keyword = "客户A" })).TotalCount);
         Assert.AreEqual(0, (await Page(new() { SourceTypes = [], Keyword = "原描述" })).TotalCount);
         Assert.AreEqual(1, (await Page(new() { SourceTypes = [], Keyword = ids[0].ToString() })).TotalCount);
-        var first = await Page(new() { SourceTypes = [], PageSize = 2 });
-        var second = await Page(new() { SourceTypes = [], PageSize = 2, PageIndex = 2 });
-        Assert.AreEqual(4, first.Items.Concat(second.Items).Select(item => item.GrossDemandId).Distinct().Count());
-        var beyond = await Page(new() { SourceTypes = [], PageSize = 2, PageIndex = 99 });
-        Assert.AreEqual(6, beyond.TotalCount); Assert.HasCount(0, beyond.Items);
+        var first=await SourcePage(new(){SourceTypes=[],PageSize=2});
+        var second=await SourcePage(new(){SourceTypes=[],PageSize=2,PageIndex=2});
+        Assert.AreEqual(4,first.Items.Concat(second.Items).Select(item=>(item.SourceType,item.SourceGroupId)).Distinct().Count());
+        var beyond=await SourcePage(new(){SourceTypes=[],PageSize=2,PageIndex=99});
+        Assert.AreEqual(5,beyond.TotalCount);Assert.HasCount(0,beyond.Items);
         var actualDetail = await Header(ids[0]); Assert.IsNotNull(actualDetail); Assert.IsNull(actualDetail.Unit);
         Assert.AreEqual(a.DemandQty, actualDetail.DemandQty); Assert.AreEqual(a.Sku, actualDetail.Sku);
         Assert.IsNull(await Header(ids[6])); Assert.IsNull(await Header(ids[7]));
@@ -118,17 +127,31 @@ public sealed class OrderTrackingReadOnlyTests
             CollectionAssert.AreEqual(new[] { "Alpha", "Beta" }, codes);
         }
         await transaction.RollbackAsync(); session.Transaction = null;
-        var evidence = new { ReadOnly=true, LiveTotal=live.TotalCount, LiveDetails=live.Items.Count, InlineRows=8, VisibleRows=6,
+        var evidence = new { ReadOnly=true, LiveTotal=liveItems.Count, LiveDetails=liveItems.Take(3).Count(), InlineRows=8, VisibleRows=6,
             MissingAssociationsPreserved=true, LiteralAndDateFilters=true, IndependentCustomerCodes=true };
         File.WriteAllText(Path.Combine(root, "SwiftExport.Application.Tests", "TestResults", "订单跟踪只读PG证据.json"), JsonSerializer.Serialize(evidence));
 
         // 捕获生产命令后只替换表来源，参数、筛选和分页仍由真实仓储及 PG 执行。
-        async Task<PagedResponseBase<OrderTrackingListItemDto>> Page(OrderTrackingSearchRequest request)
+        async Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SourcePage(OrderTrackingSourceSearchRequest request)
         {
-            using var f = new OrderTrackingReadFixture(); f.Page(0); await f.Overview.SearchAsync(request);
-            var count = await session.Connection.ExecuteScalarAsync<int>(new CommandDefinition(replay.Sql(f.Connection.Commands[0].Sql), replay.Parameters(f.Connection.Commands[0]), transaction));
-            var items = await session.Connection.QueryAsync<OrderTrackingListItemDto>(new CommandDefinition(replay.Sql(f.Connection.Commands[1].Sql), replay.Parameters(f.Connection.Commands[1]), transaction));
-            return new() { TotalCount=count, Items=items.AsList() };
+            using var f=new OrderTrackingReadFixture();f.Page(0);await f.Sources.SearchSourcesAsync(request,OrderTrackingReadFixture.BusinessDate);
+            var count=await session.Connection.ExecuteScalarAsync<int>(new CommandDefinition(replay.Sql(f.Connection.Commands[0].Sql),replay.Parameters(f.Connection.Commands[0]),transaction));
+            var groups=await session.Connection.QueryAsync<OrderTrackingSourceGroupDto>(new CommandDefinition(replay.Sql(f.Connection.Commands[1].Sql),replay.Parameters(f.Connection.Commands[1]),transaction));
+            return new(){TotalCount=count,Items=groups.AsList()};
+        }
+        // 主表命中条数和全来源子表分开验证；筛选仅选组，子表不重新套筛选。
+        async Task<PagedResponseBase<OrderTrackingListItemDto>> Page(OrderTrackingSourceSearchRequest request)
+        {
+            var groups=await SourcePage(request);var items=new List<OrderTrackingListItemDto>();
+            foreach(var group in groups.Items)
+            {
+                using var f=new OrderTrackingReadFixture();f.Connection.Results.Enqueue(new DataTable());
+                await f.Overview.GetSourceDemandsAsync(group.SourceType,group.SourceGroupId);
+                var command=f.Connection.Commands.Single();
+                var rows=await session.Connection.QueryAsync<OrderTrackingListItemDto>(new CommandDefinition(replay.Sql(command.Sql),replay.Parameters(command),transaction));
+                items.AddRange(rows);
+            }
+            return new(){TotalCount=groups.Items.Sum(group=>group.MatchedDemandCount),Items=items};
         }
         // 明细独立重放公开仓储 SQL，不借用总览 DTO 或在测试中模拟身份筛选。
         async Task<DemandTrackingHeaderDto?> Header(Guid id)
@@ -164,7 +187,7 @@ public sealed class OrderTrackingReadOnlyTests
             WITH fixture_gross AS (SELECT * FROM jsonb_populate_recordset(NULL::public.gross_demand,@FixtureGross)),
             fixture_customers AS (SELECT * FROM jsonb_populate_recordset(NULL::public.customer,@FixtureCustomers)),
             fixture_sales AS (SELECT * FROM jsonb_populate_recordset(NULL::public.sales_order_header,@FixtureSales))
-            """ + "\n" + sql.Replace("public.gross_demand g", "fixture_gross g").Replace("public.customer c", "fixture_customers c").Replace("public.sales_order_header so", "fixture_sales so");
+            """ + (sql.TrimStart().StartsWith("WITH ",StringComparison.OrdinalIgnoreCase)?","+sql.TrimStart()[5..]:" "+sql).Replace("public.gross_demand g", "fixture_gross g").Replace("public.customer c", "fixture_customers c").Replace("public.sales_order_header so", "fixture_sales so");
         internal SqlMapper.IDynamicParameters Parameters(OrderTrackingReadFixture.RecordedCommand command) => new Replay(command, gross, customers, sales);
         /// <summary>保持生产参数类型，仅追加 SELECT CTE 使用的 JSONB 数据。</summary>
         private sealed class Replay(OrderTrackingReadFixture.RecordedCommand command, string gross, string customers, string sales) : SqlMapper.IDynamicParameters

@@ -4,6 +4,7 @@ internal static class OrderTrackingEvidenceSql
 {
     internal const string MaterialReview = """
         CASE WHEN n.is_deleted OR n.lifecycle_status<>0 THEN '历史物料修订'
+            WHEN g.uid IS NULL OR g.is_deleted OR g.lifecycle_status<>0 THEN '来源缺失或非活动需求'
             WHEN n.source_demand_version_snapshot IS DISTINCT FROM g.version
               OR NULLIF(rtrim(g.demand_basis_fingerprint,' '),'') IS NULL
               OR n.source_demand_basis_fingerprint_snapshot IS NULL

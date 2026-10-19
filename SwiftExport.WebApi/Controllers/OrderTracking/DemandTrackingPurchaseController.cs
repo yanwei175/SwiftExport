@@ -8,6 +8,10 @@ namespace SwiftExport.WebApi.Controllers.OrderTracking;
 [Route("api/order-tracking/demands")]
 public sealed class DemandTrackingPurchaseController(IDemandTrackingPurchaseService service) : ControllerBase
 {
+    /// <summary>独立物料区域入口，权限与需求级区域分别登记。</summary>
+    [HttpGet("~/api/order-tracking/materials/{netDemandId:guid}/purchases")]
+    public Task<ServiceResult<SwiftExport.Contracts.DTOs.OrderTracking.MaterialDetail.MaterialTrackingPurchaseSectionDto>> GetMaterialPurchasesAsync([FromRoute]Guid netDemandId,CancellationToken cancellationToken)
+        =>service.GetMaterialPurchasesAsync(netDemandId,cancellationToken);
     /// <summary>仅加载当前区域，透传需求身份与请求取消。</summary>
     [HttpGet("{grossDemandId:guid}/purchases")]
     public Task<ServiceResult<List<DemandTrackingPurchaseDto>>> GetPurchasesAsync([FromRoute]Guid grossDemandId,CancellationToken cancellationToken)

@@ -136,6 +136,7 @@ public static class DependencyInjection
         MapsterConfig.RegisterMappings(services);
 
         services.AddLogging();
+        services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Summary.IOrderTrackingSummaryService, SwiftExport.Application.Services.OrderTracking.Summary.OrderTrackingSummaryService>();
         services.AddScoped<SwiftExport.Application.Services.Shipping.PackingLists.PackingListImportChecker>();
         services.AddScoped<SwiftExport.Application.Interfaces.ForExcel.IForExcelPackingListService, SwiftExport.Application.Services.ForExcel.ForExcelPackingListService>();
 
@@ -201,6 +202,7 @@ public static class DependencyInjection
         services.AddScoped<IGrossDemandQueryService, GrossDemandQueryService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Overview.IOrderTrackingOverviewService, SwiftExport.Application.Services.OrderTracking.Overview.OrderTrackingOverviewService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.DemandDetail.IDemandTrackingHeaderService, SwiftExport.Application.Services.OrderTracking.DemandDetail.DemandTrackingHeaderService>();
+        services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.MaterialDetail.IMaterialTrackingDetailService, SwiftExport.Application.Services.OrderTracking.MaterialDetail.MaterialTrackingDetailService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Sources.IOrderTrackingSourceService, SwiftExport.Application.Services.OrderTracking.Sources.OrderTrackingSourceService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Materials.IDemandTrackingMaterialService, SwiftExport.Application.Services.OrderTracking.Materials.DemandTrackingMaterialService>();
         services.AddScoped<SwiftExport.Application.Interfaces.OrderTracking.Purchases.IDemandTrackingPurchaseService, SwiftExport.Application.Services.OrderTracking.Purchases.DemandTrackingPurchaseService>();

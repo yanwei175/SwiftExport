@@ -1,7 +1,7 @@
 using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
 using SwiftExport.Contracts.Wrappers;
 using Dapper;
-using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.Deliveries;
 using SwiftExport.Core.Interfaces.OrderTracking.Sources;
 using SwiftExport.Infrastructure.Contexts;
 namespace SwiftExport.Infrastructure.Repositories.OrderTracking.Sources;
@@ -9,15 +9,23 @@ namespace SwiftExport.Infrastructure.Repositories.OrderTracking.Sources;
 public sealed class PostgreSqlOrderTrackingSourceRepository(RepositoryBaseContext context) : IOrderTrackingSourceRepository
 {
     /// <summary>匹配数参与选组，全部条数和客户一致性独立从完整组计算。</summary>
-    public async Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SearchSourcesAsync(OrderTrackingSourceSearchRequest request,CancellationToken cancellationToken=default)
+    public async Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SearchSourcesAsync(OrderTrackingSourceSearchRequest request,DateTime businessDate,CancellationToken cancellationToken=default)
     {
         ArgumentNullException.ThrowIfNull(request);cancellationToken.ThrowIfCancellationRequested();
-        var (where,parameters)=OrderTrackingFilters.Build(new OrderTrackingSearchRequest {SourceTypes=request.SourceTypes,CustomerCodes=request.CustomerCodes,
-            RequiredDateFrom=request.RequiredDateFrom,RequiredDateTo=request.RequiredDateTo,LifecycleStatuses=request.LifecycleStatuses,Keyword=request.Keyword});
-        var cte=$"""
-            WITH matched AS (
+        var (where,parameters)=OrderTrackingFilters.Build(request);
+        var prefix="WITH ";
+        var overdue=string.Empty;
+        if(request.AttentionCodes?.Count>0)
+        {
+            parameters.AddTimestamp("BusinessDate",businessDate.Date);
+            prefix="WITH "+SwiftExport.Infrastructure.Repositories.OrderTracking.Summary.OrderTrackingSummarySql.Attention(
+                $"g.uid IN(SELECT g.uid {OrderTrackingFactsSql.From} {where})",request.AttentionCodes)+",";
+            overdue=" AND EXISTS(SELECT 1 FROM summary_attention a WHERE a.gross_id=g.uid)";
+        }
+        var cte=prefix+$"""
+            matched AS (
                 SELECT {OrderTrackingFilters.GroupType} AS group_type,{OrderTrackingFilters.GroupId} AS group_id,count(*)::integer AS matched_count
-                {OrderTrackingFactsSql.From} {where}
+                {OrderTrackingFactsSql.From} {where}{overdue}
                 GROUP BY {OrderTrackingFilters.GroupType},{OrderTrackingFilters.GroupId}
             )
             """;

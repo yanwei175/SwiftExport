@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Refit;
-using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
+using SwiftExport.Contracts.DTOs.OrderTracking.Summary;
+using SwiftExport.Contracts.DTOs.OrderTracking.MaterialDetail;
 using SwiftExport.Contracts.DTOs.OrderTracking.DemandDetail;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
@@ -17,9 +18,15 @@ namespace SwiftExport.Contracts.Apis.OrderTracking
     /// <summary>订单跟踪独立只读查询；客户端 BaseAddress 为 api/order-tracking。</summary>
     public interface IOrderTrackingApi
     {
-        /// <summary>按成品需求行分页查询基础事实，不读取执行进度。</summary>
-        [Post("/overview/search")]
-        Task<ServiceResult<PagedResponseBase<OrderTrackingListItemDto>>> SearchAsync([Body] OrderTrackingSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
+
+
+        /// <summary>批量读取当前页来源的活动需求摘要，按维度保护权限并保留失败状态。</summary>
+        [Post("/sources/summaries")]
+        Task<ServiceResult<OrderTrackingSourceSummaryBatchDto>> GetSourceSummariesAsync([Body] OrderTrackingSourceSummaryRequest request, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>全量读取一个来源的需求摘要，不继承筛选条件或分页。</summary>
+        [Get("/sources/{sourceType}/{sourceGroupId}/summaries")]
+        Task<ServiceResult<OrderTrackingSourceDemandSummariesDto>> GetSourceDemandSummariesAsync(string sourceType, Guid sourceGroupId, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>读取现有非软删除成品需求对应的客户代码候选，不要求销售查看权限。</summary>
         [Get("/customer-codes")]
@@ -48,5 +55,20 @@ namespace SwiftExport.Contracts.Apis.OrderTracking
         /// <summary>独立读取正式交付与反向历史及可信净额。</summary>
         [Get("/demands/{grossDemandId}/deliveries")]
         Task<ServiceResult<DemandTrackingDeliverySectionDto>> GetDeliveriesAsync(Guid grossDemandId, CancellationToken cancellationToken = default(CancellationToken));
+        /// <summary>读取所选来源的全部非删除需求，不应用主表筛选或分页。</summary>
+        [Get("/sources/{sourceType}/{sourceGroupId}/demands")]
+        Task<ServiceResult<OrderTrackingSourceDemandsDto>> GetSourceDemandsAsync(string sourceType, Guid sourceGroupId, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取单个物料需求的快照、来源和回退历史。</summary>
+        [Get("/materials/{netDemandId}")]
+        Task<ServiceResult<MaterialTrackingDetailDto>> GetMaterialDetailAsync(Guid netDemandId, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取本物料的可信采购承接进度及活动和历史关联。</summary>
+        [Get("/materials/{netDemandId}/purchases")]
+        Task<ServiceResult<MaterialTrackingPurchaseSectionDto>> GetMaterialPurchasesAsync(Guid netDemandId, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>读取本物料关联采购行的整行收货进度及证据，不分摊实收份额。</summary>
+        [Get("/materials/{netDemandId}/receipts")]
+        Task<ServiceResult<DemandTrackingReceiptSectionDto>> GetMaterialReceiptsAsync(Guid netDemandId, CancellationToken cancellationToken = default(CancellationToken));
     }
 }

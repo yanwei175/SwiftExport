@@ -55,7 +55,7 @@ public sealed class EndpointPermissionFilterTests
     {
         var routes = ReadMap("SingleKeys");
         // 跟踪来源组增加一个单键端点；四个区域另有组合权限定向验证。
-        Assert.AreEqual(248, routes.Count);
+        Assert.AreEqual(250, routes.Count);
         Assert.AreEqual("Products.Master.Edit", routes["ProductMasterController.SetMainImagesAsync"]);
         Assert.AreEqual("System.Dictionary.Edit", routes["SysDictTypeController.SyncBuiltInAsync"]);
         Assert.AreEqual("Products.Category.Edit", routes["ProductAttributeController.BatchSaveDefinitionsAsync"]);

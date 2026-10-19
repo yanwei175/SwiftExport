@@ -8,6 +8,8 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Sources
     /// <summary>来源组分页条件；筛选匹配完整需求集合后按稳定来源身份分组。</summary>
     public class OrderTrackingSourceSearchRequest : PagedRequestBase
     {
+        /// <summary>关注项代码集合内并集，与其他条件在同一需求上求交；未知代码或缺少所需权限必须拒绝。</summary>
+        public List<string> AttentionCodes { get; set; } = new List<string>();
         /// <summary>来源默认SO；空集合不限SO/CR/MD。</summary>
         public List<string> SourceTypes { get; set; } = new List<string> { "SO" };
         /// <summary>当前客户代码精确多选，空集合不限。</summary>

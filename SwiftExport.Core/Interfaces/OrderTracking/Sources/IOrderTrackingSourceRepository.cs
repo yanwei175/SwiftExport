@@ -5,5 +5,5 @@ namespace SwiftExport.Core.Interfaces.OrderTracking.Sources;
 public interface IOrderTrackingSourceRepository
 {
     /// <summary>先筛选完整集合再分组分页，不装载需求子表。</summary>
-    Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SearchSourcesAsync(OrderTrackingSourceSearchRequest request,CancellationToken cancellationToken=default);
+    Task<PagedResponseBase<OrderTrackingSourceGroupDto>> SearchSourcesAsync(OrderTrackingSourceSearchRequest request,DateTime businessDate,CancellationToken cancellationToken=default);
 }

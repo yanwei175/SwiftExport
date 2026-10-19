@@ -1,21 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
 using SwiftExport.Application.Interfaces.OrderTracking.Overview;
-using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
+using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
 using SwiftExport.Contracts.Wrappers;
-
 namespace SwiftExport.WebApi.Controllers.OrderTracking;
-
-/// <summary>订单跟踪总览的只读 HTTP 入口，业务权限由端点过滤器统一校验。</summary>
+/// <summary>来源全量需求和客户候选HTTP边界，旧分页入口已退出。</summary>
 [ApiController]
-[Route("api/order-tracking/overview")]
+[Route("api/order-tracking")]
 public sealed class OrderTrackingOverviewController(IOrderTrackingOverviewService service) : ControllerBase
 {
-    /// <summary>按独立跟踪权限读取筛选候选，路由不依赖销售管理入口。</summary>
-    [HttpGet("~/api/order-tracking/customer-codes")]
-    public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken)
-        => service.GetCustomerCodesAsync(cancellationToken);
-    /// <summary>按成品需求行筛选与分页，并透传请求取消。</summary>
-    [HttpPost("search")]
-    public Task<ServiceResult<PagedResponseBase<OrderTrackingListItemDto>>> SearchAsync([FromBody] OrderTrackingSearchRequest request, CancellationToken cancellationToken)
-        => service.SearchAsync(request, cancellationToken);
+    /// <summary>只绑定稳定来源身份，不接受主表筛选或分页。</summary>
+    [HttpGet("sources/{sourceType}/{sourceGroupId:guid}/demands")]
+    public Task<ServiceResult<OrderTrackingSourceDemandsDto>> GetSourceDemandsAsync([FromRoute]string sourceType,[FromRoute]Guid sourceGroupId,CancellationToken cancellationToken)
+        =>service.GetSourceDemandsAsync(sourceType,sourceGroupId,cancellationToken);
+    /// <summary>读取跟踪客户代码候选。</summary>
+    [HttpGet("customer-codes")]
+    public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken)=>service.GetCustomerCodesAsync(cancellationToken);
 }

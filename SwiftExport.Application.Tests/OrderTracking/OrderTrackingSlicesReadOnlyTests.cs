@@ -13,6 +13,7 @@ using SwiftExport.Infrastructure.Repositories.OrderTracking.Materials;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Purchases;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Receipts;
 using SwiftExport.Infrastructure.Repositories.OrderTracking.Deliveries;
+using SwiftExport.Infrastructure.Repositories.OrderTracking.MaterialDetail;
 
 namespace SwiftExport.Application.Tests.OrderTracking;
 
@@ -81,7 +82,9 @@ public sealed class OrderTrackingSlicesReadOnlyTests
                 sql=sql.Replace("public."+table+" ", "fixture_"+table+" ").Replace("public."+table+"\n","fixture_"+table+"\n");
                 command.Parameters.Add(new NpgsqlParameter(name,NpgsqlDbType.Jsonb){Value=JsonSerializer.Serialize(rows)});
             }
-            sql="WITH "+string.Join(",",definitions)+(sql.TrimStart().StartsWith("WITH ",StringComparison.OrdinalIgnoreCase)?","+sql.TrimStart()[5..]:" "+sql);
+            // QueryMultiple每个语句均需独立CTE作用域；生产SQL内部没有外部拼接或带分号字面量。
+            sql=string.Join(";",sql.Split(';',StringSplitOptions.RemoveEmptyEntries).Select(statement=>
+                "WITH "+string.Join(",",definitions)+(statement.TrimStart().StartsWith("WITH ",StringComparison.OrdinalIgnoreCase)?","+statement.TrimStart()[5..]:" "+statement)));
             command.CommandText=sql;
             foreach(var parameter in record.Parameters)command.Parameters.Add(parameter.Clone());
             commands.Add(command);commandCount++;
@@ -90,24 +93,24 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         try
         {
             var sources=new PostgreSqlOrderTrackingSourceRepository(fixture.Context);
-            var all=await sources.SearchSourcesAsync(new());
+            var all=await Groups(new());
             Assert.AreEqual(4,all.TotalCount);Assert.AreEqual(5,all.Items.Sum(item=>item.TotalDemandCount));
             Assert.AreEqual(2,all.Items.Count(item=>item.SourceUid==Guid.Empty));
             Assert.AreEqual(2,all.Items.Where(item=>item.SourceUid==Guid.Empty).Select(item=>item.SourceGroupId).Distinct().Count());
-            var hit=await sources.SearchSourcesAsync(new(){Keyword="hitSKU"});
+            var hit=await Groups(new(){Keyword="hitSKU"});
             Assert.AreEqual(1,hit.TotalCount);Assert.AreEqual(2,hit.Items.Single().TotalDemandCount);Assert.AreEqual(1,hit.Items.Single().MatchedDemandCount);
             StringAssert.Contains(hit.Items.Single().ReviewReason,"客户不一致");Assert.IsNull(hit.Items.Single().CustomerCode);
-            Assert.AreEqual(0,(await sources.SearchSourcesAsync(new(){Keyword="不存在"})).TotalCount);
-            var first=await sources.SearchSourcesAsync(new(){PageSize=1});var second=await sources.SearchSourcesAsync(new(){PageSize=1,PageIndex=2});
+            Assert.AreEqual(0,(await Groups(new(){Keyword="不存在"})).TotalCount);
+            var first=await Groups(new(){PageSize=1});var second=await Groups(new(){PageSize=1,PageIndex=2});
             Assert.AreNotEqual(first.Items.Single().SourceGroupId,second.Items.Single().SourceGroupId);
-            var beyond=await sources.SearchSourcesAsync(new(){PageIndex=99,PageSize=1});Assert.AreEqual(4,beyond.TotalCount);Assert.HasCount(0,beyond.Items);
-            var child=await fixture.Overview.SearchAsync(new(){SourceGroupType="SO",SourceGroupId=source,Keyword="hitSKU"});
-            Assert.AreEqual(1,child.TotalCount);Assert.AreEqual(g,child.Items.Single().GrossDemandId);
+            var beyond=await Groups(new(){PageIndex=99,PageSize=1});Assert.AreEqual(4,beyond.TotalCount);Assert.HasCount(0,beyond.Items);
+            var child=await fixture.Overview.GetSourceDemandsAsync("SO",source);
+            Assert.HasCount(2,child.Items);Assert.IsTrue(child.Items.Any(item=>item.GrossDemandId==g2));
             foreach(var keyword in new[]{"hitSKU","CS-hit","LS-hit","INV-K","P-O%_?","SAME"})
-                Assert.IsTrue((await fixture.Overview.SearchAsync(new(){Keyword=keyword})).TotalCount>0,keyword);
-            Assert.AreEqual(0,(await fixture.Overview.SearchAsync(new(){Keyword="不属于关键词的客户名"})).TotalCount);
-            Assert.AreEqual(0,(await fixture.Overview.SearchAsync(new(){Keyword="不属于关键词的描述"})).TotalCount);
-            Assert.AreEqual(0,(await fixture.Overview.SearchAsync(new(){Keyword="hitSKU",CustomerCodes=["B"]})).TotalCount);
+                Assert.IsTrue((await Groups(new(){Keyword=keyword})).TotalCount>0,keyword);
+            Assert.AreEqual(0,(await Groups(new(){Keyword="不属于关键词的客户名"})).TotalCount);
+            Assert.AreEqual(0,(await Groups(new(){Keyword="不属于关键词的描述"})).TotalCount);
+            Assert.AreEqual(0,(await Groups(new(){Keyword="hitSKU",CustomerCodes=["B"]})).TotalCount);
             var materials=new PostgreSqlDemandTrackingMaterialRepository(fixture.Context);
             var purchases=new PostgreSqlDemandTrackingPurchaseRepository(fixture.Context);
             var receipts=new PostgreSqlDemandTrackingReceiptRepository(fixture.Context);
@@ -121,15 +124,53 @@ public sealed class OrderTrackingSlicesReadOnlyTests
             Assert.AreEqual(2,received.Items.Select(row=>row.InboundLineId).Distinct().Count());
             Assert.AreEqual(true,received.Items.Single(row=>row.InboundLineId==receiptLine).CountsTowardReceipt);
             Assert.AreEqual(false,received.Items.Single(row=>row.InboundLineId==reverseLine).CountsTowardReceipt);
-            Assert.IsTrue(received.Items.All(row=>row.IsSharedPurchaseLine));Assert.AreEqual(string.Empty,received.ReviewReason);
-            var delivered=await deliveries.GetDeliveriesAsync(g);Assert.AreEqual(2m,delivered.DeliveredQty);Assert.AreEqual(8m,delivered.RemainingQty);Assert.HasCount(2,delivered.Items);
+            Assert.IsTrue(received.Items.All(row=>row.IsSharedPurchaseLine));Assert.IsTrue(received.PurchaseLines.Any(line=>line.PurchaseLineQty is null&&!string.IsNullOrEmpty(line.ReviewReason)));
+            var delivered=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);Assert.AreEqual(2m,delivered.DeliveredQty);Assert.AreEqual(8m,delivered.RemainingQty);Assert.HasCount(2,delivered.Items);
+            // 第5阶段：执行实际批量SQL，对照既有明细，并验证共享去重和不同来源异常隔离。
+            var summaryRepo=new SwiftExport.Infrastructure.Repositories.OrderTracking.Summary.PostgreSqlOrderTrackingSummaryRepository(fixture.Context);
+            var keys=new SwiftExport.Contracts.DTOs.OrderTracking.Summary.OrderTrackingSourceKeyDto[]{new(){SourceType="SO",SourceGroupId=source},new(){SourceType="SO",SourceGroupId=sourceB}};
+            var baseSummary=await summaryRepo.ReadDimensionAsync(keys,"Base",OrderTrackingReadFixture.BusinessDate);
+            Assert.HasCount(3,baseSummary);Assert.IsFalse(baseSummary.Single(r=>r.GrossDemandId==g2).IsActive);
+            var deliverySummary=await summaryRepo.ReadDimensionAsync(keys,"Delivery",OrderTrackingReadFixture.BusinessDate);
+            Assert.AreEqual(delivered.DeliveredQty,deliverySummary.Single(r=>r.GrossDemandId==g).DeliveredQty);
+            Assert.AreEqual(delivered.RemainingQty,deliverySummary.Single(r=>r.GrossDemandId==g).RemainingQty);
+            var materialSummary=await summaryRepo.ReadDimensionAsync(keys,"Material",OrderTrackingReadFixture.BusinessDate);
+            Assert.AreEqual(2,materialSummary.Single(r=>r.GrossDemandId==g).ActiveMaterialCount);
+            var purchaseSummary=await summaryRepo.ReadDimensionAsync(keys,"Purchase",OrderTrackingReadFixture.BusinessDate);
+            Assert.AreEqual(2,purchaseSummary.Single(r=>r.GrossDemandId==g).ApplicableMaterialCount);
+            Assert.AreEqual(1,purchaseSummary.Single(r=>r.GrossDemandId==g).PurchaseReviewMaterialCount);
+            var receiptSummary=await summaryRepo.ReadDimensionAsync(keys,"Receipt",OrderTrackingReadFixture.BusinessDate);
+            Assert.AreEqual(2,receiptSummary.Single(r=>r.GrossDemandId==g).ReceiptPurchaseLineCount);
+            Assert.AreEqual(1,receiptSummary.Single(r=>r.GrossDemandId==g).ReceiptReviewLineCount);
+            var sourceReceiptSummary=await summaryRepo.ReadSourceReceiptsAsync(keys,OrderTrackingReadFixture.BusinessDate);
+            Assert.AreEqual(2,sourceReceiptSummary.Single(r=>r.SourceGroupId==source).ReceiptPurchaseLineCount);
+            Assert.AreEqual(1,sourceReceiptSummary.Single(r=>r.SourceGroupId==sourceB).ReceiptPurchaseLineCount);
+            foreach(var code in new[]{"Overdue","MissingRequiredDate","DeliveryReview","NoActiveMaterial","PurchaseShortfall","PurchaseExcess","PurchaseReview","ReceiptOutstanding","ReceiptExcess","ReceiptReview","SourceReview"})
+                _=await Groups(new(){AttentionCodes=[code]});
+            Assert.AreEqual(0,(await Groups(new(){Keyword="hitSKU",AttentionCodes=["NoActiveMaterial"]})).TotalCount);
+            Assert.AreEqual(1,(await Groups(new(){Keyword="hitSKU",AttentionCodes=["NoActiveMaterial","PurchaseReview"]})).TotalCount);
+            var cleanGross=Guid.NewGuid();var cleanSource=Guid.NewGuid();var cleanNet=Guid.NewGuid();var cleanLine=Guid.NewGuid();var cleanPo=Guid.NewGuid();
+            data["gross_demand"].Add(Gross(cleanGross,cleanSource,customer,"clean","",""));
+            data["net_demand"].Add(Net(cleanNet,cleanGross,5m));
+            data["demand_execution_link"].Add(Link(Guid.NewGuid(),cleanNet,cleanLine,cleanPo,5m));
+            var cleanPoRow=new Dictionary<string,object?>(data["purchase_order_head"][0]){["uid"]=cleanPo};data["purchase_order_head"].Add(cleanPoRow);
+            var cleanLineRow=new Dictionary<string,object?>(data["purchase_order_line"][0]){["uid"]=cleanLine,["purchase_order_id"]=cleanPo};data["purchase_order_line"].Add(cleanLineRow);
+            var mixedKeys=keys.Append(new SwiftExport.Contracts.DTOs.OrderTracking.Summary.OrderTrackingSourceKeyDto{SourceType="SO",SourceGroupId=cleanSource}).ToArray();
+            data["inbound_document"][1]["reverse_reason"]="";
+            var isolated=await summaryRepo.ReadDimensionAsync(mixedKeys,"Receipt",OrderTrackingReadFixture.BusinessDate);
+            Assert.AreEqual(0,isolated.Single(r=>r.GrossDemandId==cleanGross).ReceiptReviewLineCount);
+            Assert.AreEqual(1,isolated.Single(r=>r.GrossDemandId==cleanGross).ReceiptOutstandingLineCount);
+            Assert.IsTrue(isolated.Single(r=>r.GrossDemandId==g).ReceiptReviewLineCount>0);
+            data["inbound_document"][1]["reverse_reason"]="纠错";
+            data["gross_demand"].RemoveAll(r=>Equals(r["uid"],cleanGross));data["net_demand"].RemoveAll(r=>Equals(r["uid"],cleanNet));
+            data["demand_execution_link"].RemoveAll(r=>Equals(r["net_demand_id"],cleanNet));data["purchase_order_head"].Remove(cleanPoRow);data["purchase_order_line"].Remove(cleanLineRow);
             // 正常删除草稿不参与正式净额，也不制造异常；正式删除证据必须保留并变未知。
             data["packing_list_line"][0]["is_deleted"]=true;
-            var deletedFormal=await deliveries.GetDeliveriesAsync(g);Assert.IsNull(deletedFormal.DeliveredQty);Assert.HasCount(2,deletedFormal.Items);
+            var deletedFormal=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);Assert.IsNull(deletedFormal.DeliveredQty);Assert.HasCount(2,deletedFormal.Items);
             data["packing_list_line"][0]["is_deleted"]=false;
             data["inbound_document"][1]["reverse_reason"]="";
             var unknown=await receipts.GetReceiptsAsync(g);Assert.HasCount(2,unknown.Items);Assert.IsTrue(unknown.Items.All(row=>row.CountsTowardReceipt is null));Assert.IsFalse(string.IsNullOrEmpty(unknown.ReviewReason));
-            Assert.AreEqual(2m,(await deliveries.GetDeliveriesAsync(g)).DeliveredQty);Assert.HasCount(2,await materials.GetMaterialsAsync(g));Assert.HasCount(3,await purchases.GetPurchasesAsync(g));
+            Assert.AreEqual(2m,(await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate)).DeliveredQty);Assert.HasCount(2,await materials.GetMaterialsAsync(g));Assert.HasCount(3,await purchases.GetPurchasesAsync(g));
             data["inbound_document"][1]["reverse_reason"]="纠错";
             data["purchase_order_line"][0]["product_id"]=Guid.NewGuid();
             Assert.IsTrue((await purchases.GetPurchasesAsync(g)).Where(row=>row.PurchaseLineId==poLine).All(row=>row.ReviewReason.Contains("产品",StringComparison.Ordinal)));
@@ -137,16 +178,119 @@ public sealed class OrderTrackingSlicesReadOnlyTests
             foreach(var field in new[]{"source_uid","source_line_id","customer_id"})
             {
                 var saved=data["gross_demand"][0][field];data["gross_demand"][0][field]=Guid.Empty;
-                var invalid=await deliveries.GetDeliveriesAsync(g);Assert.IsNull(invalid.DeliveredQty);Assert.IsNull(invalid.RemainingQty);Assert.IsFalse(string.IsNullOrEmpty(invalid.ReviewReason));
+                var invalid=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);Assert.IsNull(invalid.DeliveredQty);Assert.IsNull(invalid.RemainingQty);Assert.IsFalse(string.IsNullOrEmpty(invalid.ReviewReason));
                 data["gross_demand"][0][field]=saved;
             }
             var orphan=PackingLine(Guid.NewGuid(),Guid.NewGuid(),1m,false);data["packing_list_line"].Add(orphan);
-            var abnormal=await deliveries.GetDeliveriesAsync(g);Assert.IsNull(abnormal.DeliveredQty);Assert.HasCount(3,abnormal.Items);Assert.IsTrue(abnormal.Items.Any(row=>row.ReviewReason.Contains("缺失",StringComparison.Ordinal)));
+            var abnormal=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);Assert.IsNull(abnormal.DeliveredQty);Assert.HasCount(3,abnormal.Items);Assert.IsTrue(abnormal.Items.Any(row=>row.ReviewReason.Contains("缺失",StringComparison.Ordinal)));
+            data["packing_list_line"].Remove(orphan);
+            // 固定业务日验证逾期与选组完全相同；一条需求也只执行两条批量来源查询。
+            var savedDate=data["gross_demand"][0]["required_date"];
+            var savedLifecycle=data["gross_demand"][0]["lifecycle_status"];
+            foreach(var scenario in new[]{("2026-10-18T23:59:59",(bool?)true,1),("2026-10-19T00:00:00",(bool?)false,0),
+                ("2026-10-20T00:00:00",(bool?)false,0),((string?)null,(bool?)null,(int?)null)})
+            {
+                data["gross_demand"][0]["required_date"]=scenario.Item1;
+                var state=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);
+                Assert.AreEqual(scenario.Item2,state.IsOverdue);Assert.AreEqual(scenario.Item3,state.OverdueDays);
+                Assert.AreEqual(OrderTrackingReadFixture.BusinessDate,state.BusinessDate);
+                var before=fixture.Connection.Commands.Count;var selected=await Groups(new(){AttentionCodes=["Overdue"]});
+                Assert.AreEqual(2,fixture.Connection.Commands.Count-before);
+                Assert.AreEqual(state.IsOverdue==true?1:0,selected.TotalCount);
+            }
+            data["gross_demand"][0]["required_date"]="2026-10-18T00:00:00";
+            foreach(var status in new[]{8,9})
+            {
+                data["gross_demand"][0]["lifecycle_status"]=status;
+                var state=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);
+                Assert.AreEqual(false,state.IsOverdue);Assert.AreEqual(0,state.OverdueDays);
+                Assert.AreEqual(0,(await Groups(new(){AttentionCodes=["Overdue"]})).TotalCount);
+            }
+            data["gross_demand"][0]["lifecycle_status"]=savedLifecycle;
+            var savedUnit=data["gross_demand"][0]["unit_snapshot"];
+            // 明确覆盖.NET Unicode空白迁入共用SQL的等价边界。
+            data["gross_demand"][0]["unit_snapshot"]="\u3000";
+            Assert.IsNull((await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate)).IsOverdue);
+            Assert.AreEqual(0,(await Groups(new(){AttentionCodes=["Overdue"]})).TotalCount);
+            data["gross_demand"][0]["unit_snapshot"]=savedUnit;
+            data["gross_demand"][0]["required_date"]=savedDate;
+            var materialDetails=new PostgreSqlMaterialTrackingDetailRepository(fixture.Context);
+            var materialDetail=await materialDetails.GetMaterialDetailAsync(net);
+            Assert.IsNotNull(materialDetail);Assert.AreEqual(g,materialDetail.GrossDemandId);Assert.AreEqual(6m,materialDetail.Material.NetQty);
+            // 正常历史与已完全释放的Link保留证据，但不能污染当前可信承接。
+            var missingLink=data["demand_execution_link"][3];var savedLinkStatus=missingLink["link_status"];
+            missingLink["link_status"]=1;
+            data["demand_execution_link"].Add(Link(Guid.NewGuid(),net,Guid.NewGuid(),Guid.NewGuid(),3m));
+            var released=data["demand_execution_link"].Last();released["released_qty"]=3m;
+            var associated=await purchases.GetMaterialPurchasesAsync(net);
+            Assert.IsNotNull(associated);Assert.AreEqual(6m,associated.AssociatedPurchaseQty);Assert.AreEqual(0m,associated.RemainingToPurchaseQty);
+            Assert.HasCount(3,associated.Items);Assert.IsTrue(associated.Items.All(item=>item.NetDemandId==net));
+            var savedNetQty=data["net_demand"][0]["net_qty"];data["net_demand"][0]["net_qty"]=5m;
+            var excess=await purchases.GetMaterialPurchasesAsync(net);
+            Assert.AreEqual(-1m,excess!.RemainingToPurchaseQty);StringAssert.Contains(excess.ReviewReason,"超出");
+            data["net_demand"][0]["net_qty"]=savedNetQty;
+            data["net_demand"][0]["lifecycle_status"]=8;data["net_demand"][0]["is_deleted"]=true;
+            var historical=await materialDetails.GetMaterialDetailAsync(net);
+            Assert.IsNotNull(historical);Assert.IsTrue(historical.Material.IsDeleted);
+            Assert.IsNull((await purchases.GetMaterialPurchasesAsync(net))!.AssociatedPurchaseQty);
+            data["net_demand"][0]["lifecycle_status"]=0;data["net_demand"][0]["is_deleted"]=false;
+            data["demand_execution_link"].Remove(released);missingLink["link_status"]=savedLinkStatus;
+
+            var perMaterial=await receipts.GetMaterialReceiptsAsync(net);
+            Assert.IsNotNull(perMaterial);Assert.AreEqual(net,perMaterial.NetDemandId);Assert.AreEqual(g,perMaterial.GrossDemandId);
+            var poProgress=perMaterial.PurchaseLines.Single(line=>line.PurchaseLineId==poLine);
+            Assert.AreEqual(4m,poProgress.ReceivedQty);Assert.AreEqual(16m,poProgress.RemainingQty);Assert.IsTrue(poProgress.IsSharedPurchaseLine);
+            // 新增正常PO行且无任何入库，必须返回已知0和完整未收，而非缺失进度行。
+            var unusedLine=Guid.NewGuid();var unusedLink=Link(Guid.NewGuid(),net,unusedLine,po,1m);
+            data["demand_execution_link"].Add(unusedLink);
+            data["purchase_order_line"].Add(R(("uid",unusedLine),("purchase_order_id",po),("line_number",2),("sku","无收货"),
+                ("product_id",product),("unit_snapshot","PCS"),("quantity",8m),("is_deleted",false)));
+            var noReceipt=(await receipts.GetMaterialReceiptsAsync(net))!.PurchaseLines.Single(line=>line.PurchaseLineId==unusedLine);
+            Assert.AreEqual(0m,noReceipt.ReceivedQty);Assert.AreEqual(8m,noReceipt.RemainingQty);
+            // 未发生的草稿，包含已删除草稿和字段未齐的普通草稿，都不能污染正式已收。
+            var draftReceiptHead=Guid.NewGuid();data["inbound_document"].Add(Receipt(draftReceiptHead,0));
+            var deletedDraftReceipt=ReceiptLine(Guid.NewGuid(),draftReceiptHead,2m);deletedDraftReceipt["is_deleted"]=true;
+            var incompleteDraft=ReceiptLine(Guid.NewGuid(),draftReceiptHead,0m);incompleteDraft["unit_snapshot"]=null;
+            data["inbound_document_line"].Add(deletedDraftReceipt);data["inbound_document_line"].Add(incompleteDraft);
+            var drafts=await receipts.GetReceiptsAsync(g);
+            Assert.IsFalse(drafts.Items.Any(item=>item.InboundLineId==(Guid)deletedDraftReceipt["uid"]!));
+            var ordinaryDraft=drafts.Items.Single(item=>item.InboundLineId==(Guid)incompleteDraft["uid"]!);
+            Assert.AreEqual(false,ordinaryDraft.CountsTowardReceipt);Assert.AreEqual(string.Empty,ordinaryDraft.ReviewReason);
+            Assert.AreEqual(4m,drafts.PurchaseLines.Single(line=>line.PurchaseLineId==poLine).ReceivedQty);
+            data["purchase_order_line"][0]["quantity"]=3m;
+            var overReceived=(await receipts.GetReceiptsAsync(g)).PurchaseLines.Single(line=>line.PurchaseLineId==poLine);
+            Assert.AreEqual(4m,overReceived.ReceivedQty);Assert.AreEqual(-1m,overReceived.RemainingQty);StringAssert.Contains(overReceived.ReviewReason,"超收");
+            data["purchase_order_line"][0]["quantity"]=20m;
+            data["inbound_document"][1]["reverse_reason"]="";
+            Assert.IsNull((await receipts.GetMaterialReceiptsAsync(net))!.PurchaseLines.Single(line=>line.PurchaseLineId==poLine).ReceivedQty);
+            Assert.AreEqual(6m,(await purchases.GetMaterialPurchasesAsync(net))!.Items.Single(item=>item.LinkId==ids[24]).LinkedQty);
+            data["inbound_document"][1]["reverse_reason"]="纠错";
+            Assert.IsNull((await receipts.GetMaterialReceiptsAsync(net))!.PurchaseLines.Single(line=>line.PurchaseLineId==ids[28]).PurchaseLineQty);
+            // 302条全量读取：主表命中1条，子表仍包含关闭/作废、空单位/交期及其他未命中行。
+            for(var index=0;index<300;index++)
+            {
+                var extra=Gross(Guid.NewGuid(),source,customer,"不命中","","");
+                if(index==0){extra["unit_snapshot"]=null;extra["required_date"]=null;extra["lifecycle_status"]=9;}
+                data["gross_demand"].Add(extra);
+            }
+            var narrow=await Groups(new(){Keyword="hitSKU"});
+            Assert.AreEqual(1,narrow.Items.Single().MatchedDemandCount);Assert.AreEqual(302,narrow.Items.Single().TotalDemandCount);
+            var complete=await fixture.Overview.GetSourceDemandsAsync("SO",source);
+            Assert.HasCount(302,complete.Items);Assert.IsTrue(complete.Items.Any(item=>item.Unit is null&&item.RequiredDate is null));
+            Assert.IsFalse(fixture.Connection.Commands.Last().Sql.Contains("LIMIT",StringComparison.OrdinalIgnoreCase));
+            var allKeys=new SwiftExport.Contracts.DTOs.OrderTracking.Summary.OrderTrackingSourceKeyDto[]{new(){SourceType="SO",SourceGroupId=source}};
+            var summaryStart=fixture.Connection.Commands.Count;
+            foreach(var dimension in new[]{"Base","Delivery","Material","Purchase","Receipt"})
+                Assert.HasCount(302,await summaryRepo.ReadDimensionAsync(allKeys,dimension,OrderTrackingReadFixture.BusinessDate));
+            Assert.AreEqual(5,fixture.Connection.Commands.Count-summaryStart,"302条需求仍然仅按维度批量读取。");
             await transaction.RollbackAsync();
             File.WriteAllText(Path.Combine(root,"SwiftExport.Application.Tests","TestResults","订单跟踪分组切片只读PG证据.json"),
-                JsonSerializer.Serialize(new{ReadOnly=true,ActualRepositoryCommands=commandCount,SourceGroups=4,DemandRows=5,SharedReceiptRows=2,IndependentFailures=true,DeletedDraftExcluded=true}));
+                JsonSerializer.Serialize(new{ReadOnly=true,ActualRepositoryCommands=commandCount,SourceGroups=4,FullSourceRows=302,SharedReceiptRows=2,IndependentFailures=true,DeletedDraftExcluded=true,OverdueParity=true,HistoricalMaterialReadable=true,UnpostedReceiptExcluded=true}));
         }
         finally{foreach(var command in commands)await command.DisposeAsync();}
+
+        Task<SwiftExport.Contracts.Wrappers.PagedResponseBase<OrderTrackingSourceGroupDto>> Groups(OrderTrackingSourceSearchRequest request)
+            =>new PostgreSqlOrderTrackingSourceRepository(fixture.Context).SearchSourcesAsync(request,OrderTrackingReadFixture.BusinessDate);
 
         Dictionary<string,object?> Gross(Guid id,Guid sourceUid,Guid customerId,string sku,string customerSku,string linkSku)=>R(("uid",id),("version",1),("source_type","SO"),("source_uid",sourceUid),("source_line_id",id),
             ("source_no","SAME"),("source_line_number",1),("source_version",1),("demand_basis_fingerprint",new string('A',64)),("customer_id",customerId),("product_id",product),("is_non_standard",false),

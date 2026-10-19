@@ -4,5 +4,5 @@ namespace SwiftExport.Core.Interfaces.OrderTracking.Deliveries;
 public interface IDemandTrackingDeliveryRepository
 {
     /// <summary>按成品需求稳定身份读取本区域证据，借用当前会话。</summary>
-    Task<DemandTrackingDeliverySectionDto> GetDeliveriesAsync(Guid grossDemandId,CancellationToken cancellationToken=default);
+    Task<DemandTrackingDeliverySectionDto> GetDeliveriesAsync(Guid grossDemandId,DateTime businessDate,CancellationToken cancellationToken=default);
 }

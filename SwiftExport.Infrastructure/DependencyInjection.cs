@@ -108,6 +108,7 @@ public static class DependencyInjection
         services.AddSingleton<SwiftExport.Core.Interfaces.Data.IDatabaseExceptionClassifier>(PostgreSqlExceptionClassifier.Instance);
 
         // 两个入口必须解析到同一个 scoped 实例，避免应用与仓储各持一条连接。
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Summary.IOrderTrackingSummaryRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Summary.PostgreSqlOrderTrackingSummaryRepository>();
         services.AddScoped<SwiftExport.Infrastructure.Data.IDbConnectionFactory>(sp =>
             new PostgreSqlConnectionFactory(Microsoft.Extensions.Configuration.ConfigurationExtensions.GetConnectionString(
                 sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>(), "Default")!));
@@ -156,6 +157,7 @@ public static class DependencyInjection
         services.AddScoped<IGrossDemandQueryRepository, PostgreSqlGrossDemandQueryRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Overview.IOrderTrackingOverviewRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Overview.PostgreSqlOrderTrackingOverviewRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.DemandDetail.IDemandTrackingHeaderRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.DemandDetail.PostgreSqlDemandTrackingHeaderRepository>();
+        services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.MaterialDetail.IMaterialTrackingDetailRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.MaterialDetail.PostgreSqlMaterialTrackingDetailRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Sources.IOrderTrackingSourceRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Sources.PostgreSqlOrderTrackingSourceRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Materials.IDemandTrackingMaterialRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Materials.PostgreSqlDemandTrackingMaterialRepository>();
         services.AddScoped<SwiftExport.Core.Interfaces.OrderTracking.Purchases.IDemandTrackingPurchaseRepository, SwiftExport.Infrastructure.Repositories.OrderTracking.Purchases.PostgreSqlDemandTrackingPurchaseRepository>();

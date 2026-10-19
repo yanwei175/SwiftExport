@@ -2,7 +2,7 @@ using System.Text;
 using Dapper;
 using Npgsql;
 using NpgsqlTypes;
-using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
+using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.OrderTracking;
@@ -14,7 +14,7 @@ internal static class OrderTrackingFilters
     internal const string GroupType = "upper(rtrim(g.source_type,' ')) COLLATE public.erp_dictionary_ci";
 
     /// <summary>只构造基础事实筛选及显式参数，不读取执行区域。</summary>
-    internal static (string Where, PostgreSqlParameters Parameters) Build(OrderTrackingSearchRequest request)
+    internal static (string Where, PostgreSqlParameters Parameters) Build(OrderTrackingSourceSearchRequest request)
     {
         var parameters = new PostgreSqlParameters();
         var where = new StringBuilder("WHERE " + OrderTrackingFactsSql.Eligible);
@@ -49,12 +49,6 @@ internal static class OrderTrackingFilters
             // 在 PG 内推进一天，允许 .NET 最大日期作为包含式上界，不在应用端溢出。
             where.Append(" AND g.required_date<@RequiredDateTo + INTERVAL '1 day'");
             parameters.AddTimestamp("RequiredDateTo", request.RequiredDateTo.Value.Date);
-        }
-        if (request.SourceGroupId.HasValue)
-        {
-            where.Append($" AND {GroupId}=@SourceGroupId AND {GroupType}=@SourceGroupType");
-            parameters.Add("SourceGroupId", request.SourceGroupId.Value);
-            parameters.Add("SourceGroupType", request.SourceGroupType);
         }
         return (where.ToString(), parameters);
     }

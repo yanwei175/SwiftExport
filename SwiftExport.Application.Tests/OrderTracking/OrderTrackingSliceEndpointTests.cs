@@ -10,6 +10,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Refit;
 using SwiftExport.Application.Interfaces.Auth.Permissions.Evaluation;
 using SwiftExport.Application.Interfaces.OrderTracking.Sources;
+using SwiftExport.Application.Interfaces.OrderTracking.MaterialDetail;
 using SwiftExport.Application.Interfaces.OrderTracking.Materials;
 using SwiftExport.Application.Interfaces.OrderTracking.Purchases;
 using SwiftExport.Application.Interfaces.OrderTracking.Receipts;
@@ -36,7 +37,7 @@ public sealed class OrderTrackingSliceEndpointTests
         var builder=WebApplication.CreateBuilder(new WebApplicationOptions{EnvironmentName="Production"});
         builder.Logging.ClearProviders();builder.WebHost.UseUrls("http://127.0.0.1:0");
         foreach(var type in new[]{typeof(IOrderTrackingSourceService),typeof(IDemandTrackingMaterialService),typeof(IDemandTrackingPurchaseService),
-            typeof(IDemandTrackingReceiptService),typeof(IDemandTrackingDeliveryService)})
+            typeof(IDemandTrackingReceiptService),typeof(IDemandTrackingDeliveryService),typeof(IMaterialTrackingDetailService),typeof(SwiftExport.Application.Interfaces.OrderTracking.Summary.IOrderTrackingSummaryService)})
         {
             var proxy=DispatchProxy.Create(type,typeof(ServiceProbe));
             ((ServiceProbe)proxy).Handler=method=>
@@ -62,7 +63,14 @@ public sealed class OrderTrackingSliceEndpointTests
         var api=RestService.For<IOrderTrackingApi>(client);var id=Guid.NewGuid();
         var cases=new (Func<Task> Read,string[] Keys)[]
         {
+            (()=>api.GetSourceSummariesAsync(new(){Sources=[new(){SourceType="SO",SourceGroupId=id}]}),[PermissionKeys.OrderTrackingView]),
+            (()=>api.GetSourceDemandSummariesAsync("SO",id),[PermissionKeys.OrderTrackingView]),
+            (()=>api.SearchSourcesAsync(new(){AttentionCodes=["PurchaseShortfall","ReceiptReview"]}),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.ProcurementOrderRead,PermissionKeys.InventoryInboundView]),
             (()=>api.SearchSourcesAsync(new(){Keyword="~%_?"}),[PermissionKeys.OrderTrackingView]),
+            (()=>api.SearchSourcesAsync(new(){AttentionCodes=["Overdue"]}),[PermissionKeys.OrderTrackingView,PermissionKeys.ShippingPackingListView]),
+            (()=>api.GetMaterialDetailAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView]),
+            (()=>api.GetMaterialPurchasesAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.ProcurementOrderRead]),
+            (()=>api.GetMaterialReceiptsAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView,PermissionKeys.InventoryInboundView,PermissionKeys.ProcurementOrderRead]),
             (()=>api.GetMaterialsAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.DemandPlanningMaterialView]),
             (()=>api.GetPurchasesAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.ProcurementOrderRead]),
             (()=>api.GetReceiptsAsync(id),[PermissionKeys.OrderTrackingView,PermissionKeys.InventoryInboundView,PermissionKeys.ProcurementOrderRead]),
@@ -82,7 +90,7 @@ public sealed class OrderTrackingSliceEndpointTests
             Assert.AreEqual(HttpStatusCode.Unauthorized,(await Assert.ThrowsAsync<ApiException>(item.Read)).StatusCode);
             Assert.AreEqual(before+1,calls);
         }
-        Assert.AreEqual(5,calls);
+        Assert.AreEqual(12,calls);
     }
 
     /// <summary>由真实 Controller 调用，只有通过权限过滤后才返回窄服务结果。</summary>

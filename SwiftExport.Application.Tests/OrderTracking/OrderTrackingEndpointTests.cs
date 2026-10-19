@@ -13,7 +13,7 @@ using SwiftExport.Application.Interfaces.OrderTracking.DemandDetail;
 using SwiftExport.Application.Models.Auth.Permissions.Evaluation;
 using SwiftExport.Contracts.Apis.OrderTracking;
 using SwiftExport.Contracts.DTOs.Auth;
-using SwiftExport.Contracts.DTOs.OrderTracking.Overview;
+using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
 using SwiftExport.Contracts.DTOs.OrderTracking.DemandDetail;
 using SwiftExport.Contracts.Wrappers;
 using SwiftExport.Core.Interfaces.Auth;
@@ -46,19 +46,23 @@ public sealed class OrderTrackingEndpointTests
         using var client = new HttpClient { BaseAddress = new Uri(address + "/api/order-tracking") };
         var api = RestService.For<IOrderTrackingApi>(client);
         var id = Guid.NewGuid();
-        var page = await api.SearchAsync(new() { CustomerCodes = ["A", "B"], SourceTypes = ["CR"] });
-        Assert.IsTrue(page.Success); Assert.AreEqual("CR", service.Request!.SourceTypes.Single());
-        CollectionAssert.AreEqual(new[] { "A", "B" }, service.Request.CustomerCodes);
+        var source=Guid.NewGuid();
+        var full=await api.GetSourceDemandsAsync("CR",source);
+        Assert.IsTrue(full.Success);Assert.AreEqual(source,full.Data.SourceGroupId);Assert.AreEqual("CR",full.Data.SourceType);
         Assert.AreEqual(id, (await api.GetDemandHeaderAsync(id)).Data.GrossDemandId);
         CollectionAssert.AreEqual(new[] { "A", "B" }, (await api.GetCustomerCodesAsync()).Data);
         Assert.AreEqual(3, service.Calls);
+        // 已退出的分页子表不能再被直接调用，避免客户端继续依赖截断入口。
+        using(var retired=await client.PostAsync(new Uri(address+"/api/order-tracking/overview/search"),new StringContent("{}",System.Text.Encoding.UTF8,"application/json")))
+            Assert.AreEqual(HttpStatusCode.NotFound,retired.StatusCode);
+        Assert.AreEqual(3,service.Calls);
         Assert.IsTrue(permission.Keys.All(key => key == PermissionKeys.OrderTrackingView));
         permission.Allowed = PermissionKeys.SalesOrderView;
-        Assert.AreEqual(HttpStatusCode.Forbidden, (await Assert.ThrowsAsync<ApiException>(() => api.SearchAsync(new()))).StatusCode);
+        Assert.AreEqual(HttpStatusCode.Forbidden, (await Assert.ThrowsAsync<ApiException>(() => api.GetSourceDemandsAsync("SO",id))).StatusCode);
         Assert.AreEqual(HttpStatusCode.Forbidden, (await Assert.ThrowsAsync<ApiException>(() => api.GetDemandHeaderAsync(id))).StatusCode);
         Assert.AreEqual(HttpStatusCode.Forbidden, (await Assert.ThrowsAsync<ApiException>(() => api.GetCustomerCodesAsync())).StatusCode);
         user.Authenticated = false; permission.Allowed = PermissionKeys.OrderTrackingView;
-        Assert.AreEqual(HttpStatusCode.Unauthorized, (await Assert.ThrowsAsync<ApiException>(() => api.SearchAsync(new()))).StatusCode);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, (await Assert.ThrowsAsync<ApiException>(() => api.GetSourceDemandsAsync("SO",id))).StatusCode);
         Assert.AreEqual(HttpStatusCode.Unauthorized, (await Assert.ThrowsAsync<ApiException>(() => api.GetDemandHeaderAsync(id))).StatusCode);
         Assert.AreEqual(HttpStatusCode.Unauthorized, (await Assert.ThrowsAsync<ApiException>(() => api.GetCustomerCodesAsync())).StatusCode);
         Assert.AreEqual(3, service.Calls);
@@ -88,10 +92,10 @@ public sealed class OrderTrackingEndpointTests
     private sealed class Query : IOrderTrackingOverviewService, IDemandTrackingHeaderService
     {
         internal int Calls;
-        internal OrderTrackingSearchRequest? Request;
+        internal Guid SourceGroupId;
         /// <summary>记录总览路由进入服务的次数及反序列化筛选。</summary>
-        public Task<ServiceResult<PagedResponseBase<OrderTrackingListItemDto>>> SearchAsync(OrderTrackingSearchRequest request, CancellationToken cancellationToken = default)
-        { Calls++; Request = request; return Task.FromResult(ServiceResult<PagedResponseBase<OrderTrackingListItemDto>>.Ok(new())); }
+        public Task<ServiceResult<OrderTrackingSourceDemandsDto>> GetSourceDemandsAsync(string sourceType,Guid sourceGroupId,CancellationToken cancellationToken=default)
+        {Calls++;SourceGroupId=sourceGroupId;return Task.FromResult(ServiceResult<OrderTrackingSourceDemandsDto>.Ok(new(){SourceType=sourceType,SourceGroupId=sourceGroupId}));}
         /// <summary>返回固定客户代码，验证只持有跟踪权限也能完成候选读取。</summary>
         public Task<ServiceResult<List<string>>> GetCustomerCodesAsync(CancellationToken cancellationToken = default)
         { Calls++; return Task.FromResult(ServiceResult<List<string>>.Ok(["A", "B"])); }

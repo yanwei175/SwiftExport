@@ -21,6 +21,8 @@ internal sealed class OrderTrackingReadFixture : IDisposable
     internal readonly PostgreSqlOrderTrackingOverviewRepository Overview;
     internal readonly PostgreSqlDemandTrackingHeaderRepository Detail;
     internal readonly RepositoryBaseContext Context;
+    internal static readonly DateTime BusinessDate=new(2026,10,19);
+    internal readonly SwiftExport.Infrastructure.Repositories.OrderTracking.Sources.PostgreSqlOrderTrackingSourceRepository Sources;
 
     internal OrderTrackingReadFixture(bool transaction = false)
     {
@@ -29,6 +31,7 @@ internal sealed class OrderTrackingReadFixture : IDisposable
         var user = new User();
         var context = new RepositoryBaseContext(Session, NullLoggerFactory.Instance, new AuditStampService(user), user);
         Context = context;
+        Sources = new(context);
         Overview = new(context); Detail = new(context);
     }
 

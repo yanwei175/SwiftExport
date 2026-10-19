@@ -1,6 +1,6 @@
 using SwiftExport.Contracts.SysEnums;
 namespace SwiftExport.Application.Services.OrderTracking;
-/// <summary>两个分页用例共用来源、生命周期及按日日期校验。</summary>
+/// <summary>来源分页用例的来源、生命周期及按日日期校验。</summary>
 internal static class OrderTrackingSearchValidation
 {
     /// <summary>返回字段和原因，不修改请求或访问仓储。</summary>

@@ -19,7 +19,8 @@ public sealed class DemandTrackingDeliveryService(ServiceBaseContext context,IDe
         {
             if(await headers.GetDemandHeaderAsync(grossDemandId,cancellationToken) is null)
                 return ServiceResult<DemandTrackingDeliverySectionDto>.Fail(ServiceErrorCodes.NotFound,"未找到成品需求。");
-            return ServiceResult<DemandTrackingDeliverySectionDto>.Ok(await repository.GetDeliveriesAsync(grossDemandId,cancellationToken));
+            var businessDate=OrderTrackingBusinessDate.Today();
+            return ServiceResult<DemandTrackingDeliverySectionDto>.Ok(await repository.GetDeliveriesAsync(grossDemandId,businessDate,cancellationToken));
         }
         catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested){throw;}
         catch(Exception ex)
