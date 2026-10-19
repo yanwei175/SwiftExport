@@ -11,8 +11,8 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Sources
         public string Keyword { get; set; } = string.Empty;
         /// <summary>关注项集合内并集，与其他条件在同一成品需求上求交；受同等权限保护。</summary>
         public List<string> AttentionCodes { get; set; } = new List<string>();
-        /// <summary>已应用的来源类型条件，空集合不限。</summary>
-        public List<string> SourceTypes { get; set; } = new List<string> { "SO" };
+        /// <summary>已应用的来源类型条件；省略或null由服务端默认SO，显式空集合不限。不得预填集合，避免反序列化追加默认值。</summary>
+        public List<string> SourceTypes { get; set; }
         /// <summary>已应用的客户代码精确多选，空集合不限。</summary>
         public List<string> CustomerCodes { get; set; } = new List<string>();
         /// <summary>要求交期起日，含当天。</summary>

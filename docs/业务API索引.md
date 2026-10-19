@@ -658,4 +658,4 @@ Refit声明放[Contracts/Apis](../SwiftExport.Contracts/Apis)，用例DTO放[Con
 第三轮已定向验收的独立物料跟踪：GET `api/order-tracking/materials/{netDemandId}` 返回 `MaterialTrackingDetailDto`；子路径 `/purchases` 返回 `MaterialTrackingPurchaseSectionDto`，`/receipts` 返回 `DemandTrackingReceiptSectionDto`。来源分页现使用 `AttentionCodes` 多选关注项，集合内 OR、与基础条件在同一活动需求上 AND；按所选维度检查额外权限。原 `OnlyOverdue` 已在第5阶段退出。旧 `overview/search` 已退出；本轮定向验证通过，但尚未合并或部署。
 
 第5阶段新增独立摘要（工作树实现，尚未合并部署）：POST `api/order-tracking/sources/summaries` 使用 `OrderTrackingSourceSummaryRequest`，返回 `OrderTrackingSourceSummaryBatchDto`；GET `api/order-tracking/sources/{sourceType}/{sourceGroupId}/summaries` 返回 `OrderTrackingSourceDemandSummariesDto`，完整覆盖所选来源而不分页。摘要分维度授权及失败隔离，采购行收货在来源内去重，权限与数量边界见设计与交付文档第5阶段记录。
-订单跟踪总览体验调整（工作树实施中，未合并部署）：新增 POST api/order-tracking/sources/{sourceType}/{sourceGroupId}/matches，按已应用条件返回指定来源全部命中成品需求ID，不分页；基础OrderTracking.View及所选关注项权限与sources/search一致。GET demands全量子表保持不变。
+订单跟踪总览体验调整（工作树已定向验收，未合并部署）：新增 POST api/order-tracking/sources/{sourceType}/{sourceGroupId}/matches，按已应用条件返回指定来源全部命中成品需求ID，不分页；基础OrderTracking.View及所选关注项权限与sources/search一致。GET demands全量子表保持不变。

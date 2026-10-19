@@ -10,8 +10,8 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Sources
     {
         /// <summary>关注项代码集合内并集，与其他条件在同一需求上求交；未知代码或缺少所需权限必须拒绝。</summary>
         public List<string> AttentionCodes { get; set; } = new List<string>();
-        /// <summary>来源默认SO；空集合不限SO/CR/MD。</summary>
-        public List<string> SourceTypes { get; set; } = new List<string> { "SO" };
+        /// <summary>省略或null由服务端默认SO；显式空集合不限SO/CR/MD。不得预填集合，避免反序列化追加默认值。</summary>
+        public List<string> SourceTypes { get; set; }
         /// <summary>当前客户代码精确多选，空集合不限。</summary>
         public List<string> CustomerCodes { get; set; } = new List<string>();
         /// <summary>要求交期起日，含当天。</summary>
