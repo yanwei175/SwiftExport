@@ -5,6 +5,8 @@ using SwiftExportClient.Features.Customers.CustomerProducts.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.GrossDemand.ViewModels;
 using SwiftExportClient.Features.DemandPlanning.NetDemand.ViewModels;
 using SwiftExportClient.Features.Home;
+using SwiftExportClient.Features.OrderTracking.Overview.ViewModels;
+using SwiftExportClient.Features.OrderTracking.DemandDetail.ViewModels;
 using SwiftExportClient.Features.Inventory.Balances.ViewModels;
 using SwiftExportClient.Features.Inventory.Inbounds.ViewModels;
 using SwiftExportClient.Features.Inventory.Ledger.ViewModels;
@@ -84,6 +86,9 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
         new(SalesOrderManagerViewModel.RouteKey, "销售订单管理", "Workspace", typeof(SalesOrderManagerViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
 
         new(SalesOrderManagerViewModel.DetailRouteKey, "销售订单", "Workspace", typeof(SalesOrderDetailViewModel), NavigationModuleKeys.Sales, "Sales.Order.View"),
+
+        new(OrderTrackingOverviewViewModel.RouteKey, "跟踪总览", "Workspace", typeof(OrderTrackingOverviewViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, DiscardOnAccessRevoked: true),
+        new(DemandTrackingDetailViewModel.RouteKey, "成品需求跟踪明细", "Detail", typeof(DemandTrackingDetailViewModel), NavigationModuleKeys.OrderTracking, PermissionKeys.OrderTrackingView, DiscardOnAccessRevoked: true),
 
 
 
@@ -185,6 +190,13 @@ public sealed class NavigationRouteRegistry : INavigationRouteRegistry
                 [
                     new(SalesOrderManagerViewModel.RouteKey, "销售订单", "Workspace", "DocumentBulletList24"),
                 ]),
+            new(
+                NavigationModuleKeys.OrderTracking,
+                "订单跟踪",
+                "Workspace",
+                "DataTrending24",
+                IsExpanded: false,
+                Children: [new(OrderTrackingOverviewViewModel.RouteKey, "跟踪总览", "Workspace", "DocumentTable24")]),
             new(
                 "demand-planning",
                 "需求计划",

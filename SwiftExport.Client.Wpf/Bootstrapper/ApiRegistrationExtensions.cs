@@ -128,6 +128,7 @@ public static class ApiRegistrationExtensions
     private static void AddOrderApis(this IServiceCollection services)
     {
         services.AddControllerApi<ISalesOrderManagerApi>("sales-orders/manager");
+        services.AddControllerApi<SwiftExport.Contracts.Apis.OrderTracking.IOrderTrackingApi>("order-tracking");
         services.AddControllerApi<ISalesOrderDetailApi>("sales-orders/detail");
         services.AddControllerApi<IGrossDemandWorkspaceApi>("demand-planning/gross-demands");
         services.AddControllerApi<INetDemandManagerApi>("demand-planning/net-demands");

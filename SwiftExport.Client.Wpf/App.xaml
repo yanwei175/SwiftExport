@@ -31,6 +31,7 @@
                 <ResourceDictionary Source="Features/Customers/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Suppliers/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Sales/页面模板.xaml" />
+                <ResourceDictionary Source="Features/OrderTracking/页面模板.xaml" />
                 <ResourceDictionary Source="Features/DemandPlanning/页面模板.xaml" />
                 <ResourceDictionary Source="Features/Procurement/页面模板.xaml" />
                 <ResourceDictionary Source="Features/QualityControl/页面模板.xaml" />
