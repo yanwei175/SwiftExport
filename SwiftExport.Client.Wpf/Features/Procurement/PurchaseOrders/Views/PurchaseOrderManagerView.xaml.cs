@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Collections.Specialized;
+using SwiftExportClient.Features.Procurement.PurchaseOrders.Models;
 using SwiftExportClient.Features.Procurement.PurchaseOrders.ViewModels;
 namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Views;
 
@@ -8,7 +10,36 @@ namespace SwiftExportClient.Features.Procurement.PurchaseOrders.Views;
 public partial class PurchaseOrderManagerView : UserControl
 {
     /// <summary>初始化采购订单管理页。</summary>
-    public PurchaseOrderManagerView() => InitializeComponent();
+    public PurchaseOrderManagerView() { InitializeComponent(); IsVisibleChanged += OnVisibilityChanged; }
+    /// <summary>保活页面隐藏时关闭浮层，保留输入条件。</summary>
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    { if (e.NewValue is false && DataContext is PurchaseOrderManagerViewModel vm) vm.IsMoreFiltersOpen = false; }
+
+    /// <summary>观察原生集合视图，表头筛选及数据替换后按实际可见行更新勾选范围。</summary>
+    private void OnOrdersLoaded(object sender, RoutedEventArgs e)
+    {
+        ((INotifyCollectionChanged)OrdersGrid.Items).CollectionChanged -= OnVisibleOrdersChanged;
+        ((INotifyCollectionChanged)OrdersGrid.Items).CollectionChanged += OnVisibleOrdersChanged;
+        SyncVisibleOrders();
+    }
+    private void OnOrdersUnloaded(object sender, RoutedEventArgs e) => ((INotifyCollectionChanged)OrdersGrid.Items).CollectionChanged -= OnVisibleOrdersChanged;
+    private void OnVisibleOrdersChanged(object? sender, NotifyCollectionChangedEventArgs e) => SyncVisibleOrders();
+    private void SyncVisibleOrders()
+    {
+        if (DataContext is PurchaseOrderManagerViewModel vm) vm.UpdateVisibleOrders(OrdersGrid.Items.OfType<PurchaseOrderManagementRowModel>());
+    }
+
+    /// <summary>右击当前行保留已有多选，复制读取原生选区，不改变业务勾选。</summary>
+    private void OnGridRightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is DataGrid grid && e.OriginalSource is DependencyObject source
+            && ItemsControl.ContainerFromElement(grid, source) is DataGridRow row)
+        {
+            var retained = grid.SelectedItems.Contains(row.Item) ? grid.SelectedItems.Cast<object>().ToArray() : [];
+            grid.SelectedItem = row.Item;
+            foreach (var selected in retained) if (!grid.SelectedItems.Contains(selected)) grid.SelectedItems.Add(selected);
+        }
+    }
 
     /// <summary>只允许采购行内容双击打开详情；勾选框双击仅改变批量选择，不触发页面导航。</summary>
     private void OnOrdersPreviewMouseDoubleClick(object sender, MouseButtonEventArgs e)

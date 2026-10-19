@@ -23,7 +23,7 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement;
 
 /// <summary>验证采购管理页当前页选择与批量确认的客户端安全边界；所有接口均为内存替身。</summary>
 [TestClass]
-public sealed class PurchaseOrderManagerBatchConfirmationTests
+public sealed partial class PurchaseOrderManagerBatchConfirmationTests
 {
     /// <summary>初始待确认、客户供应商精确身份及日期必须完整传递；清空筛选解除所有限制。</summary>
     [TestMethod]
@@ -39,19 +39,20 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         await fixture.ViewModel.InitializeAsync();
         CollectionAssert.AreEqual(new[] { ConfirmationStatusEnum.待确认 }, captured!.ConfirmationStatuses);
         var supplierId = Guid.NewGuid();
-        fixture.ViewModel.SelectedCustomer = new() { CustomerCode = "C-SELECTED" };
-        fixture.ViewModel.SelectedSupplier = new() { Uid = supplierId };
+        fixture.ViewModel.SelectedCustomers.Add(new() { CustomerCode = "C-SELECTED" });
+        fixture.ViewModel.SelectedSuppliers.Add(new() { Uid = supplierId });
         fixture.ViewModel.Keyword = "  PO-KEY  ";
         fixture.ViewModel.OrderDateFrom = new DateTime(2026, 9, 1);
         fixture.ViewModel.OrderDateTo = new DateTime(2026, 9, 16);
         await fixture.ViewModel.SearchCommand.ExecuteAsync(null);
-        Assert.AreEqual("C-SELECTED", captured.CustomerCode);
-        Assert.AreEqual(supplierId, captured.SupplierId);
+        CollectionAssert.AreEqual(new[] { "C-SELECTED" }, captured.CustomerCodes);
+        CollectionAssert.AreEqual(new[] { supplierId }, captured.SupplierIds);
         Assert.AreEqual("PO-KEY", captured.Keyword);
         Assert.AreEqual(new DateTime(2026, 9, 1), captured.OrderDateFrom);
         Assert.AreEqual(new DateTime(2026, 9, 16), captured.OrderDateTo);
         await fixture.ViewModel.ClearFiltersCommand.ExecuteAsync(null);
         Assert.IsNull(captured.CustomerCode); Assert.IsNull(captured.SupplierId);
+        Assert.HasCount(0, captured.CustomerCodes); Assert.HasCount(0, captured.SupplierIds);
         Assert.IsNull(captured.OrderDateFrom); Assert.IsNull(captured.OrderDateTo);
         Assert.HasCount(0, captured.ConfirmationStatuses);
         Assert.AreEqual(string.Empty, captured.Keyword);
@@ -168,8 +169,8 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         var first = Order("PO-1");
         var second = Order("PO-2");
         var fixture = CreateFixture(first, second);
-        fixture.Orders.ConfirmHandler = (id, _) => Task.FromResult(id == first.PurchaseOrderId
-            ? ServiceResult<ProcurementOrderCommandResult>.Ok(new ProcurementOrderCommandResult { PurchaseOrderId = id })
+        fixture.Orders.ConfirmHandler = (id, command) => Task.FromResult(id == first.PurchaseOrderId
+            ? ServiceResult<ProcurementOrderCommandResult>.Ok(Receipt(id, command.ExpectedVersion))
             : ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.VersionConflict, "版本冲突"));
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.IsAllCurrentPageChecked = true;
@@ -193,10 +194,10 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         var unknown = Order("PO-U");
         var remaining = Order("PO-3");
         var fixture = CreateFixture(first, unknown, remaining);
-        // Fail(message) 明确返回 BusinessBlocked；无错误码的旧响应才能模拟本用例的未知结果。
-        fixture.Orders.ConfirmHandler = (id, _) => Task.FromResult(id == unknown.PurchaseOrderId
-            ? new ServiceResult<ProcurementOrderCommandResult> { Success = false, Message = "传输结果不确定" }
-            : ServiceResult<ProcurementOrderCommandResult>.Ok(new ProcurementOrderCommandResult { PurchaseOrderId = id }));
+        // 使用真实稳定错误码，不能把结果未知当成普通业务拒绝后继续提交。
+        fixture.Orders.ConfirmHandler = (id, command) => Task.FromResult(id == unknown.PurchaseOrderId
+            ? ServiceResult<ProcurementOrderCommandResult>.Fail(ServiceErrorCodes.OutcomeUnknown, "传输结果不确定")
+            : ServiceResult<ProcurementOrderCommandResult>.Ok(Receipt(id, command.ExpectedVersion)));
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.IsAllCurrentPageChecked = true;
 
@@ -267,7 +268,7 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
     private static Fixture CreateFixture(
         PurchaseOrderManagerListItemDto[] orders,
         bool includeConfirmPermission,
-        bool includeReadPermission = true)
+        bool includeReadPermission = true, bool includeEditPermission = false)
     {
         var manager = new ManagerApiStub(orders);
         var orderApi = new OrderApiStub(orders);
@@ -275,10 +276,12 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         var permissions = new List<string>();
         if (includeReadPermission) permissions.Add(PermissionKeys.ProcurementOrderRead);
         if (includeConfirmPermission) permissions.Add(PermissionKeys.ProcurementOrderConfirm);
+        if (includeEditPermission) permissions.Add(PermissionKeys.ProcurementOrderEdit);
+        var session = new ProcurementCommandSession();
         var viewModel = new PurchaseOrderManagerViewModel(manager, orderApi, new ProcurementDialogStub(),
             new NavigationStub(), dialogs, new ApiCallRunnerStub(), new MessageStub(),
-            new CurrentUserStub(permissions));
-        return new Fixture(viewModel, manager, orderApi, dialogs);
+            new CurrentUserStub(permissions), commandSession: session);
+        return new Fixture(viewModel, manager, orderApi, dialogs, session);
     }
 
     private static PurchaseOrderManagerListItemDto Order(string orderNo) => new()
@@ -318,13 +321,14 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         return context;
     }
 
-    private sealed record Fixture(PurchaseOrderManagerViewModel ViewModel, ManagerApiStub Manager, OrderApiStub Orders, DialogServiceStub Dialogs);
+    private sealed record Fixture(PurchaseOrderManagerViewModel ViewModel, ManagerApiStub Manager, OrderApiStub Orders, DialogServiceStub Dialogs, ProcurementCommandSession Session);
 
     private sealed class ManagerApiStub(IEnumerable<PurchaseOrderManagerListItemDto> orders) : IPurchaseOrderManagerApi
     {
         private readonly PurchaseOrderManagerListItemDto[] _orders = orders.ToArray();
         public int SearchCount { get; private set; }
         public Func<PurchaseOrderManagerSearchRequest, Task<ServiceResult<PagedResponseBase<PurchaseOrderManagerListItemDto>>>>? SearchHandler { get; set; }
+        public Func<Guid, CancellationToken, Task<ServiceResult<List<PurchaseOrderManagerLineDto>>>>? LinesHandler { get; set; }
         public Task<ServiceResult<PagedResponseBase<PurchaseOrderManagerListItemDto>>> SearchAsync(PurchaseOrderManagerSearchRequest request, CancellationToken cancellationToken = default)
         {
             SearchCount++;
@@ -334,7 +338,7 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
             }));
         }
         public Task<ServiceResult<List<PurchaseOrderManagerLineDto>>> GetLinesAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
-            => Task.FromResult(ServiceResult<List<PurchaseOrderManagerLineDto>>.Ok([]));
+            => LinesHandler?.Invoke(purchaseOrderId, cancellationToken) ?? Task.FromResult(ServiceResult<List<PurchaseOrderManagerLineDto>>.Ok([]));
     }
 
     /// <summary>批量确认协议替身；独立关联用例不由管理页承载，本测试拒绝调用这些入口。</summary>
@@ -344,17 +348,21 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
         public List<(Guid OrderId, ConfirmProcurementOrderCommand Command)> ConfirmCalls { get; } = [];
         public Func<Guid, Task<ServiceResult<ProcurementConfirmationContextDto>>>? ContextHandler { get; set; }
         public Func<Guid, ConfirmProcurementOrderCommand, Task<ServiceResult<ProcurementOrderCommandResult>>>? ConfirmHandler { get; set; }
+        public Func<Guid, Task<ServiceResult<PurchaseOrderDetailDto>>>? DetailHandler { get; set; }
+        public Func<Guid, UpdatePurchaseOrderDraftCommand, Task<ServiceResult<ProcurementOrderCommandResult>>>? SaveHandler { get; set; }
+        public List<UpdatePurchaseOrderDraftCommand> SaveCalls { get; } = [];
         public Task<ServiceResult<ProcurementConfirmationContextDto>> GetConfirmationContextAsync(Guid uid, CancellationToken cancellationToken = default)
             => ContextHandler?.Invoke(uid) ?? Task.FromResult(ServiceResult<ProcurementConfirmationContextDto>.Ok(Context(_orders[uid])));
         public Task<ServiceResult<ProcurementOrderCommandResult>> ConfirmAsync(Guid uid, ConfirmProcurementOrderCommand command, CancellationToken cancellationToken = default)
         {
             ConfirmCalls.Add((uid, command));
-            return ConfirmHandler?.Invoke(uid, command) ?? Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Ok(new() { PurchaseOrderId = uid }));
+            return ConfirmHandler?.Invoke(uid, command) ?? Task.FromResult(ServiceResult<ProcurementOrderCommandResult>.Ok(Receipt(uid, command.ExpectedVersion)));
         }
         public Task<ServiceResult<PagedResponseBase<ProcurementOrderListItemDto>>> SearchAsync(ProcurementOrderSearchRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<PurchaseOrderDetailDto>> GetDetailAsync(Guid uid, CancellationToken cancellationToken = default) => DetailHandler?.Invoke(uid) ?? throw new NotSupportedException();
         public Task<ServiceResult<ProcurementOrderCommandResult>> CreateAsync(CreateIndependentPurchaseOrderCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
-        public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<ServiceResult<ProcurementOrderCommandResult>> SaveAsync(Guid uid, UpdatePurchaseOrderDraftCommand command, CancellationToken cancellationToken = default)
+        { SaveCalls.Add(command); return SaveHandler?.Invoke(uid, command) ?? throw new NotSupportedException(); }
         public Task<ServiceResult<ProcurementOrderCommandResult>> CancelConfirmationAsync(Guid uid, CancelProcurementOrderConfirmationCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewCancelConfirmationAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<ServiceResult<ProcurementReversalPreviewDto>> PreviewVoidAsync(Guid uid, ProcurementReversalPreviewRequest request, CancellationToken cancellationToken = default) => throw new NotSupportedException();
@@ -400,7 +408,7 @@ public sealed class PurchaseOrderManagerBatchConfirmationTests
     {
         public event EventHandler? CurrentUserChanged { add { } remove { } }
         public bool IsAuthenticated => true;
-        public MeDto? CurrentUser => null;
+        public MeDto? CurrentUser => new() { UserId = "u", Permissions = Permissions.ToList() };
         public string DisplayName => "测试用户";
         public IReadOnlyList<string> Roles => [];
         public IReadOnlyList<string> Permissions { get; } = permissions;

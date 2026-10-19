@@ -25,6 +25,7 @@ public sealed partial class PurchaseOrderTraceViewModel(
     public const string RouteKey = "procurement-purchase-order-trace";
     private CancellationTokenSource? _loadCancellation;
     private bool _disposed;
+    private Guid? _openLineId;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DocumentTitle))]
@@ -74,6 +75,7 @@ public sealed partial class PurchaseOrderTraceViewModel(
     {
         IsReadOnly = true;
         PurchaseOrderId = parameter is PurchaseOrderTraceOpenRequest request ? request.PurchaseOrderId : Guid.Empty;
+        _openLineId = (parameter as PurchaseOrderTraceOpenRequest)?.PurchaseOrderLineId;
         return LoadAsync(cancellationToken);
     }
 
@@ -111,7 +113,7 @@ public sealed partial class PurchaseOrderTraceViewModel(
                     return;
                 }
                 Detail = result.Data;
-                SelectedLine = Detail.Lines.FirstOrDefault();
+                SelectedLine = Detail.Lines.FirstOrDefault(x => x.PurchaseOrderLineId == _openLineId) ?? Detail.Lines.FirstOrDefault();
                 SelectedLink = SelectedLine?.Links.FirstOrDefault();
                 SelectedReceipt = SelectedLine?.Receipts.FirstOrDefault();
                 StatusText = $"共 {Detail.Lines.Count} 条采购行；已删除行和反向记录仍保留供核查。";

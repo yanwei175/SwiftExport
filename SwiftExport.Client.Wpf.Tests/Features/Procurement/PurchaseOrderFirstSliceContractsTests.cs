@@ -27,7 +27,7 @@ public sealed class PurchaseOrderFirstSliceContractsTests
         Assert.IsFalse(view.Contains("ReportProgressCommand", StringComparison.Ordinal));
         var source = Read("SwiftExport.Client.Wpf", "Features", "Procurement", "PurchaseOrders", "ViewModels", "PurchaseOrderManagerViewModel.cs");
         StringAssert.Contains(source, "GetConfirmationContextAsync(order.PurchaseOrderId)");
-        StringAssert.Contains(source, "ConfirmAsync(order.PurchaseOrderId");
+        StringAssert.Contains(source, "_commandSession.SendAsync(user, order.PurchaseOrderId");
         StringAssert.Contains(source, "StartReversalAsync(ProcurementReversalOperation.CancelConfirmation)");
         Assert.IsFalse(source.Contains("_orderApi.CancelConfirmationAsync", StringComparison.Ordinal));
         Assert.IsFalse(source.Contains("requiresConsumptionBinding", StringComparison.Ordinal));

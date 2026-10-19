@@ -37,6 +37,7 @@
                 <Button Content="删除选定行" Command="{Binding DeleteDraftLinesCommand}" Margin="0,0,4,0"/>
                 <Button Content="整单作废" Command="{Binding VoidOrderCommand}" Margin="0,0,4,0"/>
                 <Button Content="重试原操作" Command="{Binding RetryReversalCommand}" Margin="0,0,4,0"/>
+                <Button Content="重试原提交" Command="{Binding RetryPendingCommand}" Margin="0,0,4,0"/>
                 <Button Content="刷新" Command="{Binding RefreshCommand}" Margin="0,0,4,0"/>
                 <Button Content="关联物料需求" Command="{Binding OpenDemandAssociationCommand}" Margin="0,0,4,0"/>
                 <Button Content="关闭" Command="{Binding CloseDocumentCommand}"/>
@@ -430,7 +431,7 @@
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Grid>
-                                            <TextBlock Text="{Binding Quantity,StringFormat=N1}" Style="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
+                                            <TextBlock Text="{Binding Quantity,StringFormat=0.####}" Style="{StaticResource SwiftExportDataGridNumberTextBlock}"/>
                                             <TextBox Text="{Binding Quantity,UpdateSourceTrigger=PropertyChanged}">
                                                 <TextBox.Style>
                                                     <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">

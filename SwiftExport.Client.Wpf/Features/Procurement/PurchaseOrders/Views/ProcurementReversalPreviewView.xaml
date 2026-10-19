@@ -6,6 +6,7 @@
              mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="900">
     <StackPanel Margin="4">
         <TextBlock Text="{Binding Preview.OrderNo}" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+        <TextBlock Text="{Binding ImpactDescription}" TextWrapping="Wrap" Margin="0,0,0,8" />
         <ItemsControl ItemsSource="{Binding Preview.Blockers}" Margin="0,0,0,8">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
