@@ -61,9 +61,8 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
 
     /// <summary>Guard后独立连接建立指向坏历史头的新Link；RC后续可见而不重新Guard，下一次调用才拒绝；RR仍原scope。</summary>
     [TestMethod]
-    [DataRow(false,"none")] [DataRow(false,"read-committed")] [DataRow(false,"repeatable-read")]
-    [DataRow(true,"none")] [DataRow(true,"read-committed")] [DataRow(true,"repeatable-read")]
-    public async Task CrossConnection_InitialGuardScopeAndLaterLinksRemainIndependent(bool source,string mode)
+    [DataRow("none")] [DataRow("read-committed")] [DataRow("repeatable-read")]
+    public async Task CrossConnection_InitialGuardScopeAndLaterLinksRemainIndependent(string mode)
     {
         using var fixture=new Fixture(); var rows=new CommittedTraceRows();
         await using var writer=new NpgsqlConnection(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()); await writer.OpenAsync();
@@ -87,19 +86,11 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
             var hook=(HookConnection)fixture.Session.Connection; hook.Commands.Clear(); var changed=false;
             hook.Before=async(sql,token)=>
             {
-                var header=source?sql.Contains("SELECT g.uid AS \"GrossDemandId\"",StringComparison.Ordinal):sql.Contains("SELECT n.uid AS \"NetDemandId\"",StringComparison.Ordinal);
+                var header=sql.Contains("SELECT n.uid AS \"NetDemandId\"",StringComparison.Ordinal);
                 if(!header) return; hook.Before=null;
                 await InsertCommittedWriter(fixture,writer,newLink,token); changed=true;
             };
             var borrowed=fixture.Session.Transaction; var expectedNew=mode!="repeatable-read";
-            var grossRepository=new PostgreSqlGrossDemandQueryRepository(fixture.Context);
-            if(source)
-            {
-                var result=(await grossRepository.GetTraceAsync(gross.Uid))!;
-                Assert.HasCount(expectedNew?2:1,result.Purchases); Assert.AreEqual(expectedNew?5m:2m,result.Materials.Single().ActivePurchaseQty);
-                Assert.AreEqual(0m,result.DeliveredQty); Assert.AreEqual(string.Empty,result.ReviewReason);
-            }
-            else
             {
                 var result=(await fixture.Repository.GetTraceAsync(net.Uid))!;
                 Assert.HasCount(expectedNew?2:1,result.Purchases); Assert.AreEqual(expectedNew?5m:2m,result.AssociatedPurchaseQty);
@@ -109,14 +100,12 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
             Assert.AreEqual(1,hook.Commands.Count(sql=>sql.Contains("SELECT EXISTS(SELECT 1 FROM public.inbound_document h",StringComparison.Ordinal)));
             if(expectedNew)
             {
-                if(source) await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>grossRepository.GetTraceAsync(gross.Uid));
-                else await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>fixture.Repository.GetTraceAsync(net.Uid));
+                await Assert.ThrowsAsync<UnverifiedReceiptHistoryException>(()=>fixture.Repository.GetTraceAsync(net.Uid));
                 Assert.AreEqual(1,await fixture.Session.Connection.ExecuteScalarAsync<int>(new CommandDefinition("SELECT 1",transaction:borrowed)),"业务Guard信号不能中止调用方事务。");
             }
             else
             {
-                if(source) Assert.HasCount(1,(await grossRepository.GetTraceAsync(gross.Uid))!.Purchases);
-                else Assert.HasCount(1,(await fixture.Repository.GetTraceAsync(net.Uid))!.Purchases);
+                Assert.HasCount(1,(await fixture.Repository.GetTraceAsync(net.Uid))!.Purchases);
             }
             Assert.AreSame(borrowed,fixture.Session.Transaction);
         }
@@ -125,8 +114,8 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
 
     /// <summary>真实生产scope SQL在关系锁等待中取消，明确观察pg_blocking_pids和查询文本，而非测试pg_sleep。</summary>
     [TestMethod]
-    [DataRow(false,false)] [DataRow(false,true)] [DataRow(true,false)] [DataRow(true,true)]
-    public async Task CrossConnection_ProductionScopeWaitCancellationReleasesResources(bool source,bool outer)
+    [DataRow(false)] [DataRow(true)]
+    public async Task CrossConnection_ProductionScopeWaitCancellationReleasesResources(bool outer)
     {
         using var reader=new Fixture(outer);
         await using var holder=new NpgsqlConnection(PostgreSqlIntegrationEnvironment.GetFailureConnectionString()); await holder.OpenAsync();
@@ -135,7 +124,7 @@ public sealed partial class PostgreSqlMaterialDemandTraceMigrationIntegrationTes
         var pid=await reader.Session.Connection.ExecuteScalarAsync<int>(new CommandDefinition("SELECT pg_backend_pid()",transaction:reader.Session.Transaction));
         var borrowed=reader.Session.Transaction;
         await holder.ExecuteAsync("LOCK TABLE public.demand_execution_link IN ACCESS EXCLUSIVE MODE",transaction:held);
-        Task pending=source?new PostgreSqlGrossDemandQueryRepository(reader.Context).GetTraceAsync(Guid.NewGuid(),cancellation.Token):reader.Repository.GetTraceAsync(Guid.NewGuid(),cancellation.Token);
+        Task pending=reader.Repository.GetTraceAsync(Guid.NewGuid(),cancellation.Token);
         try
         {
             using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));

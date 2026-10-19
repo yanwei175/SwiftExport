@@ -11,23 +11,39 @@ namespace SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Query;
 /// <summary>读取来源工作台列表、导航分组和单条本体详情；保留源筛选、分页、聚合及快照。</summary>
 public sealed partial class PostgreSqlGrossDemandQueryRepository
 {
+    /// <summary>只返回未删除需求使用的有效客户；不依赖客户管理权限，不读取或汇总任何下游表。</summary>
+    public async Task<List<GrossDemandCustomerOptionDto>> GetCustomerOptionsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var rows=await context.Session.Connection.QueryAsync<GrossDemandCustomerOptionDto>(new CommandDefinition("""
+            SELECT c.uid AS "Id",c.customer_code AS "Code",c.customer_name AS "Name"
+            FROM public.customer c
+            WHERE c.is_deleted=FALSE AND c.uid<>'00000000-0000-0000-0000-000000000000'::uuid
+                AND EXISTS(SELECT 1 FROM public.gross_demand d WHERE d.customer_id=c.uid AND d.is_deleted=FALSE)
+            ORDER BY c.customer_code COLLATE public.erp_dictionary_ci NULLS FIRST,
+                     c.customer_name COLLATE public.erp_dictionary_ci NULLS FIRST,c.uid
+            """,transaction:context.Session.Transaction,cancellationToken:cancellationToken));
+        return rows.AsList();
+    }
+
     /// <summary>先读取筛选列表，再独立计数；指定来源时返回全部行，借用可空外层事务并将取消与数据库错误原样传播。</summary>
     public async Task<PagedResponseBase<GrossDemandListItemDto>> SearchWorkspaceAsync(
         GrossDemandSearchRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
         var sourceMode = request.SourceUid.HasValue;
         var pageIndex = sourceMode ? 1 : Math.Max(1, request.PageIndex);
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
         var (where, parameters) = BuildWorkspaceFilters(request);
         if (!sourceMode)
         {
-            parameters.Scalars.Add("Offset", (pageIndex - 1) * pageSize);
+            parameters.Scalars.Add("Offset", (long)(pageIndex - 1) * pageSize);
             parameters.Scalars.Add("PageSize", pageSize);
         }
         var whereSql = string.Join(" AND ", where);
         var pagingSql = sourceMode ? ";" : "LIMIT @PageSize OFFSET @Offset;";
-        // 三项提示只判断原资格的存在性，不套用 Trace 更严格的单位匹配，也不汇总或展开多对多关联。
+        // 只投影成品需求本体快照，下游执行事实由独立订单跟踪读取。
         var selectSql = $$"""
             SELECT d.uid AS "Uid",d.version AS "Version",d.lifecycle_status AS "LifecycleStatus",
                    d.source_type AS "SourceType",d.source_uid AS "SourceUid",d.source_no AS "SourceNo",
@@ -37,9 +53,6 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
                    d.description_snapshot AS "Description",d.color_snapshot AS "Color",d.specification_snapshot AS "Specification",
                    d.image_path_snapshot AS "ImagePath",d.unit_snapshot AS "Unit",d.demand_qty AS "DemandQty",
                    d.required_date AS "RequiredDate",d.remark AS "Remark",
-                   {{WorkspaceActiveMaterialExists}} AS "HasActiveMaterial",
-                   {{WorkspaceActivePurchaseExists}} AS "HasValidPurchase",
-                   {{WorkspacePostedDeliveryExists}} AS "HasPostedDelivery",
                    d.created_date AS "CreatedDate",d.created_by AS "CreatedBy",d.updated_date AS "UpdatedDate",d.updated_by AS "UpdatedBy"
             FROM public.gross_demand d
             WHERE {{whereSql}}
@@ -62,55 +75,20 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
         };
     }
 
-    // 只判断活动物料存在，不追加版本、指纹或客户资格。
-    private const string WorkspaceActiveMaterialExists = "EXISTS (SELECT 1 FROM public.net_demand n WHERE n.gross_demand_id=d.uid AND n.is_deleted=FALSE AND n.lifecycle_status=0)";
-    // 保留原采购资格：版本/指纹/客户/目标/非空单位；不增加来源单位等值、采购确认状态或入库历史 Guard。
-    private const string WorkspaceActivePurchaseExists = """
-        EXISTS (SELECT 1 FROM public.net_demand n
-            JOIN public.demand_execution_link l ON l.net_demand_id=n.uid AND l.is_deleted=FALSE AND l.link_status=0
-                AND rtrim(l.target_type,' ') COLLATE public.erp_dictionary_ci='PO' AND l.allocated_qty>l.released_qty
-            JOIN public.purchase_order_line pol ON pol.uid=l.target_line_id AND pol.purchase_order_id=l.target_head_id AND pol.is_deleted=FALSE
-            JOIN public.purchase_order_head poh ON poh.uid=l.target_head_id AND poh.is_deleted=FALSE AND poh.lifecycle_status<>9
-            WHERE n.gross_demand_id=d.uid AND n.is_deleted=FALSE AND n.lifecycle_status=0
-                AND n.source_demand_version_snapshot=d.version
-                AND NULLIF(rtrim(d.demand_basis_fingerprint,' ') COLLATE public.erp_dictionary_ci,'') IS NOT NULL
-                AND rtrim(n.source_demand_basis_fingerprint_snapshot,' ') COLLATE public.erp_dictionary_ci=rtrim(d.demand_basis_fingerprint,' ') COLLATE public.erp_dictionary_ci
-                AND ((rtrim(d.source_type,' ') COLLATE public.erp_dictionary_ci='MD' AND d.source_version IS NULL AND n.source_version_snapshot IS NULL)
-                    OR (d.source_version IS NOT NULL AND n.source_version_snapshot=d.source_version))
-                AND d.customer_id IS NOT NULL AND poh.customer_id=d.customer_id
-                AND NULLIF(btrim(pol.unit_snapshot,' ') COLLATE public.erp_dictionary_ci,'') IS NOT NULL)
-        """;
-    // 原交付提示只看未删除已过账装箱头行，不追加 Trace 的历史完整性校验。
-    private const string WorkspacePostedDeliveryExists = """
-        EXISTS (SELECT 1 FROM public.packing_list_line pl JOIN public.packing_list_head ph ON ph.uid=pl.packing_list_head_id AND ph.is_deleted=FALSE AND ph.posting_status=1 WHERE pl.gross_demand_id=d.uid AND pl.is_deleted=FALSE)
-    """;
-
-    /// <summary>保留每项原筛选输入规则和 TraceView 精确分支；集合去重不删空值，不因来源模式跳过其他筛选。</summary>
+    /// <summary>在两种加载模式中应用相同本体条件；客户按身份精确多选，关键词按普通文字包含匹配。</summary>
     private static (List<string> Where, WorkspaceParameters Parameters) BuildWorkspaceFilters(GrossDemandSearchRequest request)
     {
         var where = new List<string> { "d.is_deleted=FALSE" };
         var parameters = new WorkspaceParameters();
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            where.Add("(d.source_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR d.sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR d.customer_sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '' OR d.description_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '')");
-            parameters.Scalars.Add("Keyword", $"%{request.Keyword.Trim()}%");
+            where.Add("(d.source_no COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR d.sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR d.link_sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR d.customer_sku_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~' OR d.description_snapshot COLLATE public.erp_dictionary_ci LIKE @Keyword ESCAPE '~')");
+            parameters.Scalars.Add("Keyword", "%" + request.Keyword.Trim().Replace("~","~~").Replace("%","~%").Replace("_","~_") + "%");
         }
-        if (!string.IsNullOrWhiteSpace(request.CustomerKeyword))
+        parameters.CustomerIds = request.CustomerIds?.Distinct().ToArray() ?? [];
+        if (parameters.CustomerIds.Length != 0)
         {
-            where.Add("""
-                EXISTS (SELECT 1 FROM public.customer c WHERE c.uid=d.customer_id AND c.is_deleted=FALSE AND (c.customer_code COLLATE public.erp_dictionary_ci LIKE @CustomerKeyword ESCAPE '~' OR c.customer_name COLLATE public.erp_dictionary_ci LIKE @CustomerKeyword ESCAPE '~'))
-            """);
-            parameters.Scalars.Add("CustomerKeyword", SqlLikePattern.Build(request.CustomerKeyword));
-        }
-        // 精确识别既有六个快捷条件，未知/null/All 均不加条件，不擅自 Trim 或改大小写。
-        switch (request.TraceView)
-        {
-            case "NoMaterial": where.Add("NOT " + WorkspaceActiveMaterialExists); break;
-            case "HasMaterial": where.Add(WorkspaceActiveMaterialExists); break;
-            case "NoPurchase": where.Add("NOT " + WorkspaceActivePurchaseExists); break;
-            case "HasPurchase": where.Add(WorkspaceActivePurchaseExists); break;
-            case "NoDelivery": where.Add("NOT " + WorkspacePostedDeliveryExists); break;
-            case "HasDelivery": where.Add(WorkspacePostedDeliveryExists); break;
+            where.Add("d.customer_id=ANY(@CustomerIds)");
         }
         AddWorkspaceTextFilter(request.SourceTypes, "d.source_type", "SourceTypes", where, parameters.Scalars);
         AddWorkspaceTextFilter(request.SourceNos, "d.source_no", "SourceNos", where, parameters.Scalars);
@@ -122,7 +100,7 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
         if (request.RequiredDateFrom.HasValue)
         {
             where.Add("d.required_date>=@RequiredDateFrom");
-            parameters.Scalars.AddTimestamp("RequiredDateFrom", request.RequiredDateFrom.Value);
+            parameters.Scalars.AddTimestamp("RequiredDateFrom", request.RequiredDateFrom.Value.Date);
         }
         if (request.RequiredDateTo.HasValue)
         {
@@ -161,6 +139,7 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
     {
         public PostgreSqlParameters Scalars { get; } = new();
         public int[] LifecycleStatuses { get; set; } = [];
+        public Guid[] CustomerIds { get; set; } = [];
 
         /// <summary>为列表和计数各建独立参数；保留未知枚举值，避免 Dapper 展开或驱动猜测 integer[]。</summary>
         public void AddParameters(IDbCommand command, SqlMapper.Identity identity)
@@ -168,6 +147,8 @@ public sealed partial class PostgreSqlGrossDemandQueryRepository
             Scalars.AddParameters(command, identity);
             if (LifecycleStatuses.Length != 0)
                 command.Parameters.Add(new NpgsqlParameter("LifecycleStatuses", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = LifecycleStatuses });
+            if (CustomerIds.Length != 0)
+                command.Parameters.Add(new NpgsqlParameter("CustomerIds", NpgsqlDbType.Array | NpgsqlDbType.Uuid) { Value = CustomerIds });
         }
     }
 

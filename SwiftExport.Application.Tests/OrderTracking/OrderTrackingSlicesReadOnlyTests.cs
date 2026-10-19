@@ -93,6 +93,25 @@ public sealed class OrderTrackingSlicesReadOnlyTests
         try
         {
             var sources=new PostgreSqlOrderTrackingSourceRepository(fixture.Context);
+            // 成品需求本体查询直接执行生产SQL：两模式共享条件，客户按身份匹配，关键词不解释通配符。
+            var grossQueries=new SwiftExport.Infrastructure.Repositories.DemandPlanning.Sources.Query.PostgreSqlGrossDemandQueryRepository(fixture.Context);
+            var basicPage=await grossQueries.SearchWorkspaceAsync(new(){PageSize=1});Assert.AreEqual(5,basicPage.TotalCount);Assert.HasCount(1,basicPage.Items);
+            var chosen=await grossQueries.SearchWorkspaceAsync(new(){SourceUid=source,PageSize=1});Assert.HasCount(2,chosen.Items);
+            var exactCustomer=await grossQueries.SearchWorkspaceAsync(new(){SourceUid=source,CustomerIds=[customerB]});CollectionAssert.AreEqual(new[]{g2},exactCustomer.Items.Select(row=>row.Uid).ToArray());
+            Assert.HasCount(0,(await grossQueries.SearchWorkspaceAsync(new(){SourceUid=sourceB,CustomerIds=[customerB]})).Items);
+            var savedLinkSku=data["gross_demand"][0]["link_sku_snapshot"];data["gross_demand"][0]["link_sku_snapshot"]="literal%_? A";
+            foreach(var keyword in new[]{"%","_","? A","%_? A"})
+                CollectionAssert.AreEqual(new[]{g},(await grossQueries.SearchWorkspaceAsync(new(){Keyword=keyword})).Items.Select(row=>row.Uid).ToArray(),keyword);
+            Assert.HasCount(0,(await grossQueries.SearchWorkspaceAsync(new(){Keyword="?  A"})).Items);
+            data["gross_demand"][0]["link_sku_snapshot"]=savedLinkSku;
+            Assert.AreEqual(5,(await grossQueries.SearchWorkspaceAsync(new(){RequiredDateFrom=new(2026,10,19,12,0,0),RequiredDateTo=new(2026,10,19)})).TotalCount);
+            var options=await grossQueries.GetCustomerOptionsAsync();CollectionAssert.AreEqual(new[]{"A","B"},options.Select(row=>row.Code).ToArray());
+            // B只有关闭需求也必须出现在候选；客户删除则不返回，未被非删除需求使用的客户也不返回。
+            data["customer"][0]["is_deleted"]=true;CollectionAssert.AreEqual(new[]{customerB},(await grossQueries.GetCustomerOptionsAsync()).Select(row=>row.Id).ToArray());
+            data["customer"][0]["is_deleted"]=false;
+            var unusedCustomer=R(("uid",Guid.NewGuid()),("customer_code","UNUSED"),("customer_name","无有效需求"),("is_deleted",false));data["customer"].Add(unusedCustomer);
+            var deletedDemand=Gross(Guid.NewGuid(),Guid.NewGuid(),(Guid)unusedCustomer["uid"]!,"deleted","","");deletedDemand["is_deleted"]=true;data["gross_demand"].Add(deletedDemand);
+            Assert.HasCount(2,await grossQueries.GetCustomerOptionsAsync());data["gross_demand"].Remove(deletedDemand);data["customer"].Remove(unusedCustomer);
             var all=await Groups(new());
             Assert.AreEqual(4,all.TotalCount);Assert.AreEqual(5,all.Items.Sum(item=>item.TotalDemandCount));
             Assert.AreEqual(2,all.Items.Count(item=>item.SourceUid==Guid.Empty));
@@ -206,6 +225,15 @@ public sealed class OrderTrackingSlicesReadOnlyTests
                 var invalid=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);Assert.IsNull(invalid.DeliveredQty);Assert.IsNull(invalid.RemainingQty);Assert.IsFalse(string.IsNullOrEmpty(invalid.ReviewReason));
                 data["gross_demand"][0][field]=saved;
             }
+            // 旧聚合追踪的异常历史保护迁至独立交付区域；未知不能伪装成零交付。
+            foreach(var change in new (string Field,object? Value)[]{("demand_basis_fingerprint",null),("demand_basis_fingerprint","A"),
+                ("demand_basis_fingerprint",new string('a',64)),("source_no","\t\u3000"),("source_type","so"),("source_version",null),("source_version",0),("unit_snapshot","\t\u3000")})
+            {
+                var saved=data["gross_demand"][0][change.Field];data["gross_demand"][0][change.Field]=change.Value;
+                var invalid=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);
+                Assert.IsNull(invalid.DeliveredQty,change.Field);Assert.IsNull(invalid.RemainingQty,change.Field);Assert.IsFalse(string.IsNullOrEmpty(invalid.ReviewReason));
+                data["gross_demand"][0][change.Field]=saved;
+            }
             var orphan=PackingLine(Guid.NewGuid(),Guid.NewGuid(),1m,false);data["packing_list_line"].Add(orphan);
             var abnormal=await deliveries.GetDeliveriesAsync(g,OrderTrackingReadFixture.BusinessDate);Assert.IsNull(abnormal.DeliveredQty);Assert.HasCount(3,abnormal.Items);Assert.IsTrue(abnormal.Items.Any(row=>row.ReviewReason.Contains("缺失",StringComparison.Ordinal)));
             data["packing_list_line"].Remove(orphan);
@@ -302,6 +330,8 @@ public sealed class OrderTrackingSlicesReadOnlyTests
             Assert.AreEqual(1,narrow.Items.Single().MatchedDemandCount);Assert.AreEqual(302,narrow.Items.Single().TotalDemandCount);
             var complete=await fixture.Overview.GetSourceDemandsAsync("SO",source);
             Assert.HasCount(302,complete.Items);Assert.IsTrue(complete.Items.Any(item=>item.Unit is null&&item.RequiredDate is null));
+            var fullWorkspace=await grossQueries.SearchWorkspaceAsync(new(){SourceUid=source,PageSize=1,PageIndex=8});
+            Assert.HasCount(302,fullWorkspace.Items);Assert.AreEqual(302,fullWorkspace.TotalCount);Assert.AreEqual(1,fullWorkspace.PageIndex);
             Assert.IsFalse(fixture.Connection.Commands.Last().Sql.Contains("LIMIT",StringComparison.OrdinalIgnoreCase));
             var matchStart=fixture.Connection.Commands.Count;
             var allMatches=await Matches(source,new());
