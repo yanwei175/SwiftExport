@@ -11,7 +11,7 @@ public sealed class OrderTrackingOverviewMappings : IRegister
     {
         config.NewConfig<OrderTrackingSourceGroupDto, OrderTrackingSourceRowModel>()
             .Ignore(x => x.Summary).Ignore(x => x.SummaryState).Ignore(x => x.Access).Ignore(x => x.BusinessDate).Ignore(x => x.ReadAt);
-        config.NewConfig<OrderTrackingListItemDto, OrderTrackingDemandRowModel>()
+        config.NewConfig<OrderTrackingListItemDto, OrderTrackingDemandRowModel>().Ignore(x => x.QueryMatched).Ignore(x => x.MatchState)
             .Ignore(x => x.Summary).Ignore(x => x.SummaryState).Ignore(x => x.Access).Ignore(x => x.BusinessDate).Ignore(x => x.ReadAt);
     }
 }

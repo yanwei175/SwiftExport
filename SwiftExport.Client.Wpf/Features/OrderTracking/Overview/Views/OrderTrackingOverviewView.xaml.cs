@@ -30,36 +30,44 @@ public partial class OrderTrackingOverviewView : UserControl
     {
         ((INotifyCollectionChanged)SourcesGrid.Items).CollectionChanged -= OnVisibleSourcesChanged;
         ((INotifyCollectionChanged)TrackingGrid.Items).CollectionChanged -= OnVisibleDemandsChanged;
-        if (_viewModel is not null) { _viewModel.PropertyChanged -= OnViewModelChanged; _viewModel.Summaries.SourcesUpdated -= OnSourceSummariesUpdated; _viewModel.Summaries.DemandsUpdated -= OnDemandSummariesUpdated; }
+        if (_viewModel is not null) { _viewModel.PropertyChanged -= OnViewModelChanged; _viewModel.Summaries.SourcesUpdated -= OnSourceSummariesUpdated; _viewModel.Summaries.DemandsUpdated -= OnDemandSummariesUpdated; _viewModel.Matches.Updated -= OnDemandSummariesUpdated; _viewModel.Matches.LocateRequested -= OnLocateMatch; }
         _viewModel = null;
     }
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) { if (IsLoaded) AttachViewModel(); }
     /// <summary>绑定真实视图计数并对称解除旧订阅，不用主表的历史统计推断完整响应条数。</summary>
     private void AttachViewModel()
     {
-        if (_viewModel is not null) { _viewModel.PropertyChanged -= OnViewModelChanged; _viewModel.Summaries.SourcesUpdated -= OnSourceSummariesUpdated; _viewModel.Summaries.DemandsUpdated -= OnDemandSummariesUpdated; }
+        if (_viewModel is not null) { _viewModel.PropertyChanged -= OnViewModelChanged; _viewModel.Summaries.SourcesUpdated -= OnSourceSummariesUpdated; _viewModel.Summaries.DemandsUpdated -= OnDemandSummariesUpdated; _viewModel.Matches.Updated -= OnDemandSummariesUpdated; _viewModel.Matches.LocateRequested -= OnLocateMatch; }
         _viewModel = DataContext as OrderTrackingOverviewViewModel;
-        if (_viewModel is not null) { _viewModel.PropertyChanged += OnViewModelChanged; _viewModel.Summaries.SourcesUpdated += OnSourceSummariesUpdated; _viewModel.Summaries.DemandsUpdated += OnDemandSummariesUpdated; }
+        if (_viewModel is not null) { _viewModel.PropertyChanged += OnViewModelChanged; _viewModel.Summaries.SourcesUpdated += OnSourceSummariesUpdated; _viewModel.Summaries.DemandsUpdated += OnDemandSummariesUpdated; _viewModel.Matches.Updated += OnDemandSummariesUpdated; _viewModel.Matches.LocateRequested += OnLocateMatch; }
         UpdateVisibleCount();
     }
     private void OnSourceSummariesUpdated(object? sender, EventArgs e) => CollectionViewSource.GetDefaultView(SourcesGrid.ItemsSource)?.Refresh();
     private void OnDemandSummariesUpdated(object? sender, EventArgs e) { CollectionViewSource.GetDefaultView(TrackingGrid.ItemsSource)?.Refresh(); UpdateVisibleCount(); }
     private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
-    { if (e.PropertyName == nameof(OrderTrackingOverviewViewModel.LoadedDemandCount)) UpdateVisibleCount(); }
+    { if (e.PropertyName is nameof(OrderTrackingOverviewViewModel.LoadedDemandCount) or nameof(OrderTrackingOverviewViewModel.IsUpdatingSources) or nameof(OrderTrackingOverviewViewModel.IsUpdatingDemands)) { UpdateVisibleCount(); if (_viewModel is { IsUpdatingSources: false }) CheckVisibleSource(); } }
     private void OnVisibleDemandsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateVisibleCount();
-    private void UpdateVisibleCount() { if (DataContext is OrderTrackingOverviewViewModel vm) vm.VisibleDemandCount = TrackingGrid.Items.Count; }
+    private void UpdateVisibleCount() { if (DataContext is OrderTrackingOverviewViewModel vm) { vm.VisibleDemandCount = TrackingGrid.Items.Count; vm.VisibleSourceCount = SourcesGrid.Items.Count; } }
     /// <summary>本页筛选隐藏已选来源时立即清空子表，不能继续显示被隐藏来源的需求。</summary>
-    private void OnVisibleSourcesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void OnVisibleSourcesChanged(object? sender, NotifyCollectionChangedEventArgs e) { UpdateVisibleCount(); CheckVisibleSource(); }
+    private void CheckVisibleSource()
     {
-        if (DataContext is OrderTrackingOverviewViewModel vm && vm.SelectedSource is not null && !SourcesGrid.Items.Contains(vm.SelectedSource))
+        if (DataContext is OrderTrackingOverviewViewModel vm && !vm.IsUpdatingSources && vm.SelectedSource is not null && !SourcesGrid.Items.Contains(vm.SelectedSource))
             vm.SelectedSource = null;
     }
     /// <summary>来源选择只触发当前来源的独立子表加载。</summary>
     private async void OnSourceSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!ReferenceEquals(e.OriginalSource, SourcesGrid) || DataContext is not OrderTrackingOverviewViewModel vm) return;
+        if (!ReferenceEquals(e.OriginalSource, SourcesGrid) || DataContext is not OrderTrackingOverviewViewModel vm || vm.IsUpdatingSources) return;
         vm.SelectedSource = SourcesGrid.SelectedItem as OrderTrackingSourceRowModel;
         if (vm.LoadSelectedSourceCommand.CanExecute(null)) await vm.LoadSelectedSourceCommand.ExecuteAsync(null);
+    }
+    /// <summary>命中定位不解除用户列筛选；隐藏时明确提示，保留完整集合。</summary>
+    private void OnLocateMatch(OrderTrackingDemandRowModel row)
+    {
+        if (_viewModel is null) return;
+        if (!TrackingGrid.Items.Contains(row)) { _viewModel.Matches.LocationMessage = "命中行被本地列筛选隐藏，请清除列筛选后定位。"; return; }
+        TrackingGrid.SelectedItem = row; TrackingGrid.ScrollIntoView(row); TrackingGrid.Focus();
     }
     /// <summary>先用现有命令清两表的本地列筛选，再重置业务查询条件。</summary>
     private async void OnClearFilters(object sender, RoutedEventArgs e)

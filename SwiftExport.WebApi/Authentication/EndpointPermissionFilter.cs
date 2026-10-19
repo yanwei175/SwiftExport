@@ -19,6 +19,7 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         ["OrderTrackingSummaryController.GetSourceSummariesAsync"] = PermissionKeys.OrderTrackingView,
         ["OrderTrackingSummaryController.GetSourceDemandSummariesAsync"] = PermissionKeys.OrderTrackingView,
         ["OrderTrackingSourceController.SearchSourcesAsync"] = PermissionKeys.OrderTrackingView,
+        ["OrderTrackingSourceController.GetSourceMatchesAsync"] = PermissionKeys.OrderTrackingView,
         ["OrderTrackingOverviewController.GetCustomerCodesAsync"] = PermissionKeys.OrderTrackingView,
         ["DemandTrackingHeaderController.GetDemandHeaderAsync"] = PermissionKeys.OrderTrackingView,
         ["AuthController.Register"] = PermissionKeys.SystemUsersManage,
@@ -367,10 +368,15 @@ public sealed class EndpointPermissionFilter(ICurrentUser currentUser, IPermissi
         if (SingleKeys.TryGetValue(action, out var key))
         {
             // 多选关注项的额外权限必须全部满足；拒绝不能退化为忽略筛选。
-            if(action=="OrderTrackingSourceController.SearchSourcesAsync")
+            if(action is "OrderTrackingSourceController.SearchSourcesAsync" or "OrderTrackingSourceController.GetSourceMatchesAsync")
             {
-                var request=context.ActionArguments.Values.OfType<SwiftExport.Contracts.DTOs.OrderTracking.Sources.OrderTrackingSourceSearchRequest>().FirstOrDefault();
-                foreach(var required in SwiftExport.Application.Services.OrderTracking.Summary.OrderTrackingAttentionPolicy.RequiredPermissions(request?.AttentionCodes))
+                var codes=context.ActionArguments.Values.Select(value=>value switch
+                {
+                    SwiftExport.Contracts.DTOs.OrderTracking.Sources.OrderTrackingSourceSearchRequest search=>search.AttentionCodes,
+                    SwiftExport.Contracts.DTOs.OrderTracking.Sources.OrderTrackingSourceMatchRequest match=>match.AttentionCodes,
+                    _=>null
+                }).FirstOrDefault(value=>value is not null);
+                foreach(var required in SwiftExport.Application.Services.OrderTracking.Summary.OrderTrackingAttentionPolicy.RequiredPermissions(codes))
                     if(!await permissions.HasPermissionAsync(userId,required,context.HttpContext.RequestAborted))
                     {
                         Deny(context,ServiceErrorCodes.Forbidden,"当前账号缺少所选关注事项的查看权限。");

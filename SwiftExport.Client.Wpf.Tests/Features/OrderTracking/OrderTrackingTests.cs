@@ -69,7 +69,7 @@ public sealed partial class OrderTrackingTests
         Assert.IsTrue(vm.Items.Any(x => x.LifecycleStatus == GrossDemandLifecycleStatusEnum.Closed)); Assert.IsTrue(vm.Items.All(x => x.CustomerCode == "C2"));
         Assert.AreEqual(vm.SelectedSource!.SourceType, f.Api.Requests.Single().SourceType); Assert.AreEqual(vm.SelectedSource.SourceGroupId, f.Api.Requests.Single().SourceGroupId);
         StringAssert.Contains(vm.ResultSummary, "全来源已加载 301");
-        await vm.SourcePageChangeCommand.ExecuteAsync(Change(2)); Assert.AreEqual(2, vm.SourcePageIndex); Assert.IsNull(vm.SelectedSource); Assert.AreEqual(0, vm.Items.Count);
+        await vm.SourcePageChangeCommand.ExecuteAsync(Change(2)); Assert.AreEqual(2, vm.SourcePageIndex); Assert.IsNotNull(vm.SelectedSource); Assert.AreEqual(301, vm.Items.Count);
         foreach (var type in new[] { "CR", "MD" }) { vm.SelectedSourceType = type; await vm.SearchCommand.ExecuteAsync(null); CollectionAssert.AreEqual(new[] { type }, f.Api.SourceRequests.Last().SourceTypes); }
         await vm.ClearFiltersCommand.ExecuteAsync(null); var source = f.Api.SourceRequests.Last();
         CollectionAssert.AreEqual(new[] { "SO" }, source.SourceTypes); Assert.AreEqual("", source.Keyword); Assert.AreEqual(0, source.CustomerCodes.Count); Assert.AreEqual(0, source.LifecycleStatuses.Count); Assert.IsNull(source.RequiredDateFrom); Assert.AreEqual(0, source.AttentionCodes.Count);
@@ -85,7 +85,7 @@ public sealed partial class OrderTrackingTests
         f.Api.Search = (_, _, _) => Task.FromResult(Demands("CR", Guid.NewGuid(), Row("wrong"))); await vm.LoadSelectedSourceCommand.ExecuteAsync(null);
         Assert.AreSame(row, vm.Items.First()); StringAssert.Contains(vm.DemandLoadError!, "身份不一致");
         var source = vm.Sources.First(); f.Api.SourceSearch = (_, _) => Task.FromResult(ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>.Fail("来源失败"));
-        await vm.SourcePageChangeCommand.ExecuteAsync(Change(2)); Assert.AreEqual(1, vm.SourcePageIndex); Assert.AreSame(source, vm.Sources.First()); Assert.IsNull(vm.SelectedSource); Assert.AreEqual(0, vm.Items.Count);
+        await vm.SourcePageChangeCommand.ExecuteAsync(Change(2)); Assert.AreEqual(1, vm.SourcePageIndex); Assert.AreSame(source, vm.Sources.First()); Assert.AreSame(source, vm.SelectedSource); Assert.AreSame(row, vm.Items[0]);
         var count = f.Api.SourceRequests.Count; vm.RequiredDateFrom = new DateTime(2026, 11, 1); vm.RequiredDateTo = new DateTime(2026, 10, 1); await vm.SearchCommand.ExecuteAsync(null);
         Assert.AreEqual(count, f.Api.SourceRequests.Count); Assert.IsFalse(vm.IsLoadingSources); StringAssert.Contains(vm.ValidationSummary!, "开始日期");
     });
@@ -103,18 +103,18 @@ public sealed partial class OrderTrackingTests
         latest.SetResult(SourcePage(f.Api.Groups[1])); await second; Assert.AreEqual(f.Api.Groups[1].SourceGroupId, vm.Sources.Single().SourceGroupId); Assert.IsFalse(vm.IsLoadingSources);
     });
 
-    /// <summary>关键词编辑立即清除来源选择和两表页码，迟到响应不能恢复旧上下文。</summary>
+    /// <summary>编辑不取消旧条件的完整读取；提交新查询后才取消并隔离旧来源响应。</summary>
     [TestMethod]
-    public void KeywordChange_InvalidatesBothPendingLevels() => StaTest.RunAsync(async () =>
+    public void KeywordChange_PreservesResultsUntilSubmitted() => StaTest.RunAsync(async () =>
     {
-        using var f = new Fixture(); var vm = f.Overview; await vm.InitializeAsync(); await ChooseSource(f);
+        using var f = new Fixture(); var vm = f.Overview; await vm.InitializeAsync(); await ChooseSource(f); var source = vm.SelectedSource;
         var pendingChild = PendingPage(); f.Api.Search = (_, _, _) => pendingChild.Task; var childLoad = vm.LoadSelectedSourceCommand.ExecuteAsync(null); vm.Keyword = "new";
-        Assert.IsTrue(f.Api.Tokens.Last().IsCancellationRequested); Assert.IsNull(vm.SelectedSource); Assert.AreEqual(1, vm.SourcePageIndex); Assert.AreEqual(0, vm.LoadedDemandCount); Assert.AreEqual(0, vm.Items.Count);
-        pendingChild.SetResult(Page(Row("late"))); await childLoad; Assert.AreEqual(0, vm.Items.Count);
+        Assert.IsFalse(f.Api.Tokens.Last().IsCancellationRequested); Assert.AreSame(source, vm.SelectedSource); Assert.AreEqual(2, vm.Items.Count); Assert.IsTrue(vm.HasUnappliedChanges);
+        pendingChild.SetResult(Demands(source!.SourceType, source.SourceGroupId, Row("old-applied", source.SourceGroupId))); await childLoad; Assert.AreEqual("old-applied", vm.Items[0].Sku);
         var pendingSource = PendingSources(); f.Api.SourceSearch = (_, _) => pendingSource.Task; var sourceLoad = vm.SearchCommand.ExecuteAsync(null); vm.Keyword = "newer";
-        pendingSource.SetResult(SourcePage(f.Api.Groups[0])); await sourceLoad; Assert.AreEqual(0, vm.Sources.Count); Assert.IsFalse(vm.IsLoadingSources);
+        pendingSource.SetResult(SourcePage(f.Api.Groups[0])); await sourceLoad; Assert.AreEqual(1, vm.Sources.Count); Assert.IsTrue(vm.HasUnappliedChanges); Assert.IsNull(vm.SelectedSource);
+        Assert.AreEqual("new", f.Api.SourceRequests.Last().Keyword);
     });
-
     /// <summary>同号不同来源组分别定位；缺失SourceUid时仍使用SourceGroupId，切换后拒绝旧子表。</summary>
     [TestMethod]
     public void SourceSwitch_UsesGroupIdentityAndRejectsOldChildren() => StaTest.RunAsync(async () =>
@@ -303,7 +303,7 @@ public sealed partial class OrderTrackingTests
                     Assert.IsTrue(current.ContextMenu.Items.OfType<MenuItem>().Any(x => x.Command == ApplicationCommands.Copy));
                 }
                 Assert.IsFalse(Descendants(view).OfType<CheckBox>().Any(x => Equals(x.Content, "格子模式"))); Assert.AreEqual(1, Descendants(view).OfType<PageNavigator>().Count(), "仅来源主表保留分页器。");
-                CollectionAssert.AreEqual(new[] { "图片", "客户", "来源单号", "产品编码", "客户型号", "中性型号", "需求数量", "单位", "要求交期", "生命周期", "关注事项", "摘要已交", "摘要未交", "逾期", "物料条数", "采购承接", "关联采购整行" }, grid.Columns.Where(x => x.Visibility == Visibility.Visible).Select(x => (string)x.Header).ToArray());
+                CollectionAssert.AreEqual(new[] { "图片", "产品编码", "客户型号", "中性型号", "查询命中", "关注事项", "要求交期", "已交", "剩余未交", "逾期", "生命周期", "需求数量", "单位", "物料需求", "采购承接", "关联采购整行" }, grid.Columns.Where(x => x.Visibility == Visibility.Visible).Select(x => (string)x.Header).ToArray());
                 Assert.IsTrue(grid.Columns.Where(x => x.Visibility == Visibility.Visible).Take(10).Sum(x => x.ActualWidth) <= 1200); SavePreview(view, "overview.png");
                 var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0)!; var cell = Descendants(row).OfType<DataGridCell>().First(); var header = Descendants(grid).OfType<DataGridColumnHeader>().First();
                 grid.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left) { RoutedEvent = Control.MouseDoubleClickEvent, Source = header }); Assert.AreEqual(0, f.Navigation.OpenTabs.Count);
@@ -507,6 +507,8 @@ public sealed partial class OrderTrackingTests
         public readonly List<CancellationToken> CustomerTokens = []; public readonly List<Guid> HeaderIds = []; public readonly List<CancellationToken> HeaderTokens = [];
         public readonly List<(string Area, Guid Id, CancellationToken Token)> SliceCalls = [];
         public readonly List<OrderTrackingSourceSummaryRequest> SummaryRequests = [];
+        public readonly List<(string Type, Guid Id, OrderTrackingSourceMatchRequest Request, CancellationToken Token)> MatchRequests = [];
+        public Func<string, Guid, OrderTrackingSourceMatchRequest, CancellationToken, Task<ServiceResult<OrderTrackingSourceMatchesDto>>> Match;
         public readonly List<CancellationToken> SummaryTokens = [];
         public readonly List<(string Type, Guid Id, CancellationToken Token)> DemandSummaryRequests = [];
         private readonly Dictionary<(string Type, Guid Id), List<OrderTrackingListItemDto>> _summaryBases = [];
@@ -529,6 +531,8 @@ public sealed partial class OrderTrackingTests
         public ApiStub()
         {
             SourceSearch = (_, _) => Task.FromResult(SourcePage(Groups));
+            Match = (type, id, _, _) => Task.FromResult(ServiceResult<OrderTrackingSourceMatchesDto>.Ok(new()
+            { SourceType = type, SourceGroupId = id, BusinessDate = new(2026, 10, 19), MatchedGrossDemandIds = _summaryBases.GetValueOrDefault((type, id), []).Take(1).Select(x => x.GrossDemandId).ToList() }));
             SourceSummary = (request, _) => Task.FromResult(ServiceResult<OrderTrackingSourceSummaryBatchDto>.Ok(new()
             {
                 BusinessDate = new(2026, 10, 19), ReadAt = new(2026, 10, 19, 12, 0, 0, TimeSpan.FromHours(8)),
@@ -575,6 +579,8 @@ public sealed partial class OrderTrackingTests
             if (result.Success && result.Data is not null) _summaryBases[(sourceType, sourceGroupId)] = result.Data.Items;
             return result;
         }
+        public Task<ServiceResult<OrderTrackingSourceMatchesDto>> GetSourceMatchesAsync(string sourceType, Guid sourceGroupId, OrderTrackingSourceMatchRequest request, CancellationToken cancellationToken = default)
+        { MatchRequests.Add((sourceType, sourceGroupId, request, cancellationToken)); return Match(sourceType, sourceGroupId, request, cancellationToken); }
         public Task<ServiceResult<OrderTrackingSourceSummaryBatchDto>> GetSourceSummariesAsync(OrderTrackingSourceSummaryRequest request, CancellationToken cancellationToken = default)
         { SummaryRequests.Add(request); SummaryTokens.Add(cancellationToken); return SourceSummary(request, cancellationToken); }
         public Task<ServiceResult<OrderTrackingSourceDemandSummariesDto>> GetSourceDemandSummariesAsync(string sourceType, Guid sourceGroupId, CancellationToken cancellationToken = default)

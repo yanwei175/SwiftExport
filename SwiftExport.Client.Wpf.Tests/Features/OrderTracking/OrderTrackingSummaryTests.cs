@@ -134,7 +134,7 @@ public sealed partial class OrderTrackingTests
     {
         using var f = new Fixture(true); await f.Overview.InitializeAsync(); await ChooseSource(f); var source = f.Overview.Sources[0];
         Assert.AreEqual(1, source.Summary!.ReceiptPurchaseLineCount); Assert.AreEqual(2, f.Overview.Items.Sum(x => x.Summary!.ReceiptPurchaseLineCount));
-        StringAssert.Contains(source.ReceiptText, "未足 1"); StringAssert.Contains(source.SummaryInfo, "+08:00"); StringAssert.Contains(source.SummaryInfo, "与基础查询独立");
+        StringAssert.Contains(source.ReceiptText, "未收足 1"); StringAssert.Contains(source.SummaryInfo, "+08:00"); StringAssert.Contains(source.SummaryInfo, "与基础查询独立");
         source.Summary.ReceiptCompletedLineCount = null; StringAssert.Contains(source.ReceiptText, "待核实"); Assert.AreNotEqual(f.Overview.Summaries.SourceStamp, f.Overview.Summaries.DemandStamp);
     });
 

@@ -26,6 +26,11 @@ public static class TrackingSummaryText
         var labels = (codes ?? []).Where(access.AttentionCodes.Contains).Distinct().Select(OrderTrackingAttentionPolicy.Label).ToArray();
         return labels.Length == 0 ? "无可见关注项" : string.Join("；", labels);
     }
+    /// <summary>短关注标签保留首项与总项数，完整标签放在行提示。</summary>
+    public static string BriefAttention(string text)
+    { var labels = text.Split('；'); return labels.Length <= 1 ? text : $"{labels[0]} 等 {labels.Length} 项"; }
+    /// <summary>正常零值不重复占位；未知或异常核实条数仍在短摘要显式出现。</summary>
+    public static string ReviewSuffix(int? count) => count == 0 ? string.Empty : $" · 核实 {Count(count)}";
     /// <summary>保留响应时间与时区，明确它只是本次摘要读取时间。</summary>
     public static string Stamp(DateTime? date, DateTimeOffset? readAt) => readAt is null ? "尚无摘要读取时间"
         : $"业务日 {date:yyyy-MM-dd}；摘要读取 {readAt:yyyy-MM-dd HH:mm:ss zzz}（与基础查询独立）";

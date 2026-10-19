@@ -3,11 +3,12 @@ using Dapper;
 using Npgsql;
 using NpgsqlTypes;
 using SwiftExport.Contracts.DTOs.OrderTracking.Sources;
+using SwiftExport.Contracts.SysEnums;
 using SwiftExport.Infrastructure.Repositories.Base;
 
 namespace SwiftExport.Infrastructure.Repositories.OrderTracking;
 
-/// <summary>来源主表与需求子表共用基础筛选，避免计数和命中范围分叉。</summary>
+/// <summary>来源搜索与组内匹配共用基础筛选，避免计数和命中范围分叉。</summary>
 internal static class OrderTrackingFilters
 {
     internal const string GroupId = "COALESCE(NULLIF(g.source_uid,'00000000-0000-0000-0000-000000000000'::uuid),g.uid)";
@@ -15,16 +16,24 @@ internal static class OrderTrackingFilters
 
     /// <summary>只构造基础事实筛选及显式参数，不读取执行区域。</summary>
     internal static (string Where, PostgreSqlParameters Parameters) Build(OrderTrackingSourceSearchRequest request)
+        =>Build(request.SourceTypes,request.CustomerCodes,request.Keyword,request.LifecycleStatuses,request.RequiredDateFrom,request.RequiredDateTo);
+
+    /// <summary>独立匹配请求复用同一行基础筛选，不引入分页参数。</summary>
+    internal static (string Where, PostgreSqlParameters Parameters) Build(OrderTrackingSourceMatchRequest request)
+        =>Build(request.SourceTypes,request.CustomerCodes,request.Keyword,request.LifecycleStatuses,request.RequiredDateFrom,request.RequiredDateTo);
+
+    /// <summary>来源搜索和匹配身份查询共享字段、字面关键词及按日筛选口径。</summary>
+    private static (string Where, PostgreSqlParameters Parameters) Build(IEnumerable<string>? sourceTypes,IEnumerable<string>? customerCodes,string? keyword,IEnumerable<GrossDemandLifecycleStatusEnum>? lifecycleStatuses,DateTime? requiredDateFrom,DateTime? requiredDateTo)
     {
         var parameters = new PostgreSqlParameters();
         var where = new StringBuilder("WHERE " + OrderTrackingFactsSql.Eligible);
-        var sources = request.SourceTypes?.Distinct().ToArray() ?? ["SO"];
+        var sources = sourceTypes?.Distinct().ToArray() ?? ["SO"];
         if (sources.Length > 0)
         {
             where.Append(" AND rtrim(g.source_type,' ') COLLATE public.erp_dictionary_ci=ANY(@SourceTypes)");
             parameters.AddTexts("SourceTypes", sources);
         }
-        var codes = request.CustomerCodes?.Where(code => !string.IsNullOrWhiteSpace(code))
+        var codes = customerCodes?.Where(code => !string.IsNullOrWhiteSpace(code))
             .Select(code => code.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray() ?? [];
         if (codes.Length > 0)
         {
@@ -32,23 +41,23 @@ internal static class OrderTrackingFilters
             parameters.AddTexts("CustomerCodes", codes);
         }
         AddLike(where, parameters, ["g.source_no", "so.customer_po_no", "so.invoice_no",
-            "g.sku_snapshot", "g.customer_sku_snapshot", "g.link_sku_snapshot"], "Keyword", request.Keyword);
-        var statuses = request.LifecycleStatuses?.Distinct().Select(status => (int)status).ToArray() ?? [];
+            "g.sku_snapshot", "g.customer_sku_snapshot", "g.link_sku_snapshot"], "Keyword", keyword);
+        var statuses = lifecycleStatuses?.Distinct().Select(status => (int)status).ToArray() ?? [];
         if (statuses.Length > 0)
         {
             where.Append(" AND g.lifecycle_status=ANY(@LifecycleStatuses)");
             parameters.Add("LifecycleStatuses", statuses);
         }
-        if (request.RequiredDateFrom.HasValue)
+        if (requiredDateFrom.HasValue)
         {
             where.Append(" AND g.required_date>=@RequiredDateFrom");
-            parameters.AddTimestamp("RequiredDateFrom", request.RequiredDateFrom.Value.Date);
+            parameters.AddTimestamp("RequiredDateFrom", requiredDateFrom.Value.Date);
         }
-        if (request.RequiredDateTo.HasValue)
+        if (requiredDateTo.HasValue)
         {
             // 在 PG 内推进一天，允许 .NET 最大日期作为包含式上界，不在应用端溢出。
             where.Append(" AND g.required_date<@RequiredDateTo + INTERVAL '1 day'");
-            parameters.AddTimestamp("RequiredDateTo", request.RequiredDateTo.Value.Date);
+            parameters.AddTimestamp("RequiredDateTo", requiredDateTo.Value.Date);
         }
         return (where.ToString(), parameters);
     }

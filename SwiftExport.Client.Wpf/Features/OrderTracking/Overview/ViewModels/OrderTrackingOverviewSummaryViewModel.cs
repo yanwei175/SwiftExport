@@ -33,14 +33,18 @@ public sealed partial class OrderTrackingOverviewSummaryViewModel : ObservableOb
     { _api = api; _runner = runner; _user = user; }
     [ObservableProperty] public partial bool IsLoadingSources { get; private set; }
     [ObservableProperty] public partial bool IsLoadingDemands { get; private set; }
-    [ObservableProperty] public partial string? SourceError { get; private set; }
-    [ObservableProperty] public partial string? DemandError { get; private set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(SourceActionText))] public partial string? SourceError { get; private set; }
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(DemandActionText))] public partial string? DemandError { get; private set; }
     [ObservableProperty] public partial string SourceStamp { get; private set; } = "摘要尚未加载";
     [ObservableProperty] public partial string DemandStamp { get; private set; } = "摘要尚未加载";
     /// <summary>成功接纳来源摘要后通知视图重评本地列筛选；失败不会主动隐藏基础行。</summary>
     public event EventHandler? SourcesUpdated;
     /// <summary>成功接纳需求摘要后通知视图重评本地列筛选及显示条数。</summary>
     public event EventHandler? DemandsUpdated;
+    /// <summary>正常刷新与失败重试使用明确的动作名称。</summary>
+    public string SourceActionText => SourceError is null ? "刷新进度" : "重试来源进度";
+    /// <summary>需求摘要失败不混用基础需求重试入口。</summary>
+    public string DemandActionText => DemandError is null ? "刷新需求进度" : "重试需求进度";
     private bool CanRead => !_disposed && _user.HasPermission(PermissionKeys.OrderTrackingView);
     private bool CanReadSources() => CanRead && _sources.Count > 0;
     private bool CanReadDemands() => CanRead && _sourceId != Guid.Empty && _demands.Count > 0;

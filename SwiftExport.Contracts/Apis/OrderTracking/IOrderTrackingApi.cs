@@ -40,6 +40,9 @@ namespace SwiftExport.Contracts.Apis.OrderTracking
         [Post("/sources/search")]
         Task<ServiceResult<PagedResponseBase<OrderTrackingSourceGroupDto>>> SearchSourcesAsync([Body] OrderTrackingSourceSearchRequest request, CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>按已应用条件读取指定来源中全部命中成品需求身份，不分页，也不裁剪全量子表。</summary>
+        [Post("/sources/{sourceType}/{sourceGroupId}/matches")]
+        Task<ServiceResult<OrderTrackingSourceMatchesDto>> GetSourceMatchesAsync(string sourceType, Guid sourceGroupId, [Body] OrderTrackingSourceMatchRequest request, CancellationToken cancellationToken = default(CancellationToken));
         /// <summary>独立读取需求的物料分解事实与历史。</summary>
         [Get("/demands/{grossDemandId}/materials")]
         Task<ServiceResult<List<DemandTrackingMaterialDto>>> GetMaterialsAsync(Guid grossDemandId, CancellationToken cancellationToken = default(CancellationToken));
