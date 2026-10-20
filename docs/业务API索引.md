@@ -345,6 +345,8 @@
 | POST `api/procurement/orders/{uid}/void` | VoidAsync | `Task<ServiceResult<ProcurementOrderCommandResult>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Reversal/ProcurementOrderReversalController.cs:33) |
 | POST `api/procurement/orders/{uid}/delete-lines-preview` | PreviewDeleteLinesAsync | `Task<ServiceResult<ProcurementReversalPreviewDto>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Reversal/ProcurementOrderReversalController.cs:38) |
 | POST `api/procurement/orders/{uid}/delete-lines` | DeleteLinesAsync | `Task<ServiceResult<ProcurementOrderCommandResult>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Reversal/ProcurementOrderReversalController.cs:43) |
+| POST `api/procurement/orders/{uid}/delete-draft-preview` | PreviewDeleteDraftAsync | `Task<ServiceResult<ProcurementReversalPreviewDto>>` | 整张草稿删除资格与来源释放范围；本轮工作树实现 |
+| POST `api/procurement/orders/{uid}/delete-draft` | DeleteDraftAsync | `Task<ServiceResult<ProcurementOrderCommandResult>>` | 全量头行版本及命令身份；逻辑删除并释放来源占用；本轮工作树实现 |
 
 ## ProductCategoryController
 
@@ -427,16 +429,11 @@
 | --- | --- | --- | --- |
 | POST `api/procurement/purchase-drafts/create` | CreateAsync | `Task<ServiceResult<CreatePurchaseDraftsResult>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Draft/PurchaseDraftCreationController.cs:17) |
 
-## PurchaseDraftPreviewController
-
-| HTTP及路由 | 动作 | 返回契约 | 源码 |
-| --- | --- | --- | --- |
-| POST `api/procurement/purchase-drafts/preview` | PreviewAsync | `Task<ServiceResult<PurchaseDraftPreviewResponse>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Draft/PurchaseDraftPreviewController.cs:17) |
-
 ## PurchaseDraftSourceController
 
 | HTTP及路由 | 动作 | 返回契约 | 源码 |
 | --- | --- | --- | --- |
+| GET `api/procurement/purchase-drafts/append-candidates` | GetAppendCandidatesAsync | `Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>>` | 精确来源与供应商的安全追加候选；本轮工作树实现 |
 | GET `api/procurement/purchase-drafts/candidates/source-groups` | GetCandidateSourceGroupsAsync | `Task<ServiceResult<List<PurchaseDraftCandidateSourceGroupDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Sources/PurchaseDraftSourceController.cs:17) |
 | POST `api/procurement/purchase-drafts/candidates` | GetCandidatesAsync | `Task<ServiceResult<List<PurchaseDraftCandidateDto>>>` | [声明方法](../SwiftExport.WebApi/Controllers/Procurement/PurchaseOrders/Sources/PurchaseDraftSourceController.cs:22) |
 

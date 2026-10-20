@@ -527,6 +527,9 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
 
                 if (!result.Success || result.Data is null)
                 {
+                    // 整体拒绝同样保留可诊断信息，预览失效时不应只剩统一的刷新提示。
+                    ResultSummary = (string.IsNullOrWhiteSpace(result.Message) ? "创建采购草稿未完成。" : result.Message)
+                        + (string.IsNullOrWhiteSpace(result.Error?.Code) ? string.Empty : $"（{result.Error.Code}）");
                     if (IsDataConflict(result.Error?.Code))
                     {
                         _pendingCreateCommand = null;
@@ -573,6 +576,15 @@ public sealed partial class PurchaseDraftWorkflowViewModel : ViewModelBaseEx, ID
                 if (succeeded + already > 0)
                     HasAppliedResults = true;
                 ResultSummary = $"成功 {succeeded}，已应用 {already}，失败 {failed}。";
+                // 失败来源可能留在审核页或返回准备页，不能依赖仅成功时打开的结果页解释失败。
+                if (failed > 0)
+                {
+                    ResultSummary += Environment.NewLine + string.Join(Environment.NewLine,
+                        Results.Where(item => item.Outcome is not NetDemandCommandOutcomeEnum.Succeeded
+                            and not NetDemandCommandOutcomeEnum.AlreadyApplied)
+                            .Select(item => $"{item.SourceDisplay}：{item.Message}"
+                                + (string.IsNullOrWhiteSpace(item.ErrorCode) ? string.Empty : $"（{item.ErrorCode}）")));
+                }
                 InvalidatePreview(
                     hasDataConflict
                         ? "待采购数据已变化，请返回采购准备，刷新待采购数据后重新校验。"

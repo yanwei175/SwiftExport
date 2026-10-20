@@ -15,10 +15,10 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Summary
         /// <summary>活动需求无活动物料，仅为事实提示。</summary>
         public const string NoActiveMaterial = "NoActiveMaterial";
 
-        /// <summary>当前适用采购物料承接不足。</summary>
+        /// <summary>当前适用物料已确认采购不足，草稿占用不算已采购。</summary>
         public const string PurchaseShortfall = "PurchaseShortfall";
 
-        /// <summary>当前适用采购物料承接超量。</summary>
+        /// <summary>当前适用物料已采购加草稿占用超量。</summary>
         public const string PurchaseExcess = "PurchaseExcess";
 
         /// <summary>当前采购关联或物料依据需核实。</summary>

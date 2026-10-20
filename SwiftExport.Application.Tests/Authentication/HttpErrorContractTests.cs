@@ -22,6 +22,8 @@ using SwiftExport.Contracts.DTOs.Errors;
 using SwiftExport.WebApi.Configuration;
 using SwiftExport.WebApi.ErrorHandling;
 using SwiftExport.WebApi.RequestProtection;
+using SwiftExport.Application.Interfaces.DemandPlanning.Materials.SupplierSuggestion;
+using SwiftExport.Contracts.DTOs.DemandPlanning.NetDemand;
 
 namespace SwiftExport.Application.Tests.Authentication;
 
@@ -41,6 +43,7 @@ public sealed class HttpErrorContractTests
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.AddWebApiServices();
+        builder.Services.AddSingleton<IMaterialDemandSupplierSuggestionService, SupplierSuggestionHttpProbe>();
         // 业务过滤器需要真实权限库；协议探针用独立测试身份验证 HTTP 包装与默认认证。
         builder.Services.AddAuthentication(options =>
         {
@@ -54,12 +57,34 @@ public sealed class HttpErrorContractTests
                 .FirstOrDefault(filter => filter.ServiceType == typeof(SwiftExport.WebApi.Authentication.EndpointPermissionFilter));
             if (businessFilter is not null) options.Filters.Remove(businessFilter);
         });
-        builder.Services.AddControllers().AddApplicationPart(typeof(ErrorProbeController).Assembly);
+        builder.Services.AddControllers().AddApplicationPart(typeof(ErrorProbeController).Assembly)
+            .AddApplicationPart(typeof(SwiftExport.WebApi.Controllers.DemandPlanning.Materials.SupplierSuggestion.MaterialDemandSupplierSuggestionController).Assembly);
         _app = builder.Build();
         _app.UseWebApiPipeline();
         await _app.StartAsync();
         var address = _app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
         _client = new HttpClient { BaseAddress = new Uri(address) };
+    }
+
+    /// <summary>真实供应商端点连续接收父件与客供件的独立命令，不将第二行误判为重复点击。</summary>
+    [TestMethod]
+    public async Task SupplierSuggestion_ConsecutiveRowsReachApplicationWithoutCooldown()
+    {
+        _client.DefaultRequestHeaders.Add("X-Error-Probe-Authenticated", "1");
+        var supplierId = Guid.NewGuid();
+        foreach (var demandId in new[] { Guid.NewGuid(), Guid.NewGuid() })
+        {
+            var command = new UpdateSuggestedPurchaseSupplierCommand
+            {
+                CommandId = Guid.NewGuid(), NetDemandId = demandId, Version = 1,
+                SuggestedPurchaseSupplierId = supplierId
+            };
+            using var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(command), Encoding.UTF8, "application/json");
+            using var response = await _client.PostAsync("api/demand-planning/net-demands/suggested-purchase-supplier", content);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode, body);
+            StringAssert.Contains(body, demandId.ToString());
+        }
     }
 
     /// <summary>释放本地监听和客户端。</summary>
@@ -294,4 +319,17 @@ public sealed class ErrorProbeRequest
     /// <summary>必须提供名称才能进入测试动作。</summary>
     [Required]
     public string? Name { get; set; }
+}
+
+/// <summary>仅替换业务服务以隔离数据库，HTTP 路由、生产 Controller 与动作过滤器仍真实执行。</summary>
+internal sealed class SupplierSuggestionHttpProbe : IMaterialDemandSupplierSuggestionService
+{
+    /// <summary>回显每条命令身份，证明连续不同物料行均到达应用边界。</summary>
+    public Task<ServiceResult<UpdateSuggestedPurchaseSupplierResult>> UpdateSuggestedPurchaseSupplierAsync(
+        UpdateSuggestedPurchaseSupplierCommand command, CancellationToken cancellationToken = default)
+        => Task.FromResult(ServiceResult<UpdateSuggestedPurchaseSupplierResult>.Ok(new()
+        {
+            NetDemandId = command.NetDemandId, Version = command.Version + 1,
+            SuggestedPurchaseSupplierId = command.SuggestedPurchaseSupplierId
+        }));
 }

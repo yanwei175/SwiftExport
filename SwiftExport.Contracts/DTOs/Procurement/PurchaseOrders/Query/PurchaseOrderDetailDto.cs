@@ -49,6 +49,10 @@ namespace SwiftExport.Contracts.DTOs.Procurement.PurchaseOrderDetailDto
         public ConfirmationStatusEnum ConfirmationStatus { get; set; }
         public PurchaseOrderLifecycleStatusEnum LifecycleStatus { get; set; }
         public bool CanEditDraft { get; set; }
+        /// <summary>当前是否允许删除整张草稿；服务端执行时仍需持锁复核。</summary>
+        public bool CanDeleteDraft { get; set; }
+        /// <summary>不能删除草稿的原因，不泄露无权读取的下游信息。</summary>
+        public string DeleteDraftBlockReason { get; set; }
         public bool CanConfirm { get; set; }
         public bool CanCancelConfirmation { get; set; }
         public string CommandBlockedReason { get; set; }

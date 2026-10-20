@@ -317,7 +317,8 @@ public sealed class PurchaseDraftPreviewService(
                 PlannedDeliveryDate = item is null ? net.RequiredDate : item.PlannedDeliveryDate,
                 ProductId = net.ProductId,
                 Sku = net.SkuSnapshot,
-                LinkSku = product is null ? gross.LinkSkuSnapshot ?? string.Empty : product.LinkSku ?? string.Empty,
+                // 与查询侧 COALESCE(product.link_sku, gross.link_sku_snapshot) 一致，避免空值回退差异使预览立即过期。
+                LinkSku = product?.LinkSku ?? gross.LinkSkuSnapshot ?? string.Empty,
                 CustomerSku = net.CustomerSkuSnapshot ?? string.Empty,
                 Description = net.DescriptionSnapshot ?? string.Empty,
                 Color = net.ColorSnapshot ?? string.Empty,

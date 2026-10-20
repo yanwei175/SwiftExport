@@ -78,16 +78,16 @@ namespace SwiftExport.Contracts.DTOs.OrderTracking.Summary
         /// <summary>历史物料条数，仅提示历史，不加入活动进度。</summary>
         public int? HistoricalMaterialCount { get; set; }
 
-        /// <summary>NotApplicable、Unallocated、Partial、Allocated、Excess、Review或Inactive；承接不代表采购确认。</summary>
+        /// <summary>NotApplicable、Unallocated、Partial、Allocated、Excess、Review或Inactive；仅已确认采购计入进度，草稿仅占用创建容量。</summary>
         public string PurchaseStatus { get; set; }
 
         /// <summary>当前适用采购的物料条数，排除客供等不适用对象。</summary>
         public int? ApplicableMaterialCount { get; set; }
 
-        /// <summary>可信承接不足物料条数。</summary>
+        /// <summary>可信已确认采购不足物料条数。</summary>
         public int? PurchaseShortfallMaterialCount { get; set; }
 
-        /// <summary>可信承接超量物料条数。</summary>
+        /// <summary>可信已采购加草稿占用超量的物料条数。</summary>
         public int? PurchaseExcessMaterialCount { get; set; }
 
         /// <summary>当前承接证据未知物料条数；有未知时不得判定全部承接。</summary>

@@ -49,7 +49,7 @@ public sealed class DemandPlanningHttpContractTests
             (typeof(MaterialDemandQueryController), "GetSourceDemandCandidatesBySourceAsync", "GET", "api/demand-planning/net-demands", "source-demands/candidates/{sourceType}/{sourceUid:guid}",
                 typeof(INetDemandManagerApi), "GetSourceDemandCandidatesBySourceAsync", false, null, "none,none,none"),
             (typeof(MaterialDemandSupplierSuggestionController), "UpdateSuggestedPurchaseSupplierAsync", "POST", "api/demand-planning/net-demands", "suggested-purchase-supplier",
-                typeof(INetDemandManagerApi), "UpdateSuggestedPurchaseSupplierAsync", false, 3, "body,none"),
+                typeof(INetDemandManagerApi), "UpdateSuggestedPurchaseSupplierAsync", false, null, "body,none"),
             (typeof(MaterialDemandEstablishmentController), "EstablishFromSourcesAsync", "POST", "api/demand-planning/net-demands", "source-demands/establish",
                 typeof(INetDemandManagerApi), "EstablishFromSourcesAsync", false, null, "body,none"),
             (typeof(MaterialDemandReversalController), "RollbackSourceEstablishmentAsync", "POST", "api/demand-planning/net-demands", "source-demands/rollback",

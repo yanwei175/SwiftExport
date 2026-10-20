@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SwiftExport.Contracts.Apis.Procurement
 {
-    /// <summary>采购从物料需求选取、预览及创建 API。</summary>
+    /// <summary>采购从物料需求选取、安全追加候选及直接创建 API。</summary>
     public interface IPurchaseDraftApi
     {
         /// <summary>查询仍有待采购物料的来源分组。</summary>
@@ -22,13 +22,13 @@ namespace SwiftExport.Contracts.Apis.Procurement
             [Body] PurchaseDraftCandidateQuery request,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>按当前选择生成采购草稿预览。</summary>
-        [Post("/preview")]
-        Task<ServiceResult<PurchaseDraftPreviewResponse>> PreviewAsync(
-            [Body] PurchaseDraftPreviewRequest request,
+        /// <summary>按明确来源及供应商读取可追加草稿；创建时仍需持锁复核资格与版本。</summary>
+        [Get("/append-candidates")]
+        Task<ServiceResult<List<SafePurchaseDraftCandidateDto>>> GetAppendCandidatesAsync(
+            string sourceType, Guid sourceUid, Guid supplierId,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>按有效预览创建或追加采购草稿。</summary>
+        /// <summary>按明确采购输入直接创建或追加草稿，服务端持锁重验容量，不依赖预览令牌。</summary>
         [Post("/create")]
         Task<ServiceResult<CreatePurchaseDraftsResult>> CreateAsync(
             [Body] CreatePurchaseDraftsCommand command,

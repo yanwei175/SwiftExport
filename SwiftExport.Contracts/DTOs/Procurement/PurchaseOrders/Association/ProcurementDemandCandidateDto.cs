@@ -24,6 +24,16 @@ namespace SwiftExport.Contracts.DTOs.Procurement.OrderManagement
         public string Unit { get; set; }
         public Guid? DeliveryTargetNetDemandId { get; set; }
         public decimal NetQty { get; set; }
+        /// <summary>可信已确认采购关联量；无权或证据异常为空。</summary>
+        public decimal? PurchasedQty { get; set; }
+        /// <summary>可信未确认草稿的来源占用量，不计入已采购；无权或证据异常为空。</summary>
+        public decimal? DraftOccupiedQty { get; set; }
+        /// <summary>需求量减已采购量及草稿占用量；证据异常为空，不得按零放行。</summary>
+        public decimal? CreatableQty { get; set; }
+        /// <summary>需求量减已采购量；草稿不减少此数量，无权或证据异常为空。</summary>
+        public decimal? UnpurchasedQty { get; set; }
+        /// <summary>来源、占用目标或数量无法核实的具体原因；非空时不得创建或补关联。</summary>
+        public string ReviewReason { get; set; }
         public decimal LinkedQty { get; set; }
         public decimal RemainingQty { get; set; }
     }

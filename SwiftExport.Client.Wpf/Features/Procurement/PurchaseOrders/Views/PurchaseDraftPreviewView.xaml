@@ -30,6 +30,8 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
+                <TextBlock x:Name="CreateResultSummary" Text="{Binding ResultSummary}" TextWrapping="Wrap"
+                           AutomationProperties.Name="采购草稿创建结果及失败原因" />
             </StackPanel>
             <Grid Grid.Column="1" MinWidth="150">
 

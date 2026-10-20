@@ -17,6 +17,44 @@ namespace SwiftExport.Client.Wpf.Tests.Features.Procurement.PurchaseOrders;
 [TestClass]
 public sealed class PurchaseDraftWorkflowViewModelTests
 {
+    /// <summary>真实审核视图在创建失败清空快照后仍持续显示来源、原因和错误码，不依赖短暂消息。</summary>
+    [TestMethod]
+    public void PreviewView_CreateFailureKeepsVisibleDiagnostic() => Controls.DatePickerAssistTests.RunWithApplication(async () =>
+    {
+        TestInfrastructure.ApplicationResourceLoader.Load();
+        var api = new NetDemandApiStub();
+        using var vm = CreateViewModel(api);
+        await OpenSessionAsync(vm, new PurchaseDraftPreviewOpenRequest
+        {
+            EntryMode = PurchaseDraftEntryModeEnum.ManualSelection,
+            Rows = [CreateRow(10m, api.SourceUid)]
+        });
+        api.CreateHandler = (command, _) => Task.FromResult(ServiceResult<CreatePurchaseDraftsResult>.Ok(new()
+        {
+            ExecutionRequestId = command.ExecutionRequestId,
+            Sources = [new() { SourceType = "SO", SourceUid = api.SourceUid,
+                Outcome = NetDemandCommandOutcomeEnum.Failed, ErrorCode = PurchaseDraftErrorCodes.PreviewExpired,
+                Message = "来源事实已变化，请重新预览。" }]
+        }));
+        var view = new SwiftExportClient.Features.Procurement.PurchaseOrders.Views.PurchaseDraftPreviewView { DataContext = vm };
+        var window = new System.Windows.Window { Width = 1200, Height = 800, Content = view, ShowInTaskbar = false };
+        try
+        {
+            window.Show();
+            await vm.CreateCommand.ExecuteAsync(null);
+            await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            var summary = (System.Windows.Controls.TextBlock)view.FindName("CreateResultSummary");
+            Assert.IsTrue(summary.IsVisible);
+            StringAssert.Contains(summary.Text, "来源事实已变化");
+            StringAssert.Contains(summary.Text, PurchaseDraftErrorCodes.PreviewExpired);
+            StringAssert.Contains(summary.Text, vm.Results.Single().SourceDisplay);
+            Assert.IsEmpty(vm.Documents);
+            Assert.IsFalse(vm.CreateCommand.CanExecute(null));
+            Assert.IsTrue(vm.ReturnToPreparationCommand.CanExecute(null));
+        }
+        finally { window.Close(); }
+    });
+
     /// <summary>所选客供件送达方与锚定父件不一致时，本地校验必须阻断请求；修正后请求携带父件供应商。</summary>
     [TestMethod]
     public async Task PreparationValidation_ShouldRejectMismatchedAnchoredDeliverySupplier()
@@ -1320,6 +1358,8 @@ public sealed class PurchaseDraftWorkflowViewModelTests
         Assert.IsTrue(viewModel.ReturnToPreparationCommand.CanExecute(null));
         Assert.IsFalse(viewModel.CreateCommand.CanExecute(null));
         StringAssert.Contains(viewModel.StatusText, "刷新待采购数据后重新校验");
+        StringAssert.Contains(viewModel.ResultSummary, "事实已变化");
+        StringAssert.Contains(viewModel.ResultSummary, PurchaseDraftErrorCodes.PreviewExpired);
     }
 
     /// <summary>部分成功先累计并排除；冲突来源留在审核页并要求用户返回准备显式刷新。</summary>
